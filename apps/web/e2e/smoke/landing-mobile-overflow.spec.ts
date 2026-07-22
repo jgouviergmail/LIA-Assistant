@@ -34,19 +34,41 @@ interface OverflowReport {
 
 /**
  * Report every layout-positioned element whose border box crosses the right
- * viewport edge. Absolutely/fixed-positioned elements are excluded on purpose:
- * the decorative hero glows bleed outside by design and are clipped by their
- * `overflow-hidden` section — they never create scroll or clip content.
+ * viewport edge AND is actually cut at the screen boundary for the user.
+ *
+ * Two exclusions, both deliberate:
+ * - Absolutely/fixed-positioned elements: the decorative hero glows bleed
+ *   outside by design and are clipped by their `overflow-hidden` section.
+ * - Elements clipped by an ancestor whose own right edge sits WELL INSIDE the
+ *   viewport (design truncation — e.g. the mockup input bar `truncate`s its
+ *   typing text; longer locales such as en overflow that small container and
+ *   the words are invisibly clipped inside the page). The defect this guard
+ *   exists for is the opposite case: content cut AT the viewport edge (the
+ *   hero CTAs were clipped by the full-width section's overflow-hidden), so
+ *   an element only counts when every clipping ancestor reaches the screen
+ *   edge — i.e. the cut the user sees is the screen itself.
  */
 async function overflowReport(page: Page): Promise<OverflowReport> {
   return page.evaluate(() => {
     const vw = document.documentElement.clientWidth;
+    const CLIPPING = new Set(['hidden', 'clip', 'auto', 'scroll']);
     const offenders: OverflowReport['offenders'] = [];
     document.querySelectorAll<HTMLElement>('body *').forEach(el => {
       const rect = el.getBoundingClientRect();
       if (rect.width === 0 || rect.right <= vw + 1) return;
       const cs = getComputedStyle(el);
       if (cs.position === 'absolute' || cs.position === 'fixed') return;
+      // Nearest clipping boundary: the smallest right edge among ancestors
+      // that clip on the x axis. Infinity when nothing clips.
+      let clipRight = Infinity;
+      for (let node = el.parentElement; node; node = node.parentElement) {
+        if (CLIPPING.has(getComputedStyle(node).overflowX)) {
+          clipRight = Math.min(clipRight, node.getBoundingClientRect().right);
+        }
+      }
+      // Clipped by an internal container that ends inside the viewport:
+      // invisible by design, no content reaches the screen edge.
+      if (clipRight < vw - 2) return;
       offenders.push({
         tag: el.tagName,
         cls: (el.getAttribute('class') ?? '').slice(0, 80),
@@ -60,6 +82,37 @@ async function overflowReport(page: Page): Promise<OverflowReport> {
       offenders: offenders.slice(0, 12),
     };
   });
+}
+
+/**
+ * `next dev` can serve a fresh context an UNSTYLED page (the CSS chunk never
+ * applies — documented in ../README.md and guarded the same way by
+ * a11y/scan.ts). Without the stylesheet there is no flex, no padding, no
+ * min-w-0 — nothing can overflow, so every scan would pass vacuously green.
+ * Geometry is the subject under test here: require the design-system tokens
+ * before any measurement, and fail loudly if they never resolve.
+ */
+async function awaitStyledPage(page: Page, label: string): Promise<void> {
+  await page.waitForLoadState('networkidle');
+  await page
+    .waitForFunction(
+      () =>
+        getComputedStyle(document.documentElement).getPropertyValue('--color-background').trim() !==
+        '',
+      undefined,
+      { timeout: 30_000 }
+    )
+    .catch(() => {
+      throw new Error(
+        `overflow scan aborted on ${label}: the app stylesheet never applied ` +
+          '(design-system tokens unresolved after 30s) — the server under test ' +
+          'is degraded (next dev compiling or broken). An unstyled page cannot ' +
+          'overflow, so results would be vacuously green. Restart the dev ' +
+          'server (purge .next if it keeps returning 500) and re-run.'
+      );
+    });
+  // Fallback-font metrics differ enough to fake overflows — wait for fonts.
+  await page.evaluate(() => document.fonts.ready);
 }
 
 async function expectNoOverflow(page: Page, phase: string): Promise<void> {
@@ -76,10 +129,20 @@ async function expectNoOverflow(page: Page, phase: string): Promise<void> {
   ).toBeLessThanOrEqual(report.viewportWidth);
 }
 
-test.describe('landing page — no horizontal overflow on mobile', () => {
+/**
+ * Language matters: the middleware negotiates Accept-Language on `/`, so a
+ * default (en-US) browser context sees the ENGLISH landing — and overflow is
+ * string-length-dependent (the original hero defect only manifested with the
+ * longer French version pill; the English row fits and masks it). The deep
+ * animated/scrolled passes therefore pin French — the product's default
+ * locale and the one the bug shipped in — and a dedicated static pass sweeps
+ * ALL 6 locales so a long German or Spanish string can never regress unseen.
+ */
+test.describe('landing page — no horizontal overflow on mobile (fr)', () => {
   test.use({
     viewport: { width: 375, height: 812 },
     contextOptions: { reducedMotion: 'no-preference' },
+    locale: 'fr-FR',
   });
 
   test('stays within 375px through the full hero animation cycle', async ({ page }) => {
@@ -87,9 +150,7 @@ test.describe('landing page — no horizontal overflow on mobile', () => {
     // whole 4-act cycle in milliseconds of real time.
     await page.clock.install();
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    // Fallback-font metrics differ enough to fake overflows — wait for Inter.
-    await page.evaluate(() => document.fonts.ready);
+    await awaitStyledPage(page, 'animation cycle');
 
     await expectNoOverflow(page, 'initial render');
 
@@ -104,8 +165,7 @@ test.describe('landing page — no horizontal overflow on mobile', () => {
 
   test('stays within 375px across all scrolled sections', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await page.evaluate(() => document.fonts.ready);
+    await awaitStyledPage(page, 'scrolled sections');
 
     const sectionIds = await page.evaluate(() =>
       Array.from(document.querySelectorAll('section[id], div#features section'), s => s.id).filter(
@@ -125,13 +185,51 @@ test.describe('landing page — no horizontal overflow on mobile', () => {
   });
 });
 
+test.describe('landing page — every locale stays within 375px', () => {
+  // fr-FR context so the unprefixed `/` negotiates to French; the 5 prefixed
+  // paths win over Accept-Language anyway (URL path is the middleware's
+  // first priority), so one context covers all six.
+  test.use({ viewport: { width: 375, height: 812 }, locale: 'fr-FR' });
+
+  // fr is the unprefixed default; the 5 others live under their prefix.
+  const LOCALE_PATHS: Array<[string, string]> = [
+    ['fr', '/'],
+    ['en', '/en'],
+    ['de', '/de'],
+    ['es', '/es'],
+    ['it', '/it'],
+    ['zh', '/zh'],
+  ];
+
+  test('static render of all 6 locales has no horizontal overflow', async ({ page }) => {
+    for (const [lng, path] of LOCALE_PATHS) {
+      await page.goto(path);
+      await awaitStyledPage(page, `locale ${lng}`);
+      const lang = await page.evaluate(() => document.documentElement.lang);
+      expect(lang, `${path} should serve ${lng}`).toBe(lng);
+      await expectNoOverflow(page, `locale ${lng} initial render`);
+      // Quick sweep: reveal every section (short settle — the static layout
+      // is what varies per locale; the animated deep-dive runs in fr above).
+      const ids = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('section[id]'), s => s.id).filter(Boolean)
+      );
+      for (const id of ids) {
+        await page.evaluate(sectionId => {
+          document.getElementById(sectionId)?.scrollIntoView();
+        }, id);
+        await page.waitForTimeout(250);
+      }
+      await expectNoOverflow(page, `locale ${lng} after full scroll`);
+    }
+  });
+});
+
 test.describe('landing page — WCAG reflow floor', () => {
-  test.use({ viewport: { width: 320, height: 700 } });
+  test.use({ viewport: { width: 320, height: 700 }, locale: 'fr-FR' });
 
   test('renders without horizontal overflow at 320px', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await page.evaluate(() => document.fonts.ready);
+    await awaitStyledPage(page, '320px floor');
     await expectNoOverflow(page, '320px initial render');
   });
 });
