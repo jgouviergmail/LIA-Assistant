@@ -130,6 +130,9 @@ Search, list, or fetch contacts.
 - `resource_names` (string|list) — Batch fetch
 - `max_results` (int) — Maximum number of results
 - `fields` (list[string]) — Specific fields to return
+### get_person_overview_tool
+- `person_name` (string, required) — Person to aggregate (contact card + recent emails + upcoming events + memories, honest partial on connector gaps)
+
 
 ### create_contact_tool
 - `name` (string, required) — Full name
@@ -374,6 +377,36 @@ No parameters. Returns all active reminders.
 
 ### cancel_reminder_tool
 - `reminder_identifier` (string, required) — Reminder ID or description to cancel
+
+---
+
+## Automations — `automation_agent`
+
+No OAuth. Domain: `automation`. Chat-piloted recurring scheduled actions (ADR-140).
+
+### create_scheduled_action_tool
+- `title` (string, required) — Short user-facing title
+- `action_prompt` (string, required) — Instruction executed on each run (user's words)
+- `days_of_week` (array, required) — ISO weekdays 1=Monday..7=Sunday
+- `trigger_hour` (integer, required) — Hour 0-23 in the user's timezone
+- `trigger_minute` (integer) — Minute 0-59 (default 0)
+Returns a confirmation draft — nothing is scheduled before the user confirms.
+
+### list_scheduled_actions_tool
+No parameters. Returns automations with id, title, schedule, enabled state.
+
+### toggle_scheduled_action_tool
+- `action_id` (string, required) — Automation UUID from list_scheduled_actions_tool
+
+---
+
+## Documents — `document_agent`
+
+No OAuth. Domain: `document`. Semantic search over the user's RAG spaces (deployment-gated by RAG_SPACES_ENABLED).
+
+### search_user_documents_tool
+- `query` (string, required) — Semantic query in the user's language
+- `max_results` (integer) — Max excerpts (1-10, default 5)
 
 ---
 

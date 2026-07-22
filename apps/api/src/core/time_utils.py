@@ -77,6 +77,25 @@ ISO_DATETIME_PATTERN = re.compile(
 )
 
 
+def seconds_to_next_local_midnight(user_tz: ZoneInfo, *, cap_seconds: int = 86400) -> int:
+    """Return the seconds remaining until the next 00:00 in `user_tz`.
+
+    Used for caches that pre-compute relative-day fields (e.g. `days_until`
+    on birthday entries): expiring at local midnight guarantees the value is
+    recomputed at the right moment rather than carrying stale arithmetic
+    until the next manual refresh. Capped at 24 h as a safety net.
+
+    Moved from briefing/service.py (P7) — shared by the briefing section
+    cache and the heartbeat birthdays cache.
+    """
+    now_local = datetime.now(user_tz)
+    next_midnight = (now_local + dt.timedelta(days=1)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    seconds = int((next_midnight - now_local).total_seconds())
+    return max(1, min(seconds, cap_seconds))
+
+
 def get_prompt_datetime_formatted() -> str:
     """
     Get current datetime formatted for agent prompt injection.

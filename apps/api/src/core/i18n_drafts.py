@@ -458,6 +458,9 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "sublabels_included": "Sous-labels inclus",
         "callee": "Correspondant",
         "objective": "Objectif",
+        "title": "Titre",
+        "schedule": "Planification",
+        "instruction": "Instruction",
     },
     "en": {
         "to": "To",
@@ -489,6 +492,9 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "sublabels_included": "Sub-labels included",
         "callee": "Callee",
         "objective": "Objective",
+        "title": "Title",
+        "schedule": "Schedule",
+        "instruction": "Instruction",
     },
     "es": {
         "to": "Destinatario",
@@ -520,6 +526,9 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "sublabels_included": "Subetiquetas incluidas",
         "callee": "Interlocutor",
         "objective": "Objetivo",
+        "title": "Título",
+        "schedule": "Programación",
+        "instruction": "Instrucción",
     },
     "de": {
         "to": "An",
@@ -551,6 +560,9 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "sublabels_included": "Enthaltene Unterlabels",
         "callee": "Angerufener",
         "objective": "Ziel",
+        "title": "Titel",
+        "schedule": "Zeitplan",
+        "instruction": "Anweisung",
     },
     "it": {
         "to": "Destinatario",
@@ -582,6 +594,9 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "sublabels_included": "Sottoetichette incluse",
         "callee": "Interlocutore",
         "objective": "Obiettivo",
+        "title": "Titolo",
+        "schedule": "Pianificazione",
+        "instruction": "Istruzione",
     },
     "zh-CN": {
         "to": "收件人",
@@ -613,6 +628,9 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "sublabels_included": "包含的子标签",
         "callee": "通话对象",
         "objective": "目标",
+        "title": "标题",
+        "schedule": "计划",
+        "instruction": "指令",
     },
 }
 
@@ -866,6 +884,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "file": {"singular": "fichier", "plural": "fichiers", "gender": "m"},
         "label": {"singular": "label", "plural": "labels", "gender": "m"},
         "call": {"singular": "appel", "plural": "appels", "gender": "m"},
+        "automation": {"singular": "automatisation", "plural": "automatisations", "gender": "f"},
     },
     "en": {
         "reminder": {"singular": "reminder", "plural": "reminders"},
@@ -876,6 +895,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "file": {"singular": "file", "plural": "files"},
         "label": {"singular": "label", "plural": "labels"},
         "call": {"singular": "call", "plural": "calls"},
+        "automation": {"singular": "automation", "plural": "automations"},
     },
     "es": {
         "reminder": {
@@ -890,6 +910,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "file": {"singular": "archivo", "plural": "archivos", "gender": "m"},
         "label": {"singular": "etiqueta", "plural": "etiquetas", "gender": "f"},
         "call": {"singular": "llamada", "plural": "llamadas", "gender": "f"},
+        "automation": {"singular": "automatización", "plural": "automatizaciones", "gender": "f"},
     },
     "de": {
         "reminder": {"singular": "Erinnerung", "plural": "Erinnerungen"},
@@ -900,6 +921,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "file": {"singular": "Datei", "plural": "Dateien"},
         "label": {"singular": "Label", "plural": "Labels"},
         "call": {"singular": "Anruf", "plural": "Anrufe"},
+        "automation": {"singular": "Automatisierung", "plural": "Automatisierungen"},
     },
     "it": {
         # Italian: "promemoria", "email", "attività", "file" are invariant for number.
@@ -911,6 +933,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "file": {"singular": "file", "plural": "file", "gender": "m"},
         "label": {"singular": "etichetta", "plural": "etichette", "gender": "f"},
         "call": {"singular": "chiamata", "plural": "chiamate", "gender": "f"},
+        "automation": {"singular": "automazione", "plural": "automazioni", "gender": "f"},
     },
     "zh-CN": {
         # Chinese has no grammatical number; both forms hold the same string.
@@ -922,6 +945,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "file": {"singular": "文件", "plural": "文件"},
         "label": {"singular": "标签", "plural": "标签"},
         "call": {"singular": "通话", "plural": "通话"},
+        "automation": {"singular": "自动化任务", "plural": "自动化任务"},
     },
 }
 
@@ -961,6 +985,12 @@ DRAFT_RESULT_VERBS_PAST: dict[Language, dict[str, str | dict[str, str]]] = {
             "f_sing": "passée",
             "f_plur": "passées",
         },
+        "scheduled": {
+            "m_sing": "programmé",
+            "m_plur": "programmés",
+            "f_sing": "programmée",
+            "f_plur": "programmées",
+        },
     },
     "en": {
         "sent": "sent",
@@ -968,6 +998,7 @@ DRAFT_RESULT_VERBS_PAST: dict[Language, dict[str, str | dict[str, str]]] = {
         "created": "created",
         "updated": "updated",
         "placed": "placed",
+        "scheduled": "scheduled",
     },
     "es": {
         "sent": {
@@ -1000,6 +1031,12 @@ DRAFT_RESULT_VERBS_PAST: dict[Language, dict[str, str | dict[str, str]]] = {
             "f_sing": "realizada",
             "f_plur": "realizadas",
         },
+        "scheduled": {
+            "m_sing": "programado",
+            "m_plur": "programados",
+            "f_sing": "programada",
+            "f_plur": "programadas",
+        },
     },
     "de": {
         "sent": "gesendet",
@@ -1007,6 +1044,7 @@ DRAFT_RESULT_VERBS_PAST: dict[Language, dict[str, str | dict[str, str]]] = {
         "created": "erstellt",
         "updated": "aktualisiert",
         "placed": "getätigt",
+        "scheduled": "geplant",
     },
     "it": {
         "sent": {
@@ -1039,6 +1077,12 @@ DRAFT_RESULT_VERBS_PAST: dict[Language, dict[str, str | dict[str, str]]] = {
             "f_sing": "effettuata",
             "f_plur": "effettuate",
         },
+        "scheduled": {
+            "m_sing": "programmato",
+            "m_plur": "programmati",
+            "f_sing": "programmata",
+            "f_plur": "programmate",
+        },
     },
     "zh-CN": {
         "sent": "已发送",
@@ -1046,6 +1090,7 @@ DRAFT_RESULT_VERBS_PAST: dict[Language, dict[str, str | dict[str, str]]] = {
         "created": "已创建",
         "updated": "已更新",
         "placed": "已拨打",
+        "scheduled": "已安排",
     },
 }
 

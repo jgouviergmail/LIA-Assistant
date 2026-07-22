@@ -22,6 +22,9 @@ SECTION_MAILS_TTL_SECONDS = 300  # 5 min — important but Gmail-quota friendly
 SECTION_BIRTHDAYS_TTL_SECONDS = 604800  # 7 days — quasi-static, full contacts scan is costly
 SECTION_REMINDERS_TTL_SECONDS = 0  # Live (local DB, < 10 ms)
 SECTION_HEALTH_TTL_SECONDS = 900  # 15 min — Shortcuts ingest cadence
+SECTION_FOR_YOU_TTL_SECONDS = 300  # 5 min — open loops / automation runs move
+SECTION_TASKS_TTL_SECONDS = 600  # 10 min — same natural change rate as agenda
+SECTION_DOCUMENTS_TTL_SECONDS = 600  # 10 min — Drive activity cadence
 
 # =============================================================================
 # Per-widget content limits (agenda/mails/birthdays/reminders item caps, agenda
@@ -45,8 +48,7 @@ SECTION_HEALTH_TTL_SECONDS = 900  # 15 min — Shortcuts ingest cadence
 #  - Source is the user's own contacts list (no privacy escalation)
 #  - Cache TTL is 7 days (rebuilt on demand via force refresh)
 #  - The per-card briefing TTL bounds the API call frequency anyway
-BRIEFING_BIRTHDAY_PAGE_SIZE = 1000  # People API native max
-BRIEFING_BIRTHDAY_PAGINATION_MAX_PAGES = 5  # 5 × 1000 = 5000 contacts (more than any address book)
+# Birthday pagination constants moved to src/domains/connectors/birthdays.py (P7).
 
 # Forecast 3-h slots fetched from OpenWeatherMap.
 # 40 slots × 3 h = 120 h = 5 days (the free-tier maximum).
@@ -63,6 +65,9 @@ SECTION_MAILS = "mails"
 SECTION_BIRTHDAYS = "birthdays"
 SECTION_REMINDERS = "reminders"
 SECTION_HEALTH = "health"
+SECTION_FOR_YOU = "for_you"
+SECTION_TASKS = "tasks"
+SECTION_DOCUMENTS = "documents"
 
 SECTION_NAMES: tuple[str, ...] = (
     SECTION_WEATHER,
@@ -71,6 +76,9 @@ SECTION_NAMES: tuple[str, ...] = (
     SECTION_BIRTHDAYS,
     SECTION_REMINDERS,
     SECTION_HEALTH,
+    SECTION_FOR_YOU,
+    SECTION_TASKS,
+    SECTION_DOCUMENTS,
 )
 
 # =============================================================================

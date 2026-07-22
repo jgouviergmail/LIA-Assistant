@@ -34,3 +34,9 @@ This only activates when you ask about the app — normal conversations are not 
 
 **📚 System knowledge spaces:**
 In addition to your personal knowledge spaces, LIA includes built-in system knowledge spaces managed by the platform. These contain curated FAQ content and are not editable by users. They are marked with a special badge in the admin interface and can be reindexed when the FAQ is updated.
+
+
+## Can LIA search my documents on its own?
+Yes. Your document spaces are an **active domain**: beyond the automatic context injection, the planner can decide to search them — with derived queries, several passes if needed, and combinations with other sources: "compare the PDF quote with what Paul sent by email" chains a document search and an email search.
+
+The "Documents" briefing card also shows your latest modified Drive files — one click to summarize in chat, or open directly in Drive.

@@ -78,6 +78,14 @@ def build_decision_user_prompt(context: HeartbeatContext) -> str:
         f"{int_summary or 'None sent recently.'}"
     )
 
+    # Cross-surface: reminders, scheduled-action results, call reports (P10)
+    other_summary = context.recent_other_notifications_summary
+    parts.append(
+        f"\nOTHER RECENT PROACTIVE MESSAGES (reminders, automations, call "
+        f"reports — the user already received these, do not pile up on the "
+        f"same topics):\n{other_summary or 'None sent recently.'}"
+    )
+
     return "\n".join(parts)
 
 

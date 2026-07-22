@@ -12,7 +12,16 @@ import { UpdatedAtBadge } from './UpdatedAtBadge';
  * Per-card icon tone — applied ONLY to the SVG icon color (not the card chrome).
  * Card backgrounds, borders, orbs, badges all use the user's theme primary color.
  */
-export type CardTone = 'sky' | 'violet' | 'amber' | 'rose' | 'emerald' | 'red';
+export type CardTone =
+  | 'sky'
+  | 'violet'
+  | 'amber'
+  | 'rose'
+  | 'emerald'
+  | 'red'
+  | 'fuchsia'
+  | 'teal'
+  | 'indigo';
 
 const ICON_TONE: Record<CardTone, string> = {
   sky: 'text-sky-600 dark:text-sky-400',
@@ -21,6 +30,9 @@ const ICON_TONE: Record<CardTone, string> = {
   rose: 'text-rose-600 dark:text-rose-400',
   emerald: 'text-emerald-600 dark:text-emerald-400',
   red: 'text-red-600 dark:text-red-400',
+  fuchsia: 'text-fuchsia-600 dark:text-fuchsia-400',
+  teal: 'text-teal-600 dark:text-teal-400',
+  indigo: 'text-indigo-600 dark:text-indigo-400',
 };
 
 export interface BriefingCardProps<T extends SectionData> {

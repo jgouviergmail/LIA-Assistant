@@ -151,5 +151,8 @@ class ContentGenerationContext:
     user_language: str
     user_timezone: str = "UTC"
     personality_instruction: str | None = None
+    # Resolved city for locally-anchored content (P9) — None when the
+    # flag is off or the location could not be resolved.
+    locality: str | None = None
     recent_notification_embeddings: list[list[float]] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)

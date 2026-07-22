@@ -209,6 +209,11 @@ RETURN_PHRASES: dict[str, dict[str, str]] = {
             "J'ai passé ton appel mais je n'ai pas pu en tirer un résumé détaillé. "
             "Dis-moi si tu veux que je réessaie."
         ),
+        "appointment_suggestion": (
+            "📅 Rendez-vous convenu : {datetime_local}{location_part}. "
+            "Veux-tu que je l'ajoute à ton agenda ?"
+        ),
+        "appointment_location_part": " ({location})",
     },
     "en": {
         "title": "Call summary",
@@ -216,6 +221,11 @@ RETURN_PHRASES: dict[str, dict[str, str]] = {
             "I placed your call but couldn't produce a detailed summary. "
             "Let me know if you'd like me to try again."
         ),
+        "appointment_suggestion": (
+            "📅 Appointment agreed: {datetime_local}{location_part}. "
+            "Want me to add it to your calendar?"
+        ),
+        "appointment_location_part": " ({location})",
     },
     "de": {
         "title": "Anruf-Zusammenfassung",
@@ -223,6 +233,11 @@ RETURN_PHRASES: dict[str, dict[str, str]] = {
             "Ich habe deinen Anruf getätigt, konnte aber keine ausführliche "
             "Zusammenfassung erstellen. Sag Bescheid, wenn ich es erneut versuchen soll."
         ),
+        "appointment_suggestion": (
+            "📅 Termin vereinbart: {datetime_local}{location_part}. "
+            "Soll ich ihn in deinen Kalender eintragen?"
+        ),
+        "appointment_location_part": " ({location})",
     },
     "es": {
         "title": "Resumen de la llamada",
@@ -230,6 +245,11 @@ RETURN_PHRASES: dict[str, dict[str, str]] = {
             "Hice tu llamada pero no pude generar un resumen detallado. "
             "Dime si quieres que lo intente de nuevo."
         ),
+        "appointment_suggestion": (
+            "📅 Cita acordada: {datetime_local}{location_part}. "
+            "¿Quieres que la añada a tu calendario?"
+        ),
+        "appointment_location_part": " ({location})",
     },
     "it": {
         "title": "Riepilogo della chiamata",
@@ -237,10 +257,17 @@ RETURN_PHRASES: dict[str, dict[str, str]] = {
             "Ho effettuato la tua chiamata ma non sono riuscito a produrre un "
             "riepilogo dettagliato. Dimmi se vuoi che riprovi."
         ),
+        "appointment_suggestion": (
+            "📅 Appuntamento concordato: {datetime_local}{location_part}. "
+            "Vuoi che lo aggiunga al tuo calendario?"
+        ),
+        "appointment_location_part": " ({location})",
     },
     "zh": {
         "title": "通话小结",
         "fallback": "我已为你拨打了电话，但无法生成详细小结。需要我再试一次的话告诉我。",
+        "appointment_suggestion": "📅 已约定时间：{datetime_local}{location_part}。要我帮你加到日历里吗？",
+        "appointment_location_part": "（{location}）",
     },
 }
 

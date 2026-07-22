@@ -74,12 +74,15 @@ from src.core.constants import (
     FOR_EACH_STOP_FORCES_SEQUENTIAL_DEFAULT,
     FOR_EACH_WARNING_THRESHOLD,
     HEARTBEAT_ACTIVITY_COOLDOWN_MINUTES_DEFAULT,
+    HEARTBEAT_CONTEXT_BIRTHDAYS_DAYS_DEFAULT,
     HEARTBEAT_CONTEXT_CALENDAR_HOURS_DEFAULT,
     HEARTBEAT_CONTEXT_EMAILS_MAX_DEFAULT,
     HEARTBEAT_CONTEXT_MEMORY_LIMIT_DEFAULT,
     HEARTBEAT_CONTEXT_TASKS_DAYS_DEFAULT,
     HEARTBEAT_DECISION_LLM_MODEL_DEFAULT,
     HEARTBEAT_DECISION_LLM_PROVIDER_DEFAULT,
+    HEARTBEAT_DEPARTURE_CACHE_TTL_SECONDS_DEFAULT,
+    HEARTBEAT_DEPARTURE_LOOKAHEAD_HOURS_DEFAULT,
     HEARTBEAT_ENRICHMENT_TIMEOUT_SECONDS_DEFAULT,
     HEARTBEAT_GLOBAL_COOLDOWN_HOURS_DEFAULT,
     HEARTBEAT_INACTIVE_SKIP_DAYS_DEFAULT,
@@ -2479,6 +2482,10 @@ class AgentsSettings(BaseSettings):
     # Interest Learning System configuration
 
     # Feature toggles
+    interests_local_anchor_enabled: bool = Field(
+        default=False,
+        description="Anchor interest content locally when a city is resolved (P9).",
+    )
     interest_extraction_enabled: bool = Field(
         default=True,
         description=(
@@ -2855,6 +2862,28 @@ class AgentsSettings(BaseSettings):
         ge=1,
         le=7,
         description="Days ahead to look for pending Google Tasks.",
+    )
+    heartbeat_context_birthdays_days: int = Field(
+        default=HEARTBEAT_CONTEXT_BIRTHDAYS_DAYS_DEFAULT,
+        ge=0,
+        le=7,
+        description="Days ahead to surface contact birthdays (0 = today only).",
+    )
+    heartbeat_departure_enabled: bool = Field(
+        default=False,
+        description="Enable the traffic-aware departure advice heartbeat source (P6).",
+    )
+    heartbeat_departure_lookahead_hours: int = Field(
+        default=HEARTBEAT_DEPARTURE_LOOKAHEAD_HOURS_DEFAULT,
+        ge=1,
+        le=12,
+        description="Only advise for located events starting within this window.",
+    )
+    heartbeat_departure_cache_ttl_seconds: int = Field(
+        default=HEARTBEAT_DEPARTURE_CACHE_TTL_SECONDS_DEFAULT,
+        ge=60,
+        le=3600,
+        description="Routes ETA cache TTL per (user, event).",
     )
     heartbeat_context_memory_limit: int = Field(
         default=HEARTBEAT_CONTEXT_MEMORY_LIMIT_DEFAULT,

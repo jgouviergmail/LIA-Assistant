@@ -262,6 +262,7 @@ class InterestProactiveTask:
                 user_language=user_language,
                 personality_instruction=personality_instruction,
                 recent_notification_embeddings=recent_embeddings,
+                locality=await _resolve_user_locality(user_id),
             )
 
             generator = self._get_content_generator()
@@ -677,3 +678,41 @@ class InterestProactiveTask:
         if self._content_generator:
             await self._content_generator.close()
             self._content_generator = None
+
+
+async def _resolve_user_locality(user_id: Any) -> str | None:
+    """Best-effort city resolution for locally-anchored content (P9).
+
+    Flag-gated; every failure degrades to None (content falls back to the
+    historical non-localized query). Uses the effective-location cascade +
+    reverse geocoding (OpenWeatherMap key, same path as the heartbeat).
+    """
+    from src.core.config import get_settings
+
+    settings = get_settings()
+    if not getattr(settings, "interests_local_anchor_enabled", False):
+        return None
+    try:
+        from src.domains.connectors.geocoding import resolve_city_name
+        from src.domains.connectors.models import ConnectorType
+        from src.domains.connectors.service import ConnectorService
+        from src.domains.users.models import User
+        from src.domains.users.user_location_service import UserLocationService
+        from src.infrastructure.database.session import get_db_context
+
+        async with get_db_context() as db:
+            user = await db.get(User, user_id)
+            if user is None:
+                return None
+            credentials = await ConnectorService(db).get_api_key_credentials(
+                user_id, ConnectorType.OPENWEATHERMAP
+            )
+            if credentials is None:
+                return None
+            effective = await UserLocationService(db).get_effective_location_for_proactive(user)
+        return await resolve_city_name(
+            lat=effective.lat, lon=effective.lon, api_key=credentials.api_key
+        )
+    except Exception as exc:  # noqa: BLE001 — locality is a bonus, degrade silently
+        logger.debug("interest_locality_resolution_failed", error=str(exc))
+        return None

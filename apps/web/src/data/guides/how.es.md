@@ -6,7 +6,7 @@
 
 **Versión**: 3.3
 **Fecha**: 2026-07-22
-**Aplicación**: LIA v1.25.12
+**Aplicación**: LIA v1.25.13
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 428 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 120+ ADRs, ~12.470 tests recogidos por pytest en 716 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 120+ ADRs, ~12.690 tests recogidos por pytest en 739 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -71,7 +71,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | ~12.470 (recopilados por pytest en 716 archivos de prueba) + 2.282 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | ~12.690 (recopilados por pytest en 739 archivos de prueba) + 2.305 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures reutilizables | 170+ |
 | Documentos de documentación | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
@@ -685,7 +685,7 @@ Factory **catalogue-driven** (ADR-081): `factory.get_tts_client()` lee el overri
 
 **Fase 1 — Decisión** (coste-efectiva, gpt-4.1-mini):
 1. `EligibilityChecker`: opt-in, ventana horaria, cooldown (1h global, 30 min por tipo), actividad reciente — los filtros opcionales `notification_filter`/`cross_type_filters` separan el presupuesto de elegibilidad de cada flujo del libro de cuentas compartido
-2. `ContextAggregator`: 8 fuentes en paralelo (`asyncio.gather`): Calendar, Weather (detección de cambios), Tasks, Emails, Interests, Memories, Journals, Health. Los intereses llegan como **muestra variada** (`pick_varied_sample`: un interés por tema, los temas menos servidos recientemente primero) — el modelo solo puede mencionar lo que se le muestra, así que la rotación es mecánica
+2. `ContextAggregator`: 12 fuentes en paralelo (`asyncio.gather`): Calendar, Weather (detección de cambios), Tasks, Emails, Interests, Actividad, notificaciones heartbeat/intereses recientes, otras superficies proactivas (recordatorios disparados, resultados de automatizaciones, informes de llamadas — la ventana anti-redundancia extendida), Health, Cumpleaños próximos y Bucles abiertos (el registro de compromisos, ADR-139). Una **segunda pasada** deriva luego una consulta semántica dinámica del contexto agregado para seleccionar Diarios y Memorias (simetría ADR-135) y calcula el consejo de salida según el tráfico (ETA de Routes, tras flag). Los intereses llegan como **muestra variada** (`pick_varied_sample`: un interés por tema, los temas menos servidos recientemente primero) — el modelo solo puede mencionar lo que se le muestra, así que la rotación es mecánica
 3. LLM structured output: `skip` | `notify` más `interest_topic` (copiado literalmente de la muestra, guardia de ejecución fail-open) y etiquetas de fuente restringidas por un `Literal`. Anti-redundancia de dos niveles: fuente y **contenido** — las últimas 10 notificaciones en 7 días se inyectan con sus extractos, lo que prohíbe volver a proponer un tema aunque provenga de otra fuente
 
 **Fase 1b — Enriquecimiento** (si `interest_topic`): `InterestContentGenerator` (Perplexity → Brave → Wikipedia) bajo timeout estricto, deduplicado contra los embeddings de notificaciones recientes. Totalmente fail-open: flag apagado, fallo o resultado vacío → el mensaje sale sin hechos.
@@ -1064,10 +1064,10 @@ El Psyche Engine dota al asistente de un estado psicológico dinámico que evolu
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 120+ ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~12.470 tests en 716 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 120+ ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~12.690 tests en 739 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 120+ ADRs y del changelog (v1.0 a v1.25.12). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (280+ documentos), de los 120+ ADRs y del changelog (v1.0 a v1.25.13). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

@@ -1520,27 +1520,27 @@ class AgentService(
                 )
 
                 # =============================================================
-                # Debug Panel: Emit journal extraction results (post-background)
+                # Debug Panel: Emit background-extraction results (post-await)
                 # =============================================================
-                # Journal extraction runs as fire-and-forget in response_node.
-                # By this point, await_run_id_tasks has completed so extraction
-                # results are available. Emit as debug_metrics_update for merge.
+                # The post-response extractions (journals, open loops) run
+                # fire-and-forget; await_run_id_tasks has completed here so
+                # their pop-once debug caches are populated. One merge chunk
+                # per populated family (see streaming/extraction_debug.py).
                 if debug_panel_for_user:
                     try:
-                        from src.domains.journals.extraction_service import (
-                            pop_extraction_debug,
+                        from src.domains.agents.services.streaming.extraction_debug import (
+                            pop_background_extraction_debug,
                         )
 
-                        extraction_debug = pop_extraction_debug(run_id)
-                        if extraction_debug is not None:
+                        for dbg_key, dbg_payload in pop_background_extraction_debug(run_id):
                             yield ChatStreamChunk(
                                 type="debug_metrics_update",
                                 content="",
-                                metadata={"journal_extraction": extraction_debug},
+                                metadata={dbg_key: dbg_payload},
                             )
                     except Exception as extr_dbg_err:
                         logger.debug(
-                            "debug_metrics_journal_extraction_failed",
+                            "debug_metrics_extraction_emit_failed",
                             run_id=run_id,
                             error=str(extr_dbg_err),
                         )

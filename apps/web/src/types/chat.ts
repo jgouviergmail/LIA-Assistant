@@ -959,6 +959,30 @@ export interface JournalExtractionMetrics {
 }
 
 /**
+ * OpenLoopExtractionItem - Single commitment action proposed by the
+ * background open-loop extraction (ADR-139)
+ */
+export interface OpenLoopExtractionItem {
+  action: 'open' | 'close';
+  subject: string; // Truncated to 120 chars backend-side
+  direction: 'user_owes' | 'waiting_on_other';
+  counterparty: string | null;
+  due_hint_iso: string | null;
+}
+
+/**
+ * OpenLoopExtractionMetrics - Debug details for background open-loop extraction
+ * Shows the commitments the assistant started tracking / closed after this turn
+ */
+export interface OpenLoopExtractionMetrics {
+  items_parsed: number; // Items proposed by the extraction LLM
+  opened: number; // New loops actually created (caps/dedup applied)
+  closed: number; // Existing loops closed conversationally
+  skipped: number; // Proposals refused (duplicate, cap, invalid target)
+  items: OpenLoopExtractionItem[];
+}
+
+/**
  * ExtractedMemory - Memory extracted/updated/deleted from conversation by background LLM
  */
 export interface ExtractedMemory {
@@ -1056,6 +1080,8 @@ export interface DebugMetrics {
   journal_planner_injection?: JournalInjectionMetrics; // Optional: injected journal entries with scores (planner node)
   // Journal Extraction (Background creation)
   journal_extraction?: JournalExtractionMetrics; // Optional: journal entries created/updated/deleted
+  // Open Loop Extraction (Background commitments ledger, ADR-139)
+  open_loop_extraction?: OpenLoopExtractionMetrics; // Optional: loops opened/closed after this turn
   // Skills activation
   skills?: SkillsMetrics; // Optional: skill activated for this turn
 }

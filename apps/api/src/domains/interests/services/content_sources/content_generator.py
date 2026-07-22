@@ -127,6 +127,16 @@ class InterestContentGenerator:
         """
         sources_tried: list[str] = []
 
+        # P9 — local anchoring: enrich the topic ONCE so every source
+        # strategy searches locally ("jazz près de Lyon cette semaine").
+        if context.locality:
+            from src.domains.interests.helpers import anchor_topic_locally
+
+            context = replace(
+                context,
+                topic=anchor_topic_locally(context.topic, context.user_language, context.locality),
+            )
+
         try:
             logger.debug(
                 "content_generation_starting",

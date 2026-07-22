@@ -55,14 +55,16 @@ from src.domains.agents.data_registry.models import (
     RegistryItemMeta,
     RegistryItemType,
 )
+from src.domains.agents.drafts.action_models import (
+    DraftActionRequest,
+    DraftActionResult,
+)
 from src.domains.agents.drafts.models import (
     ContactDeleteDraftInput,
     ContactDraftInput,
     ContactUpdateDraftInput,
     Draft,
     DraftAction,
-    DraftActionRequest,
-    DraftActionResult,
     DraftStatus,
     DraftType,
     EmailDeleteDraftInput,

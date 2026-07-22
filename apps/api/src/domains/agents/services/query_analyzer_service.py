@@ -642,6 +642,12 @@ def _build_available_domains() -> list[dict[str, str]]:
     if not getattr(settings, "telephony_enabled", False):
         available_domains = [d for d in available_domains if d["name"] != "telephony"]
 
+    # Documents (P1, ADR-141) — same deployment-flag gating as telephony: the
+    # domain is statically routable, so it must be withdrawn from the router's
+    # menu when RAG spaces are disabled on this deployment.
+    if not getattr(settings, "rag_spaces_enabled", False):
+        available_domains = [d for d in available_domains if d["name"] != "document"]
+
     # F2.2+F2.5: Unified MCP per-server domain injection (admin + user).
     mcp_domains = collect_all_mcp_domains(
         admin_domains=get_admin_mcp_domains(),

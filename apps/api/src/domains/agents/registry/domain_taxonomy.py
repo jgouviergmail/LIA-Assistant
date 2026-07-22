@@ -74,6 +74,9 @@ class DomainConfig:
             raise ValueError(f"Domain '{self.name}' must have a result_key")
 
 
+# Shared metadata fragments (size-ratchet friendly: one-line spreads below).
+_GOOGLE_OAUTH = {"provider": "google", "requires_oauth": True}
+
 # Domain Registry: Declarative configuration for all domains
 # To add a new domain: Add entry here + implement agent + register in AgentRegistry
 DOMAIN_REGISTRY: dict[str, DomainConfig] = {
@@ -87,11 +90,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["contact_agent"],
         result_key="contacts",  # $steps.step_N.contacts
         related_domains=[],  # Reverse lookup: email→contact, event→contact cover adjacency
-        metadata={
-            "provider": "google",
-            "requires_oauth": True,
-            "api_version": "v1",
-        },
+        metadata={**_GOOGLE_OAUTH, "api_version": "v1"},
     ),
     # Context domain: Cross-domain utilities (always included)
     # NOT ROUTABLE: Technical/internal domain, always auto-loaded
@@ -115,6 +114,21 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
             ),
         },
     ),
+    # Document domain: user RAG spaces as an active capability (P1, ADR-141)
+    "document": DomainConfig(
+        name="document",
+        display_name="My Documents",
+        description=(
+            "Semantic search in the user's own uploaded document spaces (PDFs, "
+            "notes): quotes, contracts, personal knowledge. NOT for cloud-drive "
+            "file browsing (use file) or the public web (use web_search)."
+        ),
+        agent_names=["document_agent"],
+        result_key="documents",  # $steps.step_N.documents
+        related_domains=[],
+        is_routable=True,
+        metadata={"provider": "internal", "requires_oauth": False},
+    ),
     # Email domain: Email management (multi-provider)
     "email": DomainConfig(
         name="email",
@@ -125,13 +139,11 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["email_agent"],
         result_key="emails",  # $steps.step_N.emails
-        related_domains=["contact"],  # Emails mention people, meetings, action items
-        metadata={
-            "provider": "google",
-            "requires_oauth": True,
-            "api_version": "v1",
-            "requires_hitl": True,  # Sending emails requires HITL approval
-        },
+        # Emails mention people (contact) and carry attachments stored in
+        # the cloud drive (file).
+        related_domains=["contact", "file"],
+        # requires_hitl: sending emails goes through HITL approval.
+        metadata={**_GOOGLE_OAUTH, "api_version": "v1", "requires_hitl": True},
     ),
     # Event domain: Calendar events management (multi-provider)
     "event": DomainConfig(
@@ -143,7 +155,10 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["event_agent"],
         result_key="events",  # $steps.step_N.events
-        related_domains=["contact"],  # Events involve people and may generate tasks
+        # Events involve people (contact) and generate follow-up work (task).
+        # One directed edge covers both directions: the initiative node also
+        # resolves adjacency via reverse lookup (task→event).
+        related_domains=["contact", "task"],
         metadata={
             "provider": "google",
             "requires_oauth": True,
@@ -163,12 +178,8 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["file_agent"],
         result_key="files",  # $steps.step_N.files
         related_domains=["contact"],  # Files shared via email, owned by contacts
-        metadata={
-            "provider": "google",
-            "requires_oauth": True,
-            "api_version": "v3",
-            "requires_hitl": False,  # Reading files doesn't require HITL
-        },
+        # requires_hitl False: reading files needs no approval.
+        metadata={**_GOOGLE_OAUTH, "api_version": "v3", "requires_hitl": False},
     ),
     # Task domain: Task management (Google Tasks)
     "task": DomainConfig(
@@ -181,7 +192,9 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["task_agent"],
         result_key="tasks",  # $steps.step_N.tasks
-        related_domains=[],  # Reverse lookup: event→task covers adjacency
+        # Adjacency provided by the event→task edge via the initiative
+        # node's reverse lookup (task execution → event enrichment).
+        related_domains=[],
         metadata={
             "provider": "google",
             "requires_oauth": True,
@@ -230,6 +243,24 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
                 "patterns (like duplicates) across data from multiple domains."
             ),
         },
+    ),
+    # Automation domain: chat-piloted recurring scheduled actions (ADR-140)
+    "automation": DomainConfig(
+        name="automation",
+        display_name="Automations",
+        description=(
+            "Create, list, enable or disable recurring automations: LIA runs a "
+            "given instruction on a weekly schedule and delivers the result "
+            "proactively. Use when the user wants something done 'every "
+            "day/morning/Monday…'. NOT for one-shot alerts (use reminder) or "
+            "single calendar events (use event)."
+        ),
+        agent_names=["automation_agent"],
+        result_key="automations",  # $steps.step_N.automations
+        related_domains=[],
+        is_routable=True,
+        # requires_hitl: creation is a confirmable draft (ADR-140)
+        metadata={"provider": "internal", "requires_oauth": False, "requires_hitl": True},
     ),
     # Reminder domain: Personal reminders with FCM push notifications
     "reminder": DomainConfig(
@@ -465,11 +496,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         result_key="browsers",  # $steps.step_N.browsers (domain + "s" pattern)
         related_domains=[],
         is_routable=True,
-        metadata={
-            "provider": "internal",
-            "requires_oauth": False,
-            "requires_api_key": False,
-        },
+        metadata={"provider": "internal", "requires_oauth": False, "requires_api_key": False},
     ),
     # AI Image Generation (evolution)
     "image_generation": DomainConfig(
@@ -484,11 +511,8 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         result_key="image_generations",
         related_domains=[],
         is_routable=True,
-        metadata={
-            "provider": "openai",
-            "requires_oauth": False,
-            "requires_api_key": False,  # Uses global OpenAI key from LLM Config
-        },
+        # requires_api_key False: uses the global OpenAI key from LLM Config
+        metadata={"provider": "openai", "requires_oauth": False, "requires_api_key": False},
     ),
     # Smart Home domains
     "hue": DomainConfig(
@@ -503,11 +527,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         result_key="hues",
         related_domains=[],
         is_routable=True,
-        metadata={
-            "provider": "philips_hue",
-            "requires_oauth": False,
-            "requires_api_key": False,
-        },
+        metadata={"provider": "philips_hue", "requires_oauth": False, "requires_api_key": False},
     ),
     # Health Metrics domain (v1.17.2) — steps, heart_rate, and any future
     # kind registered in HEALTH_KINDS. Per-user opt-in gated at tool entry.
@@ -573,10 +593,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         result_key="server_results",
         related_domains=[],
         is_routable=True,
-        metadata={
-            "requires_admin": True,
-            "uses_ssh": True,
-        },
+        metadata={"requires_admin": True, "uses_ssh": True},
     ),
 }
 

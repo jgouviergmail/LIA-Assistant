@@ -78,3 +78,11 @@ Yes. When your usage limits are reached, scheduled actions are blocked from exec
 
 ## What does the notification contain?
 The push notification and the in-app toast carry the **final text of the execution** — the same one archived in your conversation, not an intermediate draft. Rich formatting (HTML layout, data cards, decorative icons) is flattened to plain text before the body is truncated, so a notification never shows markup.
+
+
+## Can I create automations directly from the chat?
+Yes — in one sentence: "give me an AI press review every weekday at 8am". LIA validates the schedule and shows a **confirmation card** (title, days, time, instruction); nothing is created until you confirm. You can also **list** your automations ("what are my automations?") and **pause/resume** one in natural language.
+
+**💡 Bonus:** when you ask the same kind of thing at the same hour on several distinct days, LIA can spontaneously offer: "Want me to turn this into a recurring automation?" (deterministic detection, one suggestion max per month per pattern, off by default — `RECURRENCE_SUGGESTION_ENABLED`).
+
+Deleting an automation remains a Settings action.

@@ -993,3 +993,463 @@ class TestFetchJournals:
                 "score": "0.91",
             }
         ]
+
+
+# ---------------------------------------------------------------------------
+# Second-pass memories (P8 — dynamic query symmetry with journals)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestSecondPassMemories:
+    """Memories must use the dynamic second-pass query, like journals (ADR-135).
+
+    The historical static query ("important upcoming events preferences
+    routines") anchored the same memories cycle after cycle — the exact
+    anchoring defect ADR-135 fixed for journals.
+    """
+
+    @staticmethod
+    def _patch_memory_io(embedding_mock, repo_mock):
+        """Patch the embedding helper and memory repository used by _fetch_memories."""
+        from unittest.mock import patch
+
+        return (
+            patch(
+                "src.infrastructure.llm.user_message_embedding.get_or_compute_embedding",
+                embedding_mock,
+            ),
+            patch(
+                "src.domains.memories.repository.MemoryRepository",
+                return_value=repo_mock,
+            ),
+        )
+
+    async def test_fetch_memories_uses_dynamic_query(self):
+        """_fetch_memories must embed the caller-provided dynamic query."""
+        from unittest.mock import AsyncMock
+        from uuid import uuid4
+
+        aggregator = ContextAggregator(MagicMock())
+        settings = _make_settings()
+
+        memory = SimpleNamespace(content="User loves hiking in the Alps")
+        repo = MagicMock()
+        repo.search_by_relevance = AsyncMock(return_value=[(memory, 0.9)])
+        embedding_mock = AsyncMock(return_value=[0.1, 0.2])
+
+        p_embed, p_repo = self._patch_memory_io(embedding_mock, repo)
+        with p_embed, p_repo:
+            result = await aggregator._fetch_memories(
+                uuid4(),
+                settings,
+                query="upcoming events: Standup weather: light rain",
+            )
+
+        embedding_mock.assert_awaited_once_with(
+            message="upcoming events: Standup weather: light rain"
+        )
+        assert result == ["User loves hiking in the Alps"]
+
+    async def test_fetch_memories_falls_back_to_static_query(self):
+        """Empty dynamic query → historical static query (no behavior loss)."""
+        from unittest.mock import AsyncMock
+        from uuid import uuid4
+
+        aggregator = ContextAggregator(MagicMock())
+        settings = _make_settings()
+
+        repo = MagicMock()
+        repo.search_by_relevance = AsyncMock(return_value=[])
+        embedding_mock = AsyncMock(return_value=[0.1, 0.2])
+
+        p_embed, p_repo = self._patch_memory_io(embedding_mock, repo)
+        with p_embed, p_repo:
+            result = await aggregator._fetch_memories(uuid4(), settings, query="")
+
+        embedding_mock.assert_awaited_once_with(
+            message="important upcoming events preferences routines"
+        )
+        assert result is None
+
+    async def test_aggregate_runs_memories_in_second_pass_with_dynamic_query(self):
+        """aggregate() must fetch memories AFTER the gather, with the built query."""
+        from unittest.mock import AsyncMock, patch
+        from uuid import uuid4
+
+        aggregator = ContextAggregator(MagicMock())
+        user = _make_user()
+
+        calendar_events = [{"summary": "Standup", "start": "09:00", "end": "09:15"}]
+
+        async def _fake_fresh_session(fetch, *args):
+            if fetch == aggregator._fetch_calendar:
+                return calendar_events
+            return None
+
+        with (
+            patch.object(aggregator, "_with_fresh_session", side_effect=_fake_fresh_session),
+            patch.object(aggregator, "_fetch_health_signals", AsyncMock(return_value=None)),
+            patch.object(
+                aggregator, "_fetch_journals", AsyncMock(return_value=None)
+            ) as journals_mock,
+            patch.object(
+                aggregator, "_fetch_memories", AsyncMock(return_value=["m1"])
+            ) as memories_mock,
+        ):
+            context = await aggregator.aggregate(uuid4(), user)
+
+        # Second pass received the dynamic query built from aggregated context
+        assert memories_mock.await_count == 1
+        memory_query = memories_mock.await_args.kwargs.get("query") or ""
+        assert "Standup" in memory_query
+        journal_query = journals_mock.await_args.kwargs.get("query") or ""
+        assert "Standup" in journal_query
+
+        assert context.user_memories == ["m1"]
+        assert "memories" in context.available_sources
+
+    async def test_second_pass_memories_failure_marks_failed_source(self):
+        """A memories failure degrades gracefully: flagged, journals unaffected."""
+        from unittest.mock import AsyncMock, patch
+        from uuid import uuid4
+
+        aggregator = ContextAggregator(MagicMock())
+        user = _make_user()
+
+        async def _fake_fresh_session(fetch, *args):
+            return None
+
+        journal_entries = [{"title": "J", "content_preview": "c"}]
+
+        with (
+            patch.object(aggregator, "_with_fresh_session", side_effect=_fake_fresh_session),
+            patch.object(aggregator, "_fetch_health_signals", AsyncMock(return_value=None)),
+            patch.object(aggregator, "_fetch_journals", AsyncMock(return_value=journal_entries)),
+            patch.object(
+                aggregator,
+                "_fetch_memories",
+                AsyncMock(side_effect=RuntimeError("embedding down")),
+            ),
+        ):
+            context = await aggregator.aggregate(uuid4(), user)
+
+        assert "memories" in context.failed_sources
+        assert context.user_memories is None
+        assert context.journal_entries == journal_entries
+
+
+# ---------------------------------------------------------------------------
+# Recent other proactive notifications (P10 — extended anti-redundancy window)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestFetchRecentOtherNotifications:
+    """The window fetcher must merge archived proactive messages + automations."""
+
+    async def test_merges_and_orders_all_other_surfaces(self):
+        from unittest.mock import AsyncMock
+        from uuid import uuid4
+
+        aggregator = ContextAggregator(MagicMock())
+        user = _make_user()
+
+        reminder_row = SimpleNamespace(
+            created_at=datetime(2026, 7, 22, 6, 0, tzinfo=UTC),
+            content="Rappel : appeler le plombier",
+            message_metadata={"type": "proactive_reminder"},
+        )
+        call_row = SimpleNamespace(
+            created_at=datetime(2026, 7, 22, 5, 0, tzinfo=UTC),
+            content="J'ai appelé le restaurant, table confirmée",
+            message_metadata={"type": "proactive_phone_call"},
+        )
+        sched_row = SimpleNamespace(
+            title="Revue de presse IA",
+            last_executed_at=datetime(2026, 7, 22, 7, 0, tzinfo=UTC),
+        )
+
+        messages_result = MagicMock()
+        messages_result.all.return_value = [reminder_row, call_row]
+        sched_result = MagicMock()
+        sched_result.all.return_value = [sched_row]
+
+        db = MagicMock()
+        db.execute = AsyncMock(side_effect=[messages_result, sched_result])
+
+        result = await aggregator._fetch_recent_other_notifications(db, uuid4(), user)
+
+        assert result is not None
+        # Most recent first across BOTH sources (07:00 automation on top)
+        assert [r["kind"] for r in result] == ["scheduled_action", "reminder", "phone_call"]
+        assert result[0]["content"] == "Revue de presse IA"
+        assert "plombier" in result[1]["content"]
+        # created_at rendered in user-local time (Europe/Paris = UTC+2 in July)
+        assert result[0]["created_at"] == "2026-07-22 09:00"
+
+    async def test_returns_none_when_all_sources_empty(self):
+        from unittest.mock import AsyncMock
+        from uuid import uuid4
+
+        aggregator = ContextAggregator(MagicMock())
+        user = _make_user()
+
+        empty = MagicMock()
+        empty.all.return_value = []
+        db = MagicMock()
+        db.execute = AsyncMock(side_effect=[empty, empty])
+
+        result = await aggregator._fetch_recent_other_notifications(db, uuid4(), user)
+
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Birthdays source (P7 — shared connectors fetch + midnight-scoped cache)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestFetchBirthdaysHeartbeat:
+    """Heartbeat birthdays source: cache-first, silent-None on any failure."""
+
+    @staticmethod
+    def _birthday_item(name: str, days_until: int, age: int | None = None):
+        from src.domains.connectors.birthdays import BirthdayItem
+
+        return BirthdayItem(
+            contact_name=name,
+            date_iso="--07-22",
+            days_until=days_until,
+            age_at_next=age,
+        )
+
+    async def test_cache_hit_skips_provider_fetch(self):
+        import json
+        from unittest.mock import AsyncMock, patch
+        from uuid import uuid4
+
+        aggregator = ContextAggregator(MagicMock())
+        user = _make_user()
+        settings = _make_settings(heartbeat_context_birthdays_days=1)
+
+        cached = [{"contact_name": "Marie", "days_until": 0, "age_at_next": 36}]
+        redis = MagicMock()
+        redis.get = AsyncMock(return_value=json.dumps(cached))
+
+        fetch_mock = AsyncMock()
+        with (
+            patch(
+                "src.infrastructure.cache.redis.get_redis_cache",
+                AsyncMock(return_value=redis),
+            ),
+            patch(
+                "src.domains.connectors.birthdays.fetch_upcoming_birthdays",
+                fetch_mock,
+            ),
+        ):
+            result = await aggregator._fetch_birthdays(uuid4(), user, settings)
+
+        assert result == cached
+        fetch_mock.assert_not_awaited()
+
+    async def test_cache_miss_fetches_and_caches_until_midnight(self):
+        import json
+        from unittest.mock import AsyncMock, patch
+        from uuid import uuid4
+
+        aggregator = ContextAggregator(MagicMock())
+        user = _make_user()
+        settings = _make_settings(heartbeat_context_birthdays_days=2)
+
+        redis = MagicMock()
+        redis.get = AsyncMock(return_value=None)
+        redis.set = AsyncMock()
+
+        fetch_mock = AsyncMock(return_value=[self._birthday_item("Zoé", 1, 30)])
+        with (
+            patch(
+                "src.infrastructure.cache.redis.get_redis_cache",
+                AsyncMock(return_value=redis),
+            ),
+            patch(
+                "src.domains.connectors.birthdays.fetch_upcoming_birthdays",
+                fetch_mock,
+            ),
+        ):
+            result = await aggregator._fetch_birthdays(uuid4(), user, settings)
+
+        assert result == [{"contact_name": "Zoé", "days_until": 1, "age_at_next": 30}]
+        assert fetch_mock.await_args.kwargs["horizon_days"] == 2
+        # Cached as JSON with a TTL bounded by the next local midnight (≤ 24 h)
+        redis.set.assert_awaited_once()
+        _, set_kwargs = redis.set.await_args
+        assert json.loads(redis.set.await_args.args[1]) == result
+        assert 0 < set_kwargs["ex"] <= 86400
+
+    async def test_not_configured_returns_none_without_caching(self):
+        from unittest.mock import AsyncMock, patch
+        from uuid import uuid4
+
+        aggregator = ContextAggregator(MagicMock())
+        user = _make_user()
+        settings = _make_settings(heartbeat_context_birthdays_days=1)
+
+        redis = MagicMock()
+        redis.get = AsyncMock(return_value=None)
+        redis.set = AsyncMock()
+
+        with (
+            patch(
+                "src.infrastructure.cache.redis.get_redis_cache",
+                AsyncMock(return_value=redis),
+            ),
+            patch(
+                "src.domains.connectors.birthdays.fetch_upcoming_birthdays",
+                AsyncMock(return_value=None),
+            ),
+        ):
+            result = await aggregator._fetch_birthdays(uuid4(), user, settings)
+
+        assert result is None
+        redis.set.assert_not_awaited()
+
+    async def test_fetch_error_degrades_to_none(self):
+        from unittest.mock import AsyncMock, patch
+        from uuid import uuid4
+
+        from src.domains.connectors.birthdays import BirthdayFetchError
+
+        aggregator = ContextAggregator(MagicMock())
+        user = _make_user()
+        settings = _make_settings(heartbeat_context_birthdays_days=1)
+
+        redis = MagicMock()
+        redis.get = AsyncMock(return_value=None)
+        redis.set = AsyncMock()
+
+        with (
+            patch(
+                "src.infrastructure.cache.redis.get_redis_cache",
+                AsyncMock(return_value=redis),
+            ),
+            patch(
+                "src.domains.connectors.birthdays.fetch_upcoming_birthdays",
+                AsyncMock(side_effect=BirthdayFetchError("http_error", "boom")),
+            ),
+        ):
+            result = await aggregator._fetch_birthdays(uuid4(), user, settings)
+
+        assert result is None
+        redis.set.assert_not_awaited()
+
+    async def test_empty_scan_is_cached_to_avoid_daily_rescans(self):
+        """A full People scan returning [] is expensive — cache the emptiness."""
+        from unittest.mock import AsyncMock, patch
+        from uuid import uuid4
+
+        aggregator = ContextAggregator(MagicMock())
+        user = _make_user()
+        settings = _make_settings(heartbeat_context_birthdays_days=1)
+
+        redis = MagicMock()
+        redis.get = AsyncMock(return_value=None)
+        redis.set = AsyncMock()
+
+        with (
+            patch(
+                "src.infrastructure.cache.redis.get_redis_cache",
+                AsyncMock(return_value=redis),
+            ),
+            patch(
+                "src.domains.connectors.birthdays.fetch_upcoming_birthdays",
+                AsyncMock(return_value=[]),
+            ),
+        ):
+            result = await aggregator._fetch_birthdays(uuid4(), user, settings)
+
+        assert result is None
+        redis.set.assert_awaited_once()
+
+
+# ---------------------------------------------------------------------------
+# Provider-client lifecycle (C8 class — transports must close every cycle)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestProviderClientLifecycle:
+    """The heartbeat runs every few minutes per user: an unclosed provider
+    client leaks one httpx transport per source per cycle. Every fetcher
+    that instantiates a client OWNS it and must close it (systemic rule;
+    same doctrine as briefing/fetchers and person_tools)."""
+
+    def _client(self, **methods):
+        from unittest.mock import AsyncMock
+
+        client = MagicMock()
+        client.close = AsyncMock()
+        for name, mock in methods.items():
+            setattr(client, name, mock)
+        return client
+
+    async def _run(self, fetcher_name, client):
+        from unittest.mock import AsyncMock, patch
+        from uuid import uuid4
+
+        aggregator = ContextAggregator(MagicMock())
+        user = MagicMock()
+        user.timezone = "Europe/Paris"
+        settings_view = SimpleNamespace(
+            heartbeat_context_calendar_hours=4,
+            heartbeat_context_tasks_days=2,
+            heartbeat_context_emails_max=5,
+        )
+        repo = MagicMock()
+        repo.get_by_user_and_type = AsyncMock(return_value=None)
+        connector_service = MagicMock()
+        connector_service.get_connector_credentials = AsyncMock(return_value=MagicMock())
+        connector_service.get_apple_credentials = AsyncMock(return_value=MagicMock())
+
+        with (
+            patch(
+                "src.domains.heartbeat.context_aggregator.ConnectorService",
+                return_value=connector_service,
+            ),
+            patch(
+                "src.domains.connectors.provider_resolver.resolve_active_connector",
+                AsyncMock(return_value=MagicMock(value="google", is_apple=False)),
+            ),
+            patch(
+                "src.domains.connectors.clients.registry.ClientRegistry.get_client_class",
+                return_value=lambda *a, **k: client,
+            ),
+            patch(
+                "src.domains.connectors.repository.ConnectorRepository",
+                return_value=repo,
+            ),
+        ):
+            fetcher = getattr(aggregator, fetcher_name)
+            await fetcher(MagicMock(), uuid4(), user, settings_view)
+        client.close.assert_awaited_once()
+
+    async def test_calendar_client_closed(self):
+        from unittest.mock import AsyncMock
+
+        client = self._client(list_events=AsyncMock(return_value={"items": []}))
+        await self._run("_fetch_calendar", client)
+
+    async def test_tasks_client_closed(self):
+        from unittest.mock import AsyncMock
+
+        client = self._client(list_tasks=AsyncMock(return_value={"items": []}))
+        await self._run("_fetch_tasks", client)
+
+    async def test_emails_client_closed_even_on_error(self):
+        from unittest.mock import AsyncMock
+
+        client = self._client(search_emails=AsyncMock(side_effect=RuntimeError("gmail down")))
+        with pytest.raises(RuntimeError):
+            await self._run("_fetch_emails", client)
+        client.close.assert_awaited_once()

@@ -98,13 +98,24 @@ The `ContextAggregator` fetches all sources in parallel via `asyncio.gather(retu
 | Tasks | Google Tasks / Microsoft To Do API | Active connector | None |
 | Emails | Gmail / Apple Email / Microsoft Outlook | Active connector | None |
 | Interests | InterestRepository + `pick_varied_sample` (ADR-135: one per subject, least-recently-served first) | Active interests | None |
-| Memories | LangGraph Store | memory_enabled | None |
+| Memories | LangGraph Store (semantic search, second-pass dynamic query — P8, symmetric with journals) | memory_enabled | None |
 | Journals | JournalEntryRepository (semantic search, second-pass dynamic query) | journals_enabled | None |
 | User-model portrait | `build_journal_user_model_block(format='brief')` (compiled portrait, ADR-079) | journals_enabled | "" |
+| Health signals | `HealthMetricsService.build_heartbeat_health_signals` (summary + baseline deltas + variations) | health_metrics_enabled + per-user opt-in | None |
+| Birthdays | `connectors.birthdays.fetch_upcoming_birthdays` via `context_sources.fetch_birthdays_context` (Redis cache to local midnight, horizon `HEARTBEAT_CONTEXT_BIRTHDAYS_DAYS`) — P7 | Google Contacts connector | None |
+| Departure advice | `context_sources.fetch_departure_advice` (2nd pass over fetched calendar events: Routes traffic-aware ETA + leave-by, Redis cache per (user, event), ≤1 call/cycle) — P6, rule 20 | `HEARTBEAT_DEPARTURE_ENABLED` + Google API key | None |
+| Open loops | `context_sources.fetch_open_loops_context` (lazy expiry + nudge-worthiness filter + per-loop cooldown; post-notify bump in `proactive_task` when `OPEN_LOOPS` was used) — P5, ADR-139 | `OPEN_LOOPS_ENABLED` | None |
 | Activity | Last message query | Always available | None |
 | Recent heartbeats | HeartbeatNotification table (10 items / 7 days, CONTENT excerpts — ADR-135) | Always available | [] |
 | Recent interest notifications | InterestNotification JOIN | Always available | [] |
+| Recent other proactive messages | Archived `proactive_reminder`/`proactive_phone_call` conversation messages + `ScheduledAction.last_executed_at` (extended anti-redundancy window — P10, prompt rule 10c) | Always available | [] |
 | Time | Computed from timezone | Always available | Always OK |
+
+Both second-pass sources (journals AND memories) run after the parallel gather
+with a dynamic query built from the aggregated context (`_build_second_pass_query`).
+The standalone fetchers and the pure weather-transition rules live in
+`src/domains/heartbeat/context_sources.py` (extracted — file-size ratchet);
+`ContextAggregator` keeps thin delegate methods.
 
 ### Weather Change Detection
 

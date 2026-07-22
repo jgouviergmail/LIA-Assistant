@@ -55,6 +55,7 @@ CONTACT_AGENT_MANIFEST = AgentManifest(
     description="Agent spécialisé dans les opérations Google Contacts (recherche, création, modification, suppression)",
     tools=[
         "get_contacts_tool",  # Unified tool (v2.0 - replaces search + list + details)
+        "get_person_overview_tool",  # Cross-domain person-360 (ADR-141)
         "create_contact_tool",
         "update_contact_tool",
         "delete_contact_tool",
@@ -740,6 +741,12 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
     registry.register_tool_manifest(create_reminder_catalogue_manifest)
     registry.register_tool_manifest(list_reminders_catalogue_manifest)
     registry.register_tool_manifest(cancel_reminder_catalogue_manifest)
+
+    # Interdomain-program manifests (ADR-140/141+) — registration delegated
+    # to one aggregator (loader is frozen at its size cap; net-zero here).
+    from src.domains.agents.registry.program_manifests import register_program_manifests
+
+    register_program_manifests(registry)
 
     # Register Hue tool manifests (Philips Hue Smart Home)
     # Import hue_tools to trigger ContextTypeRegistry.register() at module level

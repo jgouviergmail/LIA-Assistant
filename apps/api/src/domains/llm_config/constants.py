@@ -318,6 +318,14 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         required_capabilities=[],
         power_tier=POWER_TIER_LOW,
     ),
+    "open_loop_extraction": LLMTypeMetadata(
+        llm_type="open_loop_extraction",
+        display_name="Open Loop Extraction",
+        category=CATEGORY_MEMORY,
+        description_key="settings.admin.llmConfig.types.open_loop_extraction",
+        required_capabilities=[],
+        power_tier=POWER_TIER_LOW,
+    ),
     "memory_reference_resolution": LLMTypeMetadata(
         llm_type="memory_reference_resolution",
         display_name="Memory Reference Resolution",
@@ -927,6 +935,17 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=1000,
         timeout_seconds=60.0,
+        reasoning_effort=ReasoningEffortEnum(effort="low"),
+    ),
+    "open_loop_extraction": LLMAgentConfig(
+        provider="openai",
+        model="gpt-5.4-mini",
+        temperature=0.2,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=800,
+        timeout_seconds=45.0,
         reasoning_effort=ReasoningEffortEnum(effort="low"),
     ),
     "memory_reference_extraction": LLMAgentConfig(

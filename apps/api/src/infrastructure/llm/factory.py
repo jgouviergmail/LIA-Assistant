@@ -165,6 +165,7 @@ LLMType = Literal[
     "mcp_app_react_agent",  # MCP App: ReAct agent for MCP servers with interactive widgets
     "mcp_description",  # MCP: LLM-based domain description auto-generation
     "memory_extraction",  # Memory: extract facts from conversations
+    "open_loop_extraction",  # Open loops: extract commitments from conversations (ADR-139)
     "interest_extraction",  # Interests: extract user interests
     "interest_content",  # Interests: generate interest-based content
     "skill_description_translator",  # Skills: translate skill descriptions to all 6 languages

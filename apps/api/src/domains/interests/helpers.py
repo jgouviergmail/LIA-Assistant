@@ -59,6 +59,33 @@ async def get_connector_api_key(
         return None
 
 
+# Locality suffixes for locally-anchored interest content (P9, Lot 6).
+# Appended to the localized search query when a city is resolved and the
+# INTERESTS_LOCAL_ANCHOR_ENABLED flag is on ("expo à Lyon ce week-end").
+LOCALITY_SUFFIX_TEMPLATES: dict[str, str] = {
+    "fr": " près de {locality} cette semaine",
+    "en": " near {locality} this week",
+    "es": " cerca de {locality} esta semana",
+    "de": " in der Nähe von {locality} diese Woche",
+    "it": " vicino a {locality} questa settimana",
+    "zh": "，{locality}附近，本周",
+}
+
+
+def anchor_topic_locally(topic: str, user_language: str, locality: str | None) -> str:
+    """Append the localized "near {city} this week" suffix to a topic (P9).
+
+    Identity when ``locality`` is None — sources keep their historical
+    queries. Applied ONCE at the generator level so every source strategy
+    (Brave, Perplexity, LLM reflection) benefits without signature churn.
+    """
+    if not locality:
+        return topic
+    lang_key = (user_language or "en").split("-")[0].lower()
+    suffix = LOCALITY_SUFFIX_TEMPLATES.get(lang_key, LOCALITY_SUFFIX_TEMPLATES["en"])
+    return topic + suffix.format(locality=locality)
+
+
 def build_localized_search_query(
     topic: str,
     user_language: str,

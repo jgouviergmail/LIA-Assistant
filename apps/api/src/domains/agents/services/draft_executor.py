@@ -168,6 +168,11 @@ def _ensure_executors_registered() -> None:
         # Telephony
         register_executor(DraftType.PHONE_CALL.value, execute_phone_call_draft)
 
+        # Automations (chat-created scheduled actions, ADR-140)
+        from src.domains.agents.tools.automation_tools import execute_scheduled_action_draft
+
+        register_executor(DraftType.SCHEDULED_ACTION.value, execute_scheduled_action_draft)
+
         logger.info(
             "draft_executors_initialized",
             registered_types=list(_EXECUTOR_REGISTRY.keys()),

@@ -35,6 +35,8 @@ VALID_AGENTS: frozenset[str] = frozenset({
     "weather_agent",
     "query_agent",
     "reminder_agent",
+    "automation_agent",
+    "document_agent",
     "place_agent",
     "route_agent",
     "wikipedia_agent",

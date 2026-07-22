@@ -326,6 +326,18 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
         noun_key="call",
         verb_past_key="placed",
     ),
+    DraftType.SCHEDULED_ACTION: DraftDisplayConfig(
+        emoji="⏰",  # ⏰
+        item_label_fields=("title",),
+        item_secondary_datetime_key=None,
+        detail_fields=(
+            DraftDisplayField("title", "\U0001f4cb", "title"),
+            DraftDisplayField("schedule_human", "\U0001f501", "schedule"),
+            DraftDisplayField("action_prompt", "\U0001f4ac", "instruction"),
+        ),
+        noun_key="automation",
+        verb_past_key="scheduled",
+    ),
 }
 
 

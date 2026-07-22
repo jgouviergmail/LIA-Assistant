@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.domains.heartbeat.geocoding import (
+from src.domains.connectors.geocoding import (
     _cache_key,
     _extract_city_name,
     resolve_city_name,

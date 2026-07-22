@@ -114,6 +114,64 @@ export interface HealthData {
   items: HealthSummaryItem[];
 }
 
+export interface ForYouLoopItem {
+  id: string;
+  subject: string;
+  counterparty: string | null;
+  /** 'user_owes' | 'waiting_on_other' */
+  direction: string;
+  /** ISO 8601 datetime (UTC), advisory deadline */
+  due_hint: string | null;
+  days_open: number;
+}
+
+export interface ForYouAutomationItem {
+  id: string;
+  title: string;
+  /** ISO 8601 datetime (UTC) */
+  executed_at: string | null;
+  /** ISO 8601 datetime (UTC) */
+  next_trigger_at: string | null;
+  /**
+   * Pre-formatted local execution time ('06:00', '06:00 demain', …) —
+   * backend-formatted with the profile timezone + language, same doctrine
+   * as the reminders card. Null on recent-execution rows.
+   */
+  next_trigger_local: string | null;
+}
+
+export interface ForYouData {
+  open_loops: ForYouLoopItem[];
+  recent_automations: ForYouAutomationItem[];
+  next_automation: ForYouAutomationItem | null;
+}
+
+export interface TaskItem {
+  title: string;
+  /** ISO date 'YYYY-MM-DD' of the due day, if any */
+  due_date_iso: string | null;
+  /** Days from the user's local today to the due day (negative = overdue) */
+  days_until_due: number | null;
+  overdue: boolean;
+}
+
+export interface TasksData {
+  items: TaskItem[];
+  overdue_count: number;
+}
+
+export interface DocumentItem {
+  name: string;
+  /** Pre-formatted local modification time (backend, reminders doctrine) */
+  modified_local: string;
+  web_view_link: string | null;
+  mime_type: string | null;
+}
+
+export interface DocumentsData {
+  items: DocumentItem[];
+}
+
 // =============================================================================
 // Generic envelopes
 // =============================================================================
@@ -125,6 +183,9 @@ export type SectionData =
   | BirthdaysData
   | RemindersData
   | HealthData
+  | ForYouData
+  | TasksData
+  | DocumentsData
   | null;
 
 export interface CardSection<T extends SectionData = SectionData> {
@@ -160,6 +221,9 @@ export interface CardsBundle {
   birthdays: CardSection<BirthdaysData>;
   reminders: CardSection<RemindersData>;
   health: CardSection<HealthData>;
+  for_you: CardSection<ForYouData>;
+  tasks: CardSection<TasksData>;
+  documents: CardSection<DocumentsData>;
 }
 
 export interface BriefingResponse {
@@ -172,7 +236,16 @@ export interface BriefingResponse {
 // Section identifiers and refresh request
 // =============================================================================
 
-export type BriefingSection = 'weather' | 'agenda' | 'mails' | 'birthdays' | 'reminders' | 'health';
+export type BriefingSection =
+  | 'weather'
+  | 'agenda'
+  | 'mails'
+  | 'birthdays'
+  | 'reminders'
+  | 'health'
+  | 'for_you'
+  | 'tasks'
+  | 'documents';
 
 export type RefreshScope = BriefingSection | 'all';
 

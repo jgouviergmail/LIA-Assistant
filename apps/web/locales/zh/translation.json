@@ -244,6 +244,31 @@
           "avg_window": "{{window}} 天平均",
           "unit_steps": "步",
           "unit_heart_rate": "bpm"
+        },
+        "for_you": {
+          "title": "为你",
+          "empty": "目前没有跟踪内容——承诺和自动化任务将显示在这里。",
+          "loops_title": "跟踪中",
+          "automations_title": "自动化任务",
+          "days_open_one": "{{count}} 天",
+          "days_open_other": "{{count}} 天",
+          "ran_recently": "过去 24 小时已执行",
+          "next_up": "即将执行"
+        },
+        "tasks": {
+          "title": "任务",
+          "empty": "没有待办任务",
+          "due_today": "今天",
+          "due_tomorrow": "明天",
+          "due_in_days_one": "{{count}} 天后",
+          "due_in_days_other": "{{count}} 天后",
+          "overdue_days_one": "逾期 {{count}} 天",
+          "overdue_days_other": "逾期 {{count}} 天"
+        },
+        "documents": {
+          "title": "文档",
+          "empty": "没有最近的文档",
+          "open_external": "在 Drive 中打开“{{subject}}”"
         }
       },
       "updated_hours_ago": "{{hours}} 小时前",
@@ -252,7 +277,12 @@
         "mail": "总结来自{{sender}}的邮件“{{subject}}”并起草回复",
         "birthday": "为{{name}}准备一条生日祝福",
         "event": "帮我准备{{time}}的“{{title}}”",
-        "reminder_aria": "打开聊天查看此提醒"
+        "reminder_aria": "打开聊天查看此提醒",
+        "loop_owed": "帮我推进：{{subject}}",
+        "loop_waiting": "我等待的事有进展吗：{{subject}}？",
+        "task_progress": "帮我推进“{{subject}}”",
+        "task_reschedule": "重新安排任务“{{subject}}”",
+        "document_summarize": "帮我总结文档“{{subject}}”"
       }
     },
     "portrait_hint": {
@@ -1674,6 +1704,7 @@
           "hitl_plan_approval_question_generator": "生成计划批准问题",
           "memory_extraction": "从对话中提取可记忆的事实",
           "memory_reference_extraction": "从查询中提取需要解析的个人引用",
+          "open_loop_extraction": "从对话中提取未完成的承诺（开放事项）",
           "memory_reference_resolution": "解析对存储记忆的引用",
           "interest_extraction": "从对话中提取兴趣",
           "interest_content": "根据兴趣生成内容",
@@ -3072,7 +3103,7 @@
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
-          "description": "仪表盘主页是一份每日简报：个性化 LLM 问候语 + 2-3 句综述，置于 6 张卡片网格之上（增强天气、日程、未读邮件、生日、提醒、健康）。纯净架构：无 LangGraph 链，并行 asyncio.gather，按板块的 Redis 缓存配合自适应 TTL（天气 1 小时、日程 10 分钟、邮件 5 分钟…）。拆分端点（/briefing/cards 快速 + /briefing/synthesis LLM 绑定）实现渐进式渲染。每次 LLM 调用的 token 与 EUR 费用在时间戳旁的 UI 中展示，并通过 track_proactive_tokens 计入用户使用统计（缓存 token 已正确扣除）。"
+          "description": "仪表盘主页是一份每日简报：个性化 LLM 问候语 + 2-3 句综述，置于 9 张卡片网格之上（增强天气、日程、未读邮件、生日、提醒、健康、「为你」——开放事项 + 自动化摘要——、进行中/逾期任务、最近的 Drive 文档）。纯净架构：无 LangGraph 链，并行 asyncio.gather，按板块的 Redis 缓存配合自适应 TTL（天气 1 小时、日程 10 分钟、邮件 5 分钟…）。拆分端点（/briefing/cards 快速 + /briefing/synthesis LLM 绑定）实现渐进式渲染。每次 LLM 调用的 token 与 EUR 费用在时间戳旁的 UI 中展示，并通过 track_proactive_tokens 计入用户使用统计（缓存 token 已正确扣除）。"
         }
       },
       "diagram_alt": "LIA架构图"
@@ -3081,6 +3112,21 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_25_13": {
+          "title": "v1.25.13 — 🔗 LIA 打通各领域：承诺、自动化、你的文档",
+          "date": "2026年7月",
+          "count": "8",
+          "items": {
+            "i1": "<b>🔁 开放事项 — 追踪你的承诺</b> — 说一句「我得给水管工回电话」，LIA 就会悄悄将它记录为一个开放事项：在合适的时机提醒你（绝不唠叨——每个事项都有冷却期），当你说「搞定了」它便自动关闭。仪表盘上也能看到。默认关闭——由管理员启用。",
+            "i2": "<b>⏰ 在聊天中创建自动化任务</b> — 「每天早上给我做一份 AI 新闻摘要」现在一句话就能实现：LIA 会显示确认卡片（星期、时间、指令），经你确认后才创建定期自动化任务。也可以用自然语言列出、暂停或恢复它们。如果你连续几天在同一时间提出同样的请求，LIA 还会主动建议帮你自动化。",
+            "i3": "<b>📄 你的文档变得可用</b> — LIA 现在能自主搜索你的文档空间，并与其他来源交叉使用：「把 PDF 报价单和 Paul 的邮件对比一下」是一条真实可行的请求。",
+            "i4": "<b>👤 人物 360° 视图</b> — 「帮我准备和 Marie 的通话」：一次汇总她的联系人卡片、你们最近的邮件、共同的日程以及 LIA 对她的了解——并诚实说明哪个来源不可用。",
+            "i5": "<b>🗂️ 三张新的简报卡片（共九张）</b> — 「为你」（你的开放事项 + 自动化任务的执行情况，附下次运行的确切时间）、「任务」（逾期优先、红色标注——今天到期的任务绝不算逾期）、「文档」（最近修改的 Drive 文件：一键摘要，或在 Drive 中打开）。",
+            "i6": "<b>🚗 出发提醒</b> — 「13:30 出发——车程 30 分钟」：针对你下一个带地点的日程，LIA 查询实时路况告诉你何时动身，并考虑天气。默认关闭。",
+            "i7": "<b>🎂 生日 & 📞 通话跟进</b> — LIA 现在会在生日当天提醒你（「要我帮你写条祝福，还是打个电话？」）；替你拨打的电话结束后，它会建议把商定的约会加入日历。",
+            "i8": "<b>🧭 细节打磨</b> — 聊天搜索框移到了页眉左侧（离线指示灯就在旁边）；兴趣发现可以锚定到你的城市（「本周末里昂的展览」，默认关闭）。"
+          }
+        },
         "v1_25_11": {
           "title": "v1.25.11 — 🗺️ 值得信赖的小组件：随处可用、持久保存、失败时如实相告",
           "date": "2026年7月",
@@ -4341,7 +4387,7 @@
       "chat": {
         "title": "对话",
         "description": "使用聊天和对话",
-        "count": "18",
+        "count": "19",
         "questions": {
           "q1": {
             "question": "我可以同时进行多个对话吗？",
@@ -4414,6 +4460,10 @@
           "q18": {
             "question": "回答下方的 👍/👎 有什么用?",
             "answer": "普通回答的<strong>复制</strong>按钮旁会出现两个低调的拇指。您的评价会<strong>随消息保存</strong>(在其他设备上也能看到),并加深 LIA 对您的理解:它会强化或削弱塑造这条回答的个人观察。点 👎 会展开一行可选的「<strong>哪里出了问题?</strong>」输入框,作为更正记录下来。<br><br>您可以改变主意 — 以最后一次评价为准。LIA <strong>绝不会自行重新生成</strong>回答:主导权在您手中。"
+          },
+          "q19": {
+            "question": "LIA 能在我与某人交流前帮我做准备吗？(v1.25.13)",
+            "answer": "能——说「帮我准备和 Marie 的通话」，一次汇总即可获得<strong>360° 视图</strong>：她的联系人卡片、你们最近的邮件往来、接下来的共同日程，以及 LIA 对她的了解。如果某个来源不可用（例如没有日历连接器），视图会诚实说明，而不是编造。<br><br>它也支撑「会议准备」提示：当一个重要会议临近时，主动通知可能以「要我帮你准备这场会议吗？」结尾。"
           }
         }
       },
@@ -4829,7 +4879,7 @@
       "heartbeat": {
         "title": "主动通知",
         "description": "LIA主动为您提供有用信息",
-        "count": "7",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "什么是主动通知？",
@@ -4858,13 +4908,21 @@
           "q7": {
             "question": "我在旅行时天气提醒如何工作？(v1.16.7)",
             "answer": "默认情况下,主动天气通知使用您的<strong>家庭地址</strong>。如果您在旅行,可以启用使用您的<strong>当前位置</strong>:<br><br><strong>⚙️ 如何启用:</strong><br>设置 → <em>主动通知</em> → 滚动到<em>旅行时的天气位置</em> → 开启开关。<br><br><strong>🎯 何时生效:</strong><br>仅当<strong>所有</strong>这些条件都满足时,LIA才会使用您的浏览器位置(而不是您的家)：<br>• 该选项已启用<br>• 您最后一次已知的位置<strong>不到24小时</strong><br>• 您距离您的家庭地址<strong>超过50公里</strong><br><br>低于该距离,将保留家庭地址(避免因市内移动而切换)。超过24小时,位置被视为过时,通知将自动回退到家庭地址。<br><br><strong>🏙️ 透明的通知:</strong><br>当使用的位置不是您的家时,通知总是会提及相关城市。<br><br><strong>🔒 隐私设计:</strong><br>• 您的位置<strong>已加密</strong>(与您的家庭地址使用相同的加密方案)<br>• <strong>不会被历史记录</strong> — 每次更新都会覆盖上一次,没有痕迹<br>• 如果您禁用该选项或删除您的家庭地址,它将<strong>立即被删除</strong><br>• <em>当前存储</em>块准确显示LIA保留的内容,并提供<strong>立即清除</strong>按钮<br>• 后端自动限制为每个用户每30分钟一次更新<br><br><strong>💡 前提条件:</strong><br>您还需要启用浏览器地理定位(设置 → 位置 → 地理定位)。没有它,无法捕获任何位置。"
+          },
+          "q8": {
+            "question": "什么是「开放事项」？(v1.25.13)",
+            "answer": "开放事项是 <strong>LIA 在对话中听到并悄悄为你记下的承诺</strong>——「我得给水管工回电话」「Marie 还欠我报价单」。在合适的时机（截止临近，或事项沉寂太久），主动通知会温和地提醒你，并区分方向：「你想给水管工回电话——现在合适吗？」vs「Marie 的报价单还没消息吗？」。<br><br><strong>绝不唠叨：</strong>每个事项都有冷却期——提过一次后，几天内不会再出现。当你说「搞定了」、或在仪表盘「为你」卡片上操作时事项关闭，长期不活跃则自动过期。<br><br><strong>⚙️ 管理员：</strong>默认关闭（<code>OPEN_LOOPS_ENABLED</code>）。"
+          },
+          "q9": {
+            "question": "LIA 能告诉我何时出发赴约吗？(v1.25.13)",
+            "answer": "能。当你的下一个日程带有<strong>地点</strong>且几小时内开始时，LIA 会从你的有效位置查询<strong>实时路况</strong>（Google Routes）并通知你：「13:30 出发——车程 30 分钟，14:00 的约会」，必要时结合天气（「14:30 预计有雨」）。<br><br>每个周期最多查询一次路线，按日程缓存——同一约会绝不会收到两次相同通知。<br><br><strong>⚙️ 管理员：</strong>默认关闭（<code>HEARTBEAT_DEPARTURE_ENABLED</code>）；需要已配置的家庭住址。"
           }
         }
       },
       "scheduled_actions": {
         "title": "计划操作",
         "description": "使用LIA自动执行定期任务",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "什么是计划操作？",
@@ -4889,6 +4947,10 @@
           "q6": {
             "question": "计划操作是否受使用限制影响？",
             "answer": "是的，达到限制时计划操作将被阻止。"
+          },
+          "q7": {
+            "question": "可以直接在聊天中创建自动化任务吗？(v1.25.13)",
+            "answer": "可以——一句话即可：「工作日每天早上 8 点给我做一份 AI 新闻摘要」。LIA 校验排程并显示<strong>确认卡片</strong>（标题、星期、时间、指令）；未经你确认不会创建任何内容。你也可以用自然语言<strong>列出</strong>自动化任务（「我有哪些自动化任务？」）并<strong>暂停/恢复</strong>某一项。<br><br><strong>💡 额外：</strong>如果你在多个不同日子的同一时段提出同类请求，LIA 会主动建议：「要不要我把它变成定期自动化任务？」（确定性检测，每种模式每月最多建议一次，默认关闭——<code>RECURRENCE_SUGGESTION_ENABLED</code>）。<br><br>删除自动化任务仍需在设置中操作。"
           }
         }
       },
@@ -5000,7 +5062,7 @@
       "rag_spaces": {
         "title": "知识空间 (RAG)",
         "description": "上传和使用您的文档来丰富AI回答",
-        "count": "8",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "什么是知识空间？",
@@ -5033,6 +5095,10 @@
           "q8": {
             "question": "我可以向助手询问它自身的功能吗？",
             "answer": "可以！LIA 拥有<strong>内置知识库</strong>，可以在对话中直接回答关于自身的问题：<br><br><strong>🧠 工作原理：</strong><br>• LIA 会自动检测您何时询问有关应用的问题（\"<em>你能做什么？</em>\"、\"<em>如何连接我的日历？</em>\"）<br>• 它使用与用户空间相同的混合搜索来搜索其 FAQ 知识库（24 个部分中的 200+ 个问答）<br>• 一个描述所有功能的<strong>应用身份提示词</strong>会被注入到回复中<br><br><strong>⚡ 零开销：</strong><br>仅在您询问应用相关问题时才会激活。正常查询（邮件、日历等）完全不受影响。<br><br><strong>🔧 管理员功能：</strong><br>管理员可以在<strong>设置 > 管理 > RAG 空间</strong>中管理系统知识空间：<br>• 查看过期状态（内容哈希比较）<br>• 触发手动重新索引<br>• 系统空间在应用启动时自动索引"
+          },
+          "q9": {
+            "question": "LIA 能自主搜索我的文档吗？(v1.25.13)",
+            "answer": "能。你的文档空间现在是一个<strong>可用领域</strong>：除了自动注入上下文之外，规划器还能决定主动搜索——派生查询、必要时多次检索、并与其他来源组合：「把 PDF 报价单和 Paul 邮件里的内容对比一下」会串联一次文档搜索和一次邮件搜索。<br><br>简报的「文档」卡片还会显示你最近修改的 Drive 文件——一键在聊天中摘要，或直接在 Drive 中打开。"
           }
         }
       },
@@ -6258,7 +6324,7 @@
       },
       "briefing": {
         "title": "今日简报",
-        "description": "每天早晨，一眼掌握你的一天：个性化摘要、天气、日程、生日、提醒、健康和未读邮件——在你开口之前。"
+        "description": "每天早晨，一眼看清你的一天：个性化综述、天气、日程、生日、提醒、健康、未读邮件、你在追踪的承诺、逾期任务和刚修改的文档——在你开口之前。"
       }
     },
     "use_cases": {

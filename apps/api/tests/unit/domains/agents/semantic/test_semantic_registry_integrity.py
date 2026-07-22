@@ -43,6 +43,13 @@ KNOWN_UNBRIDGED_RELATED_DOMAINS: frozenset[tuple[str, str]] = frozenset(
     {
         ("file", "contact"),
         ("reminder", "contact"),
+        # P4 (interdomain program Lot 1) — initiative-node product adjacencies:
+        # events generate follow-up work (event→task) and emails carry
+        # attachments living in the cloud drive (email→file). No typed
+        # parameter pivot exists yet; the chaining guidance lives in the
+        # planner/ReAct prompts (CROSS-DOMAIN CHAINS blocks).
+        ("event", "task"),
+        ("email", "file"),
     }
 )
 

@@ -615,3 +615,42 @@ class TestHeartbeatHistoryResponse:
 
         assert len(history.notifications) == 1
         assert history.total == 1
+
+
+# ---------------------------------------------------------------------------
+# Birthdays context (P7)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestBirthdaysContext:
+    """UPCOMING BIRTHDAYS section + source label (P7)."""
+
+    def test_prompt_section_renders_names_and_days(self):
+        ctx = HeartbeatContext(
+            upcoming_birthdays=[
+                {"contact_name": "Marie", "days_until": 0, "age_at_next": 36},
+                {"contact_name": "Paul", "days_until": 1, "age_at_next": None},
+            ]
+        )
+        rendered = ctx.to_prompt_context()
+        assert "UPCOMING BIRTHDAYS" in rendered
+        assert "Marie" in rendered
+        assert "TODAY" in rendered  # days_until == 0 highlighted
+        assert "Paul" in rendered
+
+    def test_birthdays_alone_are_meaningful_context(self):
+        ctx = HeartbeatContext(
+            upcoming_birthdays=[{"contact_name": "Marie", "days_until": 0, "age_at_next": None}]
+        )
+        assert ctx.has_meaningful_context() is True
+
+    def test_decision_accepts_birthdays_source_label(self):
+        decision = HeartbeatDecision(
+            action="notify",
+            reason="birthday today",
+            message_draft="C'est l'anniversaire de Marie !",
+            priority="high",
+            sources_used=["UPCOMING_BIRTHDAYS"],
+        )
+        assert decision.sources_used == ["UPCOMING_BIRTHDAYS"]

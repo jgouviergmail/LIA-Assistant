@@ -1,0 +1,222 @@
+"""Wiring of the recurrence detector (P12, Lot 3, ADR-140).
+
+Two hooks: the post-response ledger write and the initiative-node wrapper
+that merges the deterministic suggestion into the existing directive slot.
+"""
+
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from langchain_core.messages import HumanMessage
+
+from src.core.constants import STATE_KEY_INITIATIVE_SUGGESTION
+from src.domains.agents.nodes.initiative_recurrence import initiative_node
+
+
+def _state():
+    return {
+        "messages": [HumanMessage(content="fais-moi la revue de presse IA")],
+        "user_timezone": "Europe/Paris",
+        "user_language": "fr",
+        "query_intelligence": {
+            "intent": "action",
+            "primary_domain": "web_search",
+            "secondary_domains": [],
+        },
+    }
+
+
+def _config():
+    return {
+        "configurable": {
+            "langgraph_user_id": "11111111-1111-1111-1111-111111111111",
+            "thread_id": "t1",
+        }
+    }
+
+
+def _settings(**overrides):
+    defaults = {
+        "initiative_enabled": False,  # core short-circuits to {}
+        "recurrence_suggestion_enabled": True,
+        "default_language": "fr",
+        "recurrence_window_days": 14,
+        "recurrence_min_distinct_days": 3,
+        "recurrence_suggestion_cooldown_days": 30,
+        "recurrence_ledger_max_entries": 20,
+    }
+    defaults.update(overrides)
+    return SimpleNamespace(**defaults)
+
+
+@pytest.mark.unit
+class TestInitiativeRecurrenceWrapper:
+    async def test_suggestion_merged_when_core_silent(self):
+        with (
+            patch(
+                "src.domains.agents.nodes.initiative_recurrence.settings",
+                _settings(),
+            ),
+            patch(
+                "src.domains.agents.services.recurrence_ledger.evaluate_suggestion",
+                AsyncMock(return_value="Veux-tu automatiser cela ?"),
+            ) as eval_mock,
+        ):
+            update = await initiative_node(_state(), _config())
+
+        assert update[STATE_KEY_INITIATIVE_SUGGESTION] == "Veux-tu automatiser cela ?"
+        # Signature built from QI shape (positional arg 2 is the signature)
+        signature = eval_mock.await_args.args[1]
+        assert signature.startswith("web_search@h")
+
+    async def test_core_suggestion_never_overridden(self):
+        with (
+            patch(
+                "src.domains.agents.nodes.initiative_recurrence.settings",
+                _settings(),
+            ),
+            patch(
+                "src.domains.agents.nodes.initiative_recurrence._initiative_core",
+                AsyncMock(return_value={STATE_KEY_INITIATIVE_SUGGESTION: "core suggestion"}),
+            ),
+            patch(
+                "src.domains.agents.services.recurrence_ledger.evaluate_suggestion",
+                AsyncMock(return_value="recurrence suggestion"),
+            ) as eval_mock,
+        ):
+            update = await initiative_node(_state(), _config())
+
+        assert update[STATE_KEY_INITIATIVE_SUGGESTION] == "core suggestion"
+        eval_mock.assert_not_awaited()
+
+    async def test_flag_off_leaves_update_untouched(self):
+        with (
+            patch(
+                "src.domains.agents.nodes.initiative_recurrence.settings",
+                _settings(recurrence_suggestion_enabled=False),
+            ),
+            patch(
+                "src.domains.agents.services.recurrence_ledger.evaluate_suggestion",
+                AsyncMock(return_value="never"),
+            ) as eval_mock,
+        ):
+            update = await initiative_node(_state(), _config())
+
+        assert STATE_KEY_INITIATIVE_SUGGESTION not in update
+        eval_mock.assert_not_awaited()
+
+    async def test_conversation_intent_never_checks(self):
+        state = _state()
+        state["query_intelligence"]["intent"] = "conversation"
+        with (
+            patch(
+                "src.domains.agents.nodes.initiative_recurrence.settings",
+                _settings(),
+            ),
+            patch(
+                "src.domains.agents.services.recurrence_ledger.evaluate_suggestion",
+                AsyncMock(return_value="never"),
+            ) as eval_mock,
+        ):
+            update = await initiative_node(state, _config())
+
+        assert STATE_KEY_INITIATIVE_SUGGESTION not in update
+        eval_mock.assert_not_awaited()
+
+
+@pytest.mark.unit
+class TestRecurrenceRecordWiring:
+    """The post-response 7th block records actionable shapes only."""
+
+    def _run(self, *, state, config, settings):
+        from src.domains.agents.nodes.post_response_extractions import (
+            _schedule_post_response_extractions,
+        )
+
+        captured: list = []
+
+        def _fake_fire_and_forget(coro, *, name="", run_id=None):
+            captured.append(name)
+            coro.close()
+
+        with (
+            patch(
+                "src.domains.agents.nodes.post_response_extractions.safe_fire_and_forget",
+                side_effect=_fake_fire_and_forget,
+            ),
+            patch(
+                "src.domains.agents.nodes.post_response_extractions.settings",
+                settings,
+            ),
+        ):
+            _schedule_post_response_extractions(
+                state,
+                config,
+                "run-1",
+                user_msg_is_trivial=False,
+                personality_instruction=None,
+                user_message_embedding=None,
+                user_language="fr",
+                final_content="Voilà !",
+                previous_journal_injected_ids=[],
+                psyche_appraisal=None,
+            )
+        return captured
+
+    def _extraction_settings(self, **overrides):
+        defaults = {
+            "recurrence_suggestion_enabled": True,
+            "recurrence_window_days": 14,
+            "recurrence_ledger_max_entries": 20,
+            "open_loops_enabled": False,
+            "journals_enabled": False,
+            "psyche_enabled": False,
+        }
+        defaults.update(overrides)
+        return SimpleNamespace(**defaults)
+
+    def test_recorded_for_actionable_query(self):
+        config = {
+            "configurable": {
+                "langgraph_user_id": "11111111-1111-1111-1111-111111111111",
+                "thread_id": "t1",
+                "user_memory_enabled": False,
+                "user_journals_enabled": False,
+                "user_psyche_enabled": False,
+            }
+        }
+        names = self._run(state=_state(), config=config, settings=self._extraction_settings())
+        assert any(n.startswith("recurrence_record_") for n in names)
+
+    def test_not_recorded_when_flag_off(self):
+        config = {
+            "configurable": {
+                "langgraph_user_id": "11111111-1111-1111-1111-111111111111",
+                "thread_id": "t1",
+                "user_memory_enabled": False,
+                "user_journals_enabled": False,
+                "user_psyche_enabled": False,
+            }
+        }
+        names = self._run(
+            state=_state(),
+            config=config,
+            settings=self._extraction_settings(recurrence_suggestion_enabled=False),
+        )
+        assert not any(n.startswith("recurrence_record_") for n in names)
+
+    def test_not_recorded_for_conversation_intent(self):
+        state = _state()
+        state["query_intelligence"]["intent"] = "conversation"
+        config = {
+            "configurable": {
+                "langgraph_user_id": "11111111-1111-1111-1111-111111111111",
+                "thread_id": "t1",
+                "user_memory_enabled": False,
+                "user_journals_enabled": False,
+                "user_psyche_enabled": False,
+            }
+        }
+        names = self._run(state=state, config=config, settings=self._extraction_settings())
+        assert not any(n.startswith("recurrence_record_") for n in names)

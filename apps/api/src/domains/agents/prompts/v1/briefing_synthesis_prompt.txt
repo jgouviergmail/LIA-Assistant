@@ -42,3 +42,6 @@ EXAMPLES (illustrative — adapt to the actual context):
 - French week-end à venir: Week-end posé en perspective : aucun rdv pro, juste le brunch prévu dimanche 11h. Soleil samedi, pluie dimanche après-midi.
 
 Now write the synthesis:
+
+USER MODEL (compiled portrait — calibrate tone and priorities; empty if unavailable):
+{user_model_block}

@@ -371,6 +371,11 @@ class HeartbeatProactiveTask:
                 "decision_reason": target.decision.reason,
                 "interest_topic": interest_topic,
                 "citations": citations,
+                # P5 — loop ids surfaced this cycle, consumed by the
+                # post-notification cooldown bump (on_notification_sent).
+                "open_loop_ids": [
+                    ol["id"] for ol in (target.context.open_loops or []) if ol.get("id")
+                ],
             },
         )
 
@@ -458,6 +463,11 @@ class HeartbeatProactiveTask:
                         topic=interest_topic[:50],
                     )
 
+            # P5 — cooldown bump: only when the delivered notification actually
+            # used the OPEN_LOOPS source (fetch-time bumping would suppress
+            # loops the decision LLM chose to skip).
+            await _bump_used_open_loops(db, user_id, result.metadata)
+
             await db.commit()
 
         # 2. Store summary in LangGraph Store for conversational continuity
@@ -539,3 +549,29 @@ class HeartbeatProactiveTask:
                 error=str(e),
             )
             return None
+
+
+async def _bump_used_open_loops(db: Any, user_id: UUID, metadata: dict[str, Any]) -> None:
+    """Bump the nudge cooldown for loops a delivered notification surfaced.
+
+    Hoisted out of ``on_notification_sent`` (CC ratchet). Only runs when the
+    decision actually used the OPEN_LOOPS source; malformed ids are skipped.
+    """
+    open_loop_ids = metadata.get("open_loop_ids") or []
+    if "OPEN_LOOPS" not in metadata.get("sources_used", []) or not open_loop_ids:
+        return
+    from src.domains.open_loops.repository import OpenLoopRepository
+
+    parsed_ids = []
+    for raw_id in open_loop_ids:
+        try:
+            parsed_ids.append(UUID(str(raw_id)))
+        except ValueError:
+            continue
+    if parsed_ids:
+        await OpenLoopRepository(db).bump_nudged(parsed_ids, user_id=user_id)
+        logger.info(
+            "open_loops_nudge_bumped",
+            user_id=str(user_id),
+            count=len(parsed_ids),
+        )

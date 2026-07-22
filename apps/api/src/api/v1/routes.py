@@ -50,6 +50,11 @@ api_router.include_router(briefing_router)  # Today dashboard
 # consumer; the planner's ephemeral delegation path runs on ReactSubAgentRunner
 # and never touched the REST surface). SUB_AGENTS_ENABLED still gates the
 # delegate_to_sub_agent_tool tool itself, but no router is mounted.
+if getattr(settings, "open_loops_enabled", False):
+    from src.domains.open_loops.router import router as open_loops_router
+
+    api_router.include_router(open_loops_router)
+
 if getattr(settings, "mcp_enabled", False):
     from src.domains.user_mcp.admin_router import router as admin_mcp_router
 

@@ -575,11 +575,28 @@ export default function ChatPage() {
           {/* Header - Enhanced with glassmorphism and shimmer effect */}
           <div className="relative border-b border-border/40 bg-card/95 backdrop-blur-sm px-4 py-4 sm:px-6 shadow-sm header-shimmer">
             <div className="flex items-center justify-between">
-              {/* Left side: status only when it carries information (QW-12) —
-                  the nominal "online" state is silent; offline and processing
-                  are the exceptional states worth a pill. `min-w-0 flex-1`
-                  keeps the flex layout stable when the slot renders nothing. */}
-              <div className="flex items-center min-w-0 flex-1">
+              {/* Left side: status pill + search, in that order. The status
+                  only renders when it carries information (QW-12) — the
+                  nominal "online" state is silent; offline and processing are
+                  the exceptional states worth a pill, shown LEFT of the
+                  search field. `min-w-0 flex-1` keeps the flex layout stable
+                  when the pill renders nothing. */}
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                {!apiAvailable ? (
+                  <div className="flex items-center gap-2 rounded-full bg-rose-100 dark:bg-rose-900 px-3 py-1.5 shadow-sm border border-rose-200 dark:border-rose-800 shrink-0">
+                    <WifiOff className="h-3.5 w-3.5 text-rose-600 dark:text-rose-300" />
+                    <span className="text-[11px] mobile:text-xs font-semibold text-rose-600 dark:text-rose-300">
+                      {t('chat.input.status.offline')}
+                    </span>
+                  </div>
+                ) : isTyping ? (
+                  <div className="flex items-center gap-2 rounded-full bg-amber-100 dark:bg-amber-900 px-3 py-1.5 shadow-sm border border-amber-200 dark:border-amber-800 shrink-0">
+                    <LoadingSpinner className="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" />
+                    <span className="text-[11px] mobile:text-xs font-semibold text-amber-600 dark:text-amber-300">
+                      {t('chat.input.status.processing')}
+                    </span>
+                  </div>
+                ) : null}
                 {/* Mobile search toggle (< 880px) — unfolds the input row in
                     the ChatSearchBar below the header (QW-2). */}
                 <button
@@ -587,43 +604,12 @@ export default function ChatPage() {
                   onClick={() => setMobileSearchOpen(open => !open)}
                   aria-expanded={mobileSearchOpen}
                   aria-label={t('chat.search.open_mobile')}
-                  className="mobile:hidden p-2 mr-1 rounded-full hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="mobile:hidden p-2 rounded-full hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Search className="h-4 w-4 text-muted-foreground" aria-hidden />
                 </button>
-                {!apiAvailable ? (
-                  <div className="flex items-center gap-2 rounded-full bg-rose-100 dark:bg-rose-900 px-3 py-1.5 shadow-sm border border-rose-200 dark:border-rose-800">
-                    <WifiOff className="h-3.5 w-3.5 text-rose-600 dark:text-rose-300" />
-                    <span className="text-[11px] mobile:text-xs font-semibold text-rose-600 dark:text-rose-300">
-                      {t('chat.input.status.offline')}
-                    </span>
-                  </div>
-                ) : isTyping ? (
-                  <div className="flex items-center gap-2 rounded-full bg-amber-100 dark:bg-amber-900 px-3 py-1.5 shadow-sm border border-amber-200 dark:border-amber-800">
-                    <LoadingSpinner className="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" />
-                    <span className="text-[11px] mobile:text-xs font-semibold text-amber-600 dark:text-amber-300">
-                      {t('chat.input.status.processing')}
-                    </span>
-                  </div>
-                ) : null}
-              </div>
-
-              {/* Center: Voice Mode Badge - Single instance, always mounted to preserve KWS state */}
-              <div className="absolute left-1/2 -translate-x-1/2">
-                <VoiceModeBadge
-                  onTranscription={(text, meta) =>
-                    sendMessageFromPresent(text, undefined, undefined, meta)
-                  }
-                  disabled={!apiAvailable || isTyping || isUsageBlocked}
-                />
-              </div>
-
-              {/* RAG Spaces Indicator */}
-              <ActiveSpacesIndicator />
-
-              {/* Right side: Search + Context-usage pill + Delete/New chat */}
-              <div className="flex items-center gap-2">
-                {/* Search input — filters currently loaded messages by content */}
+                {/* Search input (≥ 880px) — filters currently loaded messages
+                    by content; left-aligned in the header. */}
                 <div className="relative hidden mobile:flex items-center">
                   <Search className="absolute left-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                   <input
@@ -645,11 +631,29 @@ export default function ChatPage() {
                     </button>
                   )}
                 </div>
+              </div>
+
+              {/* Center: Voice Mode Badge - Single instance, always mounted to preserve KWS state */}
+              <div className="absolute left-1/2 -translate-x-1/2">
+                <VoiceModeBadge
+                  onTranscription={(text, meta) =>
+                    sendMessageFromPresent(text, undefined, undefined, meta)
+                  }
+                  disabled={!apiAvailable || isTyping || isUsageBlocked}
+                />
+              </div>
+
+              {/* RAG Spaces Indicator */}
+              <ActiveSpacesIndicator />
+
+              {/* Right side: Context-usage pill + Delete/New chat (the search
+                  field lives in the LEFT slot, after the status pill). */}
+              <div className="flex items-center gap-2">
                 {/* Context-usage pill — shows tokens vs compaction threshold.
                     Hidden until the first turn completes (no data yet).
-                    Placed AFTER the search field so on desktop the order is
-                    [Search] [Pill] [Delete]. Conversation totals ride its
-                    tooltip (QW-12) — the dedicated banner line is gone. */}
+                    Desktop order on this side: [Pill] [Delete]. Conversation
+                    totals ride its tooltip (QW-12) — the dedicated banner
+                    line is gone. */}
                 {contextUsage && (
                   <ContextUsagePill
                     usage={contextUsage}

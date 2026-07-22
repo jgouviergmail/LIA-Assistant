@@ -431,6 +431,26 @@ def _render_phone_call(
     return lines
 
 
+def _render_scheduled_action(
+    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
+) -> list[str]:
+    """Render a recurring-automation preview (title, schedule, instruction).
+
+    ``schedule_human`` is pre-localized at draft creation (the tool knows the
+    user's locale); no datetime row — the schedule line carries the timing.
+    """
+    title = content.get("title") or "?"
+    schedule = content.get("schedule_human", "")
+    instruction = content.get("action_prompt", "")
+
+    lines = [f"<br/>**{lbl['title']}**: {title}"]
+    if schedule:
+        lines.append(f"<br/>**{lbl['schedule']}**: {schedule}")
+    if instruction:
+        lines.append(f"<br/>**{lbl['instruction']}**: {instruction}")
+    return lines
+
+
 # =============================================================================
 # REGISTRY
 # =============================================================================
@@ -455,6 +475,7 @@ _PREVIEW_RENDERERS: dict[DraftType, _PreviewRenderer] = {
     DraftType.LABEL_DELETE: _render_label_delete,
     DraftType.REMINDER_DELETE: _render_reminder_delete,
     DraftType.PHONE_CALL: _render_phone_call,
+    DraftType.SCHEDULED_ACTION: _render_scheduled_action,
 }
 
 

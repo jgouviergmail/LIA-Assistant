@@ -52,7 +52,11 @@ from src.domains.agents.constants import (
     STATE_KEY_EXECUTION_PLAN,
 )
 from src.domains.agents.models import MessagesState
-from src.domains.agents.orchestration.plan_schemas import ParameterItem, parameters_to_dict
+from src.domains.agents.nodes.initiative_plan import (
+    _build_initiative_plan,
+    _validate_read_only,
+)
+from src.domains.agents.orchestration.plan_schemas import ParameterItem
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import get_structured_output
@@ -355,24 +359,6 @@ def _build_semantic_context(
     return dependencies, candidates
 
 
-def _validate_read_only(
-    actions: list[InitiativeAction],
-    read_only_manifests: list[Any],
-) -> list[InitiativeAction]:
-    """Defense in depth: reject any action targeting a non-read-only tool."""
-    allowed_names = {m.name for m in read_only_manifests}
-    validated = []
-    for action in actions:
-        if action.tool_name in allowed_names:
-            validated.append(action)
-        else:
-            logger.warning(
-                "initiative_action_rejected_non_readonly",
-                tool_name=action.tool_name,
-            )
-    return validated
-
-
 async def _load_memory_facts(
     user_id: str,
     execution_summary: str,
@@ -556,35 +542,6 @@ def _format_tools_for_prompt(manifests: list[Any]) -> str:
     return "\n".join(lines)
 
 
-def _build_initiative_plan(
-    actions: list[InitiativeAction],
-    config: RunnableConfig,
-) -> Any:
-    """Build an ExecutionPlan from validated initiative actions."""
-    from src.core.context import get_request_tool_manifests
-    from src.domains.agents.orchestration.plan_schemas import ExecutionPlan, ExecutionStep, StepType
-
-    user_id = (config.get("configurable") or {}).get("user_id", "unknown")
-    manifests = get_request_tool_manifests()
-    manifest_by_name = {m.name: m for m in manifests}
-    steps = []
-    for i, action in enumerate(actions):
-        manifest = manifest_by_name.get(action.tool_name)
-        agent_name = manifest.agent if manifest else "unknown_agent"
-
-        steps.append(
-            ExecutionStep(
-                step_id=f"initiative_{i}",
-                step_type=StepType.TOOL,
-                agent_name=agent_name,
-                tool_name=action.tool_name,
-                parameters=parameters_to_dict(action.parameters),
-                description=action.rationale,
-            )
-        )
-    return ExecutionPlan(user_id=str(user_id), steps=steps, execution_mode="parallel")
-
-
 # =============================================================================
 # Node
 # =============================================================================
@@ -596,7 +553,7 @@ def _build_initiative_plan(
     duration_metric=agent_node_duration_seconds,
     counter_metric=agent_node_executions_total,
 )
-async def initiative_node(
+async def _initiative_core(
     state: MessagesState,
     config: RunnableConfig,
 ) -> dict[str, Any]:

@@ -33,6 +33,9 @@ HeartbeatSourceLabel = Literal[
     "USER_MEMORIES",
     "JOURNAL_ENTRIES",
     "HEALTH_SIGNALS",
+    "UPCOMING_BIRTHDAYS",
+    "OPEN_LOOPS",
+    "DEPARTURE_ADVICE",
 ]
 """Canonical source labels for the decision structured output (ADR-135).
 
@@ -143,6 +146,18 @@ class HeartbeatContext:
     # only deltas, trends, and freshness metadata.
     health_signals: dict[str, Any] | None = None
 
+    # Upcoming contact birthdays (P7) — {contact_name, days_until, age_at_next}
+    # entries within the configured look-ahead (today + N days).
+    upcoming_birthdays: list[dict[str, Any]] | None = None
+
+    # Traffic-aware leave-by advice for the next located event (P6).
+    departure_advice: dict[str, Any] | None = None
+
+    # Nudge-worthy open loops (P5, ADR-139) — {id, subject, counterparty,
+    # direction, due_local, days_open}. The ids travel to proactive_task for
+    # the post-notification cooldown bump.
+    open_loops: list[dict[str, Any]] | None = None
+
     # Activity
     last_interaction_at: datetime | None = None
     hours_since_last_interaction: float | None = None
@@ -155,6 +170,11 @@ class HeartbeatContext:
     # Recent notification history (anti-redundancy cross-type)
     recent_heartbeats: list[dict[str, str]] | None = None
     recent_interest_notifications: list[dict[str, str]] | None = None
+    # Other proactive surfaces delivered in the same window (P10): fired
+    # reminders, scheduled-action results, telephony call reports. Entries
+    # carry {kind, created_at, content} so the decision LLM can detect a
+    # same-topic multi-surface pile-up.
+    recent_other_notifications: list[dict[str, str]] | None = None
 
     # Source tracking
     available_sources: list[str] = field(default_factory=list)
@@ -173,6 +193,9 @@ class HeartbeatContext:
                 self.user_memories,
                 self.journal_entries,
                 self.health_signals,
+                self.upcoming_birthdays,
+                self.open_loops,
+                self.departure_advice,
             )
         )
 
@@ -283,6 +306,38 @@ class HeartbeatContext:
             if lines:
                 sections.append("HEALTH SIGNALS (factual, not medical):\n" + "\n".join(lines))
 
+        if self.upcoming_birthdays:
+            bday_lines = []
+            for b in self.upcoming_birthdays:
+                days = b.get("days_until")
+                when = "TODAY" if days == 0 else f"in {days} day(s)"
+                age = b.get("age_at_next")
+                age_txt = f", turning {age}" if age else ""
+                bday_lines.append(f"  - {b.get('contact_name', '?')} — {when}{age_txt}")
+            sections.append("UPCOMING BIRTHDAYS:\n" + "\n".join(bday_lines))
+
+        if self.departure_advice:
+            da = self.departure_advice
+            sections.append(
+                "DEPARTURE ADVICE (traffic-aware): leave by "
+                f"{da.get('leave_by_local', '?')} for '{da.get('event_title', '?')}' "
+                f"at {da.get('event_start_local', '?')} — {da.get('eta_minutes', '?')} min "
+                f"to {da.get('destination', '?')}"
+            )
+
+        if self.open_loops:
+            loop_lines = []
+            for ol in self.open_loops:
+                due = f" (due {ol['due_local']})" if ol.get("due_local") else ""
+                who = f" — {ol['counterparty']}" if ol.get("counterparty") else ""
+                loop_lines.append(
+                    f"  - [{ol.get('direction', '?')}] {ol.get('subject', '?')}{who}{due} "
+                    f"(open for {ol.get('days_open', '?')} days)"
+                )
+            sections.append(
+                "OPEN LOOPS (commitments being tracked for the user):\n" + "\n".join(loop_lines)
+            )
+
         if self.hours_since_last_interaction is not None:
             sections.append(f"LAST INTERACTION: {self.hours_since_last_interaction:.1f} hours ago")
 
@@ -318,6 +373,24 @@ class HeartbeatContext:
             topic = n.get("topic", "?")
             created_at = n.get("created_at", "?")
             lines.append(f"  - [{created_at}] Topic: {topic}")
+        return "\n".join(lines)
+
+    @property
+    def recent_other_notifications_summary(self) -> str | None:
+        """Format other proactive surfaces (reminders, automations, calls).
+
+        P10 — content excerpts, same rationale as ``recent_heartbeats_summary``
+        (ADR-135): topic-level anti-repetition needs to see what was delivered,
+        whatever the surface that delivered it.
+        """
+        if not self.recent_other_notifications:
+            return None
+        lines = []
+        for n in self.recent_other_notifications:
+            kind = n.get("kind", "?")
+            created_at = n.get("created_at", "?")
+            content = n.get("content", "?")
+            lines.append(f"  - [{created_at}] ({kind}) {content}")
         return "\n".join(lines)
 
 

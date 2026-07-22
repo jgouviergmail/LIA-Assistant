@@ -2,7 +2,7 @@
 
 Two non-blocking GET endpoints + one refresh:
 
-- GET  /briefing/cards     : 6-card bundle (no LLM, fast)
+- GET  /briefing/cards     : 9-card bundle (no LLM, fast)
 - GET  /briefing/synthesis : LLM greeting + synthesis (reads cards from cache)
 - POST /briefing/refresh   : force-refresh selected sections, returns full payload
 
@@ -33,7 +33,7 @@ router = APIRouter(prefix="/briefing", tags=["briefing"])
 @router.get(
     "/cards",
     response_model=CardsResponse,
-    summary="Get the 6-card bundle for the Today dashboard (no LLM, fast)",
+    summary="Get the 9-card bundle for the Today dashboard (no LLM, fast)",
 )
 async def get_briefing_cards(
     current_user: User = Depends(get_current_active_session),

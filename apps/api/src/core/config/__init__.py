@@ -27,6 +27,7 @@ from src.core.constants import (
 from .advanced import AdvancedSettings
 from .agents import AgentsSettings
 from .attachments import AttachmentsSettings
+from .automation import AutomationSettings
 from .background_runs import BackgroundRunsSettings
 from .briefing import BriefingSettings
 from .browser import BrowserSettings
@@ -47,6 +48,7 @@ from .locks import LocksSettings
 from .mcp import MCPSettings
 from .notifications import NotificationSettings
 from .observability import ObservabilitySettings
+from .open_loops import OpenLoopsSettings
 from .psyche import PsycheSettings
 from .rag_spaces import RAGSpacesSettings
 from .scheduler import SchedulerSettings
@@ -104,6 +106,8 @@ class Settings(
     ImageGenerationSettings,
     DevOpsSettings,
     HealthMetricsSettings,
+    AutomationSettings,
+    OpenLoopsSettings,
     SchedulerSettings,
     LocksSettings,
     BackgroundRunsSettings,

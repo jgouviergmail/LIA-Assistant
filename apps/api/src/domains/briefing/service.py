@@ -13,13 +13,18 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
 import structlog
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+
+# Moved to core/time_utils (P7) — kept under its historical private name.
+from src.core.time_utils import (
+    seconds_to_next_local_midnight as _seconds_to_next_local_midnight,
+)
 from src.domains.briefing.constants import (
     BRIEFING_CACHE_PREFIX,
     BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA,
@@ -28,12 +33,18 @@ from src.domains.briefing.constants import (
     SECTION_AGENDA_TTL_SECONDS,
     SECTION_BIRTHDAYS,
     SECTION_BIRTHDAYS_TTL_SECONDS,
+    SECTION_DOCUMENTS,
+    SECTION_DOCUMENTS_TTL_SECONDS,
+    SECTION_FOR_YOU,
+    SECTION_FOR_YOU_TTL_SECONDS,
     SECTION_HEALTH,
     SECTION_HEALTH_TTL_SECONDS,
     SECTION_MAILS,
     SECTION_MAILS_TTL_SECONDS,
     SECTION_REMINDERS,
     SECTION_REMINDERS_TTL_SECONDS,
+    SECTION_TASKS,
+    SECTION_TASKS_TTL_SECONDS,
     SECTION_WEATHER,
     SECTION_WEATHER_TTL_SECONDS,
 )
@@ -44,9 +55,12 @@ from src.domains.briefing.exceptions import (
 from src.domains.briefing.fetchers import (
     fetch_agenda,
     fetch_birthdays,
+    fetch_documents,
+    fetch_for_you,
     fetch_health,
     fetch_mails,
     fetch_reminders,
+    fetch_tasks,
     fetch_weather,
 )
 from src.domains.briefing.llm import generate_greeting, generate_synthesis
@@ -84,22 +98,6 @@ def _resolve_user_tz(user: User) -> ZoneInfo:
         return ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
 
 
-def _seconds_to_next_local_midnight(user_tz: ZoneInfo, *, cap_seconds: int = 86400) -> int:
-    """Return the seconds remaining until the next 00:00 in `user_tz`.
-
-    Used for caches that pre-compute relative-day fields (e.g. `days_until` on
-    birthday cards): expiring at local midnight guarantees the value is
-    recomputed at the right moment rather than carrying stale arithmetic
-    until the next manual refresh. Capped at 24 h as a safety net.
-    """
-    now_local = datetime.now(user_tz)
-    next_midnight = (now_local + timedelta(days=1)).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
-    seconds = int((next_midnight - now_local).total_seconds())
-    return max(1, min(seconds, cap_seconds))
-
-
 def _has_content(data: Any) -> bool:
     """Return True if the data payload has at least one displayable item."""
     if data is None:
@@ -108,6 +106,13 @@ def _has_content(data: Any) -> bool:
         value = getattr(data, attr, None)
         if value is not None:
             return len(value) > 0
+    # ForYouData (P15): three optional sub-blocks — content when any is filled.
+    if hasattr(data, "open_loops"):
+        return bool(
+            getattr(data, "open_loops", None)
+            or getattr(data, "recent_automations", None)
+            or getattr(data, "next_automation", None)
+        )
     # Non-list payloads (e.g. WeatherData) — assume present means content.
     return True
 
@@ -136,7 +141,7 @@ class BriefingService:
         self,
         force_refresh: set[str] | None = None,
     ) -> CardsBundle:
-        """Build the 6-card bundle (no LLM call). Fast — returns when cards are ready.
+        """Build the 9-card bundle (no LLM call). Fast — returns when cards are ready.
 
         This is the non-blocking endpoint backbone: the frontend renders the
         dashboard grid as soon as this returns, without waiting for the LLM
@@ -155,10 +160,20 @@ class BriefingService:
 
         start = time.perf_counter()
 
-        # Fetch all 6 sections in parallel — each independently failable.
+        # Fetch all 9 sections in parallel — each independently failable.
         # Each fetcher acquires its own DB session (SQLAlchemy AsyncSession is
         # not safe for concurrent use, see fetchers.py module docstring).
-        weather, agenda, mails, birthdays, reminders, health = await asyncio.gather(
+        (
+            weather,
+            agenda,
+            mails,
+            birthdays,
+            reminders,
+            health,
+            for_you,
+            tasks,
+            documents,
+        ) = await asyncio.gather(
             self._section(
                 SECTION_WEATHER,
                 lambda: fetch_weather(user=self.user, user_tz=self.user_tz, language=self.language),
@@ -203,6 +218,28 @@ class BriefingService:
                 ttl=SECTION_HEALTH_TTL_SECONDS,
                 force=force_all or SECTION_HEALTH in force,
             ),
+            self._section(
+                SECTION_FOR_YOU,
+                lambda: fetch_for_you(
+                    user_id=self.user.id, user_tz=self.user_tz, language=self.language
+                ),
+                ttl=SECTION_FOR_YOU_TTL_SECONDS,
+                force=force_all or SECTION_FOR_YOU in force,
+            ),
+            self._section(
+                SECTION_TASKS,
+                lambda: fetch_tasks(user=self.user, user_tz=self.user_tz),
+                ttl=SECTION_TASKS_TTL_SECONDS,
+                force=force_all or SECTION_TASKS in force,
+            ),
+            self._section(
+                SECTION_DOCUMENTS,
+                lambda: fetch_documents(
+                    user=self.user, user_tz=self.user_tz, language=self.language
+                ),
+                ttl=SECTION_DOCUMENTS_TTL_SECONDS,
+                force=force_all or SECTION_DOCUMENTS in force,
+            ),
         )
 
         cards = CardsBundle(
@@ -212,6 +249,9 @@ class BriefingService:
             birthdays=birthdays,
             reminders=reminders,
             health=health,
+            for_you=for_you,
+            tasks=tasks,
+            documents=documents,
         )
 
         duration_s = time.perf_counter() - start
@@ -222,6 +262,9 @@ class BriefingService:
             (birthdays, SECTION_BIRTHDAYS_TTL_SECONDS),
             (reminders, 0),  # always live
             (health, SECTION_HEALTH_TTL_SECONDS),
+            (for_you, SECTION_FOR_YOU_TTL_SECONDS),
+            (tasks, SECTION_TASKS_TTL_SECONDS),
+            (documents, SECTION_DOCUMENTS_TTL_SECONDS),
         )
         briefing_build_duration_seconds.labels(cache_state=cache_state).observe(duration_s)
         logger.info(
@@ -236,6 +279,9 @@ class BriefingService:
                 SECTION_BIRTHDAYS: birthdays.status.value,
                 SECTION_REMINDERS: reminders.status.value,
                 SECTION_HEALTH: health.status.value,
+                SECTION_FOR_YOU: for_you.status.value,
+                SECTION_TASKS: tasks.status.value,
+                SECTION_DOCUMENTS: documents.status.value,
             },
             forced_refresh=sorted(force),
         )
@@ -427,6 +473,9 @@ class BriefingService:
             # Reminders are TTL=0 (always live) — synthesis won't have them.
             asyncio.sleep(0, result=None),
             self._read_cache(f"{BRIEFING_CACHE_PREFIX}:{self.user.id}:{SECTION_HEALTH}"),
+            self._read_cache(f"{BRIEFING_CACHE_PREFIX}:{self.user.id}:{SECTION_FOR_YOU}"),
+            self._read_cache(f"{BRIEFING_CACHE_PREFIX}:{self.user.id}:{SECTION_TASKS}"),
+            self._read_cache(f"{BRIEFING_CACHE_PREFIX}:{self.user.id}:{SECTION_DOCUMENTS}"),
         )
 
         def _or_placeholder(s: CardSection | None) -> CardSection:
@@ -439,6 +488,9 @@ class BriefingService:
             birthdays=_or_placeholder(sections[3]),
             reminders=_or_placeholder(sections[4]),
             health=_or_placeholder(sections[5]),
+            for_you=_or_placeholder(sections[6]),
+            tasks=_or_placeholder(sections[7]),
+            documents=_or_placeholder(sections[8]),
         )
 
     async def _read_cache(self, key: str) -> CardSection | None:

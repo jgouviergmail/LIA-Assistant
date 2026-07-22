@@ -252,6 +252,31 @@
           "avg_window": "Avg {{window}} d",
           "unit_steps": "steps",
           "unit_heart_rate": "bpm"
+        },
+        "for_you": {
+          "title": "For you",
+          "empty": "Nothing tracked right now — commitments and automations will appear here.",
+          "loops_title": "Being tracked",
+          "automations_title": "Automations",
+          "days_open_one": "{{count}} day",
+          "days_open_other": "{{count}} days",
+          "ran_recently": "ran in the last 24h",
+          "next_up": "next up"
+        },
+        "tasks": {
+          "title": "Tasks",
+          "empty": "No pending tasks",
+          "due_today": "today",
+          "due_tomorrow": "tomorrow",
+          "due_in_days_one": "in {{count}} day",
+          "due_in_days_other": "in {{count}} days",
+          "overdue_days_one": "{{count}} day overdue",
+          "overdue_days_other": "{{count}} days overdue"
+        },
+        "documents": {
+          "title": "Documents",
+          "empty": "No recent documents",
+          "open_external": "Open “{{subject}}” in Drive"
         }
       },
       "updated_hours_ago": "{{hours}} h ago",
@@ -260,7 +285,12 @@
         "mail": "Summarize the email \"{{subject}}\" from {{sender}} and draft a reply",
         "birthday": "Write a birthday message for {{name}}",
         "event": "Prepare me for \"{{title}}\" at {{time}}",
-        "reminder_aria": "Open the chat about this reminder"
+        "reminder_aria": "Open the chat about this reminder",
+        "loop_owed": "Help me move forward on: {{subject}}",
+        "loop_waiting": "Any update on what I'm waiting for: {{subject}}?",
+        "task_progress": "Help me make progress on “{{subject}}”",
+        "task_reschedule": "Reschedule the task “{{subject}}”",
+        "document_summarize": "Summarize the document “{{subject}}”"
       }
     },
     "portrait_hint": {
@@ -1848,6 +1878,7 @@
           "hitl_plan_approval_question_generator": "Generates plan approval questions",
           "memory_extraction": "Extracts memorable facts from conversations",
           "memory_reference_extraction": "Extracts personal references to resolve from query",
+          "open_loop_extraction": "Extracts open commitments (loops) from conversations",
           "memory_reference_resolution": "Resolves references to stored memories",
           "interest_extraction": "Extracts interests from conversations",
           "interest_content": "Generates content based on interests",
@@ -3087,7 +3118,7 @@
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
-          "description": "The dashboard home page is a daily briefing: personalized LLM greeting + 2-3 sentence synthesis above a 6-card grid (enriched weather, agenda, unread mails, birthdays, reminders, health). Pure architecture: no LangGraph chain, parallel asyncio.gather, per-section Redis cache with adapted TTL (weather 1 h, agenda 10 min, mails 5 min…). Split endpoints (/briefing/cards fast + /briefing/synthesis LLM-bound) for progressive rendering. Tokens and EUR cost of each LLM call surfaced in the UI next to the timestamp and tracked in user usage statistics via track_proactive_tokens (cached tokens correctly subtracted)."
+          "description": "The dashboard home page is a daily briefing: personalized LLM greeting + 2-3 sentence synthesis above a 9-card grid (enriched weather, agenda, unread mails, birthdays, reminders, health, « For you » — open loops + automations digest —, pending/overdue tasks, latest Drive documents). Pure architecture: no LangGraph chain, parallel asyncio.gather, per-section Redis cache with adapted TTL (weather 1 h, agenda 10 min, mails 5 min…). Split endpoints (/briefing/cards fast + /briefing/synthesis LLM-bound) for progressive rendering. Tokens and EUR cost of each LLM call surfaced in the UI next to the timestamp and tracked in user usage statistics via track_proactive_tokens (cached tokens correctly subtracted)."
         }
       },
       "diagram_alt": "LIA architecture diagram"
@@ -3096,6 +3127,21 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_13": {
+          "title": "v1.25.13 — 🔗 LIA connects its domains: commitments, automations, your documents",
+          "date": "July 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>🔁 Open loops — your commitments, tracked</b> — say « I must call the plumber back » and LIA quietly keeps it as an open loop: a timely reminder at the right moment (never nagging — each loop has a cooldown), and it closes itself the day you say « done ». Also visible on the dashboard. Off by default — your admin enables it.",
+            "i2": "<b>⏰ Create automations from the chat</b> — « give me an AI press review every morning » now works as a sentence: LIA shows a confirmation card (days, time, instruction), and only creates the recurring automation once you confirm. List, pause or resume them in natural language too. And when you keep asking the same thing at the same hour, LIA can offer to automate it for you.",
+            "i3": "<b>📄 Your documents become active</b> — LIA can now search your uploaded document spaces on its own and combine them with other sources: « compare the PDF quote with Paul's email » is a real request.",
+            "i4": "<b>👤 Person 360° view</b> — « prepare my call with Marie »: one pass gathers her contact card, your recent emails, shared meetings and what LIA remembers about her — and says honestly which source was unavailable.",
+            "i5": "<b>🗂️ Three new briefing cards (nine in total)</b> — « For you » (your open loops + what your automations did, with the exact time of the next run), « Tasks » (overdue first, in red — a task due today is never counted late), « Documents » (latest modified Drive files: summarize in one click, or open in Drive).",
+            "i6": "<b>🚗 Departure alert</b> — « leave by 13:30 — 30 min drive »: for your next located meeting, LIA checks real traffic and tells you when to leave, weather included. Off by default.",
+            "i7": "<b>🎂 Birthdays & 📞 call follow-up</b> — LIA now warns you the very day (« Want me to draft a message, or call? ») and after a call placed on your behalf, it proposes to add the agreed appointment to your calendar.",
+            "i8": "<b>🧭 Small touches</b> — the chat search now sits on the left of the header (with the offline pill beside it); interest discoveries can be anchored to your city (« exhibition in Lyon this weekend », off by default)."
+          }
+        },
         "v1_25_11": {
           "title": "v1.25.11 — 🗺️ Widgets you can rely on: everywhere, durable, honest when they fail",
           "date": "July 2026",
@@ -4356,7 +4402,7 @@
       "chat": {
         "title": "Conversations",
         "description": "Using chat and conversations",
-        "count": "18",
+        "count": "19",
         "questions": {
           "q1": {
             "question": "Can I have multiple conversations at the same time?",
@@ -4429,6 +4475,10 @@
           "q18": {
             "question": "What are the 👍/👎 under the responses for?",
             "answer": "Two discreet thumbs appear next to the <strong>Copy</strong> button on ordinary responses. Your verdict is <strong>saved with the message</strong> (you will find it on your other devices) and feeds LIA's understanding: it strengthens or weakens the personal observations that shaped that answer. A 👎 unfolds an optional one-line <strong>« what went wrong? »</strong> field, recorded as a correction.<br><br>You can change your mind — the latest verdict wins. And LIA <strong>never regenerates</strong> an answer on its own: you stay in charge."
+          },
+          "q19": {
+            "question": "Can LIA prepare me before talking to someone? (v1.25.13)",
+            "answer": "Yes — ask « prepare my call with Marie » and one pass gathers a <strong>360° view</strong>: her contact card, your recent email exchanges, your upcoming shared meetings, and what LIA remembers about her. If a source is unavailable (no calendar connector, for instance), the overview says so honestly instead of guessing.<br><br>It also powers the meeting-prep nudge: when a substantial meeting is close, a proactive notification may end with « want me to prepare this meeting for you? »."
           }
         }
       },
@@ -4844,7 +4894,7 @@
       "heartbeat": {
         "title": "Proactive Notifications",
         "description": "LIA takes the initiative to keep you informed",
-        "count": "7",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "What are proactive notifications?",
@@ -4873,13 +4923,21 @@
           "q7": {
             "question": "How do weather alerts work when I'm travelling? (v1.16.7)",
             "answer": "By default, proactive weather notifications use your <strong>home address</strong>. If you're travelling, you can opt in to let LIA use your <strong>current position</strong> instead:<br><br><strong>⚙️ How to enable:</strong><br>Settings → <em>Proactive Notifications</em> → scroll to <em>Weather location when traveling</em> → toggle on.<br><br><strong>🎯 When it kicks in:</strong><br>LIA uses your current browser position (instead of your home) only when <strong>all</strong> these conditions are met:<br>• The option is enabled<br>• Your last known position is <strong>less than 24 hours old</strong><br>• You are <strong>more than 50 km</strong> away from your home address<br><br>Below that distance, the home address is kept (avoids switching for intra-city noise). Past 24 h, the position is considered stale and notifications fall back to home automatically.<br><br><strong>🏙️ Transparent notifications:</strong><br>When the position used isn't your home, the notification always mentions the city it's referring to, so you instantly know where the forecast is from.<br><br><strong>🔒 Privacy by design:</strong><br>• Your position is <strong>encrypted</strong> (same cryptographic scheme as your home address)<br>• It is <strong>not historized</strong> — each update overwrites the previous one, there is no trail<br>• It is <strong>wiped immediately</strong> if you disable the option or remove your home address<br>• A <em>Currently stored</em> block shows you exactly what LIA has kept, with a <strong>Clear now</strong> button to wipe on demand<br>• The backend rate-limits itself to one update per 30 minutes per user<br><br><strong>💡 Requirements:</strong><br>You also need to enable browser geolocation (in Settings → Location → Geolocation). Without it, no position can be captured — a banner reminds you if needed."
+          },
+          "q8": {
+            "question": "What are “open loops”? (v1.25.13)",
+            "answer": "An open loop is a <strong>commitment LIA heard in conversation</strong> and quietly keeps for you — « I must call the plumber back », « Marie owes me the quote ». At the right moment (imminent deadline, or a loop left silent too long), a proactive notification gives you a gentle memory-jog, direction-aware: « You wanted to call the plumber back — is now a good time? » vs « Still no news from Marie about the quote? ».<br><br><strong>Never nagging:</strong> each loop has its own cooldown — once surfaced, it will not come back for several days. A loop closes itself when you say « done », or via the dashboard « For you » card, and quietly expires after weeks of inactivity.<br><br><strong>⚙️ Admin:</strong> off by default (<code>OPEN_LOOPS_ENABLED</code>)."
+          },
+          "q9": {
+            "question": "Can LIA tell me when to leave for a meeting? (v1.25.13)",
+            "answer": "Yes. When your next calendar event has a <strong>location</strong> and starts within a few hours, LIA checks <strong>real traffic</strong> (Google Routes) from your effective position and can notify you: « Leave by 13:30 — 30 min drive to your 14:00 appointment », combined with weather when it matters (« rain expected at 14:30 »).<br><br>One route check at most per cycle, cached per event — and the same notification is never sent twice for one event.<br><br><strong>⚙️ Admin:</strong> off by default (<code>HEARTBEAT_DEPARTURE_ENABLED</code>); requires a configured home location."
           }
         }
       },
       "scheduled_actions": {
         "title": "Scheduled Actions",
         "description": "Automate recurring tasks with LIA",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "What is a scheduled action?",
@@ -4904,6 +4962,10 @@
           "q6": {
             "question": "Are scheduled actions affected by usage limits?",
             "answer": "Yes. When your usage limits are reached, scheduled actions are <strong>blocked</strong>. The action remains scheduled and will resume automatically on the next cycle or when your administrator adjusts your limits."
+          },
+          "q7": {
+            "question": "Can I create automations directly from the chat? (v1.25.13)",
+            "answer": "Yes — in one sentence: « give me an AI press review every weekday at 8am ». LIA validates the schedule and shows a <strong>confirmation card</strong> (title, days, time, instruction); nothing is created until you confirm. You can also <strong>list</strong> your automations (« what are my automations? ») and <strong>pause/resume</strong> one in natural language.<br><br><strong>💡 Bonus:</strong> when you ask the same kind of thing at the same hour on several distinct days, LIA can spontaneously offer: « Want me to turn this into a recurring automation? » (deterministic detection, one suggestion max per month per pattern, off by default — <code>RECURRENCE_SUGGESTION_ENABLED</code>).<br><br>Deleting an automation remains a Settings action."
           }
         }
       },
@@ -5015,7 +5077,7 @@
       "rag_spaces": {
         "title": "Knowledge Spaces (RAG)",
         "description": "Upload and use your own documents to enrich AI responses",
-        "count": "8",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "What are Knowledge Spaces?",
@@ -5048,6 +5110,10 @@
           "q8": {
             "question": "Can I ask the assistant about its own features?",
             "answer": "Yes! LIA has a <strong>built-in knowledge base</strong> that lets it answer questions about itself directly in conversation:<br><br><strong>🧠 How it works:</strong><br>• LIA automatically detects when you ask about the app (\"<em>What can you do?</em>\", \"<em>How do I connect my calendar?</em>\")<br>• It searches its FAQ knowledge base (200+ Q&A across 24 sections) using the same hybrid search as user spaces<br>• An <strong>App Identity Prompt</strong> describing all capabilities is injected into the response<br><br><strong>⚡ Zero overhead:</strong><br>This only activates when you ask about the app. Normal queries (emails, calendar, etc.) are not affected at all.<br><br><strong>🔧 Admin features:</strong><br>Administrators can manage system knowledge spaces in <strong>Settings > Administration > RAG Spaces</strong>:<br>• View staleness status (content hash comparison)<br>• Trigger manual reindexation<br>• System spaces are automatically indexed at app startup"
+          },
+          "q9": {
+            "question": "Can LIA search my documents on its own? (v1.25.13)",
+            "answer": "Yes. Your document spaces are now an <strong>active domain</strong>: beyond the automatic context injection, the planner can decide to search them — with derived queries, several passes if needed, and combinations with other sources: « compare the PDF quote with what Paul sent by email » chains a document search and an email search.<br><br>The « Documents » briefing card also shows your latest modified Drive files — one click to summarize in chat, or open directly in Drive."
           }
         }
       },
@@ -6344,7 +6410,7 @@
       },
       "briefing": {
         "title": "Today briefing",
-        "description": "Every morning, your day at a glance: personalized synthesis, weather, agenda, birthdays, reminders, health and unread emails — before you even ask."
+        "description": "Every morning, your day at a glance: personalized synthesis, weather, agenda, birthdays, reminders, health, unread emails, your tracked commitments, overdue tasks and freshly edited documents — before you even ask."
       }
     },
     "use_cases": {

@@ -144,6 +144,7 @@ async def generate_synthesis(
             language=language,
             personality_brief=await _resolve_personality(user.id),
             active_sections=_summarize_cards_for_llm(cards, verbose=True),
+            user_model_block=await _resolve_user_model_block(user),
         )
         text, usage = await _invoke_and_track(
             rendered=rendered,
@@ -295,6 +296,31 @@ def _compute_time_of_day(user_tz: ZoneInfo) -> str:
     return TIME_OF_DAY_NIGHT
 
 
+async def _resolve_user_model_block(user: User) -> str:
+    """Compiled-portrait brief for the synthesis prompt (P15, best-effort).
+
+    Ambient diffusion of the journal portrait (ADR-079 pattern, same as the
+    response/heartbeat flows): the synthesis tone and priorities follow what
+    the assistant has learned about the user. Empty string when journals are
+    disabled for the user or on any failure.
+    """
+    if not getattr(user, "journals_enabled", False):
+        return ""
+    try:
+        from src.domains.journals.portrait_builder import build_journal_user_model_block
+
+        return await build_journal_user_model_block(
+            user_id=str(user.id), format="brief", flow="briefing"
+        )
+    except Exception as exc:  # noqa: BLE001 — portrait is a bonus, never a blocker
+        logger.warning(
+            "briefing_portrait_block_failed",
+            user_id=str(user.id),
+            error=str(exc),
+        )
+        return ""
+
+
 async def _resolve_personality(user_id: UUID) -> str:
     """Best-effort fetch of the user's personality instruction. Empty string on failure.
 
@@ -323,6 +349,9 @@ def _iter_cards(cards: CardsBundle) -> Iterator[CardSection]:
     yield cards.birthdays
     yield cards.reminders
     yield cards.health
+    yield cards.for_you
+    yield cards.tasks
+    yield cards.documents
 
 
 def _summarize_cards_for_llm(cards: CardsBundle, *, verbose: bool) -> str:
@@ -383,6 +412,38 @@ def _summarize_cards_for_llm(cards: CardsBundle, *, verbose: bool) -> str:
         summary["birthdays"] = [
             {"name": b.contact_name, "days_until": b.days_until} for b in items[:3]
         ]
+
+    if cards.for_you.status == CardStatus.OK and cards.for_you.data is not None:
+        fy = cards.for_you.data
+        loops = getattr(fy, "open_loops", []) or []
+        recents = getattr(fy, "recent_automations", []) or []
+        nxt = getattr(fy, "next_automation", None)
+        summary["for_you"] = {
+            "open_loops": [
+                {"subject": ol.subject, "direction": ol.direction, "days_open": ol.days_open}
+                for ol in loops[:3]
+            ],
+            "automations_ran_24h": [a.title for a in recents[:3]],
+            "next_automation": (
+                f"{nxt.title} ({nxt.next_trigger_local})"
+                if nxt is not None and nxt.next_trigger_local
+                else (nxt.title if nxt is not None else None)
+            ),
+        }
+
+    if cards.tasks.status == CardStatus.OK and cards.tasks.data is not None:
+        t_items = getattr(cards.tasks.data, "items", []) or []
+        summary["tasks"] = {
+            "overdue_count": getattr(cards.tasks.data, "overdue_count", 0),
+            "top": [
+                {"title": t.title, "days_until_due": t.days_until_due, "overdue": t.overdue}
+                for t in t_items[:3]
+            ],
+        }
+
+    if cards.documents.status == CardStatus.OK and cards.documents.data is not None:
+        d_items = getattr(cards.documents.data, "items", []) or []
+        summary["documents"] = [{"name": d.name, "modified": d.modified_local} for d in d_items[:3]]
 
     if cards.reminders.status == CardStatus.OK and cards.reminders.data is not None:
         items = getattr(cards.reminders.data, "items", []) or []

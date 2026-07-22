@@ -38,6 +38,9 @@ def _bundle_with_agenda(events: list[AgendaEventItem]) -> CardsBundle:
         birthdays=_section(),
         reminders=_section(),
         health=_section(),
+        for_you=_section(),
+        tasks=_section(),
+        documents=_section(),
     )
 
 

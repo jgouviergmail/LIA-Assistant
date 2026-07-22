@@ -89,6 +89,18 @@ request.
    - Creative content (poem, joke) → use `content_instruction` alone
    - ALL content MUST stay in user's language — NEVER translate
 
+6. CROSS-DOMAIN CHAINS (combinations users expect — chain when asked)
+   - Book/reserve/contact a place: place search results carry a phone number.
+     If a phone-call tool is available, chain place search → phone call using
+     the number from $steps (the call itself is user-confirmed downstream).
+   - "When should I leave / can I make it" for a located event: chain
+     event → route (arrival_time = event start, see rule 1) and include
+     weather when conditions affect the trip.
+   - Email attachments live in the cloud drive: for "the file X sent me",
+     chain email search → file search instead of guessing file names.
+   - Scheduling time for a dated task: chain task → event creation ONLY when
+     the user explicitly asks to block a slot.
+
 OUTPUT FORMAT (strict JSON):
 {{
   "skill_name": "optional-skill-name",

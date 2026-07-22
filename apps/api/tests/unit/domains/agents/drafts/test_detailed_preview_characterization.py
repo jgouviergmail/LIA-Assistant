@@ -628,6 +628,23 @@ CASES: tuple[PreviewCase, ...] = (
         {"callee_name": "John Smith"},
         language="en",
     ),
+    # Automation draft (ADR-140): title + pre-localized schedule + instruction.
+    PreviewCase(
+        "scheduled_action_full_fr",
+        DraftType.SCHEDULED_ACTION,
+        {
+            "title": "Revue de presse IA",
+            "schedule_human": "Lun, Mer à 08:00",
+            "action_prompt": "Fais-moi une revue de presse IA",
+        },
+    ),
+    # Minimal: title only — schedule and instruction rows are omitted.
+    PreviewCase(
+        "scheduled_action_minimal_en",
+        DraftType.SCHEDULED_ACTION,
+        {"title": "Daily digest"},
+        language="en",
+    ),
 )
 
 
@@ -698,7 +715,9 @@ EXPECTED: dict[str, str] = {
     "label_delete_few_sublabels_en": "<br/>**Label**: personal<br/><br/>**Sub-labels included**: 2<br/><br/>  personal/travel, ?",
     "label_delete_no_sublabels_fr": "<br/>**Label**: perso",
     "phone_call_full_fr": "<br/>**Correspondant**: Paul Martin<br/><br/>**Téléphone**: +33612345678<br/><br/>**Objectif**: Vérifier sa disponibilité mardi après-midi",
+    "scheduled_action_full_fr": "<br/>**Titre**: Revue de presse IA<br/><br/>**Planification**: Lun, Mer à 08:00<br/><br/>**Instruction**: Fais-moi une revue de presse IA",
     "phone_call_minimal_en": "<br/>**Callee**: John Smith",
+    "scheduled_action_minimal_en": "<br/>**Title**: Daily digest",
 }
 
 

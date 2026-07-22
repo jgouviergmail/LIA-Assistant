@@ -119,6 +119,36 @@ class TestDomainConfigDataclass:
 class TestDomainRegistry:
     """Tests for DOMAIN_REGISTRY contents."""
 
+    def test_adjacency_event_task_edge_exists(self):
+        """event↔task adjacency must exist via a single directed edge (P4).
+
+        The initiative node resolves adjacency bidirectionally (forward
+        related_domains + reverse lookup), so one edge covers both
+        directions. Regression guard for the audited doc-contradiction:
+        the ``task`` entry claimed an event→task reverse adjacency that
+        no domain actually declared.
+        """
+        assert "task" in DOMAIN_REGISTRY["event"].related_domains
+
+    def test_adjacency_email_file_edge_exists(self):
+        """email→file adjacency (attachments live in Drive) must exist (P4)."""
+        assert "file" in DOMAIN_REGISTRY["email"].related_domains
+
+    def test_task_is_reachable_as_adjacent_domain(self):
+        """At least one domain must declare 'task' as related.
+
+        Guards the initiative-node reverse lookup: without any in-edge,
+        a task-only execution can never receive cross-domain enrichment.
+        """
+        domains_linking_task = [
+            name for name, config in DOMAIN_REGISTRY.items() if "task" in config.related_domains
+        ]
+        assert domains_linking_task, "no domain declares 'task' in related_domains"
+
+    def test_new_edges_keep_registry_valid(self):
+        """The P4 edges must not introduce duplicate agents or A<->B cycles."""
+        assert validate_domain_registry() == []
+
     def test_registry_has_core_domains(self):
         """Test registry contains expected core domains."""
         expected_domains = [

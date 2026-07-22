@@ -65,6 +65,24 @@ _EXTRACTION_DEBUG_TTL_SECONDS: int = 300  # 5 minutes
 _extraction_debug_results: dict[str, tuple[float, dict[str, Any]]] = {}
 
 
+def _evict_stale_debug_entries() -> None:
+    """Drop entries older than the TTL — called on BOTH store and pop.
+
+    Store-side eviction is what actually honours the "debug panel
+    disabled" promise above: with pop-only eviction, a deployment that
+    never opens the panel never pops, and the cache grew one entry per
+    turn for the process lifetime (2026-07-22 counter-review).
+    """
+    now = _time.monotonic()
+    stale_keys = [
+        k
+        for k, (ts, _) in _extraction_debug_results.items()
+        if now - ts > _EXTRACTION_DEBUG_TTL_SECONDS
+    ]
+    for k in stale_keys:
+        del _extraction_debug_results[k]
+
+
 def _store_extraction_debug(run_id: str, data: dict[str, Any]) -> None:
     """Store extraction debug results for a given run_id with a timestamp.
 
@@ -72,6 +90,7 @@ def _store_extraction_debug(run_id: str, data: dict[str, Any]) -> None:
         run_id: The pipeline run_id to associate the results with.
         data: Debug dict with actions_parsed, actions_applied, entries.
     """
+    _evict_stale_debug_entries()
     _extraction_debug_results[run_id] = (_time.monotonic(), data)
 
 
@@ -91,16 +110,7 @@ def pop_extraction_debug(run_id: str) -> dict[str, Any] | None:
         Debug dict with actions_parsed, actions_applied, entries details,
         or None if no results found for this run_id.
     """
-    # Evict stale entries
-    now = _time.monotonic()
-    stale_keys = [
-        k
-        for k, (ts, _) in _extraction_debug_results.items()
-        if now - ts > _EXTRACTION_DEBUG_TTL_SECONDS
-    ]
-    for k in stale_keys:
-        del _extraction_debug_results[k]
-
+    _evict_stale_debug_entries()
     entry = _extraction_debug_results.pop(run_id, None)
     return entry[1] if entry is not None else None
 

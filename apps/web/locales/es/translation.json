@@ -244,6 +244,31 @@
           "avg_window": "Med. {{window}} d",
           "unit_steps": "pasos",
           "unit_heart_rate": "bpm"
+        },
+        "for_you": {
+          "title": "Para ti",
+          "empty": "Nada en seguimiento por ahora — compromisos y automatizaciones aparecerán aquí.",
+          "loops_title": "En seguimiento",
+          "automations_title": "Automatizaciones",
+          "days_open_one": "{{count}} día",
+          "days_open_other": "{{count}} días",
+          "ran_recently": "ejecutada en las últimas 24 h",
+          "next_up": "próxima"
+        },
+        "tasks": {
+          "title": "Tareas",
+          "empty": "Sin tareas pendientes",
+          "due_today": "hoy",
+          "due_tomorrow": "mañana",
+          "due_in_days_one": "en {{count}} día",
+          "due_in_days_other": "en {{count}} días",
+          "overdue_days_one": "{{count}} día de retraso",
+          "overdue_days_other": "{{count}} días de retraso"
+        },
+        "documents": {
+          "title": "Documentos",
+          "empty": "Sin documentos recientes",
+          "open_external": "Abrir «{{subject}}» en Drive"
         }
       },
       "updated_hours_ago": "hace {{hours}} h",
@@ -252,7 +277,12 @@
         "mail": "Resume el correo \"{{subject}}\" de {{sender}} y propón una respuesta",
         "birthday": "Prepara un mensaje de cumpleaños para {{name}}",
         "event": "Prepárame para \"{{title}}\" de las {{time}}",
-        "reminder_aria": "Abrir el chat sobre este recordatorio"
+        "reminder_aria": "Abrir el chat sobre este recordatorio",
+        "loop_owed": "Ayúdame a avanzar con: {{subject}}",
+        "loop_waiting": "¿Novedades sobre lo que espero: {{subject}}?",
+        "task_progress": "Ayúdame a avanzar con «{{subject}}»",
+        "task_reschedule": "Replanifica la tarea «{{subject}}»",
+        "document_summarize": "Resúmeme el documento «{{subject}}»"
       }
     },
     "portrait_hint": {
@@ -1666,6 +1696,7 @@
           "hitl_plan_approval_question_generator": "Genera las preguntas de aprobación del plan",
           "memory_extraction": "Extrae hechos memorizables de las conversaciones",
           "memory_reference_extraction": "Extrae las referencias personales a resolver de la consulta",
+          "open_loop_extraction": "Extrae compromisos abiertos (bucles) de las conversaciones",
           "memory_reference_resolution": "Resuelve las referencias a recuerdos almacenados",
           "interest_extraction": "Extrae los intereses de las conversaciones",
           "interest_content": "Genera contenido basado en los intereses",
@@ -3077,7 +3108,7 @@
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
-          "description": "La página de inicio del panel es un briefing diario: saludo LLM personalizado + síntesis de 2-3 frases sobre una cuadrícula de 6 tarjetas (clima enriquecido, agenda, correos no leídos, cumpleaños, recordatorios, salud). Arquitectura pura: sin cadena LangGraph, asyncio.gather paralelo, caché Redis por sección con TTL adaptado (clima 1 h, agenda 10 min, correos 5 min…). Endpoints separados (/briefing/cards rápido + /briefing/synthesis LLM-bound) para renderizado progresivo. Tokens y coste en EUR de cada llamada LLM expuestos en la interfaz junto al marcador de tiempo y rastreados en las estadísticas de uso vía track_proactive_tokens (tokens en caché correctamente restados)."
+          "description": "La página de inicio del panel es un briefing diario: saludo LLM personalizado + síntesis de 2-3 frases sobre una cuadrícula de 9 tarjetas (clima enriquecido, agenda, correos no leídos, cumpleaños, recordatorios, salud, «Para ti» — bucles abiertos + resumen de automatizaciones —, tareas pendientes/atrasadas, últimos documentos de Drive). Arquitectura pura: sin cadena LangGraph, asyncio.gather paralelo, caché Redis por sección con TTL adaptado (clima 1 h, agenda 10 min, correos 5 min…). Endpoints separados (/briefing/cards rápido + /briefing/synthesis LLM-bound) para renderizado progresivo. Tokens y coste en EUR de cada llamada LLM expuestos en la interfaz junto al marcador de tiempo y rastreados en las estadísticas de uso vía track_proactive_tokens (tokens en caché correctamente restados)."
         }
       },
       "diagram_alt": "Diagrama de arquitectura de LIA"
@@ -3086,6 +3117,21 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_25_13": {
+          "title": "v1.25.13 — 🔗 LIA conecta sus dominios: compromisos, automatizaciones, tus documentos",
+          "date": "Julio 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>🔁 Bucles abiertos — tus compromisos, seguidos</b> — di « tengo que devolver la llamada al fontanero » y LIA lo guarda discretamente como un bucle abierto: un recordatorio en el momento oportuno (nunca insistente — cada bucle tiene su periodo de gracia), y se cierra el día que dices « hecho ». También visible en el panel. Desactivado por defecto — tu admin lo activa.",
+            "i2": "<b>⏰ Crea automatizaciones desde el chat</b> — « hazme una revista de prensa de IA cada mañana » ya funciona como una frase: LIA muestra una tarjeta de confirmación (días, hora, instrucción) y solo crea la automatización recurrente tras tu acuerdo. Lístalas, páusalas o reactívalas también en lenguaje natural. Y si pides lo mismo a la misma hora varios días, LIA puede proponerte automatizarlo.",
+            "i3": "<b>📄 Tus documentos se vuelven activos</b> — LIA ahora sabe buscar por sí misma en tus espacios de documentos y cruzarlos con el resto: « compara el presupuesto PDF con el correo de Paul » es una petición real.",
+            "i4": "<b>👤 Vista 360° de una persona</b> — « prepara mi llamada con Marie »: en una pasada, su ficha de contacto, vuestros últimos correos, las citas en común y lo que LIA sabe de ella — diciendo honestamente qué fuente faltaba.",
+            "i5": "<b>🗂️ Tres nuevas tarjetas de briefing (nueve en total)</b> — « Para ti » (tus bucles abiertos + lo que hicieron tus automatizaciones, con la hora exacta de la próxima ejecución), « Tareas » (los retrasos primero, en rojo — una tarea que vence hoy nunca cuenta como atrasada), « Documentos » (últimos archivos de Drive modificados: resumen en un clic, o abrir en Drive).",
+            "i6": "<b>🚗 Alerta de salida</b> — « sal hacia las 13:30 — 30 min de trayecto »: para tu próxima cita con ubicación, LIA consulta el tráfico real y te dice cuándo salir, meteorología incluida. Desactivado por defecto.",
+            "i7": "<b>🎂 Cumpleaños & 📞 seguimiento de llamadas</b> — LIA ahora te avisa el mismo día (« ¿Quieres que le escriba un mensaje, o que llame? ») y tras una llamada hecha por ti, propone añadir al calendario la cita acordada.",
+            "i8": "<b>🧭 Pequeños toques</b> — la búsqueda del chat está ahora a la izquierda de la cabecera (con el indicador sin conexión al lado); los descubrimientos de intereses pueden anclarse a tu ciudad (« exposición en Lyon este fin de semana », desactivado por defecto)."
+          }
+        },
         "v1_25_11": {
           "title": "v1.25.11 — 🗺️ Widgets fiables: en todas partes, duraderos, honestos cuando fallan",
           "date": "Julio 2026",
@@ -4346,7 +4392,7 @@
       "chat": {
         "title": "Conversaciones",
         "description": "Uso del chat y conversaciones",
-        "count": "18",
+        "count": "19",
         "questions": {
           "q1": {
             "question": "¿Puedo tener varias conversaciones al mismo tiempo?",
@@ -4419,6 +4465,10 @@
           "q18": {
             "question": "¿Para qué sirven los 👍/👎 bajo las respuestas?",
             "answer": "Dos pulgares discretos aparecen junto al botón <strong>Copiar</strong> en las respuestas ordinarias. Tu veredicto se <strong>guarda con el mensaje</strong> (lo encontrarás en tus otros dispositivos) y alimenta la comprensión de LIA: refuerza o debilita las observaciones personales que dieron forma a esa respuesta. Un 👎 despliega un campo opcional de una línea <strong>«¿qué salió mal?»</strong>, registrado como corrección.<br><br>Puedes cambiar de opinión — el último veredicto prevalece. Y LIA <strong>nunca regenera</strong> una respuesta por su cuenta: tú mandas."
+          },
+          "q19": {
+            "question": "¿Puede LIA prepararme antes de hablar con alguien? (v1.25.13)",
+            "answer": "Sí — pide «prepara mi llamada con Marie» y una sola pasada reúne una <strong>vista 360°</strong>: su ficha de contacto, vuestros últimos correos, vuestras próximas citas en común y lo que LIA sabe de ella. Si una fuente no está disponible (sin conector de calendario, por ejemplo), la vista lo dice honestamente en lugar de inventar.<br><br>También alimenta el empujón de preparación de reuniones: cuando se acerca una reunión sustancial, una notificación proactiva puede terminar con «¿quieres que te prepare esta reunión?»."
           }
         }
       },
@@ -4834,7 +4884,7 @@
       "heartbeat": {
         "title": "Notificaciones proactivas",
         "description": "LIA toma la iniciativa de informarle",
-        "count": "7",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "¿Qué son las notificaciones proactivas?",
@@ -4863,13 +4913,21 @@
           "q7": {
             "question": "¿Cómo funcionan las alertas meteorológicas cuando estoy de viaje? (v1.16.7)",
             "answer": "Por defecto, las notificaciones meteorológicas proactivas usan tu <strong>dirección de domicilio</strong>. Si viajas, puedes activar el uso de tu <strong>posición actual</strong>:<br><br><strong>⚙️ Cómo activar:</strong><br>Configuración → <em>Notificaciones proactivas</em> → sección <em>Ubicación meteorológica en viaje</em> → activar el interruptor.<br><br><strong>🎯 Cuándo se activa:</strong><br>LIA usa tu posición del navegador (en lugar de tu domicilio) solo cuando <strong>todas</strong> estas condiciones se cumplen:<br>• La opción está activada<br>• Tu última posición conocida tiene <strong>menos de 24 horas</strong><br>• Estás a <strong>más de 50 km</strong> de tu dirección de domicilio<br><br>Por debajo de esa distancia, se mantiene el domicilio (evita cambiar por movimientos intra-ciudad). Después de 24 h, la posición se considera obsoleta y las notificaciones vuelven automáticamente al domicilio.<br><br><strong>🏙️ Notificaciones transparentes:</strong><br>Cuando la posición utilizada no es tu domicilio, la notificación siempre menciona la ciudad concernida.<br><br><strong>🔒 Privacidad por diseño:</strong><br>• Tu posición está <strong>cifrada</strong> (mismo esquema criptográfico que tu dirección de domicilio)<br>• <strong>No se historiza</strong> — cada actualización sobrescribe la anterior, sin rastro<br>• Se <strong>borra inmediatamente</strong> si desactivas la opción o eliminas tu dirección de domicilio<br>• Un bloque <em>Actualmente almacenada</em> muestra exactamente lo que LIA ha conservado, con un botón <strong>Borrar ahora</strong><br>• El backend se auto-limita a una actualización cada 30 minutos por usuario<br><br><strong>💡 Requisito:</strong><br>También debes activar la geolocalización del navegador (Configuración → Ubicación → Geolocalización). Sin ella, no se puede capturar ninguna posición."
+          },
+          "q8": {
+            "question": "¿Qué son los «bucles abiertos»? (v1.25.13)",
+            "answer": "Un bucle abierto es un <strong>compromiso que LIA escuchó en la conversación</strong> y guarda discretamente para ti — «tengo que devolver la llamada al fontanero», «Marie me debe el presupuesto». En el momento oportuno (plazo inminente, o bucle en silencio demasiado tiempo), una notificación proactiva te da un recordatorio suave, según la dirección: «Querías devolver la llamada al fontanero — ¿es buen momento?» vs «¿Sigue sin haber noticias de Marie sobre el presupuesto?».<br><br><strong>Nunca insistente:</strong> cada bucle tiene su periodo de gracia — una vez mencionado, no vuelve en varios días. Un bucle se cierra cuando dices «hecho», o desde la tarjeta «Para ti» del panel, y expira solo tras semanas de inactividad.<br><br><strong>⚙️ Admin:</strong> desactivado por defecto (<code>OPEN_LOOPS_ENABLED</code>)."
+          },
+          "q9": {
+            "question": "¿Puede LIA decirme cuándo salir hacia una cita? (v1.25.13)",
+            "answer": "Sí. Cuando tu próximo evento de calendario tiene <strong>ubicación</strong> y empieza en pocas horas, LIA consulta el <strong>tráfico real</strong> (Google Routes) desde tu posición efectiva y puede notificarte: «Sal hacia las 13:30 — 30 min de trayecto hasta tu cita de las 14:00», combinando la meteorología cuando importa («lluvia prevista a las 14:30»).<br><br>Como máximo una consulta de ruta por ciclo, en caché por evento — y la misma notificación nunca se envía dos veces para una misma cita.<br><br><strong>⚙️ Admin:</strong> desactivado por defecto (<code>HEARTBEAT_DEPARTURE_ENABLED</code>); requiere una dirección de casa configurada."
           }
         }
       },
       "scheduled_actions": {
         "title": "Acciones programadas",
         "description": "Automatice tareas recurrentes con LIA",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "¿Qué es una acción programada?",
@@ -4894,6 +4952,10 @@
           "q6": {
             "question": "¿Las acciones programadas se ven afectadas por los límites?",
             "answer": "Sí, las acciones programadas se bloquean cuando se alcanzan los límites."
+          },
+          "q7": {
+            "question": "¿Puedo crear automatizaciones directamente desde el chat? (v1.25.13)",
+            "answer": "Sí — en una frase: «hazme una revista de prensa de IA los días laborables a las 8». LIA valida la planificación y muestra una <strong>tarjeta de confirmación</strong> (título, días, hora, instrucción); nada se crea antes de tu acuerdo. También puedes <strong>listar</strong> tus automatizaciones («¿cuáles son mis automatizaciones?») y <strong>pausar/reactivar</strong> una en lenguaje natural.<br><br><strong>💡 Extra:</strong> si pides lo mismo a la misma hora varios días distintos, LIA puede proponer espontáneamente: «¿Quieres que lo convierta en una automatización recurrente?» (detección determinista, una sugerencia máx. al mes por patrón, desactivado por defecto — <code>RECURRENCE_SUGGESTION_ENABLED</code>).<br><br>Eliminar una automatización sigue siendo una acción de Ajustes."
           }
         }
       },
@@ -5005,7 +5067,7 @@
       "rag_spaces": {
         "title": "Espacios de conocimiento (RAG)",
         "description": "Sube y utiliza tus propios documentos para enriquecer las respuestas de la IA",
-        "count": "8",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "¿Qué son los Espacios de conocimiento?",
@@ -5038,6 +5100,10 @@
           "q8": {
             "question": "¿Puedo preguntarle al asistente sobre sus propias funcionalidades?",
             "answer": "¡Sí! LIA tiene una <strong>base de conocimientos integrada</strong> que le permite responder preguntas sobre sí misma directamente en la conversación:<br><br><strong>🧠 Cómo funciona:</strong><br>• LIA detecta automáticamente cuando preguntas sobre la aplicación (\"<em>¿Qué puedes hacer?</em>\", \"<em>¿Cómo conecto mi calendario?</em>\")<br>• Busca en su base de conocimientos FAQ (200+ preguntas y respuestas en 24 secciones) usando la misma búsqueda híbrida que los espacios de usuario<br>• Un <strong>Prompt de identidad de la aplicación</strong> que describe todas las funcionalidades se inyecta en la respuesta<br><br><strong>⚡ Sin sobrecarga:</strong><br>Esto solo se activa cuando preguntas sobre la aplicación. Las consultas normales (correos, calendario, etc.) no se ven afectadas en absoluto.<br><br><strong>🔧 Funciones de administrador:</strong><br>Los administradores pueden gestionar los espacios de conocimiento del sistema en <strong>Configuración > Administración > Espacios RAG</strong>:<br>• Ver el estado de obsolescencia (comparación de hash de contenido)<br>• Activar la reindexación manual<br>• Los espacios del sistema se indexan automáticamente al iniciar la aplicación"
+          },
+          "q9": {
+            "question": "¿Puede LIA buscar por sí sola en mis documentos? (v1.25.13)",
+            "answer": "Sí. Tus espacios de documentos son ahora un <strong>dominio activo</strong>: más allá de la inyección automática de contexto, el planificador puede decidir buscar en ellos — con consultas derivadas, varias pasadas si hace falta, y combinaciones con otras fuentes: «compara el presupuesto PDF con lo que Paul envió por correo» encadena una búsqueda documental y una búsqueda de correos.<br><br>La tarjeta «Documentos» del briefing muestra además tus últimos archivos de Drive modificados — un clic para resumir en el chat, o abrir directamente en Drive."
           }
         }
       },
@@ -6263,7 +6329,7 @@
       },
       "briefing": {
         "title": "Briefing del día",
-        "description": "Cada mañana, tu día de un vistazo: síntesis personalizada, clima, agenda, cumpleaños, recordatorios, salud y correos sin leer — antes incluso de que preguntes."
+        "description": "Cada mañana, tu día de un vistazo: síntesis personalizada, clima, agenda, cumpleaños, recordatorios, salud, correos no leídos, tus compromisos seguidos, tareas atrasadas y documentos recién editados — antes incluso de que preguntes."
       }
     },
     "use_cases": {

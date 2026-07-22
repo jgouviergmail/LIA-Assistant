@@ -49,6 +49,11 @@ export {
   JournalExtractionSection,
   type JournalExtractionSectionProps,
 } from './JournalExtractionSection';
+// Open Loop Extraction (Background commitments ledger, ADR-139)
+export {
+  OpenLoopExtractionSection,
+  type OpenLoopExtractionSectionProps,
+} from './OpenLoopExtractionSection';
 // Skills activation
 export { SkillsSection, type SkillsSectionProps } from './SkillsSection';
 // LLM Pipeline (v3.3 - chronological reconciliation)

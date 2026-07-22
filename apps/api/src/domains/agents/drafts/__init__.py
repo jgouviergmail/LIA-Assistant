@@ -39,6 +39,10 @@ Usage:
 Created: 2025-11-27
 """
 
+from src.domains.agents.drafts.action_models import (
+    DraftActionRequest,
+    DraftActionResult,
+)
 from src.domains.agents.drafts.models import (
     BaseDraftInput,
     ContactDeleteDraftInput,
@@ -46,8 +50,6 @@ from src.domains.agents.drafts.models import (
     ContactUpdateDraftInput,
     Draft,
     DraftAction,
-    DraftActionRequest,
-    DraftActionResult,
     DraftInput,
     DraftStatus,
     DraftType,

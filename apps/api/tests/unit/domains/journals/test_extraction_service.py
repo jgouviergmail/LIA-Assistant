@@ -1,5 +1,7 @@
 """Unit tests for journal extraction service (JSON parsing)."""
 
+from unittest.mock import patch
+
 import pytest
 
 from src.domains.journals.extraction_service import _parse_journal_extraction_result
@@ -100,3 +102,19 @@ class TestParseJournalExtractionResult:
         """Null/empty string returns empty list."""
         assert _parse_journal_extraction_result("") == []
         assert _parse_journal_extraction_result("null") == []
+
+
+@pytest.mark.unit
+class TestExtractionDebugStoreEviction:
+    """Same defect class as the open-loop cache (2026-07-22 counter-review):
+    eviction ran only in pop, so a deployment that never opens the debug
+    panel accumulated one entry per turn for the process lifetime."""
+
+    def test_store_evicts_stale_entries_without_any_pop(self):
+        import src.domains.journals.extraction_service as mod
+
+        mod._store_extraction_debug("run-old", {"actions_parsed": 0})
+        with patch.object(mod._time, "monotonic", return_value=mod._time.monotonic() + 10_000):
+            mod._store_extraction_debug("run-new", {"actions_parsed": 1})
+            assert "run-old" not in mod._extraction_debug_results
+            assert mod.pop_extraction_debug("run-new") == {"actions_parsed": 1}

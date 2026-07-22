@@ -11,7 +11,7 @@ import { UsageStatistics } from '@/components/dashboard/UsageStatistics';
  * Today dashboard — the daily ritual home page.
  *
  * Layout (top → bottom):
- *   1. <TodayBriefing> — greeting + synthesis + hero LIA + quick access + 6-card grid
+ *   1. <TodayBriefing> — greeting + synthesis + hero LIA + quick access + 9-card grid
  *   2. <UsageStatistics> — billing cycle counters (preserved as-is)
  */
 export default function DashboardPage() {

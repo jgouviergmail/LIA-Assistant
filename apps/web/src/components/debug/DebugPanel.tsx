@@ -57,6 +57,8 @@ import {
   // Journal Injection + Extraction (Personal Journals)
   JournalInjectionSection,
   JournalExtractionSection,
+  // Open Loop Extraction (Background commitments ledger, ADR-139)
+  OpenLoopExtractionSection,
   // Skills activation
   SkillsSection,
   // LLM Pipeline (v3.3 - chronological reconciliation)
@@ -157,6 +159,7 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
     journal_injection,
     journal_planner_injection,
     journal_extraction,
+    open_loop_extraction,
     skills,
   } = metrics;
 
@@ -195,6 +198,7 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
       <SectionGroupHeader label="Background Extraction" />
       <MemoryDetectionSection data={memory_detection} />
       <JournalExtractionSection data={journal_extraction} />
+      <OpenLoopExtractionSection data={open_loop_extraction} />
       <InterestProfileSection data={interest_profile} />
 
       {/* ── LLM & API PIPELINE ── */}

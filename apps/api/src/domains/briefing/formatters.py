@@ -14,7 +14,6 @@ from src.core.i18n_v3 import V3Messages
 from src.core.time_utils import format_time_with_date_context
 from src.domains.briefing.schemas import (
     AgendaEventItem,
-    BirthdayItem,
     DailyForecastItem,
     ForecastAlert,
     ForecastAlertKind,
@@ -22,6 +21,12 @@ from src.domains.briefing.schemas import (
     MailItem,
     ReminderItem,
     WeatherData,
+)
+
+# Moved to the neutral connectors home (P7) — re-exported for the
+# historical briefing import surface (fetchers + tests).
+from src.domains.connectors.birthdays import (
+    upcoming_birthdays_from_connections as upcoming_birthdays_from_connections,
 )
 from src.domains.reminders.models import Reminder
 
@@ -677,134 +682,6 @@ def _format_trigger_at_local(
         return formatted.lower()
     except (ValueError, TypeError, AttributeError):
         return "?"
-
-
-# =============================================================================
-# Birthday extraction (Google People API connections)
-# =============================================================================
-
-
-def upcoming_birthdays_from_connections(
-    connections: list[dict[str, Any]],
-    *,
-    horizon_days: int,
-    max_items: int,
-    today: date,
-) -> list[BirthdayItem]:
-    """Extract upcoming birthdays from People API connections.
-
-    Google People birthday format::
-
-        {"birthdays": [{"date": {"month": 3, "day": 15, "year": 1990}, ...}]}
-
-    The ``year`` is optional — many users record month + day only.
-
-    Args:
-        connections: ``connections`` array from ``GooglePeopleClient.list_connections``.
-        horizon_days: Look-ahead window from today (e.g. 14).
-        max_items: Cap on the returned list size.
-        today: Reference date, REQUIRED in the **user's local frame**
-            (``now_in_timezone(user_tz).date()``) — a ``date.today()`` default
-            would be the server's date, which marks yesterday's birthdays as
-            "today" for users ahead of UTC (see ``fetchers.fetch_birthdays``).
-
-    Returns:
-        List of BirthdayItem sorted ascending by ``days_until``.
-        Birthdays today have days_until=0.
-    """
-    horizon_end = today.toordinal() + horizon_days
-
-    candidates: list[BirthdayItem] = []
-    for connection in connections:
-        name = _extract_primary_name(connection)
-        if not name:
-            continue
-        for birthday in connection.get("birthdays", []) or []:
-            date_field = birthday.get("date") or {}
-            month = date_field.get("month")
-            day = date_field.get("day")
-            year = date_field.get("year")
-            if not month or not day:
-                continue
-            try:
-                next_occurrence = _next_birthday_occurrence(today, int(month), int(day))
-            except ValueError:
-                continue
-            # _next_birthday_occurrence guarantees next_occurrence >= today, so days_until >= 0.
-            if next_occurrence.toordinal() > horizon_end:
-                continue
-            days_until = next_occurrence.toordinal() - today.toordinal()
-            age_at_next: int | None = None
-            if year:
-                date_iso = f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
-                # Age at the upcoming birthday (the year of next_occurrence
-                # naturally accounts for the rollover when the birthday this
-                # year is already past).
-                try:
-                    age_at_next = next_occurrence.year - int(year)
-                    if age_at_next < 0:
-                        age_at_next = None
-                except (ValueError, TypeError):
-                    age_at_next = None
-            else:
-                date_iso = f"--{int(month):02d}-{int(day):02d}"
-            candidates.append(
-                BirthdayItem(
-                    contact_name=name,
-                    date_iso=date_iso,
-                    days_until=days_until,
-                    age_at_next=age_at_next,
-                )
-            )
-            break  # one birthday per contact is enough
-
-    candidates.sort(key=lambda item: (item.days_until, item.contact_name.lower()))
-    return candidates[:max_items]
-
-
-def _extract_primary_name(connection: dict[str, Any]) -> str | None:
-    """Return the contact's display name from a People API connection.
-
-    Prefers ``displayName`` from the primary names entry; falls back to the
-    first names entry; returns None if no name is set.
-    """
-    names = connection.get("names") or []
-    if not names:
-        return None
-    # Find the primary name (metadata.primary == True), else first.
-    primary = next((n for n in names if (n.get("metadata") or {}).get("primary")), None)
-    chosen = primary or names[0]
-    display = (chosen.get("displayName") or "").strip()
-    if display:
-        return display
-    given = (chosen.get("givenName") or "").strip()
-    family = (chosen.get("familyName") or "").strip()
-    combined = f"{given} {family}".strip()
-    return combined or None
-
-
-def _next_birthday_occurrence(today: date, month: int, day: int) -> date:
-    """Return the next occurrence of (month, day) on or after today.
-
-    Handles Feb 29 by rolling to Feb 28 in non-leap years.
-
-    Raises:
-        ValueError: If the (month, day) is invalid even after Feb 29 fallback.
-    """
-
-    def _safe_date(year: int, month: int, day: int) -> date:
-        try:
-            return date(year, month, day)
-        except ValueError:
-            # Feb 29 in a non-leap year → fall back to Feb 28
-            if month == 2 and day == 29:
-                return date(year, 2, 28)
-            raise
-
-    candidate = _safe_date(today.year, month, day)
-    if candidate < today:
-        candidate = _safe_date(today.year + 1, month, day)
-    return candidate
 
 
 # =============================================================================

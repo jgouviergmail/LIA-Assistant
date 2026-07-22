@@ -410,7 +410,7 @@ class TestInitiativeSkippedWhenSkillActive:
         }
         config = {"configurable": {"user_id": "test-user"}}
 
-        result = await mod.initiative_node(state, config)
+        result = await mod._initiative_core(state, config)
 
         assert result.get("initiative_skipped_reason") == "skill_active"
         assert result.get("initiative_iteration") == 1
@@ -435,7 +435,7 @@ class TestInitiativeSkippedWhenSkillActive:
         }
         config = {"configurable": {"user_id": "test-user"}}
 
-        result = await mod.initiative_node(state, config)
+        result = await mod._initiative_core(state, config)
 
         assert result.get("initiative_skipped_reason") != "skill_active"
 
@@ -454,7 +454,57 @@ class TestInitiativeSkippedWhenSkillActive:
         }
         config = {"configurable": {"user_id": "test-user"}}
 
-        result = await mod.initiative_node(state, config)
+        result = await mod._initiative_core(state, config)
 
         # Not skipped for "skill_active" since no skill_name present
         assert result.get("initiative_skipped_reason") != "skill_active"
+
+
+@pytest.mark.unit
+class TestValidateReadOnlyDeduplication:
+    """_validate_read_only also drops exact (tool, parameters) duplicates.
+
+    Observed in dev 2026-07-22: the LLM emitted the same weather check twice
+    in one decision (two co-located events) — both executed, one paid call
+    wasted whenever the target tool has no response cache.
+    """
+
+    def _action(self, tool: str, city: str) -> InitiativeAction:
+        return InitiativeAction(
+            tool_name=tool,
+            parameters=[
+                ParameterItem(
+                    name="location",
+                    value=ParameterValue(string_value=city, value_type="string"),
+                )
+            ],
+            rationale="check",
+        )
+
+    def test_exact_duplicate_is_dropped(self) -> None:
+        from src.domains.agents.nodes.initiative_plan import _validate_read_only
+
+        manifest = MagicMock()
+        manifest.name = "get_weather_forecast_tool"
+        actions = [
+            self._action("get_weather_forecast_tool", "Charenton-le-Pont"),
+            self._action("get_weather_forecast_tool", "Charenton-le-Pont"),
+        ]
+
+        validated = _validate_read_only(actions, [manifest])
+
+        assert len(validated) == 1
+
+    def test_same_tool_different_parameters_are_kept(self) -> None:
+        from src.domains.agents.nodes.initiative_plan import _validate_read_only
+
+        manifest = MagicMock()
+        manifest.name = "get_weather_forecast_tool"
+        actions = [
+            self._action("get_weather_forecast_tool", "Charenton-le-Pont"),
+            self._action("get_weather_forecast_tool", "Lyon"),
+        ]
+
+        validated = _validate_read_only(actions, [manifest])
+
+        assert len(validated) == 2

@@ -9,7 +9,7 @@
 
 ## Overview
 
-The Today briefing turns the dashboard home page into a **daily ritual**: an LLM-generated greeting + contextual synthesis above a 6-card grid (weather, agenda, unread mails, upcoming birthdays, active reminders, health metrics).
+The Today briefing turns the dashboard home page into a **daily ritual**: an LLM-generated greeting + contextual synthesis above a 9-card grid (weather, agenda, unread mails, upcoming birthdays, active reminders, health metrics, the « For you » card — open loops + automations digest, ADR-139/140 —, pending/overdue tasks from the active tasks provider, and the latest modified Drive documents).
 
 Architecture in one line: **lecture pure, asyncio.gather parallel, per-section Redis cache, two lightweight LLM calls** (greeting + synthesis), no LangGraph, no DB model, no scheduler.
 
@@ -95,7 +95,7 @@ The dashboard load is split into **two non-blocking GET endpoints** — fast car
 
 ### `GET /api/v1/briefing/cards`
 
-Returns the 6-card bundle. **No LLM call** — fetchers run in parallel via `asyncio.gather` and the response returns as soon as every section has been fetched (or recovered from Redis cache).
+Returns the 9-card bundle. **No LLM call** — fetchers run in parallel via `asyncio.gather` and the response returns as soon as every section has been fetched (or recovered from Redis cache).
 
 **Response (200)** — `CardsResponse`:
 
@@ -203,7 +203,7 @@ The i18n key `dashboard.briefing.synthesis_unavailable` is provided in all 6 sup
 ```
 apps/web/src/
 ├── components/dashboard/
-│   ├── TodayBriefing.tsx      Orchestrator — Hero (greeting overlay) + synthesis + 6-card grid
+│   ├── TodayBriefing.tsx      Orchestrator — Hero (greeting overlay) + synthesis + 9-card grid
 │   ├── HeroLiaCard.tsx        Marketing hero — accepts `greeting` prop and renders the LLM
 │   │                          greeting on top of the LIA avatar (replaces the rotating
 │   │                          random taglines as of v1.18.1). Falls back to a static localized
@@ -334,6 +334,6 @@ Tests + docs.
 
 - **Latency target** : < 1 s P95 on warm cache, < 2 s P95 on cold cache.
 - **LLM cost** : ~ 250 input + 60 output tokens per call, 2 calls per build, gpt-4.1-nano pricing → ~ 0.005 cent per build. At 100 active users × 5 builds/day = 500 builds/day → < 1 €/month total. Negligible.
-- **Cache footprint** : ~ 10 KB per section × 6 sections × N users. For 1000 users: ~ 60 MB Redis.
+- **Cache footprint** : ~ 10 KB per section × 9 sections × N users. For 1000 users: ~ 90 MB Redis.
 
 If latency creeps up at scale, the existing heartbeat scheduler can pre-compute the cache for active users without breaking the API surface.

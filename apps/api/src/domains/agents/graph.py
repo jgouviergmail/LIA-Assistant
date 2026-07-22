@@ -75,7 +75,7 @@ from src.domains.agents.nodes import (
 )
 from src.domains.agents.nodes.for_each_confirm_node import for_each_confirm_node
 from src.domains.agents.nodes.hitl_dispatch_node import hitl_dispatch_node
-from src.domains.agents.nodes.initiative_node import initiative_node
+from src.domains.agents.nodes.initiative_recurrence import initiative_node
 from src.domains.agents.nodes.routing import (
     route_from_approval_gate,
     route_from_clarification,

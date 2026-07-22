@@ -22,12 +22,14 @@ from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any, Final, Literal
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import ValidationError
 
 from src.core.config import settings
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n_telephony import get_return_phrases
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.telephony.models import PhoneCallOutcome, PhoneCallStatus
@@ -248,6 +250,110 @@ async def synthesize_return(
     return proposal, usage
 
 
+def build_appointment_suggestion(
+    *,
+    structured: StructuredCallData,
+    status: PhoneCallStatus,
+    language: str,
+    user_timezone: str,
+) -> str | None:
+    """Deterministic actionable line derived from the extracted call outcome (P14).
+
+    Gate: the call COMPLETED, the callee AGREED, and ``proposed_datetime``
+    parses as ISO-8601 (defensive — the extraction is LLM-shaped). A naive
+    datetime is interpreted in the user's timezone; an aware one is converted
+    to it. Rendered as unambiguous ``YYYY-MM-DD HH:MM`` local time.
+
+    The line invites the user to confirm the calendar action in chat — the
+    next turn flows through the normal pipeline (HITL draft included), so no
+    parallel draft infrastructure is needed here.
+
+    Args:
+        structured: Minimized structured outcome extracted from the call.
+        status: Final call status.
+        language: User language for the localized phrase.
+        user_timezone: IANA timezone name from the user profile.
+
+    Returns:
+        The localized suggestion line, or None when the gate is closed.
+    """
+    if status is not PhoneCallStatus.COMPLETED or structured.agreed is not True:
+        return None
+    raw = structured.proposed_datetime
+    if not raw:
+        return None
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+    try:
+        tz = ZoneInfo(user_timezone)
+    except (KeyError, ValueError, TypeError):
+        tz = ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=tz)
+    datetime_local = parsed.astimezone(tz).strftime("%Y-%m-%d %H:%M")
+
+    phrases = get_return_phrases(language)
+    location_part = (
+        phrases["appointment_location_part"].format(location=structured.location)
+        if structured.location
+        else ""
+    )
+    return phrases["appointment_suggestion"].format(
+        datetime_local=datetime_local, location_part=location_part
+    )
+
+
+def _user_display_timezone(user: User | None) -> str:
+    """Resolve the user's IANA timezone with the platform default fallback.
+
+    Hoisted out of ``process_completed_call`` to keep that function under the
+    CC-15 ratchet (the ``or`` fallback is a branch).
+    """
+    return getattr(user, "timezone", None) or DEFAULT_USER_DISPLAY_TIMEZONE
+
+
+def compose_delivery_text(
+    *,
+    proposal_text: str,
+    structured: StructuredCallData,
+    status: PhoneCallStatus,
+    language: str,
+    user_timezone: str,
+) -> str:
+    """Append the appointment suggestion to the first-person report (P14).
+
+    Best-effort by contract: any failure in the suggestion helper degrades to
+    the plain proposal — the return delivery must never be lost over a bonus
+    line.
+
+    Args:
+        proposal_text: First-person report from the synthesis (or fallback).
+        structured: Minimized structured outcome extracted from the call.
+        status: Final call status.
+        language: User language.
+        user_timezone: IANA timezone name from the user profile.
+
+    Returns:
+        The delivery text (proposal, possibly followed by the suggestion).
+    """
+    try:
+        suggestion = build_appointment_suggestion(
+            structured=structured,
+            status=status,
+            language=language,
+            user_timezone=user_timezone,
+        )
+    except Exception as exc:  # noqa: BLE001 — bonus line, never lose the return
+        logger.warning("telephony_appointment_suggestion_failed", error=str(exc))
+        return proposal_text
+    if not suggestion:
+        return proposal_text
+    return f"{proposal_text}\n\n{suggestion}"
+
+
 async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None:
     """Reconcile a finished call, synthesize the return, persist + deliver it.
 
@@ -286,6 +392,16 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
             fallback = transcript_summary or phrases["fallback"]
             proposal = ReturnProposal(summary=transcript_summary or "", proposal_text=fallback)
 
+        # P14 — append the deterministic appointment suggestion BEFORE arming
+        # the outbox record, so every delivery path (dispatch + reaper) carries it.
+        delivery_text = compose_delivery_text(
+            proposal_text=proposal.proposal_text,
+            structured=structured,
+            status=status,
+            language=language,
+            user_timezone=_user_display_timezone(user),
+        )
+
         claimed = await repo.mark_completed(
             call_id,
             status=status,
@@ -296,7 +412,7 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
             completed_at=datetime.now(UTC),
             # T1: arm the return as a PENDING outbox record in the same atomic
             # transition, so a crash before the dispatch below cannot lose it.
-            notification_content=proposal.proposal_text,
+            notification_content=delivery_text,
             notification_title=phrases["title"],
         )
         if not claimed:
@@ -333,7 +449,7 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
         try:
             await NotificationDispatcher().dispatch(
                 user=user,
-                content=proposal.proposal_text,
+                content=delivery_text,
                 task_type="phone_call",
                 target_id=str(call_id),
                 metadata={"call_status": status.value},

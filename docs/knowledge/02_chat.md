@@ -312,3 +312,9 @@ If older history exists, a **"Search entire history"** button queries the server
 Two discreet thumbs appear next to the **Copy** button on ordinary responses. Your verdict is **saved with the message** (you will find it on your other devices) and feeds LIA's understanding: it strengthens or weakens the personal observations that shaped that answer. A 👎 unfolds an optional one-line **"what went wrong?"** field, recorded as a correction.
 
 You can change your mind — the latest verdict wins. And LIA **never regenerates** an answer on its own: you stay in charge.
+
+
+## Can LIA prepare me before talking to someone?
+Yes — ask "prepare my call with Marie" and one pass gathers a **360° view**: her contact card, your recent email exchanges, your upcoming shared meetings, and what LIA remembers about her. If a source is unavailable (no calendar connector, for instance), the overview says so honestly instead of guessing.
+
+It also powers the meeting-prep nudge: when a substantial meeting is close, a proactive notification may end with "want me to prepare this meeting for you?".

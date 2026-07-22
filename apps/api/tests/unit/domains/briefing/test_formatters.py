@@ -13,7 +13,6 @@ from src.domains.briefing.formatters import (
     WEATHER_EMOJI_MAP,
     _detect_forecast_alert,
     _format_event_time,
-    _next_birthday_occurrence,
     format_agenda_event,
     format_email_item,
     format_reminder_item,
@@ -22,6 +21,12 @@ from src.domains.briefing.formatters import (
     upcoming_birthdays_from_connections,
 )
 from src.domains.briefing.schemas import ForecastAlertKind
+
+# Birthday computation moved to the neutral connectors home (P7) — the
+# private occurrence helper is imported from its new module; the public
+# ``upcoming_birthdays_from_connections`` stays importable from formatters
+# (re-export guarded by tests/unit/domains/connectors/test_birthdays.py).
+from src.domains.connectors.birthdays import _next_birthday_occurrence  # noqa: E402
 
 PARIS = ZoneInfo("Europe/Paris")
 NEW_YORK = ZoneInfo("America/New_York")

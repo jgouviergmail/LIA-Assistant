@@ -1,0 +1,101 @@
+/**
+ * Documents card (P15 extension) — latest modified Drive files.
+ *
+ * Rows open the chat with a summarize intent; a separate anchor opens the
+ * file in Drive (new tab, noopener — both actions per user arbitration).
+ */
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+
+import { DocumentsCard } from '../cards/DocumentsCard';
+import type { CardSection, DocumentsData } from '@/types/briefing';
+
+const push = vi.fn();
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push }),
+}));
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, opts?: Record<string, unknown>) =>
+      opts
+        ? `${key}|${Object.entries(opts)
+            .map(([k, v]) => `${k}=${v}`)
+            .join('|')}`
+        : key,
+    i18n: { language: 'fr' },
+  }),
+}));
+
+function section(data: DocumentsData | null, status = 'ok'): CardSection<DocumentsData> {
+  return {
+    status: status as CardSection<DocumentsData>['status'],
+    data,
+    generated_at: '2026-07-22T08:00:00Z',
+    error_code: null,
+    error_message: null,
+  };
+}
+
+const cardProps = { isRefreshing: false, onRefresh: vi.fn(), staggerIndex: 0 };
+
+const fullData: DocumentsData = {
+  items: [
+    {
+      name: 'Devis plomberie.pdf',
+      modified_local: '14:30',
+      web_view_link: 'https://drive.google.com/file/d/f1/view',
+      mime_type: 'application/pdf',
+    },
+    {
+      name: 'Notes réunion',
+      modified_local: '09:12 21/07/2026',
+      web_view_link: null,
+      mime_type: 'application/vnd.google-apps.document',
+    },
+  ],
+};
+
+describe('DocumentsCard', () => {
+  beforeEach(() => {
+    push.mockClear();
+  });
+
+  it('opens the chat with a summarize intent on row click', () => {
+    render(<DocumentsCard {...cardProps} section={section(fullData)} />);
+
+    const row = screen.getByRole('button', {
+      name: /intents\.document_summarize\|subject=Devis plomberie\.pdf/,
+    });
+    fireEvent.click(row);
+    expect(push).toHaveBeenCalledWith(expect.stringContaining('/fr/dashboard/chat?draft='));
+    expect(push.mock.calls[0][0]).toContain(encodeURIComponent('Devis plomberie.pdf'));
+    expect(screen.getByText('14:30')).toBeInTheDocument();
+  });
+
+  it('renders a safe external Drive link only when a link exists', () => {
+    render(<DocumentsCard {...cardProps} section={section(fullData)} />);
+
+    const links = screen.getAllByRole('link');
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute('href', 'https://drive.google.com/file/d/f1/view');
+    expect(links[0]).toHaveAttribute('target', '_blank');
+    expect(links[0]).toHaveAttribute('rel', 'noopener noreferrer');
+    // The linkless row still renders its content
+    expect(screen.getByText('Notes réunion')).toBeInTheDocument();
+  });
+
+  it('shows the empty state when the section is empty', () => {
+    render(<DocumentsCard {...cardProps} section={section(null, 'empty')} />);
+    expect(screen.getByText('dashboard.briefing.cards.documents.empty')).toBeInTheDocument();
+  });
+
+  it('is hidden entirely when the section is not configured', () => {
+    const { container } = render(
+      <DocumentsCard {...cardProps} section={section(null, 'not_configured')} />
+    );
+    expect(container.firstChild).toBeNull();
+  });
+});

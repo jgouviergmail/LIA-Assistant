@@ -65,6 +65,7 @@ class DraftType(str, Enum):
     LABEL_DELETE = "label_delete"  # Gmail label delete draft (delete_label)
     REMINDER_DELETE = "reminder_delete"  # Reminder delete draft (cancel_reminder)
     PHONE_CALL = "phone_call"  # Outbound agentic phone-call draft (place_phone_call)
+    SCHEDULED_ACTION = "scheduled_action"  # Recurring automation draft (ADR-140)
 
 
 class DraftStatus(str, Enum):
@@ -904,57 +905,3 @@ class Draft(BaseModel):
         from src.domains.agents.drafts.preview_renderer import render_detailed_preview
 
         return render_detailed_preview(self, user_language, user_timezone)
-
-
-class DraftActionRequest(BaseModel):
-    """
-    User action request on a draft.
-
-    Sent from frontend when user clicks confirm/edit/cancel.
-    """
-
-    draft_id: str = Field(..., description="ID of the draft")
-    action: DraftAction = Field(..., description="Action to take")
-
-    # For EDIT action: new content
-    updated_content: dict[str, Any] | None = Field(
-        default=None,
-        description="Updated content (for EDIT action)",
-    )
-
-    # User context
-    user_message: str | None = Field(
-        default=None,
-        description="Optional user message/feedback",
-    )
-
-
-class DraftActionResult(BaseModel):
-    """
-    Result of a draft action.
-
-    Returned after processing a DraftActionRequest.
-    """
-
-    draft_id: str = Field(..., description="ID of the draft")
-    action: DraftAction = Field(..., description="Action that was taken")
-    success: bool = Field(..., description="Whether action succeeded")
-    new_status: DraftStatus = Field(..., description="New draft status")
-
-    # For CONFIRM action: execution result
-    execution_result: dict[str, Any] | None = Field(
-        default=None,
-        description="Result of execution (for CONFIRM)",
-    )
-
-    # Error info
-    error_message: str | None = Field(
-        default=None,
-        description="Error message if failed",
-    )
-
-    # Updated draft (for EDIT action)
-    updated_draft: Draft | None = Field(
-        default=None,
-        description="Updated draft object (for EDIT)",
-    )

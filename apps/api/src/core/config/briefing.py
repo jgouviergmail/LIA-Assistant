@@ -25,8 +25,12 @@ from src.core.constants import (
     BRIEFING_MAX_AGENDA_ITEMS_DEFAULT,
     BRIEFING_MAX_BIRTHDAYS_HORIZON_DAYS_DEFAULT,
     BRIEFING_MAX_BIRTHDAYS_ITEMS_DEFAULT,
+    BRIEFING_MAX_DOCUMENTS_ITEMS_DEFAULT,
     BRIEFING_MAX_MAILS_ITEMS_DEFAULT,
+    BRIEFING_MAX_OPEN_LOOPS_ITEMS_DEFAULT,
     BRIEFING_MAX_REMINDERS_ITEMS_DEFAULT,
+    BRIEFING_MAX_TASKS_ITEMS_DEFAULT,
+    BRIEFING_TASKS_HORIZON_DAYS_DEFAULT,
     BRIEFING_WEATHER_DAILY_FORECAST_DAYS_DEFAULT,
 )
 
@@ -90,4 +94,28 @@ class BriefingSettings(BaseSettings):
             "Number of forecast days shown on the weather card. Default 5 "
             "(capped at 5 — the OpenWeatherMap free tier maximum)."
         ),
+    )
+    briefing_max_open_loops_items: int = Field(
+        default=BRIEFING_MAX_OPEN_LOOPS_ITEMS_DEFAULT,
+        ge=1,
+        le=10,
+        description="Max open loops surfaced on the For-you briefing card.",
+    )
+    briefing_max_tasks_items: int = Field(
+        default=BRIEFING_MAX_TASKS_ITEMS_DEFAULT,
+        ge=1,
+        le=20,
+        description="Max pending/overdue tasks on the tasks card.",
+    )
+    briefing_tasks_horizon_days: int = Field(
+        default=BRIEFING_TASKS_HORIZON_DAYS_DEFAULT,
+        ge=1,
+        le=30,
+        description="Tasks card look-ahead window (overdue + due within N days).",
+    )
+    briefing_max_documents_items: int = Field(
+        default=BRIEFING_MAX_DOCUMENTS_ITEMS_DEFAULT,
+        ge=1,
+        le=20,
+        description="Max recently-modified Drive files on the documents card.",
     )

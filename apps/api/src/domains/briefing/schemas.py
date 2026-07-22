@@ -16,6 +16,11 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# BirthdayItem moved to the neutral connectors home (P7 — heartbeat consumes
+# it too and briefing→heartbeat→briefing would cycle). Re-exported here to
+# keep the historical briefing import surface stable.
+from src.domains.connectors.birthdays import BirthdayItem as BirthdayItem
+
 # =============================================================================
 # Enums
 # =============================================================================
@@ -184,23 +189,6 @@ class MailsData(BaseModel):
     total_unread_today: int
 
 
-class BirthdayItem(BaseModel):
-    """Upcoming birthday entry — pre-computed days_until + age."""
-
-    model_config = ConfigDict(frozen=True)
-
-    contact_name: str
-    date_iso: str = Field(
-        ...,
-        description="ISO 8601 date: 'YYYY-MM-DD' if year known, '--MM-DD' otherwise",
-    )
-    days_until: int = Field(..., ge=0, description="Days from today to next occurrence")
-    age_at_next: int | None = Field(
-        None,
-        description="Age the contact will turn at the next birthday. None when birth year unknown.",
-    )
-
-
 class BirthdaysData(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -262,9 +250,102 @@ class HealthData(BaseModel):
     items: list[HealthSummaryItem]
 
 
+class TaskItem(BaseModel):
+    """One pending or overdue task (date-only due semantics, user frame)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    title: str
+    due_date_iso: str | None = Field(
+        default=None, description="ISO date 'YYYY-MM-DD' of the due day, if any"
+    )
+    days_until_due: int | None = Field(
+        default=None,
+        description="Days from the user's local today to the due day (negative = overdue)",
+    )
+    overdue: bool = Field(description="True when the due day is strictly before local today")
+
+
+class TasksData(BaseModel):
+    """Pending/overdue tasks from the active provider (strictly open items)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    items: list[TaskItem]
+    overdue_count: int = Field(ge=0)
+
+
+class DocumentItem(BaseModel):
+    """One recently-modified Drive file."""
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    modified_local: str = Field(
+        description="Pre-formatted local modification time (reminders doctrine)"
+    )
+    web_view_link: str | None = Field(default=None, description="Drive web link")
+    mime_type: str | None = None
+
+
+class DocumentsData(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    items: list[DocumentItem]
+
+
+class ForYouLoopItem(BaseModel):
+    """One tracked open loop surfaced on the For-you card (P15/Lot 2)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id: str
+    subject: str
+    counterparty: str | None = None
+    direction: str = Field(description="user_owes | waiting_on_other")
+    due_hint: datetime | None = None
+    days_open: int = Field(ge=0)
+
+
+class ForYouAutomationItem(BaseModel):
+    """One automation line (recent execution or next upcoming) (P15/Lot 3)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id: str
+    title: str
+    executed_at: datetime | None = None
+    next_trigger_at: datetime | None = None
+    next_trigger_local: str | None = Field(
+        default=None,
+        description=(
+            "Pre-formatted local execution time for the NEXT upcoming "
+            "automation ('09:00', '09:00 demain', …) — same doctrine as "
+            "ReminderItem.trigger_at_local. None on recent-execution rows."
+        ),
+    )
+
+
+class ForYouData(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    open_loops: list[ForYouLoopItem]
+    recent_automations: list[ForYouAutomationItem]
+    next_automation: ForYouAutomationItem | None = None
+
+
 # Tagged union for the per-card payload.
 SectionPayload = Annotated[
-    WeatherData | AgendaData | MailsData | BirthdaysData | RemindersData | HealthData | None,
+    WeatherData
+    | AgendaData
+    | MailsData
+    | BirthdaysData
+    | RemindersData
+    | HealthData
+    | ForYouData
+    | TasksData
+    | DocumentsData
+    | None,
     Field(description="Section-specific payload. None if status != OK."),
 ]
 
@@ -339,6 +420,9 @@ class CardsBundle(BaseModel):
     birthdays: CardSection
     reminders: CardSection
     health: CardSection
+    for_you: CardSection
+    tasks: CardSection
+    documents: CardSection
 
 
 class BriefingResponse(BaseModel):

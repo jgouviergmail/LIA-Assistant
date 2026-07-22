@@ -3193,6 +3193,33 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 **Décision**: Le pattern de feedback complet n'existait que pour les notifications proactives ; les réponses ordinaires n'avaient qu'un bouton Copier. QW-5 (chantier Quick Wins UX) ajoute `POST /conversations/me/messages/{id}/feedback` : verdict persisté dans `message_metadata.response_feedback` par UPDATE `jsonb_set` atomique scopé propriétaire (pattern `mark_interest_feedback_submitted`), identification du message par `archived_message_id` dans le chunk `done` (l'archive précède le done — vérifié) et `message_db_id` sur les lignes d'historique. Couplage journaux par **port injecté** (`JournalFeedbackHooks` Protocol côté conversations, implémentation `journals/feedback_hooks.py`, enregistrement au startup) — un import direct, même paresseux, fermait le cycle de domaine conversations↔journals (attrapé par le garde F009). Compteurs evidence/contradiction alimentés au PREMIER verdict seulement (pas de décrément — un changement de verdict ne re-compte jamais) ; commentaire du 👎 déposé comme entrée L0 `user_correction` SANS consolidation (pas de coût LLM par pouce) ; métrique `response_feedback_total{verdict}` ; jamais de re-génération automatique. Frontend : chips à côté de Copier, `aria-pressed`, hydratation cross-device, champ correction optionnel.
 
 ---
+
+### ADR-139: Registre des boucles ouvertes (open loops) et relance heartbeat
+
+**Statut**: ✅ IMPLEMENTED (2026-07-22)
+**Fichier**: `docs/architecture/ADR-139-Open-Loops-Commitments-Ledger.md`
+
+**Décision**: P5 du programme Interdomain Intelligence (pilier « l'assistant qui n'oublie rien ») — aucun sous-système ne suivait les engagements exprimés en conversation (« je dois rappeler le plombier », « Marie doit m'envoyer le devis »). Nouveau bounded context `domains/open_loops/` : table `open_loops` (direction user_owes/waiting_on_other, `due_hint` UTC consultatif, statuts open/closed/expired, `last_nudged_at`+`nudge_count` anti-harcèlement, index partiel WHERE status='open'), transitions par UPDATE conditionnel atomique. Extraction = **5e extraction post-réponse** (mêmes gardes que mémoire/intérêts/journaux/psyché ; nouveau type LLM `open_loop_extraction` tier LOW) : une passe structurée voit la queue de conversation ET les boucles existantes (ids) → `open` + `close` conversationnel (« c'est fait ») ; règles d'application déterministes testées à part (caps, doublons, ISO tolérant). Relance via nouvelle source heartbeat (expiry **paresseuse** — pas de job dédié ; filtre nudge-worthy échéance/stagnation hors cooldown ; règle 19 du prompt de décision, une boucle max par notification) ; bump du cooldown APRÈS notification délivrée et seulement si `sources_used` contient `OPEN_LOOPS` (même emplacement transactionnel que le ledger ADR-135). API v1 minimale sous flag `OPEN_LOOPS_ENABLED` (défaut false) ; clôture par scan email et UI reportées (v2 / Lot 4). Vérification : TDD intégral, migration tête unique, preuve runtime dev.
+
+---
+
+### ADR-140: Automatisations pilotées depuis le chat + suggestion de récurrence
+
+**Statut**: ✅ IMPLEMENTED (2026-07-22)
+**Fichier**: `docs/architecture/ADR-140-Chat-Piloted-Automations.md`
+
+**Décision**: P11+P12 du programme Interdomain Intelligence — les scheduled actions s'exécutaient via le pipeline complet mais ne se pilotaient que depuis l'UI. Nouveau domaine routable `automation` (interne) + 3 outils : création = **draft SCHEDULED_ACTION confirmable** (D4 ; exécuteur → `ScheduledActionService.create`, cap par utilisateur), listing (ids réels), toggle direct (réversible, pas de draft) ; suppression = UI seulement en v1. Plomberie draft complète boot-assertée (display registry, preview renderer + goldens, i18n ×6 clés `zh-CN`). **Détecteur de récurrence déterministe** (P12, pas de table ni LLM) : ledger Redis par (user, signature domaines@bucket-4h heure locale), écrit en 7e bloc post-réponse ; suggestion one-shot par cooldown quand ≥ N jours DISTINCTS dans la fenêtre, texte ×6 injecté via le slot `STATE_KEY_INITIATIVE_SUGGESTION` existant — le nœud initiative devient wrapper fin (`_initiative_core` inchangé), flags indépendants (marche même si INITIATIVE_ENABLED off). Rejetés : PlanPatternLearner (stats globales sans timestamps par user — vérifié), injection response_node (ratchet taille), draft sur toggle (friction). Flag `RECURRENCE_SUGGESTION_ENABLED` défaut OFF ; mesure J+14 à l'activation.
+
+---
+
+### ADR-141: Couche de connaissance active — domaine documents et personne 360°
+
+**Statut**: ✅ IMPLEMENTED (2026-07-22)
+**Fichier**: `docs/architecture/ADR-141-Active-Knowledge-Layer.md`
+
+**Décision**: P1+P3 du programme Interdomain Intelligence. **P1** : domaine routable `document` — `search_user_documents_tool` (read-only) sur `retrieve_rag_context` existant, extraits plafonnés ; routabilité filtrée au chokepoint `_build_available_domains` quand `RAG_SPACES_ENABLED` off (pattern téléphonie) ; l'injection passive du response node coexiste (appoint auto + capacité dirigée). **P3** : `get_person_overview_tool` sur contact_agent — 4 sous-fetches parallèles à sessions et frontières d'échec propres (fiche contact multi-provider pattern heartbeat, emails récents, événements 30 j, mémoires par embedding du nom), **partialité honnête** (`partial_failures` ; connecteur absent = bloc vide, contact introuvable = `person_not_found`). Enregistrements via l'agrégateur `registry/program_manifests.py` (coût net zéro dans le loader gelé). Rejetés : fusion avec le domaine `file` (sémantiques disjointes), `Memory.linked_contact_id` v1 (différé post-J+14 P5), sous-fetches Drive/rappels (différés). Vérification : TDD, suites vertes, runtime dev.
+
+---
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

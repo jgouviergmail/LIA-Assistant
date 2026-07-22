@@ -11,6 +11,9 @@ import { QuickAccessCompact } from './QuickAccessCompact';
 import { RefreshAllButton } from './RefreshAllButton';
 import { AgendaCard } from './cards/AgendaCard';
 import { BirthdaysCard } from './cards/BirthdaysCard';
+import { DocumentsCard } from './cards/DocumentsCard';
+import { ForYouCard } from './cards/ForYouCard';
+import { TasksCard } from './cards/TasksCard';
 import { HealthCard } from './cards/HealthCard';
 import { MailsCard } from './cards/MailsCard';
 import { RemindersCard } from './cards/RemindersCard';
@@ -28,7 +31,7 @@ import { CardsGridSkeleton, SynthesisSkeleton } from './BriefingSkeleton';
  *   1. Hero LIA (marketing card — its headline is the LLM greeting once it arrives,
  *      a static localized tagline as fallback while the LLM call is in flight)
  *   2. Quick Access (Help + Settings)
- *   3. "Mon dashboard" 6-card grid (with the synthesis above the cards)
+ *   3. "Mon dashboard" 9-card grid (with the synthesis above the cards)
  */
 export function TodayBriefing() {
   const { t } = useTranslation();
@@ -128,6 +131,24 @@ export function TodayBriefing() {
               isRefreshing={refreshingSections.has('mails')}
               onRefresh={() => refetchSection('mails')}
               staggerIndex={5}
+            />
+            <ForYouCard
+              section={cards.for_you}
+              isRefreshing={refreshingSections.has('for_you')}
+              onRefresh={() => refetchSection('for_you')}
+              staggerIndex={6}
+            />
+            <TasksCard
+              section={cards.tasks}
+              isRefreshing={refreshingSections.has('tasks')}
+              onRefresh={() => refetchSection('tasks')}
+              staggerIndex={7}
+            />
+            <DocumentsCard
+              section={cards.documents}
+              isRefreshing={refreshingSections.has('documents')}
+              onRefresh={() => refetchSection('documents')}
+              staggerIndex={8}
             />
           </div>
         ) : cardsLoading ? (

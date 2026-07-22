@@ -1722,11 +1722,38 @@ HEARTBEAT_ACTIVITY_COOLDOWN_MINUTES_DEFAULT = 15
 # Prevents two different proactive notification types from firing in quick succession
 PROACTIVE_CROSS_TYPE_COOLDOWN_MINUTES_DEFAULT = 10
 
+# ---------------------------------------------------------------------------
+# Open Loops — commitments ledger (P5, ADR-139)
+# ---------------------------------------------------------------------------
+OPEN_LOOPS_MAX_OPEN_PER_USER_DEFAULT = 30
+OPEN_LOOPS_EXTRACTION_MAX_ITEMS_DEFAULT = 5
+OPEN_LOOPS_NUDGE_DUE_HOURS_DEFAULT = 48
+OPEN_LOOPS_NUDGE_STALE_DAYS_DEFAULT = 7
+OPEN_LOOPS_NUDGE_COOLDOWN_DAYS_DEFAULT = 3
+OPEN_LOOPS_EXPIRY_DAYS_DEFAULT = 21
+
+# ---------------------------------------------------------------------------
+# Recurrence detection — automation suggestion (P12, ADR-140)
+# ---------------------------------------------------------------------------
+RECURRENCE_WINDOW_DAYS_DEFAULT = 14
+RECURRENCE_MIN_DISTINCT_DAYS_DEFAULT = 3
+RECURRENCE_SUGGESTION_COOLDOWN_DAYS_DEFAULT = 30
+RECURRENCE_LEDGER_MAX_ENTRIES_DEFAULT = 20
+
 # Context aggregation
 HEARTBEAT_CONTEXT_CALENDAR_HOURS_DEFAULT = 4
 HEARTBEAT_CONTEXT_TASKS_DAYS_DEFAULT = 2
 HEARTBEAT_CONTEXT_MEMORY_LIMIT_DEFAULT = 5
 HEARTBEAT_CONTEXT_EMAILS_MAX_DEFAULT = 5
+# Birthdays look-ahead for the heartbeat source (P7): 1 = today + tomorrow
+# (days_until <= 1). Kept small on purpose — birthdays beyond tomorrow belong
+# to the briefing card, not to an interruption.
+HEARTBEAT_CONTEXT_BIRTHDAYS_DAYS_DEFAULT = 1
+# Hard cap on birthday entries injected into the decision prompt.
+HEARTBEAT_BIRTHDAYS_MAX_ITEMS = 5
+# Departure advice (P6): lookahead window and Routes-ETA cache TTL.
+HEARTBEAT_DEPARTURE_LOOKAHEAD_HOURS_DEFAULT = 3
+HEARTBEAT_DEPARTURE_CACHE_TTL_SECONDS_DEFAULT = 900
 
 # Weather change detection thresholds
 HEARTBEAT_WEATHER_RAIN_THRESHOLD_HIGH_DEFAULT = 0.6
@@ -2652,6 +2679,11 @@ BRIEFING_AGENDA_LOOKAHEAD_HOURS_DEFAULT = 24
 BRIEFING_MAX_MAILS_ITEMS_DEFAULT = 5
 BRIEFING_MAX_BIRTHDAYS_ITEMS_DEFAULT = 5
 BRIEFING_MAX_BIRTHDAYS_HORIZON_DAYS_DEFAULT = 14
+BRIEFING_MAX_OPEN_LOOPS_ITEMS_DEFAULT = 3
+BRIEFING_MAX_TASKS_ITEMS_DEFAULT = 5
+# Tasks card look-ahead: overdue (unbounded past) + due within this window.
+BRIEFING_TASKS_HORIZON_DAYS_DEFAULT = 7
+BRIEFING_MAX_DOCUMENTS_ITEMS_DEFAULT = 5
 BRIEFING_MAX_REMINDERS_ITEMS_DEFAULT = 5
 BRIEFING_HEALTH_WINDOW_DAYS_DEFAULT = 14
 BRIEFING_WEATHER_DAILY_FORECAST_DAYS_DEFAULT = 5

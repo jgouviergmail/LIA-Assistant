@@ -37,7 +37,6 @@ from src.core.constants import (
     RESPONSE_DISPLAY_MODE_HTML,
 )
 from src.core.field_names import (
-    FIELD_IS_AUTOMATED_SOURCE,
     FIELD_METADATA,
     FIELD_PLAN_ID,
     FIELD_REACT_SYNTHESIS,
@@ -88,6 +87,9 @@ from src.domains.agents.formatters.text_summary import (
     generate_data_for_filtering,
 )
 from src.domains.agents.models import MessagesState
+from src.domains.agents.nodes.post_response_extractions import (
+    _schedule_post_response_extractions,
+)
 from src.domains.agents.orchestration.correlation_detector import detect_correlations
 from src.domains.agents.prompts import (
     escape_braces,
@@ -95,7 +97,6 @@ from src.domains.agents.prompts import (
     get_response_prompt,
 )
 from src.domains.agents.prompts.prompt_loader import load_prompt
-from src.domains.agents.services.memory_extractor import extract_memories_background
 from src.domains.agents.utils.message_filters import (
     drop_current_turn_responses,
     filter_for_llm_context,
@@ -117,8 +118,6 @@ from src.domains.agents.utils.turn_type import (
 from src.domains.agents.utils.turn_type import (
     is_reference_turn as _is_reference_turn,
 )
-from src.domains.interests.services import extract_interests_background
-from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 from src.infrastructure.llm.message_text import coerce_content_to_text
@@ -1810,279 +1809,6 @@ async def _activate_response_skills(
         current_turn_registry=current_turn_registry,
         react_result=react_result,
     )
-
-
-def _schedule_post_response_extractions(
-    state: MessagesState,
-    config: RunnableConfig,
-    run_id: str,
-    *,
-    user_msg_is_trivial: bool,
-    personality_instruction: str | None,
-    user_message_embedding: Any,
-    user_language: str,
-    final_content: str,
-    previous_journal_injected_ids: list[str],
-    psyche_appraisal: Any,
-) -> None:
-    """Schedule the four post-response background extractions (fire-and-forget).
-
-    Extracted verbatim from ``response_node`` (behavior-preserving): long-term
-    memory, interests, journal and psyche updates are all gated by the single
-    ``_is_automated_source`` flag (computed here from config, exactly as before)
-    and each runs under its own guard + graceful-degradation try/except. The node
-    is unaffected observably — these are pure side effects after state_update.
-    """
-    user_memory_enabled = config.get("configurable", {}).get("user_memory_enabled", True)
-    user_psyche_enabled = config.get("configurable", {}).get("user_psyche_enabled", False)
-
-    # ===================================================================
-    # PHASE 4 - LONG-TERM MEMORY EXTRACTION (Background)
-    # ===================================================================
-    # Extract psychological profile data from conversation asynchronously.
-    # Uses safe_fire_and_forget to prevent GC issues with background tasks.
-    # Non-blocking: extraction runs after response is returned to user.
-    # Check user memory preference before scheduling extraction
-    #
-    # GUARD: Skip extraction for automated sources (e.g. scheduled actions).
-    # Only direct user-typed messages should feed long-term memory / interests /
-    # journal / psyche. The signal is an explicit configurable flag set by the
-    # caller (scheduled_action_executor passes is_automated_source=True). It is
-    # read from `configurable` — NOT metadata — because configurable survives the
-    # Langfuse config enrichment (which rebuilds metadata and would drop the key).
-    # Proactive notifications (heartbeat, interests) never reach response_node.
-    _is_automated_source = bool(
-        config.get("configurable", {}).get(FIELD_IS_AUTOMATED_SOURCE, False)
-    )
-
-    try:
-        # user_memory_enabled already defined above for injection
-        if _is_automated_source:
-            logger.info(
-                "memory_extraction_skipped_automated_source",
-                run_id=run_id,
-            )
-        elif not user_memory_enabled:
-            logger.info(
-                "memory_extraction_skipped_user_disabled",
-                run_id=run_id,
-                user_memory_enabled=user_memory_enabled,
-            )
-        elif user_msg_is_trivial:
-            logger.info(
-                "memory_extraction_skipped_trivial",
-                run_id=run_id,
-            )
-        else:
-            user_id = config.get("configurable", {}).get("langgraph_user_id")
-            thread_id = config.get("configurable", {}).get("thread_id", "unknown")
-
-            if user_id:
-                msg_count = len(state.get(STATE_KEY_MESSAGES, []))
-                safe_fire_and_forget(
-                    extract_memories_background(
-                        user_id=user_id,
-                        messages=state[STATE_KEY_MESSAGES],
-                        session_id=thread_id,
-                        personality_instruction=personality_instruction,
-                        conversation_id=thread_id,
-                        parent_run_id=run_id,
-                        query_embedding=user_message_embedding,
-                    ),
-                    name=f"memory_extraction_{user_id}_{thread_id[:8]}",
-                    run_id=run_id,
-                )
-                logger.info(
-                    "memory_extraction_scheduled",
-                    run_id=run_id,
-                    user_id=user_id,
-                    thread_id=thread_id,
-                    message_count=msg_count,
-                )
-            else:
-                logger.warning(
-                    "memory_extraction_skipped_no_user",
-                    run_id=run_id,
-                    has_configurable="configurable" in config,
-                )
-    except (ValueError, KeyError, RuntimeError, AttributeError, ImportError, OSError) as e:
-        # Graceful degradation - memory extraction failure must not break response_node
-        logger.error(
-            "memory_extraction_scheduling_failed",
-            run_id=run_id,
-            error=str(e),
-            error_type=type(e).__name__,
-            exc_info=True,
-        )
-
-    # ===================================================================
-    # INTEREST EXTRACTION (Background)
-    # ===================================================================
-    # Extract user interests from conversation asynchronously.
-    # Uses safe_fire_and_forget to prevent GC issues with background tasks.
-    # Non-blocking: extraction runs after response is returned to user.
-    # GUARD: Same automated source filter as memory extraction above.
-    try:
-        if _is_automated_source:
-            logger.info(
-                "interest_extraction_skipped_automated_source",
-                run_id=run_id,
-            )
-        elif user_msg_is_trivial:
-            logger.info(
-                "interest_extraction_skipped_trivial",
-                run_id=run_id,
-            )
-        elif not (user_id := config.get("configurable", {}).get("langgraph_user_id")):
-            logger.debug(
-                "interest_extraction_skipped_no_user",
-                run_id=run_id,
-            )
-        else:
-            thread_id = config.get("configurable", {}).get("thread_id", "unknown")
-            msg_count = len(state.get(STATE_KEY_MESSAGES, []))
-            safe_fire_and_forget(
-                extract_interests_background(
-                    user_id=user_id,
-                    messages=state[STATE_KEY_MESSAGES],
-                    session_id=thread_id,
-                    conversation_id=thread_id,
-                    user_language=user_language,
-                    parent_run_id=run_id,  # UPSERT into originating message's token summary
-                ),
-                name=f"interest_extraction_{user_id}_{thread_id[:8]}",
-                run_id=run_id,  # Register for awaiting before SSE done
-            )
-            logger.info(
-                "interest_extraction_scheduled",
-                run_id=run_id,
-                user_id=user_id,
-                thread_id=thread_id,
-                message_count=msg_count,
-            )
-    except (ValueError, KeyError, RuntimeError, AttributeError, ImportError, OSError) as e:
-        # Graceful degradation - interest extraction failure must not break response_node
-        logger.error(
-            "interest_extraction_scheduling_failed",
-            run_id=run_id,
-            error=str(e),
-            error_type=type(e).__name__,
-            exc_info=True,
-        )
-
-    # ===================================================================
-    # JOURNAL ENTRY EXTRACTION (Background)
-    # ===================================================================
-    # Extract journal entries from conversation asynchronously.
-    # Uses safe_fire_and_forget to prevent GC issues with background tasks.
-    # Non-blocking: extraction runs after response is returned to user.
-    # GUARD: Same automated source filter as memory/interest extraction.
-    try:
-        user_journals_enabled = config.get("configurable", {}).get("user_journals_enabled", False)
-        if _is_automated_source:
-            logger.info(
-                "journal_extraction_skipped_automated_source",
-                run_id=run_id,
-            )
-        elif not user_journals_enabled:
-            logger.debug(
-                "journal_extraction_skipped_user_disabled",
-                run_id=run_id,
-            )
-        elif user_msg_is_trivial:
-            logger.info(
-                "journal_extraction_skipped_trivial",
-                run_id=run_id,
-            )
-        elif not (user_id := config.get("configurable", {}).get("langgraph_user_id")):
-            logger.debug(
-                "journal_extraction_skipped_no_user",
-                run_id=run_id,
-            )
-        else:
-            from src.domains.journals.extraction_service import (
-                extract_journal_entry_background,
-            )
-
-            thread_id = config.get("configurable", {}).get("thread_id", "unknown")
-            msg_count = len(state.get(STATE_KEY_MESSAGES, []))
-            safe_fire_and_forget(
-                extract_journal_entry_background(
-                    user_id=user_id,
-                    messages=state[STATE_KEY_MESSAGES],
-                    session_id=thread_id,
-                    personality_instruction=personality_instruction,
-                    conversation_id=thread_id,
-                    user_language=user_language,
-                    parent_run_id=run_id,
-                    assistant_response=final_content,
-                    query_embedding=user_message_embedding,
-                    previous_turn_injected_ids=previous_journal_injected_ids,
-                ),
-                name=f"journal_extraction_{user_id}_{thread_id[:8]}",
-                run_id=run_id,
-            )
-            logger.info(
-                "journal_extraction_scheduled",
-                run_id=run_id,
-                user_id=user_id,
-                thread_id=thread_id,
-                message_count=msg_count,
-            )
-    except (ValueError, KeyError, RuntimeError, AttributeError, ImportError, OSError) as e:
-        # Graceful degradation - journal extraction failure must not break response_node
-        logger.error(
-            "journal_extraction_scheduling_failed",
-            run_id=run_id,
-            error=str(e),
-            error_type=type(e).__name__,
-            exc_info=True,
-        )
-
-    # ===================================================================
-    # PSYCHE ENGINE: Post-response update (Background)
-    # ===================================================================
-    # Applies parsed appraisal to psyche state, updates relationship,
-    # self-efficacy, and stores summary for SSE done metadata.
-    # Non-blocking: runs as fire-and-forget via safe_fire_and_forget.
-    try:
-        if _is_automated_source:
-            logger.info(
-                "psyche_update_skipped_automated_source",
-                run_id=run_id,
-            )
-        elif not user_psyche_enabled or not settings.psyche_enabled:
-            pass  # Silently skip — no log needed for disabled feature
-        elif user_msg_is_trivial:
-            logger.debug("psyche_update_skipped_trivial", run_id=run_id)
-        elif not (user_id := config.get("configurable", {}).get("langgraph_user_id")):
-            logger.debug("psyche_update_skipped_no_user", run_id=run_id)
-        else:
-            from src.domains.psyche.service import psyche_post_response_background
-
-            safe_fire_and_forget(
-                psyche_post_response_background(
-                    user_id=user_id,
-                    appraisal=psyche_appraisal,
-                    run_id=run_id,
-                ),
-                name=f"psyche_update_{user_id}_{run_id[:8]}",
-                run_id=run_id,
-            )
-            logger.info(
-                "psyche_update_scheduled",
-                run_id=run_id,
-                user_id=user_id,
-                has_appraisal=psyche_appraisal is not None,
-            )
-    except Exception as e:
-        logger.error(
-            "psyche_update_scheduling_failed",
-            run_id=run_id,
-            error=str(e),
-            error_type=type(e).__name__,
-            exc_info=True,
-        )
 
 
 def _render_response_html(

@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -33,13 +33,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
 from src.core.constants import (
-    DEFAULT_USER_DISPLAY_TIMEZONE,
     GMAIL_FORMAT_METADATA,
     HEARTBEAT_CONTENT_EXCERPT_CHARS,
 )
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
 from src.domains.conversations.models import Conversation, ConversationMessage
+from src.domains.heartbeat.context_sources import (
+    detect_weather_changes,
+    fetch_birthdays_context,
+    fetch_departure_advice,
+    fetch_open_loops_context,
+    fetch_recent_other_notifications,
+)
+from src.domains.heartbeat.context_sources import (
+    format_utc_datetime as _format_utc_datetime,
+)
+from src.domains.heartbeat.context_sources import (
+    resolve_user_tz as _resolve_user_tz,
+)
 from src.domains.heartbeat.repository import HeartbeatNotificationRepository
 from src.domains.heartbeat.schemas import HeartbeatContext, WeatherChange
 from src.domains.interests.models import InterestNotification, UserInterest
@@ -122,36 +134,6 @@ def _extract_due_date(due_str: str | None) -> str:
     return due_str[:10] if len(due_str) >= 10 else due_str
 
 
-def _format_utc_datetime(dt: datetime | None, user_tz: ZoneInfo) -> str:
-    """Convert a UTC-aware datetime to a compact user-local string.
-
-    Used for timestamps from the database (created_at fields) that are
-    stored in UTC and need user-friendly display in the LLM prompt.
-
-    Returns:
-        Formatted string like '2026-03-15 15:30' or '?' if None.
-    """
-    if dt is None:
-        return "?"
-    try:
-        local_dt = dt.astimezone(user_tz)
-        return local_dt.strftime("%Y-%m-%d %H:%M")
-    except (ValueError, TypeError, AttributeError):
-        return str(dt)
-
-
-def _resolve_user_tz(user: Any) -> ZoneInfo:
-    """Resolve the user's timezone with safe fallback.
-
-    Falls back to DEFAULT_USER_DISPLAY_TIMEZONE if the user's timezone
-    attribute is missing, None, or invalid.
-    """
-    try:
-        return ZoneInfo(user.timezone)
-    except (KeyError, ValueError, AttributeError, TypeError):
-        return ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
-
-
 class ContextAggregator:
     """Aggregates context from multiple sources for heartbeat LLM decision.
 
@@ -164,7 +146,9 @@ class ContextAggregator:
     ``get_db_context()``, same pattern as ``briefing/fetchers.py``); sharing
     ``self._db`` across the gather lost sources non-deterministically
     (audit N-209). ``self._db`` remains ONLY for the sequential second pass
-    (``_fetch_journals``) that runs after the gather completes.
+    (``_fetch_journals``) that runs after the gather completes;
+    ``_fetch_memories`` also runs in that second pass but manages its own
+    scoped session internally.
     """
 
     def __init__(self, db: AsyncSession) -> None:
@@ -208,19 +192,24 @@ class ContextAggregator:
         self._compute_time_context(context, user)
 
         # Parallel fetch of all I/O-bound sources — one DB session PER fetcher
-        # (see class docstring); _fetch_memories and _fetch_health_signals
-        # manage their own scoped sessions internally.
+        # (see class docstring); _fetch_health_signals manages its own scoped
+        # session internally. Memories are NOT fetched here: like journals,
+        # they run in the second pass with a dynamic query (P8, ADR-135
+        # symmetry — the historical static query anchored the same memories
+        # cycle after cycle).
         results = await asyncio.gather(
             self._with_fresh_session(self._fetch_calendar, user_id, user, settings),
             self._with_fresh_session(self._fetch_tasks, user_id, user, settings),
             self._with_fresh_session(self._fetch_emails, user_id, user, settings),
             self._with_fresh_session(self._fetch_weather_with_changes, user_id, user, settings),
             self._with_fresh_session(self._fetch_interests, user_id),
-            self._fetch_memories(user_id, settings),
             self._with_fresh_session(self._fetch_activity, user_id),
             self._with_fresh_session(self._fetch_recent_heartbeats, user_id, user),
             self._with_fresh_session(self._fetch_recent_interest_notifications, user_id, user),
+            self._with_fresh_session(self._fetch_recent_other_notifications, user_id, user),
             self._fetch_health_signals(user_id, user, settings),
+            self._fetch_birthdays(user_id, user, settings),
+            self._with_fresh_session(fetch_open_loops_context, user_id, user, settings),
             return_exceptions=True,
         )
 
@@ -231,11 +220,13 @@ class ContextAggregator:
             "emails",
             "weather",
             "interests",
-            "memories",
             "activity",
             "recent_heartbeats",
             "recent_interests",
+            "recent_other",
             "health_signals",
+            "birthdays",
+            "open_loops",
         ]
 
         for name, result in zip(source_names, results, strict=True):
@@ -255,13 +246,16 @@ class ContextAggregator:
             # Apply result to context based on source name
             self._apply_source_result(context, name, result)
 
-        # Second pass: fetch journals with a dynamic query built from
-        # the aggregated context (calendar summary, weather, interests).
-        # This ensures journal entries are selected based on actual
-        # notification context, not a static generic query.
+        # Second pass: fetch journals AND memories with a dynamic query built
+        # from the aggregated context (calendar summary, weather, interests).
+        # This ensures both are selected based on the actual notification
+        # context, not a static generic query. Sequential on purpose — two
+        # indexed queries, each on its own session (CLAUDE.md concurrency
+        # guidance: a plain sequential pass is fine and simpler here).
+        second_pass_query = self._build_second_pass_query(context)
+
         try:
-            journal_query = self._build_journal_query_from_context(context)
-            journal_result = await self._fetch_journals(user_id, user, query=journal_query)
+            journal_result = await self._fetch_journals(user_id, user, query=second_pass_query)
             if journal_result:
                 self._apply_source_result(context, "journals", journal_result)
         except Exception as e:
@@ -270,6 +264,33 @@ class ContextAggregator:
                 user_id=str(user_id),
                 error=str(e),
             )
+
+        # Departure advice (P6): consumes the calendar events fetched above.
+        try:
+            departure = await fetch_departure_advice(
+                user_id, user, settings, context.calendar_events
+            )
+            if departure:
+                context.departure_advice = departure
+                context.available_sources.append("departure")
+        except Exception as e:
+            logger.warning(
+                "heartbeat_departure_second_pass_failed",
+                user_id=str(user_id),
+                error=str(e),
+            )
+
+        try:
+            memories_result = await self._fetch_memories(user_id, settings, query=second_pass_query)
+            if memories_result:
+                self._apply_source_result(context, "memories", memories_result)
+        except Exception as e:
+            logger.warning(
+                "heartbeat_memories_second_pass_failed",
+                user_id=str(user_id),
+                error=str(e),
+            )
+            context.failed_sources.append("memories")
 
         return context
 
@@ -323,6 +344,9 @@ class ContextAggregator:
         elif name == "recent_interests" and result:
             context.recent_interest_notifications = result
 
+        elif name == "recent_other" and result:
+            context.recent_other_notifications = result
+
         elif name == "journals" and result:
             context.journal_entries = result
             context.available_sources.append("journals")
@@ -330,6 +354,14 @@ class ContextAggregator:
         elif name == "health_signals" and result:
             context.health_signals = result
             context.available_sources.append("health_signals")
+
+        elif name == "birthdays" and result:
+            context.upcoming_birthdays = result
+            context.available_sources.append("birthdays")
+
+        elif name == "open_loops" and result:
+            context.open_loops = result
+            context.available_sources.append("open_loops")
 
     # ------------------------------------------------------------------
     # Time context (synchronous, always succeeds)
@@ -398,64 +430,72 @@ class ContextAggregator:
         if client_class is None:
             return None
         client = client_class(user_id, credentials, connector_service)
-
-        # Resolve default calendar from user preferences
-        calendar_id = "primary"
         try:
-            repo = ConnectorRepository(db)
-            connector = await repo.get_by_user_and_type(user_id, resolved_type)
-            if connector and connector.preferences_encrypted:
-                default_name = ConnectorPreferencesService.get_preference_value(
-                    resolved_type.value,
-                    connector.preferences_encrypted,
-                    "default_calendar_name",
-                )
-                if default_name:
-                    calendar_id = await resolve_calendar_name(
-                        client=client,
-                        name=default_name,
-                        fallback="primary",
+
+            # Resolve default calendar from user preferences
+            calendar_id = "primary"
+            try:
+                repo = ConnectorRepository(db)
+                connector = await repo.get_by_user_and_type(user_id, resolved_type)
+                if connector and connector.preferences_encrypted:
+                    default_name = ConnectorPreferencesService.get_preference_value(
+                        resolved_type.value,
+                        connector.preferences_encrypted,
+                        "default_calendar_name",
                     )
-                    logger.debug(
-                        "heartbeat_calendar_using_preference",
-                        default_calendar_name=default_name,
-                        resolved_calendar_id=calendar_id,
-                        provider=resolved_type.value,
-                        user_id=str(user_id),
-                    )
-        except (ValueError, KeyError, AttributeError, TypeError) as e:
-            logger.warning("heartbeat_calendar_preference_resolution_failed", error=str(e))
+                    if default_name:
+                        calendar_id = await resolve_calendar_name(
+                            client=client,
+                            name=default_name,
+                            fallback="primary",
+                        )
+                        logger.debug(
+                            "heartbeat_calendar_using_preference",
+                            default_calendar_name=default_name,
+                            resolved_calendar_id=calendar_id,
+                            provider=resolved_type.value,
+                            user_id=str(user_id),
+                        )
+            except (ValueError, KeyError, AttributeError, TypeError) as e:
+                logger.warning("heartbeat_calendar_preference_resolution_failed", error=str(e))
 
-        hours = settings.heartbeat_context_calendar_hours
-        now = datetime.now(UTC)
-        time_min = now.isoformat()
-        time_max = (now + timedelta(hours=hours)).isoformat()
+            hours = settings.heartbeat_context_calendar_hours
+            now = datetime.now(UTC)
+            time_min = now.isoformat()
+            time_max = (now + timedelta(hours=hours)).isoformat()
 
-        result = await client.list_events(
-            time_min=time_min,
-            time_max=time_max,
-            max_results=10,
-            calendar_id=calendar_id,
-            fields=["id", "summary", "start", "end", "location"],
-        )
+            result = await client.list_events(
+                time_min=time_min,
+                time_max=time_max,
+                max_results=10,
+                calendar_id=calendar_id,
+                fields=["id", "summary", "start", "end", "location"],
+            )
 
-        events = result.get("items", [])
-        if not events:
-            return None
+            events = result.get("items", [])
+            if not events:
+                return None
 
-        # Resolve user timezone for display (same source as _compute_time_context)
-        user_tz = _resolve_user_tz(user)
+            # Resolve user timezone for display (same source as _compute_time_context)
+            user_tz = _resolve_user_tz(user)
 
-        # Extract minimal event data for the prompt, converting times to user timezone
-        return [
-            {
-                "summary": e.get("summary", "Untitled"),
-                "start": _format_event_time(e.get("start"), user_tz),
-                "end": _format_event_time(e.get("end"), user_tz),
-                "location": e.get("location"),
-            }
-            for e in events
-        ]
+            # Extract minimal event data for the prompt, converting times to user timezone
+            return [
+                {
+                    "summary": e.get("summary", "Untitled"),
+                    "start": _format_event_time(e.get("start"), user_tz),
+                    "end": _format_event_time(e.get("end"), user_tz),
+                    "location": e.get("location"),
+                    # Raw provider start dict (P6): the departure second pass
+                    # needs the real datetime; the prompt renderer ignores it.
+                    "start_raw": e.get("start"),
+                }
+                for e in events
+            ]
+        finally:
+            # Deterministic transport close every cycle (C8 leak class;
+            # same doctrine as briefing/fetchers and person_tools).
+            await client.close()
 
     # ------------------------------------------------------------------
     # Tasks source (Google Tasks or Microsoft To Do)
@@ -500,63 +540,68 @@ class ContextAggregator:
         if client_class is None:
             return None
         client = client_class(user_id, credentials, connector_service)
-
-        # Resolve default task list from user preferences
-        task_list_id = "@default"
         try:
-            repo = ConnectorRepository(db)
-            connector = await repo.get_by_user_and_type(user_id, resolved_type)
-            if connector and connector.preferences_encrypted:
-                default_name = ConnectorPreferencesService.get_preference_value(
-                    resolved_type.value,
-                    connector.preferences_encrypted,
-                    "default_task_list_name",
-                )
-                if default_name:
-                    task_list_id = await resolve_task_list_name(
-                        client=client,
-                        name=default_name,
-                        fallback="@default",
+
+            # Resolve default task list from user preferences
+            task_list_id = "@default"
+            try:
+                repo = ConnectorRepository(db)
+                connector = await repo.get_by_user_and_type(user_id, resolved_type)
+                if connector and connector.preferences_encrypted:
+                    default_name = ConnectorPreferencesService.get_preference_value(
+                        resolved_type.value,
+                        connector.preferences_encrypted,
+                        "default_task_list_name",
                     )
-                    logger.debug(
-                        "heartbeat_tasks_using_preference",
-                        default_task_list_name=default_name,
-                        resolved_task_list_id=task_list_id,
-                        provider=resolved_type.value,
-                        user_id=str(user_id),
-                    )
-        except (ValueError, KeyError, AttributeError, TypeError) as e:
-            logger.warning("heartbeat_tasks_preference_resolution_failed", error=str(e))
+                    if default_name:
+                        task_list_id = await resolve_task_list_name(
+                            client=client,
+                            name=default_name,
+                            fallback="@default",
+                        )
+                        logger.debug(
+                            "heartbeat_tasks_using_preference",
+                            default_task_list_name=default_name,
+                            resolved_task_list_id=task_list_id,
+                            provider=resolved_type.value,
+                            user_id=str(user_id),
+                        )
+            except (ValueError, KeyError, AttributeError, TypeError) as e:
+                logger.warning("heartbeat_tasks_preference_resolution_failed", error=str(e))
 
-        days = settings.heartbeat_context_tasks_days
-        now = datetime.now(UTC)
-        # RFC 3339 timestamp for due_max filter.
-        due_max = (now + timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            days = settings.heartbeat_context_tasks_days
+            now = datetime.now(UTC)
+            # RFC 3339 timestamp for due_max filter.
+            due_max = (now + timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-        result = await client.list_tasks(
-            task_list_id=task_list_id,
-            max_results=10,
-            show_completed=False,
-            due_max=due_max,
-        )
+            result = await client.list_tasks(
+                task_list_id=task_list_id,
+                max_results=10,
+                show_completed=False,
+                due_max=due_max,
+            )
 
-        tasks = result.get("items", [])
-        if not tasks:
-            return None
+            tasks = result.get("items", [])
+            if not tasks:
+                return None
 
-        # Extract minimal task data for the prompt, flag overdue tasks.
-        # Both Google Tasks and Microsoft To Do normalizers return "due" as
-        # RFC 3339 and "status" as "needsAction"/"completed" (normalized).
-        # Due dates are conceptually dates (not datetimes) — extract date only.
-        return [
-            {
-                "title": t.get("title", "Untitled"),
-                "due": _extract_due_date(t.get("due")),
-                "overdue": self._is_task_overdue(t, now),
-            }
-            for t in tasks
-            if t.get("status") == "needsAction"
-        ]
+            # Extract minimal task data for the prompt, flag overdue tasks.
+            # Both Google Tasks and Microsoft To Do normalizers return "due" as
+            # RFC 3339 and "status" as "needsAction"/"completed" (normalized).
+            # Due dates are conceptually dates (not datetimes) — extract date only.
+            return [
+                {
+                    "title": t.get("title", "Untitled"),
+                    "due": _extract_due_date(t.get("due")),
+                    "overdue": self._is_task_overdue(t, now),
+                }
+                for t in tasks
+                if t.get("status") == "needsAction"
+            ]
+        finally:
+            # Deterministic transport close every cycle (C8 leak class;
+            # same doctrine as briefing/fetchers and person_tools).
+            await client.close()
 
     @staticmethod
     def _is_task_overdue(task: dict[str, Any], now: datetime) -> bool:
@@ -677,139 +722,8 @@ class ContextAggregator:
         user_tz: ZoneInfo,
         settings: Any,
     ) -> list[WeatherChange]:
-        """Detect notable weather transitions between now and forecast.
-
-        Temperature detection compares the average temperature of today vs
-        tomorrow (in the user's local timezone) to filter out the natural
-        day/night cycle, which previously caused noisy "temperature drop"
-        alerts about nighttime cooling. Rain and wind alerts still use the
-        3-hour forecast entries directly.
-
-        The current weather API (/data/2.5/weather) does NOT return 'pop'.
-        We use weather[0].main (e.g. "Rain", "Clear") for current state,
-        then forecast 'pop' values for predictions.
-
-        Args:
-            current: Current weather data from API.
-            hourly: Forecast entries (3-hour intervals).
-            user_tz: User's timezone for time display.
-            settings: App settings with threshold values.
-
-        Returns:
-            List of detected WeatherChange events.
-        """
-        changes: list[WeatherChange] = []
-
-        current_condition = current.get("weather", [{}])[0].get("main", "").lower()
-        is_currently_raining = current_condition in (
-            "rain",
-            "drizzle",
-            "thunderstorm",
-        )
-
-        rain_high = settings.heartbeat_weather_rain_threshold_high
-        rain_low = settings.heartbeat_weather_rain_threshold_low
-        temp_threshold = settings.heartbeat_weather_temp_change_threshold
-        wind_threshold = settings.heartbeat_weather_wind_threshold
-
-        # Track detected types to avoid duplicate detections
-        detected_types: set[str] = set()
-
-        # Temperature change: today vs tomorrow average (local timezone).
-        # Requires at least 2 entries per day to avoid biased averages when
-        # the job runs near local midnight.
-        today_date = datetime.now(user_tz).date()
-        tomorrow_date = today_date + timedelta(days=1)
-        temps_today: list[float] = []
-        temps_tomorrow: list[float] = []
-        for entry in hourly:
-            try:
-                entry_time = datetime.fromtimestamp(entry["dt"], tz=user_tz)
-            except (KeyError, ValueError, OSError):
-                continue
-            entry_temp = entry.get("main", {}).get("temp")
-            if entry_temp is None:
-                continue
-            if entry_time.date() == today_date:
-                temps_today.append(entry_temp)
-            elif entry_time.date() == tomorrow_date:
-                temps_tomorrow.append(entry_temp)
-
-        if len(temps_today) >= 2 and len(temps_tomorrow) >= 2:
-            avg_today = sum(temps_today) / len(temps_today)
-            avg_tomorrow = sum(temps_tomorrow) / len(temps_tomorrow)
-            diff = avg_today - avg_tomorrow  # > 0: colder tomorrow, < 0: warmer
-            if abs(diff) > temp_threshold:
-                change_type = "temp_drop" if diff > 0 else "temp_rise"
-                direction = "colder" if diff > 0 else "warmer"
-                severity = "warning" if abs(diff) > temp_threshold * 1.6 else "info"
-                expected_at = datetime.combine(tomorrow_date, time(12, 0), tzinfo=user_tz)
-                changes.append(
-                    WeatherChange(
-                        change_type=change_type,
-                        expected_at=expected_at,
-                        description=(
-                            f"Tomorrow {abs(diff):.0f}°C {direction} on average "
-                            f"({avg_tomorrow:.0f}°C vs {avg_today:.0f}°C today)"
-                        ),
-                        severity=severity,
-                    )
-                )
-                detected_types.add(change_type)
-
-        for entry in hourly:
-            entry_pop = entry.get("pop", 0)
-            try:
-                entry_time = datetime.fromtimestamp(entry["dt"], tz=user_tz)
-            except (KeyError, ValueError, OSError):
-                continue
-
-            time_str = entry_time.strftime("%H:%M")
-
-            # Rain start: not raining now + high pop in forecast
-            if (
-                not is_currently_raining
-                and entry_pop > rain_high
-                and "rain_start" not in detected_types
-            ):
-                changes.append(
-                    WeatherChange(
-                        change_type="rain_start",
-                        expected_at=entry_time,
-                        description=f"Rain expected around {time_str}",
-                        severity="warning",
-                    )
-                )
-                detected_types.add("rain_start")
-                is_currently_raining = True
-
-            # Rain end: raining now + low pop in forecast
-            elif is_currently_raining and entry_pop < rain_low and "rain_end" not in detected_types:
-                changes.append(
-                    WeatherChange(
-                        change_type="rain_end",
-                        expected_at=entry_time,
-                        description=f"Rain clearing around {time_str}",
-                        severity="info",
-                    )
-                )
-                detected_types.add("rain_end")
-                is_currently_raining = False
-
-            # Wind alert
-            wind_speed = entry.get("wind", {}).get("speed", 0)
-            if wind_speed > wind_threshold and "wind_alert" not in detected_types:
-                changes.append(
-                    WeatherChange(
-                        change_type="wind_alert",
-                        expected_at=entry_time,
-                        description=f"Strong wind expected ({wind_speed:.0f} m/s)",
-                        severity="warning",
-                    )
-                )
-                detected_types.add("wind_alert")
-
-        return changes
+        """Delegate to the extracted pure rules (see ``context_sources``)."""
+        return detect_weather_changes(current, hourly, user_tz, settings)
 
     # ------------------------------------------------------------------
     # Emails source (unread inbox)
@@ -861,66 +775,71 @@ class ContextAggregator:
         if client_class is None:
             return None
         client = client_class(user_id, credentials, connector_service)
+        try:
 
-        max_emails = settings.heartbeat_context_emails_max
+            max_emails = settings.heartbeat_context_emails_max
 
-        # Filter to today's unread emails only (user's local date).
-        # Gmail-style `after:` uses the date as a lower bound (inclusive).
-        user_tz = _resolve_user_tz(user)
-        today_str = datetime.now(user_tz).strftime("%Y/%m/%d")
+            # Filter to today's unread emails only (user's local date).
+            # Gmail-style `after:` uses the date as a lower bound (inclusive).
+            user_tz = _resolve_user_tz(user)
+            today_str = datetime.now(user_tz).strftime("%Y/%m/%d")
 
-        # All providers accept Gmail-style query syntax (normalized internally)
-        result = await client.search_emails(
-            query=f"is:unread after:{today_str}",
-            max_results=max_emails,
-            use_cache=True,
-        )
-
-        messages = result.get("messages", [])
-        if not messages:
-            return None
-
-        # For providers that return only IDs (Apple), fetch full messages.
-        # Apple's search_emails caches full messages in Redis, so get_message
-        # is a cache hit — no extra IMAP round-trips.
-        full_messages = []
-        for msg in messages:
-            if set(msg.keys()) <= {"id", "threadId"}:
-                try:
-                    full_msg = await client.get_message(
-                        msg["id"], format=GMAIL_FORMAT_METADATA, use_cache=True
-                    )
-                    if full_msg:
-                        full_messages.append(full_msg)
-                except Exception:
-                    logger.debug(
-                        "heartbeat_email_fetch_message_failed",
-                        message_id=msg.get("id"),
-                        user_id=str(user_id),
-                    )
-            else:
-                full_messages.append(msg)
-
-        if not full_messages:
-            return None
-
-        # Extract minimal email data for the prompt.
-        # All providers now return top-level from/subject/snippet/internalDate:
-        # - Google: normalized in GoogleGmailClient._normalize_message_fields()
-        # - Apple: normalized in normalize_imap_message()
-        # - Microsoft: normalized in normalize_graph_message()
-        emails = []
-        for msg in full_messages:
-            emails.append(
-                {
-                    "from": msg.get("from", ""),
-                    "subject": msg.get("subject", ""),
-                    "date": self._format_email_date(msg.get("internalDate"), user_tz),
-                    "snippet": msg.get("snippet", ""),
-                }
+            # All providers accept Gmail-style query syntax (normalized internally)
+            result = await client.search_emails(
+                query=f"is:unread after:{today_str}",
+                max_results=max_emails,
+                use_cache=True,
             )
 
-        return emails if emails else None
+            messages = result.get("messages", [])
+            if not messages:
+                return None
+
+            # For providers that return only IDs (Apple), fetch full messages.
+            # Apple's search_emails caches full messages in Redis, so get_message
+            # is a cache hit — no extra IMAP round-trips.
+            full_messages = []
+            for msg in messages:
+                if set(msg.keys()) <= {"id", "threadId"}:
+                    try:
+                        full_msg = await client.get_message(
+                            msg["id"], format=GMAIL_FORMAT_METADATA, use_cache=True
+                        )
+                        if full_msg:
+                            full_messages.append(full_msg)
+                    except Exception:
+                        logger.debug(
+                            "heartbeat_email_fetch_message_failed",
+                            message_id=msg.get("id"),
+                            user_id=str(user_id),
+                        )
+                else:
+                    full_messages.append(msg)
+
+            if not full_messages:
+                return None
+
+            # Extract minimal email data for the prompt.
+            # All providers now return top-level from/subject/snippet/internalDate:
+            # - Google: normalized in GoogleGmailClient._normalize_message_fields()
+            # - Apple: normalized in normalize_imap_message()
+            # - Microsoft: normalized in normalize_graph_message()
+            emails = []
+            for msg in full_messages:
+                emails.append(
+                    {
+                        "from": msg.get("from", ""),
+                        "subject": msg.get("subject", ""),
+                        "date": self._format_email_date(msg.get("internalDate"), user_tz),
+                        "snippet": msg.get("snippet", ""),
+                    }
+                )
+
+            return emails if emails else None
+        finally:
+            # Deterministic transport close every cycle (C8 leak class;
+            # same doctrine as briefing/fetchers and person_tools).
+            await client.close()
 
     @staticmethod
     def _format_email_date(
@@ -978,8 +897,19 @@ class ContextAggregator:
         self,
         user_id: UUID,
         settings: Any,
+        query: str = "",
     ) -> list[str] | None:
         """Fetch relevant user memories from LangGraph Store.
+
+        Second-pass source (P8): the caller passes the dynamic query built
+        from the aggregated context so memory selection follows the actual
+        notification cycle instead of a fixed anchor. Falls back to the
+        historical static query when the aggregated context is empty.
+
+        Args:
+            user_id: User UUID.
+            settings: App settings (memory limit).
+            query: Dynamic semantic search query ("" → static fallback).
 
         Returns:
             List of memory content strings or None if unavailable.
@@ -989,8 +919,9 @@ class ContextAggregator:
         # Use centralized embedding cache (text-hash keyed → computed once, then cached)
         from src.infrastructure.llm.user_message_embedding import get_or_compute_embedding
 
+        search_query = query or "important upcoming events preferences routines"
         query_embedding = await get_or_compute_embedding(
-            message="important upcoming events preferences routines",
+            message=search_query,
         )
 
         if not query_embedding:
@@ -1194,15 +1125,37 @@ class ContextAggregator:
         ]
 
     # ------------------------------------------------------------------
+    # Birthdays (P7) + other proactive surfaces (P10) — extracted sources
+    # ------------------------------------------------------------------
+
+    async def _fetch_birthdays(
+        self,
+        user_id: UUID,
+        user: Any,
+        settings: Any,
+    ) -> list[dict[str, Any]] | None:
+        """Delegate to the extracted source (see ``context_sources``)."""
+        return await fetch_birthdays_context(user_id, user, settings)
+
+    async def _fetch_recent_other_notifications(
+        self,
+        db: AsyncSession,
+        user_id: UUID,
+        user: Any,
+    ) -> list[dict[str, str]] | None:
+        """Delegate to the extracted source (see ``context_sources``)."""
+        return await fetch_recent_other_notifications(db, user_id, user)
+
+    # ------------------------------------------------------------------
     # Journals (Personal Journals — semantic relevance search)
     # ------------------------------------------------------------------
 
-    def _build_journal_query_from_context(self, context: HeartbeatContext) -> str:
+    def _build_second_pass_query(self, context: HeartbeatContext) -> str:
         """Build a semantic search query from aggregated heartbeat context.
 
-        Combines summaries of available context sources into a query
-        that will find the most relevant journal entries for this
-        specific notification cycle.
+        Combines summaries of available context sources into a query that
+        selects the most relevant journal entries AND user memories for
+        this specific notification cycle (second-pass sources, P8).
 
         Args:
             context: Aggregated heartbeat context (calendar, weather, etc.)

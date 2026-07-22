@@ -148,6 +148,7 @@ PromptName = Literal[
     # Long-term Memory (psychological profiling)
     "memory_extraction_prompt",
     "memory_extraction_personality_addon",
+    "open_loop_extraction_prompt",
     "memory_reference_extraction_prompt",
     "memory_reference_resolution_prompt",
     # Memory injection scaffolding (psychological-profile behavioral directives).
