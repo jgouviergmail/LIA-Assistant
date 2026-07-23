@@ -47,13 +47,22 @@ For suggestions: if you spot something that would need a WRITE action
 FOLLOW-UP CHIPS ("followup_suggestions") — INDEPENDENT of should_act: ALWAYS
 consider proposing 0-3 short follow-up requests the user might naturally send
 next, grounded in the execution results and the user context. Rules:
-- Each is a USER message (imperative or interrogative addressed to the
-  assistant), written in the user's language (see UserContext below),
-  max ~12 words.
+- Each chip is sent VERBATIM as the user's next message the moment they tap
+  it. It must therefore be written in the USER'S OWN VOICE, addressed TO the
+  assistant: imperative or first-person, "my/me" — NEVER an assistant offer.
+  WRONG (assistant voice — forbidden): "Do you want me to find a plumber
+  near you?" / "Veux-tu que je cherche un plombier près de chez toi ?"
+  RIGHT (user voice): "Find a plumber near me" / "Cherche un plombier près
+  de chez moi".
+- Written in the user's language (see UserContext below), max ~12 words.
 - Concrete and immediately actionable from the visible results (a date, a
   person, a place that actually appeared) — never generic ("tell me more").
-- Distinct from each other and from "suggestion"; skip entirely (empty list)
-  when nothing genuinely useful comes to mind. Quality over quantity.
+- Distinct from each other and from "suggestion" (which IS assistant-voice —
+  do not confuse the two fields); skip entirely (empty list) when nothing
+  genuinely useful comes to mind. Quality over quantity.
+- FINAL CHECK on every chip: read it as if the user just sent it. If it
+  sounds like the assistant offering help ("Do you want…", "Shall I…",
+  "Veux-tu que je…"), rewrite it in the user's voice or drop it.
 </DecisionLogic>
 
 --- DYNAMIC CONTEXT (all variable data below) ---

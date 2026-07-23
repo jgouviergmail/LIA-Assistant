@@ -146,8 +146,12 @@ describe('ChatInput — slash menu', () => {
     renderInput();
     type('/');
     expect(box()).toHaveAttribute('aria-autocomplete', 'list');
+    expect(box()).toHaveAttribute('aria-controls', 'slash-command-listbox');
     expect(box().getAttribute('aria-activedescendant')).toMatch(/slash-option-0/);
     type('hello');
+    // Closed menu: BOTH popup references must vanish — aria-controls pointing
+    // at an unmounted listbox is an axe critical (aria-valid-attr-value).
     expect(box().getAttribute('aria-activedescendant')).toBeNull();
+    expect(box().getAttribute('aria-controls')).toBeNull();
   });
 });
