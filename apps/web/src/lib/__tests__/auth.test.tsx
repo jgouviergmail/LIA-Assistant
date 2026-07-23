@@ -177,6 +177,49 @@ describe('AuthProvider — signing in', () => {
     );
   });
 
+  it('returns the pending token instead of a session when TOTP is active', async () => {
+    browseTo('/login'); // anonymous mount — no session probe
+    post.mockResolvedValueOnce({ mfa_required: true, mfa_token: 'pending-tok' });
+    const rendered = await settled(renderAuth());
+
+    let result!: Awaited<ReturnType<typeof rendered.result.current.login>>;
+    await act(async () => {
+      result = await rendered.result.current.login('user@test.dev', 'Sup3rSecret!!', false);
+    });
+
+    expect(result).toEqual({ user: null, mfaRequired: true, mfaToken: 'pending-tok' });
+    // No session was created: the two-step login stays anonymous until verifyMfa.
+    expect(identity(rendered)).toBe('anonymous');
+  });
+
+  it('normalizes a missing pending token to null', async () => {
+    post.mockResolvedValueOnce({ mfa_required: true });
+    const rendered = await settled(renderAuth());
+
+    let result!: Awaited<ReturnType<typeof rendered.result.current.login>>;
+    await act(async () => {
+      result = await rendered.result.current.login('user@test.dev', 'Sup3rSecret!!', false);
+    });
+
+    expect(result.mfaToken).toBeNull();
+  });
+
+  it('verifyMfa exchanges the pending token + code for a session', async () => {
+    const user = makeUser({ email: 'user@test.dev' });
+    post.mockResolvedValueOnce({ user });
+    const rendered = await settled(renderAuth());
+
+    await act(async () => {
+      await rendered.result.current.verifyMfa('pending-tok', '123456');
+    });
+
+    expect(post).toHaveBeenCalledWith('/auth/mfa/verify', {
+      mfa_token: 'pending-tok',
+      code: '123456',
+    });
+    expect(identity(rendered)).toBe('user@test.dev');
+  });
+
   it('fails safe toward notifying when the push plumbing throws', async () => {
     getNotificationPermission.mockReturnValue('granted');
     requestNotificationPermission.mockRejectedValue(new Error('fcm down'));
