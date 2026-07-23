@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Floating button inert after a quiet start** — the scroll listener now arms at pin-window expiry and on the first user gesture, not only when content overflowed during the window (review finding).
 - **Checklist PATCH replay** — timestamps stamp on true transitions only; a retried/second-tab PATCH no longer rewrites history (and no longer commits).
 - **Slash-menu highlight** — re-filtering returns the highlight to the first option instead of a clamped leftover position.
+- **Day-of-release Next.js advisories** — four high-severity advisories published against Next 16 (App Router middleware/proxy bypass, Server Actions DoS + SSRF, rewrites SSRF — GHSA-6gpp-xcg3-4w24, GHSA-m99w-x7hq-7vfj, GHSA-89xv-2m56-2m9x et al.) red the blocking dependency audit; bumped to 16.2.11 (patch release), lockfile refreshed, high-level audit clean.
 - **Review hardening** — total transfer deadline on URL imports (httpx timeouts are per-phase; a dripping server was unbounded in time), per-user rate limit on outbound fetches (failed imports consume no skill quota), preview 404 for admin-disabled system skills, chat-search focus scoped to its own `data-chat-search` marker, English-only API field descriptions, and the repo's infra-info guard caught a real private IP in a new SSRF test (replaced by a neutral RFC 1918 address).
 
 ### Changed
