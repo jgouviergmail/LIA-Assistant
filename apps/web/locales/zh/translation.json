@@ -487,6 +487,32 @@
       "back_to_login": "返回登录",
       "error_mismatch": "密码不匹配。",
       "error_invalid_token": "重置链接无效或已过期。"
+    },
+    "passkey": {
+      "login_button": "使用通行密钥登录",
+      "login_pending": "等待您的通行密钥…",
+      "login_error": "通行密钥登录失败,请重试。"
+    },
+    "mfa": {
+      "prompt": "请输入身份验证器应用中的 6 位数代码,或您的备用代码之一。",
+      "code_label": "验证码",
+      "code_placeholder": "123456",
+      "verify_button": "验证",
+      "back_to_login": "返回登录",
+      "invalid_code": "验证码无效或已过期,请重新登录。"
+    },
+    "stepUp": {
+      "title": "请确认是您本人",
+      "description": "此敏感操作需要近期的再次验证(几分钟内有效)。",
+      "error": "验证失败,请重试。",
+      "passkey_button": "使用通行密钥",
+      "password_label": "密码",
+      "password_submit": "使用密码验证",
+      "totp_label": "验证器代码或备用代码",
+      "totp_submit": "使用代码验证",
+      "oauth_google_button": "使用 Google 确认",
+      "oauth_hint": "您将被重定向到 Google 以确认身份，然后返回 LIA — 之后请重新发起该操作。",
+      "no_methods": "此账户没有可用的确认方式。请退出登录后重新登录，然后重试。"
     }
   },
   "account_inactive": {
@@ -861,7 +887,8 @@
       "users_access": "用户与访问",
       "ai_connectors": "AI 与连接器",
       "content_extensions": "内容与扩展",
-      "system": "系统"
+      "system": "系统",
+      "security": "安全"
     },
     "theme": {
       "title": "外观",
@@ -2647,6 +2674,123 @@
       "relaunch_label": "跟进",
       "dismiss": "忽略“{{subject}}”（不再相关）",
       "dismiss_label": "不再相关"
+    },
+    "security": {
+      "passkeys": {
+        "title": "通行密钥",
+        "description": "使用 Face ID、指纹或设备密码登录。通行密钥可防钓鱼,且永不离开您的设备。",
+        "add": "添加通行密钥",
+        "add_title": "添加通行密钥",
+        "add_description": "为此通行密钥命名,然后按照浏览器的指示操作。",
+        "label_input": "名称",
+        "label_placeholder": "iPhone、工作电脑…",
+        "add_confirm": "继续",
+        "add_pending": "请按浏览器提示操作…",
+        "added": "已添加通行密钥",
+        "add_error": "无法添加通行密钥,请重试。",
+        "empty": "暂无通行密钥。添加一个即可使用 Face ID 或指纹登录。",
+        "unnamed": "未命名通行密钥",
+        "synced": "已同步",
+        "created_at": "添加于 {{date}}",
+        "last_used": "最近使用于 {{date}}",
+        "rename_title": "重命名通行密钥",
+        "renamed": "已重命名通行密钥",
+        "rename_error": "无法重命名通行密钥。",
+        "rename_aria": "重命名通行密钥 {{name}}",
+        "revoke_title": "撤销此通行密钥?",
+        "revoke_description": "“{{name}}”将无法再登录您的账户。请同时从设备的密码管理器中删除它。",
+        "revoke_confirm": "撤销",
+        "revoked": "已撤销通行密钥",
+        "revoke_error": "无法撤销通行密钥。",
+        "revoke_aria": "撤销通行密钥 {{name}}",
+        "unsupported_browser": "此浏览器不支持通行密钥。"
+      },
+      "totp": {
+        "title": "身份验证器应用(TOTP)",
+        "description": "为密码登录增加第二步:来自身份验证器应用(Google Authenticator、1Password、Aegis 等)的 6 位数代码。",
+        "status_active": "已启用",
+        "codes_remaining": "剩余备用代码:{{count}}",
+        "enable": "启用",
+        "disable": "停用",
+        "regenerate": "重新生成备用代码",
+        "enroll_title": "设置您的身份验证器应用",
+        "enroll_description": "使用应用扫描二维码(或手动输入密钥),然后输入应用显示的 6 位数代码。",
+        "qr_alt": "TOTP 注册二维码",
+        "enroll_secret_label": "手动输入密钥",
+        "enroll_code_label": "应用显示的代码",
+        "enroll_code_placeholder": "123456",
+        "enroll_confirm": "激活",
+        "enroll_error": "验证码无效。请检查您的应用后重试。",
+        "activated": "两步登录已启用",
+        "backup_title": "您的备用代码",
+        "backup_description": "如果您无法使用身份验证器应用,每个代码可使用一次。它们仅显示这一次——请妥善保存。",
+        "backup_copy": "复制代码",
+        "backup_copied": "备用代码已复制",
+        "backup_done": "我已保存",
+        "disable_title": "停用两步登录?",
+        "disable_description": "密码登录将不再需要验证码,您的备用代码也将失效。",
+        "disable_confirm": "停用",
+        "disabled_toast": "两步登录已停用",
+        "regenerate_title": "重新生成备用代码?",
+        "regenerate_description": "当前备用代码将失效。新的一组代码仅显示一次。",
+        "regenerated": "已生成新的备用代码",
+        "error_generic": "出现错误,请重试。"
+      },
+      "password": {
+        "title": "密码登录",
+        "description_enabled": "您的账户可以使用密码登录。拥有至少 2 个通行密钥后,您可以完全停用密码。",
+        "description_disabled": "密码登录已停用。电子邮件重置仍可作为恢复途径。",
+        "requirement_hint": "需要至少 2 个有效的通行密钥。",
+        "disable": "停用密码登录",
+        "disable_title": "停用密码登录?",
+        "disable_description": "之后只有您的通行密钥可以登录。电子邮件重置仍可作为恢复途径。",
+        "disable_confirm": "停用",
+        "disabled_toast": "密码登录已停用",
+        "error_generic": "出现错误,请重试。"
+      },
+      "devices": {
+        "title": "我的设备",
+        "description": "当前登录您账户的所有会话。",
+        "unknown_device": "未知设备",
+        "current": "本设备",
+        "ip": "IP {{ip}}",
+        "signed_in": "登录于 {{date}}",
+        "last_seen": "活跃于 {{date}}",
+        "revoke_aria": "注销 {{name}}",
+        "revoke_title": "注销此设备?",
+        "revoke_description": "“{{name}}”将立即被注销,其下一次请求需要重新登录。",
+        "revoke_confirm": "注销",
+        "revoked": "设备已注销",
+        "revoke_others": "注销其他设备",
+        "revoke_others_title": "注销所有其他设备?",
+        "revoke_others_description": "除本设备外的所有会话都将被撤销。已在后台运行的任务将在服务器端继续。",
+        "revoke_others_confirm": "全部注销",
+        "others_revoked": "已注销 {{count}} 台设备",
+        "background_runs_note": "注意:撤销设备会立即切断其访问;已在后台运行的任务将在服务器端完成。",
+        "error_generic": "出现错误,请重试。",
+        "notify_title": "新登录提醒",
+        "notify_description": "当账户从无法识别的设备登录时通知我的设备。"
+      },
+      "export": {
+        "title": "导出我的数据",
+        "description": "下载您数据的完整存档(对话、记忆、日志、健康、设置等)——JSON 加可读的 Markdown,包含文件。",
+        "request": "请求导出",
+        "in_progress": "导出进行中…",
+        "requested": "导出已排队——就绪后将通知您",
+        "download": "下载存档",
+        "status_pending": "排队中",
+        "status_running": "生成中",
+        "status_done": "已就绪",
+        "status_failed": "失败",
+        "status_expired": "已过期",
+        "too_large": "存档超过大小上限。请减少存储的文件。",
+        "failed_hint": "导出失败,请重试。",
+        "error_generic": "出现错误,请重试。"
+      },
+      "auth": {
+        "title": "强身份验证",
+        "description": "通行密钥、身份验证器应用和密码登录。"
+      }
     }
   },
   "spaces": {
@@ -3236,6 +3380,21 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_25_17": {
+          "title": "v1.25.17 — 🔐 账户安全全面升级",
+          "date": "2026年7月",
+          "count": "8",
+          "items": {
+            "i1": "<b>🔑 通行密钥（Passkeys）</b> — 使用 Face ID、指纹或设备密码登录。抗钓鱼，无需记忆（设置 > 安全）。",
+            "i2": "<b>📱 身份验证器应用（TOTP）</b> — 为密码登录添加 6 位数第二步验证，并提供 10 个仅显示一次的一次性备用码。",
+            "i3": "<b>🛡️ 身份确认</b> — 敏感操作（管理通行密钥、导出数据、注销其他设备）需要重新确认身份。登录后 5 分钟内无需确认。",
+            "i4": "<b>💻 我的设备</b> — 查看账户的每个在线会话（浏览器、系统、大致 IP），可注销单个设备或其他所有设备。",
+            "i5": "<b>🔔 新登录提醒</b> — 当账户从无法识别的设备登录时，推送通知会提醒您的设备。可在“我的设备”中关闭。",
+            "i6": "<b>📦 导出我的数据</b> — 申请完整的数据归档（可读 Markdown + JSON + 您的文件）；准备就绪时会收到通知。",
+            "i7": "<b>📴 离线模式</b> — LIA 现在提供真正的离线页面，并通过智能缓存加载更快。您的数据绝不会缓存到磁盘。",
+            "i8": "<b>🎨 安全设置重新组织</b> — 强身份验证、我的设备和数据导出现在是三个整洁的可折叠板块。"
+          }
+        },
         "v1_25_16": {
           "title": "v1.25.16 — ✨ 对话体验全面成熟",
           "date": "2026年7月",
@@ -4544,7 +4703,7 @@
           },
           "q8": {
             "question": "能把 LIA 像应用一样安装到手机或电脑上吗？(v1.25.16)",
-            "answer": "<p>能。LIA 是 <strong>PWA</strong>：在 Android/桌面 Chrome 上使用「安装」（LIA 会在几次访问后低调建议）；在 iOS Safari 上「分享 → 添加到主屏幕」。您将获得主屏幕图标、快捷方式（聊天、简报），安装后系统的<strong>分享菜单</strong>还能把文本或链接直接发送到 LIA 聊天草稿。全部支持 6 种语言。</p>"
+            "answer": "<p>能。LIA 是 <strong>PWA</strong>：在 Android/桌面 Chrome 上使用「安装」（LIA 会在几次访问后低调建议）；在 iOS Safari 上「分享 → 添加到主屏幕」。您将获得主屏幕图标、快捷方式（聊天、简报），安装后系统的<strong>分享菜单</strong>还能把文本或链接直接发送到 LIA 聊天草稿。全部支持 6 种语言。自统一 Service Worker 上线以来，LIA 还会在离线时显示真正的品牌页面，并通过智能资源缓存加载更快 — 您的个人数据绝不会缓存到磁盘。</p>"
           }
         }
       },
@@ -5336,7 +5495,7 @@
       "privacy": {
         "title": "安全和隐私",
         "description": "保护您的数据",
-        "count": "6",
+        "count": "11",
         "questions": {
           "q1": {
             "question": "我的对话是私密的吗？",
@@ -5361,6 +5520,26 @@
           "q6": {
             "question": "外部服务能看到我的数据吗？",
             "answer": "了解<strong>数据流向</strong>：<br><br><strong>🔄 Google服务：</strong><br>• 您的数据保留在Google<br>• LIA通过其官方API查询Google<br>• Google看到请求（如同在其应用中）<br>• 适用Google隐私政策<br><br><strong>🌤️ OpenWeatherMap：</strong><br>• 仅接收请求的城市名称<br>• 不传输个人数据<br><br><strong>📚 维基百科：</strong><br>• 仅接收搜索查询<br>• 公共服务，无跟踪<br><br><strong>🔍 Perplexity：</strong><br>• 接收您的搜索问题<br>• 适用Perplexity隐私政策<br><br><strong>💡 一般原则：</strong><br>LIA向每个服务传输最少必要的信息。您的个人数据绝不会被不必要地共享。"
+          },
+          "q7": {
+            "question": "什么是通行密钥（Passkeys）？如何启用？",
+            "answer": "<strong>通行密钥</strong>让您使用 <strong>Face ID、指纹或设备密码</strong>登录 — 无需输入密码，无需记忆。<br><br><strong>🔑 为什么更安全：</strong><br>• 抗钓鱼：通行密钥只在真正的 LIA 网站上有效<br>• 私钥永远不会离开您的设备<br>• 即使密码泄露，攻击者也无法利用<br><br><strong>⚙️ 启用方法：</strong><br>1. 进入<strong>设置 > 安全 > 强身份验证</strong><br>2. 点击<strong>添加通行密钥</strong>，按浏览器提示操作（Windows Hello、Face ID、Android…）<br>3. 可为其命名（如「iPhone」「办公电脑」），每台设备添加一个<br><br>此后在登录页，浏览器会直接在邮箱输入框中提供通行密钥（也可点击「使用通行密钥登录」按钮）。"
+          },
+          "q8": {
+            "question": "如何添加第二步验证（TOTP）？",
+            "answer": "<strong>身份验证器应用</strong>为密码登录添加一个 6 位数代码作为第二步。<br><br><strong>⚙️ 设置步骤：</strong><br>1. <strong>设置 > 安全 > 身份验证器应用（TOTP）</strong> → 启用<br>2. 用 Google Authenticator、1Password、Aegis 等扫描二维码<br>3. 输入应用显示的 6 位数代码<br><br><strong>🔒 备用码：</strong>10 个一次性备用码<strong>仅显示一次</strong> — 请妥善保存；手机丢失时每个备用码可替代应用代码。您可以随时重新生成一套新的（旧的立即失效）。<br><br>之后登录分两步：先输入密码，再输入应用中的当前代码。"
+          },
+          "q9": {
+            "question": "为什么 LIA 有时要求我确认身份？",
+            "answer": "敏感操作受<strong>身份确认</strong>（step-up）保护：<br><br><strong>🛡️ 受保护的操作：</strong><br>• 管理通行密钥和身份验证器应用<br>• 导出您的数据<br>• 注销其他所有设备<br>• 停用密码登录<br><br><strong>⏱️ 行为方式：</strong><br>• 登录后 5 分钟内不会有任何要求<br>• 之后只需一次快速确认（密码、代码、通行密钥 — Google 账户可重新登录 Google）即可重新打开窗口<br><br>目的：即使有人借用您已打开的会话，也无法悄悄把您锁在门外或带走您的数据。"
+          },
+          "q10": {
+            "question": "如何查看并注销连接到我账户的设备？",
+            "answer": "<strong>设置 > 安全 > 我的设备</strong>列出账户的每个在线会话。<br><br><strong>💻 您能看到：</strong><br>• 浏览器和系统类别（如「chrome · windows」）— 绝不显示完整技术细节<br>• 截断的 IP（如 192.168.1.x）和大致的最近活动时间<br>• 已注册推送通知的设备会显示设备名称<br><br><strong>🔌 您可以：</strong><br>• 注销单个设备 — 它会立即失去访问权限，即使正在对话中<br>• 注销其他所有设备（需要身份确认）<br><br><strong>🔔 新登录提醒：</strong>当账户从无法识别的设备登录时，您的设备会收到推送通知 — 可在同一板块中关闭。"
+          },
+          "q11": {
+            "question": "如何导出我的全部数据（GDPR）？",
+            "answer": "您可以随时下载<strong>完整的数据归档</strong>（GDPR 数据可携权）。<br><br><strong>📦 归档包含：</strong><br>• 您的个人资料和设置<br>• 对话、记忆、日志 — 同时提供可读的 <strong>Markdown</strong> 和结构化的 <strong>JSON</strong><br>• 您上传的文件（附件、知识空间文档）<br><br><strong>🚫 绝不包含：</strong>连接器凭据、安全密钥、推送令牌 — 机密材料在设计上就无法导出。<br><br><strong>⚙️ 操作方法：</strong><strong>设置 > 安全 > 导出我的数据</strong> → 申请导出 → ZIP 就绪时会收到推送通知（24 小时内可下载）。"
           }
         }
       },
@@ -6555,11 +6734,11 @@
       "privacy_link": "阅读我们的隐私政策",
       "data_control": {
         "title": "数据控制",
-        "description": "您的数据保持私密。不与第三方共享，会话隔离，访问严格限于必要范围。每日自动备份，恢复流程经过实测。"
+        "description": "您的数据保持私密。不与第三方共享，会话隔离，访问严格限于必要范围。「我的设备」显示每个在线会话，可即时注销任意一个。每日自动备份，恢复流程经过测试。"
       },
       "bff": {
         "title": "安全架构",
-        "description": "BFF模式配合HTTP-only Cookie、Redis会话，令牌从不暴露给前端。严格的内容安全策略（CSP）与 OWASP Top 10 防护。"
+        "description": "BFF 模式：HTTP-only Cookie、Redis 会话、令牌绝不暴露给前端。WebAuthn 通行密钥和 TOTP 双因素；敏感操作由 step-up 重新验证保护。严格的 Content-Security-Policy 和 OWASP Top 10 防护。"
       },
       "encryption": {
         "title": "加密",
@@ -6567,7 +6746,7 @@
       },
       "gdpr": {
         "title": "符合GDPR",
-        "description": "自动PII过滤、假名化、数据最小化。符合欧洲法规。"
+        "description": "自动 PII 过滤、假名化、数据最小化。完整账户导出 — 可读 Markdown、结构化 JSON 和您的文件 — 机密材料在设计上无法导出。遵守欧洲法规。"
       }
     },
     "tech": {
@@ -6597,7 +6776,7 @@
       },
       "stack": {
         "title": "现代技术栈",
-        "description": "FastAPI、Next.js、React、TailwindCSS、PostgreSQL、Redis。前端严格 TypeScript，后端异步 Python。可安装 PWA：6 个本地化 manifest，系统分享直达聊天。"
+        "description": "FastAPI、Next.js、React、TailwindCSS、PostgreSQL、Redis。前端严格 TypeScript，后端异步 Python。可安装 PWA：6 种本地化清单、系统分享到聊天、离线页面和智能资源缓存 — API 响应绝不缓存。"
       },
       "telephony": {
         "title": "智能体电话",
@@ -7210,7 +7389,7 @@
       "security-architecture": {
         "title": "纵深防御：LIA的5项安全原则",
         "excerpt": "纵深防御、最小权限、速率限制、加密和验证保护您的数据。",
-        "body": "<h2>5项基本原则</h2><p>LIA的安全性基于五项应用于应用每一层的原则：</p><ul><li><strong>纵深防御</strong> — 多层控制（认证、速率限制、验证、加密）</li><li><strong>最小权限</strong> — 默认最小权限</li><li><strong>安全失败</strong> — 出错时拒绝而非允许</li><li><strong>不信任输入</strong> — Pydantic验证 + 系统化清洗</li><li><strong>默认安全</strong> — HTTPS、HttpOnly/SameSite cookies、严格CORS</li></ul><h2>哈希与加密</h2><p>密码使用<strong>bcrypt</strong>（带自动盐值）进行哈希。敏感数据（OAuth令牌、连接器凭据、PII、MCP服务器凭据）使用<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）加密，确保机密性和完整性。加密密钥与数据分开管理。</p><h2>JWT与会话管理</h2><p>JWT令牌使用HS256算法，配合Redis中的JTI（JWT ID）黑名单系统。一次性令牌（邮件验证、密码重置）在首次使用后即失效。此机制防止任何敏感令牌的重复使用。</p><h2>可配置速率限制</h2><p>速率限制在两个层面运作：</p><ul><li><strong>HTTP</strong> — 通过上游nginx</li><li><strong>工具</strong> — 按用户、按工具的滑动窗口，阈值由配置驱动，覆盖每一个付费外部 API（图像生成、网页搜索、浏览器、DevOps CLI）</li><li><strong>外部连接器</strong> — 跨实例共享的分布式 Redis 滑动窗口（Google、Apple、API 密钥提供商）</li></ul><p>API限制严格：每次请求最多10个项目，每个领域有默认值（默认10，最大50）。</p><h2>渲染与网络加固</h2><p>聊天会渲染 LLM 的输出——它可能转发第三方 HTML（邮件正文、抓取的页面、工具结果）——并通过严格的净化边界（<code>rehype-sanitize</code> 配合经审计的 schema）：<code>&lt;script&gt;</code>、<code>&lt;iframe&gt;</code>、<code>&lt;form&gt;</code> 及事件处理器会被移除，而合法的卡片、按钮和公式得以保留。交互式 MCP/Skill 应用从不经过 markdown——它们只在沙箱化的 iframe 小组件中挂载。在网络层面，生产环境 API 位于 Cloudflare 之后作为唯一入口，容器端口绑定 loopback，uvicorn 仅信任反向代理的请求头：因此 <code>request.client.host</code> 承载真实的访客 IP，「按 IP」的速率限制按访客生效，而非作用于单一共享的内部地址。</p><h2>提示注入防护</h2><p>外部内容（邮件、网页、文档）在注入提示之前封装在可配置的<code>UNTRUSTED</code>标签中。这种显式封装通过清楚地分隔用户数据和系统指令，防止恶意内容劫持助手的行为。</p><h2>资源所有权验证</h2><p>每次资源访问都通过<code>check_resource_ownership()</code>进行检查，带有<code>hide_existence</code>参数：公共资源返回403（拒绝访问），私有资源返回404（资源不存在），以避免向攻击者透露其存在。</p><h2>每用户使用配额</h2><p>LIA 允许管理员设置<strong>每用户配额</strong>，包括令牌、消息和成本。执行使用<strong>5层纵深防御</strong>架构。基础设施故障时系统<strong>fail-open</strong>。管理员可即时封禁/解封任何用户。</p><h2>软件供应链</h2><p>每个版本都基于锁定的依赖图构建：通用 lockfile 锁定实际安装的约 200 个包，每个包在构建时通过 SHA256 指纹校验——同一版本始终产出相同且经完整性校验的镜像。所有依赖（包括传递依赖）都会持续比对已知漏洞数据库进行审计，随每个版本发布的软件物料清单（SBOM）准确列出生产环境中运行的内容。</p>"
+        "body": "<h2>5项基本原则</h2><p>LIA的安全性基于五项应用于应用每一层的原则：</p><ul><li><strong>纵深防御</strong> — 多层控制（认证、速率限制、验证、加密）</li><li><strong>最小权限</strong> — 默认最小权限</li><li><strong>安全失败</strong> — 出错时拒绝而非允许</li><li><strong>不信任输入</strong> — Pydantic验证 + 系统化清洗</li><li><strong>默认安全</strong> — HTTPS、HttpOnly/SameSite cookies、严格CORS</li></ul><h2>哈希与加密</h2><p>密码使用<strong>bcrypt</strong>（带自动盐值）进行哈希。敏感数据（OAuth令牌、连接器凭据、PII、MCP服务器凭据）使用<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）加密，确保机密性和完整性。加密密钥与数据分开管理。</p><h2>JWT与会话管理</h2><p>JWT令牌使用HS256算法，配合Redis中的JTI（JWT ID）黑名单系统。一次性令牌（邮件验证、密码重置）在首次使用后即失效。此机制防止任何敏感令牌的重复使用。</p><h2>强身份验证与设备控制</h2><p>登录不止于密码。<strong>WebAuthn 通行密钥</strong>让您通过 Face ID、指纹或设备密码进行身份验证 — 设计上抗钓鱼，配有一次性服务器质询和基于签名计数器的克隆检测。<strong>TOTP 第二因素</strong>为密码登录添加 6 位数验证步骤，辅以十个以哈希存储的一次性备用码。敏感操作 — 管理凭据、导出数据、注销其他设备 — 都经过 <strong>step-up 重新验证</strong>：一个 5 分钟的确认窗口，采用类型化的 API 契约，绝不静默重定向。<strong>我的设备</strong>列出每个在线会话及刻意限定的元数据（浏览器和系统类别、截断的 IP），可即时注销任意会话 — 被注销的会话几秒内即失去实时流 — 并在账户从无法识别的设备登录时推送提醒。</p><h2>可配置速率限制</h2><p>速率限制在两个层面运作：</p><ul><li><strong>HTTP</strong> — 通过上游nginx</li><li><strong>工具</strong> — 按用户、按工具的滑动窗口，阈值由配置驱动，覆盖每一个付费外部 API（图像生成、网页搜索、浏览器、DevOps CLI）</li><li><strong>外部连接器</strong> — 跨实例共享的分布式 Redis 滑动窗口（Google、Apple、API 密钥提供商）</li></ul><p>API限制严格：每次请求最多10个项目，每个领域有默认值（默认10，最大50）。</p><h2>渲染与网络加固</h2><p>聊天会渲染 LLM 的输出——它可能转发第三方 HTML（邮件正文、抓取的页面、工具结果）——并通过严格的净化边界（<code>rehype-sanitize</code> 配合经审计的 schema）：<code>&lt;script&gt;</code>、<code>&lt;iframe&gt;</code>、<code>&lt;form&gt;</code> 及事件处理器会被移除，而合法的卡片、按钮和公式得以保留。交互式 MCP/Skill 应用从不经过 markdown——它们只在沙箱化的 iframe 小组件中挂载。在网络层面，生产环境 API 位于 Cloudflare 之后作为唯一入口，容器端口绑定 loopback，uvicorn 仅信任反向代理的请求头：因此 <code>request.client.host</code> 承载真实的访客 IP，「按 IP」的速率限制按访客生效，而非作用于单一共享的内部地址。</p><h2>提示注入防护</h2><p>外部内容（邮件、网页、文档）在注入提示之前封装在可配置的<code>UNTRUSTED</code>标签中。这种显式封装通过清楚地分隔用户数据和系统指令，防止恶意内容劫持助手的行为。</p><h2>资源所有权验证</h2><p>每次资源访问都通过<code>check_resource_ownership()</code>进行检查，带有<code>hide_existence</code>参数：公共资源返回403（拒绝访问），私有资源返回404（资源不存在），以避免向攻击者透露其存在。</p><h2>每用户使用配额</h2><p>LIA 允许管理员设置<strong>每用户配额</strong>，包括令牌、消息和成本。执行使用<strong>5层纵深防御</strong>架构。基础设施故障时系统<strong>fail-open</strong>。管理员可即时封禁/解封任何用户。</p><h2>软件供应链</h2><p>每个版本都基于锁定的依赖图构建：通用 lockfile 锁定实际安装的约 200 个包，每个包在构建时通过 SHA256 指纹校验——同一版本始终产出相同且经完整性校验的镜像。所有依赖（包括传递依赖）都会持续比对已知漏洞数据库进行审计，随每个版本发布的软件物料清单（SBOM）准确列出生产环境中运行的内容。</p>"
       },
       "privacy-by-design": {
         "title": "隐私设计：GDPR、加密和数据控制",

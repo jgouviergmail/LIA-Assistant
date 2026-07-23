@@ -4,8 +4,9 @@ Authentication domain schemas (Pydantic models for API).
 
 from datetime import datetime
 from typing import Any, Literal
+from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from src.domains.shared.schemas import (
     LanguageValidatorMixin,
@@ -44,6 +45,11 @@ class UserLoginRequest(BaseModel):
     remember_me: bool = Field(
         default=False,
         description="Remember me - extends session to 30 days instead of 7",
+    )
+    fcm_token: str | None = Field(
+        default=None,
+        description="This device's FCM token, if push is enabled — attests a known "
+        "device and suppresses the new-login notification (A4)",
     )
 
 
@@ -111,6 +117,240 @@ class MessageResponse(BaseModel):
 
     message: str = Field(..., description="Response message")
     detail: str | None = Field(default=None, description="Additional details")
+
+
+# ============================================================================
+# WebAuthn passkeys (security program D1, Lot 1)
+# ============================================================================
+
+
+class LoginResponseBFF(BaseModel):
+    """Two-state login response (BFF Pattern, security program D1 Lot 2).
+
+    Either the session was created (``user`` set, cookie sent) or a second
+    factor is required (``mfa_required`` + single-use ``mfa_token`` to
+    present to ``/auth/mfa/verify``). Never both.
+    """
+
+    user: UserResponse | None = Field(
+        default=None, description="User information (present when the session was created)"
+    )
+    mfa_required: bool = Field(
+        default=False, description="True when a TOTP/backup code step is required"
+    )
+    mfa_token: str | None = Field(
+        default=None,
+        description="Single-use pending token for /auth/mfa/verify (5 min TTL)",
+    )
+    message: str = Field(..., description="Localized status message")
+
+
+class MFAVerifyRequest(BaseModel):
+    """Second login step: pending token + TOTP or backup code."""
+
+    mfa_token: str = Field(..., description="Pending token returned by /auth/login")
+    code: str = Field(
+        ...,
+        min_length=6,
+        max_length=16,
+        description="6-digit TOTP code or 10-char backup code",
+    )
+
+
+class TOTPEnrollResponse(BaseModel):
+    """TOTP enrollment material — revealed exactly once."""
+
+    secret: str = Field(..., description="Base32 secret (shown once, for manual entry)")
+    otpauth_uri: str = Field(..., description="otpauth:// provisioning URI")
+    qr_data_uri: str = Field(..., description="QR code as PNG data-URI")
+
+
+class TOTPConfirmRequest(BaseModel):
+    """First valid code proving authenticator possession."""
+
+    code: str = Field(..., min_length=6, max_length=8, description="6-digit TOTP code")
+
+
+class TOTPBackupCodesResponse(BaseModel):
+    """Backup codes — revealed exactly once."""
+
+    backup_codes: list[str] = Field(
+        ..., description="Single-use backup codes (shown once, store them safely)"
+    )
+    message: str = Field(..., description="Localized confirmation message")
+
+
+class TOTPStatusResponse(BaseModel):
+    """TOTP state for the Security settings."""
+
+    active: bool = Field(..., description="Whether TOTP is enrolled and confirmed")
+    confirmed_at: datetime | None = Field(
+        default=None, description="Confirmation timestamp (null when inactive)"
+    )
+    backup_codes_remaining: int = Field(..., description="Number of unused backup codes")
+
+
+class DeviceSessionResponse(BaseModel):
+    """One live session in the "My devices" list (bounded metadata only)."""
+
+    id: str = Field(..., description="Opaque display id (sha256 prefix — never the session id)")
+    current: bool = Field(..., description="Whether this row is the caller's own session")
+    ua_family: str | None = Field(default=None, description="Coarse browser family")
+    os_family: str | None = Field(default=None, description="Coarse OS family")
+    ip_trunc: str | None = Field(default=None, description="Truncated IP (never the full address)")
+    auth_methods: list[str] = Field(..., description="How this session was authenticated")
+    created_at: datetime = Field(..., description="Session creation timestamp")
+    last_seen_at: datetime | None = Field(
+        default=None, description="Coarse last activity (>= 15 min grain)"
+    )
+    device_name: str | None = Field(
+        default=None, description="Real device name when the login was FCM-attested (A4)"
+    )
+
+
+class RevokeOthersResponse(BaseModel):
+    """Result of signing out every other device."""
+
+    revoked: int = Field(..., description="Number of sessions revoked")
+
+
+class LoginNotificationsPreferenceRequest(BaseModel):
+    """Toggle the new-login FCM notification (A4)."""
+
+    enabled: bool = Field(..., description="Notify my devices on unrecognized logins")
+
+
+class LoginNotificationsPreferenceResponse(BaseModel):
+    """Current new-login notification preference."""
+
+    enabled: bool = Field(..., description="Current preference state")
+    message: str = Field(..., description="Localized confirmation message")
+
+
+class StepUpStatusResponse(BaseModel):
+    """Which re-authentication methods this account can use, and freshness."""
+
+    methods: list[str] = Field(
+        ..., description="Available step-up methods: password, passkey, totp"
+    )
+    password_set: bool = Field(..., description="Whether password sign-in is enabled")
+    step_up_valid_until: datetime | None = Field(
+        default=None, description="Until when the current session's step-up stays fresh"
+    )
+
+
+class StepUpPasswordRequest(BaseModel):
+    """Step-up re-authentication with the account password."""
+
+    password: str = Field(..., min_length=1, description="Current account password")
+
+
+class StepUpTotpRequest(BaseModel):
+    """Step-up re-authentication with a TOTP or backup code."""
+
+    code: str = Field(
+        ..., min_length=6, max_length=16, description="6-digit TOTP code or backup code"
+    )
+
+
+class StepUpWebAuthnVerifyRequest(BaseModel):
+    """Step-up re-authentication with a passkey assertion."""
+
+    credential: dict[str, Any] = Field(
+        ..., description="navigator.credentials.get result, JSON-serialized by the client"
+    )
+
+
+class StepUpVerifiedResponse(BaseModel):
+    """Successful step-up: freshness horizon for the session."""
+
+    step_up_valid_until: datetime = Field(
+        ..., description="Until when sensitive actions are allowed without re-verifying"
+    )
+
+
+class AuthFeaturesResponse(BaseModel):
+    """Publicly visible authentication capabilities of this instance.
+
+    Lets the frontend show/hide strong-auth UI without probing flag-gated
+    routers (which are unmounted when disabled). Reveals nothing sensitive.
+    """
+
+    mfa_enabled: bool = Field(
+        ..., description="Whether passkeys/TOTP endpoints are mounted on this instance"
+    )
+
+
+class WebAuthnOptionsResponse(BaseModel):
+    """Ceremony options for ``navigator.credentials.create`` (registration)."""
+
+    options: str = Field(
+        ..., description="PublicKeyCredentialCreationOptions as JSON (py_webauthn format)"
+    )
+
+
+class WebAuthnAuthOptionsResponse(BaseModel):
+    """Ceremony options for ``navigator.credentials.get`` (authentication)."""
+
+    challenge_id: str = Field(..., description="Opaque id of the single-use server-side challenge")
+    options: str = Field(
+        ..., description="PublicKeyCredentialRequestOptions as JSON (py_webauthn format)"
+    )
+
+
+class WebAuthnRegisterVerifyRequest(BaseModel):
+    """Client result of a registration ceremony."""
+
+    credential: dict[str, Any] = Field(
+        ..., description="navigator.credentials.create result, JSON-serialized by the client"
+    )
+    label: str | None = Field(
+        default=None,
+        max_length=64,
+        description="Optional display label for this passkey (e.g. 'iPhone')",
+    )
+
+
+class WebAuthnAuthenticateVerifyRequest(BaseModel):
+    """Client result of an authentication ceremony."""
+
+    challenge_id: str = Field(..., description="Challenge id from /authenticate/options")
+    credential: dict[str, Any] = Field(
+        ..., description="navigator.credentials.get result, JSON-serialized by the client"
+    )
+
+
+class WebAuthnRenameRequest(BaseModel):
+    """Rename a registered passkey."""
+
+    label: str | None = Field(
+        default=None,
+        max_length=64,
+        description="New display label (null/empty clears the label)",
+    )
+
+
+class WebAuthnCredentialResponse(BaseModel):
+    """A registered passkey as shown in the Security settings list.
+
+    Never exposes key material (credential id, public key).
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID = Field(..., description="Credential row id (management identifier)")
+    label: str | None = Field(default=None, description="User-supplied display label")
+    device_type: str | None = Field(
+        default=None, description="single_device or multi_device (synced passkey)"
+    )
+    backed_up: bool = Field(..., description="Whether the passkey is synced/backed up")
+    transports: list[str] | None = Field(
+        default=None, description="Authenticator transports reported at registration"
+    )
+    created_at: datetime = Field(..., description="Registration timestamp")
+    last_used_at: datetime | None = Field(
+        default=None, description="Last successful authentication timestamp"
+    )
 
 
 class MemoryPreferenceRequest(BaseModel):

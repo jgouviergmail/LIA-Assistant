@@ -7,8 +7,9 @@ Provides utilities for creating authenticated sessions with HTTP-only cookies.
 from typing import Any, Literal, cast
 
 import structlog
-from fastapi import Response
+from fastapi import Request, Response
 
+from src.core.client_metadata import extract_client_meta
 from src.core.config import settings
 from src.core.field_names import FIELD_SESSION_ID, FIELD_USER_ID
 from src.infrastructure.cache.redis import get_redis_session
@@ -24,6 +25,9 @@ async def create_authenticated_session_with_cookie(
     event_name: str = "session_created",
     extra_context: dict[str, Any] | None = None,
     old_session_id: str | None = None,
+    auth_methods: list[str] | None = None,
+    request: Request | None = None,
+    fcm_token_id: str | None = None,
 ) -> UserSession:
     """
     Create authenticated session and set HTTP-only cookie.
@@ -44,6 +48,11 @@ async def create_authenticated_session_with_cookie(
         event_name: Log event name for structured logging (e.g., "user_registered_bff")
         extra_context: Additional context fields for logging (e.g., {"email": "user@example.com"})
         old_session_id: Previous session ID to invalidate (PROD only, for session rotation)
+        auth_methods: Authentication method tags stored in the session payload
+            ("password", "oauth_google", "passkey"…). None = empty (legacy).
+        request: Incoming request — source of the BOUNDED device metadata
+            (UA/OS families + truncated IP, arbitration A3). None = no metadata.
+        fcm_token_id: FCM token row id that attested this device (A4), or None.
 
     Returns:
         UserSession: Created session object with minimal data (user_id, session_id)
@@ -109,9 +118,19 @@ async def create_authenticated_session_with_cookie(
             reason="login_security",
         )
 
+    client_meta = None
+    if request is not None:
+        client_meta = extract_client_meta(
+            user_agent=request.headers.get("user-agent"),
+            client_ip=request.client.host if request.client else None,
+        )
+
     session = await session_store.create_session(
         user_id=user_id,
         remember_me=remember_me,
+        auth_methods=auth_methods,
+        client_meta=client_meta,
+        fcm_token_id=fcm_token_id,
     )
 
     # Calculate cookie TTL (must match Redis TTL for consistency)

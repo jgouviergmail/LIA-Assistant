@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.17] - 2026-07-23
+
+Security & account program (D1/D2/D3/D5 — ADR-143/144/145/146): strong authentication, device sessions, GDPR export, offline PWA.
+
+### Added
+
+- **Passkeys (WebAuthn)** — discoverable credentials with conditional UI on the login form (`autocomplete="username webauthn"`) plus an explicit button; enrollment/rename/revocation in Settings > Security; py_webauthn ceremonies with single-use Redis challenges (GETDEL), sign-count clone detection, per-account cap, generic 401 on the whole anonymous path (no credential enumeration). ADR-143.
+- **TOTP second factor** — authenticator-app enrollment (backend-rendered QR data-URI, secret revealed once), explicit matched-timestep anti-replay, 10 single-use backup codes (SHA-256 hashes at rest, revealed once, regenerable); two-step login via a single-use 5-min pending token (`/auth/mfa/verify`). ADR-143.
+- **Step-up re-authentication** — sensitive actions (MFA management, revoke-others, export, password disabling) require a fresh re-auth within a 5-min window; typed `403 {"error": "step_up_required"}` contract (never a plain 401); verification by password, TOTP/backup code, allow-listed passkey ceremony, or a fresh Google re-sign-in for OAuth-only accounts; a fresh full login opens the window (sudo-mode semantics). Password sign-in can be disabled with ≥ 2 active passkeys (A8; email reset stays the recovery path). ADR-143.
+- **"My devices" session management** — session payload v4 with deliberately bounded metadata (browser/OS families, /24-truncated IP, ≥ 15-min-grain last-seen), opaque sha256 display ids, per-device revocation, step-up-guarded revoke-others; a revoked session's SSE streams close within one keepalive tick (fail-open watcher). New-login push notification with FCM-token device attestation (a registered active token suppresses the alert; passkey logins never notify; every failure mode falls toward notifying) + per-user toggle. ADR-144.
+- **Full-account GDPR export** — durable `account_export_jobs` consumed by a leader-elected `FOR UPDATE SKIP LOCKED` executor (crash-safe stale detection, 24 h retention sweep); metadata-driven builder over the total `user_data_map` classification (EXCLUDED secret tables unexportable BY CONSTRUCTION, column-verified redaction/decryption specs, JSON + readable Markdown, attachments/RAG sources ZIP_STORED, 2 GiB cap, atomic rename); step-up-guarded request, ownership-scoped download, "export ready" push ×6 languages. ADR-145.
+- **Offline PWA** — unified service worker (historical `firebase-messaging-sw.js` URL kept for in-place registration updates): push + precached branded offline page (6 inline locales) + stale-while-revalidate for static assets; `/api/`, non-GET, cross-origin and SSE are never cached; `CACHE_VERSION` CI-locked to `package.json`; unconditional registration at app boot (previously only users who enabled push had a SW). ADR-146.
+- **Total user-data classification** — `user_data_map.py` (50 tables + 76 users columns, purge/export policies) with a 10-test CI guard; deletion purge extended to `open_loops` and `phone_calls` (soft-deleted users never fire CASCADE).
+- **`task dev:trust-cert`** — extracts the dev TLS certificate and trusts it (Windows `certutil`): Chromium refuses every WebAuthn ceremony on an untrusted certificate; documented with its three traps in GETTING_STARTED.
+- CI guard `test_env_example_inline_comment_guard.py` — inline comments on EMPTY-valued env vars poison the runtime (docker compose AND Task dotenv pass the comment as the value); caught 33 pre-existing offenders on arrival, all fixed (+10 in local `.env`, including a `DOCKER_HOST` that broke every task-launched docker command).
+
+### Changed
+
+- Settings > Security redesigned as three standard collapsible `SettingsSection` cards (Strong authentication / My devices / Export my data) matching every other settings section.
+- `create_session` stamps `step_up_at` at creation — right after signing in, no re-auth dialog for 5 minutes; this also un-deadlocks OAuth-only accounts enrolling their first factor.
+- Metadata-driven purge: `build_purge_statements` now works on Table objects (no ORM imports) — the import-cycle ratchet SHRANK 31→25.
+- Sessions no longer auto-refresh their TTL (fixed 7/30-day lifetime); dead `refresh_session` removed and the five false "auto-refresh" claims corrected.
+- Export download link targets the API origin via the new `apiEndpointUrl()` helper (top-level navigation streaming to disk — archives are never fetched into a blob).
+
+### Fixed
+
+- Step-up dialog dead end for OAuth-only accounts (only "Cancel" shown): the account's identity provider is now advertised and usable as a step-up method, and an explanatory empty state replaced the bare Cancel.
+- A mistyped password/code in the step-up dialog ejected the user to /login: `/auth/step-up/*` 401s are exempt from the api-client's global redirect (inline error + retry), pinned by `api-client.step-up-401.test.ts`.
+- Export "Download archive" produced a dead `download.txt`: the href was relative to the frontend origin, which has no `/api/v1` routes.
+- Concurrent export requests: the race loser hit the partial unique index as a raw 500 — now the same 400 as the pre-check.
+- `docker compose` passes `KEY=   # comment` as the VALUE when the value is empty: the dev WebAuthn rpId became a comment string; fail-fast validator + comments moved above empty vars everywhere.
+- Login-notification preference had no UI and the frontend never sent the FCM attestation token: both wired (Settings > My devices toggle; silent token resolution at login when push permission is already granted).
+
+### Tests
+
+- Backend 12,906 collected (fast suite 11,082 passed / 0 failed), MyPy strict clean (971 files); frontend 2,533 passed (259 files), tsc clean, a11y/react-hooks/CC ratchets hold (CC lowered 57→56); hermetic e2e 44/44 including a CDP virtual-authenticator passkey ceremony; 4 replay-checked migrations (head `b9d5f7a32c84`); runtime-proven on the dev stack (real TOTP enrollment, real passkey ceremony after trusting the dev cert, real export download).
+
 ## [1.25.16] - 2026-07-23
 
 > **Ten UX refinements, six QA fixes, one adversarial review — the conversation surface grows up.** This release ships a complete UX program (10 lots, each landed with tests, gates and live runtime proof) plus the same-day QA feedback and a full staged-code review whose 12 findings were all fixed before this commit. The chat learns the manners of a mature messenger: a persistent per-user draft, ↑/↓ recall over the last ten sends, an action row under every answer (copy, feedback, and the execution trace docked at its right edge), tappable follow-up chips generated by the Initiative node, `/` slash commands with everyday shortcuts, and a **reading invariant** — a streaming answer never yanks a reader who scrolled up (an explicit own-send signal replaced two data-diff heuristics that both false-fired against the real engine; a gate-promise SSE e2e caught all three bugs unit tests could not). The dashboard becomes yours: the 9 briefing cards can be hidden and reordered (a hidden card is never fetched — the economy is server-side), a starter checklist exposes the instance's dormant capabilities, and the open-loops ledger gets a consult/close surface. LIA becomes installable: 6 localized PWA manifests, real icons, OS share-target into a chat draft, and a discreet install hint. Skills get a gallery (detail sheet, preview endpoint, declared output channels — the loader finally reads the `outputs:` field the generator had validated all along) and **install-from-URL** through the reused SSRF validator (https-only, DNS-resolved block ranges, no redirects, streamed cap, total transfer deadline, per-user rate limit) feeding the untouched hardened import pipeline. And the journal's compiled portrait now speaks the user's language — the English voice examples buried in the consolidation prompt were overriding the language instruction 150 lines above; the fix binds `{user_language}` at every generation point, proven by regenerating a real French portrait in place.

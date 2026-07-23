@@ -10,7 +10,10 @@ from src.core.config import settings
 from src.core.field_names import FIELD_STATUS
 from src.domains.agents.api.router import router as agents_router
 from src.domains.auth.checklist_router import router as checklist_router
+from src.domains.auth.profile_image_router import router as profile_image_router
 from src.domains.auth.router import router as auth_router
+from src.domains.auth.sessions_router import router as sessions_router
+from src.domains.auth.step_up_router import router as step_up_router
 from src.domains.briefing.router import router as briefing_router
 from src.domains.chat.router import router as chat_router
 from src.domains.connectors.router import router as connectors_router
@@ -37,6 +40,9 @@ api_router = APIRouter()
 
 # Include domain routers
 api_router.include_router(auth_router)
+api_router.include_router(profile_image_router)  # Google avatar COEP proxy
+api_router.include_router(step_up_router)  # Step-up re-auth (works without MFA flag)
+api_router.include_router(sessions_router)  # Device sessions "My devices" (D2)
 api_router.include_router(users_router)
 api_router.include_router(connectors_router)
 api_router.include_router(agents_router)
@@ -48,6 +54,16 @@ api_router.include_router(notifications_router)
 api_router.include_router(scheduled_actions_router)
 api_router.include_router(briefing_router)  # Today dashboard
 api_router.include_router(checklist_router)  # Starter checklist state (UXR A10)
+if getattr(settings, "account_export_enabled", False):
+    from src.domains.account_export.router import router as account_export_router
+
+    api_router.include_router(account_export_router)  # GDPR portability (D3)
+if getattr(settings, "mfa_enabled", False):
+    from src.domains.auth.totp_router import router as totp_router
+    from src.domains.auth.webauthn_router import router as webauthn_router
+
+    api_router.include_router(webauthn_router)  # Passkeys (security program D1)
+    api_router.include_router(totp_router)  # TOTP second factor (security program D1)
 # ADR-083 Phase 2 cleanup: /sub-agents REST router removed (no frontend
 # consumer; the planner's ephemeral delegation path runs on ReactSubAgentRunner
 # and never touched the REST surface). SUB_AGENTS_ENABLED still gates the

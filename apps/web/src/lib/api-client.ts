@@ -13,6 +13,23 @@ import { API_TIMEOUT_DEFAULT } from '@/lib/constants';
 /**
  * HTTP client error with status code and response data.
  */
+/**
+ * Typed 403 challenge: the endpoint demands a fresh step-up
+ * re-authentication (security program D1, Lot 3). Callers wrap sensitive
+ * mutations with `useStepUpGuard` to open the re-auth dialog and replay.
+ */
+export class ApiStepUpError extends Error {
+  status: number;
+  data?: unknown;
+
+  constructor(data?: unknown) {
+    super('Step-up re-authentication required');
+    this.name = 'ApiStepUpError';
+    this.status = 403;
+    this.data = data;
+  }
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -75,6 +92,18 @@ function getBaseUrl(): string {
   }
 
   return baseUrl;
+}
+
+/**
+ * Absolute URL of an API endpoint, for links the BROWSER follows directly
+ * (top-level download navigations, `<a href>`). Large archives must stream
+ * to disk — never fetch them into a blob. The session cookie rides along on
+ * same-site top-level GETs. Regular data calls keep using the client
+ * methods; a relative `/api/v1/...` href would hit the FRONTEND origin,
+ * which has no such route (found live: the export download 404'd).
+ */
+export function apiEndpointUrl(endpoint: string): string {
+  return `${getBaseUrl()}${endpoint}`;
 }
 
 /**
@@ -158,65 +187,86 @@ export function isPublicPath(pathname: string): boolean {
   return PUBLIC_ROUTE_REGEX.test(pathname) || /^\/([a-z]{2})?\/?$/.test(pathname);
 }
 
+/** Extract the current locale segment from a pathname (e.g. /en/dashboard → 'en'). */
+function currentLangFrom(pathname: string): string | null {
+  const langMatch = pathname.match(/^\/([a-z]{2})\//);
+  return langMatch ? langMatch[1] : null;
+}
+
+/**
+ * Endpoints where a 401 means "the credentials you just submitted were
+ * rejected" (wrong password/code in a step-up challenge), NOT "your session
+ * expired". Their callers show an inline error — ejecting to /login would
+ * destroy the flow on a simple typo.
+ */
+export function isCredentialCheckUrl(url: string): boolean {
+  return url.includes('/auth/step-up/');
+}
+
+/** 401: eject non-public pages to the localized login, then throw. */
+function handleUnauthorized(): never {
+  if (typeof window !== 'undefined') {
+    const pathname = window.location.pathname;
+    if (!isPublicPath(pathname)) {
+      const currentLang = currentLangFrom(pathname);
+      // Redirect to localized login page to preserve user's language
+      window.location.href = currentLang ? `/${currentLang}/login` : '/login';
+    }
+  }
+  throw new ApiError('Unauthorized', 401);
+}
+
+/**
+ * 403: throw the typed step-up challenge (D1 Lot 3) or the inactive-account
+ * error (with its redirect). Unrecognized 403 bodies fall through to the
+ * generic error handling.
+ */
+async function handleForbidden(response: Response): Promise<void> {
+  try {
+    const text = await response.clone().text();
+    const data = text ? JSON.parse(text) : null;
+
+    // Step-up contract: sensitive action needs re-authentication.
+    if (data?.detail?.error === 'step_up_required') {
+      throw new ApiStepUpError(data);
+    }
+
+    if (data?.detail === 'User account is inactive') {
+      if (typeof window !== 'undefined') {
+        const pathname = window.location.pathname;
+        if (!pathname.match(/^\/([a-z]{2}\/)?account-inactive/)) {
+          const currentLang = currentLangFrom(pathname);
+          // Note: /auth/me now returns 200 with is_active=false, so this handler
+          // is only triggered by other endpoints that require active users
+          window.location.href = currentLang
+            ? `/${currentLang}/account-inactive`
+            : '/account-inactive';
+        }
+      }
+      throw new ApiError('User account is inactive', 403, data);
+    }
+  } catch (e) {
+    // Re-throw typed errors (intentional), only catch JSON parsing errors
+    if (e instanceof ApiError || e instanceof ApiStepUpError) {
+      throw e;
+    }
+    // If parsing fails, continue with normal error handling
+  }
+}
+
 /**
  * Handle fetch response and errors.
  */
 async function handleResponse<T>(response: Response): Promise<T> {
-  // Handle 401 Unauthorized - redirect to login
   if (response.status === 401) {
-    if (typeof window !== 'undefined') {
-      const pathname = window.location.pathname;
-
-      if (!isPublicPath(pathname)) {
-        // Extract current language from pathname (e.g., /en/dashboard → 'en')
-        const langMatch = pathname.match(/^\/([a-z]{2})\//);
-        const currentLang = langMatch ? langMatch[1] : null;
-
-        // Redirect to localized login page to preserve user's language
-        // e.g., /en/dashboard → /en/login, /dashboard → /login
-        const loginPath = currentLang ? `/${currentLang}/login` : '/login';
-        window.location.href = loginPath;
-      }
+    if (isCredentialCheckUrl(response.url)) {
+      throw new ApiError('Unauthorized', 401);
     }
-    throw new ApiError('Unauthorized', 401);
+    handleUnauthorized();
   }
 
-  // Handle 403 Forbidden - check if user account is inactive
   if (response.status === 403) {
-    // Try to parse response to check for specific error
-    try {
-      const text = await response.clone().text();
-      const data = text ? JSON.parse(text) : null;
-
-      // Check if this is a user_inactive error
-      if (data?.detail === 'User account is inactive') {
-        if (typeof window !== 'undefined') {
-          const pathname = window.location.pathname;
-          const isAccountInactivePage = pathname.match(/^\/([a-z]{2}\/)?account-inactive/);
-
-          if (!isAccountInactivePage) {
-            // Extract current language from pathname
-            const langMatch = pathname.match(/^\/([a-z]{2})\//);
-            const currentLang = langMatch ? langMatch[1] : null;
-
-            // Redirect to account-inactive page
-            // Note: /auth/me now returns 200 with is_active=false, so this handler
-            // is only triggered by other endpoints that require active users
-            const inactivePath = currentLang
-              ? `/${currentLang}/account-inactive`
-              : '/account-inactive';
-            window.location.href = inactivePath;
-          }
-        }
-        throw new ApiError('User account is inactive', 403, data);
-      }
-    } catch (e) {
-      // Re-throw ApiError (intentional), only catch JSON parsing errors
-      if (e instanceof ApiError) {
-        throw e;
-      }
-      // If parsing fails, continue with normal error handling
-    }
+    await handleForbidden(response);
   }
 
   // Handle 204 No Content (empty response)
@@ -364,7 +414,8 @@ class ApiClient {
  * - credentials: 'include' - Automatically includes HTTP-only cookies
  * - No token management in localStorage (security improvement)
  * - No Authorization headers needed (authentication via cookies)
- * - Sessions auto-refresh on backend, no manual token refresh required
+ * - Fixed-lifetime sessions (7d / 30d remember-me); expiry surfaces as a 401
+ *   handled below — no client-side token refresh machinery
  * - Dual URL support: Client-side uses relative URLs (proxied), Server-side uses Docker service name
  *
  * Security benefits:

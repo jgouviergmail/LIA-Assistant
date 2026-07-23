@@ -27,7 +27,7 @@ class BaseAPIException(HTTPException):
     def __init__(
         self,
         status_code: int,
-        detail: str,
+        detail: str | dict[str, Any],
         log_level: str = "warning",
         log_event: str | None = None,
         headers: dict[str, str] | None = None,
@@ -38,7 +38,9 @@ class BaseAPIException(HTTPException):
 
         Args:
             status_code: HTTP status code
-            detail: Error message (user-facing)
+            detail: Error message (user-facing), or a structured dict for
+                typed contracts the client must distinguish (e.g. the 410
+                tombstone or the step-up 403)
             log_level: Logging level (debug, info, warning, error, critical)
             log_event: Structured log event name (defaults to detail)
             headers: Optional HTTP response headers (e.g. Retry-After,
@@ -49,7 +51,12 @@ class BaseAPIException(HTTPException):
 
         # Automatic structured logging
         log_method = getattr(logger, log_level, logger.warning)
-        log_method(log_event or detail.lower().replace(" ", "_"), **log_context)
+        default_event = (
+            detail.lower().replace(" ", "_")
+            if isinstance(detail, str)
+            else str(detail.get("error", "structured_api_error"))
+        )
+        log_method(log_event or default_event, **log_context)
 
         # METRICS: Track HTTP errors by status code and exception type
         from src.infrastructure.observability.metrics_errors import (

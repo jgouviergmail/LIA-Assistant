@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LIA — offline</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: #fafafa; color: #18181b; text-align: center; padding: 24px;
+  }
+  @media (prefers-color-scheme: dark) { body { background: #09090b; color: #fafafa; } }
+  .card { max-width: 360px; }
+  .logo { width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 16px;
+          background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex;
+          align-items: center; justify-content: center; color: white; font-size: 28px; font-weight: 700; }
+  h1 { font-size: 1.25rem; margin: 0 0 8px; }
+  p { margin: 0 0 20px; color: #71717a; font-size: 0.95rem; }
+  @media (prefers-color-scheme: dark) { p { color: #a1a1aa; } }
+  button {
+    background: #6366f1; color: white; border: 0; border-radius: 10px;
+    padding: 10px 22px; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+  }
+  button:hover { background: #4f46e5; }
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="logo" aria-hidden="true">L</div>
+    <h1 id="t"></h1>
+    <p id="d"></p>
+    <button id="r" onclick="location.reload()"></button>
+  </main>
+  <script>
+    // Inline i18n ×6 — this page is served without the app bundle. Parity
+    // with the app locales is enforced by src/__tests__/service-worker.test.ts.
+    var M = {
+      en: { t: "You are offline", d: "LIA needs a connection. Your data is safe on the server.", r: "Try again" },
+      fr: { t: "Vous êtes hors ligne", d: "LIA a besoin d'une connexion. Vos données sont en sécurité sur le serveur.", r: "Réessayer" },
+      de: { t: "Sie sind offline", d: "LIA benötigt eine Verbindung. Ihre Daten sind sicher auf dem Server.", r: "Erneut versuchen" },
+      es: { t: "Estás sin conexión", d: "LIA necesita conexión. Tus datos están seguros en el servidor.", r: "Reintentar" },
+      it: { t: "Sei offline", d: "LIA ha bisogno di una connessione. I tuoi dati sono al sicuro sul server.", r: "Riprova" },
+      zh: { t: "您已离线", d: "LIA 需要网络连接。您的数据安全地保存在服务器上。", r: "重试" }
+    };
+    var lang = (document.cookie.match(/(?:^|; )i18next=([a-z]{2})/) || [])[1]
+      || (navigator.language || "en").slice(0, 2);
+    var m = M[lang] || M.en;
+    document.documentElement.lang = lang in M ? lang : "en";
+    document.getElementById("t").textContent = m.t;
+    document.getElementById("d").textContent = m.d;
+    document.getElementById("r").textContent = m.r;
+  </script>
+</body>
+</html>

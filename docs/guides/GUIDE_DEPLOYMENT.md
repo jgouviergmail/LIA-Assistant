@@ -135,6 +135,33 @@ le firewall) — un port publié en `0.0.0.0` est joignable depuis le LAN même
 si ufw le refuse. Détails, tunnels SSH et règle `DOCKER-USER` :
 [infrastructure/README.md](../../infrastructure/README.md).
 
+### WebAuthn / Passkeys en production (activation de MFA_ENABLED)
+
+Chromium refuse toute cérémonie WebAuthn sur un certificat TLS non approuvé.
+En production **aucune manipulation de certificat n'est nécessaire** : le TLS
+public est terminé par Cloudflare avec un certificat valide sur le domaine du
+front (`FRONTEND_URL`) — vérifiable par `curl -sI https://<front> -w
+"%{ssl_verify_result}"` qui doit répondre `0` (sans `-k`).
+
+Checklist d'activation post-release (les flags livrés `false` par défaut) :
+
+1. `MFA_ENABLED=true` (et `ACCOUNT_EXPORT_ENABLED=true` pour l'export) dans le
+   `.env` prod, puis recréation des conteneurs (`restart` ne recharge pas
+   l'env compose).
+2. `WEBAUTHN_RP_ID` / `WEBAUTHN_EXPECTED_ORIGIN` restent **vides** : le rpId
+   se dérive du hostname de `FRONTEND_URL` et l'origin attendu de
+   `FRONTEND_URL` — correct avec un front et une API sur des domaines
+   distincts (la cérémonie s'exécute sur l'origin du front). Ne les poser
+   que pour un override délibéré, et **jamais de commentaire inline sur une
+   variable vide** (garde CI `test_env_example_inline_comment_guard.py` ; le
+   validator `MFASettings` refuse de booter sur une valeur polluée).
+3. Smoke : `GET /auth/features` → `{"mfa_enabled": true}`, puis un
+   enrôlement passkey réel de bout en bout depuis le domaine public.
+
+Seul le contexte **dev** (certificat self-signed) exige d'approuver le
+certificat : `task dev:trust-cert` (voir GETTING_STARTED, « WebAuthn /
+Passkeys in Development »).
+
 ### Environnements
 
 1. **Development** : local laptop, Docker Compose

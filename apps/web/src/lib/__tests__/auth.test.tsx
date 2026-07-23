@@ -149,6 +149,8 @@ describe('AuthProvider — signing in', () => {
       email: 'user@test.dev',
       password: 'Sup3rSecret!!',
       remember_me: true,
+      // A4: no push permission granted in jsdom → attestation token absent.
+      fcm_token: null,
     });
     expect(identity(rendered)).toBe('user@test.dev');
   });

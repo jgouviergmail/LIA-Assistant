@@ -24,6 +24,7 @@ from src.core.constants import (
     SUPPORTED_LANGUAGES,
 )
 
+from .account_export import AccountExportSettings
 from .advanced import AdvancedSettings
 from .agents import AgentsSettings
 from .attachments import AttachmentsSettings
@@ -46,6 +47,7 @@ from .llm import (
 )
 from .locks import LocksSettings
 from .mcp import MCPSettings
+from .mfa import MFASettings
 from .notifications import NotificationSettings
 from .observability import ObservabilitySettings
 from .open_loops import OpenLoopsSettings
@@ -112,6 +114,8 @@ class Settings(
     LocksSettings,
     BackgroundRunsSettings,
     TelephonySettings,
+    MFASettings,
+    AccountExportSettings,
     BaseSettings,
 ):
     """
@@ -142,7 +146,9 @@ class Settings(
         20. HealthMetricsSettings (iPhone Shortcuts health metrics ingestion + visualization)
         21. SchedulerSettings (Background job scheduling, scheduled-actions executor)
         22. LocksSettings (Distributed locks: OAuth refresh)
-        23. BaseSettings (Pydantic base class)
+        23. MFASettings (Strong authentication: WebAuthn passkeys, TOTP)
+        24. AccountExportSettings (GDPR full-account export jobs)
+        25. BaseSettings (Pydantic base class)
 
     All settings can be overridden via .env file or environment variables.
     """
@@ -382,4 +388,6 @@ __all__ = [
     "HealthMetricsSettings",
     "SchedulerSettings",
     "LocksSettings",
+    "MFASettings",
+    "AccountExportSettings",
 ]

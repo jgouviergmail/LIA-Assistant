@@ -84,6 +84,9 @@ def create_mock_user(
         image_generation_default_size="portrait",
         image_generation_output_format="png",
         execution_mode="pipeline",
+        # Transient instances never flush, so the column default doesn't
+        # apply; UserProfile's strict bool rejects the resulting None.
+        login_notifications_enabled=True,
     )
     return user
 
@@ -1124,8 +1127,9 @@ class TestDeleteUserGDPR:
     """Test delete_user_gdpr method (GDPR compliance)."""
 
     @pytest.mark.asyncio
+    @patch("src.domains.users.service.SessionStore")
     @patch("src.domains.users.service.get_redis_session")
-    async def test_delete_user_gdpr_success(self, mock_get_redis):
+    async def test_delete_user_gdpr_success(self, mock_get_redis, mock_store_cls):
         """Test GDPR deletion with full cascade."""
         # Arrange
         mock_db = MagicMock(spec=AsyncSession)
@@ -1142,10 +1146,11 @@ class TestDeleteUserGDPR:
         service.repository.create_audit_log = AsyncMock()
         service.repository.hard_delete = AsyncMock()
 
-        # Mock Redis for session invalidation
-        mock_redis = AsyncMock()
-        mock_redis.scan = AsyncMock(return_value=(0, []))
-        mock_get_redis.return_value = mock_redis
+        # Mock session invalidation at the SessionStore boundary
+        mock_get_redis.return_value = AsyncMock()
+        mock_store = MagicMock()
+        mock_store.delete_all_user_sessions = AsyncMock(return_value=0)
+        mock_store_cls.return_value = mock_store
 
         # Act
         await service.delete_user_gdpr(user_id, admin_user_id, request=None)
@@ -1200,9 +1205,10 @@ class TestDeleteUserGDPR:
         assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
+    @patch("src.domains.users.service.SessionStore")
     @patch("src.domains.users.service.get_redis_session")
-    async def test_delete_user_gdpr_invalidates_sessions(self, mock_get_redis):
-        """Test GDPR deletion invalidates all user sessions."""
+    async def test_delete_user_gdpr_invalidates_sessions(self, mock_get_redis, mock_store_cls):
+        """Test GDPR deletion invalidates all user sessions via SessionStore."""
         # Arrange
         mock_db = MagicMock(spec=AsyncSession)
         mock_db.commit = AsyncMock()
@@ -1218,28 +1224,21 @@ class TestDeleteUserGDPR:
         service.repository.create_audit_log = AsyncMock()
         service.repository.hard_delete = AsyncMock()
 
-        # Mock Redis session invalidation
-        mock_redis = AsyncMock()
-        mock_redis.scan = AsyncMock(return_value=(0, [b"session:123"]))
-        mock_redis.type = AsyncMock(return_value="string")
-        mock_redis.get = AsyncMock(return_value='{"user_id": "' + str(user_id) + '"}')
-        mock_redis.pipeline = MagicMock()
-        mock_pipeline = AsyncMock()
-        mock_pipeline.delete = MagicMock()
-        mock_pipeline.execute = AsyncMock(return_value=[1])
-        mock_redis.pipeline.return_value = mock_pipeline
-        mock_get_redis.return_value = mock_redis
+        mock_get_redis.return_value = AsyncMock()
+        mock_store = MagicMock()
+        mock_store.delete_all_user_sessions = AsyncMock(return_value=1)
+        mock_store_cls.return_value = mock_store
 
         # Act
         await service.delete_user_gdpr(user_id, admin_user_id, request=None)
 
-        # Assert - Verify session invalidation was called
-        mock_redis.scan.assert_awaited()
-        mock_pipeline.execute.assert_awaited_once()
+        # Assert - Verify session invalidation delegated to the indexed store
+        mock_store.delete_all_user_sessions.assert_awaited_once_with(str(user_id))
 
     @pytest.mark.asyncio
+    @patch("src.domains.users.service.SessionStore")
     @patch("src.domains.users.service.get_redis_session")
-    async def test_delete_user_gdpr_creates_audit_log(self, mock_get_redis):
+    async def test_delete_user_gdpr_creates_audit_log(self, mock_get_redis, mock_store_cls):
         """Test GDPR deletion creates detailed audit log."""
         # Arrange
         mock_db = MagicMock(spec=AsyncSession)
@@ -1262,10 +1261,10 @@ class TestDeleteUserGDPR:
         service.repository.create_audit_log = AsyncMock()
         service.repository.hard_delete = AsyncMock()
 
-        # Mock Redis
-        mock_redis = AsyncMock()
-        mock_redis.scan = AsyncMock(return_value=(0, []))
-        mock_get_redis.return_value = mock_redis
+        mock_get_redis.return_value = AsyncMock()
+        mock_store = MagicMock()
+        mock_store.delete_all_user_sessions = AsyncMock(return_value=0)
+        mock_store_cls.return_value = mock_store
 
         # Act
         await service.delete_user_gdpr(user_id, admin_user_id, request=None)
@@ -1285,8 +1284,9 @@ class TestDeleteUserGDPR:
         assert details["was_active"] is True
 
     @pytest.mark.asyncio
+    @patch("src.domains.users.service.SessionStore")
     @patch("src.domains.users.service.get_redis_session")
-    async def test_delete_user_gdpr_counts_connectors(self, mock_get_redis):
+    async def test_delete_user_gdpr_counts_connectors(self, mock_get_redis, mock_store_cls):
         """Test GDPR deletion counts connectors before deletion."""
         # Arrange
         mock_db = MagicMock(spec=AsyncSession)
@@ -1303,10 +1303,10 @@ class TestDeleteUserGDPR:
         service.repository.create_audit_log = AsyncMock()
         service.repository.hard_delete = AsyncMock()
 
-        # Mock Redis
-        mock_redis = AsyncMock()
-        mock_redis.scan = AsyncMock(return_value=(0, []))
-        mock_get_redis.return_value = mock_redis
+        mock_get_redis.return_value = AsyncMock()
+        mock_store = MagicMock()
+        mock_store.delete_all_user_sessions = AsyncMock(return_value=0)
+        mock_store_cls.return_value = mock_store
 
         # Act
         await service.delete_user_gdpr(user_id, admin_user_id, request=None)
@@ -1318,136 +1318,59 @@ class TestDeleteUserGDPR:
 
 
 class TestInvalidateAllUserSessions:
-    """Test _invalidate_all_user_sessions method (Redis operations)."""
+    """_invalidate_all_user_sessions delegates to the indexed SessionStore.
+
+    The former O(N) SCAN implementation was consolidated into
+    SessionStore.delete_all_user_sessions (security program Lot 0, fact F5);
+    SCAN-behavior tests moved with it (see tests/unit/test_session_store.py).
+    """
 
     @pytest.mark.asyncio
+    @patch("src.domains.users.service.SessionStore")
     @patch("src.domains.users.service.get_redis_session")
-    async def test_invalidate_all_user_sessions_single_session(self, mock_get_redis):
-        """Test invalidating a single user session."""
-        # Arrange
+    async def test_delegates_to_session_store(self, mock_get_redis, mock_store_cls):
+        """Delegates to SessionStore.delete_all_user_sessions with str(user_id)."""
+        mock_db = MagicMock(spec=AsyncSession)
+        service = UserService(mock_db)
+        user_id = uuid.uuid4()
+
+        mock_redis = AsyncMock()
+        mock_get_redis.return_value = mock_redis
+        mock_store = MagicMock()
+        mock_store.delete_all_user_sessions = AsyncMock(return_value=3)
+        mock_store_cls.return_value = mock_store
+
+        await service._invalidate_all_user_sessions(user_id)
+
+        mock_store_cls.assert_called_once_with(mock_redis)
+        mock_store.delete_all_user_sessions.assert_awaited_once_with(str(user_id))
+
+    @pytest.mark.asyncio
+    @patch("src.domains.users.service.SessionStore")
+    @patch("src.domains.users.service.get_redis_session")
+    async def test_store_error_is_swallowed_and_logged(self, mock_get_redis, mock_store_cls):
+        """Best-effort semantics: a Redis failure never blocks the caller."""
         mock_db = MagicMock(spec=AsyncSession)
         service = UserService(mock_db)
 
-        user_id = uuid.uuid4()
+        mock_get_redis.return_value = AsyncMock()
+        mock_store = MagicMock()
+        mock_store.delete_all_user_sessions = AsyncMock(
+            side_effect=Exception("Redis connection failed")
+        )
+        mock_store_cls.return_value = mock_store
 
-        # Mock Redis
-        mock_redis = AsyncMock()
-        mock_redis.scan = AsyncMock(return_value=(0, [b"session:abc123"]))
-        mock_redis.type = AsyncMock(return_value="string")
-        mock_redis.get = AsyncMock(return_value='{"user_id": "' + str(user_id) + '"}')
-        mock_redis.pipeline = MagicMock()
-        mock_pipeline = AsyncMock()
-        mock_pipeline.delete = MagicMock()
-        mock_pipeline.execute = AsyncMock(return_value=[1])
-        mock_redis.pipeline.return_value = mock_pipeline
-        mock_get_redis.return_value = mock_redis
+        # Must not raise — deactivation/deletion flows treat this as best-effort.
+        await service._invalidate_all_user_sessions(uuid.uuid4())
 
-        # Act
-        await service._invalidate_all_user_sessions(user_id)
-
-        # Assert
-        mock_redis.scan.assert_awaited_once()
-        mock_pipeline.delete.assert_called_once_with(b"session:abc123")
-        mock_pipeline.execute.assert_awaited_once()
+        mock_store.delete_all_user_sessions.assert_awaited_once()
 
     @pytest.mark.asyncio
     @patch("src.domains.users.service.get_redis_session")
-    async def test_invalidate_all_user_sessions_multiple_sessions(self, mock_get_redis):
-        """Test invalidating multiple user sessions."""
-        # Arrange
+    async def test_redis_acquisition_error_is_swallowed(self, mock_get_redis):
+        """A failure to even reach Redis is also swallowed."""
         mock_db = MagicMock(spec=AsyncSession)
         service = UserService(mock_db)
+        mock_get_redis.side_effect = Exception("Redis down")
 
-        user_id = uuid.uuid4()
-
-        # Mock Redis with 2 sessions
-        mock_redis = AsyncMock()
-        mock_redis.scan = AsyncMock(return_value=(0, [b"session:abc123", b"session:def456"]))
-        mock_redis.type = AsyncMock(return_value="string")
-        mock_redis.get = AsyncMock(return_value='{"user_id": "' + str(user_id) + '"}')
-        mock_redis.pipeline = MagicMock()
-        mock_pipeline = AsyncMock()
-        mock_pipeline.delete = MagicMock()
-        mock_pipeline.execute = AsyncMock(return_value=[1, 1])
-        mock_redis.pipeline.return_value = mock_pipeline
-        mock_get_redis.return_value = mock_redis
-
-        # Act
-        await service._invalidate_all_user_sessions(user_id)
-
-        # Assert
-        assert mock_pipeline.delete.call_count == 2
-        mock_pipeline.execute.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    @patch("src.domains.users.service.get_redis_session")
-    async def test_invalidate_all_user_sessions_no_sessions(self, mock_get_redis):
-        """Test invalidating when user has no sessions."""
-        # Arrange
-        mock_db = MagicMock(spec=AsyncSession)
-        service = UserService(mock_db)
-
-        user_id = uuid.uuid4()
-
-        # Mock Redis with no matching sessions
-        mock_redis = AsyncMock()
-        mock_redis.scan = AsyncMock(return_value=(0, []))
-        mock_get_redis.return_value = mock_redis
-
-        # Act
-        await service._invalidate_all_user_sessions(user_id)
-
-        # Assert - Should not error, pipeline not executed
-        mock_redis.scan.assert_awaited_once()
-        # Pipeline should not be created if no keys
-        mock_redis.pipeline.assert_not_called()
-
-    @pytest.mark.asyncio
-    @patch("src.domains.users.service.get_redis_session")
-    async def test_invalidate_all_user_sessions_redis_error_handled(self, mock_get_redis):
-        """Test Redis errors are caught and logged."""
-        # Arrange
-        mock_db = MagicMock(spec=AsyncSession)
-        service = UserService(mock_db)
-
-        user_id = uuid.uuid4()
-
-        # Mock Redis to raise exception
-        mock_redis = AsyncMock()
-        mock_redis.scan = AsyncMock(side_effect=Exception("Redis connection failed"))
-        mock_get_redis.return_value = mock_redis
-
-        # Act - Should not raise, errors are logged
-        await service._invalidate_all_user_sessions(user_id)
-
-        # Assert
-        mock_redis.scan.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    @patch("src.domains.users.service.get_redis_session")
-    async def test_invalidate_all_user_sessions_skip_non_string_keys(self, mock_get_redis):
-        """Test skipping non-string Redis keys (e.g., SETs)."""
-        # Arrange
-        mock_db = MagicMock(spec=AsyncSession)
-        service = UserService(mock_db)
-
-        user_id = uuid.uuid4()
-
-        # Mock Redis with mixed key types
-        mock_redis = AsyncMock()
-        mock_redis.scan = AsyncMock(return_value=(0, [b"session:abc123", b"session:user_tokens"]))
-        # First key is string, second is set
-        mock_redis.type = AsyncMock(side_effect=["string", "set"])
-        mock_redis.get = AsyncMock(return_value='{"user_id": "' + str(user_id) + '"}')
-        mock_redis.pipeline = MagicMock()
-        mock_pipeline = AsyncMock()
-        mock_pipeline.delete = MagicMock()
-        mock_pipeline.execute = AsyncMock(return_value=[1])
-        mock_redis.pipeline.return_value = mock_pipeline
-        mock_get_redis.return_value = mock_redis
-
-        # Act
-        await service._invalidate_all_user_sessions(user_id)
-
-        # Assert - Only 1 key deleted (the string key)
-        mock_pipeline.delete.assert_called_once_with(b"session:abc123")
+        await service._invalidate_all_user_sessions(uuid.uuid4())

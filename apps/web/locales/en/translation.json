@@ -495,6 +495,32 @@
       "back_to_login": "Back to login",
       "error_mismatch": "Passwords do not match.",
       "error_invalid_token": "The reset link is invalid or has expired."
+    },
+    "passkey": {
+      "login_button": "Sign in with a passkey",
+      "login_pending": "Waiting for your passkey…",
+      "login_error": "Passkey sign-in failed. Please try again."
+    },
+    "mfa": {
+      "prompt": "Enter the 6-digit code from your authenticator app, or one of your backup codes.",
+      "code_label": "Verification code",
+      "code_placeholder": "123456",
+      "verify_button": "Verify",
+      "back_to_login": "Back to login",
+      "invalid_code": "Invalid or expired code. Please sign in again."
+    },
+    "stepUp": {
+      "title": "Confirm it is you",
+      "description": "This sensitive action requires a recent re-authentication (valid a few minutes).",
+      "error": "Verification failed. Please try again.",
+      "passkey_button": "Use a passkey",
+      "password_label": "Password",
+      "password_submit": "Verify with password",
+      "totp_label": "Authenticator code or backup code",
+      "totp_submit": "Verify with code",
+      "oauth_google_button": "Confirm with Google",
+      "oauth_hint": "You will be redirected to Google to confirm your identity, then brought back to LIA — restart the action afterwards.",
+      "no_methods": "No confirmation method is available for this account. Sign out and back in, then try again."
     }
   },
   "account_inactive": {
@@ -875,7 +901,8 @@
       "users_access": "Users & Access",
       "ai_connectors": "AI & Connectors",
       "content_extensions": "Content & Extensions",
-      "system": "System"
+      "system": "System",
+      "security": "Security"
     },
     "theme": {
       "title": "Appearance",
@@ -2661,6 +2688,123 @@
       "relaunch_label": "Follow up",
       "dismiss": "Dismiss “{{subject}}” (no longer relevant)",
       "dismiss_label": "No longer relevant"
+    },
+    "security": {
+      "passkeys": {
+        "title": "Passkeys",
+        "description": "Sign in with Face ID, fingerprint or your device PIN. Passkeys are phishing-resistant and never leave your device.",
+        "add": "Add a passkey",
+        "add_title": "Add a passkey",
+        "add_description": "Give this passkey a name, then follow your browser's instructions.",
+        "label_input": "Name",
+        "label_placeholder": "iPhone, Work laptop…",
+        "add_confirm": "Continue",
+        "add_pending": "Follow your browser…",
+        "added": "Passkey added",
+        "add_error": "Could not add the passkey. Please try again.",
+        "empty": "No passkeys yet. Add one to sign in with Face ID or fingerprint.",
+        "unnamed": "Unnamed passkey",
+        "synced": "Synced",
+        "created_at": "Added {{date}}",
+        "last_used": "last used {{date}}",
+        "rename_title": "Rename passkey",
+        "renamed": "Passkey renamed",
+        "rename_error": "Could not rename the passkey.",
+        "rename_aria": "Rename passkey {{name}}",
+        "revoke_title": "Revoke this passkey?",
+        "revoke_description": "\"{{name}}\" will no longer allow signing in to your account. Also remove it from your device password manager.",
+        "revoke_confirm": "Revoke",
+        "revoked": "Passkey revoked",
+        "revoke_error": "Could not revoke the passkey.",
+        "revoke_aria": "Revoke passkey {{name}}",
+        "unsupported_browser": "This browser does not support passkeys."
+      },
+      "totp": {
+        "title": "Authenticator app (TOTP)",
+        "description": "Adds a second step to password sign-in: a 6-digit code from an authenticator app (Google Authenticator, 1Password, Aegis…).",
+        "status_active": "Enabled",
+        "codes_remaining": "Backup codes remaining: {{count}}",
+        "enable": "Enable",
+        "disable": "Disable",
+        "regenerate": "Regenerate backup codes",
+        "enroll_title": "Set up your authenticator app",
+        "enroll_description": "Scan the QR code with your authenticator app (or enter the secret manually), then type the 6-digit code it shows.",
+        "qr_alt": "TOTP enrollment QR code",
+        "enroll_secret_label": "Manual entry secret",
+        "enroll_code_label": "Code from the app",
+        "enroll_code_placeholder": "123456",
+        "enroll_confirm": "Activate",
+        "enroll_error": "Invalid code. Check your app and try again.",
+        "activated": "Two-step sign-in enabled",
+        "backup_title": "Your backup codes",
+        "backup_description": "Each code works once if you lose access to your authenticator app. They are shown only this once — store them safely.",
+        "backup_copy": "Copy codes",
+        "backup_copied": "Backup codes copied",
+        "backup_done": "I stored them",
+        "disable_title": "Disable two-step sign-in?",
+        "disable_description": "Password sign-in will no longer require a code, and your backup codes will be invalidated.",
+        "disable_confirm": "Disable",
+        "disabled_toast": "Two-step sign-in disabled",
+        "regenerate_title": "Regenerate backup codes?",
+        "regenerate_description": "Your current backup codes will stop working. A new set will be shown once.",
+        "regenerated": "New backup codes generated",
+        "error_generic": "Something went wrong. Please try again."
+      },
+      "password": {
+        "title": "Password sign-in",
+        "description_enabled": "Your account can sign in with a password. With at least 2 passkeys you can disable it entirely.",
+        "description_disabled": "Password sign-in is disabled. Email password-reset remains available as the recovery path.",
+        "requirement_hint": "Requires at least 2 active passkeys.",
+        "disable": "Disable password sign-in",
+        "disable_title": "Disable password sign-in?",
+        "disable_description": "Only your passkeys will allow signing in. Email password-reset remains available as a recovery path.",
+        "disable_confirm": "Disable",
+        "disabled_toast": "Password sign-in disabled",
+        "error_generic": "Something went wrong. Please try again."
+      },
+      "devices": {
+        "title": "My devices",
+        "description": "Every session currently signed in to your account.",
+        "unknown_device": "Unknown device",
+        "current": "This device",
+        "ip": "IP {{ip}}",
+        "signed_in": "signed in {{date}}",
+        "last_seen": "active {{date}}",
+        "revoke_aria": "Sign out {{name}}",
+        "revoke_title": "Sign out this device?",
+        "revoke_description": "\"{{name}}\" will be signed out immediately. Its next request will require signing in again.",
+        "revoke_confirm": "Sign out",
+        "revoked": "Device signed out",
+        "revoke_others": "Sign out other devices",
+        "revoke_others_title": "Sign out every other device?",
+        "revoke_others_description": "All sessions except this one will be revoked. Background tasks already running continue server-side.",
+        "revoke_others_confirm": "Sign out all others",
+        "others_revoked": "{{count}} device(s) signed out",
+        "background_runs_note": "Note: revoking a device stops its access immediately; tasks already running in the background finish server-side.",
+        "error_generic": "Something went wrong. Please try again.",
+        "notify_title": "New sign-in alerts",
+        "notify_description": "Notify my devices when the account signs in from an unrecognized device."
+      },
+      "export": {
+        "title": "Export my data",
+        "description": "Download a complete archive of your data (conversations, memories, journal, health, settings…) — JSON plus readable Markdown, files included.",
+        "request": "Request an export",
+        "in_progress": "Export in progress…",
+        "requested": "Export queued — you will be notified when it is ready",
+        "download": "Download the archive",
+        "status_pending": "Queued",
+        "status_running": "Building",
+        "status_done": "Ready",
+        "status_failed": "Failed",
+        "status_expired": "Expired",
+        "too_large": "The archive exceeds the size cap. Contact support or reduce stored files.",
+        "failed_hint": "The export failed. Please try again.",
+        "error_generic": "Something went wrong. Please try again."
+      },
+      "auth": {
+        "title": "Strong authentication",
+        "description": "Passkeys, authenticator app and password sign-in."
+      }
     }
   },
   "spaces": {
@@ -3250,6 +3394,21 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_17": {
+          "title": "v1.25.17 — 🔐 Your account grows a spine",
+          "date": "July 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>🔑 Passkeys</b> — sign in with Face ID, your fingerprint or your device code. Phishing-resistant, nothing to remember (Settings > Security).",
+            "i2": "<b>📱 Authenticator app (TOTP)</b> — add a 6-digit second step to password sign-in, with 10 single-use backup codes shown exactly once.",
+            "i3": "<b>🛡️ Identity confirmation</b> — sensitive actions (managing passkeys, exporting your data, signing out other devices) ask you to re-confirm who you are. Right after signing in, nothing to confirm for 5 minutes.",
+            "i4": "<b>💻 My devices</b> — see every session connected to your account (browser, system, approximate IP) and sign out one device or all the others.",
+            "i5": "<b>🔔 New sign-in alerts</b> — a push notification warns your devices when your account signs in from an unrecognized device. Can be turned off in My devices.",
+            "i6": "<b>📦 Export my data</b> — request a complete archive of your data (readable Markdown + JSON + your files); a notification tells you when it is ready to download.",
+            "i7": "<b>📴 Offline mode</b> — LIA now shows a proper offline page and loads faster thanks to smart caching. Your data is never cached on disk.",
+            "i8": "<b>🎨 Reorganized Security settings</b> — Strong authentication, My devices and Export my data are now three clean collapsible sections."
+          }
+        },
         "v1_25_16": {
           "title": "v1.25.16 — ✨ The conversation grows up",
           "date": "July 2026",
@@ -4558,7 +4717,7 @@
           },
           "q8": {
             "question": "Can I install LIA like an app on my phone or computer? (v1.25.16)",
-            "answer": "<p>Yes. LIA is a <strong>PWA</strong>: on Android/desktop Chrome, use « Install » (LIA suggests it discreetly after a few visits); on iOS Safari, « Share → Add to Home Screen ». You get a home-screen icon, shortcuts (chat, briefing) and — once installed — the system <strong>share menu</strong> can send text or links straight into a LIA chat draft. Everything is localized in the 6 languages.</p>"
+            "answer": "<p>Yes. LIA is a <strong>PWA</strong>: on Android/desktop Chrome, use « Install » (LIA suggests it discreetly after a few visits); on iOS Safari, « Share → Add to Home Screen ». You get a home-screen icon, shortcuts (chat, briefing) and — once installed — the system <strong>share menu</strong> can send text or links straight into a LIA chat draft. Everything is localized in the 6 languages. Since the unified service worker landed, LIA also shows a proper branded page when you are offline and loads faster thanks to smart asset caching — your personal data is never cached on disk.</p>"
           }
         }
       },
@@ -5350,7 +5509,7 @@
       "privacy": {
         "title": "Security and Privacy",
         "description": "Protecting your data",
-        "count": "6",
+        "count": "11",
         "questions": {
           "q1": {
             "question": "Are my conversations private?",
@@ -5375,6 +5534,26 @@
           "q6": {
             "question": "Do external services see my data?",
             "answer": "Understand the <strong>data flow</strong>:<br><br><strong>🔄 Google Services:</strong><br>• Your data stays with Google<br>• LIA queries Google via their official APIs<br>• Google sees the requests (like in their app)<br>• Google's privacy policy applies<br><br><strong>🌤️ OpenWeatherMap:</strong><br>• Only receives the requested city name<br>• No personal data transmitted<br><br><strong>📚 Wikipedia:</strong><br>• Only receives the search query<br>• Public service, no tracking<br><br><strong>🔍 Perplexity:</strong><br>• Receives your search question<br>• Perplexity's privacy policy applies<br><br><strong>💡 General principle:</strong><br>LIA transmits the minimum information necessary to each service. Your personal data is never shared unnecessarily."
+          },
+          "q7": {
+            "question": "What are passkeys and how do I enable them?",
+            "answer": "A <strong>passkey</strong> lets you sign in with <strong>Face ID, your fingerprint or your device code</strong> — no password typed, nothing to remember.<br><br><strong>🔑 Why it is safer:</strong><br>• Phishing-resistant: a passkey only works on the real LIA site<br>• The secret key never leaves your device<br>• A leaked password becomes useless to an attacker<br><br><strong>⚙️ How to enable:</strong><br>1. Go to <strong>Settings > Security > Strong authentication</strong><br>2. Click <strong>Add a passkey</strong> and follow your browser (Windows Hello, Face ID, Android…)<br>3. Optionally name it (\"iPhone\", \"Work PC\") and add one per device<br><br>On the login page, your browser will then offer the passkey directly in the email field (or use the \"Sign in with a passkey\" button)."
+          },
+          "q8": {
+            "question": "How do I add a second verification step (TOTP)?",
+            "answer": "The <strong>authenticator app</strong> adds a 6-digit code as a second step to password sign-in.<br><br><strong>⚙️ Setup:</strong><br>1. <strong>Settings > Security > Authenticator app (TOTP)</strong> → Enable<br>2. Scan the QR code with Google Authenticator, 1Password, Aegis…<br>3. Enter the 6-digit code shown by the app<br><br><strong>🔒 Backup codes:</strong> 10 single-use codes are shown <strong>exactly once</strong> — store them safely; each one replaces the app code if you lose your phone. You can regenerate a fresh set at any time (the old set is invalidated).<br><br>Signing in then takes two steps: password, then the current code from your app."
+          },
+          "q9": {
+            "question": "Why does LIA sometimes ask me to confirm my identity?",
+            "answer": "Sensitive actions are protected by an <strong>identity confirmation</strong> (a \"step-up\"):<br><br><strong>🛡️ Protected actions:</strong><br>• Managing passkeys and the authenticator app<br>• Exporting your data<br>• Signing out all other devices<br>• Disabling password sign-in<br><br><strong>⏱️ How it behaves:</strong><br>• Right after signing in, nothing is asked for 5 minutes<br>• Afterwards, one quick confirmation (password, code, passkey — or a fresh Google sign-in for Google accounts) re-opens the window<br><br>The point: even if someone borrows your open session, they cannot quietly lock you out or walk away with your data."
+          },
+          "q10": {
+            "question": "How do I see and disconnect the devices connected to my account?",
+            "answer": "<strong>Settings > Security > My devices</strong> lists every live session of your account.<br><br><strong>💻 What you see:</strong><br>• Browser and system families (e.g. \"chrome · windows\") — never the full technical detail<br>• A truncated IP (e.g. 192.168.1.x) and coarse last-activity time<br>• The device name when it is registered for push notifications<br><br><strong>🔌 What you can do:</strong><br>• Sign out one device — it loses access immediately, even mid-conversation<br>• Sign out all other devices (asks for an identity confirmation)<br><br><strong>🔔 New sign-in alerts:</strong> your devices receive a push notification when the account signs in from an unrecognized device — the toggle to turn it off is in the same section."
+          },
+          "q11": {
+            "question": "How do I export all my data (GDPR)?",
+            "answer": "You can download a <strong>complete archive of your data</strong> at any time (GDPR right to portability).<br><br><strong>📦 What the archive contains:</strong><br>• Your profile and settings<br>• Conversations, memories, journal — as readable <strong>Markdown</strong> AND structured <strong>JSON</strong><br>• Your uploaded files (attachments, knowledge-space documents)<br><br><strong>🚫 What it never contains:</strong> connector credentials, security keys, push tokens — secret material is unexportable by design.<br><br><strong>⚙️ How:</strong> <strong>Settings > Security > Export my data</strong> → Request an export → a push notification tells you when the ZIP is ready (downloadable for 24 h)."
           }
         }
       },
@@ -6640,11 +6819,11 @@
       "privacy_link": "Read our privacy policy",
       "data_control": {
         "title": "Data control",
-        "description": "Your data stays private. No sharing with third parties, isolated sessions, access strictly limited to what's necessary. Backed up automatically every day, with a tested restore procedure."
+        "description": "Your data stays private. No third-party sharing, isolated sessions, access strictly limited to what is needed. \"My devices\" shows every live session and revokes any of them instantly. Automatic daily backups with a tested restore procedure."
       },
       "bff": {
         "title": "Secure architecture",
-        "description": "BFF pattern with HTTP-only cookies, Redis sessions, tokens never exposed to the frontend. Strict Content-Security-Policy and OWASP Top 10 protection."
+        "description": "BFF pattern with HTTP-only cookies, Redis sessions, tokens never exposed to the frontend. WebAuthn passkeys and TOTP second factor; sensitive actions are guarded by step-up re-authentication. Strict Content-Security-Policy and OWASP Top 10 protection."
       },
       "encryption": {
         "title": "Encryption",
@@ -6652,7 +6831,7 @@
       },
       "gdpr": {
         "title": "GDPR compliant",
-        "description": "Automatic PII filtering, pseudonymization, data minimization. Compliant with European regulations."
+        "description": "Automatic PII filtering, pseudonymization, data minimization. Full-account export — readable Markdown, structured JSON and your files — with secret material unexportable by construction. European regulations respected."
       }
     },
     "tech": {
@@ -6682,7 +6861,7 @@
       },
       "stack": {
         "title": "Modern stack",
-        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. Strict TypeScript on the frontend, async Python on the backend. Installable PWA: 6 localized manifests, OS share into the chat."
+        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. Strict TypeScript on the frontend, async Python on the backend. Installable PWA: 6 localized manifests, OS share into chat, offline page and smart asset caching — API responses are never cached."
       },
       "telephony": {
         "title": "Agentic telephony",
@@ -7295,7 +7474,7 @@
       "security-architecture": {
         "title": "Defense in Depth: LIA's 5 Security Principles",
         "excerpt": "Defense in depth, least privilege, rate limiting, encryption, and validation: discover how LIA protects your data at every layer.",
-        "body": "<h2>5 fundamental principles</h2><p>LIA's security rests on five principles applied at every application layer:</p><ul><li><strong>Defense in depth</strong> — Multi-layer controls (authentication, rate limiting, validation, encryption)</li><li><strong>Least privilege</strong> — Minimal permissions by default</li><li><strong>Fail securely</strong> — On error, the system denies rather than allows</li><li><strong>Don't trust input</strong> — Pydantic validation + systematic sanitization</li><li><strong>Security by default</strong> — HTTPS, HttpOnly/SameSite cookies, strict CORS</li></ul><h2>Hashing and encryption</h2><p>Passwords are hashed with <strong>bcrypt</strong> (with automatic salt). Sensitive data (OAuth tokens, connector credentials, PII, MCP server credentials) is encrypted with <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), ensuring confidentiality and integrity. Encryption keys are managed separately from data.</p><h2>JWT and session management</h2><p>JWT tokens use the HS256 algorithm with a JTI (JWT ID) blacklist system in Redis. Single-use tokens (email verification, password reset) are invalidated after first use. This mechanism prevents any reuse of sensitive tokens.</p><h2>Configurable rate limiting</h2><p>Rate limiting operates at two levels:</p><ul><li><strong>HTTP</strong> — Via nginx upstream</li><li><strong>Tools</strong> — Per-user, per-tool sliding window with settings-driven thresholds, covering every paid external API (image generation, web search, browser, DevOps CLI)</li><li><strong>External connectors</strong> — Distributed Redis sliding window shared across instances (Google, Apple, API-key providers)</li></ul><p>API limits are strict: 10 items maximum per request, with per-domain defaults (10 by default, 50 maximum).</p><h2>Rendering &amp; network hardening</h2><p>The chat renders LLM output — which can relay third-party HTML (email bodies, fetched pages, tool results) — through a strict sanitization boundary (<code>rehype-sanitize</code> with an audited schema): <code>&lt;script&gt;</code>, <code>&lt;iframe&gt;</code>, <code>&lt;form&gt;</code> and event handlers are dropped, while legitimate cards, buttons and math survive. Interactive MCP/Skill apps never go through markdown — they mount only inside a sandboxed iframe widget. On the network side, the production API sits behind Cloudflare as the single entry point, with the container ports loopback-bound and uvicorn trusting only the reverse-proxy headers, so <code>request.client.host</code> is the real visitor IP: per-IP rate limits apply per visitor rather than to one shared internal address.</p><h2>Prompt injection protection</h2><p>External content (emails, web pages, documents) is encapsulated in configurable <code>UNTRUSTED</code> tags before injection into prompts. This explicit wrapping prevents malicious content from hijacking the assistant's behavior by clearly separating user data from system instructions.</p><h2>Resource ownership verification</h2><p>Every resource access goes through <code>check_resource_ownership()</code> with a <code>hide_existence</code> parameter: public resources return 403 (access denied), private resources return 404 (resource not found) to avoid revealing their existence to an attacker.</p><h2>Per-User Usage Quotas</h2><p>LIA enables administrators to set <strong>per-user quotas</strong> on tokens, messages, and costs. Enforcement uses a <strong>5-layer defense-in-depth</strong> architecture: router-level check (HTTP 429), service-level (SSE error), LLM invocation guard (centralized in invoke_with_instrumentation), proactive runner skip, and direct call migration. If infrastructure (Redis/DB) fails, the system <strong>fails open</strong> (allows access) since this is cost control, not security. An admin kill switch enables instant blocking/unblocking of any user.</p><h2>Software supply chain</h2><p>Every release is built from a locked dependency graph: universal lockfiles pin the ~200 packages actually installed, each verified by SHA256 fingerprint at build time — the same version always yields the same, integrity-checked image. All dependencies, transitive ones included, are continuously audited against known-vulnerability databases, and the software inventory (SBOM) published with each release lists exactly what runs in production.</p>"
+        "body": "<h2>5 fundamental principles</h2><p>LIA's security rests on five principles applied at every application layer:</p><ul><li><strong>Defense in depth</strong> — Multi-layer controls (authentication, rate limiting, validation, encryption)</li><li><strong>Least privilege</strong> — Minimal permissions by default</li><li><strong>Fail securely</strong> — On error, the system denies rather than allows</li><li><strong>Don't trust input</strong> — Pydantic validation + systematic sanitization</li><li><strong>Security by default</strong> — HTTPS, HttpOnly/SameSite cookies, strict CORS</li></ul><h2>Hashing and encryption</h2><p>Passwords are hashed with <strong>bcrypt</strong> (with automatic salt). Sensitive data (OAuth tokens, connector credentials, PII, MCP server credentials) is encrypted with <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), ensuring confidentiality and integrity. Encryption keys are managed separately from data.</p><h2>JWT and session management</h2><p>JWT tokens use the HS256 algorithm with a JTI (JWT ID) blacklist system in Redis. Single-use tokens (email verification, password reset) are invalidated after first use. This mechanism prevents any reuse of sensitive tokens.</p><h2>Strong authentication and device control</h2><p>Signing in goes beyond the password. <strong>WebAuthn passkeys</strong> let you authenticate with Face ID, a fingerprint or your device code — phishing-resistant by design, with single-use server challenges and clone detection via signature counters. A <strong>TOTP second factor</strong> adds a 6-digit step to password sign-in, backed by ten single-use backup codes hashed at rest. Sensitive actions — managing credentials, exporting data, signing out other devices — sit behind a <strong>step-up re-authentication</strong>: a fresh 5-minute confirmation window with a typed API contract, never a silent redirect. And <strong>My devices</strong> lists every live session with deliberately bounded metadata (browser and OS families, truncated IP), revokes any of them instantly — a revoked session loses its live streams within seconds — and pushes an alert when the account signs in from an unrecognized device.</p><h2>Configurable rate limiting</h2><p>Rate limiting operates at two levels:</p><ul><li><strong>HTTP</strong> — Via nginx upstream</li><li><strong>Tools</strong> — Per-user, per-tool sliding window with settings-driven thresholds, covering every paid external API (image generation, web search, browser, DevOps CLI)</li><li><strong>External connectors</strong> — Distributed Redis sliding window shared across instances (Google, Apple, API-key providers)</li></ul><p>API limits are strict: 10 items maximum per request, with per-domain defaults (10 by default, 50 maximum).</p><h2>Rendering &amp; network hardening</h2><p>The chat renders LLM output — which can relay third-party HTML (email bodies, fetched pages, tool results) — through a strict sanitization boundary (<code>rehype-sanitize</code> with an audited schema): <code>&lt;script&gt;</code>, <code>&lt;iframe&gt;</code>, <code>&lt;form&gt;</code> and event handlers are dropped, while legitimate cards, buttons and math survive. Interactive MCP/Skill apps never go through markdown — they mount only inside a sandboxed iframe widget. On the network side, the production API sits behind Cloudflare as the single entry point, with the container ports loopback-bound and uvicorn trusting only the reverse-proxy headers, so <code>request.client.host</code> is the real visitor IP: per-IP rate limits apply per visitor rather than to one shared internal address.</p><h2>Prompt injection protection</h2><p>External content (emails, web pages, documents) is encapsulated in configurable <code>UNTRUSTED</code> tags before injection into prompts. This explicit wrapping prevents malicious content from hijacking the assistant's behavior by clearly separating user data from system instructions.</p><h2>Resource ownership verification</h2><p>Every resource access goes through <code>check_resource_ownership()</code> with a <code>hide_existence</code> parameter: public resources return 403 (access denied), private resources return 404 (resource not found) to avoid revealing their existence to an attacker.</p><h2>Per-User Usage Quotas</h2><p>LIA enables administrators to set <strong>per-user quotas</strong> on tokens, messages, and costs. Enforcement uses a <strong>5-layer defense-in-depth</strong> architecture: router-level check (HTTP 429), service-level (SSE error), LLM invocation guard (centralized in invoke_with_instrumentation), proactive runner skip, and direct call migration. If infrastructure (Redis/DB) fails, the system <strong>fails open</strong> (allows access) since this is cost control, not security. An admin kill switch enables instant blocking/unblocking of any user.</p><h2>Software supply chain</h2><p>Every release is built from a locked dependency graph: universal lockfiles pin the ~200 packages actually installed, each verified by SHA256 fingerprint at build time — the same version always yields the same, integrity-checked image. All dependencies, transitive ones included, are continuously audited against known-vulnerability databases, and the software inventory (SBOM) published with each release lists exactly what runs in production.</p>"
       },
       "privacy-by-design": {
         "title": "Privacy by Design: GDPR, Encryption, and Data Control",

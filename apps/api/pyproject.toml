@@ -1,6 +1,6 @@
 [project]
 name = "lia-api"
-version = "1.25.16"
+version = "1.25.17"
 description = "LIA Assistant - AI conversational assistant with multi-agent orchestration"
 license = "AGPL-3.0-or-later"
 authors = [
@@ -139,6 +139,7 @@ module = [
     "dateutil.*",
     "docx.*",
     "striprtf.*",
+    "qrcode.*",
 ]
 ignore_missing_imports = true
 follow_imports = "skip"

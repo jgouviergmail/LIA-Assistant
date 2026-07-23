@@ -10,10 +10,15 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from sqlalchemy import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.users.account_deletion_service import AccountDeletionService
+from src.domains.users.account_deletion_service import (
+    AccountDeletionService,
+    build_purge_statements,
+)
 from src.domains.users.models import User
+from src.domains.users.user_data_map import USER_COLUMNS, UserColumnClass
 from src.infrastructure.database.registry import import_all_models
 
 # Ensure all SQLAlchemy models are loaded so relationship() references resolve
@@ -182,6 +187,31 @@ class TestMarkUserDeleted:
         assert user.picture_url is None
         assert user.home_location_encrypted is None
 
+    async def test_scrubs_every_classified_column(self) -> None:
+        """Every column classified SCRUBBED in user_data_map is None after scrub.
+
+        The oracle is the classification registry itself: adding a PII column
+        classified SCRUBBED without wiring it into _mark_user_deleted fails
+        here, and the guard file fails when the column is not classified at
+        all — together they close the journal_portrait defect class.
+        """
+        user = _make_user()
+        scrubbed = [name for name, cls in USER_COLUMNS.items() if cls is UserColumnClass.SCRUBBED]
+        for name in scrubbed:
+            column = User.__table__.columns[name]
+            sentinel: object = (
+                datetime.now(UTC) if isinstance(column.type, DateTime) else f"sentinel-{name}"
+            )
+            setattr(user, name, sentinel)
+
+        service = AccountDeletionService(AsyncMock(spec=AsyncSession))
+        await service._mark_user_deleted(user, None)
+
+        not_scrubbed = [name for name in scrubbed if getattr(user, name) is not None]
+        assert not not_scrubbed, (
+            f"Columns classified SCRUBBED but left intact by _mark_user_deleted: " f"{not_scrubbed}"
+        )
+
 
 # ==============================================================================
 # FILE CLEANUP TESTS
@@ -241,6 +271,39 @@ class TestFileCleanup:
 
         assert result == 1
         assert not (tmp_path / str(user_id)).exists()
+
+
+# ==============================================================================
+# PURGE STATEMENT TESTS
+# ==============================================================================
+
+
+@pytest.mark.unit
+class TestPurgeStatements:
+    """Tests for build_purge_statements (introspectable purge table list)."""
+
+    def test_covers_open_loops_and_phone_calls(self) -> None:
+        """Regression guard: open_loops and phone_calls leaked through the purge.
+
+        Both tables are user-scoped with ondelete=CASCADE FKs that never fire
+        because the user row is soft-deleted, so they MUST be purged explicitly
+        (same defect class as audit N-207.1 on health_samples).
+        """
+        names = {name for name, _ in build_purge_statements(uuid.uuid4())}
+        assert {"open_loops", "phone_calls"} <= names
+
+    def test_statement_names_match_target_tables(self) -> None:
+        """Every declared count key equals the DELETE statement's actual table."""
+        for name, stmt in build_purge_statements(uuid.uuid4()):
+            assert stmt.table.name == name, (
+                f"Purge entry declared as {name!r} actually deletes from "
+                f"{stmt.table.name!r} — count dict would lie."
+            )
+
+    def test_statement_names_are_unique(self) -> None:
+        """No table is purged twice (double counts would mask FK-order bugs)."""
+        names = [name for name, _ in build_purge_statements(uuid.uuid4())]
+        assert len(names) == len(set(names))
 
 
 # ==============================================================================

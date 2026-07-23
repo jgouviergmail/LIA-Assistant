@@ -154,3 +154,71 @@ If Redis or the database is temporarily unavailable, the system allows the reque
 
 **🔒 Admin controls:**
 Administrators can manually block any user instantly with a reason, and unblock them with immediate effect.
+
+## What are passkeys and how do I enable them?
+A **passkey** lets you sign in with **Face ID, your fingerprint or your device code** — no password typed, nothing to remember.
+
+**🔑 Why it is safer:**
+• Phishing-resistant: a passkey only works on the real LIA site
+• The secret key never leaves your device
+• A leaked password becomes useless to an attacker
+
+**⚙️ How to enable:**
+1. Go to **Settings > Security > Strong authentication**
+2. Click **Add a passkey** and follow your browser (Windows Hello, Face ID, Android…)
+3. Optionally name it ("iPhone", "Work PC") and add one per device
+
+On the login page, your browser will then offer the passkey directly in the email field (or use the "Sign in with a passkey" button).
+
+## How do I add a second verification step (TOTP)?
+The **authenticator app** adds a 6-digit code as a second step to password sign-in.
+
+**⚙️ Setup:**
+1. **Settings > Security > Authenticator app (TOTP)** → Enable
+2. Scan the QR code with Google Authenticator, 1Password, Aegis…
+3. Enter the 6-digit code shown by the app
+
+**🔒 Backup codes:** 10 single-use codes are shown **exactly once** — store them safely; each one replaces the app code if you lose your phone. You can regenerate a fresh set at any time (the old set is invalidated).
+
+Signing in then takes two steps: password, then the current code from your app.
+
+## Why does LIA sometimes ask me to confirm my identity?
+Sensitive actions are protected by an **identity confirmation** (a "step-up"):
+
+**🛡️ Protected actions:**
+• Managing passkeys and the authenticator app
+• Exporting your data
+• Signing out all other devices
+• Disabling password sign-in
+
+**⏱️ How it behaves:**
+• Right after signing in, nothing is asked for 5 minutes
+• Afterwards, one quick confirmation (password, code, passkey — or a fresh Google sign-in for Google accounts) re-opens the window
+
+The point: even if someone borrows your open session, they cannot quietly lock you out or walk away with your data.
+
+## How do I see and disconnect the devices connected to my account?
+**Settings > Security > My devices** lists every live session of your account.
+
+**💻 What you see:**
+• Browser and system families (e.g. "chrome · windows") — never the full technical detail
+• A truncated IP (e.g. 192.168.1.x) and coarse last-activity time
+• The device name when it is registered for push notifications
+
+**🔌 What you can do:**
+• Sign out one device — it loses access immediately, even mid-conversation
+• Sign out all other devices (asks for an identity confirmation)
+
+**🔔 New sign-in alerts:** your devices receive a push notification when the account signs in from an unrecognized device — the toggle to turn it off is in the same section.
+
+## How do I export all my data (GDPR)?
+You can download a **complete archive of your data** at any time (GDPR right to portability).
+
+**📦 What the archive contains:**
+• Your profile and settings
+• Conversations, memories, journal — as readable **Markdown** AND structured **JSON**
+• Your uploaded files (attachments, knowledge-space documents)
+
+**🚫 What it never contains:** connector credentials, security keys, push tokens — secret material is unexportable by design.
+
+**⚙️ How:** **Settings > Security > Export my data** → Request an export → a push notification tells you when the ZIP is ready (downloadable for 24 h).

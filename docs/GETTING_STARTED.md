@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-07-23
-**Compatibility**: LIA v1.25.16
+**Compatibility**: LIA v1.25.17
 
 ## Table of Contents
 
@@ -437,6 +437,26 @@ To access LIA from other devices on your network (e.g. mobile testing), use [nip
 
 > **Important**: `NEXT_PUBLIC_ALLOWED_DEV_ORIGINS` must be a **hostname only** (no protocol/port). A full URL causes WebSocket HMR failures and refresh loops.
 
+### WebAuthn / Passkeys in Development (Trusted Certificate Required)
+
+Chromium **refuses every WebAuthn ceremony on a site whose TLS certificate is not trusted** — clicking through the interstitial is NOT enough. Symptom: `POST /auth/webauthn/register/options` succeeds (200) but `navigator.credentials.create()` immediately fails with `NotAllowedError: WebAuthn is not supported on sites with TLS certificate errors.` and no `register/verify` call ever reaches the API.
+
+To enroll passkeys against the dev stack, trust the generated certificate once (per user, reversible):
+
+```bash
+task dev:trust-cert
+```
+
+The task extracts `cert.pem` from the shared `lia_ssl_certs` volume into `exports/lia-dev-cert.pem` and, on Windows, imports it into the current user's trusted root store (`certutil -f -user -addstore Root`; undo with `certutil -user -delstore Root "<SSL_DOMAIN>"`). On Linux/macOS, import the extracted file into your system/browser trust store manually.
+
+Three traps:
+
+1. **Fully restart the browser afterwards** (all windows) — certificate verdicts are cached for the browser process's lifetime; a simple reload keeps failing.
+2. **Firefox has its own store** — import `exports/lia-dev-cert.pem` under Settings > Certificates.
+3. **`ssl-init` regenerates the certificate** when it is older than ~30 days (or after `docker volume rm lia_ssl_certs`) — re-run `task dev:trust-cert` when that happens.
+
+Production is unaffected: the public domains serve real certificates (Cloudflare), and the WebAuthn rpId/origin derive from `FRONTEND_URL` (see [GUIDE_DEPLOYMENT.md](./guides/GUIDE_DEPLOYMENT.md)).
+
 ---
 
 ## Starting the Services
@@ -801,6 +821,8 @@ Every subsystem below ships with working defaults; the values shown are the **pr
 | `MCP_ENABLED` / `MCP_USER_ENABLED` / `MCP_REACT_ENABLED` | Admin MCP / per-user MCP / MCP ReAct loop | `true` |
 | `REACT_AGENT_ENABLED` | ReAct execution mode toggle | `true` |
 | `FCM_ENABLED` | Firebase push notifications | `true` |
+| `MFA_ENABLED` | Passkeys WebAuthn + TOTP + step-up (ADR-143) | `false`¹ |
+| `ACCOUNT_EXPORT_ENABLED` | Full GDPR account export (ADR-145) | `false`¹ |
 | `GEOIP_ENABLED` | IP geolocation in logs (DB-IP Lite MMDB) | `true` |
 | `OAUTH_HEALTH_CHECK_ENABLED` | Proactive connector monitoring | `true` |
 | `MEMORY_EXTRACTION_ENABLED` / `MEMORY_CONSOLIDATION_ENABLED` | Long-term memory | `true` |
@@ -815,6 +837,8 @@ Every subsystem below ships with working defaults; the values shown are the **pr
 | `PLAN_PATTERN_TRAINING_ENABLED` | Plan pattern learning | `false` |
 | `ENABLE_FALLBACK_MIDDLEWARE` | LLM fallback model chain | `false` |
 | `BROWSER_SCREENSHOT_ENABLED` | Browser session screenshots | `false` |
+
+¹ Shipped disabled: enabled in production only after the post-release smoke test (MFA needs `WEBAUTHN_RP_ID`/`WEBAUTHN_ORIGIN` matching the public domain).
 
 ### Memory (Long-Term)
 
@@ -1324,6 +1348,8 @@ docker compose -f docker-compose.dev.yml exec redis redis-cli -a "$REDIS_PASSWOR
 ### Browser Can't Reach the App / API Calls Fail
 
 Dev serves **HTTPS with self-signed certificates**. Visit https://localhost:8000 **and** https://localhost:3000 once each and accept both certificates — until then, frontend API calls fail silently. With `curl`, use `-k`.
+
+Note: accepting the interstitial is enough for browsing, but **NOT for WebAuthn/passkeys** — see [WebAuthn / Passkeys in Development](#webauthn--passkeys-in-development-trusted-certificate-required) (`task dev:trust-cert`).
 
 ### Frontend Won't Start
 

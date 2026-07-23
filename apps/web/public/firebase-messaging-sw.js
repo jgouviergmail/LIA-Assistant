@@ -1,16 +1,94 @@
 /**
- * Firebase Cloud Messaging Service Worker.
+ * LIA unified Service Worker: push notifications + offline shell (D5).
  *
- * Handles push notifications when the app is in the background or closed.
+ * HISTORICAL NAME — this file keeps its `firebase-messaging-sw.js` URL so
+ * existing registrations update in place (renaming would strand them at
+ * scope `/`). It now owns BOTH concerns (arbitration A7, ADR-146):
+ *   1. Push (standard Push API, works with FCM — unchanged below).
+ *   2. Offline shell: precached branded offline page served as the
+ *      navigation fallback + stale-while-revalidate for same-origin static
+ *      assets. API traffic (`/api/`), non-GET, and SSE are NEVER cached —
+ *      personal data must not land on disk.
  *
- * This service worker uses the standard Push API which works with FCM.
- * The Firebase client SDK handles token management, while this SW
- * handles receiving and displaying push notifications.
- *
- * IMPORTANT:
- * - This file MUST be at the root of the public folder
- * - Works with FCM without needing Firebase SDK in the service worker
+ * CACHE_VERSION must equal package.json version — enforced by
+ * `src/__tests__/service-worker.test.ts`; bump it with every release.
  */
+
+const CACHE_VERSION = '1.25.17';
+const SHELL_CACHE = `lia-shell-v${CACHE_VERSION}`;
+const OFFLINE_URL = '/offline.html';
+
+const PRECACHE_ASSETS = [OFFLINE_URL, '/icon-192.png', '/icon.svg'];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches
+      .open(SHELL_CACHE)
+      .then((cache) => cache.addAll(PRECACHE_ASSETS))
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => key.startsWith('lia-shell-v') && key !== SHELL_CACHE)
+            .map((key) => caches.delete(key))
+        )
+      )
+      .then(() => self.clients.claim())
+  );
+});
+
+/**
+ * Whether a request may go through the cache layer at all.
+ * API calls, non-GET, cross-origin, and event streams are always network-only.
+ */
+function isCacheableRequest(request) {
+  if (request.method !== 'GET') return false;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return false;
+  if (url.pathname.startsWith('/api/')) return false;
+  if (request.headers.get('accept')?.includes('text/event-stream')) return false;
+  return true;
+}
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (!isCacheableRequest(request)) return; // browser default handling
+
+  // Navigations: network-first, branded offline page as the fallback.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).catch(() => caches.match(OFFLINE_URL))
+    );
+    return;
+  }
+
+  // Static assets: stale-while-revalidate (hashed /_next/static is immutable).
+  const url = new URL(request.url);
+  const isStaticAsset =
+    url.pathname.startsWith('/_next/static/') ||
+    /\.(png|svg|jpg|jpeg|webp|ico|woff2?)$/.test(url.pathname);
+  if (!isStaticAsset) return;
+
+  event.respondWith(
+    caches.open(SHELL_CACHE).then(async (cache) => {
+      const cached = await cache.match(request);
+      const refresh = fetch(request)
+        .then((response) => {
+          if (response.ok) cache.put(request, response.clone());
+          return response;
+        })
+        .catch(() => cached);
+      return cached || refresh;
+    })
+  );
+});
 
 /**
  * Handle push events.

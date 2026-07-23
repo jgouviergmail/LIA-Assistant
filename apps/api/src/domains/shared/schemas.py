@@ -306,6 +306,10 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     onboarding_completed: bool = Field(
         default=False, description="Onboarding tutorial has been completed/dismissed"
     )
+    login_notifications_enabled: bool = Field(
+        default=True,
+        description="Notify the user's devices on logins from unattested devices (D2, A4)",
+    )
     onboarding_checklist: dict[str, Any] | None = Field(
         default=None,
         description=(

@@ -41,6 +41,7 @@ from src.domains.users.schemas import (
     UserUpdate,
 )
 from src.infrastructure.cache.redis import get_redis_session
+from src.infrastructure.cache.session_store import SessionStore
 from src.infrastructure.email import get_email_service
 
 logger = structlog.get_logger(__name__)
@@ -1102,66 +1103,24 @@ class UserService:
         )
 
     async def _invalidate_all_user_sessions(self, user_id: UUID) -> None:
+        """Invalidate all Redis sessions for the user (best-effort).
+
+        Delegates to ``SessionStore.delete_all_user_sessions``, which uses the
+        ``user:{user_id}:sessions`` index (O(M) in the user's own session
+        count). Failures are logged, never raised: session invalidation must
+        not block deactivation or deletion flows.
+
+        Args:
+            user_id: Target user UUID.
         """
-        Invalidate all Redis sessions for user using batched pipeline deletion.
-
-        Optimized Implementation (Phase 3.2.9):
-        - Scans all session:* keys in Redis using SCAN (O(N) complexity)
-        - Parses each session JSON to check user_id match
-        - Batch deletes using Redis pipeline (reduces network round-trips)
-        - Performance: 3-5x faster than sequential delete() calls
-
-        Architecture:
-        - Phase 3.2.9: Batched deletion with pipeline
-        - Future Phase: Maintain user_sessions:<user_id> SET for O(M) invalidation
-          (Only implement if session invalidation becomes bottleneck at >10k sessions)
-        """
-        redis = await get_redis_session()
-
         try:
-            # Get all session keys
-            cursor = 0
-            keys_to_delete = []
-
-            # Phase 1: Scan and collect matching keys
-            while True:
-                cursor, keys = await redis.scan(cursor, match="session:*", count=100)
-                for key in keys:
-                    # Check key type to avoid WRONGTYPE error on SET keys (user tokens)
-                    key_type = await redis.type(key)
-                    if key_type != "string":
-                        continue  # Skip non-string keys (like session:<user_id> SETs)
-
-                    session_data = await redis.get(key)
-                    if session_data:
-                        # Check if this session belongs to the user
-                        import json
-
-                        try:
-                            data = json.loads(session_data)
-                            if data.get(FIELD_USER_ID) == str(user_id):
-                                keys_to_delete.append(key)
-                        except json.JSONDecodeError as e:
-                            logger.debug("session_data_parse_error", error=str(e))
-
-                if cursor == 0:
-                    break
-
-            # Phase 2: Batch delete using pipeline (optimization)
-            session_count = 0
-            if keys_to_delete:
-                pipeline = redis.pipeline()
-                for key in keys_to_delete:
-                    pipeline.delete(key)
-
-                # Execute pipeline atomically
-                results = await pipeline.execute()
-                session_count = sum(1 for result in results if result > 0)
-
+            redis = await get_redis_session()
+            store = SessionStore(redis)
+            deleted = await store.delete_all_user_sessions(str(user_id))
             logger.info(
                 "user_sessions_invalidated",
                 user_id=str(user_id),
-                sessions_deleted=session_count,
+                sessions_deleted=deleted,
             )
         except Exception as e:
             logger.error(

@@ -3229,6 +3229,42 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 **Décision**: Suite d'ADR-104, dont la re-mesure production promise n'a jamais été outillée. Le rejeu déterministe du vrai moteur + le calcul sur le catalogue réel exposent deux défauts : (1) **l'axe dominance est structurellement décentré** — les 14 personnalités reposent toutes en D>0 (moyenne +0.216, confirmée live), 5 centroïdes d'humeur en D<0 inatteignables au repos, et le damping (homothétie) ne peut PAS recentrer — il faut une **translation** ; (2) le **pulse proactif joy** couronne joy dominante 55 % des tours indépendamment de l'appraisal réel (même mécanisme que le pulse pride supprimé). Livré, tout inerte au merge : `PSYCHE_DOMINANCE_CENTER` (défaut 0.0 ; candidat 0.20 **dérivé** du catalogue), `PSYCHE_PROACTIVE_JOY_PULSE` (défaut true), instrument de mesure read-only `apps/api/scripts/measure_psyche.py` (batterie ADR-104 par utilisateur + table de repos du catalogue ; dans le contexte de build prod), gardes CI `test_mood_reachability.py` (goldens 1e-9 = merge prouvé no-op, straddle à 0.20 ordre préservé, oracle bout-en-bout 3 humeurs/87 % → 5/40 %). kindalive examiné comme source : principe d'équilibre retenu comme grille de lecture, mécanismes testés et **rejetés** (τ par axe réfuté par ablation, équilibre symétrique contre-indiqué). Procédure d'activation mesurée avant/après + matrice de réajustement (fidélité de caractère via `pad_dominance_override`, repli 0.15). 24 tests nouveaux, suite psyché 207 verts, zéro migration.
 
 ---
+
+### ADR-143: Authentification forte — passkeys WebAuthn, TOTP, step-up (D1)
+
+**Statut**: 🚧 PHASED — Lot 1 (passkeys) IMPLEMENTED (2026-07-23) ; Lots 2 (TOTP) et 3 (step-up) conçus, en file
+**Fichier**: `docs/architecture/ADR-143-Strong-Authentication-Passkeys.md`
+
+**Décision**: L'instance publiquement exposée n'avait que mot de passe + OAuth Google. Lot 1 livré : passkeys WebAuthn (py_webauthn 2.8.0 épinglée — la 3.x exige cryptography ≥ 49) avec credentials **découvrables** (resident key + user verification requis, arbitrage A1) et **conditional UI** (autofill) + bouton explicite ; table `webauthn_credentials` (matériel public uniquement, classée USER_PURGED/EXCLUDED dans la user_data_map du Lot 0) ; challenges à usage unique en Redis (GETDEL, TTL 300 s) ; payload de session **v2** avec `auth_methods` (défauts rétro-compatibles testés en round-trip — socle du step-up Lot 3 et de l'affichage appareils D2) ; rejet des régressions de compteur (clone) en 401 générique ; rate limiting par IP (anonyme) ET par utilisateur (enrôlement) ; sonde publique `GET /auth/features` pour le gating UI sans sonder des routers démontés ; flag `MFA_ENABLED` défaut false (router non monté). E2E héritique Chromium avec virtual authenticator CDP (cérémonie réelle, API mockée). Conçus et actés pour la suite : TOTP chiffré Fernet + 10 codes de secours « révélés une fois » (pattern hm_), step-up en **403 + `step_up_required`** (jamais 401 — hard-redirect client), désactivation du mot de passe seulement avec ≥ 2 passkeys (A8). Doc maître : `docs/superpowers/specs/2026-07-23-security-account-program.md`.
+
+---
+
+### ADR-144: Sessions par appareil — visibilité et révocation « Mes appareils » (D2)
+
+**Statut**: ✅ IMPLEMENTED (2026-07-23)
+**Fichier**: `docs/architecture/ADR-144-Device-Sessions.md`
+
+**Décision**: Les sessions BFF Redis existaient sans aucune visibilité ni contrôle utilisateur. Livré : payload de session **v4** avec réversion PII **bornée** (A3 — familles navigateur/OS via parser maison, IP tronquée /24, last-seen à grain ≥ 15 min en `keepttl`, chokepoint unique `core/client_metadata.py`, sessions legacy = « appareil inconnu ») ; identifiants d'affichage **opaques** (sha256[:16] — l'id de session brut ne quitte JAMAIS le serveur) ; endpoints `/auth/sessions` montés inconditionnellement (liste avec badge courant + noms d'appareils attestés, révocation unitaire en auth simple, `revoke-others` sous **step-up**) ; **coupure SSE** à chaque tick keepalive (`session_still_valid` fail-open, commentaire `: session-revoked`) sur le relay broker ADR-117 ET les deux boucles legacy — les producteurs détachés continuent par design ; **notification de nouvelle connexion attestée par FCM** (A4 révisé : token FCM actif du compte = preuve de possession de l'appareil ⇒ silencieux + nom réel affiché ; passkey = connu par définition ; OAuth = notifie toujours ; issue portée dans le pending token du login deux-étapes ; préférence `login_notifications_enabled` défaut TRUE, push localisé ×6, best-effort). Migration `a8c4e6f21b73`. Rejeté : registre d'appareils persistant (surface PII durable pour un gain marginal vs attestation FCM).
+
+---
+
+### ADR-145: Export complet du compte — portabilité RGPD (D3)
+
+**Statut**: ✅ IMPLEMENTED (2026-07-23)
+**Fichier**: `docs/architecture/ADR-145-Account-Export.md`
+
+**Décision**: Aucun export de compte n'existait. Livré : jobs **durables** (A6 — table `account_export_jobs` + executor à intervalle sous flag `ACCOUNT_EXPORT_ENABLED`, `FOR UPDATE SKIP LOCKED`, transitions atomiques, un job non-terminal par utilisateur via index partiel unique, RUNNING > 30 min = `crashed`, sweep de rétention 24 h) ; builder **metadata-driven** : le périmètre dérive de `user_data_map.ExportPolicy.FULL` — les tables EXCLUDED (credentials, tokens, matériel WebAuthn/TOTP, codes de secours) ne peuvent PAS atteindre une archive **par construction**, garanti par la garde `test_export_completeness.py` (toute table FULL doit être scopable, specs de redaction/déchiffrement vérifiées colonne par colonne) ; `callee_phone` sort **déchiffré** (la portabilité = données lisibles) ; archive = JSON par table + Markdown lisible (conversations/journal/mémoires) + fichiers attachments/RAG sources en `ZIP_STORED` (A5, dérivés exclus), plafond 2 GiB, rename atomique ; demande sous **step-up**, téléchargement authentifié borné par la rétention, push FCM « export prêt » ×6. Migration `b9d5f7a32c84`. Rejeté : 25 exporters manuscrits (dérive garantie) et APScheduler `run_date` (perdu au restart).
+
+---
+
+### ADR-146: PWA hors ligne — service worker unifié et page offline (D5)
+
+**Statut**: ✅ IMPLEMENTED (2026-07-23)
+**Fichier**: `docs/architecture/ADR-146-Offline-PWA.md`
+
+**Décision**: Seul un SW push-only existait, enregistré au scope `/` et uniquement dans le flux FCM. Livré (A7) : **SW unifié** — `firebase-messaging-sw.js` garde son URL historique (mises à jour in-place des registrations) et possède push ET offline (precache `offline.html` + icônes, navigations network-first avec fallback brandé, stale-while-revalidate des statiques same-origin ; **jamais** de cache `/api/*`, non-GET, cross-origin ni SSE — les données personnelles ne touchent pas le disque) ; **enregistrement inconditionnel** au layout (prod uniquement) réutilisé par FCM ; **versioning gardé par test exécutable** (`CACHE_VERSION` == package.json, purge des caches stales à l'activate, `Cache-Control: no-cache` sur le fichier SW) ; page offline autonome avec i18n ×6 inline (cookie i18next), clair/sombre, bouton réessayer, parité assertée par test. Rejeté : deux SW à scopes séparés (risque de migration pur) et l'injection de version au build (constante gardée plus simple).
+
+---
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

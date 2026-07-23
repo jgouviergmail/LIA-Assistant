@@ -1929,6 +1929,19 @@ Frontend                    Backend                 Redis
 
 Pour les détails complets, voir [OAUTH.md](./technical/OAUTH.md) et [AUTHENTICATION.md](./technical/AUTHENTICATION.md)
 
+### Authentification forte & compte (programme sécurité 2026-07)
+
+Quatre capacités livrées sur le socle BFF, chacune tracée par un ADR :
+
+| Capacité | Résumé | ADR |
+|----------|--------|-----|
+| **Passkeys WebAuthn + TOTP** | Credentials discoverable (conditional UI), TOTP avec codes de secours hashés, step-up 403 `step_up_required` (jamais 401) | `ADR-143-Strong-Authentication-Passkeys.md` |
+| **Sessions appareils** | Payload session v4 (métadonnées bornées : familles UA/OS, IP /24), « Mes appareils », révocation step-up, notification de nouvelle connexion attestée par token FCM | `ADR-144-Device-Sessions.md` |
+| **Export de compte RGPD** | Jobs durables `FOR UPDATE SKIP LOCKED`, classification totale des tables (`user_data_map`) gardée en CI, ZIP streamé avec cap 2 GiB | `ADR-145-Account-Export.md` |
+| **Offline PWA** | Service worker unifié push + offline (`firebase-messaging-sw.js`), cache shell versionné aligné sur `package.json` (garde CI), jamais de cache sur `/api/` | `ADR-146-Offline-PWA.md` |
+
+Les quatre ADR sont détaillés dans l'[index des ADR](./architecture/ADR_INDEX.md) (fichiers sous `docs/architecture/`). Feature flags : `MFA_ENABLED`, `ACCOUNT_EXPORT_ENABLED` (défaut `false` — activation post-smoke en production).
+
 ---
 
 ## 📊 Observabilité

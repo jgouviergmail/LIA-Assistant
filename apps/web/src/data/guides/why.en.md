@@ -4,7 +4,7 @@
 
 **Version**: 3.9
 **Date**: 2026-07-23
-**Application**: LIA v1.25.16
+**Application**: LIA v1.25.17
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -220,7 +220,7 @@ Imagine: a Raspberry Pi in your living room, and the whole family enjoying an in
 
 When you use ChatGPT, your conversations live on OpenAI's servers. With Gemini, at Google's. With Copilot, at Microsoft's.
 
-With LIA, **everything stays in your PostgreSQL**: conversations, memory, psychological profile, documents, preferences. You can export, back up, migrate or delete all your data at any time. GDPR is not a constraint — it's a natural consequence of the architecture. Sensitive data is encrypted, sessions are isolated, and automatic personally identifiable information (PII) filtering is built in.
+With LIA, **everything stays in your PostgreSQL**: conversations, memory, psychological profile, documents, preferences. You can export, back up, migrate or delete all your data at any time — including a one-click complete export from the settings: readable Markdown, structured JSON and your files, with secret material unexportable by construction. GDPR is not a constraint — it's a natural consequence of the architecture. Sensitive data is encrypted, sessions are isolated, and automatic personally identifiable information (PII) filtering is built in.
 
 ### 5.2. Even a Raspberry Pi is enough
 

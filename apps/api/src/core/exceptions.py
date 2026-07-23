@@ -115,11 +115,15 @@ class AuthenticationError(BaseAPIException):
 
 
 class AuthorizationError(BaseAPIException):
-    """Authorization failed - insufficient permissions."""
+    """Authorization failed - insufficient permissions.
+
+    ``detail`` may be a structured dict for typed 403s the client must
+    distinguish (e.g. the step-up contract ``{"error": "step_up_required"}``).
+    """
 
     def __init__(
         self,
-        detail: str = "Not authorized to access this resource",
+        detail: str | dict[str, Any] = "Not authorized to access this resource",
         **log_context: Any,
     ) -> None:
         super().__init__(
@@ -565,6 +569,27 @@ def raise_bearer_auth_failed(detail: str, **context: Any) -> NoReturn:
         detail=detail,
         headers={"WWW-Authenticate": "Bearer"},
         **context,
+    )
+
+
+def raise_step_up_required() -> NoReturn:
+    """
+    Raise the typed 403 demanding a recent step-up re-authentication.
+
+    Contract (security program D1, Lot 3): NEVER a plain 401 — the frontend
+    api-client hard-redirects 401s to /login. The typed detail lets the
+    client open the re-auth dialog and replay the original call.
+
+    Raises:
+        AuthorizationError: 403 Forbidden with ``detail.error = "step_up_required"``.
+    """
+    from src.core.constants import STEP_UP_ERROR_CODE
+
+    raise AuthorizationError(
+        detail={
+            "error": STEP_UP_ERROR_CODE,
+            "message": "Recent re-authentication required for this sensitive action",
+        },
     )
 
 

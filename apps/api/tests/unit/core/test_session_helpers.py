@@ -91,6 +91,9 @@ class TestCreateAuthenticatedSessionWithCookie:
                         mock_store.create_session.assert_called_once_with(
                             user_id="user-456",
                             remember_me=False,
+                            auth_methods=None,
+                            client_meta=None,
+                            fcm_token_id=None,
                         )
                         response.set_cookie.assert_called_once()
 

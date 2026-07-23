@@ -2,8 +2,8 @@
 
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
-**Version**: 7.11
-**Dernière mise à jour**: 2026-07-11
+**Version**: 7.12
+**Dernière mise à jour**: 2026-07-23
 **Statut**: Complète (320+ documents)
 
 ---
@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 40 |
-| ADRs | 141 (ADR-142 le plus récent) |
+| ADRs | 145 (ADR-146 le plus récent) |
 | Fiches knowledge (RAG système) | 24 |
 
 ---
@@ -43,7 +43,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
 | [TELEPHONY.md](./technical/TELEPHONY.md) | Téléphonie agentique (appels sortants, ADR-127) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (140) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (145) |
 
 ### Pour les Product Managers
 

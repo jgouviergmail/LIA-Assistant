@@ -35,12 +35,23 @@ export interface User {
   image_generation_output_format?: string;
   weather_use_last_known_location?: boolean;
   health_metrics_agents_enabled?: boolean;
+  login_notifications_enabled?: boolean;
+}
+
+export interface LoginResult {
+  /** The signed-in user, or null when a second factor is still required. */
+  user: User | null;
+  /** True when the account requires a TOTP/backup code step. */
+  mfaRequired: boolean;
+  /** Single-use token to present to verifyMfa (5 min TTL). */
+  mfaToken: string | null;
 }
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string, rememberMe?: boolean) => Promise<User>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<LoginResult>;
+  verifyMfa: (mfaToken: string, code: string) => Promise<User>;
   register: (
     email: string,
     password: string,
@@ -137,20 +148,64 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * @param password - User password
    * @param rememberMe - Extend session to 30 days instead of 7
    */
-  const login = async (email: string, password: string, rememberMe = false): Promise<User> => {
+  const login = async (
+    email: string,
+    password: string,
+    rememberMe = false
+  ): Promise<LoginResult> => {
+    // A4 device attestation: a device with push already granted proves
+    // itself with its FCM token (suppresses the new-login alert and names
+    // the session in "My devices"). Silent — resolves without any prompt
+    // when permission is 'granted'; every failure just means "notify".
+    let fcmToken: string | null = null;
     try {
-      const response = await apiClient.post<{ user: User }>('/auth/login', {
+      const { getNotificationPermission, requestNotificationPermission } = await import(
+        '@/lib/firebase'
+      );
+      if (getNotificationPermission() === 'granted') {
+        fcmToken = await requestNotificationPermission();
+      }
+    } catch {
+      // Fail-safe toward notifying — never block the login on push plumbing.
+    }
+
+    try {
+      const response = await apiClient.post<{
+        user: User | null;
+        mfa_required?: boolean;
+        mfa_token?: string | null;
+      }>('/auth/login', {
         email,
         password,
         remember_me: rememberMe,
+        fcm_token: fcmToken,
       });
 
+      // Two-step login (TOTP active): no session yet — the caller must
+      // present the pending token + code to verifyMfa.
+      if (response.mfa_required) {
+        return { user: null, mfaRequired: true, mfaToken: response.mfa_token ?? null };
+      }
+
       setUser(response.user);
-      return response.user;
+      return { user: response.user, mfaRequired: false, mfaToken: null };
     } catch (error) {
       console.error('Login error:', error);
       throw error;
     }
+  };
+
+  /**
+   * Complete a two-step login: pending token + TOTP or backup code.
+   * On success the backend sets the session cookie and returns the user.
+   */
+  const verifyMfa = async (mfaToken: string, code: string): Promise<User> => {
+    const response = await apiClient.post<{ user: User }>('/auth/mfa/verify', {
+      mfa_token: mfaToken,
+      code,
+    });
+    setUser(response.user);
+    return response.user;
   };
 
   /**
@@ -276,6 +331,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       user,
       isLoading,
       login,
+      verifyMfa,
       register,
       logout,
       initiateGoogleOAuth,

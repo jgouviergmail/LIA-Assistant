@@ -20,6 +20,8 @@ Security:
     - No desynchronization (PostgreSQL = source of truth)
 """
 
+from contextlib import suppress
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -27,10 +29,12 @@ import structlog
 from fastapi import Cookie, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.exceptions import (
     raise_admin_required,
     raise_session_invalid,
+    raise_step_up_required,
     raise_user_inactive,
     raise_user_not_authenticated,
     raise_user_not_verified,
@@ -102,6 +106,11 @@ async def get_current_session(
 
     # Type narrowing: session is UserSession (not None) after check
     assert session is not None
+
+    # D2 device overview: coarse last-seen refresh (>=15 min grain, keepttl).
+    # Best-effort — activity tracking must never fail a request.
+    with suppress(Exception):
+        await session_store.touch_last_seen(session.session_id)
 
     # Step 2: Fetch User from PostgreSQL (single source of truth)
     user_repo = UserRepository(db)
@@ -218,6 +227,48 @@ async def get_current_superuser_session(
     """
     if not user.is_superuser:
         raise_admin_required(user.id)
+
+    return user
+
+
+async def require_recent_step_up(
+    lia_session: Annotated[str | None, Cookie()] = None,
+    user: User = Depends(get_current_active_session),
+    session_store: SessionStore = Depends(get_session_store),
+) -> User:
+    """Require a fresh step-up re-authentication on the current session.
+
+    Sensitive actions (credential revocation, MFA management, exports)
+    depend on this instead of ``get_current_active_session``. The challenge
+    is a typed **403** (``detail.error = "step_up_required"``) — NEVER a
+    plain 401, which the frontend hard-redirects to the login page.
+
+    Args:
+        lia_session: Session ID from the HTTP-only cookie.
+        user: The authenticated active user (chains the standard checks).
+        session_store: SessionStore dependency.
+
+    Returns:
+        The authenticated user, when the session carries a step-up newer
+        than ``settings.step_up_window_seconds``.
+
+    Raises:
+        HTTPException: 403 with the step-up contract otherwise.
+    """
+    assert lia_session is not None  # get_current_active_session already required it
+
+    session = await session_store.get_session(lia_session)
+    if session is None or session.step_up_at is None:
+        raise_step_up_required()
+
+    age_seconds = (datetime.now(UTC) - session.step_up_at).total_seconds()
+    if age_seconds > settings.step_up_window_seconds:
+        logger.debug(
+            "step_up_expired",
+            session_id=lia_session,
+            age_seconds=int(age_seconds),
+        )
+        raise_step_up_required()
 
     return user
 

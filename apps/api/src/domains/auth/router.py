@@ -5,17 +5,22 @@ Auth router with FastAPI endpoints for authentication.
 from contextlib import suppress
 
 import structlog
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, status
-from fastapi.responses import StreamingResponse
+from fastapi import (
+    APIRouter,
+    Cookie,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.exceptions import (
     GoneError,
-    raise_external_service_connection_error,
-    raise_external_service_fetch_error,
-    raise_invalid_input,
     raise_permission_denied,
 )
 from src.core.i18n_api_messages import APIMessages
@@ -30,7 +35,12 @@ from src.domains.auth.dependencies import (
     rate_limit_password_reset_request,
     rate_limit_register,
 )
+from src.domains.auth.login_notification import (
+    notify_new_login_if_unknown,
+    resolve_attestation,
+)
 from src.domains.auth.schemas import (
+    AuthFeaturesResponse,
     AuthResponseBFF,
     DebugPanelPreferenceRequest,
     DebugPanelPreferenceResponse,
@@ -43,6 +53,9 @@ from src.domains.auth.schemas import (
     LastLocationUpdateRequest,
     LastLocationUpdateResponse,
     LastLocationViewResponse,
+    LoginNotificationsPreferenceRequest,
+    LoginNotificationsPreferenceResponse,
+    LoginResponseBFF,
     MemoryPreferenceRequest,
     MemoryPreferenceResponse,
     MessageResponse,
@@ -64,6 +77,7 @@ from src.domains.auth.schemas import (
     WeatherLocationPreferenceResponse,
 )
 from src.domains.auth.service import AuthService
+from src.domains.auth.totp_service import TOTPService
 from src.domains.users.models import User
 from src.domains.users.user_location_service import UserLocationService
 from src.infrastructure.cache.redis import get_redis_session
@@ -86,6 +100,18 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
+@router.get(
+    "/features",
+    response_model=AuthFeaturesResponse,
+    summary="Authentication capabilities",
+    description="Publicly visible authentication capabilities of this instance "
+    "(lets the frontend show/hide strong-auth UI).",
+)
+async def auth_features() -> AuthFeaturesResponse:
+    """Expose which authentication features are mounted on this instance."""
+    return AuthFeaturesResponse(mfa_enabled=settings.mfa_enabled)
+
+
 @router.post(
     "/register",
     response_model=AuthResponseBFF,
@@ -97,6 +123,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 async def register(
     data: UserRegisterRequest,
     response: Response,
+    http_request: Request,
     db: AsyncSession = Depends(get_db),
     _rate_limit: None = Depends(rate_limit_register),
 ) -> AuthResponseBFF:
@@ -129,6 +156,8 @@ async def register(
             remember_me=data.remember_me,
             event_name="user_registered_bff",
             extra_context={"email": user_response.email},
+            auth_methods=["password"],
+            request=http_request,
         )
 
         # Track successful registration
@@ -148,27 +177,29 @@ async def register(
 
 @router.post(
     "/login",
-    response_model=AuthResponseBFF,
+    response_model=LoginResponseBFF,
     summary="Login user (BFF Pattern)",
-    description="Login with email and password. Creates session and sets HTTP-only cookie. "
-    "BFF Pattern: No tokens exposed to frontend.",
+    description="Login with email and password. Creates session and sets HTTP-only cookie, "
+    "or — when TOTP is active on the account — returns a single-use mfa_token for "
+    "/auth/mfa/verify instead. BFF Pattern: No tokens exposed to frontend.",
 )
 async def login(
     data: UserLoginRequest,
     response: Response,
+    http_request: Request,
     db: AsyncSession = Depends(get_db),
     _rate_limit: None = Depends(rate_limit_login),
     lia_session: str | None = Cookie(default=None),
-) -> AuthResponseBFF:
+) -> LoginResponseBFF:
     """
     Login user with email and password using BFF Pattern.
 
     Flow:
     1. Validates email exists
     2. Verifies password hash
-    3. Creates session in Redis
-    4. Sets HTTP-only session cookie
-    5. Returns user info (no tokens)
+    3. TOTP active on the account → NO session; returns mfa_required +
+       single-use pending token (5 min) for /auth/mfa/verify
+    4. Otherwise creates session in Redis + HTTP-only session cookie
 
     Security (BFF Pattern):
     - No JWT tokens in response body
@@ -180,6 +211,32 @@ async def login(
     try:
         user_response = await service.login(data)
 
+        # A4 device attestation: a valid registered FCM token vouches for
+        # this device; every failure mode falls toward notifying.
+        known_device, fcm_token_id = await resolve_attestation(db, user_response.id, data.fcm_token)
+
+        # Two-step login (security program D1 Lot 2): TOTP-active accounts
+        # get a pending token instead of a session.
+        if settings.mfa_enabled:
+            totp_service = TOTPService(db)
+            if await totp_service.has_confirmed_totp(user_response.id):
+                mfa_token = await totp_service.create_pending_token(
+                    user_response.id,
+                    remember_me=data.remember_me,
+                    known_device=known_device,
+                    fcm_token_id=fcm_token_id,
+                )
+                auth_attempts_total.labels(method="login", status="mfa_pending").inc()
+                logger.info(
+                    "user_login_mfa_pending",
+                    user_id=str(user_response.id),
+                )
+                return LoginResponseBFF(
+                    mfa_required=True,
+                    mfa_token=mfa_token,
+                    message=APIMessages.mfa_code_required(),
+                )
+
         # Create session with HTTP-only cookie (BFF Pattern)
         # Session rotation: old_session_id invalidated in PROD to prevent session fixation
         await create_authenticated_session_with_cookie(
@@ -189,13 +246,20 @@ async def login(
             event_name="user_logged_in_bff",
             extra_context={"email": user_response.email},
             old_session_id=lia_session,
+            auth_methods=["password"],
+            request=http_request,
+            fcm_token_id=fcm_token_id,
         )
 
         # Track successful login
         auth_attempts_total.labels(method="login", status="success").inc()
         user_logins_total.labels(provider="password", status="success").inc()
 
-        return AuthResponseBFF(
+        user_row = await service.repository.get_by_email(data.email)
+        if user_row is not None:
+            await notify_new_login_if_unknown(db, user_row, known_device)
+
+        return LoginResponseBFF(
             user=user_response,
             message=APIMessages.login_successful(),
         )
@@ -212,7 +276,8 @@ async def login(
     response_model=None,
     summary="[REMOVED] Refresh token endpoint",
     description="This endpoint has been permanently removed with BFF Pattern migration. "
-    "Sessions are automatically refreshed server-side.",
+    "Sessions have a fixed lifetime (7 days, or 30 days with remember-me); "
+    "re-authenticate via /auth/login when a session expires.",
     deprecated=True,
     responses={
         410: {
@@ -223,7 +288,9 @@ async def login(
                         "detail": {
                             "error": "endpoint_permanently_removed",
                             "message": "Token refresh is no longer needed with BFF Pattern. "
-                            "Sessions are automatically refreshed on authenticated requests.",
+                            "Sessions have a fixed lifetime (7 days, or 30 days with "
+                            "remember-me); re-authenticate via /auth/login when a "
+                            "session expires.",
                             "migration_guide": "/docs#bff-authentication",
                             "alternative": "Use session-based authentication via /auth/login",
                             "deprecated_since": "v0.2.0",
@@ -247,8 +314,8 @@ async def refresh_token(
 
     With the BFF (Backend-For-Frontend) Pattern, token refresh is no longer needed:
 
-    1. **Sessions auto-refresh**: Every authenticated request automatically extends
-       the session TTL server-side.
+    1. **Fixed-lifetime sessions**: Sessions live 7 days (30 days with
+       remember-me) from creation, then expire server-side.
     2. **HTTP-only cookies**: Authentication state is managed via secure cookies,
        not client-side tokens.
     3. **No token management**: Frontend doesn't need to handle token refresh logic.
@@ -256,8 +323,8 @@ async def refresh_token(
     ## What to do instead
 
     - Use `/auth/login` for initial authentication
-    - Sessions remain valid as long as the user is active
-    - No manual refresh required
+    - When the session expires, the API returns 401 and the frontend
+      redirects to the login page
 
     ## Why was this removed?
 
@@ -274,7 +341,8 @@ async def refresh_token(
         detail={
             "error": "endpoint_permanently_removed",
             "message": "Token refresh is no longer needed with BFF Pattern. "
-            "Sessions are automatically refreshed on authenticated requests.",
+            "Sessions have a fixed lifetime (7 days, or 30 days with remember-me); "
+            "re-authenticate via /auth/login when a session expires.",
             "migration_guide": "/docs#bff-authentication",
             "alternative": "Use session-based authentication via /auth/login",
             "deprecated_since": "v0.2.0",
@@ -874,6 +942,45 @@ async def update_tokens_display_preference(
 
 
 @router.patch(
+    "/me/login-notifications-preference",
+    response_model=LoginNotificationsPreferenceResponse,
+    summary="Update new-login notification preference",
+    description="Enable or disable the FCM notification sent when the account signs in "
+    "from a device that did not attest itself (security program D2, A4).",
+)
+async def update_login_notifications_preference(
+    data: LoginNotificationsPreferenceRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> LoginNotificationsPreferenceResponse:
+    """Update the new-login notification preference.
+
+    Args:
+        data: Toggle payload.
+        user: Current authenticated user.
+        db: Database session.
+
+    Returns:
+        Current preference state with a localized confirmation message.
+    """
+    user.login_notifications_enabled = data.enabled
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    logger.info(
+        "user_login_notifications_preference_updated",
+        user_id=str(user.id),
+        enabled=data.enabled,
+    )
+
+    return LoginNotificationsPreferenceResponse(
+        enabled=user.login_notifications_enabled,
+        message=APIMessages.login_notifications_preference_updated(),
+    )
+
+
+@router.patch(
     "/me/onboarding-preference",
     response_model=OnboardingPreferenceResponse,
     summary="Update onboarding preference",
@@ -1107,6 +1214,7 @@ async def google_login(
 async def google_callback(
     code: str,
     state: str,
+    http_request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     """
@@ -1155,10 +1263,21 @@ async def google_callback(
                 remember_me=False,
                 event_name="oauth_callback_success_bff",
                 extra_context={"email": user_response.email, "redirect_to": redirect_url},
+                auth_methods=["oauth_google"],
+                request=http_request,
             )
 
         # Track successful callback
         oauth_callback_total.labels(provider="google", status="success").inc()
+
+        # A4: the OAuth redirect cannot carry an FCM attestation safely
+        # (GET navigation) — always treated as an unknown device.
+        from src.domains.auth.login_notification import notify_new_login_if_unknown
+        from src.domains.users.repository import UserRepository
+
+        oauth_user = await UserRepository(db).get_user_minimal_for_session(user_response.id)
+        if oauth_user is not None:
+            await notify_new_login_if_unknown(db, oauth_user, known=False)
 
         return response
 
@@ -1186,156 +1305,3 @@ async def google_callback(
 
         # Re-raise to let FastAPI handle it
         raise
-
-
-# ========== PROFILE IMAGE PROXY ==========
-# Proxy for Google profile images to work with COEP: require-corp
-
-# Allowed Google image domains (prevent SSRF)
-ALLOWED_IMAGE_DOMAINS: frozenset[str] = frozenset(
-    {
-        "lh3.googleusercontent.com",
-        "lh4.googleusercontent.com",
-        "lh5.googleusercontent.com",
-        "lh6.googleusercontent.com",
-    }
-)
-
-
-@router.get(
-    "/profile-image-proxy",
-    summary="Proxy Google profile image",
-    description="Proxy endpoint for Google profile images to work with COEP: require-corp. "
-    "Only allows images from Google's user content domains (lh3/4/5/6.googleusercontent.com).",
-    responses={
-        200: {"content": {"image/*": {}}, "description": "Profile image"},
-        400: {"description": "Invalid or disallowed URL"},
-        502: {"description": "Failed to fetch image from source"},
-    },
-)
-async def proxy_profile_image(
-    url: str = Query(..., description="Google profile image URL to proxy"),
-    current_user: User = Depends(get_current_active_session),
-) -> StreamingResponse:
-    """
-    Proxy Google profile images for COEP compatibility.
-
-    Google's lh3.googleusercontent.com doesn't send CORS headers,
-    which breaks images when using COEP: require-corp.
-    This proxy fetches the image server-side and returns it with proper headers.
-
-    Security:
-    - Only allows URLs from Google's user content domains
-    - Requires authentication (prevents abuse)
-
-    Args:
-        url: Full URL to the Google profile image
-        current_user: Current authenticated user (for rate limiting/auth)
-
-    Returns:
-        StreamingResponse with the image data
-    """
-    from urllib.parse import urlparse
-
-    import httpx
-
-    user_id = current_user.id
-
-    # Parse and validate URL
-    try:
-        parsed = urlparse(url)
-    except Exception:
-        raise_invalid_input("Invalid URL format", url=url[:100] if url else None)
-
-    # Security: Only allow Google image domains
-    if parsed.hostname not in ALLOWED_IMAGE_DOMAINS:
-        logger.warning(
-            "profile_image_proxy_blocked_domain",
-            user_id=str(user_id),
-            domain=parsed.hostname,
-        )
-        raise_invalid_input(
-            "Domain not allowed. Only Google profile images are supported.",
-            domain=parsed.hostname,
-        )
-
-    # Security: Only allow HTTPS
-    if parsed.scheme != "https":
-        raise_invalid_input("Only HTTPS URLs are allowed", scheme=parsed.scheme)
-
-    # Fetch the image
-    logger.info(
-        "profile_image_proxy_request",
-        user_id=str(user_id),
-        url=url[:100] if len(url) > 100 else url,
-    )
-
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                url,
-                follow_redirects=True,
-                timeout=settings.http_timeout_external_api,
-                headers={
-                    "User-Agent": "LIA/1.0",
-                },
-            )
-
-            # Security: validate final URL after redirects (SSRF prevention)
-            final_hostname = urlparse(str(response.url)).hostname
-            if final_hostname not in ALLOWED_IMAGE_DOMAINS:
-                logger.warning(
-                    "profile_image_proxy_redirect_blocked",
-                    user_id=str(user_id),
-                    original_url=url[:100],
-                    final_hostname=final_hostname,
-                )
-                raise_invalid_input(
-                    "Redirect to disallowed domain",
-                    domain=final_hostname,
-                )
-
-            if response.status_code != 200:
-                logger.warning(
-                    "profile_image_proxy_fetch_failed",
-                    user_id=str(user_id),
-                    url=url[:100],
-                    status_code=response.status_code,
-                )
-                raise_external_service_fetch_error(
-                    "google_profile_image", "image", response.status_code
-                )
-
-            # Get content type from response
-            content_type = response.headers.get("content-type", "image/jpeg")
-
-            logger.info(
-                "profile_image_proxy_success",
-                user_id=str(user_id),
-                content_length=len(response.content),
-            )
-
-            return StreamingResponse(
-                iter([response.content]),
-                media_type=content_type,
-                headers={
-                    "Cross-Origin-Resource-Policy": "cross-origin",
-                    "Cache-Control": "private, max-age=86400",
-                },
-            )
-
-    except httpx.TimeoutException:
-        logger.warning(
-            "profile_image_proxy_timeout",
-            user_id=str(user_id),
-            url=url[:100],
-        )
-        raise_external_service_connection_error("google_profile_image")
-    except httpx.RequestError as e:
-        logger.warning(
-            "profile_image_proxy_request_error",
-            user_id=str(user_id),
-            url=url[:100],
-            error=str(e),
-        )
-        raise_external_service_connection_error("google_profile_image")

@@ -21,46 +21,115 @@ import os
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import delete, select, text, update
+from sqlalchemy import Delete, delete, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.exceptions import ResourceConflictError, raise_user_not_found
-from src.domains.attachments.models import Attachment
-from src.domains.channels.models import UserChannelBinding
 from src.domains.connectors.models import (
     Connector,
     ConnectorStatus,
     ConnectorType,
 )
-from src.domains.conversations.models import (
-    Conversation,
-    ConversationAuditLog,
-    ConversationMessage,
-)
-from src.domains.health_metrics.models import HealthMetricToken, HealthSample
-from src.domains.heartbeat.models import HeartbeatNotification
-from src.domains.interests.models import InterestNotification, UserInterest
-from src.domains.journals.models import JournalEntry
-from src.domains.memories.models import Memory
-from src.domains.notifications.models import UserBroadcastRead, UserFCMToken
-from src.domains.psyche.models import PsycheHistory, PsycheState
-from src.domains.rag_spaces.models import RAGSpace
-from src.domains.reminders.models import Reminder
-from src.domains.scheduled_actions.models import ScheduledAction
-from src.domains.skills.models import Skill, UserSkillState
-from src.domains.usage_limits.models import UserUsageLimit
-from src.domains.user_mcp.models import UserMCPServer
+from src.domains.conversations.models import Conversation
 from src.domains.users.models import User
+from src.infrastructure.database.registry import import_all_models
+from src.infrastructure.database.session import Base
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
     from fastapi import Request
 
 logger = get_logger(__name__)
+
+
+def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
+    """Build the ordered DELETE statements purging all user-scoped tables.
+
+    Module-level (not a method) so the completeness guard in
+    ``tests/unit/domains/users/test_user_data_map_guard.py`` can cross-check
+    the purged table set against ``user_data_map.TABLE_RULES`` without
+    instantiating the service.
+
+    Statements are built against ``Base.metadata`` Table objects, not ORM
+    classes: the purge is a data-lifecycle concern keyed by table name, and
+    importing every domain's models here would create users<->domain runtime
+    import cycles (F009 ratchet).
+
+    FK-safe order: Group 1 (child tables referencing other user-scoped
+    tables) before Group 2 (tables referencing users only).
+
+    Args:
+        user_id: Target user UUID.
+
+    Returns:
+        Ordered list of ``(count key = table name, DELETE statement)`` pairs.
+    """
+    import_all_models()
+    tables = Base.metadata.tables
+
+    def by_user(table_name: str, column: str = "user_id") -> tuple[str, Delete]:
+        table = tables[table_name]
+        return table_name, delete(table).where(table.c[column] == user_id)
+
+    # conversation_messages has NO user_id — it cascades from conversations.
+    # We delete it explicitly via subquery for accurate counting.
+    conversations = tables["conversations"]
+    conversation_messages = tables["conversation_messages"]
+    conversation_ids_subq = select(conversations.c.id).where(conversations.c.user_id == user_id)
+
+    return [
+        # Group 1 — Child tables (FK to other user-scoped tables)
+        by_user("interest_notifications"),
+        by_user("user_broadcast_reads"),
+        by_user("conversation_audit_log"),
+        (
+            "conversation_messages",
+            delete(conversation_messages).where(
+                conversation_messages.c.conversation_id.in_(conversation_ids_subq)
+            ),
+        ),
+        # Group 2 — Main tables (FK directly to users)
+        by_user("conversations"),
+        by_user("memories"),
+        by_user("journal_entries"),
+        by_user("psyche_history"),
+        by_user("psyche_states"),
+        by_user("user_interests"),
+        by_user("heartbeat_notifications"),
+        by_user("reminders"),
+        by_user("scheduled_actions"),
+        by_user("user_skill_states"),
+        by_user("skills", column="owner_id"),
+        by_user("user_mcp_servers"),
+        # ADR-083 Phase 2 cleanup: sub_agents table dropped — nothing to delete.
+        by_user("rag_spaces"),
+        by_user("user_fcm_tokens"),
+        by_user("user_channel_bindings"),
+        by_user("attachments"),
+        by_user("user_usage_limits"),
+        # GDPR (audit N-207.1): physiological data + ingestion tokens.
+        # The user row is soft-deleted, so FK CASCADEs never fire — these
+        # rows MUST be purged explicitly. Deleting the tokens also cuts
+        # off any device still pushing samples (its next write is a 401).
+        by_user("health_samples"),
+        by_user("health_metric_tokens"),
+        # Same soft-delete trap: commitments and telephony call records
+        # reference users with ondelete=CASCADE that never fires.
+        by_user("open_loops"),
+        by_user("phone_calls"),
+        by_user("account_export_jobs"),
+        # Authentication material (security program D1): passkeys must die
+        # with the account — a surviving credential could otherwise still
+        # complete a discoverable-credential login ceremony lookup.
+        by_user("webauthn_credentials"),
+        by_user("user_totp"),
+        by_user("mfa_backup_codes"),
+        by_user("connectors"),
+    ]
 
 
 class AccountDeletionService:
@@ -560,8 +629,8 @@ class AccountDeletionService:
     async def _purge_user_data_tables(self, user_id: UUID) -> dict[str, int]:
         """Delete personal data from all user-scoped tables in FK-safe order.
 
-        Group 1: child tables (FK to other user-scoped tables).
-        Group 2: main tables (FK directly to users only).
+        The statement list lives in the module-level ``build_purge_statements``
+        so the user-data completeness guard can introspect it.
 
         Args:
             user_id: User UUID.
@@ -570,71 +639,7 @@ class AccountDeletionService:
             Dict mapping table name → deleted row count.
         """
         counts: dict[str, int] = {}
-
-        # Group 1 — Child tables (FK to other user-scoped tables)
-        # Note: ConversationMessage has NO user_id — it cascades from Conversation.
-        # We delete it explicitly via subquery for accurate counting.
-        conversation_ids_subq = select(Conversation.id).where(Conversation.user_id == user_id)
-        group1: list[tuple[str, Any]] = [
-            (
-                "interest_notifications",
-                delete(InterestNotification).where(InterestNotification.user_id == user_id),
-            ),
-            (
-                "broadcast_read_receipts",
-                delete(UserBroadcastRead).where(UserBroadcastRead.user_id == user_id),
-            ),
-            (
-                "conversation_audit_log",
-                delete(ConversationAuditLog).where(ConversationAuditLog.user_id == user_id),
-            ),
-            (
-                "conversation_messages",
-                delete(ConversationMessage).where(
-                    ConversationMessage.conversation_id.in_(conversation_ids_subq)
-                ),
-            ),
-        ]
-
-        # Group 2 — Main tables (FK directly to users)
-        group2: list[tuple[str, Any]] = [
-            ("conversations", delete(Conversation).where(Conversation.user_id == user_id)),
-            ("memories", delete(Memory).where(Memory.user_id == user_id)),
-            ("journal_entries", delete(JournalEntry).where(JournalEntry.user_id == user_id)),
-            ("psyche_history", delete(PsycheHistory).where(PsycheHistory.user_id == user_id)),
-            ("psyche_states", delete(PsycheState).where(PsycheState.user_id == user_id)),
-            ("user_interests", delete(UserInterest).where(UserInterest.user_id == user_id)),
-            (
-                "heartbeat_notifications",
-                delete(HeartbeatNotification).where(HeartbeatNotification.user_id == user_id),
-            ),
-            ("reminders", delete(Reminder).where(Reminder.user_id == user_id)),
-            (
-                "scheduled_actions",
-                delete(ScheduledAction).where(ScheduledAction.user_id == user_id),
-            ),
-            ("user_skill_states", delete(UserSkillState).where(UserSkillState.user_id == user_id)),
-            ("skills", delete(Skill).where(Skill.owner_id == user_id)),
-            ("user_mcp_servers", delete(UserMCPServer).where(UserMCPServer.user_id == user_id)),
-            # ADR-083 Phase 2 cleanup: sub_agents table dropped — nothing to delete.
-            ("rag_spaces", delete(RAGSpace).where(RAGSpace.user_id == user_id)),
-            ("user_fcm_tokens", delete(UserFCMToken).where(UserFCMToken.user_id == user_id)),
-            ("channels", delete(UserChannelBinding).where(UserChannelBinding.user_id == user_id)),
-            ("attachments", delete(Attachment).where(Attachment.user_id == user_id)),
-            ("user_usage_limits", delete(UserUsageLimit).where(UserUsageLimit.user_id == user_id)),
-            # GDPR (audit N-207.1): physiological data + ingestion tokens.
-            # The user row is soft-deleted, so FK CASCADEs never fire — these
-            # rows MUST be purged explicitly. Deleting the tokens also cuts
-            # off any device still pushing samples (its next write is a 401).
-            ("health_samples", delete(HealthSample).where(HealthSample.user_id == user_id)),
-            (
-                "health_metric_tokens",
-                delete(HealthMetricToken).where(HealthMetricToken.user_id == user_id),
-            ),
-            ("connectors", delete(Connector).where(Connector.user_id == user_id)),
-        ]
-
-        for table_name, stmt in group1 + group2:
+        for table_name, stmt in build_purge_statements(user_id):
             result = await self.db.execute(stmt)
             counts[table_name] = result.rowcount  # type: ignore[attr-defined]
 

@@ -65,6 +65,9 @@ import { BriefingGridSettings } from '@/components/settings/BriefingGridSettings
 import { OpenLoopsSection } from '@/components/settings/OpenLoopsSection';
 import { CardsDisplaySettings } from '@/components/settings/CardsDisplaySettings';
 import { SettingsGroupLabel } from '@/components/settings/SettingsGroupLabel';
+import { SecuritySettings } from '@/components/settings/SecuritySettings';
+import { DeviceSessionsSettings } from '@/components/settings/DeviceSessionsSettings';
+import { AccountExportSettings } from '@/components/settings/AccountExportSettings';
 import ConsumptionExportSection from '@/components/settings/ConsumptionExportSection';
 import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
 import { useTranslation } from '@/i18n/client';
@@ -272,6 +275,19 @@ export default function SettingsPage({ params }: SettingsPageProps) {
                 <ChannelSettings lng={lng} />
               </FeatureErrorBoundary>
 
+              {/* Group: Security — device sessions always; passkeys/TOTP/password
+                  render only when the instance has MFA enabled */}
+              <SettingsGroupLabel label={t('settings.groups.security')} icon={Shield} />
+              <FeatureErrorBoundary feature="security">
+                <SecuritySettings />
+              </FeatureErrorBoundary>
+              <FeatureErrorBoundary feature="security">
+                <DeviceSessionsSettings />
+              </FeatureErrorBoundary>
+              <FeatureErrorBoundary feature="security">
+                <AccountExportSettings />
+              </FeatureErrorBoundary>
+
               {/* Group: Voice & Media */}
               <SettingsGroupLabel label={t('settings.groups.voice_media')} icon={Mic} />
               <VoiceModeSettings lng={lng} />
@@ -437,6 +453,19 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <NotificationSettings lng={lng} />
               <FeatureErrorBoundary feature="channels">
                 <ChannelSettings lng={lng} />
+              </FeatureErrorBoundary>
+
+              {/* Group: Security — device sessions always; passkeys/TOTP/password
+                  render only when the instance has MFA enabled */}
+              <SettingsGroupLabel label={t('settings.groups.security')} icon={Shield} />
+              <FeatureErrorBoundary feature="security">
+                <SecuritySettings />
+              </FeatureErrorBoundary>
+              <FeatureErrorBoundary feature="security">
+                <DeviceSessionsSettings />
+              </FeatureErrorBoundary>
+              <FeatureErrorBoundary feature="security">
+                <AccountExportSettings />
               </FeatureErrorBoundary>
 
               {/* Group: Voice & Media */}

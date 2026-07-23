@@ -21,9 +21,11 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import (
+    ACCOUNT_EXPORT_EXECUTOR_INTERVAL_SECONDS,
     CURRENCY_SYNC_HOUR,
     CURRENCY_SYNC_MINUTE,
     SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS,
+    SCHEDULER_JOB_ACCOUNT_EXPORT,
     SCHEDULER_JOB_ATTACHMENT_CLEANUP,
     SCHEDULER_JOB_CURRENCY_SYNC,
     SCHEDULER_JOB_HEARTBEAT_NOTIFICATION,
@@ -227,6 +229,25 @@ async def init_scheduler(scheduler: "AsyncIOScheduler") -> SchedulerLeaderElecto
             max_instances=1,
             misfire_grace_time=30,
         )
+
+        # Account export executor (security program D3) — build + sweep tick.
+        if getattr(settings, "account_export_enabled", False):
+            from src.domains.account_export.executor import process_account_exports
+
+            scheduler.add_job(
+                process_account_exports,
+                trigger="interval",
+                seconds=ACCOUNT_EXPORT_EXECUTOR_INTERVAL_SECONDS,
+                id=SCHEDULER_JOB_ACCOUNT_EXPORT,
+                name="Build account export archives + retention sweep",
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=30,
+            )
+            logger.info(
+                "account_export_executor_job_scheduled",
+                interval_seconds=ACCOUNT_EXPORT_EXECUTOR_INTERVAL_SECONDS,
+            )
         logger.info(
             "scheduled_action_executor_job_scheduled",
             interval_seconds=SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS,

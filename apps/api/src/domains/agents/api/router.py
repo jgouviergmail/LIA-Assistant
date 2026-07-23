@@ -12,7 +12,7 @@ from contextlib import suppress
 from datetime import UTC
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, Header, Request, Response
+from fastapi import APIRouter, Cookie, Depends, Header, Request, Response
 from fastapi.responses import StreamingResponse
 from starlette.requests import ClientDisconnect
 
@@ -44,6 +44,10 @@ from src.domains.agents.api.error_messages import SSEErrorMessages
 from src.domains.agents.api.hitl_pending import check_pending_hitl, check_pending_hitl_uncached
 from src.domains.agents.api.schemas import ChatRequest, ChatStreamChunk, PendingHitlResponse
 from src.domains.agents.api.service import AgentService
+from src.domains.agents.api.session_watch import (
+    SESSION_REVOKED_COMMENT,
+    session_still_valid,
+)
 from src.domains.agents.api.sse_keepalive import KeepalivePulse, iter_with_keepalive
 from src.domains.agents.utils import generate_run_id
 from src.domains.chat.schemas import TokenSummaryDTO
@@ -142,6 +146,7 @@ async def stream_run_as_sse(
     stream_id: str,
     conversation_id: str | None = None,
     user_language: Language = DEFAULT_LANGUAGE,
+    session_id: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """Subscribe to a run stream and format events as SSE lines.
 
@@ -212,6 +217,11 @@ async def stream_run_as_sse(
                 yield ": replay-end\n\n"
                 replay_boundary_emitted = True
             if event.kind == "keepalive":
+                # D2 remote sign-out: a revoked session closes its subscriber
+                # within one keepalive tick (the detached producer continues).
+                if not await session_still_valid(session_id):
+                    yield SESSION_REVOKED_COMMENT
+                    return
                 if conversation_id is not None and time.monotonic() - last_chunk_at >= orphan_grace:
                     lock_missing_since, is_orphan = await _probe_orphan(
                         redis, conversation_id, stream_id, lock_missing_since, orphan_grace
@@ -367,6 +377,10 @@ async def stream_chat(
     # Verify user_id matches authenticated user
     if current_user.id != request.user_id:
         raise_user_id_mismatch()
+
+    # D2 remote sign-out: captured at connect time, re-checked at every
+    # keepalive tick so a revoked session closes its stream within one tick.
+    bff_session_id = http_request.cookies.get(settings.session_cookie_name)
 
     # === USAGE LIMIT CHECK (Layer 0: HTTP 429 before SSE stream) ===
     if getattr(settings, "usage_limits_enabled", False):
@@ -723,6 +737,7 @@ async def stream_chat(
                             stream_id,
                             conversation_id=background_conversation_id,
                             user_language=user_language,
+                            session_id=bff_session_id,
                         ):
                             yield sse_line
                     else:
@@ -731,6 +746,9 @@ async def stream_chat(
                             keepalive_interval_seconds=settings.sse_heartbeat_interval,
                         ):
                             if isinstance(item, KeepalivePulse):
+                                if not await session_still_valid(bff_session_id):
+                                    yield SESSION_REVOKED_COMMENT
+                                    break
                                 yield ": heartbeat\n\n"
                                 continue
 
@@ -842,6 +860,7 @@ async def stream_chat(
                         stream_id,
                         conversation_id=background_conversation_id,
                         user_language=user_language,
+                        session_id=bff_session_id,
                     ):
                         yield sse_line
                 else:
@@ -850,6 +869,9 @@ async def stream_chat(
                         keepalive_interval_seconds=settings.sse_heartbeat_interval,
                     ):
                         if isinstance(item, KeepalivePulse):
+                            if not await session_still_valid(bff_session_id):
+                                yield SESSION_REVOKED_COMMENT
+                                break
                             yield ": heartbeat\n\n"
                             logger.debug(
                                 "sse_heartbeat_sent",
@@ -1109,6 +1131,7 @@ async def cancel_active_run(
 async def reattach_run_stream(
     stream_id: str,
     current_user: User = Depends(get_current_active_session),
+    lia_session: str | None = Cookie(default=None),
 ) -> StreamingResponse:
     """Reattach to an in-flight background run (full replay + live tail).
 
@@ -1152,6 +1175,7 @@ async def reattach_run_stream(
             stream_id,
             conversation_id=conversation_id,
             user_language=user_language,
+            session_id=lia_session,
         ):
             yield sse_line
 

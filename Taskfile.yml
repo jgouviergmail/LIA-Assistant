@@ -129,6 +129,17 @@ tasks:
     cmds:
       - pnpm dev
 
+  dev:trust-cert:
+    desc: "Trust the dev TLS certificate (required for WebAuthn/passkeys — Chromium refuses ceremonies on untrusted certs)"
+    cmds:
+      # The bind mount auto-creates exports/ on the host if missing.
+      - docker run --rm -v lia_ssl_certs:/certs -v "{{.ROOT_DIR}}/exports:/out" alpine cp /certs/cert.pem /out/lia-dev-cert.pem
+      - cmd: certutil -f -user -addstore Root exports/lia-dev-cert.pem
+        platforms: [windows]
+      - cmd: 'echo "Linux/macOS: import exports/lia-dev-cert.pem into your trust store (see GETTING_STARTED > WebAuthn / Passkeys in Development)"'
+        platforms: [linux, darwin]
+      - cmd: 'echo "Done. RESTART YOUR BROWSER COMPLETELY (certificate verdicts are cached for the browser lifetime). Firefox users: import exports/lia-dev-cert.pem in Settings > Certificates. Re-run this task after ssl-init regenerates certificates (every ~30 days or after: docker volume rm lia_ssl_certs)."'
+
   stop:
     desc: Stop development environment
     cmds:

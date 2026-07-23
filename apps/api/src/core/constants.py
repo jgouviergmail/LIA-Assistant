@@ -804,6 +804,50 @@ RATE_LIMIT_AUTH_REGISTER_PER_MINUTE = 5  # Spam protection
 RATE_LIMIT_SSE_MAX_PER_MINUTE = 120  # Cap for SSE multiplier (2x default, max 120)
 
 # ============================================================================
+# STRONG AUTHENTICATION — MFA / WebAuthn passkeys (security program D1)
+# ============================================================================
+WEBAUTHN_RP_NAME_DEFAULT = "LIA"  # Relying Party name shown by authenticators
+WEBAUTHN_CHALLENGE_TTL_SECONDS_DEFAULT = 300  # Pending ceremony challenge TTL (single-use)
+MFA_MAX_PASSKEYS_PER_USER_DEFAULT = 10  # Cap of registered passkeys per account
+WEBAUTHN_LABEL_MAX_LENGTH = 64  # User-supplied passkey label cap (mirrors hm_ token labels)
+RATE_LIMIT_WEBAUTHN_AUTH_PER_MINUTE = 10  # Anonymous ceremony endpoints (per IP)
+RATE_LIMIT_WEBAUTHN_ENROLL_PER_MINUTE = 10  # Enrollment/management endpoints (per user)
+
+# Redis key prefixes for single-use WebAuthn challenges
+REDIS_KEY_WEBAUTHN_REG_CHALLENGE_PREFIX = "webauthn:reg:"  # + user_id
+REDIS_KEY_WEBAUTHN_AUTH_CHALLENGE_PREFIX = "webauthn:auth:"  # + challenge_id (uuid4)
+
+# TOTP second factor (RFC 6238 protocol invariants — not tunable settings)
+TOTP_DIGITS = 6
+TOTP_INTERVAL_SECONDS = 30
+TOTP_VALID_WINDOW_STEPS = 1  # tolerate ±1 step of clock drift
+MFA_BACKUP_CODES_COUNT = 10  # single-use codes generated per set (revealed once)
+MFA_BACKUP_CODE_HEX_CHARS = 10  # secrets.token_hex(5) → 10 hex chars per code
+MFA_PENDING_TTL_SECONDS_DEFAULT = 300  # two-step login pending token lifetime
+REDIS_KEY_MFA_PENDING_PREFIX = "mfa:pending:"  # + opaque token (uuid4)
+RATE_LIMIT_MFA_VERIFY_PER_MINUTE = 5  # per-IP on /auth/mfa/verify (code brute force)
+RATE_LIMIT_TOTP_MANAGE_PER_MINUTE = 10  # per-user on TOTP management endpoints
+
+# Account export (D3): GDPR-portability archives
+EXPORTS_STORAGE_PATH_DEFAULT = "data/exports"
+ACCOUNT_EXPORT_MAX_BYTES_DEFAULT = 2 * 1024 * 1024 * 1024  # 2 GiB cap (arbitration A5)
+ACCOUNT_EXPORT_RETENTION_HOURS_DEFAULT = 24  # download window after completion
+ACCOUNT_EXPORT_STALE_RUNNING_MINUTES_DEFAULT = 30  # crashed-run detection
+SCHEDULER_JOB_ACCOUNT_EXPORT = "account_export_executor"
+ACCOUNT_EXPORT_EXECUTOR_INTERVAL_SECONDS = 60
+RATE_LIMIT_ACCOUNT_EXPORT_PER_MINUTE = 3  # per-user on export request endpoints
+
+# Device sessions (D2): coarse activity tracking + display identifiers
+SESSION_LAST_SEEN_COARSE_SECONDS = 900  # min gap between last_seen_at rewrites (PII-bounded)
+SESSION_DISPLAY_ID_LENGTH = 16  # sha256(session_id) hex prefix shown to the UI (never the raw id)
+
+# Step-up re-authentication (sensitive actions re-verify a recent factor)
+STEP_UP_WINDOW_SECONDS_DEFAULT = 300  # freshness window after a successful step-up
+RATE_LIMIT_STEP_UP_PER_MINUTE = 5  # per-user on step-up verification endpoints
+REDIS_KEY_WEBAUTHN_STEPUP_CHALLENGE_PREFIX = "webauthn:stepup:"  # + user_id
+STEP_UP_ERROR_CODE = "step_up_required"  # typed 403 detail.error (NEVER a plain 401)
+
+# ============================================================================
 # INTERNATIONALIZATION (I18N)
 # ============================================================================
 

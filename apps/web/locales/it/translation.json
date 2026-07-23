@@ -487,6 +487,32 @@
       "terms_and": "e",
       "terms_link": "Termini di servizio",
       "privacy_link": "Informativa sulla privacy"
+    },
+    "passkey": {
+      "login_button": "Accedi con una passkey",
+      "login_pending": "In attesa della tua passkey…",
+      "login_error": "Accesso con passkey non riuscito. Riprova."
+    },
+    "mfa": {
+      "prompt": "Inserisci il codice a 6 cifre della tua app di autenticazione, oppure uno dei tuoi codici di backup.",
+      "code_label": "Codice di verifica",
+      "code_placeholder": "123456",
+      "verify_button": "Verifica",
+      "back_to_login": "Torna al login",
+      "invalid_code": "Codice non valido o scaduto. Accedi di nuovo."
+    },
+    "stepUp": {
+      "title": "Conferma la tua identità",
+      "description": "Questa azione sensibile richiede una nuova verifica recente (valida alcuni minuti).",
+      "error": "Verifica non riuscita. Riprova.",
+      "passkey_button": "Usa una passkey",
+      "password_label": "Password",
+      "password_submit": "Verifica con password",
+      "totp_label": "Codice dell’autenticatore o codice di backup",
+      "totp_submit": "Verifica con codice",
+      "oauth_google_button": "Conferma con Google",
+      "oauth_hint": "Verrai reindirizzato a Google per confermare la tua identità e tornerai su LIA — poi riavvia l’azione.",
+      "no_methods": "Nessun metodo di conferma è disponibile per questo account. Esci, accedi di nuovo e riprova."
     }
   },
   "chat": {
@@ -855,7 +881,8 @@
       "users_access": "Utenti e Accesso",
       "ai_connectors": "IA e Connettori",
       "content_extensions": "Contenuti e Estensioni",
-      "system": "Sistema"
+      "system": "Sistema",
+      "security": "Sicurezza"
     },
     "theme": {
       "title": "Aspetto",
@@ -2641,6 +2668,123 @@
       "relaunch_label": "Rilancia",
       "dismiss": "Scarta «{{subject}}» (non più attuale)",
       "dismiss_label": "Non più attuale"
+    },
+    "security": {
+      "passkeys": {
+        "title": "Passkeys",
+        "description": "Accedi con Face ID, impronta digitale o il PIN del dispositivo. Le passkey resistono al phishing e non lasciano mai il tuo dispositivo.",
+        "add": "Aggiungi una passkey",
+        "add_title": "Aggiungi una passkey",
+        "add_description": "Dai un nome a questa passkey, poi segui le istruzioni del browser.",
+        "label_input": "Nome",
+        "label_placeholder": "iPhone, PC di lavoro…",
+        "add_confirm": "Continua",
+        "add_pending": "Segui il tuo browser…",
+        "added": "Passkey aggiunta",
+        "add_error": "Impossibile aggiungere la passkey. Riprova.",
+        "empty": "Nessuna passkey al momento. Aggiungine una per accedere con Face ID o impronta.",
+        "unnamed": "Passkey senza nome",
+        "synced": "Sincronizzata",
+        "created_at": "Aggiunta il {{date}}",
+        "last_used": "ultimo utilizzo il {{date}}",
+        "rename_title": "Rinomina passkey",
+        "renamed": "Passkey rinominata",
+        "rename_error": "Impossibile rinominare la passkey.",
+        "rename_aria": "Rinomina la passkey {{name}}",
+        "revoke_title": "Revocare questa passkey?",
+        "revoke_description": "«{{name}}» non consentirà più l'accesso al tuo account. Rimuovila anche dal gestore password del dispositivo.",
+        "revoke_confirm": "Revoca",
+        "revoked": "Passkey revocata",
+        "revoke_error": "Impossibile revocare la passkey.",
+        "revoke_aria": "Revoca la passkey {{name}}",
+        "unsupported_browser": "Questo browser non supporta le passkey."
+      },
+      "totp": {
+        "title": "App di autenticazione (TOTP)",
+        "description": "Aggiunge un secondo passaggio all'accesso con password: un codice a 6 cifre da un'app (Google Authenticator, 1Password, Aegis…).",
+        "status_active": "Attivato",
+        "codes_remaining": "Codici di backup rimanenti: {{count}}",
+        "enable": "Attiva",
+        "disable": "Disattiva",
+        "regenerate": "Rigenera i codici di backup",
+        "enroll_title": "Configura la tua app di autenticazione",
+        "enroll_description": "Scansiona il codice QR con la tua app (o inserisci il segreto manualmente), poi digita il codice a 6 cifre mostrato.",
+        "qr_alt": "Codice QR di registrazione TOTP",
+        "enroll_secret_label": "Segreto per inserimento manuale",
+        "enroll_code_label": "Codice dall'app",
+        "enroll_code_placeholder": "123456",
+        "enroll_confirm": "Attiva",
+        "enroll_error": "Codice non valido. Controlla la tua app e riprova.",
+        "activated": "Accesso in due passaggi attivato",
+        "backup_title": "I tuoi codici di backup",
+        "backup_description": "Ogni codice funziona una sola volta se perdi l'accesso alla tua app. Vengono mostrati solo questa volta: conservali al sicuro.",
+        "backup_copy": "Copia i codici",
+        "backup_copied": "Codici di backup copiati",
+        "backup_done": "Li ho conservati",
+        "disable_title": "Disattivare l'accesso in due passaggi?",
+        "disable_description": "L'accesso con password non richiederà più un codice e i tuoi codici di backup saranno invalidati.",
+        "disable_confirm": "Disattiva",
+        "disabled_toast": "Accesso in due passaggi disattivato",
+        "regenerate_title": "Rigenerare i codici di backup?",
+        "regenerate_description": "I codici attuali smetteranno di funzionare. Un nuovo set verrà mostrato una sola volta.",
+        "regenerated": "Nuovi codici di backup generati",
+        "error_generic": "Qualcosa è andato storto. Riprova."
+      },
+      "password": {
+        "title": "Accesso con password",
+        "description_enabled": "Il tuo account può accedere con una password. Con almeno 2 passkey puoi disattivarla completamente.",
+        "description_disabled": "L’accesso con password è disattivato. Il ripristino via email resta disponibile come via di recupero.",
+        "requirement_hint": "Richiede almeno 2 passkey attive.",
+        "disable": "Disattiva la password",
+        "disable_title": "Disattivare l’accesso con password?",
+        "disable_description": "Solo le tue passkey consentiranno l’accesso. Il ripristino via email resta disponibile come via di recupero.",
+        "disable_confirm": "Disattiva",
+        "disabled_toast": "Accesso con password disattivato",
+        "error_generic": "Qualcosa è andato storto. Riprova."
+      },
+      "devices": {
+        "title": "I miei dispositivi",
+        "description": "Tutte le sessioni attualmente connesse al tuo account.",
+        "unknown_device": "Dispositivo sconosciuto",
+        "current": "Questo dispositivo",
+        "ip": "IP {{ip}}",
+        "signed_in": "connesso il {{date}}",
+        "last_seen": "attivo il {{date}}",
+        "revoke_aria": "Disconnetti {{name}}",
+        "revoke_title": "Disconnettere questo dispositivo?",
+        "revoke_description": "«{{name}}» verrà disconnesso immediatamente. La sua prossima richiesta richiederà un nuovo accesso.",
+        "revoke_confirm": "Disconnetti",
+        "revoked": "Dispositivo disconnesso",
+        "revoke_others": "Disconnetti gli altri dispositivi",
+        "revoke_others_title": "Disconnettere tutti gli altri dispositivi?",
+        "revoke_others_description": "Tutte le sessioni tranne questa verranno revocate. Le attività già avviate in background continuano lato server.",
+        "revoke_others_confirm": "Disconnetti tutti gli altri",
+        "others_revoked": "{{count}} dispositivo/i disconnesso/i",
+        "background_runs_note": "Nota: revocare un dispositivo interrompe subito il suo accesso; le attività già avviate in background terminano lato server.",
+        "error_generic": "Qualcosa è andato storto. Riprova.",
+        "notify_title": "Avvisi di nuovo accesso",
+        "notify_description": "Notifica i miei dispositivi quando l’account accede da un dispositivo non riconosciuto."
+      },
+      "export": {
+        "title": "Esporta i miei dati",
+        "description": "Scarica un archivio completo dei tuoi dati (conversazioni, ricordi, diario, salute, impostazioni…) — JSON più Markdown leggibile, file inclusi.",
+        "request": "Richiedi un’esportazione",
+        "in_progress": "Esportazione in corso…",
+        "requested": "Esportazione in coda: riceverai una notifica quando sarà pronta",
+        "download": "Scarica l’archivio",
+        "status_pending": "In coda",
+        "status_running": "In costruzione",
+        "status_done": "Pronto",
+        "status_failed": "Non riuscita",
+        "status_expired": "Scaduta",
+        "too_large": "L’archivio supera il limite di dimensione. Riduci i file archiviati.",
+        "failed_hint": "L’esportazione non è riuscita. Riprova.",
+        "error_generic": "Qualcosa è andato storto. Riprova."
+      },
+      "auth": {
+        "title": "Autenticazione forte",
+        "description": "Passkey, app di autenticazione e password."
+      }
     }
   },
   "spaces": {
@@ -3243,6 +3387,21 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_25_17": {
+          "title": "v1.25.17 — 🔐 Il tuo account mette la corazza",
+          "date": "Luglio 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>🔑 Passkey</b> — accedi con Face ID, la tua impronta o il codice del dispositivo. Resistente al phishing, niente da ricordare (Impostazioni > Sicurezza).",
+            "i2": "<b>📱 App di autenticazione (TOTP)</b> — aggiungi un secondo passaggio a 6 cifre all’accesso con password, con 10 codici di backup monouso mostrati una sola volta.",
+            "i3": "<b>🛡️ Conferma dell’identità</b> — le azioni sensibili (gestire le passkey, esportare i dati, disconnettere gli altri dispositivi) chiedono di riconfermare chi sei. Subito dopo l’accesso, niente da confermare per 5 minuti.",
+            "i4": "<b>💻 I miei dispositivi</b> — visualizza ogni sessione collegata al tuo account (browser, sistema, IP approssimativo) e disconnetti un dispositivo o tutti gli altri.",
+            "i5": "<b>🔔 Avvisi di nuovo accesso</b> — una notifica push avvisa i tuoi dispositivi quando l’account accede da un dispositivo non riconosciuto. Disattivabile in I miei dispositivi.",
+            "i6": "<b>📦 Esporta i miei dati</b> — richiedi un archivio completo dei tuoi dati (Markdown leggibile + JSON + i tuoi file); una notifica ti avvisa quando è pronto.",
+            "i7": "<b>📴 Modalità offline</b> — LIA mostra ora una vera pagina offline e si carica più velocemente grazie a una cache intelligente. I tuoi dati non vengono mai memorizzati nella cache su disco.",
+            "i8": "<b>🎨 Impostazioni Sicurezza riorganizzate</b> — Autenticazione forte, I miei dispositivi ed Esporta i miei dati sono tre sezioni a scomparsa pulite."
+          }
+        },
         "v1_25_16": {
           "title": "v1.25.16 — ✨ La conversazione matura",
           "date": "Luglio 2026",
@@ -4551,7 +4710,7 @@
           },
           "q8": {
             "question": "Posso installare LIA come un'app su telefono o computer? (v1.25.16)",
-            "answer": "<p>Sì. LIA è una <strong>PWA</strong>: su Android/Chrome desktop usa « Installa » (LIA lo suggerisce con discrezione dopo alcune visite); su iOS Safari, « Condividi → Aggiungi a Home ». Ottieni un'icona, scorciatoie (chat, briefing) e — una volta installata — il <strong>menu di condivisione</strong> di sistema può inviare testo o link direttamente in una bozza di chat LIA. Tutto localizzato nelle 6 lingue.</p>"
+            "answer": "<p>Sì. LIA è una <strong>PWA</strong>: su Android/Chrome desktop usa « Installa » (LIA lo suggerisce con discrezione dopo alcune visite); su iOS Safari, « Condividi → Aggiungi a Home ». Ottieni un'icona, scorciatoie (chat, briefing) e — una volta installata — il <strong>menu di condivisione</strong> di sistema può inviare testo o link direttamente in una bozza di chat LIA. Tutto localizzato nelle 6 lingue. Dall’arrivo del service worker unificato, LIA mostra anche una vera pagina offline e si carica più velocemente grazie alla cache intelligente degli asset — i tuoi dati personali non vengono mai memorizzati nella cache su disco.</p>"
           }
         }
       },
@@ -5343,7 +5502,7 @@
       "privacy": {
         "title": "Sicurezza e privacy",
         "description": "Protezione dei tuoi dati",
-        "count": "6",
+        "count": "11",
         "questions": {
           "q1": {
             "question": "Le mie conversazioni sono private?",
@@ -5368,6 +5527,26 @@
           "q6": {
             "question": "I servizi esterni vedono i miei dati?",
             "answer": "Comprendi il <strong>flusso dei dati</strong>:<br><br><strong>🔄 Servizi Google:</strong><br>• I tuoi dati rimangono in Google<br>• LIA interroga Google tramite le loro API ufficiali<br>• Google vede le richieste (come nella loro app)<br>• Si applica la politica sulla privacy di Google<br><br><strong>🌤️ OpenWeatherMap:</strong><br>• Riceve solo il nome della città richiesta<br>• Nessun dato personale trasmesso<br><br><strong>📚 Wikipedia:</strong><br>• Riceve solo la query di ricerca<br>• Servizio pubblico, nessun tracciamento<br><br><strong>🔍 Perplexity:</strong><br>• Riceve la tua domanda di ricerca<br>• Si applica la politica sulla privacy di Perplexity<br><br><strong>💡 Principio generale:</strong><br>LIA trasmette le informazioni minime necessarie a ogni servizio. I tuoi dati personali non vengono mai condivisi inutilmente."
+          },
+          "q7": {
+            "question": "Cosa sono le passkey e come le attivo?",
+            "answer": "Una <strong>passkey</strong> ti connette con <strong>Face ID, la tua impronta o il codice del dispositivo</strong> — nessuna password, niente da ricordare.<br><br><strong>🔑 Perché è più sicuro:</strong><br>• Resistente al phishing: una passkey funziona solo sul vero sito LIA<br>• La chiave segreta non lascia mai il tuo dispositivo<br>• Una password trapelata diventa inutile per un attaccante<br><br><strong>⚙️ Attivazione:</strong><br>1. Vai in <strong>Impostazioni > Sicurezza > Autenticazione forte</strong><br>2. Clicca <strong>Aggiungi una passkey</strong> e segui il browser (Windows Hello, Face ID, Android…)<br>3. Dalle un nome se vuoi («iPhone», «PC ufficio») e aggiungine una per dispositivo<br><br>Nella pagina di accesso, il browser proporrà poi la passkey direttamente nel campo e-mail (o con il pulsante «Accedi con una passkey»)."
+          },
+          "q8": {
+            "question": "Come aggiungo un secondo passaggio di verifica (TOTP)?",
+            "answer": "L’<strong>app di autenticazione</strong> aggiunge un codice a 6 cifre come secondo passaggio all’accesso con password.<br><br><strong>⚙️ Configurazione:</strong><br>1. <strong>Impostazioni > Sicurezza > App di autenticazione (TOTP)</strong> → Attiva<br>2. Scansiona il codice QR con Google Authenticator, 1Password, Aegis…<br>3. Inserisci il codice a 6 cifre mostrato dall’app<br><br><strong>🔒 Codici di backup:</strong> 10 codici monouso vengono mostrati <strong>una sola volta</strong> — conservali al sicuro; ognuno sostituisce il codice dell’app se perdi il telefono. Puoi rigenerare un set nuovo in qualsiasi momento (il vecchio viene invalidato).<br><br>L’accesso avviene poi in due passaggi: password, quindi il codice corrente della tua app."
+          },
+          "q9": {
+            "question": "Perché LIA a volte mi chiede di confermare la mia identità?",
+            "answer": "Le azioni sensibili sono protette da una <strong>conferma dell’identità</strong> (uno «step-up»):<br><br><strong>🛡️ Azioni protette:</strong><br>• Gestire le passkey e l’app di autenticazione<br>• Esportare i tuoi dati<br>• Disconnettere tutti gli altri dispositivi<br>• Disattivare l’accesso con password<br><br><strong>⏱️ Comportamento:</strong><br>• Subito dopo l’accesso, non viene chiesto nulla per 5 minuti<br>• Poi una conferma rapida (password, codice, passkey — o un nuovo accesso Google per gli account Google) riapre la finestra<br><br>L’obiettivo: anche se qualcuno prende in prestito la tua sessione aperta, non può chiuderti fuori né portarsi via i tuoi dati."
+          },
+          "q10": {
+            "question": "Come vedo e disconnetto i dispositivi collegati al mio account?",
+            "answer": "<strong>Impostazioni > Sicurezza > I miei dispositivi</strong> elenca ogni sessione attiva del tuo account.<br><br><strong>💻 Cosa vedi:</strong><br>• Le famiglie di browser e sistema (es. «chrome · windows») — mai il dettaglio tecnico completo<br>• Un IP troncato (es. 192.168.1.x) e un’ultima attività approssimativa<br>• Il nome del dispositivo quando è registrato per le notifiche push<br><br><strong>🔌 Cosa puoi fare:</strong><br>• Disconnettere un dispositivo — perde l’accesso immediatamente, anche a metà conversazione<br>• Disconnettere tutti gli altri (richiede una conferma dell’identità)<br><br><strong>🔔 Avvisi di nuovo accesso:</strong> i tuoi dispositivi ricevono una notifica push quando l’account accede da un dispositivo non riconosciuto — l’opzione per disattivarli è nella stessa sezione."
+          },
+          "q11": {
+            "question": "Come esporto tutti i miei dati (GDPR)?",
+            "answer": "Puoi scaricare in qualsiasi momento un <strong>archivio completo dei tuoi dati</strong> (diritto alla portabilità, GDPR).<br><br><strong>📦 Cosa contiene l’archivio:</strong><br>• Il tuo profilo e le tue impostazioni<br>• Conversazioni, memorie, journal — in <strong>Markdown leggibile</strong> E in <strong>JSON strutturato</strong><br>• I tuoi file caricati (allegati, documenti degli spazi di conoscenza)<br><br><strong>🚫 Cosa non contiene mai:</strong> credenziali dei connettori, chiavi di sicurezza, token push — il materiale segreto è inesportabile per costruzione.<br><br><strong>⚙️ Come:</strong> <strong>Impostazioni > Sicurezza > Esporta i miei dati</strong> → Richiedi un’esportazione → una notifica push ti avvisa quando lo ZIP è pronto (scaricabile per 24 h)."
           }
         }
       },
@@ -6562,11 +6741,11 @@
       "privacy_link": "Leggi la nostra informativa sulla privacy",
       "data_control": {
         "title": "Controllo dei dati",
-        "description": "I tuoi dati restano privati. Nessuna condivisione con terze parti, sessioni isolate, accesso strettamente limitato al necessario. Backup automatico quotidiano, con procedura di ripristino testata."
+        "description": "I tuoi dati restano privati. Nessuna condivisione con terzi, sessioni isolate, accesso strettamente limitato al necessario. «I miei dispositivi» mostra ogni sessione attiva e ne revoca qualsiasi all’istante. Backup automatico quotidiano con procedura di ripristino testata."
       },
       "bff": {
         "title": "Architettura sicura",
-        "description": "Pattern BFF con cookie HTTP-only, sessioni Redis, token mai esposti al frontend. Content-Security-Policy rigorosa e protezione OWASP Top 10."
+        "description": "Pattern BFF con cookie HTTP-only, sessioni Redis, token mai esposti al frontend. Passkey WebAuthn e secondo fattore TOTP; le azioni sensibili sono protette da riautenticazione step-up. Content-Security-Policy rigorosa e protezione OWASP Top 10."
       },
       "encryption": {
         "title": "Crittografia",
@@ -6574,7 +6753,7 @@
       },
       "gdpr": {
         "title": "Conforme GDPR",
-        "description": "Filtraggio PII automatico, pseudonimizzazione, minimizzazione dei dati. Conforme alle normative europee."
+        "description": "Filtraggio PII automatico, pseudonimizzazione, minimizzazione dei dati. Esportazione completa dell’account — Markdown leggibile, JSON strutturato e i tuoi file — con il materiale segreto inesportabile per costruzione. Rispetto delle normative europee."
       }
     },
     "tech": {
@@ -6604,7 +6783,7 @@
       },
       "stack": {
         "title": "Stack moderno",
-        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. TypeScript rigoroso sul frontend, Python async sul backend. PWA installabile: 6 manifest localizzati, condivisione di sistema verso la chat."
+        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. TypeScript rigoroso sul frontend, Python async sul backend. PWA installabile: 6 manifest localizzati, condivisione di sistema verso la chat, pagina offline e cache intelligente degli asset — le risposte API non vengono mai memorizzate nella cache."
       },
       "telephony": {
         "title": "Telefonia agentica",
@@ -7217,7 +7396,7 @@
       "security-architecture": {
         "title": "Difesa in profondità: I 5 principi di sicurezza di LIA",
         "excerpt": "Difesa in profondità, minimo privilegio, rate limiting, crittografia e validazione per proteggere i tuoi dati.",
-        "body": "<h2>5 principi fondamentali</h2><p>La sicurezza di LIA si basa su cinque principi applicati a ogni livello dell'applicazione:</p><ul><li><strong>Difesa in profondità</strong> — Controlli multi-livello (autenticazione, rate limiting, validazione, crittografia)</li><li><strong>Minimo privilegio</strong> — Permessi minimi per impostazione predefinita</li><li><strong>Fallimento sicuro</strong> — In caso di errore, il sistema nega piuttosto che autorizzare</li><li><strong>Non fidarsi degli input</strong> — Validazione Pydantic + sanitizzazione sistematica</li><li><strong>Sicurezza per impostazione predefinita</strong> — HTTPS, cookie HttpOnly/SameSite, CORS rigoroso</li></ul><h2>Hashing e crittografia</h2><p>Le password sono hashate con <strong>bcrypt</strong> (con salt automatico). I dati sensibili (token OAuth, credenziali dei connettori, PII, credenziali dei server MCP) sono crittografati con <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), garantendo riservatezza e integrità. Le chiavi di crittografia sono gestite separatamente dai dati.</p><h2>JWT e gestione delle sessioni</h2><p>I token JWT utilizzano l'algoritmo HS256 con un sistema di JTI (JWT ID) inseriti in blacklist su Redis. I token monouso (verifica email, reimpostazione password) vengono invalidati dopo il primo utilizzo. Questo meccanismo impedisce qualsiasi riutilizzo di token sensibili.</p><h2>Rate limiting configurabile</h2><p>Il rate limiting opera a due livelli:</p><ul><li><strong>HTTP</strong> — Tramite nginx a monte</li><li><strong>Strumenti</strong> — Finestra scorrevole per utente e per strumento con soglie guidate dalla configurazione, che copre ogni API esterna a pagamento (generazione di immagini, ricerca web, browser, CLI DevOps)</li><li><strong>Connettori esterni</strong> — Finestra scorrevole Redis distribuita condivisa tra le istanze (Google, Apple, provider con chiave API)</li></ul><p>I limiti API sono rigorosi: 10 elementi massimi per richiesta, con valori predefiniti per dominio (10 per impostazione predefinita, 50 massimo).</p><h2>Rafforzamento del rendering e della rete</h2><p>La chat renderizza l'output dell'LLM — che può riportare HTML di terze parti (corpi di email, pagine consultate, risultati di strumenti) — attraverso un confine di sanificazione rigoroso (<code>rehype-sanitize</code> con uno schema verificato): <code>&lt;script&gt;</code>, <code>&lt;iframe&gt;</code>, <code>&lt;form&gt;</code> e i gestori di eventi vengono rimossi, mentre schede, pulsanti e formule legittime sono preservati. Le mini-app interattive MCP/Skill non passano mai per il markdown — si montano solo dentro un widget iframe in sandbox. Sul lato rete, l'API di produzione è dietro Cloudflare come unico punto di ingresso, le porte del container sono vincolate a loopback e uvicorn si fida solo delle intestazioni del reverse proxy: <code>request.client.host</code> porta così l'IP reale del visitatore, e i limiti di frequenza «per IP» si applicano per visitatore anziché a un unico indirizzo interno condiviso.</p><h2>Protezione contro l'iniezione di prompt</h2><p>I contenuti esterni (email, pagine web, documenti) sono incapsulati in tag <code>UNTRUSTED</code> configurabili prima dell'iniezione nei prompt. Questo wrapping esplicito impedisce a un contenuto malevolo di deviare il comportamento dell'assistente separando chiaramente i dati utente dalle istruzioni di sistema.</p><h2>Verifica della proprietà delle risorse</h2><p>Ogni accesso a una risorsa passa attraverso <code>check_resource_ownership()</code> con un parametro <code>hide_existence</code>: le risorse pubbliche restituiscono 403 (accesso negato), le risorse private restituiscono 404 (risorsa inesistente) per non rivelare la loro esistenza a un attaccante.</p><h2>Quote di utilizzo per utente</h2><p>LIA consente agli amministratori di definire <strong>quote per utente</strong> su token, messaggi e costi. L'enforcement utilizza un'architettura a <strong>5 livelli di difesa</strong>: verifica a livello router (HTTP 429), servizio (errore SSE), guard invocazione LLM, skip runner proattivo e migrazione chiamate dirette. In caso di guasto infrastrutturale, il sistema <strong>fail-open</strong>. Un kill switch admin permette blocco/sblocco istantaneo.</p><h2>Catena di fornitura del software</h2><p>Ogni versione è costruita da un grafo di dipendenze bloccato: lockfile universali fissano i ~200 pacchetti realmente installati, ciascuno verificato tramite impronta SHA256 in fase di build — la stessa versione produce sempre la stessa immagine, a integrità controllata. Tutte le dipendenze, transitive comprese, sono auditate in continuo contro i database delle vulnerabilità note, e l'inventario software (SBOM) pubblicato con ogni release elenca esattamente ciò che gira in produzione.</p>"
+        "body": "<h2>5 principi fondamentali</h2><p>La sicurezza di LIA si basa su cinque principi applicati a ogni livello dell'applicazione:</p><ul><li><strong>Difesa in profondità</strong> — Controlli multi-livello (autenticazione, rate limiting, validazione, crittografia)</li><li><strong>Minimo privilegio</strong> — Permessi minimi per impostazione predefinita</li><li><strong>Fallimento sicuro</strong> — In caso di errore, il sistema nega piuttosto che autorizzare</li><li><strong>Non fidarsi degli input</strong> — Validazione Pydantic + sanitizzazione sistematica</li><li><strong>Sicurezza per impostazione predefinita</strong> — HTTPS, cookie HttpOnly/SameSite, CORS rigoroso</li></ul><h2>Hashing e crittografia</h2><p>Le password sono hashate con <strong>bcrypt</strong> (con salt automatico). I dati sensibili (token OAuth, credenziali dei connettori, PII, credenziali dei server MCP) sono crittografati con <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), garantendo riservatezza e integrità. Le chiavi di crittografia sono gestite separatamente dai dati.</p><h2>JWT e gestione delle sessioni</h2><p>I token JWT utilizzano l'algoritmo HS256 con un sistema di JTI (JWT ID) inseriti in blacklist su Redis. I token monouso (verifica email, reimpostazione password) vengono invalidati dopo il primo utilizzo. Questo meccanismo impedisce qualsiasi riutilizzo di token sensibili.</p><h2>Autenticazione forte e controllo dei dispositivi</h2><p>L’accesso va oltre la password. Le <strong>passkey WebAuthn</strong> ti autenticano con Face ID, un’impronta o il codice del dispositivo — resistenti al phishing per progettazione, con challenge server monouso e rilevamento dei cloni tramite contatori di firma. Un <strong>secondo fattore TOTP</strong> aggiunge un passaggio a 6 cifre all’accesso con password, sostenuto da dieci codici di backup monouso salvati come hash. Le azioni sensibili — gestire le credenziali, esportare i dati, disconnettere gli altri dispositivi — passano per una <strong>riautenticazione step-up</strong>: una finestra di conferma di 5 minuti con contratto API tipizzato, mai un reindirizzamento silenzioso. E <strong>I miei dispositivi</strong> elenca ogni sessione attiva con metadati deliberatamente limitati (famiglie di browser e OS, IP troncato), ne revoca qualsiasi all’istante — una sessione revocata perde i suoi flussi live in pochi secondi — e invia un avviso push quando l’account accede da un dispositivo non riconosciuto.</p><h2>Rate limiting configurabile</h2><p>Il rate limiting opera a due livelli:</p><ul><li><strong>HTTP</strong> — Tramite nginx a monte</li><li><strong>Strumenti</strong> — Finestra scorrevole per utente e per strumento con soglie guidate dalla configurazione, che copre ogni API esterna a pagamento (generazione di immagini, ricerca web, browser, CLI DevOps)</li><li><strong>Connettori esterni</strong> — Finestra scorrevole Redis distribuita condivisa tra le istanze (Google, Apple, provider con chiave API)</li></ul><p>I limiti API sono rigorosi: 10 elementi massimi per richiesta, con valori predefiniti per dominio (10 per impostazione predefinita, 50 massimo).</p><h2>Rafforzamento del rendering e della rete</h2><p>La chat renderizza l'output dell'LLM — che può riportare HTML di terze parti (corpi di email, pagine consultate, risultati di strumenti) — attraverso un confine di sanificazione rigoroso (<code>rehype-sanitize</code> con uno schema verificato): <code>&lt;script&gt;</code>, <code>&lt;iframe&gt;</code>, <code>&lt;form&gt;</code> e i gestori di eventi vengono rimossi, mentre schede, pulsanti e formule legittime sono preservati. Le mini-app interattive MCP/Skill non passano mai per il markdown — si montano solo dentro un widget iframe in sandbox. Sul lato rete, l'API di produzione è dietro Cloudflare come unico punto di ingresso, le porte del container sono vincolate a loopback e uvicorn si fida solo delle intestazioni del reverse proxy: <code>request.client.host</code> porta così l'IP reale del visitatore, e i limiti di frequenza «per IP» si applicano per visitatore anziché a un unico indirizzo interno condiviso.</p><h2>Protezione contro l'iniezione di prompt</h2><p>I contenuti esterni (email, pagine web, documenti) sono incapsulati in tag <code>UNTRUSTED</code> configurabili prima dell'iniezione nei prompt. Questo wrapping esplicito impedisce a un contenuto malevolo di deviare il comportamento dell'assistente separando chiaramente i dati utente dalle istruzioni di sistema.</p><h2>Verifica della proprietà delle risorse</h2><p>Ogni accesso a una risorsa passa attraverso <code>check_resource_ownership()</code> con un parametro <code>hide_existence</code>: le risorse pubbliche restituiscono 403 (accesso negato), le risorse private restituiscono 404 (risorsa inesistente) per non rivelare la loro esistenza a un attaccante.</p><h2>Quote di utilizzo per utente</h2><p>LIA consente agli amministratori di definire <strong>quote per utente</strong> su token, messaggi e costi. L'enforcement utilizza un'architettura a <strong>5 livelli di difesa</strong>: verifica a livello router (HTTP 429), servizio (errore SSE), guard invocazione LLM, skip runner proattivo e migrazione chiamate dirette. In caso di guasto infrastrutturale, il sistema <strong>fail-open</strong>. Un kill switch admin permette blocco/sblocco istantaneo.</p><h2>Catena di fornitura del software</h2><p>Ogni versione è costruita da un grafo di dipendenze bloccato: lockfile universali fissano i ~200 pacchetti realmente installati, ciascuno verificato tramite impronta SHA256 in fase di build — la stessa versione produce sempre la stessa immagine, a integrità controllata. Tutte le dipendenze, transitive comprese, sono auditate in continuo contro i database delle vulnerabilità note, e l'inventario software (SBOM) pubblicato con ogni release elenca esattamente ciò che gira in produzione.</p>"
       },
       "privacy-by-design": {
         "title": "Privacy by Design: GDPR, crittografia e controllo dei dati",

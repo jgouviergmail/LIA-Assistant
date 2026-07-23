@@ -966,8 +966,12 @@ class TestAuthContract:
         assert exc.status_code == 410
         assert exc.detail == {
             "error": "endpoint_permanently_removed",
+            # Corrected wording (security program Lot 0): sessions have a FIXED
+            # lifetime — the historical "automatically refreshed" claim never
+            # matched the code (refresh_session was dead code, fact F4).
             "message": "Token refresh is no longer needed with BFF Pattern. "
-            "Sessions are automatically refreshed on authenticated requests.",
+            "Sessions have a fixed lifetime (7 days, or 30 days with remember-me); "
+            "re-authenticate via /auth/login when a session expires.",
             "migration_guide": "/docs#bff-authentication",
             "alternative": "Use session-based authentication via /auth/login",
             "deprecated_since": "v0.2.0",

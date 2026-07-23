@@ -461,6 +461,14 @@ class User(BaseModel):
         comment="User has completed/dismissed the onboarding tutorial.",
     )
 
+    # New-login notification preference (security program D2, arbitration A4)
+    login_notifications_enabled: Mapped[bool] = mapped_column(
+        default=True,
+        nullable=False,
+        server_default="true",
+        comment="Notify the user's devices (FCM) on logins from unattested devices.",
+    )
+
     # Image Generation preferences (evolution — AI Image Generation)
     image_generation_enabled: Mapped[bool] = mapped_column(
         default=IMAGE_GENERATION_ENABLED_DEFAULT,

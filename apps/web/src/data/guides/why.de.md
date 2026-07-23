@@ -4,7 +4,7 @@
 
 **Version** : 3.9
 **Datum** : 2026-07-23
-**Anwendung** : LIA v1.25.16
+**Anwendung** : LIA v1.25.17
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -220,7 +220,7 @@ Stellen Sie sich vor: ein Raspberry Pi im Wohnzimmer, und die ganze Familie prof
 
 Wenn Sie ChatGPT nutzen, leben Ihre Gespräche auf den Servern von OpenAI. Mit Gemini bei Google. Mit Copilot bei Microsoft.
 
-Mit LIA **bleibt alles in Ihrem PostgreSQL**: Gespräche, Gedächtnis, psychologisches Profil, Dokumente, Einstellungen. Sie können jederzeit alle Ihre Daten exportieren, sichern, migrieren oder löschen. Die DSGVO ist keine Einschränkung — sie ist eine natürliche Konsequenz der Architektur. Sensible Daten werden verschlüsselt, Sitzungen isoliert, und die automatische Filterung personenbezogener Daten (PII) ist integriert.
+Mit LIA **bleibt alles in Ihrem PostgreSQL**: Gespräche, Gedächtnis, psychologisches Profil, Dokumente, Einstellungen. Sie können jederzeit alle Ihre Daten exportieren, sichern, migrieren oder löschen — auch per Ein-Klick-Komplettexport aus den Einstellungen: lesbares Markdown, strukturiertes JSON und Ihre Dateien, mit konstruktionsbedingt nicht exportierbarem Geheimmaterial. Die DSGVO ist keine Einschränkung — sie ist eine natürliche Konsequenz der Architektur. Sensible Daten werden verschlüsselt, Sitzungen isoliert, und die automatische Filterung personenbezogener Daten (PII) ist integriert.
 
 ### 5.2. Sogar ein Raspberry Pi reicht
 

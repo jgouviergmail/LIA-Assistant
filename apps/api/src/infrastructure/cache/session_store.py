@@ -4,6 +4,7 @@ Manages user sessions with HTTP-only cookies and Redis backend.
 Conforms to OAuth 2.1 and modern web security best practices.
 """
 
+import hashlib
 import json
 from datetime import UTC, datetime
 from typing import Any
@@ -12,7 +13,12 @@ from uuid import uuid4
 import redis.asyncio as aioredis
 import structlog
 
+from src.core.client_metadata import SessionClientMeta
 from src.core.config import settings
+from src.core.constants import (
+    SESSION_DISPLAY_ID_LENGTH,
+    SESSION_LAST_SEEN_COARSE_SECONDS,
+)
 from src.core.field_names import FIELD_USER_ID
 
 logger = structlog.get_logger(__name__)
@@ -49,11 +55,41 @@ class UserSession:
         user_id: str,
         remember_me: bool = False,
         created_at: datetime | None = None,
+        auth_methods: list[str] | None = None,
+        step_up_at: datetime | None = None,
+        ua_family: str | None = None,
+        os_family: str | None = None,
+        ip_trunc: str | None = None,
+        last_seen_at: datetime | None = None,
+        fcm_token_id: str | None = None,
     ) -> None:
         self.session_id = session_id
         self.user_id = user_id  # ONLY user_id reference (not full User object)
         self.remember_me = remember_me  # Needed for TTL persistence
         self.created_at = created_at or datetime.now(UTC)
+        # v2 (security program D1): how this session was authenticated
+        # ("password", "oauth_google", "passkey"…). Empty = legacy/unknown.
+        self.auth_methods = auth_methods or []
+        # v3 (security program D1, Lot 3): last successful step-up
+        # re-authentication. None = never stepped up on this session.
+        self.step_up_at = step_up_at
+        # v4 (security program D2, arbitration A3 — deliberately BOUNDED):
+        # coarse families + truncated IP only, last-seen at >=15 min grain.
+        # None everywhere = legacy session shown as "unknown device".
+        self.ua_family = ua_family
+        self.os_family = os_family
+        self.ip_trunc = ip_trunc
+        self.last_seen_at = last_seen_at
+        # A4 attestation: the FCM token row that vouched for this device at
+        # login (lets the UI show the real device name). Internal id, no PII.
+        self.fcm_token_id = fcm_token_id
+
+    @property
+    def display_id(self) -> str:
+        """Opaque UI identifier — the raw session id NEVER leaves the server."""
+        return hashlib.sha256(self.session_id.encode("utf-8")).hexdigest()[
+            :SESSION_DISPLAY_ID_LENGTH
+        ]
 
     def to_dict(self) -> dict[str, Any]:
         """
@@ -64,17 +100,28 @@ class UserSession:
                 - user_id: UUID reference
                 - remember_me: TTL preference
                 - created_at: Session creation timestamp
+                - auth_methods: authentication method tags (v2, no PII)
         """
         return {
             FIELD_USER_ID: str(self.user_id),  # Convert UUID to string for JSON
             "remember_me": self.remember_me,
             "created_at": self.created_at.isoformat(),
+            "auth_methods": self.auth_methods,
+            "step_up_at": self.step_up_at.isoformat() if self.step_up_at else None,
+            "ua_family": self.ua_family,
+            "os_family": self.os_family,
+            "ip_trunc": self.ip_trunc,
+            "last_seen_at": self.last_seen_at.isoformat() if self.last_seen_at else None,
+            "fcm_token_id": self.fcm_token_id,
         }
 
     @classmethod
     def from_dict(cls, session_id: str, data: dict[str, Any]) -> "UserSession":
         """
         Create session from dictionary loaded from Redis.
+
+        Every v2+ field MUST default here: pre-v2 payloads still live in
+        Redis after a deploy and must keep validating (round-trip rule).
 
         Args:
             session_id: Session identifier (from Redis key)
@@ -83,11 +130,20 @@ class UserSession:
         Returns:
             UserSession object with minimal data
         """
+        raw_step_up = data.get("step_up_at")
+        raw_last_seen = data.get("last_seen_at")
         return cls(
             session_id=session_id,
             user_id=data[FIELD_USER_ID],
             remember_me=data.get("remember_me", False),
             created_at=datetime.fromisoformat(data["created_at"]),
+            auth_methods=data.get("auth_methods", []),
+            step_up_at=datetime.fromisoformat(raw_step_up) if raw_step_up else None,
+            ua_family=data.get("ua_family"),
+            os_family=data.get("os_family"),
+            ip_trunc=data.get("ip_trunc"),
+            last_seen_at=datetime.fromisoformat(raw_last_seen) if raw_last_seen else None,
+            fcm_token_id=data.get("fcm_token_id"),
         )
 
 
@@ -104,6 +160,9 @@ class SessionStore:
         self,
         user_id: str,
         remember_me: bool = False,
+        auth_methods: list[str] | None = None,
+        client_meta: SessionClientMeta | None = None,
+        fcm_token_id: str | None = None,
     ) -> UserSession:
         """
         Create a new minimal user session (GDPR/OWASP compliant).
@@ -113,6 +172,8 @@ class SessionStore:
         Args:
             user_id: User UUID (string)
             remember_me: If True, extends session TTL to 30 days (vs 7 days default)
+            auth_methods: Authentication method tags for this session
+                ("password", "oauth_google", "passkey"…). None = empty.
 
         Returns:
             UserSession object with minimal data (user_id, remember_me, created_at)
@@ -132,11 +193,24 @@ class SessionStore:
         # Generate unique session ID
         session_id = str(uuid4())
 
-        # Create minimal session object
+        # Create minimal session object. A fresh FULL authentication (password,
+        # MFA, passkey, OAuth) is the strongest identity proof the account can
+        # give right now, so it opens the step-up window immediately
+        # (sudo-mode semantics — GitHub-style). Without this, an account whose
+        # only factor is its identity provider (OAuth-only: no password, no
+        # enrolled MFA yet) could NEVER satisfy a step-up challenge, deadlocking
+        # first-factor enrollment and account export.
         session = UserSession(
             session_id=session_id,
             user_id=user_id,
             remember_me=remember_me,
+            auth_methods=auth_methods,
+            step_up_at=datetime.now(UTC),
+            ua_family=client_meta.ua_family if client_meta else None,
+            os_family=client_meta.os_family if client_meta else None,
+            ip_trunc=client_meta.ip_trunc if client_meta else None,
+            last_seen_at=datetime.now(UTC),
+            fcm_token_id=fcm_token_id,
         )
 
         # ✅ FIX: Calculate TTL based on remember_me (synchronized with cookie)
@@ -335,39 +409,125 @@ class SessionStore:
 
         return deleted_count
 
-    async def refresh_session(self, session_id: str) -> bool:
-        """
-        Refresh session TTL (extend expiration) respecting original remember_me preference.
+    async def touch_last_seen(self, session_id: str) -> None:
+        """Coarsely refresh a session's last-seen timestamp (A3-bounded).
+
+        Rewrites at most once per ``SESSION_LAST_SEEN_COARSE_SECONDS`` and
+        always with ``keepttl`` — activity tracking must neither become a
+        per-request write load nor extend the fixed session lifetime.
 
         Args:
-            session_id: Session UUID
-
-        Returns:
-            True if session was refreshed, False if not found
-
-        Note:
-            TTL is calculated based on session's remember_me flag to preserve original preference.
+            session_id: Session UUID.
         """
-        key = f"session:{session_id}"
-
-        # Get session to read remember_me preference
         session = await self.get_session(session_id)
-        if not session:
-            logger.debug("session_not_found_for_refresh", session_id=session_id)
-            return False
-
-        # ✅ FIX: Calculate TTL based on remember_me (preserve original preference)
-        ttl = (
-            settings.session_cookie_max_age_remember
-            if session.remember_me
-            else settings.session_cookie_max_age
+        if session is None:
+            return
+        now = datetime.now(UTC)
+        if (
+            session.last_seen_at is not None
+            and (now - session.last_seen_at).total_seconds() < SESSION_LAST_SEEN_COARSE_SECONDS
+        ):
+            return
+        session.last_seen_at = now
+        await self.redis.set(
+            f"session:{session_id}",
+            json.dumps(session.to_dict()),
+            keepttl=True,
         )
 
-        await self.redis.expire(key, ttl)
-        logger.debug(
-            "session_refreshed_minimal",
+    async def list_user_sessions(self, user_id: str) -> list[UserSession]:
+        """List the user's live sessions (device overview, D2).
+
+        Args:
+            user_id: User UUID.
+
+        Returns:
+            Sessions still present in Redis, newest first.
+        """
+        member_ids = await self.redis.smembers(f"user:{user_id}:sessions")
+        session_ids = [sid.decode("utf-8") if isinstance(sid, bytes) else sid for sid in member_ids]
+        if not session_ids:
+            return []
+
+        pipeline = self.redis.pipeline()
+        for session_id in session_ids:
+            pipeline.get(f"session:{session_id}")
+        payloads = await pipeline.execute()
+
+        sessions: list[UserSession] = []
+        for session_id, payload in zip(session_ids, payloads, strict=True):
+            if not payload:
+                continue  # expired session still indexed — harmless leftover
+            try:
+                sessions.append(UserSession.from_dict(session_id, json.loads(payload)))
+            except (json.JSONDecodeError, KeyError):
+                logger.warning("session_list_parse_error", session_id=session_id)
+        sessions.sort(key=lambda s: s.created_at, reverse=True)
+        return sessions
+
+    async def delete_session_by_display_id(self, user_id: str, display_id: str) -> bool:
+        """Revoke one of the user's sessions by its opaque display id.
+
+        Args:
+            user_id: Owner UUID (scopes the lookup to their own sessions).
+            display_id: The sha256-prefix identifier shown in the UI.
+
+        Returns:
+            True when a matching session existed and was deleted.
+        """
+        for session in await self.list_user_sessions(user_id):
+            if session.display_id == display_id:
+                return await self.delete_session(session.session_id)
+        return False
+
+    async def delete_other_user_sessions(self, user_id: str, keep_session_id: str) -> int:
+        """Revoke every session of the user EXCEPT the current one.
+
+        Args:
+            user_id: User UUID.
+            keep_session_id: The session to preserve (the caller's own).
+
+        Returns:
+            Number of sessions deleted.
+        """
+        deleted = 0
+        for session in await self.list_user_sessions(user_id):
+            if session.session_id == keep_session_id:
+                continue
+            if await self.delete_session(session.session_id):
+                deleted += 1
+        logger.info(
+            "other_user_sessions_deleted",
+            user_id=user_id,
+            count=deleted,
+        )
+        return deleted
+
+    async def mark_step_up(self, session_id: str) -> bool:
+        """Record a successful step-up re-authentication on a session.
+
+        Rewrites the payload with ``keepttl`` so the session's remaining
+        (fixed) lifetime is untouched — a step-up must never extend it.
+
+        Args:
+            session_id: Session UUID.
+
+        Returns:
+            True when the session existed and was updated.
+        """
+        session = await self.get_session(session_id)
+        if session is None:
+            return False
+
+        session.step_up_at = datetime.now(UTC)
+        await self.redis.set(
+            f"session:{session_id}",
+            json.dumps(session.to_dict()),
+            keepttl=True,
+        )
+        logger.info(
+            "session_step_up_recorded",
             session_id=session_id,
-            remember_me=session.remember_me,
-            ttl_days=ttl / 86400,
+            user_id=session.user_id,
         )
         return True

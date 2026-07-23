@@ -274,6 +274,97 @@ class APIMessages:
         return messages.get(language, messages["en"])
 
     @staticmethod
+    def export_ready_title(language: SupportedLanguage = "fr") -> str:
+        """Push title - account export archive is ready."""
+        messages = {
+            "fr": "Votre export est prêt",
+            "en": "Your export is ready",
+            "es": "Tu exportación está lista",
+            "de": "Ihr Export ist bereit",
+            "it": "La tua esportazione è pronta",
+            "zh-CN": "您的导出已就绪",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def export_ready_body(language: SupportedLanguage = "fr") -> str:
+        """Push body - download window reminder."""
+        messages = {
+            "fr": "Téléchargez votre archive depuis Réglages → Sécurité (lien valable 24 h)",
+            "en": "Download your archive from Settings → Security (link valid 24 h)",
+            "es": "Descarga tu archivo desde Ajustes → Seguridad (enlace válido 24 h)",
+            "de": "Laden Sie Ihr Archiv unter Einstellungen → Sicherheit herunter (Link 24 h gültig)",
+            "it": "Scarica il tuo archivio da Impostazioni → Sicurezza (link valido 24 h)",
+            "zh-CN": "请在设置 → 安全中下载您的存档(链接 24 小时内有效)",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def new_login_notification_title(language: SupportedLanguage = "fr") -> str:
+        """Push title - new sign-in on the account."""
+        messages = {
+            "fr": "Nouvelle connexion à votre compte",
+            "en": "New sign-in to your account",
+            "es": "Nuevo inicio de sesión en tu cuenta",
+            "de": "Neue Anmeldung bei Ihrem Konto",
+            "it": "Nuovo accesso al tuo account",
+            "zh-CN": "您的账户有新的登录",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def new_login_notification_body(language: SupportedLanguage = "fr") -> str:
+        """Push body - review devices if this wasn't you."""
+        messages = {
+            "fr": "Si ce n'était pas vous, vérifiez vos appareils dans Réglages → Sécurité",
+            "en": "If this wasn't you, review your devices in Settings → Security",
+            "es": "Si no fuiste tú, revisa tus dispositivos en Ajustes → Seguridad",
+            "de": "Falls Sie das nicht waren, prüfen Sie Ihre Geräte unter Einstellungen → Sicherheit",
+            "it": "Se non eri tu, controlla i tuoi dispositivi in Impostazioni → Sicurezza",
+            "zh-CN": "如果这不是您本人,请在设置 → 安全中检查您的设备",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def login_notifications_preference_updated(language: SupportedLanguage = "fr") -> str:
+        """Success - new-login notification preference saved."""
+        messages = {
+            "fr": "Préférence de notification de connexion mise à jour",
+            "en": "Login notification preference updated",
+            "es": "Preferencia de notificación de inicio de sesión actualizada",
+            "de": "Anmeldebenachrichtigung-Einstellung aktualisiert",
+            "it": "Preferenza di notifica di accesso aggiornata",
+            "zh-CN": "登录通知偏好已更新",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def backup_codes_generated(language: SupportedLanguage = "fr") -> str:
+        """Success - backup codes generated (shown once)."""
+        messages = {
+            "fr": "Codes de secours générés — conservez-les en lieu sûr, ils ne seront plus affichés",
+            "en": "Backup codes generated — store them safely, they will not be shown again",
+            "es": "Códigos de respaldo generados: guárdelos en un lugar seguro, no se mostrarán de nuevo",
+            "de": "Backup-Codes generiert — sicher aufbewahren, sie werden nicht erneut angezeigt",
+            "it": "Codici di backup generati: conservali al sicuro, non verranno mostrati di nuovo",
+            "zh-CN": "备用代码已生成——请妥善保存,之后将不再显示",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def mfa_code_required(language: SupportedLanguage = "fr") -> str:
+        """Two-step login - a verification code is required."""
+        messages = {
+            "fr": "Code de vérification requis",
+            "en": "Verification code required",
+            "es": "Se requiere un código de verificación",
+            "de": "Bestätigungscode erforderlich",
+            "it": "Codice di verifica richiesto",
+            "zh-CN": "需要验证码",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
     def logout_successful(language: SupportedLanguage = "fr") -> str:
         """Success - logout completed."""
         messages = {

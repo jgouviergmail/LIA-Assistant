@@ -115,6 +115,23 @@ export const API_ENDPOINTS = {
 
     /** GET /auth/google/callback - Google OAuth callback */
     GOOGLE_OAUTH_CALLBACK: `${API_URL}/auth/google/callback`,
+
+    /** GET /auth/features - Public authentication capabilities (MFA availability) */
+    FEATURES: `${API_URL}/auth/features`,
+
+    /** WebAuthn passkeys (security program D1) — mounted only when MFA_ENABLED */
+    WEBAUTHN: {
+      /** POST /auth/webauthn/register/options - Start passkey enrollment */
+      REGISTER_OPTIONS: `${API_URL}/auth/webauthn/register/options`,
+      /** POST /auth/webauthn/register/verify - Complete passkey enrollment */
+      REGISTER_VERIFY: `${API_URL}/auth/webauthn/register/verify`,
+      /** GET /auth/webauthn/credentials - List registered passkeys */
+      CREDENTIALS: `${API_URL}/auth/webauthn/credentials`,
+      /** POST /auth/webauthn/authenticate/options - Start passkey login */
+      AUTHENTICATE_OPTIONS: `${API_URL}/auth/webauthn/authenticate/options`,
+      /** POST /auth/webauthn/authenticate/verify - Complete passkey login */
+      AUTHENTICATE_VERIFY: `${API_URL}/auth/webauthn/authenticate/verify`,
+    },
   },
 
   // ============================================================================

@@ -57,6 +57,42 @@ class TestUserSession:
         assert session.remember_me is True
         assert session.created_at == created_at
 
+    def test_roundtrip_preserves_auth_methods(self):
+        """to_dict → from_dict preserves the v2 auth_methods field.
+
+        Serialization-pair round-trip rule: a field added on one side only is
+        a silent bug (fields lost after every Redis read).
+        """
+        session = UserSession(
+            session_id=str(uuid4()),
+            user_id=str(uuid4()),
+            remember_me=True,
+            auth_methods=["passkey"],
+        )
+
+        restored = UserSession.from_dict(session.session_id, session.to_dict())
+
+        assert restored.auth_methods == ["passkey"]
+        assert restored.remember_me is True
+        assert restored.user_id == session.user_id
+        assert restored.created_at == session.created_at
+
+    def test_legacy_dict_defaults_auth_methods(self):
+        """A pre-v2 Redis payload (no auth_methods) MUST keep validating.
+
+        Deploying the v2 payload must not 401 existing sessions: missing
+        fields default (empty list = legacy/unknown method).
+        """
+        legacy_payload = {
+            "user_id": str(uuid4()),
+            "remember_me": False,
+            "created_at": datetime.now(UTC).isoformat(),
+        }
+
+        restored = UserSession.from_dict(str(uuid4()), legacy_payload)
+
+        assert restored.auth_methods == []
+
     def test_to_dict_converts_uuid_to_string(self):
         """Test to_dict() converts UUID to string for JSON serialization (minimal session)."""
         session_id = str(uuid4())
@@ -190,6 +226,27 @@ class TestSessionStore:
         stored_data = json.loads(call_args[0][1])
         assert stored_data["user_id"] == user_id
         assert stored_data["remember_me"] is False
+
+    @pytest.mark.asyncio
+    async def test_create_session_opens_step_up_window(self):
+        """A fresh full authentication stamps step_up_at (sudo-mode semantics).
+
+        Without the stamp, an OAuth-only account (no password, no MFA yet)
+        can never satisfy a step-up challenge — first-factor enrollment and
+        account export deadlock.
+        """
+        mock_redis = AsyncMock()
+        store = SessionStore(mock_redis)
+
+        before = datetime.now(UTC)
+        session = await store.create_session(user_id=str(uuid4()))
+        after = datetime.now(UTC)
+
+        assert session.step_up_at is not None
+        assert before <= session.step_up_at <= after
+
+        stored_data = json.loads(mock_redis.set.call_args[0][1])
+        assert stored_data["step_up_at"] is not None
 
     @pytest.mark.asyncio
     async def test_create_session_with_remember_me(self):
@@ -338,40 +395,14 @@ class TestSessionStore:
     # the new O(1) index-based implementation.
     # ========================================================================
 
-    @pytest.mark.asyncio
-    async def test_refresh_session_success(self):
-        """Test refreshing session TTL (minimal session)."""
-        mock_redis = AsyncMock()
-        store = SessionStore(mock_redis)
-
-        session_id = str(uuid4())
-        user_id = str(uuid4())
-        session_data = {
-            "user_id": user_id,
-            "remember_me": True,
-            "created_at": datetime.now(UTC).isoformat(),
-        }
-
-        mock_redis.get.return_value = json.dumps(session_data)
-
-        result = await store.refresh_session(session_id)
-
-        assert result is True
-        mock_redis.get.assert_called_once_with(f"session:{session_id}")
-        mock_redis.expire.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_refresh_session_not_found(self):
-        """Test refreshing non-existent session (minimal session)."""
-        mock_redis = AsyncMock()
-        mock_redis.get.return_value = None  # Session does not exist
-        store = SessionStore(mock_redis)
-
-        session_id = str(uuid4())
-        result = await store.refresh_session(session_id)
-
-        assert result is False
-        mock_redis.expire.assert_not_called()
+    # ========================================================================
+    # REMOVED: test_refresh_session_* — refresh_session was dead code
+    # ========================================================================
+    # Sessions have a FIXED TTL (7 days / 30 days remember-me) set at
+    # creation; nothing ever called refresh_session (security program Lot 0,
+    # fact F4). Sliding expiration, if ever wanted, must be a deliberate
+    # product decision, not resurrected dead code.
+    # ========================================================================
 
 
 @pytest.mark.unit

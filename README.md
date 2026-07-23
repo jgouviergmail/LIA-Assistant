@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.25.16</strong> — <strong>Ten UX refinements, six QA fixes, one adversarial review — the conversation surface grows up.</strong> The chat learns the manners of a mature messenger: a <strong>persistent per-user draft</strong>, ↑/↓ recall over the last ten sends, an action row under every answer (copy, feedback, execution trace docked right), tappable <strong>follow-up chips</strong>, <code>/</code> slash commands with everyday shortcuts, and a <strong>reading invariant</strong> — a streaming answer never yanks a reader who scrolled up (a gate-promise SSE e2e caught the three bugs unit tests could not). The dashboard becomes yours: hide/reorder the 9 briefing cards (<strong>a hidden card is never fetched</strong>), a starter checklist, an open-loops consult/close surface. LIA becomes <strong>installable</strong>: 6 localized PWA manifests, OS share-target into a chat draft, install hint. Skills get a <strong>gallery</strong> (previews, declared output channels, provenance warnings) and <strong>install-from-URL</strong> through the reused SSRF validator — https-only, no redirects, streamed cap, total transfer deadline, per-user rate limit — feeding the untouched hardened import pipeline. And the compiled journal portrait now speaks the user's language (the English voice examples buried in the prompt were overriding the instruction; proven by regenerating a real French portrait in place). <strong>10,972 backend</strong> + <strong>2,465 frontend</strong> tests, Playwright smoke 29/29, tsc clean, all ratchets hold (frontend CC locked lower). — 23 July 2026.
+  <strong>Version 1.25.17</strong> — <strong>The account grows a spine: passkeys, devices, portability, offline.</strong> Four security capabilities land as one program (ADR-143→146). <strong>Passkeys (WebAuthn)</strong> with conditional UI on the login form — discoverable credentials, single-use Redis challenges, clone detection, zero enumeration on the anonymous path. <strong>TOTP second factor</strong> with a two-step login, matched-timestep anti-replay and ten single-use backup codes revealed exactly once. <strong>Step-up re-authentication</strong> guards every sensitive action behind a 5-minute sudo window (typed 403 contract — password, code, passkey, or a fresh Google re-sign-in; a fresh login opens the window, so OAuth-only accounts can bootstrap their first factor). <strong>"My devices"</strong> lists every live session with deliberately bounded metadata (browser/OS families, truncated IP), revokes one or all-others, cuts a revoked session's SSE streams within one keepalive tick, and pushes a new-login alert unless the device attests itself with its registered FCM token. <strong>Full-account GDPR export</strong>: durable SKIP-LOCKED jobs build a ZIP (JSON + readable Markdown + your files) from a <strong>total data classification</strong> where secret tables are unexportable by construction. <strong>Offline PWA</strong>: one unified service worker serves push and a branded 6-language offline page — and never caches a byte of <code>/api/</code>. <strong>12,906 backend</strong> + <strong>2,533 frontend</strong> tests, e2e 44/44 (CDP virtual-authenticator ceremony included), MyPy strict clean, all ratchets hold. — 23 July 2026.
 
 </p>
 
@@ -115,7 +115,7 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **32** functional domains | **420,000** lines of code (excl. tests) | **11,900+** automated tests | **120+** ADRs                                                           |
+| **32** functional domains | **420,000** lines of code (excl. tests) | **15,400+** automated tests | **145** ADRs                                                           |
 | **156** versions shipped  | **6 languages**, parity enforced in CI  | **425** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
@@ -348,9 +348,12 @@ ExecutionStep(
 ### Security & Compliance
 
 - **OAuth 2.1**: PKCE (S256), single-use state token
-- **BFF Pattern**: HTTP-only cookies, Redis session with 24h TTL
+- **BFF Pattern**: HTTP-only cookies, server-side Redis sessions (fixed 7-day lifetime, 30 with remember-me)
+- **Strong authentication**: WebAuthn **passkeys** (discoverable credentials, conditional UI on the login form, single-use challenges, clone detection, zero enumeration) + **TOTP second factor** (two-step login, matched-timestep anti-replay, 10 single-use backup codes revealed once); **step-up re-authentication** guards every sensitive action behind a 5-minute sudo window (typed 403 contract; password, code, passkey, or provider re-sign-in). Feature flag: `MFA_ENABLED=true` — ADR-143
+- **Device sessions**: "My devices" lists every live session with deliberately bounded metadata (browser/OS families, truncated IP, coarse last-seen), per-device revocation and step-up-guarded revoke-others; a revoked session's SSE streams close within one keepalive tick; new-login push alerts with FCM device attestation — ADR-144
 - **Encryption**: Fernet (credentials), bcrypt (passwords)
-- **GDPR**: Automatic PII filtering, pseudonymization, personal data export (Art. 20 data portability)
+- **GDPR**: Automatic PII filtering, pseudonymization, and **full-account export** (Art. 20): durable jobs build a ZIP (JSON + readable Markdown + uploaded files) from a total data classification where secret tables are unexportable by construction. Feature flag: `ACCOUNT_EXPORT_ENABLED=true` — ADR-145
+- **Offline PWA**: one unified service worker serves push and a branded 6-language offline page; `/api/` is never cached — ADR-146
 - **Per-User Usage Limits**: Token, message, and cost quotas (period/global) with 5-layer defense-in-depth enforcement, admin kill switch, real-time dashboard with WebSocket gauges. Feature flag: `USAGE_LIMITS_ENABLED=true`
 - **Backups**: Automated daily PostgreSQL dumps (pg_dump sidecar, daily/weekly/monthly rotation, all `.env`-driven) with a tested one-command restore and a verification drill (`task backup:verify`) — ADR-109, runbook in `docs/runbooks/DATABASE_BACKUP_RESTORE.md`
 
@@ -878,12 +881,12 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md)   | Complete development workflow                             |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent                                 |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md)   | How to create a new tool                                  |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~12,300 backend tests across 705 files) |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~12,900 backend tests across 760 files) |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md)           | LangGraph and log debugging                               |
 
 ### Architecture Decision Records (ADR)
 
-100+ ADRs (numbered up to ADR-108) documenting major architectural decisions:
+145 ADRs (numbered up to ADR-146) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

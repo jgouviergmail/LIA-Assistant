@@ -160,7 +160,7 @@ class AuthService:
     # This method was removed as part of BFF Pattern migration (v0.3.0).
     #
     # Token refresh is no longer needed:
-    # - Sessions auto-refresh on each authenticated request
+    # - Sessions have a fixed lifetime (7d / 30d remember-me) set at creation
     # - HTTP-only cookies eliminate client-side token management
     #
     # See /auth/refresh endpoint (now returns HTTP 410 Gone)

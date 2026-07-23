@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { LoginForm } from '@/components/auth/login-form';
 import { OAuthButtons } from '@/components/auth/oauth-buttons';
+import { PasskeyLoginButton } from '@/components/auth/passkey-login-button';
 import { initI18next } from '@/i18n';
 
 interface LoginPageProps {
@@ -33,6 +34,10 @@ export default async function LoginPage({ params }: LoginPageProps) {
       </div>
 
       <OAuthButtons />
+
+      <div className="mt-3">
+        <PasskeyLoginButton />
+      </div>
 
       <div className="mt-6">
         <div className="relative">

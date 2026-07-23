@@ -114,6 +114,13 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Unified service worker (D5, ADR-146): must revalidate on every
+        // check so a new release's SW (bumped CACHE_VERSION) deploys
+        // promptly instead of being pinned by an HTTP cache.
+        source: '/firebase-messaging-sw.js',
+        headers: [{ key: 'Cache-Control', value: 'no-cache' }],
+      },
+      {
         // Every route EXCEPT the widget airlock (negative lookahead): the
         // airlock carries its own permissive CSP below, and two CSP headers
         // on one response would enforce their intersection.

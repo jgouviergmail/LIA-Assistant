@@ -12,13 +12,16 @@ import { useTranslation } from 'react-i18next';
 
 export function LoginForm() {
   const router = useLocalizedRouter();
-  const { login } = useAuth();
+  const { login, verifyMfa } = useAuth();
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  // Two-step login (TOTP active on the account): pending token + code entry.
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState('');
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -26,7 +29,11 @@ export function LoginForm() {
     setIsLoading(true);
 
     try {
-      await login(email, password, rememberMe);
+      const result = await login(email, password, rememberMe);
+      if (result.mfaRequired && result.mfaToken) {
+        setMfaToken(result.mfaToken);
+        return;
+      }
       router.push('/dashboard');
     } catch (err) {
       logger.error('Login error', err as Error, {
@@ -38,6 +45,76 @@ export function LoginForm() {
       setIsLoading(false);
     }
   };
+
+  const handleMfaSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!mfaToken) return;
+    setError('');
+    setIsLoading(true);
+
+    try {
+      await verifyMfa(mfaToken, mfaCode);
+      router.push('/dashboard');
+    } catch (err) {
+      logger.error('MFA verification error', err as Error, {
+        component: 'LoginForm',
+      });
+      // The pending token is single-use: a failed attempt requires a fresh
+      // password step, so send the user back with a clear message.
+      setMfaToken(null);
+      setMfaCode('');
+      setError(t('auth.mfa.invalid_code'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (mfaToken) {
+    return (
+      <Card>
+        <form onSubmit={handleMfaSubmit} className="p-6 space-y-4">
+          {error && (
+            <div className="p-3 rounded-md bg-red-50 border border-red-200">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
+
+          <p className="text-sm text-muted-foreground">{t('auth.mfa.prompt')}</p>
+
+          <Input
+            label={t('auth.mfa.code_label')}
+            type="text"
+            inputMode="numeric"
+            value={mfaCode}
+            onChange={e => setMfaCode(e.target.value)}
+            placeholder={t('auth.mfa.code_placeholder')}
+            required
+            autoComplete="one-time-code"
+            autoFocus
+            disabled={isLoading}
+          />
+
+          <Button type="submit" className="w-full" isLoading={isLoading}>
+            {t('auth.mfa.verify_button')}
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full"
+            onClick={() => {
+              setMfaToken(null);
+              setMfaCode('');
+              setError('');
+            }}
+            disabled={isLoading}
+          >
+            {t('auth.mfa.back_to_login')}
+          </Button>
+        </form>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -55,7 +132,9 @@ export function LoginForm() {
           onChange={e => setEmail(e.target.value)}
           placeholder={t('auth.email_placeholder')}
           required
-          autoComplete="email"
+          // "webauthn" arms the passkey conditional UI (autofill) on this
+          // field when the browser supports it (security program D1, A1).
+          autoComplete="username webauthn"
           disabled={isLoading}
         />
 
