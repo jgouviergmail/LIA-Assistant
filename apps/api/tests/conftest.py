@@ -601,6 +601,14 @@ def _db_schema_ready(test_database_url_sync: str) -> Generator[None, None, None]
     # first TCP connect on Windows (no RST) — without a bound, psycopg waits
     # forever in select() and the whole run wedges (AC-010 follow-up).
     engine = create_engine(sync_url, poolclass=NullPool, connect_args={"connect_timeout": 30})
+    # The schema must contain EVERY domain table, not just the ones the tests
+    # collected so far happened to import: metadata is populated by module
+    # imports, and a subset run (e.g. CI's tests/integration job) would
+    # otherwise build a partial schema that breaks cross-domain code like the
+    # GDPR purge (bit at v1.25.17: `open_loops` missing from the CI schema).
+    from src.infrastructure.database.registry import import_all_models
+
+    import_all_models()
     with engine.begin() as conn:
         # pgvector Vector columns need the extension before create_all; unaccent()
         # is used by the admin user search. Idempotent (no-op if already present).

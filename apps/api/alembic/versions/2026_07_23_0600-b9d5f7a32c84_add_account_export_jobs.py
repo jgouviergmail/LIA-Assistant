@@ -44,7 +44,9 @@ def upgrade() -> None:
             "scope",
             JSONB,
             nullable=True,
-            comment="Requested scope: {domains: [...]|null=all, from: iso|null, to: iso|null}.",
+            comment="Reserved for scope selection (tracked follow-up, ADR-145): "
+            "{domains: [...]|null=all, from: iso|null, to: iso|null}. Currently always "
+            "NULL — every export is full-account; router and builder do not read it yet.",
         ),
         sa.Column(
             "file_path",

@@ -59,8 +59,16 @@ test.describe('passkey login', () => {
     page,
     mockApi,
     browserName,
+    baseURL,
   }) => {
     test.skip(browserName !== 'chromium', 'CDP virtual authenticator is Chromium-only');
+
+    // WebAuthn refuses an IP-literal rpId, and CI serves the app on
+    // 127.0.0.1 (IPv4-only healthcheck of the standalone server). Same
+    // server — but the CEREMONY page must live on `localhost` so the
+    // mocked rpId 'localhost' is valid for the page origin.
+    const loginURL = new URL('/en/login', baseURL);
+    if (loginURL.hostname === '127.0.0.1') loginURL.hostname = 'localhost';
 
     // --- Virtual authenticator with a pre-enrolled discoverable credential.
     const cdp = await page.context().newCDPSession(page);
@@ -128,7 +136,7 @@ test.describe('passkey login', () => {
       if (message.type() === 'error') consoleErrors.push(message.text());
     });
 
-    await page.goto('/en/login');
+    await page.goto(loginURL.toString());
 
     // The armed conditional-UI ceremony may auto-complete with the virtual
     // authenticator before the explicit click; both paths exercise the same

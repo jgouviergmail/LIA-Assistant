@@ -30,6 +30,13 @@ vi.mock('@/hooks/useLocalizedRouter', () => ({
   useLocalizedRouter: () => ({ push, replace: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
 }));
 
+// A4 attestation: login() dynamically imports these; controllable per test.
+const { getNotificationPermission, requestNotificationPermission } = vi.hoisted(() => ({
+  getNotificationPermission: vi.fn<() => string>(() => 'denied'),
+  requestNotificationPermission: vi.fn<() => Promise<string | null>>(async () => null),
+}));
+vi.mock('@/lib/firebase', () => ({ getNotificationPermission, requestNotificationPermission }));
+
 import { AuthProvider } from '../auth';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -153,6 +160,37 @@ describe('AuthProvider — signing in', () => {
       fcm_token: null,
     });
     expect(identity(rendered)).toBe('user@test.dev');
+  });
+
+  it('attests the device with its FCM token when push permission is already granted', async () => {
+    getNotificationPermission.mockReturnValue('granted');
+    requestNotificationPermission.mockResolvedValue('fcm-token-abc');
+    const rendered = await settled(renderAuth());
+
+    await act(async () => {
+      await rendered.result.current.login('user@test.dev', 'Sup3rSecret!!', false);
+    });
+
+    expect(post).toHaveBeenCalledWith(
+      '/auth/login',
+      expect.objectContaining({ fcm_token: 'fcm-token-abc' })
+    );
+  });
+
+  it('fails safe toward notifying when the push plumbing throws', async () => {
+    getNotificationPermission.mockReturnValue('granted');
+    requestNotificationPermission.mockRejectedValue(new Error('fcm down'));
+    const rendered = await settled(renderAuth());
+
+    await act(async () => {
+      await rendered.result.current.login('user@test.dev', 'Sup3rSecret!!', false);
+    });
+
+    // The login must proceed with a null token — never block on push plumbing.
+    expect(post).toHaveBeenCalledWith(
+      '/auth/login',
+      expect.objectContaining({ fcm_token: null })
+    );
   });
 
   it('defaults to a short session', async () => {
