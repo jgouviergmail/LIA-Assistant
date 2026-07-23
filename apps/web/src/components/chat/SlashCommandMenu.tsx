@@ -37,6 +37,13 @@ export interface UseSlashMenuReturn {
   handleKeyDown: (event: React.KeyboardEvent) => boolean;
   select: (command: SlashCommand) => void;
   listboxId: string;
+  /**
+   * Value for the textarea's `aria-controls`: the listbox id while the menu
+   * is OPEN, undefined otherwise — aria-controls referencing an unmounted
+   * element is an axe critical (aria-valid-attr-value). Branch lives here,
+   * not in the ChatInput render (CC discipline).
+   */
+  controlsId: string | undefined;
   activeOptionId: string | undefined;
 }
 
@@ -114,6 +121,7 @@ export function useSlashMenu({
     handleKeyDown,
     select,
     listboxId: LISTBOX_ID,
+    controlsId: open ? LISTBOX_ID : undefined,
     activeOptionId: open ? `slash-option-${boundedIndex}` : undefined,
   };
 }

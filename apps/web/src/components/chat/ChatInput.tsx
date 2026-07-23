@@ -655,10 +655,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               placeholder={getPlaceholder()}
               aria-label={getPlaceholder()}
               aria-autocomplete="list"
-              // aria-controls must reference an EXISTING element: the listbox
-              // only mounts while the menu is open (axe: aria-valid-attr-value,
-              // caught by the hermetic CI a11y journey).
-              aria-controls={slashMenu.open ? slashMenu.listboxId : undefined}
+              // Only references the listbox while it is MOUNTED (axe:
+              // aria-valid-attr-value) — the open/closed branch lives in
+              // useSlashMenu (CC discipline).
+              aria-controls={slashMenu.controlsId}
               aria-activedescendant={slashMenu.activeOptionId}
               className="w-full resize-none rounded-lg border border-input bg-background px-4 py-3 text-base mobile:text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-transparent mobile:placeholder:text-muted-foreground"
               rows={1}
