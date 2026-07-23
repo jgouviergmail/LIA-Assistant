@@ -220,7 +220,7 @@ Imaginez : un Raspberry Pi dans votre salon, et toute la famille qui profite d'u
 
 Quand vous utilisez ChatGPT, vos conversations vivent sur les serveurs d'OpenAI. Avec Gemini, chez Google. Avec Copilot, chez Microsoft.
 
-Avec LIA, **tout reste dans votre PostgreSQL** : conversations, mémoire, profil psychologique, documents, préférences. Vous pouvez exporter, sauvegarder, migrer ou supprimer la totalité de vos données à tout moment — y compris via un export complet en un clic depuis les réglages : Markdown lisible, JSON structuré et vos fichiers, avec le matériel secret inexportable par construction. Le RGPD n'est pas une contrainte — c'est une conséquence naturelle de l'architecture. Les données sensibles sont chiffrées, les sessions isolées, et le filtrage automatique des informations personnelles identifiables (PII) est intégré.
+Avec LIA, **tout reste dans votre PostgreSQL** : conversations, mémoire, profil psychologique, documents, préférences. Vous pouvez exporter, sauvegarder, migrer ou supprimer la totalité de vos données à tout moment — y compris via un export complet en un clic depuis les réglages : Markdown lisible, JSON structuré et vos fichiers, avec le matériel secret inexportable par construction. Et chaque appareil connecté à votre compte est visible et révocable en un clic. Le RGPD n'est pas une contrainte — c'est une conséquence naturelle de l'architecture. Les données sensibles sont chiffrées, les sessions isolées, et le filtrage automatique des informations personnelles identifiables (PII) est intégré.
 
 ### 5.2. Même un Raspberry Pi suffit
 

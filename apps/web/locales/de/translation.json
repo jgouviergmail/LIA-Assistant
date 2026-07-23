@@ -3236,7 +3236,7 @@
         },
         "security": {
           "title": "🔐 Mehrstufige Sicherheit",
-          "description": "OAuth 2.0 mit PKCE für Google-Dienste, verteilte Sperre für Token-Refresh, PII-Filterung in Logs und Traces, Rate Limiting pro Benutzer/Endpunkt, vollständige Benutzerisolierung und Verschlüsselung sensibler Daten. Automatisierte tägliche Datenbank-Backups mit dreistufiger Rotation (7 Tage / 4 Wochen / 6 Monate) und getesteter Ein-Befehl-Wiederherstellung (ADR-109)."
+          "description": "Verteidigung in der Tiefe, von der Anmeldung bis zu den Daten. <b>Starke Authentifizierung</b> (ADR-143): WebAuthn-Passkeys (Face ID, Fingerabdruck — phishing-resistent), TOTP-Zweitfaktor mit Einmal-Backup-Codes und Step-up-Reauthentifizierung für sensible Aktionen. <b>Meine Geräte</b> (ADR-144): jede aktive Sitzung ist sichtbar und widerrufbar, mit bewusst begrenzten Metadaten (Browser-/OS-Familien, gekürzte IP) und einer Warnung bei jeder Anmeldung von einem unbekannten Gerät. Darunter: OAuth 2.0 mit PKCE für Google-Dienste, verteiltes Locking für Token-Refresh, PII-Filterung in Logs und Traces, Rate-Limiting pro Benutzer/Endpunkt, vollständige Benutzerisolierung, Fernet-Verschlüsselung sensibler Daten. <b>Vollständiger DSGVO-Export</b> (ADR-145): ein Markdown- + JSON- + Datei-Archiv, Geheimmaterial konstruktionsbedingt nicht exportierbar. Automatische tägliche Backups mit dreistufiger Rotation und getesteter Ein-Befehl-Wiederherstellung (ADR-109)."
         },
         "resilience": {
           "title": "🛡️ Performance & Token-Optimierung",
@@ -6735,7 +6735,7 @@
     "security": {
       "title": "Sicherheit & Datenschutz",
       "subtitle": "Leistungsstark von Natur aus. Privat per Design.",
-      "intro": "LIA wurde von Anfang an mit einem Privacy-by-Design-Ansatz entwickelt. Im Gegensatz zu zentralisierten Cloud-Assistenten gelangen Ihre Zugangsdaten nie zum Frontend: Die Backend-for-Frontend-Architektur isoliert Ihre Tokens vollständig. Automatische PII-Filterung verhindert, dass personenbezogene Daten die LLM-Anbieter erreichen.",
+      "intro": "LIA wurde von Anfang an mit einem Privacy-by-Design-Ansatz entwickelt. Im Gegensatz zu zentralisierten Cloud-Assistenten gelangen Ihre Zugangsdaten nie zum Frontend: Die Backend-for-Frontend-Architektur isoliert Ihre Tokens vollständig. Automatische PII-Filterung verhindert, dass personenbezogene Daten die LLM-Anbieter erreichen. Auch dein Konto selbst ist abgesichert: Passkeys, ein Zweitfaktor und eine Identitätsbestätigung für sensible Aktionen, mit jedem verbundenen Gerät sichtbar und widerrufbar.",
       "privacy_link": "Unsere Datenschutzerklärung lesen",
       "data_control": {
         "title": "Datenkontrolle",

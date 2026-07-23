@@ -3250,7 +3250,7 @@
         },
         "security": {
           "title": "🔐 Sécurité Multi-Niveaux",
-          "description": "OAuth 2.0 avec PKCE pour les services Google, verrouillage distribué pour le refresh des tokens, filtrage PII dans les logs et traces, rate limiting par utilisateur/endpoint, isolation complète entre utilisateurs, et chiffrement des données sensibles. Sauvegardes quotidiennes automatisées de la base avec rotation à trois niveaux (7 jours / 4 semaines / 6 mois) et restauration testée en une commande (ADR-109)."
+          "description": "Défense en profondeur, de la connexion aux données. <b>Authentification forte</b> (ADR-143) : passkeys WebAuthn (Face ID, empreinte — résistantes au phishing), double facteur TOTP avec codes de secours à usage unique, et re-authentification step-up pour les actions sensibles. <b>Mes appareils</b> (ADR-144) : chaque session active est visible et révocable, avec des métadonnées volontairement bornées (familles navigateur/OS, IP tronquée) et une alerte à toute connexion depuis un appareil non reconnu. En dessous : OAuth 2.0 avec PKCE pour les services Google, verrouillage distribué pour le refresh des tokens, filtrage PII dans les logs et traces, rate limiting par utilisateur/endpoint, isolation complète entre utilisateurs, chiffrement Fernet des données sensibles. <b>Export RGPD complet</b> (ADR-145) : archive Markdown + JSON + fichiers, le matériel secret inexportable par construction. Sauvegardes quotidiennes automatisées avec rotation à trois niveaux et restauration testée en une commande (ADR-109)."
         },
         "resilience": {
           "title": "🛡️ Performance & Optimisation Tokens",
@@ -6741,7 +6741,7 @@
     "security": {
       "title": "Sécurité & Vie privée",
       "subtitle": "Puissant par nature. Privé par conception.",
-      "intro": "LIA a été conçue dès le premier jour avec une approche « privacy by design ». Contrairement aux assistants cloud centralisés, tes credentials ne transitent jamais par le frontend : l'architecture Backend-for-Frontend isole complètement tes tokens. Le filtrage PII automatique empêche les données personnelles identifiables d'atteindre les fournisseurs LLM.",
+      "intro": "LIA a été conçue dès le premier jour avec une approche « privacy by design ». Contrairement aux assistants cloud centralisés, tes credentials ne transitent jamais par le frontend : l'architecture Backend-for-Frontend isole complètement tes tokens. Le filtrage PII automatique empêche les données personnelles identifiables d'atteindre les fournisseurs LLM. Ton compte lui-même est verrouillé : passkeys, double facteur et confirmation d’identité pour les actions sensibles, avec chaque appareil connecté visible et révocable.",
       "privacy_link": "Lire notre politique de confidentialité",
       "data_control": {
         "title": "Contrôle des données",

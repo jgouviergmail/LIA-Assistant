@@ -735,6 +735,8 @@ Agent ReAct autonome (Playwright Chromium headless). Session pool Redis-backed a
 
 **Pourquoi BFF plutôt que JWT ?** JWT dans localStorage = vulnérable XSS, taille 90 % overhead, révocation impossible. Le pattern BFF avec HTTP-only cookies + sessions Redis élimine ces trois problèmes. Migration v0.3.0 : mémoire -90 % (1.2 MB → 120 KB), session lookup P95 < 5 ms, score OWASP B+ → A.
 
+**Authentification forte (ADR-143/144).** Au-delà du mot de passe et d'OAuth Google, le compte peut être protégé par des **passkeys WebAuthn** (credentials discoverable, conditional UI sur le champ e-mail, défis Redis à usage unique, détection de clonage par compteur de signature, zéro énumération sur le chemin anonyme) et un **second facteur TOTP** (login en deux temps via un token éphémère, anti-rejeu par timestep explicite, 10 codes de secours hachés à usage unique). Les actions sensibles — gestion des credentials, export, révocation d'appareils, désactivation du mot de passe — passent par une **re-authentification step-up** : fenêtre de 5 minutes ouverte par toute connexion complète (sémantique sudo), contrat **403 typé** (`step_up_required`, jamais un 401 qui redirigerait vers /login). « **Mes appareils** » liste chaque session BFF sous un `display_id` opaque avec des métadonnées volontairement bornées (familles UA/OS, IP tronquée en /24), révoque un appareil ou tous les autres, et coupe le flux SSE d'une session révoquée en un tick de keepalive ; une notification push signale toute connexion depuis un appareil non attesté par un token FCM valide.
+
 ### 19.2. Usage Limits : 5-layer defence in depth
 
 | Couche | Point d'interception | Pourquoi cette couche |

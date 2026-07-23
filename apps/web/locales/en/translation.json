@@ -3245,7 +3245,7 @@
         },
         "security": {
           "title": "🔐 Multi-Layer Security",
-          "description": "OAuth 2.0 with PKCE for Google services, distributed locking for token refresh, PII filtering in logs and traces, rate limiting per user/endpoint, complete user isolation, and encryption of sensitive data. Automated daily database backups with three-tier rotation (7 days / 4 weeks / 6 months) and a tested one-command restore (ADR-109)."
+          "description": "Defence in depth, from sign-in to data. <b>Strong authentication</b> (ADR-143): WebAuthn passkeys (Face ID, fingerprint — phishing-resistant), TOTP second factor with single-use backup codes, and step-up re-authentication for sensitive actions. <b>My devices</b> (ADR-144): every live session is visible and revocable, with deliberately bounded metadata (browser/OS families, truncated IP) and an alert on any sign-in from an unrecognized device. Underneath: OAuth 2.0 with PKCE for Google services, distributed locking for token refresh, PII filtering in logs and traces, per-user/endpoint rate limiting, complete user isolation, Fernet encryption of sensitive data. <b>Full GDPR export</b> (ADR-145): a Markdown + JSON + files archive with secret material unexportable by construction. Automated daily backups with three-tier rotation and one-command tested restore (ADR-109)."
         },
         "resilience": {
           "title": "🛡️ Performance & Token Optimization",
@@ -6815,7 +6815,7 @@
     "security": {
       "title": "Security & Privacy",
       "subtitle": "Powerful by nature. Private by design.",
-      "intro": "LIA was designed from day one with a privacy-by-design approach. Unlike centralized cloud assistants, your credentials never pass through the frontend: the Backend-for-Frontend architecture completely isolates your tokens. Automatic PII filtering prevents personally identifiable data from reaching LLM providers.",
+      "intro": "LIA was designed from day one with a privacy-by-design approach. Unlike centralized cloud assistants, your credentials never pass through the frontend: the Backend-for-Frontend architecture completely isolates your tokens. Automatic PII filtering prevents personally identifiable data from reaching LLM providers. Your account itself is locked down: passkeys, a second factor and identity confirmation for sensitive actions, with every connected device visible and revocable.",
       "privacy_link": "Read our privacy policy",
       "data_control": {
         "title": "Data control",
