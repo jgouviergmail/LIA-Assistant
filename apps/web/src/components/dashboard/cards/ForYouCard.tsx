@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
@@ -50,13 +51,20 @@ function ForYouContent({
   data: ForYouData;
   onOpenChat: (draft: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lng = (i18n.language || 'fr').split('-')[0];
   return (
     <div className="space-y-3">
       {data.open_loops.length > 0 && (
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-            {t('dashboard.briefing.cards.for_you.loops_title')}
+            {/* UXR Lot 7 (B5): the heading opens the full ledger view. */}
+            <Link
+              href={`/${lng}/dashboard/settings`}
+              className="hover:text-primary hover:underline"
+            >
+              {t('dashboard.briefing.cards.for_you.loops_title')}
+            </Link>
           </p>
           <ul className="space-y-0.5" role="list">
             {data.open_loops.map(loop => {

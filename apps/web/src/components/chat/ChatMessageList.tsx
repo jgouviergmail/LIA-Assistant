@@ -1,13 +1,23 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import { Message, BrowserScreenshotData } from '@/types/chat';
 import type { StreamPhase } from '@/types/chat-state';
 import { ChatMessage } from './ChatMessage';
 import { BrowserScreenshotOverlay } from './BrowserScreenshotOverlay';
+import { ScrollToBottomButton } from './ScrollToBottomButton';
 import { TypingIndicator } from './TypingIndicator';
 import { AnimatedEmoji } from '@/components/ui/animated-emoji';
 import { MessageSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { usePsyche } from '@/hooks/usePsyche';
+import {
+  SCROLL_UI_INITIAL,
+  decideFollow,
+  distanceToBottom,
+  isScrollerAtBottom,
+  pinToBottom,
+  scrollUiReducer,
+  type ScrollUiState,
+} from '@/lib/chat-scroll';
 import { logger } from '@/lib/logger';
 
 export interface ChatMessageListProps {
@@ -28,6 +38,17 @@ export interface ChatMessageListProps {
   onLoadOlder?: () => void;
   /** History-search term highlighted inside the rendered bubbles (QW-2). */
   searchHighlight?: string;
+  /** QW-2 history view: the floating button becomes "return to the present"
+   *  and delegates to ``onReturnToPresent`` (UXR Lot 3, A3). */
+  historyView?: boolean;
+  /** Return-to-present handler (parent owns the page swap + in-flight guard). */
+  onReturnToPresent?: () => void;
+  /** Monotonic tick incremented by the page on every OWN chat send (UXR
+   *  Lot 3). The EXPLICIT own-send signal for the follow decision — data
+   *  diffs (last-entry role, last-user-id) both false-fired against the real
+   *  engine (batched send render; post-done history reload swapping
+   *  optimistic ids for server ids). */
+  ownSendTick?: number;
 }
 
 export interface TimeGreeting {
@@ -92,6 +113,127 @@ function getScrollParent(node: HTMLElement | null): HTMLElement | null {
   return node;
 }
 
+/** The real scroller for a node, or null without a mounted container. */
+function resolveScrollerOf(node: HTMLElement | null): HTMLElement | null {
+  return node ? (getScrollParent(node) ?? node) : null;
+}
+
+/**
+ * Floating return button + polite live region (UXR Lot 3). Extracted from the
+ * render hotspot (CC discipline). Renders the sticky button in history view
+ * (the reader is never "at the present" there — QW-2 semantics) or while the
+ * reader is away; the live region announces off-screen responses.
+ */
+function ScrollUiOverlay({
+  historyView,
+  scrollUi,
+  onClick,
+}: {
+  historyView: boolean;
+  scrollUi: ScrollUiState;
+  onClick: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {(historyView || scrollUi.away) && (
+        <div className="sticky bottom-2 z-10 flex justify-center pointer-events-none">
+          <ScrollToBottomButton
+            historyView={historyView}
+            count={scrollUi.newWhileAway}
+            onClick={onClick}
+          />
+        </div>
+      )}
+      {/* The relative wrapper is load-bearing: sr-only is position:absolute,
+          and without a positioned ancestor its static position (end of the
+          thread) escapes the scroller's clipping and stretches the BODY —
+          the whole page grows a vertical scrollbar (QA regression). */}
+      <div className="relative">
+        <div aria-live="polite" className="sr-only">
+          {scrollUi.newWhileAway > 0
+            ? t('chat.scroll.new_responses', { count: scrollUi.newWhileAway })
+            : ''}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** Id of the last list entry (null on an empty list). */
+function lastIdOf(messages: Message[]): string | null {
+  const last = messages[messages.length - 1];
+  return last ? last.id : null;
+}
+
+/**
+ * Empty-conversation hero: time-aware greeting (☕ morning · 👋 day ·
+ * 🌛 evening · 😴 deep night). AnimatedEmoji falls back to the static glyph on
+ * missing asset / reduced motion; neutral day glyph until mounted (avoids the
+ * SSR hydration mismatch). Extracted from the render hotspot (CC discipline).
+ */
+function EmptyConversation({ mounted }: { mounted: boolean }) {
+  const { t } = useTranslation();
+  const greeting: TimeGreeting = mounted
+    ? greetingForHour(new Date().getHours())
+    : { glyph: '👋', isNight: false };
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-center px-4">
+      <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/20 backdrop-blur-sm animate-greet-float">
+        <AnimatedEmoji
+          glyph={greeting.glyph}
+          animate
+          imgClassName="w-11 h-11"
+          spanClassName="text-4xl"
+        />
+      </div>
+      <div className="bg-card/60 backdrop-blur-md rounded-xl px-6 py-4 border border-border/20">
+        <h2 className="text-xl font-semibold mb-2">{t('chat.empty_state.title')}</h2>
+        <p className="text-sm text-muted-foreground max-w-md">
+          {t('chat.empty_state.description')}
+        </p>
+        {greeting.isNight && (
+          <p className="text-xs text-muted-foreground italic mt-3 max-w-md">
+            {t('chat.empty_state.night_note')}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Top edge of the list: the scroll-up pagination sentinel (rendered while
+ * older history remains; ``aria-hidden`` because it's an invisible trigger,
+ * not content) and the polite loader row while a fetch is in flight.
+ * Extracted from the render hotspot (CC discipline).
+ */
+function OlderHistoryEdge({
+  hasMoreOlder,
+  isLoadingOlder,
+  sentinelRef,
+}: {
+  hasMoreOlder: boolean;
+  isLoadingOlder: boolean;
+  sentinelRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {hasMoreOlder && <div ref={sentinelRef} aria-hidden="true" className="h-1" />}
+      {isLoadingOlder && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex justify-center py-3 text-xs text-muted-foreground"
+        >
+          <span className="animate-pulse">{t('chat.loading_older_messages')}</span>
+        </div>
+      )}
+    </>
+  );
+}
+
 /**
  * How long the freshly loaded history is kept pinned to the bottom.
  *
@@ -118,6 +260,9 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   isLoadingOlder = false,
   onLoadOlder,
   searchHighlight,
+  historyView = false,
+  onReturnToPresent,
+  ownSendTick = 0,
 }) => {
   const { t } = useTranslation();
 
@@ -141,7 +286,6 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   // ChatMessage reads the store directly for fallback avatar data.
   usePsyche();
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const wasTypingRef = useRef(false);
   // Flag to cancel pending scroll-to-user if component unmounts during RAF
@@ -163,6 +307,20 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   const prevFirstIdRef = useRef<string | null>(null);
   const prevScrollHeightRef = useRef<number | null>(null);
   const wasPrependRef = useRef(false);
+
+  // UXR Lot 3 (A3) — reading invariant + floating button state.
+  // ``prevOwnSendTickRef`` consumes the page's explicit own-send signal;
+  // ``prevLastMessageIdRef`` detects new arrivals for the badge;
+  // ``countedResponseIdRef`` dedupes the badge (a response is counted ONCE,
+  // at its off-screen arrival OR its off-screen completion, never both);
+  // ``settledRef`` arms the scroll listener only after the initial pin so the
+  // load positioning can never flash the button.
+  const prevOwnSendTickRef = useRef(ownSendTick);
+  const prevLastMessageIdRef = useRef<string | null>(null);
+  const prevContentHeightRef = useRef<number | null>(null);
+  const countedResponseIdRef = useRef<string | null>(null);
+  const settledRef = useRef(false);
+  const [scrollUi, dispatchScrollUi] = useReducer(scrollUiReducer, SCROLL_UI_INITIAL);
 
   // Initial positioning. A freshly loaded conversation must open AT THE BOTTOM.
   //
@@ -196,9 +354,13 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   // unnecessary: all layout effects of a commit run before any passive effect,
   // so the viewport is already at the bottom by the time the
   // IntersectionObserver below is armed and takes its first reading.
-  // Raised by the first successful pin, consumed by the auto-scroll effect so
-  // it does not replay as an animation a scroll that already happened.
-  const justPositionedRef = useRef(false);
+  // True while the pin loop OWNS the viewport (its whole window, until the
+  // reader takes over) — the auto-scroll effect skips messages updates during
+  // that window. This is deliberately NOT a consumable one-shot flag: the
+  // loop re-pins every frame, so a one-shot re-raised after its consumption
+  // went stale and swallowed the FIRST post-load update — an own send never
+  // scrolled (caught by the hermetic e2e, chat-scroll-follow.spec.ts).
+  const pinActiveRef = useRef(false);
   const listIsEmpty = safeMessages.length === 0;
 
   useLayoutEffect(() => {
@@ -210,17 +372,10 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
 
     let cancelled = false;
     const deadline = performance.now() + INITIAL_PIN_WINDOW_MS;
+    pinActiveRef.current = true;
 
-    /** Instant jump — the `scroll-smooth` class animates even a scrollTop set. */
-    const pinToBottom = (el: HTMLElement) => {
-      const style = el.style;
-      const previous = style.getPropertyValue('scroll-behavior');
-      style.setProperty('scroll-behavior', 'auto');
-      el.scrollTop = el.scrollHeight;
-      if (previous) style.setProperty('scroll-behavior', previous);
-      else style.removeProperty('scroll-behavior');
-    };
-
+    // Instant jump — the `scroll-smooth` class animates even a scrollTop set;
+    // the neutralization lives in the shared ``pinToBottom`` (lib/chat-scroll).
     const step = () => {
       if (cancelled) return;
       const own = containerRef.current;
@@ -228,20 +383,33 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
       if (el) {
         if (el.scrollHeight > el.clientHeight) {
           pinToBottom(el);
-          justPositionedRef.current = true;
+          settledRef.current = true;
         }
       }
-      if (performance.now() < deadline) requestAnimationFrame(step);
+      if (performance.now() < deadline) {
+        requestAnimationFrame(step);
+      } else {
+        pinActiveRef.current = false;
+        // Arm the scroll listener even when nothing overflowed during the
+        // window: a short first exchange followed by a long answer minutes
+        // later must still get the floating button/badge (review finding —
+        // settled means "initial positioning is over", not "overflowed").
+        settledRef.current = true;
+      }
     };
 
     /** Stop pinning. Teardown only — NOT a statement about the reader. */
     const stopPinning = () => {
       cancelled = true;
+      pinActiveRef.current = false;
     };
 
-    /** A real gesture: the reader took over, stop pinning at once. */
+    /** A real gesture: the reader took over — stop pinning and arm the
+     *  scroll listener at once (the gesture IS the end of initial
+     *  positioning, whatever the window timer says). */
     const onUserGesture = () => {
       stopPinning();
+      settledRef.current = true;
     };
 
     requestAnimationFrame(step);
@@ -260,67 +428,142 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     // loop on every append.
   }, [listIsEmpty]);
 
-  // Auto-scroll behavior:
-  // - Default: scroll to bottom (preserves original behavior for history load, new messages, etc.)
-  // - When streaming ends: scroll to last user message aligned at top
+  // Auto-scroll behavior (UXR Lot 3 — the reading invariant):
+  // - An OWN send (new user message) always jumps to the bottom.
+  // - Otherwise the reader's LIVE position rules: at bottom → follow the
+  //   stream / align on stream end (today's behavior); away → STAY — a
+  //   streaming answer, a proactive arrival or a stream completion must never
+  //   yank someone re-reading the thread. Off-screen responses feed the
+  //   floating button's badge instead (once per response id).
   // - Skipped entirely when the last messages update was a scroll-up prepend
-  //   (the scroll-preservation useLayoutEffect has already restored ``scrollTop``;
-  //   scrolling to bottom here would undo it and hide the freshly loaded
-  //   older messages).
+  //   (the scroll-preservation useLayoutEffect has already restored
+  //   ``scrollTop``) or the initial positioning (layout effect above).
+  // Geometry is measured AT DECISION TIME — content grows without scroll
+  // events (lazy code blocks, images), so a cached flag would go stale.
   useEffect(() => {
-    if (justPositionedRef.current) {
-      // The layout effect above already placed the viewport at the bottom,
-      // synchronously and before paint. Replaying it here would animate a
-      // scroll that has already happened.
-      justPositionedRef.current = false;
+    const lastMessage = safeMessages[safeMessages.length - 1];
+    const lastId = lastIdOf(safeMessages);
+    const isNewLast = lastId !== prevLastMessageIdRef.current;
+    const isNewOwnMessage = ownSendTick !== prevOwnSendTickRef.current;
+    const scroller = resolveScrollerOf(containerRef.current);
+    const finishTurn = () => {
+      prevLastMessageIdRef.current = lastId;
+      prevOwnSendTickRef.current = ownSendTick;
+      prevContentHeightRef.current = scroller ? scroller.scrollHeight : null;
       wasTypingRef.current = isTyping;
+    };
+
+    if (pinActiveRef.current) {
+      // The initial-positioning loop owns the viewport (it re-pins every
+      // frame until the layout settles or the reader takes over) — fighting
+      // it here would animate scrolls that already happened.
+      finishTurn();
       return;
     }
     if (wasPrependRef.current) {
-      // Consume the prepend flag and short-circuit. Still update
-      // ``wasTypingRef`` so the streaming-just-ended branch fires correctly
-      // on the next non-prepend update.
+      // Consume the prepend flag and short-circuit. Still update the refs so
+      // the streaming-just-ended branch fires correctly next time.
       wasPrependRef.current = false;
-      wasTypingRef.current = isTyping;
+      finishTurn();
       return;
     }
+
+    const decision = decideFollow({
+      atBottom: isScrollerAtBottom(scroller, prevContentHeightRef.current),
+      isNewOwnMessage,
+    });
+    const badgeResponse = () => {
+      if (lastMessage?.role === 'assistant' && lastId !== countedResponseIdRef.current) {
+        countedResponseIdRef.current = lastId;
+        dispatchScrollUi({ type: 'new-assistant-message' });
+      }
+    };
+
     if (!isTyping && wasTypingRef.current) {
-      // Streaming just ended: scroll to last user message aligned at top
-      // Double RAF ensures the DOM is fully painted before scrolling
-      pendingScrollRef.current = true;
+      if (decision === 'stay') {
+        // A response finished off-screen — badge it (deduped by id).
+        badgeResponse();
+      } else {
+        // Streaming just ended at the bottom: scroll to the last user message
+        // aligned at top. Double RAF ensures the DOM is fully painted.
+        pendingScrollRef.current = true;
 
-      requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          // Check if scroll was cancelled (component unmounted or new effect triggered)
-          if (!pendingScrollRef.current || !containerRef.current) return;
+          requestAnimationFrame(() => {
+            // Check if scroll was cancelled (component unmounted or new effect triggered)
+            if (!pendingScrollRef.current || !containerRef.current) return;
 
-          // Find all user message wrappers and get the last one
-          const userMessageWrappers = containerRef.current.querySelectorAll<HTMLElement>(
-            '[data-message-role="user"]'
-          );
+            // Find all user message wrappers and get the last one
+            const userMessageWrappers = containerRef.current.querySelectorAll<HTMLElement>(
+              '[data-message-role="user"]'
+            );
 
-          if (userMessageWrappers.length > 0) {
-            const lastUserMessage = userMessageWrappers[userMessageWrappers.length - 1];
-            // scroll-mt-8 (32px) matches container's pt-8 for visual alignment
-            lastUserMessage.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
+            if (userMessageWrappers.length > 0) {
+              const lastUserMessage = userMessageWrappers[userMessageWrappers.length - 1];
+              // scroll-mt-8 (32px) matches container's pt-8 for visual alignment
+              lastUserMessage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
 
-          pendingScrollRef.current = false;
+            pendingScrollRef.current = false;
+          });
         });
-      });
-    } else {
-      // All other cases: scroll to bottom (streaming follow, history load, etc.)
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else if (decision === 'follow') {
+      // INSTANT per-batch pin — a smooth follow measures its own running
+      // animation as "away" on the next token batch and strands the viewport
+      // mid-thread (e2e-caught); instant pinning is the classic chat
+      // behavior. On an own send the jump IS the badge reset.
+      if (scroller) pinToBottom(scroller);
+      if (isNewOwnMessage) dispatchScrollUi({ type: 'jumped-to-bottom' });
+    } else if (isNewLast) {
+      // New assistant/proactive message landed while the reader is away.
+      badgeResponse();
     }
 
-    // Update previous state AFTER the condition check
-    wasTypingRef.current = isTyping;
+    finishTurn();
 
     // Cleanup: cancel pending scroll if effect re-runs or component unmounts
     return () => {
       pendingScrollRef.current = false;
     };
-  }, [safeMessages, isTyping]);
+  }, [safeMessages, isTyping, ownSendTick]);
+
+  // Floating-button visibility (UXR Lot 3): scroll listener captured at the
+  // window (scroll does not bubble, but it CAN be captured), so the real
+  // scroller is resolved lazily — at mount nothing overflows yet and the
+  // page's own wrapper only becomes scrollable later. rAF-throttled, armed
+  // only once the initial pin has settled.
+  useEffect(() => {
+    if (listIsEmpty) return;
+    let rafId: number | null = null;
+    const onScroll = () => {
+      if (!settledRef.current || rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const scroller = resolveScrollerOf(containerRef.current);
+        if (scroller) {
+          dispatchScrollUi({ type: 'distance', distance: distanceToBottom(scroller) });
+        }
+      });
+    };
+    window.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll, { capture: true });
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [listIsEmpty]);
+
+  // Floating-button click: in history view, delegate the page swap to the
+  // parent (QW-2 semantics); otherwise instant jump + badge reset.
+  const handleScrollButtonClick = useCallback(() => {
+    if (historyView) {
+      onReturnToPresent?.();
+      return;
+    }
+    const scroller = resolveScrollerOf(containerRef.current);
+    if (scroller) pinToBottom(scroller);
+    dispatchScrollUi({ type: 'jumped-to-bottom' });
+  }, [historyView, onReturnToPresent]);
 
   // Scroll-position preservation after a scroll-up prepend.
   //
@@ -424,35 +667,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   }
 
   if (messages.length === 0) {
-    // Time-aware greeting (☕ morning · 👋 day · 🌛 evening · 😴 deep night) —
-    // AnimatedEmoji falls back to the static glyph on missing asset / reduced
-    // motion. Neutral day glyph until mounted (avoids the SSR hydration mismatch).
-    const greeting: TimeGreeting = mounted
-      ? greetingForHour(new Date().getHours())
-      : { glyph: '👋', isNight: false };
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center px-4">
-        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/20 backdrop-blur-sm animate-greet-float">
-          <AnimatedEmoji
-            glyph={greeting.glyph}
-            animate
-            imgClassName="w-11 h-11"
-            spanClassName="text-4xl"
-          />
-        </div>
-        <div className="bg-card/60 backdrop-blur-md rounded-xl px-6 py-4 border border-border/20">
-          <h2 className="text-xl font-semibold mb-2">{t('chat.empty_state.title')}</h2>
-          <p className="text-sm text-muted-foreground max-w-md">
-            {t('chat.empty_state.description')}
-          </p>
-          {greeting.isNight && (
-            <p className="text-xs text-muted-foreground italic mt-3 max-w-md">
-              {t('chat.empty_state.night_note')}
-            </p>
-          )}
-        </div>
-      </div>
-    );
+    return <EmptyConversation mounted={mounted} />;
   }
 
   const lastAssistantId = getLastAssistantMessageId(messages);
@@ -464,20 +679,11 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
       className="flex-1 overflow-y-auto px-2 pt-8 pb-6 mobile:px-6 scroll-smooth"
     >
       <div className="mobile:max-w-5xl mobile:mx-auto [&>*:first-child]:mt-2">
-        {/* Scroll-up sentinel: rendered while older history remains. The
-            IntersectionObserver above fires ``onLoadOlder`` as soon as it
-            enters the viewport. ``aria-hidden`` because it's an invisible
-            scroll trigger, not content. */}
-        {hasMoreOlder && <div ref={topSentinelRef} aria-hidden="true" className="h-1" />}
-        {isLoadingOlder && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="flex justify-center py-3 text-xs text-muted-foreground"
-          >
-            <span className="animate-pulse">{t('chat.loading_older_messages')}</span>
-          </div>
-        )}
+        <OlderHistoryEdge
+          hasMoreOlder={hasMoreOlder}
+          isLoadingOlder={isLoadingOlder}
+          sentinelRef={topSentinelRef}
+        />
         {messages.map(message => (
           // scroll-mt-8 must match container's pt-8 for scrollIntoView alignment
           <div
@@ -509,8 +715,12 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
           </div>
         )}
 
-        {/* Element for auto-scroll */}
-        <div ref={messagesEndRef} />
+        {/* Floating return affordance + off-screen announcement (UXR Lot 3). */}
+        <ScrollUiOverlay
+          historyView={historyView}
+          scrollUi={scrollUi}
+          onClick={handleScrollButtonClick}
+        />
       </div>
     </div>
   );

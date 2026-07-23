@@ -735,6 +735,12 @@ initiative_duration_seconds = Histogram(
     buckets=[0.1, 0.5, 1.0, 2.0, 3.0, 5.0],
 )
 
+# UXR Lot 4 (A2): tappable follow-up chips emitted under assistant answers.
+initiative_followups_total = Counter(
+    "initiative_followups_total",
+    "Follow-up suggestions emitted by the initiative node",
+)
+
 context_resolution_duration_seconds = Histogram(
     "context_resolution_duration_seconds",
     "Time spent resolving context per turn type",

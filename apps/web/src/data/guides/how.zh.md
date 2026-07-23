@@ -5,8 +5,8 @@
 > 面向架构师、工程师和技术专家的技术展示文档。
 
 **版本**：3.4
-**日期**：2026-07-22
-**应用**：LIA v1.25.15
+**日期**：2026-07-23
+**应用**：LIA v1.25.16
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -696,6 +696,8 @@ LIA 可以代表用户拨打外呼电话、进行目标导向的对话，然后�
 
 后执行 LangGraph 节点：每轮可执行操作后，initiative 分析结果并主动验证跨领域信息（只读）。示例：天气下雨 → 检查日历中的户外活动，邮件提及约会 → 检查可用性，任务截止日期 → 提醒上下文。100% prompt 驱动（无硬编码逻辑），结构化预过滤（相邻领域），注入记忆 + 兴趣点，suggestion 字段用于建议写操作。可通过 `INITIATIVE_ENABLED`、`INITIATIVE_MAX_ITERATIONS`、`INITIATIVE_MAX_ACTIONS` 配置。
 
+同一节点还会生成最多 3 个**后续建议芯片** — 用户接下来可能发送的简短请求，以用户语言撰写并基于可见结果。服务器端净化（截断、大小写不敏感去重、硬上限）加上按运行一次性取出的交接机制，将其同时写入 SSE `done` 块和归档消息元数据：芯片实时显示并在刷新后保留；点击仅预填输入框。
+
 ### 16.3. 计划任务
 
 APScheduler 配合 Redis 领导者选举（SETNX、TTL 120s、5s 重检）。`FOR UPDATE SKIP LOCKED` 实现隔离。自动批准计划（`plan_approved=True` 注入状态）。连续 5 次失败后自动禁用。瞬时错误重试。
@@ -753,7 +755,7 @@ URL → SSRF 验证（DNS + IP 黑名单 + 重定向后重检） → 可读性�
 | XSS（LLM 渲染） | 聊天 markdown 管线上的 `rehype-sanitize` 边界（`rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`，经审计的 schema——移除 `script`/`iframe`/`form`/事件处理器）、HTTP-only cookies、后端 CSP；MCP/Skill 应用从不经过 markdown（哨兵 → 沙箱化 iframe 小组件） |
 | CSRF | SameSite=Lax |
 | SQL 注入 | SQLAlchemy ORM（参数化查询） |
-| SSRF | DNS 解析 + IP 黑名单（Web Fetch、MCP、Browser） |
+| SSRF | DNS 解析 + IP 黑名单（Web Fetch、MCP、Browser）；通过 URL 安装技能复用同一校验器并采用更严格的条款：仅 https、拒绝重定向、流式大小上限、总传输时限、按用户限流 |
 | Prompt 注入 | `<external_content>` 安全标记 |
 | 限流 / IP 伪造 | Redis 分布式滑动窗口（Lua 原子操作）；可信代理链——API 端口绑定 loopback（cloudflared = 唯一入口）、uvicorn `--proxy-headers`、`request.client.host` 作为唯一 IP 来源经过校验（不再有共享的全局桶，从不读取原始 XFF） |
 | 供应链 | SHA 固定的 GitHub Actions、每周 Dependabot |
@@ -944,10 +946,13 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 
 **技能生命周期**：每个技能都通过单一的加固导入管道（`SkillImportService`）进入 — 在任何磁盘写入之前进行严格的 agentskills.io 名称验证（路径遍历防护）、zip 解压限制、staging + swap 并在失败时自动恢复先前版本，以及跨作用域名称冲突拒绝（DB + 缓存双重权威）。内置技能生成器通过 `import_user_skill` 工具走同一管道：在聊天中创建的技能会在同一轮次内完成验证、安装并以名称宣布 — 无需手动上传。工作流跨越多个轮次的技能在 frontmatter 中声明 `dialogue: true`，QueryAnalyzer 的 chat override 会尊重该声明（其检测在对话式后续回答中得以保留），同时技能 ReAct runner 会接收窗口化的对话历史，以便继续对话而不是重新开始。
 
+技能界面是一个**技能库**：卡片打开详情页，展示本地化描述、声明的**输出通道**（加载器终于读取生成器一直在校验的 `outputs:` frontmatter 字段 — 一致性由 CI 钉定）、由专用端点提供的自带 `assets/preview.png`（名称模式防目录穿越、大小上限、对管理员禁用的技能返回无差别 404），以及所有非系统技能上的来源警告。除文件上传外，安装新增第二来源：https URL，按 §19.3 所述强化，走完全相同的导入管线（`skill_url_imports_total{outcome}` 统计每条路径）。
+
 ### 23.8. 对话历史、搜索与富聊天渲染
 
-四个横切能力共享同一产品理念：**即时反馈，不必要时零服务器成本**。
+五个横切能力共享同一产品理念：**即时反馈，不必要时零服务器成本**。
 
+- **阅读不变量与成熟的输入框** — 流式回复不再拖拽已向上滚动的读者：跟随决策在决策时刻实时测量几何（增长补偿），显式发送 tick 取代数据 diff 启发式（其中两个在真实引擎上误触发），悬浮按钮带屏外回复计数徽标把读者带回。输入框拥有按用户持久化的草稿（防抖，登出清除）、最近 10 条发送的 ↑/↓ 翻阅、`/` 斜杠命令（原生 textarea 上的 WAI-ARIA 组合框、不区分变音符的本地化筛选）以及每条回复下的行内操作行（复制、反馈、执行轨迹）。
 - **对话历史搜索** — `GET /conversations/me/messages` 的 `?search=` 查询参数。过滤使用 PostgreSQL `ILIKE`（不区分大小写、区分重音 — 契约已由测试锁定）。前端使用 `useMemo` 对 `messages` 进行即时过滤；后端端点作为潜在能力保留，供未来深度搜索 UI 使用。
 - **向上滚动分页** — 同一个端点，键集游标 `?before=<created_at>` 返回 `has_more` 和 `next_cursor`。聊天 UI 在第一条消息上方绑定一个 1 px 的哨兵元素并使用 `IntersectionObserver`；更早的页面会按 id 去重后前置插入，并通过共享的 `wasPrependRef` 让自动滚动到底部的 `useEffect` 在该轮跳过，从而让视图精确停留在用户正在阅读的位置。已有的复合索引 `(conversation_id, created_at DESC)` 让每一页都成为索引-only 的 seek，与对话长度无关。分页上下限（默认 50、硬上限 200）可通过环境变量 `CONVERSATION_HISTORY_DEFAULT_LIMIT` / `CONVERSATION_HISTORY_MAX_LIMIT` 调整。
 - **LaTeX 渲染** — LIA 写出的数学与科学公式（`$inline$` / `$$block$$`）通过 KaTeX 在 `MarkdownContent.tsx` 中渲染。由于助手将整个回答以 HTML 输出，`rehypeMathInText` 插件在 hast 层（`rehypeRaw` 展开 HTML 之后）检测 `$`/`$$` 分隔符，并转换为 `rehype-katex` 可渲染的标记；仅作用于 markdown 的 `remark-math` 看不到嵌入 HTML 中的公式。顺序：`rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`；math 步骤只读取已消毒的文本并生成固定类名的 span，不新增攻击面。
@@ -1002,6 +1007,10 @@ LIA 通过统一模式接受外部事件摄入（iPhone Apple Health 样本、�
 **可视化**：多态 Python 聚合器在一个窗口内按 `date_start` 升序遍历样本，每个 bucket（小时/日/周/月/年）输出一个点，对 `heart_rate` 样本计算 `AVG/MIN/MAX`，对 `steps` 样本计算 `SUM`。无数据的 bucket 以 `has_data=False` 发射，以便前端（`recharts`、`connectNulls={false}`）展示真实空档而非插值。Settings 组件复用 `SettingsSection` + Accordion 模式（4 个子区段：API + tokens、图表、统计、数据管理），并显示**实际的聚合窗口**，以消除「我切换周期时统计不动」的困惑（当所有数据都在最小窗口内时，心率是不变的）。
 
 **接入核心循环**：单一的**用户选择启用开关**同时管理四个消费者——对话（助理工具）、Heartbeat（`health_signals` 源）、记忆提取（`{health_context}` prompt 占位符 + 高情感权重记忆上可选的 `context_biometric` JSONB blob）以及日志（提取 + 整合）。四者接收相同的**事实型非原始投影**：相对基线的 delta、方向趋势、结构性事件（无活动连续天数等）——绝不传递原始值。28 天滚动基线自动选择 `bootstrap`（当历史不足 7 天时采用简单中位数——告知 LLM 以便其限定表述），然后切换到 `rolling`。GDPR 擦除只有一个目标：`health_samples` 表。
+
+### 23.13. 可安装应用（PWA）
+
+六个本地化 manifest（`/manifest-{lng}.json` — 本地化的 `lang`、`start_url`、三个快捷方式、分离的 `any`/`maskable` 图标条目；6 个文件的结构一致性由测试钉定）通过 `generateMetadata` 按页面链接，配以真实 PNG 图标和 `apple-touch-icon`（iOS 会静默忽略 SVG 触摸图标）。操作系统的**分享目标**（`GET /{lng}/share`）把分享的标题/文本/链接组合成受限的聊天草稿，走现有的 `?draft=` 轨道 — 绝不自动发送。低调的安装提示从第三次访问起出现（standalone 显示模式下绝不出现，可永久关闭）；Chromium 通过 `beforeinstallprompt` 获得真实安装提示，iOS 则显示「分享 → 添加到主屏幕」指引。
 
 ---
 
@@ -1067,4 +1076,4 @@ LIA 是一项软件工程实践，尝试解决一个具体问题：构建一个�
 
 ---
 
-*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、141 篇 ADR 及变更日志（v1.0 至 v1.25.15）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*
+*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、141 篇 ADR 及变更日志（v1.0 至 v1.25.16）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*

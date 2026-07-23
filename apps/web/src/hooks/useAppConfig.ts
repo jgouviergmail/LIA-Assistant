@@ -30,6 +30,11 @@ export interface AppConfig {
     rag_spaces_enabled: boolean;
     rag_spaces_embedding_model: string;
     journals_enabled: boolean;
+    // UXR Lot 6 (A10) — additive instance flags (gate-keeper ADR-061).
+    channels_enabled?: boolean;
+    heartbeat_enabled?: boolean;
+    skills_enabled?: boolean;
+    open_loops_enabled?: boolean;
   };
   api_version: string;
 }

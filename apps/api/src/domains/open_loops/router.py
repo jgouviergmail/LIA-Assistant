@@ -15,7 +15,11 @@ from src.core.exceptions import raise_not_found_or_unauthorized
 from src.core.session_dependencies import get_current_active_session
 from src.domains.open_loops.models import OpenLoopStatus
 from src.domains.open_loops.repository import OpenLoopRepository
-from src.domains.open_loops.schemas import OpenLoopListResponse, OpenLoopResponse
+from src.domains.open_loops.schemas import (
+    CloseLoopRequest,
+    OpenLoopListResponse,
+    OpenLoopResponse,
+)
 from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
@@ -52,16 +56,22 @@ async def list_open_loops(
 )
 async def close_open_loop(
     loop_id: UUID,
+    payload: CloseLoopRequest | None = None,
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> OpenLoopResponse:
     """Atomically close one of the current user's OPEN loops.
 
     404 for a missing, foreign, or already-closed loop (private resource →
-    hide existence, same policy as the sibling domains).
+    hide existence, same policy as the sibling domains). The optional body
+    distinguishes "done" (closed_reason=api, the historical value) from
+    "no longer relevant" (closed_reason=dismissed) — UXR Lot 7, B5.
     """
+    action = payload.action if payload is not None else "done"
     repo = OpenLoopRepository(db)
-    claimed = await repo.close_loop(loop_id, user.id, reason="api")
+    claimed = await repo.close_loop(
+        loop_id, user.id, reason="api" if action == "done" else "dismissed"
+    )
     if not claimed:
         raise_not_found_or_unauthorized("open_loop", loop_id)
     await db.commit()

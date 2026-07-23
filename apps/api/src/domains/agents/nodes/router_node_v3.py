@@ -20,6 +20,7 @@ from langchain_core.runnables import RunnableConfig
 
 from src.core.config import settings
 from src.core.constants import (
+    STATE_KEY_INITIATIVE_FOLLOWUPS,
     STATE_KEY_INITIATIVE_ITERATION,
     STATE_KEY_INITIATIVE_RESULTS,
     STATE_KEY_INITIATIVE_SKIPPED_REASON,
@@ -318,6 +319,7 @@ async def router_node_v3(
         STATE_KEY_INITIATIVE_RESULTS: [],
         STATE_KEY_INITIATIVE_SKIPPED_REASON: None,
         STATE_KEY_INITIATIVE_SUGGESTION: None,
+        STATE_KEY_INITIATIVE_FOLLOWUPS: None,
         # STREAMING FIX 2026-01: Clear persisted content_final_replacement from previous turn
         # Root cause: PostgreSQL checkpointer persists this value between turns.
         # If previous turn had HTML injection (truthy value), streaming service

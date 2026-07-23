@@ -8,7 +8,11 @@
  * collapsed, dependency-free `<details>`-style disclosure so it never pushes
  * the conversation. Steps are grouped by category; the reasoning block shows
  * beneath them. Renders nothing without a trace or when it has no step (a
- * pure-conversation reply). Session-only in V1 — not persisted.
+ * pure-conversation reply).
+ *
+ * Rendered INSIDE the bubble action row (QA feedback 2026-07-23): a fragment
+ * whose toggle is pushed right by `ml-auto` in the row's flex-wrap, and whose
+ * expanded panel wraps to a full-width line beneath the row.
  */
 
 import { useState } from 'react';
@@ -55,9 +59,10 @@ export function ExecutionTraceDisclosure({ trace }: ExecutionTraceDisclosureProp
   const groups = groupByCategory(trace.steps);
 
   return (
-    <div className="mt-1.5">
-      {/* ml-auto: the collapsed line sits bottom-RIGHT of the bubble
-          (user feedback 2026-07-19); the expanded panel stays full width. */}
+    <>
+      {/* ml-auto: pushed to the RIGHT edge of the action row
+          (user feedback 2026-07-19 + 2026-07-23); the expanded panel
+          wraps below at full width. */}
       <button
         type="button"
         aria-expanded={open}
@@ -80,7 +85,7 @@ export function ExecutionTraceDisclosure({ trace }: ExecutionTraceDisclosureProp
       </button>
 
       {open && (
-        <div className="mt-2 space-y-3 rounded-md border border-border/40 bg-muted/20 px-3 py-2">
+        <div className="w-full mt-1 space-y-3 rounded-md border border-border/40 bg-muted/20 px-3 py-2">
           {groups.map(group => (
             <div key={group.category}>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
@@ -112,6 +117,6 @@ export function ExecutionTraceDisclosure({ trace }: ExecutionTraceDisclosureProp
           )}
         </div>
       )}
-    </div>
+    </>
   );
 }

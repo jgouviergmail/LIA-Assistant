@@ -131,3 +131,10 @@ and runtime conventions") for copy-paste examples.
 
 See `docs/technical/SKILLS_INTEGRATION.md` § Rich Outputs for the full
 registry flow (SKILL_APP registry item → sentinel HTML → SkillAppWidget).
+
+
+## What does the skills gallery show?
+Settings → Skills now displays your skills as **cards**. Opening one shows its localized description, a **preview image** when the skill bundles one, its declared **output channels** (text, interactive frame, image) and the actions (enable/disable, download, delete). Every skill imported from outside LIA carries a **provenance warning**: its instructions run with access to your connected data, so only keep skills whose source you trust.
+
+## Can I install a skill directly from a URL?
+Yes — "From URL" in Settings → Skills. Paste an **https** address serving a SKILL.md file or a .zip package. The server validates everything: https only, no private/internal addresses, no redirects, size cap, and the **same strict import pipeline** as a file upload (name conflicts, quota, content validation). Failed attempts are rate-limited per user.

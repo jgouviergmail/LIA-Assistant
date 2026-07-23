@@ -23,7 +23,7 @@
  *   numbering now agree).
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   163 headings, no Unreleased pending.
+ *   164 headings, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -37,11 +37,11 @@ export const LANDING_STATS = {
   tools: 76,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 428,
+  metrics: 431,
   uiLanguages: 6,
   tests: 15000,
   adrs: 141,
-  releases: 163,
+  releases: 164,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

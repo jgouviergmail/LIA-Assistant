@@ -33,6 +33,8 @@ function hook(over: Partial<SkillsHook> = {}) {
     error: null,
     refetch: vi.fn(),
     importSkill: vi.fn(),
+    importFromUrl: vi.fn(),
+    importingFromUrl: false,
     deleteSkill: vi.fn(),
     deleting: false,
     toggleSkill: vi.fn(),

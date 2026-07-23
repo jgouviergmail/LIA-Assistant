@@ -56,6 +56,8 @@ export const CONNECTOR_TYPES = [
   'browser',
   // Smart Home connectors
   'philips_hue',
+  // Telephony connectors (per-user ElevenLabs account, agentic outbound calls)
+  'elevenlabs_telephony',
   // Future connectors (not yet implemented)
   'slack',
   'notion',
@@ -103,6 +105,8 @@ export const CONNECTOR_LABELS: Record<ConnectorType, string> = {
   browser: 'Browser',
   // Smart Home connectors
   philips_hue: 'Philips Hue',
+  // Telephony connectors
+  elevenlabs_telephony: 'ElevenLabs Telephony',
   // Future connectors
   slack: 'Slack',
   notion: 'Notion',
@@ -134,6 +138,7 @@ export const CONNECTOR_CATEGORIES = {
   microsoft: ['microsoft_outlook', 'microsoft_calendar', 'microsoft_contacts', 'microsoft_tasks'],
   external: ['openweathermap', 'wikipedia', 'perplexity', 'brave_search', 'browser'],
   smart_home: ['philips_hue'],
+  telephony: ['elevenlabs_telephony'],
   productivity: ['slack', 'notion'],
   development: ['github'],
 } as const;
@@ -147,6 +152,7 @@ export const CATEGORY_LABELS = {
   microsoft: 'Microsoft 365',
   external: 'Services Externes',
   smart_home: 'Smart Home',
+  telephony: 'Telephony',
   productivity: 'Productivité',
   development: 'Développement',
 } as const;

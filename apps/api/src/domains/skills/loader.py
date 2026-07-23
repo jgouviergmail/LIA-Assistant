@@ -19,6 +19,7 @@ from typing import Any
 import yaml
 
 from src.core.constants import (
+    SKILL_OUTPUT_CHANNELS,
     SKILLS_DESCRIPTION_MAX_LENGTH,
     SKILLS_NAME_MAX_LENGTH,
     SKILLS_RESOURCE_SKIP_DIRS,
@@ -50,7 +51,36 @@ EXTENSION_FIELDS: dict[str, Any] = {
     # turns (answers to the skill's own questions) instead of clearing it as
     # history contamination — the skill's dialogue survives across turns.
     "dialogue": False,
+    # UXR Lot 10 (B12): declarative output channels ("outputs: [text, frame]").
+    # The generator has always validated this field (VALID_OUTPUTS) and system
+    # skills declare it — the loader now surfaces it to the API/gallery.
+    # Validated post-parse by _validate_outputs (invalid ⇒ warn + None).
+    "outputs": None,
 }
+
+
+def _validate_outputs(value: Any, path: Path) -> list[str] | None:
+    """Validate the declarative ``outputs`` field (UXR Lot 10, B12).
+
+    Tolerant by design — a bad value must never crash a directory scan:
+    anything that is not a list of known channel names collapses to None
+    (displayed as the "text" default) with a warning.
+
+    Args:
+        value: Raw frontmatter value.
+        path: SKILL.md path, for the warning log.
+
+    Returns:
+        The validated channel list, or None when absent/invalid.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, list) or not all(
+        isinstance(entry, str) and entry in SKILL_OUTPUT_CHANNELS for entry in value
+    ):
+        logger.warning("skill_outputs_invalid", path=str(path), value=repr(value)[:100])
+        return None
+    return value
 
 
 def _fallback_yaml_parse(yaml_str: str) -> dict[str, Any] | None:
@@ -223,6 +253,7 @@ def parse_skill_file(path: Path) -> dict[str, Any] | None:
         # LIA extensions
         **{k: meta.get(k, default) for k, default in EXTENSION_FIELDS.items()},
     }
+    skill["outputs"] = _validate_outputs(skill["outputs"], path)
     return skill
 
 

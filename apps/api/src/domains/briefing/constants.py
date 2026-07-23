@@ -81,6 +81,22 @@ SECTION_NAMES: tuple[str, ...] = (
     SECTION_DOCUMENTS,
 )
 
+# Default DISPLAY order of the grid (UXR Lot 5, B4) — mirrors the historical
+# TodayBriefing layout so users without stored preferences keep the exact
+# grid they know. Preference sanitizing completes missing sections in THIS
+# order, not in SECTION_NAMES order.
+SECTION_DISPLAY_ORDER_DEFAULT: tuple[str, ...] = (
+    SECTION_WEATHER,
+    SECTION_BIRTHDAYS,
+    SECTION_REMINDERS,
+    SECTION_HEALTH,
+    SECTION_AGENDA,
+    SECTION_MAILS,
+    SECTION_FOR_YOU,
+    SECTION_TASKS,
+    SECTION_DOCUMENTS,
+)
+
 # =============================================================================
 # LLM prompt names (must match files in agents/prompts/v1/) and tracking labels.
 # =============================================================================

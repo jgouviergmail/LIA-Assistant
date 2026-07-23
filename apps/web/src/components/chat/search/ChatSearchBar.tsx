@@ -111,6 +111,7 @@ function MobileSearchRow(props: ChatSearchBarProps) {
       <input
         ref={inputRef}
         type="search"
+        data-chat-search
         value={props.searchQuery}
         onChange={e => props.setSearchQuery(e.target.value)}
         onKeyDown={e => {

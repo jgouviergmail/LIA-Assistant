@@ -101,6 +101,32 @@ export const PORTRAIT_HINT_STORAGE_KEY = 'lia.portraitHint.seenCompiledAt';
  */
 export const RESPONSE_FEEDBACK_COMMENT_MAX_LENGTH = 500;
 
+/**
+ * Hard cap of the chat input (UXR Lot 2, A7) — mirror of the backend request
+ * constraint `ChatRequest.message` max_length=10000
+ * (`apps/api/src/domains/agents/api/schemas.py`). Enforced on the textarea
+ * (`maxLength`) and on the persisted draft clamp.
+ */
+export const CHAT_INPUT_MAX_LENGTH = 10_000;
+
+/**
+ * localStorage key prefix of the per-user chat input draft (UXR Lot 2, A7).
+ * Full key: `${CHAT_DRAFT_STORAGE_KEY_PREFIX}${userId}` — purged on logout.
+ */
+export const CHAT_DRAFT_STORAGE_KEY_PREFIX = 'lia.chatDraft.';
+
+/**
+ * How many past sent messages the ↑/↓ input recall can walk through
+ * (QA feedback 2026-07-23 extending UXR Lot 2 / A7). Session-scoped:
+ * derived from the loaded conversation, never persisted separately.
+ */
+export const CHAT_SENT_HISTORY_MAX = 10;
+
+/** PWA install hint (UXR Lot 9, A6): visit counter + forever-dismissal. */
+export const PWA_INSTALL_HINT_VISITS_KEY = 'lia.installHint.visits';
+export const PWA_INSTALL_HINT_DISMISSED_KEY = 'lia.installHint.dismissed';
+export const PWA_INSTALL_HINT_MIN_VISITS = 3;
+
 // ============================================================================
 // API TIMEOUTS (milliseconds)
 // ============================================================================

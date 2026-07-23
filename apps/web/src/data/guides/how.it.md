@@ -5,8 +5,8 @@
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
 **Versione**: 3.4
-**Data**: 2026-07-22
-**Applicazione**: LIA v1.25.15
+**Data**: 2026-07-23
+**Applicazione**: LIA v1.25.16
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -696,6 +696,8 @@ Factory **catalogue-driven** (ADR-081): `factory.get_tts_client()` legge l'overr
 
 Nodo LangGraph post-esecuzione: dopo ogni turno azionabile, l'iniziativa analizza i risultati e verifica proattivamente le informazioni cross-domain (read-only). Esempi: meteo pioggia → verificare calendario per attività outdoor, email che menziona un appuntamento → verificare disponibilità, scadenza task → ricordare il contesto. 100% prompt-driven (nessuna logica hardcoded), pre-filtro strutturale (domini adiacenti), iniezione memoria + centri di interesse, campo suggestion per proporre azioni write. Configurabile tramite `INITIATIVE_ENABLED`, `INITIATIVE_MAX_ITERATIONS`, `INITIATIVE_MAX_ACTIONS`.
 
+Lo stesso nodo emette inoltre fino a 3 **chip di follow-up** — brevi richieste che l'utente probabilmente invierà dopo, formulate nella sua lingua e ancorate ai risultati visibili. Una sanitizzazione lato server (clamp, dedupe case-insensitive, tetto rigido) e un handoff pop-once per run le portano sia nel chunk SSE `done` sia nei metadati del messaggio archiviato: le chip appaiono live e sopravvivono a un ricaricamento; toccarne una riempie soltanto il campo.
+
 ### 16.3. Azioni pianificate
 
 APScheduler con leader election Redis (SETNX, TTL 120s, recheck 5s). `FOR UPDATE SKIP LOCKED` per isolamento. Auto-approvazione dei piani (`plan_approved=True` iniettato nello state). Auto-disattivazione dopo 5 fallimenti consecutivi. Retry su errori transitori.
@@ -753,7 +755,7 @@ Design **fail-open**: i fallimenti dell'infrastruttura non bloccano gli utenti.
 | XSS (rendering LLM) | Confine `rehype-sanitize` sul pipeline markdown della chat (`rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`, schema verificato — `script`/`iframe`/`form`/handler rimossi), cookie HTTP-only, CSP backend; le MCP/Skill App non passano mai per il markdown (sentinella → widget iframe in sandbox) |
 | CSRF | SameSite=Lax |
 | SQL Injection | SQLAlchemy ORM (query parametrizzate) |
-| SSRF | Risoluzione DNS + IP blocklist (Web Fetch, MCP, Browser) |
+| SSRF | Risoluzione DNS + blocklist IP (Web Fetch, MCP, Browser); l'installazione di skill da URL riusa lo stesso validatore con termini più severi: solo https, redirect rifiutati, tetto di dimensione in streaming, deadline TOTALE di trasferimento, rate limit per utente |
 | Prompt Injection | Marker di sicurezza `<external_content>` |
 | Rate Limiting / spoofing IP | Redis sliding window distribuito (Lua atomico); catena proxy affidabile — porte API vincolate a loopback (cloudflared = unico ingresso), uvicorn `--proxy-headers`, `request.client.host` validato come unica fonte di IP (niente più bucket globale condiviso, XFF grezzo mai letto) |
 | Supply Chain | SHA-pinned GitHub Actions, Dependabot settimanale |
@@ -947,10 +949,13 @@ Una libreria di skill integrati dimostra il contratto: `interactive-map`, `weath
 
 **Ciclo di vita delle skill**: ogni skill entra da un'unica pipeline di importazione rafforzata (`SkillImportService`) — validazione rigorosa del nome agentskills.io prima di qualsiasi scrittura su disco (guardia anti path-traversal), limiti di espansione degli zip, staging + swap con ripristino automatico della versione precedente in caso di errore, e rifiuto dei conflitti di nomi tra ambiti (DB + cache come doppia autorità). Il generatore di skill integrato usa la stessa pipeline tramite il tool `import_user_skill`: una skill creata in chat viene validata, installata e annunciata con il suo nome nello stesso turno — senza upload manuale. Le skill il cui workflow copre più turni dichiarano `dialogue: true` nel frontmatter, che il chat override del QueryAnalyzer rispetta (la loro rilevazione sopravvive alle risposte conversazionali di follow-up), mentre il runner ReAct delle skill riceve la cronologia di conversazione finestrata per riprendere il dialogo invece di ricominciarlo.
 
+La superficie delle skill è una **galleria**: le schede aprono un dettaglio con la descrizione localizzata, i **canali di output** dichiarati (il loader legge finalmente il campo frontmatter `outputs:` che il generatore ha sempre validato — parità fissata in CI), una `assets/preview.png` inclusa servita da un endpoint dedicato (guardia traversal per pattern del nome, tetto di dimensione, 404 indifferenziato per le skill disattivate dall'admin) e un avviso di provenienza su ogni skill non di sistema. L'installazione accetta una seconda sorgente oltre all'upload di file: un URL https, indurito come descritto in §19.3, che alimenta esattamente la stessa pipeline di import (`skill_url_imports_total{outcome}` conta ogni percorso).
+
 ### 23.8. Cronologia conversazioni, ricerca e rendering ricco della chat
 
-Quattro capacità trasversali condividono la stessa filosofia di prodotto: **feedback immediato, zero costo server quando non necessario**.
+Cinque capacità trasversali condividono la stessa filosofia di prodotto: **feedback immediato, zero costo server quando non necessario**.
 
+- **Invariante di lettura e maturità del campo** — una risposta in streaming non strappa più il lettore risalito nel filo: la decisione di follow misura la geometria dal vivo al momento di decidere (compensata della crescita), un tick di invio esplicito sostituisce le euristiche a diff di dati (due di esse hanno prodotto falsi positivi contro il motore reale), e un pulsante fluttuante con badge delle risposte fuori schermo riporta il lettore. Il campo porta una bozza persistente per utente (con debounce, eliminata al logout), uno scorrimento ↑/↓ degli ultimi 10 invii, comandi slash `/` (combobox WAI-ARIA sulla textarea nativa, filtro localizzato insensibile agli accenti) e una riga di azioni in-flow sotto ogni risposta (copia, feedback, trace di esecuzione).
 - **Ricerca nella cronologia conversazioni** — query parameter `?search=` su `GET /conversations/me/messages`. Il filtraggio usa PostgreSQL `ILIKE` (case-insensitive, accent-sensitive — contratto bloccato da test). Il frontend usa un `useMemo` su `messages` per filtrare istantaneamente i messaggi caricati; l'endpoint backend resta una capacità latente per una futura UI di ricerca profonda.
 - **Paginazione scroll-up** — stesso endpoint, cursore keyset `?before=<created_at>` che restituisce `has_more` e `next_cursor`. La UI della chat collega un `IntersectionObserver` a una sentinella di 1 px sopra il primo messaggio; le pagine più vecchie vengono anteposte con deduplica per id, e un `wasPrependRef` condiviso fa saltare il `useEffect` di auto-scroll-in-fondo per quel ciclo, così la vista rimane ancorata esattamente dove il lettore stava leggendo. L'indice composito esistente `(conversation_id, created_at DESC)` trasforma ogni pagina in un seek index-only, indipendentemente dalla lunghezza della conversazione. I limiti di pagina (default 50, tetto massimo 200) sono regolabili tramite le variabili d'ambiente `CONVERSATION_HISTORY_DEFAULT_LIMIT` / `CONVERSATION_HISTORY_MAX_LIMIT`.
 - **Rendering LaTeX** — Le formule matematiche e scientifiche che LIA scrive (`$inline$` / `$$block$$`) vengono renderizzate con KaTeX in `MarkdownContent.tsx`. Poiché l'assistente emette l'intera risposta in HTML, un plugin `rehypeMathInText` rileva i delimitatori `$`/`$$` a livello hast — dopo che `rehypeRaw` ha espanso l'HTML — e li converte nei marcatori che `rehype-katex` renderizza; `remark-math`, limitato al markdown, non vede mai le formule incorporate nell'HTML. Ordine: `rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`; i passaggi math leggono solo testo già sanitizzato ed emettono span a classe fissa, senza nuova superficie d'attacco.
@@ -1005,6 +1010,10 @@ LIA accetta ingestioni di eventi esterni (misurazioni iPhone Apple Health, paylo
 **Visualizzazione**: un aggregator polimorfico Python percorre i campioni ordinati per `date_start` in una finestra e emette un punto per bucket (ora/giorno/settimana/mese/anno), con `AVG/MIN/MAX` sui campioni `heart_rate` e `SUM` sui campioni `steps`. I bucket vuoti sono emessi con `has_data=False` affinché il frontend (`recharts`, `connectNulls={false}`) mostri lacune oneste invece di interpolazione. Il componente Settings riutilizza il pattern `SettingsSection` + Accordion (4 sotto-sezioni: API + token, Grafici, Statistiche, Gestione dati) e mostra la **finestra di aggregazione effettiva** per disinnescare la confusione «le stat non si muovono quando cambio periodo» (la FC è invariante quando tutti i dati entrano nella finestra più piccola).
 
 **Esposizione ai loop centrali**: un **unico toggle utente opt-in** governa quattro consumatori in un colpo solo — conversazione (tool assistant), Heartbeat (sorgente `health_signals`), estrazione memoria (placeholder `{health_context}` + blob opzionale `context_biometric` JSONB su memorie con alta emotività) e diario (estrazione + consolidazione). Tutti e quattro ricevono la stessa **proiezione fattuale non grezza**: delta vs baseline, trend direzionali, eventi strutturali (streak di inattività, ecc.) — mai valori grezzi. La baseline mobile a 28 giorni seleziona automaticamente `bootstrap` (mediana semplice finché meno di 7 giorni di storico sono disponibili — trasmesso all'LLM per qualificare le sue affermazioni) e poi passa a `rolling`. L'erasure GDPR ha un unico bersaglio: la tabella `health_samples`.
+
+### 23.13. Applicazione installabile (PWA)
+
+Sei manifest localizzati (`/manifest-{lng}.json` — `lang` localizzato, `start_url`, tre scorciatoie, voci icona `any`/`maskable` separate; la parità strutturale dei 6 file è fissata da test) sono collegati per pagina via `generateMetadata`, con vere icone PNG e una `apple-touch-icon` (iOS ignora silenziosamente le icone SVG). Lo **share target** dell'OS (`GET /{lng}/share`) compone titolo/testo/url condivisi in una bozza di chat limitata che usa il binario `?draft=` esistente — mai auto-inviata. Un suggerimento di installazione discreto appare dalla terza visita (mai in display-mode standalone, rifiutabile per sempre); Chromium riceve un vero prompt di installazione via `beforeinstallprompt`, iOS l'istruzione Condividi → Aggiungi alla Home.
 
 ---
 
@@ -1070,4 +1079,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), dei 120+ ADR e del changelog (da v1.0 a v1.25.15). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), dei 120+ ADR e del changelog (da v1.0 a v1.25.16). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

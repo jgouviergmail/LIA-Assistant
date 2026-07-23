@@ -6,6 +6,7 @@ mutate → flush): a loop leaves OPEN exactly once, whatever the concurrency
 ``scheduled_actions/repository.py``.
 """
 
+from contextlib import suppress
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -86,7 +87,7 @@ class OpenLoopRepository(BaseRepository[OpenLoop]):
         Args:
             loop_id: Loop to close.
             user_id: Owner (ownership enforced in the WHERE clause).
-            reason: closed_reason value (conversational | api).
+            reason: closed_reason value (conversational | api | dismissed).
 
         Returns:
             True when this call performed the OPEN→CLOSED transition,
@@ -114,6 +115,15 @@ class OpenLoopRepository(BaseRepository[OpenLoop]):
                 user_id=str(user_id),
                 reason=reason,
             )
+            # UXR Lot 7 (B5): closure counters — this chokepoint covers the
+            # API (api/dismissed) and the conversational extractor alike.
+            # Metrics emission must never fail a persistence path.
+            with suppress(Exception):
+                from src.infrastructure.observability.metrics_registry import (
+                    track_open_loop_closure,
+                )
+
+                track_open_loop_closure(reason)
         return claimed
 
     async def expire_stale(
@@ -155,6 +165,13 @@ class OpenLoopRepository(BaseRepository[OpenLoop]):
                 user_id=str(user_id),
                 count=expired,
             )
+            # Metrics emission must never fail a persistence path.
+            with suppress(Exception):
+                from src.infrastructure.observability.metrics_registry import (
+                    track_open_loop_closure,
+                )
+
+                track_open_loop_closure("expired", count=expired)
         return expired
 
     async def bump_nudged(self, loop_ids: list[UUID], *, user_id: UUID) -> None:

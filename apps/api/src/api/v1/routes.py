@@ -9,6 +9,7 @@ from src.core import constants
 from src.core.config import settings
 from src.core.field_names import FIELD_STATUS
 from src.domains.agents.api.router import router as agents_router
+from src.domains.auth.checklist_router import router as checklist_router
 from src.domains.auth.router import router as auth_router
 from src.domains.briefing.router import router as briefing_router
 from src.domains.chat.router import router as chat_router
@@ -46,6 +47,7 @@ api_router.include_router(interests_router)
 api_router.include_router(notifications_router)
 api_router.include_router(scheduled_actions_router)
 api_router.include_router(briefing_router)  # Today dashboard
+api_router.include_router(checklist_router)  # Starter checklist state (UXR A10)
 # ADR-083 Phase 2 cleanup: /sub-agents REST router removed (no frontend
 # consumer; the planner's ephemeral delegation path runs on ReactSubAgentRunner
 # and never touched the REST surface). SUB_AGENTS_ENABLED still gates the
@@ -199,6 +201,13 @@ async def get_client_config() -> dict:
                 settings, "rag_spaces_embedding_model", "models/gemini-embedding-001"
             ),
             "journals_enabled": getattr(settings, "journals_enabled", False),
+            # UXR Lot 6 (A10) — additive instance flags so the starter
+            # checklist (and B5's open-loops nav) never offers a disabled
+            # subsystem (gate-keeper rule, ADR-061).
+            "channels_enabled": getattr(settings, "channels_enabled", False),
+            "heartbeat_enabled": getattr(settings, "heartbeat_enabled", False),
+            "skills_enabled": getattr(settings, "skills_enabled", False),
+            "open_loops_enabled": getattr(settings, "open_loops_enabled", False),
         },
         "api_version": constants.API_VERSION,  # PHASE 2.1: Use constant instead of hardcoded value
     }

@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versión** : 3.9
-**Fecha** : 2026-07-22
-**Aplicación** : LIA v1.25.15
+**Fecha** : 2026-07-23
+**Aplicación** : LIA v1.25.16
 **Licencia** : AGPL-3.0 (Open Source)
 
 ---
@@ -56,6 +56,7 @@ Cada usuario dispone de su propio espacio de configuración, organizado en dos p
 - **Generación de imágenes**: activa y configura la creación de imágenes por IA
 - **Servidores MCP personales**: conecta tus propios servidores MCP para ampliar las capacidades de LIA
 - **Apariencia**: idioma, zona horaria, tema (5 paletas, modo oscuro/claro), fuente (9 opciones), formato de visualización de respuestas (tarjetas HTML, HTML, Markdown)
+- **Mi dashboard**: oculta o reordena las 9 tarjetas del briefing — una tarjeta oculta ya ni siquiera se consulta
 - **Debug**: accede al panel de depuración para inspeccionar cada intercambio (si el administrador lo ha activado)
 
 **Funcionalidades avanzadas:**
@@ -66,7 +67,7 @@ Cada usuario dispone de su propio espacio de configuración, organizado en dos p
 - **Centros de interés**: define tus temas favoritos, configura la frecuencia de notificaciones, los horarios y las fuentes (Perplexity, Brave, Wikipedia, reflexión IA)
 - **Notificaciones proactivas**: ajusta la frecuencia, la ventana horaria y las fuentes de contexto (calendario, tiempo, tareas, correos, intereses, memorias, diarios)
 - **Acciones programadas**: crea automatizaciones recurrentes ejecutadas por el asistente
-- **Skills**: activa o desactiva competencias expertas, crea tus propios Skills personales
+- **Skills**: activa o desactiva competencias expertas en una galería con vistas previas, crea tus propios Skills personales, o instala una desde una URL https (validada en el servidor)
 - **Espacios de conocimiento**: carga tus documentos (PDF, Word, Excel, PowerPoint, EPUB, HTML y más de 15 formatos) o sincroniza una carpeta de Google Drive — indexación automática con búsqueda híbrida
 - **Exportación de consumo**: descarga tus datos de consumo LLM y API en CSV
 

@@ -499,6 +499,31 @@ class User(BaseModel):
         comment="List of admin MCP server keys disabled by this user (e.g., ['google_flights'])",
     )
 
+    # Briefing grid preferences (UXR Lot 5, B4): {hidden: [...], order: [...]}.
+    # NULL = all cards visible in canonical order. Writes are full NEW-dict
+    # replacements (JSONB new-dict rule); the tolerant reader is
+    # domains/briefing/preferences.sanitize_briefing_preferences.
+    briefing_preferences: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment=(
+            "Briefing grid preferences: {hidden: [...], order: [...]} — "
+            "NULL = all cards visible in canonical order (UXR B4)."
+        ),
+    )
+
+    # Starter checklist card state (UXR Lot 6, A10): {dismissed_at,
+    # celebrated_at} ISO-UTC. Item states are DETECTED live, never stored.
+    # Writes are full NEW-dict replacements (JSONB new-dict rule).
+    onboarding_checklist: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment=(
+            "Starter checklist card state: {dismissed_at, celebrated_at} "
+            "ISO-UTC — item states are detected live, never stored (UXR A10)."
+        ),
+    )
+
     # Per-user skill activation states (normalized in user_skill_states table)
     skill_states: Mapped[list["UserSkillState"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"

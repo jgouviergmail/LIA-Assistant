@@ -15,11 +15,13 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from fastapi import APIRouter, Depends, UploadFile, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
+from src.core.constants import SKILL_PREVIEW_MAX_BYTES
 from src.core.dependencies import get_db
 from src.core.session_dependencies import (
     get_current_active_session,
@@ -28,6 +30,7 @@ from src.core.session_dependencies import (
 from src.domains.skills.exceptions import (
     raise_admin_skill_delete_forbidden,
     raise_admin_skill_only,
+    raise_skill_invalid_format,
     raise_skill_not_found,
     raise_skill_translation_failed,
     raise_skill_translation_invalid,
@@ -46,6 +49,58 @@ class SkillDescriptionUpdateRequest(BaseModel):
 
     description: str = Field(..., min_length=10, max_length=1024)
     source_language: str = Field(..., pattern=r"^[a-z]{2}$")
+
+
+class SkillUrlImportRequest(BaseModel):
+    """Request body for URL-sourced skill import (UXR Lot 10, B12)."""
+
+    url: str = Field(..., min_length=12, max_length=2048, description="https:// source URL")
+
+
+async def _url_import_rate_limit(
+    user: User = Depends(get_current_active_session),
+) -> None:
+    """Per-user sliding-window limit on outbound skill fetches.
+
+    Failed imports consume no skill quota, so without this an authenticated
+    user could hammer arbitrary https hosts through the API. Same Redis
+    limiter and fail-open policy as the auth dependencies
+    (``domains/auth/dependencies.py``).
+
+    Raises:
+        RateLimitError: 429 when the window is exhausted.
+    """
+    from src.core.exceptions import raise_rate_limit_exceeded
+    from src.infrastructure.rate_limiting.redis_limiter import get_rate_limiter
+
+    max_calls = settings.skills_url_import_rate_max_calls
+    window_seconds = settings.skills_url_import_rate_window_seconds
+    try:
+        limiter = await get_rate_limiter()
+        allowed = await limiter.acquire(
+            key=f"skills:url_import:{user.id}",
+            max_calls=max_calls,
+            window_seconds=window_seconds,
+        )
+        if not allowed:
+            logger.warning(
+                "skill_url_import_rate_limited",
+                user_id=str(user.id),
+                max_calls=max_calls,
+                window_seconds=window_seconds,
+            )
+            raise_rate_limit_exceeded(
+                limit=max_calls,
+                window_seconds=window_seconds,
+                retry_after=window_seconds,
+                headers={"Retry-After": str(window_seconds)},
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        # Fail-open policy — matches RedisRateLimiter's own behavior: a
+        # Redis outage must not take the import feature down with it.
+        logger.error("skill_url_import_rate_check_failed", error=str(exc))
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +129,13 @@ def _merge_with_cache(
         "has_plan_template": bool(cached.get("plan_template")) if cached else False,
         "enabled_for_user": enabled_for_user,
         "admin_enabled": db_data.get("admin_enabled", True),
+        # UXR Lot 8 (A4): multi-turn dialogue flag (ADR-118) — feeds the
+        # frontend slash-command registry (dialogue skills are conversational
+        # commands).
+        "dialogue": bool(cached.get("dialogue", False)) if cached else False,
+        # UXR Lot 10 (B12): declared output channels (None ⇒ "text" default
+        # in the gallery UI).
+        "outputs": cached.get("outputs") if cached else None,
     }
 
 
@@ -95,6 +157,8 @@ def _skill_to_response(
         "has_scripts": bool(skill.get("scripts")),
         "has_plan_template": bool(skill.get("plan_template")),
         "enabled_for_user": enabled_for_user,
+        "dialogue": bool(skill.get("dialogue", False)),
+        "outputs": skill.get("outputs"),
     }
 
 
@@ -376,6 +440,52 @@ async def download_skill(
     )
 
 
+@router.get(
+    "/{skill_name}/preview",
+    summary="Skill gallery preview image",
+    description=(
+        "Stream the skill's bundled assets/preview.png (the ONLY asset ever "
+        "served). 404 when the skill has none."
+    ),
+)
+async def skill_preview(
+    skill_name: str,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> FileResponse:
+    """Serve ``assets/preview.png`` for the gallery detail view (UXR Lot 10).
+
+    The strict skill-name pattern is the traversal guard: the served path is
+    always ``<skill_dir>/assets/preview.png`` for a cache-resolved skill.
+    Missing, oversized, non-file, or admin-disabled previews are an
+    undifferentiated 404 (a system skill hidden by the admin must not leak
+    its assets).
+    """
+    from src.domains.skills.cache import SkillsCache
+    from src.domains.skills.loader import SKILL_NAME_PATTERN
+    from src.domains.skills.repository import SkillRepository
+
+    if not SKILL_NAME_PATTERN.match(skill_name):
+        raise_skill_invalid_format("Invalid skill name")
+
+    skill = SkillsCache.get_by_name_for_user(skill_name, str(user.id))
+    if not skill:
+        raise_skill_not_found(skill_name)
+
+    db_skill = await SkillRepository(db).get_by_name(skill_name)
+    if db_skill is not None and db_skill.is_system and not db_skill.admin_enabled:
+        raise_skill_not_found(skill_name)
+
+    preview_path = Path(skill["source_path"]).parent / "assets" / "preview.png"
+
+    def _stat_ok() -> bool:
+        return preview_path.is_file() and preview_path.stat().st_size <= SKILL_PREVIEW_MAX_BYTES
+
+    if not await asyncio.to_thread(_stat_ok):
+        raise_skill_not_found(skill_name)
+    return FileResponse(preview_path, media_type="image/png")
+
+
 @router.post(
     "/import",
     status_code=status.HTTP_201_CREATED,
@@ -399,6 +509,66 @@ async def import_skill(
         is_system=False,
     )
     logger.info("skill_imported", skill_name=skill["name"], user_id=str(user.id))
+    return _skill_to_response(skill, "user")
+
+
+@router.post(
+    "/import-from-url",
+    status_code=status.HTTP_201_CREATED,
+    summary="Import a user skill from an https URL",
+    description=(
+        "Fetch a SKILL.md or .zip package from an https URL (SSRF-validated, "
+        "no redirects, streamed size cap) and run it through the exact same "
+        "hardened import pipeline as file upload."
+    ),
+)
+async def import_skill_from_url(
+    body: SkillUrlImportRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+    _rate: None = Depends(_url_import_rate_limit),
+) -> dict[str, Any]:
+    """Import a user skill from a remote https URL (UXR Lot 10, B12)."""
+    from src.domains.skills.import_service import SkillImportService
+    from src.domains.skills.url_import import fetch_skill_from_url
+    from src.infrastructure.observability.metrics_registry import skill_url_imports_total
+
+    if not settings.skills_url_import_enabled:
+        raise_skill_invalid_format("URL import is disabled")
+
+    try:
+        content, filename = await fetch_skill_from_url(body.url)
+    except HTTPException as exc:
+        detail = str(exc.detail)
+        outcome = (
+            "blocked"
+            if detail.startswith(("url_blocked", "url_not_https"))
+            else (
+                "too_large"
+                if detail.startswith("url_too_large")
+                else (
+                    "invalid_content"
+                    if detail.startswith("url_not_skill_content")
+                    else "fetch_failed"
+                )
+            )
+        )
+        skill_url_imports_total.labels(outcome=outcome).inc()
+        raise
+
+    svc = SkillImportService(db)
+    try:
+        skill = await svc.import_upload(content, filename, owner_id=user.id, is_system=False)
+    except HTTPException:
+        skill_url_imports_total.labels(outcome="pipeline_rejected").inc()
+        raise
+    skill_url_imports_total.labels(outcome="ok").inc()
+    logger.info(
+        "skill_imported_from_url",
+        skill_name=skill["name"],
+        user_id=str(user.id),
+        content_bytes=len(content),
+    )
     return _skill_to_response(skill, "user")
 
 

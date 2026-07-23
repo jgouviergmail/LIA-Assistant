@@ -130,6 +130,11 @@ FIELD_RESPONSE_FEEDBACK = "response_feedback"
 # counters of exactly the entries that shaped the answer.
 FIELD_INJECTED_JOURNAL_IDS = "injected_journal_ids"
 
+# Tappable follow-up suggestions of the Initiative node (UXR Lot 4, A2) —
+# carried in BOTH the SSE done chunk and the archived message metadata so the
+# chips render live and survive a reload while the answer stays the latest.
+FIELD_FOLLOWUP_SUGGESTIONS = "followup_suggestions"
+
 # Data Registry & Correlation (Correlated Display)
 FIELD_REGISTRY_ID = "_registry_id"  # Internal registry item ID (enriched in structured_data)
 FIELD_CORRELATION_PARENT_ID = "_correlation_parent_id"  # System param for FOR_EACH correlation

@@ -197,16 +197,19 @@ a caricature. Distinct facets:
 - blind spots / open questions (what you don't yet understand)
 - evolution (how he has shifted over time, if visible)
 
-First-person voice ("I notice...", "Jérôme..."). Be specific. AVOID:
+First-person voice, written ENTIRELY in {user_language} — the English
+phrasing of the examples in this prompt is structural guidance, never a
+language choice ("I notice..." becomes its {user_language} equivalent).
+Be specific. AVOID:
 - duplicating facts already in the user's psychological profile (memories) —
   focus on synthesis, posture, current phase, contradictions
 - promoting transient signals (a single bad day, a week's health activity)
   into "stable traits"
 - generic platitudes — every line tied to observed evidence
 
-**`portrait_brief`** (~50-70 tokens): essence in 2-3 sentences — posture +
-current-phase color + 1-2 most-important context rules. Self-sufficient for
-secondary flows (notifications, voice, reminders).
+**`portrait_brief`** (~50-70 tokens): essence in 2-3 sentences, in
+{user_language} — posture + current-phase color + 1-2 most-important context
+rules. Self-sufficient for secondary flows (notifications, voice, reminders).
 
 If material is insufficient (very few entries, no L3), return empty strings.
 Better silent than caricatural.
@@ -292,8 +295,8 @@ the entries above. Do NOT invent, shorten, or modify UUIDs.
       "entry_id": "<exact UUID>"
     }}
   ],
-  "portrait_full": "Faceted portrait, ~150-220 tokens, first-person, distinct facets (traits/phase/contexts/contradictions/open-questions/evolution). Empty string if insufficient material.",
-  "portrait_brief": "Essence in 2-3 sentences, ~50-70 tokens — posture + current-phase color + 1-2 most-important context rules. Empty string if insufficient material."
+  "portrait_full": "Faceted portrait in {user_language}, ~150-220 tokens, first-person, distinct facets (traits/phase/contexts/contradictions/open-questions/evolution). Empty string if insufficient material.",
+  "portrait_brief": "Essence in 2-3 sentences in {user_language}, ~50-70 tokens — posture + current-phase color + 1-2 most-important context rules. Empty string if insufficient material."
 }}
 ```
 

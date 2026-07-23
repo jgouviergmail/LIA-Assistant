@@ -391,3 +391,10 @@ Since v1.9.4, this chain is enforced systematically across the entire codebase. 
 - Structural values (node names, state keys, Redis prefixes, scheduler IDs)
 
 All runtime code uses `settings.field_name` to access configurable values, ensuring that admin and .env overrides are always respected.
+
+
+## Can I customize the dashboard cards?
+Yes — Settings → "My dashboard". Hide any of the 9 briefing cards or reorder them (↑/↓ buttons, or drag-and-drop). A hidden card is **not even fetched** anymore: fewer API calls, faster dashboard. A starter checklist on the dashboard also shows what your instance can do (connectors, voice, channels…) until you dismiss it.
+
+## What is the "Open loops" section?
+LIA automatically detects **commitments** in your conversations ("I must call the plumber back", "waiting for Marc's reply"). Settings → "Open loops" lists them by direction (you owe / you are waiting), with three one-tap actions: **Done**, **Relaunch in chat** (pre-fills a follow-up message) or **No longer relevant**. Nothing is created manually — the ledger's value is being automatic.

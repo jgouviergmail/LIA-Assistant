@@ -121,7 +121,7 @@ SECTION 6 — CONSTRAINTS
 =================================================================
 - Size: {current_chars} / {max_chars} chars used. {size_warning}
 - Max {max_entry_chars} chars per entry.
-- Language: {user_language}.
+- Language: write ALL entry text (title + content) in {user_language} — never default to English; the English examples in this prompt are structural guidance only.
 - Protect validated directives (especially conf=high).
 
 =================================================================

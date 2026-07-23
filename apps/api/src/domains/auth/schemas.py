@@ -3,7 +3,7 @@ Authentication domain schemas (Pydantic models for API).
 """
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -327,6 +327,34 @@ class OnboardingPreferenceResponse(BaseModel):
     onboarding_completed: bool = Field(..., description="Current onboarding completed status")
     message: str = Field(
         default="Onboarding preference updated",
+        description="Confirmation message",
+    )
+
+
+class OnboardingChecklistRequest(BaseModel):
+    """Update the starter checklist card state (UXR Lot 6, A10).
+
+    True values stamp the matching ISO-UTC timestamp server-side; False/None
+    leave it untouched (the card is designed to never resurface once
+    dismissed or celebrated — no unset path in v1).
+    """
+
+    dismissed: bool | None = Field(
+        None, description="True stamps dismissed_at — the card never renders again"
+    )
+    celebrated: bool | None = Field(
+        None, description="True stamps celebrated_at — 100% reached (or pre-completed)"
+    )
+
+
+class OnboardingChecklistResponse(BaseModel):
+    """Current starter checklist card state."""
+
+    onboarding_checklist: dict[str, Any] = Field(
+        ..., description="{dismissed_at, celebrated_at} ISO-UTC (possibly empty)"
+    )
+    message: str = Field(
+        default="Checklist state updated",
         description="Confirmation message",
     )
 

@@ -20,6 +20,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { act, waitFor, renderHook } from '@/__tests__/test-utils';
 import { makeUser } from '@/__tests__/factories';
+import { CHAT_DRAFT_STORAGE_KEY_PREFIX } from '@/lib/constants';
 
 const { get, post } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
 vi.mock('@/lib/api-client', () => ({ default: { get, post } }));
@@ -254,6 +255,34 @@ describe('AuthProvider — signing out', () => {
 
     // Staying logged in because the network hiccupped would be the real bug.
     expect(identity(rendered)).toBe('anonymous');
+    expect(push).toHaveBeenCalledWith('/login');
+  });
+
+  it('purges the persisted chat draft of the departing account (UXR A7)', async () => {
+    // A shared computer must not leak one account's draft to the next session.
+    localStorage.setItem(`${CHAT_DRAFT_STORAGE_KEY_PREFIX}u1`, 'brouillon privé');
+    localStorage.setItem(`${CHAT_DRAFT_STORAGE_KEY_PREFIX}other`, 'autre compte');
+    const rendered = await settled(renderAuth());
+
+    await act(async () => {
+      await rendered.context().logout();
+    });
+
+    expect(localStorage.getItem(`${CHAT_DRAFT_STORAGE_KEY_PREFIX}u1`)).toBeNull();
+    expect(localStorage.getItem(`${CHAT_DRAFT_STORAGE_KEY_PREFIX}other`)).toBe('autre compte');
+  });
+
+  it('has no draft to purge when signing out from an anonymous state', async () => {
+    get.mockRejectedValue(new Error('401'));
+    localStorage.setItem(`${CHAT_DRAFT_STORAGE_KEY_PREFIX}u1`, 'reste intact');
+    const rendered = await settled(renderAuth());
+
+    await act(async () => {
+      await rendered.context().logout();
+    });
+
+    // No signed-in user → nothing purged, navigation still happens.
+    expect(localStorage.getItem(`${CHAT_DRAFT_STORAGE_KEY_PREFIX}u1`)).toBe('reste intact');
     expect(push).toHaveBeenCalledWith('/login');
   });
 });

@@ -89,6 +89,17 @@ skill_detection_suppressed_total = Counter(
     ["reason"],  # mcp_domain
 )
 
+skill_url_imports_total = Counter(
+    "skill_url_imports_total",
+    (
+        "URL-sourced skill imports by outcome (UXR Lot 10/B12). 'blocked' "
+        "covers SSRF refusals and redirects; 'pipeline_rejected' means the "
+        "fetch succeeded but the hardened import pipeline refused the "
+        "package (validation, quota, 409 conflict)."
+    ),
+    ["outcome"],  # ok | blocked | too_large | fetch_failed | invalid_content | pipeline_rejected
+)
+
 # ============================================================================
 # HITL (Human-in-the-Loop) METRICS
 # ============================================================================
@@ -364,6 +375,14 @@ response_feedback_total = Counter(
     ["verdict"],  # verdict: thumbs_up, thumbs_down
 )
 
+# UXR Lot 7 (B5, ADR-139): open-loop closures by action — mirrors the
+# closed_reason vocabulary (api, dismissed, conversational, expired).
+open_loop_closures_total = Counter(
+    "open_loop_closures_total",
+    "Open-loop (commitments ledger) closures by action",
+    ["action"],
+)
+
 proactive_eligibility_check_total = Counter(
     "proactive_eligibility_check_total",
     "Total eligibility checks by result",
@@ -465,3 +484,15 @@ def track_response_feedback(verdict: str) -> None:
         verdict: "thumbs_up" or "thumbs_down"
     """
     response_feedback_total.labels(verdict=verdict).inc()
+
+
+def track_open_loop_closure(action: str, count: int = 1) -> None:
+    """
+    Track open-loop closures by action (UXR Lot 7, B5 / ADR-139).
+
+    Args:
+        action: "api" | "dismissed" | "conversational" | "expired"
+            (bounded — mirrors the closed_reason vocabulary).
+        count: Number of loops closed (batch expiry).
+    """
+    open_loop_closures_total.labels(action=action).inc(count)

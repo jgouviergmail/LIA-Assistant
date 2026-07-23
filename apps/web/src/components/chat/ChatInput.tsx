@@ -1,4 +1,12 @@
-import { useState, useRef, useCallback, KeyboardEvent, FormEvent, DragEvent } from 'react';
+import {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  KeyboardEvent,
+  FormEvent,
+  DragEvent,
+} from 'react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -9,8 +17,10 @@ import { toast } from 'sonner';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoiceModeStore } from '@/stores/voiceModeStore';
 import { useFileUpload } from '@/hooks/useFileUpload';
-import { VOICE_PTT_TOUCH_PADDING_PX } from '@/lib/constants';
+import { CHAT_INPUT_MAX_LENGTH, VOICE_PTT_TOUCH_PADDING_PX } from '@/lib/constants';
 import AttachmentPreview from '@/components/chat/AttachmentPreview';
+import { SlashCommandMenu, useSlashMenu } from '@/components/chat/SlashCommandMenu';
+import type { SlashCommand } from '@/lib/slash-commands';
 import { MessageAttachmentMeta } from '@/types/chat';
 
 /** Attachment metadata passed alongside IDs for immediate local display. */
@@ -52,16 +62,152 @@ export interface ChatInputProps {
   /** ADR-117 Lot 3: stop-button handler (cancels the in-flight run). */
   onStopGeneration?: () => void;
   /**
-   * Prefill the input on mount (onboarding volet B: `?draft=` deep link).
-   * Initializer only — later changes to this prop are intentionally ignored
-   * (the user owns the text once the input is mounted). Never auto-sent.
+   * Prefill the input on mount (onboarding volet B: `?draft=` deep link,
+   * UXR Lot 2: persisted draft). Initializer only — later changes to this
+   * prop are intentionally ignored (the user owns the text once the input is
+   * mounted). Never auto-sent.
    */
   initialMessage?: string;
+  /**
+   * Past sent messages, NEWEST FIRST (UXR Lot 2 A7, extended per QA feedback
+   * 2026-07-23): ArrowUp in an EMPTY input starts walking the history;
+   * further ArrowUp goes older, ArrowDown comes back and lands on an empty
+   * input past the newest entry. Editing the recalled text ends the walk
+   * (arrows go back to caret movement). Never fires mid-edit from scratch
+   * nor during IME composition. The page caps this at CHAT_SENT_HISTORY_MAX.
+   */
+  sentHistory?: readonly string[];
+  /**
+   * UXR Lot 4 (A2): controlled prefill — the documented EXCEPTION to the
+   * initializer-only `initialMessage` contract. When `nonce` CHANGES, the
+   * text REPLACES the input content (an explicit user action — a follow-up
+   * chip click), the textarea is focused with the caret at the end, and
+   * `onMessageChange` fires (draft persistence rides along). Never auto-sent.
+   */
+  prefill?: { text: string; nonce: number };
+  /**
+   * UXR Lot 8 (A4): slash-command registry (localized by the page). `/` at
+   * the start of an empty input opens the filtering menu; conversational
+   * commands PREFILL, local commands fire `onLocalCommand` — nothing is
+   * ever auto-sent.
+   */
+  slashCommands?: readonly SlashCommand[];
+  /** UXR Lot 8 (A4): local command handler (navigation, open search…). */
+  onLocalCommand?: (commandId: string) => void;
 }
 
 /** Initial textarea value (module-level: keeps the component's CC flat). */
 function initialDraft(initialMessage: string | undefined): string {
   return initialMessage ?? '';
+}
+
+/** Stable empty history (a per-render `?? []` would defeat memoization). */
+const EMPTY_SENT_HISTORY: readonly string[] = [];
+
+/**
+ * Controlled prefill (UXR Lot 4, A2) — module-level hook so every branch
+ * lives OUTSIDE the component (CC discipline). Applies the text via the
+ * React-endorsed "adjust state during render" pattern (never a setState in
+ * an effect — react-hooks ratchet); the notify/focus side effects run in a
+ * setState-free effect. The MOUNT nonce is swallowed: a restored draft must
+ * never be overwritten at mount.
+ */
+function useControlledPrefill(args: {
+  prefill: { text: string; nonce: number } | undefined;
+  setMessage: (value: string) => void;
+  onMessageChange: ((value: string) => void) | undefined;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  handleInput: () => void;
+}): void {
+  const { prefill, setMessage, onMessageChange, textareaRef, handleInput } = args;
+  const [appliedNonce, setAppliedNonce] = useState(prefill?.nonce);
+  if (prefill && prefill.nonce !== appliedNonce) {
+    // Render-phase adjustment of own state — commits before paint.
+    setAppliedNonce(prefill.nonce);
+    setMessage(prefill.text);
+  }
+
+  const notifiedNonceRef = useRef(prefill?.nonce);
+  useEffect(() => {
+    if (!prefill || prefill.nonce === notifiedNonceRef.current) return;
+    notifiedNonceRef.current = prefill.nonce;
+    onMessageChange?.(prefill.text);
+    requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      if (textarea) {
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
+      }
+      handleInput();
+    });
+  }, [prefill, onMessageChange, textareaRef, handleInput]);
+}
+
+/**
+ * ↑/↓ walk through past sent messages (UXR A7 extended, QA 2026-07-23) —
+ * module-level hook so every branch lives OUTSIDE the component (CC
+ * discipline). Shell semantics with one invariant: `index` is only valid
+ * while the input still shows `history[index]` verbatim. The moment the
+ * user edits (or sends — the input empties), the render-phase adjustment
+ * below resets the walk and the arrow keys return to native caret moves.
+ * Returns a keydown handler: true = event consumed.
+ */
+function useSentHistoryNavigation(args: {
+  history: readonly string[] | undefined;
+  message: string;
+  setMessage: (value: string) => void;
+  onMessageChange: ((value: string) => void) | undefined;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  handleInput: () => void;
+}): (e: KeyboardEvent<HTMLTextAreaElement>) => boolean {
+  const { message, setMessage, onMessageChange, textareaRef, handleInput } = args;
+  const history = args.history ?? EMPTY_SENT_HISTORY;
+  const [index, setIndex] = useState(-1);
+  if (index !== -1 && message !== history[index]) {
+    // Render-phase adjustment of own state — the walk died (edit or send).
+    setIndex(-1);
+  }
+
+  return useCallback(
+    (e: KeyboardEvent<HTMLTextAreaElement>): boolean => {
+      if (history.length === 0 || e.nativeEvent.isComposing) return false;
+      const walking = index !== -1 && message === history[index];
+
+      const applyEntry = (nextIndex: number): boolean => {
+        e.preventDefault();
+        const text = nextIndex === -1 ? '' : history[nextIndex];
+        setIndex(nextIndex);
+        setMessage(text);
+        onMessageChange?.(text);
+        requestAnimationFrame(() => {
+          const textarea = textareaRef.current;
+          if (textarea) {
+            textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
+          }
+          handleInput();
+        });
+        return true;
+      };
+
+      if (e.key === 'ArrowUp') {
+        if (!walking) {
+          // Entry point: only from a pristine EMPTY input (multi-line
+          // editing keeps its native caret behavior).
+          return message === '' ? applyEntry(0) : false;
+        }
+        if (index < history.length - 1) return applyEntry(index + 1);
+        // At the oldest entry: swallow so the caret doesn't jump to 0.
+        e.preventDefault();
+        return true;
+      }
+      if (e.key === 'ArrowDown' && walking) {
+        // index 0 → back to the empty input ("past the newest send").
+        return applyEntry(index - 1);
+      }
+      return false;
+    },
+    [history, index, message, setMessage, onMessageChange, textareaRef, handleInput]
+  );
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -75,6 +221,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   isGenerating = false,
   onStopGeneration,
   initialMessage,
+  sentHistory,
+  prefill,
+  slashCommands,
+  onLocalCommand,
 }) => {
   const { t } = useTranslation();
   const [message, setMessage] = useState(initialDraft(initialMessage));
@@ -107,6 +257,49 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
     }
   }, []);
+
+  // UXR Lot 4 (A2): controlled prefill — all logic in the module-level hook.
+  useControlledPrefill({ prefill, setMessage, onMessageChange, textareaRef, handleInput });
+
+  // UXR A7 extended (QA 2026-07-23): ↑/↓ history walk over past sends.
+  const handleHistoryKey = useSentHistoryNavigation({
+    history: sentHistory,
+    message,
+    setMessage,
+    onMessageChange,
+    textareaRef,
+    handleInput,
+  });
+
+  // UXR Lot 8 (A4): slash-command selection — conversational commands prefill
+  // (caret at end, focused), local commands clear + delegate to the page.
+  const applySlashSelection = useCallback(
+    (command: SlashCommand) => {
+      if (command.kind === 'local') {
+        setMessage('');
+        onMessageChange?.('');
+        onLocalCommand?.(command.id);
+        return;
+      }
+      const text = command.insertText ?? '';
+      setMessage(text);
+      onMessageChange?.(text);
+      requestAnimationFrame(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+          textarea.focus();
+          textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
+        }
+        handleInput();
+      });
+    },
+    [onMessageChange, onLocalCommand, handleInput]
+  );
+  const slashMenu = useSlashMenu({
+    message,
+    commands: slashCommands,
+    onSelect: applySlashSelection,
+  });
 
   /**
    * Handle voice transcription result.
@@ -313,10 +506,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // UXR Lot 8 (A4): the open slash menu owns ↑/↓/Enter/Escape — this also
+    // suppresses the A7 recall and the send while navigating options.
+    if (slashMenu.handleKeyDown(e)) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+      return;
     }
+    // UXR A7 extended (QA 2026-07-23): ↑/↓ walk through past sends — all
+    // branches live in useSentHistoryNavigation (module level).
+    handleHistoryKey(e);
   };
 
   const handleSubmit = (e: FormEvent) => {
@@ -437,27 +637,36 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               <TooltipContent>{t('chat.attachments.add')}</TooltipContent>
             </Tooltip>
           )}
-          <textarea
-            ref={textareaRef}
-            value={message}
-            onChange={e => {
-              const newValue = e.target.value;
-              setMessage(newValue);
-              onMessageChange?.(newValue);
-              handleInput();
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder={getPlaceholder()}
-            aria-label={getPlaceholder()}
-            className="flex-1 resize-none rounded-lg border border-input bg-background px-4 py-3 text-base mobile:text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-transparent mobile:placeholder:text-muted-foreground"
-            rows={1}
-            disabled={disabled || !apiAvailable}
-            style={{ minHeight: '48px', maxHeight: '200px' }}
-            autoCapitalize="sentences"
-            autoCorrect="on"
-            spellCheck
-            enterKeyHint="send"
-          />
+          {/* Positional wrapper (UXR Lot 8): the slash menu floats above the
+              textarea, which carries the combobox role itself (ARIA 1.2). */}
+          <div className="relative flex-1">
+            <SlashCommandMenu menu={slashMenu} />
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={e => {
+                const newValue = e.target.value;
+                setMessage(newValue);
+                onMessageChange?.(newValue);
+                handleInput();
+              }}
+              onKeyDown={handleKeyDown}
+              maxLength={CHAT_INPUT_MAX_LENGTH}
+              placeholder={getPlaceholder()}
+              aria-label={getPlaceholder()}
+              aria-autocomplete="list"
+              aria-controls={slashMenu.listboxId}
+              aria-activedescendant={slashMenu.activeOptionId}
+              className="w-full resize-none rounded-lg border border-input bg-background px-4 py-3 text-base mobile:text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-transparent mobile:placeholder:text-muted-foreground"
+              rows={1}
+              disabled={disabled || !apiAvailable}
+              style={{ minHeight: '48px', maxHeight: '200px' }}
+              autoCapitalize="sentences"
+              autoCorrect="on"
+              spellCheck
+              enterKeyHint="send"
+            />
+          </div>
           {/* Stop button (ADR-117 Lot 3): replaces send while a response is
               streaming. Cancellation is not a rollback — tools that already
               ran have acted; it stops what remains. */}

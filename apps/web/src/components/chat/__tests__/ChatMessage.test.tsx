@@ -29,10 +29,14 @@ const { toast } = vi.hoisted(() => ({
 }));
 vi.mock('sonner', () => ({ toast }));
 
-import { ChatMessage } from '../ChatMessage';
+import { ChatMessage, type ChatMessageProps } from '../ChatMessage';
 
 function renderMessage(message: Message, isUser = false) {
   return renderWithProviders(<ChatMessage message={message} isUser={isUser} />);
+}
+
+function renderAssistantWith(message: Message, props: Partial<ChatMessageProps> = {}) {
+  return renderWithProviders(<ChatMessage message={message} isUser={false} {...props} />);
 }
 
 beforeEach(() => {
@@ -210,6 +214,53 @@ describe('ChatMessage — proactive interest feedback', () => {
     const { user } = renderMessage(proactive());
     await user.click(screen.getByRole('button', { name: 'interests.feedback.block' }));
     expect(toast.info).toHaveBeenCalledWith('interests.feedback.blocked');
+  });
+});
+
+describe('ChatMessage — bubble action row (PERSO)', () => {
+  // The Copy / 👍 / 👎 controls live in ONE in-flow row at the bubble's bottom
+  // (interest-notification pattern) — never an overlay covering the text.
+
+  it('hides the whole action row while the answer is still streaming', () => {
+    renderAssistantWith(makeMessage(), { isActiveStream: true, streamPhase: 'answer' });
+    expect(screen.queryByRole('button', { name: 'chat.message.copy' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'chat.feedback.up' })).not.toBeInTheDocument();
+  });
+
+  it('lays copy and the feedback chips side by side, in flow, on an archived answer', () => {
+    renderAssistantWith(makeMessage({ metadata: { message_db_id: 'db-1' } }));
+    const copy = screen.getByRole('button', { name: 'chat.message.copy' });
+    const up = screen.getByRole('button', { name: 'chat.feedback.up' });
+    expect(screen.getByRole('button', { name: 'chat.feedback.down' })).toBeInTheDocument();
+    // In flow — no overlay positioning on any of the controls.
+    expect(copy.className).not.toMatch(/absolute/);
+    expect(up.className).not.toMatch(/absolute/);
+    // One shared flex row, copy first in document order.
+    expect(up.parentElement).toBe(copy.parentElement);
+    expect(copy.compareDocumentPosition(up) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('renders copy alone when the answer has no archived DB id', () => {
+    renderAssistantWith(makeMessage());
+    expect(screen.getByRole('button', { name: 'chat.message.copy' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'chat.feedback.up' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the interest verdicts and adds the copy row on proactive notifications', () => {
+    renderAssistantWith(
+      makeMessage({
+        metadata: {
+          type: 'proactive_interest',
+          target_id: 'int-1',
+          feedback_enabled: true,
+          message_db_id: 'db-9',
+        },
+      })
+    );
+    expect(screen.getByRole('button', { name: 'interests.feedback.like' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'chat.message.copy' })).toBeInTheDocument();
+    // Response-feedback chips never appear on proactive rows (dedicated verdicts).
+    expect(screen.queryByRole('button', { name: 'chat.feedback.up' })).not.toBeInTheDocument();
   });
 });
 

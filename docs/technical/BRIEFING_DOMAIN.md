@@ -112,6 +112,23 @@ Returns the 9-card bundle. **No LLM call** — fetchers run in parallel via `asy
 }
 ```
 
+### `GET /api/v1/briefing/preferences` / `PUT /api/v1/briefing/preferences`
+
+Per-user grid preferences (UXR B4, v1.25.16) stored in the nullable JSONB
+column `users.briefing_preferences` (`{hidden: [...], order: [...]}` — writes
+are full NEW-dict replacements per the JSONB rule). The GET returns the
+**sanitized** view: unknown stored names are filtered and the order is
+completed with every missing section in the historical display order, so a
+NULL column (or a future section) never reshuffles the grid. The PUT is
+**strict** (unknown or duplicated section names → 422).
+
+A hidden section short-circuits inside `_section()` **before any fetch or
+cache IO** and returns a `status: "hidden"` placeholder — the economy is
+server-side, not just cosmetic. Force-refreshing a hidden section is a 400
+with the stable code `section_hidden`; `refresh all` silently keeps hidden
+sections hidden. `RefreshSectionLiteral` covers all 9 sections + `all`
+(completeness pinned by `tests/unit/domains/briefing/test_preferences.py`).
+
 ### `GET /api/v1/briefing/synthesis`
 
 Returns the LLM greeting + synthesis. Reads the cards from Redis cache (populated by `/cards` moments before, in normal usage).
@@ -285,6 +302,7 @@ Both prompts receive the same template variables: `{user_name}`, `{time_of_day}`
 |-------------------------------------------|---------------------------------------|------------------------------------|
 | `briefing_build_duration_seconds`         | `cache_state` (cold/warm/partial)     | E2E latency histogram              |
 | `briefing_section_status_total`           | `section`, `status`, `origin`         | Per-source health & cache hit rate |
+|                                           | (origin=`hidden` since v1.25.16)      | User-hidden placeholders (zero IO) |
 | `briefing_refresh_requests_total`         | `scope` (single/all)                  | User-initiated refresh activity    |
 | `briefing_llm_invocations_total`          | `kind` (greeting/synthesis), `outcome`| LLM reliability                    |
 

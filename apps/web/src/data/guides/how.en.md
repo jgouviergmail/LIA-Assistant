@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 3.4
-**Date**: 2026-07-22
-**Application**: LIA v1.25.15
+**Date**: 2026-07-23
+**Application**: LIA v1.25.16
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -696,6 +696,8 @@ Wake word ("OK Guy") via Sherpa-onnx WASM in the browser (zero external transmis
 
 Post-execution LangGraph node: after each actionable turn, the initiative analyzes results and proactively checks cross-domain information (read-only). Examples: rain weather → check calendar for outdoor activities, email mentioning a meeting → check availability, task deadline → recall context. 100% prompt-driven (no hardcoded logic), structural pre-filter (adjacent domains), memory + interest injection, suggestion field for proposing write actions. Configurable via `INITIATIVE_ENABLED`, `INITIATIVE_MAX_ITERATIONS`, `INITIATIVE_MAX_ACTIONS`.
 
+The same node also emits up to 3 **follow-up chips** — short requests the user is likely to send next, phrased in their language and grounded in the visible results. Server-side sanitization (clamp, case-insensitive dedupe, hard cap) and a pop-once per-run handoff carry them into both the SSE `done` chunk and the archived message metadata, so the chips render live and survive a reload; tapping one only pre-fills the input.
+
 ### 16.3. Scheduled actions
 
 APScheduler with Redis leader election (SETNX, TTL 120s, recheck 5s). `FOR UPDATE SKIP LOCKED` for isolation. Auto-approve of plans (`plan_approved=True` injected into state). Auto-disable after 5 consecutive failures. Retry on transient errors.
@@ -753,7 +755,7 @@ Autonomous ReAct agent (headless Playwright Chromium). Redis-backed session pool
 | XSS (LLM rendering) | `rehype-sanitize` boundary on the chat markdown pipeline (`rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`, audited schema — `script`/`iframe`/`form`/handlers dropped), HTTP-only cookies, backend CSP; MCP/Skill Apps never go through markdown (sentinel → sandboxed iframe widget) |
 | CSRF | SameSite=Lax |
 | SQL Injection | SQLAlchemy ORM (parameterized queries) |
-| SSRF | DNS resolution + IP blocklist (Web Fetch, MCP, Browser) |
+| SSRF | DNS resolution + IP blocklist (Web Fetch, MCP, Browser); skill install-from-URL reuses the same validator with stricter terms: https only, redirects refused, streamed size cap, TOTAL transfer deadline, per-user rate limit |
 | Prompt Injection | `<external_content>` safety markers |
 | Rate Limiting / IP spoofing | Distributed Redis sliding window (atomic Lua); trusted proxy chain — API ports loopback-bound (cloudflared = single entry), uvicorn `--proxy-headers`, `request.client.host` validated as the single IP source (no more shared global bucket, raw XFF never read) |
 | Supply Chain | SHA-pinned GitHub Actions, Dependabot weekly |
@@ -946,10 +948,13 @@ A library of built-in skills demonstrates the contract: `interactive-map`, `weat
 
 **Skill lifecycle**: every skill enters through a single hardened import pipeline (`SkillImportService`) — strict agentskills.io name validation before any filesystem write (path-traversal guard), zip expansion caps, staging + swap with automatic restore of the previous version on failure, and cross-scope name-conflict rejection (DB + cache as dual authority). The built-in skill-generator uses the same pipeline through the `import_user_skill` tool: a skill created in chat is validated, installed and announced by name in one turn — no manual upload. Skills whose workflow spans several turns declare `dialogue: true` in their frontmatter, which the QueryAnalyzer's chat override respects (their detection survives conversational follow-up answers) while the skill ReAct runner receives the windowed conversation history to resume the dialogue instead of restarting it.
 
+The skills surface is a **gallery**: cards open a detail sheet with the localized description, the declared **output channels** (the loader finally reads the `outputs:` frontmatter field the generator had always validated — parity is CI-pinned), a bundled `assets/preview.png` served by a dedicated endpoint (name-pattern traversal guard, size cap, undifferentiated 404 for admin-disabled skills), and a provenance warning on every non-system skill. Installation accepts a second source besides file upload: an https URL, hardened as described in §19.3, feeding the exact same import pipeline (`skill_url_imports_total{outcome}` counts every path).
+
 ### 23.8. Conversation history, search and rich chat rendering
 
-Four cross-cutting capabilities share the same product philosophy: **instant feedback, zero server cost when unnecessary**.
+Five cross-cutting capabilities share the same product philosophy: **instant feedback, zero server cost when unnecessary**.
 
+- **Reading invariant & input maturity** — a streaming answer never yanks a reader who scrolled up: the follow decision measures live geometry at decision time (growth-compensated), an explicit own-send tick replaces data-diff heuristics (two of them false-fired against the real engine), and a floating button with an off-screen-responses badge brings the reader back. The input carries a per-user persistent draft (debounced, purged at logout), an ↑/↓ walk over the last 10 sends, `/` slash commands (WAI-ARIA combobox on the native textarea, diacritic-insensitive localized filtering) and an in-flow action row under every answer (copy, feedback, execution trace).
 - **Conversation history search** — `?search=` query param on `GET /conversations/me/messages`. Filtering uses PostgreSQL `ILIKE` (case-insensitive, accent-sensitive — contract locked by test). The frontend uses a `useMemo` over `messages` to filter loaded messages instantly; the backend endpoint remains a latent capability for a future deep-search UI.
 - **Scroll-up pagination** — same endpoint, `?before=<created_at>` keyset cursor returning `has_more` and `next_cursor`. The chat UI binds an `IntersectionObserver` on a 1-px sentinel above the first message; older pages prepend with id-based dedup, and a shared `wasPrependRef` makes the auto-scroll-to-bottom `useEffect` skip itself for that cycle so the viewport stays anchored exactly where the reader was. The existing composite index `(conversation_id, created_at DESC)` makes each page an index-only seek regardless of conversation length. Page bounds (default 50, hard cap 200) are env-tunable via `CONVERSATION_HISTORY_DEFAULT_LIMIT` / `CONVERSATION_HISTORY_MAX_LIMIT`.
 - **LaTeX rendering** — The mathematical and scientific formulas LIA writes (`$inline$` / `$$block$$`) render via KaTeX in `MarkdownContent.tsx`. Since the assistant emits its whole answer as HTML, a `rehypeMathInText` plugin detects the `$`/`$$` delimiters at the hast level — after `rehypeRaw` has expanded the HTML — and turns them into the markers `rehype-katex` renders; `remark-math`, confined to markdown, never sees math buried in HTML. Order: `rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`; the math steps read only already-sanitised text and emit fixed-class spans, so no new attack surface.
@@ -1004,6 +1009,10 @@ LIA accepts external event ingestions (iPhone Apple Health samples, third-party 
 **Visualization**: a polymorphic Python aggregator walks samples ordered by `date_start` in a window and emits one point per bucket (hour/day/week/month/year), with `AVG/MIN/MAX` over `heart_rate` samples and `SUM` over `steps` samples. Empty buckets are emitted with `has_data=False` so the frontend (`recharts`, `connectNulls={false}`) shows honest gaps rather than interpolation. The Settings component reuses the `SettingsSection` + Accordion pattern (4 sub-sections: API + tokens, Charts, Statistics, Data management) and displays the **actual aggregation window** to defuse the "stats don't move when I change period" confusion (HR is invariant when all data fits in the smallest window).
 
 **Exposure to the central loops**: a **single per-user opt-in toggle** governs four consumers at once — conversation (assistant tools), Heartbeat (a `health_signals` source), memory extraction (a `{health_context}` prompt placeholder + an optional `context_biometric` JSONB blob attached to high-emotional-weight memories), and journal (extraction + consolidation). All four receive the same **factual non-raw projection**: deltas vs baseline, directional trends, structural events (inactivity streaks, etc.) — never raw values. The rolling 28-day baseline auto-selects `bootstrap` (simple median while less than 7 days of history are available — surfaced to the LLM so it qualifies its claims) then flips to `rolling`. GDPR erasure has a single target: the `health_samples` table.
+
+### 23.13. Installable application (PWA)
+
+Six localized manifests (`/manifest-{lng}.json` — localized `lang`, `start_url`, three shortcuts, separate `any`/`maskable` icon entries; structural parity across the 6 files is test-pinned) are linked per page via `generateMetadata`, with real PNG icons and an `apple-touch-icon` (iOS silently ignores SVG touch icons). The OS **share target** (`GET /{lng}/share`) composes shared title/text/url into a clamped chat draft riding the existing `?draft=` rail — never auto-sent. A discreet install hint appears from the third visit (never in standalone display-mode, dismissible forever); Chromium gets a real install prompt via `beforeinstallprompt`, iOS the Share → Add to Home Screen instruction.
 
 ---
 
@@ -1098,4 +1107,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 120+ ADRs, and the changelog (v1.0 to v1.25.15). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 120+ ADRs, and the changelog (v1.0 to v1.25.16). All metrics, versions, and patterns cited are verifiable in the codebase.*

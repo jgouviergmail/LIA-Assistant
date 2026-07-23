@@ -283,12 +283,36 @@
         "task_progress": "帮我推进“{{subject}}”",
         "task_reschedule": "重新安排任务“{{subject}}”",
         "document_summarize": "帮我总结文档“{{subject}}”"
-      }
+      },
+      "all_hidden": "所有卡片均已隐藏。",
+      "all_hidden_cta": "在设置中选择卡片"
     },
     "portrait_hint": {
       "text": "我对您的理解更进一步了。",
       "cta": "查看",
       "dismiss": "忽略"
+    },
+    "checklist": {
+      "title": "开始使用 LIA",
+      "progress": "{{done}}/{{total}}",
+      "progress_aria": "清单进度",
+      "dismiss": "永久隐藏此清单",
+      "celebration": "一切就绪 — 尽情使用 LIA！",
+      "items": {
+        "connector": "连接服务提供商（Google、Apple…）",
+        "personality": "选择一个性格",
+        "voice": "启用语音",
+        "telegram": "关联 Telegram",
+        "heartbeat": "启用主动心跳",
+        "space": "创建您的第一个文档空间",
+        "automation": "创建您的第一个自动化"
+      }
+    },
+    "install_hint": {
+      "text": "将 LIA 安装为应用，访问更快捷。",
+      "cta": "安装",
+      "ios_text": "将 LIA 添加到主屏幕：分享 → “添加到主屏幕”。",
+      "dismiss": "不再建议安装"
     }
   },
   "auth": {
@@ -655,7 +679,14 @@
       "retry_button": "重试",
       "retry_failed": "无法获取您的位置。请检查GPS是否已启用。",
       "detection": {
-        "keywords": ["附近", "周围", "周边", "旁边", "邻近", "住处"],
+        "keywords": [
+          "附近",
+          "周围",
+          "周边",
+          "旁边",
+          "邻近",
+          "住处"
+        ],
         "patterns": [
           "(我|这)(附近|周围|周边)",
           "在我(附近|旁边)",
@@ -744,6 +775,48 @@
       "comment_placeholder": "哪里出了问题?(可选)",
       "comment_send": "发送",
       "comment_thanks": "谢谢,您的更正已记录。"
+    },
+    "scroll": {
+      "to_bottom": "回到最新消息",
+      "return_to_present": "回到当前对话",
+      "new_responses_one": "{{count}} 条新回复",
+      "new_responses_other": "{{count}} 条新回复"
+    },
+    "followups": {
+      "aria": "后续建议"
+    },
+    "slash": {
+      "aria": "可用命令",
+      "kind_local": "操作",
+      "kind_chat": "聊天",
+      "resume_label": "resume",
+      "resume_description": "立即压缩对话历史",
+      "briefing_label": "briefing",
+      "briefing_description": "打开今日仪表盘",
+      "agenda_label": "agenda",
+      "agenda_description": "查询今天的日程",
+      "agenda_intent": "我今天的日程安排是什么？",
+      "search_label": "搜索",
+      "search_description": "搜索对话历史",
+      "emails_label": "邮件",
+      "emails_description": "最近 5 封未读邮件",
+      "emails_intent": "给我看收件箱里最近 5 封未读邮件",
+      "weather_label": "天气",
+      "weather_description": "今天的天气",
+      "weather_intent": "今天天气怎么样？",
+      "weather_weekend_label": "周末天气",
+      "weather_weekend_description": "周末的天气",
+      "weather_weekend_intent": "这个周末天气怎么样？",
+      "tasks_label": "任务",
+      "tasks_description": "我的待办任务",
+      "tasks_intent": "我有哪些待办任务？",
+      "reminders_label": "提醒",
+      "reminders_description": "我即将到来的提醒",
+      "reminders_intent": "我接下来有哪些提醒？",
+      "news_label": "资讯",
+      "news_description": "我关注领域的新闻",
+      "news_intent": "今天我关注的领域有什么新消息吗？",
+      "skill_intent": "启动 {{name}} 技能"
     }
   },
   "skill_apps": {
@@ -1458,6 +1531,10 @@
           "smart_home": {
             "label": "智能家居",
             "description": "智能家居设备集成（灯光、场景、房间）"
+          },
+          "telephony": {
+            "label": "电话",
+            "description": "代理式外呼（每位用户的 ElevenLabs 账户）"
           }
         },
         "connector_descriptions": {
@@ -1480,7 +1557,8 @@
           "microsoft_contacts": "搜索和管理 Microsoft 联系人",
           "microsoft_tasks": "在 Microsoft To Do 中管理任务和任务列表",
           "browser": "交互式网页浏览：导航、点击、填写表单",
-          "philips_hue": "控制智能灯光：开关、亮度、颜色、场景和房间"
+          "philips_hue": "控制智能灯光：开关、亮度、颜色、场景和房间",
+          "elevenlabs_telephony": "通过用户的 ElevenLabs 账户进行代理式外呼电话（API 密钥 + Webhook）"
         }
       },
       "personalities": {
@@ -2486,7 +2564,31 @@
       "guide_skilltool_run": "执行 scripts/ 文件夹中的 Python 脚本",
       "guide_modal_compat_title": "开放标准 agentskills.io",
       "guide_modal_compat_body": "技能与 agentskills.io 生态系统 100% 兼容——Claude Code、Cursor、VS Code、GitHub Copilot 及 30+ 其他产品使用相同格式。可从 skillsmp.com 等市场导入技能。",
-      "guide_modal_link": "了解更多关于 agentskills.io 标准"
+      "guide_modal_link": "了解更多关于 agentskills.io 标准",
+      "gallery": {
+        "preview_alt": "{{name}} 的预览",
+        "channels": "输出通道：",
+        "channel_text": "文本",
+        "channel_frame": "交互框架",
+        "channel_image": "图片",
+        "channels_undeclared": "默认 — 该技能未声明",
+        "provenance_warning": "此技能从 LIA 外部导入。其指令在可访问您已连接数据的环境中运行 — 请仅保留来源可信的技能。",
+        "enabled_label": "已启用",
+        "open_details": "技能详情：{{name}}",
+        "dialogue_badge": "对话"
+      },
+      "url_import": {
+        "button": "从 URL",
+        "title": "从 URL 安装技能",
+        "description": "从 https 地址获取 SKILL.md 文件或 .zip 包。它经过与文件导入完全相同的验证。",
+        "input_label": "技能的 https URL",
+        "confirm": "安装",
+        "error_not_https": "仅接受 https:// 地址。",
+        "error_blocked": "不允许访问此地址（私有网络或重定向）。",
+        "error_too_large": "文件超过允许的大小。",
+        "error_not_skill": "此地址未提供 SKILL.md 文件或 .zip 包。",
+        "error_fetch": "无法访问该地址。"
+      }
     },
     "channels": {
       "title": "消息通道",
@@ -2523,6 +2625,28 @@
     "portrait_shortcut": {
       "title": "LIA 对您的理解",
       "subtitle": "查看根据您的日志编写的动态画像"
+    },
+    "briefing_grid": {
+      "title": "我的仪表盘",
+      "description": "选择在仪表盘上显示哪些卡片及其顺序。隐藏的卡片将完全不再获取数据。",
+      "show": "显示{{card}}卡片",
+      "hide": "隐藏{{card}}卡片",
+      "move_up": "上移{{card}}卡片",
+      "move_down": "下移{{card}}卡片",
+      "position": "{{card}}已移至第 {{position}} 位，共 {{total}} 位"
+    },
+    "open_loops": {
+      "title": "待办承诺",
+      "description": "LIA 在您的对话中检测到的承诺 — 可以关闭或在聊天中跟进。",
+      "empty": "目前没有待办承诺。LIA 会根据您的对话自动填充此清单。",
+      "owed_title": "我欠",
+      "waiting_title": "等待他人",
+      "done": "将“{{subject}}”标记为已完成",
+      "done_label": "已完成",
+      "relaunch": "在聊天中跟进“{{subject}}”",
+      "relaunch_label": "跟进",
+      "dismiss": "忽略“{{subject}}”（不再相关）",
+      "dismiss_label": "不再相关"
     }
   },
   "spaces": {
@@ -3112,6 +3236,21 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_25_16": {
+          "title": "v1.25.16 — ✨ 对话体验全面成熟",
+          "date": "2026年7月",
+          "count": "8",
+          "items": {
+            "i1": "<b>💬 更聪明的输入框</b> — 草稿在刷新或切换页面后仍然保留，↑/↓ 可翻阅最近 10 条已发送消息并重新编辑（如同终端）。",
+            "i2": "<b>📌 阅读保护</b> — 当您向上回看对话时，正在生成的回复不再把您强行拉到底部。悬浮按钮带计数器，由您决定何时返回底部。",
+            "i3": "<b>🔁 后续建议</b> — 最新回复下方最多显示 3 个可点击的建议芯片，点击后填入输入框，绝不自动发送。",
+            "i4": "<b>⚡ 斜杠命令</b> — 在聊天中输入「/」：resume、briefing、agenda、搜索，以及日常快捷指令（未读邮件、天气、周末天气、任务、提醒、资讯）和您的对话技能。",
+            "i5": "<b>🧩 您的仪表盘，您做主</b> — 在设置中隐藏或重排 9 张简报卡片（隐藏的卡片甚至不再发起请求）；入门清单展示实例的能力；未完成的承诺有了专属的查看与关闭区域。",
+            "i6": "<b>📲 LIA 可以像应用一样安装</b> — 添加到主屏幕（Android、iOS、桌面），把文本或链接直接分享到聊天草稿，并使用每条回复下方的新操作行（复制、反馈、执行详情）。",
+            "i7": "<b>🛍️ 技能库</b> — 以卡片形式浏览技能，含预览图和声明的输出通道，并可直接从 https URL 安装技能（服务器端校验，与文件导入相同的严格管线）。管理员：电话连接器现已出现在连接器管理中。",
+            "i8": "<b>🌍 处处都是您的语言</b> — 助手的日志和您的画像现在始终以您配置的语言撰写。"
+          }
+        },
         "v1_25_15": {
           "title": "v1.25.15 — 📱 完美适配手机的官网首页",
           "date": "2026年7月",
@@ -4373,7 +4512,7 @@
       "getting_started": {
         "title": "入门",
         "description": "如何开始使用LIA",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "什么是LIA？",
@@ -4402,13 +4541,17 @@
           "q7": {
             "question": "LIA是如何构建的？",
             "answer": "LIA近<strong>100%的代码由AI编写</strong>，在人类指导下完成：书面工程规范、强制自动检查、由人类拍板的评审流程，以及周期性的对抗性审计（最新评估：24个领域8.3/10，<a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">完整报告</a>）。<br><br>完整的故事——方法、权衡、运维以及待办事项——见<a href=\"/zh/story\">Story页面</a>；源代码开放于<a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>。"
+          },
+          "q8": {
+            "question": "能把 LIA 像应用一样安装到手机或电脑上吗？(v1.25.16)",
+            "answer": "<p>能。LIA 是 <strong>PWA</strong>：在 Android/桌面 Chrome 上使用「安装」（LIA 会在几次访问后低调建议）；在 iOS Safari 上「分享 → 添加到主屏幕」。您将获得主屏幕图标、快捷方式（聊天、简报），安装后系统的<strong>分享菜单</strong>还能把文本或链接直接发送到 LIA 聊天草稿。全部支持 6 种语言。</p>"
           }
         }
       },
       "chat": {
         "title": "对话",
         "description": "使用聊天和对话",
-        "count": "19",
+        "count": "22",
         "questions": {
           "q1": {
             "question": "我可以同时进行多个对话吗？",
@@ -4485,13 +4628,25 @@
           "q19": {
             "question": "LIA 能在我与某人交流前帮我做准备吗？(v1.25.13)",
             "answer": "能——说「帮我准备和 Marie 的通话」，一次汇总即可获得<strong>360° 视图</strong>：她的联系人卡片、你们最近的邮件往来、接下来的共同日程，以及 LIA 对她的了解。如果某个来源不可用（例如没有日历连接器），视图会诚实说明，而不是编造。<br><br>它也支撑「会议准备」提示：当一个重要会议临近时，主动通知可能以「要我帮你准备这场会议吗？」结尾。"
+          },
+          "q20": {
+            "question": "「/」斜杠命令有什么用？(v1.25.16)",
+            "answer": "<p>在空消息开头输入 <strong>/</strong> 打开命令菜单：<strong>/resume</strong>（压缩对话）、<strong>/briefing</strong>（打开仪表盘）、<strong>/agenda</strong>、<strong>/search</strong>，以及日常快捷指令 — 未读邮件、天气、周末天气、任务、提醒、资讯 — 还有您的对话技能。筛选支持您的语言。命令只会<strong>预填</strong>输入框：没有您按回车，什么都不会发送。</p>"
+          },
+          "q21": {
+            "question": "输入中的消息能在刷新后保留吗？能找回已发送的内容吗？(v1.25.16)",
+            "answer": "<p>能。草稿在输入时按账户保存，刷新或切换页面后恢复（发送时清空，登出时删除）。在空输入框中，<strong>↑</strong> 翻阅最近 10 条已发送消息，<strong>↓</strong> 逐条返回直到空输入框 — 如同终端。每条回复下方的操作行提供<strong>复制</strong>、<strong>反馈</strong>（👍/👎）和<strong>执行详情</strong>。</p>"
+          },
+          "q22": {
+            "question": "回看时对话不再跳动 — 这是怎么做到的？(v1.25.16)",
+            "answer": "<p>当您向上回看时，正在生成的回复<strong>不再把您强行拉到底部</strong>。悬浮按钮会显示屏幕外新到回复的数量；轻点即可返回底部。您自己发送消息时仍会跳到该消息，符合预期。最新回复下方最多可出现 3 个<strong>后续建议</strong>芯片：点击填入输入框（绝不自动发送）。</p>"
           }
         }
       },
       "settings": {
         "title": "设置",
         "description": "账户配置和偏好设置",
-        "count": "16",
+        "count": "18",
         "questions": {
           "q1": {
             "question": "如何更改时区？",
@@ -4556,6 +4711,14 @@
           "q16": {
             "question": "如何导出我的消费数据？",
             "answer": "您可以将个人LLM和Google API消费数据导出为CSV：<br><br><strong>📥 导出步骤：</strong><br>1. 进入<strong>设置 > 功能</strong><br>2. 打开<strong>导出我的消费数据</strong>部分<br>3. 选择时间段（本月、上月、最近30天或全部）<br>4. 点击<strong>下载CSV</strong><br><br><strong>📊 三种导出类型：</strong><br>• <strong>LLM Token消费</strong> — 每次调用的详细信息<br>• <strong>Google API消费</strong> — 每次调用的详细信息<br>• <strong>我的摘要</strong> — 汇总数据<br><br><strong>🔒 安全：</strong><br>您只能导出自己的数据。"
+          },
+          "q17": {
+            "question": "可以自定义仪表盘卡片吗？(v1.25.16)",
+            "answer": "<p>可以 — 设置 →「我的仪表盘」。隐藏 9 张简报卡片中的任意一张，或重新排序（↑/↓ 按钮或拖拽）。隐藏的卡片<strong>甚至不再发起请求</strong>：更少的 API 调用，更快的仪表盘。仪表盘上的入门清单还会展示实例的能力，直到您将其关闭。</p>"
+          },
+          "q18": {
+            "question": "「未完成的承诺」是什么？(v1.25.16)",
+            "answer": "<p>LIA 会自动从对话中识别<strong>承诺</strong>。设置 →「未完成的承诺」按方向列出（您欠对方 / 您在等待），提供三个一键操作：<strong>完成</strong>、<strong>在聊天中跟进</strong>（预填跟进消息）或<strong>不再相关</strong>。没有手动创建 — 这个清单的价值就在于自动。</p>"
           }
         }
       },
@@ -5021,7 +5184,7 @@
       "skills": {
         "title": "技能（Skills）",
         "description": "通过专家指令扩展LIA的能力",
-        "count": "8",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "什么是技能（Skill）？",
@@ -5054,6 +5217,14 @@
           "q8": {
             "question": "技能可以显示地图、图像或交互式迷你应用吗？（v1.16.8）",
             "answer": "<p>可以。从 v1.16.8 开始，Python 技能脚本除了文本之外，还可以返回<strong>交互式 HTML 框架</strong>（Google 地图视图、天气仪表板、月历、番茄钟计时器、单位换算器……）和/或<strong>图像</strong>（QR 码、图表）。</p><p><strong>七个新的内置技能</strong>展示了这一机制：<code>interactive-map</code>、<code>weather-dashboard</code>、<code>calendar-month</code>、<code>qr-code</code>、<code>pomodoro-timer</code>、<code>unit-converter</code>、<code>dice-roller</code>。</p><p><strong>工作原理：</strong></p><ul><li><strong>主题和语言保持同步</strong> — 框架自动检测并遵循您当前的主题（浅色/深色）和语言。主题更改会实时传播，无需重新加载。</li><li><strong>自动调整大小</strong> — 框架会自动调整以适应其内容。</li><li><strong>严格的安全性</strong> — 框架在沙盒 iframe 中运行（<code>allow-scripts allow-popups</code>，没有 <code>allow-same-origin</code>），并为用户技能注入内容安全策略。</li><li><strong>在所有显示模式下都可见</strong> — 富 HTML、Markdown、卡片：框架到处都会显示。</li></ul><p>要构建自己的带框架或图像的技能，请打开<strong>技能指南</strong>（高级选项卡 → 「Localization, theming and runtime conventions」部分），或者直接说：「<em>创建一个显示 QR 码的技能</em>」。</p>"
+          },
+          "q9": {
+            "question": "技能库展示什么？(v1.25.16)",
+            "answer": "<p>设置 → 技能现在以<strong>卡片</strong>展示您的技能。打开一张卡片可见本地化描述、<strong>预览图</strong>（若技能自带）、声明的<strong>输出通道</strong>（文本、交互框架、图片）及操作。所有从 LIA 外部导入的技能都带有<strong>来源警告</strong>：其指令在可访问您已连接数据的环境中运行 — 请仅保留来源可信的技能。</p>"
+          },
+          "q10": {
+            "question": "可以直接从 URL 安装技能吗？(v1.25.16)",
+            "answer": "<p>可以 — 设置 → 技能中的「从 URL」。粘贴一个提供 SKILL.md 文件或 .zip 包的 <strong>https</strong> 地址。服务器会校验一切：仅 https、禁止私有/内部地址、禁止重定向、大小上限，并走与文件上传<strong>相同的严格导入管线</strong>。失败的尝试按用户限流。</p>"
           }
         }
       },
@@ -6426,7 +6597,7 @@
       },
       "stack": {
         "title": "现代技术栈",
-        "description": "FastAPI、Next.js、React、TailwindCSS、PostgreSQL、Redis。前端严格TypeScript，后端异步Python。"
+        "description": "FastAPI、Next.js、React、TailwindCSS、PostgreSQL、Redis。前端严格 TypeScript，后端异步 Python。可安装 PWA：6 个本地化 manifest，系统分享直达聊天。"
       },
       "telephony": {
         "title": "智能体电话",
@@ -6434,7 +6605,7 @@
       },
       "rich_skills": {
         "title": "带框架和图像的 Skills",
-        "description": "SkillScriptOutput 契约（text/frame/image）— 沙盒化 Python 脚本、注入 CSP 的严格沙盒 iframe、自动调整大小、通过 postMessage 同步主题与语言。所有路径（上传与聊天生成的技能）共用一条加固导入管道：严格名称验证、zip 解压限制、带回滚的原子化安装。"
+        "description": "SkillScriptOutput 契约（text/frame/image）— 沙箱化 Python 脚本、注入 CSP 的严格沙箱 iframe、自动调整大小、通过 postMessage 同步主题与语言。所有路径共用一条强化导入管线（上传、聊天生成的技能、经 SSRF 校验器的 https URL 安装）：严格名称校验、zip 解压上限、原子安装带回滚。技能库含预览图与声明的输出通道。"
       },
       "hitl": {
         "title": "Human-in-the-Loop",
@@ -7004,7 +7175,7 @@
       "skills-system": {
         "title": "技能：专家指令定制LIA",
         "excerpt": "导入或创建专业技能，让LIA掌握新领域 — 除文本外还包括交互式地图、迷你仪表板和图像。",
-        "body": "<h2>什么是技能？</h2><p><strong>技能</strong>是一组结构化指令，使LIA能够掌握特定领域。与执行操作的工具不同，技能丰富的是助手的<strong>推理和行为</strong>。架构基于一个关键原则：<strong>磁盘是技能内容的唯一真实来源</strong>，而数据库仅管理元数据（激活状态、所有者、统计信息）。</p><h2>丰富的输出（v1.16.8）</h2><p>自 v1.16.8 起，Python 脚本除了文本之外，还可以返回<strong>交互式 HTML 框架</strong>（Google 地图视图、天气仪表板、番茄钟计时器……）和/或<strong>图像</strong>（QR 码、图表）。合约很简单：脚本在 stdout 上写入 JSON 对象（<code>SkillScriptOutput</code>），包含 <code>text</code>（必需）、<code>frame</code> 和 <code>image</code> 字段 — 独立且可组合。框架在严格的<em>沙盒</em> iframe 中运行，为用户技能自动注入<strong>内容安全策略</strong>。主题和语言通过 <code>postMessage</code> 实时同步。七个新的内置技能展示了该机制：<code>interactive-map</code>、<code>weather-dashboard</code>、<code>calendar-month</code>、<code>qr-code</code>、<code>pomodoro-timer</code>、<code>unit-converter</code>、<code>dice-roller</code>。</p><h2>三种技能类型</h2><ul><li><strong>Prompt Expert</strong> — 某一领域的详细指令（如：专业写作、财务分析）</li><li><strong>Advisory</strong> — 建议和最佳实践（如：风格指南、质量检查清单）</li><li><strong>Plan Template</strong> — 常见场景的执行计划模板</li></ul><h2>沙盒执行</h2><p>可执行技能在<strong>沙盒环境</strong>中通过<code>subprocess</code>运行（永远不使用<code>shell=True</code>）。执行环境经过过滤：仅<code>PATH</code>、<code>HOME</code>、<code>LANG</code>、<code>LC_ALL</code>和<code>TZ</code>变量传递给子进程。在Linux上，通过<code>unshare</code>实现<strong>网络隔离</strong>，防止技能脚本进行任何网络访问。</p><h2>结构化结果</h2><p>每次技能执行返回一个标准化的<strong>ScriptResult</strong>对象，包含：<code>success</code>（布尔值）、<code>output</code>（stdout）、<code>error</code>（stderr）、<code>exit_code</code>和<code>execution_time_ms</code>。这种格式使系统能够统一处理成功和错误情况。</p><h2>SkillBypassStrategy：绕过规划器</h2><p>当确定性技能完全匹配请求时，<strong>SkillBypassStrategy</strong>会短路LLM规划器。技能直接执行，无需经过planner → validator → orchestrator链，从而降低延迟和Token消耗。</p><h2>规划器技能守卫</h2><p>规划器具有早期检测功能，在缺少必需参数时请求澄清。然而，多域确定性技能（例如：每日简报 = 事件 + 任务 + 天气 + 邮件）可能会触发<strong>错误的澄清请求</strong>。技能守卫检测到确定性技能与查询具有高域重叠时，会让完整的规划器管道来决定，而不是直接跳转到澄清。</p><h2>技能生成器</h2><p>LIA包含内置的<strong>技能生成器</strong>。用自然语言描述所需的专业领域，LIA会自动生成符合agentskills.io标准的SKILL.md格式的结构化技能。 完成的技能经过验证后<strong>直接安装到您的技能中</strong> — 以名称宣布、立即激活、无需手动上传。</p><h2>用户管理</h2><p>每个用户可以在设置界面中激活、停用、导入或删除技能。管理员还可以定义面向所有用户的全局技能。</p><p>交互式小组件经久耐用：它们随对话一起保存，在重新加载后或另一台设备上会重新打开；无法加载的框架会显示可操作的错误状态——说明、重试、在新标签页打开——而不是一个空白矩形。</p>"
+        "body": "<h2>什么是技能？</h2><p><strong>技能</strong>是一组结构化指令，使LIA能够掌握特定领域。与执行操作的工具不同，技能丰富的是助手的<strong>推理和行为</strong>。架构基于一个关键原则：<strong>磁盘是技能内容的唯一真实来源</strong>，而数据库仅管理元数据（激活状态、所有者、统计信息）。</p><h2>丰富的输出（v1.16.8）</h2><p>自 v1.16.8 起，Python 脚本除了文本之外，还可以返回<strong>交互式 HTML 框架</strong>（Google 地图视图、天气仪表板、番茄钟计时器……）和/或<strong>图像</strong>（QR 码、图表）。合约很简单：脚本在 stdout 上写入 JSON 对象（<code>SkillScriptOutput</code>），包含 <code>text</code>（必需）、<code>frame</code> 和 <code>image</code> 字段 — 独立且可组合。框架在严格的<em>沙盒</em> iframe 中运行，为用户技能自动注入<strong>内容安全策略</strong>。主题和语言通过 <code>postMessage</code> 实时同步。七个新的内置技能展示了该机制：<code>interactive-map</code>、<code>weather-dashboard</code>、<code>calendar-month</code>、<code>qr-code</code>、<code>pomodoro-timer</code>、<code>unit-converter</code>、<code>dice-roller</code>。</p><h2>三种技能类型</h2><ul><li><strong>Prompt Expert</strong> — 某一领域的详细指令（如：专业写作、财务分析）</li><li><strong>Advisory</strong> — 建议和最佳实践（如：风格指南、质量检查清单）</li><li><strong>Plan Template</strong> — 常见场景的执行计划模板</li></ul><h2>沙盒执行</h2><p>可执行技能在<strong>沙盒环境</strong>中通过<code>subprocess</code>运行（永远不使用<code>shell=True</code>）。执行环境经过过滤：仅<code>PATH</code>、<code>HOME</code>、<code>LANG</code>、<code>LC_ALL</code>和<code>TZ</code>变量传递给子进程。在Linux上，通过<code>unshare</code>实现<strong>网络隔离</strong>，防止技能脚本进行任何网络访问。</p><h2>结构化结果</h2><p>每次技能执行返回一个标准化的<strong>ScriptResult</strong>对象，包含：<code>success</code>（布尔值）、<code>output</code>（stdout）、<code>error</code>（stderr）、<code>exit_code</code>和<code>execution_time_ms</code>。这种格式使系统能够统一处理成功和错误情况。</p><h2>SkillBypassStrategy：绕过规划器</h2><p>当确定性技能完全匹配请求时，<strong>SkillBypassStrategy</strong>会短路LLM规划器。技能直接执行，无需经过planner → validator → orchestrator链，从而降低延迟和Token消耗。</p><h2>规划器技能守卫</h2><p>规划器具有早期检测功能，在缺少必需参数时请求澄清。然而，多域确定性技能（例如：每日简报 = 事件 + 任务 + 天气 + 邮件）可能会触发<strong>错误的澄清请求</strong>。技能守卫检测到确定性技能与查询具有高域重叠时，会让完整的规划器管道来决定，而不是直接跳转到澄清。</p><h2>技能生成器</h2><p>LIA包含内置的<strong>技能生成器</strong>。用自然语言描述所需的专业领域，LIA会自动生成符合agentskills.io标准的SKILL.md格式的结构化技能。 完成的技能经过验证后<strong>直接安装到您的技能中</strong> — 以名称宣布、立即激活、无需手动上传。</p><h2>用户管理</h2><p>每个用户可以在设置界面中激活、停用、导入或删除技能 — 现在是一个<strong>技能库</strong>，带预览图和声明的输出通道（文本、交互框架、图片）。导入支持文件或经服务器端校验的 <strong>https URL</strong>（同一条强化管线），所有从外部导入的技能都带有来源警告。管理员还可以定义面向所有用户的全局技能。</p><p>交互式小组件经久耐用：它们随对话一起保存，在重新加载后或另一台设备上会重新打开；无法加载的框架会显示可操作的错误状态——说明、重试、在新标签页打开——而不是一个空白矩形。</p>"
       },
       "voice-mode": {
         "title": "语音模式：像与个人助手一样与LIA对话",

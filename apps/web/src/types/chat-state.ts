@@ -211,6 +211,9 @@ export type ChatAction =
           // QW-5 (ADR-138): DB id of the archived assistant row (mirror of
           // DoneMetadata.archived_message_id) — enables live feedback.
           archived_message_id?: string;
+          // UXR Lot 4 (A2): follow-up chips (mirror of
+          // DoneMetadata.followup_suggestions — ADR-117: both types).
+          followup_suggestions?: string[];
           tokens_in?: number;
           tokens_out?: number;
           tokens_cache?: number;

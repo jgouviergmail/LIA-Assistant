@@ -2,6 +2,7 @@
 
 import React, { createContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
+import { clearInputDraft } from '@/hooks/useInputDraft';
 import apiClient from './api-client';
 
 export interface User {
@@ -24,6 +25,7 @@ export interface User {
   // ADR-083 Phase 2 cleanup: sub_agents_enabled removed (Option B).
   response_display_mode: string;
   onboarding_completed: boolean;
+  onboarding_checklist?: { dismissed_at?: string; celebrated_at?: string } | null;
   theme?: string;
   color_theme?: string;
   font_family?: string;
@@ -211,10 +213,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.error('Logout error:', error);
       // Continue with logout even if API call fails
     } finally {
+      // UXR Lot 2 (A7): purge the persisted chat draft — a shared computer
+      // must not leak one account's draft to the next session.
+      if (user?.id) clearInputDraft(user.id);
       setUser(null);
       router.push('/login');
     }
-  }, [router]);
+  }, [router, user?.id]);
 
   /**
    * Initiate Google OAuth flow

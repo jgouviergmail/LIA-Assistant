@@ -126,6 +126,10 @@ export interface DoneMetadata {
   // can target the feedback endpoint immediately. Absent on synthesized
   // dones (cancelled runs) — the buttons then appear after reload.
   archived_message_id?: string;
+  // UXR Lot 4 (A2): tappable follow-up chips of the Initiative node —
+  // 0-3 short user-language requests; also persisted in the archived
+  // message_metadata so the chips survive a reload while latest.
+  followup_suggestions?: string[];
   // Token tracking metadata
   tokens_in?: number;
   tokens_out?: number;

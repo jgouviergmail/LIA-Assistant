@@ -64,6 +64,7 @@ from src.domains.briefing.fetchers import (
     fetch_weather,
 )
 from src.domains.briefing.llm import generate_greeting, generate_synthesis
+from src.domains.briefing.preferences import sanitize_briefing_preferences
 from src.domains.briefing.schemas import (
     BriefingResponse,
     CardsBundle,
@@ -88,6 +89,7 @@ logger = structlog.get_logger(__name__)
 # leaking that distinction into the wire payload.
 _ORIGIN_LIVE = "live"
 _ORIGIN_CACHE = "cache"
+_ORIGIN_HIDDEN = "hidden"  # UXR Lot 5 (B4): user-hidden placeholder, zero IO
 
 
 def _resolve_user_tz(user: User) -> ZoneInfo:
@@ -132,6 +134,11 @@ class BriefingService:
         self.user = user
         self.user_tz = _resolve_user_tz(user)
         self.language = user.language or "en"
+        # UXR Lot 5 (B4): user-hidden sections are pure placeholders — no
+        # fetch, no cache IO. Tolerant reader (malformed JSONB → defaults).
+        self._hidden_sections = frozenset(
+            sanitize_briefing_preferences(getattr(user, "briefing_preferences", None)).hidden
+        )
 
     # =========================================================================
     # Public entry point
@@ -385,6 +392,14 @@ class BriefingService:
         force: bool,
     ) -> CardSection:
         """Wrap a fetcher with cache + status mapping. **Never raises.**"""
+        # 0. UXR Lot 5 (B4): a user-hidden section short-circuits BEFORE any
+        # fetch or cache IO — the economy is the point, not just the display.
+        if name in self._hidden_sections:
+            briefing_section_status_total.labels(
+                section=name, status=CardStatus.HIDDEN.value, origin=_ORIGIN_HIDDEN
+            ).inc()
+            return CardSection(status=CardStatus.HIDDEN, generated_at=datetime.now(UTC))
+
         cache_key = f"{BRIEFING_CACHE_PREFIX}:{self.user.id}:{name}"
 
         # 1. Try cache (skipped when ttl=0 or force=True).
@@ -466,16 +481,16 @@ class BriefingService:
         """
         now = datetime.now(UTC)
         sections = await asyncio.gather(
-            self._read_cache(f"{BRIEFING_CACHE_PREFIX}:{self.user.id}:{SECTION_WEATHER}"),
-            self._read_cache(f"{BRIEFING_CACHE_PREFIX}:{self.user.id}:{SECTION_AGENDA}"),
-            self._read_cache(f"{BRIEFING_CACHE_PREFIX}:{self.user.id}:{SECTION_MAILS}"),
-            self._read_cache(f"{BRIEFING_CACHE_PREFIX}:{self.user.id}:{SECTION_BIRTHDAYS}"),
+            self._read_section_cache(SECTION_WEATHER),
+            self._read_section_cache(SECTION_AGENDA),
+            self._read_section_cache(SECTION_MAILS),
+            self._read_section_cache(SECTION_BIRTHDAYS),
             # Reminders are TTL=0 (always live) — synthesis won't have them.
-            asyncio.sleep(0, result=None),
-            self._read_cache(f"{BRIEFING_CACHE_PREFIX}:{self.user.id}:{SECTION_HEALTH}"),
-            self._read_cache(f"{BRIEFING_CACHE_PREFIX}:{self.user.id}:{SECTION_FOR_YOU}"),
-            self._read_cache(f"{BRIEFING_CACHE_PREFIX}:{self.user.id}:{SECTION_TASKS}"),
-            self._read_cache(f"{BRIEFING_CACHE_PREFIX}:{self.user.id}:{SECTION_DOCUMENTS}"),
+            self._read_section_cache(SECTION_REMINDERS, live=True),
+            self._read_section_cache(SECTION_HEALTH),
+            self._read_section_cache(SECTION_FOR_YOU),
+            self._read_section_cache(SECTION_TASKS),
+            self._read_section_cache(SECTION_DOCUMENTS),
         )
 
         def _or_placeholder(s: CardSection | None) -> CardSection:
@@ -492,6 +507,18 @@ class BriefingService:
             tasks=_or_placeholder(sections[7]),
             documents=_or_placeholder(sections[8]),
         )
+
+    async def _read_section_cache(self, name: str, *, live: bool = False) -> CardSection | None:
+        """Per-section cache read honoring hidden preferences (UXR B4).
+
+        Hidden sections return their placeholder without any Redis IO; a
+        ``live`` section (TTL=0, never cached) returns None without IO.
+        """
+        if name in self._hidden_sections:
+            return CardSection(status=CardStatus.HIDDEN, generated_at=datetime.now(UTC))
+        if live:
+            return None
+        return await self._read_cache(f"{BRIEFING_CACHE_PREFIX}:{self.user.id}:{name}")
 
     async def _read_cache(self, key: str) -> CardSection | None:
         try:

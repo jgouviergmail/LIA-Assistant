@@ -24,7 +24,10 @@ import { getIntlLocale, Language } from '@/i18n/settings';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { useApiMutation } from '@/hooks/useApiMutation';
-import { ResponseFeedbackButtons } from './ResponseFeedbackButtons';
+import {
+  ResponseFeedbackButtons,
+  type ResponseFeedbackButtonsProps,
+} from './ResponseFeedbackButtons';
 import { toast } from 'sonner';
 import { formatFileSize } from '@/lib/utils/image-compress';
 import { API_ENDPOINTS } from '@/lib/api-config';
@@ -33,6 +36,7 @@ import { downloadImage } from '@/lib/utils/download-image';
 import { AssistantAvatar, type AvatarTooltipLine } from '@/components/psyche/AssistantAvatar';
 import { ExecutionTraceDisclosure } from '@/components/chat/ExecutionTraceDisclosure';
 import { usePsycheStore } from '@/stores/psycheStore';
+import type { ExecutionTrace } from '@/types/execution-trace';
 import type { PsycheStateSummary } from '@/types/psyche';
 import type { StreamPhase } from '@/types/chat-state';
 
@@ -222,6 +226,51 @@ function responseFeedbackProps(
     messageDbId: dbId,
     initialVerdict: verdict === 'thumbs_up' || verdict === 'thumbs_down' ? verdict : undefined,
   };
+}
+
+/**
+ * Bubble action row (UXR Lot 1): Copy + response-feedback chips (QW-5,
+ * ADR-138) in flow at the bubble's bottom — the interest-notification
+ * pattern; the former top-right overlay covered the first text lines on
+ * mobile. The execution-trace disclosure sits at the row's RIGHT edge (QA
+ * feedback 2026-07-23), its expanded panel wrapping to a full-width line.
+ * Extracted from the render hotspot (CC discipline).
+ */
+function AssistantActionRow({
+  copied,
+  onCopy,
+  feedbackProps,
+  trace,
+}: {
+  copied: boolean;
+  onCopy: () => void;
+  feedbackProps: ResponseFeedbackButtonsProps | null;
+  trace?: ExecutionTrace;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-wrap items-center gap-1 mt-2 pt-2 border-t border-border/30">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={onCopy}
+            aria-label={t('chat.message.copy')}
+            className="p-1.5 rounded-md border border-border/30 bg-background/80 hover:bg-background transition-colors"
+          >
+            {copied ? (
+              <Check className="h-3.5 w-3.5 text-green-600" />
+            ) : (
+              <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>{t('chat.message.copy')}</TooltipContent>
+      </Tooltip>
+      {feedbackProps && <ResponseFeedbackButtons {...feedbackProps} />}
+      <ExecutionTraceDisclosure trace={trace} />
+    </div>
+  );
 }
 
 /**
@@ -514,19 +563,29 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
     Boolean(message.metadata?.feedback_submitted)
   );
 
-  // Copy-to-clipboard UI state for assistant messages
+  // Copy-to-clipboard UI state for assistant messages. The confirmation reset
+  // timer is tracked so an unmount mid-confirmation never fires a stale
+  // setState (timers-cleanup rule).
   const [copied, setCopied] = useState(false);
+  const copiedTimerRef = useRef<number | null>(null);
 
   const handleCopyMessage = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(message.content);
       setCopied(true);
       toast.success(t('chat.message.copied'));
-      window.setTimeout(() => setCopied(false), 2000);
+      if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = window.setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error(t('chat.message.error'));
     }
   }, [message.content, t]);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current);
+    };
+  }, []);
 
   // Psyche store — must be called before any early return (Rules of Hooks)
   const storeState = usePsycheStore();
@@ -696,24 +755,6 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
           <div
             className={`relative message-bubble message-bubble-assistant px-4 py-3 rounded-xl shadow-md bg-card/70 backdrop-blur-md text-foreground rounded-tr-none border border-border/20 hover:shadow-lg hover:border-primary/30 hover:bg-card/80 mobile:rounded-tr-xl transition-colors ${streamClass}`}
           >
-            {/* Copy to clipboard button — always visible on mobile (no hover), hover-only on desktop */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={handleCopyMessage}
-                  aria-label={t('chat.message.copy')}
-                  className="absolute top-2 right-2 p-1.5 rounded-md bg-background/80 hover:bg-background border border-border/30 opacity-100 mobile:opacity-0 mobile:group-hover:opacity-100 mobile:focus-visible:opacity-100 transition-opacity z-10"
-                >
-                  {copied ? (
-                    <Check className="h-3.5 w-3.5 text-green-600" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                  )}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>{t('chat.message.copy')}</TooltipContent>
-            </Tooltip>
             {/* Skill indicator — top of bubble, always visible when a skill is active */}
             {message.skillName && (
               <div className="flex items-center gap-1.5 mb-2 pb-2 border-b border-border/30">
@@ -744,12 +785,18 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
             {message.generatedImages && message.generatedImages.length > 0 && (
               <GeneratedImageCards images={message.generatedImages} />
             )}
-            {/* Execution trace (Lot 2 P2-V1): the backstage record of this
-                turn, collapsed by default. Renders nothing without steps. */}
-            <ExecutionTraceDisclosure trace={message.executionTrace} />
-            {/* Response feedback (QW-5, ADR-138): 👍/👎 chips next to Copy on
-                ordinary, fully archived responses only (see the gate helper). */}
-            {feedbackProps && <ResponseFeedbackButtons {...feedbackProps} />}
+            {/* Bubble action row (UXR Lot 1) — hidden while streaming: an
+                in-flow row at the growing edge would jitter on every token.
+                Hosts the execution-trace disclosure at its right edge (the
+                trace only lands with done metadata, after streaming). */}
+            {!isActiveStream && (
+              <AssistantActionRow
+                copied={copied}
+                onCopy={handleCopyMessage}
+                feedbackProps={feedbackProps}
+                trace={message.executionTrace}
+              />
+            )}
           </div>
           <span className="text-[11px] mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium whitespace-nowrap w-full text-right">
             {formatTime(message.timestamp)}

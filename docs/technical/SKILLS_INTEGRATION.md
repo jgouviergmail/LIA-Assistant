@@ -103,6 +103,8 @@ Startup → SkillLoader.scan() → SkillsCache (in-memory)
 | `priority` | 50 | Sort priority (higher = first) |
 | `always_loaded` | false | L2 always injected into response prompt |
 | `plan_template` | null | Deterministic plan (bypass LLM planner) |
+| `dialogue` | false | Multi-turn dialogue skill (ADR-118) — surfaced as a `/` slash command |
+| `outputs` | null | Declared output channels, subset of `[text, frame, image]` (v1.25.16) — shown in the gallery detail sheet; validated tolerantly by the loader (invalid ⇒ warn + null) and strictly by the generator's `validate_skill.py` (`VALID_OUTPUTS` parity is CI-pinned) |
 
 ### Example
 
@@ -217,6 +219,8 @@ The planner has an "early insufficient content detection" feature that short-cir
 |--------|------|------|-------------|
 | GET | `/skills` | User | List skills (admin + user, override semantics) |
 | POST | `/skills/import` | User | Import SKILL.md or .zip (user scope) |
+| POST | `/skills/import-from-url` | User | Install from an https URL (v1.25.16) — SSRF-validated fetch feeding the same hardened pipeline |
+| GET | `/skills/{name}/preview` | User | Gallery preview image — serves ONLY `assets/preview.png` (name-pattern traversal guard, 2 MiB cap, 404 for admin-disabled system skills) |
 | DELETE | `/skills/{name}` | User | Delete user skill |
 | PATCH | `/skills/{name}/toggle` | User | Toggle skill on/off for current user |
 | GET | `/skills/{name}/download` | User | Download skill as .zip (own or admin skills) |
@@ -250,9 +254,44 @@ Downloaded files are `.zip` archives:
 - If the skill has `scripts/`, `references/`, `assets/` subdirectories → full directory zip
 - Frontend uses the `fetch` + blob URL trick with credentials for authenticated download
 
+## Install from URL (v1.25.16)
+
+`POST /skills/import-from-url {url}` downloads a `SKILL.md` or `.zip` from a
+user-supplied address and hands the raw bytes to the **untouched**
+`SkillImportService.import_upload` (S1 traversal / S2 cross-scope 409 /
+S3 zip-bomb / S4 validation all apply verbatim). Hardening layers, in order:
+
+1. **https-only** pre-check (no http→https upgrade for code imports);
+2. the reused SSRF validator (`agents/web_fetch/url_validator.validate_url`):
+   hostname blacklist, DNS resolution, blocked ranges (RFC 1918, loopback,
+   link-local/metadata, CGNAT, ULA, IPv4-mapped IPv6);
+3. `follow_redirects=False` — a 3xx answer is a refusal, not a hop;
+4. streamed read bounded by `SKILLS_URL_IMPORT_MAX_BYTES` (aborts mid-transfer)
+   under a **TOTAL** transfer deadline (`asyncio.timeout` — httpx timeouts are
+   per-phase and would never trip on a dripping server);
+5. content sniffing (zip magic / markdown frontmatter) before the pipeline;
+6. a per-user Redis sliding-window rate limit (failed imports consume no skill
+   quota, hence the dedicated window; fail-open on Redis outage, like auth).
+
+Error `detail` prefixes are a stable frontend contract (`url_not_https`,
+`url_blocked`, `url_fetch_failed`, `url_too_large`, `url_not_skill_content`)
+mapped to localized toasts. Outcomes are counted in
+`skill_url_imports_total{outcome}` (ok | blocked | too_large | fetch_failed |
+invalid_content | pipeline_rejected). Residual DNS-rebinding risk (resolve
+then connect without IP pinning) is documented in `url_import.py` with its
+mitigations; an IP-pinned transport or hostname allowlist are noted as future
+hardening.
+
 ## Configuration
 
 ```env
+# URL import (v1.25.16)
+SKILLS_URL_IMPORT_ENABLED=true
+SKILLS_URL_IMPORT_MAX_BYTES=5242880
+SKILLS_URL_IMPORT_TIMEOUT_SECONDS=15
+SKILLS_URL_IMPORT_RATE_MAX_CALLS=10
+SKILLS_URL_IMPORT_RATE_WINDOW_SECONDS=3600
+
 # Feature flag
 SKILLS_ENABLED=false
 

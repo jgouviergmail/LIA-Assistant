@@ -213,6 +213,44 @@ describe('chatReducer — STREAM_DONE', () => {
 
     // The feedback buttons target the archived row through this id.
     expect(next.messages[0].metadata?.message_db_id).toBe('db-uuid-1');
+    // No chips in this done → the field never appears on the bubble.
+    expect(next.messages[0].metadata?.followup_suggestions).toBeUndefined();
+  });
+
+  it('carries the follow-up chips onto the live bubble (UXR Lot 4, A2)', () => {
+    const state = streamingState('a-1', 'answer', [makeMessage('a-1', 'assistant', 'answer')]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: {
+        messageId: 'a-1',
+        metadata: {
+          ...fullMetadata,
+          followup_suggestions: ['Montre la météo de demain', 'Ajoute un rappel'],
+        },
+      },
+    });
+
+    // Same field name as the archived message_metadata — live and reloaded
+    // rows read identically.
+    expect(next.messages[0].metadata?.followup_suggestions).toEqual([
+      'Montre la météo de demain',
+      'Ajoute un rappel',
+    ]);
+  });
+
+  it('drops an EMPTY chips list instead of writing a hollow field (UXR A2)', () => {
+    const state = streamingState('a-1', 'answer', [makeMessage('a-1', 'assistant', 'answer')]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: {
+        messageId: 'a-1',
+        metadata: { ...fullMetadata, followup_suggestions: [] },
+      },
+    });
+
+    expect(next.messages[0].metadata?.followup_suggestions).toBeUndefined();
   });
 
   it('flags the partial bubble as interrupted on a cancelled done (ADR-117 Lot 3)', () => {

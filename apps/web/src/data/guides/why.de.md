@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 3.9
-**Datum** : 2026-07-22
-**Anwendung** : LIA v1.25.15
+**Datum** : 2026-07-23
+**Anwendung** : LIA v1.25.16
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -56,6 +56,7 @@ Jeder Benutzer verfügt über seinen eigenen Einstellungsbereich, der in zwei Re
 - **Bildgenerierung**: Aktivieren und konfigurieren Sie die KI-gestützte Bilderstellung
 - **Persönliche MCP-Server**: Verbinden Sie Ihre eigenen MCP-Server, um die Fähigkeiten von LIA zu erweitern
 - **Darstellung**: Sprache, Zeitzone, Theme (5 Farbpaletten, Dunkel-/Hellmodus), Schrift (9 Optionen), Anzeigeformat der Antworten (HTML-Karten, HTML, Markdown)
+- **Mein Dashboard**: Blenden Sie die 9 Briefing-Karten aus oder ordnen Sie sie neu — eine ausgeblendete Karte wird gar nicht mehr abgerufen
 - **Debug**: Zugriff auf das Debug-Panel zur Inspektion jedes Austauschs (wenn vom Administrator aktiviert)
 
 **Erweiterte Funktionen:**
@@ -66,7 +67,7 @@ Jeder Benutzer verfügt über seinen eigenen Einstellungsbereich, der in zwei Re
 - **Interessengebiete**: Definieren Sie Ihre Lieblingsthemen, konfigurieren Sie die Benachrichtigungshäufigkeit, Zeitfenster und Quellen (Perplexity, Brave, Wikipedia, KI-Reflexion)
 - **Proaktive Benachrichtigungen**: Stellen Sie Häufigkeit, Zeitfenster und Kontextquellen ein (Kalender, Wetter, Aufgaben, E-Mails, Interessen, Erinnerungen, Journale)
 - **Geplante Aktionen**: Erstellen Sie wiederkehrende Automatisierungen, die vom Assistenten ausgeführt werden
-- **Skills**: Aktivieren/deaktivieren Sie Expertenfähigkeiten, erstellen Sie Ihre eigenen persönlichen Skills
+- **Skills**: Aktivieren/deaktivieren Sie Expertenfähigkeiten in einer Galerie mit Vorschauen, erstellen Sie Ihre eigenen persönlichen Skills oder installieren Sie eine von einer https-URL (serverseitig validiert)
 - **Wissensbereiche**: Laden Sie Ihre Dokumente hoch (PDF, Word, Excel, PowerPoint, EPUB, HTML und 15+ Formate) oder synchronisieren Sie einen Google Drive-Ordner — automatische Indexierung mit hybrider Suche
 - **Verbrauchsexport**: Laden Sie Ihre LLM- und API-Verbrauchsdaten als CSV herunter
 

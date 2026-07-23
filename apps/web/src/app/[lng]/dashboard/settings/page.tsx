@@ -61,6 +61,8 @@ import { SpacesSettingsSection } from '@/components/spaces/SpacesSettingsSection
 import { VoiceModeSettings } from '@/components/settings/VoiceModeSettings';
 import { ImageGenerationSettings } from '@/components/settings/ImageGenerationSettings';
 import { UserDebugSettings } from '@/components/settings/UserDebugSettings';
+import { BriefingGridSettings } from '@/components/settings/BriefingGridSettings';
+import { OpenLoopsSection } from '@/components/settings/OpenLoopsSection';
 import { CardsDisplaySettings } from '@/components/settings/CardsDisplaySettings';
 import { SettingsGroupLabel } from '@/components/settings/SettingsGroupLabel';
 import ConsumptionExportSection from '@/components/settings/ConsumptionExportSection';
@@ -257,6 +259,8 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <ThemeSelector lng={lng} />
               <FontSettings lng={lng} />
               <CardsDisplaySettings lng={lng} />
+              <BriefingGridSettings lng={lng} />
+              <OpenLoopsSection lng={lng} />
 
               {/* Group: Notifications & Communication */}
               <SettingsGroupLabel
@@ -422,6 +426,8 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <ThemeSelector lng={lng} />
               <FontSettings lng={lng} />
               <CardsDisplaySettings lng={lng} />
+              <BriefingGridSettings lng={lng} />
+              <OpenLoopsSection lng={lng} />
 
               {/* Group: Notifications & Communication */}
               <SettingsGroupLabel

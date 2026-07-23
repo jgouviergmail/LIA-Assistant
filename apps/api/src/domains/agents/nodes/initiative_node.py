@@ -39,6 +39,7 @@ from src.core.constants import (
     INITIATIVE_MEMORY_LIMIT,
     INITIATIVE_MEMORY_MIN_SCORE,
     NODE_INITIATIVE,
+    STATE_KEY_INITIATIVE_FOLLOWUPS,
     STATE_KEY_INITIATIVE_ITERATION,
     STATE_KEY_INITIATIVE_RESULTS,
     STATE_KEY_INITIATIVE_SKIPPED_REASON,
@@ -58,6 +59,10 @@ from src.domains.agents.nodes.initiative_plan import (
 )
 from src.domains.agents.orchestration.plan_schemas import ParameterItem
 from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.agents.services.streaming.followup_metadata import (
+    push_followups,
+    sanitize_followups,
+)
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import get_structured_output
 from src.infrastructure.observability.decorators import track_metrics
@@ -155,6 +160,13 @@ class InitiativeDecision(BaseModel):
     suggestion: str | None = Field(
         default=None,
         description="Question for user when a write action would help but is not allowed here",
+    )
+    followup_suggestions: list[str] = Field(
+        default_factory=list,
+        description=(
+            "0-3 short follow-up requests (max ~12 words each) the user might "
+            "send next, phrased as user messages in the user's language"
+        ),
     )
 
 
@@ -732,12 +744,29 @@ async def _initiative_core(
         initiative_evaluations_total.labels(decision="act" if decision.should_act else "skip").inc()
         initiative_duration_seconds.observe(_time.perf_counter() - _initiative_start)
 
-    # ── 7. Collect suggestion (even if should_act=False) ─────────────
+    # ── 7. Collect suggestion + follow-up chips (even if should_act=False) ──
     state_update: dict[str, Any] = {
         STATE_KEY_INITIATIVE_ITERATION: iteration + 1,
     }
     if decision.suggestion:
         state_update[STATE_KEY_INITIATIVE_SUGGESTION] = decision.suggestion
+    # UXR Lot 4 (A2): tappable follow-up chips — sanitized once here (defense
+    # in depth over the structured output), handed to the SSE generator via
+    # the per-run pop-once cache (the service's `state` is the PRE-RUN
+    # snapshot — reading the key there would surface the previous turn), and
+    # kept in state for the debug panel.
+    followups = sanitize_followups(decision.followup_suggestions)
+    if followups:
+        state_update[STATE_KEY_INITIATIVE_FOLLOWUPS] = followups
+        push_followups(run_id, followups)
+        # Metrics emission must never fail the turn (same idiom as the
+        # open_loops repository chokepoint).
+        with suppress(Exception):
+            from src.infrastructure.observability.metrics_agents import (
+                initiative_followups_total,
+            )
+
+            initiative_followups_total.inc(len(followups))
 
     # ── 8. If no actions → return with suggestion only ───────────────
     if not decision.should_act or not decision.actions:
@@ -849,6 +878,7 @@ async def _initiative_core(
             "actions_executed": len(validated_actions),
             "actions": [a.model_dump() for a in validated_actions],
             "suggestion": decision.suggestion,
+            "followup_suggestions": followups,
             "registry_ids": list(par_result.registry.keys()),
         }
     )

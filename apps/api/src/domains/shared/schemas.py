@@ -306,6 +306,13 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     onboarding_completed: bool = Field(
         default=False, description="Onboarding tutorial has been completed/dismissed"
     )
+    onboarding_checklist: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Starter checklist card state (UXR A10): {dismissed_at, "
+            "celebrated_at} ISO-UTC — item states are detected live."
+        ),
+    )
     theme: str = Field(default="system", description="User display mode: light, dark, or system")
     color_theme: str = Field(
         default="default", description="User color theme: default, ocean, forest, sunset, slate"

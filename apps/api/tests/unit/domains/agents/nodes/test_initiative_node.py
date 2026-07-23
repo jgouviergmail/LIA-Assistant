@@ -38,6 +38,21 @@ class TestInitiativeDecision:
         assert not decision.should_act
         assert decision.actions == []
         assert decision.suggestion is None
+        # UXR Lot 4 (A2): chips default to an empty list (strict-mode safe).
+        assert decision.followup_suggestions == []
+
+    def test_followup_suggestions_population(self) -> None:
+        # UXR Lot 4 (A2): 0-3 tappable follow-ups, independent of should_act.
+        decision = InitiativeDecision(
+            analysis="Weather retrieved.",
+            should_act=False,
+            reasoning="Nothing cross-domain to check.",
+            followup_suggestions=["Montre la météo de demain", "Ajoute un rappel parapluie"],
+        )
+        assert decision.followup_suggestions == [
+            "Montre la météo de demain",
+            "Ajoute un rappel parapluie",
+        ]
 
     def test_action_with_suggestion(self) -> None:
         decision = InitiativeDecision(

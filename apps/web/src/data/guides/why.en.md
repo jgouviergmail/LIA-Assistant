@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 3.9
-**Date**: 2026-07-22
-**Application**: LIA v1.25.15
+**Date**: 2026-07-23
+**Application**: LIA v1.25.16
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,6 +56,7 @@ Every user has their own settings space, organized in two tabs:
 - **Image generation**: enable and configure AI image creation
 - **Personal MCP servers**: connect your own MCP servers to extend LIA's capabilities
 - **Appearance**: language, timezone, theme (5 palettes, dark/light mode), font (9 choices), response display format (HTML cards, HTML, Markdown)
+- **My dashboard**: hide or reorder the 9 briefing cards — a hidden card is not even fetched anymore
 - **Debug**: access the debug panel to inspect each exchange (if enabled by administrator)
 
 **Advanced features:**
@@ -66,7 +67,7 @@ Every user has their own settings space, organized in two tabs:
 - **Interests**: define your favorite topics, configure notification frequency, time slots and sources (Perplexity, Brave, Wikipedia, AI reflection)
 - **Proactive notifications**: set frequency, time window and context sources (calendar, weather, tasks, emails, interests, memories, journals)
 - **Scheduled actions**: create recurring automations executed by the assistant
-- **Skills**: enable/disable expert competencies, create your own personal Skills
+- **Skills**: enable/disable expert competencies in a gallery with previews, create your own personal Skills, or install one from an https URL (server-validated)
 - **Knowledge Spaces**: upload your documents (PDF, Word, Excel, PowerPoint, EPUB, HTML and 15+ formats) or sync a Google Drive folder — automatic indexing with hybrid search
 - **Consumption export**: download your LLM and API consumption data in CSV
 

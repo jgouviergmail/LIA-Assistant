@@ -4,14 +4,14 @@
  * ResponseFeedbackButtons — 👍/👎 on ordinary assistant responses (QW-5,
  * ADR-138).
  *
- * Discreet thumb chips next to the Copy button (hover-revealed on desktop,
- * always visible on mobile — same opacity idiom as Copy). The verdict is
- * persisted server-side (`POST /conversations/me/messages/{id}/feedback`) and
- * hydrated back from `message_metadata.response_feedback` so it survives
- * reloads and devices. A 👎 unfolds an optional one-line "what went wrong"
- * input, sent as a correction through the same endpoint. The verdict can be
- * changed (sovereignty) — the backend feeds journal counters on the FIRST
- * verdict only. Never triggers a regeneration.
+ * In-flow thumb chips rendered inside the bubble's bottom action row next to
+ * Copy (UXR Lot 1 — the former top-right overlay covered the first text lines
+ * on mobile). The host row is `flex-wrap`, so the 👎 optional one-line "what
+ * went wrong" input wraps to its own full-width line. The verdict is persisted
+ * server-side (`POST /conversations/me/messages/{id}/feedback`) and hydrated
+ * back from `message_metadata.response_feedback` so it survives reloads and
+ * devices. The verdict can be changed (sovereignty) — the backend feeds
+ * journal counters on the FIRST verdict only. Never triggers a regeneration.
  */
 
 import { useCallback, useState } from 'react';
@@ -98,34 +98,33 @@ export function ResponseFeedbackButtons({
 
   return (
     <>
-      {/* Thumb chips — anchored next to the Copy button (bubble is relative).
-          Same hover-reveal idiom as Copy: always visible on mobile. */}
-      <div className="absolute top-2 right-10 flex items-center gap-1 opacity-100 mobile:opacity-0 mobile:group-hover:opacity-100 mobile:focus-within:opacity-100 transition-opacity z-10">
-        <button
-          type="button"
-          onClick={() => submitVerdict('thumbs_up')}
-          disabled={isSubmitting}
-          aria-label={t('chat.feedback.up')}
-          aria-pressed={verdict === 'thumbs_up'}
-          className={chipClass(verdict === 'thumbs_up', 'text-green-600 dark:text-green-400')}
-        >
-          <ThumbsUp className="h-3.5 w-3.5" aria-hidden />
-        </button>
-        <button
-          type="button"
-          onClick={() => submitVerdict('thumbs_down')}
-          disabled={isSubmitting}
-          aria-label={t('chat.feedback.down')}
-          aria-pressed={verdict === 'thumbs_down'}
-          className={chipClass(verdict === 'thumbs_down', 'text-orange-600 dark:text-orange-400')}
-        >
-          <ThumbsDown className="h-3.5 w-3.5" aria-hidden />
-        </button>
-      </div>
+      {/* Thumb chips — in-flow siblings of the Copy chip inside the bubble's
+          action row (the row owns spacing and the top separator). */}
+      <button
+        type="button"
+        onClick={() => submitVerdict('thumbs_up')}
+        disabled={isSubmitting}
+        aria-label={t('chat.feedback.up')}
+        aria-pressed={verdict === 'thumbs_up'}
+        className={chipClass(verdict === 'thumbs_up', 'text-green-600 dark:text-green-400')}
+      >
+        <ThumbsUp className="h-3.5 w-3.5" aria-hidden />
+      </button>
+      <button
+        type="button"
+        onClick={() => submitVerdict('thumbs_down')}
+        disabled={isSubmitting}
+        aria-label={t('chat.feedback.down')}
+        aria-pressed={verdict === 'thumbs_down'}
+        className={chipClass(verdict === 'thumbs_down', 'text-orange-600 dark:text-orange-400')}
+      >
+        <ThumbsDown className="h-3.5 w-3.5" aria-hidden />
+      </button>
 
-      {/* 👎 optional one-line correction — flows under the content */}
+      {/* 👎 optional one-line correction — `w-full` wraps it to its own line
+          under the flex-wrap action row. */}
       {commentOpen && (
-        <div className="mt-2 pt-2 border-t border-border/30 flex items-center gap-2">
+        <div className="w-full flex items-center gap-2 mt-1">
           <input
             type="text"
             value={comment}

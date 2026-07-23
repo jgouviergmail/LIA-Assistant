@@ -1,9 +1,28 @@
 """Pydantic schemas for the Open Loops API contract (P5, ADR-139)."""
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class CloseLoopRequest(BaseModel):
+    """Optional close payload (UXR Lot 7, B5).
+
+    ``done`` maps to closed_reason "api" (the historical value), ``dismissed``
+    records "no longer relevant". ``conversational``/``expired`` are never
+    accepted from the API — they belong to the extractor and the lazy expiry.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    action: Literal["done", "dismissed"] = Field(
+        default="done",
+        description=(
+            "Why the user closes the loop: done (completed) | dismissed " "(no longer relevant)."
+        ),
+    )
 
 
 class OpenLoopResponse(BaseModel):

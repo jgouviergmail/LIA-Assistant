@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versione** : 3.9
-**Data** : 2026-07-22
-**Applicazione** : LIA v1.25.15
+**Data** : 2026-07-23
+**Applicazione** : LIA v1.25.16
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -56,6 +56,7 @@ Ogni utente ha il proprio spazio di configurazione, organizzato in due schede:
 - **Generazione di immagini**: attiva e configura la creazione di immagini tramite IA
 - **Server MCP personali**: connetti i tuoi server MCP per estendere le capacità di LIA
 - **Aspetto**: lingua, fuso orario, tema (5 palette, modalità scura/chiara), font (9 scelte), formato di visualizzazione delle risposte (schede HTML, HTML, Markdown)
+- **La mia dashboard**: nascondi o riordina le 9 schede del briefing — una scheda nascosta non viene nemmeno più recuperata
 - **Debug**: accedi al pannello di debug per ispezionare ogni scambio (se abilitato dall'amministratore)
 
 **Funzionalità avanzate:**
@@ -66,7 +67,7 @@ Ogni utente ha il proprio spazio di configurazione, organizzato in due schede:
 - **Interessi**: definisci i tuoi argomenti preferiti, configura la frequenza delle notifiche, le finestre orarie e le fonti (Perplexity, Brave, Wikipedia, ragionamento IA)
 - **Notifiche proattive**: regola frequenza, finestra oraria e fonti di contesto (calendario, meteo, attività, email, interessi, memorie, diari)
 - **Azioni pianificate**: crea automazioni ricorrenti eseguite dall'assistente
-- **Skills**: attiva/disattiva competenze specializzate, crea le tue Skills personali
+- **Skills**: attiva/disattiva competenze specializzate in una galleria con anteprime, crea le tue Skills personali, o installane una da un URL https (validato lato server)
 - **Spazi di conoscenza**: carica i tuoi documenti (PDF, Word, Excel, PowerPoint, EPUB, HTML e 15+ formati) o sincronizza una cartella di Google Drive — indicizzazione automatica con ricerca ibrida
 - **Export dei consumi**: scarica i tuoi dati di consumo LLM e API in CSV
 

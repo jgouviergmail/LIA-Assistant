@@ -138,6 +138,10 @@ const PUBLIC_ROUTE_SEGMENTS = [
   'demo',
   'privacy',
   'terms',
+  // PWA share-target receiver (UXR Lot 9, A6): a transient redirect page —
+  // it must never be ejected to login by a stray 401 mid-redirect (the chat
+  // it lands on handles authentication itself).
+  'share',
 ] as const;
 
 const PUBLIC_ROUTE_REGEX = new RegExp(

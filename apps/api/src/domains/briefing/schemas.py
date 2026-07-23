@@ -33,6 +33,9 @@ class CardStatus(str, Enum):
     EMPTY = "empty"
     ERROR = "error"
     NOT_CONFIGURED = "not_configured"
+    # UXR Lot 5 (B4): user-hidden section — placeholder emitted WITHOUT any
+    # fetch or cache IO; the frontend never renders it.
+    HIDDEN = "hidden"
 
 
 # =============================================================================
@@ -482,8 +485,20 @@ class SynthesisResponse(BaseModel):
 
 
 # Allowed section names for refresh — must match SECTION_* constants.
+# Completeness vs SECTION_NAMES is PINNED by
+# tests/unit/domains/briefing/test_preferences.py (UXR Lot 5 — this Literal
+# had silently drifted to 6 sections while the grid grew to 9).
 RefreshSectionLiteral = Literal[
-    "weather", "agenda", "mails", "birthdays", "reminders", "health", "all"
+    "weather",
+    "agenda",
+    "mails",
+    "birthdays",
+    "reminders",
+    "health",
+    "for_you",
+    "tasks",
+    "documents",
+    "all",
 ]
 
 
@@ -495,6 +510,6 @@ class RefreshRequest(BaseModel):
     sections: list[RefreshSectionLiteral] = Field(
         ...,
         min_length=1,
-        max_length=7,
+        max_length=10,
         description="Sections to force-refresh; 'all' bypasses every cache.",
     )

@@ -195,3 +195,88 @@ def raise_skill_write_failed(skill_name: str, target: str) -> NoReturn:
         skill_name=skill_name,
         target=target,
     )
+
+
+# ============================================================================
+# URL-sourced import (UXR Lot 10, B12)
+# ============================================================================
+# The ``url_*`` detail PREFIXES below are a stable contract with the frontend
+# (mapped to i18n toast keys) — never reword the prefix, only the tail.
+
+
+def raise_url_import_not_https(url_scheme: str) -> NoReturn:
+    """Raise 400 when the import URL is not https (strict, no upgrade).
+
+    Args:
+        url_scheme: The refused scheme (for logging; never the full URL).
+
+    Raises:
+        ValidationError: 400 Bad Request.
+    """
+    raise ValidationError(
+        detail="url_not_https: only https:// sources are allowed",
+        resource_type="skill_url_import",
+        url_scheme=url_scheme,
+    )
+
+
+def raise_url_import_blocked(reason: str) -> NoReturn:
+    """Raise 400 when the URL fails SSRF validation or answers with a redirect.
+
+    Args:
+        reason: Validator error (hostname/IP class — no user data beyond that).
+
+    Raises:
+        ValidationError: 400 Bad Request.
+    """
+    raise ValidationError(
+        detail=f"url_blocked: {reason}",
+        resource_type="skill_url_import",
+    )
+
+
+def raise_url_import_fetch_failed(reason: str) -> NoReturn:
+    """Raise 502 when the remote host cannot be fetched (network, non-200).
+
+    Args:
+        reason: Short failure class (status code or exception class name).
+
+    Raises:
+        BaseAPIException: 502 Bad Gateway.
+    """
+    raise BaseAPIException(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        detail=f"url_fetch_failed: {reason}",
+        log_event="skill_url_import_fetch_failed",
+        reason=reason,
+    )
+
+
+def raise_url_import_too_large(max_bytes: int) -> NoReturn:
+    """Raise 413 when the streamed body exceeds the configured cap.
+
+    Args:
+        max_bytes: The configured ceiling.
+
+    Raises:
+        BaseAPIException: 413 Content Too Large.
+    """
+    raise BaseAPIException(
+        status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+        detail=f"url_too_large: body exceeds {max_bytes} bytes",
+        log_event="skill_url_import_too_large",
+        max_bytes=max_bytes,
+    )
+
+
+def raise_url_import_not_skill_content() -> NoReturn:
+    """Raise 422 when the fetched body is neither a zip nor a SKILL.md.
+
+    Raises:
+        BaseAPIException: 422 Unprocessable Content.
+    """
+    raise BaseAPIException(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        detail="url_not_skill_content: expected a .zip package or a SKILL.md file",
+        log_event="skill_url_import_not_skill_content",
+    )

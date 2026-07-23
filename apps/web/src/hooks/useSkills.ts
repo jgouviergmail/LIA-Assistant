@@ -20,6 +20,14 @@ export interface Skill {
   enabled_for_user: boolean;
   /** System-level toggle (admin only). True = available to users, false = hidden. */
   admin_enabled?: boolean;
+  /** Multi-turn dialogue skill (ADR-118) — surfaces as a slash command (A4). */
+  dialogue?: boolean;
+  /**
+   * Declared output channels (UXR Lot 10, B12) — frontmatter `outputs:`.
+   * null ⇒ the gallery shows the "text" default with a "declared by the
+   * skill" tooltip.
+   */
+  outputs?: string[] | null;
 }
 
 /**
@@ -54,6 +62,20 @@ interface AdminSystemToggleResponse {
 }
 
 const ENDPOINT = '/skills';
+
+/** API base for direct fetches (uploads, downloads, images). */
+function apiBase(): string {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  return apiUrl ? `${apiUrl}/api/v1` : '/api/v1';
+}
+
+/**
+ * URL of a skill's gallery preview image (UXR Lot 10, B12) — the backend
+ * serves only `assets/preview.png`, 404 when the skill bundles none.
+ */
+export function skillPreviewUrl(skillName: string): string {
+  return `${apiBase()}${ENDPOINT}/${encodeURIComponent(skillName)}/preview`;
+}
 
 /**
  * Hook for skills CRUD operations.
@@ -107,10 +129,7 @@ export function useSkills(adminView = false) {
       const formData = new FormData();
       formData.append('file', file);
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-      const baseUrl = apiUrl ? `${apiUrl}/api/v1` : '/api/v1';
-
-      const response = await fetch(`${baseUrl}${endpoint}`, {
+      const response = await fetch(`${apiBase()}${endpoint}`, {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -150,6 +169,36 @@ export function useSkills(adminView = false) {
   const importAdminSkill = useCallback(
     (file: File) => uploadSkill(file, `${ENDPOINT}/admin/import`),
     [uploadSkill]
+  );
+
+  const importFromUrlMutation = useApiMutation<{ url: string }, Skill>({
+    method: 'POST',
+    componentName: 'Skills',
+  });
+
+  /**
+   * Import a user skill from an https URL (UXR Lot 10, B12). The backend
+   * refuses non-https, private targets, redirects and oversized bodies with
+   * stable `url_*` detail prefixes surfaced in the thrown error message.
+   */
+  const importFromUrl = useCallback(
+    async (url: string): Promise<Skill | undefined> => {
+      const result = await importFromUrlMutation.mutate(`${ENDPOINT}/import-from-url`, { url });
+      if (result) {
+        setData(prev => {
+          if (!prev) return prev;
+          const existing = prev.skills.some(s => s.name === result.name);
+          return {
+            skills: existing
+              ? prev.skills.map(s => (s.name === result.name ? result : s))
+              : [...prev.skills, result],
+            total: existing ? prev.total : prev.total + 1,
+          };
+        });
+      }
+      return result;
+    },
+    [importFromUrlMutation, setData]
   );
 
   const deleteSkill = useCallback(
@@ -285,8 +334,7 @@ export function useSkills(adminView = false) {
 
   /** Download any accessible skill as a zip archive (browser download). */
   const downloadSkill = useCallback(async (skillName: string, isAdmin = false) => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-    const baseUrl = apiUrl ? `${apiUrl}/api/v1` : '/api/v1';
+    const baseUrl = apiBase();
     const endpoint = isAdmin
       ? `${baseUrl}${ENDPOINT}/admin/${skillName}/download`
       : `${baseUrl}${ENDPOINT}/${skillName}/download`;
@@ -332,6 +380,7 @@ export function useSkills(adminView = false) {
     // Mutations
     importSkill,
     importAdminSkill,
+    importFromUrl,
     deleteSkill,
     deleteAdminSkill,
     toggleSkill,
@@ -342,6 +391,7 @@ export function useSkills(adminView = false) {
     downloadSkill,
 
     // Mutation states
+    importingFromUrl: importFromUrlMutation.loading,
     deleting: deleteMutation.loading,
     deletingAdmin: deleteAdminMutation.loading,
     toggling: toggleMutation.loading,

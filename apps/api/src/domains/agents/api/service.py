@@ -24,7 +24,12 @@ from src.core.constants import (
     RESPONSE_FEEDBACK_JOURNAL_IDS_MAX,
     USAGE_LIMIT_EXCEEDED_ERROR_CODE,
 )
-from src.core.field_names import FIELD_ERROR_TYPE, FIELD_INJECTED_JOURNAL_IDS, FIELD_RUN_ID
+from src.core.field_names import (
+    FIELD_ERROR_TYPE,
+    FIELD_FOLLOWUP_SUGGESTIONS,
+    FIELD_INJECTED_JOURNAL_IDS,
+    FIELD_RUN_ID,
+)
 from src.core.i18n import normalize_language
 from src.domains.agents.api.attachments_injection import inject_attachments_into_state
 from src.domains.agents.api.error_messages import SSEErrorMessages
@@ -35,6 +40,10 @@ from src.domains.agents.data_registry.message_widgets import with_persisted_widg
 from src.domains.agents.dependencies import ToolDependencies
 from src.domains.agents.services.orchestration.approval_decision import (
     HitlDecisionStaleError,
+)
+from src.domains.agents.services.streaming.followup_metadata import (
+    pop_followups,
+    with_followup_suggestions,
 )
 from src.domains.agents.services.streaming.trace_capture import with_persisted_trace
 from src.domains.agents.services.streaming.voice_coordinator import (
@@ -1107,6 +1116,11 @@ class AgentService(
                     duration = time.time() - start_time
                     ttft = first_token_time - start_time if first_token_time else None
 
+                    # UXR Lot 4 (A2): pop this run's follow-up chips ONCE —
+                    # consumed by both the archived metadata and the done
+                    # chunk below. Empty when the initiative did not emit any.
+                    followup_suggestions = pop_followups(run_id)
+
                     # NOTE (ADR-117): attachment metadata and STT kwargs are now
                     # built BEFORE graph execution (archive-first block above).
 
@@ -1304,6 +1318,14 @@ class AgentService(
                                 streaming_service.trace_capture.snapshot(),
                                 duration_ms=int(duration * 1000),
                                 run_id=run_id,
+                            )
+
+                            # UXR Lot 4 (A2): persist the follow-up chips so
+                            # they survive a reload while the answer stays the
+                            # latest. Branch-free enricher (new-dict).
+                            assistant_metadata = with_followup_suggestions(
+                                assistant_metadata,
+                                followup_suggestions,
                             )
 
                             archived_msg = await conv_service.archive_message(
@@ -1565,6 +1587,10 @@ class AgentService(
                     # (history rows already carry their DB id).
                     if archived_assistant_msg_id is not None:
                         done_metadata["archived_message_id"] = str(archived_assistant_msg_id)
+                    # UXR Lot 4 (A2): follow-up chips of this run (ADR-117:
+                    # mirrored in BOTH frontend DoneMetadata types).
+                    if followup_suggestions:
+                        done_metadata[FIELD_FOLLOWUP_SUGGESTIONS] = followup_suggestions
                     # Resolve includes the Route 3 fallback (activate_skill_tool
                     # called directly by the response LLM, no planner involved)
                     resolved_skill_name = streaming_service.resolve_activated_skill_name()

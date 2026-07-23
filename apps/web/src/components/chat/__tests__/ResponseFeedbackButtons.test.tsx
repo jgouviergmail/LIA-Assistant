@@ -81,6 +81,17 @@ describe('ResponseFeedbackButtons', () => {
     );
   });
 
+  it('renders in-flow chips and a full-width correction row (PERSO layout)', () => {
+    const { container } = render(<ResponseFeedbackButtons messageDbId="msg-1" />);
+    // No overlay wrapper — the chips sit in the bubble's action row.
+    expect(container.querySelector('.absolute')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'chat.feedback.down' }));
+    const input = screen.getByRole('textbox', { name: 'chat.feedback.comment_placeholder' });
+    // The correction line wraps under the row (flex-wrap parent + w-full).
+    expect(input.parentElement?.className).toMatch(/w-full/);
+  });
+
   it('closes the correction input on Escape without sending', () => {
     render(<ResponseFeedbackButtons messageDbId="msg-1" />);
     fireEvent.click(screen.getByRole('button', { name: 'chat.feedback.down' }));

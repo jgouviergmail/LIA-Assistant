@@ -274,3 +274,7 @@ Nearly **100% of LIA's code is written by an AI**, under human direction. Four m
 • **Recurring adversarial audits**: the whole system is re-examined against executed evidence (latest assessment: 8.3/10 across 24 normalized areas mapped to ISO/IEC 25010, zero major and zero minor findings — full public report: https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)
 
 The full story — method, trade-offs, operations and what remains to be done — is on the **Story page** of the website (menu → Story), and the source code is open on GitHub: https://github.com/jgouviergmail/LIA-Assistant
+
+
+## Can I install LIA like an app on my phone or computer?
+Yes. LIA is a **PWA**: on Android/desktop Chrome, use "Install" (LIA suggests it discreetly after a few visits); on iOS Safari, "Share → Add to Home Screen". You get a home-screen icon, shortcuts (chat, briefing) and — once installed — the system **share menu** can send text or links straight into a LIA chat draft. Everything is localized in the 6 languages.

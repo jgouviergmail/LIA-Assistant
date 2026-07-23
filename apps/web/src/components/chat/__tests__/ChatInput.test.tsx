@@ -166,6 +166,138 @@ describe('ChatInput — placeholder', () => {
   });
 });
 
+describe('ChatInput — sent-history walk (UXR Lot 2 A7, extended QA 2026-07-23)', () => {
+  const HISTORY = ['relance le serveur', 'météo demain', 'résume mes mails'] as const;
+
+  it('recalls the last sent message on ArrowUp in an empty input', () => {
+    const onMessageChange = vi.fn();
+    renderWithProviders(
+      <ChatInput
+        onSendMessage={vi.fn()}
+        onMessageChange={onMessageChange}
+        sentHistory={HISTORY}
+      />
+    );
+    const box = screen.getByRole('textbox');
+    fireEvent.keyDown(box, { key: 'ArrowUp' });
+    expect(box).toHaveValue('relance le serveur');
+    expect(onMessageChange).toHaveBeenCalledWith('relance le serveur');
+  });
+
+  it('walks older on repeated ArrowUp and stops at the oldest entry', () => {
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} sentHistory={HISTORY} />);
+    const box = screen.getByRole('textbox');
+    fireEvent.keyDown(box, { key: 'ArrowUp' });
+    fireEvent.keyDown(box, { key: 'ArrowUp' });
+    expect(box).toHaveValue('météo demain');
+    fireEvent.keyDown(box, { key: 'ArrowUp' });
+    fireEvent.keyDown(box, { key: 'ArrowUp' });
+    fireEvent.keyDown(box, { key: 'ArrowUp' });
+    expect(box).toHaveValue('résume mes mails');
+  });
+
+  it('walks back down with ArrowDown and lands on an empty input past the newest', () => {
+    const onMessageChange = vi.fn();
+    renderWithProviders(
+      <ChatInput onSendMessage={vi.fn()} onMessageChange={onMessageChange} sentHistory={HISTORY} />
+    );
+    const box = screen.getByRole('textbox');
+    fireEvent.keyDown(box, { key: 'ArrowUp' });
+    fireEvent.keyDown(box, { key: 'ArrowUp' });
+    fireEvent.keyDown(box, { key: 'ArrowDown' });
+    expect(box).toHaveValue('relance le serveur');
+    fireEvent.keyDown(box, { key: 'ArrowDown' });
+    expect(box).toHaveValue('');
+    expect(onMessageChange).toHaveBeenLastCalledWith('');
+  });
+
+  it('editing the recalled text ends the walk (arrows return to the caret)', async () => {
+    const { user } = renderWithProviders(
+      <ChatInput onSendMessage={vi.fn()} sentHistory={HISTORY} />
+    );
+    const box = screen.getByRole('textbox');
+    fireEvent.keyDown(box, { key: 'ArrowUp' });
+    await user.type(box, ' !');
+    fireEvent.keyDown(box, { key: 'ArrowUp' });
+    expect(box).toHaveValue('relance le serveur !');
+    fireEvent.keyDown(box, { key: 'ArrowDown' });
+    expect(box).toHaveValue('relance le serveur !');
+  });
+
+  it('never recalls while the input holds text (multi-line editing stays intact)', async () => {
+    const { user } = renderWithProviders(
+      <ChatInput onSendMessage={vi.fn()} sentHistory={['ancien message']} />
+    );
+    const box = screen.getByRole('textbox');
+    await user.type(box, 'en cours');
+    fireEvent.keyDown(box, { key: 'ArrowUp' });
+    expect(box).toHaveValue('en cours');
+  });
+
+  it('ignores ArrowUp during IME composition', () => {
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} sentHistory={['拼音']} />);
+    const box = screen.getByRole('textbox');
+    fireEvent.keyDown(box, { key: 'ArrowUp', isComposing: true });
+    expect(box).toHaveValue('');
+  });
+
+  it('is inert without history', () => {
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} />);
+    const box = screen.getByRole('textbox');
+    fireEvent.keyDown(box, { key: 'ArrowUp' });
+    expect(box).toHaveValue('');
+  });
+
+  it('caps the textarea at the backend message limit', () => {
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} />);
+    expect(screen.getByRole('textbox')).toHaveAttribute('maxlength', '10000');
+  });
+});
+
+describe('ChatInput — controlled prefill (UXR Lot 4, A2)', () => {
+  it('replaces the content when the prefill nonce changes and notifies', () => {
+    const onMessageChange = vi.fn();
+    const { rerender } = renderWithProviders(
+      <ChatInput
+        onSendMessage={vi.fn()}
+        onMessageChange={onMessageChange}
+        prefill={{ text: '', nonce: 0 }}
+      />
+    );
+    rerender(
+      <ChatInput
+        onSendMessage={vi.fn()}
+        onMessageChange={onMessageChange}
+        prefill={{ text: 'Montre la météo de demain', nonce: 1 }}
+      />
+    );
+    expect(screen.getByRole('textbox')).toHaveValue('Montre la météo de demain');
+    expect(onMessageChange).toHaveBeenCalledWith('Montre la météo de demain');
+  });
+
+  it('never applies the MOUNT nonce (a restored draft must survive)', () => {
+    renderWithProviders(
+      <ChatInput
+        onSendMessage={vi.fn()}
+        initialMessage="brouillon restauré"
+        prefill={{ text: 'écrasement interdit', nonce: 5 }}
+      />
+    );
+    expect(screen.getByRole('textbox')).toHaveValue('brouillon restauré');
+  });
+
+  it('does not reapply an unchanged nonce on unrelated rerenders', async () => {
+    const { rerender, user } = renderWithProviders(
+      <ChatInput onSendMessage={vi.fn()} prefill={{ text: 'chip', nonce: 1 }} />
+    );
+    const box = screen.getByRole('textbox');
+    await user.clear(box);
+    await user.type(box, 'édition manuelle');
+    rerender(<ChatInput onSendMessage={vi.fn()} prefill={{ text: 'chip', nonce: 1 }} />);
+    expect(box).toHaveValue('édition manuelle');
+  });
+});
+
 describe('ChatInput — sending', () => {
   it('sends the trimmed message on Enter', async () => {
     const onSendMessage = vi.fn();

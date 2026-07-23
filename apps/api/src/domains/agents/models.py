@@ -436,6 +436,7 @@ class MessagesState(TypedDict):
     initiative_results: list[dict[str, Any]]  # Actions executed + reasoning per iteration
     initiative_skipped_reason: str | None  # Why initiative was skipped (debug panel)
     initiative_suggestion: str | None  # Proactive write suggestion for response_node
+    initiative_followups: list[str] | None  # Tappable follow-up chips (UXR A2)
 
     # ReAct Execution Mode (ADR-070)
     execution_mode: str | None  # "pipeline" | "react" (from user preference)
@@ -620,6 +621,7 @@ def create_initial_state(
         initiative_results=[],
         initiative_skipped_reason=None,
         initiative_suggestion=None,
+        initiative_followups=None,
         # ReAct Execution Mode (ADR-070)
         execution_mode=None,
         react_agent_result=None,

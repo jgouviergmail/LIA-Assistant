@@ -16,8 +16,15 @@ run in parallel (SQLAlchemy AsyncSession is not concurrent-safe).
 """
 
 from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.dependencies import get_db
+from src.core.exceptions import raise_invalid_input
 from src.core.session_dependencies import get_current_active_session
+from src.domains.briefing.preferences import (
+    BriefingPreferences,
+    sanitize_briefing_preferences,
+)
 from src.domains.briefing.schemas import (
     BriefingResponse,
     CardsResponse,
@@ -28,6 +35,10 @@ from src.domains.briefing.service import BriefingService
 from src.domains.users.models import User
 
 router = APIRouter(prefix="/briefing", tags=["briefing"])
+
+# Stable error code — the frontend refuses to offer refresh on hidden cards;
+# this guards direct API calls (UXR Lot 5, B4).
+ERROR_CODE_SECTION_HIDDEN = "section_hidden"
 
 
 @router.get(
@@ -78,5 +89,54 @@ async def refresh_today_briefing(
     Re-fetches the requested sections (bypassing cache) AND regenerates the
     greeting + synthesis. Returns the complete payload in one call so the
     frontend can swap everything at once after a user-triggered refresh.
+    Refreshing a user-hidden section is a 400 (stable code
+    ``section_hidden``) — hidden means "never fetched", by design.
     """
+    hidden = set(sanitize_briefing_preferences(current_user.briefing_preferences).hidden)
+    blocked = sorted(hidden & set(payload.sections))
+    if blocked:
+        raise_invalid_input(
+            f"{ERROR_CODE_SECTION_HIDDEN}: {', '.join(blocked)}",
+            sections=blocked,
+        )
     return await BriefingService(current_user).build_today(force_refresh=set(payload.sections))
+
+
+@router.get(
+    "/preferences",
+    response_model=BriefingPreferences,
+    summary="Get the briefing grid preferences (visibility + order)",
+)
+async def get_briefing_preferences(
+    current_user: User = Depends(get_current_active_session),
+) -> BriefingPreferences:
+    """Sanitized view of the stored preferences (UXR Lot 5, B4).
+
+    NULL column → all sections visible in canonical order; unknown stored
+    names are filtered and the order is completed canonically.
+    """
+    return sanitize_briefing_preferences(current_user.briefing_preferences)
+
+
+@router.put(
+    "/preferences",
+    response_model=BriefingPreferences,
+    summary="Replace the briefing grid preferences (visibility + order)",
+)
+async def put_briefing_preferences(
+    payload: BriefingPreferences,
+    current_user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> BriefingPreferences:
+    """Full replace of the grid preferences (UXR Lot 5, B4).
+
+    Validation is strict (unknown/duplicate names → 422). The write is a
+    plain NEW-dict assignment — the JSONB new-dict rule.
+    """
+    current_user.briefing_preferences = {
+        "hidden": list(payload.hidden),
+        "order": list(payload.order),
+    }
+    db.add(current_user)
+    await db.commit()
+    return sanitize_briefing_preferences(current_user.briefing_preferences)

@@ -43,6 +43,17 @@ When you cannot search precisely, prefer other high-value checks instead.
 
 For suggestions: if you spot something that would need a WRITE action
 (create event, send reply), phrase it as a helpful question.
+
+FOLLOW-UP CHIPS ("followup_suggestions") — INDEPENDENT of should_act: ALWAYS
+consider proposing 0-3 short follow-up requests the user might naturally send
+next, grounded in the execution results and the user context. Rules:
+- Each is a USER message (imperative or interrogative addressed to the
+  assistant), written in the user's language (see UserContext below),
+  max ~12 words.
+- Concrete and immediately actionable from the visible results (a date, a
+  person, a place that actually appeared) — never generic ("tell me more").
+- Distinct from each other and from "suggestion"; skip entirely (empty list)
+  when nothing genuinely useful comes to mind. Quality over quantity.
 </DecisionLogic>
 
 --- DYNAMIC CONTEXT (all variable data below) ---

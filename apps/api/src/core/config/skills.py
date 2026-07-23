@@ -29,6 +29,10 @@ from src.core.constants import (
     SKILLS_SCRIPT_UNPRIVILEGED_GID,
     SKILLS_SCRIPT_UNPRIVILEGED_UID,
     SKILLS_SYSTEM_PATH_DEFAULT,
+    SKILLS_URL_IMPORT_MAX_BYTES_DEFAULT,
+    SKILLS_URL_IMPORT_RATE_MAX_CALLS_DEFAULT,
+    SKILLS_URL_IMPORT_RATE_WINDOW_SECONDS_DEFAULT,
+    SKILLS_URL_IMPORT_TIMEOUT_SECONDS_DEFAULT,
     SKILLS_USERS_PATH_DEFAULT,
     SKILLS_ZIP_MAX_DECOMPRESSED_KB,
     SKILLS_ZIP_MAX_FILES,
@@ -103,6 +107,50 @@ class SkillsSettings(BaseSettings):
             "(skill-generator flow). When false, generated skills must be "
             "imported manually through Settings."
         ),
+    )
+
+    # ========================================================================
+    # URL Import (UXR Lot 10, B12)
+    # ========================================================================
+
+    skills_url_import_enabled: bool = Field(
+        default=True,
+        description=(
+            "Enable POST /skills/import-from-url (https-only, SSRF-validated, "
+            "streamed size cap; feeds the same hardened import pipeline as "
+            "file upload)."
+        ),
+    )
+
+    skills_url_import_max_bytes: int = Field(
+        default=SKILLS_URL_IMPORT_MAX_BYTES_DEFAULT,
+        ge=1024,
+        le=52_428_800,
+        description="Streamed download cap for URL-sourced skill imports (bytes).",
+    )
+
+    skills_url_import_timeout_seconds: int = Field(
+        default=SKILLS_URL_IMPORT_TIMEOUT_SECONDS_DEFAULT,
+        ge=1,
+        le=120,
+        description="Total HTTP timeout for URL-sourced skill imports (seconds).",
+    )
+
+    skills_url_import_rate_max_calls: int = Field(
+        default=SKILLS_URL_IMPORT_RATE_MAX_CALLS_DEFAULT,
+        ge=1,
+        le=1000,
+        description=(
+            "Per-user outbound-fetch attempts allowed per window on "
+            "POST /skills/import-from-url (failed imports consume no quota)."
+        ),
+    )
+
+    skills_url_import_rate_window_seconds: int = Field(
+        default=SKILLS_URL_IMPORT_RATE_WINDOW_SECONDS_DEFAULT,
+        ge=60,
+        le=86_400,
+        description="Sliding-window size for the URL-import rate limit (seconds).",
     )
 
     # ========================================================================

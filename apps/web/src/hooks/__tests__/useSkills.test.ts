@@ -48,12 +48,13 @@ function skill(over: Partial<Skill> = {}): Skill {
   };
 }
 
-/** The seven mutations, in the order the hook declares them. */
+/** The eight mutations, in the order the hook declares them. */
 const mutate = {
   remove: mutateSpy(),
   reload: mutateSpy(),
   toggle: mutateSpy(),
   systemToggle: mutateSpy(),
+  importFromUrl: mutateSpy(),
   translate: mutateSpy(),
   describe: mutateSpy(),
   removeAdmin: mutateSpy(),
@@ -63,6 +64,7 @@ const ORDER = [
   mutate.reload,
   mutate.toggle,
   mutate.systemToggle,
+  mutate.importFromUrl,
   mutate.translate,
   mutate.describe,
   mutate.removeAdmin,
@@ -197,6 +199,21 @@ describe('useSkills — importing', () => {
     const { result } = setup();
 
     await expect(result.current.importSkill(archive())).rejects.toThrow('Import failed (500)');
+  });
+
+  it('imports from an https URL through the dedicated endpoint (UXR Lot 10)', async () => {
+    const imported = skill({ name: 'net-skill' });
+    mutate.importFromUrl.mockResolvedValue(imported);
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.importFromUrl('https://example.com/net-skill.zip');
+    });
+
+    expect(mutate.importFromUrl).toHaveBeenCalledWith(`${ENDPOINT}/import-from-url`, {
+      url: 'https://example.com/net-skill.zip',
+    });
+    expect(applyUpdater(cache())).toEqual({ skills: [skill(), imported], total: 2 });
   });
 });
 

@@ -5,8 +5,8 @@
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
 **Version** : 3.4
-**Date** : 2026-07-22
-**Application** : LIA v1.25.15
+**Date** : 2026-07-23
+**Application** : LIA v1.25.16
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -695,6 +695,8 @@ Factory **catalogue-driven** (ADR-081) : `factory.get_tts_client()` lit l'overri
 
 Node LangGraph post-exécution : après chaque tour actionnable, l'initiative analyse les résultats et vérifie proactivement les informations cross-domain (read-only). Exemples : météo pluie → vérifier calendrier pour activités outdoor, email mentionnant un rdv → vérifier disponibilité, tâche deadline → rappeler le contexte. 100% prompt-driven (pas de logique hardcodée), pré-filtre structurel (domaines adjacents), injection mémoire + centres d'intérêt, champ suggestion pour proposer des actions write. Configurable via `INITIATIVE_ENABLED`, `INITIATIVE_MAX_ITERATIONS`, `INITIATIVE_MAX_ACTIONS`.
 
+Le même nœud émet aussi jusqu'à 3 **puces de suivi** — de courtes demandes que l'utilisateur enverra probablement ensuite, formulées dans sa langue et ancrées dans les résultats visibles. Une sanitisation côté serveur (clamp, dédoublonnage insensible à la casse, plafond dur) et un handoff pop-once par run les portent à la fois dans le chunk SSE `done` et dans les métadonnées du message archivé : les puces s'affichent en direct et survivent à un rechargement ; en taper une ne fait que préremplir la saisie.
+
 ### 16.3. Actions planifiées
 
 APScheduler avec leader election Redis (SETNX, TTL 120s, recheck 5s). `FOR UPDATE SKIP LOCKED` pour isolation. Auto-approve des plans (`plan_approved=True` injecté dans le state). Auto-disable après 5 échecs consécutifs. Retry sur erreurs transitoires.
@@ -752,7 +754,7 @@ Design **fail-open** : les échecs d'infrastructure ne bloquent pas les utilisat
 | XSS (rendu LLM) | Frontière `rehype-sanitize` sur le pipeline markdown du chat (`rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`, schéma audité — `script`/`iframe`/`form`/handlers supprimés), HTTP-only cookies, CSP backend ; les MCP/Skill Apps ne passent jamais par le markdown (sentinelle → widget iframe sandboxé) |
 | CSRF | SameSite=Lax |
 | SQL Injection | SQLAlchemy ORM (requêtes paramétrées) |
-| SSRF | DNS resolution + IP blocklist (Web Fetch, MCP, Browser) |
+| SSRF | DNS resolution + IP blocklist (Web Fetch, MCP, Browser) ; l'installation de skills par URL réutilise le même validateur avec des termes plus stricts : https uniquement, redirections refusées, plafond streamé, deadline totale de transfert, rate limit par utilisateur |
 | Prompt Injection | `<external_content>` safety markers |
 | Rate Limiting / spoofing IP | Redis sliding window distribué (Lua atomique) ; chaîne proxy de confiance — ports API bindés loopback (cloudflared = seule entrée), uvicorn `--proxy-headers`, `request.client.host` validé comme unique source d'IP (fini le bucket global partagé, XFF brut jamais lu) |
 | Supply Chain | SHA-pinned GitHub Actions, Dependabot weekly |
@@ -947,10 +949,13 @@ Une bibliothèque de skills système démontre le contrat : `interactive-map`, `
 
 **Cycle de vie des skills** : toute skill entre par un pipeline d'import unique et durci (`SkillImportService`) — validation stricte du nom agentskills.io avant toute écriture disque (garde anti path-traversal), plafonds d'expansion des zips, staging + swap avec restauration automatique de la version précédente en cas d'échec, et rejet des conflits de noms inter-scopes (DB + cache en double autorité). Le générateur de skills intégré emprunte le même pipeline via l'outil `import_user_skill` : une skill créée dans le chat est validée, installée et annoncée par son nom dans le même tour — sans upload manuel. Les skills dont le workflow s'étend sur plusieurs tours déclarent `dialogue: true` dans leur frontmatter, que le chat override du QueryAnalyzer respecte (leur détection survit aux réponses conversationnelles de suivi) tandis que le runner ReAct des skills reçoit l'historique de conversation fenêtré pour reprendre le dialogue au lieu de le recommencer.
 
+La surface skills est une **galerie** : les cartes ouvrent une fiche détail avec la description localisée, les **canaux de sortie** déclarés (le loader lit enfin le champ frontmatter `outputs:` que le générateur validait depuis toujours — parité verrouillée en CI), une `assets/preview.png` embarquée servie par un endpoint dédié (garde traversal par pattern de nom, plafond de taille, 404 indifférencié pour les skills désactivées par l'admin), et un avertissement de provenance sur toute skill non-système. L'installation accepte une seconde source en plus de l'upload de fichier : une URL https, durcie comme décrit en §19.3, alimentant exactement le même pipeline d'import (`skill_url_imports_total{outcome}` compte chaque chemin).
+
 ### 23.8. Historique de conversation, recherche et rendu riche du chat
 
-Quatre capacités transverses partagent la même philosophie produit : **feedback immédiat, zéro surcoût serveur quand ce n'est pas nécessaire**.
+Cinq capacités transverses partagent la même philosophie produit : **feedback immédiat, zéro surcoût serveur quand ce n'est pas nécessaire**.
 
+- **Invariant de lecture & maturité de la saisie** — une réponse en streaming n'arrache jamais un lecteur remonté dans le fil : la décision de suivi mesure la géométrie en direct au moment de décider (compensée de la croissance), un tick d'envoi explicite remplace les heuristiques par diff de données (deux d'entre elles ont produit des faux positifs contre le vrai moteur), et un bouton flottant avec badge des réponses hors écran ramène le lecteur. La saisie porte un brouillon persistant par utilisateur (débouncé, purgé à la déconnexion), un parcours ↑/↓ des 10 derniers envois, des commandes slash `/` (combobox WAI-ARIA sur le textarea natif, filtrage localisé insensible aux accents) et une rangée d'actions in-flow sous chaque réponse (copier, feedback, trace d'exécution).
 - **Recherche d'historique conversation** — query parameter `?search=` sur `GET /conversations/me/messages`. Le filtrage passe par PostgreSQL `ILIKE` (case-insensitive, accent-sensitive — contrat verrouillé par test). Côté frontend, un `useMemo` sur `messages` filtre instantanément les messages chargés ; l'endpoint backend reste disponible comme capacité latente pour un futur UI de recherche profonde.
 - **Pagination scroll-up** — même endpoint, curseur keyset `?before=<created_at>` retournant `has_more` et `next_cursor`. L'UI chat branche un `IntersectionObserver` sur une sentinelle de 1 px au-dessus du premier message ; les pages plus anciennes sont préfixées avec dédoublonnage par id, et un `wasPrependRef` partagé fait sauter le `useEffect` d'auto-scroll-vers-le-bas pour ce cycle, de sorte que la fenêtre reste exactement là où le lecteur en était. L'index composite existant `(conversation_id, created_at DESC)` rend chaque page un seek index-only, quelle que soit la longueur de la conversation. Les bornes de pagination (défaut 50, plafond dur 200) sont ajustables via les variables d'environnement `CONVERSATION_HISTORY_DEFAULT_LIMIT` / `CONVERSATION_HISTORY_MAX_LIMIT`.
 - **Rendu LaTeX** — Les formules mathématiques et scientifiques que LIA écrit (`$inline$` / `$$block$$`) sont rendues via KaTeX dans `MarkdownContent.tsx`. Comme l'assistant émet toute sa réponse en HTML, un plugin `rehypeMathInText` détecte les délimiteurs `$`/`$$` au niveau hast — après expansion du HTML par `rehypeRaw` — et les convertit en marqueurs que `rehype-katex` rend ; `remark-math`, limité au markdown, ne voit pas le math enfoui dans le HTML. Ordre : `rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex` ; les étapes math ne lisent que du texte déjà sanitisé et n'émettent que des spans à classe fixe, sans surface d'attaque nouvelle.
@@ -1009,6 +1014,10 @@ LIA accepte les ingestions d'événements externes (mesures iPhone Apple Health,
 **Baseline adaptive + signaux factuels** : `baseline.compute_baseline()` choisit automatiquement entre `bootstrap` (médiane de toutes les données, exposée tant qu'on a moins de 7 jours) et `rolling` (médiane mobile 28 j) ; le mode est remonté au LLM pour qu'il qualifie ses affirmations. `signals.detect_recent_variations()` + `detect_notable_events()` produisent des **faits** (streaks directionnels ≥ 3 j au-dessus de 10 % delta quotidien, événements structurels comme les streaks d'inactivité) — jamais de diagnostic.
 
 **Exposition aux boucles centrales** : un **toggle utilisateur unique** (opt-in) gouverne d'un seul coup quatre consommateurs — conversation (tools assistant), Heartbeat (source `health_signals`), extraction de mémoire (placeholder `{health_context}` + blob `context_biometric` JSONB en contexte d'émotion forte), et journal (extraction + consolidation). Tous reçoivent la même projection **factuelle et non-brute** : deltas vs baseline, tendances, événements structurels (streaks d'inactivité…) — jamais les valeurs brutes. La baseline mobile 28 j sélectionne automatiquement `bootstrap` (médiane simple tant qu'on a moins de 7 j d'historique, remonté au LLM pour qu'il qualifie ses affirmations) puis bascule en `rolling`. L'erasure RGPD n'a qu'une cible : la table `health_samples`.
+
+### 23.13. Application installable (PWA)
+
+Six manifests localisés (`/manifest-{lng}.json` — `lang`, `start_url`, trois raccourcis, entrées d'icônes `any`/`maskable` séparées ; la parité structurelle des 6 fichiers est verrouillée par test) sont liés par page via `generateMetadata`, avec de vraies icônes PNG et une `apple-touch-icon` (iOS ignore silencieusement les icônes SVG). Le **share target** de l'OS (`GET /{lng}/share`) compose titre/texte/url partagés en un brouillon de chat plafonné empruntant le rail `?draft=` existant — jamais auto-envoyé. Une suggestion d'installation discrète apparaît à partir de la troisième visite (jamais en display-mode standalone, refusable pour toujours) ; Chromium reçoit un vrai prompt d'installation via `beforeinstallprompt`, iOS l'instruction Partager → Sur l'écran d'accueil.
 
 ---
 
@@ -1110,4 +1119,4 @@ L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayé
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 120+ ADRs, et du changelog (v1.0 à v1.25.15). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (280+ documents), des 120+ ADRs, et du changelog (v1.0 à v1.25.16). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

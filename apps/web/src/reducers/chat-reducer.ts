@@ -75,6 +75,11 @@ function applyDoneMetadata(m: Message, metadata: StreamDoneMetadata): Message {
       // QW-5 (ADR-138): DB id of the archived row — the feedback buttons only
       // render when a message can be targeted server-side.
       ...(metadata.archived_message_id ? { message_db_id: metadata.archived_message_id } : {}),
+      // UXR Lot 4 (A2): follow-up chips — same field name as the archived
+      // message_metadata so live and reloaded rows read identically.
+      ...(metadata.followup_suggestions?.length
+        ? { followup_suggestions: metadata.followup_suggestions }
+        : {}),
     },
   };
 }

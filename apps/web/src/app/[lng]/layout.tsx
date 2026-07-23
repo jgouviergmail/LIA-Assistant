@@ -23,6 +23,7 @@ import { SnowfallEffect } from '@/components/effects/SnowfallEffect';
 import { languages } from '@/i18n/settings';
 import { initI18next, validateLanguage } from '@/i18n';
 import { WebSiteJsonLd, OrganizationJsonLd } from '@/components/seo/JsonLd';
+import { buildAppMetadata } from '@/lib/app-metadata';
 import '@/styles/globals.css';
 import 'katex/dist/katex.min.css';
 
@@ -34,33 +35,19 @@ const inter = localFont({
   weight: '100 900',
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com'),
-  title: 'LIA - Votre assistant personnel',
-  description: "Votre assistant personnel intelligent pour la productivité et l'assistance",
-  icons: {
-    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
-    apple: [{ url: '/icon.svg', type: 'image/svg+xml' }],
-  },
-  manifest: '/manifest.json',
-  openGraph: {
-    type: 'website',
-    siteName: 'LIA',
-    images: [
-      {
-        url: '/Title.png',
-        width: 2125,
-        height: 1193,
-        alt: 'LIA — Assistant IA personnel intelligent',
-        type: 'image/png',
-      },
-    ],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    images: ['/Title.png'],
-  },
-};
+/**
+ * Per-locale metadata (UXR Lot 9, A6) — the factory lives in
+ * `lib/app-metadata.ts` (pure, unit-guarded); this wrapper only resolves the
+ * validated locale from the route params.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ lng: string }>;
+}): Promise<Metadata> {
+  const { lng: lngParam } = await params;
+  return buildAppMetadata(validateLanguage(lngParam));
+}
 
 export const viewport: Viewport = {
   width: 'device-width',

@@ -1,12 +1,21 @@
 'use client';
 
+import Link from 'next/link';
 import { Sunrise } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useBriefing } from '@/hooks/useBriefing';
+import { useBriefingPreferences } from '@/hooks/useBriefingPreferences';
+import type {
+  BriefingPreferences,
+  BriefingSection,
+  CardsBundle,
+} from '@/types/briefing';
 import { BriefingError } from './BriefingError';
 import { BriefingSynthesis } from './BriefingSynthesis';
 import { HeroLiaCard } from './HeroLiaCard';
 import { PortraitHint } from './PortraitHint';
+import { StarterChecklistCard } from './StarterChecklistCard';
+import { InstallHint } from '@/components/pwa/InstallHint';
 import { QuickAccessCompact } from './QuickAccessCompact';
 import { RefreshAllButton } from './RefreshAllButton';
 import { AgendaCard } from './cards/AgendaCard';
@@ -33,8 +42,89 @@ import { CardsGridSkeleton, SynthesisSkeleton } from './BriefingSkeleton';
  *   2. Quick Access (Help + Settings)
  *   3. "Mon dashboard" 9-card grid (with the synthesis above the cards)
  */
-export function TodayBriefing() {
+/**
+ * Ordered VISIBLE sections (UXR Lot 5, B4) — pure, pinned by tests: the
+ * stored order filtered by the hidden set; a `hidden` status from the
+ * backend is skipped too (belt and braces — the two must agree).
+ */
+export function visibleOrderedSections(
+  preferences: BriefingPreferences | null,
+  cards: CardsBundle
+): BriefingSection[] {
+  const order = preferences?.order?.length
+    ? preferences.order
+    : (Object.keys(CARD_RENDERERS) as BriefingSection[]);
+  const hidden = new Set(preferences?.hidden ?? []);
+  return order.filter(name => !hidden.has(name) && cards[name]?.status !== 'hidden');
+}
+
+/** One renderer per section — completeness vs the 9 names pinned by test. */
+const CARD_RENDERERS: Record<
+  BriefingSection,
+  (
+    cards: CardsBundle,
+    common: { isRefreshing: boolean; onRefresh: () => void; staggerIndex: number }
+  ) => React.ReactElement
+> = {
+  weather: (c, p) => <WeatherCard section={c.weather} {...p} />,
+  birthdays: (c, p) => <BirthdaysCard section={c.birthdays} {...p} />,
+  reminders: (c, p) => <RemindersCard section={c.reminders} {...p} />,
+  health: (c, p) => <HealthCard section={c.health} {...p} />,
+  agenda: (c, p) => <AgendaCard section={c.agenda} {...p} />,
+  mails: (c, p) => <MailsCard section={c.mails} {...p} />,
+  for_you: (c, p) => <ForYouCard section={c.for_you} {...p} />,
+  tasks: (c, p) => <TasksCard section={c.tasks} {...p} />,
+  documents: (c, p) => <DocumentsCard section={c.documents} {...p} />,
+};
+
+/**
+ * The preference-ordered grid (extracted — CC discipline). All cards hidden
+ * → a discreet CTA to the settings instead of an empty grid.
+ */
+function BriefingCardsGrid({
+  cards,
+  sections,
+  refreshingSections,
+  refetchSection,
+  settingsHref,
+}: {
+  cards: CardsBundle;
+  sections: BriefingSection[];
+  refreshingSections: Set<string>;
+  refetchSection: (section: BriefingSection) => void;
+  settingsHref: string;
+}) {
   const { t } = useTranslation();
+  if (sections.length === 0) {
+    return (
+      <p className="px-1 text-sm italic text-muted-foreground">
+        {t('dashboard.briefing.all_hidden')}{' '}
+        <Link
+          href={settingsHref}
+          className="font-semibold text-primary underline decoration-primary/40 hover:text-primary/80"
+        >
+          {t('dashboard.briefing.all_hidden_cta')}
+        </Link>
+      </p>
+    );
+  }
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+      {sections.map((name, index) => (
+        <div key={name} className="contents">
+          {CARD_RENDERERS[name](cards, {
+            isRefreshing: refreshingSections.has(name),
+            onRefresh: () => refetchSection(name),
+            staggerIndex: index,
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function TodayBriefing() {
+  const { t, i18n } = useTranslation();
   const {
     cards,
     text,
@@ -45,6 +135,10 @@ export function TodayBriefing() {
     refetchSection,
     refreshingSections,
   } = useBriefing();
+  // UXR Lot 5 (B4): grid preferences (visibility + order) — NULL/loading
+  // falls back to the historical layout inside visibleOrderedSections.
+  const { preferences } = useBriefingPreferences();
+  const lng = (i18n.language || 'fr').split('-')[0];
 
   // Page-level error only when BOTH queries fail without any data — otherwise
   // each section renders independently (errors handled per-card).
@@ -58,6 +152,14 @@ export function TodayBriefing() {
       {/* QW-10: discreet "I refined my understanding of you" line when the
           portrait was recompiled recently (renders nothing otherwise). */}
       <PortraitHint />
+
+      {/* UXR Lot 6 (A10): dismissible "getting started" checklist — renders
+          nothing once dismissed or celebrated. */}
+      <StarterChecklistCard />
+
+      {/* UXR Lot 9 (A6): contextual PWA install nudge (≥3 visits, never in
+          standalone, dismissible forever). */}
+      <InstallHint />
 
       {/* Quick Access — placed ABOVE the cards grid as requested */}
       <QuickAccessCompact />
@@ -93,64 +195,16 @@ export function TodayBriefing() {
           <SynthesisSkeleton />
         ) : null}
 
-        {/* Cards: skeleton during initial load → real cards once arrived */}
+        {/* Cards (UXR Lot 5, B4): ordered by the user's preferences, hidden
+            cards never rendered (and never fetched backend-side). */}
         {cards ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-            <WeatherCard
-              section={cards.weather}
-              isRefreshing={refreshingSections.has('weather')}
-              onRefresh={() => refetchSection('weather')}
-              staggerIndex={0}
-            />
-            <BirthdaysCard
-              section={cards.birthdays}
-              isRefreshing={refreshingSections.has('birthdays')}
-              onRefresh={() => refetchSection('birthdays')}
-              staggerIndex={1}
-            />
-            <RemindersCard
-              section={cards.reminders}
-              isRefreshing={refreshingSections.has('reminders')}
-              onRefresh={() => refetchSection('reminders')}
-              staggerIndex={2}
-            />
-            <HealthCard
-              section={cards.health}
-              isRefreshing={refreshingSections.has('health')}
-              onRefresh={() => refetchSection('health')}
-              staggerIndex={3}
-            />
-            <AgendaCard
-              section={cards.agenda}
-              isRefreshing={refreshingSections.has('agenda')}
-              onRefresh={() => refetchSection('agenda')}
-              staggerIndex={4}
-            />
-            <MailsCard
-              section={cards.mails}
-              isRefreshing={refreshingSections.has('mails')}
-              onRefresh={() => refetchSection('mails')}
-              staggerIndex={5}
-            />
-            <ForYouCard
-              section={cards.for_you}
-              isRefreshing={refreshingSections.has('for_you')}
-              onRefresh={() => refetchSection('for_you')}
-              staggerIndex={6}
-            />
-            <TasksCard
-              section={cards.tasks}
-              isRefreshing={refreshingSections.has('tasks')}
-              onRefresh={() => refetchSection('tasks')}
-              staggerIndex={7}
-            />
-            <DocumentsCard
-              section={cards.documents}
-              isRefreshing={refreshingSections.has('documents')}
-              onRefresh={() => refetchSection('documents')}
-              staggerIndex={8}
-            />
-          </div>
+          <BriefingCardsGrid
+            cards={cards}
+            sections={visibleOrderedSections(preferences, cards)}
+            refreshingSections={refreshingSections}
+            refetchSection={refetchSection}
+            settingsHref={`/${lng}/dashboard/settings`}
+          />
         ) : cardsLoading ? (
           <CardsGridSkeleton />
         ) : null}

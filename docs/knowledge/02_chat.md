@@ -318,3 +318,13 @@ You can change your mind — the latest verdict wins. And LIA **never regenerate
 Yes — ask "prepare my call with Marie" and one pass gathers a **360° view**: her contact card, your recent email exchanges, your upcoming shared meetings, and what LIA remembers about her. If a source is unavailable (no calendar connector, for instance), the overview says so honestly instead of guessing.
 
 It also powers the meeting-prep nudge: when a substantial meeting is close, a proactive notification may end with "want me to prepare this meeting for you?".
+
+
+## What are the "/" slash commands?
+Type **/** at the start of an empty message to open the command menu: **/resume** (compact the conversation), **/briefing** (open the dashboard), **/agenda**, **/search**, plus everyday shortcuts — unread emails, weather, weekend weather, tasks, reminders, news — and your dialogue-enabled skills. Filtering understands your language (typing "mété" finds the weather). A command only **pre-fills** the input: nothing is ever sent without you pressing Enter.
+
+## Does my typed message survive a refresh? Can I recall what I sent?
+Yes. Your draft is saved per account as you type and restored after a refresh or navigation (it is cleared when you send, and purged at logout). In an empty input, **↑** walks back through your last 10 sent messages and **↓** walks forward to an empty field — like a terminal. Under every answer, an action row offers **copy**, **feedback** (👍/👎) and the **execution details** ("N steps · X s").
+
+## The thread no longer jumps while I re-read — how does it work?
+When you scroll up to re-read, a streaming answer **never drags you back to the bottom**. A floating button appears with a counter of the responses that arrived off-screen; one tap brings you back. Sending a message still jumps to it, as expected. Under the latest answer, up to 3 **follow-up suggestions** may appear as chips: tapping one fills the input (never sends).

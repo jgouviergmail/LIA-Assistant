@@ -291,12 +291,36 @@
         "task_progress": "Aide-moi à avancer sur « {{subject}} »",
         "task_reschedule": "Replanifie la tâche « {{subject}} »",
         "document_summarize": "Résume-moi le document « {{subject}} »"
-      }
+      },
+      "all_hidden": "Toutes les cartes sont masquées.",
+      "all_hidden_cta": "Choisir les cartes dans les réglages"
     },
     "portrait_hint": {
       "text": "J'ai affiné ma compréhension de vous.",
       "cta": "Voir",
       "dismiss": "Ignorer"
+    },
+    "checklist": {
+      "title": "Bien démarrer avec LIA",
+      "progress": "{{done}}/{{total}}",
+      "progress_aria": "Progression de la checklist",
+      "dismiss": "Masquer définitivement cette checklist",
+      "celebration": "Tout est configuré — profitez de LIA !",
+      "items": {
+        "connector": "Connecter un fournisseur (Google, Apple…)",
+        "personality": "Choisir une personnalité",
+        "voice": "Activer la voix",
+        "telegram": "Relier Telegram",
+        "heartbeat": "Activer le heartbeat proactif",
+        "space": "Créer votre premier espace documentaire",
+        "automation": "Créer votre première automatisation"
+      }
+    },
+    "install_hint": {
+      "text": "Installez LIA comme application pour un accès plus rapide.",
+      "cta": "Installer",
+      "ios_text": "Ajoutez LIA à votre écran d'accueil : Partager → « Sur l'écran d'accueil ».",
+      "dismiss": "Ne plus proposer l'installation"
     }
   },
   "auth": {
@@ -770,6 +794,48 @@
       "comment_placeholder": "Qu'est-ce qui n'allait pas ? (optionnel)",
       "comment_send": "Envoyer",
       "comment_thanks": "Merci, votre correction a été enregistrée."
+    },
+    "scroll": {
+      "to_bottom": "Revenir en bas de la conversation",
+      "return_to_present": "Revenir au présent",
+      "new_responses_one": "{{count}} nouvelle réponse",
+      "new_responses_other": "{{count}} nouvelles réponses"
+    },
+    "followups": {
+      "aria": "Suggestions de suite"
+    },
+    "slash": {
+      "aria": "Commandes disponibles",
+      "kind_local": "action",
+      "kind_chat": "chat",
+      "resume_label": "resume",
+      "resume_description": "Compacter l'historique de la conversation",
+      "briefing_label": "briefing",
+      "briefing_description": "Ouvrir le tableau de bord du jour",
+      "agenda_label": "agenda",
+      "agenda_description": "Demander l'agenda du jour",
+      "agenda_intent": "Quel est mon agenda aujourd'hui ?",
+      "search_label": "recherche",
+      "search_description": "Rechercher dans l'historique",
+      "emails_label": "emails",
+      "emails_description": "Les 5 derniers emails non lus",
+      "emails_intent": "Montre-moi mes 5 derniers emails non lus de la boîte de réception",
+      "weather_label": "météo",
+      "weather_description": "La météo du jour",
+      "weather_intent": "Quelle est la météo aujourd'hui ?",
+      "weather_weekend_label": "météo week-end",
+      "weather_weekend_description": "La météo du week-end",
+      "weather_weekend_intent": "Quelle sera la météo ce week-end ?",
+      "tasks_label": "tâches",
+      "tasks_description": "Mes tâches en cours",
+      "tasks_intent": "Quelles sont mes tâches en cours ?",
+      "reminders_label": "rappels",
+      "reminders_description": "Mes rappels à venir",
+      "reminders_intent": "Quels sont mes prochains rappels ?",
+      "news_label": "actus",
+      "news_description": "Actualités de mes centres d'intérêt",
+      "news_intent": "Quoi de neuf sur mes centres d'intérêt aujourd'hui ?",
+      "skill_intent": "Lance la skill {{name}}"
     }
   },
   "skill_apps": {
@@ -1825,6 +1891,10 @@
           "smart_home": {
             "label": "Smart Home",
             "description": "Intégrations domotiques (lumières, scènes, pièces)"
+          },
+          "telephony": {
+            "label": "Téléphonie",
+            "description": "Appels sortants agentiques (compte ElevenLabs par utilisateur)"
           }
         },
         "connector_descriptions": {
@@ -1847,7 +1917,8 @@
           "microsoft_contacts": "Recherchez et gérez vos contacts Microsoft",
           "microsoft_tasks": "Gérez vos tâches et listes de tâches Microsoft To Do",
           "browser": "Navigation web interactive : naviguer, cliquer, remplir des formulaires",
-          "philips_hue": "Contrôle des lumières connectées : on/off, luminosité, couleurs, scènes et pièces"
+          "philips_hue": "Contrôle des lumières connectées : on/off, luminosité, couleurs, scènes et pièces",
+          "elevenlabs_telephony": "Appels téléphoniques sortants agentiques via le compte ElevenLabs de l'utilisateur (clé API + webhook)"
         }
       },
       "personalities": {
@@ -2512,7 +2583,31 @@
       "guide_skilltool_run": "Exécute un script Python du dossier scripts/",
       "guide_modal_compat_title": "Standard ouvert agentskills.io",
       "guide_modal_compat_body": "Les skills sont 100% compatibles avec l'écosystème agentskills.io — le même format est utilisé par Claude Code, Cursor, VS Code, GitHub Copilot et 30+ autres produits. Importez des skills depuis des marketplaces comme skillsmp.com.",
-      "guide_modal_link": "En savoir plus sur le standard agentskills.io"
+      "guide_modal_link": "En savoir plus sur le standard agentskills.io",
+      "gallery": {
+        "preview_alt": "Aperçu de {{name}}",
+        "channels": "Canaux de sortie :",
+        "channel_text": "texte",
+        "channel_frame": "cadre interactif",
+        "channel_image": "image",
+        "channels_undeclared": "par défaut — non déclaré par la skill",
+        "provenance_warning": "Cette skill a été importée depuis l'extérieur de LIA. Ses instructions s'exécutent avec accès à vos données connectées — ne conservez que des skills dont vous connaissez la source.",
+        "enabled_label": "Activée",
+        "open_details": "Détails de la skill : {{name}}",
+        "dialogue_badge": "dialogue"
+      },
+      "url_import": {
+        "button": "Depuis une URL",
+        "title": "Installer une skill depuis une URL",
+        "description": "Récupère un fichier SKILL.md ou un paquet .zip depuis une adresse https. Il passe exactement par la même validation qu'un import de fichier.",
+        "input_label": "URL https de la skill",
+        "confirm": "Installer",
+        "error_not_https": "Seules les adresses https:// sont acceptées.",
+        "error_blocked": "Cette adresse n'est pas autorisée (réseau privé ou redirection).",
+        "error_too_large": "Le fichier dépasse la taille autorisée.",
+        "error_not_skill": "Cette adresse ne fournit pas un fichier SKILL.md ni un paquet .zip.",
+        "error_fetch": "L'adresse n'a pas pu être contactée."
+      }
     },
     "channels": {
       "title": "Canaux de messagerie",
@@ -2549,6 +2644,28 @@
     "portrait_shortcut": {
       "title": "Ce que LIA comprend de vous",
       "subtitle": "Consultez le portrait vivant compilé depuis vos journaux"
+    },
+    "briefing_grid": {
+      "title": "Mon dashboard",
+      "description": "Choisissez les cartes affichées sur le tableau de bord et leur ordre. Une carte masquée n'est plus récupérée du tout.",
+      "show": "Afficher la carte {{card}}",
+      "hide": "Masquer la carte {{card}}",
+      "move_up": "Monter la carte {{card}}",
+      "move_down": "Descendre la carte {{card}}",
+      "position": "{{card}} déplacée en position {{position}} sur {{total}}"
+    },
+    "open_loops": {
+      "title": "Boucles ouvertes",
+      "description": "Les engagements que LIA a détectés dans vos conversations — clôturez-les ou relancez-les dans le chat.",
+      "empty": "Aucune boucle ouverte pour le moment. LIA alimente ce registre automatiquement depuis vos conversations.",
+      "owed_title": "Je dois",
+      "waiting_title": "On me doit",
+      "done": "Marquer « {{subject}} » comme fait",
+      "done_label": "Fait",
+      "relaunch": "Relancer « {{subject}} » dans le chat",
+      "relaunch_label": "Relancer",
+      "dismiss": "Écarter « {{subject}} » (plus d'actualité)",
+      "dismiss_label": "Plus d'actualité"
     }
   },
   "spaces": {
@@ -3138,6 +3255,21 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_25_16": {
+          "title": "v1.25.16 — ✨ La conversation gagne en maturité",
+          "date": "Juillet 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>💬 Zone de saisie plus maligne</b> — votre brouillon survit à un rechargement ou une navigation, et ↑/↓ parcourent vos 10 derniers envois pour les rééditer (comme un terminal).",
+            "i2": "<b>📌 Lecture protégée</b> — pendant que vous remontez relire le fil, une réponse en cours ne vous ramène plus de force en bas. Un bouton flottant avec compteur vous y ramène quand VOUS le décidez.",
+            "i3": "<b>🔁 Suggestions de suivi</b> — jusqu'à 3 puces tapables sous la dernière réponse proposent votre prochaine demande probable ; taper remplit la saisie, n'envoie jamais.",
+            "i4": "<b>⚡ Commandes slash</b> — tapez « / » dans le chat : resume, briefing, agenda, recherche, plus des raccourcis du quotidien (emails non lus, météo, météo week-end, tâches, rappels, actus) et vos skills de dialogue.",
+            "i5": "<b>🧩 Votre dashboard, vos règles</b> — masquez ou réordonnez les 9 cartes du briefing dans les Réglages (une carte masquée n'est même plus récupérée) ; une checklist de démarrage révèle ce que votre instance sait faire ; les engagements ouverts ont leur section consulter/clôturer.",
+            "i6": "<b>📲 LIA s'installe comme une application</b> — ajoutez-la à votre écran d'accueil (Android, iOS, desktop), partagez texte ou liens directement vers un brouillon de chat, et profitez de la nouvelle rangée d'actions sous chaque réponse (copier, feedback, détails d'exécution).",
+            "i7": "<b>🛍️ Galerie de skills</b> — parcourez les skills en cartes avec aperçus et canaux de sortie déclarés, et installez une skill directement depuis une URL https (validée côté serveur, même pipeline strict que l'import de fichier). Admins : le connecteur Téléphonie apparaît désormais dans l'administration des connecteurs.",
+            "i8": "<b>🌍 Votre langue partout</b> — le journal de l'assistant et votre portrait compilé sont désormais toujours rédigés dans votre langue configurée."
+          }
+        },
         "v1_25_15": {
           "title": "v1.25.15 — 📱 Vitrine impeccable sur mobile",
           "date": "Juillet 2026",
@@ -4399,7 +4531,7 @@
       "getting_started": {
         "title": "Démarrage",
         "description": "Comment commencer avec LIA",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "Qu'est-ce que LIA ?",
@@ -4428,13 +4560,17 @@
           "q7": {
             "question": "Comment LIA a-t-elle été construite ?",
             "answer": "Près de <strong>100 % du code de LIA est écrit par une IA</strong>, sous direction humaine : règles d'ingénierie écrites, contrôles automatiques bloquants, un cycle de revue où l'humain décide, et des audits contradictoires récurrents (dernière évaluation : 8,3/10 sur 24 périmètres — <a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">rapport complet</a>).<br><br>L'histoire complète — méthode, arbitrages, exploitation et ce qu'il reste à faire — est sur la <a href=\"/story\">page Story</a>, et le code source est ouvert sur <a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>."
+          },
+          "q8": {
+            "question": "Puis-je installer LIA comme une application sur mon téléphone ou ordinateur ? (v1.25.16)",
+            "answer": "<p>Oui. LIA est une <strong>PWA</strong> : sur Android/Chrome desktop, utilisez « Installer » (LIA le suggère discrètement après quelques visites) ; sur iOS Safari, « Partager → Sur l'écran d'accueil ». Vous obtenez une icône sur l'écran d'accueil, des raccourcis (chat, briefing) et — une fois installée — le <strong>menu de partage</strong> du système peut envoyer texte ou liens directement dans un brouillon de chat LIA. Le tout localisé dans les 6 langues.</p>"
           }
         }
       },
       "chat": {
         "title": "Conversations",
         "description": "Utilisation du chat et des conversations",
-        "count": "19",
+        "count": "22",
         "questions": {
           "q1": {
             "question": "Puis-je avoir plusieurs conversations en même temps ?",
@@ -4511,13 +4647,25 @@
           "q19": {
             "question": "LIA peut-elle me préparer avant un échange avec quelqu'un ? (v1.25.13)",
             "answer": "Oui — demandez « prépare mon call avec Marie » et une seule passe rassemble une <strong>vue 360°</strong> : sa fiche contact, vos derniers échanges d'e-mails, vos prochains rendez-vous communs, et ce que LIA sait d'elle. Si une source est indisponible (pas de connecteur agenda, par exemple), la vue le dit honnêtement plutôt que d'inventer.<br><br>Elle alimente aussi le coup de pouce « préparation de réunion » : quand une réunion consistante approche, une notification proactive peut se terminer par « veux-tu que je te prépare cette réunion ? »."
+          },
+          "q20": {
+            "question": "À quoi servent les commandes « / » (slash) ? (v1.25.16)",
+            "answer": "<p>Tapez <strong>/</strong> au début d'un message vide pour ouvrir le menu de commandes : <strong>/resume</strong> (compacter la conversation), <strong>/briefing</strong> (ouvrir le dashboard), <strong>/agenda</strong>, <strong>/search</strong>, plus des raccourcis du quotidien — emails non lus, météo, météo week-end, tâches, rappels, actus — et vos skills de dialogue. Le filtre comprend votre langue (taper « mété » trouve la météo). Une commande ne fait que <strong>préremplir</strong> la saisie : rien n'est jamais envoyé sans que vous appuyiez sur Entrée.</p>"
+          },
+          "q21": {
+            "question": "Mon message en cours survit-il à un rechargement ? Puis-je rappeler mes envois ? (v1.25.16)",
+            "answer": "<p>Oui. Votre brouillon est enregistré par compte au fil de la frappe et restauré après un rechargement ou une navigation (il est effacé à l'envoi, et purgé à la déconnexion). Dans une saisie vide, <strong>↑</strong> remonte vos 10 derniers envois et <strong>↓</strong> redescend jusqu'au champ vide — comme un terminal. Sous chaque réponse, une rangée d'actions propose <strong>copier</strong>, <strong>feedback</strong> (👍/👎) et les <strong>détails d'exécution</strong> (« N étapes · X s »).</p>"
+          },
+          "q22": {
+            "question": "Le fil ne saute plus pendant que je relis — comment ça marche ? (v1.25.16)",
+            "answer": "<p>Quand vous remontez relire, une réponse en cours de génération <strong>ne vous ramène plus de force en bas</strong>. Un bouton flottant apparaît avec le compte des réponses arrivées hors écran ; un appui vous y ramène. Envoyer un message continue d'y sauter, comme attendu. Sous la dernière réponse, jusqu'à 3 <strong>suggestions de suivi</strong> peuvent apparaître en puces : en taper une remplit la saisie (n'envoie jamais).</p>"
           }
         }
       },
       "settings": {
         "title": "Paramètres",
         "description": "Configuration de votre compte et préférences",
-        "count": "16",
+        "count": "18",
         "questions": {
           "q1": {
             "question": "Comment changer mon fuseau horaire ?",
@@ -4582,6 +4730,14 @@
           "q16": {
             "question": "Comment exporter mes données de consommation ?",
             "answer": "Vous pouvez exporter vos consommations LLM et API Google personnelles au format CSV :<br><br><strong>📥 Pour exporter :</strong><br>1. Allez dans <strong>Réglages > Fonctionnalités</strong><br>2. Ouvrez la section <strong>Export de mes consommations</strong><br>3. Choisissez une période (mois en cours, mois dernier, 30 derniers jours, ou tout)<br>4. Cliquez sur <strong>Télécharger CSV</strong> sur l'export souhaité<br><br><strong>📊 Trois types d'export :</strong><br>• <strong>Consommation LLM</strong> — Détail par appel (modèle, tokens, coût)<br>• <strong>Consommation API Google</strong> — Détail par appel (API, endpoint, coût)<br>• <strong>Mon résumé</strong> — Totaux agrégés (tokens, appels, coûts)<br><br><strong>🔒 Sécurité :</strong><br>Vous ne pouvez exporter que vos propres données. Il est impossible d'accéder aux consommations des autres utilisateurs."
+          },
+          "q17": {
+            "question": "Puis-je personnaliser les cartes du dashboard ? (v1.25.16)",
+            "answer": "<p>Oui — Réglages → « Mon dashboard ». Masquez n'importe laquelle des 9 cartes du briefing ou réordonnez-les (boutons ↑/↓, ou glisser-déposer). Une carte masquée n'est <strong>même plus récupérée</strong> : moins d'appels API, dashboard plus rapide. Une checklist de démarrage sur le dashboard montre aussi ce que votre instance sait faire (connecteurs, voix, canaux…) jusqu'à ce que vous la fermiez.</p>"
+          },
+          "q18": {
+            "question": "Qu'est-ce que la section « Boucles ouvertes » ? (v1.25.16)",
+            "answer": "<p>LIA détecte automatiquement les <strong>engagements</strong> dans vos conversations (« je dois rappeler le plombier », « j'attends la réponse de Marc »). Réglages → « Boucles ouvertes » les liste par direction (vous devez / vous attendez), avec trois actions en un appui : <strong>Fait</strong>, <strong>Relancer dans le chat</strong> (prérempli un message de relance) ou <strong>Plus d'actualité</strong>. Rien ne se crée à la main — la valeur du registre est d'être automatique.</p>"
           }
         }
       },
@@ -5047,7 +5203,7 @@
       "skills": {
         "title": "Compétences (skills)",
         "description": "Étendre les capacités de LIA avec des instructions expertes",
-        "count": "8",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "Qu'est-ce qu'une skill ?",
@@ -5080,6 +5236,14 @@
           "q8": {
             "question": "Les skills peuvent-elles afficher des cartes, des images ou des mini-applications interactives ? (v1.16.8)",
             "answer": "<p>Oui. Depuis la v1.16.8, un script Python de skill peut retourner, en plus du texte, <strong>une frame HTML interactive</strong> (carte Google Maps, dashboard météo, calendrier mensuel, minuteur pomodoro, convertisseur d'unités...) et/ou <strong>une image</strong> (QR code, graphique).</p><p><strong>Sept nouveaux skills intégrés</strong> illustrent le mécanisme : <code>interactive-map</code>, <code>weather-dashboard</code>, <code>calendar-month</code>, <code>qr-code</code>, <code>pomodoro-timer</code>, <code>unit-converter</code>, <code>dice-roller</code>.</p><p><strong>Comment ça fonctionne :</strong></p><ul><li><strong>Thème et langue synchronisés</strong> — les frames détectent et respectent automatiquement votre thème (clair/sombre) et votre langue courante. Un changement de thème se propage en direct sans recharger.</li><li><strong>Auto-dimensionnement</strong> — la frame s'ajuste automatiquement à son contenu.</li><li><strong>Sécurité stricte</strong> — les frames s'exécutent dans une iframe sandbox (<code>allow-scripts allow-popups</code>, sans <code>allow-same-origin</code>) avec une Content Security Policy injectée pour les skills utilisateur.</li><li><strong>Visibles dans tous les modes d'affichage</strong> — HTML enrichi, Markdown, Cards : les frames apparaissent partout.</li></ul><p>Pour créer vos propres skills avec frames ou images, consultez le <strong>Guide des Compétences</strong> (onglet Advanced → section « Localization, theming and runtime conventions »), ou demandez simplement : « <em>crée-moi un skill qui affiche un QR code</em> ».</p>"
+          },
+          "q9": {
+            "question": "Que montre la galerie de skills ? (v1.25.16)",
+            "answer": "<p>Réglages → Skills affiche désormais vos skills en <strong>cartes</strong>. En ouvrir une montre sa description localisée, une <strong>image d'aperçu</strong> quand la skill en embarque une, ses <strong>canaux de sortie</strong> déclarés (texte, cadre interactif, image) et les actions (activer/désactiver, télécharger, supprimer). Toute skill importée depuis l'extérieur de LIA porte un <strong>avertissement de provenance</strong> : ses instructions s'exécutent avec accès à vos données connectées, ne conservez que des skills dont vous connaissez la source.</p>"
+          },
+          "q10": {
+            "question": "Puis-je installer une skill directement depuis une URL ? (v1.25.16)",
+            "answer": "<p>Oui — « Depuis une URL » dans Réglages → Skills. Collez une adresse <strong>https</strong> servant un fichier SKILL.md ou un paquet .zip. Le serveur valide tout : https uniquement, pas d'adresses privées/internes, pas de redirections, taille plafonnée, et le <strong>même pipeline d'import strict</strong> qu'un envoi de fichier (conflits de nom, quota, validation du contenu). Les tentatives échouées sont limitées par utilisateur.</p>"
           }
         }
       },
@@ -6444,7 +6608,7 @@
       },
       "stack": {
         "title": "Stack moderne",
-        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. TypeScript strict côté frontend, Python async côté backend."
+        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. TypeScript strict côté frontend, Python async côté backend. PWA installable : 6 manifests localisés, partage système vers le chat."
       },
       "telephony": {
         "title": "Téléphonie agentique",
@@ -6452,7 +6616,7 @@
       },
       "rich_skills": {
         "title": "Skills avec frames & images",
-        "description": "Contrat SkillScriptOutput (text/frame/image) — scripts Python sandboxés, iframes sandbox strict avec CSP injectée, auto-resize, synchronisation thème + langue via postMessage. Un pipeline d'import unique et durci pour tous les chemins (uploads et skills générées en chat) : validation stricte du nom, plafonds d'expansion des zips, installation atomique avec rollback."
+        "description": "Contrat SkillScriptOutput (text/frame/image) — scripts Python sandboxés, iframes sandbox strict avec CSP injectée, auto-resize, synchronisation thème + langue via postMessage. Un pipeline d'import unique et durci pour tous les chemins (uploads, skills générées en chat, installation depuis URL https via le validateur SSRF) : validation stricte du nom, plafonds d'expansion des zips, installation atomique avec rollback. Galerie avec aperçus et canaux de sortie déclarés."
       },
       "hitl": {
         "title": "Human-in-the-Loop",
@@ -7022,7 +7186,7 @@
       "skills-system": {
         "title": "Skills : des instructions expertes pour personnaliser LIA",
         "excerpt": "Importez ou créez des skills spécialisés pour que LIA maîtrise de nouveaux domaines — avec cartes interactives, mini-dashboards et images en plus du texte.",
-        "body": "<h2>Qu'est-ce qu'un skill ?</h2><p>Un <strong>skill</strong> est un ensemble d'instructions structurées qui permet à LIA de maîtriser un domaine spécifique. Contrairement aux outils qui exécutent des actions, les skills enrichissent le <strong>raisonnement et le comportement</strong> de l'assistant. L'architecture repose sur un principe clé : le <strong>disque est la source de vérité</strong> pour le contenu des skills, tandis que la base de données gère uniquement les métadonnées (activation, propriétaire, statistiques).</p><h2>Cinq archétypes de skills</h2><ul><li><strong>Prompt Expert</strong> — Instructions détaillées pour un domaine (ex : rédaction professionnelle, analyse financière)</li><li><strong>Advisory</strong> — Conseils et bonnes pratiques (ex : guide de style, checklist qualité)</li><li><strong>Plan Template</strong> — Modèles de plans d'exécution pour des scénarios récurrents</li><li><strong>Visualizer</strong> (v1.16.8) — Script Python qui produit une iframe interactive (carte, dashboard, calendrier)</li><li><strong>Generator</strong> (v1.16.8) — Script Python qui produit une image (QR code, graphique)</li></ul><h2>Exécution sandboxée</h2><p>Les skills exécutables tournent dans un <strong>environnement sandboxé</strong> via <code>subprocess</code> (jamais <code>shell=True</code>). L'environnement d'exécution est filtré : seules les variables <code>PATH</code>, <code>HOME</code>, <code>LANG</code>, <code>LC_ALL</code> et <code>TZ</code> sont transmises au processus fils. Sur Linux, l'<strong>isolation réseau</strong> est assurée via <code>unshare</code> pour empêcher tout accès réseau depuis un script skill.</p><h2>Résultat structuré</h2><p>Chaque exécution de skill retourne un objet <strong>ScriptResult</strong> standardisé contenant : <code>success</code> (booléen), <code>output</code> (stdout), <code>error</code> (stderr), <code>exit_code</code> et <code>execution_time_ms</code>. Ce format permet au système de traiter uniformément les succès et les erreurs.</p><h2>Sorties enrichies (v1.16.8)</h2><p>Depuis la v1.16.8, un script Python peut retourner — en plus du texte — une <strong>frame HTML interactive</strong> (carte Google Maps, dashboard météo, minuteur pomodoro...) et/ou une <strong>image</strong> (QR code, graphique). Le contrat est simple : le script écrit un JSON sur stdout (<code>SkillScriptOutput</code>) avec les champs <code>text</code> (obligatoire), <code>frame</code> et <code>image</code>, indépendants et combinables. Les frames tournent dans une iframe <em>sandbox</em> stricte (<code>allow-scripts allow-popups</code> ; <code>allow-same-origin</code> est réservé aux embeds des skills système de confiance comme la carte interactive, qui en ont besoin pour charger leurs propres données), avec une <strong>Content Security Policy</strong> injectée automatiquement pour les skills utilisateur — les skills système sont exemptés (admin de confiance). Thème et langue sont synchronisés en temps réel via <code>postMessage</code> : basculer en mode sombre se propage immédiatement dans chaque frame sans rechargement. Sept nouveaux skills intégrés démontrent le mécanisme : <code>interactive-map</code>, <code>weather-dashboard</code>, <code>calendar-month</code>, <code>qr-code</code>, <code>pomodoro-timer</code>, <code>unit-converter</code>, <code>dice-roller</code>.</p><h2>SkillBypassStrategy : contourner le planificateur</h2><p>Quand un skill déterministe correspond exactement à la demande, la <strong>SkillBypassStrategy</strong> court-circuite le planificateur LLM. Le skill est exécuté directement sans passer par la chaîne planner → validator → orchestrator, ce qui réduit la latence et la consommation de tokens.</p><h2>Garde planificateur pour skills</h2><p>Le planificateur dispose d'une détection précoce qui demande des clarifications lorsque des paramètres obligatoires sont manquants. Cependant, les skills déterministes multi-domaines (ex : briefing quotidien = événements + tâches + météo + emails) peuvent déclencher des <strong>faux positifs de clarification</strong>. La garde skill détecte quand un skill déterministe a un fort chevauchement de domaines avec la requête et laisse le pipeline planificateur complet décider au lieu de court-circuiter vers la clarification.</p><h2>Le Skill Generator</h2><p>LIA inclut un <strong>générateur de skills</strong> intégré. Décrivez le domaine d'expertise souhaité en langage naturel, et LIA génère automatiquement un skill structuré au format SKILL.md compatible avec le standard agentskills.io — y compris les nouveaux archétypes Visualizer et Generator avec les conventions runtime (thème, langue, auto-resize). La skill terminée est validée et <strong>installée directement dans vos skills</strong> — annoncée par son nom, active immédiatement, sans upload manuel.</p><h2>Gestion par l'utilisateur</h2><p>Chaque utilisateur peut activer, désactiver, importer ou supprimer ses skills dans l'interface Réglages. Les administrateurs peuvent également définir des skills globaux disponibles pour tous les utilisateurs.</p><p>Les widgets interactifs sont faits pour durer : ils sont conservés avec la conversation et se rouvrent après un rechargement ou sur un autre appareil, et une frame qui ne charge pas affiche un état d'erreur actionnable — explication, réessayer, ouvrir dans un nouvel onglet — plutôt qu'un rectangle vide.</p>"
+        "body": "<h2>Qu'est-ce qu'un skill ?</h2><p>Un <strong>skill</strong> est un ensemble d'instructions structurées qui permet à LIA de maîtriser un domaine spécifique. Contrairement aux outils qui exécutent des actions, les skills enrichissent le <strong>raisonnement et le comportement</strong> de l'assistant. L'architecture repose sur un principe clé : le <strong>disque est la source de vérité</strong> pour le contenu des skills, tandis que la base de données gère uniquement les métadonnées (activation, propriétaire, statistiques).</p><h2>Cinq archétypes de skills</h2><ul><li><strong>Prompt Expert</strong> — Instructions détaillées pour un domaine (ex : rédaction professionnelle, analyse financière)</li><li><strong>Advisory</strong> — Conseils et bonnes pratiques (ex : guide de style, checklist qualité)</li><li><strong>Plan Template</strong> — Modèles de plans d'exécution pour des scénarios récurrents</li><li><strong>Visualizer</strong> (v1.16.8) — Script Python qui produit une iframe interactive (carte, dashboard, calendrier)</li><li><strong>Generator</strong> (v1.16.8) — Script Python qui produit une image (QR code, graphique)</li></ul><h2>Exécution sandboxée</h2><p>Les skills exécutables tournent dans un <strong>environnement sandboxé</strong> via <code>subprocess</code> (jamais <code>shell=True</code>). L'environnement d'exécution est filtré : seules les variables <code>PATH</code>, <code>HOME</code>, <code>LANG</code>, <code>LC_ALL</code> et <code>TZ</code> sont transmises au processus fils. Sur Linux, l'<strong>isolation réseau</strong> est assurée via <code>unshare</code> pour empêcher tout accès réseau depuis un script skill.</p><h2>Résultat structuré</h2><p>Chaque exécution de skill retourne un objet <strong>ScriptResult</strong> standardisé contenant : <code>success</code> (booléen), <code>output</code> (stdout), <code>error</code> (stderr), <code>exit_code</code> et <code>execution_time_ms</code>. Ce format permet au système de traiter uniformément les succès et les erreurs.</p><h2>Sorties enrichies (v1.16.8)</h2><p>Depuis la v1.16.8, un script Python peut retourner — en plus du texte — une <strong>frame HTML interactive</strong> (carte Google Maps, dashboard météo, minuteur pomodoro...) et/ou une <strong>image</strong> (QR code, graphique). Le contrat est simple : le script écrit un JSON sur stdout (<code>SkillScriptOutput</code>) avec les champs <code>text</code> (obligatoire), <code>frame</code> et <code>image</code>, indépendants et combinables. Les frames tournent dans une iframe <em>sandbox</em> stricte (<code>allow-scripts allow-popups</code> ; <code>allow-same-origin</code> est réservé aux embeds des skills système de confiance comme la carte interactive, qui en ont besoin pour charger leurs propres données), avec une <strong>Content Security Policy</strong> injectée automatiquement pour les skills utilisateur — les skills système sont exemptés (admin de confiance). Thème et langue sont synchronisés en temps réel via <code>postMessage</code> : basculer en mode sombre se propage immédiatement dans chaque frame sans rechargement. Sept nouveaux skills intégrés démontrent le mécanisme : <code>interactive-map</code>, <code>weather-dashboard</code>, <code>calendar-month</code>, <code>qr-code</code>, <code>pomodoro-timer</code>, <code>unit-converter</code>, <code>dice-roller</code>.</p><h2>SkillBypassStrategy : contourner le planificateur</h2><p>Quand un skill déterministe correspond exactement à la demande, la <strong>SkillBypassStrategy</strong> court-circuite le planificateur LLM. Le skill est exécuté directement sans passer par la chaîne planner → validator → orchestrator, ce qui réduit la latence et la consommation de tokens.</p><h2>Garde planificateur pour skills</h2><p>Le planificateur dispose d'une détection précoce qui demande des clarifications lorsque des paramètres obligatoires sont manquants. Cependant, les skills déterministes multi-domaines (ex : briefing quotidien = événements + tâches + météo + emails) peuvent déclencher des <strong>faux positifs de clarification</strong>. La garde skill détecte quand un skill déterministe a un fort chevauchement de domaines avec la requête et laisse le pipeline planificateur complet décider au lieu de court-circuiter vers la clarification.</p><h2>Le Skill Generator</h2><p>LIA inclut un <strong>générateur de skills</strong> intégré. Décrivez le domaine d'expertise souhaité en langage naturel, et LIA génère automatiquement un skill structuré au format SKILL.md compatible avec le standard agentskills.io — y compris les nouveaux archétypes Visualizer et Generator avec les conventions runtime (thème, langue, auto-resize). La skill terminée est validée et <strong>installée directement dans vos skills</strong> — annoncée par son nom, active immédiatement, sans upload manuel.</p><h2>Gestion par l'utilisateur</h2><p>Chaque utilisateur peut activer, désactiver, importer ou supprimer ses skills dans l'interface Réglages — désormais une <strong>galerie</strong> avec images d'aperçu et canaux de sortie déclarés (texte, cadre interactif, image). L'import accepte un fichier ou une <strong>URL https</strong> validée côté serveur (même pipeline durci), et toute skill importée de l'extérieur porte un avertissement de provenance. Les administrateurs peuvent également définir des skills globaux disponibles pour tous les utilisateurs.</p><p>Les widgets interactifs sont faits pour durer : ils sont conservés avec la conversation et se rouvrent après un rechargement ou sur un autre appareil, et une frame qui ne charge pas affiche un état d'erreur actionnable — explication, réessayer, ouvrir dans un nouvel onglet — plutôt qu'un rectangle vide.</p>"
       },
       "voice-mode": {
         "title": "Mode vocal : parlez à LIA comme à un assistant personnel",

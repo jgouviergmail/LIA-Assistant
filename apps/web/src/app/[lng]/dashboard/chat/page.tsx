@@ -14,6 +14,7 @@ import { ChatMessageList } from '@/components/chat/ChatMessageList';
 import { PsycheMilestoneWatcher } from '@/components/psyche/PsycheMilestoneWatcher';
 import { useLiveTabTitle } from '@/hooks/useLiveTabTitle';
 import { ChatInput } from '@/components/chat/ChatInput';
+import { FollowupChips, visibleFollowups } from '@/components/chat/FollowupChips';
 import { HitlActionCard } from '@/components/chat/HitlActionCard';
 import { ConnectorNoticeBanner } from '@/components/chat/ConnectorNoticeBanner';
 import { ContextUsagePill } from '@/components/chat/ContextUsagePill';
@@ -27,25 +28,39 @@ import { VoiceModeBadge } from '@/components/voice/VoiceModeBadge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { logger } from '@/lib/logger';
 import { toPlainPreview, NOTIFICATION_PREVIEW_MAX_LENGTH } from '@/lib/notification-preview';
+import { sentHistoryOf } from '@/lib/sent-history';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { FeatureErrorBoundary } from '@/components/errors';
 
 import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { useInputDraft } from '@/hooks/useInputDraft';
+import { useSkills } from '@/hooks/useSkills';
+import type { SlashCommand } from '@/lib/slash-commands';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UsageBlockedBanner } from '@/components/usage/UsageBlockedBanner';
 import { ActiveSpacesIndicator } from '@/components/spaces/ActiveSpacesIndicator';
 
 /**
- * Read the onboarding deep-link draft (`?draft=`) used to prefill the chat
- * input (volet B). Returns undefined when absent so the input keeps its
- * default empty state. The draft is never auto-sent.
+ * Resolve the chat input's initial text: the `?draft=` deep link (onboarding
+ * volet B / briefing intents) wins over the persisted per-user draft
+ * (UXR Lot 2, A7). Returns undefined when neither exists so the input keeps
+ * its default empty state. Never auto-sent.
  */
-function readDraftParam(searchParams: ReadonlyURLSearchParams | null): string | undefined {
+function resolveInitialMessage(
+  searchParams: ReadonlyURLSearchParams | null,
+  storedDraft: string | undefined
+): string | undefined {
   const draft = searchParams?.get('draft');
-  return draft && draft.trim() ? draft : undefined;
+  return draft && draft.trim() ? draft : storedDraft;
 }
+
+/** Short locale of an i18n language tag ("fr-FR" → "fr"; default "fr"). */
+function shortLang(language: string | undefined): string {
+  return (language || 'fr').split('-')[0];
+}
+
 
 export default function ChatPage() {
   const { user, isLoading } = useAuth();
@@ -59,12 +74,21 @@ export default function ChatPage() {
   // Usage limits (per-user quotas)
   const { isBlocked: isUsageBlocked, blockReason: usageBlockReason } = useUsageLimits();
 
+  // UXR Lot 2 (A7): per-user persisted input draft. The layout mounts this
+  // page only once the user is resolved, so the one-shot read is reliable.
+  const { initialDraft, saveDraft } = useInputDraft(user);
+
   // QW-9: strip the consumed ?draft= from the URL so a later reload does not
   // re-prefill the input (also fixes the latent onboarding F5 re-prefill).
   // ChatInput consumes initialMessage at mount only, so cleaning afterwards
   // is safe. Same history.replaceState pattern as the settings ?section=.
+  // UXR Lot 2 (A7): the consumed deep link is handed to the persisted draft —
+  // ChatInput never signals its initial value, so without this a refresh
+  // right after arriving from a briefing intent would lose the prefill.
   useEffect(() => {
-    if (searchParams?.get('draft')) {
+    const draft = searchParams?.get('draft');
+    if (draft) {
+      if (draft.trim()) saveDraft(draft);
       const url = new URL(window.location.href);
       url.searchParams.delete('draft');
       window.history.replaceState({}, '', url.toString());
@@ -132,7 +156,8 @@ export default function ChatPage() {
   const [oldestCursor, setOldestCursor] = useState<string | null>(null);
   const [hasMoreOlder, setHasMoreOlder] = useState(false);
   const router = useLocalizedRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lng = shortLang(i18n.language);
   const [isResetting, setIsResetting] = useState(false);
   const [currentMessage, setCurrentMessage] = useState('');
 
@@ -266,10 +291,15 @@ export default function ChatPage() {
     onScheduledAction: handleScheduledAction,
   });
 
-  // Handle message change from ChatInput (for geolocation prompt detection)
-  const handleMessageChange = useCallback((message: string) => {
-    setCurrentMessage(message);
-  }, []);
+  // Handle message change from ChatInput (geolocation prompt detection +
+  // draft persistence — debounced, empty clears immediately).
+  const handleMessageChange = useCallback(
+    (message: string) => {
+      setCurrentMessage(message);
+      saveDraft(message);
+    },
+    [saveDraft]
+  );
 
   // Totals from API (loaded at startup from message_token_summary)
   // These totals are the source of truth for persisted history
@@ -344,12 +374,17 @@ export default function ChatPage() {
   // the ChatSearchBar. Desktop keeps the inline header field.
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
+  // UXR Lot 3 (A3): explicit own-send signal for the scroll-follow decision —
+  // incremented on every real chat send (see ChatMessageList.ownSendTick).
+  const [ownSendTick, setOwnSendTick] = useState(0);
+
   // Arbitration #1 (QW-2): sending while viewing a past point of history
   // first returns to the present so the new turn lands at the bottom of the
   // real conversation, never inside a jumped-to page.
   const sendMessageFromPresent = useCallback(
     async (...args: Parameters<typeof sendMessage>) => {
       await ensurePresent();
+      setOwnSendTick(tick => tick + 1);
       return sendMessage(...args);
     },
     [ensurePresent, sendMessage]
@@ -363,6 +398,132 @@ export default function ChatPage() {
     () => mergeRegistryWithHistory(registry, messages),
     [registry, messages]
   );
+
+  // UXR Lot 2 (A7, extended): past sent messages — ↑/↓ in the input walk
+  // through them (ChatInput owns the key handling).
+  const sentHistory = useMemo(() => sentHistoryOf(messages), [messages]);
+
+  // UXR Lot 3 (A3): stable handler for the floating button's history-view
+  // delegation (returnToPresent owns its own in-flight guard).
+  const handleReturnToPresent = useCallback(() => {
+    void returnToPresent();
+  }, [returnToPresent]);
+
+  // UXR Lot 8 (A4): slash-command registry — static commands (core actions
+  // + everyday shortcuts, QA 2026-07-23) + the dialogue-flagged skills
+  // (ADR-118), all labels localized here.
+  const { skills } = useSkills();
+  const slashCommands = useMemo<SlashCommand[]>(() => {
+    const statics: SlashCommand[] = [
+      {
+        id: 'resume',
+        kind: 'conversational',
+        label: t('chat.slash.resume_label'),
+        description: t('chat.slash.resume_description'),
+        insertText: '/resume',
+      },
+      {
+        id: 'briefing',
+        kind: 'local',
+        label: t('chat.slash.briefing_label'),
+        description: t('chat.slash.briefing_description'),
+      },
+      {
+        id: 'agenda',
+        kind: 'conversational',
+        label: t('chat.slash.agenda_label'),
+        description: t('chat.slash.agenda_description'),
+        insertText: t('chat.slash.agenda_intent'),
+      },
+      {
+        id: 'search',
+        kind: 'local',
+        label: t('chat.slash.search_label'),
+        description: t('chat.slash.search_description'),
+      },
+      // Everyday conversational shortcuts (QA feedback 2026-07-23): each
+      // prefills a localized intent — never auto-sent (A4 contract).
+      {
+        id: 'emails',
+        kind: 'conversational',
+        label: t('chat.slash.emails_label'),
+        description: t('chat.slash.emails_description'),
+        insertText: t('chat.slash.emails_intent'),
+      },
+      {
+        id: 'weather',
+        kind: 'conversational',
+        label: t('chat.slash.weather_label'),
+        description: t('chat.slash.weather_description'),
+        insertText: t('chat.slash.weather_intent'),
+      },
+      {
+        id: 'weather-weekend',
+        kind: 'conversational',
+        label: t('chat.slash.weather_weekend_label'),
+        description: t('chat.slash.weather_weekend_description'),
+        insertText: t('chat.slash.weather_weekend_intent'),
+      },
+      {
+        id: 'tasks',
+        kind: 'conversational',
+        label: t('chat.slash.tasks_label'),
+        description: t('chat.slash.tasks_description'),
+        insertText: t('chat.slash.tasks_intent'),
+      },
+      {
+        id: 'reminders',
+        kind: 'conversational',
+        label: t('chat.slash.reminders_label'),
+        description: t('chat.slash.reminders_description'),
+        insertText: t('chat.slash.reminders_intent'),
+      },
+      {
+        id: 'news',
+        kind: 'conversational',
+        label: t('chat.slash.news_label'),
+        description: t('chat.slash.news_description'),
+        insertText: t('chat.slash.news_intent'),
+      },
+    ];
+    const dialogueSkills = skills
+      .filter(skill => skill.dialogue && skill.enabled_for_user)
+      .map<SlashCommand>(skill => ({
+        id: `skill:${skill.name}`,
+        kind: 'conversational',
+        label: skill.name,
+        description: skill.descriptions?.[lng] ?? skill.description,
+        insertText: t('chat.slash.skill_intent', { name: skill.name }),
+      }));
+    return [...statics, ...dialogueSkills];
+  }, [t, skills, lng]);
+  const handleLocalCommand = useCallback(
+    (commandId: string) => {
+      if (commandId === 'briefing') router.push('/dashboard');
+      if (commandId === 'search') {
+        // Mobile: the search row auto-focuses itself on mount. Desktop: the
+        // header input is already mounted — focus it via its OWN marker
+        // (a bare input[type=search] selector could catch a foreign field).
+        setMobileSearchOpen(true);
+        requestAnimationFrame(() => {
+          document.querySelector<HTMLElement>('input[data-chat-search]')?.focus();
+        });
+      }
+    },
+    [router]
+  );
+
+  // UXR Lot 4 (A2): follow-up chips — latest answer only, hidden while the
+  // surface is blocked; a chip click PREFILLS the input (never sends).
+  const followupSuggestions = useMemo(
+    () =>
+      visibleFollowups(messages, isTyping || !!activeStreamId || historyView || isUsageBlocked),
+    [messages, isTyping, activeStreamId, historyView, isUsageBlocked]
+  );
+  const [chipPrefill, setChipPrefill] = useState({ text: '', nonce: 0 });
+  const handleFollowupPick = useCallback((text: string) => {
+    setChipPrefill(prev => ({ text, nonce: prev.nonce + 1 }));
+  }, []);
 
   // ``setMessages`` accepts only ``Message[]`` (the underlying reducer doesn't
   // support a functional updater). To prepend without staleness we read the
@@ -614,6 +775,7 @@ export default function ChatPage() {
                   <Search className="absolute left-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                   <input
                     type="search"
+                    data-chat-search
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     placeholder={t('conversations.search_placeholder')}
@@ -730,9 +892,18 @@ export default function ChatPage() {
                 isLoadingOlder={isLoadingOlder}
                 onLoadOlder={handleLoadOlder}
                 searchHighlight={highlightTerm}
+                // UXR Lot 3 (A3): floating return button — in history view it
+                // delegates to the QW-2 return-to-present page swap.
+                historyView={historyView}
+                onReturnToPresent={handleReturnToPresent}
+                ownSendTick={ownSendTick}
               />
             </RegistryProvider>
           </div>
+
+          {/* Follow-up chips (UXR Lot 4, A2) — under the thread, above the
+              input; renders nothing without suggestions. */}
+          <FollowupChips suggestions={followupSuggestions} onPick={handleFollowupPick} />
 
           {/* Geolocation Prompt - Shows when user types location phrases */}
           <GeolocationPrompt currentMessage={currentMessage} />
@@ -749,7 +920,11 @@ export default function ChatPage() {
           {/* Input Area - Enhanced with elevation */}
           <div className="border-t border-border/40 bg-card/80 backdrop-blur-sm shadow-lg">
             <ChatInput
-              initialMessage={readDraftParam(searchParams)}
+              initialMessage={resolveInitialMessage(searchParams, initialDraft)}
+              sentHistory={sentHistory}
+              prefill={chipPrefill}
+              slashCommands={slashCommands}
+              onLocalCommand={handleLocalCommand}
               onSendMessage={sendMessageFromPresent}
               disabled={isTyping || isUsageBlocked}
               isConnected={isConnected}

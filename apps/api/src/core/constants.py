@@ -2619,6 +2619,10 @@ STATE_KEY_INITIATIVE_ITERATION = "initiative_iteration"
 STATE_KEY_INITIATIVE_RESULTS = "initiative_results"
 STATE_KEY_INITIATIVE_SKIPPED_REASON = "initiative_skipped_reason"
 STATE_KEY_INITIATIVE_SUGGESTION = "initiative_suggestion"
+# UXR Lot 4 (A2): tappable follow-up suggestions surfaced under the answer.
+STATE_KEY_INITIATIVE_FOLLOWUPS = "initiative_followups"
+INITIATIVE_FOLLOWUPS_MAX = 3  # Chips rendered under the assistant answer
+INITIATIVE_FOLLOWUP_MAX_CHARS = 200  # Server-side clamp per suggestion
 INITIATIVE_ENABLED_DEFAULT = True
 INITIATIVE_MAX_ITERATIONS_DEFAULT = 1  # Conservative: one evaluation pass
 INITIATIVE_MAX_ACTIONS_PER_ITERATION_DEFAULT = 3
@@ -3673,6 +3677,23 @@ SKILLS_NAME_MAX_LENGTH = 64
 SKILLS_DESCRIPTION_MAX_LENGTH = 1024
 SKILLS_MAX_FILE_SIZE_KB = 100
 SKILLS_MAX_PER_USER_DEFAULT = 20
+
+# Declarative output channels a skill may advertise in its frontmatter
+# (``outputs:`` — UXR Lot 10/B12). MUST stay equal to the generator's
+# ``VALID_OUTPUTS`` in validate_skill.py (parity-pinned in CI).
+SKILL_OUTPUT_CHANNELS = ("text", "frame", "image")
+
+# URL-sourced skill import (UXR Lot 10/B12) — defaults for the settings module.
+SKILLS_URL_IMPORT_MAX_BYTES_DEFAULT = 5_242_880  # 5 MiB, mirrors upload-scale zips
+SKILLS_URL_IMPORT_TIMEOUT_SECONDS_DEFAULT = 15
+# Per-user sliding window on outbound fetches (failed imports consume no
+# skill quota — without this a user could hammer arbitrary https hosts).
+SKILLS_URL_IMPORT_RATE_MAX_CALLS_DEFAULT = 10
+SKILLS_URL_IMPORT_RATE_WINDOW_SECONDS_DEFAULT = 3600
+
+# Gallery preview image (GET /skills/{name}/preview): only assets/preview.png
+# is ever served, capped so a rogue skill cannot make the API stream gigabytes.
+SKILL_PREVIEW_MAX_BYTES = 2_097_152  # 2 MiB
 
 # Script execution
 SKILLS_SCRIPT_TIMEOUT_SECONDS = 30

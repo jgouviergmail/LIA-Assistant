@@ -8,7 +8,32 @@
 // Status
 // =============================================================================
 
-export type CardStatus = 'ok' | 'empty' | 'error' | 'not_configured';
+// 'hidden' (UXR Lot 5, B4): user-hidden section — the backend emits a pure
+// placeholder (no fetch, no cache IO) and the grid never renders it.
+export type CardStatus = 'ok' | 'empty' | 'error' | 'not_configured' | 'hidden';
+
+// =============================================================================
+// Grid preferences (UXR Lot 5, B4)
+// =============================================================================
+
+/** The 9 briefing section names — MUST mirror backend SECTION_NAMES (the
+ *  ``BriefingSection`` union below); completeness pinned by tests. */
+export const BRIEFING_SECTION_NAMES: readonly BriefingSection[] = [
+  'weather',
+  'agenda',
+  'mails',
+  'birthdays',
+  'reminders',
+  'health',
+  'for_you',
+  'tasks',
+  'documents',
+];
+
+export interface BriefingPreferences {
+  hidden: BriefingSection[];
+  order: BriefingSection[];
+}
 
 // =============================================================================
 // Per-section payloads
