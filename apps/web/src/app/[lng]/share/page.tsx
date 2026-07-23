@@ -7,12 +7,16 @@
  * title/text/url params, which are composed into a chat draft and handed to
  * the existing `?draft=` prefill rail — NEVER auto-sent.
  *
+ * `useSearchParams()` MUST live under a `<Suspense>` boundary: without it the
+ * production `next build` fails prerendering `/{lng}/share` (dev never
+ * prerenders, so only the prod build sees it — caught by `task deploy:prod`).
+ *
  * Known limitation (documented): an unauthenticated share loses the draft
  * across the login redirect (the 401 path does not carry a returnTo) —
  * sharing is a warm-user feature.
  */
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -31,7 +35,16 @@ export function composeShareDraft(
     .slice(0, CHAT_INPUT_MAX_LENGTH);
 }
 
-export default function SharePage() {
+function ShareSpinner() {
+  return (
+    <div className="min-h-screen flex items-center justify-center" role="status" aria-live="polite">
+      <LoadingSpinner size="xl" />
+    </div>
+  );
+}
+
+/** Inner client component — owns the search-params read (Suspense contract). */
+function ShareRedirect() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const params = useParams<{ lng: string }>();
@@ -49,9 +62,13 @@ export default function SharePage() {
     router.replace(target);
   }, [router, searchParams, params]);
 
+  return <ShareSpinner />;
+}
+
+export default function SharePage() {
   return (
-    <div className="min-h-screen flex items-center justify-center" role="status" aria-live="polite">
-      <LoadingSpinner size="xl" />
-    </div>
+    <Suspense fallback={<ShareSpinner />}>
+      <ShareRedirect />
+    </Suspense>
   );
 }
