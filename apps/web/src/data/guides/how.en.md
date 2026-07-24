@@ -397,7 +397,7 @@ Cross-step references (`$steps.get_meetings.events[0].title`) are validated at p
 
 ### 6.6. Adaptive Re-Planner (Panic Mode)
 
-When execution fails, a rule-based (no LLM) analyser classifies the failure pattern (empty results, partial failure, timeout, reference error) and selects a recovery strategy: retry same, replan with broader scope, escalate to user, or abort. In **Panic Mode**, the SmartCatalogue expands to include all tools for a single retry — solving cases where domain filtering was too aggressive.
+When execution fails, a rule-based (no LLM) analyser classifies the failure pattern (empty results, partial failure, timeout, reference error) and selects a recovery strategy: retry same, replan with broader scope, escalate to user, or abort. That decision is **advisory today**: it is logged and counted on every failure, which makes the failure modes measurable, but the orchestrator does not yet apply it automatically — partial results are surfaced rather than discarded. In **Panic Mode**, the SmartCatalogue expands to include all tools for a single retry — solving cases where domain filtering was too aggressive.
 
 ---
 

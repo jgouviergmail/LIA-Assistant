@@ -396,7 +396,7 @@ Les références inter-étapes (`$steps.get_meetings.events[0].title`) sont vali
 
 ### 6.6. Re-Planner Adaptatif (Panic Mode)
 
-En cas d'échec d'exécution, un analyseur rule-based (sans LLM) classifie le pattern d'échec (résultats vides, échec partiel, timeout, erreur de référence) et sélectionne une stratégie de recovery : retry identique, replan avec périmètre élargi, escalade utilisateur ou abandon. En **Panic Mode**, le SmartCatalogue s'élargit pour inclure tous les outils lors d'un unique retry — résolvant les cas où le filtrage par domaine était trop agressif.
+En cas d'échec d'exécution, un analyseur rule-based (sans LLM) classifie le pattern d'échec (résultats vides, échec partiel, timeout, erreur de référence) et sélectionne une stratégie de recovery : retry identique, replan avec périmètre élargi, escalade utilisateur ou abandon. Cette décision est **consultative à ce jour** : elle est journalisée et comptée à chaque échec, ce qui rend les modes de défaillance mesurables, mais l'orchestrateur ne l'applique pas encore automatiquement — les résultats partiels sont restitués plutôt qu'écartés. En **Panic Mode**, le SmartCatalogue s'élargit pour inclure tous les outils lors d'un unique retry — résolvant les cas où le filtrage par domaine était trop agressif.
 
 ---
 

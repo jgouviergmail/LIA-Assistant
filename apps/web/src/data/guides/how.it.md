@@ -397,7 +397,7 @@ I riferimenti tra step (`$steps.get_meetings.events[0].title`) vengono validati 
 
 ### 6.6. Re-Planner Adattivo (Panic Mode)
 
-In caso di fallimento dell'esecuzione, un analizzatore rule-based (senza LLM) classifica il pattern di fallimento (risultati vuoti, fallimento parziale, timeout, errore di riferimento) e seleziona una strategia di recovery: retry identico, replan con scope ampliato, escalation all'utente o abort. In **Panic Mode**, il SmartCatalogue si espande per includere tutti i tool in un unico retry — risolvendo i casi in cui il filtraggio per dominio era troppo aggressivo.
+In caso di fallimento dell'esecuzione, un analizzatore rule-based (senza LLM) classifica il pattern di fallimento (risultati vuoti, fallimento parziale, timeout, errore di riferimento) e seleziona una strategia di recovery: retry identico, replan con scope ampliato, escalation all'utente o abort. Questa decisione è **consultiva ad oggi**: viene registrata e conteggiata a ogni fallimento, rendendo misurabili i modi di guasto, ma l'orchestratore non la applica ancora automaticamente — i risultati parziali vengono restituiti anziché scartati. In **Panic Mode**, il SmartCatalogue si espande per includere tutti i tool in un unico retry — risolvendo i casi in cui il filtraggio per dominio era troppo aggressivo.
 
 ---
 
