@@ -100,6 +100,7 @@ from src.core.field_names import (
     FIELD_USER_ID,
 )
 from src.domains.agents.constants import TOOL_LOCAL_QUERY_ENGINE
+from src.domains.agents.data_registry.models import RegistryItemType, generate_registry_id
 from src.domains.agents.orchestration.condition_evaluator import (
     ConditionEvaluator,
     ReferenceResolver,
@@ -121,6 +122,7 @@ from src.domains.agents.orchestration.text_compaction import compact_text_params
 from src.domains.agents.semantic.param_guard import (
     check_semantic_params,
     person_names_from_config,
+    strip_placeholder_arguments,
 )
 from src.domains.agents.services.connector_error_notice import (
     emit_connector_notice_for_exception,
@@ -2595,6 +2597,49 @@ class ToolExecutionResult(BaseModel):
     draft_info: dict[str, Any] | None = None  # Data Registry LOT 4.3: Draft requiring confirmation
 
 
+def _correlated_item_id(item_id: str, item_dict: dict[str, Any], parent_id: str) -> str:
+    """Derive a registry id unique to the (item, correlation parent) pair.
+
+    Tools build their registry id from the payload alone — the weather tools key
+    on place + day, the route tools on origin + destination. Under FOR_EACH that
+    is not enough: two parents sharing those attributes (two appointments on the
+    same day at the same place) yield the SAME id, and since the accumulator is a
+    plain ``dict.update()`` the second branch overwrites the first. The first
+    parent then has no correlated child at all, so its card renders without the
+    data that was fetched for it.
+
+    Deterministic (SHA-256 over ``"{item_id}@{parent_id}"``), so a replayed run
+    or a resumed checkpoint recomputes the same id. Keeps the ``{type}_{hash}``
+    shape that ``filter_registry_by_relevant_ids`` relies on for suffix matching.
+
+    Args:
+        item_id: Id produced by the tool.
+        item_dict: Serialized registry item (used to recover its type).
+        parent_id: Registry id of the FOR_EACH parent this item belongs to.
+
+    Returns:
+        A per-parent id, or ``item_id`` unchanged when the item IS its parent or
+        when the type is unknown (never break the id shape to fix a collision).
+    """
+    if item_id == parent_id:
+        # Self-enrichment, not derivation: a FOR_EACH over a collection whose
+        # tool re-emits the same entity (update_event / get_*_details) rebuilds
+        # the parent's own id — `generate_registry_id(type, entity_id)` is a pure
+        # hash of the business id. Re-identifying here would turn an UPDATE into
+        # a duplicate, leaving the stale version alive next to the fresh one.
+        return item_id
+    try:
+        item_type = RegistryItemType(item_dict.get("type"))
+    except ValueError:
+        logger.warning(
+            "correlated_item_id_unknown_type",
+            item_id=item_id,
+            item_type=item_dict.get("type"),
+        )
+        return item_id
+    return generate_registry_id(item_type, f"{item_id}@{parent_id}")
+
+
 async def _execute_tool(
     tool_name: str,
     args: dict[str, Any],
@@ -2608,6 +2653,7 @@ async def _execute_tool(
     Execute a LangChain tool with ToolRuntime injection.
 
     Session 22: Refactored with 2 helpers (162 → ~77 lines, -52%).
+    Correlated items are re-identified per parent (see ``_correlated_item_id``).
     Data Registry LOT 5.2: Detects StandardToolOutput and extracts registry updates.
     INTELLIA LocalQueryEngine: Injects accumulated_registry for local_query_engine_tool.
     BugFix 2025-12-19: Injects turn_id into RegistryItem.meta for context resolution.
@@ -2647,6 +2693,11 @@ async def _execute_tool(
                 }
             )
         tool_name = canonical
+
+    # Textual "no value" stand-ins ("null", "none", ...) on optional typed
+    # parameters mean "not provided": drop them so the tool applies its own
+    # default instead of geocoding a city named "null" (prod 2026-07-23).
+    args = strip_placeholder_arguments(tool_name, args)
 
     # Runtime semantic contract guard (fail-open): a person name resolved for
     # this turn must not reach an address/email-typed parameter — the API
@@ -2792,12 +2843,27 @@ async def _execute_tool(
                     # Inject correlated_to if parent ID available (from FOR_EACH expansion)
                     if correlation_parent_id and item_dict["meta"].get(FIELD_CORRELATED_TO) is None:
                         item_dict["meta"][FIELD_CORRELATED_TO] = correlation_parent_id
+                        # A correlated item belongs to ONE parent, so its identity
+                        # must include that parent. Tools derive their id from the
+                        # content alone (weather -> place+day), so two FOR_EACH
+                        # branches over parents that share it produce the SAME id;
+                        # the accumulator is a plain dict.update(), so the second
+                        # branch silently overwrote the first and its parent lost
+                        # its child entirely. Measured in prod (2026-07-23): two
+                        # appointments -> both branches emitted "weather_fee011",
+                        # registry size stayed at 4 instead of 5.
+                        correlated_id = _correlated_item_id(
+                            item_id, item_dict, correlation_parent_id
+                        )
                         logger.info(
                             "correlated_to_injected",
                             item_id=item_id,
+                            correlated_item_id=correlated_id,
                             correlation_parent_id=correlation_parent_id,
                             tool_name=tool_name,
                         )
+                        item_dict["id"] = correlated_id
+                        item_id = correlated_id
                 registry_updates[item_id] = item_dict
 
             # Data Registry LOT 4.3: Check for draft requiring confirmation

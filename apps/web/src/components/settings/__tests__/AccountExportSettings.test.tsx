@@ -79,13 +79,24 @@ describe('AccountExportSettings — states', () => {
     expect(screen.queryByText(/status_/)).not.toBeInTheDocument();
   });
 
-  it('shows the done badge and the download link', () => {
-    useApiQuery.mockReturnValue(queryHook({ data: job() }));
-    renderWithProviders(<AccountExportSettings collapsible={false} />);
+  it('shows the done badge and a same-origin download link', () => {
+    // Same-origin contract: NEXT_PUBLIC_API_URL="" means relative /api/v1 URLs
+    // through the BFF proxy (pinned by lib/__tests__/api-base-url-env.test.ts).
+    // Stubbed EXPLICITLY rather than assumed absent — a developer shell (and the
+    // lia-web-dev container) exports a real API origin, which made this the only
+    // red in the suite there while CI stayed green by setting the var to "" at
+    // the runner level. A test must state the condition it asserts.
+    vi.stubEnv('NEXT_PUBLIC_API_URL', '');
+    try {
+      useApiQuery.mockReturnValue(queryHook({ data: job() }));
+      renderWithProviders(<AccountExportSettings collapsible={false} />);
 
-    expect(screen.getByText('settings.security.export.status_done')).toBeInTheDocument();
-    const download = screen.getByRole('link', { name: 'settings.security.export.download' });
-    expect(download).toHaveAttribute('href', '/api/v1/account/export/job-1/download');
+      expect(screen.getByText('settings.security.export.status_done')).toBeInTheDocument();
+      const download = screen.getByRole('link', { name: 'settings.security.export.download' });
+      expect(download).toHaveAttribute('href', '/api/v1/account/export/job-1/download');
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('targets the API origin when one is configured (never the frontend)', () => {

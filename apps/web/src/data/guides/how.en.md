@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 3.4
-**Date**: 2026-07-23
-**Application**: LIA v1.25.17
+**Date**: 2026-07-24
+**Application**: LIA v1.25.18
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -52,8 +52,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 428 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 120+ ADRs, ~12,906 pytest-collected tests across 760 files, native observability, 6-level HITL |
+| Full transparency | 438 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 120+ ADRs, ~13,282 pytest-collected tests across 771 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -71,11 +71,11 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~12,906 (collected by pytest across 760 test files) + 2,533 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~13,282 (collected by pytest across 771 test files) + 2,538 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
-| Prometheus metrics | 428 definitions |
+| Prometheus metrics | 438 definitions |
 | Grafana dashboards | 25 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -339,6 +339,8 @@ The whole system is governed by a feature flag and a dozen env-tunable settings 
 
 ---
 
+**Grounding on recent entities.** On a turn that calls no tool, the current-turn registry is empty by construction (an anti-contamination guard) and the conversational history deliberately excludes tool messages: the response model then has *no* authoritative structured data at all, and can only rephrase earlier prose. The most recent entities in state are therefore re-injected through a dedicated prompt section — selected by recency, age-bounded, with no store round-trip, and explicitly subordinate to current-turn data. An authority rule completes it: inventing an entity attribute is forbidden, and a value that was requested but never received must be announced as missing.
+
 ## 6. The planning system (ExecutionPlan DSL)
 
 ### 6.1. Plan structure
@@ -370,6 +372,8 @@ ExecutionPlan(
 - HITL threshold: any mutation >= 1 element triggers mandatory approval
 - Configurable limit: `for_each_max` prevents unbounded executions
 - Dynamic reference: `$steps.{step_id}.{field}` for previous step results
+
+The identity of a correlated result includes its parent. Tools derive their id from content alone — weather from `place + day`, a route from `origin + destination` — so two iterations over parents sharing those attributes produced the same id, and the accumulator, a plain `dict.update()`, silently overwrote the first. The id is now derived per parent through a deterministic fingerprint, which also keeps identities stable across a replay or a resume after an interruption.
 
 ### 6.3. Parallel execution in waves
 
@@ -692,6 +696,8 @@ Wake word ("OK Guy") via Sherpa-onnx WASM in the browser (zero external transmis
 
 **Phase 2 — Generation** (if notify): LLM rewrites with personality + user language. When facts were fetched, a VERIFIED FACTS block requires naming 1-2 concrete items without ever inventing, and source links are appended deterministically. Multi-channel dispatch. An interest mention is written to the shared ledger (`InterestNotification(source='heartbeat')`): the subject then rests for both proactive flows.
 
+Every source is bounded by a time budget and fails independently. That budget covers a share of an event loop shared with the other fetchers — it is not a database timeout: health signals were blowing it under nominal conditions because their read pulled tens of thousands of raw rows to produce a few dozen numbers, freezing the worker for the duration of the decode. The read now relies on a per-day aggregation computed in the database, and a source that drops out is counted and timed rather than silently missing — a source that fails by disappearing leaves no trace in the notification itself.
+
 ### 16.2. Agent Initiative (ADR-062)
 
 Post-execution LangGraph node: after each actionable turn, the initiative analyzes results and proactively checks cross-domain information (read-only). Examples: rain weather → check calendar for outdoor activities, email mentioning a meeting → check availability, task deadline → recall context. 100% prompt-driven (no hardcoded logic), structural pre-filter (adjacent domains), memory + interest injection, suggestion field for proposing write actions. Configurable via `INITIATIVE_ENABLED`, `INITIATIVE_MAX_ITERATIONS`, `INITIATIVE_MAX_ACTIONS`.
@@ -774,7 +780,7 @@ Autonomous ReAct agent (headless Playwright Chromium). Redis-backed session pool
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 428 custom metrics (RED pattern) |
+| Prometheus | 438 custom metrics (RED pattern) |
 | Grafana | 25 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -1103,10 +1109,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 120+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~12,906 tests across 760 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 120+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~13,282 tests across 771 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 120+ ADRs, and the changelog (v1.0 to v1.25.17). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 120+ ADRs, and the changelog (v1.0 to v1.25.18). All metrics, versions, and patterns cited are verifiable in the codebase.*

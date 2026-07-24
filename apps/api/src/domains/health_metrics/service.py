@@ -34,7 +34,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.constants import (
     HEALTH_METRICS_AGENT_CONTEXT_MAX_CHARS,
     HEALTH_METRICS_AGENT_SUMMARY_WINDOW_DAYS,
-    HEALTH_METRICS_HEARTBEAT_FRESHNESS_MINUTES,
     HEALTH_METRICS_KINDS,
     HEALTH_METRICS_PERIOD_DAY,
     HEALTH_METRICS_PERIOD_HOUR,
@@ -52,7 +51,7 @@ from src.core.exceptions import raise_invalid_input
 from src.domains.health_metrics.aggregator import PeriodLiteral, aggregate_samples
 from src.domains.health_metrics.baseline import (
     baseline_window_start,
-    compute_baseline,
+    compute_kind_delta_from_stats,
 )
 from src.domains.health_metrics.constants import (
     LOG_EVENT_BATCH_DUPLICATES_COLLAPSED,
@@ -71,11 +70,10 @@ from src.domains.health_metrics.constants import (
 from src.domains.health_metrics.kinds import (
     HEALTH_KINDS,
     AggregationMethod,
-    HealthKindSpec,
     get_active_bounds,
     get_spec,
 )
-from src.domains.health_metrics.models import HealthMetricToken, HealthSample
+from src.domains.health_metrics.models import HealthMetricToken
 from src.domains.health_metrics.repository import (
     HealthMetricTokenRepository,
     HealthSampleRepository,
@@ -87,8 +85,8 @@ from src.domains.health_metrics.schemas import (
     HealthMetricTokenCreateResponse,
 )
 from src.domains.health_metrics.signals import (
-    detect_notable_events,
-    detect_recent_variations,
+    detect_notable_events_from_stats,
+    detect_recent_variations_from_stats,
 )
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_health_metrics import (
@@ -745,55 +743,12 @@ class HealthMetricsService:
         #   - the full rolling baseline window (28 days by default) before that
         # so the rolling median sees the full 28-day span, not 28 - window_days.
         from_ts = baseline_window_start(now) - timedelta(days=window_days)
-        samples = await self.sample_repo.fetch_samples_kind(
+        # Per-day rollup, not raw samples: a 36-day heart-rate window is ~12 000
+        # rows whose decode blocks the event loop, for ~36 aggregates.
+        stats = await self.sample_repo.fetch_daily_stats(
             user_id, kind=kind, from_ts=from_ts, to_ts=now
         )
-
-        from src.domains.health_metrics.baseline import _daily_aggregate, _group_samples_by_day
-
-        by_day = _group_samples_by_day(samples)
-        sorted_days = sorted(by_day.keys())
-        if not sorted_days:
-            return {
-                "kind": spec.kind,
-                "unit": spec.unit,
-                "mode": "empty",
-                "baseline_value": None,
-                "window_value": None,
-                "delta_pct": None,
-                "window_days": window_days,
-            }
-
-        window_cutoff = sorted_days[-min(window_days, len(sorted_days))]
-        baseline_samples = [
-            s for s in samples if s.date_start.astimezone(UTC).date() < window_cutoff
-        ]
-        window_samples = [
-            s for s in samples if s.date_start.astimezone(UTC).date() >= window_cutoff
-        ]
-
-        baseline = compute_baseline(baseline_samples, spec)
-        window_vals = _daily_aggregate(window_samples, spec.baseline_kind)
-        window_value = sum(window_vals) / len(window_vals) if window_vals else None
-
-        delta_pct: float | None = None
-        if baseline.median_value and window_value is not None and baseline.median_value != 0:
-            delta_pct = round(
-                (window_value - baseline.median_value) / baseline.median_value * 100.0, 1
-            )
-
-        return {
-            "kind": spec.kind,
-            "unit": spec.unit,
-            "mode": baseline.mode,
-            "baseline_value": (
-                round(baseline.median_value, 1) if baseline.median_value is not None else None
-            ),
-            "window_value": round(window_value, 1) if window_value is not None else None,
-            "delta_pct": delta_pct,
-            "window_days": window_days,
-            "days_available": baseline.days_available,
-        }
+        return compute_kind_delta_from_stats(stats, spec, window_days)
 
     async def compute_overview(
         self,
@@ -838,8 +793,11 @@ class HealthMetricsService:
     ) -> list[dict[str, Any]]:
         """Detect notable recent variations across every registered kind.
 
-        Combines :func:`detect_recent_variations` (directional streaks) with
-        :func:`detect_notable_events` (structural events like inactivity).
+        Combines :func:`~src.domains.health_metrics.signals.detect_recent_variations_from_stats`
+        (directional streaks) with
+        :func:`~src.domains.health_metrics.signals.detect_notable_events_from_stats`
+        (structural events like inactivity), both fed by ONE per-day rollup
+        per kind.
 
         Args:
             user_id: Owner user UUID.
@@ -851,22 +809,23 @@ class HealthMetricsService:
         """
         now = datetime.now(UTC)
         # Extend the fetch by ``window_days`` so the baseline split inside
-        # ``detect_recent_variations`` sees the full 28-day rolling history
+        # the variation detector sees the full 28-day rolling history
         # *plus* the recent window on top of it (see ``compute_kind_baseline_delta``).
         from_ts = baseline_window_start(now) - timedelta(days=window_days)
 
         variations: list[dict[str, Any]] = []
         for spec in HEALTH_KINDS.values():
-            samples = await self.sample_repo.fetch_samples_kind(
+            stats = await self.sample_repo.fetch_daily_stats(
                 user_id, kind=spec.kind, from_ts=from_ts, to_ts=now
             )
-            if not samples:
+            if not stats:
                 continue
-            variation = detect_recent_variations(samples, spec, window_days=window_days)
+            variation = detect_recent_variations_from_stats(stats, spec, window_days=window_days)
             if variation is not None:
                 variations.append(variation)
-            for event in detect_notable_events(samples, spec, window_days=window_days):
-                variations.append(event)
+            variations.extend(
+                detect_notable_events_from_stats(stats, spec, window_days=window_days)
+            )
         return variations
 
     async def build_health_context_for_prompt(
@@ -911,99 +870,6 @@ class HealthMetricsService:
         if len(block) > max_chars:
             block = block[: max_chars - 1] + "…"
         return block
-
-    async def build_heartbeat_health_signals(
-        self,
-        user_id: UUID,
-    ) -> dict[str, Any] | None:
-        """Return the structured health-signals payload for the Heartbeat source.
-
-        Combines:
-
-        - ``summary_today`` — last-value + freshness per kind.
-        - ``baseline_deltas`` — ``compute_kind_baseline_delta`` per kind.
-        - ``recent_variations`` / ``notable_events`` from
-          :meth:`detect_all_variations`.
-
-        Args:
-            user_id: Owner user UUID.
-
-        Returns:
-            A dict ready to attach to ``HeartbeatContext.health_signals``.
-            Returns ``None`` if the user has zero samples across every kind
-            (nothing meaningful to inject).
-        """
-        now = datetime.now(UTC)
-        freshness_cutoff = now - timedelta(minutes=HEALTH_METRICS_HEARTBEAT_FRESHNESS_MINUTES)
-
-        summary_today: dict[str, dict[str, Any]] = {}
-        baseline_deltas: dict[str, dict[str, Any]] = {}
-        any_data = False
-
-        for spec in HEALTH_KINDS.values():
-            samples_today = await self.sample_repo.fetch_samples_kind(
-                user_id, kind=spec.kind, from_ts=freshness_cutoff, to_ts=now
-            )
-            if samples_today:
-                any_data = True
-                last_sample = samples_today[-1]
-                minutes_ago = int((now - last_sample.date_start).total_seconds() / 60)
-                summary_today[spec.kind] = {
-                    "value": _summary_value(spec, samples_today),
-                    "unit": spec.unit,
-                    "last_update_minutes_ago": minutes_ago,
-                }
-
-            delta = await self.compute_kind_baseline_delta(user_id, spec.kind)
-            if delta["mode"] != "empty":
-                baseline_deltas[spec.kind] = {
-                    "pct": delta["delta_pct"],
-                    "mode": delta["mode"],
-                    "baseline_value": delta["baseline_value"],
-                }
-
-        if not any_data and not baseline_deltas:
-            return None
-
-        variations_all = await self.detect_all_variations(user_id)
-        recent_variations = [v for v in variations_all if "trend" in v]
-        notable_events = [v for v in variations_all if "event" in v]
-
-        return {
-            "summary_today": summary_today,
-            "baseline_deltas_7d": baseline_deltas,
-            "recent_variations": recent_variations,
-            "notable_events": notable_events,
-        }
-
-
-# =============================================================================
-# Internal helpers
-# =============================================================================
-
-
-def _summary_value(spec: HealthKindSpec, samples: list[HealthSample]) -> int | float:
-    """Single-scalar representation of today's samples for the Heartbeat card.
-
-    - ``SUM`` aggregation → total across the window (e.g. steps).
-    - ``AVG_MIN_MAX`` aggregation → rounded average (e.g. heart rate).
-    - ``LAST_VALUE`` aggregation → last recorded value.
-
-    Args:
-        spec: Kind spec.
-        samples: Non-empty list of samples.
-
-    Returns:
-        A scalar summarizing today's data for the kind.
-    """
-    values = [int(s.value) for s in samples]
-    match spec.aggregation_method:
-        case AggregationMethod.SUM:
-            return sum(values)
-        case AggregationMethod.AVG_MIN_MAX:
-            return round(sum(values) / len(values), 1)
-        case AggregationMethod.LAST_VALUE:
-            return values[-1]
 
 
 # =============================================================================

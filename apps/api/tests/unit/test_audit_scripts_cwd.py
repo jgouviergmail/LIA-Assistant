@@ -40,6 +40,16 @@ def _run(script: str, cwd: Path) -> str:
     assert (
         "not found" not in result.stderr
     ), f"{script} from {cwd} could not locate its default source dir:\n{result.stderr}"
+    # These scripts are GATES: 0 = clean, 1 = threshold exceeded (measure_cc
+    # reports 346 functions over CC 15 and exits 1 with complete output). Any
+    # OTHER code means the process died mid-scan — under `-n auto` each case
+    # walks ~1 000 files three times, and a killed subprocess returns PARTIAL
+    # stdout that the comparison below would report as an F023 regression,
+    # blaming the scripts for what is a resource problem on the runner.
+    assert result.returncode in (0, 1), (
+        f"{script} from {cwd} died with code {result.returncode} — its output is "
+        f"partial, so the comparison below would be meaningless:\n{result.stderr[-2000:]}"
+    )
     return result.stdout
 
 

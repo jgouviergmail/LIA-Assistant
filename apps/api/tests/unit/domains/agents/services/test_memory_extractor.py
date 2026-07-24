@@ -428,3 +428,44 @@ class TestMemoryExtractionDebugCache:
         assert len(_memory_extraction_debug_cache) == _MEMORY_DEBUG_CACHE_MAX_SIZE
         # The overflow entry should be present
         assert "run-overflow" in _memory_extraction_debug_cache
+
+
+class TestMemoryExtractionPromptDoctrine:
+    """Doctrine guards for the extraction prompt (2026-07-23 dedup fix).
+
+    A dated calendar appointment must NOT be stored as long-term memory (it
+    already lives in the agenda — storing it duplicates). The exclusion is
+    generic (nature of the fact), not calendar-specific. These are regression
+    guards so the doctrine cannot silently disappear from the prompt.
+    """
+
+    def _prompt(self) -> str:
+        from src.domains.agents.prompts import load_prompt
+
+        return str(load_prompt("memory_extraction_prompt"))
+
+    def test_prompt_formats_without_broken_placeholders(self):
+        """The template must format with the extractor's exact kwargs."""
+        formatted = self._prompt().format(
+            conversation="USER: bonjour",
+            existing_memories="None",
+            current_datetime="23/07/2026 20:00",
+            known_relationships="No known relationships",
+            health_context="",
+        )
+        assert "bonjour" in formatted
+
+    def test_transient_logistics_are_excluded(self):
+        """Scheduled slots (appointments/reservations) are excluded generically."""
+        prompt = self._prompt().lower()
+        assert "transient logistics" in prompt
+        # Named exemplars of the excluded, dated-but-transient class.
+        assert "appointment" in prompt and "reservation" in prompt
+
+    def test_event_category_requires_durable_significance(self):
+        """`event` is a significant life occurrence, not a routine appointment."""
+        prompt = self._prompt()
+        # The refined definition ties `event` to durability beyond its date...
+        assert "outlives its date" in prompt
+        # ...and explicitly rules out routine appointments as events.
+        assert "NOT a routine appointment" in prompt

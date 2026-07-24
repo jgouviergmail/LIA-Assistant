@@ -15,8 +15,12 @@ Outputs are pure dicts/lists, ready to feed into LLM prompts or the
 Heartbeat context aggregator. No medical conclusions drawn — only
 quantified facts.
 
-Module is DB-access free: consumes pre-fetched
-:class:`src.domains.health_metrics.models.HealthSample` lists.
+Module is DB-access free. Each detector has two entry points over the same
+implementation: a ``*_from_stats`` function consuming a pre-aggregated
+:class:`~src.domains.health_metrics.baseline.DailyStat` series (what the
+repository rollup returns), and a raw-sample wrapper that groups first. Both
+detectors only ever reason per day, which is why the wide windows moved to a
+server-side rollup.
 
 Phase: evolution — Health Metrics (assistant agents v1.17.2)
 Created: 2026-04-22
@@ -28,10 +32,12 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 
 from src.core.config import settings
+from src.core.constants import HEALTH_METRICS_INACTIVITY_STREAK_MIN_DAYS
 from src.domains.health_metrics.baseline import (
-    _daily_aggregate,
-    _group_samples_by_day,
-    compute_baseline,
+    DailyStat,
+    compute_baseline_from_stats,
+    daily_stats_from_samples,
+    daily_values,
 )
 from src.domains.health_metrics.kinds import HealthKindSpec
 from src.domains.health_metrics.models import HealthSample
@@ -162,39 +168,59 @@ def detect_recent_variations(
         - The baseline is ``empty`` or zero (division would be meaningless).
         - No streak meets the thresholds.
     """
-    # Group all samples by day once
-    by_day = _group_samples_by_day(samples)
-    if not by_day:
-        return None
-    sorted_days = sorted(by_day.keys())
+    return detect_recent_variations_from_stats(
+        daily_stats_from_samples(samples), spec, window_days=window_days
+    )
 
-    # Split: window = last N days, baseline prefix = earlier days
-    if len(sorted_days) <= window_days:
-        # Not enough history — use everything as the window AND the baseline
-        window_days_list = sorted_days
-        baseline_samples = samples
+
+def detect_recent_variations_from_stats(
+    stats: list[DailyStat],
+    spec: HealthKindSpec,
+    window_days: int = 7,
+) -> dict[str, Any] | None:
+    """Per-day-series counterpart of :func:`detect_recent_variations`.
+
+    Carries the implementation: callers holding a server-side rollup feed it
+    directly, the raw-sample entry point groups first and delegates here.
+
+    The window is the last ``window_days`` **days present in the series** and
+    the baseline is the prefix before it — the same split the raw-sample path
+    performs, since ``stats`` is day-ascending with one entry per day.
+
+    Args:
+        stats: Per-day aggregates covering the baseline lookup window +
+            ``window_days``, day ascending.
+        spec: Spec of the kind under analysis.
+        window_days: Recent-window length in days. Defaults to 7.
+
+    Returns:
+        The variation dict described in :func:`detect_recent_variations`, or
+        ``None`` when there is no data, no usable baseline, or no streak
+        meeting the thresholds.
+    """
+    if not stats:
+        return None
+
+    # Window = last N days present; baseline = the prefix before it. With no
+    # more days than the window, everything is BOTH (kept from the raw-sample
+    # implementation — a short history compares against itself).
+    if len(stats) <= window_days:
+        window_stats, baseline_stats = stats, stats
     else:
-        window_days_list = sorted_days[-window_days:]
-        window_first_day = window_days_list[0]
-        baseline_samples = [
-            s for s in samples if s.date_start.astimezone(UTC).date() < window_first_day
-        ]
+        window_stats, baseline_stats = stats[-window_days:], stats[:-window_days]
 
-    baseline = compute_baseline(baseline_samples, spec)
-    if baseline.mode == "empty" or baseline.median_value in (None, 0):
+    baseline = compute_baseline_from_stats(baseline_stats, spec)
+    base = baseline.median_value
+    if baseline.mode == "empty" or base is None or base == 0:
         return None
 
-    # Build per-day aggregates for the window
-    window_samples = [s for s in samples if s.date_start.astimezone(UTC).date() in window_days_list]
-    daily_window = _daily_aggregate(window_samples, spec.baseline_kind)
-    if len(daily_window) != len(window_days_list):
-        # Defensive: if mismatch, align tail
-        window_days_list = window_days_list[-len(daily_window) :]
-
-    base = baseline.median_value
-    assert base is not None  # narrowed above
+    # strict=True encodes the invariant the raw-sample version defended
+    # against at runtime: one reduced value per day, always.
     deltas: list[tuple[date, float]] = [
-        (window_days_list[i], (val - base) / base * 100.0) for i, val in enumerate(daily_window)
+        (stat.day, (value - base) / base * 100.0)
+        for stat, value in zip(
+            window_stats, daily_values(window_stats, spec.baseline_kind), strict=True
+        )
     ]
 
     trend, days, avg_delta = _find_longest_trend_streak(
@@ -247,31 +273,47 @@ def detect_notable_events(
     Returns:
         A list of event dicts; empty if nothing notable.
     """
+    return detect_notable_events_from_stats(
+        daily_stats_from_samples(samples), spec, window_days=window_days
+    )
+
+
+def detect_notable_events_from_stats(
+    stats: list[DailyStat],
+    spec: HealthKindSpec,
+    window_days: int = 7,
+) -> list[dict[str, Any]]:
+    """Per-day-series counterpart of :func:`detect_notable_events`.
+
+    Reads ``DailyStat.total`` — the raw daily **sum** — deliberately, not the
+    kind's baseline reduction: an inactivity streak is "no steps recorded",
+    which stays a sum whatever ``spec.baseline_kind`` says. Reducing via the
+    baseline aggregation would silently misread a future ``DAILY_AVG`` kind.
+
+    Args:
+        stats: Per-day aggregates for the kind, day ascending.
+        spec: Spec of the kind.
+        window_days: Inspection window size in days.
+
+    Returns:
+        A list of event dicts; empty if nothing notable.
+    """
     events: list[dict[str, Any]] = []
 
     if spec.kind == "steps":
-        # Inactivity streak: last ``window_days`` each summing to 0.
-        now = datetime.now(UTC)
-        earliest = (now - timedelta(days=window_days)).date()
-        by_day = _group_samples_by_day(
-            [s for s in samples if s.date_start.astimezone(UTC).date() >= earliest]
-        )
-        if by_day:
-            sorted_days = sorted(by_day.keys())[-window_days:]
-            zero_streak = 0
-            for day in sorted_days:
-                total = sum(by_day.get(day, []))
-                if total == 0:
-                    zero_streak += 1
-                else:
-                    zero_streak = 0
-            if zero_streak >= 3:
-                events.append(
-                    {
-                        "event": "inactivity_streak",
-                        "kind": spec.kind,
-                        "days": zero_streak,
-                    }
-                )
+        # Inactivity streak: trailing ``window_days`` each summing to 0.
+        earliest = (datetime.now(UTC) - timedelta(days=window_days)).date()
+        recent = [stat for stat in stats if stat.day >= earliest][-window_days:]
+        zero_streak = 0
+        for stat in recent:
+            zero_streak = zero_streak + 1 if stat.total == 0 else 0
+        if zero_streak >= HEALTH_METRICS_INACTIVITY_STREAK_MIN_DAYS:
+            events.append(
+                {
+                    "event": "inactivity_streak",
+                    "kind": spec.kind,
+                    "days": zero_streak,
+                }
+            )
 
     return events

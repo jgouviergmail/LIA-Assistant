@@ -157,6 +157,46 @@ Period-wide averages:
 - `heart_rate_avg` = arithmetic mean of every HR sample in the window.
 - `steps_per_day_avg` = `total_steps / total_days` (`None` when zero steps).
 
+## Read path: per-day rollup (ADR-148)
+
+Baselines, variation detection and the Heartbeat block never need a raw sample —
+they only ever reason **per day**. `HealthSampleRepository.fetch_daily_stats`
+returns one row per UTC day instead of one row per sample:
+
+```sql
+SELECT (timezone('UTC', date_start))::date AS day,
+       sum(value), count(*), min(value)
+FROM health_samples
+WHERE user_id = … AND kind = … AND date_start >= … AND date_start < …
+GROUP BY day ORDER BY day
+```
+
+- **Raw integer primitives, not a pre-reduced value.** Every `BaselineKind`
+  derives from them (`DAILY_SUM` → `total`, `DAILY_AVG` → `total / count`,
+  `RESTING` → `minimum`), and `detect_notable_events` needs the raw daily **sum**
+  whatever the kind's baseline aggregation says — a `BaselineKind → SQL function`
+  mapping would silently misread a future `DAILY_AVG` kind.
+- **Bit-exact, provably.** `total` and `count` are exact integers, so
+  `total / count` is the same IEEE-754 operation Python performs over the sample
+  list. Casting to `float` matters: `avg(integer)` returns `numeric`, whose
+  rounding differs.
+- **UTC bucketing is explicit.** `timezone('UTC', …)` makes the day independent
+  of the session `TimeZone` — without it CI (UTC) stays green while a non-UTC
+  production session mis-buckets. Pinned by an integration test that replays the
+  query under a UTC+14 session.
+- **Why it matters.** The Heartbeat block used to issue 6 queries / 30 662 rows
+  per tick for ~74 numbers. PostgreSQL answered in 6.7 ms; the cost was the
+  per-row client-side decode (~29 µs/row), a synchronous burst freezing the
+  worker's event loop for 483 ms. Health signals were consequently dropped on
+  **46.5 %** of ticks. Measured after: 353 ms → 7.0 ms, loop stall 124 → 1.1 ms.
+
+`baseline.py` / `signals.py` expose every computation twice over one
+implementation — a `*_from_stats` entry point consuming the rollup, and a
+raw-sample wrapper that groups first via `daily_stats_from_samples`. The 24-hour
+`summary_today` window deliberately stays on raw samples: a few hundred rows,
+and per-sample semantics (`_summary_value`, freshness of the last point) a
+per-day rollup cannot express.
+
 ## Observability
 
 ### Prometheus metrics (`src/infrastructure/observability/metrics_health_metrics.py`)

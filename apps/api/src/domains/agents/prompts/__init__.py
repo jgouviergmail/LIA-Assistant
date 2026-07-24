@@ -358,6 +358,7 @@ def get_response_prompt(
     app_knowledge_context: str = "",
     journal_context: str = "",
     psyche_context: str = "",
+    recent_entities: str = "",
 ) -> str:
     """Get the formatted system prompt for the response node.
 
@@ -401,6 +402,10 @@ def get_response_prompt(
         app_knowledge_context: System RAG context (FAQ, app help).
             Injected only when is_app_help_query=True (lazy loading).
             Combined with app_identity_prompt for complete self-knowledge.
+        recent_entities: Entities still in context from earlier turns, injected
+            only when the current turn produced no structured data of its own
+            (built by context/recent_entities.py). Non-authoritative by contract:
+            current turn data always wins.
 
     Returns:
         Formatted system prompt string ready for ChatPromptTemplate construction.
@@ -478,6 +483,17 @@ def get_response_prompt(
         "Your behavioral directives from past interactions. Apply silently — do NOT quote entries.",
     )
     safe_psyche_context = escape_braces(psyche_context) if psyche_context else ""
+    # Entities still in context from earlier turns, injected ONLY when the current
+    # turn produced no data of its own (see context/recent_entities.py). Labelled
+    # as non-authoritative so <DataAuthority>'s hierarchy stays intact.
+    safe_recent_entities = _wrap_section(
+        "RecentEntities",
+        recent_entities,
+        "Entities from earlier turns of this conversation, still in context. Quote their "
+        "exact values (times, dates, addresses) rather than recalling from memory. They are "
+        "NOT current-turn results: never present them as freshly retrieved, and whenever "
+        "current turn data covers the same entity, that data wins.",
+    )
     safe_knowledge_context = _wrap_section(
         "KnowledgeEnrichment",
         knowledge_context,
@@ -511,6 +527,7 @@ def get_response_prompt(
         app_knowledge_context=safe_app_knowledge,
         journal_context=safe_journal_context,
         psyche_context=safe_psyche_context,
+        recent_entities=safe_recent_entities,
     )
 
     return formatted_system_prompt

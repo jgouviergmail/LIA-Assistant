@@ -664,6 +664,10 @@ AGENT_HISTORY_KEEP_LAST_DEFAULT = 30  # Messages to keep in agent LLM input (inc
 # removed with their never-wired helpers; state-level truncation bounds tokens.
 DEFAULT_MESSAGE_WINDOW_SIZE = 4  # Default fallback for get_windowed_messages(window_size=None)
 RESPONSE_MESSAGE_WINDOW_SIZE_DEFAULT = 10  # Response: creative synthesis (rich context)
+# Max age (in turns) of a Tool-Context list still injected as recent-entity
+# grounding when the current turn produced no registry data. Beyond it the
+# entities are considered stale and are not surfaced to the response LLM.
+RECENT_ENTITIES_MAX_TURN_AGE_DEFAULT = 3
 
 # SSE (Server-Sent Events) configuration
 SSE_HEARTBEAT_INTERVAL_DEFAULT = 15  # seconds
@@ -4309,6 +4313,8 @@ HEALTH_METRICS_BASELINE_ROLLING_WINDOW_DAYS: int = 28
 HEALTH_METRICS_VARIATION_MIN_DAYS_DEFAULT: int = 3
 HEALTH_METRICS_VARIATION_MIN_DELTA_PCT_DEFAULT: float = 20.0
 HEALTH_METRICS_VARIATION_DAILY_DELTA_PCT_DEFAULT: float = 10.0
+# Consecutive zero-step days before an inactivity streak is reported.
+HEALTH_METRICS_INACTIVITY_STREAK_MIN_DAYS: int = 3
 
 # Agent / Heartbeat / prompt-injection defaults
 HEALTH_METRICS_AGENT_CONTEXT_MAX_CHARS: int = 800

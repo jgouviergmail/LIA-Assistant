@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 3.9
-**Date** : 2026-07-23
-**Application** : LIA v1.25.17
+**Date** : 2026-07-24
+**Application** : LIA v1.25.18
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -351,6 +351,8 @@ LIA ne refuse pas les actions sensibles — elle vous les **soumet** avec le niv
 Envoyez une question, fermez l'onglet, partez. La génération continue sur le serveur, et la réponse vous attend dans la conversation — ou reprend en direct, exactement là où elle en était, si vous revenez pendant qu'elle s'écrit. Rien à faire, rien à configurer : la continuité est le comportement par défaut. Et quand c'est vous qui changez d'avis, un bouton stop interrompt la génération en une seconde — ce qui est déjà écrit reste affiché, honnêtement marqué comme interrompu. Un assistant fiable n'est pas seulement un assistant qui répond juste : c'est un assistant qui finit ce qu'il commence.
 
 ---
+
+Cette exigence vaut aussi pour ce que LIA **affirme**. Une réponse doit s’appuyer sur des données réellement récupérées, jamais sur le souvenir d’une formulation antérieure ; et lorsqu’une information n’a jamais été obtenue, la dire manquante vaut mieux que la reconstituer de façon plausible. C’est une contrainte de conception plutôt qu’une consigne de style : les entités récemment récupérées sont réinjectées explicitement dans le contexte de réponse, et l’invention d’un attribut d’entité est proscrite au niveau du prompt. Une erreur factuelle plausible coûte plus cher qu’un « je ne sais pas ».
 
 ## 9. Ouverture radicale
 

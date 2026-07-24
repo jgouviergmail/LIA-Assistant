@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 3.9
-**Datum** : 2026-07-23
-**Anwendung** : LIA v1.25.17
+**Datum** : 2026-07-24
+**Anwendung** : LIA v1.25.18
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -351,6 +351,8 @@ LIA lehnt sensible Aktionen nicht ab — sie **legt sie Ihnen vor** mit dem jewe
 Eine Frage senden, den Tab schließen, weggehen. Die Generierung läuft auf dem Server weiter, und die Antwort wartet in der Konversation — oder setzt live fort, genau dort, wo sie stand, wenn Sie zurückkommen, während sie noch geschrieben wird. Nichts zu tun, nichts zu konfigurieren: Kontinuität ist das Standardverhalten. Und wenn Sie selbst Ihre Meinung ändern, unterbricht ein Stop-Button die Generierung innerhalb einer Sekunde — das bereits Geschriebene bleibt sichtbar, ehrlich als unterbrochen markiert. Ein zuverlässiger Assistent ist nicht nur einer, der richtig antwortet: Es ist einer, der zu Ende bringt, was er beginnt.
 
 ---
+
+Derselbe Anspruch gilt für das, was LIA **behauptet**. Eine Antwort muss auf tatsächlich abgerufenen Daten beruhen, nie auf der Erinnerung an eine frühere Formulierung; und wurde eine Information nie erhalten, ist es besser, sie als fehlend zu benennen, als etwas Plausibles zu rekonstruieren. Das ist eine Konstruktionsvorgabe, keine Stilfrage: kürzlich abgerufene Entitäten werden ausdrücklich in den Antwortkontext eingespeist, und das Erfinden eines Entitätsattributs ist auf Prompt-Ebene untersagt. Ein plausibler Sachfehler kostet mehr als ein „Ich weiß es nicht“.
 
 ## 9. Radikale Offenheit
 

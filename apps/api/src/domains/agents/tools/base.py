@@ -114,7 +114,44 @@ _current_runtime: ContextVar[ToolRuntime | None] = ContextVar(
 )
 
 
-class ConnectorTool[ClientType](ABC):
+class LanguagePropagationMixin:
+    """Carry the user language from the async call to the sync formatter.
+
+    ``execute_api_call`` is async and can resolve the user's language;
+    ``format_registry_response`` is sync and cannot. Tool instances are
+    module-level singletons shared across concurrent requests, so the value
+    must NOT be stashed on ``self`` — it travels inside the result dict under
+    :attr:`_LANGUAGE_RESULT_KEY`.
+
+    Shared by both tool base classes (OAuth connectors and API-key connectors)
+    so localized summaries are written the same way everywhere.
+    """
+
+    # Internal key used by subclasses to propagate user language from
+    # execute_api_call() (async) to format_registry_response() (sync) via
+    # the result dict. Prevents unsafe reliance on shared instance state,
+    # since tool instances are singletons across concurrent requests.
+    _LANGUAGE_RESULT_KEY: str = "_language"
+
+    def _language_from_result(self, result: dict[str, Any], default: str = "fr") -> str:
+        """Extract the user language stashed by ``execute_api_call``.
+
+        Keeps subclasses free of magic string keys and keeps the contract
+        localised in one place.
+
+        Args:
+            result: Dict returned by ``execute_api_call``.
+            default: Language code returned if the key is missing.
+
+        Returns:
+            Language code found in ``result[_LANGUAGE_RESULT_KEY]`` or
+            ``default``.
+        """
+        value = result.get(self._LANGUAGE_RESULT_KEY, default)
+        return value if isinstance(value, str) and value else default
+
+
+class ConnectorTool[ClientType](LanguagePropagationMixin, ABC):
     """
     Abstract base class for connector-based tools.
 
@@ -617,12 +654,6 @@ class ConnectorTool[ClientType](ABC):
 
         return user_timezone, locale
 
-    # Internal key used by subclasses to propagate user language from
-    # execute_api_call() (async) to format_registry_response() (sync) via
-    # the result dict. Prevents unsafe reliance on shared instance state,
-    # since ConnectorTool instances are singletons across concurrent requests.
-    _LANGUAGE_RESULT_KEY: str = "_language"
-
     async def _fetch_language(self, default: str = "fr") -> str:
         """Fetch user language from runtime with safe fallback.
 
@@ -643,26 +674,8 @@ class ConnectorTool[ClientType](ABC):
 
         return await get_user_language_safe(self.runtime, default=default)
 
-    def _language_from_result(self, result: dict[str, Any], default: str = "fr") -> str:
-        """Extract the user language stashed by ``execute_api_call``.
 
-        Paired with :meth:`_fetch_language`. Keeps subclasses free of
-        magic string keys and keeps the contract localised in the base
-        class.
-
-        Args:
-            result: Dict returned by ``execute_api_call``.
-            default: Language code returned if the key is missing.
-
-        Returns:
-            Language code found in ``result[_LANGUAGE_RESULT_KEY]`` or
-            ``default``.
-        """
-        value = result.get(self._LANGUAGE_RESULT_KEY, default)
-        return value if isinstance(value, str) and value else default
-
-
-class APIKeyConnectorTool[ClientType](ABC):
+class APIKeyConnectorTool[ClientType](LanguagePropagationMixin, ABC):
     """
     Abstract base class for API key-based connector tools.
 

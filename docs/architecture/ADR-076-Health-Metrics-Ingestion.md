@@ -199,7 +199,9 @@ node.
 
 ### 15. Heartbeat source `health_signals`
 
-`context_aggregator._fetch_health_signals()` injects a compact payload
+`heartbeat/health_context.fetch_health_signals()` injects a compact payload
+(extracted from `context_aggregator` by ADR-148, which also moved the read to a
+per-day SQL rollup)
 (summary-today + baseline deltas + recent variations + notable events)
 into the Heartbeat `CURRENT CONTEXT`. Capped by a 2-second
 `asyncio.wait_for` — timeout / error → silent `None` so the heartbeat

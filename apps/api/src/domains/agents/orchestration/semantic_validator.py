@@ -51,6 +51,13 @@ from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import StructuredOutputError, get_structured_output
 from src.infrastructure.observability.logging import get_logger
 
+# Pure plan predicates extracted to plan_predicates.py (file-size ratchet):
+# they answer "what does this plan do?" with no LLM and no I/O. Re-exported
+# (``as`` form: explicit re-export under mypy strict) for historical callers.
+from .plan_predicates import CROSS_DOMAIN_CAPABLE_TOOLS as CROSS_DOMAIN_CAPABLE_TOOLS
+from .plan_predicates import MUTATION_TOOL_PATTERNS as MUTATION_TOOL_PATTERNS
+from .plan_predicates import plan_contains_mutation as plan_contains_mutation
+from .plan_predicates import plan_covers_domain, tool_is_mutation
 from .plan_schemas import ExecutionPlan
 
 # Validation domain models extracted to validation_models.py (file-size
@@ -73,76 +80,6 @@ logger = get_logger(__name__)
 # - CARDINALITY_KEYWORDS removed (LLM sets has_cardinality_risk flag)
 # - MUTATION_TOOL_PATTERNS kept only for tool name validation (internal data)
 # ============================================================================
-
-# Tool name patterns indicating mutation operations (for tool validation ONLY)
-# These match against TOOL NAMES (internal data), not user queries
-# Used to verify plan has correct mutation tool when user requests mutation
-MUTATION_TOOL_PATTERNS = [
-    "create",
-    "update",
-    "delete",
-    "send",
-    "reply",
-    "forward",
-    "remove",
-    "add",
-    "modify",
-]
-
-# ============================================================================
-# FIX 2026-01-11: Tools with cross-domain capabilities
-# ============================================================================
-# These tools handle multiple domains intrinsically (e.g., send_email resolves
-# contacts automatically via the HITL flow). A single-step plan with one of
-# these tools is valid even when 2+ domains are expected.
-#
-# Example: "send an email to john" → domains=['emails', 'contacts']
-# Plan: [send_email_draft] → Valid! The tool resolves contact via draft+HITL.
-# Without this fix: semantic_validator forces re-planning → +9k tokens wasted.
-# ============================================================================
-CROSS_DOMAIN_CAPABLE_TOOLS = frozenset(
-    [
-        # Email tools that can resolve contacts via semantic_type="email_address"
-        "send_email_tool",
-        "send_email_draft",
-        "reply_email_tool",
-        "reply_email_draft",
-        "forward_email_tool",
-        "forward_email_draft",
-        # Event tools that can resolve attendees from contacts
-        "create_event_tool",
-        "create_event_draft",
-        "update_event_tool",
-        "update_event_draft",
-    ]
-)
-
-
-def _tool_is_mutation(tool_name: str) -> bool:
-    """Check if a tool name indicates a mutation operation."""
-    tool_lower = tool_name.lower()
-    return any(pattern in tool_lower for pattern in MUTATION_TOOL_PATTERNS)
-
-
-def plan_contains_mutation(plan: Any) -> bool:
-    """True if ANY step of ``plan`` calls a mutation tool.
-
-    Public helper for the safety net that keeps an INVALID mutation plan from
-    being executed by the max-iterations bypass (it is rerouted to a HITL
-    clarification instead). Tolerates None and the dict-serialized plan form.
-    """
-    if plan is None:
-        return False
-    steps = getattr(plan, "steps", None)
-    if steps is None and isinstance(plan, dict):
-        steps = plan.get("steps")
-    for step in steps or []:
-        tool = getattr(step, "tool_name", None)
-        if tool is None and isinstance(step, dict):
-            tool = step.get("tool_name")
-        if tool and _tool_is_mutation(tool):
-            return True
-    return False
 
 
 # Emails on RFC 2606 reserved domains (example.com/org/net, .invalid, .test) are
@@ -189,7 +126,7 @@ def detect_placeholder_contacts(plan: ExecutionPlan) -> list[str]:
     """
     findings: list[str] = []
     for step in plan.steps:
-        if not _tool_is_mutation(step.tool_name or ""):
+        if not tool_is_mutation(step.tool_name or ""):
             continue
         for param_name, value in (step.parameters or {}).items():
             if param_name.lower() in _FREE_TEXT_PARAM_NAMES:
@@ -243,6 +180,7 @@ def should_trigger_semantic_validation(
     is_mutation_intent = False
     has_cardinality_risk = False
     expected_domains: list[str] = []
+    primary_domain = ""
 
     if query_intelligence is not None:
         if isinstance(query_intelligence, dict):
@@ -250,11 +188,26 @@ def should_trigger_semantic_validation(
             is_mutation_intent = query_intelligence.get("is_mutation_intent", False)
             has_cardinality_risk = query_intelligence.get("has_cardinality_risk", False)
             expected_domains = query_intelligence.get("domains", [])
+            primary_domain = query_intelligence.get("primary_domain", "") or ""
         else:
             # Object format (QueryIntelligence dataclass)
             is_mutation_intent = getattr(query_intelligence, "is_mutation_intent", False)
             has_cardinality_risk = getattr(query_intelligence, "has_cardinality_risk", False)
             expected_domains = getattr(query_intelligence, "domains", [])
+            primary_domain = getattr(query_intelligence, "primary_domain", "") or ""
+
+    # A single-step plan that touches NONE of the primary domain is not a
+    # consolidation — it is a loss. Prod 2026-07-23: "weather for my two
+    # appointments on July 25" was detected as primary_domain=weather, the
+    # planner emitted a lone get_events_tool step, and the response node,
+    # holding the question but no weather data, invented temperatures. The
+    # rule below distinguishes the two cases the read-only exemption conflates:
+    # consolidating several domains into one call still calls a PRIMARY-domain
+    # tool; dropping the domain does not. Deterministic (registry lookup, no
+    # LLM) and routed to silent auto-replan, not to a user clarification —
+    # bounded by PLANNER_MAX_REPLANS.
+    if primary_domain and len(plan.steps) == 1 and not plan_covers_domain(plan, primary_domain):
+        return True, f"primary_domain_uncovered:{primary_domain}"
 
     # Check multi-domain mismatch (before single-step short-circuit)
     # If LLM detected 2+ domains but plan has only 1 step → possibly incomplete plan
@@ -270,7 +223,7 @@ def should_trigger_semantic_validation(
     # If LLM detected mutation intent but plan has NO mutation tool → incomplete plan
     if is_mutation_intent and len(plan.steps) == 1:
         single_tool_name = plan.steps[0].tool_name or ""
-        if not _tool_is_mutation(single_tool_name):
+        if not tool_is_mutation(single_tool_name):
             return True, f"mutation_intent_but_no_mutation_tool:{single_tool_name}"
 
     # Single-step MUTATIONS are validated: the only step writes real data, and a
@@ -280,7 +233,7 @@ def should_trigger_semantic_validation(
     # through). Read-only single steps stay trivial: a wrong read is harmless
     # and spurious clarification loops on reads are worse than the miss.
     if len(plan.steps) <= 1:
-        if plan.steps and _tool_is_mutation(plan.steps[0].tool_name or ""):
+        if plan.steps and tool_is_mutation(plan.steps[0].tool_name or ""):
             return True, "single_step_mutation"
         return False, "single_step_trivial"
 
@@ -298,7 +251,7 @@ def should_trigger_semantic_validation(
         # Check if last step is a mutation
         if i == len(plan.steps) - 1:
             tool_name = step.tool_name or ""
-            mutation_at_end = _tool_is_mutation(tool_name)
+            mutation_at_end = tool_is_mutation(tool_name)
 
     if len(plan.steps) >= 2 and has_step_references and mutation_at_end:
         # Well-formed cross-domain mutation plan → skip validation
@@ -314,7 +267,7 @@ def should_trigger_semantic_validation(
         return True, f"multi_domain:{','.join(sorted(plan_domains))}"
 
     # 2. Any mutation tool in plan (risky operation)
-    plan_has_mutation = any(_tool_is_mutation(step.tool_name or "") for step in plan.steps)
+    plan_has_mutation = any(tool_is_mutation(step.tool_name or "") for step in plan.steps)
     if plan_has_mutation:
         return True, "mutation_detected"
 

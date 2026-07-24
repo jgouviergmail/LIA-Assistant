@@ -31,3 +31,15 @@ user_location_geocode_total = Counter(
     ["result"],
     # result: cache_hit | api_hit | api_error | redis_down
 )
+
+
+heartbeat_source_dropped_total = Counter(
+    "heartbeat_source_dropped_total",
+    "Context sources silently dropped from a heartbeat aggregation. A source "
+    "that fails open leaves no trace in the notification itself, so the only "
+    "way to notice a degraded heartbeat is this counter (health_signals was "
+    "timing out on ~46% of ticks for a week before anyone looked).",
+    ["source", "reason"],
+    # source: health_signals
+    # reason: timeout | error
+)

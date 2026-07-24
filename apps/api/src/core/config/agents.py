@@ -251,6 +251,7 @@ from src.core.constants import (
     REACT_AGENT_MAX_TOOLS_DEFAULT,
     REACT_AGENT_TIMEOUT_SECONDS_DEFAULT,
     REACT_MCP_EXPAND_ITERATIVE_ENABLED_DEFAULT,
+    RECENT_ENTITIES_MAX_TURN_AGE_DEFAULT,
     REGISTRY_MAX_ITEMS_DEFAULT,
     RESPONSE_CONTEXT_PREFETCH_AT_ROUTER_ENABLED_DEFAULT,
     RESPONSE_CONTEXT_PREFETCH_AWAIT_TIMEOUT_SECONDS,
@@ -435,6 +436,15 @@ class AgentsSettings(BaseSettings):
         ge=1,
         le=100,
         description="Response window size: rich context for creative synthesis (default: 10 turns)",
+    )
+    response_recent_entities_max_turn_age: int = Field(
+        default=RECENT_ENTITIES_MAX_TURN_AGE_DEFAULT,
+        ge=0,
+        le=50,
+        description=(
+            "Max age in turns of a Tool-Context list still injected as recent-entity "
+            "grounding when the current turn produced no data (0 disables the injection)"
+        ),
     )
 
     # ========================================================================

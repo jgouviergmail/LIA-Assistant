@@ -52,6 +52,7 @@ from src.domains.heartbeat.context_sources import (
 from src.domains.heartbeat.context_sources import (
     resolve_user_tz as _resolve_user_tz,
 )
+from src.domains.heartbeat.health_context import fetch_health_signals
 from src.domains.heartbeat.repository import HeartbeatNotificationRepository
 from src.domains.heartbeat.schemas import HeartbeatContext, WeatherChange
 from src.domains.interests.models import InterestNotification, UserInterest
@@ -192,7 +193,7 @@ class ContextAggregator:
         self._compute_time_context(context, user)
 
         # Parallel fetch of all I/O-bound sources — one DB session PER fetcher
-        # (see class docstring); _fetch_health_signals manages its own scoped
+        # (see class docstring); fetch_health_signals manages its own scoped
         # session internally. Memories are NOT fetched here: like journals,
         # they run in the second pass with a dynamic query (P8, ADR-135
         # symmetry — the historical static query anchored the same memories
@@ -207,7 +208,7 @@ class ContextAggregator:
             self._with_fresh_session(self._fetch_recent_heartbeats, user_id, user),
             self._with_fresh_session(self._fetch_recent_interest_notifications, user_id, user),
             self._with_fresh_session(self._fetch_recent_other_notifications, user_id, user),
-            self._fetch_health_signals(user_id, user, settings),
+            fetch_health_signals(user_id, user, settings),
             self._fetch_birthdays(user_id, user, settings),
             self._with_fresh_session(fetch_open_loops_context, user_id, user, settings),
             return_exceptions=True,
@@ -948,58 +949,6 @@ class ContextAggregator:
                 memories.append(content[:200])  # Truncate to save tokens
 
         return memories if memories else None
-
-    # ------------------------------------------------------------------
-    # Health signals source (v1.17.2)
-    # ------------------------------------------------------------------
-
-    async def _fetch_health_signals(
-        self,
-        user_id: UUID,
-        user: Any,
-        settings: Any,
-    ) -> dict[str, Any] | None:
-        """Fetch the Health Metrics signals block when the user has opted in.
-
-        Gated by two flags:
-        - ``settings.health_metrics_enabled`` (global feature).
-        - ``user.health_metrics_agents_enabled`` (per-user opt-in).
-
-        Uses a short-circuit timeout so a slow DB does not block the
-        heartbeat aggregate. Returns ``None`` on any failure — the
-        heartbeat context stays usable without health signals.
-
-        Returns:
-            A dict ready to attach to ``HeartbeatContext.health_signals``,
-            or ``None`` when disabled / empty / failed.
-        """
-        from src.core.constants import HEALTH_METRICS_USER_TOGGLE_ATTR
-
-        if not getattr(settings, "health_metrics_enabled", False):
-            return None
-        if not getattr(user, HEALTH_METRICS_USER_TOGGLE_ATTR, False):
-            return None
-
-        from src.domains.health_metrics.service import HealthMetricsService
-
-        try:
-            async with asyncio.timeout(settings.health_metrics_heartbeat_fetch_timeout_seconds):
-                async with get_db_context() as db:
-                    service = HealthMetricsService(db)
-                    return await service.build_heartbeat_health_signals(user_id)
-        except TimeoutError:
-            logger.warning(
-                "heartbeat_health_signals_timeout",
-                user_id=str(user_id),
-            )
-            return None
-        except Exception as exc:  # pragma: no cover - defensive
-            logger.warning(
-                "heartbeat_health_signals_failed",
-                user_id=str(user_id),
-                error=str(exc),
-            )
-            return None
 
     # ------------------------------------------------------------------
     # Activity source

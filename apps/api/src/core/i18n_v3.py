@@ -632,6 +632,76 @@ _WEATHER_FORECAST_BEYOND_LIMIT: dict[str, str] = {
     "zh-CN": "天气预报仅适用于未来 {max_days} 天。请求的日期是 {offset} 天后。",
 }
 
+# Requested day IS within the forecast window, but the provider returned no
+# 3-hour slot for it (edge of the window, lowered WEATHER_FORECAST_MAX_DAYS,
+# far-offset timezone). Distinct from _WEATHER_FORECAST_BEYOND_LIMIT, whose
+# wording would contradict itself here ("only 5 days" for a day 3 days out).
+_WEATHER_NO_SLOTS_FOR_DATE: dict[str, str] = {
+    "fr": "Aucune prévision détaillée n'est disponible pour le {date}. La prévision journalière reste accessible.",
+    "en": "No detailed forecast is available for {date}. The daily forecast is still available.",
+    "es": "No hay pronóstico detallado disponible para el {date}. El pronóstico diario sigue disponible.",
+    "de": "Für den {date} ist keine detaillierte Vorhersage verfügbar. Die Tagesvorhersage ist weiterhin verfügbar.",
+    "it": "Nessuna previsione dettagliata è disponibile per il {date}. Le previsioni giornaliere restano disponibili.",
+    "zh-CN": "{date} 没有可用的详细预报。每日预报仍然可用。",
+}
+
+# Tool summaries handed to the response LLM (registry_updates message). They are
+# read by the model and can end up quoted, so they follow the user's language
+# like any other user-visible string — no inline French in the tool modules.
+_WEATHER_SUMMARY_CURRENT: dict[str, str] = {
+    "fr": "Météo actuelle à {location} : {description}, {temperature} (ressenti {feels_like}, min {temp_min}, max {temp_max}). Vent : {wind_speed} (direction {wind_direction}). Humidité : {humidity}. Pression : {pressure}. Visibilité : {visibility}. Nuages : {clouds}. Lever : {sunrise}, coucher : {sunset}.",
+    "en": "Current weather in {location}: {description}, {temperature} (feels like {feels_like}, min {temp_min}, max {temp_max}). Wind: {wind_speed} (direction {wind_direction}). Humidity: {humidity}. Pressure: {pressure}. Visibility: {visibility}. Clouds: {clouds}. Sunrise: {sunrise}, sunset: {sunset}.",
+    "es": "Tiempo actual en {location}: {description}, {temperature} (sensación {feels_like}, mín {temp_min}, máx {temp_max}). Viento: {wind_speed} (dirección {wind_direction}). Humedad: {humidity}. Presión: {pressure}. Visibilidad: {visibility}. Nubes: {clouds}. Amanecer: {sunrise}, atardecer: {sunset}.",
+    "de": "Aktuelles Wetter in {location}: {description}, {temperature} (gefühlt {feels_like}, min {temp_min}, max {temp_max}). Wind: {wind_speed} (Richtung {wind_direction}). Luftfeuchtigkeit: {humidity}. Luftdruck: {pressure}. Sichtweite: {visibility}. Wolken: {clouds}. Sonnenaufgang: {sunrise}, Sonnenuntergang: {sunset}.",
+    "it": "Meteo attuale a {location}: {description}, {temperature} (percepita {feels_like}, min {temp_min}, max {temp_max}). Vento: {wind_speed} (direzione {wind_direction}). Umidità: {humidity}. Pressione: {pressure}. Visibilità: {visibility}. Nuvole: {clouds}. Alba: {sunrise}, tramonto: {sunset}.",
+    "zh-CN": "{location} 当前天气：{description}，{temperature}（体感 {feels_like}，最低 {temp_min}，最高 {temp_max}）。风：{wind_speed}（风向 {wind_direction}）。湿度：{humidity}。气压：{pressure}。能见度：{visibility}。云量：{clouds}。日出：{sunrise}，日落：{sunset}。",
+}
+
+_WEATHER_SUMMARY_FORECAST_ONE: dict[str, str] = {
+    "fr": "Prévisions météo pour {location} ({count} jour) :",
+    "en": "Weather forecast for {location} ({count} day):",
+    "es": "Pronóstico del tiempo para {location} ({count} día):",
+    "de": "Wettervorhersage für {location} ({count} Tag):",
+    "it": "Previsioni meteo per {location} ({count} giorno):",
+    "zh-CN": "{location} 天气预报（{count} 天）：",
+}
+
+_WEATHER_SUMMARY_FORECAST_MANY: dict[str, str] = {
+    "fr": "Prévisions météo pour {location} ({count} jours) :",
+    "en": "Weather forecast for {location} ({count} days):",
+    "es": "Pronóstico del tiempo para {location} ({count} días):",
+    "de": "Wettervorhersage für {location} ({count} Tage):",
+    "it": "Previsioni meteo per {location} ({count} giorni):",
+    "zh-CN": "{location} 天气预报（{count} 天）：",
+}
+
+_WEATHER_SUMMARY_HOURLY_ONE: dict[str, str] = {
+    "fr": "Prévisions par tranches de 3 h pour {location}, le {date} — heures locales ({count} créneau) :",
+    "en": "3-hour-step forecast for {location} on {date} — local times ({count} slot):",
+    "es": "Pronóstico en tramos de 3 h para {location} el {date} — horas locales ({count} franja):",
+    "de": "3-Stunden-Vorhersage für {location} am {date} — Ortszeit ({count} Zeitfenster):",
+    "it": "Previsioni a intervalli di 3 h per {location} il {date} — ore locali ({count} fascia):",
+    "zh-CN": "{location} {date} 的 3 小时间隔预报——当地时间（{count} 个时段）：",
+}
+
+_WEATHER_SUMMARY_HOURLY_MANY: dict[str, str] = {
+    "fr": "Prévisions par tranches de 3 h pour {location}, le {date} — heures locales ({count} créneaux) :",
+    "en": "3-hour-step forecast for {location} on {date} — local times ({count} slots):",
+    "es": "Pronóstico en tramos de 3 h para {location} el {date} — horas locales ({count} franjas):",
+    "de": "3-Stunden-Vorhersage für {location} am {date} — Ortszeit ({count} Zeitfenster):",
+    "it": "Previsioni a intervalli di 3 h per {location} il {date} — ore locali ({count} fasce):",
+    "zh-CN": "{location} {date} 的 3 小时间隔预报——当地时间（{count} 个时段）：",
+}
+
+_WEATHER_SUMMARY_HOURLY_MORE: dict[str, str] = {
+    "fr": "... et {count} autres créneaux",
+    "en": "... and {count} more slots",
+    "es": "... y {count} franjas más",
+    "de": "... und {count} weitere Zeitfenster",
+    "it": "... e altre {count} fasce",
+    "zh-CN": "……以及另外 {count} 个时段",
+}
+
 _DISPLAY_ATTACHMENTS: dict[str, str] = {
     "fr": "Pièces jointes",
     "en": "Attachments",
@@ -2895,6 +2965,43 @@ class V3Messages:
         lang = V3Messages._normalize_language(language)
         template = _WEATHER_FORECAST_BEYOND_LIMIT.get(lang, _WEATHER_FORECAST_BEYOND_LIMIT["en"])
         return template.format(max_days=max_days, offset=offset)
+
+    @staticmethod
+    def get_weather_no_slots_for_date(language: str, date: str) -> str:
+        """Get the 'no detailed slot for this day' message (day within window)."""
+        lang = V3Messages._normalize_language(language)
+        template = _WEATHER_NO_SLOTS_FOR_DATE.get(lang, _WEATHER_NO_SLOTS_FOR_DATE["en"])
+        return template.format(date=date)
+
+    @staticmethod
+    def get_weather_summary_current(language: str, **values: str) -> str:
+        """Get the current-weather tool summary handed to the response LLM."""
+        lang = V3Messages._normalize_language(language)
+        template = _WEATHER_SUMMARY_CURRENT.get(lang, _WEATHER_SUMMARY_CURRENT["en"])
+        return template.format(**values)
+
+    @staticmethod
+    def get_weather_summary_forecast(language: str, location: str, count: int) -> str:
+        """Get the daily-forecast summary header ('N day(s)')."""
+        lang = V3Messages._normalize_language(language)
+        source = _WEATHER_SUMMARY_FORECAST_ONE if count == 1 else _WEATHER_SUMMARY_FORECAST_MANY
+        template = source.get(lang, source["en"])
+        return template.format(location=location, count=count)
+
+    @staticmethod
+    def get_weather_summary_hourly(language: str, location: str, date: str, count: int) -> str:
+        """Get the 3-hour-step summary header ('N slot(s)', local times)."""
+        lang = V3Messages._normalize_language(language)
+        source = _WEATHER_SUMMARY_HOURLY_ONE if count == 1 else _WEATHER_SUMMARY_HOURLY_MANY
+        template = source.get(lang, source["en"])
+        return template.format(location=location, date=date, count=count)
+
+    @staticmethod
+    def get_weather_summary_hourly_more(language: str, count: int) -> str:
+        """Get the '... and N more slots' truncation line."""
+        lang = V3Messages._normalize_language(language)
+        template = _WEATHER_SUMMARY_HOURLY_MORE.get(lang, _WEATHER_SUMMARY_HOURLY_MORE["en"])
+        return template.format(count=count)
 
     @staticmethod
     def get_uv_index(language: str) -> str:

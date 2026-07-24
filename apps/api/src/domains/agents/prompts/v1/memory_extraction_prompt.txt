@@ -10,7 +10,7 @@ Return [] if nothing is worth memorizing.
 ## WHAT NOT TO EXTRACT
 - Transient states ("I'm tired today", "busy right now")
 - Conversational feedback ("thanks", "shorter please", "perfect")
-- Task-only details (one-shot recipients, scheduled event specifics)
+- Transient logistics — appointments, reservations, meetings, calls, deliveries and other scheduled slots, even with a date/time. A moment being scheduled is an agenda/task item that lives in a dedicated source and is irrelevant once past — not a durable fact about the user
 - Facts already in EXISTING MEMORIES with equivalent content
 
 ## RULES (all mandatory)
@@ -27,7 +27,7 @@ Return [] if nothing is worth memorizing.
 - `preference` — enduring likes/dislikes/tastes
 - `personal` — stable identity attribute (job, city, nationality, belief)
 - `relationship` — a person + their link to the user (include name if known)
-- `event` — a datable one-time occurrence, past or future (with resolved date)
+- `event` — a personally significant life occurrence whose relevance outlives its date (e.g. wedding, birth, graduation, bereavement, relocation, new job). NOT a routine appointment, reservation or meeting: that is transient logistics (see WHAT NOT TO EXTRACT), even when dated
 - `pattern` — recurring behavior or habit over time ("I run every morning")
 - `sensitivity` — pain, trauma, illness, grief, conflict, active avoidance
 

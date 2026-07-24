@@ -66,6 +66,10 @@ from src.domains.agents.constants import (
     TURN_TYPE_ACTION,
     make_agent_result_key,
 )
+from src.domains.agents.context.recent_entities import (
+    build_recent_entities_context,
+    should_ground_from_recent_entities,
+)
 
 # V3 Display Architecture imports
 from src.domains.agents.display.config import config_for_viewport
@@ -2096,6 +2100,7 @@ def _build_response_system_prompt(
     psyche_context: str,
     user_model_block: Any,
     react_result: dict[str, Any] | None,
+    recent_entities: str = "",
 ) -> str:
     """Assemble the response LLM system prompt from all injected context.
 
@@ -2121,6 +2126,7 @@ def _build_response_system_prompt(
         app_knowledge_context=app_knowledge_context,
         journal_context=journal_context,  # Personal journal context
         psyche_context=psyche_context,  # Psyche Engine expression profile
+        recent_entities=recent_entities,  # Grounding when this turn produced no data
     )
     # ADR-079 commit 3: ambient diffusion of the user-model portrait.
     # Appended after the base prompt so it is read alongside (not in place
@@ -2424,9 +2430,6 @@ async def _resolve_response_context_summary(
                 items_count=len(resolved_context.get("items", [])),
                 html_mode=True,  # NOTE: V3 HTML rendering is always enabled
             )
-    elif _is_conversational_turn(turn_type):
-        # Conversational turn: no agent results
-        agent_results_summary = ""
     else:
         # Action turn: use current turn results (standard behavior)
         # INTELLIA v6: Pass registry for Markdown formatting
@@ -3407,6 +3410,25 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # V3 Architecture: LLM generates conversational response only
         # Data formatting handled by HTML components, injected post-LLM via HtmlRenderer
         # Intelligent Filtering: Pass user_query and data_for_filtering for semantic filtering
+        #
+        # Grounding fallback: when THIS turn produced no structured data,
+        # current_turn_registry (and therefore data_for_filtering) is empty by
+        # design, and <History> drops ToolMessages — so the model could only
+        # recall entity values from prose ("16h" for an 11:15 appointment).
+        # Surface the Tool-Context entities still in focus instead. REFERENCE
+        # turns are deliberately excluded: their empty registry is a data-leak
+        # fail-safe (registry_filtering), not a grounding gap.
+        recent_entities = ""
+        if should_ground_from_recent_entities(
+            current_turn_registry, state.get(STATE_KEY_TURN_TYPE)
+        ):
+            recent_entities = build_recent_entities_context(
+                full_registry,
+                agent_results_raw,
+                current_turn_id,
+                user_language,
+            )
+
         base_system_prompt = _build_response_system_prompt(
             state=state,
             run_id=run_id,
@@ -3432,6 +3454,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             psyche_context=psyche_context,
             user_model_block=user_model_block,
             react_result=react_result,
+            recent_entities=recent_entities,
         )
 
         (

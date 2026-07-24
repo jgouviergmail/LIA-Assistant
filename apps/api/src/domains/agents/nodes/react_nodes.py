@@ -648,6 +648,7 @@ async def react_execute_tools_node(
     from src.domains.agents.semantic.param_guard import (
         check_semantic_params,
         collect_resolved_person_names,
+        strip_placeholder_arguments,
     )
 
     store = await get_tool_context_store()
@@ -670,6 +671,11 @@ async def react_execute_tools_node(
         # IDEMPOTENCE: skip if already executed
         if tc_id in existing_tool_msg_ids:
             continue
+
+        # Parity with the parallel executor: a textual "no value" ("null",
+        # "none", ...) on an optional typed parameter means "not provided".
+        # Deterministic, so re-executing after an interrupt is stable.
+        tc_args = strip_placeholder_arguments(tc_name, tc_args)
 
         # Semantic guard BEFORE the HITL interrupt: never ask the user to
         # approve a call that would be blocked anyway. Deterministic across

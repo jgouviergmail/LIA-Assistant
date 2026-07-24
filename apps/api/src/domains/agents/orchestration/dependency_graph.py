@@ -54,6 +54,46 @@ from src.infrastructure.observability.profiling import profile_performance
 
 logger = structlog.get_logger(__name__)
 
+# Sentinel emitted when a `$item.field` reference resolves to None. The
+# placeholder is substituted INSIDE the JSON quotes of the parameter, so a bare
+# `null` becomes the literal string "null" — which every `if not value` guard
+# downstream happily accepts (prod 2026-07-23: a weather call received
+# location="null", geocoded a city by that name and answered for Cappaghnanool,
+# IE). The sentinel is stripped after parsing so the parameter reads as
+# "not provided" and the tool applies its own default (auto-geolocation here).
+# Plain ASCII on purpose: the marker is spliced into an already-serialized JSON
+# string, so a control character would make it unparsable.
+_MISSING_ITEM_FIELD = "__LIA_MISSING_ITEM_FIELD__"
+
+
+def _strip_missing_item_fields(value: Any) -> Any:
+    """Turn resolved-to-None FOR_EACH placeholders into absent parameters.
+
+    A key whose value is exactly the sentinel is dropped (the parameter was a
+    lone `$item.field` that had no value). A sentinel embedded in a larger
+    string is blanked instead, since dropping the whole parameter would discard
+    the literal text around it.
+
+    Args:
+        value: Parsed parameters (dict, list or scalar).
+
+    Returns:
+        The same structure with missing-field markers removed.
+    """
+    if isinstance(value, dict):
+        cleaned: dict[str, Any] = {}
+        for key, item in value.items():
+            if item == _MISSING_ITEM_FIELD:
+                logger.info("for_each_param_dropped_missing_field", param=key)
+                continue
+            cleaned[key] = _strip_missing_item_fields(item)
+        return cleaned
+    if isinstance(value, list):
+        return [_strip_missing_item_fields(item) for item in value]
+    if isinstance(value, str) and _MISSING_ITEM_FIELD in value:
+        return value.replace(_MISSING_ITEM_FIELD, "")
+    return value
+
 
 class CyclicDependencyError(Exception):
     """
@@ -986,7 +1026,13 @@ class DependencyGraph:
                 escaped = json.dumps(value)
                 return escaped[1:-1]  # Remove surrounding quotes from json.dumps
             elif value is None:
-                return "null"
+                # The placeholder sits INSIDE JSON quotes, so emitting `null` here
+                # produced the literal STRING "null", not a JSON null. Downstream
+                # guards test `if not value`, which "null" passes: prod 2026-07-23
+                # geocoded a city named "null" and answered with the weather of
+                # Cappaghnanool, IE. Emit a sentinel instead; it is turned into
+                # "parameter not provided" after json.loads (see _strip_missing).
+                return _MISSING_ITEM_FIELD
             elif isinstance(value, bool):
                 return "true" if value else "false"
             elif isinstance(value, int | float):
@@ -1000,7 +1046,7 @@ class DependencyGraph:
         params_str = PATTERN_ITEM_REF.sub(resolve_item_ref, params_str)
 
         try:
-            return json.loads(params_str)
+            resolved = json.loads(params_str)
         except json.JSONDecodeError as e:
             logger.error(
                 "for_each_param_substitution_failed",
@@ -1008,3 +1054,5 @@ class DependencyGraph:
                 params_str=params_str[:200],
             )
             return params or {}
+
+        return _strip_missing_item_fields(resolved)

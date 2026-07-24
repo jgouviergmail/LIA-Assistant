@@ -14,7 +14,7 @@
  * `src/__tests__/service-worker.test.ts`; bump it with every release.
  */
 
-const CACHE_VERSION = '1.25.17';
+const CACHE_VERSION = '1.25.18';
 const SHELL_CACHE = `lia-shell-v${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
 

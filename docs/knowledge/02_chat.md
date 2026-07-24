@@ -79,6 +79,11 @@ When LIA asks you to validate a modification (meeting, contact, task), the previ
 **✅ What you approve is what gets executed:**
 When you review a draft (email, event…) and ask for changes ("*add a polite closing*", "*sign with my name*"), each revised version appears in its **own chat bubble**, and the content you finally confirm is **exactly the last version displayed** — edits are applied once and never silently re-generated at confirmation time. The same guarantee applies to bulk confirmations: the list of items you approve (optionally refined with a filter like "*keep only this week's*") is exactly the list that gets processed. If your modification request is ambiguous, LIA now shows you its clarification question alongside the re-presented draft. And "sign with my name" uses the first name from your profile — no placeholder, no invented name.
 
+**🎯 It quotes what it read, not what it remembers:**
+• When a message needs no tool call, LIA re-anchors on the entities it actually retrieved in the previous turns (an appointment time, a contact, a place) instead of paraphrasing its own earlier wording
+• Those entities are age-bounded and never override data fetched for the current message
+• If a detail was never retrieved, LIA says so rather than producing a plausible value — an honest "I don't have that" beats a convincing mistake
+
 ## Why does LIA sometimes take time to respond?
 Response time varies based on your request's complexity:
 

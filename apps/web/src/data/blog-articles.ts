@@ -201,7 +201,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'security',
     icon: 'ShieldAlert',
     date: '2026-04-06',
-    readTime: 4,
+    readTime: 6,
     tags: ['hallucination', 'defense', 'parameter-stripping', 'hitl', 'robustness', 'planner'],
   },
   {

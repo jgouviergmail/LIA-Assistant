@@ -101,7 +101,7 @@ The `ContextAggregator` fetches all sources in parallel via `asyncio.gather(retu
 | Memories | LangGraph Store (semantic search, second-pass dynamic query — P8, symmetric with journals) | memory_enabled | None |
 | Journals | JournalEntryRepository (semantic search, second-pass dynamic query) | journals_enabled | None |
 | User-model portrait | `build_journal_user_model_block(format='brief')` (compiled portrait, ADR-079) | journals_enabled | "" |
-| Health signals | `HealthMetricsService.build_heartbeat_health_signals` (summary + baseline deltas + variations) | health_metrics_enabled + per-user opt-in | None |
+| Health signals | `heartbeat/health_context.fetch_health_signals` → `health_metrics/heartbeat_signals.build_heartbeat_health_signals` (summary + baseline deltas + variations, ONE per-day rollup per kind — ADR-148) | health_metrics_enabled + per-user opt-in | None |
 | Birthdays | `connectors.birthdays.fetch_upcoming_birthdays` via `context_sources.fetch_birthdays_context` (Redis cache to local midnight, horizon `HEARTBEAT_CONTEXT_BIRTHDAYS_DAYS`) — P7 | Google Contacts connector | None |
 | Departure advice | `context_sources.fetch_departure_advice` (2nd pass over fetched calendar events: Routes traffic-aware ETA + leave-by, Redis cache per (user, event), ≤1 call/cycle) — P6, rule 20 | `HEARTBEAT_DEPARTURE_ENABLED` + Google API key | None |
 | Open loops | `context_sources.fetch_open_loops_context` (lazy expiry + nudge-worthiness filter + per-loop cooldown; post-notify bump in `proactive_task` when `OPEN_LOOPS` was used) — P5, ADR-139 | `OPEN_LOOPS_ENABLED` | None |

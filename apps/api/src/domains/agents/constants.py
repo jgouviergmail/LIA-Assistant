@@ -305,7 +305,11 @@ STATE_KEY_LAST_LIST_TURN_ID = (
 STATE_KEY_LAST_LIST_DOMAIN = (
     "last_list_domain"  # Domain of the last list/search action - for ordinal resolution by domain
 )
-STATE_KEY_TURN_TYPE = "turn_type"  # Turn type: action|reference|conversational
+# Turn type written by the router from QueryIntelligence.turn_type, normalized
+# to lowercase: action | initial | reference_pure | reference_action. There is
+# NO "conversational" producer — a turn that runs no tool is an `action` turn
+# with no registry updates (see filter_registry_by_current_turn).
+STATE_KEY_TURN_TYPE = "turn_type"
 STATE_KEY_RESOLVED_CONTEXT = "resolved_context"  # Resolved reference context
 STATE_KEY_DETECTED_INTENT = (
     "detected_intent"  # SemanticIntentDetector result (action/detail/search/list)

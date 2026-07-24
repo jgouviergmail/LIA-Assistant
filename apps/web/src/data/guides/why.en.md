@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 3.9
-**Date**: 2026-07-23
-**Application**: LIA v1.25.17
+**Date**: 2026-07-24
+**Application**: LIA v1.25.18
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -351,6 +351,8 @@ LIA doesn't refuse sensitive actions — it **submits** them to you with the app
 Send a question, close the tab, walk away. Generation continues on the server, and the answer is waiting in the conversation — or resumes live, exactly where it left off, if you come back while it is still being written. Nothing to do, nothing to configure: continuity is the default behavior. And when you are the one changing your mind, a stop button interrupts generation within a second — what was already written stays on screen, honestly marked as interrupted. A reliable assistant isn't just one that answers correctly: it's one that finishes what it starts.
 
 ---
+
+The same demand applies to what LIA **asserts**. An answer must rest on data actually retrieved, never on the memory of an earlier phrasing; and when a piece of information was never obtained, calling it missing beats reconstructing something plausible. This is a design constraint rather than a matter of style: recently retrieved entities are explicitly re-injected into the response context, and inventing an entity attribute is forbidden at the prompt level. A plausible factual error costs more than an "I don't know".
 
 ## 9. Radical openness
 

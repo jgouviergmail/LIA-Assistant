@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.25.17</strong> — <strong>The account grows a spine: passkeys, devices, portability, offline.</strong> Four security capabilities land as one program (ADR-143→146). <strong>Passkeys (WebAuthn)</strong> with conditional UI on the login form — discoverable credentials, single-use Redis challenges, clone detection, zero enumeration on the anonymous path. <strong>TOTP second factor</strong> with a two-step login, matched-timestep anti-replay and ten single-use backup codes revealed exactly once. <strong>Step-up re-authentication</strong> guards every sensitive action behind a 5-minute sudo window (typed 403 contract — password, code, passkey, or a fresh Google re-sign-in; a fresh login opens the window, so OAuth-only accounts can bootstrap their first factor). <strong>"My devices"</strong> lists every live session with deliberately bounded metadata (browser/OS families, truncated IP), revokes one or all-others, cuts a revoked session's SSE streams within one keepalive tick, and pushes a new-login alert unless the device attests itself with its registered FCM token. <strong>Full-account GDPR export</strong>: durable SKIP-LOCKED jobs build a ZIP (JSON + readable Markdown + your files) from a <strong>total data classification</strong> where secret tables are unexportable by construction. <strong>Offline PWA</strong>: one unified service worker serves push and a branded 6-language offline page — and never caches a byte of <code>/api/</code>. <strong>12,906 backend</strong> + <strong>2,533 frontend</strong> tests, e2e 44/44 (CDP virtual-authenticator ceremony included), MyPy strict clean, all ratchets hold. — 23 July 2026.
+  <strong>Version 1.25.18</strong> — <strong>Say only what was measured.</strong> Four production defects caught on real conversations, all of one family: the assistant asserting something it never verified. <strong>Response grounding</strong> (ADR-147) — on a turn that runs no tool, the response model received no authoritative data at all and could only paraphrase earlier prose; it announced an appointment at "16h" when the calendar tool had returned <strong>11h15</strong> two turns earlier. Recent tool entities are now re-grounded from state (zero I/O, explicitly non-authoritative, excluded on REFERENCE turns where an empty registry is a deliberate anti-leak fail-safe), and the prompt forbids inventing an entity attribute — an unknown value is admitted, never filled in. <strong>Weather told straight</strong>: three-hour slots were rendered in UTC instead of your timezone, a date past the forecast window returned a silent approximation instead of a clear answer, and the tool summaries were hardcoded French — now localized across the 6 languages, with the language carried per request instead of on a shared singleton. <strong>Two appointments, two weathers</strong>: correlated results keyed on content alone collided when two parents shared a place and a day, and one card silently lost the data fetched for it; identity is now per-parent and deterministic across replays. <strong>No more "null"</strong>: a FOR_EACH placeholder resolving to nothing produced the literal string <code>"null"</code>, which every falsy guard accepted — production geocoded a town actually named null and answered with the weather of Cappaghnanool, Ireland. <strong>Health signals stop vanishing</strong> (ADR-148): the heartbeat dropped them on <strong>46% of ticks</strong> — 30,662 rows shipped per tick to produce 74 numbers, freezing a worker's event loop for half a second; a server-side per-day rollup makes the read <strong>50× cheaper</strong>, and a dropped source is now counted and timed instead of failing open in silence. <strong>13,282 backend</strong> + <strong>2,538 frontend</strong> tests, MyPy strict clean, all ratchets hold. — 24 July 2026.
 
 </p>
 
@@ -204,6 +204,7 @@ The result is measured, not proclaimed:
 - **Agentic Telephony** ([ADR-127](docs/architecture/ADR-127-Agentic-Telephony.md)): LIA places real outbound phone calls on your behalf via your own per-user ElevenLabs + Twilio connector (BYO — zero cost on LIA's side). Every call is HITL-confirmed before dialing; the goal-driven voice agent greets the instant the line opens, resolves relative dates against a live temporal anchor, and hangs up when done. Privacy by capability: the call agent can only read free/busy availability — never event titles or contents; no recording, no stored transcript. A **strict mandate boundary** forbids any expense or commitment beyond the objective (offers are captured with their price and deferred to you), and the asynchronous post-call summary must state every cost and flag every open point. Config self-heals: fingerprint-based lazy re-sync of the vendor agent, self-healing one-active-call guard (vendor status probe, deleted-conversation 404 handling), pinned thinking-free agent LLM, telephony-native `ulaw_8000` audio
 - **AI Image Generation & Editing**: Generate images from text prompts (gpt-image-1), edit existing images with natural language instructions. Multi-provider factory architecture, per-user quality/size preferences, cost tracking with DB-cached pricing, attachment-based storage with cascade cleanup
 - **File Attachments (Images, PDF)**: Upload with client-side compression, configurable LLM vision analysis, PDF text extraction, strict per-user isolation
+- **Response Grounding on Recent Entities** ([ADR-147](docs/architecture/ADR-147-Recent-Entities-Grounding.md)): on a turn that produces no tool data, the response model is re-grounded on the most recent entities already in state (zero I/O, age-bounded, explicitly non-authoritative) instead of paraphrasing older prose — and the prompt forbids inventing an entity attribute rather than admitting it is unknown
 - **Semantic Routing**: Binary classification with confidence scoring (high >0.85, medium >0.65)
 - **Multi-Step Planning**: ExecutionPlan DSL with dependencies and conditions
 - **Parallel Execution**: asyncio.gather for independent domains
@@ -259,6 +260,7 @@ ExecutionStep(
 )
 ```
 
+- **Per-parent correlation identity**: an enrichment fetched for one iteration belongs to that iteration — results keyed on content alone (weather → place + day) used to collide between two parents sharing them, silently costing one of them its data; ids are now derived per parent and stay stable across replays and resumed checkpoints
 - **HITL Thresholds**: Mutations >= 1 trigger mandatory approval
 - **Bulk Operations**: Send emails, update contacts, mass deletions
 
@@ -461,6 +463,7 @@ ExecutionStep(
 - **Extensible registry** (`HEALTH_KINDS`): adding sleep / SpO2 / calories = one entry in `kinds.py` — bounds, merge strategy, aggregation method, baseline kind. Service helpers iterate the registry so cross-kind logic stays generic.
 - **Baseline & variation detection**: rolling 28-day median with `bootstrap` → `rolling` mode switch after 7 days of data, tunable thresholds (`HEALTH_METRICS_VARIATION_*` env vars).
 - **Heartbeat / Memory / Journal integration**: `health_signals` source injected for proactive context; `context_biometric` JSONB persists deltas and trends in memories (never raw values) when emotional weight crosses a threshold.
+- **Per-day server-side rollup** ([ADR-148](docs/architecture/ADR-148-Health-Daily-Rollup.md)): baselines and variations read one aggregated row per day instead of every raw sample — 50× cheaper, and the heartbeat no longer drops its health signals on half the ticks
 - **Per-user opt-in**: single `health_metrics_agents_enabled` toggle governs the four integrations (tool access, Heartbeat, memory extraction, journal injection). `PATCH /auth/me/health-metrics-agents-preference`.
 
 ### MCP Apps — Interactive Widgets
@@ -832,7 +835,7 @@ apps/api/src/
 
 | Technology | Role                 |
 | ---------- | -------------------- |
-| Prometheus | 425 metrics          |
+| Prometheus | 438 metrics          |
 | Grafana    | 25 dashboards        |
 | Loki       | Aggregated logs      |
 | Tempo      | Distributed tracing  |
@@ -881,12 +884,12 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md)   | Complete development workflow                             |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent                                 |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md)   | How to create a new tool                                  |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~12,900 backend tests across 760 files) |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~13,280 backend tests across 771 files) |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md)           | LangGraph and log debugging                               |
 
 ### Architecture Decision Records (ADR)
 
-145 ADRs (numbered up to ADR-146) documenting major architectural decisions:
+147 ADRs (numbered up to ADR-148) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

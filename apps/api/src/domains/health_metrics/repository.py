@@ -30,11 +30,12 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import delete, func, literal_column, select, update
+from sqlalchemy import Date, cast, delete, func, literal_column, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
+from src.domains.health_metrics.baseline import DailyStat
 from src.domains.health_metrics.models import HealthMetricToken, HealthSample
 from src.infrastructure.observability.logging import get_logger
 
@@ -244,6 +245,61 @@ class HealthSampleRepository(BaseRepository[HealthSample]):
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def fetch_daily_stats(
+        self,
+        user_id: UUID,
+        *,
+        kind: str,
+        from_ts: datetime,
+        to_ts: datetime,
+    ) -> list[DailyStat]:
+        """Return per-UTC-day aggregate primitives over a window, day ascending.
+
+        Server-side rollup: one row per day instead of one row per sample.
+        The baseline / variations / heartbeat paths only ever consume per-day
+        aggregates, and shipping every raw sample to Python was a synchronous
+        decode burst that froze the event loop for hundreds of milliseconds
+        (~12 000 rows for a 36-day heart-rate window). PostgreSQL aggregates
+        the same window in ~20 ms and returns ~36 rows.
+
+        Day bucketing uses an explicit ``timezone('UTC', ...)`` so the result
+        never depends on the session ``TimeZone`` — it matches
+        ``date_start.astimezone(UTC).date()``, the in-Python grouping rule.
+
+        Args:
+            user_id: Owner user UUID.
+            kind: Kind discriminator (must be a registered kind).
+            from_ts: Inclusive lower bound on ``date_start``.
+            to_ts: Exclusive upper bound on ``date_start``.
+
+        Returns:
+            One :class:`DailyStat` per UTC day holding at least one sample,
+            ordered by day ascending — the exact counterpart of
+            :func:`~src.domains.health_metrics.baseline.daily_stats_from_samples`.
+        """
+        day = cast(func.timezone("UTC", HealthSample.date_start), Date).label("day")
+        stmt = (
+            select(
+                day,
+                func.sum(HealthSample.value),
+                func.count(),
+                func.min(HealthSample.value),
+            )
+            .where(
+                HealthSample.user_id == user_id,
+                HealthSample.kind == kind,
+                HealthSample.date_start >= from_ts,
+                HealthSample.date_start < to_ts,
+            )
+            .group_by(day)
+            .order_by(day)
+        )
+        result = await self.db.execute(stmt)
+        return [
+            DailyStat(day=row[0], total=int(row[1]), count=int(row[2]), minimum=int(row[3]))
+            for row in result.all()
+        ]
 
     # =========================================================================
     # Bulk deletes (per-kind / per-user)

@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.18] - 2026-07-24
+
+Factual accuracy of answers (ADR-147/148): grounding on recent entities, weather told in the right time / place / language, correlated results that stop overwriting each other, and health signals that stop vanishing from the heartbeat.
+
+### Added
+
+- **Response grounding on recent entities** ([ADR-147](docs/architecture/ADR-147-Recent-Entities-Grounding.md)) — on a turn producing no `registry_updates`, `{data_for_filtering}` is empty and `<History>` deliberately drops `ToolMessage`, so the response LLM had **no authoritative structured data at all** and could only paraphrase earlier prose. Recent entities are now re-grounded from `state["registry"]` (zero I/O), selected by recency over the `agent_results` keys, capped by `TOOL_CONTEXT_MAX_ITEMS` with a logged truncation, and rendered in a dedicated `<RecentEntities>` prompt section placed AFTER the dynamic marker so the cacheable prefix stays intact. Explicitly non-authoritative (current-turn data wins) and skipped on REFERENCE turns, whose empty registry is an anti-leak fail-safe rather than a grounding hole. Tunable via `RESPONSE_RECENT_ENTITIES_MAX_TURN_AGE` (0 disables).
+- **`<DataAuthority>` prompt rule** — forbids inventing an entity attribute, cites `<RecentEntities>` among the authorized sources, and mandates admitting a value that was requested but never received instead of filling it in.
+- **Per-day health rollup** ([ADR-148](docs/architecture/ADR-148-Health-Daily-Rollup.md)) — `HealthSampleRepository.fetch_daily_stats` returns one row per UTC day carrying raw integer primitives `(total, count, minimum)`; every `BaselineKind` aggregation derives from them, and because the primitives are exact integers `total / count` is the same IEEE-754 operation as the in-Python `sum / len`, making the equivalence provable rather than merely observed.
+- **`heartbeat_source_dropped_total{source,reason}`** — a heartbeat source that fails open leaves no trace in the notification; every drop is now counted and its duration logged (success and failure alike).
+- Localized weather tool summaries across the 6 languages (`_WEATHER_SUMMARY_*` in `i18n_v3`), plus an explicit "no detailed forecast for this date" message distinct from the beyond-the-window wording.
+
+### Changed
+
+- Weather three-hour forecasts are mapped to the **user's timezone** before day-bucketing; the rendered `datetime_text` is local and always matches the epoch it ships with.
+- The weather tool no longer keeps the request language on the instance — it rides along in the result payload (`_LANGUAGE_RESULT_KEY`), the singleton-state rule that prevents cross-user leaks under concurrency.
+- Baselines, variations and the heartbeat health block read the per-day rollup instead of every raw sample: 6 queries / 30,662 rows per tick → 4 queries / ~500 rows. Measured on production-shaped volume: **353 ms → 7.0 ms (×50)**, and the event-loop stall the raw decode caused drops from 124 ms to 1.1 ms.
+- `baseline.py` / `signals.py` expose every computation twice over ONE implementation (`*_from_stats` + raw-sample wrappers), so the 19 existing pure-function tests pass unchanged — the non-regression proof is structural, not incidental.
+- Extractions to keep frozen files shrinking: `weather_formatting.py` (from `weather_tools`), `plan_predicates.py` (from `semantic_validator`), `health_metrics/heartbeat_signals.py` (from `service.py`, 582→495 SLOC) and `heartbeat/health_context.py` (from `context_aggregator.py`, whose ratchet cap **drops 783 → 753**). `detect_recent_variations` complexity 15 → 10.
+
+### Fixed
+
+- **A tool parameter resolving to nothing became the literal string `"null"`** — the `$item.field` placeholder sits inside the JSON quotes, so emitting `null` produced `"null"`, which every `if not value` guard accepts: production geocoded a town actually named null and answered with the weather of Cappaghnanool, Ireland. A sentinel now marks the missing field and is stripped after parsing, so the parameter reads as absent and the tool applies its own default (auto-geolocation here).
+- **A correlated result could erase another one** — tools derive their registry id from content alone (weather → place + day), so two FOR_EACH parents sharing them produced the same id and the accumulator's `dict.update()` silently dropped the first. Measured in production: two appointments both emitting `weather_fee011`, registry stuck at 4 entries instead of 5, one card rendered without the data fetched for it. Ids are now derived per parent (SHA-256 over `item@parent`), deterministic across replays and resumed checkpoints.
+- **A date beyond the forecast window returned a silent approximation** instead of an explicit answer, and a within-window date with no provider slot now gets its own message rather than the self-contradicting "only 5 days" wording.
+- **Heartbeat health signals were dropped on 46.5 % of ticks** (40 timeouts / 86 decisions over 7 days, silently). PostgreSQL answered in 6.7 ms and the ORM added 58.8 ms — the cost was the per-row client-side decode (~29 µs/row), a synchronous burst that froze the worker's event loop for 483 ms in one stretch. The 2-second budget was being blown by nominal cost, not by a slow database; it is deliberately NOT raised, and its docstring no longer claims to protect against one.
+- A single-step plan touching none of the primary domain now triggers semantic validation instead of being waved through; genuine consolidations and multi-step plans are unaffected, and unknown domains or unregistered tools fail open.
+- Frontend test `AccountExportSettings` asserted a same-origin download link while merely *assuming* `NEXT_PUBLIC_API_URL` was absent — green in CI (which sets it to `""` at the runner level), red in any developer shell. It now stubs the contract value explicitly.
+
+### Tests
+
+- Golden characterization net for the health baseline/variations pipeline (Feathers method, as ADR-122): 15 datasets × every `window_days` the tools can request (1..14) = 210 pinned service payloads, generated by running the pre-conversion implementation and passed **unchanged** after it. Sensitivity proven by mutation: `DAILY_AVG`→`min` fails 56 entries, the window boundary `<`→`<=` fails 136, and rounding the daily average fails 14 — that last one only caught once repeating-decimal datasets were added, the net having been numerically blind without them.
+- Read-path guard on the heartbeat builder: the payload golden cannot see a regression that recomputes the same window twice (output identical, cost doubled), so the number and shape of repository calls is asserted separately — verified by reintroducing the duplicate read.
+- Integration tests against a real PostgreSQL: rollup vs in-Python grouping field-for-field, UTC day bucketing across midnight, **session-timezone independence under UTC+14** (removing the explicit `timezone('UTC', …)` fails exactly this test — CI in UTC would never have noticed), window bounds, ordering, and user/kind isolation.
+- New suites for weather hourly mapping and localized summaries, correlated-item identity, plan integrity guards, and the response grounding doctrine.
+
 ## [1.25.17] - 2026-07-23
 
 Security & account program (D1/D2/D3/D5 — ADR-143/144/145/146): strong authentication, device sessions, GDPR export, offline PWA.

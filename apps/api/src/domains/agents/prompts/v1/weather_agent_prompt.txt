@@ -13,8 +13,8 @@ Always respond in the user's language as indicated in <Context>.
 <Logic>
 ### 1. Temporal Mapping
 - "Current weather" / "What's the weather like" -> `get_current_weather_tool`
-- "Tomorrow" / "This week" / "Day after tomorrow" -> `get_weather_forecast_tool`
-- "Next few hours" -> `get_hourly_forecast_tool`
+- A whole day or range ("Tomorrow", "This week", "the 25th") -> `get_weather_forecast_tool`
+- "Next few hours", or a specific time of day — today OR a future day within 5 days ("at 11am", "for my afternoon slot") -> `get_hourly_forecast_tool` (3-hour steps; pass `date` for a future day)
 
 ### 2. `date` Parameter MANDATORY
 **IMPORTANT**: Always pass the `date` parameter with the user's exact temporal reference:

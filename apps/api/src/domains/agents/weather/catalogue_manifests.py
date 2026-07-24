@@ -193,25 +193,30 @@ get_weather_forecast_catalogue_manifest = ToolManifest(
 )
 
 # ============================================================================
-# 3. GET HOURLY FORECAST (48h)
+# 3. GET HOURLY FORECAST (intra-day, 3-hour steps, up to 5 days)
 # ============================================================================
 _hourly_desc = (
-    "**Tool: get_hourly_forecast_tool** - Hourly weather forecast (next 48 hours).\n"
-    "High precision, one data point per hour.\n"
-    "**Use for**: 'Next few hours', 'Hour by hour', 'Precise short-term forecast'.\n"
-    "**Granularity**: 1-hour intervals (max 48h)."
+    "**Tool: get_hourly_forecast_tool** - Intra-day weather forecast in 3-hour steps.\n"
+    "Backed by the free 5-day / 3-hour forecast: NOT hour-by-hour — a time like 11:15\n"
+    "maps to the nearest 3-hour slot.\n"
+    "**Use for**: a TIME OF DAY, today or on a future day within 5 days\n"
+    "('next few hours', 'this afternoon', 'at 11am', 'for my 11:15 appointment').\n"
+    "**Pass `date`** for any day other than today; omit it for a rolling window from now.\n"
+    "**Granularity**: 3-hour slots, up to 5 days ahead. For a whole-day summary use\n"
+    "get_weather_forecast_tool instead."
 )
 get_hourly_forecast_catalogue_manifest = ToolManifest(
     name="get_hourly_forecast_tool",
     agent="weather_agent",
     description=_hourly_desc,
-    # Discriminant phrases - Hourly weather forecast
+    # Discriminant phrases - intra-day forecast at 3-hour granularity
     semantic_keywords=[
-        "weather hour by hour for today",
-        "hourly forecast for this afternoon",
-        "weather tonight hour by hour",
+        "weather by 3-hour slots for today",
+        "forecast for this afternoon",
+        "weather tonight by time slot",
         "next few hours weather conditions",
-        "precise weather for coming hours",
+        "weather at a specific time on a future day",
+        "weather at the time of my appointment",
     ],
     parameters=[
         _LOC_PARAM,
@@ -220,7 +225,7 @@ get_hourly_forecast_catalogue_manifest = ToolManifest(
             name="hours",
             type="integer",
             required=False,
-            description="Hours (1-48, def: 24)",
+            description="Rolling window size in hours from now (1-48, def: 24). IGNORED when 'date' is given.",
             constraints=[ParameterConstraint(kind="maximum", value=48)],
         ),
         _UNIT_PARAM,
@@ -230,16 +235,24 @@ get_hourly_forecast_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="location", type="string", description="Location", semantic_type="locality"
         ),
-        OutputFieldSchema(path="hourly", type="array", description="Data"),
+        OutputFieldSchema(path="hourly", type="array", description="3-hour slots"),
         OutputFieldSchema(
             path="hourly[].datetime",
             type="string",
-            description="UTC Time",
+            description="UTC epoch (hourly[].datetime_text is the local wall clock)",
             semantic_type="datetime",
         ),
         OutputFieldSchema(
-            path="hourly[].temperature",
-            type="number",
+            path="hourly[].datetime_text",
+            type="string",
+            description="Local wall-clock time of the slot (YYYY-MM-DD HH:MM:SS, user timezone)",
+            semantic_type="datetime",
+        ),
+        # Payload key is `temp` (see weather_formatting._format_hourly_response),
+        # not `temperature` — the manifest advertised a field that never existed.
+        OutputFieldSchema(
+            path="hourly[].temp",
+            type="string",
             description="Temp",
             semantic_type="temperature",
         ),
@@ -250,7 +263,7 @@ get_hourly_forecast_catalogue_manifest = ToolManifest(
         required_scopes=[], hitl_required=False, data_classification="PUBLIC"
     ),
     context_key="weathers",  # Must match CONTEXT_DOMAIN_WEATHER in constants.py
-    reference_examples=["hourly[0].datetime", "hourly[0].temperature"],
+    reference_examples=["hourly[0].datetime_text", "hourly[0].temp"],
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(

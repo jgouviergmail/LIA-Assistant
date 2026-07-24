@@ -5,8 +5,8 @@
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
 **Version**: 3.4
-**Datum**: 2026-07-23
-**Application**: LIA v1.25.17
+**Datum**: 2026-07-24
+**Application**: LIA v1.25.18
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -52,8 +52,8 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 428 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 120+ ADRs, ~12.906 von pytest gesammelte Tests in 760 Dateien, native Observability, HITL auf 6 Ebenen |
+| Vollständige Transparenz | 438 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
+| Produktionszuverlässigkeit | 120+ ADRs, ~12.906 von pytest gesammelte Tests in 771 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -71,11 +71,11 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~12.906 von pytest gesammelt (von pytest über 760 Testdateien gesammelt) + 2.533 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | ~12.906 von pytest gesammelt (von pytest über 771 Testdateien gesammelt) + 2.533 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
-| Prometheus-Metriken | 428 Definitionen |
+| Prometheus-Metriken | 438 Definitionen |
 | Grafana-Dashboards | 25 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -339,6 +339,8 @@ Das Ganze wird über ein Feature-Flag und ein Dutzend env-konfigurierbarer Einst
 
 ---
 
+**Verankerung an jüngsten Entitäten.** Bei einem Zug ohne Werkzeugaufruf ist das Register des laufenden Zuges konstruktionsbedingt leer (Schutz vor Kontamination), und der Gesprächsverlauf schließt Werkzeugmeldungen bewusst aus: Das Antwortmodell hat dann *keinerlei* maßgebliche strukturierte Daten und kann frühere Prosa nur umformulieren. Die jüngsten Entitäten aus dem State werden deshalb über einen eigenen Prompt-Abschnitt erneut eingespeist — nach Aktualität ausgewählt, altersbegrenzt, ohne Speicherzugriff und ausdrücklich nachrangig gegenüber den Daten des laufenden Zuges. Eine Autoritätsregel ergänzt das: Das Erfinden eines Entitätsattributs ist untersagt, und ein angefragter, aber nie erhaltener Wert muss als fehlend benannt werden.
+
 ## 6. Das Planungssystem (ExecutionPlan DSL)
 
 ### 6.1. Planstruktur
@@ -370,6 +372,8 @@ ExecutionPlan(
 - HITL-Schwelle: Jede Mutation >= 1 Element löst eine obligatorische Genehmigung aus
 - Konfigurierbares Limit: `for_each_max` verhindert unbegrenzte Ausführungen
 - Dynamische Referenz: `$steps.{step_id}.{field}` für Ergebnisse vorheriger Schritte
+
+Die Identität eines korrelierten Ergebnisses schließt sein Elternobjekt ein. Werkzeuge leiten ihre Id allein aus dem Inhalt ab — Wetter aus `Ort + Tag`, eine Route aus `Start + Ziel` — sodass zwei Iterationen über Elternobjekte mit denselben Attributen dieselbe Id erzeugten und der Akkumulator, ein schlichtes `dict.update()`, das erste still überschrieb. Die Id wird nun je Elternobjekt über einen deterministischen Fingerabdruck gebildet, was Identitäten auch bei einer Wiederholung oder Fortsetzung nach Unterbrechung stabil hält.
 
 ### 6.3. Parallele Ausführung in Wellen
 
@@ -692,6 +696,8 @@ Wake Word ("OK Guy") über Sherpa-onnx WASM im Browser (kein externer Versand). 
 
 **Phase 2 — Generierung** (bei Notify): LLM schreibt mit Persönlichkeit + Benutzersprache um. Wurden Fakten abgerufen, verlangt ein VERIFIED-FACTS-Block das Nennen von 1-2 konkreten Elementen ohne jede Erfindung, und Quellenlinks werden deterministisch angehängt. Multi-Kanal-Dispatch. Eine Interessen-Erwähnung wird ins gemeinsame Ledger geschrieben (`InterestNotification(source='heartbeat')`): das Thema pausiert dann für beide proaktiven Kanäle.
 
+Jede Quelle ist durch ein Zeitbudget begrenzt und fällt unabhängig aus. Dieses Budget umfasst einen Anteil an einer mit den übrigen Fetchern geteilten Event-Loop — es ist kein Datenbank-Timeout: Die Gesundheitssignale überschritten es im Normalbetrieb, weil ihr Lesevorgang Zehntausende Rohzeilen holte, um wenige Dutzend Zahlen zu erzeugen, und den Worker während der Dekodierung blockierte. Der Lesevorgang stützt sich nun auf eine in der Datenbank berechnete Tagesaggregation, und ein Ausfall wird gezählt und zeitlich erfasst statt stillschweigend übergangen — eine Quelle, die durch Verschwinden scheitert, hinterlässt in der Benachrichtigung selbst keine Spur.
+
 ### 16.2. Agent Initiative (ADR-062)
 
 LangGraph-Node nach der Ausführung: Nach jedem aktionsfähigen Turn analysiert die Initiative die Ergebnisse und überprüft proaktiv domänenübergreifende Informationen (schreibgeschützt). Beispiele: Regenvorhersage → Kalender auf Outdoor-Aktivitäten prüfen, E-Mail mit Terminerwähnung → Verfügbarkeit prüfen, Aufgabe mit Deadline → Kontext in Erinnerung rufen. 100 % prompt-gesteuert (keine hardcodierte Logik), struktureller Vorfilter (benachbarte Domänen), Injection von Gedächtnis + Interessensgebieten, Vorschlagsfeld für Write-Aktionen. Konfigurierbar über `INITIATIVE_ENABLED`, `INITIATIVE_MAX_ITERATIONS`, `INITIATIVE_MAX_ACTIONS`.
@@ -774,7 +780,7 @@ Autonomer ReAct-Agent (Playwright Chromium Headless). Redis-gesicherter Session 
 
 | Technologie | Rolle |
 |-------------|------|
-| Prometheus | 428 benutzerdefinierte Metriken (RED Pattern) |
+| Prometheus | 438 benutzerdefinierte Metriken (RED Pattern) |
 | Grafana | 25 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
@@ -1075,10 +1081,10 @@ Die Psyche Engine verleiht dem Assistenten einen dynamischen psychologischen Zus
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 120+ ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~12.906 Tests in 760 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 120+ ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~12.906 Tests in 771 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 120+ ADRs und des Changelogs (v1.0 bis v1.25.17). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 120+ ADRs und des Changelogs (v1.0 bis v1.25.18). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

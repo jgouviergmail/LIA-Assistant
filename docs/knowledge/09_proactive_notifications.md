@@ -67,6 +67,11 @@ LIA aggregates **8 data sources** in parallel to decide whether to notify you:
 **📊 Indicators:**
 The Settings section shows a **green badge** for each connected source and a **gray badge** for unavailable sources.
 
+**🩺 When a source cannot answer:**
+• Every source is optional and independently failable — a slow or unavailable one never blocks the notification
+• A source that drops out is recorded rather than silently missing, so a degraded notification can be noticed and fixed
+• Health indicators in particular are read as per-day aggregates, light enough to always make it into the notification when you have opted in
+
 ## How often will I receive notifications?
 Frequency is **controlled at multiple levels**:
 

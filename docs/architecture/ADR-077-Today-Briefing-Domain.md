@@ -28,7 +28,8 @@ We create a **new bounded context** `apps/api/src/domains/briefing/` that:
    - `client.search_emails()` (multi-provider)
    - `GooglePeopleClient.list_connections(fields=["names","birthdays"])`
    - `ReminderService.list_pending_for_user()` (local DB)
-   - `HealthMetricsService.build_heartbeat_health_signals()`
+   - `health_metrics/heartbeat_signals.build_heartbeat_health_signals()`
+     (moved off `HealthMetricsService` by ADR-148)
 3. **Caches each section in Redis with a per-source TTL** (weather 1 h, agenda 10 min, mails 5 min, birthdays 24 h, reminders live, health 15 min).
 4. **Two LLM invocations** (greeting + synthesis) on a single dedicated `briefing` slot in `LLM_TYPES_REGISTRY`, with two distinct versioned prompts. Tokens are tracked through the existing `track_proactive_tokens` pipeline (`task_type="briefing"`).
 5. **No DB model, no migration, no scheduler job** — pure read orchestration. The pre-compute via the heartbeat scheduler can be added later without breaking the API.

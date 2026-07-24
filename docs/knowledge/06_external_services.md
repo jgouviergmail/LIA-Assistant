@@ -262,6 +262,12 @@ It uses headless Chromium (Playwright) to: navigate, handle cookies automaticall
 **💡 Planning:**
 Useful for planning activities: "*What's the best day for a picnic this week?*"
 
+**🕐 Times, language and range:**
+• Three-hour slots are shown in **your** timezone, not UTC
+• Weather summaries follow your interface language (6 supported)
+• Asking beyond the provider's range gets a clear answer about how far the forecast actually reaches, instead of a silent approximation
+• Asking about several appointments at once returns one forecast per appointment, even when they share a place and a day
+
 ## What is the difference between Browser Control and Web Fetch?
 Web Fetch: static HTML, read-only, fast (1-3s), cheap. Browser Control: full JS execution, click/fill/search, slower (15-60s), more expensive but handles dynamic pages and interaction.
 

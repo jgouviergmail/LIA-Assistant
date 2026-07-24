@@ -150,6 +150,88 @@ def _iter_string_values(value: Any) -> list[str]:
     return []
 
 
+# Textual stand-ins for "no value" that a JSON-emitting LLM produces verbatim.
+# Compared exactly (case/whitespace-insensitive), never as a substring.
+_NULL_PLACEHOLDERS: frozenset[str] = frozenset(
+    {"null", "none", "undefined", "nil", "n/a", "na", "nan"}
+)
+
+
+def strip_placeholder_arguments(
+    tool_name: str,
+    args: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Drop optional arguments whose value is a textual stand-in for "no value".
+
+    A planner emitting JSON writes ``"location": "null"`` when it means "not
+    provided", and every ``if not value`` guard downstream accepts that string:
+    prod 2026-07-23 geocoded a city literally named "null" and answered with the
+    weather of Cappaghnanool, IE. Removing the argument restores the intended
+    behaviour — the tool falls back to its own default (auto-geolocation).
+
+    Deliberately narrow, so a legitimate value is never dropped:
+
+    - only parameters the manifest declares with a ``semantic_type`` (an
+      identifier/address/date slot, never free text such as a search query);
+    - only parameters the manifest marks as NOT required (a required slot
+      holding "null" is a real planning bug and must fail loudly, not silently
+      degrade);
+    - exact match against :data:`_NULL_PLACEHOLDERS`, so "Nullarbor" or a note
+      containing the word "none" is untouched.
+
+    Fail-open like the rest of this module: no manifest, no declared parameter,
+    or any registry error leaves the arguments exactly as they were.
+
+    Args:
+        tool_name: Tool about to be executed.
+        args: Final arguments (after Jinja2 / $steps resolution).
+
+    Returns:
+        The arguments, without the placeholder-valued optional parameters.
+    """
+    if not args:
+        return dict(args)
+
+    try:
+        from src.domains.agents.registry import get_global_registry
+        from src.domains.agents.registry.agent_registry import ToolManifestNotFound
+
+        try:
+            manifest = get_global_registry().get_tool_manifest(tool_name)
+        except ToolManifestNotFound:
+            return dict(args)
+
+        droppable = {
+            param.name
+            for param in manifest.parameters
+            if getattr(param, "semantic_type", None) and not getattr(param, "required", False)
+        }
+        if not droppable:
+            return dict(args)
+
+        cleaned = dict(args)
+        for name in droppable:
+            value = cleaned.get(name)
+            if isinstance(value, str) and _normalize(value) in _NULL_PLACEHOLDERS:
+                del cleaned[name]
+                logger.info(
+                    "placeholder_argument_dropped",
+                    tool_name=tool_name,
+                    param_name=name,
+                    value=value,
+                )
+        return cleaned
+
+    except Exception as exc:
+        logger.debug(
+            "placeholder_argument_guard_failed_open",
+            tool_name=tool_name,
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+        return dict(args)
+
+
 def check_semantic_params(
     tool_name: str,
     args: Mapping[str, Any],

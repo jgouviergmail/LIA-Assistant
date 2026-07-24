@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 40 |
-| ADRs | 145 (ADR-146 le plus récent) |
+| ADRs | 147 (ADR-148 le plus récent) |
 | Fiches knowledge (RAG système) | 24 |
 
 ---

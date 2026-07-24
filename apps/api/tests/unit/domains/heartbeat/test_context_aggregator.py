@@ -1089,7 +1089,10 @@ class TestSecondPassMemories:
 
         with (
             patch.object(aggregator, "_with_fresh_session", side_effect=_fake_fresh_session),
-            patch.object(aggregator, "_fetch_health_signals", AsyncMock(return_value=None)),
+            patch(
+                "src.domains.heartbeat.context_aggregator.fetch_health_signals",
+                AsyncMock(return_value=None),
+            ),
             patch.object(
                 aggregator, "_fetch_journals", AsyncMock(return_value=None)
             ) as journals_mock,
@@ -1124,7 +1127,10 @@ class TestSecondPassMemories:
 
         with (
             patch.object(aggregator, "_with_fresh_session", side_effect=_fake_fresh_session),
-            patch.object(aggregator, "_fetch_health_signals", AsyncMock(return_value=None)),
+            patch(
+                "src.domains.heartbeat.context_aggregator.fetch_health_signals",
+                AsyncMock(return_value=None),
+            ),
             patch.object(aggregator, "_fetch_journals", AsyncMock(return_value=journal_entries)),
             patch.object(
                 aggregator,

@@ -5,8 +5,8 @@
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
 **Versione**: 3.4
-**Data**: 2026-07-23
-**Applicazione**: LIA v1.25.17
+**Data**: 2026-07-24
+**Applicazione**: LIA v1.25.18
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -52,8 +52,8 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Auto-hosting ARM64 | Docker multi-arch, embeddings semantici (multilingue), Playwright chromium cross-platform |
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
-| Trasparenza totale | 428 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 120+ ADR, ~12.906 test raccolti da pytest in 760 file, osservabilità nativa, HITL a 6 livelli |
+| Trasparenza totale | 438 metriche Prometheus, debug panel integrato, tracciamento token per token |
+| Affidabilità in produzione | 120+ ADR, ~12.906 test raccolti da pytest in 771 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -71,11 +71,11 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~12.906 (raccolti da pytest su 760 file di test) + 2.533 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~12.906 (raccolti da pytest su 771 file di test) + 2.533 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 280+ |
 | ADR (Architecture Decision Record) | 120+ |
-| Metriche Prometheus | 428 definizioni |
+| Metriche Prometheus | 438 definizioni |
 | Dashboard Grafana | 25 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -339,6 +339,8 @@ L'insieme è governato da un feature flag e una dozzina di impostazioni configur
 
 ---
 
+**Ancoraggio alle entità recenti.** In un turno che non chiama alcuno strumento, il registro del turno corrente è vuoto per costruzione (protezione anti-contaminazione) e la cronologia conversazionale esclude deliberatamente i messaggi degli strumenti: il modello di risposta non ha allora *alcun* dato strutturato autorevole e può solo riformulare prosa precedente. Le entità più recenti presenti nello state vengono quindi reimmesse tramite una sezione di prompt dedicata — selezionate per recenza, limitate per età, senza alcun accesso allo storage ed esplicitamente subordinate ai dati del turno corrente. Una regola di autorità completa il quadro: è vietato inventare un attributo di entità, e un valore richiesto ma mai ricevuto va dichiarato mancante.
+
 ## 6. Il sistema di pianificazione (ExecutionPlan DSL)
 
 ### 6.1. Struttura del piano
@@ -370,6 +372,8 @@ ExecutionPlan(
 - Soglia HITL: qualsiasi mutazione >= 1 elemento attiva un'approvazione obbligatoria
 - Limite configurabile: `for_each_max` previene esecuzioni non delimitate
 - Riferimento dinamico: `$steps.{step_id}.{field}` per i risultati degli step precedenti
+
+L’identità di un risultato correlato include il suo genitore. Gli strumenti derivano il proprio id dal solo contenuto — il meteo da `luogo + giorno`, un percorso da `origine + destinazione` — così due iterazioni su genitori che condividono tali attributi producevano lo stesso id, e l’accumulatore, un semplice `dict.update()`, sovrascriveva silenziosamente il primo. L’id è ora derivato per genitore tramite un’impronta deterministica, il che mantiene stabili le identità anche in caso di riesecuzione o di ripresa dopo un’interruzione.
 
 ### 6.3. Esecuzione parallela a ondate
 
@@ -692,6 +696,8 @@ Factory **catalogue-driven** (ADR-081): `factory.get_tts_client()` legge l'overr
 
 **Fase 2 — Generazione** (se notify): LLM riscrive con personalità + lingua utente. Quando sono stati recuperati fatti, un blocco VERIFIED FACTS impone di nominare 1-2 elementi concreti senza mai inventare, e i link alle fonti vengono aggiunti in modo deterministico. Dispatch multi-canale. Una menzione di interesse viene iscritta nel libro condiviso (`InterestNotification(source='heartbeat')`): l'argomento si mette allora in pausa per entrambi i flussi proattivi.
 
+Ogni fonte è limitata da un budget di tempo e fallisce in modo indipendente. Quel budget copre una quota di event loop condivisa con gli altri fetcher — non è un timeout di database: i segnali di salute lo superavano in regime nominale perché la loro lettura portava decine di migliaia di righe grezze per produrre poche decine di numeri, congelando il worker per tutta la decodifica. La lettura si basa ora su un’aggregazione giornaliera calcolata nel database, e ogni perdita di fonte viene contata e cronometrata anziché passare in silenzio — una fonte che fallisce sparendo non lascia alcuna traccia nella notifica stessa.
+
 ### 16.2. Agent Initiative (ADR-062)
 
 Nodo LangGraph post-esecuzione: dopo ogni turno azionabile, l'iniziativa analizza i risultati e verifica proattivamente le informazioni cross-domain (read-only). Esempi: meteo pioggia → verificare calendario per attività outdoor, email che menziona un appuntamento → verificare disponibilità, scadenza task → ricordare il contesto. 100% prompt-driven (nessuna logica hardcoded), pre-filtro strutturale (domini adiacenti), iniezione memoria + centri di interesse, campo suggestion per proporre azioni write. Configurabile tramite `INITIATIVE_ENABLED`, `INITIATIVE_MAX_ITERATIONS`, `INITIATIVE_MAX_ACTIONS`.
@@ -774,7 +780,7 @@ Design **fail-open**: i fallimenti dell'infrastruttura non bloccano gli utenti.
 
 | Tecnologia | Ruolo |
 |------------|-------|
-| Prometheus | 428 metriche custom (RED pattern) |
+| Prometheus | 438 metriche custom (RED pattern) |
 | Grafana | 25 dashboard production-ready |
 | Loki | Log strutturati JSON aggregati |
 | Tempo | Trace distribuite cross-service (OTLP gRPC) |
@@ -1075,10 +1081,10 @@ Il Psyche Engine dota l'assistente di uno stato psicologico dinamico che evolve 
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 120+ ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~12.906 test in 760 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 120+ ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~12.906 test in 771 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), dei 120+ ADR e del changelog (da v1.0 a v1.25.17). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (280+ documenti), dei 120+ ADR e del changelog (da v1.0 a v1.25.18). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

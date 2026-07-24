@@ -10,20 +10,20 @@
  * - tools: ToolManifest entries across src/domains/agents/{domain}/catalogue_manifests.py
  * - providers: ProviderType Literal in infrastructure/llm/providers/adapter.py
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
- * - metrics: Prometheus metric definitions across src/ — measured 2026-07-23
- *   (v1.25.17): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 437
- *   (MFA/session/export families added by the security program)
+ * - metrics: Prometheus metric definitions across src/ — measured 2026-07-24
+ *   (v1.25.18): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 438
+ *   (heartbeat_source_dropped_total added by ADR-148)
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Measured 2026-07-23 (v1.25.17): backend pytest 12,906 collected (760 files)
- *   + frontend vitest 2,533 (259 files) = 15,439. Re-measure both suites every
+ *   Measured 2026-07-24 (v1.25.18): backend pytest 13,282 collected (771 files)
+ *   + frontend vitest 2,538 (259 files) = 15,820. Re-measure both suites every
  *   release: the value carried the backend count alone until v1.25.9, while its
  *   comment already claimed both.
- * - adrs: docs/architecture/ ADR files (145 files, numbered up to ADR-146 —
+ * - adrs: docs/architecture/ ADR files (147 files, numbered up to ADR-148 —
  *   the six founding ADRs were reconstituted in this cycle, so files and
  *   numbering now agree).
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   165 headings, no Unreleased pending.
+ *   166 headings, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -37,11 +37,11 @@ export const LANDING_STATS = {
   tools: 76,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 437,
+  metrics: 438,
   uiLanguages: 6,
-  tests: 15400,
-  adrs: 145,
-  releases: 165,
+  tests: 15800,
+  adrs: 147,
+  releases: 166,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;
