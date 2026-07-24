@@ -27,6 +27,7 @@ from src.domains.agents.display.components.base import (
     render_chip,
     render_chip_row,
     render_d_row,
+    safe_url,
     wrap_with_response,
 )
 from src.domains.agents.display.icons import Icons
@@ -108,12 +109,12 @@ class LocationCard(BaseComponent):
                 f"&height={STATIC_MAP_DESKTOP_HEIGHT}"
             )
             map_img = (
-                f'<img src="{escape_html(map_url)}" alt="Location map" '
+                f'<img src="{safe_url(map_url)}" alt="Location map" '
                 f'class="lia-route__map-image" loading="lazy" />'
             )
             if maps_url:
                 hero_html = (
-                    f'<a href="{escape_html(maps_url)}" target="_blank" rel="noopener" '
+                    f'<a href="{safe_url(maps_url)}" target="_blank" rel="noopener" '
                     f'class="lia-route__map-link">{map_img}</a>'
                 )
             else:
@@ -123,7 +124,7 @@ class LocationCard(BaseComponent):
         title_html = escape_html(display_name)
         if maps_url:
             title_html = (
-                f'<a class="lia-card-top__title" href="{escape_html(maps_url)}"'
+                f'<a class="lia-card-top__title" href="{safe_url(maps_url)}"'
                 f' target="_blank">{escape_html(display_name)}</a>'
             )
         card_top = render_card_top("location_on", "blue", title_html)
@@ -144,8 +145,7 @@ class LocationCard(BaseComponent):
             addr_link = address
             if maps_url:
                 addr_link = (
-                    f'<a href="{escape_html(maps_url)}" target="_blank">'
-                    f"{escape_html(address)}</a>"
+                    f'<a href="{safe_url(maps_url)}" target="_blank">' f"{escape_html(address)}</a>"
                 )
             address_html = render_d_row(
                 Icons.LOCATION,

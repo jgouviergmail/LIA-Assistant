@@ -328,3 +328,183 @@ class TestSingletonPattern:
         resolver2 = get_reference_resolver()
         # After reset, should be different instance
         assert resolver1 is not resolver2
+
+
+def _ctx(items, *, source_domain=None):
+    return ResolvedContext(
+        items=items,
+        confidence=1.0,
+        method="explicit",
+        source_turn_id=3,
+        source_domain=source_domain,
+    )
+
+
+class TestToDict:
+    def test_serializes_all_fields(self):
+        ctx = ResolvedContext(
+            items=[{"id": 1}],
+            confidence=0.8,
+            method="explicit",
+            source_turn_id=2,
+            source_domain="contact",
+        )
+        assert ctx.to_dict() == {
+            "items": [{"id": 1}],
+            "confidence": 0.8,
+            "method": "explicit",
+            "source_turn_id": 2,
+            "source_domain": "contact",
+        }
+
+
+class TestToLlmContext:
+    """``to_llm_context`` builds the string the planner LLM reads to resolve a
+    follow-up ("the first one", "that email") without inventing a resolve step.
+    A regression yields empty/malformed context and the LLM re-fetches or
+    resolves the wrong item — silently, since nothing raises."""
+
+    def test_empty_items_returns_empty_string(self):
+        assert _ctx([]).to_llm_context() == ""
+
+    def test_single_item_header_and_fields(self):
+        out = _ctx(
+            [
+                {
+                    "name": "Jean Dupont",
+                    "email": "jean@example.com",
+                    "meta": {"internal": 1},  # excluded field
+                    "_hidden": "secret",  # underscore-prefixed → dropped
+                    "note": "visible extra",  # non-priority → sorted section
+                }
+            ],
+            source_domain="contact",
+        ).to_llm_context()
+
+        assert "RESOLVED CONTEXT" in out
+        assert "Source domain: contact" in out
+        assert "Items count: 1" in out
+        assert "- name: Jean Dupont" in out
+        assert "- email: jean@example.com" in out
+        assert "- note: visible extra" in out
+        # Priority ordering: name (priority idx 4) before email (idx 14).
+        assert out.index("- name:") < out.index("- email:")
+        # Excluded / internal fields never leak.
+        assert "- meta:" not in out
+        assert "_hidden" not in out
+        # Always-present closing directive.
+        assert "CRITICAL:" in out
+
+    def test_single_item_extracts_ready_to_use_values(self):
+        out = _ctx(
+            [{"name": "Jean", "email": "jean@example.com"}],
+            source_domain="contact",
+        ).to_llm_context()
+
+        assert "READY-TO-USE VALUES" in out
+        assert "get_contacts_tool" in out  # name → contacts hint
+        assert "get_emails_tool" in out  # email → emails hint
+
+    def test_single_item_location_ready_to_use_hint(self):
+        out = _ctx(
+            [{"location": "Tour Eiffel, Paris"}],
+            source_domain="place",
+        ).to_llm_context()
+
+        assert 'LOCATION: "Tour Eiffel, Paris"' in out
+        assert 'get_places_tool(query="Tour Eiffel, Paris")' in out
+
+    def test_multiple_items_have_no_ready_to_use_section(self):
+        """READY-TO-USE extraction is intentionally single-item only (ambiguous
+        otherwise)."""
+        out = _ctx(
+            [{"name": "A"}, {"name": "B"}],
+            source_domain="contact",
+        ).to_llm_context()
+
+        assert "Items count: 2" in out
+        assert "Item 1:" in out
+        assert "Item 2:" in out
+        assert "READY-TO-USE VALUES" not in out
+
+    def test_id_alias_injected_for_known_domain(self):
+        """The payload carries ``id`` but ``update_event_tool`` expects
+        ``event_id`` — the alias line maps it so the LLM uses the value directly
+        instead of inventing a $steps reference."""
+        out = _ctx(
+            [{"id": "evt_123", "summary": "Standup"}],
+            source_domain="event",
+        ).to_llm_context()
+
+        assert "event_id: evt_123" in out
+        assert "use this directly as tool parameter" in out
+
+    def test_id_alias_not_injected_when_param_already_present(self):
+        out = _ctx(
+            [{"id": "evt_123", "event_id": "evt_123", "summary": "Standup"}],
+            source_domain="event",
+        ).to_llm_context()
+
+        # No alias hint line when the tool-param field is already in the payload.
+        assert "use this directly as tool parameter" not in out
+
+    def test_non_dict_item_is_stringified(self):
+        out = _ctx(["a plain resolved string"]).to_llm_context()
+        assert "a plain resolved string" in out
+        assert "Source domain: unknown" in out  # None → 'unknown'
+
+
+class TestFormatValue:
+    @pytest.fixture
+    def fmt(self):
+        return _ctx([])._format_value
+
+    def test_none_returns_none(self, fmt):
+        assert fmt(None) is None
+
+    def test_dict_prefers_formatted(self, fmt):
+        assert fmt({"formatted": "Jan 5, 09:00", "dateTime": "2026-01-05T09:00:00Z"}) == (
+            "Jan 5, 09:00"
+        )
+
+    def test_dict_datetime_when_no_formatted(self, fmt):
+        assert fmt({"dateTime": "2026-01-05T09:00:00Z"}) == "2026-01-05T09:00:00Z"
+
+    def test_dict_display_name(self, fmt):
+        assert fmt({"displayName": "Jean Dupont"}) == "Jean Dupont"
+
+    def test_dict_email(self, fmt):
+        assert fmt({"email": "a@b.co"}) == "a@b.co"
+
+    def test_small_dict_as_json(self, fmt):
+        assert fmt({"a": 1, "b": 2}) == '{"a": 1, "b": 2}'
+
+    def test_large_dict_summarized(self, fmt):
+        assert fmt({"a": 1, "b": 2, "c": 3, "d": 4}) == "{...4 fields}"
+
+    def test_short_list(self, fmt):
+        assert fmt([1, 2, 3]) == "[1, 2, 3]"
+
+    def test_empty_list_returns_none(self, fmt):
+        assert fmt([]) is None
+
+    def test_long_list_summarized(self, fmt):
+        assert fmt([1, 2, 3, 4, 5]) == "[1, 2, ... +3 more]"
+
+    def test_long_string_is_truncated(self, fmt):
+        result = fmt("x" * 250)
+        assert result is not None
+        assert result.endswith("...")
+        assert len(result) == 203  # 200 chars + "..."
+
+    def test_null_like_strings_return_none(self, fmt):
+        assert fmt("None") is None
+        assert fmt("null") is None
+        assert fmt("") is None
+
+    def test_zero_is_kept_not_dropped(self, fmt):
+        """Integer 0 is a real value, not emptiness — it must survive."""
+        assert fmt(0) == "0"
+
+    def test_primitive_int(self, fmt):
+        assert fmt(42) == "42"

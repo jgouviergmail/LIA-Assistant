@@ -3,6 +3,7 @@
 
 # Build outputs
 **/.next
+**/.next-e2e
 **/dist
 **/out
 
@@ -24,3 +25,12 @@ apps/api/models/sensevoice
 **/JGO
 **/.pytest_cache
 **/coverage
+
+# Analysis artifacts (type-check + coverage reports)
+# Regenerated locally on every run and never consumed by an image build.
+# Note: the patterns above match a path component named exactly "coverage",
+# which is why these distinct names need their own entries.
+**/.mypy_cache
+**/htmlcov
+**/.coverage*
+**/coverage*.json

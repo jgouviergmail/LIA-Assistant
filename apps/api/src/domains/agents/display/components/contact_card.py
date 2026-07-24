@@ -29,6 +29,7 @@ from src.domains.agents.display.components.base import (
     render_collapsible,
     render_d_row,
     render_type_badge,
+    safe_url,
     wrap_with_response,
 )
 from src.domains.agents.display.icons import Icons, get_relation_icon, icon
@@ -164,7 +165,7 @@ class ContactCard(BaseComponent):
         nested_class = self._nested_class(ctx)
 
         # --- Card top: avatar (photo or initials) + name + subtitle ---
-        name_link = f'<a class="lia-card-top__title" href="{escape_html(url)}" target="_blank">{escape_html(name)}</a>'
+        name_link = f'<a class="lia-card-top__title" href="{safe_url(url)}" target="_blank">{escape_html(name)}</a>'
         subtitle_parts = []
         if company:
             subtitle_parts.append(escape_html(company))
@@ -179,7 +180,7 @@ class ContactCard(BaseComponent):
         if photo_url:
             illus_html = (
                 f'<div class="lia-illus lia-illus--indigo" style="overflow:hidden;padding:0">'
-                f'<img src="{escape_html(photo_url)}" alt="" '
+                f'<img src="{safe_url(photo_url)}" alt="" '
                 f'style="width:100%;height:100%;object-fit:cover;border-radius:inherit">'
                 f"</div>"
             )
@@ -267,9 +268,7 @@ class ContactCard(BaseComponent):
             return ""
         type_label = V3Messages.get_data_type(ctx.language, atype) if atype else ""
         directions_url = build_directions_url(formatted)
-        link = (
-            f'<a href="{escape_html(directions_url)}" target="_blank">{escape_html(formatted)}</a>'
-        )
+        link = f'<a href="{safe_url(directions_url)}" target="_blank">{escape_html(formatted)}</a>'
         badge = render_type_badge(type_label, self._type_to_variant(atype)) if type_label else ""
         return render_d_row(
             Icons.LOCATION,
@@ -485,24 +484,38 @@ class ContactCard(BaseComponent):
                 cal_url = cal.get("url", "")
                 if cal_url:
                     cal_items.append(
-                        f'<a href="{escape_html(cal_url)}" target="_blank">'
+                        f'<a href="{safe_url(cal_url)}" target="_blank">'
                         f"{escape_html(label)}</a>"
                     )
         return [render_d_row(Icons.DATE_RANGE, "; ".join(cal_items))] if cal_items else []
 
     def _get_name(self, data: dict, language: str = "fr") -> str:
-        """Extract display name from various formats."""
+        """Extract display name from various formats.
+
+        Always returns a ``str``: the declared return type used to be a promise
+        only, since a payload field may hold any JSON scalar (registry items and
+        MCP results are not schema-checked) and the caller then does
+        ``name.split()``.
+        """
         names = data.get("names")
         if names and isinstance(names, list) and names:
             first = names[0]
             if isinstance(first, dict):
-                return first.get("displayName") or first.get("givenName", "")  # type: ignore[no-any-return]
+                display = first.get("displayName") or first.get("givenName", "")
+                if display:
+                    return str(display)
         no_name_fallback = V3Messages.get_no_name(language)
-        return data.get("name") or data.get("displayName", no_name_fallback)  # type: ignore[no-any-return]
+        return str(data.get("name") or data.get("displayName") or no_name_fallback)
 
     def _get_primary_value(self, items: list) -> str:
-        """Get first/primary value from list."""
-        if not items:
+        """Get first/primary value from list.
+
+        Mirrors the ``isinstance(..., list)`` guard of :meth:`_get_display_name`:
+        the multi-valued contact fields arrive as a list from Google People but
+        registry payloads and MCP results may collapse them to a scalar, and a
+        raised exception here removes every card from the answer.
+        """
+        if not items or not isinstance(items, list):
             return ""
         first = items[0]
         if isinstance(first, dict):

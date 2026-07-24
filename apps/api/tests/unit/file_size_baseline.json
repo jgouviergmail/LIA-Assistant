@@ -32,7 +32,7 @@
     "domains/agents/tools/calendar_tools.py": 1353,
     "domains/agents/tools/drive_tools.py": 825,
     "domains/agents/tools/emails_tools.py": 1634,
-    "domains/agents/tools/formatters.py": 815,
+    "domains/agents/tools/formatters.py": 753,
     "domains/agents/tools/google_contacts_tools.py": 1632,
     "domains/agents/tools/labels_tools.py": 638,
     "domains/agents/tools/mixins.py": 673,
@@ -54,7 +54,6 @@
     "domains/psyche/engine.py": 874,
     "domains/psyche/service.py": 913,
     "domains/users/service.py": 717,
-    "infrastructure/llm/structured_output.py": 623,
     "infrastructure/observability/metrics_agents.py": 829
   }
 }

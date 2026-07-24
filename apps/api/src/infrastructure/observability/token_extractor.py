@@ -127,8 +127,14 @@ class TokenExtractor:
                     output_tokens = usage_dict.get("output_tokens", 0) or usage_dict.get(
                         "completion_tokens", 0
                     )
-                    # Legacy cached tokens field
-                    cached_tokens = usage_dict.get("cached_tokens", 0)
+                    # Legacy cached tokens field. Same convention as Strategy 1:
+                    # the provider's input total ALREADY contains the cache
+                    # reads, and get_cached_cost_usd_eur prices the buckets
+                    # additively — so they must be removed here too, otherwise
+                    # every cached token is billed twice (full input rate on top
+                    # of the discounted cached rate).
+                    cached_tokens = usage_dict.get("cached_tokens", 0) or 0
+                    input_tokens = max(0, input_tokens - cached_tokens)
 
             # Extract model name from llm_output
             if model_name == "unknown":

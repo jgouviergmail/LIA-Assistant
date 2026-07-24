@@ -19,6 +19,7 @@ import json
 import smtplib
 import uuid
 from contextlib import suppress
+from datetime import UTC, datetime
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -29,6 +30,7 @@ import structlog
 from imap_tools import AND, MailBox
 
 from src.core.config import settings
+from src.core.field_names import FIELD_CACHED_AT
 from src.domains.connectors.clients.base_apple_client import (
     AppleAuthenticationError,
     BaseAppleClient,
@@ -261,14 +263,20 @@ class AppleEmailClient(BaseAppleClient):
 
         messages = await asyncio.to_thread(_imap_fetch)
 
-        # Cache each message in Redis for get_message (solves N+1 IMAP)
+        # Cache each message in Redis for get_message (solves N+1 IMAP).
+        # The write timestamp travels WITH the payload so a later cache hit can
+        # report the real age — same contract as GoogleGmailClient, which
+        # calculate_cache_age_seconds relies on to expose data freshness.
         if messages:
             try:
                 redis = await get_redis_session()
                 ttl = settings.apple_email_message_cache_ttl
+                written_at = datetime.now(UTC).isoformat()
                 for msg in messages:
                     cache_key = f"apple_email:{self.user_id}:msg:{msg['id']}"
-                    await redis.set(cache_key, json.dumps(msg), ex=ttl)
+                    await redis.set(
+                        cache_key, json.dumps({**msg, FIELD_CACHED_AT: written_at}), ex=ttl
+                    )
             except Exception as e:
                 logger.debug("apple_email_cache_write_error", error=str(e))
 
@@ -290,7 +298,7 @@ class AppleEmailClient(BaseAppleClient):
             "messages": [{"id": msg["id"]} for msg in messages],
             "resultSizeEstimate": len(messages),
             "from_cache": False,
-            "cached_at": None,
+            FIELD_CACHED_AT: None,
         }
 
     async def _get_message_impl(
@@ -316,6 +324,9 @@ class AppleEmailClient(BaseAppleClient):
                         email_cache_hits.labels(cache_type="redis_message").inc()
                     result = json.loads(cached)
                     result["from_cache"] = True
+                    # Entries written before the timestamp existed report an
+                    # unknown age rather than a fabricated one.
+                    result.setdefault(FIELD_CACHED_AT, None)
                     return result
                 with suppress(Exception):
                     from src.infrastructure.observability.metrics_agents import (
@@ -355,18 +366,20 @@ class AppleEmailClient(BaseAppleClient):
 
         result = await asyncio.to_thread(_imap_fetch_single)
 
-        # Cache for future requests
+        # Cache for future requests, stamped with the write time (freshness contract)
         try:
             redis = await get_redis_session()
             cache_key = f"apple_email:{self.user_id}:msg:{message_id}"
             await redis.set(
-                cache_key, json.dumps(result), ex=settings.apple_email_message_cache_ttl
+                cache_key,
+                json.dumps({**result, FIELD_CACHED_AT: datetime.now(UTC).isoformat()}),
+                ex=settings.apple_email_message_cache_ttl,
             )
         except Exception as e:
             logger.warning("apple_email_cache_write_error", error=str(e))
 
         result["from_cache"] = False
-        result["cached_at"] = None
+        result[FIELD_CACHED_AT] = None
         return result
 
     async def _send_email_impl(

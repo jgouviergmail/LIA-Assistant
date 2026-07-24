@@ -68,9 +68,12 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
-        // Global floor — measured 2026-07-19:
-        //   statements 60.46 / branches 54.80 / functions 54.49 / lines 60.91
-        // Set just under, raise as coverage grows, NEVER lower.
+        // Global floor — re-measured 2026-07-24 (in the lia-web-dev container,
+        // a safe LOWER bound: it under-exercises some env-sensitive branches vs
+        // CI): statements 63.38 / branches 57.63 / functions 57.67 / lines 63.85.
+        // Raised to lock the gains accumulated since 2026-07-19 (was
+        // 60/54/54/60, measured then 60.46/54.80/54.49/60.91). Set just under,
+        // raise as coverage grows, NEVER lower.
         //
         // How it got here (audit F010, chantier "couverture par le risque"):
         // the hook wave and component Lots 1-4, then the F057 builder
@@ -82,10 +85,10 @@ export default defineConfig({
         // other lanes: App Router pages (hermetic E2E) and the WASM/Web-Audio
         // modules `sherpaKws` / `audio-queue`, which jsdom cannot simulate
         // without the test degenerating into a test of its own mocks.
-        statements: 60,
-        branches: 54,
-        functions: 54,
-        lines: 60,
+        statements: 62,
+        branches: 56,
+        functions: 56,
+        lines: 62,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {
           statements: 100,

@@ -227,25 +227,36 @@ class QueryExecutor:
             order: "asc" or "desc"
 
         Returns:
-            Sorted items (None values at end)
+            Sorted items, with the items MISSING the field last in BOTH
+            directions.
+
+        Note:
+            ``sorted(reverse=True)`` flips the whole key, so a plain
+            ``val is None`` flag would move the missing values to the FRONT of a
+            descending sort: "the 3 most recent emails" then returned the three
+            items that carry no date at all. The flag is pre-flipped with the
+            sort direction so absent values always sink to the bottom.
         """
         if not field:
             return items
 
+        reverse = order == "desc"
+
         def sort_key(item: Any) -> tuple[bool, Any]:
             val = self._get_field_value(item, field)
-            # Put None values at the end
-            return (val is None, val if val is not None else "")
+            is_missing = val is None
+            return (is_missing != reverse, val if not is_missing else "")
 
         try:
-            return sorted(items, key=sort_key, reverse=(order == "desc"))
+            return sorted(items, key=sort_key, reverse=reverse)
         except TypeError:
             # Mixed types - fall back to string comparison
             def safe_sort_key(item: Any) -> tuple[bool, str]:
                 val = self._get_field_value(item, field)
-                return (val is None, str(val) if val is not None else "")
+                is_missing = val is None
+                return (is_missing != reverse, str(val) if not is_missing else "")
 
-            return sorted(items, key=safe_sort_key, reverse=(order == "desc"))
+            return sorted(items, key=safe_sort_key, reverse=reverse)
 
     def _execute_similarity(
         self, items: list[Any], field: str | None, threshold: float
@@ -358,8 +369,13 @@ class QueryExecutor:
                 result = len(items)
 
             case AggregateFunction.DISTINCT:
-                # Return list of unique values - CRITICAL for cross-domain queries
-                result = list(set(values))
+                # Return unique values in FIRST-SEEN order - CRITICAL for
+                # cross-domain queries. A ``set`` would reorder them with the
+                # interpreter hash seed, so the same query answered in a
+                # different order from one process to the next, breaking the
+                # determinism this engine promises (and the reproducibility of
+                # the downstream plan steps that consume these values).
+                result = self._distinct_preserving_order(values)
 
             case AggregateFunction.SUM:
                 numeric_values = [v for v in values if isinstance(v, int | float)]
@@ -395,6 +411,38 @@ class QueryExecutor:
                 "distinct_values": result if fn == AggregateFunction.DISTINCT else None,
             },
         )
+
+    @staticmethod
+    def _distinct_preserving_order(values: list[Any]) -> list[Any]:
+        """
+        De-duplicate values while keeping their first-seen order.
+
+        Falls back to an O(N²) scan for unhashable values (dicts/lists reached
+        through a path such as ``payload.emailAddresses``) instead of raising,
+        which would turn the whole query into an error result.
+
+        Args:
+            values: Values to de-duplicate.
+
+        Returns:
+            Unique values in first-seen order.
+        """
+        seen: set[Any] = set()
+        unhashable: list[Any] = []
+        unique: list[Any] = []
+
+        for value in values:
+            try:
+                if value in seen:
+                    continue
+                seen.add(value)
+            except TypeError:
+                if value in unhashable:
+                    continue
+                unhashable.append(value)
+            unique.append(value)
+
+        return unique
 
     def _evaluate_condition(self, item: Any, cond: Condition) -> bool:
         """
@@ -484,7 +532,7 @@ class QueryExecutor:
                         target = [t.strip() for t in target.split(",") if t.strip()]
                         logger.debug(
                             "in_operator_converted_csv_to_list",
-                            original_length=len(target),
+                            values_count=len(target),
                             values_preview=target[:3] if target else [],
                         )
                     if not isinstance(target, list | tuple | set):

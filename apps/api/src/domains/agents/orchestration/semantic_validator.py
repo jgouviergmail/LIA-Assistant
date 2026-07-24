@@ -382,6 +382,20 @@ def validate_steps_references(plan: "ExecutionPlan") -> tuple[bool, str | None]:
             ref_step_id = match.group(1)  # e.g., "step_2"
             ref_domain_key = match.group(2)  # e.g., "events"
 
+            # The regex captures ANY `$steps.X.Y`, but Y is a result_key only
+            # some of the time — it is just as often a plain output FIELD
+            # ("total", "count", "success"), which the catalogue documents as a
+            # legitimate reference (get_contacts_tool lists "total" among its own
+            # reference_examples). Ghost-dependency detection compares DOMAIN
+            # keys, so a field access must be skipped: flagging it rejected a
+            # valid plan and forced a wasted replan.
+            from src.domains.agents.utils.type_domain_mapping import (
+                get_domain_from_result_key,
+            )
+
+            if get_domain_from_result_key(ref_domain_key) is None:
+                continue
+
             # Check if referenced step exists
             if ref_step_id not in step_result_keys:
                 # Step doesn't exist or we couldn't determine its result_key

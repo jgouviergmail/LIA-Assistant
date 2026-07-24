@@ -387,9 +387,15 @@ class ReferenceValidator:
             if normalized_path == normalized_ref:
                 return True
 
-            # Path is more specific (has more segments but starts with example)
-            # e.g., path="contacts[*].emailAddresses[*].value" matches ref="contacts[*].emailAddresses"
-            if normalized_path.startswith(normalized_ref + "."):
+            # Path is more specific (has more segments but starts with example).
+            # The next segment may be a field (".") OR an array index ("["), so BOTH
+            # separators must be accepted — mirroring the prefix branch below. Checking
+            # only "." silently rejected a legitimate deeper path when the example
+            # terminated at an array field, e.g. path="contacts[*].emailAddresses[*].value"
+            # vs ref="contacts[*].emailAddresses" (the char after the ref is "[", not ".").
+            if normalized_path.startswith(normalized_ref + ".") or normalized_path.startswith(
+                normalized_ref + "["
+            ):
                 return True
 
             # Path is prefix of example (valid if example goes deeper)

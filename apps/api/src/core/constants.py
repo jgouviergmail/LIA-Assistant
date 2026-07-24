@@ -3415,8 +3415,15 @@ GMAIL_INBOX_ONLY_KEYWORDS: frozenset[str] = frozenset(
     ]
 )
 
-# Keywords indicating user explicitly wants TRASH
-GMAIL_TRASH_KEYWORDS: frozenset[str] = frozenset(["trash", "in:trash", "label:trash", "deleted"])
+# Operators indicating the user explicitly wants TRASH in scope.
+# OPERATOR FORMS ONLY, on purpose: these are matched as SUBSTRINGS of the query,
+# so bare content words ("trash", "deleted") used to match legitimate searches
+# ("deleted invoices", "subject:trash collection") and silently dropped the
+# `-in:trash` exclusion, surfacing deleted mail as if it were live. The tool
+# description teaches the LLM to emit `label:TRASH` for "corbeille"/"trash"/
+# "deleted", and a whole-query "trash"/"deleted" is mapped to the operator by
+# `_LLM_ERROR_NORMALIZATIONS` (emails_tools), so both intents stay covered.
+GMAIL_TRASH_KEYWORDS: frozenset[str] = frozenset(["in:trash", "label:trash"])
 
 # Gmail date operators for date filter detection
 GMAIL_DATE_OPERATORS: frozenset[str] = frozenset(

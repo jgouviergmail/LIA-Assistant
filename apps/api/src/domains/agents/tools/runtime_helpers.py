@@ -729,12 +729,17 @@ def extract_value(obj: Any, *keys, default: Any = None) -> Any:
                 current = current[key]
             else:
                 return default
-        # Try attribute access (Pydantic models)
-        elif hasattr(current, str(key)):
-            current = getattr(current, str(key))
-        # Try dict access
+        # Dict access FIRST — a dict ENTRY must win over a dict METHOD of the
+        # same name. ``hasattr({}, "items")`` is True (every dict has .items /
+        # .keys / .values / .get …), so checking attributes first returned the
+        # bound method for any key colliding with one. That silently broke
+        # FOR_EACH over a result keyed ``items`` (the loop found a method, not a
+        # list, and iterated over nothing). Mirrors QueryExecutor._get_field_value.
         elif isinstance(current, dict):
             current = current.get(key)
+        # Then attribute access (Pydantic models and other objects)
+        elif hasattr(current, str(key)):
+            current = getattr(current, str(key))
         else:
             return default
 

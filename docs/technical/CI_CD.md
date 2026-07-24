@@ -150,7 +150,7 @@ Step 1 — tests unitaires :
 ```bash
 pytest tests/unit/ -v --tb=short \
   -m "not integration and not slow and not e2e and not benchmark and not multiprocess" \
-  --cov=src --cov-report=xml --cov-fail-under=45
+  --cov=src --cov-report=xml --cov-fail-under=59
 ```
 
 Step 2 — suite agents (cablee en 2026-07 apres l'audit — elle avait pourri

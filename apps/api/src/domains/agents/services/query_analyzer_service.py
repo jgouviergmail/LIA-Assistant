@@ -899,6 +899,31 @@ async def analyze_query(
         )
 
 
+def _update_pattern_subsumes_create(query_lower: str) -> bool:
+    """True when a matched UPDATE pattern strictly CONTAINS a matched CREATE one.
+
+    Intent detection checks CREATE before UPDATE, and the patterns are matched as
+    substrings — so "reschedule" (UPDATE) was shadowed by "schedule" (CREATE) and
+    its declaration was unreachable. "reschedule my meeting" was then classified
+    as a creation, loading the create tools and leaving ``update_event_tool``
+    out: a duplicated event instead of a moved one.
+
+    Verified exhaustively across the four ``INTENT_PATTERNS_*`` sets: this pair
+    is the only such overlap, so the rule changes nothing else.
+
+    Args:
+        query_lower: Lower-cased pivoted English query.
+
+    Returns:
+        True when the more specific UPDATE reading must win.
+    """
+    create_hits = [w for w in INTENT_PATTERNS_CREATE if w in query_lower]
+    if not create_hits:
+        return False
+    update_hits = [w for w in INTENT_PATTERNS_UPDATE if w in query_lower]
+    return any(create in update for create in create_hits for update in update_hits)
+
+
 # =============================================================================
 # SERVICE CLASS
 # =============================================================================
@@ -1599,6 +1624,11 @@ class QueryAnalyzerService:
 
         if any(w in query_lower for w in INTENT_PATTERNS_DELETE):
             return "delete"
+
+        # Specificity rule (see _update_pattern_subsumes_create): a longer UPDATE
+        # pattern must win over the shorter CREATE pattern it contains.
+        if _update_pattern_subsumes_create(query_lower):
+            return "update"
 
         if any(w in query_lower for w in INTENT_PATTERNS_CREATE):
             return "create"

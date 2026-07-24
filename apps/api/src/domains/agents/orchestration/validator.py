@@ -560,12 +560,19 @@ class PlanValidator:
         expected_type = param_schema.type
         actual_type = type(param_value).__name__
 
-        type_mapping = {
+        type_mapping: dict[str, type | tuple[type, ...]] = {
             "string": str,
             "integer": int,
             "boolean": bool,
             "array": list,
             "object": dict,
+            # A declared type MISSING from this table is skipped entirely, and
+            # the constraint checks below are themselves type-guarded — so the
+            # parameter ends up with NO validation at all. "number" was absent
+            # while get_places_tool.min_rating declares it: a string rating
+            # sailed through this gate and only failed inside the tool as
+            # "'<=' not supported between float and str".
+            "number": (int, float),
         }
 
         if expected_type in type_mapping:
@@ -1324,8 +1331,12 @@ class PlanValidator:
         import ast
         import re
 
-        # Replace $steps.X with safe variable for AST parsing
-        # Support both numeric indices ($steps.0) and named step IDs ($steps.search_contacts)
+        # Replace $steps.STEP_ID.field references with a placeholder variable so
+        # the residual expression can be AST-parsed. STEP_ID is a NAMED identifier
+        # ($steps.search_contacts, $steps.step_1), matching the runtime
+        # ReferenceResolver pattern in condition_evaluator.py. Numeric forms
+        # ($steps.0) are not part of the DSL — the resolver rejects them too — so
+        # they are intentionally left unreplaced and the condition is rejected.
         safe_condition = re.sub(
             r"\$steps\.[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*", "var", condition
         )

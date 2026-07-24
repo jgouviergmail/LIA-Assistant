@@ -175,7 +175,7 @@ class ParameterSchema:
     Validation schema for a tool parameter.
 
     Fully describes an input parameter:
-    - Type (string, integer, boolean, array, object)
+    - Type (string, integer, number, boolean, array, object)
     - Required or optional
     - Description for documentation
     - Validation constraints

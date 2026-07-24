@@ -39,6 +39,7 @@ from src.domains.agents.display.components.base import (
     render_desc_block,
     render_part_list,
     render_section_header,
+    safe_url,
     wrap_with_response,
 )
 from src.domains.agents.display.icons import Icons, icon
@@ -243,7 +244,7 @@ class EventCard(BaseComponent):
 
         # --- Card top: illustration + title + participant count ---
         illus_icon, illus_color = self._get_illus_for_status(data)
-        title_html = f'<a class="lia-card-top__title" href="{escape_html(url)}" target="_blank">{escape_html(title)}</a>'
+        title_html = f'<a class="lia-card-top__title" href="{safe_url(url)}" target="_blank">{escape_html(title)}</a>'
 
         # Only status badge in card-top (participant count shown with avatars below)
         badges_parts = []
@@ -315,7 +316,7 @@ class EventCard(BaseComponent):
         if not location:
             return ""
         if _is_meet_url(location):
-            link = f'<a href="{escape_html(location)}" target="_blank">Google Meet</a>'
+            link = f'<a href="{safe_url(location)}" target="_blank">Google Meet</a>'
             return render_d_row(Icons.VIDEO_CALL, link)
         link = f'<a href="{build_directions_url(location)}" target="_blank">{escape_html(location)}</a>'
         return render_d_row(
@@ -400,7 +401,7 @@ class EventCard(BaseComponent):
                         detail_sections.append(
                             render_d_item(
                                 Icons.VIDEO_CALL,
-                                f'<a href="{escape_html(meet_url)}" target="_blank">'
+                                f'<a href="{safe_url(meet_url)}" target="_blank">'
                                 f"{join_meet_label}</a>",
                             )
                         )
@@ -447,7 +448,7 @@ class EventCard(BaseComponent):
                     file_url = att.get("fileUrl", "") or att.get("url", "")
                     if file_url:
                         att_items.append(
-                            f'<a href="{escape_html(file_url)}" target="_blank">'
+                            f'<a href="{safe_url(file_url)}" target="_blank">'
                             f"{escape_html(att_title)}</a>"
                         )
                     else:

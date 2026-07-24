@@ -254,7 +254,7 @@ jobs:
             --cov=src \
             --cov-report=xml \
             --cov-report=term-missing \
-            --cov-fail-under=45
+            --cov-fail-under=59
 
       # Agents suite — wired into CI 2026-07 after the audit found it had
       # silently rotted (83 failures) because no gate ever ran it.

@@ -18,6 +18,7 @@ from uuid import UUID
 import structlog
 
 from src.core.config import settings
+from src.core.field_names import FIELD_CACHED_AT
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.base_microsoft_client import BaseMicrosoftClient
 from src.domains.connectors.clients.normalizers.microsoft_contacts_normalizer import (
@@ -110,9 +111,14 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
             results_count=len(results),
         )
 
+        # Graph reads are always live: the freshness metadata is stated
+        # explicitly so every contacts provider answers the same contract
+        # (see GooglePeopleClient / AppleContactsClient).
         return {
             "results": results,
             "totalItems": len(results),
+            "from_cache": False,
+            FIELD_CACHED_AT: None,
         }
 
     async def list_connections(
@@ -155,6 +161,8 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
         return {
             "connections": connections,
             "totalItems": len(connections),
+            "from_cache": False,
+            FIELD_CACHED_AT: None,
         }
 
     async def get_person(
@@ -187,7 +195,11 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
             contact_id=contact_id,
         )
 
-        return normalize_graph_contact(response)
+        return {
+            **normalize_graph_contact(response),
+            "from_cache": False,
+            FIELD_CACHED_AT: None,
+        }
 
     # =========================================================================
     # WRITE OPERATIONS

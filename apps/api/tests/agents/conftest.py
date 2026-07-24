@@ -73,14 +73,28 @@ async def _close_global_psycopg_pools() -> AsyncIterator[None]:
     by the GC on a closed loop — the "StreamWriter destroyed / unclosed
     Connection" noise the audit saw after the summary. No-op (two attribute
     reads) unless a test actually opened one of the pools.
+
+    Ownership is established by SNAPSHOTTING the singletons before the test: a
+    pool that already existed was opened on an EARLIER test's loop, and awaiting
+    its workers from here never wakes them (teardown error observed when the
+    unit and agents scopes run in one pytest invocation — CI runs them as
+    separate invocations, so it only bites locally). Only a pool that appeared
+    during this test is ours to close.
     """
-    yield
     from src.domains.agents.context import store as _context_store
     from src.domains.conversations import checkpointer as _checkpointer
 
-    if _checkpointer._pool is not None:
+    pool_before = _checkpointer._pool
+    store_pool_before = _context_store._store_pool
+
+    yield
+
+    if _checkpointer._pool is not None and _checkpointer._pool is not pool_before:
         await _checkpointer.cleanup_checkpointer()
-    if _context_store._store_pool is not None:
+    if (
+        _context_store._store_pool is not None
+        and _context_store._store_pool is not store_pool_before
+    ):
         await _context_store.cleanup_tool_context_store()
 
 

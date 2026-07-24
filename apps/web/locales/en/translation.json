@@ -3229,7 +3229,7 @@
         },
         "hitl": {
           "title": "👤 Advanced Human-in-the-Loop",
-          "description": "8 intelligent interaction types: clarification, entity disambiguation (ENTITY_DISAMBIGUATION), plan approval, tool confirmation, draft critique, edit confirmation (EDIT_CONFIRMATION), bulk operation confirmation (FOR_EACH), and destructive validation (mass deletions ≥3 items). Configurable thresholds and item preview before execution. Review loops are replay-safe (ADR-092): one interrupt per node execution with loop state flowing through the checkpointed graph state — each LLM modification runs exactly once and the confirmed content is guaranteed identical to the last content displayed."
+          "description": "8 intelligent interaction types: clarification, entity disambiguation (ENTITY_DISAMBIGUATION), plan approval, tool confirmation, draft critique, edit confirmation (EDIT_CONFIRMATION), bulk operation confirmation (FOR_EACH), and destructive validation (mass deletions ≥3 items). Configurable thresholds and item preview before execution. Review loops are replay-safe (ADR-092): one interrupt per node execution with loop state flowing through the checkpointed graph state — each LLM modification runs exactly once and the confirmed content is guaranteed identical to the last content displayed. Whether an operation counts as a mutation is read from the tool's declared catalogue category rather than guessed from its name, so bulk replies and forwards are gated exactly like creations and deletions."
         },
         "connectors": {
           "title": "🔌 Connectors & Registry",
@@ -3317,7 +3317,7 @@
         },
         "adaptiveReplanner": {
           "title": "🔄 Adaptive Replanning",
-          "description": "Intelligent autonomous recovery from execution failures (empty results, partial failures, dependency errors, semantic mismatches). Rule-based analysis without additional LLM calls for speed. Recovery strategies: retry with adjusted parameters, skip non-critical steps, full re-planning if necessary. PANIC mode with exponential backoff. Users always receive the best possible response, even with partial failures."
+          "description": "Rule-based analysis of execution failures — empty results, partial failures, dependency and reference errors — with no additional LLM call. It classifies what happened and computes a recovery decision (retry, modified re-planning, ask the user, abort). That decision is <b>advisory today</b>: it is logged and counted on every failure so the failure modes are measurable, but the orchestrator does not yet apply it automatically. Partial results are surfaced rather than discarded, so an incomplete run still answers with what it did obtain."
         },
         "semanticLeakDefense": {
           "title": "🛡️ Indexable vs Semantic criteria distinction",
@@ -3377,7 +3377,7 @@
         },
         "proactiveInitiative": {
           "title": "🎯 Proactive Initiative",
-          "description": "After completing the main request, the assistant evaluates whether results reveal cross-domain connections relevant to the user. Example: weather shows rain Saturday → checks calendar for outdoor activities. In Pipeline mode, a dedicated node runs the LLM evaluation after the answer. In ReAct mode the agent also cross-checks during its own reasoning (the CROSS-CHECK step) and — when enabled — the same dedicated initiative node now runs after the loop, so both modes get the proactive enrichment. The evaluation receives pre-computed connection candidates from the semantic type registry (which data from this turn can feed which adjacent tools — ADR-090), and prepares the final answer's context (memory, RAG, journal, psyche) in parallel to cut latency (ADR-091)."
+          "description": "After completing the main request, the assistant evaluates whether results reveal cross-domain connections relevant to the user. Example: weather shows rain Saturday → checks calendar for outdoor activities. In Pipeline mode, a dedicated node runs the LLM evaluation after the answer. In ReAct mode the agent also cross-checks during its own reasoning (the CROSS-CHECK step) and — when enabled — the same dedicated initiative node now runs after the loop, so both modes get the proactive enrichment. The evaluation receives pre-computed connection candidates from the semantic type registry (which data from this turn can feed which adjacent tools — ADR-090), and prepares the final answer's context (memory, RAG, journal, psyche) in parallel to cut latency (ADR-091). The enrichment is strictly <b>read-only</b>: whether a tool may run here is decided by its declared catalogue category, never guessed from its name — so the initiative can look things up, but can never change your data on its own."
         },
         "telephony": {
           "title": "📞 Agentic Telephony",
@@ -3394,6 +3394,22 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_19": {
+          "title": "v1.25.19 — 🛡️ LIA asks before it acts",
+          "date": "July 2026",
+          "count": "9",
+          "items": {
+            "i1": "<b>🛡️ A bulk action always asks first</b> — “reply to each of these emails” could send up to nine replies without ever asking you. Replies, forwards, label changes and reminder cancellations are now all confirmed from the very first item.",
+            "i2": "<b>✋ LIA no longer acts on its own</b> — after an exchange, LIA may complete its answer by checking adjacent domains. Seven tools that MODIFY things (labels, completed tasks, lights, scripts) were wrongly eligible for that: they are excluded now.",
+            "i3": "<b>🗑️ The bin stays in the bin</b> — searching for “deleted invoices” silently pulled trashed messages back into the results, presented as ordinary mail. Only an explicit request for the bin includes it now.",
+            "i4": "<b>📅 “Reschedule my meeting” moves it instead of duplicating it</b> — the word “reschedule” was read as a creation, so LIA created a second event rather than moving yours.",
+            "i5": "<b>📨 “Reply to each of these emails” runs again</b> — on some results the list to iterate over was seen as empty and the action ran on nothing, with no error message.",
+            "i6": "<b>💶 Fairer conversation costs</b> — cached tokens were counted twice on one path, inflating the displayed cost. Billing now reflects real usage.",
+            "i7": "<b>🔒 Hardened display cards</b> — a link or a colour supplied by an external service could inject code into a card. Everything is filtered at the source now.",
+            "i8": "<b>🔗 More reliable Apple and Microsoft connectors</b> — a network error could make a failed update look successful, or lose contact data without warning.",
+            "i9": "<b>🔑 Password policy locked down</b> — the rule is applied identically by the browser and by the server, and that consistency is now checked automatically."
+          }
+        },
         "v1_25_18": {
           "title": "v1.25.18 — 🎯 LIA says only what it checked",
           "date": "July 2026",

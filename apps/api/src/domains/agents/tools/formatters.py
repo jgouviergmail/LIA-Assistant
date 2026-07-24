@@ -50,6 +50,7 @@ from src.core.field_names import (
     FIELD_METADATA,
     FIELD_RESOURCE_NAME,
 )
+from src.core.i18n import normalize_language
 from src.core.i18n_api_messages import APIMessages
 from src.core.i18n_dates import (
     get_day_name,
@@ -645,13 +646,7 @@ def format_google_datetime(
     """
     if not timestamp_ms:
         # Extract language from locale for i18n
-        lang = (
-            locale.split("-")[0].lower()
-            if locale and "-" in locale
-            else (locale.lower() if locale else "fr")
-        )
-        if locale and locale.lower() == "zh-cn":
-            lang = "zh-CN"
+        lang = normalize_language(locale or "")
         return APIMessages.date_unknown(lang)
 
     try:
@@ -685,17 +680,7 @@ def format_google_datetime(
         month_name = get_month_name(month, locale)
 
         # Extract language for special formatting (zh-CN needs different structure)
-        language = (
-            locale.lower()
-            if locale and locale.lower() == "zh-cn"
-            else (
-                locale.split("-")[0].lower()
-                if locale and "-" in locale
-                else locale.lower() if locale else "fr"
-            )
-        )
-        if language == "zh-cn":
-            language = "zh-CN"
+        language = normalize_language(locale or "")
 
         # Format based on language
         if language == "zh-CN":
@@ -724,13 +709,7 @@ def format_google_datetime(
             user_timezone=user_timezone,
             error=str(e),
         )
-        lang = (
-            locale.split("-")[0].lower()
-            if locale and "-" in locale
-            else (locale.lower() if locale else "fr")
-        )
-        if locale and locale.lower() == "zh-cn":
-            lang = "zh-CN"
+        lang = normalize_language(locale or "")
         return APIMessages.date_invalid(lang)
 
 
@@ -823,13 +802,7 @@ def format_google_birthday(
 
     # Helper to get language from locale
     def _get_lang() -> str:
-        if locale and locale.lower() == "zh-cn":
-            return "zh-CN"
-        return (
-            locale.split("-")[0].lower()
-            if locale and "-" in locale
-            else (locale.lower() if locale else "fr")
-        )
+        return normalize_language(locale or "")
 
     if not month or not day:
         return APIMessages.date_invalid(_get_lang())
@@ -854,17 +827,7 @@ def format_google_birthday(
         day_str = f"{day_int:02d}"  # Leading zero (03, 17, etc.)
 
         # Extract language for special formatting (zh-CN, en need different structure)
-        language = (
-            locale.lower()
-            if locale and locale.lower() == "zh-cn"
-            else (
-                locale.split("-")[0].lower()
-                if locale and "-" in locale
-                else locale.lower() if locale else "fr"
-            )
-        )
-        if language == "zh-cn":
-            language = "zh-CN"
+        language = normalize_language(locale or "")
 
         # Format based on language
         if language == "zh-CN":
@@ -1063,13 +1026,7 @@ class GmailFormatter(BaseFormatter):
         headers = GmailFormatter._extract_headers_dict(message)
         if from_header := headers.get("from"):
             return from_header
-        lang = (
-            locale.split("-")[0].lower()
-            if locale and "-" in locale
-            else (locale.lower() if locale else "fr")
-        )
-        if locale and locale.lower() == "zh-cn":
-            lang = "zh-CN"
+        lang = normalize_language(locale or "")
         return APIMessages.sender_unknown(lang)
 
     @staticmethod
@@ -1119,13 +1076,7 @@ class GmailFormatter(BaseFormatter):
         headers = GmailFormatter._extract_headers_dict(message)
         if subject := headers.get("subject"):
             return subject
-        lang = (
-            locale.split("-")[0].lower()
-            if locale and "-" in locale
-            else (locale.lower() if locale else "fr")
-        )
-        if locale and locale.lower() == "zh-cn":
-            lang = "zh-CN"
+        lang = normalize_language(locale or "")
         return APIMessages.no_subject(lang)
 
     @staticmethod
@@ -1259,13 +1210,7 @@ class GmailFormatter(BaseFormatter):
             return body
 
         # Get language from locale
-        lang = (
-            locale.split("-")[0].lower()
-            if locale and "-" in locale
-            else (locale.lower() if locale else "fr")
-        )
-        if locale and locale.lower() == "zh-cn":
-            lang = "zh-CN"
+        lang = normalize_language(locale or "")
 
         # Truncate and add continuation link (provider-aware)
         email_url = GmailFormatter._extract_email_web_url(message)
@@ -1330,13 +1275,7 @@ class GmailFormatter(BaseFormatter):
             Attachment bodies are NOT extracted (use attachmentId if needed).
         """
         # Get language from locale
-        lang = (
-            locale.split("-")[0].lower()
-            if locale and "-" in locale
-            else (locale.lower() if locale else "fr")
-        )
-        if locale and locale.lower() == "zh-cn":
-            lang = "zh-CN"
+        lang = normalize_language(locale or "")
 
         attachments = []
         payload = message.get("payload", {})

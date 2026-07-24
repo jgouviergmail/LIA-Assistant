@@ -32,6 +32,15 @@ from src.domains.agents.display.icons import (
     render_star_rating,
 )
 
+# URL safety / builders live in their own module; re-exported here so the card
+# components keep one import surface.
+from src.domains.agents.display.urls import (  # noqa: F401  (re-export)
+    build_directions_url,
+    build_place_url,
+    safe_css_color,
+    safe_url,
+)
+
 # =============================================================================
 # HTML flattening
 # =============================================================================
@@ -819,12 +828,17 @@ def markdown_links_to_html(
         else:
             display_text = url
 
-        # Build HTML link
-        escaped_url = escape_html(url)
+        # Build HTML link. A markdown link comes from LLM output or from remote
+        # content, so the target goes through the scheme allow-list, not just
+        # HTML escaping.
         escaped_display = escape_html(display_text)
-        result_parts.append(
-            f'<a href="{escaped_url}" target="_blank" rel="noopener">{escaped_display}</a>'
-        )
+        href = safe_url(url)
+        if href:
+            result_parts.append(
+                f'<a href="{href}" target="_blank" rel="noopener">{escaped_display}</a>'
+            )
+        else:
+            result_parts.append(escaped_display)
 
         last_end = match.end()
 
@@ -833,61 +847,6 @@ def markdown_links_to_html(
         result_parts.append(escape_html(text[last_end:]))
 
     return "".join(result_parts)
-
-
-def build_directions_url(destination: str) -> str:
-    """
-    Build a Google Maps Directions URL for the given destination.
-
-    Uses Google Maps Directions API format which will automatically use
-    the user's current location (GPS on mobile, or prompt on desktop).
-
-    This is the centralized function for all address/location links across
-    all card components to ensure consistent behavior.
-
-    Args:
-        destination: Address or location name to navigate to
-
-    Returns:
-        Google Maps Directions URL
-
-    Example:
-        >>> build_directions_url("123 Main St, Paris")
-        'https://www.google.com/maps/dir/?api=1&destination=123%20Main%20St%2C%20Paris'
-    """
-    from urllib.parse import quote
-
-    encoded_destination = quote(destination, safe="")
-    return f"https://www.google.com/maps/dir/?api=1&destination={encoded_destination}"
-
-
-def build_place_url(place_id: str | None = None, query: str | None = None) -> str:
-    """
-    Build a Google Maps Place URL to view a place's page (not directions).
-
-    Args:
-        place_id: Google Place ID (e.g., 'ChIJ...')
-        query: Fallback search query (name + address) if no place_id
-
-    Returns:
-        Google Maps Place/Search URL
-
-    Example:
-        >>> build_place_url(place_id="ChIJN1t_tDeuEmsRUsoyG83frY4")
-        'https://www.google.com/maps/place/?q=place_id:ChIJN1t_tDeuEmsRUsoyG83frY4'
-        >>> build_place_url(query="Eiffel Tower, Paris")
-        'https://www.google.com/maps/search/?api=1&query=Eiffel%20Tower%2C%20Paris'
-    """
-    from urllib.parse import quote
-
-    if place_id:
-        # Direct place page with place_id
-        return f"https://www.google.com/maps/place/?q=place_id:{place_id}"
-    elif query:
-        # Search URL as fallback
-        encoded_query = quote(query, safe="")
-        return f"https://www.google.com/maps/search/?api=1&query={encoded_query}"
-    return ""
 
 
 # =============================================================================
@@ -1026,7 +985,7 @@ def render_action_button(
 
     if url:
         return (
-            f'<a href="{escape_html(url)}" class="{class_str}" target="_blank" rel="noopener">'
+            f'<a href="{safe_url(url)}" class="{class_str}" target="_blank" rel="noopener">'
             f"{icon_html}{escaped_label}</a>"
         )
     else:
@@ -1203,7 +1162,7 @@ def render_attachment(
     )
 
     tag = "a" if url else "span"
-    href = f'href="{escape_html(url)}" target="_blank" rel="noopener"' if url else ""
+    href = f'href="{safe_url(url)}" target="_blank" rel="noopener"' if url else ""
 
     # Use Material Symbols format for icon
     icon_html = (
@@ -1239,10 +1198,16 @@ def render_attachments(
     Returns:
         Attachments container HTML
     """
-    if not attachments:
+    # Provider payloads collapse an empty attachment list to a scalar often
+    # enough that a non-list must degrade to "no attachments" — raising here
+    # costs the answer ALL of its cards (the caller catches AttributeError
+    # around the whole rendering step).
+    if not attachments or not isinstance(attachments, list):
         return ""
 
-    attachments = attachments[:max_attachments]
+    attachments = [att for att in attachments[:max_attachments] if isinstance(att, dict)]
+    if not attachments:
+        return ""
     parts = ['<div class="lia-attachments">']
 
     for att in attachments:
@@ -1253,9 +1218,9 @@ def render_attachments(
         if att_id and msg_id:
             from src.core.config import settings
 
-            fname = quote(att.get("filename", "attachment"), safe="")
-            safe_msg_id = quote(msg_id, safe="")
-            safe_att_id = quote(att_id, safe="")
+            fname = quote(str(att.get("filename", "attachment")), safe="")
+            safe_msg_id = quote(str(msg_id), safe="")
+            safe_att_id = quote(str(att_id), safe="")
             api_base = settings.api_url.rstrip("/")
             url = f"{api_base}/api/v1/connectors/gmail/attachment/{safe_msg_id}/{safe_att_id}?filename={fname}"
         else:
@@ -1382,7 +1347,7 @@ def render_card_header(
     """
     title_class = "lia-card__title lia-title-underline" if url else "lia-card__title"
     if url:
-        title_tag = f'<a href="{escape_html(url)}" class="{title_class}">{escape_html(title)}</a>'
+        title_tag = f'<a href="{safe_url(url)}" class="{title_class}">{escape_html(title)}</a>'
     else:
         title_tag = f'<span class="{title_class}">{escape_html(title)}</span>'
 
@@ -1429,7 +1394,7 @@ def render_detail_item(
         >>> render_detail_item("location_on", "123 Main St, Paris")
     """
     if url:
-        content_html = f'<a href="{escape_html(url)}">{escape_html(content)}</a>'
+        content_html = f'<a href="{safe_url(url)}">{escape_html(content)}</a>'
     else:
         content_html = escape_html(content)
 
@@ -1521,7 +1486,7 @@ def render_card_hero(image_url: str, alt_text: str = "") -> str:
         return ""
     return compact_html(f"""
         <div class="lia-card-hero">
-            <img src="{escape_html(image_url)}" alt="{escape_html(alt_text)}" loading="lazy">
+            <img src="{safe_url(image_url)}" alt="{escape_html(alt_text)}" loading="lazy">
         </div>
     """)
 
@@ -1554,13 +1519,21 @@ def render_chip_stars(rating: float, count: int = 0) -> str:
     """Render a star-rating chip with filled/empty stars.
 
     Args:
-        rating: Rating value (0-5)
+        rating: Rating value (0-5). Accepts the numeric STRING form too — JSON
+            providers and MCP results commonly send ``"4.5"`` — because
+            ``int("4.5")`` raises and the caller's exception boundary would then
+            drop every card of the answer, not just this chip.
         count: Number of reviews (0 to hide count)
 
     Returns:
         HTML for a lia-chip--stars chip
     """
-    full = int(rating)
+    try:
+        numeric_rating = float(rating)
+    except (TypeError, ValueError):
+        return ""
+
+    full = max(0, min(5, int(numeric_rating)))
     stars_html = "".join('<span class="material-symbols-outlined">star</span>' for _ in range(full))
     empty_html = "".join(
         '<span class="material-symbols-outlined lia-chip__star-empty">star</span>'
@@ -1838,7 +1811,7 @@ def render_src_link(url: str, domain: str = "") -> str:
     return (
         f'<div class="lia-src-link">'
         f'<span class="material-symbols-outlined">link</span>'
-        f'<a href="{escape_html(url)}" target="_blank" rel="noopener">{escape_html(domain)}</a>'
+        f'<a href="{safe_url(url)}" target="_blank" rel="noopener">{escape_html(domain)}</a>'
         f"</div>"
     )
 

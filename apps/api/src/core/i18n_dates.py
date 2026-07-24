@@ -7,7 +7,7 @@ Used by formatters to display dates in user's locale.
 Supported languages: fr, en, es, de, it, zh-CN
 """
 
-from src.core.i18n import DEFAULT_LANGUAGE
+from src.core.i18n import DEFAULT_LANGUAGE, normalize_language
 from src.core.i18n_types import Language
 
 # Day names indexed by weekday (0=Monday, 6=Sunday)
@@ -227,15 +227,8 @@ def _extract_language(locale: str | None) -> Language:
     if not locale:
         return DEFAULT_LANGUAGE
 
-    # Special case for zh-CN (keep as-is)
-    if locale.lower() == "zh-cn":
-        return "zh-CN"
-
-    # Extract first part (e.g., "fr-FR" -> "fr")
-    lang = locale.split("-")[0].lower() if "-" in locale else locale.lower()
-
-    # Validate it's a supported language
-    if lang in DAY_NAMES:
-        return lang
-
-    return DEFAULT_LANGUAGE
+    # Single chokepoint: the frontend spells Chinese "zh" while every table
+    # here is keyed on the backend canonical "zh-CN". Splitting on "-" locally
+    # left "zh" untouched, missed DAY_NAMES/MONTH_NAMES and silently served
+    # FRENCH day names to a Chinese user.
+    return normalize_language(locale)

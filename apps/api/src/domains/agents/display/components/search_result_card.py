@@ -18,6 +18,7 @@ from src.domains.agents.display.components.base import (
     render_chip,
     render_section_header,
     render_src_link,
+    safe_url,
     truncate,
 )
 from src.domains.agents.display.icons import Icons
@@ -109,7 +110,7 @@ class SearchResultCard(BaseComponent):
         domain = self._extract_domain(url)
 
         title_html = (
-            f'<a class="lia-card-top__title" href="{escape_html(url)}" target="_blank">'
+            f'<a class="lia-card-top__title" href="{safe_url(url)}" target="_blank">'
             f"{escape_html(title)}</a>"
         )
         card_top_html = render_card_top("search", "blue", title_html)

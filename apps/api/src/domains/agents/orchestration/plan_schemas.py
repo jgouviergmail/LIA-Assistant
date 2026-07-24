@@ -37,7 +37,7 @@ Usage:
                 step_type=StepType.TOOL,
                 agent_name="contacts_agent",
                 tool_name="get_contact_details_tool",
-                parameters={"resource_name": "$steps.0.contacts[0].resource_name"},
+                parameters={"resource_name": "$steps.step_1.contacts[0].resource_name"},
                 depends_on=["step_1"],
             ),
         ],
@@ -280,7 +280,7 @@ class ExecutionStep(BaseModel):
         ...     step_type=StepType.TOOL,
         ...     agent_name="contacts_agent",
         ...     tool_name="get_contact_details_tool",
-        ...     parameters={"resource_name": "$steps.0.contacts[0].resource_name"},
+        ...     parameters={"resource_name": "$steps.step_1.contacts[0].resource_name"},
         ...     depends_on=["step_1"],
         ...     description="Récupérer détails du premier contact trouvé"
         ... )
@@ -289,7 +289,7 @@ class ExecutionStep(BaseModel):
         >>> step3 = ExecutionStep(
         ...     step_id="step_3",
         ...     step_type=StepType.CONDITIONAL,
-        ...     condition="len($steps.0.contacts) > 1",
+        ...     condition="len($steps.step_1.contacts) > 1",
         ...     on_success="step_4",
         ...     on_fail="step_5",
         ...     depends_on=["step_1"],

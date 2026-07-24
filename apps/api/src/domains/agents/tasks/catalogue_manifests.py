@@ -290,6 +290,11 @@ complete_task_catalogue_manifest = ToolManifest(
     ),
     max_iterations=1,
     reference_examples=["task_id", "status"],
+    # Declared explicitly: "complete" is no CRUD verb, so category inference
+    # defaulted to "readonly" — yet this calls client.complete_task() and
+    # changes task state. Left inferred, it was eligible for proactive
+    # execution by the initiative node. Mirrors update_task_tool.
+    tool_category="update",
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="✅", i18n_key="complete_task", visible=True, category="tool"),

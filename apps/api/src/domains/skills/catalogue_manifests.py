@@ -163,6 +163,12 @@ import_user_skill_catalogue_manifest = ToolManifest(
         hitl_required=False,
         data_classification="INTERNAL",
     ),
+    # Declared explicitly: this WRITES — it validates then registers a skill in
+    # the user's imported skills. Without a declaration the category is inferred
+    # from the name, which defaults unknown shapes to "readonly" and would make
+    # it eligible for proactive execution while hiding it from the
+    # invalid-mutation-plan safety net.
+    tool_category="create",
     version="1.0.0",
 )
 
@@ -253,5 +259,10 @@ run_skill_script_catalogue_manifest = ToolManifest(
         hitl_required=False,
         data_classification="INTERNAL",
     ),
+    # Declared explicitly: this EXECUTES a Python script from the skill's
+    # scripts/ directory — arbitrary side effects. Name inference defaulted it
+    # to "readonly", which is the most dangerous possible misclassification for
+    # a tool the initiative node may run without the user asking.
+    tool_category="update",
     version="1.1.0",
 )

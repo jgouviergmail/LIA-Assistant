@@ -884,7 +884,9 @@ def get_error_fallback_message(
     error_type: str, node_name: str | None = None, language: str = "fr"
 ) -> str:
     """Get standardized error message for node failures (i18n)."""
-    lang = language[:2] if len(language) > 2 and language != "zh-CN" else language
+    # Single chokepoint: raw "zh"/"zh_CN" spellings must reach the backend
+    # canonical key, otherwise a Chinese user gets the French fallback.
+    lang = normalize_language(language)
     messages = _ERROR_FALLBACK_MESSAGES.get(lang, _ERROR_FALLBACK_MESSAGES["fr"])
 
     if node_name:

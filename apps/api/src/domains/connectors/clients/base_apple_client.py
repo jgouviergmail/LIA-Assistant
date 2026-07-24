@@ -21,6 +21,7 @@ from uuid import UUID
 import structlog
 
 from src.core.config import settings
+from src.core.exceptions import ConnectorAPIError
 from src.domains.connectors.models import ConnectorStatus, ConnectorType
 from src.domains.connectors.schemas import AppleCredentials
 from src.infrastructure.rate_limiting import RedisRateLimiter, get_rate_limiter
@@ -294,6 +295,38 @@ class BaseAppleClient(ABC):
                 self.connector_type,
                 f"HTTP {status_code}: authentication failed",
             )
+
+    def _check_http_status(self, status_code: int, *, allow: tuple[int, ...] = ()) -> None:
+        """
+        Reject any non-success HTTP status from an Apple endpoint.
+
+        The Apple clients speak raw HTTP (httpx) instead of going through
+        ``BaseOAuthClient._make_request``, so nothing turned an upstream error
+        into an exception: the error BODY flowed straight into the vCard/iCal
+        parsers, which degrade unparsable input into placeholder data
+        ("Unknown" contact) instead of failing. This mirrors the OAuth clients'
+        contract — a non-retryable upstream error becomes a
+        :class:`ConnectorAPIError` carrying the upstream status code.
+
+        Args:
+            status_code: HTTP status code returned by the Apple endpoint.
+            allow: Status codes the caller handles itself (e.g. ``404`` when the
+                caller raises a domain-level "not found" error).
+
+        Raises:
+            AppleAuthenticationError: If the status code is 401 or 403.
+            ConnectorAPIError: For any other status >= 400 not in ``allow``.
+        """
+        self._check_http_auth_error(status_code)
+
+        if status_code in allow or status_code < 400:
+            return
+
+        raise ConnectorAPIError(
+            connector_type=self.connector_type.value,
+            status_code=status_code,
+            detail=f"{self.connector_type.value} API error: HTTP {status_code}",
+        )
 
     # =========================================================================
     # CLEANUP

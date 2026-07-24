@@ -32,6 +32,8 @@ from src.domains.agents.display.components.base import (
     render_chip_row,
     render_collapsible,
     render_d_row,
+    safe_css_color,
+    safe_url,
     wrap_with_response,
 )
 from src.domains.agents.display.icons import (
@@ -219,12 +221,12 @@ class RouteCard(BaseComponent):
         if static_map_url:
             map_url = f"{static_map_url}&width={STATIC_MAP_DESKTOP_WIDTH}&height={STATIC_MAP_DESKTOP_HEIGHT}"
             map_img = (
-                f'<img src="{escape_html(map_url)}" alt="Route map" '
+                f'<img src="{safe_url(map_url)}" alt="Route map" '
                 f'class="lia-route__map-image" loading="lazy" />'
             )
             if maps_url:
                 hero_html = (
-                    f'<a href="{escape_html(maps_url)}" target="_blank" rel="noopener" '
+                    f'<a href="{safe_url(maps_url)}" target="_blank" rel="noopener" '
                     f'class="lia-route__map-link">{map_img}</a>'
                 )
             else:
@@ -430,14 +432,15 @@ class RouteCard(BaseComponent):
         # Get vehicle icon based on type
         vehicle_icon = self._get_transit_vehicle_icon(vehicle_type)
 
-        # Build line badge with actual line color
+        # Build line badge with actual line color. Both colors come straight
+        # from the Google Routes API and are interpolated into an inline style
+        # attribute, so they MUST pass the CSS-color allow-list: an unescaped
+        # value like '#fff" onmouseover="alert(1)' otherwise ends the attribute
+        # and injects an event handler.
         style = ""
-        if line_color:
-            # Google returns colors like "#FFFFFF" or "FFFFFF"
-            bg_color = line_color if line_color.startswith("#") else f"#{line_color}"
-            text_color = line_text_color if line_text_color else "#FFFFFF"
-            if not text_color.startswith("#"):
-                text_color = f"#{text_color}"
+        bg_color = safe_css_color(line_color)
+        if bg_color:
+            text_color = safe_css_color(line_text_color, default="#FFFFFF")
             style = f'style="background-color: {bg_color}; color: {text_color};"'
 
         line_badge = (

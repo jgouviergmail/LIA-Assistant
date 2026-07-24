@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.19] - 2026-07-24
+
+Twenty-two silent defects, found by testing the safety mechanisms instead of trusting them. None of them raised, logged or failed a suite: an assistant that ran a bulk action without asking, proactive tool calls that could switch your lights, deleted mail resurfacing in an ordinary search, a rescheduled meeting duplicated instead of moved, and cached tokens billed twice. Backend tests **13,282 → 14,847**.
+
+### Added
+
+- **Twelve executable guards**, each carrying its own oracle rather than a frozen snapshot: connector-parity contract (the `Protocol` file is never imported at runtime, so nothing enforced it), LangGraph state-key declaration, `QueryIntelligence` serialization round-trip, locale-normalization AST guard, display-component XSS/robustness contract parameterized over the card registry, tool-mutation classification vs the declared catalogue category, no initiative-eligible tool is a mutation, the FOR_EACH gate agrees with the mutation oracle, and a cross-stack password-policy parity guard (the browser re-implements the rule; the constants are now pinned against it).
+- `display/urls.py` — `safe_url` (scheme allowlist) and `safe_css_color` (hex/keyword allowlist), extracted so every card shares one sanitizer instead of inlining its own.
+- `infrastructure/llm/strict_schema.py` — the OpenAI strict-mode schema analysis, extracted from `structured_output.py`.
+
+### Changed
+
+- Coverage gate **45 % → 59 %** (measured 62.79 % on the gated fast-unit subset); frontend thresholds 60/54/54/60 → 62/56/56/62. The margin is deliberate — the measurement is local (Windows) and CI runs on Linux, where a handful of branches differ.
+- File-size ratchet re-locked on real gains: `formatters.py` cap 815 → 753, and `structured_output.py` leaves the frozen list entirely (531 SLOC, under the global 600 ceiling).
+- `scope_detector` no longer keeps a private copy of the mutation verbs — it delegates to the single oracle, which also removes the drift that caused the FOR_EACH defect below.
+- Seven tool manifests now DECLARE their category instead of letting it be inferred from the tool name (`apply_labels`, `complete_task`, `control_hue_light`/`_room`, `activate_hue_scene`, `run_skill_script`, `import_user_skill`).
+- Docker build context: `.next-e2e` (2.5 GB), `.mypy_cache`, `htmlcov` and coverage artefacts are excluded — the Web context drops from ~2.9 GB to a few dozen MB.
+
+### Fixed
+
+- **A bulk action could run without ever asking.** Both production call sites pass `is_mutation=False` and let the gate auto-detect from the tool name, but `scope_detector` kept its own verb list, which had drifted from the canonical one: `reply` and `forward` were missing. A mutation needs confirmation from the first iteration, a read-only operation only from the tenth — so "reply to each of these 9 emails" sent **nine replies with no confirmation at all**. Same for forwards, label changes and reminder cancellations.
+- **The assistant could act on its own.** The initiative phase (ADR-062) executes tools after a turn to enrich the answer, gated on a category that, absent an explicit declaration, is INFERRED FROM THE TOOL NAME and defaults unknown shapes to read-only. Seven mutating tools were therefore declared safe for proactive execution — including `control_hue_light` (a physical device) and `run_skill_script` (arbitrary code). The "defense in depth" check downstream re-used the very same list, so it verified nothing.
+- **Deleted mail resurfaced in ordinary searches.** The trash-exclusion keywords contained the bare words `trash` and `deleted`, matched as substrings: searching "deleted invoices" silently dropped `-in:trash` and mixed trashed messages into the results as if they were live. The operator forms (`in:trash`, `label:TRASH` — what the tool teaches the model to emit) remain honoured, and a whole-query "trash" still maps to the operator.
+- **"Reschedule my meeting" created a duplicate instead of moving it.** `reschedule` contains `schedule`, and create is tested before update, so the declared `reschedule` pattern was unreachable: the turn loaded the create tools and never `update_event_tool`. Verified exhaustively — that pair is the only such overlap across the four intent sets.
+- **Cached tokens were billed twice.** Providers report an input total that already contains the cache reads; the modern extraction path subtracts them, the legacy path did not, so those tokens were charged at the full input rate on top of the discounted cached rate.
+- **A valid plan was rejected as a "ghost dependency".** The check compares the second path segment against the producing step's result_key, but that segment is just as often a plain output FIELD — and `total` is listed in `get_contacts_tool`'s own reference examples. A legitimate reference was therefore refused, forcing a wasted replan.
+- **A whole parameter type escaped validation.** `number` was missing from the type table; a type absent from that table is not "unknown, be careful" — it is skipped, and the constraint checks that follow are themselves type-guarded. `get_places_tool.min_rating` had no validation at all, and a string rating only failed inside the tool as `'<=' not supported between float and str`.
+- **A tool result keyed `items` broke FOR_EACH in silence.** The polymorphic extractor tested `hasattr` before dict access, so `extract_value({"items": [...]}, "items")` returned the bound `dict.items` METHOD instead of the list — the iteration then ran over nothing, without an error.
+- **`javascript:` reached an `href`, and a transit colour escaped its `style` attribute.** Card rendering had no URL-scheme allowlist and interpolated a provider-supplied colour raw: `#fff" onmouseover="…` closed the attribute and injected a handler (proven by parsing the output, not by inspection).
+- **Apple/Microsoft connector asymmetries** — a 5xx response was handed to the vCard parser instead of raising (silent data loss on update), a failed delete returned success, `cached_at` was fabricated on every cache hit, and an Outlook folder label failed to match on case/spacing.
+- **A locale variant could miss its own table** — seven ad-hoc normalizations (`locale.split("-")[0]`, `language[:2]`) bypassed the single chokepoint, so `zh` never resolved to the backend-canonical `zh-CN`.
+- Descending sorts placed rows *missing* the sort key FIRST instead of last, and `DISTINCT` went through a `set`, making result order non-deterministic between runs.
+- Nesting-depth analysis for OpenAI strict mode did not follow `$ref`, and Pydantic v2 never inlines nested models — the measured depth was therefore always the shallow one.
+- A pytest fixture closed the global psycopg pools on whichever loop the test ran on, including pools opened by an earlier test on another loop, producing a teardown error whenever the unit and agents scopes ran in a single invocation (CI runs them separately, so it only bit locally). It now closes only what the current test opened — which is what its own docstring already promised.
+
+### Tests
+
+- **1,565 new backend tests** across 26 batches, every one written against a behaviour that can fail silently. Each source fix followed the same discipline: a red test proving the defect on real data first, the correction second — never the reverse.
+- Targeted coverage on the pieces that decide correctness: plan validation (schema gate, parameter types, conditions, dependency graph, `$steps` references), reference resolution, the entity registry reducer, the HITL resume builder, the draft post-approval sync, connector clients, display cards, Gmail query normalization, outbound-recipient validation, the password policy (which had none) and the LLM cost path.
+- Deliberately NOT tested, with the reason recorded: the plan-approval modification path (`approval_gate_node` is an explicit pass-through) and the adaptive replanner (`advisory only, not wired` — no decision changes control flow). Testing them would inflate the number and protect nothing.
+
 ## [1.25.18] - 2026-07-24
 
 Factual accuracy of answers (ADR-147/148): grounding on recent entities, weather told in the right time / place / language, correlated results that stop overwriting each other, and health signals that stop vanishing from the heartbeat.

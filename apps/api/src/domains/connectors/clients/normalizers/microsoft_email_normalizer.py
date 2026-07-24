@@ -230,8 +230,14 @@ def normalize_graph_folder(folder: dict[str, Any]) -> dict[str, str]:
     folder_id = folder.get("id", "")
     display_name = folder.get("displayName", "")
 
-    # Map well-known folder display names to Gmail-compatible names
-    normalized_name = _GRAPH_FOLDER_TO_LABEL.get(display_name.lower(), display_name)
+    # Map well-known folder display names to Gmail-compatible names.
+    # The table is keyed on the COMPACT Graph names ("sentitems") while Outlook
+    # reports spaced display names ("Sent Items"), so the spaces are removed
+    # before the lookup — otherwise every multi-word well-known folder escaped
+    # normalisation and the LLM saw a mixed vocabulary ("INBOX" + "Sent Items").
+    normalized_name = _GRAPH_FOLDER_TO_LABEL.get(
+        display_name.lower().replace(" ", ""), display_name
+    )
 
     return {
         "id": folder_id,

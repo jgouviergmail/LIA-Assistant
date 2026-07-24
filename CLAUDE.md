@@ -192,7 +192,7 @@ The HOW / WHY guides (`apps/web/src/data/guides/{how,why}.{lang}.md`) and any fu
 - **Ruff rules**: E (pycodestyle errors), W (warnings), F (pyflakes), I (isort), B (bugbear), C4 (comprehensions), UP (pyupgrade). E501 ignored (handled by Black).
 - **TypeScript**: ESLint + Prettier.
 - **Commits**: Conventional Commits (`feat(agents):`, `fix(auth):`, etc.)
-- **Tests**: pytest with `asyncio_mode = "auto"`. Coverage threshold: 45% (ratchet: +2 per release, never lowered — see GUIDE_TESTING.md). Markers: `e2e`, `integration`, `slow`, `benchmark`, `multiprocess`.
+- **Tests**: pytest with `asyncio_mode = "auto"`. Coverage threshold: 59% (ratchet: never lowered — raise the floor after coverage-improving work to lock the gains, keeping ≥2 pts margin vs measured; see GUIDE_TESTING.md). Markers: `e2e`, `integration`, `slow`, `benchmark`, `multiprocess`.
 - **Logging**: structlog (structured JSON). Use `structlog.get_logger(__name__)`, never `print()`.
 - **i18n**: 6 languages (en, fr, de, es, it, zh). Frontend uses react-i18next with locale files in `apps/web/locales/{lang}/translation.json`. **The pre-commit hook enforces strict key parity** vs `en/translation.json` — every key present in `en` MUST exist in the 5 other locales (the hook diffs `en` keys against each language and aborts the commit on any missing/extra). When using i18next pluralization (`_one` / `_other` suffixes), zh has no plural form per CLDR — duplicate the value to `_one` anyway so parity passes.
 

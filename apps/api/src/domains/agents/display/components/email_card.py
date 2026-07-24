@@ -34,6 +34,7 @@ from src.domains.agents.display.components.base import (
     render_desc_block,
     render_part_list,
     render_section_header,
+    safe_url,
     truncate,
     wrap_with_response,
 )
@@ -221,7 +222,7 @@ class EmailCard(BaseComponent):
         # --- Subject line ---
         bold_class = "font-weight:700" if is_unread else "font-weight:600"
         subject_html = (
-            f'<a href="{escape_html(url)}" class="lia-email__subject" '
+            f'<a href="{safe_url(url)}" class="lia-email__subject" '
             f'target="_blank" rel="noopener" style="{bold_class}">'
             f"{escape_html(subject)}</a>"
         )
@@ -310,7 +311,7 @@ class EmailCard(BaseComponent):
                 provider = data.get("_provider", "")
                 read_more_label = V3Messages.get_read_more(ctx.language, provider)
                 read_more_html = (
-                    f'<a href="{escape_html(url)}" class="lia-email__read-more" '
+                    f'<a href="{safe_url(url)}" class="lia-email__read-more" '
                     f'target="_blank" rel="noopener">{escape_html(read_more_label)} '
                     f"{icon(Icons.OPEN_IN_NEW)}</a>"
                 )

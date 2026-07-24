@@ -115,11 +115,14 @@ _OPERATION_TYPE_PATTERNS: dict[str, re.Pattern[str]] = {
 # Thresholds imported from core.constants (SCOPE_BULK_THRESHOLD, etc.)
 # FOR_EACH thresholds are in settings (for_each_*_threshold) - configurable via .env
 
-# Mutation tool name patterns for for_each scope detection
-# Frozenset for O(1) lookup performance
-_MUTATION_SUBSTRINGS: frozenset[str] = frozenset(
-    {"send", "create", "update", "delete", "remove", "add", "modify"}
-)
+# NOTE: this module used to keep its OWN mutation substring set for for_each
+# scope detection. It had silently drifted from the canonical patterns (missing
+# "reply"/"forward") and could not see manifest-declared categories, so bulk
+# replies/forwards and tools like apply_labels_tool ran under the lenient
+# read-only thresholds — up to `for_each_warning_threshold - 1` iterations with
+# NO confirmation. Detection now delegates to the single oracle
+# `plan_predicates.tool_is_mutation`, which prefers the declared catalogue
+# category and falls back to the canonical patterns.
 
 
 def detect_dangerous_scope(
@@ -365,10 +368,13 @@ def detect_for_each_scope(
         >>> scope.requires_approval  # True
         >>> scope.risk_level  # ScopeRisk.HIGH
     """
-    # Determine if this is a mutation tool (using pre-defined patterns)
+    # Determine if this is a mutation tool. Both production call sites pass
+    # is_mutation=False ("auto-detected from tool_name"), so this IS the
+    # deciding oracle — delegate to the canonical one rather than a local copy.
     if not is_mutation:
-        tool_name_lower = tool_name.lower()
-        is_mutation = any(pattern in tool_name_lower for pattern in _MUTATION_SUBSTRINGS)
+        from src.domains.agents.orchestration.plan_predicates import tool_is_mutation
+
+        is_mutation = tool_is_mutation(tool_name)
 
     # Apply thresholds
     risk_level = ScopeRisk.LOW

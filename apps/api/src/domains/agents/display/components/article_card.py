@@ -16,6 +16,7 @@ from src.domains.agents.display.components.base import (
     RenderContext,
     escape_html,
     render_chip,
+    safe_url,
 )
 from src.domains.agents.display.icons import Icons
 
@@ -96,7 +97,7 @@ class ArticleCard(BaseComponent):
         read_more_label = V3Messages.get_read_more_on_wikipedia(ctx.language)
         link_prefix = "..." if is_truncated else ""
         read_more_html = (
-            f'<a href="{escape_html(url)}" class="lia-article__read-more" target="_blank">{link_prefix}{read_more_label}</a>'
+            f'<a href="{safe_url(url)}" class="lia-article__read-more" target="_blank">{link_prefix}{read_more_label}</a>'
             if url
             else ""
         )
@@ -105,7 +106,7 @@ class ArticleCard(BaseComponent):
         thumb_html = ""
         if thumbnail:
             thumb_html = f"""<div class="lia-article__thumb">
-  <img src="{escape_html(thumbnail)}" alt="" loading="lazy">
+  <img src="{safe_url(thumbnail)}" alt="" loading="lazy">
 </div>"""
 
         # Categories (CSS hides on mobile)
@@ -119,7 +120,7 @@ class ArticleCard(BaseComponent):
 
         # v4: card-top + summary + separator + categories
         title_html = (
-            f'<a class="lia-card-top__title" href="{escape_html(url)}" target="_blank">{escape_html(title)}</a>'
+            f'<a class="lia-card-top__title" href="{safe_url(url)}" target="_blank">{escape_html(title)}</a>'
             if url
             else f'<span class="lia-card-top__title">{escape_html(title)}</span>'
         )

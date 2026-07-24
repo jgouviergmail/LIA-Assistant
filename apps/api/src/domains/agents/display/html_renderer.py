@@ -19,6 +19,8 @@ from src.domains.agents.display.components.base import (
     BaseComponent,
     RenderContext,
     Viewport,
+    escape_html,
+    safe_url,
 )
 from src.domains.agents.display.components.contact_card import ContactCard
 from src.domains.agents.display.components.email_card import EmailCard
@@ -674,8 +676,11 @@ class HtmlRenderer:
         """Render fallback for unknown domains."""
         lines = []
         for item in items[: ctx.max_items]:
-            title = item.get("title") or item.get("name") or item.get("summary", "")
-            url = item.get("url") or item.get("link", "")
+            # The fallback receives payloads from UNKNOWN domains (MCP servers,
+            # skills): both the label and the target are untrusted and must go
+            # through escaping + the URL scheme allow-list.
+            title = escape_html(item.get("title") or item.get("name") or item.get("summary", ""))
+            url = safe_url(item.get("url") or item.get("link", ""))
             if url:
                 lines.append(f'<div class="lia-fallback__item"><a href="{url}">{title}</a></div>')
             else:

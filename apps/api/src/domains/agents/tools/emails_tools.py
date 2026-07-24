@@ -143,6 +143,12 @@ _LLM_ERROR_NORMALIZATIONS: dict[str, str] = {
     "inbox": "",  # Common LLM mistake for "latest emails"
     "received": "-in:sent -in:draft",  # "received" = not sent by me
     "sent": "in:sent",  # "sent" should be in:sent operator
+    # A whole-query "trash"/"deleted" is the natural-language ask for the trash
+    # folder; map it to the operator (same pattern as "sent"). Matching these as
+    # bare substrings instead would pull trashed mail into unrelated searches
+    # such as "deleted invoices" — see GMAIL_TRASH_KEYWORDS.
+    "trash": "in:trash",
+    "deleted": "in:trash",
 }
 
 

@@ -18,6 +18,7 @@ from uuid import UUID
 import structlog
 
 from src.core.config import settings
+from src.core.field_names import FIELD_CACHED_AT
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.base_microsoft_client import BaseMicrosoftClient
 from src.domains.connectors.clients.normalizers.microsoft_email_normalizer import (
@@ -159,9 +160,14 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
             results_count=len(messages),
         )
 
+        # Graph reads are always live: the freshness metadata is stated
+        # explicitly so every email provider answers the same contract
+        # (see GoogleGmailClient / AppleEmailClient).
         return {
             "messages": messages,
             "resultSizeEstimate": len(messages),
+            "from_cache": False,
+            FIELD_CACHED_AT: None,
         }
 
     async def get_message(
@@ -196,7 +202,11 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
             message_id=message_id,
         )
 
-        return normalize_graph_message(response)
+        return {
+            **normalize_graph_message(response),
+            "from_cache": False,
+            FIELD_CACHED_AT: None,
+        }
 
     # =========================================================================
     # WRITE OPERATIONS

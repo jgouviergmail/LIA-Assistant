@@ -41,6 +41,8 @@ from typing import Any
 import structlog
 from pydantic import BaseModel, Field
 
+from src.core.i18n import DEFAULT_LANGUAGE, normalize_language
+
 logger = structlog.get_logger(__name__)
 
 
@@ -434,10 +436,11 @@ class PartialErrorHandler:
         Returns:
             DomainErrorContext with classification and suggestions
         """
-        # Normalize language code
-        lang = language[:2] if len(language) > 2 and language != "zh-CN" else language
+        # Single chokepoint: a raw "zh" from the frontend would otherwise miss
+        # every table keyed on the backend canonical "zh-CN".
+        lang = normalize_language(language)
         if lang not in self._user_messages:
-            lang = "fr"
+            lang = DEFAULT_LANGUAGE
 
         # Truncate error message to prevent log bloat
         raw_error_message = str(error)
@@ -511,10 +514,11 @@ class PartialErrorHandler:
         Returns:
             Formatted message string
         """
-        # Normalize language code
-        lang = language[:2] if len(language) > 2 and language != "zh-CN" else language
+        # Single chokepoint: a raw "zh" from the frontend would otherwise miss
+        # every table keyed on the backend canonical "zh-CN".
+        lang = normalize_language(language)
         if lang not in self._user_messages:
-            lang = "fr"
+            lang = DEFAULT_LANGUAGE
 
         parts = [context.user_message]
 
@@ -556,8 +560,7 @@ class PartialErrorHandler:
         if not failed_domains:
             return ""
 
-        # Normalize language code
-        lang = language[:2] if len(language) > 2 and language != "zh-CN" else language
+        lang = normalize_language(language)
 
         successful_str = ", ".join(d.capitalize() for d in successful_domains)
         failed_str = ", ".join(d.capitalize() for d in failed_domains)

@@ -24,6 +24,7 @@ from src.domains.agents.display.components.base import (
     render_desc_block,
     render_section_header,
     render_src_link,
+    safe_url,
     truncate,
 )
 from src.domains.agents.display.icons import Icons, icon
@@ -176,7 +177,7 @@ class WebSearchCard(BaseComponent):
 
             result_items.append(
                 f'<div class="lia-web-search__result">'
-                f'<a href="{escape_html(url)}" class="lia-web-search__result-title" '
+                f'<a href="{safe_url(url)}" class="lia-web-search__result-title" '
                 f'target="_blank" rel="noopener">{escape_html(title)}</a>'
                 f'<span class="lia-web-search__result-domain">{escape_html(domain)}</span>'
                 f'<p class="lia-web-search__result-snippet">{escape_html(truncate(snippet, 120))}</p>'
@@ -195,7 +196,7 @@ class WebSearchCard(BaseComponent):
         header = render_section_header("Wikipedia", Icons.BOOK, "indigo")
         content = (
             f'<div style="font-size:var(--lia-text-sm);color:var(--lia-text-secondary);line-height:var(--lia-leading-normal)">'
-            f'<a href="{escape_html(url)}" target="_blank" rel="noopener" '
+            f'<a href="{safe_url(url)}" target="_blank" rel="noopener" '
             f'style="color:var(--lia-primary);text-decoration:none;font-weight:600">'
             f"{escape_html(title)}</a>"
             f" — {escape_html(display_summary)}"

@@ -3220,7 +3220,7 @@
         },
         "hitl": {
           "title": "👤 Erweitertes Human-in-the-Loop",
-          "description": "8 intelligente Interaktionstypen: Klärung, Entitäts-Disambiguierung (ENTITY_DISAMBIGUATION), Plan-Genehmigung, Tool-Bestätigung, Entwurfskritik, Bearbeitungsbestätigung (EDIT_CONFIRMATION), Bulk-Operationsbestätigung (FOR_EACH) und destruktive Validierung (Massenlöschungen ≥3 Elemente). Konfigurierbare Schwellenwerte und Vorschau betroffener Elemente vor der Ausführung. Die Überarbeitungsschleifen sind replay-safe (ADR-092): ein Interrupt pro Node-Ausführung, der Schleifenzustand fließt durch den checkpointed Graph-State — jede LLM-Änderung läuft genau einmal und der bestätigte Inhalt ist garantiert identisch mit dem zuletzt angezeigten."
+          "description": "8 intelligente Interaktionstypen: Klärung, Entitäts-Disambiguierung (ENTITY_DISAMBIGUATION), Plan-Genehmigung, Tool-Bestätigung, Entwurfskritik, Bearbeitungsbestätigung (EDIT_CONFIRMATION), Bulk-Operationsbestätigung (FOR_EACH) und destruktive Validierung (Massenlöschungen ≥3 Elemente). Konfigurierbare Schwellenwerte und Vorschau betroffener Elemente vor der Ausführung. Die Überarbeitungsschleifen sind replay-safe (ADR-092): ein Interrupt pro Node-Ausführung, der Schleifenzustand fließt durch den checkpointed Graph-State — jede LLM-Änderung läuft genau einmal und der bestätigte Inhalt ist garantiert identisch mit dem zuletzt angezeigten. Ob eine Operation als Änderung gilt, wird aus der im Katalog deklarierten Kategorie des Werkzeugs gelesen und nicht aus dem Namen erraten — Massenantworten und -weiterleitungen werden damit genauso abgesichert wie Anlagen und Löschungen."
         },
         "connectors": {
           "title": "🔌 Konnektoren & Registry",
@@ -3308,7 +3308,7 @@
         },
         "adaptiveReplanner": {
           "title": "🔄 Adaptive Neuplanung",
-          "description": "Intelligente autonome Wiederherstellung bei Ausführungsfehlern (leere Ergebnisse, Teilfehler, Abhängigkeitsfehler, semantische Inkonsistenzen). Regelbasierte Analyse ohne zusätzlichen LLM-Aufruf für Geschwindigkeit. Wiederherstellungsstrategien: Wiederholung mit angepassten Parametern, Überspringen nicht-kritischer Schritte, vollständige Neuplanung falls nötig. PANIC-Modus mit exponentiellem Backoff. Der Benutzer erhält immer die bestmögliche Antwort, auch bei Teilausfällen."
+          "description": "Regelbasierte Analyse von Ausführungsfehlern — leere Ergebnisse, Teilausfälle, Abhängigkeits- und Referenzfehler — ohne zusätzlichen LLM-Aufruf. Sie klassifiziert den Vorfall und berechnet eine Wiederherstellungsentscheidung (erneut versuchen, angepasst neu planen, nachfragen, abbrechen). Diese Entscheidung ist <b>derzeit beratend</b>: sie wird bei jedem Fehler protokolliert und gezählt, wodurch die Fehlermodi messbar werden, aber der Orchestrator wendet sie noch nicht automatisch an. Teilergebnisse werden ausgegeben statt verworfen — ein unvollständiger Lauf antwortet mit dem, was er tatsächlich erhalten hat."
         },
         "semanticLeakDefense": {
           "title": "🛡️ Unterscheidung indexierbarer vs. semantischer Kriterien",
@@ -3368,7 +3368,7 @@
         },
         "proactiveInitiative": {
           "title": "🎯 Proaktive Initiative",
-          "description": "Nach Abschluss der Hauptanfrage prüft der Assistent, ob die Ergebnisse domainübergreifende Verbindungen offenbaren. Beispiel: Wetter zeigt Regen am Samstag → prüft Kalender auf Outdoor-Aktivitäten. Im Pipeline-Modus führt ein dedizierter Node die LLM-Bewertung nach der Antwort aus. Im ReAct-Modus prüft der Agent auch während seiner eigenen Überlegung (der CROSS-CHECK-Schritt) und — sofern aktiviert — läuft nun derselbe dedizierte Initiative-Node nach der Schleife, sodass beide Modi die proaktive Anreicherung erhalten. Die Bewertung erhält vorberechnete Verbindungskandidaten aus dem semantischen Typregister (welche Daten dieser Runde welche angrenzenden Tools speisen können — ADR-090) und bereitet parallel den Kontext der finalen Antwort vor (Gedächtnis, RAG, Journal, Psyche), um die Latenz zu senken (ADR-091)."
+          "description": "Nach Abschluss der Hauptanfrage prüft der Assistent, ob die Ergebnisse domainübergreifende Verbindungen offenbaren. Beispiel: Wetter zeigt Regen am Samstag → prüft Kalender auf Outdoor-Aktivitäten. Im Pipeline-Modus führt ein dedizierter Node die LLM-Bewertung nach der Antwort aus. Im ReAct-Modus prüft der Agent auch während seiner eigenen Überlegung (der CROSS-CHECK-Schritt) und — sofern aktiviert — läuft nun derselbe dedizierte Initiative-Node nach der Schleife, sodass beide Modi die proaktive Anreicherung erhalten. Die Bewertung erhält vorberechnete Verbindungskandidaten aus dem semantischen Typregister (welche Daten dieser Runde welche angrenzenden Tools speisen können — ADR-090) und bereitet parallel den Kontext der finalen Antwort vor (Gedächtnis, RAG, Journal, Psyche), um die Latenz zu senken (ADR-091). Diese Anreicherung erfolgt strikt <b>nur lesend</b>: ob ein Werkzeug hier laufen darf, entscheidet seine im Katalog deklarierte Kategorie, nie eine Vermutung anhand des Namens — die Initiative darf also nachschlagen, aber niemals von sich aus Ihre Daten ändern."
         },
         "telephony": {
           "title": "📞 Agentische Telefonie",
@@ -3385,6 +3385,22 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_25_19": {
+          "title": "v1.25.19 — 🛡️ LIA fragt, bevor sie handelt",
+          "date": "Juli 2026",
+          "count": "9",
+          "items": {
+            "i1": "<b>🛡️ Eine Massenaktion fragt immer nach</b> — „auf jede dieser E-Mails antworten“ konnte bis zu neun Antworten senden, ohne Sie je zu fragen. Antworten, Weiterleitungen, Label-Änderungen und Erinnerungs-Absagen werden jetzt ab dem allerersten Element bestätigt.",
+            "i2": "<b>✋ LIA handelt nicht mehr von sich aus</b> — nach einem Austausch kann LIA ihre Antwort ergänzen, indem sie benachbarte Bereiche prüft. Sieben Werkzeuge, die etwas VERÄNDERN (Labels, erledigte Aufgaben, Licht, Skripte), waren dafür fälschlich zugelassen: sie sind jetzt ausgeschlossen.",
+            "i3": "<b>🗑️ Der Papierkorb bleibt im Papierkorb</b> — die Suche nach „gelöschten Rechnungen“ holte gelöschte Nachrichten still zurück in die Ergebnisse, dargestellt wie gewöhnliche Post. Nur eine ausdrückliche Anfrage nach dem Papierkorb schließt ihn jetzt ein.",
+            "i4": "<b>📅 „Verschiebe mein Meeting“ verschiebt statt zu duplizieren</b> — das Wort „verschieben“ wurde als Neuanlage gelesen, sodass LIA einen zweiten Termin anlegte, statt Ihren zu verschieben.",
+            "i5": "<b>📨 „Auf jede dieser E-Mails antworten“ läuft wieder</b> — bei manchen Ergebnissen galt die zu durchlaufende Liste als leer und die Aktion lief ins Leere, ohne Fehlermeldung.",
+            "i6": "<b>💶 Fairere Gesprächskosten</b> — zwischengespeicherte Token wurden auf einem Pfad doppelt gezählt und blähten die angezeigten Kosten auf. Die Abrechnung bildet jetzt die tatsächliche Nutzung ab.",
+            "i7": "<b>🔒 Gehärtete Anzeigekarten</b> — ein Link oder eine Farbe aus einem externen Dienst konnte Code in eine Karte einschleusen. Alles wird jetzt an der Quelle gefiltert.",
+            "i8": "<b>🔗 Zuverlässigere Apple- und Microsoft-Konnektoren</b> — ein Netzwerkfehler konnte eine fehlgeschlagene Aktualisierung als erfolgreich erscheinen lassen oder Kontaktdaten ohne Warnung verlieren.",
+            "i9": "<b>🔑 Passwortrichtlinie festgezurrt</b> — die Regel wird von Browser und Server identisch angewendet, und diese Übereinstimmung wird jetzt automatisch geprüft."
+          }
+        },
         "v1_25_18": {
           "title": "v1.25.18 — 🎯 LIA sagt nur, was sie geprüft hat",
           "date": "Juli 2026",

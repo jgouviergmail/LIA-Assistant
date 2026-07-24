@@ -19,6 +19,7 @@ from src.domains.agents.display.components.base import (
     render_chip,
     render_chip_row,
     render_file_meta,
+    safe_url,
     wrap_with_response,
 )
 from src.domains.agents.display.icons import Icons, icon
@@ -177,7 +178,9 @@ class FileItem(BaseComponent):
         # Thumbnail for images
         thumb_html = ""
         if thumbnail and "image" in file_class:
-            thumb_html = f'<img src="{escape_html(thumbnail)}" alt="" class="lia-file__thumb" loading="lazy">'
+            thumb_html = (
+                f'<img src="{safe_url(thumbnail)}" alt="" class="lia-file__thumb" loading="lazy">'
+            )
 
         # Size formatting
         size_str = self._format_size_i18n(size, ctx.language) if size else ""
@@ -264,7 +267,7 @@ class FileItem(BaseComponent):
             "archive": "gray",
         }
         illus_color = file_color_map.get(file_class, "gray")
-        title_html = f'<a class="lia-card-top__title" href="{escape_html(url)}" target="_blank">{escape_html(title)}</a>'
+        title_html = f'<a class="lia-card-top__title" href="{safe_url(url)}" target="_blank">{escape_html(title)}</a>'
         card_top_html = render_card_top(icon_name, illus_color, title_html)
 
         # Chip row: type + shared? + starred? (separator both)

@@ -224,7 +224,6 @@ class ResolvedContext:
             lines.append("READY-TO-USE VALUES (use these DIRECTLY in tool parameters):")
             lines.append("=" * 60)
             for field, value in ready_to_use_values.items():
-                cross_domain_keys.get(field, "unknown")
                 lines.append(f'  {field.upper()}: "{value}"')
                 if field == "location":
                     lines.append(f'    → For places search: get_places_tool(query="{value}")')

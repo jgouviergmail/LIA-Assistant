@@ -763,6 +763,11 @@ apply_labels_catalogue_manifest = ToolManifest(
     max_iterations=1,
     supports_dry_run=False,
     reference_examples=["message_count", "labels_applied"],
+    # Declared explicitly: the name carries no CRUD verb, so category inference
+    # defaulted it to "readonly" — which made this Gmail label MUTATION eligible
+    # for proactive execution by the initiative node and invisible to the
+    # invalid-mutation-plan safety net. Mirrors remove_labels_tool ("delete").
+    tool_category="update",
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="🏷️", i18n_key="apply_labels", visible=True, category="tool"),

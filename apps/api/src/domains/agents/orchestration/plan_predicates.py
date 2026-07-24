@@ -82,15 +82,53 @@ def _iter_plan_tools(plan: Any) -> list[str]:
     return tools
 
 
+def _declared_mutation_flag(tool_name: str) -> bool | None:
+    """Mutation flag taken from an EXPLICITLY declared catalogue category.
+
+    Args:
+        tool_name: Tool name to look up in the global catalogue.
+
+    Returns:
+        ``True``/``False`` when the tool's manifest declares ``tool_category``
+        (hand-written ground truth), ``None`` when the tool has no manifest or
+        its category is merely inferred from the name — in which case the caller
+        falls back to the name heuristic rather than trusting a second guess.
+    """
+    from src.domains.agents.registry import get_global_registry
+    from src.domains.agents.registry.catalogue import ToolManifestNotFound, is_read_only_tool
+
+    try:
+        manifest = get_global_registry().get_tool_manifest(tool_name)
+    except ToolManifestNotFound:
+        return None
+
+    if manifest.tool_category is None:
+        return None
+    return not is_read_only_tool(manifest)
+
+
 def tool_is_mutation(tool_name: str) -> bool:
-    """Check if a tool name indicates a mutation operation.
+    """Check if a tool performs a mutation operation.
+
+    An explicitly declared catalogue category WINS over ``MUTATION_TOOL_PATTERNS``:
+    the patterns are only a heuristic for tools without a manifest, and they
+    missed declared mutations whose names carry none of the nine verbs —
+    ``cancel_reminder_tool`` (category "delete"), ``edit_image`` and
+    ``generate_image`` (category "create"). Being classified read-only removed
+    them from the invalid-mutation-plan safety net in ``semantic_validator_node``,
+    so an unconverged plan calling them was executed instead of being rerouted
+    to a HITL clarification.
 
     Args:
         tool_name: Tool name to classify.
 
     Returns:
-        True when the name carries a mutation pattern.
+        True when the tool mutates data (declared category, else name pattern).
     """
+    declared = _declared_mutation_flag(tool_name)
+    if declared is not None:
+        return declared
+
     tool_lower = tool_name.lower()
     return any(pattern in tool_lower for pattern in MUTATION_TOOL_PATTERNS)
 

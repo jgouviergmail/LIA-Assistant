@@ -36,6 +36,7 @@ from src.domains.agents.display.components.base import (
     render_kv_rows,
     render_review,
     render_section_header,
+    safe_url,
     wrap_with_response,
 )
 from src.domains.agents.display.icons import Icons
@@ -82,8 +83,15 @@ class PlaceCard(BaseComponent):
         Returns:
             HTML string for the place card
         """
-        # Extract data
-        name = data.get("name") or data.get("displayName", {}).get("text", "")
+        # Extract data. ``displayName`` is an OBJECT in Places API v1 but a
+        # plain string in registry payloads, and either may be explicitly null:
+        # ``get(key, {})`` only defends against a MISSING key, so the ``.get``
+        # chain used to raise and — because the caller catches AttributeError
+        # around the whole render — silently dropped EVERY card of the answer.
+        display_name = data.get("displayName")
+        if isinstance(display_name, dict):
+            display_name = display_name.get("text", "")
+        name = data.get("name") or display_name or ""
         address = data.get("formattedAddress") or data.get("address", "")
         phone = data.get("internationalPhoneNumber") or data.get("phone", "")
         website = data.get("websiteUri") or data.get("website", "")
@@ -216,7 +224,7 @@ class PlaceCard(BaseComponent):
         illus_color = "green" if is_open else ("red" if is_open is False else "gray")
         type_tag = self._get_type_tag(types, ctx.language)
         illus_icon = self._get_place_icon(types)
-        title_html = f'<a class="lia-card-top__title" href="{escape_html(url)}" target="_blank">{escape_html(name)}</a>'
+        title_html = f'<a class="lia-card-top__title" href="{safe_url(url)}" target="_blank">{escape_html(name)}</a>'
         card_top_html = render_card_top(illus_icon, illus_color, title_html)
 
         # --- Chip row 1: type + distance ---
@@ -261,7 +269,9 @@ class PlaceCard(BaseComponent):
         address_html = ""
         if address:
             directions_url = build_directions_url(address)
-            link = f'<a href="{escape_html(directions_url)}" target="_blank">{escape_html(address)}</a>'
+            link = (
+                f'<a href="{safe_url(directions_url)}" target="_blank">{escape_html(address)}</a>'
+            )
             addr_row = render_d_row(
                 Icons.LOCATION,
                 link,

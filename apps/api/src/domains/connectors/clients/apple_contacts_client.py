@@ -25,6 +25,7 @@ import structlog
 from lxml import etree
 
 from src.core.config import settings
+from src.core.field_names import FIELD_CACHED_AT
 from src.domains.connectors.clients.base_apple_client import BaseAppleClient
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.normalizers.contacts_normalizer import (
@@ -148,7 +149,7 @@ class AppleContactsClient(BaseAppleClient):
             content=_PROPFIND_PRINCIPAL,
             headers={"Content-Type": "application/xml", "Depth": "0"},
         )
-        self._check_http_auth_error(resp.status_code)
+        self._check_http_status(resp.status_code)
 
         logger.debug(
             "carddav_step1_response",
@@ -174,7 +175,7 @@ class AppleContactsClient(BaseAppleClient):
             content=_PROPFIND_ADDRESSBOOK_HOME,
             headers={"Content-Type": "application/xml", "Depth": "0"},
         )
-        self._check_http_auth_error(resp.status_code)
+        self._check_http_status(resp.status_code)
 
         logger.debug(
             "carddav_step2_response",
@@ -202,7 +203,7 @@ class AppleContactsClient(BaseAppleClient):
             content=_PROPFIND_ADDRESSBOOKS,
             headers={"Content-Type": "application/xml", "Depth": "1"},
         )
-        self._check_http_auth_error(resp.status_code)
+        self._check_http_status(resp.status_code)
 
         logger.debug(
             "carddav_step3_response",
@@ -337,15 +338,22 @@ class AppleContactsClient(BaseAppleClient):
 
     async def _get_all_contacts_cached(
         self, use_cache: bool = True
-    ) -> tuple[list[dict[str, Any]], bool]:
+    ) -> tuple[list[dict[str, Any]], bool, str | None]:
         """
         Get all contacts, using Redis cache when available.
 
         Strategy: fetch all contacts + cache in Redis + filter locally.
         This is necessary because iCloud CardDAV search is unreliable.
 
+        The cache entry is an envelope ``{"contacts": [...], "cached_at": iso}``
+        so a cache hit can report WHEN the payload was written — the same
+        contract as ``GooglePeopleClient``/``GoogleGmailClient``, which
+        ``calculate_cache_age_seconds`` relies on to expose data freshness.
+        Entries written before the envelope existed are plain lists and are
+        still readable (``cached_at`` unknown → ``None``).
+
         Returns:
-            Tuple of (contacts list, from_cache flag indicating actual cache hit).
+            Tuple of (contacts list, from_cache flag, cache write timestamp).
         """
         cache_key = f"apple_contacts:{self.user_id}:all"
 
@@ -355,7 +363,11 @@ class AppleContactsClient(BaseAppleClient):
                 redis = await get_redis_session()
                 cached = await redis.get(cache_key)
                 if cached:
-                    return json.loads(cached), True
+                    payload = json.loads(cached)
+                    if isinstance(payload, dict):
+                        return payload.get("contacts", []), True, payload.get(FIELD_CACHED_AT)
+                    # Legacy entry (bare list): freshness unknown, never faked.
+                    return payload, True, None
             except Exception as e:
                 logger.debug("apple_contacts_cache_read_error", error=str(e))
 
@@ -370,7 +382,7 @@ class AppleContactsClient(BaseAppleClient):
             content=_PROPFIND_CONTACTS_HREFS,
             headers={"Content-Type": "application/xml", "Depth": "1"},
         )
-        self._check_http_auth_error(resp.status_code)
+        self._check_http_status(resp.status_code)
 
         hrefs = _extract_contact_hrefs(resp.text)
         logger.debug(
@@ -381,7 +393,7 @@ class AppleContactsClient(BaseAppleClient):
             body_preview=resp.text[:500] if not hrefs else "ok",
         )
         if not hrefs:
-            return [], False
+            return [], False, None
 
         # Step 2: Batch fetch contact data via REPORT multiget (without photos)
         href_xml = "\n".join(f"  <d:href>{href}</d:href>" for href in hrefs)
@@ -393,7 +405,7 @@ class AppleContactsClient(BaseAppleClient):
             content=report_body,
             headers={"Content-Type": "application/xml", "Depth": "1"},
         )
-        self._check_http_auth_error(resp.status_code)
+        self._check_http_status(resp.status_code)
 
         contacts = _parse_multiget_response(resp.text)
         logger.debug(
@@ -403,18 +415,18 @@ class AppleContactsClient(BaseAppleClient):
             report_status=resp.status_code,
         )
 
-        # Cache all contacts
+        # Cache all contacts with their write timestamp (freshness contract)
         try:
             redis = await get_redis_session()
             await redis.set(
                 cache_key,
-                json.dumps(contacts),
+                json.dumps({"contacts": contacts, FIELD_CACHED_AT: datetime.now(UTC).isoformat()}),
                 ex=settings.apple_contacts_cache_ttl,
             )
         except Exception as e:
             logger.debug("apple_contacts_cache_write_error", error=str(e))
 
-        return contacts, False
+        return contacts, False, None
 
     async def _invalidate_contacts_cache(self) -> None:
         """Invalidate the full contacts cache after mutations."""
@@ -435,7 +447,7 @@ class AppleContactsClient(BaseAppleClient):
         # Enforce the global per-request volumetry ceiling (centralized cap).
         max_results = apply_max_items_limit(max_results)
 
-        all_contacts, from_cache = await self._get_all_contacts_cached(use_cache)
+        all_contacts, from_cache, cached_at = await self._get_all_contacts_cached(use_cache)
 
         # Local case-insensitive filtering
         query_lower = query.lower()
@@ -450,7 +462,7 @@ class AppleContactsClient(BaseAppleClient):
             "results": results,
             "totalItems": len(results),
             "from_cache": from_cache,
-            "cached_at": datetime.now(UTC).isoformat() if from_cache else None,
+            FIELD_CACHED_AT: cached_at,
         }
 
     async def _list_connections_impl(
@@ -461,7 +473,7 @@ class AppleContactsClient(BaseAppleClient):
         fields: list[str] | None,
     ) -> dict[str, Any]:
         """List all contacts."""
-        all_contacts, from_cache = await self._get_all_contacts_cached(use_cache)
+        all_contacts, from_cache, cached_at = await self._get_all_contacts_cached(use_cache)
 
         # Simple pagination
         start = 0
@@ -479,7 +491,7 @@ class AppleContactsClient(BaseAppleClient):
             "totalItems": len(all_contacts),
             "nextPageToken": next_token,
             "from_cache": from_cache,
-            "cached_at": datetime.now(UTC).isoformat() if from_cache else None,
+            FIELD_CACHED_AT: cached_at,
         }
 
     async def _get_person_impl(
@@ -500,7 +512,10 @@ class AppleContactsClient(BaseAppleClient):
             url,
             headers={"Accept": "text/vcard"},
         )
-        self._check_http_auth_error(resp.status_code)
+        # 404 is a domain-level "not found"; every other error status must NOT
+        # reach normalize_vcard, which degrades an unparsable body into a
+        # contact named "Unknown" instead of surfacing the failure.
+        self._check_http_status(resp.status_code, allow=(404,))
 
         if resp.status_code == 404:
             raise ValueError(f"Contact '{resource_name}' not found")
@@ -532,7 +547,7 @@ class AppleContactsClient(BaseAppleClient):
             content=vcard_str,
             headers={"Content-Type": "text/vcard; charset=utf-8"},
         )
-        self._check_http_auth_error(resp.status_code)
+        self._check_http_status(resp.status_code)
 
         if resp.status_code not in (201, 204):
             raise ValueError(f"Failed to create contact: HTTP {resp.status_code}")
@@ -563,7 +578,10 @@ class AppleContactsClient(BaseAppleClient):
 
         # GET existing vCard
         resp = await client.get(url, headers={"Accept": "text/vcard"})
-        self._check_http_auth_error(resp.status_code)
+        # A non-success body must never reach merge_vcard_fields: it falls back
+        # to rebuilding a MINIMAL card from the update arguments, and the PUT
+        # below would then overwrite every untouched field of the real contact.
+        self._check_http_status(resp.status_code, allow=(404,))
 
         if resp.status_code == 404:
             raise ValueError(f"Contact '{resource_name}' not found for update")
@@ -579,7 +597,7 @@ class AppleContactsClient(BaseAppleClient):
             content=updated_vcard,
             headers={"Content-Type": "text/vcard; charset=utf-8"},
         )
-        self._check_http_auth_error(resp.status_code)
+        self._check_http_status(resp.status_code)
 
         await self._invalidate_contacts_cache()
 
@@ -594,7 +612,9 @@ class AppleContactsClient(BaseAppleClient):
             url = f"{settings.apple_carddav_url.rstrip('/')}{resource_name}"
 
         resp = await client.delete(url)
-        self._check_http_auth_error(resp.status_code)
+        # 404 means "already gone" and stays a False return (idempotent delete);
+        # any other error status is a real failure and must not be swallowed.
+        self._check_http_status(resp.status_code, allow=(404,))
 
         await self._invalidate_contacts_cache()
         return resp.status_code in (200, 204)

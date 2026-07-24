@@ -46,10 +46,10 @@ def _make_full_query_intelligence() -> QueryIntelligence:
         anticipated_needs=["may want reminder"],
         fallback_strategies=["broaden search"],
         suggested_enrichments=["recent emails with contact"],
-        route_to="planner",
+        route_to="response",  # non-default: the default is "planner"
         bypass_llm=True,
         confidence=0.87,
-        user_language="fr",
+        user_language="en",  # non-default: settings.default_language is "fr"
         reasoning_trace=["step 1", "step 2"],
         intelligent_mechanisms={"semantic_pivot": True},
         is_mutation_intent=True,

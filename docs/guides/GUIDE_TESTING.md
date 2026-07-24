@@ -2025,7 +2025,7 @@ async def test_with_mocked_llm_call():
 ```toml
 # pyproject.toml
 [tool.pytest.ini_options]
-addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=45"
+addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=59"
 ```
 
 **Rapports générés** :
@@ -2039,9 +2039,11 @@ sous-ensemble échoue mécaniquement sous le seuil global.
 
 ### Doctrine du seuil de couverture (ratchet)
 
-Le seuil CI est un **cliquet** (ratchet) : il ne descend jamais, et il monte
-de **+2 points à chaque release** tant que l'objectif de 75 % n'est pas
-atteint (recommandation n°4 de l'audit 2026-07 : paliers 43→55→65→75).
+Le seuil CI est un **cliquet** (ratchet) : il ne descend jamais, et on le
+**relève après tout lot améliorant la couverture** (ainsi qu'à chaque release)
+pour verrouiller les gains, tant que l'objectif de 75 % n'est pas atteint
+(recommandation n°4 de l'audit 2026-07 : paliers 43→55→65→75). Verrouiller les
+acquis est une règle systématique, pas un rituel de release.
 
 Règles :
 1. Le seuil vit à **deux endroits qui doivent rester synchrones** :
@@ -2051,13 +2053,19 @@ Règles :
    **au moins 2 points de marge** (éviter les échecs de CI sur variance).
 3. Baisser le seuil est interdit — si une PR fait chuter la couverture sous
    le gate, c'est la PR qu'on corrige, pas le gate.
-4. Historique : 43 % (baseline audit) → **45 % (v1.21.22, couverture réelle
-   mesurée : 52,3 %)**.
+4. Historique : 43 % (baseline audit) → 45 % (v1.21.22, couverture réelle
+   mesurée : 52,3 %) → 58 % (2026-07-24, réel 62,5 % sur le sous-ensemble gated
+   fast-unit) → **59 % (2026-07-24, réel 62,79 % — 13 016 tests)**. Palier
+   suivant 65 % dès que le réel dépasse ~67 %.
+
+   La marge volontairement conservée (~4 pts) couvre l'écart entre la mesure
+   locale (Windows) et le runner CI (Linux) : quelques branches dépendent de la
+   plateforme, et un gate trop serré rougirait la CI sans régression réelle.
 
 ### Exécuter Coverage
 
 ```bash
-# Coverage complète (applique le gate --cov-fail-under=45)
+# Coverage complète (applique le gate --cov-fail-under=59)
 cd apps/api
 pytest --cov=src --cov-report=term-missing --cov-report=html
 
@@ -2099,7 +2107,7 @@ TOTAL                                       311     19    94%
 
 Le rapport XML est uploadé vers Codecov par le job `test-backend`
 (`codecov-action`, flag `backend`, non bloquant) ; le **gate bloquant** est
-le `--cov-fail-under=45` du même job (voir la doctrine ratchet ci-dessus).
+le `--cov-fail-under=59` du même job (voir la doctrine ratchet ci-dessus).
 
 ---
 
@@ -2112,7 +2120,7 @@ Le workflow réel est `.github/workflows/ci.yml` (déclenché sur push/PR vers
 
 | Job | Commande | Sélection | Gate |
 |---|---|---|---|
-| `test-backend` | `pytest tests/unit/` | `-m "not integration and not slow and not e2e and not benchmark and not multiprocess"` | couverture ≥ 45 % |
+| `test-backend` | `pytest tests/unit/` | `-m "not integration and not slow and not e2e and not benchmark and not multiprocess"` | couverture ≥ 59 % |
 | `test-backend` (step 2) | `pytest tests/agents/` | `-m "not slow and not e2e and not benchmark and not multiprocess"`, `--no-cov` | tests verts |
 | `test-backend-integration` | `pytest tests/integration/` | `-m "not e2e and not benchmark and not multiprocess"`, `--no-cov` | tests verts |
 
@@ -2934,6 +2942,35 @@ Le chantier de couverture des composants (≈ 280 composants, livré par lots à
 - **`aria-modal="true"` sans piège à focus est un docstring qui ment** : l'attribut annonce aux technologies d'assistance que le reste de la page est inerte, mais rien dans le DOM ne l'applique — la tabulation suivante sort vers un contenu qu'on vient de déclarer inexistant. Soit on implémente le piège (cycle sur les focusables du dialogue, plus un rattrapage quand le focus s'est échappé sur `body` — cas réel : le bouton se désactive sous les doigts de l'utilisateur), soit on n'écrit pas l'attribut. La vérification appartient au navigateur : `user-event` n'approxime l'ordre de tabulation que grossièrement sous jsdom, donc doubler l'assertion en E2E.
 - **recharts ne peint pas sous jsdom** : un `ResponsiveContainer` a une taille nulle, ses internes ne sont jamais rendus. Épingler la logique autour (URL de requête par plage, états chargement/vide/graphé, exclusion des snapshots `reset_*`) plutôt que le contenu du graphe — le JSX déclaratif est de toute façon exécuté, donc couvert. Modèle : `PsycheHistory.test.tsx`.
 - Les tests tournent sur l'hôte (et en CI) — dans le container `lia-web-dev`, le test de synchronisation du contrat SSE se skip proprement (seul `apps/web` y est monté).
+
+---
+
+## Gardes de contrat backend (campagne 2026-07-24)
+
+Cinq gardes exécutables ont été ajoutées pour fermer des classes de bugs
+**silencieux** — celles qui ne lèvent rien, ne loguent rien, et se manifestent
+uniquement par une réponse fausse ou un widget absent.
+
+| Garde | Ce qu'elle empêche |
+|---|---|
+| `tests/unit/test_langgraph_state_keys_guard.py` | Un nœud du graphe qui écrit une clé absente de `MessagesState` : LangGraph la **jette sans un mot** au checkpoint, le nœud aval lit `None` et prend la branche dégradée. |
+| `tests/unit/test_locale_normalization_guard.py` | Toute normalisation de locale ad hoc (`locale.split("-")[0]`, `language[:2]`) hors de `normalize_language` : un `zh` brut du frontend rate les tables backend canoniques `zh-CN` et l'utilisateur chinois lit du français. |
+| `tests/unit/domains/agents/analysis/test_query_intelligence_roundtrip_guard.py` | Un champ ajouté d'un seul côté de la paire `to_serializable_dict` / `reconstruct_query_intelligence` — il se réinitialise à son défaut après chaque reprise HITL. |
+| `tests/unit/domains/connectors/clients/test_provider_parity_contract.py` | Une dérive de signature ou de contrat entre les providers d'une catégorie fonctionnelle (`protocols.py` n'était jamais importé à l'exécution : le contrat était décoratif). |
+| `tests/unit/domains/agents/display/test_component_rendering_contract.py` | Une carte qui n'échappe pas ses données, qui émet une URI `javascript:`, ou qui lève sur un payload dégradé. |
+
+### Leçons transférables
+
+- **Le périmètre d'un `try/except` décide de la gravité.** `response_node` enveloppe *tout* le rendu des cartes dans un `except (ValueError, KeyError, TypeError, AttributeError, RuntimeError)` qui se contente d'un `logger.warning`. Une seule carte qui lève ne dégrade donc pas *sa* carte : elle supprime **toutes** les cartes de la réponse. D'où l'invariant testé « un composant ne lève jamais », vérifié sur des payloads que les producteurs émettent réellement (champs `null`, scalaire à la place d'une liste, nombre en chaîne).
+- **Un `assert "onerror=" not in html` n'est pas un oracle.** Du contenu correctement échappé contient toujours la sous-chaîne. Seul un **parseur** distingue un attribut d'une chaîne qui y ressemble : le contrat de rendu utilise `html.parser` et assertit sur les *attributs* et les *valeurs d'URI* réellement parsés.
+- **`html.escape` ne protège pas une URI.** `javascript:alert(1)` ne contient aucun caractère qu'`escape` touche. La liste blanche de schémas (`display/urls.py::safe_url`) est le seul rempart, et elle doit neutraliser les caractères de contrôle que le navigateur ignore *avant* de résoudre le schéma (`java	script:`).
+- **Une garde doit porter son propre oracle.** Chaque garde AST embarque un test qui lui soumet le défaut historique et vérifie qu'elle le signale — sans quoi une garde verte peut simplement ne rien scanner.
+- **Une exemption se justifie et se périme.** Les frontières qui parlent un autre vocabulaire (ElevenLabs en ISO-639-1, l'attribut `lang` d'une page web) sont exemptées avec leur raison écrite, et un test `shrink-only` supprime l'exemption dès que le code n'en a plus besoin.
+- **Un test de round-trip n'est contraignant que si la fixture bouge chaque champ.** Deux champs de `QueryIntelligence` étaient laissés à leur valeur par défaut : l'identité `serialize → reconstruct → serialize` était **vacante** pour eux. Un test vérifie désormais que chaque champ sérialisé a une valeur distinguable du défaut.
+- **`dict.get(clé, {})` ne défend pas contre une valeur `None` explicite.** Le défaut ne s'applique qu'à une clé *absente*. `data.get("displayName", {}).get("text")` levait dès que le provider renvoyait `displayName: null` — et coûtait toutes les cartes de la réponse.
+- **Pydantic v2 n'inline jamais un modèle imbriqué** : il l'émet dans `$defs` et le référence par `$ref`. Un parcours de schéma qui ne suit pas les `$ref` mesure une profondeur de 1 sur un modèle imbriqué 7 fois.
+- **L'attribut `style` est une surface XSS distincte de `href`/`src`, et le contrat de rendu ne l'exerçait pas.** `route_card` interpolait la couleur de ligne d'un transport (donnée Google Routes API) verbatim dans `style="background-color: {color}"` ; une couleur `#fff" onmouseover="alert(1)` fermait l'attribut et injectait un handler. `html.escape` ne protège pas ici — la valeur ne contient aucun caractère qu'il touche. Parade : une liste blanche de couleurs CSS (`display/urls.py::safe_css_color`, hex ou mot-clé, rien d'autre). Leçon de garde : le payload hostile du contrat inter-cartes ne peuplait aucune étape *transit*, donc la classe échappait à la garde générale — un contrat de sécurité ne couvre que les champs qu'il peuple réellement. Le payload hostile inclut désormais une étape transit à couleurs malveillantes.
+- **Une couverture faible en scope `tests/unit` seul ne signifie pas « non testé »** : les modules d'orchestration/nœuds sont couverts par `tests/agents`, invisible dans un instantané `--cov` limité à `tests/unit`. Avant d'investir sur un module « à 19 % », mesurer sa couverture *union* (unit + agents) — sinon on réécrit des tests qui existent. Contre-exemple utile : le `ReferenceResolver` du plan était réellement à 19 % même union (55 tests agents n'exerçaient que `ConditionEvaluator`, pas le moteur de résolution `$steps`/`context`/`items`/wildcards/filtres JSONPath).
 
 ---
 

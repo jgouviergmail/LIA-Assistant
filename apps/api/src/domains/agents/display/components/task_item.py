@@ -28,6 +28,7 @@ from src.domains.agents.display.components.base import (
     render_chip_row,
     render_collapsible,
     render_d_item,
+    safe_url,
     wrap_with_response,
 )
 from src.domains.agents.display.icons import Icons, icon
@@ -168,7 +169,7 @@ class TaskItem(BaseComponent):
             if is_completed
             else ""
         )
-        title_html = f'<a class="lia-card-top__title" href="{escape_html(url)}" target="_blank"{title_style}>{escape_html(title)}</a>'
+        title_html = f'<a class="lia-card-top__title" href="{safe_url(url)}" target="_blank"{title_style}>{escape_html(title)}</a>'
         card_top_html = render_card_top(illus_icon, illus_color, title_html)
 
         # --- Chips: status/date + task list name ---
@@ -293,7 +294,7 @@ class TaskItem(BaseComponent):
                     link_url = link.get("link", "")
                     if link_url:
                         link_items.append(
-                            f'<a href="{escape_html(link_url)}" target="_blank">{escape_html(link_desc)}</a>'
+                            f'<a href="{safe_url(link_url)}" target="_blank">{escape_html(link_desc)}</a>'
                         )
             if link_items:
                 links_label = V3Messages.get_links(ctx.language)

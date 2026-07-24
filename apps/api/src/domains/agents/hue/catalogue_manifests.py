@@ -154,6 +154,11 @@ control_hue_light_catalogue_manifest = ToolManifest(
     ),
     context_key=CONTEXT_DOMAIN_HUE,
     reference_examples=["name", "on", "brightness"],
+    # Declared explicitly: "control" is no CRUD verb, so category inference
+    # defaulted to "readonly" — yet this calls client.update_light() and acts on
+    # a PHYSICAL device. Left inferred, the initiative node could switch the
+    # user's lights proactively.
+    tool_category="update",
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(
@@ -226,6 +231,9 @@ control_hue_room_catalogue_manifest = ToolManifest(
     ),
     context_key=CONTEXT_DOMAIN_HUE,
     reference_examples=["name", "on", "brightness"],
+    # Declared explicitly (see control_hue_light_tool): calls
+    # client.control_room() on a PHYSICAL device — never proactively eligible.
+    tool_category="update",
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="🏠", i18n_key="control_hue_room", visible=True, category="tool"),
@@ -294,6 +302,9 @@ activate_hue_scene_catalogue_manifest = ToolManifest(
     ),
     context_key=CONTEXT_DOMAIN_HUE,
     reference_examples=["name"],
+    # Declared explicitly (see control_hue_light_tool): calls
+    # client.activate_scene() on PHYSICAL devices — never proactively eligible.
+    tool_category="update",
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(
