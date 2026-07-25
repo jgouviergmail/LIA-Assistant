@@ -1,6 +1,6 @@
 [project]
 name = "lia-api"
-version = "1.25.21"
+version = "1.25.22"
 description = "LIA Assistant - AI conversational assistant with multi-agent orchestration"
 license = "AGPL-3.0-or-later"
 authors = [
@@ -235,7 +235,7 @@ disable_error_code = ["no-any-return", "arg-type", "assignment", "override", "un
 minversion = "9.0"
 # Coverage gate ratchet doctrine: +2 points per release, never lowered
 # (see docs/guides/GUIDE_TESTING.md and ADR-113). Keep in sync with ci.yml.
-addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=59"
+addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=60"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"

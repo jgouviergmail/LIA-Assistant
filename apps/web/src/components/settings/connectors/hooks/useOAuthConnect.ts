@@ -5,7 +5,9 @@
 
 import { useCallback } from 'react';
 import apiClient from '@/lib/api-client';
+import { getApiErrorDetail } from '@/lib/api-error';
 import { logger } from '@/lib/logger';
+import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
 
 interface UseOAuthConnectOptions {
   onError?: (error: string) => void;
@@ -40,10 +42,9 @@ export function useOAuthConnect(
 
       try {
         const response = await apiClient.get<{ authorization_url: string }>(endpoint);
-        window.location.href = response.authorization_url;
+        navigateToAuthorizationUrl(response.authorization_url, `oauth-${connectorType}`);
       } catch (error: unknown) {
-        const apiError = error as { response?: { data?: { detail?: string } } };
-        const errorDetail = apiError.response?.data?.detail || 'Failed to initiate OAuth';
+        const errorDetail = getApiErrorDetail(error) ?? 'Failed to initiate OAuth';
 
         logger.error(`Failed to initiate ${connectorType} OAuth`, error as Error, {
           component: componentName,

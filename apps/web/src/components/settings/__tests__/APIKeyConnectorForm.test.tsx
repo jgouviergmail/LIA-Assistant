@@ -10,10 +10,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 
 const { post } = vi.hoisted(() => ({ post: vi.fn() }));
-vi.mock('@/lib/api-client', () => ({ default: { post } }));
+// Only the default client is stubbed — `ApiError` stays real so the error
+// shape the form reads is the one the client actually throws.
+vi.mock('@/lib/api-client', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  default: { post },
+}));
 vi.mock('@/lib/logger', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
+
+import { ApiError } from '@/lib/api-client';
 
 import APIKeyConnectorForm from '../APIKeyConnectorForm';
 
@@ -70,6 +77,19 @@ describe('APIKeyConnectorForm — validation', () => {
       await screen.findByText('settings.connectors.apiKey.error_validation')
     ).toBeInTheDocument();
   });
+
+  it("shows the backend's own reason instead of the generic wording", async () => {
+    post.mockRejectedValue(
+      new ApiError('irrelevant', 502, { detail: 'Brave rejected the key: quota exhausted' })
+    );
+    const { user } = renderForm();
+    await user.type(screen.getByPlaceholderText(KEY_INPUT), 'sk-abcdefghij');
+    await user.click(screen.getByRole('button', { name: VALIDATE }));
+    expect(await screen.findByText('Brave rejected the key: quota exhausted')).toBeInTheDocument();
+    expect(
+      screen.queryByText('settings.connectors.apiKey.error_validation')
+    ).not.toBeInTheDocument();
+  });
 });
 
 describe('APIKeyConnectorForm — activation', () => {
@@ -99,6 +119,18 @@ describe('APIKeyConnectorForm — activation', () => {
     expect(
       await screen.findByText('settings.connectors.apiKey.error_activation')
     ).toBeInTheDocument();
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
+
+  it("surfaces the backend's activation reason verbatim", async () => {
+    post.mockRejectedValue(
+      new ApiError('irrelevant', 409, { detail: 'A brave connector is already active' })
+    );
+    const onSuccess = vi.fn();
+    const { user } = renderForm({ onSuccess });
+    await user.type(screen.getByPlaceholderText(KEY_INPUT), 'sk-abcdefghij');
+    await user.click(screen.getByRole('button', { name: ACTIVATE }));
+    expect(await screen.findByText('A brave connector is already active')).toBeInTheDocument();
     expect(onSuccess).not.toHaveBeenCalled();
   });
 

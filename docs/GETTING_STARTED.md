@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-07-25
-**Compatibility**: LIA v1.25.21
+**Compatibility**: LIA v1.25.22
 
 ## Table of Contents
 
@@ -524,7 +524,7 @@ Dev environment (`docker-compose.dev.yml`): 17 services by default, plus 6 opt-i
 
 \* Opt-in `langfuse` compose profile — started only by `task dev:langfuse`.
 
-The production compose (`docker-compose.prod.yml`) runs a leaner 17-service stack: postgres, postgres-backup, redis, api, web, prometheus, alertmanager, blackbox-exporter, grafana, loki, promtail, tempo, node-exporter, cadvisor, postgres-exporter, redis-exporter, portainer — no pgAdmin, no Langfuse stack. Alertmanager delivers the 13-alert core by email (ADR-119, see [README_ALERTING.md](readme/README_ALERTING.md)).
+The production compose (`docker-compose.prod.yml`) runs a leaner 17-service stack: postgres, postgres-backup, redis, api, web, prometheus, alertmanager, blackbox-exporter, grafana, loki, promtail, tempo, node-exporter, cadvisor, postgres-exporter, redis-exporter, portainer — no pgAdmin, no Langfuse stack. Alertmanager delivers the 14-alert core by email (ADR-119, see [README_ALERTING.md](readme/README_ALERTING.md)).
 
 ### Service Verification
 

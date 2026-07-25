@@ -1,6 +1,7 @@
 'use server';
 
 import { createServerApiClient } from '@/lib/api-server';
+import { getApiErrorDetail } from '@/lib/api-error';
 import { logger } from '@/lib/logger';
 
 /**
@@ -161,7 +162,6 @@ export async function toggleUserActive(
       message,
     };
   } catch (error) {
-    const err = error as { response?: { data?: { detail?: string } } };
     logger.error('toggle_user_active_failed', error as Error, {
       component: 'ServerActions',
       action: 'toggleUserActive',
@@ -171,7 +171,7 @@ export async function toggleUserActive(
     return {
       success: false,
       error:
-        err.response?.data?.detail ||
+        getApiErrorDetail(error) ??
         `Erreur lors de ${isActive ? "l'activation" : 'la désactivation'} de l'utilisateur`,
     };
   }
@@ -202,7 +202,6 @@ export async function deleteUserAccount(userId: string, reason?: string): Promis
       message: 'Compte supprimé (données purgées, historique facturation conservé)',
     };
   } catch (error) {
-    const err = error as { response?: { data?: { detail?: string } } };
     logger.error('delete_user_account_failed', error as Error, {
       component: 'ServerActions',
       action: 'deleteUserAccount',
@@ -210,7 +209,7 @@ export async function deleteUserAccount(userId: string, reason?: string): Promis
     });
     return {
       success: false,
-      error: err.response?.data?.detail || 'Erreur lors de la suppression du compte',
+      error: getApiErrorDetail(error) ?? 'Erreur lors de la suppression du compte',
     };
   }
 }
@@ -232,7 +231,6 @@ export async function deleteUserGDPR(userId: string): Promise<ActionResponse> {
       message: 'Utilisateur effacé définitivement (RGPD)',
     };
   } catch (error) {
-    const err = error as { response?: { data?: { detail?: string } } };
     logger.error('delete_user_gdpr_failed', error as Error, {
       component: 'ServerActions',
       action: 'deleteUserGDPR',
@@ -240,7 +238,7 @@ export async function deleteUserGDPR(userId: string): Promise<ActionResponse> {
     });
     return {
       success: false,
-      error: err.response?.data?.detail || "Erreur lors de l'effacement RGPD",
+      error: getApiErrorDetail(error) ?? "Erreur lors de l'effacement RGPD",
     };
   }
 }
@@ -260,7 +258,6 @@ export async function createLLMPricing(data: LLMPricingData): Promise<ActionResp
       message: `Modèle "${data.model_name}" créé avec succès.`,
     };
   } catch (error) {
-    const err = error as { response?: { data?: { detail?: string } } };
     logger.error('create_llm_pricing_failed', error as Error, {
       component: 'ServerActions',
       action: 'createLLMPricing',
@@ -268,7 +265,7 @@ export async function createLLMPricing(data: LLMPricingData): Promise<ActionResp
     });
     return {
       success: false,
-      error: err.response?.data?.detail || 'Erreur lors de la création du modèle',
+      error: getApiErrorDetail(error) ?? 'Erreur lors de la création du modèle',
     };
   }
 }
@@ -294,7 +291,6 @@ export async function updateLLMPricing(
       message: `Modèle "${newModelName}" modifié avec succès. Nouvelle version créée.`,
     };
   } catch (error) {
-    const err = error as { response?: { data?: { detail?: string } } };
     logger.error('update_llm_pricing_failed', error as Error, {
       component: 'ServerActions',
       action: 'updateLLMPricing',
@@ -302,7 +298,7 @@ export async function updateLLMPricing(
     });
     return {
       success: false,
-      error: err.response?.data?.detail || 'Erreur lors de la modification du modèle',
+      error: getApiErrorDetail(error) ?? 'Erreur lors de la modification du modèle',
     };
   }
 }
@@ -350,14 +346,13 @@ export async function reloadLLMPricingCache(): Promise<ActionResponse> {
       message: 'Cache des tarifs LLM rechargé avec succès.',
     };
   } catch (error) {
-    const err = error as { response?: { data?: { detail?: string } } };
     logger.error('reload_llm_pricing_cache_failed', error as Error, {
       component: 'ServerActions',
       action: 'reloadLLMPricingCache',
     });
     return {
       success: false,
-      error: err.response?.data?.detail || 'Erreur lors du rechargement du cache',
+      error: getApiErrorDetail(error) ?? 'Erreur lors du rechargement du cache',
     };
   }
 }
@@ -377,7 +372,6 @@ export async function deactivateLLMPricing(pricingId: string): Promise<ActionRes
       message: 'Modèle désactivé avec succès.',
     };
   } catch (error) {
-    const err = error as { response?: { data?: { detail?: string } } };
     logger.error('deactivate_llm_pricing_failed', error as Error, {
       component: 'ServerActions',
       action: 'deactivateLLMPricing',
@@ -385,7 +379,7 @@ export async function deactivateLLMPricing(pricingId: string): Promise<ActionRes
     });
     return {
       success: false,
-      error: err.response?.data?.detail || 'Erreur lors de la désactivation',
+      error: getApiErrorDetail(error) ?? 'Erreur lors de la désactivation',
     };
   }
 }
@@ -416,7 +410,6 @@ export async function createGoogleApiPricing(data: GoogleApiPricingData): Promis
       message: `Tarif "${data.api_name}:${data.endpoint}" créé avec succès.`,
     };
   } catch (error) {
-    const err = error as { response?: { data?: { detail?: string } } };
     logger.error('create_google_api_pricing_failed', error as Error, {
       component: 'ServerActions',
       action: 'createGoogleApiPricing',
@@ -425,7 +418,7 @@ export async function createGoogleApiPricing(data: GoogleApiPricingData): Promis
     });
     return {
       success: false,
-      error: err.response?.data?.detail || 'Erreur lors de la création du tarif',
+      error: getApiErrorDetail(error) ?? 'Erreur lors de la création du tarif',
     };
   }
 }
@@ -462,7 +455,6 @@ export async function updateGoogleApiPricing(
       message: `Tarif "${newApiName}:${newEndpoint}" modifié avec succès. Nouvelle version créée.`,
     };
   } catch (error) {
-    const err = error as { response?: { data?: { detail?: string } } };
     logger.error('update_google_api_pricing_failed', error as Error, {
       component: 'ServerActions',
       action: 'updateGoogleApiPricing',
@@ -471,7 +463,7 @@ export async function updateGoogleApiPricing(
     });
     return {
       success: false,
-      error: err.response?.data?.detail || 'Erreur lors de la modification du tarif',
+      error: getApiErrorDetail(error) ?? 'Erreur lors de la modification du tarif',
     };
   }
 }
@@ -491,7 +483,6 @@ export async function deactivateGoogleApiPricing(pricingId: string): Promise<Act
       message: 'Tarif désactivé avec succès.',
     };
   } catch (error) {
-    const err = error as { response?: { data?: { detail?: string } } };
     logger.error('deactivate_google_api_pricing_failed', error as Error, {
       component: 'ServerActions',
       action: 'deactivateGoogleApiPricing',
@@ -499,7 +490,7 @@ export async function deactivateGoogleApiPricing(pricingId: string): Promise<Act
     });
     return {
       success: false,
-      error: err.response?.data?.detail || 'Erreur lors de la désactivation',
+      error: getApiErrorDetail(error) ?? 'Erreur lors de la désactivation',
     };
   }
 }
@@ -517,14 +508,13 @@ export async function reloadGoogleApiPricingCache(): Promise<ActionResponse> {
       message: 'Cache des tarifs rechargé avec succès.',
     };
   } catch (error) {
-    const err = error as { response?: { data?: { detail?: string } } };
     logger.error('reload_google_api_pricing_cache_failed', error as Error, {
       component: 'ServerActions',
       action: 'reloadGoogleApiPricingCache',
     });
     return {
       success: false,
-      error: err.response?.data?.detail || 'Erreur lors du rechargement du cache',
+      error: getApiErrorDetail(error) ?? 'Erreur lors du rechargement du cache',
     };
   }
 }
@@ -563,14 +553,13 @@ export async function createImagePricing(data: ImagePricingData): Promise<Action
       message: `Pricing ${data.model}/${data.quality}/${data.size} created.`,
     };
   } catch (error) {
-    const err = error as { response?: { data?: { detail?: string } } };
     logger.error('create_image_pricing_failed', error as Error, {
       component: 'ServerActions',
       action: 'createImagePricing',
     });
     return {
       success: false,
-      error: err.response?.data?.detail || 'Error creating image pricing',
+      error: getApiErrorDetail(error) ?? 'Error creating image pricing',
     };
   }
 }
@@ -590,7 +579,6 @@ export async function updateImagePricing(
       message: 'Image pricing updated. New version created.',
     };
   } catch (error) {
-    const err = error as { response?: { data?: { detail?: string } } };
     logger.error('update_image_pricing_failed', error as Error, {
       component: 'ServerActions',
       action: 'updateImagePricing',
@@ -598,7 +586,7 @@ export async function updateImagePricing(
     });
     return {
       success: false,
-      error: err.response?.data?.detail || 'Error updating image pricing',
+      error: getApiErrorDetail(error) ?? 'Error updating image pricing',
     };
   }
 }
@@ -615,7 +603,6 @@ export async function deactivateImagePricing(pricingId: string): Promise<ActionR
       message: 'Image pricing deactivated.',
     };
   } catch (error) {
-    const err = error as { response?: { data?: { detail?: string } } };
     logger.error('deactivate_image_pricing_failed', error as Error, {
       component: 'ServerActions',
       action: 'deactivateImagePricing',
@@ -623,7 +610,7 @@ export async function deactivateImagePricing(pricingId: string): Promise<ActionR
     });
     return {
       success: false,
-      error: err.response?.data?.detail || 'Error deactivating image pricing',
+      error: getApiErrorDetail(error) ?? 'Error deactivating image pricing',
     };
   }
 }
@@ -640,14 +627,13 @@ export async function reloadImagePricingCache(): Promise<ActionResponse> {
       message: 'Image pricing cache reloaded.',
     };
   } catch (error) {
-    const err = error as { response?: { data?: { detail?: string } } };
     logger.error('reload_image_pricing_cache_failed', error as Error, {
       component: 'ServerActions',
       action: 'reloadImagePricingCache',
     });
     return {
       success: false,
-      error: err.response?.data?.detail || 'Error reloading cache',
+      error: getApiErrorDetail(error) ?? 'Error reloading cache',
     };
   }
 }

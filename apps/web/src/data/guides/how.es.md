@@ -6,7 +6,7 @@
 
 **Versión**: 3.3
 **Fecha**: 2026-07-25
-**Aplicación**: LIA v1.25.21
+**Aplicación**: LIA v1.25.22
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -795,7 +795,7 @@ Tres superficies ejecutan algo por cuenta del usuario, y cada una se trata como 
 | Loki | Logs estructurados JSON agregados |
 | Tempo | Trazas distribuidas cross-service (OTLP gRPC) |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |
-| Alertmanager | Núcleo de 13 alertas vitales notificadas por correo (runbooks enlazados, umbrales por entorno) |
+| Alertmanager | Núcleo de 14 alertas vitales notificadas por correo (runbooks enlazados, umbrales por entorno) |
 | structlog | Logging estructurado con PII filtering |
 
 ### 20.2. Debug Panel integrado
@@ -1097,4 +1097,4 @@ La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesia
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (380+ documentos), de los 140+ ADRs y del changelog (v1.0 a v1.25.21). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (380+ documentos), de los 140+ ADRs y del changelog (v1.0 a v1.25.22). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

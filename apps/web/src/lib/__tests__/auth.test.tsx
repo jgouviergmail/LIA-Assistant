@@ -31,11 +31,21 @@ vi.mock('@/hooks/useLocalizedRouter', () => ({
 }));
 
 // A4 attestation: login() dynamically imports these; controllable per test.
-const { getNotificationPermission, requestNotificationPermission } = vi.hoisted(() => ({
-  getNotificationPermission: vi.fn<() => string>(() => 'denied'),
-  requestNotificationPermission: vi.fn<() => Promise<string | null>>(async () => null),
+const { getNotificationPermission, requestNotificationPermission, getExistingFcmToken } =
+  vi.hoisted(() => ({
+    getNotificationPermission: vi.fn<() => string>(() => 'denied'),
+    requestNotificationPermission: vi.fn<() => Promise<string | null>>(async () => null),
+    // SEC-039: logout dynamically imports this to revoke the device push token.
+    // It MUST be on the mock — without it the dynamic import rejects, the
+    // best-effort catch swallows it, and every assertion below would pass while
+    // the revocation never ran.
+    getExistingFcmToken: vi.fn<() => Promise<string | null>>(async () => null),
+  }));
+vi.mock('@/lib/firebase', () => ({
+  getNotificationPermission,
+  requestNotificationPermission,
+  getExistingFcmToken,
 }));
-vi.mock('@/lib/firebase', () => ({ getNotificationPermission, requestNotificationPermission }));
 
 import { AuthProvider } from '../auth';
 import { useAuth } from '@/hooks/useAuth';
@@ -366,6 +376,59 @@ describe('AuthProvider — signing out', () => {
 
     // No signed-in user → nothing purged, navigation still happens.
     expect(localStorage.getItem(`${CHAT_DRAFT_STORAGE_KEY_PREFIX}u1`)).toBe('reste intact');
+    expect(push).toHaveBeenCalledWith('/login');
+  });
+
+  it('revokes this device push token BEFORE ending the session (SEC-039)', async () => {
+    // The ordering is the fix. `/notifications/unregister-token` needs an
+    // authenticated session, so the same call placed after `/auth/logout`
+    // answers 401 and revokes nothing — the device keeps receiving this
+    // account's notifications, readable on the lock screen by whoever uses the
+    // computer next.
+    getExistingFcmToken.mockResolvedValueOnce('device-fcm-token');
+    const rendered = await settled(renderAuth());
+
+    await act(async () => {
+      await rendered.context().logout();
+    });
+
+    const calls = post.mock.calls.map(([endpoint]) => endpoint);
+    expect(calls).toContain('/notifications/unregister-token');
+    expect(post).toHaveBeenCalledWith('/notifications/unregister-token', {
+      token: 'device-fcm-token',
+    });
+    expect(calls.indexOf('/notifications/unregister-token')).toBeLessThan(
+      calls.indexOf('/auth/logout')
+    );
+  });
+
+  it('skips the revocation when this device has no push token', async () => {
+    // Notifications never enabled, or permission denied: nothing to revoke, and
+    // a call with an empty token would just be noise the API has to reject.
+    getExistingFcmToken.mockResolvedValueOnce(null);
+    const rendered = await settled(renderAuth());
+
+    await act(async () => {
+      await rendered.context().logout();
+    });
+
+    const calls = post.mock.calls.map(([endpoint]) => endpoint);
+    expect(calls).not.toContain('/notifications/unregister-token');
+    expect(calls).toContain('/auth/logout');
+  });
+
+  it('still signs the user out when the revocation fails', async () => {
+    // Best effort by design: failing to revoke is a degradation, refusing to
+    // sign out is an outage — and the user already clicked "log out".
+    getExistingFcmToken.mockRejectedValueOnce(new Error('messaging unavailable'));
+    const rendered = await settled(renderAuth());
+
+    await act(async () => {
+      await rendered.context().logout();
+    });
+
+    expect(post).toHaveBeenCalledWith('/auth/logout');
+    expect(identity(rendered)).toBe('anonymous');
     expect(push).toHaveBeenCalledWith('/login');
   });
 });

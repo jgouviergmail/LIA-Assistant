@@ -113,6 +113,21 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
+      # Blocking, like pip-audit and pnpm audit above (SEC-021). It reported
+      # into the Security tab and passed unconditionally, which makes a scanner
+      # a dashboard rather than a gate — the same shape that let a CRITICAL
+      # advisory live on `main` for months before pnpm audit was made blocking.
+      #
+      # Measured before flipping it: 0 findings at every severity on 2026-07-25,
+      # so this cannot break the build on existing debt.
+      #
+      # What Trivy actually reads here is `apps/api/requirements.txt` (the
+      # intent manifest) and `pnpm-lock.yaml` with dev dependencies excluded —
+      # both narrower than what ships. That is deliberate rather than
+      # overlooked: pip-audit already audits `requirements.lock.txt` and pnpm
+      # audit already covers dev dependencies, both blocking. Pointing Trivy at
+      # the same files would add a second opinion on an already-gated surface,
+      # not close a gap.
       - name: Run Trivy filesystem scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
@@ -121,6 +136,7 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
+          exit-code: "1"
 
       - name: Upload Trivy results
         uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4
@@ -138,8 +154,7 @@ jobs:
       # NOTE: a `CycloneDX/gh-dotnet-generate-sbom` step used to run here with
       # `continue-on-error: true`. It is a .NET generator — this repo is Python +
       # TypeScript — so it produced nothing and swallowed its own failure. The
-      # real SBOM is the `cyclonedx_py` step below, built from the lockfile.
-      # Frontend coverage is still missing (SEC-021).
+      # real SBOMs are the two steps below, both built from lockfiles.
 
       - name: Set up Python 3.12
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
@@ -156,9 +171,32 @@ jobs:
           pip install cyclonedx-bom
           python -m cyclonedx_py requirements requirements.lock.txt -o sbom-backend.json --output-format json
 
-      - name: Upload SBOM
+      - name: Upload backend SBOM
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom-backend
           path: ./apps/api/sbom-backend.json
+          retention-days: 90
+
+      # SEC-021 — the frontend half, missing until now: half an inventory
+      # answers "are we affected?" with "for Python, yes". Generated with Trivy
+      # rather than a new toolchain because the scan job already runs it and it
+      # reads `pnpm-lock.yaml` natively — `@cyclonedx/cyclonedx-npm` is
+      # npm-specific and would need a separate pnpm-aware generator.
+      #
+      # Built from the lockfile, like its backend counterpart: exact resolved
+      # versions with transitives, not the ranges declared in package.json.
+      - name: Generate frontend SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          scan-type: fs
+          scan-ref: "pnpm-lock.yaml"
+          format: cyclonedx
+          output: sbom-frontend.json
+
+      - name: Upload frontend SBOM
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom-frontend
+          path: ./sbom-frontend.json
           retention-days: 90

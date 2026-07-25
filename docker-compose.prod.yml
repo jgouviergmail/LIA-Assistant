@@ -234,13 +234,48 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-    env_file:
-      - .env
+    # SEC-037 — NO `env_file: .env` here, on purpose.
+    #
+    # That one line handed the Next.js container the ENTIRE production secret
+    # set: PostgreSQL credentials, the Fernet key, the JWT secret, every LLM
+    # provider key, every OAuth client secret, the Telegram bot token. None of
+    # it is used by this container. A server-side RCE in Next.js or in any of
+    # its transitive dependencies therefore read the whole platform's secrets
+    # out of `process.env`, and so did anyone who could exec into the container.
+    #
+    # The list below is the measured runtime need, not a guess. `NODE_ENV`,
+    # `API_URL_SERVER` and `RAG_SPACES_MAX_FILE_SIZE_MB` are read while the
+    # server runs (`src/app/api/rag-upload/[spaceId]/route.ts`). The rest are
+    # baked into the image at build time — Next.js serialises `headers()` and
+    # `rewrites()` from next.config.ts into `.next/routes-manifest.json`, and
+    # inlines `NEXT_PUBLIC_*` into the bundle — and are passed anyway because
+    # they cost nothing to pass, carry no secret, and keep this container
+    # working if a future Next.js reads them at startup instead.
+    #
+    # The rule for extending this list: anything that is not a secret may be
+    # added freely; a secret means the frontend is doing something it should be
+    # asking the API to do.
     environment:
       - NODE_ENV=production
       - API_URL_SERVER=http://api:8000
+      - API_URL_SERVER_HTTP=${API_URL_SERVER_HTTP:-}
+      - RAG_SPACES_MAX_FILE_SIZE_MB=${RAG_SPACES_MAX_FILE_SIZE_MB:-}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-}
+      - NEXT_PUBLIC_ALLOWED_DEV_ORIGINS=${NEXT_PUBLIC_ALLOWED_DEV_ORIGINS:-}
+      - HSTS_MAX_AGE=${HSTS_MAX_AGE:-}
+      - COEP_MODE=${COEP_MODE:-}
     ports:
-      - "3000:3000"
+      # SEC-015 — loopback only, like every other published port in this file.
+      # `3000:3000` bound the frontend to EVERY interface on the host: on the
+      # LAN it was reachable directly, bypassing Cloudflare entirely and with it
+      # the WAF, the TLS termination and the access logs. It was the single
+      # exception among sixteen published ports — an oversight, not a decision.
+      #
+      # cloudflared runs under host systemd (see the API service above) and
+      # reaches services over 127.0.0.1, exactly as it already does for the API
+      # on :8000 and for Grafana on :3001.
+      - "127.0.0.1:3000:3000"
     depends_on:
       - api
     networks:
@@ -334,7 +369,7 @@ services:
           cpus: '0.1'
           memory: 128M
 
-  # Alertmanager (ADR-119) — email notification chain for the 13-alert core.
+  # Alertmanager (ADR-119) — email notification chain for the 14-alert core.
   # The entrypoint renders the config from ALERTMANAGER_* env vars (.env.prod):
   # with SMTP set and Slack/PagerDuty empty it selects the email-only template.
   alertmanager:

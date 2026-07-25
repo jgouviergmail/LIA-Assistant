@@ -42,6 +42,14 @@ Un `slowapi.Limiter` était construit avec `default_limits` et posé sur `app.st
 
 Décision : supprimer l'objet et le remplacer par un **middleware ASGI pur** adossé au `RedisRateLimiter` déjà partagé. Le plafond est calibré sur la mesure (pic réel observé : **67 req/min** pour une session navigateur ; défaut à **300**), les sondes sont exemptées, et la politique reste **fail-open** — sur une instance unique, échouer fermé transformerait une panne Redis en panne totale. La fenêtre aveugle est comptée (`http_rate_limit_degraded_total`) et alertée (`GlobalRateLimitDegraded`), parce qu'un compromis n'est défendable que s'il est visible.
 
+> **Amendement (2026-07-25) — deux défauts de cette section, corrigés.**
+>
+> **L'alerte n'existait pas.** `GlobalRateLimitDegraded` avait été ajoutée à `alerts.yml`, un fichier qui est **à la fois** un artefact régénéré par `prepare_config.sh` depuis `alerts.yml.template` — donc toute édition manuelle disparaît au déploiement suivant — **et** commenté hors de `rule_files` dans `prometheus.yml` (ADR-119 : ses seuils hérités sont corrompus). L'alerte ne pouvait donc jamais se déclencher, alors que cette ADR, le CHANGELOG et `SECURITY.md` affirmaient le contraire. Elle vit désormais dans `alerts-core.yml.template`, avec un seuil `ALERT_CORE_RATE_LIMIT_DEGRADED_RPS` par environnement, un runbook et deux cas promtool. Le noyau passe de 13 à 14 alertes.
+>
+> **L'exemption des sondes était un contournement.** `_is_subject_to_limit` comparait en `startswith`, si bien que tout chemin *commençant* par `/health`, `/ready` ou `/metrics` échappait au plafond — `/healthz`, `/metrics-flood`. Ces routes répondent 404, mais un 404 coûte une traversée complète du middleware et une passe de routage, servie au rythme que le client veut : le plafond avait une porte dérobée ouverte à quiconque savait écrire `/health`. La comparaison est passée en **égalité stricte** (les trois sondes n'exposent aucun sous-chemin), et le même motif a été corrigé dans `BodySizeLimitMiddleware` avant que sa liste d'exemptions ne soit un jour remplie.
+>
+> Une garde exécutable (`tests/unit/test_alerts_core_guard.py`) ferme la classe : le rendu committé doit être la sortie exacte de son template, chaque alerte doit lier un runbook qui existe et posséder un cas promtool, et les trois jeux de seuils doivent déclarer les mêmes clés.
+
 Les helpers devenus morts (`build_default_limit`, `resolve_endpoint_limit`, `get_rate_limit_message`) ont été **supprimés**, pas conservés : seuls leurs propres tests les maintenaient en vie, ce qui gonflait la couverture sans couvrir quoi que ce soit.
 
 ### 3. Le corps d'une requête est borné avant d'être lu (SEC-031)

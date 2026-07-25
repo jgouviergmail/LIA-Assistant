@@ -340,6 +340,28 @@ export const VOICE_MODE_ENABLED_KEY = 'voice_mode_enabled';
 export const DEBUG_METRICS_HISTORY_KEY = 'lia_debug_metrics_history';
 
 /**
+ * LocalStorage key holding the last known GPS coordinates (SEC-034).
+ *
+ * Latitude and longitude are personal data of the most direct kind, and the key
+ * is global — nothing ties it to the account that produced it. On a shared
+ * browser profile, signing out of A and into B leaves A's position readable by
+ * B, and usable: the value feeds weather and place lookups, so B's assistant
+ * would silently answer about where A was. Purged on logout and on account
+ * change via `SENSITIVE_LOCAL_STORAGE_KEYS`.
+ */
+export const GEOLOCATION_CACHE_KEY = 'geolocation_cache';
+
+/**
+ * LocalStorage key recording whether the user turned geolocation on (SEC-034).
+ *
+ * Purged with the cache, and for a stronger reason than confidentiality: this
+ * flag is a CONSENT record. Left behind, account B inherits account A's
+ * decision and the browser starts collecting B's position without B ever having
+ * agreed to it.
+ */
+export const GEOLOCATION_ENABLED_KEY = 'geolocation_enabled';
+
+/**
  * Touch padding tolerance (px) for push-to-talk touch move cancellation.
  * Allows small finger movements without accidentally stopping the recording.
  */

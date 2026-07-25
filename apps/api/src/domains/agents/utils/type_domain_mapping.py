@@ -222,11 +222,11 @@ def get_domain_from_result_key(result_key: str) -> str | None:
 # via generate_registry_id(type, item.get(unique_key_field))
 # Note: Import RegistryItemType only when needed (lazy import to avoid circular deps)
 #
-# ⚠ Domains with COMPOSITE registry IDs (locations, weathers, routes) use
-# multi-field IDs (e.g., f"{lat}_{lon}", f"current_{name}_{date}") that cannot
-# be reconstructed from a single payload field. Their unique_key_field is a
-# best-effort approximation. FOR_EACH HITL filtering won't match for these
-# domains — acceptable since FOR_EACH is only used for contacts/emails/events.
+# ⚠ Domains with COMPOSITE registry IDs (locations, weathers, routes) build their
+# ID from SEVERAL payload fields, sometimes plus a timestamp, so no single field
+# can reconstruct it. Their unique_key_field below is an approximation kept for
+# entity resolution only — FOR_EACH registry filtering MUST NOT use it, which is
+# what ``FOR_EACH_UNFILTERABLE_ITEMS_KEYS`` enforces below.
 ITEMS_KEY_TO_REGISTRY_CONFIG: dict[str, tuple[str, str]] = {
     # items_key: (registry_type_name, unique_key_field)
     # --- Simple ID domains (unique_key_field matches payload → registry ID) ---
@@ -268,6 +268,59 @@ def get_registry_config_for_items_key(items_key: str) -> tuple[str, str] | None:
         ("CONTACT", "resourceName")
     """
     return ITEMS_KEY_TO_REGISTRY_CONFIG.get(items_key.lower())
+
+
+# Items keys whose registry ID is COMPOSITE: it is built from several payload
+# fields, sometimes with a timestamp, so regenerating it from the single
+# ``unique_key_field`` above is impossible by construction.
+#
+#   ROUTE    f"{origin}_{destination}_{travel_mode}_{YYYYMMDDHHMM}"
+#            (agents/tools/routes_tools.py::_create_route_registry_item)
+#   LOCATION f"{latitude}_{longitude}"        (agents/tools/places_tools.py)
+#   WEATHER  f"current_{name}_{YYYYMMDD}"     (agents/tools/weather_tools.py)
+#
+# Attempting the filter anyway does NOT degrade into a harmless no-op: measured
+# on the real payloads, `weathers` regenerated IDs that matched nothing and
+# returned an EMPTY registry (every card gone from the answer), and `locations`
+# raised ``AttributeError: 'float' object has no attribute 'encode'`` — caught by
+# the orchestrator's broad handler, which abandons the whole plan AFTER the user
+# has confirmed it. Hence an explicit classification rather than a comment.
+FOR_EACH_UNFILTERABLE_ITEMS_KEYS: frozenset[str] = frozenset({"routes", "locations", "weathers"})
+
+# Items keys whose registry ID IS the ``unique_key_field`` value, so filtering
+# after a FOR_EACH confirmation regenerates matching IDs.
+FOR_EACH_FILTERABLE_ITEMS_KEYS: frozenset[str] = (
+    frozenset(ITEMS_KEY_TO_REGISTRY_CONFIG) - FOR_EACH_UNFILTERABLE_ITEMS_KEYS
+)
+
+# Boot-time completeness assert (ADR-085 doctrine): every items key is either
+# filterable or explicitly declared unfilterable — a new domain added to the
+# mapping cannot land in a silent third category.
+assert FOR_EACH_UNFILTERABLE_ITEMS_KEYS <= frozenset(ITEMS_KEY_TO_REGISTRY_CONFIG), (
+    "FOR_EACH_UNFILTERABLE_ITEMS_KEYS references items keys absent from "
+    f"ITEMS_KEY_TO_REGISTRY_CONFIG: "
+    f"{sorted(FOR_EACH_UNFILTERABLE_ITEMS_KEYS - frozenset(ITEMS_KEY_TO_REGISTRY_CONFIG))}"
+)
+
+
+def is_items_key_for_each_filterable(items_key: str) -> bool:
+    """
+    Whether a FOR_EACH registry filter may regenerate this domain's IDs.
+
+    Args:
+        items_key: The items key (e.g., "emails", "routes"), case-insensitive.
+
+    Returns:
+        True when the registry ID is derivable from the mapped unique key field,
+        False for composite-ID domains and for unknown keys.
+
+    Example:
+        >>> is_items_key_for_each_filterable("emails")
+        True
+        >>> is_items_key_for_each_filterable("locations")
+        False
+    """
+    return items_key.lower() in FOR_EACH_FILTERABLE_ITEMS_KEYS
 
 
 # Tool name substring → domain mapping

@@ -1165,3 +1165,77 @@ class TestGeolocationQueryRedaction:
 
         assert "48.8566" not in str(result)
         assert "2.3522" not in str(result)
+
+
+class TestEmailNeverReachesALogVerbatim:
+    """SEC-012 — the account-lifecycle log lines, through the real filter.
+
+    `pseudonymize_email` was covered in isolation, which proves the helper works
+    and nothing about the pipeline that has to call it. These cases pin the
+    actual events emitted by `AuthService._send_verification_email` and
+    `_send_password_reset_email`: an address recorded in a log survives log
+    shipping, retention and backups long after the account is gone.
+    """
+
+    @pytest.mark.parametrize("level", ["debug", "info", "warning", "error"])
+    @pytest.mark.parametrize(
+        "event",
+        [
+            "verification_email_sent",
+            "verification_email_failed",
+            "password_reset_email_sent",
+            "password_reset_email_failed",
+        ],
+    )
+    def test_the_address_is_pseudonymized_at_every_level(self, event, level):
+        """Including DEBUG: there is no level at which the raw address is fine."""
+        address = "victim@example.com"
+
+        result = add_pii_filter(None, level, {"event": event, "email": address})
+
+        assert address not in str(result)
+        assert result["email"].startswith("email_hash_")
+
+    def test_the_pseudonym_stays_stable_so_support_can_still_correlate(self):
+        """Redaction must not cost diagnosability, or it gets removed later.
+
+        The hash is deterministic: hashing the address of the person reporting
+        "I never got the email" finds their lines. That is what makes it
+        acceptable NOT to expose the address even at DEBUG.
+        """
+        first = add_pii_filter(None, "info", {"event": "x", "email": "a@b.test"})["email"]
+        second = add_pii_filter(None, "debug", {"event": "y", "email": "a@b.test"})["email"]
+        other = add_pii_filter(None, "info", {"event": "x", "email": "c@d.test"})["email"]
+
+        assert first == second
+        assert first != other
+
+    def test_an_address_embedded_in_free_text_is_caught_too(self):
+        """Not every leak arrives in a field named `email`."""
+        result = add_pii_filter(
+            None, "info", {"event": "could not deliver to victim@example.com after 3 tries"}
+        )
+
+        assert "victim@example.com" not in str(result)
+
+    @pytest.mark.parametrize(
+        "event_name",
+        [
+            "verification_email_sent",
+            "user_email_address_updated",
+            "oauth_flow_initiated",
+            "fcm_token_unregistered",
+            "telegram_webhook_duplicate_update",
+            "global_rate_limit_check_failed",
+        ],
+    )
+    def test_a_legitimate_event_name_is_never_rewritten(self, event_name):
+        """The counterpart to the free-text sweep: names must survive intact.
+
+        This is the risk the `event` bypass exists to avoid — a sanitizer that
+        mangles identifiers makes every dashboard and alert query silently
+        wrong. Names containing the word `email` are in the table on purpose.
+        """
+        result = add_pii_filter(None, "info", {"event": event_name})
+
+        assert result["event"] == event_name

@@ -4,7 +4,7 @@
 
 **Versione** : 3.9
 **Data** : 2026-07-25
-**Applicazione** : LIA v1.25.21
+**Applicazione** : LIA v1.25.22
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -268,6 +268,8 @@ La trasparenza non è un gadget tecnico. Cambia il rapporto con il tuo assistent
 ---
 
 Questa trasparenza si estende alla qualità del sistema stesso. L'audit tecnico completo — voti, metodo, punti di forza e ciò che resta da migliorare — è pubblicato nel repository, con il protocollo per ripeterlo e i comandi per verificare le misurazioni: [rapporto di audit completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). Non vi si chiede di credere alle cifre di questo sito; potete verificarle.
+
+Lo stesso principio vale per le protezioni stesse. Una sicurezza annunciata ma non verificabile è trattata come assente: ogni controllo è sostenuto da un test che fallisce se il controllo scompare e, quando si scrive una correzione, si ripristina il comportamento precedente il tempo necessario per verificare che il test lo rilevi. Un test che non può fallire non dimostra nulla.
 
 ## 7. Profondità emotiva
 

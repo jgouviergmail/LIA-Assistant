@@ -1255,8 +1255,8 @@ class RateLimitMiddleware:
 |-----------|-------|--------|
 | Clé | `http:global:{ip}` — `scope["client"]` résolu par uvicorn | Un cookie serait rotatable par le client qu'on cherche à borner |
 | Plafond | `RATE_LIMIT_GLOBAL_PER_MINUTE` (300) | Calibré sur la mesure : pic réel de 67 req/min pour une session navigateur |
-| Exemptions | `/health`, `/ready`, `/metrics` | Brider les sondes ferait redémarrer le conteneur au pire moment |
-| Panne Redis | **fail-open**, compté (`http_rate_limit_degraded_total`) et alerté | Sur instance unique, échouer fermé transformerait une panne de cache en panne totale |
+| Exemptions | `/health`, `/ready`, `/metrics`, en **égalité stricte** | Brider les sondes ferait redémarrer le conteneur au pire moment. La comparaison a été un `startswith` : `/healthz` ou `/metrics-flood` échappaient alors au plafond, ce qui en faisait un contournement trivial |
+| Panne Redis | **fail-open**, compté (`http_rate_limit_degraded_total`) et alerté (`GlobalRateLimitDegraded`, noyau ADR-119) | Sur instance unique, échouer fermé transformerait une panne de cache en panne totale |
 | SSE | Facturé une fois, à l'admission | Un flux accepté n'est jamais interrompu ensuite |
 
 > **Historique.** Un `slowapi.Limiter` était construit avec `default_limits` et

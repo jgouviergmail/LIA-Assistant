@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import apiClient from '@/lib/api-client';
+import { getApiErrorDetail } from '@/lib/api-error';
 import { logger } from '@/lib/logger';
 import { CONNECTORS_WITH_PREFERENCES, PREFERENCE_FIELDS } from '../constants';
 import type { Connector, ConnectorPreferences } from '../types';
@@ -106,19 +107,12 @@ export function useConnectorPreferences({
           [connectorId]: previousPrefs,
         }));
 
-        const apiError = error as {
-          response?: { data?: { detail?: { errors?: string[] } | string } };
-        };
         logger.error('Failed to save connector preference', error as Error, {
           component: 'useConnectorPreferences',
           connectorId,
           connectorType,
         });
-        toast.error(
-          apiError.response?.data?.detail && typeof apiError.response.data.detail === 'object'
-            ? apiError.response.data.detail.errors?.join(', ')
-            : t('settings.connectors.preferences.error')
-        );
+        toast.error(getApiErrorDetail(error) ?? t('settings.connectors.preferences.error'));
       } finally {
         setSavingPreference(null);
       }

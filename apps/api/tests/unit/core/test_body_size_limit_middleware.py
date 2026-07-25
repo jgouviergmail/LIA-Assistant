@@ -159,6 +159,45 @@ class TestMalformedHeaders:
         assert response.status_code == 413
 
 
+class TestExemptionSemantics:
+    """How an exempted path is matched — pinned before the list is ever filled.
+
+    ``MAX_REQUEST_BODY_EXEMPT_PATHS`` is empty today, so no production behaviour
+    depends on this. That is precisely why the rule is pinned now: the matcher
+    used ``startswith``, which turns the first entry someone adds into an
+    exempted NAMESPACE rather than an exempted route. ``/upload`` would have
+    lifted the memory ceiling off ``/uploads-of-anything`` too, and nothing
+    would have said so.
+    """
+
+    @pytest.mark.asyncio
+    async def test_an_exempt_path_is_matched_exactly(self, monkeypatch: pytest.MonkeyPatch):
+        """The declared path is exempt; a path merely starting with it is not."""
+
+        async def app(scope, receive, send):
+            return None
+
+        middleware = BodySizeLimitMiddleware(app)
+        monkeypatch.setattr(middleware, "exempt_paths", ("/upload",))
+
+        assert middleware._is_exempt({"type": "http", "path": "/upload"}) is True
+        assert middleware._is_exempt({"type": "http", "path": "/uploads"}) is False
+        assert middleware._is_exempt({"type": "http", "path": "/upload/deep"}) is False
+        assert middleware._is_exempt({"type": "http", "path": "/upload-flood"}) is False
+
+    @pytest.mark.asyncio
+    async def test_nothing_is_exempt_by_default(self):
+        """The shipped list is empty — every route is under the ceiling."""
+
+        async def app(scope, receive, send):
+            return None
+
+        middleware = BodySizeLimitMiddleware(app)
+
+        assert middleware.exempt_paths == ()
+        assert middleware._is_exempt({"type": "http", "path": "/api/v1/attachments"}) is False
+
+
 class TestNonHttpScopes:
     """Only HTTP requests are wrapped."""
 

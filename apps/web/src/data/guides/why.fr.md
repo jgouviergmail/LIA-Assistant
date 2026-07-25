@@ -4,7 +4,7 @@
 
 **Version** : 3.9
 **Date** : 2026-07-25
-**Application** : LIA v1.25.21
+**Application** : LIA v1.25.22
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -268,6 +268,8 @@ La transparence n'est pas un gadget technique. Elle change la relation avec votr
 ---
 
 Cette transparence s'étend à la qualité du système lui-même. L'audit technique complet — notes, méthode, points forts et ce qui reste à améliorer — est publié dans le dépôt, avec le protocole pour le rejouer et les commandes pour vérifier les mesures : [rapport d'audit complet](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). On ne vous demande pas de croire les chiffres affichés sur ce site ; vous pouvez les vérifier.
+
+Le même principe vaut pour les protections elles-mêmes. Une sécurité annoncée mais invérifiable est traitée comme absente : chaque contrôle est adossé à un test qui échoue si le contrôle disparaît, et lorsqu'un correctif est écrit, l'ancien comportement est rétabli le temps de vérifier que le test le détecte. Un test qui ne peut pas échouer ne prouve rien.
 
 ## 7. Profondeur émotionnelle
 

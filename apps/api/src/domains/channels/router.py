@@ -19,7 +19,10 @@ from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.constants import (
+    DEFAULT_USER_DISPLAY_TIMEZONE,
+    TELEGRAM_UPDATE_DEDUP_REDIS_PREFIX,
+)
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_webhook_signature
 from src.core.session_dependencies import get_current_active_session
@@ -183,15 +186,26 @@ async def telegram_webhook(request: Request) -> dict:
     Security: Validated via X-Telegram-Bot-Api-Secret-Token header
     (not session cookie). Returns 200 immediately; actual processing
     happens in a background task to avoid Telegram retry timeouts.
+
+    SEC-024 — the secret is checked BEFORE the body is read. Telegram sends the
+    shared secret verbatim in that header; it is not an HMAC over the payload,
+    so ``validate_signature`` never looks at ``body``. Reading the body first
+    let any unauthenticated caller make the API buffer a request before a
+    single check ran — bounded by ``BodySizeLimitMiddleware`` since SEC-031, but
+    bounded is not the same as free.
     """
     from src.infrastructure.channels.telegram.webhook_handler import TelegramWebhookHandler
 
-    body = await request.body()
     signature = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
 
     handler = TelegramWebhookHandler()
-    if not await handler.validate_signature(body, signature):
+    # `b""` and not the body: passing the payload would be the only reason to
+    # have read it. The interface keeps the parameter for channels whose
+    # signature does cover the body — none is implemented today.
+    if not await handler.validate_signature(b"", signature):
         raise_invalid_webhook_signature("telegram")
+
+    body = await request.body()
 
     try:
         payload = json.loads(body)
@@ -199,11 +213,76 @@ async def telegram_webhook(request: Request) -> dict:
         logger.warning("telegram_webhook_invalid_json")
         return {"ok": False}
 
+    # `json.loads` happily returns a list, a string or None for a body that is
+    # valid JSON but not an object — and every read below assumes a mapping.
+    # Letting one through raises AttributeError inside the request, which
+    # answers 500, and a 500 is exactly what makes Telegram retry the same
+    # payload forever.
+    if not isinstance(payload, dict):
+        logger.warning(
+            "telegram_webhook_payload_not_an_object", payload_type=type(payload).__name__
+        )
+        return {"ok": False}
+
+    if not await _claim_telegram_update(payload.get("update_id")):
+        # Already handled. Answering ok stops Telegram from retrying further.
+        return {"ok": True}
+
     # Fire-and-forget: process in background, return 200 immediately
     # safe_fire_and_forget keeps a strong reference (GC safety) and logs exceptions
     safe_fire_and_forget(process_telegram_update(payload), name="telegram_webhook_update")
 
     return {"ok": True}
+
+
+async def _claim_telegram_update(update_id: object) -> bool:
+    """Claim an ``update_id`` once, so a redelivered update is not replayed.
+
+    Telegram redelivers an update until it is acknowledged, and an answer lost
+    on the wire counts as unacknowledged even though we replied 200. The same
+    update then arrives again and, with no claim, is processed as a fresh
+    message: the agent answers twice, and a ``/start <code>`` consumes the OTP a
+    second time. It also blunts a deliberate replay by anyone holding a captured
+    payload — the secret alone would otherwise make the request valid forever.
+
+    Fails OPEN when Redis is unavailable, consistent with every other Redis
+    dependency here: a cache outage must degrade duplicate protection, not drop
+    the channel entirely. The degraded window is logged, not silent.
+
+    Args:
+        update_id: The ``update_id`` field as it came off the payload — any
+            JSON type, since the value is attacker-supplied.
+
+    Returns:
+        True when this process may handle the update.
+    """
+    if not isinstance(update_id, int) or isinstance(update_id, bool):
+        # Telegram always sends an integer. Anything else is malformed or
+        # forged; handle it rather than drop it, but never build a key from it.
+        logger.warning(
+            "telegram_webhook_update_id_unusable", update_id_type=type(update_id).__name__
+        )
+        return True
+
+    try:
+        from src.infrastructure.cache.redis import get_redis_session
+
+        redis = await get_redis_session()
+        claimed = await redis.set(
+            f"{TELEGRAM_UPDATE_DEDUP_REDIS_PREFIX}{update_id}",
+            "1",
+            nx=True,
+            ex=settings.telegram_update_dedup_ttl_seconds,
+        )
+    except Exception as exc:
+        logger.warning("telegram_webhook_dedup_unavailable", error=str(exc))
+        return True
+
+    if not claimed:
+        logger.info("telegram_webhook_duplicate_update", update_id=update_id)
+        return False
+
+    return True
 
 
 async def process_telegram_update(payload: dict) -> None:

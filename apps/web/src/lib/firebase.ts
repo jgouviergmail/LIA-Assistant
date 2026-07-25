@@ -196,6 +196,44 @@ export async function requestNotificationPermission(): Promise<string | null> {
 }
 
 /**
+ * Return this device's existing FCM token, WITHOUT ever prompting.
+ *
+ * SEC-039 — logging out has to revoke this device's push registration, and the
+ * revocation is keyed on the token value. `requestNotificationPermission()`
+ * cannot serve that purpose: it calls `Notification.requestPermission()`, which
+ * would pop a permission dialog at the exact moment someone is signing out.
+ *
+ * Returns null, never throws, whenever the answer would be "nothing to revoke":
+ * unsupported browser, unconfigured Firebase, permission not granted, or no
+ * service-worker registration. A logout must complete regardless — failing to
+ * revoke is a degradation, refusing to sign out is an outage.
+ *
+ * @returns The current FCM token, or null when there is none to revoke.
+ */
+export async function getExistingFcmToken(): Promise<string | null> {
+  try {
+    if (!areNotificationsSupported() || !isFirebaseConfigured()) return null;
+    if (Notification.permission !== 'granted') return null;
+
+    const messagingInstance = getFirebaseMessaging();
+    if (!messagingInstance) return null;
+
+    // Reuse the existing registration rather than registering one: at logout we
+    // are tearing down, not setting up.
+    const registration = await navigator.serviceWorker.getRegistration('/');
+    if (!registration) return null;
+
+    return await getToken(messagingInstance, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: registration,
+    });
+  } catch {
+    // Best effort by design — see the docstring.
+    return null;
+  }
+}
+
+/**
  * Get current notification permission status.
  */
 export function getNotificationPermission(): NotificationPermission | 'unsupported' {

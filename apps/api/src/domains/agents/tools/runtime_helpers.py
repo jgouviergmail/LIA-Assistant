@@ -1015,22 +1015,27 @@ def extract_coordinates(
     if location is None:
         return None, None
 
+    # The spellings are chained on `is not None`, never on truthiness: latitude 0
+    # (the equator) and longitude 0 (the prime meridian — Greenwich, Accra,
+    # Tamanrasset) are ordinary coordinates. With `or`, such a value fell through
+    # to the next spelling and ended up None, and the caller silently degraded to
+    # the textual address.
     # Handle dict
     if isinstance(location, dict):
-        lat = location.get("lat") or location.get("latitude")
-        lon = location.get("lon") or location.get("lng") or location.get("longitude")
+        lat = next((location[k] for k in ("lat", "latitude") if location.get(k) is not None), None)
+        lon_keys = ("lon", "lng", "longitude")
+        lon = next((location[k] for k in lon_keys if location.get(k) is not None), None)
         return lat, lon
 
     # Handle object with attributes
     if hasattr(location, "lat"):
-        lat = getattr(location, "lat", None)
-        lon = getattr(location, "lon", None) or getattr(location, "lng", None)
-        return lat, lon
+        lon = getattr(location, "lon", None)
+        if lon is None:
+            lon = getattr(location, "lng", None)
+        return getattr(location, "lat", None), lon
 
     if hasattr(location, "latitude"):
-        lat = getattr(location, "latitude", None)
-        lon = getattr(location, "longitude", None)
-        return lat, lon
+        return getattr(location, "latitude", None), getattr(location, "longitude", None)
 
     return None, None
 

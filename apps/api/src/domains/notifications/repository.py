@@ -128,17 +128,29 @@ class FCMTokenRepository(BaseRepository[UserFCMToken]):
         await self.db.flush()
         return fcm_token
 
-    async def unregister_token(self, token: str) -> bool:
+    async def unregister_token(self, token: str, user_id: UUID) -> bool:
         """
-        Unregister (delete) an FCM token.
+        Unregister (delete) an FCM token owned by this user.
+
+        The ``user_id`` filter is the authorization check, not an optimisation.
+        Deleting on the token value alone let any authenticated caller revoke
+        somebody else's device registration by presenting its token — a silent
+        denial of service on that person's notifications, with no trace beyond a
+        successful-looking response. ``delete_token_by_id`` below always scoped
+        its delete this way; this method did not, and both are reachable from
+        the same router.
 
         Args:
             token: FCM token string
+            user_id: User UUID (must own the token)
 
         Returns:
-            True if token was deleted, False if not found
+            True if token was deleted, False if not found or not owned
         """
-        stmt = delete(UserFCMToken).where(UserFCMToken.token == token)
+        stmt = delete(UserFCMToken).where(
+            UserFCMToken.token == token,
+            UserFCMToken.user_id == user_id,
+        )
         result = await self.db.execute(stmt)
         return result.rowcount > 0  # type: ignore[attr-defined, no-any-return]
 

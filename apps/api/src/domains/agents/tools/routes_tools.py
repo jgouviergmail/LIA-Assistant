@@ -294,8 +294,9 @@ def _estimate_distance_km(
     origin_lat, origin_lon = extract_coordinates(origin)
     dest_lat, dest_lon = extract_coordinates(destination)
 
-    # Both coordinates needed
-    if not (origin_lat and origin_lon and dest_lat and dest_lon):
+    # Both coordinates needed. Tested against None, never for truthiness: a point
+    # on the equator or the prime meridian has a legitimate 0 coordinate.
+    if None in (origin_lat, origin_lon, dest_lat, dest_lon):
         return None
 
     # Use Haversine for quick estimation
@@ -507,8 +508,9 @@ async def _resolve_destination(
     elif isinstance(origin_location, dict):
         user_lat, user_lon = extract_coordinates(origin_location)
 
-    # Fallback: try browser/home location
-    if not (user_lat and user_lon):
+    # Fallback: try browser/home location. `is None` rather than truthiness —
+    # a user standing on the equator or the prime meridian has a real 0.
+    if user_lat is None or user_lon is None:
         browser_loc = await get_browser_geolocation(runtime)
         if browser_loc:
             user_lat, user_lon = browser_loc.lat, browser_loc.lon
@@ -517,7 +519,7 @@ async def _resolve_destination(
             if home_loc:
                 user_lat, user_lon = home_loc.lat, home_loc.lon
 
-    if not (user_lat and user_lon):
+    if user_lat is None or user_lon is None:
         logger.debug("destination_no_user_location", destination=destination)
         return destination
 

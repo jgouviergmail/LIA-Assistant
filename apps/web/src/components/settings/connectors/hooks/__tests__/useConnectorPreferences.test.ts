@@ -14,16 +14,35 @@ import { makeConnector } from '@/__tests__/factories';
 import type { ConnectorPreferences } from '@/components/settings/connectors/types';
 
 const { get, patch } = vi.hoisted(() => ({ get: vi.fn(), patch: vi.fn() }));
-vi.mock('@/lib/api-client', () => ({ default: { get, patch } }));
+// The default export is stubbed, but `ApiError` stays the REAL class: the
+// rejection shape is the contract under test here, and a hand-rolled stand-in
+// would let the production read drift away from what the client actually throws.
+vi.mock('@/lib/api-client', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  default: { get, patch },
+}));
 const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
 vi.mock('@/lib/logger', () => ({
   logger: { debug: vi.fn(), error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }));
 
+import { ApiError } from '@/lib/api-client';
+
 import { useConnectorPreferences } from '../useConnectorPreferences';
 
 const t = (key: string) => key;
+
+/**
+ * The 422 the connectors router actually puts on the wire for a refused
+ * preference: `ConnectorValidationError` serialises
+ * `{"detail": {"errors": [{"field": ..., "message": ...}]}}`, and `apiClient`
+ * wraps it in `ApiError(message, status, body)`.
+ */
+function connectorValidationError(...messages: string[]): ApiError {
+  const detail = { errors: messages.map(message => ({ field: 'preferences', message })) };
+  return new ApiError(String(detail), 422, { detail });
+}
 
 /** A calendar connector — one of the types that carries preferences. */
 const calendar = makeConnector({ id: 'c1', connector_type: 'google_calendar', status: 'active' });
@@ -145,14 +164,34 @@ describe('useConnectorPreferences — rollback', () => {
   });
 
   it('surfaces the validation errors the server returned', async () => {
-    patch.mockRejectedValue({
-      response: { data: { detail: { errors: ['unknown calendar', 'try again'] } } },
-    });
+    patch.mockRejectedValue(connectorValidationError('unknown calendar', 'try again'));
     const { result } = setup();
     await act(async () => {
       await result.current.selectPreference('c1', 'google_calendar', 'Ghost');
     });
     expect(toast.error).toHaveBeenCalledWith('unknown calendar, try again');
+  });
+
+  it('falls back to the generic wording when the 422 carries no field error', async () => {
+    patch.mockRejectedValue(new ApiError('HTTP 422', 422, { detail: { errors: [] } }));
+    const { result } = setup();
+    await act(async () => {
+      await result.current.selectPreference('c1', 'google_calendar', 'Ghost');
+    });
+    expect(toast.error).toHaveBeenCalledWith('settings.connectors.preferences.error');
+  });
+
+  it('surfaces a plain string detail as-is', async () => {
+    patch.mockRejectedValue(
+      new ApiError('Calendar is read-only', 409, {
+        detail: 'Calendar is read-only',
+      })
+    );
+    const { result } = setup();
+    await act(async () => {
+      await result.current.selectPreference('c1', 'google_calendar', 'Ghost');
+    });
+    expect(toast.error).toHaveBeenCalledWith('Calendar is read-only');
   });
 
   it('falls back to the generic wording for an unstructured failure', async () => {

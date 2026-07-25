@@ -2,7 +2,7 @@
 
 ## Overview
 
-Alert thresholds are **externalized per environment** and rendered into Prometheus rule files with Jinja2. Since ADR-119 (2026-07), only the **13-alert core** (`alerts-core.yml`) is loaded by Prometheus; the legacy rule files are kept as recalibration material but are **not** wired into `rule_files`.
+Alert thresholds are **externalized per environment** and rendered into Prometheus rule files with Jinja2. Since ADR-119 (2026-07), only the **14-alert core** (`alerts-core.yml`) is loaded by Prometheus; the legacy rule files are kept as recalibration material but are **not** wired into `rule_files`.
 
 ## Architecture
 
@@ -13,7 +13,7 @@ thresholds/
   └── development.env
         ↓
 *.yml.template files               ← Jinja2 templates (triple-chevron variables)
-  ├── alerts-core.yml.template     ← 13-alert core (ADR-119) — LOADED
+  ├── alerts-core.yml.template     ← 14-alert core (ADR-119) — LOADED
   ├── alerts.yml.template          ← legacy 60 alerts — NOT loaded
   └── alert_rules.yml.template     ← legacy 11 alerts — NOT loaded
         ↓
@@ -80,6 +80,6 @@ being re-added to `rule_files`.** The rendered legacy files (`alerts.yml`,
   (`generate_threshold_envs.py`, `convert_*`, `extract_*`, `templatize_*`, …)
   lived in this directory.
 - **2026-01-16**: alerting disabled entirely (never recorded in an ADR).
-- **2026-07-10 (ADR-119)**: alerting re-enabled with the 13-alert core; the
+- **2026-07-10 (ADR-119)**: alerting re-enabled with the 14-alert core; the
   one-shot scripts and `.original/.rendered/.production` archives were deleted
   (recoverable from git history); corrupted legacy thresholds documented.

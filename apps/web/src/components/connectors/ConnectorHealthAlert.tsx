@@ -31,6 +31,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
 
 interface ConnectorHealthAlertProps {
   lng: Language;
@@ -45,7 +46,7 @@ async function initiateOAuthReconnect(authorizeUrl: string): Promise<void> {
     // authorizeUrl is like "/connectors/gmail/authorize"
     // We call it to get the actual Google authorization URL
     const response = await apiClient.get<{ authorization_url: string }>(authorizeUrl);
-    window.location.href = response.authorization_url;
+    navigateToAuthorizationUrl(response.authorization_url, 'connector-reconnect');
   } catch (error) {
     // If API call fails, show error toast
     console.error('Failed to initiate OAuth reconnect:', error);

@@ -19,6 +19,7 @@ from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     API_PREFIX_DEFAULT,
+    HSTS_MAX_AGE_SECONDS_DEFAULT,
     HTTP_LOG_EXCLUDE_PATHS_DEFAULT,
     HTTP_LOG_LEVEL_DEFAULT,
     JWT_ALGORITHM_DEFAULT,
@@ -78,6 +79,18 @@ class SecuritySettings(BaseSettings):
     cors_origins: str | list[str] = Field(
         default="http://localhost:3000",
         description="CORS allowed origins (comma-separated or list)",
+    )
+
+    hsts_max_age: int = Field(
+        default=HSTS_MAX_AGE_SECONDS_DEFAULT,
+        ge=0,
+        description=(
+            "SEC-025. `Strict-Transport-Security` max-age in seconds, emitted in "
+            "production only. Raised in steps because a browser cannot be told to "
+            "forget the pin early. Same ladder as the web app's HSTS_MAX_AGE — "
+            "one variable so the two surfaces cannot drift apart. 0 disables the "
+            "header, which exists as an escape hatch, not as a target."
+        ),
     )
 
     rate_limit_global_per_minute: int = Field(

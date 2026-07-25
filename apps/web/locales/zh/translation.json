@@ -3231,7 +3231,7 @@
         },
         "security": {
           "title": "🔐 多层安全",
-          "description": "从登录到数据的纵深防御。<b>强身份验证</b>（ADR-143）：WebAuthn 通行密钥（Face ID、指纹 — 抗钓鱼）、带一次性备用码的 TOTP 第二因素，以及敏感操作的 step-up 重新验证。<b>我的设备</b>（ADR-144）：每个在线会话均可查看并撤销，元数据刻意限定（浏览器/系统类别、截断的 IP），并在从无法识别的设备登录时发出提醒。底层：Google 服务的 OAuth 2.0 + PKCE、令牌刷新的分布式锁、日志与追踪中的 PII 过滤、按用户/端点的速率限制、用户间完全隔离、敏感数据的 Fernet 加密。<b>隔离执行</b>：技能运行在一次性容器中，无套接字、无网络、只读；任何服务器任务都先确认再执行。<b>完整 GDPR 导出</b>（ADR-145）：Markdown + JSON + 文件归档，机密材料在设计上无法导出。每日自动备份、三级轮换、单命令测试恢复（ADR-109）。"
+          "description": "从登录到数据的纵深防御。<b>强身份验证</b>（ADR-143）：WebAuthn 通行密钥（Face ID、指纹，抗钓鱼）、TOTP 双因素与一次性备用码，敏感操作需二次验证。<b>我的设备</b>（ADR-144）：每个活动会话均可查看并撤销，元数据刻意受限（浏览器/系统族、截断的 IP），陌生设备登录会触发提醒。<b>干净的退出</b>：退出登录会撤销该设备的通知令牌，并清除已保存的位置与地理位置授权——在共用设备上，没有任何东西会跟随下一个账户。底层还包括：带 PKCE 的 OAuth 2.0、令牌刷新的分布式锁、日志与链路的 PII 过滤、按精确路径生效的全局请求上限、用户间隔离、Fernet 加密。<b>隔离执行</b>：技能在一次性容器中运行——无套接字、无网络——且提供界面的容器不持有任何密钥。<b>完整的 GDPR 导出</b>（ADR-145）：Markdown + JSON + 文件，密钥材料在设计上不可导出。每日三级备份，恢复流程经过验证（ADR-109）。"
         },
         "resilience": {
           "title": "🛡️ 性能与 Token 优化",
@@ -3259,7 +3259,7 @@
         },
         "observability": {
           "title": "📊 生产级可观测性",
-          "description": "完整堆栈：Prometheus 指标（token、延迟、错误、成本）、25 个 Grafana 仪表板、Tempo 分布式追踪、Loki 集中日志，以及 Langfuse 集成用于 LLM 性能分析。邮件告警已启用：13 项关键告警核心，按环境设置阈值，每条告警附带处置指南（runbook）。专用的存活探针（/health）与就绪探针（/ready），区分「进程在运行」与「PostgreSQL 和 Redis 确实可用」。"
+          "description": "完整堆栈：Prometheus 指标（token、延迟、错误、成本）、25 个 Grafana 仪表板、Tempo 分布式追踪、Loki 集中日志，以及 Langfuse 集成用于 LLM 性能分析。邮件告警已启用：14 项关键告警核心，按环境设置阈值，每条告警附带处置指南（runbook）。专用的存活探针（/health）与就绪探针（/ready），区分「进程在运行」与「PostgreSQL 和 Redis 确实可用」。"
         },
         "tools": {
           "title": "🔧 80+类型化工具",
@@ -3380,6 +3380,19 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_25_22": {
+          "title": "v1.25.22 — 🔒 退出登录后不再留下痕迹",
+          "date": "2026 年 7 月",
+          "count": "6",
+          "items": {
+            "i1": "<b>🔔 退出登录会真正停止该设备上的通知</b> — 推送通知的注册信息在退出登录后依然有效。在共用的电脑或手机上，下一位使用者无需登录您的账户，就能在锁屏上看到您的通知。现在退出登录会先撤销该设备，然后再关闭会话。",
+            "i2": "<b>📍 您的位置不再跟随下一个账户</b> — 退出登录后，最近一次的位置和地理位置授权仍保留在浏览器中。在共用的浏览器配置中，下一个账户会继承您的位置用于天气和地点查询，更重要的是继承了您的授权：浏览器会继续采集一个从未同意过的人的位置。现在两者都会被清除。",
+            "i3": "<b>🔒 其他人无法关闭您的通知</b> — 撤销设备时没有校验设备归属，因此任何其他已登录账户都能悄悄停用不属于自己的设备通知。现在会校验归属。",
+            "i4": "<b>💬 Telegram 不再对同一条消息回复两次</b> — 当 Telegram 因未收到确认而重新投递消息时，LIA 会再处理一次：助手重复回复，绑定验证码被消耗两次。现在每条消息只会被处理一次。",
+            "i5": "<b>🖼️ 对话中的图片不再泄露对话本身</b> — 显示托管在第三方的图片（邮件中的照片、抓取的网页）时，浏览器会把您 LIA 页面的地址告知该图片的服务器，其中包含对话标识。现在不会了。",
+            "i6": "<b>🛡️ 管理侧：两项形同虚设的防护</b> — 当 API 在没有请求上限的情况下运行时，现在会真正触发告警（此前告警存在，但位于监控从未读取的文件中）；若服务器的密钥未被正确加固，部署会中止，而不是在未做任何检查的情况下报告成功。"
+          }
+        },
         "v1_25_21": {
           "title": "v1.25.21 — 📚 升级期间文档搜索保持可用",
           "date": "2026年7月",
@@ -5551,7 +5564,7 @@
       "privacy": {
         "title": "安全和隐私",
         "description": "保护您的数据",
-        "count": "11",
+        "count": "12",
         "questions": {
           "q1": {
             "question": "我的对话是私密的吗？",
@@ -5596,6 +5609,10 @@
           "q11": {
             "question": "如何导出我的全部数据（GDPR）？",
             "answer": "您可以随时下载<strong>完整的数据归档</strong>（GDPR 数据可携权）。<br><br><strong>📦 归档包含：</strong><br>• 您的个人资料和设置<br>• 对话、记忆、日志 — 同时提供可读的 <strong>Markdown</strong> 和结构化的 <strong>JSON</strong><br>• 您上传的文件（附件、知识空间文档）<br><br><strong>🚫 绝不包含：</strong>连接器凭据、安全密钥、推送令牌 — 机密材料在设计上就无法导出。<br><br><strong>⚙️ 操作方法：</strong><strong>设置 > 安全 > 导出我的数据</strong> → 申请导出 → ZIP 就绪时会收到推送通知（24 小时内可下载）。"
+          },
+          "q12": {
+            "question": "退出登录后，设备上还会留下什么？",
+            "answer": "不会留下与您有关的内容。退出登录不只是结束会话，还会清理浏览器和设备为您保存的数据。<br><br><strong>🔔 通知：</strong><br>• 该设备的推送注册会在会话关闭前<strong>被撤销</strong><br>• 在共用的电脑或手机上，下一位使用者不会看到您的任何通知<br><br><strong>📍 位置：</strong><br>• 最近一次的位置会被清除<br>• 地理位置授权同样会被清除——下一个账户需要自行授权，不会继承您的许可<br><br><strong>💬 内容：</strong><br>• 正在编辑的消息草稿会被删除<br>• 浏览器端从未存储过访问令牌（BFF 架构），因此没有需要清除的令牌<br><br>如果另一个账户在同一标签页中未先退出便直接登录——例如会话过期之后——也会触发同样的清理。"
           }
         }
       },
@@ -6794,7 +6811,7 @@
       },
       "bff": {
         "title": "安全架构",
-        "description": "BFF 模式：HTTP-only Cookie、Redis 会话、令牌绝不暴露给前端。WebAuthn 通行密钥和 TOTP 双因素；敏感操作由 step-up 重新验证保护。严格的 Content-Security-Policy 和 OWASP Top 10 防护。 第三方代码隔离运行——一次性容器、无套接字、无网络——任何管理任务在发出前都需确认。"
+        "description": "BFF 模式，采用 HTTP-only Cookie 与 Redis 会话，令牌绝不暴露给前端。WebAuthn 通行密钥与 TOTP 双因素；敏感操作由二次验证把关。严格的 Content-Security-Policy 与 OWASP Top 10 防护。这种隔离一直延伸到部署层面：提供界面的容器不会收到平台的任何密钥，并且只能通过隧道访问，绝不暴露于局域网。第三方代码隔离运行——一次性容器、无套接字、无网络——每一项管理任务都会在执行前确认。"
       },
       "encryption": {
         "title": "加密",
@@ -7445,7 +7462,7 @@
       "security-architecture": {
         "title": "纵深防御：LIA的5项安全原则",
         "excerpt": "纵深防御、最小权限、速率限制、加密和验证保护您的数据。",
-        "body": "<h2>5项基本原则</h2><p>LIA的安全性基于五项应用于应用每一层的原则：</p><ul><li><strong>纵深防御</strong> — 多层控制（认证、速率限制、验证、加密）</li><li><strong>最小权限</strong> — 默认最小权限</li><li><strong>安全失败</strong> — 出错时拒绝而非允许</li><li><strong>不信任输入</strong> — Pydantic验证 + 系统化清洗</li><li><strong>默认安全</strong> — HTTPS、HttpOnly/SameSite cookies、严格CORS</li></ul><h2>哈希与加密</h2><p>密码使用<strong>bcrypt</strong>（带自动盐值）进行哈希。敏感数据（OAuth令牌、连接器凭据、PII、MCP服务器凭据）使用<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）加密，确保机密性和完整性。加密密钥与数据分开管理。</p><h2>JWT与会话管理</h2><p>JWT令牌使用HS256算法，配合Redis中的JTI（JWT ID）黑名单系统。一次性令牌（邮件验证、密码重置）在首次使用后即失效。此机制防止任何敏感令牌的重复使用。</p><h2>强身份验证与设备控制</h2><p>登录不止于密码。<strong>WebAuthn 通行密钥</strong>让您通过 Face ID、指纹或设备密码进行身份验证 — 设计上抗钓鱼，配有一次性服务器质询和基于签名计数器的克隆检测。<strong>TOTP 第二因素</strong>为密码登录添加 6 位数验证步骤，辅以十个以哈希存储的一次性备用码。敏感操作 — 管理凭据、导出数据、注销其他设备 — 都经过 <strong>step-up 重新验证</strong>：一个 5 分钟的确认窗口，采用类型化的 API 契约，绝不静默重定向。<strong>我的设备</strong>列出每个在线会话及刻意限定的元数据（浏览器和系统类别、截断的 IP），可即时注销任意会话 — 被注销的会话几秒内即失去实时流 — 并在账户从无法识别的设备登录时推送提醒。</p><h2>可配置速率限制</h2><p>速率限制在两个层面运作：</p><ul><li><strong>HTTP</strong> — 通过上游nginx</li><li><strong>工具</strong> — 按用户、按工具的滑动窗口，阈值由配置驱动，覆盖每一个付费外部 API（图像生成、网页搜索、浏览器、DevOps CLI）</li><li><strong>外部连接器</strong> — 跨实例共享的分布式 Redis 滑动窗口（Google、Apple、API 密钥提供商）</li></ul><p>API限制严格：每次请求最多10个项目，每个领域有默认值（默认10，最大50）。</p><h2>渲染与网络加固</h2><p>聊天会渲染 LLM 的输出——它可能转发第三方 HTML（邮件正文、抓取的页面、工具结果）——并通过严格的净化边界（<code>rehype-sanitize</code> 配合经审计的 schema）：<code>&lt;script&gt;</code>、<code>&lt;iframe&gt;</code>、<code>&lt;form&gt;</code> 及事件处理器会被移除，而合法的卡片、按钮和公式得以保留。交互式 MCP/Skill 应用从不经过 markdown——它们只在沙箱化的 iframe 小组件中挂载。在网络层面，生产环境 API 位于 Cloudflare 之后作为唯一入口，容器端口绑定 loopback，uvicorn 仅信任反向代理的请求头：因此 <code>request.client.host</code> 承载真实的访客 IP，「按 IP」的速率限制按访客生效，而非作用于单一共享的内部地址。</p><h2>提示注入防护</h2><p>外部内容（邮件、网页、文档）在注入提示之前封装在可配置的<code>UNTRUSTED</code>标签中。这种显式封装通过清楚地分隔用户数据和系统指令，防止恶意内容劫持助手的行为。</p><h2>资源所有权验证</h2><p>每次资源访问都通过<code>check_resource_ownership()</code>进行检查，带有<code>hide_existence</code>参数：公共资源返回403（拒绝访问），私有资源返回404（资源不存在），以避免向攻击者透露其存在。</p><h2>每用户使用配额</h2><p>LIA 允许管理员设置<strong>每用户配额</strong>，包括令牌、消息和成本。执行使用<strong>5层纵深防御</strong>架构。基础设施故障时系统<strong>fail-open</strong>。管理员可即时封禁/解封任何用户。</p><h2>软件供应链</h2><p>每个版本都基于锁定的依赖图构建：通用 lockfile 锁定实际安装的约 200 个包，每个包在构建时通过 SHA256 指纹校验——同一版本始终产出相同且经完整性校验的镜像。所有依赖（包括传递依赖）都会持续比对已知漏洞数据库进行审计，随每个版本发布的软件物料清单（SBOM）准确列出生产环境中运行的内容。</p>"
+        "body": "<h2>5项基本原则</h2><p>LIA的安全性基于五项应用于应用每一层的原则：</p><ul><li><strong>纵深防御</strong> — 多层控制（认证、速率限制、验证、加密）</li><li><strong>最小权限</strong> — 默认最小权限</li><li><strong>安全失败</strong> — 出错时拒绝而非允许</li><li><strong>不信任输入</strong> — Pydantic验证 + 系统化清洗</li><li><strong>默认安全</strong> — HTTPS、HttpOnly/SameSite cookies、严格CORS</li></ul><h2>哈希与加密</h2><p>密码使用<strong>bcrypt</strong>（带自动盐值）进行哈希。敏感数据（OAuth令牌、连接器凭据、PII、MCP服务器凭据）使用<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）加密，确保机密性和完整性。加密密钥与数据分开管理。</p><h2>JWT与会话管理</h2><p>JWT令牌使用HS256算法，配合Redis中的JTI（JWT ID）黑名单系统。一次性令牌（邮件验证、密码重置）在首次使用后即失效。此机制防止任何敏感令牌的重复使用。</p><h2>强身份验证与设备控制</h2><p>登录不止于密码。<strong>WebAuthn 通行密钥</strong>让您通过 Face ID、指纹或设备密码进行身份验证 — 设计上抗钓鱼，配有一次性服务器质询和基于签名计数器的克隆检测。<strong>TOTP 第二因素</strong>为密码登录添加 6 位数验证步骤，辅以十个以哈希存储的一次性备用码。敏感操作 — 管理凭据、导出数据、注销其他设备 — 都经过 <strong>step-up 重新验证</strong>：一个 5 分钟的确认窗口，采用类型化的 API 契约，绝不静默重定向。<strong>我的设备</strong>列出每个在线会话及刻意限定的元数据（浏览器和系统类别、截断的 IP），可即时注销任意会话 — 被注销的会话几秒内即失去实时流 — 并在账户从无法识别的设备登录时推送提醒。</p><h2>可配置速率限制</h2><p>速率限制在两个层面运作：</p><ul><li><strong>HTTP</strong> — 通过上游nginx</li><li><strong>工具</strong> — 按用户、按工具的滑动窗口，阈值由配置驱动，覆盖每一个付费外部 API（图像生成、网页搜索、浏览器、DevOps CLI）</li><li><strong>外部连接器</strong> — 跨实例共享的分布式 Redis 滑动窗口（Google、Apple、API 密钥提供商）</li></ul><p>API限制严格：每次请求最多10个项目，每个领域有默认值（默认10，最大50）。</p><h2>渲染与网络加固</h2><p>聊天会渲染 LLM 的输出——它可能转发第三方 HTML（邮件正文、抓取的页面、工具结果）——并通过严格的净化边界（<code>rehype-sanitize</code> 配合经审计的 schema）：<code>&lt;script&gt;</code>、<code>&lt;iframe&gt;</code>、<code>&lt;form&gt;</code> 及事件处理器会被移除，而合法的卡片、按钮和公式得以保留。交互式 MCP/Skill 应用从不经过 markdown——它们只在沙箱化的 iframe 小组件中挂载。在网络层面，生产环境 API 位于 Cloudflare 之后作为唯一入口，容器端口绑定 loopback，uvicorn 仅信任反向代理的请求头：因此 <code>request.client.host</code> 承载真实的访客 IP，「按 IP」的速率限制按访客生效，而非作用于单一共享的内部地址。</p><h2>提示注入防护</h2><p>外部内容（邮件、网页、文档）在注入提示之前封装在可配置的<code>UNTRUSTED</code>标签中。这种显式封装通过清楚地分隔用户数据和系统指令，防止恶意内容劫持助手的行为。</p><h2>资源所有权验证</h2><p>每次资源访问都通过<code>check_resource_ownership()</code>进行检查，带有<code>hide_existence</code>参数：公共资源返回403（拒绝访问），私有资源返回404（资源不存在），以避免向攻击者透露其存在。</p><h2>每用户使用配额</h2><p>LIA 允许管理员设置<strong>每用户配额</strong>，包括令牌、消息和成本。执行使用<strong>5层纵深防御</strong>架构。基础设施故障时系统<strong>fail-open</strong>。管理员可即时封禁/解封任何用户。</p><h2>软件供应链</h2><p>每个版本都基于锁定的依赖图构建：通用 lockfile 锁定实际安装的约 200 个包，每个包在构建时通过 SHA256 指纹校验——同一版本始终产出相同且经完整性校验的镜像。所有依赖（包括传递依赖）都会持续比对已知漏洞数据库进行审计，随每个版本发布的软件物料清单（SBOM）现已覆盖前后端两侧，准确列出生产环境中运行的内容。扫描器不再只是报告问题：它们会让构建失败。</p><h2>防护要经过验证，而不是宣称</h2><p>最隐蔽的风险不是缺少防护，而是宣称存在却毫无作用的防护。告警可能位于监控从未加载的文件中；加固步骤可能以一条无论成败都会打印的成功消息收尾；为健康探针设置的豁免，如果写成前缀匹配而非精确匹配，就会为任何会输入 <code>/health</code> 的人打开一扇门。这三种情况下，测试都是绿色的，文档都在断言，而防护并不存在。</p><p>答案只有一条规则：每一项防护都由一个可执行的守卫支撑，一旦防护消失，守卫就会失败。告警规则文件必须是其模板的精确渲染，每条告警都必须指向真实存在的处置指南并拥有自己的测试用例。没有书面理由，任何容器都不会获得全部密钥。每个对外发布的端口都绑定到本地回环。而在编写修复时，我们会先恢复旧行为，确认测试确实变红——无法失败的测试什么也证明不了。</p>"
       },
       "privacy-by-design": {
         "title": "隐私设计：GDPR、加密和数据控制",
@@ -7455,7 +7472,7 @@
       "observability": {
         "title": "419个Prometheus指标、25个Grafana仪表板和Langfuse追踪",
         "excerpt": "LIA提供企业级可观测性：419指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 419个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>25个Grafana仪表板</h2><p>LIA提供25个编号01至25的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 13 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p>"
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 419个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>25个Grafana仪表板</h2><p>LIA提供25个编号01至25的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：78个提示作为代码管理",

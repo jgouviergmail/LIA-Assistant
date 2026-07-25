@@ -130,7 +130,12 @@ class ServerApiClient {
         });
       }
 
+      // `fetchConfig` is spread FIRST on purpose: spread last, a caller-supplied
+      // `headers` would replace the object built here — session cookie included
+      // — turning an authenticated Server Action into an anonymous 401, and a
+      // caller-supplied `signal` would drop the timeout.
       const response = await fetch(url, {
+        ...fetchConfig,
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -141,7 +146,6 @@ class ServerApiClient {
           ...fetchConfig.headers,
         },
         signal: controller.signal,
-        ...fetchConfig,
       });
 
       clearTimeout(timeoutId);

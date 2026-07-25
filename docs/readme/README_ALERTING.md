@@ -12,7 +12,7 @@ Related docs:
 ## Architecture
 
 ```
-thresholds/{env}.env ──prepare_config.sh──► alerts-core.yml   (13 rules, committed)
+thresholds/{env}.env ──prepare_config.sh──► alerts-core.yml   (14 rules, committed)
                                                  │ rule_files
 Prometheus ◄── scrape: api, postgres, redis, node, cadvisor,
     │                  alertmanager, blackbox(-backup/-public)

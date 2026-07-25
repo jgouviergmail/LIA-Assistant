@@ -506,6 +506,23 @@ def sanitize_string(text: str) -> str:
     return text
 
 
+def _sanitize_event_text(text: str) -> str:
+    """Sanitize the structlog ``event`` field without mangling event names.
+
+    Deliberately NOT ``sanitize_string``: that one also applies
+    ``TOKEN_PATTERN``, which would rewrite legitimate snake_case event names
+    that happen to look like opaque tokens. Only the two patterns that cannot
+    match an event name are applied — a URL query string, and an email address.
+
+    Args:
+        text: Raw ``event`` value.
+
+    Returns:
+        The text with URL secrets redacted and addresses pseudonymized.
+    """
+    return EMAIL_PATTERN.sub(lambda m: pseudonymize_email(m.group(0)), sanitize_url_query(text))
+
+
 def sanitize_dict(data: dict[str, Any], *, redact_content: bool = False) -> dict[str, Any]:
     """
     Recursively sanitize a dictionary using field-based detection.
@@ -538,17 +555,24 @@ def sanitize_dict(data: dict[str, Any], *, redact_content: bool = False) -> dict
         # user data — so they MUST bypass sanitization to avoid false-positive
         # redactions on event names that resemble token patterns.
         #
-        # `event` gets ONE narrow exception (FN-4): it is the only meta field
+        # `event` gets TWO narrow exceptions (FN-4): it is the only meta field
         # that can carry free text rather than an identifier. A stdlib record
         # routed into structlog puts the whole log MESSAGE here — an access line
-        # such as `GET /auth/google/callback?code=..&state=..` — and the full
-        # sanitizer is not an option (it is exactly what this bypass exists to
-        # prevent). `sanitize_url_query` is safe to apply because it only
-        # rewrites `?param=value` on a `?`/`&` boundary, a shape a snake_case
-        # event name cannot have.
+        # such as `GET /auth/google/callback?code=..&state=..`, or an SMTP error
+        # naming the recipient — and the full sanitizer is not an option (it is
+        # exactly what this bypass exists to prevent: `TOKEN_PATTERN` would
+        # mangle legitimate event names).
+        #
+        # Both exceptions are safe for the same reason: they rewrite shapes a
+        # snake_case event name cannot contain. `sanitize_url_query` only
+        # rewrites `?param=value` on a `?`/`&` boundary; `EMAIL_PATTERN`
+        # requires an `@` followed by a dotted domain. An event name has
+        # neither, so no identifier can be corrupted — while an address that
+        # reaches a log survives shipping, retention and backups long after the
+        # account it belongs to is gone (SEC-012).
         if key_lower in STRUCTLOG_META_FIELDS:
             sanitized[key] = (
-                sanitize_url_query(value)
+                _sanitize_event_text(value)
                 if key_lower == "event" and isinstance(value, str)
                 else value
             )

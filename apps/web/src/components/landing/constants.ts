@@ -12,12 +12,12 @@
  *   — re-measured 2026-07-25 (top-level `X = ToolManifest(` definitions) = 81.
  * - providers: ProviderType Literal in infrastructure/llm/providers/adapter.py
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
- * - metrics: Prometheus metric definitions across src/ — measured 2026-07-25
- *   (v1.25.21): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 441
- *   (rag_reindex_space_flips_total — generational RAG continuity, ADR-150)
+ * - metrics: Prometheus metric definitions across src/ — re-measured 2026-07-25
+ *   (v1.25.22): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 441
+ *   (unchanged: the security wave added alerting and guards, not new metrics)
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Measured 2026-07-25 (v1.25.21): backend pytest 15,031 collected (817 files)
- *   + frontend vitest 2,567 (261 files) = 17,598. Re-measure both suites every
+ *   Measured 2026-07-25 (v1.25.22): backend pytest 15,331 collected (824 files)
+ *   + frontend vitest 2,729 (269 files) = 18,060. Re-measure both suites every
  *   release: the value carried the backend count alone until v1.25.9, while its
  *   comment already claimed both.
  * - adrs: docs/architecture/ ADR files (149 files, numbered up to ADR-150 —
@@ -25,7 +25,7 @@
  *   numbering agree).
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   169 headings, no Unreleased pending.
+ *   170 headings, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -41,9 +41,9 @@ export const LANDING_STATS = {
   voiceLanguages: 99,
   metrics: 441,
   uiLanguages: 6,
-  tests: 17500,
+  tests: 18000,
   adrs: 149,
-  releases: 169,
+  releases: 170,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

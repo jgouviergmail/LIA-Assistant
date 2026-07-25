@@ -5,6 +5,7 @@
 
 import { useCallback, useState } from 'react';
 import apiClient from '@/lib/api-client';
+import { getApiErrorDetail } from '@/lib/api-error';
 import { logger } from '@/lib/logger';
 
 interface AppleActivationResponse {
@@ -53,8 +54,7 @@ export function useAppleConnect({
         onSuccess?.();
         return response;
       } catch (error: unknown) {
-        const apiError = error as { response?: { data?: { detail?: string } } };
-        const errorDetail = apiError.response?.data?.detail || 'Failed to connect Apple services';
+        const errorDetail = getApiErrorDetail(error) ?? 'Failed to connect Apple services';
         logger.error('Apple connection failed', error as Error, {
           component: 'useAppleConnect',
           services,

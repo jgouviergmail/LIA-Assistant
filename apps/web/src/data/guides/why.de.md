@@ -4,7 +4,7 @@
 
 **Version** : 3.9
 **Datum** : 2026-07-25
-**Anwendung** : LIA v1.25.21
+**Anwendung** : LIA v1.25.22
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -268,6 +268,8 @@ Transparenz ist kein technisches Gadget. Sie verändert die Beziehung zu Ihrem A
 ---
 
 Diese Transparenz erstreckt sich auf die Qualität des Systems selbst. Das vollständige technische Audit — Bewertungen, Methode, Stärken und was noch zu verbessern bleibt — ist im Repository veröffentlicht, mit dem Protokoll, um es erneut durchzuführen, und den Befehlen, um die Messungen zu überprüfen: [vollständiger Audit-Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). Sie müssen den Zahlen auf dieser Seite nicht glauben; Sie können sie überprüfen.
+
+Dasselbe Prinzip gilt für die Schutzmaßnahmen selbst. Sicherheit, die angekündigt, aber nicht überprüfbar ist, wird als nicht vorhanden behandelt: Jede Maßnahme wird von einem Test gestützt, der fehlschlägt, sobald sie verschwindet, und wenn eine Korrektur geschrieben wird, stellt man das alte Verhalten so lange wieder her, bis feststeht, dass der Test es erkennt. Ein Test, der nicht scheitern kann, beweist nichts.
 
 ## 7. Emotionale Tiefe
 

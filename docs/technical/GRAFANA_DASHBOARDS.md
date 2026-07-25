@@ -189,7 +189,7 @@ Metriques bas niveau LangGraph : execution de graphe (duree totale, nombre de no
 
 ### 16 - Recording Rules & Alerts Health (27 panels)
 
-Dashboard meta/operationnel. Sante des 86 recording rules Prometheus (evaluation, erreurs, duree), validation de la configuration et securite de la stack d'observabilite, integrite du registre d'outils (`tool_module_import_failures_total` : toute valeur > 0 signifie qu'une famille entiere d'outils manque silencieusement du registre). (L'alerting Prometheus est reactive depuis ADR-119 — le noyau de 13 alertes actives se consulte dans Prometheus `/alerts` et Alertmanager, voir README_ALERTING.md.)
+Dashboard meta/operationnel. Sante des 86 recording rules Prometheus (evaluation, erreurs, duree), validation de la configuration et securite de la stack d'observabilite, integrite du registre d'outils (`tool_module_import_failures_total` : toute valeur > 0 signifie qu'une famille entiere d'outils manque silencieusement du registre). (L'alerting Prometheus est reactive depuis ADR-119 — le noyau de 14 alertes actives se consulte dans Prometheus `/alerts` et Alertmanager, voir README_ALERTING.md.)
 
 ### 17 - User Analytics & Geo (27 panels)
 

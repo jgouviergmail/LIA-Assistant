@@ -107,7 +107,7 @@ async def unregister_fcm_token(
     """
     service = FCMNotificationService(db)
 
-    success = await service.unregister_token(request.token)
+    success = await service.unregister_token(request.token, current_user.id)
 
     await db.commit()
 

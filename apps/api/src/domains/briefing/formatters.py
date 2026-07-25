@@ -385,7 +385,11 @@ def is_event_past(raw_event: dict[str, Any], now: datetime, user_tz: ZoneInfo) -
         on unknown end — they remain visible).
     """
     end_field = raw_event.get("end")
-    if not end_field:
+    # A provider that sends `end` as a bare string instead of the Google-shaped
+    # dict must not crash the whole agenda fetch: the contract above is "we
+    # don't drop events on unknown end", and an AttributeError here would take
+    # the entire briefing section down with it.
+    if not end_field or not isinstance(end_field, dict):
         return False
     # All-day: end is the day AFTER the last day (Google convention).
     date_str = end_field.get("date")
@@ -578,9 +582,11 @@ def _parse_from_header(raw: str) -> tuple[str | None, str | None]:
         'Sophie Martin'                        → ('Sophie Martin', None)
         ''                                     → (None, None)
     """
+    # Stripped BEFORE the emptiness test: a whitespace-only header is "no
+    # sender", not a sender whose display name is the empty string.
+    raw = raw.strip() if raw else ""
     if not raw:
         return None, None
-    raw = raw.strip()
     match = _FROM_HEADER_REGEX.match(raw)
     if match:
         name = match.group(1).strip().strip('"').strip()

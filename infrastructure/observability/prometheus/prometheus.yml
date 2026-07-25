@@ -14,7 +14,7 @@ storage:
     max_exemplars: 100000  # Max exemplars stored per series
 
 # Alerting re-enabled 2026-07-10 (ADR-119) after the 2026-01-16 shutdown.
-# Only the 13-alert core is loaded; the legacy alerts.yml (60 alerts) stays
+# Only the 14-alert core is loaded; the legacy alerts.yml (60 alerts) stays
 # disabled until its thresholds are recalibrated (rendered values were
 # corrupted — percentages above 100, see ADR-119).
 alerting:

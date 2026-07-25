@@ -190,10 +190,16 @@ export type CoepMode = 'require-corp' | 'credentialless';
 /**
  * Default COEP posture. See {@link CoepMode} for the measured trade-off.
  *
- * Env-tunable through `COEP_MODE` so the posture can be reverted in production
- * by restarting the container, without a rebuild (same pattern as
- * `HSTS_MAX_AGE`). Any unrecognized value falls back to this default rather
- * than emitting a header the browser would ignore.
+ * Env-tunable through `COEP_MODE`. NOT at runtime, despite what this comment
+ * claimed until 2026-07-25: Next.js evaluates `headers()` from next.config.ts
+ * at BUILD time and serialises the result into `.next/routes-manifest.json`
+ * (verified — the manifest carries the literal header value). The standalone
+ * server then replays the manifest, so changing the variable and restarting the
+ * container changes nothing. A new value needs a rebuild, which `task
+ * deploy:prod` performs on every deployment anyway.
+ *
+ * Any unrecognized value falls back to this default rather than emitting a
+ * header the browser would ignore.
  */
 export const DEFAULT_COEP_MODE: CoepMode = 'credentialless';
 
@@ -217,7 +223,19 @@ export function resolveCoepMode(raw: string | undefined): CoepMode {
  * SEC-025 rolls HSTS out gradually: a browser remembers the HTTPS pin for
  * `max-age` seconds, so a long value is hard to walk back. Start short, confirm
  * the whole public surface is durably HTTPS, then raise `HSTS_MAX_AGE` toward
- * two years (63072000) in production without a rebuild.
+ * two years (63072000). Current production step: 2592000 (one month).
+ *
+ * This is the FALLBACK, and it stays at one day on purpose: a deployment that
+ * forgot the variable should land on the conservative rung, not inherit the
+ * boldest one. The step itself lives in `.env.prod.example`.
+ *
+ * The value is baked at build time (see {@link DEFAULT_COEP_MODE} for why), so
+ * a new step reaches production through a rebuild — not a restart.
+ *
+ * The API emits this header too and reads the SAME variable
+ * (`SecuritySettings.hsts_max_age`). It used to hardcode
+ * `max-age=31536000; includeSubDomains; preload`, contradicting this very
+ * policy on a surface browsers honour identically.
  *
  * `includeSubDomains` and `preload` are intentionally NOT emitted: both are
  * near-irreversible (the preload list is slow to leave, and the pin covers

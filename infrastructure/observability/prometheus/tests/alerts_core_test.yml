@@ -1,4 +1,4 @@
-# Unit tests for the 13-alert core (ADR-119). Run in CI (F025, job
+# Unit tests for the 14-alert core (ADR-119). Run in CI (F025, job
 # "observability") and locally with the SAME promtool version the CI installs
 # (Prometheus v2.53.2) so results never diverge across environments:
 #   docker run --rm --entrypoint promtool \
@@ -210,6 +210,42 @@ tests:
               summary: "SSE time-to-first-token p95 degraded"
               description: "TTFT p95 is 117s over 10 minutes (threshold: 60s — set above the measured production baseline; tighten it after the latency optimization work lands)."
               runbook: "docs/runbooks/alerts/AgentsTTFTViolation.md"
+
+  # ===== GlobalRateLimitDegraded: the limiter cannot reach Redis (SEC-016) =====
+  # 60 unchecked admissions per minute = 1 req/s crossing the API with no rate
+  # limit applied. Fail-open is the deliberate policy; this alert is what keeps
+  # it honest.
+  - interval: 1m
+    input_series:
+      - series: 'http_rate_limit_degraded_total'
+        values: '0+60x15'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: GlobalRateLimitDegraded
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: api
+              tier: core
+            exp_annotations:
+              summary: "Global rate limit degraded — requests admitted unchecked"
+              description: "1 req/s are crossing the API with no rate limit applied because the limiter cannot reach Redis (threshold: 0.01 req/s over 5 minutes — fail-open is deliberate, but the API is running without a global ceiling until Redis recovers)."
+              runbook: "docs/runbooks/alerts/GlobalRateLimitDegraded.md"
+
+  # ===== …but a trickle stays silent — this is what buys the 0.01 threshold =====
+  # One unchecked request every 5 minutes: 0.0033 req/s, a third of the
+  # threshold, sustained indefinitely so the `for: 5m` clause is satisfied
+  # throughout. Under `> 0` this case FIRES — that is the whole point of
+  # asserting it. Occasional Redis timeouts admit the odd request unchecked;
+  # paging on them would train the operator to ignore the alert that matters.
+  - interval: 1m
+    input_series:
+      - series: 'http_rate_limit_degraded_total'
+        values: '0 0 0 0 0 1 1 1 1 1 2 2 2 2 2 3'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: GlobalRateLimitDegraded
+        exp_alerts: []
 
   # ===== BackupFailed: probe failing beyond the 15m grace =====
   - interval: 1m

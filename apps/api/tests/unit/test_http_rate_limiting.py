@@ -257,6 +257,53 @@ class TestExemptionsAndScope:
         assert "/ready" in RATE_LIMIT_GLOBAL_EXEMPT_PATHS
         assert "/metrics" in RATE_LIMIT_GLOBAL_EXEMPT_PATHS
 
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/healthz",
+            "/health-flood",
+            "/healthcheck",
+            "/readyz",
+            "/metrics-flood",
+            "/metricsxxx",
+            "/health/",
+            "/health/sub",
+        ],
+    )
+    def test_a_path_merely_prefixed_by_a_probe_is_still_limited(self, path, monkeypatch):
+        """The exemption is exact — prefixing a request with a probe name was a bypass.
+
+        ``startswith`` exempted this whole family. None of these routes exists,
+        so they answer 404 — but a 404 still costs a full middleware traversal
+        and a routing pass, served at whatever rate the client can produce. The
+        ceiling had a bypass reachable by anyone who could type ``/health``.
+
+        The oracle discriminates precisely: the limiter is primed to REFUSE, so
+        a limited path answers 429 while an exempted one falls through to the
+        router and answers 404. Before the fix every case below returned 404.
+        """
+        client = _make_client(allowed=False, monkeypatch=monkeypatch)
+
+        response = client.get(path)
+
+        assert response.status_code == 429, f"{path} bypassed the global limit"
+        client.limiter.acquire.assert_awaited()
+
+    @pytest.mark.parametrize("path", ["/ready", "/metrics"])
+    def test_the_other_exact_probes_stay_exempt(self, path, monkeypatch):
+        """Counterpart: tightening the rule must not start limiting the probes.
+
+        Neither route is declared on this test app, so an exempt path reaches
+        the router and answers 404 without the limiter ever being consulted —
+        which is the assertion that matters here.
+        """
+        client = _make_client(allowed=False, monkeypatch=monkeypatch)
+
+        response = client.get(path)
+
+        assert response.status_code == 404
+        client.limiter.acquire.assert_not_awaited()
+
     def test_disabled_setting_skips_the_check(self, monkeypatch):
         """RATE_LIMIT_ENABLED=false must bypass the limiter entirely."""
         client = _make_client(allowed=False, monkeypatch=monkeypatch)

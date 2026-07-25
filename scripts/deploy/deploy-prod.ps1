@@ -155,8 +155,11 @@ $script:step = 1
 # ============================================================================
 # Validation des parametres (securite)
 # ============================================================================
-if ([string]::IsNullOrWhiteSpace($SshHost)) {
-    Write-Err "SshHost ne peut pas etre vide"
+if ([string]::IsNullOrWhiteSpace($SshHost) -or $SshHost -match '[;|&`$\s]') {
+    # A metacharacter here reaches the same `cmd /c`/`sh -c` string as SshUser:
+    # $sshTarget is "$SshUser@$SshHost". The denylist is deliberately NOT an
+    # allowlist — an IPv6 literal contains ':' and must keep working.
+    Write-Err "SshHost invalide: '$SshHost'"
     exit 1
 }
 if ($SshPort -lt 1 -or $SshPort -gt 65535) {
@@ -165,6 +168,24 @@ if ($SshPort -lt 1 -or $SshPort -gt 65535) {
 }
 if ([string]::IsNullOrWhiteSpace($SshUser) -or $SshUser -match '[;|&`$\s]') {
     Write-Err "SshUser invalide: '$SshUser'"
+    exit 1
+}
+# SEC-038 — RemoteDir is interpolated into `sudo rm -rf ~/$RemoteDir/*` (step 6)
+# and into `cp -r ~/$RemoteDir` (step 5). It is therefore validated HERE, before
+# the first interpolation, and not next to the destructive command as it was:
+# the backup step ran unguarded, and the denylist it used ('[;|&`$]' plus an
+# all-whitespace check) accepted values that need no metacharacter to be
+# catastrophic. `..` yielded `sudo rm -rf ~/../*` — every home directory on the
+# host. `lia foo` yielded two targets, one of them relative to $HOME.
+#
+# The rule is an allowlist of ONE path segment starting with an alphanumeric:
+# that single anchor rejects `.`, `..`, `-rf` (a leading dash is read as an
+# option by rm/cp) and dotfiles, while `lia`, `lia-prod` and `lia_2` pass.
+# \A..\z rather than ^..$ — in .NET, `$` also matches BEFORE a trailing
+# newline, so "lia`n" would satisfy an ^..$ anchor and terminate the remote
+# command line early.
+if ($RemoteDir -notmatch '\A[A-Za-z0-9][A-Za-z0-9._-]*\z') {
+    Write-Err "RemoteDir invalide: '$RemoteDir' (attendu: un seul segment, ex. 'lia')"
     exit 1
 }
 
@@ -328,11 +349,10 @@ if (-not $DryRun) {
 # ============================================================================
 Write-Step "Suppression des anciens fichiers sur le serveur..."
 
-# Validation securite: RemoteDir ne doit pas etre vide ou contenir des caracteres dangereux
-if ([string]::IsNullOrWhiteSpace($RemoteDir) -or $RemoteDir -match '[;|&`$]' -or $RemoteDir -eq "/" -or $RemoteDir -eq "~") {
-    Write-Err "RemoteDir invalide ou dangereux: '$RemoteDir'"
-    exit 1
-}
+# SEC-038: RemoteDir is validated once, with the other parameters, before the
+# banner and before step 5 already interpolates it. A second copy of the rule
+# here would be a copy that drifts — the single validator is the contract, and
+# nothing reassigns $RemoteDir between binding and this line.
 
 # Utiliser sudo pour supprimer les fichiers crees par Docker (root ownership)
 # Puis restaurer l'ownership du dossier pour eviter les permission denied lors du scp/rsync
@@ -538,8 +558,19 @@ scp $SshOptionsStr -P $SshPort "$LocalCreds" ${SshUser}@${SshHost}:~/.claude/.cr
 # Target: .env = 0600 (owner rw only) inside a 0700 directory, plus the Claude
 # CLI credentials. The Docker daemon runs as root and still reads the bind
 # mounts; `docker compose` runs as the owner and traverses its own 0700 dir —
-# so 0600/0700 breaks nothing. Idempotent and non-fatal: a permission tweak
-# must never abort a deploy.
+# so 0600/0700 breaks nothing.
+#
+# SEC-013 — this step used to end in a bare `echo PERMS_HARDENED`, which runs
+# whether or not a single chmod succeeded. The driver then matched on that
+# string and reported success: the check could not fail, so it verified nothing.
+# It now READS BACK the resulting modes with `stat` and refuses to deploy when
+# the production .env is not 0600 inside a 0700 directory.
+#
+# Blocking, deliberately, and only on those two: that file holds every
+# application and integration secret, and continuing past a failed hardening
+# means knowingly starting the platform with its secrets world-readable. The
+# optional artifacts (Claude CLI credentials, Firebase key) are reported but
+# never fatal — they may legitimately be absent.
 #
 # The Firebase service-account key was missing from this list and was found at
 # 0775 in production on 2026-07-24 — a Google service-account private key
@@ -549,14 +580,25 @@ scp $SshOptionsStr -P $SshPort "$LocalCreds" ${SshUser}@${SshHost}:~/.claude/.cr
 Write-Step "Durcissement des permissions des secrets (SEC-013)..."
 
 if (-not $DryRun) {
-    $hardenCmd = "chmod 700 ~/$RemoteDir 2>/dev/null; [ -f ~/$RemoteDir/.env ] && chmod 600 ~/$RemoteDir/.env; [ -d ~/.claude ] && chmod 700 ~/.claude; [ -f ~/.claude/.credentials.json ] && chmod 600 ~/.claude/.credentials.json; [ -d ~/$RemoteDir/apps/api/config ] && chmod 700 ~/$RemoteDir/apps/api/config; find ~/$RemoteDir/apps/api/config -maxdepth 1 -type f -name '*.json' -exec chmod 600 {} + 2>/dev/null; echo PERMS_HARDENED"
+    # The trailing `stat` calls are the verification: they report the mode that
+    # actually landed, so an unreported chmod failure cannot pass as a success.
+    $hardenCmd = "chmod 700 ~/$RemoteDir 2>/dev/null; [ -f ~/$RemoteDir/.env ] && chmod 600 ~/$RemoteDir/.env; [ -d ~/.claude ] && chmod 700 ~/.claude; [ -f ~/.claude/.credentials.json ] && chmod 600 ~/.claude/.credentials.json; [ -d ~/$RemoteDir/apps/api/config ] && chmod 700 ~/$RemoteDir/apps/api/config; find ~/$RemoteDir/apps/api/config -maxdepth 1 -type f -name '*.json' -exec chmod 600 {} + 2>/dev/null; echo PERMS_ENV=`$(stat -c '%a' ~/$RemoteDir/.env 2>/dev/null || echo missing); echo PERMS_DIR=`$(stat -c '%a' ~/$RemoteDir 2>/dev/null || echo missing)"
     $hardenSsh = "ssh -p $SshPort $SshOptionsStr $sshTarget `"$hardenCmd`""
     $hardenResult = Invoke-WithRetry -Command $hardenSsh -OperationName "Harden secret permissions" -MaxAttempts 2
-    if ($hardenResult -match "PERMS_HARDENED") {
-        Write-Success "Permissions secrets durcies (.env 0600, dossier 0700)"
-    } else {
-        Write-Warning "Durcissement des permissions non confirme (deploiement poursuivi)"
+
+    $hardenText = ($hardenResult | Out-String)
+    $envMode = if ($hardenText -match 'PERMS_ENV=(\S+)') { $Matches[1] } else { "unknown" }
+    $dirMode = if ($hardenText -match 'PERMS_DIR=(\S+)') { $Matches[1] } else { "unknown" }
+
+    if ($envMode -ne "600" -or $dirMode -ne "700") {
+        Write-Err "Durcissement des permissions ECHOUE (SEC-013)"
+        Write-Err "  ~/$RemoteDir/.env attendu 600, obtenu: $envMode"
+        Write-Err "  ~/$RemoteDir    attendu 700, obtenu: $dirMode"
+        Write-Err "Le .env de production contient tous les secrets applicatifs."
+        Write-Err "Deploiement interrompu avant 'docker compose up'."
+        exit 1
     }
+    Write-Success "Permissions secrets durcies et verifiees (.env $envMode, dossier $dirMode)"
 } else {
     Write-Info "[DRY RUN] ssh chmod 700 ~/$RemoteDir ; chmod 600 ~/$RemoteDir/.env ; chmod 700 ~/.claude ; chmod 600 ~/.claude/.credentials.json ; chmod 700 apps/api/config ; chmod 600 apps/api/config/*.json"
 }

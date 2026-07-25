@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { GEOLOCATION_CACHE_KEY, GEOLOCATION_ENABLED_KEY } from '@/lib/constants';
 import { logger } from '@/lib/logger';
 
 /**
@@ -31,16 +32,6 @@ export interface GeolocationState {
   /** Whether geolocation is enabled by user preference */
   isEnabled: boolean;
 }
-
-/**
- * LocalStorage key for geolocation preference.
- */
-const GEOLOCATION_ENABLED_KEY = 'geolocation_enabled';
-
-/**
- * LocalStorage key for cached coordinates (used when permission granted).
- */
-const GEOLOCATION_CACHE_KEY = 'geolocation_cache';
 
 /**
  * Cache validity duration in milliseconds (5 minutes).

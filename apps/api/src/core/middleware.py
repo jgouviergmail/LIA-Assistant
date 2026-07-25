@@ -132,11 +132,25 @@ class RateLimitMiddleware:
         await self._reject(scope, send)
 
     def _is_subject_to_limit(self, scope: Scope) -> bool:
-        """Whether this request is in scope for the global limit."""
+        """Whether this request is in scope for the global limit.
+
+        The exemption is an EXACT match. A ``startswith`` test exempted every
+        path merely BEGINNING with a probe name — ``/healthz``, ``/health-x``,
+        ``/metrics-flood`` — so prefixing any request with ``/health`` was
+        enough to cross the API with no rate limit applied. Those paths answer
+        404, but a 404 still costs a full middleware traversal and routing pass,
+        and it is served at whatever rate the client can produce: the ceiling
+        this middleware exists to enforce had a trivial bypass.
+
+        Matching exactly costs nothing here — the three exempted probes expose
+        no sub-path (``/health`` and ``/ready`` in ``src/api/health.py``,
+        ``/metrics`` added in ``main.py``), and the probes that actually poll
+        them (Docker's healthcheck, Prometheus, the deploy readiness gate) all
+        request the exact form.
+        """
         if not rate_limiting_enabled(settings):
             return False
-        path = scope.get("path", "")
-        return not any(path.startswith(p) for p in self.exempt_paths)
+        return scope.get("path", "") not in self.exempt_paths
 
     @staticmethod
     def _client_key(scope: Scope) -> str:
@@ -258,9 +272,14 @@ class BodySizeLimitMiddleware:
         await self._run_bounded(scope, receive, send)
 
     def _is_exempt(self, scope: Scope) -> bool:
-        """Whether this path opted out of the ceiling."""
-        path = scope.get("path", "")
-        return any(path.startswith(p) for p in self.exempt_paths)
+        """Whether this path opted out of the ceiling.
+
+        Exact match, for the same reason as the global limiter above: a prefix
+        test turns one exempted route into an exempted namespace. The list is
+        empty today, so this changes no behaviour — it removes the trap that
+        the first entry added to it would otherwise spring.
+        """
+        return scope.get("path", "") in self.exempt_paths
 
     def _oversized_declared_length(self, scope: Scope) -> int | None:
         """Return the declared body length when it already exceeds the ceiling.
@@ -374,7 +393,8 @@ class SecurityHeadersMiddleware:
     - X-Frame-Options: DENY - Prevents clickjacking attacks
     - X-Content-Type-Options: nosniff - Prevents MIME type sniffing
     - X-XSS-Protection: 1; mode=block - Enables XSS filter in legacy browsers
-    - Strict-Transport-Security - Forces HTTPS for 1 year (production only)
+    - Strict-Transport-Security - Forces HTTPS for `HSTS_MAX_AGE` seconds
+      (production only, same staged value as the web app — SEC-025)
     - Content-Security-Policy - Restricts resource loading origins
     - Cross-Origin-Embedder-Policy: require-corp - Required for SharedArrayBuffer (WASM)
     - Cross-Origin-Opener-Policy: same-origin - Required for SharedArrayBuffer (WASM)
@@ -414,11 +434,25 @@ class SecurityHeadersMiddleware:
                 headers["X-Frame-Options"] = "DENY"
                 headers["X-Content-Type-Options"] = "nosniff"
                 headers["X-XSS-Protection"] = "1; mode=block"
-                # HSTS — force HTTPS for 1 year, include subdomains (production only)
-                if settings.is_production:
-                    headers["Strict-Transport-Security"] = (
-                        "max-age=31536000; includeSubDomains; preload"
-                    )
+                # HSTS, production only (SEC-025).
+                #
+                # This header used to be `max-age=31536000; includeSubDomains;
+                # preload` — hardcoded, and in direct contradiction with the
+                # policy the project had written down for the web app: both
+                # directives are deliberately NOT emitted there because they are
+                # near-irreversible, and `includeSubDomains` must not ship before
+                # an inventory proves every subdomain is durably HTTPS. The
+                # browser honours the header on API responses just as it does on
+                # documents, so the stricter, undecided posture was the one
+                # actually being served.
+                #
+                # Both surfaces now read the SAME ladder (`HSTS_MAX_AGE`), which
+                # is what makes the staged rollout meaningful: a step is a
+                # restart, and neither side can advance without the other.
+                # Removing the directives does not retract pins already stored by
+                # browsers — those expire on their own — it stops adding more.
+                if settings.is_production and settings.hsts_max_age > 0:
+                    headers["Strict-Transport-Security"] = f"max-age={settings.hsts_max_age}"
                 headers["Content-Security-Policy"] = self._csp
                 # COOP/COEP for WASM SharedArrayBuffer (Sherpa-onnx KWS multi-threading)
                 headers["Cross-Origin-Embedder-Policy"] = "require-corp"

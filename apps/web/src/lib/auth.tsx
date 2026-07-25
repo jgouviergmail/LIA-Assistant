@@ -8,6 +8,7 @@ import {
   purgeSensitiveClientStorageOnAccountChange,
 } from '@/lib/client-storage-purge';
 import apiClient from './api-client';
+import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
 
 export interface User {
   id: string;
@@ -283,6 +284,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * 5. Redirect to login page
    */
   const logout = useCallback(async (): Promise<void> => {
+    // SEC-039 — revoke this device's push registration BEFORE the session dies.
+    // Without it the token outlives the logout and Firebase keeps delivering
+    // this account's notifications to the device: on a shared computer the next
+    // person reads them on the lock screen, having never signed in as anyone.
+    //
+    // The ordering is the whole point. `/notifications/unregister-token`
+    // requires an authenticated session, so the same call placed after
+    // `/auth/logout` answers 401 and revokes nothing. Best effort: a failure
+    // here must not keep someone signed in.
+    try {
+      // Imported dynamically, NOT at module scope: `AuthProvider` is mounted by
+      // `app/[lng]/layout.tsx`, so a static import would pull the Firebase
+      // messaging SDK into the first-load bundle of every page — the public
+      // landing, the FAQ and the blog included, none of which ever touch
+      // notifications. Logging out is a deliberate action; a chunk fetched at
+      // that moment costs nothing anyone perceives.
+      const { getExistingFcmToken } = await import('@/lib/firebase');
+      const fcmToken = await getExistingFcmToken();
+      if (fcmToken) {
+        await apiClient.post('/notifications/unregister-token', { token: fcmToken });
+      }
+    } catch (error) {
+      console.error('Failed to revoke the push token on logout:', error);
+    }
+
     try {
       await apiClient.post('/auth/logout');
     } catch (error) {
@@ -318,7 +344,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { authorization_url } = response;
 
       // Redirect to Google OAuth
-      window.location.href = authorization_url;
+      navigateToAuthorizationUrl(authorization_url, 'google-login');
     } catch (error) {
       console.error('Failed to initiate Google OAuth:', error);
       throw error;

@@ -728,6 +728,7 @@ def _filter_registry_by_items(
     from src.domains.agents.utils.type_domain_mapping import (
         ITEMS_KEY_TO_REGISTRY_CONFIG,
         get_registry_config_for_items_key,
+        is_items_key_for_each_filterable,
     )
 
     if not pre_exec_registry or not filtered_items:
@@ -744,16 +745,32 @@ def _filter_registry_by_items(
         )
         return pre_exec_registry
 
+    # Composite-ID domains (routes/locations/weathers) cannot have their registry
+    # ID regenerated from one payload field. Attempting it empties the registry
+    # or raises — see FOR_EACH_UNFILTERABLE_ITEMS_KEYS. Keep the registry whole:
+    # the response may then mention one item too many, whereas an empty registry
+    # strips every card and an exception abandons the confirmed plan entirely.
+    if not is_items_key_for_each_filterable(field_path):
+        logger.warning(
+            "filter_registry_composite_id_domain",
+            run_id=run_id,
+            field_path=field_path,
+            registry_size=len(pre_exec_registry),
+        )
+        return pre_exec_registry
+
     registry_type_name, unique_key_field = config
 
     # Convert type name to RegistryItemType enum
     item_type = RegistryItemType(registry_type_name)
 
-    # Extract unique keys from filtered items and generate expected registry IDs
+    # Extract unique keys from filtered items and generate expected registry IDs.
+    # Only a string key can regenerate an ID; anything else is a mapping/payload
+    # mismatch, and crashing here would abandon a plan the user already approved.
     expected_ids: set[str] = set()
     for item in filtered_items:
         unique_key = item.get(unique_key_field)
-        if unique_key:
+        if isinstance(unique_key, str) and unique_key:
             registry_id = generate_registry_id(item_type, unique_key)
             expected_ids.add(registry_id)
 

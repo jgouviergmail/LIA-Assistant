@@ -116,15 +116,62 @@ class TestSecurityHeadersMiddleware:
     def test_hsts_only_in_production(self):
         with patch("src.core.middleware.settings") as mock_settings:
             mock_settings.is_production = False
+            mock_settings.hsts_max_age = 2_592_000
             client = TestClient(_make_app(SecurityHeadersMiddleware))
             response = client.get("/test")
         assert "Strict-Transport-Security" not in response.headers
 
         with patch("src.core.middleware.settings") as mock_settings:
             mock_settings.is_production = True
+            mock_settings.hsts_max_age = 2_592_000
             client = TestClient(_make_app(SecurityHeadersMiddleware))
             response = client.get("/test")
-        assert "max-age=31536000" in response.headers["Strict-Transport-Security"]
+        assert response.headers["Strict-Transport-Security"] == "max-age=2592000"
+
+    def test_hsts_max_age_comes_from_settings(self):
+        """The value is the configured step, not a number frozen in the code.
+
+        SEC-025 raises HSTS in stages because a pin cannot be recalled early.
+        A hardcoded max-age makes that ladder fiction — it was 31536000 here
+        while the web app was serving 86400 from `HSTS_MAX_AGE`.
+        """
+        with patch("src.core.middleware.settings") as mock_settings:
+            mock_settings.is_production = True
+            mock_settings.hsts_max_age = 604_800
+            client = TestClient(_make_app(SecurityHeadersMiddleware))
+            response = client.get("/test")
+
+        assert response.headers["Strict-Transport-Security"] == "max-age=604800"
+
+    def test_hsts_never_claims_subdomains_or_preload(self):
+        """Both directives are near-irreversible, and both were being emitted.
+
+        `includeSubDomains` pins every subdomain — including any that is not
+        durably HTTPS — and `preload` asks browsers to ship the pin with their
+        binary, which takes months to undo. The project had already decided
+        against both for the web app (`apps/web/src/lib/csp.ts`); the API was
+        sending them anyway, and a browser honours the header on an API
+        response exactly as on a document.
+        """
+        with patch("src.core.middleware.settings") as mock_settings:
+            mock_settings.is_production = True
+            mock_settings.hsts_max_age = 2_592_000
+            client = TestClient(_make_app(SecurityHeadersMiddleware))
+            response = client.get("/test")
+
+        header = response.headers["Strict-Transport-Security"]
+        assert "includeSubDomains" not in header
+        assert "preload" not in header
+
+    def test_hsts_can_be_switched_off(self):
+        """`HSTS_MAX_AGE=0` is the escape hatch if a step has to be walked back."""
+        with patch("src.core.middleware.settings") as mock_settings:
+            mock_settings.is_production = True
+            mock_settings.hsts_max_age = 0
+            client = TestClient(_make_app(SecurityHeadersMiddleware))
+            response = client.get("/test")
+
+        assert "Strict-Transport-Security" not in response.headers
 
 
 # =============================================================================

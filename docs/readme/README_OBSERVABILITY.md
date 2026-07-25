@@ -7,7 +7,7 @@
 **Architecture**: Prometheus + Grafana + Loki + Tempo + AlertManager
 **Total Metrics**: 419 definitions (637 exported series) across 23 metric modules
 **Dashboards**: 25 comprehensive dashboards (595 panels)
-**Alert Rules**: 13-alert active core (ADR-119; legacy set pending recalibration)
+**Alert Rules**: 14-alert active core (ADR-119; legacy set pending recalibration)
 **Recording Rules**: 86 optimized rules
 **Runbooks**: 22 incident response runbooks
 
@@ -51,7 +51,7 @@ Observability is the ability to measure the internal states of a system by exami
 | **Grafana** | Visualization & dashboards | 25 dashboards, 595 panels | N/A (queries only) | 3000 |
 | **Loki** | Log aggregation & storage | N/A (logs, not metrics) | 7 days | 3100 |
 | **Tempo** | Distributed tracing | Trace spans | 7 days | 3200 |
-| **AlertManager** | Alert routing & notifications | 13-alert core loaded (ADR-119); legacy catalog quarantined | N/A (stateful) | 9093 |
+| **AlertManager** | Alert routing & notifications | 14-alert core loaded (ADR-119); legacy catalog quarantined | N/A (stateful) | 9093 |
 | **blackbox-exporter** | HTTP probes (backup healthcheck, public URL/TLS) | 2 probe jobs | N/A (stateless) | 9115 |
 
 ### Metrics Breakdown by Category
@@ -1587,7 +1587,7 @@ lia_connectors_by_type = Gauge(
 
 ## 🔔 Alerting
 
-> **Current state (ADR-119, 2026-07)**: Prometheus loads **only the 13-alert
+> **Current state (ADR-119, 2026-07)**: Prometheus loads **only the 14-alert
 > core** (`alerts-core.yml`) and delivers by **email** through Alertmanager in
 > both dev and production — operational guide: [README_ALERTING.md](README_ALERTING.md).
 > The alert groups catalogued below are the **legacy 2025-11 design**: NOT

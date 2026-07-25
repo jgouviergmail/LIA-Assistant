@@ -132,20 +132,21 @@ class FCMNotificationService:
 
         return fcm_token
 
-    async def unregister_token(self, token: str) -> bool:
+    async def unregister_token(self, token: str, user_id: UUID) -> bool:
         """
-        Unregister an FCM token.
+        Unregister an FCM token belonging to the given user.
 
         Args:
             token: FCM token to remove
+            user_id: Owner of the token — enforced, not assumed
 
         Returns:
             True if token was removed
         """
-        result = await self.repository.unregister_token(token)
+        result = await self.repository.unregister_token(token, user_id)
 
         if result:
-            logger.info("fcm_token_unregistered", token_prefix=token[:20])
+            logger.info("fcm_token_unregistered", user_id=str(user_id))
 
         return result
 

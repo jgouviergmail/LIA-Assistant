@@ -147,6 +147,28 @@ groups:
           description: "TTFT p95 is {{ $value | humanize }}s over 10 minutes (threshold: <<<ALERT_CORE_SSE_TTFT_P95_SECONDS>>>s — set above the measured production baseline; tighten it after the latency optimization work lands)."
           runbook: "docs/runbooks/alerts/AgentsTTFTViolation.md"
 
+      # SEC-016. The global HTTP limiter fails OPEN when Redis is unreachable:
+      # on a single-instance deployment, failing closed would turn a cache
+      # outage into a total outage. That trade-off is only defensible while the
+      # unprotected window is visible, and this alert is what makes it so —
+      # every request counted here crossed the API with NO rate limit applied.
+      #
+      # Distinct from RedisDown: that one fires when the exporter says Redis is
+      # gone, this one fires when the API cannot USE it, which also covers a
+      # saturated pool, a network partition or an auth failure with Redis up.
+      - alert: GlobalRateLimitDegraded
+        expr: |
+          sum(rate(http_rate_limit_degraded_total[5m])) > <<<ALERT_CORE_RATE_LIMIT_DEGRADED_RPS>>>
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+          tier: core
+        annotations:
+          summary: "Global rate limit degraded — requests admitted unchecked"
+          description: "{{ $value | humanize }} req/s are crossing the API with no rate limit applied because the limiter cannot reach Redis (threshold: <<<ALERT_CORE_RATE_LIMIT_DEGRADED_RPS>>> req/s over 5 minutes — fail-open is deliberate, but the API is running without a global ceiling until Redis recovers)."
+          runbook: "docs/runbooks/alerts/GlobalRateLimitDegraded.md"
+
   # ===== BACKUP & PUBLIC PATH — blackbox probes =====
   - name: core_backup_tunnel
     interval: 60s

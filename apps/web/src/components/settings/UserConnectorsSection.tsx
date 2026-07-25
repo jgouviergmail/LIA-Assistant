@@ -4,6 +4,7 @@ import { useMemo, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import apiClient from '@/lib/api-client';
+import { getApiErrorDetail } from '@/lib/api-error';
 import { logger } from '@/lib/logger';
 import { Plug, CheckCircle2, Key, Save, AlertTriangle } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -57,6 +58,7 @@ import { TelephonyConnectorForm } from './connectors/TelephonyConnectorForm';
 import { TelephonyCallHistory } from './connectors/TelephonyCallHistory';
 import { CONNECTOR_LABELS, type ConnectorType } from '@/constants/connectors';
 import type { BaseSettingsProps } from '@/types/settings';
+import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
 
 // Constants
 const OAUTH_RECONNECT_PENDING_KEY = 'oauth_connectors_reconnect_pending';
@@ -234,12 +236,11 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
       }
       toast.success(t('settings.connectors.api_key.success'));
     } catch (error: unknown) {
-      const apiError = error as { response?: { data?: { detail?: string } } };
       logger.error(`Failed to activate ${connectorType} connector`, error as Error, {
         component: 'UserConnectorsSection',
         connectorType,
       });
-      toast.error(apiError.response?.data?.detail || t('settings.connectors.api_key.error'));
+      toast.error(getApiErrorDetail(error) ?? t('settings.connectors.api_key.error'));
     } finally {
       setActivatingConnector(null);
     }
@@ -261,7 +262,7 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
       // Mark reconnection as pending for post-OAuth refetch
       sessionStorage.setItem(OAUTH_RECONNECT_PENDING_KEY, 'true');
       // Redirect to Google OAuth
-      window.location.href = response.authorization_url;
+      navigateToAuthorizationUrl(response.authorization_url, 'connector-reconnect');
     } catch (error) {
       logger.error('Failed to initiate OAuth reconnect', error as Error, {
         component: 'UserConnectorsSection',

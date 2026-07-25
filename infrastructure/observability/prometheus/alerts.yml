@@ -275,26 +275,6 @@ groups:
   - name: redis_rate_limiting_alerts
     interval: 30s
     rules:
-      # SEC-016: the global HTTP limiter fails OPEN when Redis is unavailable —
-      # on a single-instance deployment, failing closed would turn a cache
-      # outage into a total outage. That trade-off is only defensible if the
-      # unprotected window is visible, which is what this alert is for: every
-      # request counted here crossed the API with NO rate limit applied.
-      - alert: GlobalRateLimitDegraded
-        expr: |
-          sum(rate(http_rate_limit_degraded_total[5m])) > 0
-        for: 2m
-        labels:
-          severity: warning
-          component: api
-          type: rate_limiting
-        annotations:
-          summary: "Rate limiting global dégradé — requêtes admises sans contrôle"
-          description: >-
-            Le limiteur global ne peut pas joindre Redis et laisse passer les
-            requêtes (politique fail-open assumée). L'API est sans plafond
-            global tant que cette alerte est active : vérifier la santé de Redis.
-
       # CRITICAL: Rate limit hit rate excessively high (> 75.0%)
       - alert: RedisRateLimitHighHitRate
         expr: |

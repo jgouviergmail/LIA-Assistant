@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
+import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
 
 /**
  * Auth type for a user MCP server.
@@ -264,7 +265,7 @@ export function useUserMCPServers() {
       const result = await oauthMutation.mutate(`${ENDPOINT}/${serverId}/oauth/authorize`);
       if (result?.authorization_url) {
         // Redirect to OAuth authorization server
-        window.location.href = result.authorization_url;
+        navigateToAuthorizationUrl(result.authorization_url, 'mcp-oauth');
       }
       return result;
     },

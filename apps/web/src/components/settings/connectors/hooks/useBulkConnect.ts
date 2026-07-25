@@ -23,6 +23,7 @@ import {
   MICROSOFT_CONNECTOR_TYPES,
 } from '../constants';
 import { type Connector, isConnectorTypeActive } from '../types';
+import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
 
 interface UseBulkConnectOptions {
   connectors: Connector[];
@@ -98,7 +99,7 @@ async function processQueue(
   localStorage.setItem(queueKey, JSON.stringify(queue.slice(1)));
 
   const response = await apiClient.get<{ authorization_url: string }>(endpoint);
-  window.location.href = response.authorization_url;
+  navigateToAuthorizationUrl(response.authorization_url, 'bulk-connect-queue');
 }
 
 /**
@@ -153,7 +154,7 @@ async function startBulkConnect(
     }
 
     const response = await apiClient.get<{ authorization_url: string }>(endpoint);
-    window.location.href = response.authorization_url;
+    navigateToAuthorizationUrl(response.authorization_url, 'bulk-connect-start');
   } catch (error) {
     setBulkConnecting(false);
     localStorage.removeItem(queueKey);

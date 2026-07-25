@@ -3593,6 +3593,33 @@ CHANNEL_OTP_MAX_ATTEMPTS_DEFAULT = 5  # Brute-force protection per chat_id
 CHANNEL_OTP_BLOCK_TTL_SECONDS_DEFAULT = 900  # 15 min block after max attempts
 CHANNEL_RATE_LIMIT_PER_USER_PER_MINUTE_DEFAULT = 10
 CHANNEL_RATE_LIMIT_GLOBAL_PER_SECOND_DEFAULT = 25
+
+# SEC-025. HSTS `max-age`, in seconds. A browser remembers the HTTPS pin for
+# this long and there is no way to recall it early, so the value is raised in
+# steps: one day to start, one month once the public surface is proven durably
+# HTTPS, and only then toward two years. Env-tunable (`HSTS_MAX_AGE`) so a step
+# is a restart, not a rebuild — and so the API and the web app can never drift
+# onto different ladders. Mirrors `DEFAULT_HSTS_MAX_AGE` in apps/web/src/lib/csp.ts.
+HSTS_MAX_AGE_SECONDS_DEFAULT = 86_400
+
+# SEC-024. Telegram redelivers an update until it is acknowledged, and a
+# response lost on the wire counts as unacknowledged even though we answered
+# 200 — so the same `update_id` can legitimately arrive twice. Without a claim,
+# the second copy is processed as a fresh message: the agent answers twice, and
+# a `/start <code>` OTP is consumed a second time. The claim also blunts a
+# deliberate replay by anyone holding a captured payload.
+TELEGRAM_UPDATE_DEDUP_REDIS_PREFIX = "telegram_update:"
+
+# How long a processed update_id stays claimed. Telegram gives up redelivering
+# long before this; the window only has to outlive its retry sequence.
+TELEGRAM_UPDATE_DEDUP_TTL_SECONDS_DEFAULT = 600  # 10 min
+
+# Below this many characters, TELEGRAM_WEBHOOK_SECRET is flagged at startup as
+# brute-forcible. `openssl rand -hex 32` — the value the templates recommend —
+# produces 64. NOT a boot condition: see the rationale on
+# `_webhook_mode_requires_a_real_secret`, an existing short secret must degrade
+# into a warning, never into downtime.
+TELEGRAM_WEBHOOK_SECRET_MIN_RECOMMENDED_LENGTH = 32
 CHANNEL_MESSAGE_LOCK_TTL_SECONDS_DEFAULT = 120  # Redis lock per-user
 
 # Telegram-specific

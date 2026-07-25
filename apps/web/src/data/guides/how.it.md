@@ -6,7 +6,7 @@
 
 **Versione**: 3.4
 **Data**: 2026-07-25
-**Applicazione**: LIA v1.25.21
+**Applicazione**: LIA v1.25.22
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -795,7 +795,7 @@ Tre superfici eseguono qualcosa per conto dell'utente, e ciascuna è trattata co
 | Loki | Log strutturati JSON aggregati |
 | Tempo | Trace distribuite cross-service (OTLP gRPC) |
 | Langfuse | Tracing specifico LLM (versioni prompt, utilizzo token) |
-| Alertmanager | Nucleo di 13 alert vitali notificati via e-mail (runbook collegati, soglie per ambiente) |
+| Alertmanager | Nucleo di 14 alert vitali notificati via e-mail (runbook collegati, soglie per ambiente) |
 | structlog | Logging strutturato con filtraggio PII |
 
 ### 20.2. Debug Panel integrato
@@ -1097,4 +1097,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (380+ documenti), dei 140+ ADR e del changelog (da v1.0 a v1.25.21). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (380+ documenti), dei 140+ ADR e del changelog (da v1.0 a v1.25.22). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

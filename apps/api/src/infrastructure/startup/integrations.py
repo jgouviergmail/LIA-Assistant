@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from src.core.config import settings
+from src.core.constants import TELEGRAM_WEBHOOK_SECRET_MIN_RECOMMENDED_LENGTH
 from src.infrastructure.scheduler.currency_sync import sync_currency_rates
 
 if TYPE_CHECKING:
@@ -106,6 +107,7 @@ async def init_telegram_bot() -> "Bot | None":
     """
     telegram_bot = None
     if getattr(settings, "channels_enabled", False):
+        _warn_on_weak_telegram_webhook_secret()
         try:
             from src.infrastructure.channels.telegram.bot import initialize_telegram_bot
 
@@ -119,6 +121,33 @@ async def init_telegram_bot() -> "Bot | None":
         # updater loop (runs in every worker -> identical values for the gauge's
         # 'mostrecent' multiprocess mode); no per-worker startup priming needed here.
     return telegram_bot
+
+
+def _warn_on_weak_telegram_webhook_secret() -> None:
+    """Flag a brute-forcible webhook secret at boot, without refusing to boot.
+
+    In webhook mode that secret is the ONLY thing separating Telegram from
+    anyone who found the public URL, and ``/channels/telegram/webhook`` is
+    reachable without a session. A short one is guessable — the global HTTP
+    ceiling bounds the attempt rate per IP, it does not make a 6-character
+    secret safe.
+
+    Deliberately a warning and not a startup failure: the config validator
+    already refuses an ABSENT or placeholder secret, and turning "too short"
+    into downtime would punish an existing deployment for a hardening change it
+    never asked for. The value itself is never logged, only its length.
+    """
+    if not getattr(settings, "telegram_webhook_url", None):
+        return  # Long-polling mode: Telegram never calls the endpoint.
+
+    secret = (getattr(settings, "telegram_webhook_secret", None) or "").strip()
+    if 0 < len(secret) < TELEGRAM_WEBHOOK_SECRET_MIN_RECOMMENDED_LENGTH:
+        logger.warning(
+            "telegram_webhook_secret_weak",
+            length=len(secret),
+            recommended_minimum=TELEGRAM_WEBHOOK_SECRET_MIN_RECOMMENDED_LENGTH,
+            remediation="rotate with `openssl rand -hex 32` and re-run set_webhook",
+        )
 
 
 async def sync_currency_rates_at_startup() -> None:

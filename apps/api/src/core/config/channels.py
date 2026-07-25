@@ -27,6 +27,7 @@ from src.core.constants import (
     CHANNEL_RATE_LIMIT_GLOBAL_PER_SECOND_DEFAULT,
     CHANNEL_RATE_LIMIT_PER_USER_PER_MINUTE_DEFAULT,
     TELEGRAM_MESSAGE_MAX_LENGTH_DEFAULT,
+    TELEGRAM_UPDATE_DEDUP_TTL_SECONDS_DEFAULT,
 )
 
 # Placeholder prefix shipped in the .env templates. Same convention as the LLM
@@ -186,4 +187,15 @@ class ChannelsSettings(BaseSettings):
         ge=30,
         le=300,
         description="Redis lock TTL per-user for sequential message processing (seconds).",
+    )
+
+    telegram_update_dedup_ttl_seconds: int = Field(
+        default=TELEGRAM_UPDATE_DEDUP_TTL_SECONDS_DEFAULT,
+        ge=60,
+        le=3600,
+        description=(
+            "How long a processed Telegram update_id stays claimed in Redis, so a "
+            "redelivered or replayed update is dropped instead of processed twice "
+            "(SEC-024)."
+        ),
     )

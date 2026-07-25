@@ -351,12 +351,17 @@ class ApiClient {
       headers['Content-Type'] = 'application/json';
     }
 
+    // `fetchConfig` is spread FIRST on purpose. Spread last, a caller-supplied
+    // `headers` would replace the object built just above (dropping the
+    // computed Content-Type), a caller-supplied `signal` would drop the
+    // timeout, and a caller-supplied `credentials` would break the BFF cookie
+    // invariant — silently, since the merge above would still look right.
     const response = await fetch(url, {
+      ...fetchConfig,
       method,
       credentials: 'include', // BFF Pattern: Include HTTP-only cookies
       headers,
       signal,
-      ...fetchConfig,
     });
 
     return handleResponse<T>(response);

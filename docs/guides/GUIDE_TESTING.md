@@ -2025,7 +2025,7 @@ async def test_with_mocked_llm_call():
 ```toml
 # pyproject.toml
 [tool.pytest.ini_options]
-addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=59"
+addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=60"
 ```
 
 **Rapports générés** :
@@ -2055,8 +2055,9 @@ Règles :
    le gate, c'est la PR qu'on corrige, pas le gate.
 4. Historique : 43 % (baseline audit) → 45 % (v1.21.22, couverture réelle
    mesurée : 52,3 %) → 58 % (2026-07-24, réel 62,5 % sur le sous-ensemble gated
-   fast-unit) → **59 % (2026-07-24, réel 62,79 % — 13 016 tests)**. Palier
-   suivant 65 % dès que le réel dépasse ~67 %.
+   fast-unit) → 59 % (2026-07-24, réel 62,79 % — 13 016 tests) → **60 %
+   (2026-07-25, réel 63,16 % — 13 422 tests)**. Palier suivant 65 % dès que le
+   réel dépasse ~67 %.
 
    La marge volontairement conservée (~4 pts) couvre l'écart entre la mesure
    locale (Windows) et le runner CI (Linux) : quelques branches dépendent de la
@@ -2065,7 +2066,7 @@ Règles :
 ### Exécuter Coverage
 
 ```bash
-# Coverage complète (applique le gate --cov-fail-under=59)
+# Coverage complète (applique le gate --cov-fail-under=60)
 cd apps/api
 pytest --cov=src --cov-report=term-missing --cov-report=html
 
@@ -2107,7 +2108,7 @@ TOTAL                                       311     19    94%
 
 Le rapport XML est uploadé vers Codecov par le job `test-backend`
 (`codecov-action`, flag `backend`, non bloquant) ; le **gate bloquant** est
-le `--cov-fail-under=59` du même job (voir la doctrine ratchet ci-dessus).
+le `--cov-fail-under=60` du même job (voir la doctrine ratchet ci-dessus).
 
 ---
 
@@ -2120,7 +2121,7 @@ Le workflow réel est `.github/workflows/ci.yml` (déclenché sur push/PR vers
 
 | Job | Commande | Sélection | Gate |
 |---|---|---|---|
-| `test-backend` | `pytest tests/unit/` | `-m "not integration and not slow and not e2e and not benchmark and not multiprocess"` | couverture ≥ 59 % |
+| `test-backend` | `pytest tests/unit/` | `-m "not integration and not slow and not e2e and not benchmark and not multiprocess"` | couverture ≥ 60 % |
 | `test-backend` (step 2) | `pytest tests/agents/` | `-m "not slow and not e2e and not benchmark and not multiprocess"`, `--no-cov` | tests verts |
 | `test-backend-integration` | `pytest tests/integration/` | `-m "not e2e and not benchmark and not multiprocess"`, `--no-cov` | tests verts |
 

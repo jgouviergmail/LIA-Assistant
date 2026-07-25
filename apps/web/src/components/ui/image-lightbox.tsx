@@ -218,6 +218,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
           <img
             src={src}
             alt={alt}
+            referrerPolicy="no-referrer"
             className={cn(
               'max-w-full max-h-[90vh] w-auto h-auto',
               'rounded-lg shadow-2xl',

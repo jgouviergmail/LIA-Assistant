@@ -84,6 +84,7 @@ const StableGalleryImage = memo(
           src={proxyGoogleImageUrl(src) || src}
           alt={alt}
           className="contact-photo"
+          referrerPolicy="no-referrer"
           style={{
             // Only keep opacity for loading animation - all other styles handled by CSS class
             opacity: loaded ? 1 : 0,
@@ -285,6 +286,10 @@ const MarkdownImage = memo(
           markImageLoaded(src);
           setLoaded(true);
         };
+        // SEC-027: this preload is a real network request and leaks the same
+        // Referer as the rendered <img>. Set BEFORE `src` — assigning the
+        // source is what starts the fetch.
+        img.referrerPolicy = 'no-referrer';
         img.src = src;
       }
     }, [src, alreadyLoaded]);
@@ -318,6 +323,7 @@ const MarkdownImage = memo(
           src={src}
           alt={alt || ''}
           className={className}
+          referrerPolicy="no-referrer"
           style={{
             opacity: loaded ? 1 : 0,
             transition: 'opacity 0.15s ease-in',
@@ -357,6 +363,7 @@ const MarkdownImage = memo(
               src={src}
               alt={alt || 'Photo du lieu'}
               className="place-photo"
+              referrerPolicy="no-referrer"
               style={{
                 opacity: loaded ? 1 : 0,
                 transition: loaded
@@ -405,6 +412,7 @@ const MarkdownImage = memo(
                 src={proxiedSrc}
                 alt={alt || 'Photo de profil'}
                 className="contact-photo"
+                referrerPolicy="no-referrer"
                 style={{
                   opacity: loaded ? 1 : 0,
                 }}
@@ -435,6 +443,7 @@ const MarkdownImage = memo(
           src={src}
           alt={alt || 'Image'}
           className="w-full h-full object-cover rounded-lg shadow-md"
+          referrerPolicy="no-referrer"
           style={{
             opacity: loaded ? 1 : 0,
             transition: 'opacity 0.15s ease-in',

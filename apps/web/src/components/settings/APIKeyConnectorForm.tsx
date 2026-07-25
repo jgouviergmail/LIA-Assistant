@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import apiClient from '@/lib/api-client';
+import { getApiErrorDetail } from '@/lib/api-error';
 import { logger } from '@/lib/logger';
 import { Eye, EyeOff, Key, CheckCircle2, AlertCircle } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -109,8 +110,7 @@ export default function APIKeyConnectorForm({
         component: 'APIKeyConnectorForm',
         connectorType,
       });
-      const apiError = err as { response?: { data?: { detail?: string } } };
-      setError(apiError.response?.data?.detail || t('settings.connectors.apiKey.error_validation'));
+      setError(getApiErrorDetail(err) ?? t('settings.connectors.apiKey.error_validation'));
     } finally {
       setIsValidating(false);
     }
@@ -148,8 +148,7 @@ export default function APIKeyConnectorForm({
         component: 'APIKeyConnectorForm',
         connectorType,
       });
-      const apiError = err as { response?: { data?: { detail?: string } } };
-      setError(apiError.response?.data?.detail || t('settings.connectors.apiKey.error_activation'));
+      setError(getApiErrorDetail(err) ?? t('settings.connectors.apiKey.error_activation'));
     } finally {
       setIsSubmitting(false);
     }

@@ -62,14 +62,24 @@ uvicorn (quatre en production).
 adossé au `RedisRateLimiter` partagé (donc au même budget pour tous les workers),
 keyé sur l'adresse du pair, `fail-open` si Redis tombe — avec incrément de
 `http_rate_limit_degraded_total` pour que la fenêtre non protégée soit visible
-plutôt que silencieuse. Les sondes (`/health`, `/ready`, `/metrics`) sont exemptées :
-les faire tomber sous le plafond fait redémarrer le conteneur au pire moment.
+plutôt que silencieuse. Ce compteur est adossé à l'alerte `GlobalRateLimitDegraded`
+du noyau ADR-119 (seuil `ALERT_CORE_RATE_LIMIT_DEGRADED_RPS`, runbook lié) : un
+compromis fail-open n'est défendable que si quelqu'un est prévenu quand il joue.
+
+Les sondes (`/health`, `/ready`, `/metrics`) sont exemptées : les faire tomber sous
+le plafond fait redémarrer le conteneur au pire moment. L'exemption est une
+**égalité stricte**. Elle a été un `startswith`, ce qui exemptait toute la famille
+`/healthz`, `/health-flood`, `/metrics-xxx` : ces chemins répondent 404, mais un
+404 coûte une traversée complète du middleware et une passe de routage, servie au
+rythme du client — le plafond se contournait en préfixant ses requêtes par le nom
+d'une sonde. Les trois sondes n'exposant aucun sous-chemin, l'égalité stricte ne
+coûte rien.
 
 | Réglage | Valeur | Rôle |
 |---------|--------|------|
 | `RATE_LIMIT_GLOBAL_PER_MINUTE` | 300 | Plafond par IP et par minute (pic réel mesuré : 67 req/min) |
 | `RATE_LIMIT_ENABLED` | `true` | Interrupteur commun à toutes les couches HTTP |
-| `RATE_LIMIT_GLOBAL_EXEMPT_PATHS` | `/health`, `/ready`, `/metrics` | Sondes hors plafond |
+| `RATE_LIMIT_GLOBAL_EXEMPT_PATHS` | `/health`, `/ready`, `/metrics` | Sondes hors plafond (égalité stricte, pas de préfixe) |
 
 Ce plafond global **ne remplace pas** les limites par endpoint (auth, voice,
 channels…) : il borne le volume total d'une source, elles bornent l'abus ciblé.

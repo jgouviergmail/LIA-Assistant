@@ -91,6 +91,12 @@ BeforeAll {
     # Each tool gets a Windows .bat AND a POSIX sh shim; both append their
     # invocation to $env:SHIM_LOG. ssh is scriptable via SSH_MODE:
     #   ok (default) | fail_twice (RETRY_COUNTER) | always_fail | fail_deploy
+    #   | bad_perms (SEC-013: hardening reports modes that were NOT applied)
+    #
+    # The shim answers the permission-hardening step with the `stat` readback
+    # the driver parses. `bad_perms` returns the modes an unreported chmod
+    # failure would leave behind — world-readable secrets — which is what the
+    # driver must now refuse to deploy on.
     function New-ShimSet([string]$Root) {
         $bin = Join-Path $Root "bin"
         New-Item -ItemType Directory $bin -Force | Out-Null
@@ -116,6 +122,13 @@ set /a N=N+1
 if %N% LSS 3 exit /b 7
 :ok
 echo BACKUP_CREATED
+if "%SSH_MODE%"=="bad_perms" goto :badperms
+echo PERMS_ENV=600
+echo PERMS_DIR=700
+exit /b 0
+:badperms
+echo PERMS_ENV=644
+echo PERMS_DIR=755
 exit /b 0
 '@
         $sshSh = @'
@@ -131,6 +144,13 @@ if [ "$SSH_MODE" = "fail_twice" ]; then
   [ $N -lt 3 ] && exit 7
 fi
 echo BACKUP_CREATED
+if [ "$SSH_MODE" = "bad_perms" ]; then
+  echo PERMS_ENV=644
+  echo PERMS_DIR=755
+else
+  echo PERMS_ENV=600
+  echo PERMS_DIR=700
+fi
 exit 0
 '@
         $logOnlyBat = @'
@@ -288,6 +308,82 @@ Describe "deploy-prod.ps1 parameter validation" {
         $r.ExitCode | Should -Be 1
         $r.Output | Should -Match "SshUser invalide"
     }
+
+    It "rejects an SshHost containing shell metacharacters (exit 1)" {
+        # $sshTarget is "$SshUser@$SshHost" and lands in the same `cmd /c`
+        # string as the username, which WAS checked — the host was not.
+        $r = Invoke-DeployProd -Proj $proj -ShimBin $bin -Arguments @("-SshHost", "1.2.3.4;id", "-DryRun") `
+            -EnvOverrides @{ SHIM_LOG = $log }
+        $r.ExitCode | Should -Be 1
+        $r.Output | Should -Match "SshHost invalide"
+    }
+
+    # ------------------------------------------------------------------------
+    # SEC-038 — RemoteDir feeds `sudo rm -rf ~/$RemoteDir/*`. Each value below
+    # is destructive on a real host, and NONE of them needs a shell
+    # metacharacter to be so; the previous denylist accepted all but the last
+    # two. The assertion on the exit code alone would be satisfied by a check
+    # placed anywhere in the script, so every case also proves the shim log
+    # stayed empty: the driver died before reaching the backup step, which is
+    # the first place the value was interpolated.
+    # ------------------------------------------------------------------------
+    It "rejects the RemoteDir value <Why> (exit 1, no ssh invoked)" -ForEach @(
+        @{ Value = ".."; Why = "'..' (would expand to `sudo rm -rf ~/../*` — every home dir)" }
+        @{ Value = "."; Why = "'.' (would expand to `sudo rm -rf ~/./*` — the whole home dir)" }
+        @{ Value = "lia foo"; Why = "'lia foo' (a space yields two rm targets)" }
+        @{ Value = "lia;rm -rf /"; Why = "'lia;rm -rf /' (command separator)" }
+        @{ Value = "/"; Why = "'/' (filesystem root)" }
+        @{ Value = "~"; Why = "'~' (home shorthand)" }
+        @{ Value = ""; Why = "the empty string (would expand to `sudo rm -rf ~//*`)" }
+        @{ Value = "lia/prod"; Why = "'lia/prod' (more than one path segment)" }
+        @{ Value = "../../etc"; Why = "'../../etc' (traversal above the home dir)" }
+        @{ Value = "-rf"; Why = "'-rf' (a leading dash is read as an option by rm/cp)" }
+        @{ Value = ".ssh"; Why = "'.ssh' (a dotfile directory holding the host's own keys)" }
+        @{ Value = "lia`$(whoami)"; Why = "a command substitution" }
+        @{ Value = "lia`nid"; Why = "an embedded newline (terminates the remote command)" }
+    ) {
+        $caseLog = Join-Path $TestDrive "shim-remotedir-$([Guid]::NewGuid().ToString('N')).log"
+        $r = Invoke-DeployProd -Proj $proj -ShimBin $bin -Arguments @("-RemoteDir", $Value, "-DryRun") `
+            -EnvOverrides @{ SHIM_LOG = $caseLog }
+        $r.ExitCode | Should -Be 1 -Because "'$Value' must never reach a remote command"
+        $r.Output | Should -Match "RemoteDir invalide"
+        (Test-Path $caseLog) | Should -BeFalse -Because "validation must precede the first interpolation"
+    }
+
+    It "rejects a RemoteDir ending in a newline (`\z` anchor, not `$`)" {
+        # .NET's `$` ALSO matches immediately before a trailing newline, so an
+        # `^...$` anchor would accept "lia`n" — which closes the remote command
+        # line early. This case is what forces \A..\z. Guarded rather than
+        # merged into the table above: if the value cannot survive the process
+        # boundary intact the test says so instead of passing vacuously.
+        $value = "lia`n"
+        $caseLog = Join-Path $TestDrive "shim-remotedir-newline.log"
+        $r = Invoke-DeployProd -Proj $proj -ShimBin $bin -Arguments @("-RemoteDir", $value, "-DryRun") `
+            -EnvOverrides @{ SHIM_LOG = $caseLog }
+        $r.ExitCode | Should -Be 1
+        $r.Output | Should -Match "RemoteDir invalide"
+        (Test-Path $caseLog) | Should -BeFalse
+    }
+
+    It "still accepts a legitimate RemoteDir (no false rejection)" {
+        # The counterpart every allowlist owes: proof it did not simply become
+        # a wall. Letters, digits, dash, underscore and an inner dot all pass.
+        $caseLog = Join-Path $TestDrive "shim-remotedir-ok.log"
+        $r = Invoke-DeployProd -Proj $proj -ShimBin $bin `
+            -Arguments @("-RemoteDir", "lia-prod_2.v3", "-DryRun") `
+            -EnvOverrides @{ SHIM_LOG = $caseLog }
+        $r.ExitCode | Should -Be 0
+        $r.Output | Should -Not -Match "RemoteDir invalide"
+        $r.Output | Should -Match "lia-prod_2\.v3"
+    }
+
+    It "keeps the default RemoteDir valid (the shipped value)" {
+        $caseLog = Join-Path $TestDrive "shim-remotedir-default.log"
+        $r = Invoke-DeployProd -Proj $proj -ShimBin $bin -Arguments @("-DryRun") `
+            -EnvOverrides @{ SHIM_LOG = $caseLog }
+        $r.ExitCode | Should -Be 0
+        $r.Output | Should -Not -Match "RemoteDir invalide"
+    }
 }
 
 # ============================================================================
@@ -414,11 +510,50 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         # AFTER the DOCKER_GID write (step 8) and BEFORE ./deploy.sh (step 9).
         $shimLog | Should -Match ([regex]::Escape("chmod 600"))
         $shimLog | Should -Match "\.env"
-        $shimLog | Should -Match "PERMS_HARDENED"
-        $iHarden = $shimLog.IndexOf("PERMS_HARDENED")
+        $iHarden = $shimLog.IndexOf("stat -c")
         $iDeploy = $shimLog.IndexOf("chmod +x deploy.sh")
         $iHarden | Should -BeGreaterThan 0
         $iDeploy | Should -BeGreaterThan $iHarden
+    }
+
+    It "verifies the modes it obtained instead of announcing success (SEC-013)" {
+        # The step used to end in a bare `echo PERMS_HARDENED`, which runs
+        # whether or not a single chmod succeeded — the driver matched that
+        # string and reported success, so the control could not fail. It must
+        # now read the modes back.
+        $shimLog | Should -Match ([regex]::Escape("stat -c"))
+        $r.Output | Should -Match "Permissions secrets durcies et verifiees"
+    }
+}
+
+# ============================================================================
+# SEC-013 — a hardening that did not take must stop the deployment
+# ============================================================================
+Describe "deploy-prod.ps1 refuses to deploy on unhardened secrets (SEC-013)" {
+    BeforeAll {
+        $proj = New-DeploySandbox (Join-Path $TestDrive "badperms")
+        $bin = New-ShimSet $TestDrive
+        $log = Join-Path $TestDrive "shim-badperms.log"
+        # Every remote op succeeds, but the permission readback reports the
+        # modes an unnoticed chmod failure leaves behind: a world-readable .env.
+        $script:r = Invoke-DeployProd -Proj $proj -ShimBin $bin `
+            -Arguments @("-SkipEncrypt", "-RetryDelaySeconds", "0", "-MaxRetries", "1") `
+            -EnvOverrides @{ SHIM_LOG = $log; SSH_MODE = "bad_perms" }
+        $script:shimLog = if (Test-Path $log) { Get-Content $log -Raw } else { "" }
+    }
+
+    It "exits non-zero and names both offending modes" {
+        $r.ExitCode | Should -Be 1
+        $r.Output | Should -Match "Durcissement des permissions ECHOUE"
+        $r.Output | Should -Match "644"
+        $r.Output | Should -Match "755"
+    }
+
+    It "never reaches docker compose — the platform does not start on leaked secrets" {
+        # The assertion that matters: the .env holds every application secret,
+        # so starting the stack anyway would knowingly run production with them
+        # readable by any user on the host.
+        $shimLog | Should -Not -Match ([regex]::Escape("chmod +x deploy.sh"))
     }
 }
 

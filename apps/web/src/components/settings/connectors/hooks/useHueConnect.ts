@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
+import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
 
 interface HueBridgeInfo {
   id: string;
@@ -137,7 +138,7 @@ export function useHueConnect({ onSuccess, onError }: UseHueConnectOptions = {})
         '/connectors/philips-hue/authorize'
       );
       if (data.authorization_url) {
-        window.location.href = data.authorization_url;
+        navigateToAuthorizationUrl(data.authorization_url, 'philips-hue');
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'OAuth initiation failed';

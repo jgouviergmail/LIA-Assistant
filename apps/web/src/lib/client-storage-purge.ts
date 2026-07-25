@@ -15,13 +15,28 @@
  * only one that stays complete.
  */
 
-import { DEBUG_METRICS_HISTORY_KEY } from '@/lib/constants';
+import {
+  DEBUG_METRICS_HISTORY_KEY,
+  GEOLOCATION_CACHE_KEY,
+  GEOLOCATION_ENABLED_KEY,
+} from '@/lib/constants';
 
 /** Keys in `sessionStorage` cleared on logout. */
 export const SENSITIVE_SESSION_STORAGE_KEYS: readonly string[] = [DEBUG_METRICS_HISTORY_KEY];
 
-/** Keys in `localStorage` cleared on logout. */
-export const SENSITIVE_LOCAL_STORAGE_KEYS: readonly string[] = [];
+/**
+ * Keys in `localStorage` cleared on logout.
+ *
+ * SEC-034 — geolocation. The cache holds raw coordinates, and the enabled flag
+ * is a consent record: leaving either behind means account B reads where
+ * account A was, and keeps collecting position under A's decision. Both keys
+ * are global, so neither can be attributed to its owner after the fact —
+ * exactly the category this registry exists for.
+ */
+export const SENSITIVE_LOCAL_STORAGE_KEYS: readonly string[] = [
+  GEOLOCATION_CACHE_KEY,
+  GEOLOCATION_ENABLED_KEY,
+];
 
 /**
  * Marker recording which account the sensitive storage above belongs to.

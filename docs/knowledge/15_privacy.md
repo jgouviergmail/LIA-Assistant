@@ -228,3 +228,20 @@ You can download a **complete archive of your data** at any time (GDPR right to 
 **🚫 What it never contains:** connector credentials, security keys, push tokens — secret material is unexportable by design.
 
 **⚙️ How:** **Settings > Security > Export my data** → Request an export → a push notification tells you when the ZIP is ready (downloadable for 24 h).
+
+## What is left on the device when I sign out?
+Nothing that belongs to you. Signing out does not just close the session: it clears what the browser and the device were holding on your behalf.
+
+**🔔 Notifications:**
+• This device's push registration is **revoked** before the session closes
+• On a shared computer or phone, the next person will not see any of your notifications
+
+**📍 Location:**
+• The last known position is erased
+• So is the geolocation permission — the next account has to give its own consent, it does not inherit yours
+
+**💬 Content:**
+• The message draft in progress is deleted
+• No access token was ever stored in the browser (BFF architecture), so there is none to remove
+
+The same cleanup runs if another account signs in through the same tab without a sign-out first — after a session expires, for instance.
