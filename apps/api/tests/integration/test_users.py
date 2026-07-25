@@ -132,19 +132,38 @@ class TestUpdateUser:
         assert data["full_name"] == "Updated Name"
 
     @pytest.mark.asyncio
-    async def test_update_email(self, authenticated_client: tuple[AsyncClient, User]):
-        """Test updating email address."""
+    async def test_email_cannot_be_changed_through_the_profile_endpoint(
+        self, authenticated_client: tuple[AsyncClient, User]
+    ):
+        """SEC-005: the address is immutable here, and saying so is not enough.
+
+        This endpoint is guarded by the session cookie and an ownership check
+        only — no recent re-authentication, no proof of owning the new mailbox,
+        no notification to the old one, no session revocation. Accepting an
+        address change here turns a stolen session into a permanent account
+        takeover: swap the address, then drive the standard recovery flow.
+
+        `email` was therefore removed from `UserUpdate`. Pydantic's default
+        `extra="ignore"` means a client still sending it gets a 200 with the
+        field silently dropped rather than a 422 — so the assertion that matters
+        is on the STORED value, not on the status code.
+        """
         client, user = authenticated_client
+        original_email = user.email
 
         response = await client.patch(
             f"/api/v1/users/{user.id}",
-            json={"email": "newemail@example.com"},
+            json={"email": "newemail@example.com", "full_name": "Updated Name"},
         )
 
         assert response.status_code == 200
         data = response.json()
 
-        assert data["email"] == "newemail@example.com"
+        # The rest of the payload still applies — the endpoint is not broken.
+        assert data["full_name"] == "Updated Name"
+        # The address did not move.
+        assert data["email"] == original_email
+        assert data["email"] != "newemail@example.com"
 
     @pytest.mark.asyncio
     async def test_update_other_user_unauthorized(

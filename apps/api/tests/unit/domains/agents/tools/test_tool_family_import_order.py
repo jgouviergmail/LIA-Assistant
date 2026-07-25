@@ -66,7 +66,11 @@ def _import_then_check(entry_point: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-@pytest.mark.multiprocess
+# Deliberately UNMARKED. `multiprocess` and `slow` are both excluded from every
+# job that runs tests/unit, so either marker would make this guard run in zero
+# jobs — the exact defect the F006 marker-coverage gate exists to catch, and the
+# one it caught here. The three fresh interpreters cost ~16 s, which is what a
+# guard protecting a whole tool family is worth.
 @pytest.mark.parametrize("entry_point", _ENTRY_POINTS)
 def test_devops_family_loads_whatever_is_imported_first(entry_point: str) -> None:
     """A cycle here silently removes an admin tool family at boot."""

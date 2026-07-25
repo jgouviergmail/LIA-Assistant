@@ -2812,6 +2812,37 @@ Transitive dependency vulnerabilities are managed through a layered approach:
 4. **pip-audit + pnpm audit** — Automated scans in the `security.yml` CI workflow; `pip-audit` reads the Python lockfile, so transitive pins are audited too. **Both steps are blocking.** `pnpm audit` ran with `continue-on-error: true` for a long time, which is how a CRITICAL advisory (`websocket-driver`, GHSA-xv26-6w52-cph6) survived on `main` under a green pipeline — the step reported it and the job passed anyway. Targeted fixes land via `task deps:upgrade -- <pkg>` (plus a manifest pin bump when the package is a direct dependency).
 5. **CodeQL** — Static analysis for Python and JavaScript (`security-and-quality` + `security-extended`).
 
+### When no compatible patched version exists (`auditConfig.ignoreGhsas`)
+
+`pnpm audit --audit-level=high` is blocking and its flag must never be relaxed.
+For the rare case where a patched version exists but **cannot be installed**,
+pnpm offers a targeted exception — one advisory id, not a global bypass:
+
+```jsonc
+// package.json (root)
+"pnpm": {
+  "auditConfig": { "ignoreGhsas": ["GHSA-..."] }
+}
+```
+
+The audit still reports the advisory and states it is ignored (`1 high (1 ignored)`),
+so the exception stays visible instead of disappearing.
+
+**Bar to clear before adding one** — all four, written down:
+
+1. **No installable fix.** Not "annoying to upgrade": *incompatible*. Proven by
+   running the toolchain, not by reading version ranges.
+2. **No production path.** `pnpm why <pkg> --prod` from `apps/web/` returns
+   nothing, and `pnpm audit --prod --audit-level=high` is clean.
+3. **A removal trigger**, stated below.
+4. **The entry is dated**, so a stale exception is obvious on review.
+
+#### Active exceptions
+
+| Advisory | Package | Why | Removal trigger |
+| --- | --- | --- | --- |
+| [GHSA-mh99-v99m-4gvg](https://github.com/advisories/GHSA-mh99-v99m-4gvg) (2026-07-25) | `brace-expansion` — DoS via unbounded expansion | Only `5.0.8` carries the fix (`1.1.16`/`2.1.2` predate the advisory, so they are not backports). Forcing `5.0.8` breaks the linter: `minimatch@3.1.5` does `require('brace-expansion')` and v5 changed its export shape. Raising `minimatch` does not help either — v9 and v10 drop the default export that `eslint-plugin-jsx-a11y` imports. Reached **only** through `eslint`/`eslint-config-next` (dev), never bundled: the vulnerable code parses glob patterns that we write, at lint time. | A backport on the 2.x line, or `eslint-plugin-jsx-a11y` moving off the default `minimatch` import. Re-test by removing the entry and running `pnpm lint` + `pnpm a11y:ratchet`. |
+
 ### Reading an advisory's real severity
 
 The dashboard severity is a starting point, not a verdict. Two checks change the picture:
