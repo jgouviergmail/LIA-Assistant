@@ -701,6 +701,42 @@ Describe "deploy scripts SSH host authenticity (SEC-014, static)" {
     }
 }
 
+Describe "deploy scripts remote command substitution (static)" {
+    It "never sends a `$(...) that the LOCAL shell would expand first" {
+        # `Invoke-WithRetry` runs its command string through `cmd /c` on Windows
+        # and `sh -c` on Linux/macOS. Only the second expands `$(...)`, so a
+        # command substitution intended for the REMOTE shell is resolved locally
+        # on a Unix host — silently, and only there.
+        #
+        # Both known cases were real: `chown -R $(whoami):$(whoami)` became
+        # `chown -R runner:runner` in CI (the GitHub runner's account, applied to
+        # the production server), and `echo PERMS_ENV=$(stat -c '%a' ...)` became
+        # `PERMS_ENV=missing`, which made the SEC-013 hardening check fail every
+        # deployment from a Unix host while passing from Windows.
+        #
+        # The fix is never an escape — no single string escapes correctly for
+        # both shells. Interpolate the value in PowerShell when it is known
+        # (`$SshUser`), or restructure so no substitution is needed at all
+        # (`printf 'K='; cmd` instead of `echo K=$(cmd)`).
+        # Matched on the BACKTICK-escaped form only. `$(...)` unescaped is a
+        # PowerShell sub-expression, evaluated before the string ever leaves the
+        # process and therefore harmless; ``$(...)`` is a dollar deliberately
+        # protected FROM PowerShell, i.e. one meant for a shell — exactly the
+        # construct that behaves differently on the two platforms. Comment lines
+        # are skipped so this rationale can name the pattern it forbids.
+        $scripts = Get-ChildItem $RepoDeployDir -Filter *.ps1 |
+            Where-Object Name -notlike "*.Tests.ps1"
+        foreach ($script in $scripts) {
+            $offending = Get-Content $script.FullName |
+                Where-Object { $_ -notmatch '^\s*#' } |
+                Where-Object { $_ -match '`\$\(' }
+            $offending | Should -BeNullOrEmpty `
+                -Because ("$($script.Name) must not embed a shell command substitution: " +
+                          "cmd /c leaves it literal, sh -c expands it locally")
+        }
+    }
+}
+
 Describe "deploy scripts Windows PowerShell 5.1 compatibility (static)" {
     It "uses no 3-positional-argument Join-Path (PS6+-only -AdditionalChildPath)" {
         $scripts = Get-ChildItem $RepoDeployDir -Filter *.ps1 |

@@ -356,7 +356,14 @@ Write-Step "Suppression des anciens fichiers sur le serveur..."
 
 # Utiliser sudo pour supprimer les fichiers crees par Docker (root ownership)
 # Puis restaurer l'ownership du dossier pour eviter les permission denied lors du scp/rsync
-$sshCmd = "sudo rm -rf ~/$RemoteDir/* ~/$RemoteDir/.[!.]* 2>/dev/null; mkdir -p ~/$RemoteDir && sudo chown -R `$(whoami):`$(whoami) ~/$RemoteDir"
+# `$SshUser` rather than a remote `$(whoami)`: `Invoke-WithRetry` runs this
+# string through `cmd /c` on Windows but `sh -c` on Linux/macOS, and only the
+# second expands `$(...)`. The substitution was therefore resolved LOCALLY on a
+# Unix host — a deployment from Linux issued `chown -R <local-user>:<local-user>`
+# on the SERVER (observed in CI as `chown -R runner:runner`). The account that
+# owns the files is the account we connect as, which PowerShell already knows
+# and which the parameter validation above has already constrained.
+$sshCmd = "sudo rm -rf ~/$RemoteDir/* ~/$RemoteDir/.[!.]* 2>/dev/null; mkdir -p ~/$RemoteDir && sudo chown -R ${SshUser}:${SshUser} ~/$RemoteDir"
 
 Write-Info "Commande: $sshCmd"
 
@@ -518,10 +525,16 @@ Write-Step "Setting up DevOps prerequisites on remote server..."
 # credentials), so they MUST respect -DryRun — otherwise a "simulation" run
 # still changes the server (audit F040/DryRun).
 if (-not $DryRun) {
-    # Ensure DOCKER_GID is set in remote .env (required for Docker socket access)
-    Invoke-WithRetry -OperationName "Set DOCKER_GID" -Command @"
-ssh $SshOptionsStr -p $SshPort ${SshUser}@${SshHost} "grep -q DOCKER_GID ~/${RemoteDir}/.env 2>/dev/null || echo DOCKER_GID=`$(stat -c '%g' /var/run/docker.sock) >> ~/${RemoteDir}/.env && echo DOCKER_GID set"
-"@
+    # Ensure DOCKER_GID is set in remote .env (required for Docker socket access).
+    #
+    # `printf` + `stat` instead of `DOCKER_GID=$(stat ...)`: this string reaches
+    # `sh -c` on a Unix host (Invoke-WithRetry), which expands the substitution
+    # LOCALLY. The remote .env would then receive the docker GID of the machine
+    # that ran the deployment — observed in CI as `DOCKER_GID=118`, the runner's.
+    # A wrong GID here means the API container cannot reach the Docker socket,
+    # which is what the skill sandbox (SEC-001) runs on.
+    $gidCmd = "grep -q DOCKER_GID ~/${RemoteDir}/.env 2>/dev/null || { printf 'DOCKER_GID=' >> ~/${RemoteDir}/.env; stat -c '%g' /var/run/docker.sock >> ~/${RemoteDir}/.env; } && echo DOCKER_GID set"
+    Invoke-WithRetry -OperationName "Set DOCKER_GID" -Command "ssh $SshOptionsStr -p $SshPort ${SshUser}@${SshHost} `"$gidCmd`""
 
     # Deploy Claude CLI credentials (same auth as dev — same Anthropic account)
     # $env:USERPROFILE is Windows-only: fall back to $HOME so the pwsh/Unix
@@ -582,7 +595,18 @@ Write-Step "Durcissement des permissions des secrets (SEC-013)..."
 if (-not $DryRun) {
     # The trailing `stat` calls are the verification: they report the mode that
     # actually landed, so an unreported chmod failure cannot pass as a success.
-    $hardenCmd = "chmod 700 ~/$RemoteDir 2>/dev/null; [ -f ~/$RemoteDir/.env ] && chmod 600 ~/$RemoteDir/.env; [ -d ~/.claude ] && chmod 700 ~/.claude; [ -f ~/.claude/.credentials.json ] && chmod 600 ~/.claude/.credentials.json; [ -d ~/$RemoteDir/apps/api/config ] && chmod 700 ~/$RemoteDir/apps/api/config; find ~/$RemoteDir/apps/api/config -maxdepth 1 -type f -name '*.json' -exec chmod 600 {} + 2>/dev/null; echo PERMS_ENV=`$(stat -c '%a' ~/$RemoteDir/.env 2>/dev/null || echo missing); echo PERMS_DIR=`$(stat -c '%a' ~/$RemoteDir 2>/dev/null || echo missing)"
+    #
+    # Written with `printf` + `stat` rather than `echo VAR=$(stat ...)` on
+    # purpose. `Invoke-WithRetry` hands this string to the platform shell —
+    # `cmd /c` on Windows, `sh -c` on Linux — and only the second one expands
+    # `$(...)`. A command substitution here would therefore be evaluated LOCALLY
+    # on Linux, against a filesystem where none of these paths exist, and the
+    # remote shell would receive a literal `PERMS_ENV=missing`: the hardening
+    # check would fail every deployment from a Unix host while passing from
+    # Windows. Nothing below is expanded by either shell.
+    $statEnv = "printf 'PERMS_ENV='; stat -c '%a' ~/$RemoteDir/.env 2>/dev/null || echo missing"
+    $statDir = "printf 'PERMS_DIR='; stat -c '%a' ~/$RemoteDir 2>/dev/null || echo missing"
+    $hardenCmd = "chmod 700 ~/$RemoteDir 2>/dev/null; [ -f ~/$RemoteDir/.env ] && chmod 600 ~/$RemoteDir/.env; [ -d ~/.claude ] && chmod 700 ~/.claude; [ -f ~/.claude/.credentials.json ] && chmod 600 ~/.claude/.credentials.json; [ -d ~/$RemoteDir/apps/api/config ] && chmod 700 ~/$RemoteDir/apps/api/config; find ~/$RemoteDir/apps/api/config -maxdepth 1 -type f -name '*.json' -exec chmod 600 {} + 2>/dev/null; $statEnv; $statDir"
     $hardenSsh = "ssh -p $SshPort $SshOptionsStr $sshTarget `"$hardenCmd`""
     $hardenResult = Invoke-WithRetry -Command $hardenSsh -OperationName "Harden secret permissions" -MaxAttempts 2
 
