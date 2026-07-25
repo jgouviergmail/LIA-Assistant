@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import re
 
+import yaml
+
 from tests._repo_paths import repo_root_or_skip
 
 REPO_ROOT = repo_root_or_skip()
@@ -76,22 +78,57 @@ def test_each_file_is_internally_consistent_per_root() -> None:
             )
 
 
-def test_task_and_ci_select_the_same_pytest_sets() -> None:
-    """The unit/agents/integration marker expressions must match across Task and CI.
+# Jobs allowed to spell out their own pytest command. Each needs a reason: it is
+# the list of places where CI does NOT run what a developer can run.
+_PYTEST_ALLOWED_CI_JOBS = {
+    "python-compat": (
+        "F041 forward-compatibility run on Python 3.13. Its whole point is a "
+        "different interpreter from the one every task uses, so it cannot be a "
+        "task call. Declared CI-only in scripts/audit/check_ci_parity.py."
+    ),
+}
 
-    Compares the FULL set of marker expressions per root (a root may legitimately
-    have a main pass + an integration pass, F006), so Task and CI must agree on
-    both — a dev running the Task suites runs exactly what CI runs."""
+
+def test_ci_does_not_define_its_own_pytest_contract() -> None:
+    """CI must CALL the Taskfile suites, not restate them.
+
+    This replaces the original marker-drift comparison, and for a better reason
+    than the comparison itself: since ci.yml invokes `task test:backend:*`, the
+    two cannot drift — there is only one contract left to drift from. What has
+    to be protected now is that property, so the guard fails when a pytest
+    command reappears in the workflow and quietly recreates the second contract.
+
+    The marker expressions themselves stay covered by
+    `test_each_file_is_internally_consistent_per_root` on the Taskfile side.
+    """
+    workflow = yaml.safe_load(CI_WORKFLOW.read_text(encoding="utf-8"))
+
+    offenders: list[str] = []
+    for job_name, job in (workflow.get("jobs") or {}).items():
+        if job_name in _PYTEST_ALLOWED_CI_JOBS:
+            continue
+        for step in job.get("steps") or []:
+            command = step.get("run", "")
+            if re.search(r"pytest\s+tests/(unit|agents|integration)/", command):
+                offenders.append(f"{job_name} / {step.get('name', '<unnamed>')}")
+
+    assert not offenders, (
+        "these CI steps spell out a pytest command instead of calling a task, "
+        f"recreating the drift F022 exists to prevent: {offenders}. "
+        "Call `task test:backend:...`, or add the job to _PYTEST_ALLOWED_CI_JOBS "
+        "with a written reason."
+    )
+
+
+def test_every_test_root_is_still_driven_by_a_task() -> None:
+    """The Taskfile remains the place where the suites are actually defined.
+
+    Counterpart to the test above: proving CI does not restate the commands is
+    worthless if the commands stopped existing anywhere.
+    """
     task = _markers_by_root(TASKFILE.read_text(encoding="utf-8"))
-    ci = _markers_by_root(CI_WORKFLOW.read_text(encoding="utf-8"))
     for root in _TEST_ROOTS:
         assert root in task, f"tests/{root}/ pytest command missing from Taskfile.yml"
-        assert root in ci, f"tests/{root}/ pytest command missing from ci.yml"
-        assert task[root] == ci[root], (
-            f"tests/{root}/ marker drift (F022): Task selects "
-            f"{[sorted(e) for e in task[root]]} but CI selects "
-            f"{[sorted(e) for e in ci[root]]}. Align Taskfile.yml and ci.yml."
-        )
 
 
 def test_partial_subsets_never_enforce_the_global_coverage_gate() -> None:
