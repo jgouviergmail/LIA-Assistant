@@ -65,6 +65,10 @@ async def _drive_start_reindexation(run_in_background, document, events=None):
         patch.object(reindex, "RAGJobsRepository", return_value=jobs),
         patch.object(reindex, "reset_rag_embeddings"),
         patch.object(reindex, "_alter_vector_dimensions_if_needed", AsyncMock()),
+        # Isolate the run_in_background orchestration from AC-001 continuity
+        # detection: None dims => no generational split (pin/flip covered by the
+        # real-PostgreSQL integration tests, not these pure orchestration mocks).
+        patch.object(reindex, "_current_vector_dims", AsyncMock(return_value=None)),
         patch.object(reindex, "_reindex_all_documents", AsyncMock()) as reindex_all,
         patch.object(
             reindex, "safe_fire_and_forget", side_effect=_record_launch

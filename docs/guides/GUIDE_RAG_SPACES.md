@@ -116,10 +116,15 @@ When a document is uploaded:
 The `retrieve_rag_context()` function performs:
 
 1. **Active spaces check**: Skip if no active spaces (0 cost)
-2. **Reindex check**: Skip if reindexation in progress (Redis flag)
-3. **Query embedding**: `TrackedOpenAIEmbeddings.aembed_query()`
-4. **Semantic search**: pgvector cosine similarity (over-fetches 3x limit)
-5. **BM25 scoring**: `BM25IndexManager` with per-user cache
+2. **Generational grouping (AC-001)**: group active spaces by served embedding
+   generation (`rag_spaces.serving_embedding_model`; `NULL` = single generation).
+   A same-dimension reindex no longer blocks reads — each generation is searched
+   with its own query embedding + chunk filter, then fused. Steady state = one
+   group, no filter (the historic single-pass path). See ADR-150.
+3. **Query embedding**: `embed_rag_query_cached()` (per served generation)
+4. **Semantic search**: pgvector cosine similarity (over-fetches 3x limit,
+   filtered to the served generation)
+5. **BM25 scoring**: `BM25IndexManager` with per-user, per-generation cache
 6. **Hybrid fusion**: `score = α × semantic + (1-α) × BM25`
 7. **Filtering**: Remove chunks below `min_score` threshold
 8. **Truncation**: `truncate_to_token_budget()` via tiktoken
@@ -141,6 +146,54 @@ Source: paper.pdf
 {chunk content}
 ---
 ```
+
+---
+
+## Reindexation & Generational Continuity (ADR-150)
+
+Changing `RAG_SPACES_EMBEDDING_MODEL` triggers an admin reindexation
+(`POST /rag-spaces/admin/reindex`). Two cases, detected automatically from the
+vector column dimensionality:
+
+### Same-dimension model change (continuous — no downtime)
+
+The stable (OLD) generation stays **fully searchable** while the NEW one is built
+side by side, then each space is flipped atomically:
+
+1. Every affected space is pinned to the OLD model (`serving_embedding_model`),
+   committed atomically with the durable `PENDING` requeue.
+2. `process_document` rebuilds each document with the NEW model **alongside** the
+   OLD chunks (it replaces only the target generation while a pin is active).
+3. Retrieval embeds queries with, and filters chunks to, the served (OLD)
+   generation — no empty window, no cross-generation mixing.
+4. Once all of a space's documents are on the NEW model, the space flips in one
+   transaction (pointer cleared + OLD chunks reclaimed). A crash-interrupted
+   drain is resumed by the RAG reaper (`flip_pinned_spaces_if_ready`).
+
+Observability: `rag_reindex_space_flips_total{outcome=flipped|deferred|failed}`
+plus the `rag_reindex_space_flipped` / `_deferred` structured logs.
+**Documents uploaded during the window** are embedded with the NEW model and are
+therefore temporarily invisible until the flip (they are already in the target
+generation, so no rework) — assumed and observable via the reindex status.
+
+### Dimension change (⚠️ maintenance window)
+
+A change to `RAG_SPACES_EMBEDDING_DIMENSIONS` cannot keep both generations in one
+`vector(N)` column, so it uses the **destructive** rebuild path
+(`_alter_vector_dimensions_if_needed`: purge chunks + `ALTER` column + rebuild the
+HNSW index) and **user search is degraded until the reindex completes**. This is
+durable and resumable (documents are `PENDING`, the reaper rebuilds them), but it
+is a maintenance operation:
+
+- **Schedule it off-peak.** Announce the window; user RAG search returns fewer/no
+  results until documents are re-embedded.
+- **Do not interrupt the database** mid-reindex; the ALTER + requeue are one atomic
+  commit, but the re-embedding of every document afterwards is the long part.
+- Monitor `rag_reindex_runs_total{status}` and the reindex status endpoint for
+  completion before ending the window.
+
+Changing the model and the dimensions together is a dimension change (the
+destructive path wins).
 
 ---
 

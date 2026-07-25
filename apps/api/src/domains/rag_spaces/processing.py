@@ -27,7 +27,11 @@ from src.core.config import settings
 from src.domains.rag_spaces.embedding import get_rag_embeddings
 from src.domains.rag_spaces.jobs_repository import RAGJobsRepository
 from src.domains.rag_spaces.models import RAGChunk, RAGDocument, RAGDocumentStatus
-from src.domains.rag_spaces.repository import RAGChunkRepository, RAGDocumentRepository
+from src.domains.rag_spaces.repository import (
+    RAGChunkRepository,
+    RAGDocumentRepository,
+    RAGSpaceRepository,
+)
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.llm.embedding_context import (
     clear_embedding_context,
@@ -512,7 +516,19 @@ async def process_document(
             # (committed together at step 8), so retrieval never sees a reprocessed
             # document with zero chunks. For a first-time upload the delete is a
             # no-op; for a recovery/reindex reprocess it replaces atomically.
-            await chunk_repo.delete_by_document(document_id)
+            #
+            # AC-001 generational continuity: when the space's serving pointer
+            # pins a DIFFERENT generation than the one being written (a
+            # same-dimension reindex builds the NEW model while the OLD stays
+            # served), replace ONLY the target generation so the served
+            # generation survives side by side. Idempotent on retry: a re-run
+            # clears just the partial new-generation chunks, never the old ones.
+            space_repo = RAGSpaceRepository(db)
+            serving_model = await space_repo.get_serving_model(space_id)
+            if serving_model is not None and serving_model != model_name:
+                await chunk_repo.delete_by_document_and_model(document_id, model_name)
+            else:
+                await chunk_repo.delete_by_document(document_id)
             await chunk_repo.bulk_create_chunks(chunk_objects)
 
             # 7. Calculate embedding cost (reuse shared pricing logic)

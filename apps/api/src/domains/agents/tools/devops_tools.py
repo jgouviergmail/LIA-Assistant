@@ -133,7 +133,7 @@ async def claude_server_task_tool(
     server: Annotated[str, "Target server name. Empty for default server."] = "",
     context: Annotated[str, "Additional context or constraints for the task"] = "",
     resume_session: Annotated[str, "Previous Claude session ID to resume"] = "",
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,  # type: ignore[assignment]
+    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Prepare a task to run on a remote server via Claude Code CLI.
 

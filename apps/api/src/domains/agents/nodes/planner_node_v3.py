@@ -48,6 +48,7 @@ from src.domains.agents.constants import (
     STATE_KEY_VALIDATION_RESULT,
 )
 from src.domains.agents.models import MessagesState
+from src.domains.agents.utils.state_tracking import track_state_updates
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.logging import get_logger
@@ -333,10 +334,12 @@ async def planner_node_v3(
                     msg="Early detection saved planner LLM call(s)",
                 )
                 # Return early with semantic_validation set for clarification routing
-                return {
+                early_state_update = {
                     STATE_KEY_EXECUTION_PLAN: None,
                     STATE_KEY_SEMANTIC_VALIDATION: early_result,
                 }
+                track_state_updates(state, early_state_update, "planner", run_id)
+                return early_state_update
 
     # Get SmartPlannerService
     planner_service = get_smart_planner_service()
@@ -614,6 +617,7 @@ async def planner_node_v3(
             result[STATE_KEY_NEEDS_REPLAN] = False
         if state.get(STATE_KEY_EXCLUDE_SUB_AGENT_TOOLS):
             result[STATE_KEY_EXCLUDE_SUB_AGENT_TOOLS] = False
+        track_state_updates(state, result, "planner", run_id)
         return result
     else:
         logger.error(
@@ -665,6 +669,7 @@ async def planner_node_v3(
             result[STATE_KEY_NEEDS_REPLAN] = False
         if state.get(STATE_KEY_EXCLUDE_SUB_AGENT_TOOLS):
             result[STATE_KEY_EXCLUDE_SUB_AGENT_TOOLS] = False
+        track_state_updates(state, result, "planner", run_id)
         return result
 
 

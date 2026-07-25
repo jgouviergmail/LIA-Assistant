@@ -177,7 +177,7 @@ async def get_steps_summary_tool(
     time_max: Annotated[
         str | None, "End of search window (ISO 8601). Defaults to now (UTC)."
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,  # type: ignore[assignment]
+    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Return the user's total step count over a time window.
 
@@ -232,7 +232,7 @@ async def get_steps_summary_tool(
 )
 async def get_steps_daily_breakdown_tool(
     days: Annotated[int, "Window length in days (1-30). Defaults to 7."] = 7,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,  # type: ignore[assignment]
+    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Return per-day step totals over the last ``days`` days.
 
@@ -283,7 +283,7 @@ async def compare_steps_to_baseline_tool(
         int,
         "Recent window length in days to compare against the 28-day baseline. Defaults to 7.",
     ] = 7,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,  # type: ignore[assignment]
+    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Compare the user's recent steps average to their rolling baseline.
 
@@ -346,7 +346,7 @@ async def get_heart_rate_summary_tool(
     time_max: Annotated[
         str | None, "End of search window (ISO 8601). Defaults to now (UTC)."
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,  # type: ignore[assignment]
+    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Return the user's average, min, and max heart rate over a time window.
 
@@ -405,7 +405,7 @@ async def compare_heart_rate_to_baseline_tool(
         int,
         "Recent window length in days to compare against the 28-day baseline. Defaults to 7.",
     ] = 7,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,  # type: ignore[assignment]
+    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Compare the user's recent heart-rate average to their rolling baseline.
 
@@ -467,7 +467,7 @@ async def get_health_overview_tool(
     time_max: Annotated[
         str | None, "End of search window (ISO 8601). Defaults to now (UTC)."
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,  # type: ignore[assignment]
+    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Return a kind-by-kind summary of the user's health data for a time window.
 
@@ -540,7 +540,7 @@ async def detect_health_changes_tool(
         int,
         "Recent window length in days to inspect for notable variations. Defaults to 7.",
     ] = 7,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,  # type: ignore[assignment]
+    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Detect notable recent variations and structural events across all kinds.
 

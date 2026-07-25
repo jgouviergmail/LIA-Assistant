@@ -122,6 +122,20 @@ class RAGSpace(BaseModel):
         comment="SHA-256 hash of source content for staleness detection",
     )
 
+    serving_embedding_model: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        default=None,
+        comment=(
+            "Generational RAG continuity (AC-001): the embedding-model generation "
+            "that retrieval must embed queries with AND filter chunks to for this "
+            "space. NULL = single generation, serve every chunk (steady state). "
+            "During a same-dimension reindex it is pinned to the OLD model so the "
+            "stable generation stays fully readable while the NEW generation is "
+            "built side by side, then flipped atomically per space."
+        ),
+    )
+
     # Relationships
     documents: Mapped[list["RAGDocument"]] = relationship(
         "RAGDocument",

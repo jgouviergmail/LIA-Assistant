@@ -44,13 +44,19 @@ from src.domains.rag_spaces.embedding import reset_rag_embeddings
 from src.domains.rag_spaces.jobs_repository import RAGJobsRepository
 from src.domains.rag_spaces.models import RAGDocument, RAGDocumentStatus
 from src.domains.rag_spaces.processing import process_document
-from src.domains.rag_spaces.repository import RAGDocumentRepository
+from src.domains.rag_spaces.repository import (
+    RAGChunkRepository,
+    RAGDocumentRepository,
+    RAGSpaceRepository,
+)
 from src.infrastructure.async_utils import safe_fire_and_forget
+from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_rag_spaces import (
     rag_documents_total_count,
     rag_reindex_documents_total,
     rag_reindex_runs_total,
+    rag_reindex_space_flips_total,
 )
 
 logger = get_logger(__name__)
@@ -128,28 +134,187 @@ async def _alter_vector_dimensions_if_needed(db: AsyncSession, new_dims: int) ->
     logger.info("rag_reindex_vector_dimensions_altered", new_dims=new_dims)
 
 
-async def _persist_reindex_intent(db: AsyncSession, document_ids: list[UUID], new_dims: int) -> int:
+async def _current_vector_dims(db: AsyncSession) -> int | None:
+    """Read the rag_chunks.embedding column dimensionality (None if unknown)."""
+    result = await db.execute(
+        text(
+            "SELECT atttypmod FROM pg_attribute "
+            "WHERE attrelid = 'rag_chunks'::regclass AND attname = 'embedding'"
+        )
+    )
+    row = result.scalar_one_or_none()
+    return row if row and row > 0 else None
+
+
+async def _write_initial_reindex_status(
+    redis: object | None, model_from: str | None, model_to: str, total_docs: int
+) -> None:
+    """Publish the initial reindex status snapshot to Redis (informational cache)."""
+    if redis is None:
+        return
+    status_data = {
+        "in_progress": True,
+        "started_at": datetime.now(UTC).isoformat(),
+        "model_from": model_from,
+        "model_to": model_to,
+        "total_documents": total_docs,
+        "processed_documents": 0,
+        "failed_documents": 0,
+    }
+    await redis.set(  # type: ignore[attr-defined]
+        REINDEX_STATUS_KEY,
+        json.dumps(status_data),
+        ex=settings.rag_reindex_lock_ttl_seconds,
+    )
+
+
+async def _plan_generational_continuity(
+    db: AsyncSession,
+    documents: list[RAGDocument],
+    model_from: str | None,
+    model_to: str,
+    new_dims: int,
+) -> tuple[list[UUID] | None, str | None]:
+    """Decide whether this is a same-dimension generational reindex (AC-001).
+
+    Continuity requires a REAL model change with UNCHANGED vector dimensions: a
+    dimension change cannot keep both generations in one pgvector column and
+    stays on the destructive rebuild path; a no-op re-run (model unchanged) is
+    not a generational split. Returns ``(pin_space_ids, flip_from)`` — the
+    distinct spaces to pin to the OLD generation and the OLD model to flip from,
+    or ``(None, None)`` when there is no continuity.
+    """
+    current_dims = await _current_vector_dims(db)
+    continuity = (
+        model_from is not None
+        and model_from != model_to
+        and current_dims is not None
+        and current_dims == new_dims
+    )
+    if not continuity:
+        return None, None
+    return sorted({doc.space_id for doc in documents}), model_from
+
+
+async def _persist_reindex_intent(
+    db: AsyncSession,
+    document_ids: list[UUID],
+    new_dims: int,
+    pin_space_ids: list[UUID] | None = None,
+    pin_model: str | None = None,
+) -> int:
     """Atomically persist the reindex intent: destructive reset + durable requeue.
 
     ONE transaction, ONE commit (audit F001, V8): the dimension-change DDL
     (chunk purge + column ALTER + index rebuild — a no-op when dimensions are
-    unchanged) and the READY/ERROR → PENDING requeue land together. Crash
-    before the commit → full rollback, the old index stays intact and
-    servable. Crash after → the chunks are gone but every target document is
-    durably PENDING, so the drain loop and — after any restart — the document
-    reaper rebuild the index through the standard claim pipeline. There is no
-    intermediate state in which chunks are lost without recorded work.
+    unchanged), the READY/ERROR → PENDING requeue AND, for a same-dimension
+    generational reindex (AC-001), the per-space ``serving_embedding_model`` pin
+    land together. Crash before the commit → full rollback, the old index stays
+    intact and servable. Crash after → the chunks are gone (dimension change) or
+    fully served under the pinned OLD generation (same dimension), and every
+    target document is durably PENDING, so the drain loop and — after any
+    restart — the document reaper rebuild the index through the standard claim
+    pipeline. There is no intermediate state in which chunks are lost without
+    recorded work, nor a window where the served generation is deleted before
+    its replacement is ready.
 
     Returns the number of requeued documents.
     """
     try:
         await _alter_vector_dimensions_if_needed(db, new_dims)
+        if pin_space_ids and pin_model:
+            pinned = await RAGSpaceRepository(db).pin_serving_for_spaces(pin_space_ids, pin_model)
+            logger.info("rag_reindex_spaces_pinned", pinned=pinned, serving_model=pin_model)
         requeued = await RAGJobsRepository(db).requeue_documents_for_reindex(document_ids)
         await db.commit()
     except Exception:
         await db.rollback()
         raise
     return requeued
+
+
+async def _flip_one_space_if_ready(
+    db: AsyncSession,
+    space_id: UUID,
+    model_from: str,
+    model_to: str,
+) -> bool:
+    """Flip ONE pinned space to the new generation if its rebuild finished.
+
+    A space whose documents are all READY on ``model_to`` is flipped in ONE
+    transaction — clear the serving pin (back to a single generation) AND delete
+    the old-generation chunks together, so a concurrent reader sees either the
+    OLD generation (fully served) or the NEW one, never a mix or an empty window.
+    A space with a still-unfinished or failed document is left pinned on the
+    stable OLD generation ("keep N on failure"). Returns True iff it flipped.
+    """
+    space_repo = RAGSpaceRepository(db)
+    doc_repo = RAGDocumentRepository(db)
+    chunk_repo = RAGChunkRepository(db)
+    remaining = await doc_repo.count_space_docs_not_on_generation(space_id, model_to)
+    if remaining > 0:
+        rag_reindex_space_flips_total.labels(outcome="deferred").inc()
+        logger.info(
+            "rag_reindex_space_flip_deferred",
+            space_id=str(space_id),
+            remaining_documents=remaining,
+        )
+        return False
+    try:
+        await space_repo.set_serving_model(space_id, None)
+        deleted = await chunk_repo.delete_by_space_and_model(space_id, model_from)
+        await db.commit()
+        rag_reindex_space_flips_total.labels(outcome="flipped").inc()
+        logger.info(
+            "rag_reindex_space_flipped",
+            space_id=str(space_id),
+            model_from=model_from,
+            model_to=model_to,
+            old_chunks_deleted=deleted,
+        )
+        return True
+    except Exception as exc:
+        await db.rollback()
+        rag_reindex_space_flips_total.labels(outcome="failed").inc()
+        logger.error(
+            "rag_reindex_space_flip_failed",
+            space_id=str(space_id),
+            error=str(exc),
+            exc_info=True,
+        )
+        return False
+
+
+async def _flip_completed_spaces(model_from: str, model_to: str) -> None:
+    """Flip every fully-rebuilt space pinned to ``model_from`` (end-of-drain pass).
+
+    Per-space commit so one laggard never blocks the others; a deferred space is
+    picked up later by the reaper's ``flip_pinned_spaces_if_ready`` pass.
+    """
+    async with get_db_context() as db:
+        pinned = await RAGSpaceRepository(db).get_pinned_space_ids()
+        for space_id, serving in pinned:
+            if serving == model_from:
+                await _flip_one_space_if_ready(db, space_id, model_from, model_to)
+
+
+async def flip_pinned_spaces_if_ready() -> None:
+    """Crash-resume flip pass (AC-001): activate any pinned space now fully rebuilt.
+
+    Called every RAG reaper tick. After a crash the reaper rebuilds the requeued
+    documents onto the current model while the space stays pinned on (and serving)
+    the OLD generation; once every document is on the current model this pass
+    performs the atomic flip the interrupted drain never reached. Idempotent —
+    a space whose serving pointer already equals the current model has nothing to
+    flip. The current settings model is the target generation for every pin.
+    """
+    target = settings.rag_spaces_embedding_model
+    async with get_db_context() as db:
+        pinned = await RAGSpaceRepository(db).get_pinned_space_ids()
+        for space_id, serving in pinned:
+            if serving == target:
+                continue
+            await _flip_one_space_if_ready(db, space_id, serving, target)
 
 
 async def start_reindexation(db: AsyncSession, *, run_in_background: bool = True) -> dict:
@@ -212,34 +377,35 @@ async def start_reindexation(db: AsyncSession, *, run_in_background: bool = True
     model_to = settings.rag_spaces_embedding_model
 
     # Set Redis status (flag already acquired atomically above)
-    if redis:
-        status_data = {
-            "in_progress": True,
-            "started_at": datetime.now(UTC).isoformat(),
-            "model_from": model_from,
-            "model_to": model_to,
-            "total_documents": total_docs,
-            "processed_documents": 0,
-            "failed_documents": 0,
-        }
-        await redis.set(
-            REINDEX_STATUS_KEY,
-            json.dumps(status_data),
-            ex=settings.rag_reindex_lock_ttl_seconds,
-        )
+    await _write_initial_reindex_status(redis, model_from, model_to, total_docs)
+
+    # AC-001 generational continuity: a SAME-dimension model change keeps the OLD
+    # generation fully readable while the NEW one is built side by side, pinning
+    # every affected space to the OLD model inside the atomic intent commit. A
+    # dimension change stays on the destructive rebuild path (documented
+    # maintenance window); a no-op re-run is not a generational split.
+    new_dims = settings.rag_spaces_embedding_dimensions
+    pin_space_ids, flip_from = await _plan_generational_continuity(
+        db, documents, model_from, model_to, new_dims
+    )
 
     # Reset embedding singleton to pick up new model
     reset_rag_embeddings()
 
     # Persist the reindex intent atomically (audit F001, V8): the destructive
-    # dimension-change DDL (if any) and the READY/ERROR → PENDING requeue land
-    # in ONE commit — a crash at any point leaves either the old index fully
-    # intact or durably-recorded work the reaper resumes. Never both destroyed
-    # chunks and unrecorded documents.
-    new_dims = settings.rag_spaces_embedding_dimensions
+    # dimension-change DDL (if any), the READY/ERROR → PENDING requeue AND the
+    # per-space serving pin (continuity) land in ONE commit — a crash at any
+    # point leaves either the old index fully intact/served or durably-recorded
+    # work the reaper resumes. Never both destroyed chunks and unrecorded work.
     try:
         previous_statuses = [doc.status for doc in documents]
-        requeued = await _persist_reindex_intent(db, [doc.id for doc in documents], new_dims)
+        requeued = await _persist_reindex_intent(
+            db,
+            [doc.id for doc in documents],
+            new_dims,
+            pin_space_ids=pin_space_ids,
+            pin_model=flip_from,
+        )
         # Best-effort gauge transitions for the requeued rows (the per-document
         # completion transitions are handled inside process_document).
         for previous_status in previous_statuses:
@@ -260,6 +426,7 @@ async def start_reindexation(db: AsyncSession, *, run_in_background: bool = True
         model_from=model_from,
         model_to=model_to,
         dimensions=new_dims,
+        generational_continuity=flip_from is not None,
     )
 
     rag_reindex_runs_total.labels(status="started").inc()
@@ -268,11 +435,11 @@ async def start_reindexation(db: AsyncSession, *, run_in_background: bool = True
     # runners so the invoking process does not exit and kill the work mid-flight.
     if run_in_background:
         safe_fire_and_forget(
-            _reindex_all_documents(documents, model_to),
+            _reindex_all_documents(documents, model_to, flip_from),
             name="rag_reindex_all",
         )
     else:
-        await _reindex_all_documents(documents, model_to)
+        await _reindex_all_documents(documents, model_to, flip_from)
 
     return {
         "message": f"Reindexation started for {total_docs} documents",
@@ -326,8 +493,17 @@ async def _reprocess_one_document(document: RAGDocument) -> bool:
         return False
 
 
-async def _reindex_all_documents(documents: list[RAGDocument], model_to: str) -> None:
-    """Background task: reindex all documents sequentially."""
+async def _reindex_all_documents(
+    documents: list[RAGDocument], model_to: str, flip_from: str | None = None
+) -> None:
+    """Background task: reindex all documents sequentially.
+
+    When ``flip_from`` is set (AC-001 same-dimension continuity), each document
+    is rebuilt with the NEW model alongside the still-served OLD generation
+    (``process_document`` honours the space's serving pin), and once the drain
+    finishes every fully-rebuilt space is flipped atomically to the new
+    generation with its old chunks reclaimed.
+    """
     redis = await _get_redis()
     processed = 0
     failed = 0
@@ -360,6 +536,16 @@ async def _reindex_all_documents(documents: list[RAGDocument], model_to: str) ->
                     )
             except Exception as exc:
                 logger.warning("rag_reindex_progress_update_failed", error=str(exc))
+
+    # AC-001: flip every fully-rebuilt space to the new generation (atomic per
+    # space) and reclaim the old chunks. Spaces with a still-failed document stay
+    # pinned on the stable OLD generation; the periodic RAG reaper reruns the
+    # flip once it finishes them. Never raises into the drain result.
+    if flip_from is not None:
+        try:
+            await _flip_completed_spaces(flip_from, model_to)
+        except Exception as exc:
+            logger.error("rag_reindex_flip_pass_failed", error=str(exc), exc_info=True)
 
     # Clear flag
     if redis:

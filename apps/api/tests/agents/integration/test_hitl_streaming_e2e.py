@@ -119,25 +119,6 @@ class TestHITLStreamingE2E:
     """E2E tests for HITL streaming via SSE."""
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(
-        reason="Test requires full AgentService graph initialization - covered by unit tests"
-    )
-    async def test_full_sse_streaming_lifecycle(
-        self,
-        mock_authenticated_user,
-        mock_hitl_interrupt_event,
-        mock_question_tokens,
-    ):
-        """Test complete SSE streaming lifecycle from request to completion.
-
-        Note: This test is skipped because AgentService.graph is not initialized
-        until the first request. The streaming flow is covered by:
-        - Unit tests in test_streaming_service.py
-        - Integration tests with real graph in test_agent_e2e.py
-        """
-        pass
-
-    @pytest.mark.asyncio
     async def test_hitl_streaming_three_chunk_protocol(
         self,
         mock_authenticated_user,

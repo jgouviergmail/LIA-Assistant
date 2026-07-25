@@ -306,63 +306,53 @@ class TestTokenRefresh:
         client.connector_service._refresh_oauth_token.assert_not_called()
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(
-        reason="Complex async context manager mocking - requires refactoring or integration test"
-    )
     @patch("src.domains.connectors.clients.base_oauth_client.get_redis_session")
     @patch("src.domains.connectors.clients.base_oauth_client.OAuthLock")
     async def test_refresh_token_raises_404_when_connector_not_found(
         self, mock_oauth_lock, mock_redis_session, client, expired_credentials
     ):
-        """Test token refresh raises 404 when connector not found (Lines 274-278).
+        """Test token refresh raises 404 when the connector row is gone (Lines 433-438).
 
-        NOTE: This test is skipped due to complex async DB context manager mocking.
-        The functionality is covered by integration tests.
-        See: tests/integration/test_base_google_client_integration.py
+        Root cause of the former skip: the DB context manager was mocked with a
+        plain ``Mock()``, which does not support the ``__aenter__``/``__aexit__``
+        magic-method protocol, so ``async with self.connector_service.db``
+        raised a TypeError instead of exercising the 404 branch. Mirrors the
+        working async-CM pattern of the sibling 400 test: an ``AsyncMock`` DB
+        whose ``__aexit__`` returns ``False`` so the ResourceNotFoundError is
+        not swallowed by the ``async with``.
         """
         client.credentials = expired_credentials
 
-        # Mock Redis session
         mock_redis = AsyncMock()
         mock_redis_session.return_value = mock_redis
 
-        # Mock OAuthLock context manager
         mock_lock_context = AsyncMock()
         mock_lock_context.__aenter__ = AsyncMock()
-        mock_lock_context.__aexit__ = AsyncMock()
+        mock_lock_context.__aexit__ = AsyncMock(return_value=False)
         mock_oauth_lock.return_value = mock_lock_context
 
-        # Mock double-check returns expired credentials
+        # Double-check returns still-expired credentials -> proceed to the DB block.
         client.connector_service.get_connector_credentials.return_value = expired_credentials
 
-        # Mock DB session object (what's returned by __aenter__)
-        mock_db_session = Mock()
-
-        # Mock DB context manager with proper async context methods
-        async def mock_aenter(*args, **kwargs):
-            return mock_db_session
-
-        async def mock_aexit(*args, **kwargs):
-            return False
-
-        mock_db = Mock()
-        mock_db.__aenter__ = mock_aenter
-        mock_db.__aexit__ = mock_aexit
-        client.connector_service.db = mock_db
-
-        # Mock connector not found
+        # Connector row no longer exists -> repo returns None -> 404 (before the
+        # missing-credentials 400 check, which comes later in the method).
         mock_repo = Mock()
         mock_repo.get_by_user_and_type = AsyncMock(return_value=None)
+
+        mock_db = AsyncMock()
+        mock_db.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_db.__aexit__ = AsyncMock(return_value=False)  # Don't suppress exceptions
+        client.connector_service.db = mock_db
 
         with patch(
             "src.domains.connectors.repository.ConnectorRepository",
             return_value=mock_repo,
         ):
-            # Lines 274-278 executed: connector not found, raise 404
             with pytest.raises(HTTPException) as exc_info:
                 await client._ensure_valid_token()
 
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
+        client.connector_service._refresh_oauth_token.assert_not_called()
 
 
 class TestMakeRequest:

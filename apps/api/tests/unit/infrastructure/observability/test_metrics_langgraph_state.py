@@ -48,20 +48,21 @@ def reset_metrics():
     yield
 
 
-@pytest.mark.skip(
-    reason="router_node does not emit langgraph_state metrics yet, and this test "
-    "invokes a real LLM path (needs full mocking) — F006: un-skip when router is "
-    "instrumented like response_node/task_orchestrator_node."
-)
 class TestRouterNodeStateMetrics:
-    """Test state tracking for router_node."""
+    """Test state tracking for router_node (F006: router_v3 now instrumented)."""
 
     @pytest.mark.asyncio
     async def test_tracks_state_updates_success_path(self):
-        """Verify router_node tracks state updates on success path."""
+        """Verify router_node_v3 tracks state updates on the success path.
+
+        Hermetic: the QueryAnalyzerService is mocked and the two optional
+        LLM-bound paths (semantic pivot, response-context prefetch) are disabled
+        via settings so the node exercises only its state-building + tracking.
+        """
         from langchain_core.messages import HumanMessage
         from langchain_core.runnables import RunnableConfig
 
+        from src.core.config import settings
         from src.domains.agents.analysis.query_intelligence import QueryIntelligence, UserGoal
         from src.domains.agents.nodes import router_node
 
@@ -70,7 +71,8 @@ class TestRouterNodeStateMetrics:
         }
         config = RunnableConfig(metadata={"run_id": "test_run"})
 
-        # Create mock QueryIntelligence result
+        # Real QueryIntelligence (defaults cover primary_domain/turn_type/etc.);
+        # route_to="response" keeps the planner-only tool-scoring branch off.
         mock_intelligence = QueryIntelligence(
             original_query="test message",
             english_query="test message",
@@ -86,9 +88,13 @@ class TestRouterNodeStateMetrics:
         mock_service = MagicMock()
         mock_service.analyze_full = AsyncMock(return_value=mock_intelligence)
 
-        with patch(
-            "src.domains.agents.services.query_analyzer_service.get_query_analyzer_service",
-            return_value=mock_service,
+        with (
+            patch.object(settings, "semantic_pivot_enabled", False),
+            patch.object(settings, "response_context_prefetch_at_router_enabled", False),
+            patch(
+                "src.domains.agents.services.query_analyzer_service.get_query_analyzer_service",
+                return_value=mock_service,
+            ),
         ):
             await router_node(state, config)
 
@@ -108,41 +114,59 @@ class TestRouterNodeStateMetrics:
         assert len(router_size_samples) > 0, "Router should track state size"
 
 
-@pytest.mark.skip(
-    reason="planner_node_v3 does not emit langgraph_state metrics yet, and this test "
-    "invokes a real LLM path (needs full mocking) — F006: un-skip when planner is "
-    "instrumented like response_node/task_orchestrator_node."
-)
 class TestPlannerNodeStateMetrics:
-    """Test state tracking for planner_node."""
+    """Test state tracking for planner_node (F006: planner_v3 now instrumented)."""
 
     @pytest.mark.asyncio
-    async def test_tracks_state_updates_missing_routing_history(self):
-        """Verify planner_node tracks state updates when routing_history is missing."""
+    async def test_tracks_state_updates_early_clarification(self):
+        """Verify planner_node_v3 tracks state on the early-clarification return path.
+
+        Hermetic: forces the early-insufficient-content branch (no SmartPlanner /
+        LLM call) by stubbing ``_has_potential_skill_match`` (skip the skill
+        bypass) and ``detect_early_insufficient_content`` (require clarification).
+        The node returns before ``get_smart_planner_service`` and must have
+        emitted the ``planner`` state metrics.
+        """
         from langchain_core.messages import HumanMessage
         from langchain_core.runnables import RunnableConfig
 
+        from src.domains.agents.constants import STATE_KEY_EXECUTION_PLAN
         from src.domains.agents.nodes import planner_node
 
-        # Missing routing_history will trigger error path in planner
+        # No query_intelligence and no routing_history -> planner builds a
+        # fallback QueryIntelligence, then hits the early-detection branch.
         state: MessagesState = {
-            STATE_KEY_MESSAGES: [HumanMessage(content="test")],
-            # No routing_history key
+            STATE_KEY_MESSAGES: [HumanMessage(content="send it")],
         }
         config = RunnableConfig(metadata={"run_id": "test_run"})
 
-        await planner_node(state, config)
+        early_result = MagicMock()
+        early_result.requires_clarification = True
+        early_result.issues = []
 
-        # Check that state updates were tracked despite error
+        with (
+            patch(
+                "src.domains.agents.nodes.planner_node_v3._has_potential_skill_match",
+                return_value=False,
+            ),
+            patch(
+                "src.domains.agents.orchestration.semantic_validator."
+                "detect_early_insufficient_content",
+                return_value=early_result,
+            ),
+        ):
+            result = await planner_node(state, config)
+
+        # Early-return shape: no plan, semantic_validation carries the clarification.
+        assert result.get(STATE_KEY_EXECUTION_PLAN) is None
+
         update_samples = langgraph_state_updates_total.collect()[0].samples
         planner_samples = [s for s in update_samples if s.labels.get("node_name") == "planner"]
+        assert len(planner_samples) > 0, "Planner should track state updates"
 
-        assert len(planner_samples) > 0, "Planner should track state updates on error"
-
-        # Check state size was tracked
         size_samples = langgraph_state_size_bytes.collect()[0].samples
         planner_size_samples = [s for s in size_samples if s.labels.get("node_name") == "planner"]
-        assert len(planner_size_samples) > 0, "Planner should track state size on error"
+        assert len(planner_size_samples) > 0, "Planner should track state size"
 
 
 class TestApprovalGateNodeStateMetrics:
@@ -302,14 +326,16 @@ class TestResponseNodeStateMetrics:
         tracked_keys = {s.labels.get("key") for s in response_samples}
         assert STATE_KEY_MESSAGES in tracked_keys
 
-    @pytest.mark.skip(
-        reason="response_node now re-raises on get_llm failure instead of tracking "
-        "state on the exception path; this test predates that error-handling change "
-        "and needs reworking against the current contract (F006)."
-    )
     @pytest.mark.asyncio
-    async def test_tracks_state_updates_on_exception(self):
-        """Verify response_node tracks state on exception path."""
+    async def test_tracks_state_updates_on_caught_exception(self):
+        """A CAUGHT-type failure routes through the graceful fallback, which tracks state.
+
+        Current contract (F006): response_node's outer handler catches
+        ``(RuntimeError, ValueError, KeyError, TypeError, AttributeError)`` and
+        returns ``_response_error_fallback``, which emits the ``response`` node's
+        state metrics for the fallback AIMessage. A RuntimeError from get_llm
+        therefore still produces tracked state — unlike an uncaught exception.
+        """
         from langchain_core.messages import HumanMessage
         from langchain_core.runnables import RunnableConfig
 
@@ -321,17 +347,47 @@ class TestResponseNodeStateMetrics:
         }
         config = RunnableConfig(metadata={"run_id": "test_run"})
 
-        # Mock to force exception
-        with patch("src.domains.agents.nodes.response_node.get_llm") as mock_get_llm:
-            mock_get_llm.side_effect = Exception("LLM error")
+        with patch(
+            "src.domains.agents.nodes.response_node.get_llm",
+            side_effect=RuntimeError("LLM down"),
+        ):
+            result = await response_node(state, config)
 
-            await response_node(state, config)
+        # Graceful fallback returns a messages update rather than propagating.
+        assert STATE_KEY_MESSAGES in result
 
-        # Check that state updates were tracked despite exception
         update_samples = langgraph_state_updates_total.collect()[0].samples
         response_samples = [s for s in update_samples if s.labels.get("node_name") == "response"]
-
         assert len(response_samples) > 0
+        tracked_keys = {s.labels.get("key") for s in response_samples}
+        assert STATE_KEY_MESSAGES in tracked_keys
+
+    @pytest.mark.asyncio
+    async def test_reraises_on_uncaught_exception(self):
+        """An UNCAUGHT exception type propagates out of response_node (current contract).
+
+        The outer handler only catches the concrete tuple above; a bare
+        ``Exception`` is re-raised so LangGraph can surface the failure rather
+        than masking it behind a fallback message. No ``response`` state is
+        tracked on this path.
+        """
+        from langchain_core.messages import HumanMessage
+        from langchain_core.runnables import RunnableConfig
+
+        from src.domains.agents.nodes.response_node import response_node
+
+        state: MessagesState = {
+            STATE_KEY_MESSAGES: [HumanMessage(content="test")],
+            STATE_KEY_AGENT_RESULTS: {},
+        }
+        config = RunnableConfig(metadata={"run_id": "test_run"})
+
+        with patch(
+            "src.domains.agents.nodes.response_node.get_llm",
+            side_effect=Exception("uncaught LLM error"),
+        ):
+            with pytest.raises(Exception, match="uncaught LLM error"):
+                await response_node(state, config)
 
 
 class TestAgentWrapperStateMetrics:

@@ -42,6 +42,7 @@ from src.domains.agents.constants import (
 )
 from src.domains.agents.domain_schemas import RouterOutput
 from src.domains.agents.models import MessagesState
+from src.domains.agents.utils.state_tracking import track_state_updates
 from src.domains.agents.utils.turn_type import normalize_turn_type
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.decorators import track_metrics
@@ -379,6 +380,11 @@ async def router_node_v3(
             len(tool_scores_dict.get("all_scores", {})) if tool_scores_dict else 0
         ),
     )
+
+    # LangGraph state observability (F006): emit per-key update counters and the
+    # merged state size for the router node, matching response_node /
+    # task_orchestrator_node. Single CC-neutral call — no new branches.
+    track_state_updates(state, state_update, "router_v3", run_id)
 
     return state_update
 

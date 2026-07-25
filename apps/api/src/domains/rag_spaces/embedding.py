@@ -30,6 +30,13 @@ logger = get_logger(__name__)
 _rag_embeddings: GeminiRetrievalEmbeddings | None = None
 _lock = threading.Lock()
 
+# Per-model embedding clients (AC-001 generational continuity): while a
+# same-dimension reindex is in flight the singleton above already points at the
+# NEW model, but retrieval must still embed queries with the OLD (served)
+# generation. Clients are keyed by model name and built on demand; same
+# dimensions, so they all target the current pgvector column.
+_embeddings_by_model: dict[str, GeminiRetrievalEmbeddings] = {}
+
 # Query embedding cache (in-process, text-hash keyed) with single-flight dedup.
 # Within a turn, the user-RAG and system-RAG retrievals embed the SAME user
 # message — without dedup that is two identical Gemini API calls (and once
@@ -82,30 +89,75 @@ def get_rag_embeddings() -> GeminiRetrievalEmbeddings:
     return _rag_embeddings
 
 
+def get_rag_embeddings_for_model(model: str) -> GeminiRetrievalEmbeddings:
+    """Get or build the RAG embeddings client for a SPECIFIC model.
+
+    Used by generational retrieval (AC-001) to embed a query with the model of
+    the generation currently being served, which during a same-dimension
+    reindex differs from ``settings.rag_spaces_embedding_model`` (already the
+    new model). For the current settings model this returns the shared singleton
+    so the steady-state path keeps one client.
+
+    Args:
+        model: Embedding model name to embed with.
+
+    Returns:
+        GeminiRetrievalEmbeddings bound to ``model`` (same output dimensionality
+        as the active column — a same-dimension generation swap).
+    """
+    if model == settings.rag_spaces_embedding_model:
+        return get_rag_embeddings()
+
+    cached = _embeddings_by_model.get(model)
+    if cached is not None:
+        return cached
+
+    with _lock:
+        cached = _embeddings_by_model.get(model)
+        if cached is not None:
+            return cached
+
+        google_api_key = os.environ.get("GOOGLE_GEMINI_API_KEY", "") or os.environ.get(
+            "GOOGLE_API_KEY", ""
+        )
+        client = GeminiRetrievalEmbeddings(
+            model=model,
+            google_api_key=google_api_key,
+            output_dimensionality=settings.rag_spaces_embedding_dimensions,
+        )
+        _embeddings_by_model[model] = client
+        logger.info("rag_embeddings_model_client_built", model=model)
+        return client
+
+
 def reset_rag_embeddings() -> None:
     """Reset the RAG embeddings singleton.
 
-    Called after admin changes the embedding model to force re-initialization.
-    Also clears the query embedding cache (keys include the model name, so
-    stale entries would expire anyway — this just frees them immediately).
+    Called at the START of a reindex (before any served-generation query) to
+    force re-initialization on the new model. Also clears the query embedding
+    cache and the per-model client cache: both are model-keyed and rebuilt on
+    demand, so a served-generation query during the reindex simply reconstructs
+    the OLD-model client lazily. Clearing here bounds the per-model cache to the
+    current reindex's generations instead of letting historical clients pile up.
     """
     global _rag_embeddings
 
     with _lock:
         _rag_embeddings = None
+        _embeddings_by_model.clear()
     _query_cache.clear()
 
     logger.info("rag_embeddings_reset")
 
 
-def _query_cache_key(text: str) -> str:
+def _query_cache_key(text: str, model: str) -> str:
     """Cache key for a query embedding: model-scoped hash of the text.
 
-    Includes the model name so an admin model change never serves vectors
-    computed by the previous model. MD5 for speed (not security).
+    Includes the model name so a generation swap (or admin model change) never
+    serves vectors computed by a different model. MD5 for speed (not security).
     """
     digest = hashlib.md5(text.encode("utf-8")).hexdigest()
-    return f"{settings.rag_spaces_embedding_model}:{digest}"
+    return f"{model}:{digest}"
 
 
 def _cleanup_query_cache() -> None:
@@ -122,7 +174,7 @@ def _cleanup_query_cache() -> None:
         del _query_cache[oldest_key]
 
 
-async def _compute_query_embedding(key: str, query: str) -> list[float]:
+async def _compute_query_embedding(key: str, query: str, model: str) -> list[float]:
     """Shared single-flight body: embed, cache on success, always deregister.
 
     Owning the cache-write and the in-flight cleanup here (not in the callers)
@@ -135,7 +187,7 @@ async def _compute_query_embedding(key: str, query: str) -> list[float]:
     the next caller retries with a fresh task.
     """
     try:
-        vector = await get_rag_embeddings().aembed_query(query)
+        vector = await get_rag_embeddings_for_model(model).aembed_query(query)
         _query_cache[key] = (time.monotonic(), vector)
         return vector
     finally:
@@ -149,7 +201,7 @@ def _drain_task_exception(task: asyncio.Task[list[float]]) -> None:
         task.exception()
 
 
-async def embed_rag_query_cached(query: str) -> list[float]:
+async def embed_rag_query_cached(query: str, model: str | None = None) -> list[float]:
     """Embed a RAG query with an in-process TTL cache and single-flight dedup.
 
     - Cache hit: returns the cached vector, no API call.
@@ -162,11 +214,17 @@ async def embed_rag_query_cached(query: str) -> list[float]:
 
     Args:
         query: Query text to embed (task_type=RETRIEVAL_QUERY).
+        model: Embedding model to use. None (default) uses the current settings
+            model. Generational retrieval (AC-001) passes the served generation
+            explicitly so a query is compared only against chunks of the SAME
+            model. The cache and single-flight keys are model-scoped, so two
+            generations of the same query never collide.
 
     Returns:
         Embedding vector for the query.
     """
-    key = _query_cache_key(query)
+    resolved_model = model or settings.rag_spaces_embedding_model
+    key = _query_cache_key(query, resolved_model)
     _cleanup_query_cache()
 
     cached = _query_cache.get(key)
@@ -178,7 +236,7 @@ async def embed_rag_query_cached(query: str) -> list[float]:
     if inflight is None:
         # The shared task owns the embed, the cache-write and its own in-flight
         # cleanup (see _compute_query_embedding).
-        inflight = asyncio.create_task(_compute_query_embedding(key, query))
+        inflight = asyncio.create_task(_compute_query_embedding(key, query, resolved_model))
         inflight.add_done_callback(_drain_task_exception)
         _query_inflight[key] = inflight
     else:

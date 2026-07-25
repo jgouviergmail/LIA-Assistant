@@ -426,76 +426,6 @@ class TestOAuthFlows:
         assert result.state == "state_abc123"
         mock_flow_handler.initiate_flow.assert_called_once()
 
-    @pytest.mark.skip(reason="Stateless method tested in TestGmailStateless")
-    @pytest.mark.asyncio
-    @patch("src.infrastructure.cache.redis.get_redis_session")
-    @patch("src.core.oauth.OAuthFlowHandler")
-    @patch("src.core.oauth.GoogleOAuthProvider")
-    async def test_handle_gmail_callback_success(
-        self, mock_provider_class, mock_flow_handler_class, mock_get_redis
-    ):
-        """Test handle_gmail_callback creates connector (Lines 428-462)."""
-        mock_db = AsyncMock()
-        service = ConnectorService(mock_db)
-
-        user_id = uuid.uuid4()
-        code = "auth_code_123"
-        state = "state_abc123"
-
-        # Mock Redis
-        mock_redis = AsyncMock()
-        mock_get_redis.return_value = mock_redis
-
-        # Mock OAuth provider
-        mock_provider = MagicMock()
-        mock_provider_class.for_gmail.return_value = mock_provider
-
-        # Mock flow handler returns (token_response, stored_state)
-        from src.core.field_names import FIELD_CONNECTOR_TYPE, FIELD_USER_ID
-        from src.core.oauth import OAuthTokenResponse
-
-        mock_token_response = OAuthTokenResponse(
-            access_token="access_token_123",
-            refresh_token="refresh_token_456",
-            token_type="Bearer",
-            expires_in=3600,
-            scope="https://www.googleapis.com/auth/gmail.readonly",
-        )
-
-        stored_state_data = {
-            FIELD_USER_ID: str(user_id),
-            FIELD_CONNECTOR_TYPE: ConnectorType.GOOGLE_GMAIL.value,
-        }
-
-        mock_flow_handler = AsyncMock()
-        mock_flow_handler.handle_callback = AsyncMock(
-            return_value=(mock_token_response, stored_state_data)
-        )
-        mock_flow_handler_class.return_value = mock_flow_handler
-
-        # Mock repository
-        service.repository.get_by_user_and_type = AsyncMock(return_value=None)
-        service._invalidate_user_connectors_cache = AsyncMock()
-
-        # Mock DB refresh to populate defaults
-        def populate_defaults(connector):
-            if not connector.id:
-                connector.id = uuid.uuid4()
-            if not connector.created_at:
-                connector.created_at = datetime.now(UTC)
-            if not connector.updated_at:
-                connector.updated_at = datetime.now(UTC)
-
-        mock_db.refresh = AsyncMock(side_effect=populate_defaults)
-
-        # Lines 428-462 executed: OAuth callback creates connector
-        result = await service.handle_gmail_callback_stateless(code, state)
-
-        assert result is not None
-        assert result.connector_type == ConnectorType.GOOGLE_GMAIL
-        mock_flow_handler.handle_callback.assert_called_once()
-        mock_db.commit.assert_called_once()
-
 
 class TestCredentialManagement:
     """Tests for credential refresh and revocation."""
@@ -975,105 +905,6 @@ class TestEdgeCases:
         assert exc_info.value.status_code == 403
 
 
-# ========================================================================
-# SESSION 35a - PHASE 1: QUICK WINS (P5-P7) - 4 tests
-# ========================================================================
-
-
-class TestOAuthCallbackErrors:
-    """Tests for OAuth callback error handling edge cases."""
-
-    @pytest.mark.skip(reason="Stateless method tested in separate test class")
-    @pytest.mark.asyncio
-    @patch("src.infrastructure.cache.redis.get_redis_session")
-    @patch("src.core.oauth.OAuthFlowHandler")
-    @patch("src.core.oauth.GoogleOAuthProvider")
-    async def test_handle_oauth_callback_exception_raises(
-        self, mock_provider_class, mock_flow_handler_class, mock_get_redis
-    ):
-        """Test OAuth callback exception handling (Lines 357-363)."""
-        mock_db = AsyncMock()
-        service = ConnectorService(mock_db)
-
-        code = "auth_code_123"
-        state = "state_abc123"
-
-        # Mock Redis
-        mock_redis = AsyncMock()
-        mock_get_redis.return_value = mock_redis
-
-        # Mock OAuth provider
-        mock_provider = MagicMock()
-        mock_provider_class.for_gmail.return_value = mock_provider
-
-        # Mock flow handler to raise exception during callback
-        mock_flow_handler = AsyncMock()
-        mock_flow_handler.handle_callback = AsyncMock(side_effect=Exception("OAuth flow failed"))
-        mock_flow_handler_class.return_value = mock_flow_handler
-
-        # Lines 357-363 executed: Exception handling
-        with pytest.raises(Exception) as exc_info:
-            await service.handle_gmail_callback_stateless(code, state)
-
-        # Verify raise_oauth_flow_failed called
-        assert "oauth" in str(exc_info.value).lower() or "failed" in str(exc_info.value).lower()
-
-    @pytest.mark.skip(reason="Stateless flow does not have user_id parameter to compare against")
-    @pytest.mark.asyncio
-    @patch("src.infrastructure.cache.redis.get_redis_session")
-    @patch("src.core.oauth.OAuthFlowHandler")
-    @patch("src.core.oauth.GoogleOAuthProvider")
-    async def test_handle_oauth_callback_state_mismatch_raises(
-        self, mock_provider_class, mock_flow_handler_class, mock_get_redis
-    ):
-        """Test state mismatch raises error (Lines 369-370)."""
-        mock_db = AsyncMock()
-        service = ConnectorService(mock_db)
-
-        user_id = uuid.uuid4()
-        different_user_id = uuid.uuid4()  # Different user ID
-        code = "auth_code_123"
-        state = "state_abc123"
-
-        # Mock Redis
-        mock_redis = AsyncMock()
-        mock_get_redis.return_value = mock_redis
-
-        # Mock OAuth provider
-        mock_provider = MagicMock()
-        mock_provider_class.for_gmail.return_value = mock_provider
-
-        # Mock flow handler with different user_id in stored state
-        from src.core.field_names import FIELD_CONNECTOR_TYPE, FIELD_USER_ID
-        from src.core.oauth import OAuthTokenResponse
-
-        mock_token_response = OAuthTokenResponse(
-            access_token="access_token_123",
-            refresh_token="refresh_token_456",
-            token_type="Bearer",
-            expires_in=3600,
-            scope="https://www.googleapis.com/auth/gmail.readonly",
-        )
-
-        stored_state_data = {
-            FIELD_USER_ID: str(different_user_id),  # MISMATCH: Different user
-            FIELD_CONNECTOR_TYPE: ConnectorType.GOOGLE_GMAIL.value,
-        }
-
-        mock_flow_handler = AsyncMock()
-        mock_flow_handler.handle_callback = AsyncMock(
-            return_value=(mock_token_response, stored_state_data)
-        )
-        mock_flow_handler_class.return_value = mock_flow_handler
-
-        # Lines 369-370 executed: State mismatch validation
-        with pytest.raises(Exception) as exc_info:
-            await service.handle_gmail_callback(user_id, code, state)
-
-        # Verify raise_oauth_state_mismatch called
-        assert exc_info.value.status_code == 400  # Bad request for state mismatch
-
-
 class TestGmailStateless:
     """Tests for Gmail stateless OAuth callback wrapper."""
 
@@ -1115,6 +946,190 @@ class TestGmailStateless:
             default_scopes=None,
             metadata={"last_synced": None, "created_via": "oauth_flow_stateless"},
         )
+
+
+class TestOAuthConnectorCallbackDelegate:
+    """Direct tests for the generic OAuth callback delegate.
+
+    Covers ``_handle_oauth_connector_callback`` (service.py:430-620), the shared
+    OAuth exchange + connector-creation path every stateless/stateful callback
+    funnels through. Replaces three obsolete stateful-era skips (F019/AC-007):
+    the old tests targeted the removed stateful entry point with mocks that no
+    longer match the delegate, leaving the exchange-failure, state-mismatch,
+    missing-refresh-token and happy paths (lines 469-620) genuinely uncovered.
+    """
+
+    @staticmethod
+    def _service_with_mocks() -> tuple[ConnectorService, AsyncMock]:
+        """Build a ConnectorService with a mocked repository and cache invalidation."""
+        mock_db = AsyncMock()
+        service = ConnectorService(mock_db)
+        service.repository = MagicMock()
+        service._invalidate_user_connectors_cache = AsyncMock()
+        return service, mock_db
+
+    @staticmethod
+    def _token_response(refresh_token: str | None = "refresh_token_456"):
+        """Build an OAuthTokenResponse; refresh_token=None exercises line 504."""
+        from src.core.oauth import OAuthTokenResponse
+
+        return OAuthTokenResponse(
+            access_token="access_token_123",
+            refresh_token=refresh_token,
+            token_type="Bearer",
+            expires_in=3600,
+            scope="https://www.googleapis.com/auth/gmail.readonly",
+        )
+
+    @pytest.mark.asyncio
+    @patch("src.domains.connectors.service.SessionService")
+    @patch("src.domains.connectors.service.get_redis_session")
+    @patch("src.core.oauth.OAuthFlowHandler")
+    async def test_exchange_failure_raises_oauth_flow_failed(
+        self, mock_flow_handler_class, mock_get_redis, mock_session_service
+    ):
+        """handle_callback raising during token exchange -> 400 oauth_flow_failed (line 486)."""
+        service, _ = self._service_with_mocks()
+        mock_get_redis.return_value = AsyncMock()
+
+        handler = MagicMock()
+        handler.handle_callback = AsyncMock(side_effect=Exception("token endpoint down"))
+        mock_flow_handler_class.return_value = handler
+
+        with pytest.raises(HTTPException) as exc_info:
+            await service._handle_oauth_connector_callback(
+                user_id=uuid4(),
+                code="auth_code_123",
+                state="state_abc123",
+                connector_type=ConnectorType.GOOGLE_GMAIL,
+                provider_factory_method=lambda _settings: MagicMock(),
+            )
+
+        assert exc_info.value.status_code == 400
+        handler.handle_callback.assert_awaited_once_with("auth_code_123", "state_abc123")
+
+    @pytest.mark.asyncio
+    @patch("src.domains.connectors.service.SessionService")
+    @patch("src.domains.connectors.service.get_redis_session")
+    @patch("src.core.oauth.OAuthFlowHandler")
+    async def test_state_mismatch_raises(
+        self, mock_flow_handler_class, mock_get_redis, mock_session_service
+    ):
+        """Stored state user/type mismatch -> 400 oauth_state_mismatch (line 493)."""
+        from src.core.field_names import FIELD_CONNECTOR_TYPE, FIELD_USER_ID
+
+        service, _ = self._service_with_mocks()
+        mock_get_redis.return_value = AsyncMock()
+
+        handler = MagicMock()
+        handler.handle_callback = AsyncMock(
+            return_value=(
+                self._token_response(),
+                {
+                    FIELD_USER_ID: str(uuid4()),  # different from the caller's user_id
+                    FIELD_CONNECTOR_TYPE: ConnectorType.GOOGLE_GMAIL.value,
+                },
+            )
+        )
+        mock_flow_handler_class.return_value = handler
+
+        with pytest.raises(HTTPException) as exc_info:
+            await service._handle_oauth_connector_callback(
+                user_id=uuid4(),
+                code="auth_code_123",
+                state="state_abc123",
+                connector_type=ConnectorType.GOOGLE_GMAIL,
+                provider_factory_method=lambda _settings: MagicMock(),
+            )
+
+        assert exc_info.value.status_code == 400
+
+    @pytest.mark.asyncio
+    @patch("src.domains.connectors.service.SessionService")
+    @patch("src.domains.connectors.service.get_redis_session")
+    @patch("src.core.oauth.OAuthFlowHandler")
+    async def test_missing_refresh_token_raises(
+        self, mock_flow_handler_class, mock_get_redis, mock_session_service
+    ):
+        """No refresh_token returned by the provider -> 400 oauth_flow_failed (line 504)."""
+        from src.core.field_names import FIELD_CONNECTOR_TYPE, FIELD_USER_ID
+
+        service, _ = self._service_with_mocks()
+        mock_get_redis.return_value = AsyncMock()
+        user_id = uuid4()
+
+        handler = MagicMock()
+        handler.handle_callback = AsyncMock(
+            return_value=(
+                self._token_response(refresh_token=None),
+                {
+                    FIELD_USER_ID: str(user_id),
+                    FIELD_CONNECTOR_TYPE: ConnectorType.GOOGLE_GMAIL.value,
+                },
+            )
+        )
+        mock_flow_handler_class.return_value = handler
+
+        with pytest.raises(HTTPException) as exc_info:
+            await service._handle_oauth_connector_callback(
+                user_id=user_id,
+                code="auth_code_123",
+                state="state_abc123",
+                connector_type=ConnectorType.GOOGLE_GMAIL,
+                provider_factory_method=lambda _settings: MagicMock(),
+            )
+
+        assert exc_info.value.status_code == 400
+
+    @pytest.mark.asyncio
+    @patch("src.domains.connectors.service.SessionService")
+    @patch("src.domains.connectors.service.get_redis_session")
+    @patch("src.core.oauth.OAuthFlowHandler")
+    async def test_happy_path_creates_connector_and_commits(
+        self, mock_flow_handler_class, mock_get_redis, mock_session_service
+    ):
+        """Valid exchange creates a new connector and commits atomically (lines 509-620)."""
+        from src.core.field_names import FIELD_CONNECTOR_TYPE, FIELD_USER_ID
+
+        service, mock_db = self._service_with_mocks()
+        mock_get_redis.return_value = AsyncMock()
+        user_id = uuid4()
+
+        handler = MagicMock()
+        handler.handle_callback = AsyncMock(
+            return_value=(
+                self._token_response(),
+                {
+                    FIELD_USER_ID: str(user_id),
+                    FIELD_CONNECTOR_TYPE: ConnectorType.GOOGLE_GMAIL.value,
+                },
+            )
+        )
+        mock_flow_handler_class.return_value = handler
+
+        created = create_mock_connector(
+            user_id=user_id,
+            connector_type=ConnectorType.GOOGLE_GMAIL,
+            status=ConnectorStatus.ACTIVE,
+        )
+        # No existing connector and no conflicting connector -> pure create path.
+        service.repository.get_by_user_and_type = AsyncMock(return_value=None)
+        service.repository.create = AsyncMock(return_value=created)
+        service.repository.update = AsyncMock()
+
+        result = await service._handle_oauth_connector_callback(
+            user_id=user_id,
+            code="auth_code_123",
+            state="state_abc123",
+            connector_type=ConnectorType.GOOGLE_GMAIL,
+            provider_factory_method=lambda _settings: MagicMock(),
+        )
+
+        assert isinstance(result, ConnectorResponse)
+        assert result.connector_type == ConnectorType.GOOGLE_GMAIL
+        service.repository.create.assert_awaited_once()
+        mock_db.commit.assert_awaited_once()
+        service._invalidate_user_connectors_cache.assert_awaited_once_with(user_id)
 
 
 class TestAPIKeyMetadata:

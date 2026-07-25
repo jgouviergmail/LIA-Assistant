@@ -38,6 +38,18 @@ async def rag_job_reaper() -> None:
     await _recover_documents(semaphore)
     await _recover_sources(semaphore)
 
+    # AC-001 crash-resume: after rebuilding the requeued documents, activate any
+    # generational reindex whose interrupted drain never reached the flip. The
+    # space stayed pinned on (and serving) the stable OLD generation throughout;
+    # this flips it once every document is on the current model. Best-effort — a
+    # flip hiccup must never abort the reaper's core recovery.
+    try:
+        from src.domains.rag_spaces.reindex import flip_pinned_spaces_if_ready
+
+        await flip_pinned_spaces_if_ready()
+    except Exception as exc:  # noqa: BLE001 - flip is a best-effort resume step
+        logger.warning("rag_reaper_generational_flip_failed", error=str(exc))
+
 
 async def _recover_documents(semaphore: asyncio.Semaphore) -> None:
     async with get_db_context() as db:

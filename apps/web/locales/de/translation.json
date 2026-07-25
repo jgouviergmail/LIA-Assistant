@@ -1737,7 +1737,7 @@
         "reindexConfirmTitle": "Alle Dokumente neu indexieren",
         "reindexConfirmWarning": "Diese Aktion indexiert alle RAG-Dokumente aller Benutzer mit dem aktuellen Embedding-Modell neu.",
         "reindexConfirmCost": "Alle Dokumente werden neu eingebettet (OpenAI-API-Kosten)",
-        "reindexConfirmDowntime": "Die RAG-Suche ist während der Neuindexierung vorübergehend nicht verfügbar",
+        "reindexConfirmDowntime": "Die Dokumentensuche bleibt während der Neuindexierung verfügbar — sie wird nur kurz unterbrochen, wenn das neue Modell die Embedding-Dimension ändert.",
         "reindexConfirmAction": "Neuindexierung starten",
         "whatItDoes": "Funktionsweise",
         "description": "RAG-Wissensräume ermöglichen Benutzern das Hochladen von Dokumenten (PDF, TXT, MD, DOCX), die indexiert und zur Anreicherung von KI-Antworten mit relevantem Kontext verwendet werden.",
@@ -3385,6 +3385,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_25_21": {
+          "title": "v1.25.21 — 📚 Die Dokumentensuche bleibt während Upgrades verfügbar",
+          "date": "Juli 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📚 Ihre Dokumente bleiben während eines Upgrades durchsuchbar</b> — wenn ein Administrator das Modell wechselt, das Ihre Dokumenten-Spaces indexiert, war die Suche bisher bis zum Ende des gesamten Neuaufbaus nicht verfügbar. Der alte Index beantwortet nun jede Anfrage weiter, bis der neue vollständig bereit ist, und schaltet dann sofort um, Space für Space — und setzt von selbst fort, falls der Neuaufbau unterbrochen wird.",
+            "i2": "<b>🛠️ Nur eine Art von Upgrade braucht noch ein kurzes Zeitfenster</b> — die Größe des Index zu ändern (eine seltenere, tiefere Änderung) bleibt ein geplanter Wartungsmoment, der jetzt für Administratoren klar dokumentiert ist, statt still ein leeres Ergebnis zurückzugeben."
+          }
+        },
         "v1_25_20": {
           "title": "v1.25.20 — 🔒 Was läuft, läuft in einer versiegelten Box",
           "date": "Juli 2026",

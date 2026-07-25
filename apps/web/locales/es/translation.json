@@ -1737,7 +1737,7 @@
         "reindexConfirmTitle": "Reindexar todos los documentos",
         "reindexConfirmWarning": "Esta acción reindexará todos los documentos RAG de todos los usuarios con el modelo de embedding actual.",
         "reindexConfirmCost": "Todos los documentos se re-codificarán (coste API OpenAI)",
-        "reindexConfirmDowntime": "La búsqueda RAG estará temporalmente no disponible durante la reindexación",
+        "reindexConfirmDowntime": "La búsqueda de documentos permanece disponible durante la reindexación — solo se interrumpe brevemente si el nuevo modelo cambia la dimensión de los embeddings.",
         "reindexConfirmAction": "Iniciar reindexación",
         "whatItDoes": "Funcionamiento",
         "description": "Los espacios de conocimiento RAG permiten a los usuarios subir documentos (PDF, TXT, MD, DOCX) que se indexan y utilizan para enriquecer las respuestas de la IA con contexto relevante.",
@@ -3385,6 +3385,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_25_21": {
+          "title": "v1.25.21 — 📚 La búsqueda en documentos sigue activa durante las actualizaciones",
+          "date": "Julio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📚 Tus documentos siguen siendo consultables durante una actualización</b> — cuando un administrador cambia el modelo que indexa tus espacios de documentos, la búsqueda quedaba inactiva hasta que terminaba toda la reconstrucción. El índice antiguo ahora sigue respondiendo a cada consulta hasta que el nuevo está completamente listo, y entonces cambia al instante, espacio por espacio — y se reanuda por sí solo si la reconstrucción se interrumpe.",
+            "i2": "<b>🛠️ Un solo tipo de actualización todavía necesita una breve ventana</b> — cambiar el tamaño del índice (un cambio más raro y profundo) sigue siendo un momento de mantenimiento planificado, ahora claramente documentado para los administradores en lugar de devolver silenciosamente un resultado vacío."
+          }
+        },
         "v1_25_20": {
           "title": "v1.25.20 — 🔒 Lo que se ejecuta, se ejecuta en una caja sellada",
           "date": "Julio 2026",

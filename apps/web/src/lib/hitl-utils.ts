@@ -6,41 +6,47 @@
 import type { TFunction } from 'i18next';
 import { ActionRequest } from '@/types/chat';
 
+/** Tool-name keywords per action category, in priority order (first match wins). */
+const CATEGORY_KEYWORDS: Array<{ category: string; keywords: string[] }> = [
+  { category: 'search', keywords: ['search', 'find', 'query'] },
+  { category: 'delete', keywords: ['delete', 'remove'] },
+  { category: 'create', keywords: ['create', 'add'] },
+  { category: 'update', keywords: ['update', 'edit', 'modify', 'save'] },
+  { category: 'send', keywords: ['send'] },
+  { category: 'get', keywords: ['get', 'retrieve', 'fetch'] },
+  { category: 'list', keywords: ['list'] },
+];
+
 /**
  * Categorize tool action type from tool name.
  * Returns the action category for i18n lookup.
  */
 function getActionCategory(toolName: string): string {
   const name = toolName.toLowerCase();
-
-  if (name.includes('search') || name.includes('find') || name.includes('query')) {
-    return 'search';
+  for (const { category, keywords } of CATEGORY_KEYWORDS) {
+    if (keywords.some(kw => name.includes(kw))) {
+      return category;
+    }
   }
-  if (name.includes('delete') || name.includes('remove')) {
-    return 'delete';
-  }
-  if (name.includes('create') || name.includes('add')) {
-    return 'create';
-  }
-  if (
-    name.includes('update') ||
-    name.includes('edit') ||
-    name.includes('modify') ||
-    name.includes('save')
-  ) {
-    return 'update';
-  }
-  if (name.includes('send')) {
-    return 'send';
-  }
-  if (name.includes('get') || name.includes('retrieve') || name.includes('fetch')) {
-    return 'get';
-  }
-  if (name.includes('list')) {
-    return 'list';
-  }
-
   return 'generic';
+}
+
+/** Which argument keys carry the human-readable target, per tool-name family. */
+const TARGET_ARG_RULES: Array<{ match: (name: string) => boolean; keys: string[] }> = [
+  { match: n => n.includes('search') || n.includes('find'), keys: ['query', 'search_query', 'q'] },
+  { match: n => n.includes('contact'), keys: ['name', 'contact_name', 'given_name'] },
+  { match: n => n.includes('send'), keys: ['to', 'recipient', 'email'] },
+];
+const GENERIC_TARGET_KEYS = ['name', 'target', 'id'];
+
+/** First truthy string among ``keys`` (matches the original ``a || b || null`` semantics). */
+function firstTruthyArg(args: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    if (args[key]) {
+      return args[key] as string;
+    }
+  }
+  return null;
 }
 
 /**
@@ -49,24 +55,12 @@ function getActionCategory(toolName: string): string {
  */
 function extractTarget(toolName: string, args: Record<string, unknown>): string | null {
   const name = toolName.toLowerCase();
-
-  // Search operations - extract query
-  if (name.includes('search') || name.includes('find')) {
-    return (args.query || args.search_query || args.q || null) as string | null;
+  for (const rule of TARGET_ARG_RULES) {
+    if (rule.match(name)) {
+      return firstTruthyArg(args, rule.keys);
+    }
   }
-
-  // Contact operations - extract name
-  if (name.includes('contact')) {
-    return (args.name || args.contact_name || args.given_name || null) as string | null;
-  }
-
-  // Send operations - extract recipient
-  if (name.includes('send')) {
-    return (args.to || args.recipient || args.email || null) as string | null;
-  }
-
-  // Generic name/target
-  return (args.name || args.target || args.id || null) as string | null;
+  return firstTruthyArg(args, GENERIC_TARGET_KEYS);
 }
 
 /**
@@ -82,6 +76,103 @@ function extractTarget(toolName: string, args: Record<string, unknown>): string 
  * @param t - Translation function for i18n support
  * @returns Template-based question string in the user's language
  */
+/** Single-action templates for categories that carry a target (key, default, i18n param name). */
+const SINGLE_TARGET_TEMPLATES: Record<
+  string,
+  { withTarget: [string, string, string]; generic: [string, string] }
+> = {
+  search: {
+    withTarget: [
+      'hitl.search.with_query',
+      'Do you confirm searching for contacts named "{{query}}"?',
+      'query',
+    ],
+    generic: ['hitl.search.generic', 'Do you confirm this search?'],
+  },
+  delete: {
+    withTarget: [
+      'hitl.delete.with_target',
+      '⚠️ Do you confirm deleting "{{target}}"? This action is irreversible.',
+      'target',
+    ],
+    generic: ['hitl.delete.generic', '⚠️ Do you confirm this deletion? This action is irreversible.'],
+  },
+  create: {
+    withTarget: ['hitl.create.with_target', 'Do you confirm creating "{{target}}"?', 'target'],
+    generic: ['hitl.create.generic', 'Do you confirm this creation?'],
+  },
+  update: {
+    withTarget: ['hitl.update.with_target', 'Do you confirm modifying "{{target}}"?', 'target'],
+    generic: ['hitl.update.generic', 'Do you confirm this modification?'],
+  },
+  send: {
+    withTarget: ['hitl.send.with_target', 'Do you confirm sending to "{{to}}"?', 'to'],
+    generic: ['hitl.send.generic', 'Do you confirm this send?'],
+  },
+};
+
+/** Single-action templates for categories with no target (key, default). */
+const SINGLE_SIMPLE_TEMPLATES: Record<string, [string, string]> = {
+  list: ['hitl.list', 'Do you confirm retrieving the list?'],
+  get: ['hitl.get', 'Do you confirm retrieving this information?'],
+};
+
+/** Same-category multi-action templates (key, default; interpolates {{count}}). */
+const MULTI_TEMPLATES: Record<string, [string, string]> = {
+  delete: [
+    'hitl.delete.multiple',
+    '⚠️ Do you confirm deleting {{count}} items? This action is irreversible.',
+  ],
+  create: ['hitl.create.multiple', 'Do you confirm creating {{count}} items?'],
+  update: ['hitl.update.multiple', 'Do you confirm modifying {{count}} items?'],
+  send: ['hitl.send.multiple', 'Do you confirm sending {{count}} messages?'],
+};
+
+/** Build the confirmation question for a single action request. */
+function singleActionQuestion(action: ActionRequest, t: TFunction): string {
+  const category = getActionCategory(action.name);
+  const target = extractTarget(action.name, action.args);
+
+  const targetTpl = SINGLE_TARGET_TEMPLATES[category];
+  if (targetTpl) {
+    if (target) {
+      const [key, def, param] = targetTpl.withTarget;
+      return t(key, def, { [param]: target });
+    }
+    return t(targetTpl.generic[0], targetTpl.generic[1]);
+  }
+
+  const simpleTpl = SINGLE_SIMPLE_TEMPLATES[category];
+  if (simpleTpl) {
+    return t(simpleTpl[0], simpleTpl[1]);
+  }
+
+  // Generic fallback with a readable action name.
+  const readableAction = action.name.replace(/_tool$/, '').replace(/_/g, ' ');
+  return t('hitl.generic_action', 'Do you confirm executing "{{action}}"?', {
+    action: readableAction,
+  });
+}
+
+/** Build the confirmation question for several action requests. */
+function multipleActionsQuestion(actionRequests: ActionRequest[], t: TFunction): string {
+  const count = actionRequests.length;
+  const uniqueCategories = [...new Set(actionRequests.map(a => getActionCategory(a.name)))];
+
+  if (uniqueCategories.length === 1) {
+    const tpl = MULTI_TEMPLATES[uniqueCategories[0]];
+    if (tpl) {
+      return t(tpl[0], tpl[1], { count });
+    }
+    return t('hitl.multiple_similar', 'Do you confirm executing {{count}} similar actions?', {
+      count,
+    });
+  }
+
+  // Mixed actions - generic plural.
+  return t('hitl.multiple_actions', 'Do you confirm executing {{count}} actions?', { count });
+}
+
 export function generateFallbackHitlQuestion(
   actionRequests: ActionRequest[],
   t: TFunction
@@ -89,109 +180,10 @@ export function generateFallbackHitlQuestion(
   if (!actionRequests || actionRequests.length === 0) {
     return t('hitl.default', 'Do you confirm this action?');
   }
-
-  // Single action request - use i18n templates
   if (actionRequests.length === 1) {
-    const action = actionRequests[0];
-    const category = getActionCategory(action.name);
-    const target = extractTarget(action.name, action.args);
-
-    // Use specific i18n key based on category and whether we have a target
-    if (category === 'search' && target) {
-      return t(
-        'hitl.search.with_query',
-        'Do you confirm searching for contacts named "{{query}}"?',
-        { query: target }
-      );
-    }
-    if (category === 'search') {
-      return t('hitl.search.generic', 'Do you confirm this search?');
-    }
-
-    if (category === 'delete' && target) {
-      return t(
-        'hitl.delete.with_target',
-        '⚠️ Do you confirm deleting "{{target}}"? This action is irreversible.',
-        { target }
-      );
-    }
-    if (category === 'delete') {
-      return t(
-        'hitl.delete.generic',
-        '⚠️ Do you confirm this deletion? This action is irreversible.'
-      );
-    }
-
-    if (category === 'create' && target) {
-      return t('hitl.create.with_target', 'Do you confirm creating "{{target}}"?', { target });
-    }
-    if (category === 'create') {
-      return t('hitl.create.generic', 'Do you confirm this creation?');
-    }
-
-    if (category === 'update' && target) {
-      return t('hitl.update.with_target', 'Do you confirm modifying "{{target}}"?', { target });
-    }
-    if (category === 'update') {
-      return t('hitl.update.generic', 'Do you confirm this modification?');
-    }
-
-    if (category === 'send' && target) {
-      return t('hitl.send.with_target', 'Do you confirm sending to "{{to}}"?', { to: target });
-    }
-    if (category === 'send') {
-      return t('hitl.send.generic', 'Do you confirm this send?');
-    }
-
-    if (category === 'list') {
-      return t('hitl.list', 'Do you confirm retrieving the list?');
-    }
-
-    if (category === 'get') {
-      return t('hitl.get', 'Do you confirm retrieving this information?');
-    }
-
-    // Generic fallback with action name
-    const readableAction = action.name.replace(/_tool$/, '').replace(/_/g, ' ');
-    return t('hitl.generic_action', 'Do you confirm executing "{{action}}"?', {
-      action: readableAction,
-    });
+    return singleActionQuestion(actionRequests[0], t);
   }
-
-  // Multiple action requests
-  const count = actionRequests.length;
-
-  // Check if all actions are of the same category
-  const categories = actionRequests.map(a => getActionCategory(a.name));
-  const uniqueCategories = [...new Set(categories)];
-
-  if (uniqueCategories.length === 1) {
-    const category = uniqueCategories[0];
-
-    if (category === 'delete') {
-      return t(
-        'hitl.delete.multiple',
-        '⚠️ Do you confirm deleting {{count}} items? This action is irreversible.',
-        { count }
-      );
-    }
-    if (category === 'create') {
-      return t('hitl.create.multiple', 'Do you confirm creating {{count}} items?', { count });
-    }
-    if (category === 'update') {
-      return t('hitl.update.multiple', 'Do you confirm modifying {{count}} items?', { count });
-    }
-    if (category === 'send') {
-      return t('hitl.send.multiple', 'Do you confirm sending {{count}} messages?', { count });
-    }
-
-    return t('hitl.multiple_similar', 'Do you confirm executing {{count}} similar actions?', {
-      count,
-    });
-  }
-
-  // Mixed actions - generic plural
-  return t('hitl.multiple_actions', 'Do you confirm executing {{count}} actions?', { count });
+  return multipleActionsQuestion(actionRequests, t);
 }
 
 /**

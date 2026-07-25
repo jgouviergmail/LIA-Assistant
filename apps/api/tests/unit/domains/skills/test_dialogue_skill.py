@@ -74,18 +74,34 @@ class TestIsDialogueSkill:
         assert _is_dialogue_skill(None) is False
 
 
+def _find_skill_generator_md() -> Path | None:
+    """Locate the shipped skill-generator SKILL.md, or None if not vendored.
+
+    ``data/skills`` is gitignored (ADR-118) and only present in a full checkout,
+    so the presence of the file is a genuine environmental condition — hence a
+    ``skipif`` rather than an unconditional (allowlisted) skip.
+    """
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "data" / "skills" / "system" / "skill-generator" / "SKILL.md"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+_SKILL_GENERATOR_MD = _find_skill_generator_md()
+
+
 class TestSkillGeneratorDeclaresDialogue:
+    @pytest.mark.skipif(
+        _SKILL_GENERATOR_MD is None,
+        reason="skill-generator SKILL.md not vendored in this checkout (data/skills is gitignored)",
+    )
     def test_shipped_skill_generator_is_a_dialogue_skill(self) -> None:
         """Data pin: the guided 4-phase flow depends on this flag staying set."""
-        for parent in Path(__file__).resolve().parents:
-            skill_md = parent / "data" / "skills" / "system" / "skill-generator" / "SKILL.md"
-            if skill_md.is_file():
-                skill = parse_skill_file(skill_md)
-                assert skill is not None
-                assert skill["dialogue"] is True, (
-                    "skill-generator must declare dialogue: true — without it the "
-                    "chat override clears its detection on follow-up turns and the "
-                    "guided flow (clarify → answer → generate) breaks"
-                )
-                return
-        pytest.skip("skill-generator SKILL.md not found in this checkout")
+        skill = parse_skill_file(_SKILL_GENERATOR_MD)
+        assert skill is not None
+        assert skill["dialogue"] is True, (
+            "skill-generator must declare dialogue: true — without it the "
+            "chat override clears its detection on follow-up turns and the "
+            "guided flow (clarify → answer → generate) breaks"
+        )

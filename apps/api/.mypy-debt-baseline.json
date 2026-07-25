@@ -261,10 +261,6 @@
     ],
     [
       "src.domains.agents.tools.*",
-      "unused-ignore"
-    ],
-    [
-      "src.domains.agents.tools.*",
       "var-annotated"
     ],
     [

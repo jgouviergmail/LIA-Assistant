@@ -129,6 +129,121 @@ class RAGContext:
         )
 
 
+async def _search_and_score_generation(
+    *,
+    chunk_repo: RAGChunkRepository,
+    chunk_user_id: UUID | None,
+    space_ids: list[UUID],
+    space_name_map: dict[UUID, str],
+    query: str,
+    embed_model: str | None,
+    filter_model: str | None,
+    limit: int,
+    min_score: float,
+    alpha: float,
+    bm25_cache_key: str,
+) -> list[tuple[RAGRetrievedChunk, float]]:
+    """Semantic + BM25 hybrid search over ONE embedding generation.
+
+    Embeds the query with ``embed_model`` (the served generation's model) and
+    restricts both the pgvector candidates and the BM25 corpus to
+    ``filter_model`` so a query vector is never scored against chunks of a
+    different generation (AC-001). ``filter_model`` None = steady state (single
+    generation, no filter). Returns ``(chunk, hybrid_score)`` above ``min_score``.
+    """
+    # Embed the query with THIS generation's model (TTL cache + single-flight).
+    query_embedding = await embed_rag_query_cached(query, model=embed_model)
+
+    try:
+        semantic_results = await chunk_repo.search_by_similarity(
+            user_id=chunk_user_id,
+            space_ids=space_ids,
+            query_embedding=query_embedding,
+            limit=limit * 3,  # Over-fetch for hybrid fusion
+            embedding_model=filter_model,
+        )
+    except Exception as e:
+        # Degrade this generation to no-results rather than failing the whole
+        # retrieval. The only expected trigger is the brief setup window of a
+        # DIMENSION-change reindex, where the query vector (new dimensionality)
+        # transiently meets not-yet-purged old-dimension chunks — pgvector then
+        # raises. RAG is enrichment: a documented maintenance window degrades to
+        # "no RAG context", it never errors the turn. Isolated per generation.
+        logger.warning("rag_semantic_search_failed", filter_model=filter_model, error=str(e))
+        rag_retrieval_skipped_total.labels(reason="semantic_search_error").inc()
+        return []
+    if not semantic_results:
+        return []
+
+    # BM25 scoring over the SAME generation's corpus. The index cache key carries
+    # the generation so an old-generation corpus is never reused after a flip.
+    bm25_scores_map: dict[UUID, float] = {}
+    try:
+        corpus_data = await chunk_repo.get_corpus_for_spaces(
+            chunk_user_id, space_ids, embedding_model=filter_model
+        )
+        if corpus_data:
+            corpus_texts = [text for _, text in corpus_data]
+            corpus_ids = [str(cid) for cid, _ in corpus_data]
+
+            bm25_manager = get_bm25_manager()
+            bm25, _bm25_ids = bm25_manager.get_or_build_index(
+                user_id=bm25_cache_key,
+                documents=corpus_texts,
+                document_ids=corpus_ids,
+            )
+            query_tokens = tokenize_text(query)
+            raw_scores = bm25.get_scores(query_tokens)
+
+            max_bm25 = (
+                float(max(raw_scores))
+                if len(raw_scores) > 0 and float(max(raw_scores)) > 0
+                else 1.0
+            )
+            for idx, score in enumerate(raw_scores):
+                chunk_id = UUID(corpus_ids[idx])
+                bm25_scores_map[chunk_id] = float(score) / max_bm25
+    except Exception as e:
+        logger.warning("rag_bm25_scoring_failed", error=str(e))
+
+    scored_chunks: list[tuple[RAGRetrievedChunk, float]] = []
+    for chunk, semantic_score in semantic_results:
+        bm25_score = bm25_scores_map.get(chunk.id, 0.0)
+        hybrid_score = float(alpha * semantic_score + (1 - alpha) * bm25_score)
+        if hybrid_score < min_score:
+            continue
+        metadata = chunk.metadata_ or {}
+        scored_chunks.append(
+            (
+                RAGRetrievedChunk(
+                    content=chunk.content,
+                    score=round(hybrid_score, 4),
+                    space_name=space_name_map.get(chunk.space_id, "Unknown"),
+                    original_filename=metadata.get("original_filename", "unknown"),
+                    chunk_index=chunk.chunk_index,
+                ),
+                hybrid_score,
+            )
+        )
+    return scored_chunks
+
+
+def _group_spaces_by_generation(active_spaces: list) -> dict[str | None, list[UUID]]:
+    """Map each active space's served generation to its space ids (AC-001).
+
+    Key = ``space.serving_embedding_model`` (None in steady state). During a
+    same-dimension reindex every space is pinned to the same OLD model, so this
+    is a single group; the per-space column still lets generations differ (a
+    future per-space flip) and each distinct generation is searched with its own
+    query embedding.
+    """
+    groups: dict[str | None, list[UUID]] = {}
+    for space in active_spaces:
+        key = getattr(space, "serving_embedding_model", None)
+        groups.setdefault(key, []).append(space.id)
+    return groups
+
+
 async def retrieve_rag_context(
     user_id: UUID | None,
     query: str,
@@ -195,23 +310,7 @@ async def retrieve_rag_context(
     space_name_map = {s.id: s.name for s in active_spaces}
     retrieval_start = time.time()
 
-    # 2. Check if reindexing is in progress (user spaces only)
-    if not system_only:
-        try:
-            from src.infrastructure.cache.redis import get_redis_cache
-
-            redis = await get_redis_cache()
-            from src.domains.rag_spaces.reindex import REINDEX_FLAG_KEY
-
-            if await redis.get(REINDEX_FLAG_KEY):
-                logger.warning("rag_retrieval_reindex_in_progress", user_id=log_user_id)
-                rag_retrieval_skipped_total.labels(reason="reindex_in_progress").inc()
-                return None
-        except Exception as e:
-            # Redis unavailable — continue without reindex check (graceful degradation)
-            logger.warning("rag_retrieval_redis_unavailable", error=str(e))
-
-    # 3. Set embedding tracking context
+    # 2. Set embedding tracking context
     embedding_user_id = "system" if system_only else str(user_id)
     set_embedding_context(
         user_id=embedding_user_id,
@@ -224,87 +323,42 @@ async def retrieve_rag_context(
     chunk_user_id = None if system_only else user_id
 
     try:
-        # 4. Embed the query (TTL cache + single-flight: the user-RAG and
-        # system-RAG retrievals of the same turn share one Gemini call)
-        query_embedding = await embed_rag_query_cached(query)
+        # 3. Generational hybrid retrieval (AC-001). The global reindex read-block
+        # is gone: instead of returning None while a reindex runs, search each
+        # served generation with ITS query embedding + chunk filter and fuse. In
+        # steady state every space serves NULL -> one group, no filter (the exact
+        # historic single-pass behaviour). During a same-dimension reindex spaces
+        # are pinned to the stable OLD generation, which stays fully searchable
+        # while the NEW one is built side by side and flipped atomically per space.
+        generation_groups = _group_spaces_by_generation(active_spaces)
+        base_bm25_key = "rag:system" if system_only else f"rag:{user_id}"
 
-        # 5. Semantic search via pgvector
-        semantic_results = await chunk_repo.search_by_similarity(
-            user_id=chunk_user_id,
-            space_ids=active_space_ids,
-            query_embedding=query_embedding,
-            limit=limit * 3,  # Over-fetch for hybrid fusion
-        )
+        scored_chunks: list[tuple[RAGRetrievedChunk, float]] = []
+        for gen_key, group_space_ids in generation_groups.items():
+            group_scored = await _search_and_score_generation(
+                chunk_repo=chunk_repo,
+                chunk_user_id=chunk_user_id,
+                space_ids=group_space_ids,
+                space_name_map=space_name_map,
+                query=query,
+                embed_model=gen_key,  # None -> current settings model in the helper
+                filter_model=gen_key,
+                limit=limit,
+                min_score=min_score,
+                alpha=alpha,
+                bm25_cache_key=f"{base_bm25_key}:{gen_key or 'default'}",
+            )
+            scored_chunks.extend(group_scored)
 
-        if not semantic_results:
+        if not scored_chunks:
             logger.debug(
-                "rag_retrieval_no_semantic_results",
+                "rag_retrieval_no_results",
                 user_id=log_user_id,
                 spaces_searched=len(active_space_ids),
-            )
-            return RAGContext(
-                chunks=[],
-                spaces_searched=len(active_space_ids),
-                total_results=0,
-                context_type=context_type,
+                generations=len(generation_groups),
             )
 
-        # 6. BM25 scoring
-        bm25_scores_map: dict[UUID, float] = {}
-        bm25_cache_key = "rag:system" if system_only else f"rag:{user_id}"
-        try:
-            corpus_data = await chunk_repo.get_corpus_for_spaces(chunk_user_id, active_space_ids)
-            if corpus_data:
-                corpus_texts = [text for _, text in corpus_data]
-                corpus_ids = [str(cid) for cid, _ in corpus_data]
-
-                bm25_manager = get_bm25_manager()
-                bm25, bm25_ids = bm25_manager.get_or_build_index(
-                    user_id=bm25_cache_key,
-                    documents=corpus_texts,
-                    document_ids=corpus_ids,
-                )
-                query_tokens = tokenize_text(query)
-                raw_scores = bm25.get_scores(query_tokens)
-
-                # Normalize BM25 scores to [0, 1] — cast to float() to avoid numpy.float64
-                max_bm25 = (
-                    float(max(raw_scores))
-                    if len(raw_scores) > 0 and float(max(raw_scores)) > 0
-                    else 1.0
-                )
-                for idx, score in enumerate(raw_scores):
-                    chunk_id = UUID(bm25_ids[idx])
-                    bm25_scores_map[chunk_id] = float(score) / max_bm25
-        except Exception as e:
-            logger.warning("rag_bm25_scoring_failed", error=str(e))
-
-        # 7. Hybrid fusion
-        scored_chunks: list[tuple[RAGRetrievedChunk, float]] = []
-        for chunk, semantic_score in semantic_results:
-            # semantic_score is already a similarity score [0, 1] from repository
-            bm25_score = bm25_scores_map.get(chunk.id, 0.0)
-
-            hybrid_score = float(alpha * semantic_score + (1 - alpha) * bm25_score)
-
-            if hybrid_score < min_score:
-                continue
-
-            metadata = chunk.metadata_ or {}
-            scored_chunks.append(
-                (
-                    RAGRetrievedChunk(
-                        content=chunk.content,
-                        score=round(hybrid_score, 4),
-                        space_name=space_name_map.get(chunk.space_id, "Unknown"),
-                        original_filename=metadata.get("original_filename", "unknown"),
-                        chunk_index=chunk.chunk_index,
-                    ),
-                    hybrid_score,
-                )
-            )
-
-        # Sort by score descending and take top N
+        # Sort by hybrid score descending and take top N across all generations.
         scored_chunks.sort(key=lambda x: x[1], reverse=True)
         top_chunks = [chunk for chunk, _ in scored_chunks[:limit]]
 
@@ -315,7 +369,7 @@ async def retrieve_rag_context(
             context_type=context_type,
         )
 
-        # 8. Truncate to token budget
+        # 4. Truncate to token budget
         context = context.truncate_to_token_budget(max_context_tokens)
 
         # Prometheus metrics
@@ -334,7 +388,7 @@ async def retrieve_rag_context(
             user_id=log_user_id,
             system_only=system_only,
             spaces_searched=len(active_space_ids),
-            semantic_results=len(semantic_results),
+            generations=len(generation_groups),
             hybrid_above_threshold=len(scored_chunks),
             chunks_returned=len(context.chunks),
         )

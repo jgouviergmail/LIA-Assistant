@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.21] - 2026-07-25
+
+**Generational RAG continuity** ([ADR-150](docs/architecture/ADR-150-RAG-Generational-Continuity.md)). Reindexing a space used to re-embed every document and drop each document's old chunks before writing the new ones, so for the whole reindex window that space returned nothing to search. The two generations now live side by side, a durable per-space serving pointer keeps every query answered by the old generation until the new one is fully built, and the switch is an atomic per-space flip — never a global freeze. Also in this release: the permanent test-skip allowlist is back to zero, the MyPy strict-exemption surface shrank 91 → 90, and the frontend cyclomatic-complexity baseline shrank 56 → 53. Backend tests **15,023 → 15,031**.
+
+### Added
+
+- **Generational RAG continuity** (AC-001) — a same-dimension embedding-model change keeps document search available throughout the reindex. `RAGChunk` carries no uniqueness constraint, so the old and new generations coexist; a durable `rag_spaces.serving_embedding_model` column (migration `c1d2e3f4a5b6`, `NULL` = steady state) records which generation each space serves. The reindex pins every space to the old model in the same atomic commit that persists its intent, `process_document` is driven by that pointer so the drain and the reaper never disturb the served generation, and each space flips to the new model atomically once its rebuild completes. A crash mid-reindex is resumed by `flip_pinned_spaces_if_ready` in the RAG job reaper. New metric `rag_reindex_space_flips_total` (`outcome=flipped|deferred|failed`).
+- **`langgraph_state` metrics for the router and planner nodes** (AC-007) — `router_node_v3` and `planner_node_v3` now emit the state-update instrumentation the other graph nodes already carried, closing a blind spot in the pipeline's observability.
+
+### Changed
+
+- RAG retrieval groups spaces by the generation actually being served and embeds each query with that generation's model; the global "reindex in progress → skip retrieval" block is removed.
+- During a generation swap, `process_document` deletes chunks by `(document, model)` rather than by document alone, so it never removes chunks of the generation still being served.
+- A change of embedding **dimension** — which requires a new pgvector column — remains an explicit, documented maintenance window rather than a silent empty result (runbook: [GUIDE_RAG_SPACES](docs/guides/GUIDE_RAG_SPACES.md)).
+
+### Fixed
+
+- RAG semantic search is now wrapped per generation: an embedding or query failure logs `rag_semantic_search_failed`, counts `rag_retrieval_skipped_total{reason="semantic_search_error"}` and degrades to lexical results instead of failing the whole retrieval.
+- `reset_rag_embeddings` clears the per-model embedding-client cache alongside the singleton and the query cache, so a reindex can no longer leave a stale client bound to a superseded model.
+
+### Tests
+
+- **8 real-PostgreSQL integration tests** for the generational path: the atomic flip, the crash-resume, and a served-generation query answered by the old model while the new one builds.
+- Permanent test-skip allowlist **12 → 0** — the three "dead" connector skips were masking the uncovered `_handle_oauth_connector_callback` delegate branch (0 % covered); four behavioural tests replaced them before deletion.
+- MyPy strict-exemption surface **91 → 90** (stale `unused-ignore` and `type: ignore[assignment]` removed) and the frontend cyclomatic-complexity baseline **56 → 53** (`hitl-utils.ts` decomposed into data-driven template tables, behaviour preserved, 20 tests).
+
 ## [1.25.20] - 2026-07-25
 
 Security remediation of the 2026-07-13 audit ([ADR-149](docs/architecture/ADR-149-Security-Remediation-Wave-1.md)). Every finding was re-verified against the code before being treated — several were false positives, and the verification exhumed defects the audit had missed. Two controls turned out to be declared but never applied: a skill script inherited the API's Docker group, and the "global rate limit" was an object nothing ever consulted. Backend tests **14,847 → 15,023**.

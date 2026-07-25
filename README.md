@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.25.20</strong> — <strong>Two security controls that were declared but never applied.</strong> A skill script ran as a child of the API process, and in production that process belongs to the <code>docker</code> group — a group children inherit, socket included, so a script was one connection away from root on the host. It now runs in a <strong>throwaway container</strong>: no socket, no network, read-only filesystem, unprivileged uid, all capabilities dropped, and an unreachable daemon refuses the execution instead of falling back. Non-regression proven by differential — the ten shipped scripts produce <strong>byte-for-byte identical output</strong> in both modes on nine of ten (the tenth draws random numbers). The <strong>global rate limit</strong> was a <code>slowapi</code> object stored on the app and consulted by nothing: no middleware, no decorator, and in-memory counters that would have meant one budget per worker. It is now a real ASGI middleware on the shared Redis limiter, sized from a measured 67 req/min peak. Also: <strong>every DevOps task is confirmed before it runs</strong> — including the instructions the model itself wrote into the remote prompt, which the first version of that card hid; request bodies are <strong>bounded before being read</strong>, on the webhooks that is before authentication; browser requests are validated <strong>per destination</strong>, not per scheme; and the access logs finally pass through the PII filter, which <code>uvicorn.access</code> had been bypassing. <strong>15,023 backend</strong> + <strong>2,567 frontend</strong> tests, MyPy strict clean, all ratchets hold. — 25 July 2026.
+  <strong>Version 1.25.21</strong> — <strong>Document search no longer goes dark while the embedding model is being replaced.</strong> Reindexing a space meant re-embedding every document, and each document dropped its old chunks before writing the new ones — so for the whole reindex window that space returned nothing to search. The two generations now live <strong>side by side</strong> (no unique constraint forces one to overwrite the other), a durable per-space <code>serving_embedding_model</code> pointer keeps every query answered by the <strong>old</strong> generation until the new one is fully built, and the switch is an <strong>atomic per-space flip</strong> the moment a space is ready — never a global freeze. A reaper resumes the flip if the process dies mid-reindex, retrieval groups spaces by the generation actually being served and embeds each query with that generation's model, and a change of vector <strong>dimension</strong> — which needs a new column — stays an explicit, documented maintenance window rather than a silent empty result (ADR-150). The mechanism is pinned by <strong>8 real-PostgreSQL integration tests</strong> covering the flip, the crash-resume, and the served-generation query. Also in this release: the permanent test-skip allowlist is back to <strong>zero</strong> (three skips were hiding a genuinely uncovered OAuth-callback branch, now tested), the MyPy strict-exemption surface shrank 91 → 90, and the frontend cyclomatic-complexity baseline shrank 56 → 53. <strong>15,031 backend</strong> + <strong>2,567 frontend</strong> tests, MyPy strict clean, all ratchets hold. — 25 July 2026.
 
 </p>
 
@@ -884,12 +884,12 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md)   | Complete development workflow                             |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent                                 |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md)   | How to create a new tool                                  |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~15,023 backend tests across 814 files) |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~15,031 backend tests across 817 files) |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md)           | LangGraph and log debugging                               |
 
 ### Architecture Decision Records (ADR)
 
-148 ADRs (numbered up to ADR-149) documenting major architectural decisions:
+149 ADRs (numbered up to ADR-150) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

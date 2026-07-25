@@ -260,17 +260,33 @@ class TestRetrieveRagContext:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_reindex_in_progress_returns_none(self, user_id, mock_db, mock_settings) -> None:
-        """When Redis reindex flag is set, returns None."""
+    async def test_reindex_in_progress_still_serves_pinned_generation(
+        self, user_id, mock_db, mock_settings
+    ) -> None:
+        """AC-001: a reindex no longer blocks reads — the pinned generation is served.
+
+        The old global read-block (return None while REINDEX_FLAG_KEY is set) is
+        gone. A space pinned to the OLD generation routes retrieval through it:
+        the query is embedded with the pinned model AND the chunk search is
+        filtered to it, so the stable generation stays fully searchable.
+        """
         space = MagicMock()
         space.id = uuid4()
         space.name = "Research"
+        space.serving_embedding_model = "text-embedding-old"
 
         mock_space_repo = AsyncMock()
         mock_space_repo.get_active_for_user.return_value = [space]
 
-        mock_redis = AsyncMock()
-        mock_redis.get.return_value = "1"  # Reindex flag set
+        mock_chunk_repo = AsyncMock()
+        mock_chunk_repo.search_by_similarity.return_value = []
+        mock_chunk_repo.get_corpus_for_spaces.return_value = []
+
+        captured: dict = {}
+
+        async def _fake_embed(query, model=None):
+            captured["embed_model"] = model
+            return [0.1] * 10
 
         m1, m2, m3, m4 = self._patch_metrics()
         with (
@@ -278,12 +294,13 @@ class TestRetrieveRagContext:
                 "src.domains.rag_spaces.retrieval.RAGSpaceRepository",
                 return_value=mock_space_repo,
             ),
-            patch("src.domains.rag_spaces.retrieval.RAGChunkRepository"),
             patch(
-                "src.infrastructure.cache.redis.get_redis_cache",
-                new_callable=AsyncMock,
-                return_value=mock_redis,
+                "src.domains.rag_spaces.retrieval.RAGChunkRepository",
+                return_value=mock_chunk_repo,
             ),
+            patch("src.domains.rag_spaces.retrieval.embed_rag_query_cached", _fake_embed),
+            patch("src.domains.rag_spaces.retrieval.set_embedding_context"),
+            patch("src.domains.rag_spaces.retrieval.clear_embedding_context"),
             m1,
             m2,
             m3,
@@ -295,7 +312,11 @@ class TestRetrieveRagContext:
                 db=mock_db,
             )
 
-        assert result is None
+        # NOT blocked (the core AC-001 change) and routed through the pinned generation.
+        assert result is not None
+        assert captured.get("embed_model") == "text-embedding-old"
+        _, kwargs = mock_chunk_repo.search_by_similarity.call_args
+        assert kwargs["embedding_model"] == "text-embedding-old"
 
     @pytest.mark.asyncio
     @pytest.mark.unit

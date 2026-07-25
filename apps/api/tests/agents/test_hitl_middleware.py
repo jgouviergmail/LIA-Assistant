@@ -4,12 +4,11 @@ Unit tests for Human-in-the-Loop (HITL) middleware implementation.
 Tests LangChain v1.0 HumanInTheLoopMiddleware pattern for tool approval.
 Validates interrupt/resume flow and approval decisions.
 
-NOTE (2026-01-19): These tests are outdated and test legacy configuration patterns:
-- tool_approval_enabled: Removed - HITL is now always enabled
-- tool_approval_required: Removed - tool approval is now manifest-driven
-  (defined in tool manifests via permissions.hitl_required)
-
-TODO: Rewrite tests to use manifest-driven HITL pattern.
+HITL is always-on and manifest-driven (2026-01-19): ``requires_approval`` reads
+``permissions.hitl_required`` from the tool manifest via the registry, and
+``get_approval_config`` returns the allowed decisions. These tests exercise that
+current contract directly (AC-007: the stale module-level skip that predated the
+rewrite has been removed).
 """
 
 from unittest.mock import MagicMock, patch
@@ -19,11 +18,7 @@ from langchain.agents.middleware import HumanInTheLoopMiddleware
 
 from src.domains.agents.utils.hitl_config import get_approval_config, requires_approval
 
-pytestmark = pytest.mark.skip(
-    reason="Tests use legacy tool_approval_enabled/required settings. "
-    "HITL is now always enabled and tool approval is manifest-driven. "
-    "See hitl_config.py and tool manifests for current implementation."
-)
+pytestmark = pytest.mark.unit
 
 
 class TestHITLConfiguration:

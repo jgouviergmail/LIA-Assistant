@@ -1,6 +1,6 @@
 [project]
 name = "lia-api"
-version = "1.25.20"
+version = "1.25.21"
 description = "LIA Assistant - AI conversational assistant with multi-agent orchestration"
 license = "AGPL-3.0-or-later"
 authors = [
@@ -194,7 +194,7 @@ disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "misc", "as
 # redundant — dropping it would surface unused-ignore on those lines.
 [[tool.mypy.overrides]]
 module = ["src.domains.agents.tools.*"]
-disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "misc", "call-arg", "assignment", "return-value", "var-annotated", "index", "operator", "union-attr", "unused-ignore", "attr-defined"]
+disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "misc", "call-arg", "assignment", "return-value", "var-annotated", "index", "operator", "union-attr", "attr-defined"]
 
 [[tool.mypy.overrides]]
 module = ["src.domains.agents.utils.*"]

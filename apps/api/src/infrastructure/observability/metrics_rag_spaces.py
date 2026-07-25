@@ -128,6 +128,16 @@ rag_reindex_documents_total = Counter(
     ["status"],  # status: success|error
 )
 
+# Generational continuity (AC-001): per-space flip outcomes during a
+# same-dimension reindex. ``flipped`` = the space switched to the new generation
+# and its old chunks were reclaimed; ``deferred`` = still building/failed, kept
+# serving the stable old generation; ``failed`` = the flip transaction errored.
+rag_reindex_space_flips_total = Counter(
+    "rag_reindex_space_flips_total",
+    "RAG generational per-space flip outcomes (AC-001 continuity)",
+    ["outcome"],  # outcome: flipped|deferred|failed
+)
+
 # ============================================================================
 # Drive Sync Metrics
 # ============================================================================

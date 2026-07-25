@@ -10,7 +10,7 @@ Created: 2026-03-14
 
 from uuid import UUID
 
-from sqlalchemy import case, delete, func, select
+from sqlalchemy import case, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
@@ -122,6 +122,63 @@ class RAGSpaceRepository(BaseRepository[RAGSpace]):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    # ========================================================================
+    # Generational continuity (AC-001)
+    # ========================================================================
+
+    async def get_serving_model(self, space_id: UUID) -> str | None:
+        """Return a space's served embedding generation (NULL in steady state).
+
+        Lightweight scalar read used by ``process_document`` to decide whether a
+        reprocess must keep the stable generation side by side (reindex) or
+        replace every chunk (normal upload).
+        """
+        stmt = select(RAGSpace.serving_embedding_model).where(RAGSpace.id == space_id)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def pin_serving_for_spaces(self, space_ids: list[UUID], model: str) -> int:
+        """Pin ``serving_embedding_model`` for the given spaces (reindex start).
+
+        Only pins spaces that are NOT already pinned to some generation, so a
+        crash/restart mid-reindex re-run never clobbers an in-flight pin. Runs in
+        the CALLER's transaction (committed with the reindex-intent setup).
+        Returns the number of rows pinned.
+        """
+        if not space_ids:
+            return 0
+        stmt = (
+            update(RAGSpace)
+            .where(
+                RAGSpace.id.in_(space_ids),
+                RAGSpace.serving_embedding_model.is_(None),
+            )
+            .values(serving_embedding_model=model)
+        )
+        result = await self.db.execute(stmt)
+        return int(getattr(result, "rowcount", 0) or 0)
+
+    async def set_serving_model(self, space_id: UUID, model: str | None) -> None:
+        """Set (or clear, with None) a single space's served generation.
+
+        Used by the atomic per-space flip: the caller sets the NEW generation and
+        deletes the OLD chunks in the SAME transaction.
+        """
+        stmt = update(RAGSpace).where(RAGSpace.id == space_id).values(serving_embedding_model=model)
+        await self.db.execute(stmt)
+
+    async def get_pinned_space_ids(self) -> list[tuple[UUID, str]]:
+        """Return ``(space_id, serving_model)`` for every currently-pinned space.
+
+        Drives the post-build flip pass and lets a restart resume flipping spaces
+        pinned by an earlier reindex run.
+        """
+        stmt = select(RAGSpace.id, RAGSpace.serving_embedding_model).where(
+            RAGSpace.serving_embedding_model.is_not(None)
+        )
+        result = await self.db.execute(stmt)
+        return [(row[0], row[1]) for row in result.all()]
+
 
 class RAGDriveSourceRepository(BaseRepository[RAGDriveSource]):
     """Repository for RAG Drive Source model with space-scoped queries."""
@@ -220,6 +277,26 @@ class RAGDocumentRepository(BaseRepository[RAGDocument]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def count_space_docs_not_on_generation(self, space_id: UUID, target_model: str) -> int:
+        """Count a space's documents NOT fully rebuilt onto ``target_model`` (AC-001).
+
+        A space is ready for the generational flip only when this returns 0 —
+        every document is READY and stamped with the target embedding model. A
+        non-zero count means at least one document is still mid-rebuild
+        (PENDING/PROCESSING) or failed (kept on the old generation), so the space
+        stays pinned on the stable generation until the reaper finishes it.
+        """
+        stmt = select(func.count(RAGDocument.id)).where(
+            RAGDocument.space_id == space_id,
+            or_(
+                RAGDocument.status != RAGDocumentStatus.READY,
+                RAGDocument.embedding_model.is_(None),
+                RAGDocument.embedding_model != target_model,
+            ),
+        )
+        result = await self.db.execute(stmt)
+        return int(result.scalar_one())
+
     async def get_space_stats(self, space_id: UUID) -> dict:
         """Get aggregated stats for a space (document_count, total_size, ready_count)."""
         stmt = select(
@@ -284,6 +361,7 @@ class RAGChunkRepository(BaseRepository[RAGChunk]):
         space_ids: list[UUID],
         query_embedding: list[float],
         limit: int = 10,
+        embedding_model: str | None = None,
     ) -> list[tuple[RAGChunk, float]]:
         """
         Search chunks by cosine similarity via pgvector.
@@ -296,15 +374,23 @@ class RAGChunkRepository(BaseRepository[RAGChunk]):
             space_ids: Space IDs to search within.
             query_embedding: Query vector.
             limit: Maximum results to return.
+            embedding_model: When set, restrict to chunks of this embedding
+                generation (AC-001 generational continuity). The caller MUST have
+                produced ``query_embedding`` with the SAME model — comparing a
+                query vector of one generation against chunks of another is
+                cosine-meaningless. None searches every generation (steady state).
         """
         if not space_ids:
             return []
 
         cosine_distance = RAGChunk.embedding.cosine_distance(query_embedding)
         user_filter = RAGChunk.user_id.is_(None) if user_id is None else RAGChunk.user_id == user_id
+        conditions = [user_filter, RAGChunk.space_id.in_(space_ids)]
+        if embedding_model is not None:
+            conditions.append(RAGChunk.embedding_model == embedding_model)
         stmt = (
             select(RAGChunk, cosine_distance.label("distance"))
-            .where(user_filter, RAGChunk.space_id.in_(space_ids))
+            .where(*conditions)
             .order_by(cosine_distance)
             .limit(limit)
         )
@@ -336,8 +422,64 @@ class RAGChunkRepository(BaseRepository[RAGChunk]):
         )
         return int(count)
 
+    async def delete_by_document_and_model(self, document_id: UUID, embedding_model: str) -> int:
+        """Delete only one generation's chunks for a document (AC-001 side-by-side).
+
+        During a same-dimension reindex the document keeps its stable (serving)
+        generation while the target generation is (re)built. Replacing only the
+        TARGET generation makes the rebuild idempotent — a retried document does
+        not accumulate duplicate new-generation chunks — without ever touching
+        the still-served old generation. Returns the count deleted.
+        """
+        stmt = delete(RAGChunk).where(
+            RAGChunk.document_id == document_id,
+            RAGChunk.embedding_model == embedding_model,
+        )
+        result = await self.db.execute(stmt)
+        count = getattr(result, "rowcount", 0) or 0
+        logger.debug(
+            "rag_chunks_deleted_by_document_and_model",
+            document_id=str(document_id),
+            embedding_model=embedding_model,
+            count=count,
+        )
+        return int(count)
+
+    async def delete_by_space_and_model(self, space_id: UUID, embedding_model: str) -> int:
+        """Delete one generation's chunks for a space (AC-001 post-flip cleanup).
+
+        Called AFTER the space's serving pointer has flipped to the new
+        generation, so the old-generation chunks are no longer served and can be
+        reclaimed. Returns the count deleted.
+        """
+        stmt = delete(RAGChunk).where(
+            RAGChunk.space_id == space_id,
+            RAGChunk.embedding_model == embedding_model,
+        )
+        result = await self.db.execute(stmt)
+        count = getattr(result, "rowcount", 0) or 0
+        logger.debug(
+            "rag_chunks_deleted_by_space_and_model",
+            space_id=str(space_id),
+            embedding_model=embedding_model,
+            count=count,
+        )
+        return int(count)
+
+    async def count_by_space_and_model(self, space_id: UUID, embedding_model: str) -> int:
+        """Count a space's chunks that belong to one embedding generation."""
+        stmt = select(func.count(RAGChunk.id)).where(
+            RAGChunk.space_id == space_id,
+            RAGChunk.embedding_model == embedding_model,
+        )
+        result = await self.db.execute(stmt)
+        return int(result.scalar_one())
+
     async def get_corpus_for_spaces(
-        self, user_id: UUID | None, space_ids: list[UUID]
+        self,
+        user_id: UUID | None,
+        space_ids: list[UUID],
+        embedding_model: str | None = None,
     ) -> list[tuple[UUID, str]]:
         """
         Get all chunk IDs and content for BM25 indexing.
@@ -345,6 +487,12 @@ class RAGChunkRepository(BaseRepository[RAGChunk]):
         Args:
             user_id: User ID for user-owned chunks, or None for system chunks.
             space_ids: Space IDs to retrieve corpus from.
+            embedding_model: When set, restrict to chunks of this embedding
+                generation so the BM25 corpus stays aligned with the semantic
+                candidates (AC-001) — a chunk_id that never appears among the
+                semantic results would score nothing anyway, but keeping both
+                sides on the same generation avoids building a corpus over
+                soon-to-be-deleted chunks. None = every generation (steady state).
 
         Returns:
             List of (chunk_id, content) tuples.
@@ -353,11 +501,10 @@ class RAGChunkRepository(BaseRepository[RAGChunk]):
             return []
 
         user_filter = RAGChunk.user_id.is_(None) if user_id is None else RAGChunk.user_id == user_id
-        stmt = (
-            select(RAGChunk.id, RAGChunk.content)
-            .where(user_filter, RAGChunk.space_id.in_(space_ids))
-            .order_by(RAGChunk.id)
-        )
+        conditions = [user_filter, RAGChunk.space_id.in_(space_ids)]
+        if embedding_model is not None:
+            conditions.append(RAGChunk.embedding_model == embedding_model)
+        stmt = select(RAGChunk.id, RAGChunk.content).where(*conditions).order_by(RAGChunk.id)
         result = await self.db.execute(stmt)
         return [(row[0], row[1]) for row in result.all()]
 

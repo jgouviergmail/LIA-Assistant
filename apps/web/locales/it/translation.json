@@ -1739,7 +1739,7 @@
         "reindexConfirmTitle": "Reindicizza tutti i documenti",
         "reindexConfirmWarning": "Questa azione reindicizzerà tutti i documenti RAG di tutti gli utenti con il modello di embedding attuale.",
         "reindexConfirmCost": "Tutti i documenti verranno ri-codificati (costo API OpenAI)",
-        "reindexConfirmDowntime": "La ricerca RAG sarà temporaneamente non disponibile durante la reindicizzazione",
+        "reindexConfirmDowntime": "La ricerca nei documenti resta disponibile durante la reindicizzazione — viene interrotta solo brevemente se il nuovo modello cambia la dimensione degli embedding.",
         "reindexConfirmAction": "Avvia reindicizzazione",
         "whatItDoes": "Funzionamento",
         "description": "Gli spazi di conoscenza RAG consentono agli utenti di caricare documenti (PDF, TXT, MD, DOCX) che vengono indicizzati e utilizzati per arricchire le risposte dell'IA con contesto pertinente.",
@@ -3387,6 +3387,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_25_21": {
+          "title": "v1.25.21 — 📚 La ricerca nei documenti resta attiva durante gli aggiornamenti",
+          "date": "Luglio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📚 I tuoi documenti restano consultabili durante un aggiornamento</b> — quando un amministratore cambia il modello che indicizza i tuoi spazi documentali, la ricerca restava non disponibile fino al termine dell'intera ricostruzione. Il vecchio indice ora continua a rispondere a ogni richiesta finché il nuovo non è completamente pronto, poi passa all'istante, spazio per spazio — e riprende da solo se la ricostruzione viene interrotta.",
+            "i2": "<b>🛠️ Un solo tipo di aggiornamento richiede ancora una breve finestra</b> — cambiare la dimensione dell'indice (una modifica più rara e profonda) resta un momento di manutenzione pianificato, ora chiaramente documentato per gli amministratori invece di restituire silenziosamente un risultato vuoto."
+          }
+        },
         "v1_25_20": {
           "title": "v1.25.20 — 🔒 Ciò che gira, gira in una scatola sigillata",
           "date": "Luglio 2026",

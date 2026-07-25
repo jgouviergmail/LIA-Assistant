@@ -63,36 +63,39 @@ class TestGetDbSession:
         mock_session.commit.assert_called_once()
         mock_session.close.assert_called_once()
 
-    @pytest.mark.skip(reason="Mocking async context manager needs fix")
     @pytest.mark.asyncio
     @patch("src.infrastructure.database.session.logger")
     @patch("src.infrastructure.database.session.AsyncSessionLocal")
     async def test_get_db_session_error_rollsback(self, mock_session_local, mock_logger):
-        """Test get_db_session rolls back on error (Lines 58-61)."""
-        # Mock session
+        """Test get_db_session rolls back, logs and re-raises on error (Lines 67-78).
+
+        Drives the exception INTO the generator at its ``yield`` point via
+        ``athrow`` — the shape a FastAPI dependency actually sees when the
+        request handler raises. ``__aexit__`` must return a falsy value so the
+        ``async with`` does not swallow the re-raised exception.
+        """
         mock_session = AsyncMock()
         mock_session.commit = AsyncMock()
         mock_session.rollback = AsyncMock()
         mock_session.close = AsyncMock()
 
-        # Create an async context manager that returns our mock session
-        async def mock_session_context():
-            yield mock_session
+        # Mirror the success test's async-context-manager mocking; __aexit__
+        # returns False so the re-raised exception propagates out of the CM.
+        mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_local.return_value.__aexit__ = AsyncMock(return_value=False)
 
-        mock_session_local.return_value = mock_session_context()
+        gen = get_db_session()
+        session = await gen.__anext__()  # advance to the yield
+        assert session is mock_session
 
-        # Lines 58-61 executed: rollback on exception
+        # Throwing at the yield triggers the except branch (rollback + log + raise)
         with pytest.raises(ValueError):
-            gen = get_db_session()
-            await gen.__anext__()
-            # Simulate error during operation
-            raise ValueError("Database operation failed")
+            await gen.athrow(ValueError("Database operation failed"))
 
-        # Verify rollback called
-        mock_session.rollback.assert_called_once()
-        mock_session.close.assert_called_once()
+        mock_session.rollback.assert_awaited_once()
+        mock_session.commit.assert_not_awaited()
+        mock_session.close.assert_awaited_once()  # finally: asyncio.shield(session.close())
 
-        # Verify error logged
         mock_logger.error.assert_called_once()
         assert "database_session_error" in str(mock_logger.error.call_args)
 

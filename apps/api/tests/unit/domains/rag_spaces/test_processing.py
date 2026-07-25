@@ -1339,6 +1339,13 @@ class TestProcessDocument:
 
             mock_get_emb.return_value = mock_embeddings
 
+            # Steady-state upload: the space serves a single generation, so
+            # get_serving_model returns None and the chunk swap replaces every
+            # chunk (AC-001 side-by-side kicks in only when a reindex pins a
+            # different generation — covered by the integration tests).
+            mock_space_repo = AsyncMock()
+            mock_space_repo.get_serving_model.return_value = None
+
             with (
                 patch(
                     "src.domains.rag_spaces.processing.RAGDocumentRepository",
@@ -1347,6 +1354,10 @@ class TestProcessDocument:
                 patch(
                     "src.domains.rag_spaces.processing.RAGChunkRepository",
                     return_value=mock_chunk_repo,
+                ),
+                patch(
+                    "src.domains.rag_spaces.processing.RAGSpaceRepository",
+                    return_value=mock_space_repo,
                 ),
             ):
                 await process_document(
@@ -1360,6 +1371,10 @@ class TestProcessDocument:
 
             # Verify embeddings were requested
             mock_embeddings.aembed_documents.assert_awaited()
+
+            # Steady-state swap replaces every chunk (not the generational path).
+            mock_chunk_repo.delete_by_document.assert_awaited_once()
+            mock_chunk_repo.delete_by_document_and_model.assert_not_awaited()
 
             # Verify chunks were bulk-inserted
             mock_chunk_repo.bulk_create_chunks.assert_awaited_once()

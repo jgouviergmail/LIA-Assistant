@@ -2105,7 +2105,7 @@
         "reindexConfirmTitle": "Ré-indexer tous les documents",
         "reindexConfirmWarning": "Cette action va ré-indexer tous les documents RAG de tous les utilisateurs avec le modèle d'embedding actuel.",
         "reindexConfirmCost": "Tous les documents seront ré-encodés (coût API OpenAI)",
-        "reindexConfirmDowntime": "La recherche RAG sera temporairement indisponible pendant la ré-indexation",
+        "reindexConfirmDowntime": "La recherche documentaire reste disponible pendant la ré-indexation — elle n'est brièvement interrompue que si le nouveau modèle change la dimension des embeddings.",
         "reindexConfirmAction": "Lancer la ré-indexation",
         "whatItDoes": "Fonctionnement",
         "description": "Les espaces de connaissances RAG permettent aux utilisateurs de télécharger des documents (PDF, TXT, MD, DOCX) qui sont indexés et utilisés pour enrichir les réponses de l'IA avec du contexte pertinent.",
@@ -3399,6 +3399,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_25_21": {
+          "title": "v1.25.21 — 📚 La recherche documentaire reste active pendant les mises à niveau",
+          "date": "Juillet 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📚 Vos documents restent consultables pendant une mise à niveau</b> — lorsqu'un administrateur change le modèle qui indexe vos espaces documentaires, la recherche devenait indisponible jusqu'à la fin de toute la reconstruction. L'ancien index continue désormais de répondre à chaque requête jusqu'à ce que le nouveau soit entièrement prêt, puis bascule instantanément, espace par espace — et reprend tout seul si la reconstruction est interrompue.",
+            "i2": "<b>🛠️ Un seul type de mise à niveau nécessite encore une courte fenêtre</b> — changer la taille de l'index (une évolution plus rare et plus profonde) reste un moment de maintenance planifié, désormais clairement documenté pour les administrateurs au lieu de renvoyer silencieusement un résultat vide."
+          }
+        },
         "v1_25_20": {
           "title": "v1.25.20 — 🔒 Ce qui s’exécute, s’exécute sous cloche",
           "date": "Juillet 2026",

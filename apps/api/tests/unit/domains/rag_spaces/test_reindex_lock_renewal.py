@@ -72,22 +72,27 @@ async def test_reindex_never_deletes_chunks_before_reembedding():
 
     The pre-durable flow deleted a document's chunks and marked it REINDEXING
     *before* re-embedding: a crash mid-embed left a chunkless document. The
-    chunk swap now happens atomically inside process_document, so the reindex
-    module must not touch chunks (or any per-document status) itself.
+    chunk swap now happens atomically inside process_document, so a plain drain
+    never touches chunks itself. (AC-001 post-flip cleanup deletes old-generation
+    chunks in a SEPARATE phase that runs only after the new generation is built
+    and served — never during re-embedding, and never without ``flip_from``.)
     """
-    assert not hasattr(reindex, "RAGChunkRepository")
-
     docs = _make_docs(1)
     process = AsyncMock(return_value=True)
     with (
         patch.object(reindex, "_get_redis", AsyncMock(return_value=None)),
         patch.object(reindex, "process_document", process),
+        patch.object(reindex, "RAGChunkRepository") as chunk_repo_cls,
     ):
+        # Default flip_from=None -> a pure drain with no generational flip.
         await reindex._reindex_all_documents(docs, "text-embedding-new")
 
     process.assert_awaited_once()
     kwargs = process.await_args.kwargs
     assert kwargs["document_id"] == docs[0].id
+    # A plain drain delegates ALL chunk mutation to process_document's atomic
+    # swap and never constructs a chunk repository of its own.
+    chunk_repo_cls.assert_not_called()
 
 
 async def test_reindex_lock_ttl_is_bounded_and_not_six_hours():

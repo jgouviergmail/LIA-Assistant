@@ -1918,7 +1918,7 @@
         "reindexConfirmTitle": "Reindex All Documents",
         "reindexConfirmWarning": "This will reindex all RAG documents for all users with the current embedding model.",
         "reindexConfirmCost": "All documents will be re-embedded (OpenAI API cost)",
-        "reindexConfirmDowntime": "RAG search will be temporarily unavailable during reindexation",
+        "reindexConfirmDowntime": "Document search stays available during reindexing — it is only briefly interrupted if the new model changes the embedding dimension.",
         "reindexConfirmAction": "Start Reindexation",
         "whatItDoes": "What it does",
         "description": "RAG Knowledge Spaces allow users to upload documents (PDF, TXT, MD, DOCX) that are indexed and used to enrich AI responses with relevant context.",
@@ -3394,6 +3394,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_21": {
+          "title": "v1.25.21 — 📚 Document search stays on during upgrades",
+          "date": "July 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📚 Your documents stay searchable during an upgrade</b> — when an administrator switches the model that indexes your document spaces, search used to go dark until the entire rebuild finished. The old index now keeps answering every query until the new one is fully ready, then switches over instantly, space by space — and resumes on its own if the rebuild is interrupted.",
+            "i2": "<b>🛠️ One kind of upgrade still needs a short window</b> — changing the size of the index (a rarer, deeper change) stays a planned maintenance moment, now clearly documented for administrators instead of silently returning nothing."
+          }
+        },
         "v1_25_20": {
           "title": "v1.25.20 — 🔒 What runs, runs in a sealed box",
           "date": "July 2026",
