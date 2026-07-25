@@ -4,48 +4,77 @@
 
 **Fichiers sources** :
 - `.github/workflows/ci.yml` — Pipeline CI principale
+- `Taskfile.yml` — **l'implementation reelle de tous les gates** (voir ci-dessous)
 - `.github/workflows/security.yml` — Scans de securite (CodeQL, Trivy, SBOM)
 - `.github/workflows/release.yml` — Build Docker + GitHub Release
 - `.github/workflows/a11y-matrix.yml` — Matrice navigateurs hebdomadaire (AC-002) : rejoue la suite E2E/axe sur Chromium, Firefox et WebKit (`E2E_ALL_BROWSERS=1`), rapports archives 30 jours
 - `.github/hooks/pre-commit` — Hook Git pre-commit local
+- `scripts/audit/check_ci_parity.py` — Garde : le workflow orchestre, il n'implemente pas
 - `.github/dependabot.yml` — Mises a jour automatiques des dependances
+
+---
+
+## Principe : le workflow orchestre, le Taskfile implemente (ADR-151)
+
+Chaque etape `run:` de `ci.yml` est un appel `task <nom>`. La logique vit dans
+`Taskfile.yml`, jamais dans le YAML du workflow. **La CI execute donc
+litteralement la commande que le developpeur lance.**
+
+Ce n'est pas une convention de style : c'est ce qui rend un gate exécutable
+avant le push. Un gate ecrit inline dans le workflow est un gate que personne ne
+peut jouer en local, et qui se decouvre par un build rouge apres un local vert —
+ce qui est arrive au gate de couverture par markers, au ratchet de complexite
+frontend, aux seuils de couverture par fichier et a tout le bloc code-hygiene.
+
+Trois exceptions seulement, chacune motivee par ecrit dans le dictionnaire
+`CI_ONLY` de `scripts/audit/check_ci_parity.py` :
+
+| Etape CI-only | Raison | Equivalent local |
+|---|---|---|
+| `promtool` (binaire natif) | promtool n'est pas installe sur une machine de dev | `task test:alerts` — **meme version v2.53.2**, via conteneur |
+| Replay des migrations (bash, dans le conteneur) | le wrapper bash ne tourne pas sur l'hote Windows | `task db:migrate:replay-check` (portage Python, F048) |
+| Suite unitaire sur Python 3.13 (F041) | son objet **est** l'interpreteur different | aucun — maintenir un second interpreteur local n'a pas de sens |
+
+Le reste des `run:` est du provisionnement de runner (checkout, venv, `pnpm
+install`). `task lint:ci-parity` echoue sur toute etape qui n'est ni un appel de
+tache, ni un provisionnement declare, ni une exception motivee.
 
 ---
 
 ## Architecture
 
 ```
-Developer workstation                    GitHub Actions
+Poste de developpement                   GitHub Actions
 ========================                 ========================
 
 git commit                               push to main / PR
     |                                        |
     v                                        v
-pre-commit hook (local)                  CI workflow (ci.yml)
+hook pre-commit (~5 min)                 ci.yml — 12 jobs, 15 appels `task`
     |                                        |
-    +-- .bak files check                     +-- Lint Backend
-    +-- secrets grep                         |     Ruff (src/ tests/)
-    +-- Ruff (src/ tests/)                   |     Black (src/ tests/)
-    +-- Black (src/ tests/)                  |     MyPy (src/)
-    +-- MyPy (src/)                          +-- Lint Frontend
-    +-- Fast unit tests                      |     ESLint
-    +-- Critical pattern detection           |     TypeScript check
-    +-- i18n keys sync                       +-- Test Backend
-    +-- Alembic migration conflicts          |     Fast unit tests + coverage
-    +-- .env.example completeness            +-- Test Frontend
-    +-- ESLint                               |     Vitest + coverage
-    +-- TypeScript check                     +-- Code Hygiene
-                                             |     .bak files
-                                             |     Critical patterns
-                                             |     i18n keys sync
-                                             |     Alembic migration conflicts
-                                             |     .env.example completeness
-                                             +-- Docker Build
-                                             |     API image (smoke test)
-                                             |     Web image (smoke test)
-                                             +-- Secret Scan
-                                                   Gitleaks
+    +-- .bak, secrets, infra reelle          +-- Lint Backend .......... task lint:backend lint:mypy-debt
+    +-- Ruff / Black / MyPy                  +-- Lint Frontend ......... task lint:frontend
+    +-- tests unitaires rapides              +-- Test Backend .......... task test:backend:unit:coverage
+    +-- patterns critiques                   |                          task test:backend:agents
+    +-- parite des cles i18n                 |                          task test:markers
+    +-- conflits de migration                +-- Test Backend Integr. .. task test:backend:integration
+    +-- completude .env.example              +-- Migration Replay ...... (CI-only, cf. tableau)
+    +-- ESLint / TypeScript                  +-- Test Frontend ......... task test:frontend:coverage
+                                             +-- E2E + a11y (Playwright) task test:e2e
+    task ci:fast (~10 min, sans service)     +-- Code Hygiene .......... task lint:hygiene / lint:i18n
+    task ci       (+ PG, Redis, Docker,      |                          task test:deploy / lint:docs
+                   navigateur)               |                          task lint:cycles / lint:cc
+                                             |                          task lint:lockfiles / lint:ci-parity
+                                             +-- Observability Config .. task lint:observability + promtool
+                                             +-- Docker Build .......... images API + Web (smoke)
+                                             +-- Python 3.13 (F041) .... (CI-only)
+                                             +-- Secret Scan ........... Gitleaks
 ```
+
+**`task ci:fast`** est le gate d'avant-push : tout ce que la CI verifie sans
+service externe (~10 min mesure). Le hook pre-commit est volontairement plus
+etroit — il tient dans ~5 min et saute les ratchets, le gate de markers, les
+tests de deploiement et les seuils de couverture frontend.
 
 ---
 
@@ -61,6 +90,7 @@ Le hook ne s'execute que sur les fichiers stages et s'adapte au type de fichier 
 |---|-------|------------|----------|
 | 0 | `.bak` files | Toujours | Oui |
 | 1 | Secrets (grep) | Toujours | Oui |
+| 1.5 | Infos d'infrastructure/personnelles reelles (denylist locale git-ignoree) | Toujours | Oui |
 | 2.1 | Ruff (`src/ tests/`) | `.py` stages | Oui |
 | 2.2 | Black (`src/ tests/`) | `.py` stages | Oui |
 | 2.3 | MyPy (`src/`) | `.py` stages | Oui |
@@ -95,14 +125,17 @@ git commit --no-verify
 ```
 lint-backend ──> test-backend
              ├─> test-backend-integration
-             └─> migration-replay
+             ├─> migration-replay
+             └─> python-compat
 lint-frontend ─> test-frontend
-code-hygiene (independant)
-docker-build (independant)
-secret-scan (independant)
+e2e-frontend   (independant)
+code-hygiene   (independant)
+observability  (independant)
+docker-build   (independant)
+secret-scan    (independant)
 ```
 
-`test-backend` et `test-frontend` attendent que leur lint respectif passe avant de s'executer. Les autres jobs sont independants et tournent en parallele.
+Les jobs de test attendent que leur lint respectif passe avant de s'executer. Les autres sont independants et tournent en parallele. `e2e-frontend` ne depend pas de `lint-frontend` : il tourne dans l'image Playwright officielle (glibc) et construit l'application lui-meme, donc rien ne serait gagne a le serialiser.
 
 **`migration-replay`** (F007) rejoue toute la chaine Alembic (`alembic upgrade head`) sur une base PostgreSQL **vide** (service `pgvector`, extensions `vector`/`uuid-ossp`/`pg_trgm` creees), verifie qu'elle atteint le head unique, puis fait un cycle downgrade/upgrade de la derniere revision. Le job unitaire construit son schema via `create_all()` et ne rejoue jamais les migrations : seule une execution from-scratch attrape une migration non rejouable (disaster recovery, nouvelle region). En local : `task db:migrate:replay-check` (base jetable dans le PostgreSQL dev). Le script partage : `scripts/db/check_migrations_replay.sh`.
 
@@ -127,56 +160,75 @@ Principe du moindre privilege : le `GITHUB_TOKEN` n'a acces qu'en lecture.
 
 ### Jobs detail
 
+Chaque ligne « Commande » est **litteralement** ce que contient le workflow.
+Pour savoir ce que fait un gate, lire la tache dans `Taskfile.yml`.
+
 #### Lint Backend
 
 | Step | Commande |
 |------|----------|
-| Ruff | `ruff check src/ tests/` |
-| Black | `black --check src/ tests/` |
-| MyPy | `mypy src/ --config-file=pyproject.toml` |
+| Lint backend | `task lint:backend lint:mypy-debt` |
+
+`lint:backend` = Ruff + Black + MyPy sur `src/` et `tests/`. `lint:mypy-debt`
+est le ratchet F020 : il fige la surface `disable_error_code` en paires
+(module, code) et echoue sur toute **nouvelle** exemption — simple lecture de
+`pyproject.toml`, sans relancer MyPy.
 
 #### Lint Frontend
 
 | Step | Commande |
 |------|----------|
-| ESLint | `pnpm lint` |
-| TypeScript | `pnpm exec tsc --noEmit` |
+| Lint frontend | `task lint:frontend` |
+
+ESLint, puis trois ratchets shrink-only, puis `tsc --noEmit --incremental
+false`. Les ratchets figent la dette existante pour qu'elle ne grossisse pas :
+violations `jsx-a11y` (F012/F013/F021), `react-hooks`/immutabilite (F021), et
+les fonctions a CC >= 15 avec empreinte par fichier (F011) — une nouvelle
+fonction complexe echoue meme sous le plafond global d'ESLint. Le typecheck est
+**non incremental** volontairement : `tsconfig.json` pose `"incremental": true`
+et `*.tsbuildinfo` est git-ignore, donc un run local sur cache pourrait passer
+la ou le runner, a froid, echoue.
 
 #### Test Backend
 
 Services containers : PostgreSQL (`pgvector/pgvector:pg16`) + Redis (`redis:7-alpine`).
 
-Step 1 — tests unitaires :
-```bash
-pytest tests/unit/ -v --tb=short \
-  -m "not integration and not slow and not e2e and not benchmark and not multiprocess" \
-  --cov=src --cov-report=xml --cov-fail-under=59
-```
+| Step | Commande |
+|------|----------|
+| Tests unitaires + couverture | `task test:backend:unit:coverage` |
+| Suite agents | `task test:backend:agents` |
+| Gate de couverture par markers (F006) | `task test:markers` |
 
-Step 2 — suite agents (cablee en 2026-07 apres l'audit — elle avait pourri
-en silence faute de gate) :
-```bash
-pytest tests/agents/ -v --tb=short \
-  -m "not slow and not e2e and not benchmark and not multiprocess" --no-cov
-```
+Le seuil de couverture est **60 %** (`--cov-fail-under`), et il a **une seule
+source de verite** : `apps/api/pyproject.toml`. La garde
+`test_task_ci_pytest_parity_guard.py` echoue si une autre valeur apparait
+ailleurs. Doctrine ratchet (jamais de baisse, >= 2 points de marge avant de
+monter) : voir [GUIDE_TESTING](../guides/GUIDE_TESTING.md) et ADR-113. Rapport
+uploade sur [Codecov](https://codecov.io).
 
-Seuil de couverture : **45%** minimum (doctrine ratchet +2 points par
-release, jamais de baisse — voir [GUIDE_TESTING](../guides/GUIDE_TESTING.md)
-et ADR-113). Coverage uploade sur [Codecov](https://codecov.io).
+`task test:markers` (F006) ferme un angle mort du garde-fou par chemins : un
+fichier de test peut vivre sous une racine executee en CI et rester
+**entierement deselectionne** par l'expression de markers du job. Le gate
+collecte chaque nodeid avec ses markers et echoue si un test ne tourne dans
+**aucun** job sans figurer dans l'allowlist justifiee et shrink-only
+(`apps/api/tests/marker_coverage_allowlist.json`).
 
-Il n'y a **plus de liste `--ignore`** : les tests exigeant une vraie base
-portent le marker `integration` et vivent dans `tests/integration/`
-(reclasses en 2026-07 — la quarantaine par `--ignore` etait redondante avec
-le filtre `-m` et masquait le pourrissement de la suite).
+La suite agents a ete cablee en 2026-07 apres l'audit : elle avait pourri en
+silence (83 echecs) faute de gate. Il n'y a **plus de liste `--ignore`** — les
+tests exigeant une vraie base portent le marker `integration`.
 
 #### Test Backend Integration
 
-Memes services PostgreSQL + Redis, mais la base est consommee directement :
+| Step | Commande |
+|------|----------|
+| Tests d'integration | `task test:backend:integration` |
 
-```bash
-pytest tests/integration/ -v --tb=short \
-  -m "not e2e and not benchmark and not multiprocess" --no-cov
-```
+Memes services PostgreSQL + Redis, mais la base est consommee directement. La
+tache enchaine le preflight AC-001 (classification de la strategie DB, echec
+immediat et actionnable si aucune n'est disponible) puis **deux collections** :
+`tests/integration/`, et les tests marques `integration` qui vivent
+physiquement sous `tests/unit` ou `tests/agents` (F006) — ce job equipe de
+services est leur seul foyer.
 
 Le job pose `TEST_DATABASE_URL=postgresql+asyncpg://test:test@localhost:5432/test_db` —
 seule variable DB qui survit au `load_dotenv(.env.test, override=True)` du
@@ -186,38 +238,113 @@ service reproduisent volontairement `.env.test` pour que les tests lisant
 `settings.database_url` en direct (checkpointer LangGraph) atteignent la
 meme base. `--no-cov` : le gate de couverture appartient au job unit.
 
+**`LIA_REQUIRE_DB=1`** (pose par la tache et par le job, F019) : ce job
+*promet* une base, donc une base injoignable doit faire **echouer** le job, pas
+skipper silencieusement des groupes entiers de tests. Un vert obtenu par skips
+massifs est le pire des resultats.
+
 En local : `TEST_DATABASE_URL=...lia_test task test:backend:integration`
 (base JETABLE obligatoire — les fixtures droppent toutes les tables), ou
 fallback Testcontainers sans variable.
 
+#### E2E + a11y smoke (Playwright)
+
+| Step | Commande |
+|------|----------|
+| Suite E2E + axe | `task test:e2e` |
+
+F031. Tourne dans l'image Playwright officielle (glibc) : le conteneur de dev
+Alpine ne peut pas executer les navigateurs embarques de Playwright, d'ou une
+suite en **package isole** (`apps/web/e2e`, hors du workspace pnpm, dependances
+figees par `package-lock.json` et installees avec `npm ci`).
+
+Chaque spec intercepte `/api/v1/**` et sert des payloads fixes : aucun backend,
+aucun LLM, aucun fournisseur payant n'est contacte. Playwright construit et sert
+l'application lui-meme. Smoke Chromium sur PR pour la vitesse ; la **meme**
+suite rejoue chaque semaine sur Firefox/WebKit via `a11y-matrix.yml` (AC-002),
+et la campagne manuelle NVDA/VoiceOver est dans `docs/a11y/AT_CAMPAIGN.md`.
+
+L'environnement (serveur gere, IPv4, URLs d'API relatives) vit **dans la
+tache** : ce ne sont pas des reglages CI mais la facon dont la suite fonctionne,
+et les garder dans le workflow faisait diverger le run local du job.
+
 #### Test Frontend
 
-```bash
-pnpm test:coverage
-```
+| Step | Commande |
+|------|----------|
+| Vitest + couverture | `task test:frontend:coverage` |
 
-Le script dédié est obligatoire : `pnpm test -- --coverage` transmet le `--`
-littéral à vitest, qui ignore silencieusement le flag — aucun rapport n'est
-produit (piège corrigé en v1.21.26, ADR-116). Le job applique les **seuils de
-couverture ratchet** de `apps/web/vitest.config.ts` (reducers/sse-handlers/
-stores verrouillés à 100 %, hooks aux valeurs mesurées, plancher global) et
-uploade `coverage/coverage-final.json` vers Codecov. Le test de symétrie SSE
-(`sse-symmetry.test.ts`) reparse le Literal backend depuis `apps/api/` — un
-nouveau type d'événement SSE backend fait échouer ce job tant que le frontend
-n'a pas pris de décision explicite (handler ou non-gestion documentée).
+La tache appelle le script dedie `pnpm test:coverage`, jamais
+`pnpm test -- --coverage` : pnpm transmet le `--` litteral a vitest, qui ignore
+silencieusement le flag — aucun rapport n'est produit (piege corrige en
+v1.21.26, ADR-116). Elle applique les **seuils de couverture ratchet** de
+`apps/web/vitest.config.ts` (reducers/sse-handlers/stores verrouilles a 100 %,
+hooks aux valeurs mesurees, plancher global) et uploade
+`coverage/coverage-final.json` vers Codecov.
+
+La tache **vide `NEXT_PUBLIC_API_URL`**. Ce Taskfile declare `dotenv: - .env`
+globalement, donc chaque tache herite de l'environnement du developpeur, que le
+runner n'a pas. L'ecart n'est pas cosmetique : mesure le 2026-07-25,
+`voice-input-service.ts` tombe a 80 % de couverture de branches contre un
+plancher de 83 % **uniquement** parce que cette variable est posee — le code lit
+`process.env.NEXT_PUBLIC_API_URL || ''` et la branche vide cesse d'etre
+exercee.
+
+Le test de symetrie SSE (`sse-symmetry.test.ts`) reparse le Literal backend
+depuis `apps/api/` — un nouveau type d'evenement SSE backend fait echouer ce job
+tant que le frontend n'a pas pris de decision explicite (handler ou non-gestion
+documentee).
 
 #### Code Hygiene
+
+| Step | Commande |
+|------|----------|
+| Hygiene de code | `task lint:hygiene -- --github` |
+| Parite des cles i18n (F027) | `task lint:i18n` |
+| Tests des chemins de deploiement (F008) | `task test:deploy` |
+| Derive doc, cycles, complexite | `task lint:docs lint:cycles lint:cc` |
+| Lockfiles Python (ADR-112) | `task lint:lockfiles` |
+| Parite CI/local (ADR-151) | `task lint:ci-parity` |
+
+Les six controles de `task lint:hygiene` vivent dans
+`scripts/audit/check_code_hygiene.py` — en Python et non en bash parce que la
+machine de dev est sous Windows et le runner sous Linux : un controle bash-only
+est un controle qu'un seul des deux peut jouer. `--github` (drapeau explicite,
+et non lecture de `GITHUB_ACTIONS`) bascule la sortie en annotations
+`::error::`/`::warning::`.
 
 | Check | Severite | Description |
 |-------|----------|-------------|
 | `.bak` files | Error | Detecte les fichiers backup oublies |
 | Sync Store calls | Error | `runtime.store.put()` au lieu de `store.aput()` = deadlock |
+| Alembic heads | Error | Detecte les heads multiples (parsing statique des revisions) |
 | Redis setex | Warning | `setex()` sans `json.dumps()` = crash serialisation |
 | Raw HTTPException raises | Warning | `raise HTTPException` hors de la taxonomie centralisee `src/core/exceptions.py` (regle #18, ADR-124) — 0 site tolere ; bascule en Error prevue a la release suivante |
-| Python lockfiles sync | Error | `scripts/check_requirements_lock.py` — manifeste `requirements*.txt` modifie sans regenerer les lockfiles (`task deps:lock`), ou lock dev desynchronise du lock runtime (ADR-112) |
-| i18n keys sync | Error | Compare les cles EN vs de/es/fr/it/zh |
-| Alembic conflicts | Error | Detecte les heads multiples (parsing statique des revisions) |
 | `.env.example` | Warning | Variables dans `src/core/config/` absentes de `.env.example` |
+
+Les severites sont **inchangees par le portage** depuis le bash inline : les
+trois controles consultatifs le restent. En promouvoir un est une decision
+deliberee (un booleen dans le script), pas un effet de bord.
+
+#### Observability Config
+
+| Step | Commande |
+|------|----------|
+| Validation structurelle (F025) | `task lint:observability` |
+| promtool check/test rules | binaire natif — **CI-only declare** |
+
+Validation deterministe et sans serveur : JSON/YAML valides, cles de dashboard
+requises, uids uniques, requetes de panels non vides, crochets PromQL
+equilibres. Les deux etapes promtool utilisent la **meme version v2.53.2** que
+`task test:alerts` sur les **memes fichiers** — binaire natif ici, conteneur en
+local. Le mecanisme differe, l'artefact verifie non.
+
+#### Python 3.13 Compatibility (F041)
+
+CI-only declare : sous-ensemble unitaire rapide sur Python 3.13, ce qui prouve
+la moitie haute du contrat `requires-python` borne (`>=3.12,<3.14`). Reproduire
+ce job en local reviendrait a maintenir un second interpreteur pour un controle
+dont l'objet **est** le changement de version.
 
 #### Docker Build
 
@@ -292,20 +419,30 @@ Garde statique : `apps/api/tests/unit/test_release_workflow_gate_guard.py` (le g
 
 ## Branch Protection
 
-La branche `main` est protegee avec les regles suivantes :
+**Etat reel au 2026-07-25 : `main` n'est protegee par aucune regle.** Verifie
+par `gh api repos/{owner}/{repo}/branches/main/protection` (404 « Branch not
+protected ») et `gh api repos/{owner}/{repo}/rulesets` (liste vide). Ce
+paragraphe decrivait auparavant un jeu de regles — reviews obligatoires, status
+checks requis, force-push interdit — qui n'a jamais existe cote GitHub.
 
-| Regle | Valeur |
-|-------|--------|
-| PR review obligatoire | 1 approbation minimum (contributeurs externes) |
-| Stale reviews | Dismisses automatiquement |
-| Status checks requis | Lint Backend, Lint Frontend, Test Backend, Test Frontend, Code Hygiene, Docker Build, Secret Scan |
-| Branche a jour | Oui (strict mode) |
-| Conversations resolues | Oui |
-| Force push | Interdit |
-| Deletion | Interdit |
-| Admins bypass | Oui (owner peut push directement) |
+Ce qui bloque reellement aujourd'hui :
+
+| Point d'application | Ce qu'il garantit |
+|---|---|
+| Hook pre-commit local | Rien pour qui clone sans `task setup:hooks` ou passe `--no-verify` |
+| `ci.yml` sur push/PR vers `main` | Signale un echec, mais **n'empeche pas** le push |
+| Gate « Require green CI » de `release.yml` (F008) | **Bloque la release** si `ci.yml` n'a pas conclu `success` pour le SHA taggue — garde statique : `test_release_workflow_gate_guard.py` |
+
+Autrement dit : une CI rouge n'empeche pas un commit d'atterrir sur `main`, mais
+elle empeche ce commit d'etre publie en release. Pour un depot a un seul
+mainteneur qui pousse directement, c'est un choix tenable ; il devient
+insuffisant des la premiere contribution externe. Activer la protection
+demanderait d'exiger au minimum les 12 jobs de `ci.yml` comme status checks —
+**decision du proprietaire du depot**, non prise a ce jour.
 
 ### Merge settings
+
+Verifie par `gh api repos/{owner}/{repo}` le 2026-07-25 :
 
 | Option | Valeur |
 |--------|--------|
@@ -444,28 +581,43 @@ Details et pieges (metadonnees de wheels incoherentes, hashes multi-arch) :
 
 ---
 
-## Alignement Pre-commit / CI
+## Alignement hook / `task ci:fast` / CI
 
-Le pre-commit est le filet local rapide, la CI est le filet distant qui doit couvrir **au minimum** tout ce que fait le pre-commit. Si quelqu'un bypass le hook (`--no-verify`) ou clone sans installer les hooks, la CI rattrape.
+Trois filets, du plus rapide au plus complet. Le hook pre-commit garde les
+commits rapides ; **`task ci:fast` est le gate d'avant-push** ; la CI ajoute ce
+qui exige des services ou un environnement particulier. Si quelqu'un bypass le
+hook (`--no-verify`) ou clone sans installer les hooks, la CI rattrape.
 
-| Check | Pre-commit | CI | Notes |
-|-------|:----------:|:--:|-------|
-| Ruff (`src/ tests/`) | ✓ | ✓ | Aligne |
-| Black (`src/ tests/`) | ✓ | ✓ | Aligne |
-| MyPy (`src/`) | ✓ | ✓ | Aligne |
-| Unit tests | ✓ (fast, no cov) | ✓ (fast + cov 45%) | CI ajoute coverage |
-| Agents tests | — | ✓ (`tests/agents/`) | CI only (~1 min, hors hook pour garder les commits rapides) |
-| Integration tests | — | ✓ (`tests/integration/`) | CI only (necessitent PostgreSQL + Redis) |
-| ESLint | ✓ | ✓ | Aligne |
-| TypeScript | ✓ | ✓ | Aligne |
-| `.bak` files | ✓ | ✓ | Aligne |
-| Critical patterns | ✓ | ✓ | Aligne |
-| i18n keys sync | ✓ (si stages) | ✓ (toujours) | CI couvre tout |
-| Alembic conflicts | ✓ (date prefix) | ✓ (revision chain) | CI plus precis |
-| `.env.example` | ✓ (os.environ) | ✓ (config Pydantic) | CI couvre plus large |
-| Secrets | grep basique | Gitleaks | CI superieur |
-| Docker build | — | ✓ | CI only (trop lent en local) |
-| Python lockfiles sync | — | ✓ | CI only (`scripts/check_requirements_lock.py`, offline et deterministe) |
+| Check | Hook | `task ci:fast` | CI | Notes |
+|-------|:----:|:--------------:|:--:|-------|
+| Ruff / Black / MyPy (`src/ tests/`) | ✓ | ✓ | ✓ | Aligne |
+| Ratchet MyPy-debt (F020) | — | ✓ | ✓ | Meme tache |
+| Tests unitaires | ✓ (rapides, xdist, sans cov) | ✓ (+ cov, plancher 60 %) | ✓ | Le hook troque la couverture contre le parallelisme |
+| Gate de markers (F006) | — | ✓ | ✓ | Meme tache |
+| ESLint | ✓ | ✓ | ✓ | Aligne |
+| TypeScript | ✓ | ✓ | ✓ | Non incremental des le script `type-check` |
+| Ratchets a11y / react-hooks / complexite | — | ✓ | ✓ | Inclus dans `lint:frontend` |
+| Couverture frontend (seuils par fichier) | — | ✓ | ✓ | Meme tache, `NEXT_PUBLIC_API_URL` vide des deux cotes |
+| `.bak`, Store sync, setex, HTTPException, heads alembic, `.env.example` | ✓ (partiel) | ✓ | ✓ | Le hook n'en fait qu'une partie, sur les fichiers stages |
+| Parite des cles i18n | ✓ (si stages) | ✓ (toujours) | ✓ | La CI couvre tout |
+| Derive doc / cycles / complexite backend | — | ✓ | ✓ | Memes taches |
+| Lockfiles Python (ADR-112) | — | ✓ | ✓ | Meme tache |
+| Parite CI/local (ADR-151) | — | ✓ | ✓ | Meme tache |
+| Tests de deploiement (F008) | — | ✓ | ✓ | Hermetiques, sans Docker ni reseau |
+| Secrets | grep + denylist infra | — | Gitleaks | La CI est superieure |
+| Suite agents | — | — (dans `task ci`) | ✓ | Necessite ~1 min |
+| Tests d'integration | — | — (dans `task ci`) | ✓ | Necessitent PostgreSQL + Redis |
+| Replay des migrations | — | — (dans `task ci`) | ✓ | Necessite PostgreSQL |
+| E2E + a11y (Playwright) | — | — (dans `task ci`) | ✓ | Necessite un navigateur |
+| Regles Prometheus (promtool) | — | — (dans `task ci`) | ✓ | Conteneur en local, binaire natif en CI |
+| Build Docker | — | — | ✓ | CI-only (trop lent en local) |
+| Python 3.13 (F041) | — | — | ✓ | CI-only (autre interpreteur) |
+
+**Limite assumee** : cette iso porte sur les **commandes**, pas sur
+l'**environnement**. Le hote de dev est Windows, le runner est Linux ; une
+divergence de shell, de casse de systeme de fichiers ou de permissions ne sera
+toujours pas attrapee en local. Corriger cela demanderait d'executer les gates
+sensibles a la plateforme dans un conteneur Linux.
 
 ---
 
@@ -481,22 +633,35 @@ Le pre-commit est le filet local rapide, la CI est le filet distant qui doit cou
 
 ## Commandes locales equivalentes
 
+Elles ne sont pas « equivalentes » : ce sont **les memes commandes**. La CI les
+appelle (ADR-151).
+
 ```bash
-# Equivalent du pre-commit hook
+# Equivalent du pre-commit hook (~5 min)
 task pre-commit
 
-# Equivalent de la CI complete
+# Gate d'avant-push : tous les gates CI sans service externe (~10 min mesure)
+task ci:fast
+
+# CI complete en local (PostgreSQL + Redis + Docker + navigateur)
+# TEST_DATABASE_URL doit pointer vers une base JETABLE
 task ci
 
 # Linters seuls
-task lint                   # backend + frontend
+task lint                   # tout : backend, frontend, i18n, docs, ratchets, hygiene, lockfiles, parite CI
 task lint:backend           # Ruff + Black + MyPy
-task lint:frontend          # ESLint + Prettier + tsc
+task lint:frontend          # ESLint + ratchets a11y/hooks/CC + tsc non incremental
+task lint:hygiene           # les 6 controles d'hygiene de code
+task lint:ci-parity         # le workflow orchestre, il n'implemente pas
 
 # Tests seuls
-task test:backend:unit:fast # Fast unit tests (pre-commit)
-task test:backend:unit      # All unit tests
-task test:frontend          # Vitest
+task test:backend:unit:fast     # rapide, xdist, sans couverture (perimetre du hook)
+task test:backend:unit:coverage # la commande CI a l'identique, plancher 60 % inclus
+task test:markers               # gate F006 : aucun test ne tourne dans zero job
+task test:frontend              # Vitest
+task test:frontend:coverage     # + les seuils de couverture par fichier
+task test:e2e                   # Playwright + axe (hermetique)
+task test:alerts                # promtool sur les regles Prometheus vivantes
 
 # Format auto
 task format                 # Black + Prettier
@@ -520,28 +685,23 @@ git add -p               # Re-stage fixed files
 git commit               # Retry
 ```
 
+### CI echoue sur un gate quelconque
+
+Rejouer **la meme commande** que le job : ouvrir `.github/workflows/ci.yml`,
+lire l'appel `task ...` de l'etape rouge, le lancer en local. C'est tout
+l'interet de ADR-151 — il n'y a pas de traduction a faire.
+
 ### CI echoue sur i18n
 
-Les cles i18n sont desynchronisees entre `en` et une autre langue. Verifier avec :
+Les cles i18n sont desynchronisees entre `en` et une autre langue :
 
 ```bash
-python -c "
-import json, pathlib
-def get_keys(d, prefix=''):
-    keys = set()
-    for k, v in d.items():
-        full = f'{prefix}.{k}' if prefix else k
-        if isinstance(v, dict): keys |= get_keys(v, full)
-        else: keys.add(full)
-    return keys
-
-ref = get_keys(json.loads(pathlib.Path('apps/web/locales/en/translation.json').read_text(encoding='utf-8')))
-for lang in ['fr','de','es','it','zh']:
-    tgt = get_keys(json.loads(pathlib.Path(f'apps/web/locales/{lang}/translation.json').read_text(encoding='utf-8')))
-    missing = ref - tgt
-    if missing: print(f'{lang}: MISSING {len(missing)} keys: {sorted(missing)[:5]}')
-"
+task lint:i18n
 ```
+
+Le script signale, par langue, les cles manquantes et les cles en trop. Rappel :
+`zh` n'a pas de pluriel selon CLDR — dupliquer quand meme la valeur en `_one`
+pour que la parite passe.
 
 ### CI echoue sur Alembic
 

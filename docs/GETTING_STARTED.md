@@ -1284,10 +1284,12 @@ Security: `pip-audit` and the SBOM (CI + release) audit the **full transitive tr
 ### Backend Tests
 
 ```bash
-task test:backend:unit:fast        # fast unit tests (pre-commit scope)
+task test:backend:unit:fast        # fast unit tests, xdist, no coverage (hook scope)
+task test:backend:unit:coverage    # the CI command verbatim, including the 60% floor
 task test:backend:unit             # all unit tests
 task test:backend:integration      # integration tests (requires PostgreSQL + Redis)
 task test:backend:agents           # agent-specific tests
+task test:markers                  # F006 gate: no test may run in zero CI jobs
 task test:backend:exhaustive       # full suite with coverage (long)
 
 # Single test file / test name
@@ -1299,18 +1301,22 @@ cd apps/api && .venv/Scripts/pytest tests/ -k "test_name" -v
 
 ```bash
 task test:frontend                 # vitest run
+task test:frontend:coverage        # + the per-file coverage thresholds CI enforces
+task test:e2e                      # Playwright + axe journeys (hermetic, mocked API)
 cd apps/web && pnpm test:watch     # watch mode
-cd apps/web && pnpm test:coverage  # with coverage
 ```
 
 ### Pre-commit & CI
 
-Git hooks (installed by `task setup:hooks`) run on every commit: secrets/`.bak` detection, Ruff + Black + MyPy + fast unit tests (backend), ESLint + TypeScript check (frontend), i18n key parity across the 6 locales, LangGraph safety checks.
+Git hooks (installed by `task setup:hooks`) run on every commit, on **staged files only**: `.bak`/secret/real-infrastructure detection, Ruff + Black + MyPy + fast unit tests (backend), ESLint + TypeScript check (frontend), i18n key parity across the 6 locales, LangGraph safety checks.
 
 ```bash
-task pre-commit    # format + lint + fast tests (run before committing)
-task ci            # full CI pipeline: lint + test + security scan
+task pre-commit    # ~5 min — what the git hook runs
+task ci:fast       # ~10 min — every CI gate that needs no external service (before pushing)
+task ci            # + PostgreSQL, Redis, Docker, a browser
 ```
+
+`.github/workflows/ci.yml` calls these same tasks rather than restating their commands ([ADR-151](architecture/ADR-151-Thin-CI-Workflow.md)), so a local run and a CI job execute literally the same thing. When a job goes red, read its `task ...` call and replay it.
 
 ---
 

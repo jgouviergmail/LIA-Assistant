@@ -413,21 +413,15 @@ tasks:
         platforms: [windows]
       - cmd: LIA_REQUIRE_DB=1 .venv/bin/pytest tests/integration/ -v --tb=short --no-cov -m "not e2e and not benchmark and not multiprocess"
         platforms: [linux, darwin]
-      # F006: integration-marked tests that physically live under tests/unit or
-      # tests/agents (functional DB/Redis tests co-located with unit ones) run in
-      # NO other job. This services-equipped run is their deterministic home, and
-      # the marker-coverage guard mirrors exactly this collection. Missing here
-      # until 2026-07-25, which made the local task quietly narrower than CI.
+      # F006: integration-marked tests co-located under tests/unit / tests/agents
+      # run in this services-equipped job (they'd otherwise run in no job), and
+      # the marker-coverage guard mirrors exactly this collection. ONE block on
+      # purpose: a second, identical invocation was added on 2026-07-25 on the
+      # false premise that this one was missing, and ran the whole collection
+      # twice here AND in CI (which now calls this task).
       - cmd: LIA_REQUIRE_DB=1 .venv/Scripts/pytest tests/unit/ tests/agents/ -v --tb=short --no-cov -m "integration and not e2e and not benchmark and not multiprocess"
         platforms: [windows]
       - cmd: LIA_REQUIRE_DB=1 .venv/bin/pytest tests/unit/ tests/agents/ -v --tb=short --no-cov -m "integration and not e2e and not benchmark and not multiprocess"
-        platforms: [linux, darwin]
-      # F006: integration-marked tests co-located under tests/unit / tests/agents
-      # run in this services-equipped job (they'd otherwise run in no job) —
-      # mirrors ci.yml's test-backend-integration second invocation (F022 parity).
-      - cmd: LIA_REQUIRE_DB=1 .venv/Scripts/pytest tests/unit/ tests/agents/ -v --no-cov -m "integration and not e2e and not benchmark and not multiprocess"
-        platforms: [windows]
-      - cmd: LIA_REQUIRE_DB=1 .venv/bin/pytest tests/unit/ tests/agents/ -v --no-cov -m "integration and not e2e and not benchmark and not multiprocess"
         platforms: [linux, darwin]
 
   test:backend:exhaustive:
@@ -1346,7 +1340,7 @@ tasks:
     # run before a push: the pre-commit hook is deliberately ~5 min and skips
     # the ratchets, the deploy tests, the marker gate and the frontend coverage
     # thresholds — every one of which has redded a build after a green local run.
-    desc: CI gates that need no service (~8 min) — run this before pushing
+    desc: CI gates that need no service (~10 min) — run this before pushing
     cmds:
       - task: lint
       - task: test:backend:unit:coverage

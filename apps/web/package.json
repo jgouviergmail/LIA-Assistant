@@ -19,7 +19,7 @@
     "a11y:ratchet": "node scripts/check-a11y-ratchet.mjs",
     "react-hooks:ratchet": "node scripts/check-react-hooks-ratchet.mjs",
     "cc:ratchet": "node scripts/check-cc-ratchet.mjs",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc --noEmit --incremental false",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

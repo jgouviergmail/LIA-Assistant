@@ -32,10 +32,12 @@ task stop
 ### Backend Testing (from apps/api/)
 
 ```bash
-task test:backend:unit:fast        # Fast unit tests (pre-commit, excludes integration)
+task test:backend:unit:fast        # Fast unit tests, xdist, no coverage (pre-commit)
+task test:backend:unit:coverage    # The CI command verbatim, including the 60% floor
 task test:backend:unit             # All unit tests
 task test:backend:integration      # Integration tests (requires PostgreSQL + Redis)
 task test:backend:agents           # Agent-specific tests
+task test:markers                  # F006 gate: no test may run in zero CI jobs
 task test:backend:exhaustive       # Full suite with coverage (do not use, too long)
 
 # Run a single test file
@@ -49,30 +51,45 @@ cd apps/api && .venv/Scripts/pytest tests/ -k "test_name" -v
 
 ```bash
 task test:frontend          # vitest run
-cd apps/web && pnpm test    # equivalent
+task test:frontend:coverage # + the per-file coverage thresholds CI enforces
+task test:e2e               # Playwright + axe journeys (hermetic, mocked API)
 ```
+
+Prefer the task over `pnpm test` directly: it blanks `NEXT_PUBLIC_API_URL`, which the Taskfile's global `dotenv: .env` would otherwise inject and which changes measured branch coverage.
 
 ### Linting & Formatting
 
 ```bash
-task lint                   # All linters (backend + frontend)
+task lint                   # All linters + ratchets + hygiene + lockfiles + CI parity
 task format                 # Auto-format all code
 
 # Backend: Black (formatter) + Ruff (linter) + MyPy (type checker)
 task lint:backend
 task format:backend
 
-# Frontend: ESLint + Prettier + TypeScript check
+# Frontend: ESLint + a11y/react-hooks/complexity ratchets + non-incremental tsc
 task lint:frontend
 task format:frontend
+
+# Cross-cutting gates (all included in `task lint`)
+task lint:hygiene           # .bak, sync Store calls, Redis setex, raw HTTPException, alembic heads, .env.example
+task lint:lockfiles         # manifests vs compiled lockfiles (ADR-112)
+task lint:ci-parity         # the workflow orchestrates, it never implements (ADR-151)
+task lint:i18n              # strict key parity across the 6 locales
+task lint:docs              # documentation drift (broken links, stale code paths)
 ```
 
 ### CI & Pre-commit
 
 ```bash
-task pre-commit             # format + lint + fast unit tests (run before committing)
-task ci                     # Full CI pipeline: lint + test + security scan
+task pre-commit             # format + lint + fast unit tests (~5 min, what the git hook runs)
+task ci:fast                # every CI gate that needs no service (~10 min) — run this before pushing
+task ci                     # ci:fast + suites needing PostgreSQL, Redis, Docker, a browser
 ```
+
+**`.github/workflows/ci.yml` orchestrates, `Taskfile.yml` implements** (ADR-151): every CI step is a `task <name>` call, so the pipeline runs literally the command a developer runs. A gate added inline in the workflow is a gate nobody can run before pushing — `task lint:ci-parity` fails on any `run:` step that is neither a task call nor declared runner provisioning. Genuine CI-only steps live in `CI_ONLY` in `scripts/audit/check_ci_parity.py`, each with a written reason.
+
+`task pre-commit` is deliberately narrower than `ci:fast`: it skips the ratchets, the marker-coverage gate, the deploy tests and the frontend coverage thresholds to stay inside its ~5 min budget. Every one of those has redded a build after a green local run.
 
 Git hooks are installed via `task setup:hooks` and live in `.github/hooks/` (configured via `git config core.hooksPath`).
 
@@ -224,21 +241,24 @@ These mandatory **non-security** gates apply to new code and every touched file.
 
 ```bash
 # Every code change: all static gates plus the smallest relevant behavioral suite
-task lint
+task lint                         # backend + frontend + i18n + docs + the shrink-only ratchets
 task test:backend:unit:fast       # backend changes
 task test:frontend                # frontend changes
 
-# Frontend types/tests/ratchets: include a clean, non-incremental typecheck
-cd apps/web
-pnpm exec tsc --noEmit --incremental false
-pnpm test:coverage
-pnpm a11y:ratchet && pnpm react-hooks:ratchet && pnpm cc:ratchet
-cd ../..
+# Frontend coverage: the per-file thresholds CI enforces (blanks NEXT_PUBLIC_API_URL,
+# which the Taskfile's global `dotenv: .env` would otherwise inject and which
+# measurably changes branch coverage)
+task test:frontend:coverage
+
+# Before pushing: every CI gate that needs no service
+task ci:fast
 
 # Database or deployment paths: use disposable/hermetic targets only
 task db:migrate:replay-check      # migration/model changes
 task test:deploy                  # deployment-script changes
 ```
+
+`task lint:frontend` already runs the three shrink-only ratchets (a11y, react-hooks, complexity) and a **non-incremental** `tsc --noEmit`; run them through the task rather than by hand, so the local gate cannot be the more permissive of the two. The typecheck is non-incremental on purpose: `apps/web/tsconfig.json` sets `"incremental": true` and `*.tsbuildinfo` is gitignored, so a cached local run could pass where the runner's cold one fails.
 
 Choose additional integration, agents, E2E, load, or multi-platform suites from the actual impact. Never run `task test:backend:exhaustive` by default; it remains intentionally excluded because of duration.
 
@@ -388,5 +408,6 @@ When working with settings-driven thresholds in tests (e.g. `mcp_user_max_server
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
-- ADR index (149 architectural decisions, ADR-150 latest): `docs/architecture/ADR_INDEX.md`
+- ADR index (151 architectural decisions, ADR-151 latest): `docs/architecture/ADR_INDEX.md`
+- CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
 - 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`

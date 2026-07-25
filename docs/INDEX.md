@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 40 |
-| ADRs | 149 (ADR-150 le plus récent) |
+| ADRs | 151 (ADR-151 le plus récent ; ADR-008 n'a pas de fichier séparé) |
 | Fiches knowledge (RAG système) | 24 |
 
 ---
@@ -43,7 +43,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
 | [TELEPHONY.md](./technical/TELEPHONY.md) | Téléphonie agentique (appels sortants, ADR-127) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (145) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (151) |
 
 ### Pour les Product Managers
 
@@ -59,7 +59,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Document | Description |
 |----------|-------------|
 | [GETTING_STARTED.md](./GETTING_STARTED.md) | Déploiement Docker |
-| [CI_CD.md](./technical/CI_CD.md) | Pipeline CI, pre-commit, branch protection |
+| [CI_CD.md](./technical/CI_CD.md) | Pipeline CI thin (ADR-151), hook pre-commit, workflows |
 | [OBSERVABILITY_AGENTS.md](./technical/OBSERVABILITY_AGENTS.md) | Stack observabilité complète |
 | [TIMEOUT_REGISTRY.md](./technical/TIMEOUT_REGISTRY.md) | Référence centralisée de tous les timeouts backend (HTTP, tools, locks, scheduler, SSE/WS) — Settings, ranges, defaults, cascades |
 | [README_OBSERVABILITY.md](./readme/README_OBSERVABILITY.md) | Guide observabilité quickstart |
@@ -242,7 +242,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | Document | Description | Statut |
 |----------|-------------|--------|
-| [CI_CD.md](./technical/CI_CD.md) | Pipeline CI, pre-commit hook, branch protection, Dependabot | ✅ |
+| [CI_CD.md](./technical/CI_CD.md) | Pipeline CI thin (ADR-151), hook pre-commit, workflows, Dependabot | ✅ |
 | [DEPLOYMENT_INSTRUCTIONS.md](./technical/DEPLOYMENT_INSTRUCTIONS.md) | Instructions déploiement production | ✅ |
 
 ---
@@ -297,12 +297,17 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-135 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-151 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 
+> **Cette table n'est pas exhaustive** : elle saute de ADR-151 à ADR-126 — les
+> ADR-127 à ADR-150 n'y ont jamais été reportées. La liste complète et à jour
+> est [ADR_INDEX.md](./architecture/ADR_INDEX.md), qui fait foi.
+
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-151 | Thin CI Workflow — `ci.yml` contenait 144 lignes de commandes (97 de gates inline) et **zéro** appel `task` : CI et Taskfile étaient deux implémentations parallèles, d'où des gates découverts par un build rouge après un local vert. Chaque étape `run:` devient un appel `task <nom>` (15 appels, −128 lignes nettes), contrôles bash inline portés en Python (hôte Windows / runner Linux), 8 tâches créées pour des gates sans équivalent local, deux paliers (`ci:fast` sans service / `ci` complet) ; garde `check_ci_parity.py` avec 3 exceptions CI-only motivées ; 4 divergences réelles exhumées dont le plancher de couverture 60 % absent en local et une fuite d'environnement mesurée (`dotenv: .env` global) ; limite assumée : iso des commandes, pas de l'environnement | 2026-07 |
 | ADR-126 | Auth/Users Domain Decoupling — remédiation de la violation des dépendances stables du cycle 3 (auth : Ca=26 et Ce=14, 11 des 31 cycles) en 3 lots à comportement identique : frontière **auth = identité/session, users = agrégat User + cycle de vie**, modèle `User` déplacé byte-identique vers users (~84 sites migrés, zéro migration DB), `user_location_service` et provisioning de création (`AccountProvisioningService`, flag `commit_per_step` préservant les 2 topologies transactionnelles) rejoignent users, `haversine_distance` et sonde de clé provider promues dans core ; résultat : Ce(auth) 14→2, Ca(auth) 26→0, plus aucun cycle impliquant auth (relocalisation assumée des paires de hub vers users, all 31→32 / runtime 24→31, documentée), instrument `scripts/audit/measure_coupling.py` committé (reproduction exacte du cycle 3 + split runtime/typing) | 2026-07 |
 | ADR-125 | Draft Preview Renderer Extraction — extraction n°2 de la série complexité (audit cycle 3) : `Draft.get_detailed_preview` (CC ≈ 93, cascade de 14 `elif`, logique de présentation dans un module models) vers `drafts/preview_renderer.py` en dispatch table + 3 helpers « modifié ✏️ / préservé », filet golden byte-identique vert à l'identique avant/après (cas mixtes anti-câblage-croisé, 16 DraftType, 6 langues), assert de complétude boot-time pattern ADR-085, `models.py` 803 → 579 SLOC (sort du registre des fichiers gelés), CC max 9 par fonction ; follow-up même livraison : 3 comportements épinglés corrigés (clé i18n `no_subject` ×6 langues assainissant 5 couches de français en dur, body `None` rendu vide, reminder vide → `?`) avec diff golden chirurgical, + instrument `scripts/audit/measure_cc.py` committé | 2026-07 |
 | ADR-124 | Router/Service Error Contract (règle #18 phase 2) — élimination des 33 `raise HTTPException` bruts restants (13 fichiers) vers la taxonomie centralisée `core/exceptions.py`, contrat byte-identique prouvé par 33 tests de pin écrits AVANT migration + parité edge des 8 nouvelles classes (`StructuredValidationError` 422 dict, `PayloadTooLargeError` 413, `BadGatewayError` 502, `GoneError` 410, …), façade `_exceptions_base`/`exceptions_domains` pour le ratchet (aucun import consommateur modifié), garde grep CI code-hygiene, fix approuvé du 422 heartbeat avalé en 500 | 2026-07 |

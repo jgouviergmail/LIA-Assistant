@@ -42,6 +42,10 @@ wheels/
 .coverage
 htmlcov/
 *.cover
+# Written by `task test:backend:unit:coverage` (--cov-report=xml), which is a
+# routine LOCAL gate since ADR-151, not just a CI step. Uploaded to Codecov
+# from the runner; never committed.
+coverage.xml
 
 # Linters & type checkers
 .mypy_cache/

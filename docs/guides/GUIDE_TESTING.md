@@ -2046,9 +2046,12 @@ pour verrouiller les gains, tant que l'objectif de 75 % n'est pas atteint
 acquis est une règle systématique, pas un rituel de release.
 
 Règles :
-1. Le seuil vit à **deux endroits qui doivent rester synchrones** :
-   `apps/api/pyproject.toml` (addopts) et `.github/workflows/ci.yml`
-   (job test-backend).
+1. Le seuil a **une seule source de vérité** : `apps/api/pyproject.toml`
+   (addopts). Il est répété une fois, dans la tâche `test:backend:unit:coverage`
+   du `Taskfile.yml` — que la CI appelle telle quelle (ADR-151), donc il n'y a
+   plus de valeur dans `ci.yml`. La garde
+   `test_task_ci_pytest_parity_guard.py::test_coverage_threshold_has_a_single_source_of_truth`
+   échoue si un `--cov-fail-under` divergent réapparaît quelque part.
 2. On ne monte le seuil que si la couverture réelle mesurée en CI laisse
    **au moins 2 points de marge** (éviter les échecs de CI sur variance).
 3. Baisser le seuil est interdit — si une PR fait chuter la couverture sous
@@ -2107,8 +2110,11 @@ TOTAL                                       311     19    94%
 ### Coverage en CI
 
 Le rapport XML est uploadé vers Codecov par le job `test-backend`
-(`codecov-action`, flag `backend`, non bloquant) ; le **gate bloquant** est
-le `--cov-fail-under=60` du même job (voir la doctrine ratchet ci-dessus).
+(`codecov-action`, flag `backend`, non bloquant) ; le **gate bloquant** est le
+`--cov-fail-under=60` porté par `task test:backend:unit:coverage`, que ce job
+appelle (voir la doctrine ratchet ci-dessus). Pour le reproduire en local,
+lancer cette tâche — et non `test:backend:unit:fast`, qui troque la couverture
+contre le parallélisme.
 
 ---
 
@@ -2116,14 +2122,17 @@ le `--cov-fail-under=60` du même job (voir la doctrine ratchet ci-dessus).
 
 ### Jobs de test backend (.github/workflows/ci.yml)
 
-Le workflow réel est `.github/workflows/ci.yml` (déclenché sur push/PR vers
-`main`). Trois périmètres de tests backend, chacun avec son job :
+Le workflow **appelle des tâches**, il ne réécrit pas les commandes (ADR-151) :
+les périmètres ci-dessous sont définis une seule fois, dans `Taskfile.yml`.
+Lancer la tâche en local, c'est exécuter littéralement ce que la CI exécute.
 
-| Job | Commande | Sélection | Gate |
+| Job CI | Tâche appelée | Sélection | Gate |
 |---|---|---|---|
-| `test-backend` | `pytest tests/unit/` | `-m "not integration and not slow and not e2e and not benchmark and not multiprocess"` | couverture ≥ 60 % |
-| `test-backend` (step 2) | `pytest tests/agents/` | `-m "not slow and not e2e and not benchmark and not multiprocess"`, `--no-cov` | tests verts |
-| `test-backend-integration` | `pytest tests/integration/` | `-m "not e2e and not benchmark and not multiprocess"`, `--no-cov` | tests verts |
+| `test-backend` | `task test:backend:unit:coverage` | `tests/unit/`, `-m "not integration and not slow and not e2e and not benchmark and not multiprocess"` | couverture ≥ 60 % |
+| `test-backend` (step 2) | `task test:backend:agents` | `tests/agents/`, `-m "not slow and not e2e and not benchmark and not multiprocess"`, `--no-cov` | tests verts |
+| `test-backend` (step 3) | `task test:markers` | tous les nodeids + leurs markers | aucun test ne tourne dans **zéro** job (F006) |
+| `test-backend-integration` | `task test:backend:integration` | `tests/integration/`, **puis** les tests marqués `integration` sous `tests/unit`/`tests/agents` (F006), `--no-cov` | tests verts |
+| `python-compat` | *(CI-only)* | `tests/unit/`, même sélection, sur Python 3.13 | tests verts (F041) |
 
 Points structurants :
 
@@ -2136,6 +2145,10 @@ Points structurants :
   (`test:test@localhost:5432/test_db`) reproduisent volontairement
   `.env.test` pour que les tests qui lisent `settings.database_url`
   directement (checkpointer LangGraph) atteignent la même base.
+- **`LIA_REQUIRE_DB=1`** (F019) : ce job *promet* une base, donc une base
+  injoignable doit faire échouer le job plutôt que skipper silencieusement des
+  groupes entiers. Un vert obtenu par skips massifs est le pire résultat
+  possible — il ressemble à une preuve.
 - **Aucune liste `--ignore`** : les tests nécessitant une vraie base portent
   le marker `integration` et vivent dans `tests/integration/` — la
   quarantaine par `--ignore` (supprimée en 2026-07, ADR-113) est interdite :
@@ -2143,16 +2156,23 @@ Points structurants :
 - **e2e / benchmark / multiprocess** restent hors CI PR (exécution manuelle
   via `task test:backend:slow`).
 
-### Exécution locale équivalente
+### Exécution locale
+
+Ce ne sont pas des « équivalents » : ce sont les mêmes commandes.
 
 ```bash
-# Suite unit (équivalent job test-backend)
+# Suite unit AVEC couverture et le plancher CI — ce que fait le job test-backend
+task test:backend:unit:coverage
+
+# Variante rapide du hook pre-commit : xdist, sans couverture.
+# Utile pour itérer, MAIS elle ne reproduit pas le gate de couverture.
 task test:backend:unit:fast
 
-# Suite agents
+# Suite agents + gate de markers
 task test:backend:agents
+task test:markers
 
-# Suite integration (équivalent job test-backend-integration).
+# Suite integration (job test-backend-integration).
 # Nécessite PostgreSQL + Redis (task dev:detach) et une base JETABLE :
 # les fixtures droppent et recréent toutes les tables à chaque test.
 docker exec lia-postgres-dev psql -U <user> -d postgres -c "CREATE DATABASE lia_test"  # une fois
@@ -2160,7 +2180,19 @@ TEST_DATABASE_URL="postgresql+asyncpg://<user>:<pass>@127.0.0.1:5432/lia_test" t
 ```
 
 Sans `TEST_DATABASE_URL`, la suite integration retombe sur Testcontainers
-(nécessite un socket Docker fonctionnel) et skippe proprement sinon.
+(nécessite un socket Docker fonctionnel). Le preflight AC-001 classe la
+stratégie disponible et échoue avec un diagnostic actionnable si aucune ne l'est
+— il ne laisse plus la suite partir pour skipper en masse.
+
+### Avant un push
+
+```bash
+task ci:fast    # ~10 min : tous les gates CI ne nécessitant aucun service
+```
+
+Le hook pre-commit est plus étroit par construction (budget ~5 min) : il saute
+les ratchets, le gate de markers, les tests de déploiement et les seuils de
+couverture frontend. Chacun a déjà fait rougir un build après un commit vert.
 
 ### Pre-commit Hook
 
@@ -2168,11 +2200,23 @@ Le hook réel est `.github/hooks/pre-commit` (installé via
 `task setup:hooks`, `git config core.hooksPath`). Son étape pytest :
 
 ```bash
-pytest tests/unit/ --tb=short --no-cov -q -m "not integration and not slow"
+pytest tests/unit/ --tb=short --no-cov -q \
+  -m "not integration and not slow and not e2e and not benchmark and not multiprocess" \
+  -n auto --dist loadscope
 ```
 
-Même sélection que `task test:backend:unit:fast` — les tests `integration`
-et `slow` n'y tournent jamais ; ils sont couverts par les jobs CI dédiés.
+Sélection **identique** à `task test:backend:unit:fast`, et c'est vérifié :
+`test_task_ci_pytest_parity_guard.py::test_the_hook_selects_exactly_what_the_fast_task_selects`
+échoue si les deux divergent. L'expression du hook s'arrêtait à
+`not integration and not slow` jusqu'au 2026-07-25 — le même ensemble en
+pratique (aucun test `e2e`/`benchmark`/`multiprocess` ne vit sous `tests/unit`,
+mesuré), mais le premier ajouté aurait tourné dans le hook et dans **aucun** job
+CI.
+
+`-n auto --dist loadscope` (pytest-xdist) : workers parallèles, tests groupés par
+module pour que les fixtures de portée module ne soient jamais réparties entre
+workers. C'est ce qui tient le budget de 5 minutes — la baseline mono-processus
+était mesurée à ~12 min.
 
 ---
 

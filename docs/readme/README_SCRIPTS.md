@@ -67,15 +67,31 @@ Scripts pour validation et monitoring de l'observabilité.
 
 **Localisation** : `scripts/audit/`
 
+**Mesures** (produisent un chiffre, alimentent les ratchets) :
+
 | Script | Description | Usage |
 |--------|-------------|-------|
 | `measure_sloc.py` | SLOC logiques par fichier (tokenize + AST) — sémantique du ratchet CI | `python scripts/audit/measure_sloc.py` |
-| `measure_cc.py` | Complexité cyclomatique par fonction (AST strict) | `python scripts/audit/measure_cc.py` |
+| `measure_cc.py` | Complexité cyclomatique par fonction (AST strict) | `task lint:cc` |
 | `measure_coupling.py` | Couplage Ca/Ce/instabilité par domaine + cycles bidirectionnels (colonnes `_rt` runtime) | `python scripts/audit/measure_coupling.py` |
-| `doc_audit.py` | Dérive documentaire : liens relatifs cassés + chemins code obsolètes (classés LIVING/HISTORICAL/ROADMAP) — exit 1 si lien vivant cassé | `python scripts/audit/doc_audit.py` |
+| `measure_mypy_debt.py` | Ratchet F020 : fige la surface `disable_error_code` en paires (module, code), échoue sur toute **nouvelle** exemption | `task lint:mypy-debt` |
 | `update_file_size_baseline.py` | Recalcule la baseline du ratchet de taille de fichiers (ne peut que baisser) | `task ratchet:update` |
 
+**Gardes** (verdict binaire, appelées par la CI via une tâche) :
+
+| Script | Description | Usage |
+|--------|-------------|-------|
+| `doc_audit.py` | Dérive documentaire : liens relatifs cassés + chemins code obsolètes (classés LIVING/HISTORICAL/ROADMAP) — exit 1 si lien vivant cassé | `task lint:docs` |
+| `check_code_hygiene.py` | 6 contrôles d'hygiène : `.bak`, appels Store synchrones sur chemin async, `setex` sans sérialisation, `raise HTTPException` brut (règle #18), heads Alembic multiples, complétude `.env.example`. `--github` bascule en annotations de workflow | `task lint:hygiene` |
+| `check_ci_parity.py` | Le workflow orchestre, il n'implémente pas (ADR-151) : échoue sur toute étape `run:` qui n'est ni un appel de tâche, ni un provisionnement déclaré, ni une exception motivée dans `CI_ONLY` | `task lint:ci-parity` |
+| `check_test_marker_coverage.py` | Gate F006 : collecte chaque nodeid avec ses markers et échoue si un test ne tourne dans **aucun** job CI (allowlist justifiée, shrink-only) | `task test:markers` |
+
+Les gardes sont écrites en **Python et non en bash** délibérément : la machine
+de développement est sous Windows et le runner sous Linux — un contrôle
+bash-only est un contrôle qu'un seul des deux peut jouer.
+
 > Protocole complet : [AUDIT_PROTOCOL.md](../audit/AUDIT_PROTOCOL.md)
+> Pipeline CI : [CI_CD.md](../technical/CI_CD.md)
 
 ### 🤖 `agents/` - Scripts Agents
 

@@ -147,8 +147,14 @@ if [ -n "$PYTHON_FILES" ]; then
     # by module so module-scoped fixtures never split across workers. Keeps
     # the pytest step inside the 5-minute pre-commit budget (single-process
     # baseline measured at ~12 min on 8916 tests).
+    #
+    # The -m expression must stay IDENTICAL to test:backend:unit:fast. It read
+    # "not integration and not slow" until 2026-07-25: the same set today (zero
+    # e2e/benchmark/multiprocess tests live under tests/unit), but the first one
+    # added would have run here and in no CI job. Guarded by
+    # tests/unit/test_task_ci_pytest_parity_guard.py.
     echo "  Running fast unit tests..."
-    if ! $PYTEST_BIN tests/unit/ --tb=short --no-cov -q -m "not integration and not slow" -n auto --dist loadscope 2>&1; then
+    if ! $PYTEST_BIN tests/unit/ --tb=short --no-cov -q -m "not integration and not slow and not e2e and not benchmark and not multiprocess" -n auto --dist loadscope 2>&1; then
         print_error "Unit tests failed"
         FAILED=1
     else

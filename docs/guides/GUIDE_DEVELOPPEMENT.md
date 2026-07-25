@@ -12,7 +12,7 @@
 - [Workflow Git](#-workflow-git)
 - [Standards de Code](#-standards-de-code)
 - [Tests](#-tests)
-- [Pre-commit Hooks](#-pre-commit-hooks)
+- [Pre-commit Hook](#-pre-commit-hook)
 - [CI/CD Pipeline](#-cicd-pipeline)
 - [Debugging](#-debugging)
 - [Performance Profiling](#-performance-profiling)
@@ -108,9 +108,10 @@ task test:backend:unit:fast
 # 4. Committer manifeste ET lockfiles ensemble
 ```
 
-La CI (job `code-hygiene`) exécute `scripts/check_requirements_lock.py` et
-échoue si un manifeste a changé sans régénération des lockfiles (pin absent,
-pin non satisfait, ou lock dev désynchronisé du lock runtime).
+Le job CI `code-hygiene` appelle `task lint:lockfiles`
+(`scripts/check_requirements_lock.py`) et échoue si un manifeste a changé sans
+régénération des lockfiles (pin absent, pin non satisfait, ou lock dev
+désynchronisé du lock runtime). Jouable en local avec la même commande.
 Décision et détails : `docs/architecture/ADR-112-Python-Dependency-Locking.md`.
 
 ### Configuration Frontend
@@ -127,21 +128,23 @@ pnpm list next
 pnpm list react
 ```
 
-**package.json Scripts** :
-```json
-{
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint src",
-    "type-check": "tsc --noEmit",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\""
-  }
-}
-```
+**Scripts `apps/web/package.json`** — passer par les tâches plutôt que par
+`pnpm` directement : elles neutralisent `NEXT_PUBLIC_API_URL`, que le
+`dotenv: - .env` global du Taskfile injecterait sinon et qui change la
+couverture de branches mesurée.
+
+| Script | Rôle | Tâche équivalente |
+|---|---|---|
+| `lint` | ESLint sur `src` | `task lint:frontend` (+ les 3 ratchets + `type-check`) |
+| `a11y:ratchet` / `react-hooks:ratchet` / `cc:ratchet` | Ratchets shrink-only | incluses dans `task lint:frontend` |
+| `type-check` | `tsc --noEmit --incremental false` | incluse dans `task lint:frontend` |
+| `test` / `test:watch` / `test:coverage` | Vitest | `task test:frontend` / `task test:frontend:coverage` |
+| `format` | Prettier sur `src` | `task format:frontend` |
+| `dev` / `build` / `start` | Next.js | `task dev:web` |
+
+Le `type-check` est **non incrémental** délibérément : `tsconfig.json` pose
+`"incremental": true` et `*.tsbuildinfo` est git-ignoré, donc un run local sur
+cache pourrait passer là où le runner, à froid, échoue.
 
 ### Configuration IDE
 
@@ -245,9 +248,10 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 
 ### Branching Strategy
 
-**Main Branches** :
-- `main` - Production-ready code
-- `develop` - Integration branch (si utilisé)
+**Branche principale** :
+- `main` — seule branche longue durée. Il n'y a **pas** de branche `develop`
+  (vérifié : `git branch -a` n'en liste aucune, et `ci.yml` ne se déclenche que
+  sur `main`). Tout part de `main` et y revient.
 
 **Feature Branches** :
 ```bash
@@ -928,294 +932,113 @@ pytest -m "not slow"   # Skip slow tests
 
 ---
 
-## 🪝 Pre-commit Hooks
+## 🪝 Pre-commit Hook
 
-### Configuration
-
-**Fichier** : `.pre-commit-config.yaml`
-
-```yaml
-repos:
-  # Ruff (linting + formatting)
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.5.0
-    hooks:
-      - id: ruff
-        args: [--fix]
-      - id: ruff-format
-
-  # Black (formatting backup)
-  - repo: https://github.com/psf/black
-    rev: 24.0.0
-    hooks:
-      - id: black
-        language_version: python3.12
-
-  # MyPy (type checking)
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.10.0
-    hooks:
-      - id: mypy
-        additional_dependencies: [types-all]
-        args: [--ignore-missing-imports, --check-untyped-defs]
-
-  # Secrets detection
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.4.0
-    hooks:
-      - id: detect-secrets
-        args: ['--baseline', '.secrets.baseline']
-
-  # General hooks
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
-    hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
-      - id: check-added-large-files
-        args: ['--maxkb=500']
-      - id: check-merge-conflict
-      - id: check-json
-
-  # Frontend (ESLint + Prettier)
-  # Note: ESLint 9 with flat config requires local installation
-  # Use 'pnpm lint' in apps/web instead of pre-commit ESLint hook
-  - repo: local
-    hooks:
-      - id: eslint
-        name: ESLint (Next.js)
-        entry: bash -c 'cd apps/web && pnpm lint'
-        language: system
-        files: \.(js|jsx|ts|tsx)$
-        pass_filenames: false
-
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v4.0.0-alpha.8
-    hooks:
-      - id: prettier
-        files: \.(js|jsx|ts|tsx|json|css|md)$
-```
+Le projet n'utilise **pas** le framework [pre-commit](https://pre-commit.com/) :
+il n'y a pas de `.pre-commit-config.yaml`. Le hook est un script shell versionné
+dans le dépôt, activé en pointant `core.hooksPath` vers `.github/hooks/`.
 
 ### Installation
 
 ```bash
-cd apps/api
-
-# Installer pre-commit
-pip install pre-commit
-
-# Installer hooks
-pre-commit install
-
-# Tester sur tous les fichiers
-pre-commit run --all-files
-
-# Update hooks to latest versions
-pre-commit autoupdate
+task setup:hooks    # git config core.hooksPath .github/hooks
 ```
 
-### Bypass (si nécessaire)
+Vérifier : `git config core.hooksPath` doit répondre `.github/hooks`.
+
+### Ce que le hook exécute
+
+**Fichier** : `.github/hooks/pre-commit`
+
+Il ne travaille que sur les fichiers **stagés** et s'adapte à leur type — un
+commit qui ne touche que des `.md` ne déclenche ni pytest ni tsc. Détail complet
+des étapes et de leur caractère bloquant : [CI_CD.md](../technical/CI_CD.md).
+
+| Déclencheur | Étapes |
+|---|---|
+| Toujours | `.bak`, secrets (grep), infos d'infrastructure/personnelles réelles |
+| `.py` stagés | Ruff, Black, MyPy, tests unitaires rapides, patterns critiques, complétude `.env.example` |
+| `locales/` stagés | Parité stricte des clés i18n |
+| `alembic/versions/` stagés | Conflits de préfixe de date entre migrations |
+| `.ts`/`.tsx` stagés | ESLint, `tsc --noEmit` |
+
+Le hook détecte Windows (Git Bash) et adapte les chemins de binaires :
+`.venv/Scripts/` d'un côté, `.venv/bin/` de l'autre.
+
+### Ses limites, et le gate qui les couvre
+
+Le hook vise ~5 minutes. Il saute donc délibérément les ratchets, le gate de
+markers, les tests de déploiement et les seuils de couverture frontend — tous
+ont déjà fait rougir un build après un commit vert. Avant un push :
 
 ```bash
-# Skip pre-commit hooks (NE PAS ABUSER!)
-git commit -m "message" --no-verify
-
-# Ou skip specific hook
-SKIP=mypy git commit -m "message"
+task ci:fast    # ~10 min, tous les gates CI ne nécessitant aucun service
 ```
+
+### Bypass
+
+```bash
+git commit --no-verify    # urgences uniquement
+```
+
+`--no-verify` est **interdit** par les règles du projet : corriger la cause, pas
+la contourner. La CI rattrape de toute façon, plus tard et plus cher.
 
 ---
 
 ## 🔄 CI/CD Pipeline
 
-### GitHub Actions Workflows
+**Documentation complète** : [CI_CD.md](../technical/CI_CD.md) — c'est la source
+de vérité pour les workflows, les jobs et leurs dépendances.
 
-#### ci.yml (Main Pipeline)
+Ce guide ne recopie volontairement **pas** le contenu de
+`.github/workflows/ci.yml`. Une copie de workflow dans un guide est une seconde
+implémentation libre de dériver : celle qui vivait ici annonçait encore des
+branches `develop`, des actions non épinglées et un `ruff check src` sans
+`tests/`, aucun de ces points n'étant vrai depuis longtemps.
 
-```yaml
-# .github/workflows/ci.yml
+### Le principe à retenir (ADR-151)
 
-name: CI
+**Le workflow orchestre, le Taskfile implémente.** Chaque étape `run:` de
+`ci.yml` est un appel `task <nom>` ; la logique vit dans `Taskfile.yml`. La CI
+exécute donc littéralement la commande que vous lancez en local.
 
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
+Conséquence pratique quand un job est rouge : lire l'appel `task ...` de l'étape
+concernée et le rejouer tel quel. Il n'y a aucune traduction à faire.
 
-jobs:
-  lint-backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+Conséquence quand vous **ajoutez** un gate : il va dans une tâche, pas dans le
+YAML. `task lint:ci-parity` échoue sur toute étape `run:` qui n'est ni un appel
+de tâche, ni un provisionnement de runner déclaré, ni une exception motivée par
+écrit dans `CI_ONLY` (`scripts/audit/check_ci_parity.py`).
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+### Les trois filets
 
-      - name: Install dependencies
-        run: |
-          cd apps/api
-          # ADR-112 : lockfile compile, hashes verifies
-          pip install --require-hashes --no-binary urllib3-future -r requirements-dev.lock.txt
-
-      - name: Run Ruff
-        run: |
-          cd apps/api
-          ruff check src
-
-      - name: Run Black
-        run: |
-          cd apps/api
-          black --check src
-
-      - name: Run MyPy
-        run: |
-          cd apps/api
-          mypy src
-
-  test-backend:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_USER: lia
-          POSTGRES_PASSWORD: lia
-          POSTGRES_DB: lia_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install dependencies
-        run: |
-          cd apps/api
-          pip install --require-hashes -r requirements-dev.lock.txt   # ADR-112 : lockfile, pas pyproject
-
-      - name: Run tests with coverage
-        env:
-          DATABASE_URL: postgresql+asyncpg://lia:lia@localhost:5432/lia_test
-          REDIS_URL: redis://localhost:6379/0
-        run: |
-          cd apps/api
-          pytest --cov=src --cov-report=xml --cov-report=term
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./apps/api/coverage.xml
-          fail_ci_if_error: true
-
-  lint-frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 8
-
-      - name: Install dependencies
-        run: |
-          cd apps/web
-          pnpm install
-
-      - name: Run ESLint
-        run: |
-          cd apps/web
-          pnpm lint
-
-      - name: Run TypeScript check
-        run: |
-          cd apps/web
-          pnpm type-check
-
-  security-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run pip-audit
-        run: |
-          cd apps/api
-          pip install pip-audit
-          pip-audit -r requirements.lock.txt   # lockfile compilé : transitifs inclus (ADR-112)
-
-      - name: Run Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          severity: 'CRITICAL,HIGH'
-
-  build-push:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    needs: [lint-backend, test-backend, lint-frontend, security-scan]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: ./apps/api
-          push: true
-          tags: |
-            lia/api:latest
-            lia/api:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+```bash
+task pre-commit    # ~5 min — ce que le hook git exécute
+task ci:fast       # ~10 min — tous les gates CI sans service externe (avant un push)
+task ci            # + PostgreSQL, Redis, Docker, navigateur
 ```
+
+Le hook est délibérément plus étroit que `ci:fast` : il saute les ratchets, le
+gate de markers, les tests de déploiement et les seuils de couverture frontend
+pour tenir dans son budget. Chacun de ces gates a déjà fait rougir un build
+après un local vert — d'où `ci:fast`.
 
 ### Quality Gates
 
-**Gates obligatoires** :
-- [ ] Tous les tests passent
-- [ ] Coverage >= 30%
-- [ ] Linting (Ruff/Black) passe
-- [ ] Type checking (MyPy) passe
-- [ ] Security scan (CodeQL / Trivy / pip-audit) passe
-- [ ] Pas de secrets détectés
-- [ ] Build Docker réussit
+Gates bloquants sur `main` :
+
+- [ ] Toutes les suites passent (unit, agents, intégration, E2E)
+- [ ] Couverture backend >= **60 %** (source de vérité : `apps/api/pyproject.toml`)
+- [ ] Seuils de couverture frontend par fichier (`apps/web/vitest.config.ts`)
+- [ ] Ruff, Black, MyPy strict, ESLint, `tsc --noEmit` non incrémental
+- [ ] Ratchets shrink-only : a11y, react-hooks, complexité (front et back), dette MyPy, taille de fichiers
+- [ ] Parité stricte des clés i18n sur les 6 langues
+- [ ] Hygiène de code, lockfiles Python en phase avec leurs manifestes, parité CI/local
+- [ ] Aucun secret détecté (Gitleaks), scans CodeQL / Trivy / pip-audit / pnpm audit
+- [ ] Build Docker (API + Web) réussit
+
+Aucun seuil ni baseline ne se relève : la doctrine ratchet est *shrink-only*.
 
 ---
 
@@ -1460,7 +1283,7 @@ gh pr review <PR_NUMBER> --request-changes --body "Please add tests for the new 
 - **Black** : https://black.readthedocs.io/
 - **MyPy** : https://mypy.readthedocs.io/
 - **Pytest** : https://docs.pytest.org/
-- **Pre-commit** : https://pre-commit.com/
+- **Task** (le lanceur de tous les gates) : https://taskfile.dev/
 
 ---
 

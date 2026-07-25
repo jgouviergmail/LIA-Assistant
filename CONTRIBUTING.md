@@ -10,21 +10,21 @@
 
 ## Table of Contents
 
-- [Welcome](#-welcome)
-- [Code of Conduct](#-code-of-conduct)
-- [Technical Prerequisites](#-technical-prerequisites)
-- [Environment Setup](#-environment-setup)
-- [Development Workflow](#-development-workflow)
-- [Code Standards](#-code-standards)
-- [Tests](#-tests)
-- [Pre-commit Hooks](#-pre-commit-hooks)
-- [Review Process](#-review-process)
-- [CI/CD Pipeline](#-cicd-pipeline)
-- [Documentation](#-documentation)
-- [Security](#-security)
-- [Communication](#-communication)
-- [FAQ](#-faq)
-- [Resources](#-resources)
+- [Welcome](#welcome)
+- [Code of Conduct](#code-of-conduct)
+- [Technical Prerequisites](#technical-prerequisites)
+- [Environment Setup](#environment-setup)
+- [Development Workflow](#development-workflow)
+- [Code Standards](#code-standards)
+- [Tests](#tests)
+- [Pre-commit Hooks](#pre-commit-hooks)
+- [Review Process](#review-process)
+- [CI/CD Pipeline](#cicd-pipeline)
+- [Documentation](#documentation)
+- [Security](#security)
+- [Communication](#communication)
+- [FAQ](#faq)
+- [Resources](#resources)
 
 ---
 
@@ -92,8 +92,7 @@ This project adheres to the [Contributor Covenant Code of Conduct](./CODE_OF_CON
 | Software | Usage |
 |----------|-------|
 | VS Code | IDE with Python, Ruff, ESLint extensions |
-| Taskfile | Automation (`task` CLI) |
-| pre-commit | Git hooks (installed automatically) |
+| Taskfile | Automation (`task` CLI) — **required**: every quality gate runs through it |
 
 ### Recommended Technical Knowledge
 
@@ -222,17 +221,18 @@ alembic upgrade head
 python -m src.scripts.seed_llm_pricing
 ```
 
-### 6. Install Pre-commit Hooks
+### 6. Install the Git Hook
+
+This project does **not** use the [pre-commit](https://pre-commit.com/)
+framework — there is no `.pre-commit-config.yaml`. The hook is a shell script
+versioned in the repository, enabled by pointing `core.hooksPath` at it:
 
 ```bash
 # Return to root
 cd ../..
 
-# Install pre-commit hooks
-pre-commit install
-
-# Test hooks (optional)
-pre-commit run --all-files
+task setup:hooks              # git config core.hooksPath .github/hooks
+git config core.hooksPath     # must answer: .github/hooks
 ```
 
 ### 7. Verify Installation
@@ -694,13 +694,22 @@ pnpm test:coverage
 
 ### Hooks Executed on Commit
 
-1. **Secret detection** (passwords, API keys)
-2. **Backend checks** (`.py` files):
+The hook only inspects **staged** files and adapts to their type — a
+documentation-only commit triggers neither pytest nor tsc.
+
+1. **Always**: `.bak` leftovers, secret detection (passwords, API keys), real
+   infrastructure/personal information (this is an open-source repository)
+2. **Backend checks** (`.py` staged):
    - Ruff linter
    - Black formatter
    - MyPy type checker
-   - Unit tests
-3. **Frontend checks** (`.ts`/`.tsx` files):
+   - Fast unit tests
+   - Critical patterns (synchronous Store calls, Redis `setex` without
+     serialization)
+   - `.env.example` completeness
+3. **Locale files staged**: strict i18n key parity across the 6 languages
+4. **Alembic migrations staged**: date-prefix conflicts between migrations
+5. **Frontend checks** (`.ts`/`.tsx` staged):
    - ESLint
    - TypeScript type check
 
@@ -725,13 +734,29 @@ Running backend checks...
 ✓ All pre-commit checks passed!
 ```
 
+### Before Pushing
+
+The hook aims for ~5 minutes, so it deliberately skips the ratchets, the
+marker-coverage gate, the deploy tests and the frontend coverage thresholds.
+Every one of those has redded a build after a green commit. Run the wider gate
+before you push:
+
+```bash
+task ci:fast    # ~10 min — every CI gate that needs no external service
+```
+
+Because `.github/workflows/ci.yml` calls `task` rather than restating commands
+(see [ADR-151](docs/architecture/ADR-151-Thin-CI-Workflow.md)), this runs
+**literally** what CI runs. When a job goes red, read its `task ...` call and
+replay it locally — there is nothing to translate.
+
 ### Bypassing Hooks (Not Recommended)
 
 ```bash
 git commit --no-verify -m "WIP: work in progress"
 ```
 
-> Hooks will be verified in the GitHub Actions CI.
+> The CI will catch it anyway — later, and more expensively. Fix the cause.
 
 ---
 
@@ -814,35 +839,40 @@ if tool_name not in self.registry:
 
 ## CI/CD Pipeline
 
+Full reference: [docs/technical/CI_CD.md](docs/technical/CI_CD.md).
+
+### The one rule to know
+
+**The workflow orchestrates, the Taskfile implements**
+([ADR-151](docs/architecture/ADR-151-Thin-CI-Workflow.md)). Every `run:` step in
+`ci.yml` is a `task <name>` call. A gate written inline in the workflow is a gate
+nobody can run before pushing, and `task lint:ci-parity` fails on one.
+
+So: **add a gate as a task**, then call it from the workflow. If it genuinely
+cannot run locally, add it to `CI_ONLY` in `scripts/audit/check_ci_parity.py`
+with a written reason.
+
 ### GitHub Actions Workflows
 
 | Workflow | Triggers | Jobs |
 |----------|----------|------|
-| **CI/CD Pipeline** | Push `main`, PRs | lint, test, security, build, deploy |
-| **Code Quality** | PRs | coverage, complexity, vulnerabilities |
-| **Tests Matrix** | PRs | Python 3.12/3.13, PostgreSQL 15/16 |
-| **CodeQL Security** | PRs, schedule | Static security analysis |
+| **`ci.yml`** | Push `main`, PRs | 12 jobs — lint, test, E2E, hygiene, observability, Docker build, secret scan |
+| **`security.yml`** | Push, PRs, weekly | CodeQL, dependency audit, Trivy, SBOM |
+| **`release.yml`** | Tag `v*` | Green-CI gate, multi-arch build -> GHCR, SBOM, GitHub Release |
+| **`a11y-matrix.yml`** | Weekly | The E2E/axe suite replayed on Firefox + WebKit (AC-002) |
 
-### CI/CD Jobs
+There is **no deployment job**: production is deployed by an explicit,
+operator-driven pipeline (`task deploy:prod`), never by a push to `main`.
 
-1. **lint-backend**: Ruff + Black + MyPy
-2. **lint-frontend**: ESLint + TypeScript
-3. **test-backend**: Pytest + Coverage (PostgreSQL + Redis)
-4. **test-frontend**: Vitest
-5. **security-scan**: pip-audit + safety + bandit + Trivy
-6. **sbom-generate**: CycloneDX SBOM
-7. **build-push**: Docker images -> GHCR
-8. **deploy**: Production (if `main`)
+### Status Checks
 
-### Required Status Checks
+`main` currently has **no branch protection**, so a red CI does not block a
+push. What it does block is the **release**: `release.yml` refuses to publish
+unless `ci.yml` concluded `success` for the tagged commit (guarded by
+`test_release_workflow_gate_guard.py`).
 
-| Check | Required |
-|-------|----------|
-| `lint-backend` | Yes |
-| `lint-frontend` | Yes |
-| `test-backend` | Yes |
-| `security-scan` | Yes |
-| >= 1 approval | Yes |
+Contributors work through pull requests; please make sure the 12 CI jobs are
+green before asking for a review.
 
 ---
 
@@ -1006,7 +1036,11 @@ A: Generally 48-72 hours for an initial review. Complex PRs may take longer.
 
 **Q: My pre-commit hook takes 2 minutes, is that normal?**
 
-A: Yes, unit tests can take 30-60 seconds. For a quick WIP commit: `git commit --no-verify`.
+A: Yes — it budgets for ~5 minutes and unit tests are most of it. It only runs the checks matching your staged file types, so a docs-only commit is near-instant.
+
+**Q: The hook passed but CI is red. Why?**
+
+A: The hook is deliberately narrower than CI — it skips the ratchets, the marker-coverage gate, the deploy tests and the frontend coverage thresholds to stay fast. Run `task ci:fast` before pushing: it is every CI gate that needs no external service, and it runs the same commands CI does.
 
 **Q: How do I test without calling the LLMs?**
 

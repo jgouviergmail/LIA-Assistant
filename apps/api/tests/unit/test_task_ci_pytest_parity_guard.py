@@ -12,6 +12,12 @@ It also separates **functional selection** (markers, which MUST match) from the
 **coverage threshold** (which is deliberately asymmetric — partial subsets never
 enforce the global gate) and pins the threshold to a single source of truth so the
 ``--cov-fail-under`` number cannot silently diverge between ``pyproject.toml`` and CI.
+
+Finally it forbids a task from running the **same collection twice**. The marker
+comparison above works on SETS of expressions, so two identical invocations
+collapse into one entry and are invisible to it — which is exactly how a
+duplicated F006 collection shipped on 2026-07-25 and doubled that pass both
+locally and in CI (the workflow calls the task).
 """
 
 from __future__ import annotations
@@ -25,14 +31,19 @@ from tests._repo_paths import repo_root_or_skip
 REPO_ROOT = repo_root_or_skip()
 TASKFILE = REPO_ROOT / "Taskfile.yml"
 CI_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "ci.yml"
+PRE_COMMIT_HOOK = REPO_ROOT / ".github" / "hooks" / "pre-commit"
 PYPROJECT = REPO_ROOT / "apps" / "api" / "pyproject.toml"
 
 _TEST_ROOTS = ("unit", "agents", "integration")
+# How a pytest invocation starts in each of the three files: the literal binary
+# in Taskfile.yml/ci.yml, and the cross-platform ``$PYTEST_BIN`` the hook
+# resolves to ``.venv/Scripts/pytest`` or ``.venv/bin/pytest``.
+_RUNNER = r"(?:pytest|\$PYTEST_BIN)"
 # ``pytest tests/<root>/ ... -m "<expr>"`` — CI splits the command across
 # backslash-continued lines, so continuations are joined first.
-_PYTEST_M = re.compile(r'pytest\s+tests/(unit|agents|integration)/[^\n]*?-m\s+"([^"]+)"')
+_PYTEST_M = re.compile(_RUNNER + r'\s+tests/(unit|agents|integration)/[^\n]*?-m\s+"([^"]+)"')
 # The full flag tail of every ``pytest tests/<root>/`` command (post line-join).
-_PYTEST_CMD = re.compile(r"pytest\s+tests/(unit|agents|integration)/([^\n]*)")
+_PYTEST_CMD = re.compile(_RUNNER + r"\s+tests/(unit|agents|integration)/([^\n]*)")
 _COV_FAIL_UNDER = re.compile(r"--cov-fail-under=(\d+)")
 
 
@@ -147,6 +158,104 @@ def test_partial_subsets_never_enforce_the_global_coverage_gate() -> None:
                     f"{name}: tests/{root}/ must NOT enforce --cov-fail-under on a partial "
                     f"subset (F022): pytest tests/{root}/{tail.strip()}"
                 )
+
+
+def test_the_hook_selects_exactly_what_the_fast_task_selects() -> None:
+    """The pre-commit hook is a THIRD place holding a pytest command (F022).
+
+    It advertises itself as ``task test:backend:unit:fast``, so its marker
+    expression must be that task's, not a paraphrase. Until 2026-07-25 it read
+    ``not integration and not slow`` — the same set as the task by measurement
+    (zero e2e/benchmark/multiprocess tests live under ``tests/unit``), but the
+    first one added would have run in the hook and in no CI job at all.
+    """
+    hook_exprs = _markers_by_root(PRE_COMMIT_HOOK.read_text(encoding="utf-8")).get("unit")
+    assert hook_exprs, "the pre-commit hook no longer runs a pytest tests/unit/ command"
+
+    task_exprs = {
+        expr
+        for expr in _markers_by_root(TASKFILE.read_text(encoding="utf-8"))["unit"]
+        if not _is_integration_only(expr)
+    }
+
+    assert hook_exprs <= task_exprs, (
+        "the pre-commit hook's -m expression diverges from the Taskfile's unit "
+        f"selection (F022). Hook: {[sorted(e) for e in hook_exprs]}, "
+        f"Taskfile: {[sorted(e) for e in task_exprs]}. A hook that selects MORE "
+        "than the task runs tests no CI job runs; one that selects less gives "
+        "false confidence before a commit."
+    )
+
+
+# One or more ``tests...`` paths after the runner. Written as "first path, then
+# whitespace-separated others" rather than "(path + whitespace)+" so a command
+# ENDING on its path (``pytest tests/unit/``, no flags) still matches — that
+# spelling was invisible to the first version of this guard.
+_PYTEST_PATHS = re.compile(_RUNNER + r"\s+(tests\S*(?:\s+tests\S*)*)")
+
+
+def _collection_identity(command: str) -> tuple[str, str] | None:
+    """Reduce a pytest command to what it actually SELECTS.
+
+    Flags that change reporting (``-v``, ``--tb=short``) are deliberately
+    excluded: two commands differing only there run the same tests twice.
+
+    Args:
+        command: A shell command line from the Taskfile.
+
+    Returns:
+        ``(paths, marker_expression)``, or None when the command is not a pytest
+        invocation over a test path.
+    """
+    paths_match = _PYTEST_PATHS.search(command)
+    if not paths_match:
+        return None
+    paths = " ".join(sorted(paths_match.group(1).split()))
+    marker = re.search(r'-m\s+"([^"]+)"', command)
+    return paths, marker.group(1) if marker else ""
+
+
+def test_no_task_runs_the_same_collection_twice() -> None:
+    """A task must not repeat a collection it already runs (2026-07-25).
+
+    Task executes every matching ``cmd`` in order, so a duplicated invocation is
+    pure wasted time — and since ci.yml now CALLS these tasks, the waste is paid
+    on every build too. Platforms are part of the identity: the Windows and
+    Unix spellings of one command are alternatives, not repetitions.
+    """
+    data = yaml.safe_load(TASKFILE.read_text(encoding="utf-8"))
+
+    offenders: list[str] = []
+    for task_name, body in (data.get("tasks") or {}).items():
+        if not isinstance(body, dict):
+            continue
+        seen: dict[tuple[str, str, str], int] = {}
+        for entry in body.get("cmds") or []:
+            command = entry.get("cmd", "") if isinstance(entry, dict) else entry
+            if not isinstance(command, str):
+                continue
+            identity = _collection_identity(command)
+            if identity is None:
+                continue
+            platforms = ",".join(
+                sorted(entry.get("platforms", ["all"]) if isinstance(entry, dict) else ["all"])
+            )
+            key = (platforms, *identity)
+            seen[key] = seen.get(key, 0) + 1
+            if seen[key] == 2:
+                offenders.append(
+                    f'{task_name} [{platforms}]: pytest {identity[0]} -m "{identity[1]}"'
+                )
+
+    # ASCII only in the message: it is read on a Windows console whose default
+    # code page turns typographic dashes into mojibake (same reason as
+    # scripts/audit/check_code_hygiene.py).
+    assert not offenders, (
+        "these tasks run an identical pytest collection more than once, so every "
+        f"run (local AND CI, which calls these tasks) pays for it twice: {offenders}. "
+        "Delete the duplicate; if two passes are genuinely wanted, make them differ "
+        "in what they select, not only in how they report."
+    )
 
 
 def test_coverage_threshold_has_a_single_source_of_truth() -> None:

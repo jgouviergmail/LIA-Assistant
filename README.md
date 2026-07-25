@@ -889,7 +889,7 @@ apps/api/src/
 
 ### Architecture Decision Records (ADR)
 
-149 ADRs (numbered up to ADR-150) documenting major architectural decisions:
+151 ADRs (ADR-001 through ADR-151) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)
