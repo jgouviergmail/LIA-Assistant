@@ -24,9 +24,6 @@ jobs:
   lint-backend:
     name: Lint Backend
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./apps/api
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -38,36 +35,25 @@ jobs:
           cache: pip
           cache-dependency-path: apps/api/requirements-dev.lock.txt
 
+      - name: Install Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create venv and install dependencies
+        working-directory: ./apps/api
         run: |
           python -m venv .venv
           source .venv/bin/activate
           pip install --upgrade pip
           pip install --require-hashes --no-binary urllib3-future -r requirements-dev.lock.txt
 
-      - name: Ruff check
-        run: |
-          source .venv/bin/activate
-          ruff check src/ tests/
-
-      - name: Black check
-        run: |
-          source .venv/bin/activate
-          black --check src/ tests/
-
-      - name: MyPy
-        run: |
-          source .venv/bin/activate
-          mypy src/ --config-file=pyproject.toml
-
-      - name: MyPy exemption ratchet (F020, shrink-only)
-        # Freezes the disable_error_code exemption surface as (module, code)
-        # pairs and fails on any NEW exemption. Pure pyproject.toml parse — no
-        # MyPy run, deterministic across host/CI. Baseline lowers only via
-        # `measure_mypy_debt.py --update` after exemptions are removed.
-        run: |
-          source .venv/bin/activate
-          python ../../scripts/audit/measure_mypy_debt.py --check
+      # Ruff + Black + MyPy, then the F020 exemption ratchet (shrink-only:
+      # freezes the disable_error_code surface as (module, code) pairs and fails
+      # on any NEW exemption; pure pyproject parse, no MyPy run).
+      - name: Lint backend
+        run: task lint:backend lint:mypy-debt
 
   lint-frontend:
     name: Lint Frontend
@@ -86,35 +72,22 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
+      - name: Install Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: ESLint
-        working-directory: ./apps/web
-        run: pnpm lint
-
-      - name: Accessibility ratchet (jsx-a11y, shrink-only)
-        # F012/F013/F021: freezes the ~50 existing a11y violations so the debt
-        # cannot grow while the admin screens are remediated. New violations fail.
-        working-directory: ./apps/web
-        run: pnpm a11y:ratchet
-
-      - name: React 19 strict-mode ratchet (shrink-only)
-        # F021: freezes the 34 react-hooks/set-state-in-effect + immutability
-        # violations so no new ones creep in while the components are fixed.
-        working-directory: ./apps/web
-        run: pnpm react-hooks:ratchet
-
-      - name: Frontend complexity ratchet (per-function/file, shrink-only)
-        # F011: freezes the 71 functions >= CC 15, the worst function (96) and a
-        # per-file fingerprint, so a new complex function fails even below the
-        # global eslint ceiling. Decompose to lower it; --update never raises it.
-        working-directory: ./apps/web
-        run: pnpm cc:ratchet
-
-      - name: TypeScript type-check
-        working-directory: ./apps/web
-        run: pnpm exec tsc --noEmit
+      # ESLint, then three shrink-only ratchets, then tsc. The ratchets freeze
+      # existing debt so it cannot grow: ~50 jsx-a11y violations (F012/F013/F021),
+      # 34 react-hooks/immutability violations (F021), and the functions at
+      # CC >= 15 with a per-file fingerprint (F011) — a new complex function fails
+      # even below the global eslint ceiling. `--update` never raises a baseline.
+      - name: Lint frontend
+        run: task lint:frontend
 
   e2e-frontend:
     # F031: hermetic Playwright + axe smoke. Runs in the official Playwright
@@ -153,26 +126,20 @@ jobs:
         working-directory: ./apps/web/e2e
         run: npm ci --no-audit --no-fund
 
-      - name: Typecheck E2E suite
-        working-directory: ./apps/web/e2e
-        run: npm run typecheck
+      - name: Install Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+      # Typecheck then run. The managed-server / IPv4 / relative-API-URL
+      # environment now lives in the task itself — it is how the suite runs at
+      # all, not a CI knob, and keeping it here made a local run behave
+      # differently from this job.
       - name: Run E2E + a11y smoke
-        working-directory: ./apps/web/e2e
         env:
           CI: "true"
-          # Managed server: Playwright runs `next build`, copies .next/static
-          # and public/ into the standalone tree, then serves it with
-          # `node .next/standalone/apps/web/server.js` (HTTP) — the app builds
-          # with `output: standalone`, with which `next start` does not work.
-          # No dev container, no backend.
-          E2E_MANAGED_SERVER: "1"
-          # 127.0.0.1, not localhost: the standalone server binds IPv4-only
-          # (HOSTNAME=0.0.0.0) and `localhost` may resolve to ::1 first.
-          E2E_BASE_URL: http://127.0.0.1:3000
-          # Relative API URLs so browser traffic stays same-origin (intercepted).
-          NEXT_PUBLIC_API_URL: ""
-        run: npx playwright test
+        run: task test:e2e
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
@@ -186,9 +153,6 @@ jobs:
     name: Test Backend
     runs-on: ubuntu-latest
     needs: lint-backend
-    defaults:
-      run:
-        working-directory: ./apps/api
 
     services:
       postgres:
@@ -237,7 +201,14 @@ jobs:
           cache: pip
           cache-dependency-path: apps/api/requirements-dev.lock.txt
 
+      - name: Install Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create venv and install dependencies
+        working-directory: ./apps/api
         run: |
           python -m venv .venv
           source .venv/bin/activate
@@ -245,27 +216,12 @@ jobs:
           pip install --require-hashes --no-binary urllib3-future -r requirements-dev.lock.txt
 
       - name: Run fast unit tests with coverage
-        run: |
-          source .venv/bin/activate
-          pytest tests/unit/ \
-            -v \
-            --tb=short \
-            -m "not integration and not slow and not e2e and not benchmark and not multiprocess" \
-            --cov=src \
-            --cov-report=xml \
-            --cov-report=term-missing \
-            --cov-fail-under=60
+        run: task test:backend:unit:coverage
 
       # Agents suite — wired into CI 2026-07 after the audit found it had
       # silently rotted (83 failures) because no gate ever ran it.
       - name: Run agents tests
-        run: |
-          source .venv/bin/activate
-          pytest tests/agents/ \
-            -v \
-            --tb=short \
-            -m "not slow and not e2e and not benchmark and not multiprocess" \
-            --no-cov
+        run: task test:backend:agents
 
       # F006: the path-level taxonomy guard proves test FILES live under a
       # CI-executed root, but a file can still be fully deselected by a job's
@@ -273,9 +229,7 @@ jobs:
       # fails if any test runs in NO job and is not in the justified,
       # shrink-only allowlist (apps/api/tests/marker_coverage_allowlist.json).
       - name: Marker-coverage gate (F006 — no test runs in zero jobs)
-        run: |
-          source .venv/bin/activate
-          python ../../scripts/audit/check_test_marker_coverage.py
+        run: task test:markers
 
       - name: Upload coverage
         if: always()
@@ -290,9 +244,6 @@ jobs:
     name: Test Backend Integration
     runs-on: ubuntu-latest
     needs: lint-backend
-    defaults:
-      run:
-        working-directory: ./apps/api
 
     services:
       # Credentials deliberately match apps/api/.env.test: conftest.py loads
@@ -352,6 +303,7 @@ jobs:
           cache-dependency-path: apps/api/requirements-dev.lock.txt
 
       - name: Create venv and install dependencies
+        working-directory: ./apps/api
         run: |
           python -m venv .venv
           source .venv/bin/activate
@@ -363,23 +315,19 @@ jobs:
       # e2e/benchmark/multiprocess stay out of PR CI; slow is included (these
       # tests run nowhere else). --no-cov: the coverage gate applies to the
       # unit job only.
+      - name: Install Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Two collections: tests/integration/, then the integration-marked tests
+      # that physically live under tests/unit or tests/agents (F006) — this
+      # services-equipped job is their only home. The task also runs the AC-001
+      # preflight and sets LIA_REQUIRE_DB=1, so an infrastructure skip becomes a
+      # loud failure instead of a green run that tested nothing.
       - name: Run integration tests
-        run: |
-          source .venv/bin/activate
-          pytest tests/integration/ \
-            -v \
-            --tb=short \
-            -m "not e2e and not benchmark and not multiprocess" \
-            --no-cov
-          # F006: integration-marked tests that physically live under tests/unit
-          # or tests/agents (functional DB/Redis tests co-located with unit ones)
-          # would otherwise run in NO PR job. This services-equipped job is their
-          # deterministic home — the marker-coverage guard mirrors this collection.
-          pytest tests/unit/ tests/agents/ \
-            -v \
-            --tb=short \
-            -m "integration and not e2e and not benchmark and not multiprocess" \
-            --no-cov
+        run: task test:backend:integration
 
   migration-replay:
     name: Migration Replay (from scratch)
@@ -475,15 +423,24 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
+      - name: Install Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The task runs the dedicated `test:coverage` script, NOT
+      # `pnpm test -- --coverage`: pnpm forwards the literal `--` to vitest,
+      # which silently ignores the flag (no report, Codecov uploads nothing).
+      # It also blanks NEXT_PUBLIC_API_URL, which the Taskfile's global
+      # `dotenv: .env` would otherwise inject locally and which measurably
+      # changes branch coverage — here the variable is absent either way, so
+      # the local and CI runs finally agree.
       - name: Run Vitest
-        working-directory: ./apps/web
-        # NOTE: must be the dedicated script, NOT `pnpm test -- --coverage`:
-        # pnpm forwards the literal `--` to vitest, which silently ignores the
-        # coverage flag (no report is produced and Codecov uploads nothing).
-        run: pnpm test:coverage
+        run: task test:frontend:coverage
 
       - name: Upload coverage
         if: always()
@@ -506,168 +463,63 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Check for .bak files
-        run: |
-          BAK_FILES=$(find . -name "*.bak" -not -path "./.git/*" || true)
-          if [ -n "$BAK_FILES" ]; then
-            echo "::error::Backup files (.bak) found in repository:"
-            echo "$BAK_FILES"
-            exit 1
-          fi
+      - name: Install Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check for synchronous Store calls in async context
+      # Minimal venv at the path the tasks expect. The audit scripts are
+      # stdlib-only except two: check_requirements_lock.py needs `packaging` and
+      # check_ci_parity.py needs `pyyaml` to read the workflow. Keeping this to
+      # two wheels rather than a full requirements-dev install is what makes the
+      # job seconds instead of minutes — but a missing one is a
+      # ModuleNotFoundError twenty minutes into a build, so the list is derived
+      # from the scripts' imports, not guessed.
+      - name: Create a minimal venv for the audit scripts
+        working-directory: ./apps/api
         run: |
-          SYNC_CALLS=$(grep -rn "runtime\.store\.put(\|runtime\.store\.get(\|runtime\.store\.delete(\|runtime\.store\.search(" apps/api/src/ | grep -v "await " || true)
-          if [ -n "$SYNC_CALLS" ]; then
-            echo "::error::Synchronous Store calls detected in async context (use aput/aget/adelete/asearch):"
-            echo "$SYNC_CALLS"
-            exit 1
-          fi
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip --quiet
+          .venv/bin/pip install packaging pyyaml --quiet
 
-      - name: Check for Redis setex without json.dumps
-        run: |
-          SETEX_LINES=$(grep -rn "\.setex(" apps/api/src/ || true)
-          if [ -n "$SETEX_LINES" ]; then
-            MISSING=$(echo "$SETEX_LINES" | grep -v "json\.dumps(" || true)
-            if [ -n "$MISSING" ]; then
-              echo "::warning::Redis setex() without json.dumps() detected — review these lines:"
-              echo "$MISSING"
-            fi
-          fi
+      # .bak files, synchronous Store calls on an async path, Redis setex
+      # without serialization, raw `raise HTTPException` (rule #18, ADR-124),
+      # multiple Alembic heads, and .env.example completeness. These were inline
+      # bash until 2026-07-25, which made them impossible to run before pushing;
+      # they now live in scripts/audit/check_code_hygiene.py and run identically
+      # here and under `task lint:hygiene`. Severity is unchanged by the port:
+      # setex, raw HTTPException and .env.example stay advisory.
+      - name: Code hygiene checks
+        run: task lint:hygiene -- --github
 
-      - name: Check for raw HTTPException raises (rule #18, ADR-124)
-        # Backend errors go through the centralized taxonomy in
-        # src/core/exceptions.py (raisers or BaseAPIException subclasses) —
-        # never a raw `raise HTTPException`. The whole tree was migrated to 0
-        # sites (ADR-114 clients, ADR-124 routers/services). No exemptions.
-        # Warning-only for one release to absorb in-flight branches; flip the
-        # echo to ::error + `exit 1` afterwards.
-        run: |
-          RAW_RAISES=$(grep -rn "raise HTTPException" apps/api/src/ || true)
-          if [ -n "$RAW_RAISES" ]; then
-            echo "::warning::Raw 'raise HTTPException' detected — use the centralized raisers/classes of src/core/exceptions.py (rule #18, ADR-124):"
-            echo "$RAW_RAISES"
-          fi
-
+      # Single source of truth for i18n (F027): fails on any missing language,
+      # invalid JSON, or key drift across the 6 locales.
       - name: Check i18n keys sync
-        # Single source of truth: scripts/i18n/validate_translations.py (F027).
-        # Fails on any missing language, invalid JSON, or key drift (missing/extra).
-        run: python scripts/i18n/validate_translations.py
+        run: task lint:i18n
 
-      - name: Deploy readiness-gate / rollback tests (F008)
-        # Hermetic tests of the prod deploy readiness gate: success, red
-        # readiness → automatic rollback → revalidation, and unrecoverable
-        # failure. No Docker/network (all indirections mocked).
-        run: bash scripts/deploy/lib/test_deploy_readiness_gate.sh
+      # Hermetic deploy-path tests (F008): the readiness gate under bash
+      # (success, red readiness -> rollback -> revalidation, unrecoverable
+      # failure) and the Pester driver suite. No Docker, no network.
+      - name: Deploy path tests
+        run: task test:deploy
 
-      - name: Deploy driver Pester tests (F008)
-        # Hermetic Pester suite for the WHOLE deploy system as one wired unit:
-        # driver deploy-prod.ps1 (param validation, DryRun, retry/backoff,
-        # crash-safe SOPS encrypt), bundle built by prepare-prod.ps1 (code
-        # copied, sensitive files scrubbed, LF-only bash artifacts, provenance
-        # SHA), and the GENERATED deploy.sh executed under bash against the
-        # shipped readiness-gate lib (green / red→rollback / rollback failure,
-        # provenance identity landing in release-manifest.json). Every external
-        # tool (ssh/scp/rsync/sops/docker/curl) is a PATH shim — no network, no
-        # Docker, no production contact. This Linux run covers the `sh -c`
-        # branch of Invoke-WithRetry; Windows dev machines cover `cmd /c`.
-        shell: pwsh
-        run: ./scripts/deploy/run-deploy-driver-tests.ps1
+      # Documentation drift (F024), runtime import cycles (F009, shrink-only)
+      # and backend cyclomatic complexity (F011/F015, shrink-only). Baselines
+      # lower only via the scripts' own --update flags, never by hand.
+      - name: Documentation, cycles and complexity ratchets
+        run: task lint:docs lint:cycles lint:cc
 
-      - name: Documentation drift audit (F024)
-        # Fails on any LIVING broken relative link, including ADR→ADR links
-        # inside an actively-indexed ADR (escalated from HISTORICAL). With
-        # --fail-on-stale it also fails on any LIVING doc referencing a code
-        # path (*.py:line) that no longer exists — unless the reference is an
-        # illustrative placeholder or annotated (example/obsolete/proposed).
-        # HISTORICAL/ROADMAP stale paths and deleted session docs stay tolerated.
-        run: python scripts/audit/doc_audit.py --fail-on-stale
-
-      - name: Domain import-cycle ratchet (F009, shrink-only)
-        # Freezes the 31 runtime bidirectional import cycles; a NEW cycle fails.
-        # Baseline lowers only via `measure_coupling.py --update-cycles` after a
-        # cycle is broken (ports/Protocol/events/injection).
-        run: python scripts/audit/measure_coupling.py --check-cycles
-
-      - name: Cyclomatic-complexity ratchet (F011/F015, shrink-only)
-        # Freezes two monotone caps: count of functions >= CC 15 and the single
-        # worst function. A new hotspot fails; decompose instead of raising caps.
-        run: python scripts/audit/measure_cc.py --check-ratchet
-
+      # ADR-112: the compiled lockfiles are what every environment installs, so
+      # a manifest edit that was not re-locked is a divergence waiting to bite.
       - name: Check Python lockfiles are in sync with manifests
-        run: |
-          pip install packaging
-          python scripts/check_requirements_lock.py
+        run: task lint:lockfiles
 
-      - name: Check Alembic migration conflicts
-        run: |
-          python -c "
-          import re, pathlib, sys
-
-          versions_dir = pathlib.Path('apps/api/alembic/versions')
-          revisions = {}
-          # Match both 'revision = \"val\"' and 'revision: str = \"val\"' formats
-          rev_re = re.compile(r'^revision[^=]*=\s*[\"\\']([^\"\\' ]+)', re.MULTILINE)
-          down_re = re.compile(r'^down_revision[^=]*=\s*[\"\\']([^\"\\' ]+)', re.MULTILINE)
-
-          for f in sorted(versions_dir.glob('*.py')):
-              content = f.read_text(encoding='utf-8')
-              rev_match = rev_re.search(content)
-              if rev_match:
-                  revisions[rev_match.group(1)] = f.name
-
-          # Heads = revisions not referenced as down_revision by any other migration
-          referenced_as_parent = set()
-          for f in sorted(versions_dir.glob('*.py')):
-              content = f.read_text(encoding='utf-8')
-              down_match = down_re.search(content)
-              if down_match:
-                  referenced_as_parent.add(down_match.group(1))
-
-          heads = [r for r in revisions if r not in referenced_as_parent]
-
-          if len(heads) > 1:
-              print(f'::error::Multiple Alembic heads detected ({len(heads)}):')
-              for h in heads:
-                  print(f'  {h} ({revisions[h]})')
-              sys.exit(1)
-          elif len(heads) == 1:
-              print(f'Single head: {heads[0]} ({revisions[heads[0]]})')
-          else:
-              print('No revisions found')
-          "
-
-      - name: Check .env.example completeness
-        run: |
-          python -c "
-          import re, pathlib, sys
-
-          env_example = pathlib.Path('.env.example').read_text(encoding='utf-8')
-          env_keys = set(re.findall(r'^([A-Z][A-Z_0-9]+)=', env_example, re.MULTILINE))
-
-          # Scan config files for env var references (Field default, env= parameter)
-          config_dir = pathlib.Path('apps/api/src/core/config')
-          env_refs = set()
-          for f in config_dir.glob('*.py'):
-              content = f.read_text(encoding='utf-8')
-              # Match env='VAR_NAME' patterns in Pydantic settings
-              env_refs |= set(re.findall(r'env=[\"\\']([A-Z][A-Z_0-9]+)[\"\\']', content))
-              # Match Field(..., alias='VAR_NAME') or direct class var names that are UPPER_CASE
-              for match in re.finditer(r'^    ([A-Z][A-Z_0-9]+):', content, re.MULTILINE):
-                  env_refs.add(match.group(1))
-
-          missing = sorted(env_refs - env_keys)
-          # Filter out common false positives (internal Pydantic fields, etc.)
-          missing = [v for v in missing if len(v) > 2 and not v.startswith('MODEL_')]
-
-          if missing:
-              print(f'::warning::Environment variables in config but missing from .env.example ({len(missing)}):')
-              for v in missing:
-                  print(f'  - {v}')
-              # Warning only, not a hard failure
-          else:
-              print('.env.example is complete')
-          "
+      # The guard that keeps this workflow thin: every `run:` must be a task
+      # call or declared infrastructure. Without it, the next gate gets added
+      # inline, becomes unrunnable locally, and is discovered by a red build.
+      - name: CI/local parity guard
+        run: task lint:ci-parity
 
   docker-build:
     name: Docker Build
@@ -751,14 +603,34 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install PyYAML
-        run: pip install pyyaml
+      - name: Install Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # The task expects the interpreter at apps/api/.venv; PyYAML is the only
+      # dependency this script has.
+      - name: Create a minimal venv for the observability validator
+        working-directory: ./apps/api
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip --quiet
+          .venv/bin/pip install pyyaml --quiet
 
       - name: Structural validation (dashboards + live rules, F025)
         # Deterministic, server-free: valid JSON/YAML, required dashboard keys,
         # unique uids, non-empty panel queries, balanced PromQL brackets.
-        run: python scripts/observability/validate_observability.py
+        run: task lint:observability
 
+      # NOTE: the two promtool steps below are deliberately NOT `task test:alerts`.
+      # They run the same promtool version (v2.53.2) on the same files with the
+      # same arguments, but through the native binary rather than the container
+      # the local task uses — promtool is not installed on a dev machine, and
+      # pulling an image on every CI run to avoid a 3-second download would be
+      # the wrong trade. The MECHANISM differs, the checked artifact does not;
+      # scripts/audit/check_ci_parity.py records this as a known divergence
+      # rather than pretending the two are identical.
       - name: Install promtool
         run: |
           VER=2.53.2

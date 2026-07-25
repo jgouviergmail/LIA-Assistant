@@ -166,6 +166,91 @@ tasks:
       - lint:observability
       - lint:cycles
       - lint:cc
+      - lint:hygiene
+      - lint:lockfiles
+      - lint:ci-parity
+
+  lint:ci-parity:
+    desc: The CI workflow must orchestrate (task calls), never implement (inline gates)
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/check_ci_parity.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/check_ci_parity.py
+        platforms: [linux, darwin]
+
+  lint:hygiene:
+    desc: Code-hygiene checks (.bak, sync Store calls, Redis setex, raw HTTPException, alembic heads, .env.example)
+    cmds:
+      # CLI_ARGS lets CI pass --github for workflow annotations:
+      #   task lint:hygiene -- --github
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/check_code_hygiene.py {{.CLI_ARGS}}
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/check_code_hygiene.py {{.CLI_ARGS}}
+        platforms: [linux, darwin]
+
+  lint:lockfiles:
+    desc: Verify the Python lockfiles are in sync with their manifests (ADR-112)
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/check_requirements_lock.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/check_requirements_lock.py
+        platforms: [linux, darwin]
+
+  test:markers:
+    # Runs from apps/api like the CI step: the script resolves the allowlist
+    # relative to the working directory (`tests/marker_coverage_allowlist.json`).
+    desc: Marker-coverage gate (F006) — no test may run in zero CI jobs
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python ../../scripts/audit/check_test_marker_coverage.py
+        platforms: [windows]
+      - cmd: .venv/bin/python ../../scripts/audit/check_test_marker_coverage.py
+        platforms: [linux, darwin]
+
+  test:frontend:coverage:
+    desc: Frontend tests WITH the per-file coverage thresholds CI enforces
+    dir: "{{.WEB_DIR}}"
+    # This Taskfile declares `dotenv: - .env` GLOBALLY, so every task inherits
+    # the developer's environment — including NEXT_PUBLIC_API_URL. The CI runner
+    # has no such file, and the difference is not cosmetic: measured 2026-07-25,
+    # `voice-input-service.ts` drops from passing to 80% branch coverage against
+    # an 83% floor purely because that variable is set, because the code reads
+    # `process.env.NEXT_PUBLIC_API_URL || ''` and the empty branch stops being
+    # exercised. Blanking it reproduces the CI environment exactly (empty and
+    # absent are equivalent to the code, and to the coverage counter).
+    env:
+      NEXT_PUBLIC_API_URL: ""
+    cmds:
+      - pnpm test:coverage
+
+  test:e2e:
+    desc: Playwright E2E + axe accessibility journeys (hermetic, mocked API)
+    dir: "{{.WEB_DIR}}/e2e"
+    # These are not CI-specific knobs, they are how the suite runs at all:
+    # Playwright builds the app and serves the standalone output itself
+    # (`next start` does not work with output: standalone), binds IPv4 because
+    # the standalone server is IPv4-only, and keeps API URLs relative so browser
+    # traffic stays same-origin and interceptable. Declared here so a local run
+    # and the CI job behave identically.
+    env:
+      E2E_MANAGED_SERVER: "1"
+      E2E_BASE_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_API_URL: ""
+    cmds:
+      - npm run typecheck
+      - npx playwright test
+
+  test:alerts:
+    # promtool is not installed locally; the CI job pins v2.53.2 and so does
+    # this, through the image, so a rule that passes here passes there.
+    desc: promtool validation of the live Prometheus rules + alert unit tests (F025)
+    cmds:
+      - cmd: docker run --rm -v "{{.ROOT_DIR}}/infrastructure/observability/prometheus:/cfg"
+          --entrypoint promtool prom/prometheus:v2.53.2
+          check rules /cfg/recording_rules.yml /cfg/alerts-core.yml
+      - cmd: docker run --rm -v "{{.ROOT_DIR}}/infrastructure/observability/prometheus:/cfg"
+          --entrypoint promtool prom/prometheus:v2.53.2
+          test rules /cfg/tests/alerts_core_test.yml
 
   lint:i18n:
     desc: Validate frontend i18n key parity across all 6 languages (en reference)
@@ -178,9 +263,11 @@ tasks:
   lint:docs:
     desc: Audit documentation drift (broken links; ADR→ADR escalated to failing — F024)
     cmds:
-      - cmd: apps/api/.venv/Scripts/python scripts/audit/doc_audit.py
+      # --fail-on-stale mirrors the CI step: without it the local task was the
+      # more permissive of the two, which is the wrong direction for a gate.
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/doc_audit.py --fail-on-stale
         platforms: [windows]
-      - cmd: apps/api/.venv/bin/python scripts/audit/doc_audit.py
+      - cmd: apps/api/.venv/bin/python scripts/audit/doc_audit.py --fail-on-stale
         platforms: [linux, darwin]
 
   lint:mypy-debt:
@@ -233,10 +320,16 @@ tasks:
         platforms: [linux, darwin]
 
   lint:frontend:
-    desc: Lint frontend code
+    # Mirrors the CI job `lint-frontend` step for step. The three ratchets were
+    # CI-only until 2026-07-25, which is how a one-line a11y fix redded the
+    # complexity ratchet one commit after passing every local gate.
+    desc: Lint frontend code (eslint + tsc + a11y/react-hooks/complexity ratchets)
     dir: "{{.WEB_DIR}}"
     cmds:
       - pnpm lint
+      - pnpm a11y:ratchet
+      - pnpm react-hooks:ratchet
+      - pnpm cc:ratchet
       - pnpm type-check
 
   format:
@@ -316,9 +409,18 @@ tasks:
         platforms: [windows]
       - cmd: .venv/bin/python scripts/integration_preflight.py
         platforms: [linux, darwin]
-      - cmd: LIA_REQUIRE_DB=1 .venv/Scripts/pytest tests/integration/ -v --no-cov -m "not e2e and not benchmark and not multiprocess"
+      - cmd: LIA_REQUIRE_DB=1 .venv/Scripts/pytest tests/integration/ -v --tb=short --no-cov -m "not e2e and not benchmark and not multiprocess"
         platforms: [windows]
-      - cmd: LIA_REQUIRE_DB=1 .venv/bin/pytest tests/integration/ -v --no-cov -m "not e2e and not benchmark and not multiprocess"
+      - cmd: LIA_REQUIRE_DB=1 .venv/bin/pytest tests/integration/ -v --tb=short --no-cov -m "not e2e and not benchmark and not multiprocess"
+        platforms: [linux, darwin]
+      # F006: integration-marked tests that physically live under tests/unit or
+      # tests/agents (functional DB/Redis tests co-located with unit ones) run in
+      # NO other job. This services-equipped run is their deterministic home, and
+      # the marker-coverage guard mirrors exactly this collection. Missing here
+      # until 2026-07-25, which made the local task quietly narrower than CI.
+      - cmd: LIA_REQUIRE_DB=1 .venv/Scripts/pytest tests/unit/ tests/agents/ -v --tb=short --no-cov -m "integration and not e2e and not benchmark and not multiprocess"
+        platforms: [windows]
+      - cmd: LIA_REQUIRE_DB=1 .venv/bin/pytest tests/unit/ tests/agents/ -v --tb=short --no-cov -m "integration and not e2e and not benchmark and not multiprocess"
         platforms: [linux, darwin]
       # F006: integration-marked tests co-located under tests/unit / tests/agents
       # run in this services-equipped job (they'd otherwise run in no job) —
@@ -348,6 +450,19 @@ tasks:
       - cmd: .venv/bin/pytest tests/ -v -m "integration or slow or e2e or benchmark or multiprocess" --tb=short
         platforms: [linux, darwin]
 
+  test:backend:unit:coverage:
+    # The CI command, verbatim — including the 60% floor. `test:backend:unit:fast`
+    # trades coverage for xdist parallelism because the pre-commit hook has a
+    # 5-minute budget; that makes it the right gate for a commit and the wrong
+    # one for reproducing CI, which is what this task is for.
+    desc: Backend unit tests with coverage and the CI floor (mirrors the CI job step)
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=60
+        platforms: [windows]
+      - cmd: .venv/bin/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=60
+        platforms: [linux, darwin]
+
   test:backend:agents:
     desc: Run agent-specific tests only (mirrors the CI "Run agents tests" job)
     dir: "{{.API_DIR}}"
@@ -364,6 +479,10 @@ tasks:
   test:frontend:
     desc: Run frontend tests
     dir: "{{.WEB_DIR}}"
+    # Same environment neutralisation as test:frontend:coverage below — a test
+    # that behaves differently under `task` than under `pnpm` is a trap.
+    env:
+      NEXT_PUBLIC_API_URL: ""
     cmds:
       - pnpm test
 
@@ -1222,20 +1341,32 @@ tasks:
   # CI/CD Helpers
   # ============================================================================
 
-  ci:
-    desc: Run CI pipeline locally (lint + fast tests + agents + integration + security)
+  ci:fast:
+    # Everything CI checks that needs NO external service. This is the gate to
+    # run before a push: the pre-commit hook is deliberately ~5 min and skips
+    # the ratchets, the deploy tests, the marker gate and the frontend coverage
+    # thresholds — every one of which has redded a build after a green local run.
+    desc: CI gates that need no service (~8 min) — run this before pushing
     cmds:
       - task: lint
-      - task: test:backend:unit:fast
-      # Agents suite (tests/agents) — wired into CI 2026-07 after the audit
-      # found it had silently rotted for months (83 failures) because no gate
-      # ever ran it. Not in pre-commit (~1min) to keep commits fast.
+      - task: test:backend:unit:coverage
+      - task: test:markers
+      - task: test:frontend:coverage
+      - task: test:deploy
+
+  ci:
+    # ci:fast plus everything requiring PostgreSQL, Redis, Docker or a browser.
+    # Deliberately NOT reproduced here: the Docker image builds, the Python 3.13
+    # compatibility run and the gitleaks scan — all three are declared CI-only
+    # in scripts/audit/check_ci_parity.py with their reason.
+    desc: Full local CI (needs PostgreSQL + Redis + Docker; set TEST_DATABASE_URL to a DISPOSABLE db)
+    cmds:
+      - task: ci:fast
       - task: test:backend:agents
-      # Integration suite (tests/integration) — mirrors the CI job
-      # test-backend-integration (requires PostgreSQL + Redis running; set
-      # TEST_DATABASE_URL to a DISPOSABLE database, e.g. lia_test).
       - task: test:backend:integration
-      - task: test:frontend
+      - task: db:migrate:replay-check
+      - task: test:alerts
+      - task: test:e2e
       - task: security:scan
 
   pre-commit:

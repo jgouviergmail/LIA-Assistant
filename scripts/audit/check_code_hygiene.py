@@ -1,0 +1,289 @@
+#!/usr/bin/env python3
+"""Code-hygiene checks — one implementation, runnable locally and in CI.
+
+These checks used to live as inline bash inside `.github/workflows/ci.yml`,
+which made them impossible to run before pushing: a developer could satisfy
+every local gate and still red the build on a `.bak` file or a second Alembic
+head. Porting them here makes `task lint:hygiene` and the CI job execute the
+*same* code — the CI step becomes a call, not a second implementation.
+
+Python rather than bash on purpose: the development machine is Windows and the
+runner is Linux, so a bash-only check is a check that only one of the two can
+run. Everything below is plain stdlib and platform-agnostic.
+
+Severity follows the original CI wiring exactly — three checks are advisory and
+do not fail the build. Promoting one is a deliberate decision, not a side effect
+of this port.
+
+Usage:
+    python scripts/audit/check_code_hygiene.py            # all checks
+    python scripts/audit/check_code_hygiene.py --list     # names only
+    python scripts/audit/check_code_hygiene.py --only bak_files
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+API_SRC = REPO_ROOT / "apps" / "api" / "src"
+
+# GitHub Actions renders `::error::`/`::warning::` as annotations; locally they
+# would just be noise. Selected by an explicit `--github` flag rather than by
+# reading GITHUB_ACTIONS: the pre-commit hook scans committed code for env-var
+# references and requires each one to appear in .env.example, and a CI runner
+# variable has no business being documented as LIA configuration.
+_annotate = False
+
+
+@dataclass
+class CheckResult:
+    """Outcome of a single hygiene check.
+
+    Attributes:
+        name: Stable identifier, usable with ``--only``.
+        title: Human-readable description.
+        failed: True when the check found something.
+        fatal: True when a finding must fail the build.
+        details: Offending lines, shown under the title.
+    """
+
+    name: str
+    title: str
+    failed: bool = False
+    fatal: bool = True
+    details: list[str] = field(default_factory=list)
+
+
+def _iter_python_sources(root: Path) -> list[Path]:
+    """Every Python file under a root, skipping caches and virtualenvs.
+
+    Args:
+        root: Directory to walk.
+
+    Returns:
+        Sorted list of Python files.
+    """
+    skip = {"__pycache__", ".venv", "node_modules", ".git"}
+    return sorted(
+        p
+        for p in root.rglob("*.py")
+        if not any(part in skip for part in p.parts)
+    )
+
+
+def check_bak_files() -> CheckResult:
+    """No editor/backup leftovers committed to the tree."""
+    result = CheckResult("bak_files", "Backup files (.bak) in the repository")
+    skip = {".git", "node_modules", ".venv", ".next"}
+    for path in REPO_ROOT.rglob("*.bak"):
+        if any(part in skip for part in path.parts):
+            continue
+        result.details.append(str(path.relative_to(REPO_ROOT)))
+    result.failed = bool(result.details)
+    return result
+
+
+def check_sync_store_calls() -> CheckResult:
+    """LangGraph store calls on an async path must use the async API.
+
+    `runtime.store.put/get/delete/search` are the synchronous variants; on an
+    async path they block the event loop, SSE included. The async spellings are
+    `aput`/`aget`/`adelete`/`asearch`.
+    """
+    result = CheckResult("sync_store", "Synchronous Store calls in async context")
+    pattern = re.compile(r"runtime\.store\.(put|get|delete|search)\(")
+    for path in _iter_python_sources(API_SRC):
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if pattern.search(line) and "await " not in line:
+                rel = path.relative_to(REPO_ROOT)
+                result.details.append(f"{rel}:{lineno}: {line.strip()}")
+    result.failed = bool(result.details)
+    return result
+
+
+def check_redis_setex_serialization() -> CheckResult:
+    """`setex` should store serialized values, not raw Python objects."""
+    result = CheckResult(
+        "redis_setex",
+        "Redis setex() without json.dumps()",
+        fatal=False,
+    )
+    for path in _iter_python_sources(API_SRC):
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if ".setex(" in line and "json.dumps(" not in line:
+                rel = path.relative_to(REPO_ROOT)
+                result.details.append(f"{rel}:{lineno}: {line.strip()}")
+    result.failed = bool(result.details)
+    return result
+
+
+def check_raw_http_exception() -> CheckResult:
+    """Backend errors go through the centralized taxonomy (rule #18, ADR-124).
+
+    Advisory for now, exactly as the CI step was: the tree reached zero sites,
+    and the warning absorbs in-flight branches. Promoting it to fatal is a
+    one-line change here — and a deliberate decision, not a side effect.
+    """
+    result = CheckResult(
+        "raw_http_exception",
+        "Raw 'raise HTTPException' (use src/core/exceptions.py)",
+        fatal=False,
+    )
+    for path in _iter_python_sources(API_SRC):
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if "raise HTTPException" in line:
+                rel = path.relative_to(REPO_ROOT)
+                result.details.append(f"{rel}:{lineno}: {line.strip()}")
+    result.failed = bool(result.details)
+    return result
+
+
+def check_alembic_single_head() -> CheckResult:
+    """The migration chain must have exactly one head.
+
+    Two heads mean two branches of the chain were created in parallel; alembic
+    refuses to upgrade until they are merged, and the failure surfaces at deploy
+    time rather than at review time.
+    """
+    result = CheckResult("alembic_head", "Alembic migration heads")
+    versions = REPO_ROOT / "apps" / "api" / "alembic" / "versions"
+    if not versions.is_dir():
+        result.details.append(f"versions directory not found: {versions}")
+        result.failed = True
+        return result
+
+    rev_re = re.compile(r"^revision[^=]*=\s*[\"']([^\"']+)", re.MULTILINE)
+    down_re = re.compile(r"^down_revision[^=]*=\s*[\"']([^\"']+)", re.MULTILINE)
+
+    revisions: dict[str, str] = {}
+    parents: set[str] = set()
+    for path in sorted(versions.glob("*.py")):
+        content = path.read_text(encoding="utf-8")
+        if match := rev_re.search(content):
+            revisions[match.group(1)] = path.name
+        if match := down_re.search(content):
+            parents.add(match.group(1))
+
+    heads = [rev for rev in revisions if rev not in parents]
+    if len(heads) > 1:
+        result.failed = True
+        result.details = [f"{head} ({revisions[head]})" for head in sorted(heads)]
+    elif len(heads) == 1:
+        result.details = [f"single head: {heads[0]} ({revisions[heads[0]]})"]
+    else:
+        result.details = ["no revisions found"]
+    return result
+
+
+def check_env_example_completeness() -> CheckResult:
+    """Settings fields should be documented in `.env.example`.
+
+    Advisory, as in CI: the heuristic reads UPPER_CASE class attributes and
+    `env=` aliases out of the config modules, which over-reports on purpose
+    rather than hiding a genuinely undocumented variable.
+    """
+    result = CheckResult(
+        "env_example",
+        "Config variables missing from .env.example",
+        fatal=False,
+    )
+    env_example = (REPO_ROOT / ".env.example").read_text(encoding="utf-8")
+    documented = set(re.findall(r"^([A-Z][A-Z_0-9]+)=", env_example, re.MULTILINE))
+
+    referenced: set[str] = set()
+    config_dir = API_SRC / "core" / "config"
+    for path in config_dir.glob("*.py"):
+        content = path.read_text(encoding="utf-8")
+        referenced |= set(re.findall(r"env=[\"']([A-Z][A-Z_0-9]+)[\"']", content))
+        referenced |= set(re.findall(r"^    ([A-Z][A-Z_0-9]+):", content, re.MULTILINE))
+
+    missing = sorted(
+        name
+        for name in referenced - documented
+        if len(name) > 2 and not name.startswith("MODEL_")
+    )
+    result.failed = bool(missing)
+    result.details = missing
+    return result
+
+
+CHECKS = (
+    check_bak_files,
+    check_sync_store_calls,
+    check_redis_setex_serialization,
+    check_raw_http_exception,
+    check_alembic_single_head,
+    check_env_example_completeness,
+)
+
+
+def _emit(result: CheckResult) -> None:
+    """Print one check's outcome, annotated when running in GitHub Actions."""
+    if not result.failed:
+        # ASCII only: this runs on a Windows console whose default code page
+        # mangles typographic dashes, and an audit tool that prints mojibake
+        # invites people to stop reading its output.
+        detail = f" - {result.details[0]}" if result.details else ""
+        print(f"  OK   {result.title}{detail}")
+        return
+
+    level = "error" if result.fatal else "warning"
+    prefix = f"::{level}::" if _annotate else f"[{level.upper()}] "
+    print(f"{prefix}{result.title} ({len(result.details)}):")
+    for line in result.details:
+        print(f"    {line}")
+
+
+def main() -> int:
+    """Run the hygiene checks.
+
+    Returns:
+        1 when a fatal check found something, 0 otherwise.
+    """
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--only", help="run a single check by name")
+    parser.add_argument(
+        "--github",
+        action="store_true",
+        help="emit ::error::/::warning:: workflow annotations",
+    )
+    parser.add_argument("--list", action="store_true", help="list check names")
+    args = parser.parse_args()
+
+    global _annotate
+    _annotate = args.github
+
+    if args.list:
+        for check in CHECKS:
+            print(check().name)
+        return 0
+
+    selected = list(CHECKS)
+    if args.only:
+        selected = [c for c in CHECKS if c().name == args.only]
+        if not selected:
+            print(f"unknown check: {args.only}", file=sys.stderr)
+            return 2
+
+    print("Code hygiene checks")
+    failures = 0
+    for check in selected:
+        result = check()
+        _emit(result)
+        if result.failed and result.fatal:
+            failures += 1
+
+    if failures:
+        print(f"\n{failures} fatal check(s) failed.")
+        return 1
+    print("\nAll hygiene checks passed.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
