@@ -8,6 +8,9 @@
  *  - the three refusal paths are **distinguishable** — unsupported browser,
  *    Firebase not configured, permission denied — because they call for three
  *    different things to tell the user, and none of them must register a token;
+ *  - every outcome is carried by the RETURN VALUE, not by state the caller
+ *    would have to re-read after an await (that read is stale by construction
+ *    in React — it cost an unreadable production error on 2026-07-24);
  *  - a refresh failure is deliberately **silent**: the device list is a
  *    convenience, losing it must not raise an error banner over the settings;
  *  - `isLoading` is released on every path, including the failing ones — a
@@ -34,7 +37,7 @@ const firebase = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/firebase', () => firebase);
 
-import { useFCMToken, type RegisteredToken } from '../useFCMToken';
+import { useFCMToken, type EnrollmentResult, type RegisteredToken } from '../useFCMToken';
 
 function registered(over: Partial<RegisteredToken> = {}): RegisteredToken {
   return {
@@ -115,12 +118,12 @@ describe('useFCMToken — enrolling', () => {
     firebase.getDeviceType.mockReturnValue('android');
     const { result } = await setup();
 
-    let token: string | null = null;
+    let outcome: EnrollmentResult | null = null;
     await act(async () => {
-      token = await result.current.requestPermission();
+      outcome = await result.current.requestPermission();
     });
 
-    expect(token).toBe('fcm-token-abc');
+    expect(outcome).toEqual({ status: 'enrolled', token: 'fcm-token-abc' });
     expect(api.post).toHaveBeenCalledWith(
       '/notifications/register-token',
       expect.objectContaining({ token: 'fcm-token-abc', device_type: 'android' })
@@ -146,12 +149,13 @@ describe('useFCMToken — enrolling', () => {
     firebase.getNotificationPermission.mockReturnValueOnce('default').mockReturnValue('denied');
     const { result } = await setup();
 
-    let token: string | null = 'x';
+    let outcome: EnrollmentResult | null = null;
     await act(async () => {
-      token = await result.current.requestPermission();
+      outcome = await result.current.requestPermission();
     });
 
-    expect(token).toBeNull();
+    // A refusal is not a failure: no error to report, nothing to fix.
+    expect(outcome).toEqual({ status: 'denied' });
     expect(api.post).not.toHaveBeenCalled();
     expect(result.current.permissionStatus).toBe('denied');
     expect(result.current.error).toBeNull();
@@ -164,12 +168,12 @@ describe('useFCMToken — enrolling', () => {
     firebase[flag].mockReturnValue(false);
     const { result } = await setup();
 
-    let token: string | null = 'x';
+    let outcome: EnrollmentResult | null = null;
     await act(async () => {
-      token = await result.current.requestPermission();
+      outcome = await result.current.requestPermission();
     });
 
-    expect(token).toBeNull();
+    expect(outcome).toEqual({ status: 'failed', error: expect.stringMatching(message) });
     expect(firebase.requestNotificationPermission).not.toHaveBeenCalled();
     expect(result.current.error).toMatch(message);
   });
@@ -179,12 +183,14 @@ describe('useFCMToken — enrolling', () => {
     api.post.mockRejectedValue(new Error('backend refused the token'));
     const { result } = await setup();
 
-    let token: string | null = 'x';
+    let outcome: EnrollmentResult | null = null;
     await act(async () => {
-      token = await result.current.requestPermission();
+      outcome = await result.current.requestPermission();
     });
 
-    expect(token).toBeNull();
+    // The cause travels with the result — the caller must not have to re-read
+    // `error` after the await to know what went wrong.
+    expect(outcome).toEqual({ status: 'failed', error: 'backend refused the token' });
     expect(result.current.error).toBe('backend refused the token');
     // A button left spinning is a dead end for the user.
     expect(result.current.isLoading).toBe(false);

@@ -522,6 +522,50 @@ Describe "deploy-prod.ps1 SOPS encryption (shimmed)" {
 # real use (seen live: 3-positional-argument Join-Path — -AdditionalChildPath
 # does not exist in 5.1 — broke step 8 of a prod deploy). Guard statically.
 # ============================================================================
+Describe "deploy hardens every secret it ships (SEC-013, static)" {
+    It "hardens the Firebase service-account key" {
+        # Found at 0775 in production on 2026-07-24 while .env was correctly 0600:
+        # the hardening step listed .env and the Claude credentials but not this
+        # file. It is a Google service-account PRIVATE KEY, bind-mounted into the
+        # API container — so any process there, including a skill script, could
+        # read it. The 0700 parent only protects it from other HOST users.
+        $src = Get-Content (Join-Path $RepoDeployDir "deploy-prod.ps1") -Raw
+        $src | Should -Match 'apps/api/config' `
+            -Because "the Firebase key directory must be hardened like the other secrets"
+        $src | Should -Match "chmod 600 \{\}|chmod 600 .*\.json" `
+            -Because "the service-account key must end up owner-readable only"
+    }
+}
+
+Describe "deploy scripts SSH host authenticity (SEC-014, static)" {
+    It "never disables host key checking" {
+        # `StrictHostKeyChecking=no` accepted ANY host key on every run. This
+        # flow ships the sources and the production .env, then runs deploy.sh
+        # remotely: a spoofed host (DNS/ARP) would receive the secrets and could
+        # return arbitrary output. `accept-new` pins on first contact and fails
+        # when the key changes.
+        $scripts = Get-ChildItem $RepoDeployDir -Filter *.ps1 |
+            Where-Object Name -notlike "*.Tests.ps1"
+        foreach ($script in $scripts) {
+            $src = Get-Content $script.FullName -Raw
+            $src | Should -Not -Match 'StrictHostKeyChecking\s*=\s*no' `
+                -Because "$($script.Name) must not disable SSH host authenticity"
+        }
+    }
+
+    It "never throws the pinned host key away" {
+        # `UserKnownHostsFile=/dev/null` discarded the pin after each run, so a
+        # substituted host was undetectable even on the second deployment.
+        $scripts = Get-ChildItem $RepoDeployDir -Filter *.ps1 |
+            Where-Object Name -notlike "*.Tests.ps1"
+        foreach ($script in $scripts) {
+            $src = Get-Content $script.FullName -Raw
+            $src | Should -Not -Match 'UserKnownHostsFile\s*=\s*/dev/null' `
+                -Because "$($script.Name) must keep a persistent known_hosts"
+        }
+    }
+}
+
 Describe "deploy scripts Windows PowerShell 5.1 compatibility (static)" {
     It "uses no 3-positional-argument Join-Path (PS6+-only -AdditionalChildPath)" {
         $scripts = Get-ChildItem $RepoDeployDir -Filter *.ps1 |

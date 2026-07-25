@@ -15,7 +15,7 @@ Reference: docs/technical/CHANNELS_INTEGRATION.md
 
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
@@ -28,6 +28,10 @@ from src.core.constants import (
     CHANNEL_RATE_LIMIT_PER_USER_PER_MINUTE_DEFAULT,
     TELEGRAM_MESSAGE_MAX_LENGTH_DEFAULT,
 )
+
+# Placeholder prefix shipped in the .env templates. Same convention as the LLM
+# provider adapter, which skips keys starting with it.
+_PLACEHOLDER_SECRET_PREFIX = "CHANGE_ME"
 
 
 class ChannelsSettings(BaseSettings):
@@ -80,6 +84,41 @@ class ChannelsSettings(BaseSettings):
             "but is no longer read by the application."
         ),
     )
+
+    @model_validator(mode="after")
+    def _webhook_mode_requires_a_real_secret(self) -> ChannelsSettings:
+        """Refuse to boot in webhook mode without a usable webhook secret (SEC-024).
+
+        ``telegram_webhook_url`` set means Telegram POSTs updates to us; the
+        ``X-Telegram-Bot-Api-Secret-Token`` header is then the ONLY thing
+        distinguishing Telegram from anyone else who found the public URL. The
+        handler now refuses requests when no secret is configured, so a missing
+        secret would not be a security hole — it would be a silent outage, every
+        update dropped with the channel appearing simply "quiet". Failing at
+        startup surfaces it immediately.
+
+        Only presence and non-placeholder values are enforced. Length is
+        deliberately NOT a boot condition: an existing deployment may carry a
+        shorter secret, and refusing to start would turn a hardening change into
+        downtime. Secret strength is an operational recommendation
+        (``openssl rand -hex 32``), documented in the .env templates.
+
+        Raises:
+            ValueError: When webhook mode is active without a real secret.
+        """
+        if not self.channels_enabled or not self.telegram_webhook_url:
+            return self
+
+        secret = (self.telegram_webhook_secret or "").strip()
+        if not secret or secret.startswith(_PLACEHOLDER_SECRET_PREFIX):
+            raise ValueError(
+                "TELEGRAM_WEBHOOK_SECRET must be set to a real value when "
+                "TELEGRAM_WEBHOOK_URL is configured (webhook mode): it is the only "
+                "authentication on a publicly reachable endpoint. Generate one with "
+                "`openssl rand -hex 32`, or unset TELEGRAM_WEBHOOK_URL to use long "
+                "polling."
+            )
+        return self
 
     telegram_message_max_length: int = Field(
         default=TELEGRAM_MESSAGE_MAX_LENGTH_DEFAULT,

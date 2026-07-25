@@ -127,13 +127,21 @@ class AttachmentService:
         """
         Upload and process a file attachment.
 
-        Flow:
-        1. Validate MIME type (magic bytes via filetype library)
-        2. Validate file size against configured limits
-        3. HEIC→JPEG conversion if needed (Pillow)
-        4. Stream write to disk (chunked, memory-safe)
-        5. Extract text from PDF (PyMuPDF)
-        6. Create DB record with status='ready'
+        Flow (in the order the code actually performs it):
+        1. Read the whole body into memory (``UploadFile.read()``)
+        2. Detect MIME type from the magic bytes (filetype library)
+        3. Validate the decoded size against the per-type limit
+        4. HEIC→JPEG conversion if needed (Pillow)
+        5. Write the buffer to disk, offloaded via ``asyncio.to_thread``
+        6. Extract text from PDF (PyMuPDF)
+        7. Create DB record with status='ready'
+
+        Memory note (SEC-031): the body is materialised in full at step 1, so
+        the size limit at step 3 rejects *after* the allocation rather than
+        before it, and step 5 writes one contiguous buffer instead of streaming
+        chunks. ``asyncio.to_thread`` keeps the event loop free (CA-4) but does
+        not bound the memory. The bounded pattern to follow when this is fixed
+        is ``rag_spaces/service.py`` (64 KB chunks with a running byte counter).
 
         Args:
             user_id: Owner user UUID.

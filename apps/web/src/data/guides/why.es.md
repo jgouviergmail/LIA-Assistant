@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versión** : 3.9
-**Fecha** : 2026-07-24
-**Aplicación** : LIA v1.25.19
+**Fecha** : 2026-07-25
+**Aplicación** : LIA v1.25.20
 **Licencia** : AGPL-3.0 (Open Source)
 
 ---
@@ -104,7 +104,7 @@ El objetivo de LIA no es convertirte en administrador de sistemas. Es ofrecerte 
 
 ## 3. Lo que LIA sabe hacer
 
-LIA actúa de forma concreta en tu vida digital gracias a 19+ agentes especializados que cubren el conjunto de necesidades cotidianas: gestión de tus datos personales (correos, calendario, contactos, tareas, archivos), acceso a información externa (búsqueda web, tiempo, lugares, rutas), creación de contenido (imágenes, diagramas), control de tu hogar conectado, navegación web autónoma y anticipación proactiva de tus necesidades.
+LIA actúa de forma concreta en tu vida digital gracias a 20+ agentes especializados que cubren el conjunto de necesidades cotidianas: gestión de tus datos personales (correos, calendario, contactos, tareas, archivos), acceso a información externa (búsqueda web, tiempo, lugares, rutas), creación de contenido (imágenes, diagramas), control de tu hogar conectado, navegación web autónoma y anticipación proactiva de tus necesidades.
 
 Tú eliges cómo razona LIA, mediante un simple toggle (⚡) en el encabezado del chat:
 
@@ -224,7 +224,7 @@ Con LIA, **todo se queda en tu PostgreSQL**: conversaciones, memoria, perfil psi
 
 ### 5.2. Incluso una Raspberry Pi es suficiente
 
-LIA funciona en producción sobre una **Raspberry Pi 5** — un ordenador de placa única de 80 euros. 19+ agentes especializados, una stack de observabilidad completa, un sistema de memoria psicológica, todo sobre un micro-servidor ARM. Las imágenes Docker multi-arquitectura (amd64/arm64) permiten el despliegue en cualquier hardware: NAS Synology, VPS a pocos euros al mes, servidor empresarial o cluster Kubernetes.
+LIA funciona en producción sobre una **Raspberry Pi 5** — un ordenador de placa única de 80 euros. 20+ agentes especializados, una stack de observabilidad completa, un sistema de memoria psicológica, todo sobre un micro-servidor ARM. Las imágenes Docker multi-arquitectura (amd64/arm64) permiten el despliegue en cualquier hardware: NAS Synology, VPS a pocos euros al mes, servidor empresarial o cluster Kubernetes.
 
 La soberanía digital ya no es un privilegio empresarial — es un derecho accesible para todos.
 
@@ -349,6 +349,14 @@ LIA no rechaza las acciones sensibles — te las **presenta** con el nivel de de
 ### 8.5. Tus respuestas no te necesitan
 
 Envía una pregunta, cierra la pestaña, vete. La generación continúa en el servidor, y la respuesta te espera en la conversación — o se reanuda en directo, exactamente donde estaba, si vuelves mientras aún se está escribiendo. Nada que hacer, nada que configurar: la continuidad es el comportamiento por defecto. Y cuando eres tú quien cambia de opinión, un botón de stop interrumpe la generación en un segundo — lo ya escrito permanece en pantalla, honestamente marcado como interrumpido. Un asistente fiable no es solo el que responde bien: es el que termina lo que empieza.
+
+### 8.6. Nada se ejecuta a tus espaldas
+
+Un asistente capaz de actuar es un asistente capaz de *equivocarse*. Dos reglas lo hacen aceptable.
+
+Primero, **nada toca tu servidor sin tu sí** — y la confirmación muestra todo lo que se va a enviar, incluidas las instrucciones que LIA se escribió a sí misma. Un resumen que no puedes leer entero no es una confirmación, es un trámite. El permiso se vuelve a comprobar en el momento en que arranca la acción, no solo cuando la pediste.
+
+Segundo, **lo que se ejecuta, se ejecuta en una caja sellada**. El código de una skill corre en un contenedor creado para esa única ejecución y destruido justo después: sin red, sin acceso a tus archivos, sin claves, sin forma de alcanzar la máquina que hay debajo. Si esa caja no puede construirse, el script sencillamente no corre — ningún repliegue silencioso a un modo más débil. Se instala una skill por lo que produce, no por la confianza que habría que dar a su autor.
 
 ---
 

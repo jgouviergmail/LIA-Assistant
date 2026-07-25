@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import time
 from typing import Annotated, Any
+from uuid import UUID
 
 import structlog
 from langchain.tools import ToolRuntime
@@ -17,9 +18,14 @@ from langchain_core.tools import InjectedToolArg
 
 from src.core.config import get_settings
 from src.core.constants import DEVOPS_AGENT_NAME
+from src.core.i18n_drafts import get_draft_error_message
+from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.services.devops_ssh_service import DevOpsService
 from src.domains.agents.tools.output import UnifiedToolOutput
-from src.domains.agents.tools.runtime_helpers import validate_runtime_config
+from src.domains.agents.tools.runtime_helpers import (
+    get_user_language_safe,
+    validate_runtime_config,
+)
 from src.domains.agents.tools.tool_registry import registered_tool
 from src.domains.agents.utils.rate_limiting import rate_limit
 from src.infrastructure.observability.decorators import track_tool_metrics
@@ -30,7 +36,21 @@ from src.infrastructure.observability.metrics_agents import (
 
 logger = structlog.get_logger(__name__)
 
-__all__ = ["claude_server_task_tool"]
+__all__ = ["claude_server_task_tool", "execute_devops_task_draft"]
+
+
+class DevOpsExecutionError(Exception):
+    """Raised by the draft executor to surface a localized, non-crashing failure.
+
+    The draft-executor framework catches this and renders ``str(self)`` as the
+    user-facing message, so the text MUST already be localized — no traceback
+    and no raw CLI output reach the user.
+    """
+
+
+def settings_default_language() -> str:
+    """Fallback language when a draft predates the ``user_language`` field."""
+    return str(get_settings().default_language)
 
 
 async def _check_user_is_admin(user_id: str) -> bool:
@@ -115,11 +135,14 @@ async def claude_server_task_tool(
     resume_session: Annotated[str, "Previous Claude session ID to resume"] = "",
     runtime: Annotated[ToolRuntime, InjectedToolArg] = None,  # type: ignore[assignment]
 ) -> UnifiedToolOutput:
-    """Execute a task on a remote server using Claude Code CLI.
+    """Prepare a task to run on a remote server via Claude Code CLI.
 
-    Claude CLI will autonomously inspect, diagnose, and report on the remote server.
-    Supports: log inspection, Docker container management, system health checks,
+    Claude CLI autonomously inspects, diagnoses and acts on the remote server:
+    log inspection, Docker container management, system health checks,
     deployment status, error diagnosis, and more.
+
+    The task is NOT run here. It returns a draft the user must confirm (FN-1);
+    execution happens in ``execute_devops_task_draft`` once approved.
 
     Args:
         task: What to do on the server (natural language).
@@ -129,9 +152,8 @@ async def claude_server_task_tool(
         runtime: LangChain tool runtime (injected).
 
     Returns:
-        UnifiedToolOutput with Claude CLI's response and session metadata.
+        UnifiedToolOutput carrying a DEVOPS_TASK draft awaiting confirmation.
     """
-    settings = get_settings()
     start_time = time.monotonic()
 
     # 1. Validate runtime & extract user_id
@@ -161,59 +183,132 @@ async def claude_server_task_tool(
             metadata={"available_servers": available},
         )
 
-    # 4. Extract side channel for streaming progress to frontend
-    configurable = (runtime.config.get("configurable") or {}) if runtime else {}
-    side_channel_queue = configurable.get("__side_channel_queue")
-    logger.debug(
-        "devops_side_channel_extraction",
-        has_runtime=runtime is not None,
-        has_configurable=bool(configurable),
-        has_queue=side_channel_queue is not None,
-        queue_type=type(side_channel_queue).__name__ if side_channel_queue else "None",
-    )
+    # 4. FN-1 — never execute here. Build a draft and let the user confirm.
+    #    Claude CLI runs unattended on the server with the full toolbox: a task
+    #    phrased as an inspection can restart a container, edit a file or push
+    #    a deployment. The confirmation is therefore unconditional — it does not
+    #    depend on an LLM judging the task "destructive", and it applies to the
+    #    resume path too (a follow-up turn drives the same CLI).
+    #    The draft is the ONLY mechanism that gates both execution modes: the
+    #    pipeline ignores `hitl_required` (its approval gate is a pass-through),
+    #    and in ReAct a draft-producing tool must keep `hitl_required=False` or
+    #    the user is asked twice.
+    # Imported here, not at module level: `drafts.service` imports
+    # `agents.tools.output`, which runs `agents/tools/__init__.py`, which
+    # conditionally imports THIS module — a module-level import closes that
+    # cycle and silently drops the whole DevOps tool family at boot (observed:
+    # `conditional_tool_import_failed`). `DraftType` stays at module level;
+    # `drafts.models` imports nothing from `agents.tools`.
+    from src.domains.agents.drafts.service import DraftService
 
-    # 5. Execute via local subprocess or SSH + Claude CLI
-    devops_service = DevOpsService()
-    result = await devops_service.execute_claude_task(
-        server_config=server_config,
-        task=task,
-        context=context or None,
-        resume_session=resume_session or None,
-        timeout=settings.devops_command_timeout,
-        max_output_chars=settings.devops_max_output_chars,
-        side_channel_queue=side_channel_queue,
-    )
-
-    duration_ms = int((time.monotonic() - start_time) * 1000)
-
-    # 6. Log execution for audit trail
+    user_language = await get_user_language_safe(runtime)
     logger.info(
-        "devops_task_executed",
+        "devops_task_draft_created",
         user_id=validated.user_id,
         server=server,
         task=task[:200],
+        resumed=bool(resume_session),
+        elapsed_ms=int((time.monotonic() - start_time) * 1000),
+    )
+    return DraftService().create_draft(
+        draft_type=DraftType.DEVOPS_TASK,
+        content={
+            "server": server,
+            "task": task,
+            "context": context,
+            "resume_session": resume_session,
+            "user_language": user_language,
+        },
+        source_tool="claude_server_task_tool",
+        user_language=user_language,
+    )
+
+
+async def execute_devops_task_draft(
+    draft_content: dict[str, Any],
+    user_id: UUID,
+    deps: object,
+) -> dict[str, Any]:
+    """Execute a confirmed DEVOPS_TASK draft: run the task on the server.
+
+    Registered in ``draft_executor._ensure_executors_registered()``.
+
+    The admin check is repeated here on purpose. It ran when the draft was
+    BUILT, and an arbitrary delay separates that from the confirmation — a
+    revoked superuser would otherwise still get their pending task executed,
+    and the HITL resume path can replay a decision. The check is one indexed
+    read against a privilege that must hold at the moment the server is
+    touched, not at the moment the request was phrased.
+
+    Progress is streamed exactly as before the confirmation step existed. The
+    executor contract passes no config, so the SSE queue is read from the
+    context set by the draft executor — without it, a 30 s+ task would run in
+    complete silence, which is the kind of regression a security control is not
+    allowed to cause.
+
+    Args:
+        draft_content: Draft content (server, task, context, resume_session).
+        user_id: User UUID — audit trail AND privilege re-check.
+        deps: ToolDependencies — unused, the service opens what it needs.
+
+    Returns:
+        Result dict with the CLI output, server and session id.
+
+    Raises:
+        DevOpsExecutionError: Privileges lost, unknown server, or Claude CLI
+            failure — rendered as a message, never a traceback.
+    """
+    from src.domains.agents.services.draft_executor import get_current_side_channel_queue
+
+    settings = get_settings()
+    start_time = time.monotonic()
+    server = str(draft_content.get("server", ""))
+
+    language = str(draft_content.get("user_language") or settings_default_language())
+
+    if not await _check_user_is_admin(str(user_id)):
+        logger.warning(
+            "devops_task_privileges_lost",
+            user_id=str(user_id),
+            server=server,
+            msg="admin rights revoked between draft creation and confirmation",
+        )
+        raise DevOpsExecutionError(get_draft_error_message(language))
+
+    server_config, server = _resolve_server(server)
+    if not server_config:
+        raise DevOpsExecutionError(get_draft_error_message(language))
+
+    result = await DevOpsService().execute_claude_task(
+        server_config=server_config,
+        task=str(draft_content.get("task", "")),
+        context=draft_content.get("context") or None,
+        resume_session=draft_content.get("resume_session") or None,
+        timeout=settings.devops_command_timeout,
+        max_output_chars=settings.devops_max_output_chars,
+        side_channel_queue=get_current_side_channel_queue(),
+    )
+
+    duration_ms = int((time.monotonic() - start_time) * 1000)
+    logger.info(
+        "devops_task_executed",
+        user_id=str(user_id),
+        server=server,
         success=result.success,
         duration_ms=duration_ms,
         session_id=result.session_id,
     )
 
     if not result.success:
-        return UnifiedToolOutput.failure(
-            message=f"Claude CLI execution failed on '{server}': {result.error}",
-            error_code="EXTERNAL_API_ERROR",
-            metadata={"server": server, "duration_ms": duration_ms},
-        )
+        # The CLI's own error text is kept in the log, not in the user message:
+        # it can quote paths, container names and server state.
+        logger.warning("devops_task_failed", server=server, error=str(result.error)[:500])
+        raise DevOpsExecutionError(get_draft_error_message(language))
 
-    # 7. Return result with session_id for potential follow-up
-    return UnifiedToolOutput.action_success(
-        message=result.output,
-        structured_data={
-            "server": server,
-            "session_id": result.session_id,
-        },
-        metadata={
-            "usage": result.usage,
-            "duration_ms": duration_ms,
-            "resumed": bool(resume_session),
-        },
-    )
+    return {
+        "success": True,
+        "output": result.output,
+        "server": server,
+        "session_id": result.session_id,
+        "duration_ms": duration_ms,
+    }

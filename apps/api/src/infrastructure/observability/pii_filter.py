@@ -121,6 +121,20 @@ _SENSITIVE_QUERY_PARAMS = (
     "sessionid",
     "jwt",
     "authorization",
+    # Geolocation. Not credentials, but PII the logging policy forbids at INFO
+    # ("no names, emails, GPS coordinates"). LIA builds static-map URLs carrying
+    # the user's exact position — `?lat=..&lng=..` for a location card,
+    # `?origin=48.85,2.35&dest=..` for a route — so a logged URL would pin the
+    # user on a map. The parameter name survives the redaction, which keeps the
+    # log readable for debugging.
+    "lat",
+    "lng",
+    "lon",
+    "latitude",
+    "longitude",
+    "origin",
+    "dest",
+    "destination",
 )
 
 # PII field names that should be pseudonymized (not fully redacted)
@@ -446,6 +460,13 @@ def sanitize_url_query(text: str) -> str:
         >>> sanitize_url_query("https://app/verify?token=abc123&lang=fr")
         'https://app/verify?token=[REDACTED]&lang=fr'
     """
+    # Fast path. Since FN-4 this runs on the `event` of EVERY log line, and the
+    # overwhelming majority are snake_case event names with no query string at
+    # all. The pattern can only match on a `?`/`&` boundary, so their absence
+    # means no match — the substring test is a cheap, exact pre-filter (both
+    # characters are checked: a truncated URL can start at `&param=`).
+    if "?" not in text and "&" not in text:
+        return text
     return _URL_QUERY_SECRET_PATTERN.sub(r"\1[REDACTED]", text)
 
 
@@ -516,8 +537,21 @@ def sanitize_dict(data: dict[str, Any], *, redact_content: bool = False) -> dict
         # Structlog metadata fields are developer-controlled identifiers — never
         # user data — so they MUST bypass sanitization to avoid false-positive
         # redactions on event names that resemble token patterns.
+        #
+        # `event` gets ONE narrow exception (FN-4): it is the only meta field
+        # that can carry free text rather than an identifier. A stdlib record
+        # routed into structlog puts the whole log MESSAGE here — an access line
+        # such as `GET /auth/google/callback?code=..&state=..` — and the full
+        # sanitizer is not an option (it is exactly what this bypass exists to
+        # prevent). `sanitize_url_query` is safe to apply because it only
+        # rewrites `?param=value` on a `?`/`&` boundary, a shape a snake_case
+        # event name cannot have.
         if key_lower in STRUCTLOG_META_FIELDS:
-            sanitized[key] = value
+            sanitized[key] = (
+                sanitize_url_query(value)
+                if key_lower == "event" and isinstance(value, str)
+                else value
+            )
             continue
 
         # Check if field name is sensitive (case-insensitive)

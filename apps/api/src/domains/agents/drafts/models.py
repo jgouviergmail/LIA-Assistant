@@ -66,6 +66,7 @@ class DraftType(str, Enum):
     REMINDER_DELETE = "reminder_delete"  # Reminder delete draft (cancel_reminder)
     PHONE_CALL = "phone_call"  # Outbound agentic phone-call draft (place_phone_call)
     SCHEDULED_ACTION = "scheduled_action"  # Recurring automation draft (ADR-140)
+    DEVOPS_TASK = "devops_task"  # Remote server task via Claude CLI (FN-1)
 
 
 class DraftStatus(str, Enum):
@@ -877,6 +878,14 @@ class Draft(BaseModel):
                 user_language,
                 name=self.content.get("callee_name", "?"),
                 objective=self.content.get("objective", "?"),
+            )
+
+        elif self.type == DraftType.DEVOPS_TASK:
+            return "<br/>" + get_draft_summary_label(
+                "devops_task",
+                user_language,
+                server=self.content.get("server", "?"),
+                task=self.content.get("task", "?"),
             )
 
         return f"Draft ({self.type.value})"

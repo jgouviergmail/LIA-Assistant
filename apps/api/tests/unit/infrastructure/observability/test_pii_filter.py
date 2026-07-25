@@ -25,6 +25,8 @@ Security-Critical Module:
 
 import hashlib
 
+import pytest
+
 from src.infrastructure.observability.pii_filter import (
     add_pii_filter,
     fingerprint_secret,
@@ -1005,3 +1007,161 @@ class TestSec012CredentialRedaction:
         # Correlation preserved.
         assert result["state"] == fingerprint_secret(self.OAUTH_STATE)
         assert result["provider"] == "google"
+
+
+class TestFreeTextEventUrlRedaction:
+    """FN-4 — the `event` field must not smuggle credentials out of the filter.
+
+    `event` sits in `STRUCTLOG_META_FIELDS`, which bypasses sanitisation on
+    purpose: an event NAME is a developer-controlled identifier, and running the
+    full sanitizer over it produced false-positive redactions
+    (`database_connection_pool_exhausted` matches the generic token regex).
+
+    That bypass is correct for identifiers and wrong for free text. `event` is
+    the only meta field that can hold either: a stdlib record routed into
+    structlog puts the whole log MESSAGE there — including an access line with
+    `?code=..&state=..`. So `event` gets exactly one narrow exception,
+    `sanitize_url_query`, which rewrites only `?param=value` on a `?`/`&`
+    boundary — a shape a snake_case event name cannot have.
+    """
+
+    OAUTH_CODE = "4/0AY0e-g7SENTINELCODE"
+    OAUTH_STATE = "Zx8QpLmv3NrTfKe1Ab9YsWc7Hd2Gj5Uo0Vi4Rt6Bn"
+
+    def test_oauth_callback_access_line_is_redacted(self):
+        """An access log carrying a callback URL loses code and state."""
+        event = {
+            "event": (
+                '127.0.0.1 - "GET /auth/google/callback'
+                f"?code={self.OAUTH_CODE}&state={self.OAUTH_STATE}"
+                ' HTTP/1.1" 302'
+            )
+        }
+
+        result = add_pii_filter(None, "info", event)
+
+        assert self.OAUTH_CODE not in result["event"]
+        assert self.OAUTH_STATE not in result["event"]
+        # The parameter names survive: the log still says which link was hit.
+        assert "code=[REDACTED]" in result["event"]
+        assert "state=[REDACTED]" in result["event"]
+
+    def test_redaction_applies_at_every_level(self):
+        """Credentials are stripped at DEBUG too — they are never "content"."""
+        event = {"event": f"GET /cb?code={self.OAUTH_CODE}"}
+
+        for method in ("debug", "info", "warning", "error", "critical"):
+            result = add_pii_filter(None, method, dict(event))
+            assert self.OAUTH_CODE not in result["event"], f"leaked at {method}"
+
+    @pytest.mark.parametrize(
+        "event_name",
+        [
+            "database_connection_pool_exhausted",
+            "langfuse_callbacks_added_via_config_enrichment",
+            "oauth_flow_initiated",
+            "mcp_oauth_token_exchange_http_error",
+            "telegram_webhook_rejected_no_secret",
+        ],
+    )
+    def test_event_names_are_left_untouched(self, event_name):
+        """The bypass still holds: identifiers are not rewritten.
+
+        This is the regression the meta-field exemption exists to prevent, so it
+        is asserted explicitly rather than assumed.
+        """
+        assert add_pii_filter(None, "info", {"event": event_name})["event"] == event_name
+
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "GET /api/v1/conversations?limit=50&offset=0 200",
+            "GET /api/v1/rag-spaces/3f2b?include=documents 200",
+            "Application startup complete.",
+            "Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)",
+        ],
+    )
+    def test_benign_messages_are_not_over_redacted(self, message):
+        """Non-sensitive query parameters and plain messages stay readable."""
+        assert add_pii_filter(None, "info", {"event": message})["event"] == message
+
+    def test_non_string_event_is_passed_through(self):
+        """A non-str `event` must not raise (stdlib allows arbitrary objects)."""
+        assert add_pii_filter(None, "info", {"event": 42})["event"] == 42
+
+    def test_other_meta_fields_keep_their_bypass(self):
+        """Only `event` gets the exception — the rest are untouched identifiers."""
+        event = {
+            "event": "x",
+            "logger": "src.domains.auth.service",
+            "level": "info",
+            "lineno": 42,
+            "filename": "service.py",
+        }
+
+        result = add_pii_filter(None, "info", dict(event))
+
+        assert result["logger"] == event["logger"]
+        assert result["level"] == event["level"]
+        assert result["lineno"] == 42
+        assert result["filename"] == "service.py"
+
+
+class TestGeolocationQueryRedaction:
+    """FN-4 — GPS coordinates in a logged URL are PII, not credentials.
+
+    The logging policy forbids GPS coordinates at INFO. LIA builds static-map
+    URLs carrying the user's exact position (`?lat=..&lng=..` for a location
+    card, `?origin=48.85,2.35&dest=..` for a route), so a logged URL would pin
+    the user on a map. `CONTENT_FIELD_NAMES` already covers these as log FIELD
+    names; this covers them as query PARAMETERS, which is the shape they take
+    inside a URL.
+    """
+
+    @pytest.mark.parametrize(
+        ("url", "secrets"),
+        [
+            (
+                "GET /api/v1/connectors/google-location/static-map?lat=48.8566&lng=2.3522 200",
+                ["48.8566", "2.3522"],
+            ),
+            (
+                "GET /connectors/google-routes/static-map"
+                "?polyline=abc&origin=48.85,2.35&dest=45.76,4.83 200",
+                ["48.85,2.35", "45.76,4.83"],
+            ),
+            (
+                "https://maps.example/api?latitude=48.8566&longitude=2.3522",
+                ["48.8566", "2.3522"],
+            ),
+        ],
+        ids=["lat-lng", "origin-dest", "latitude-longitude"],
+    )
+    def test_coordinates_are_stripped_from_urls(self, url, secrets):
+        """No coordinate survives in a logged URL."""
+        result = add_pii_filter(None, "info", {"event": url})["event"]
+
+        for secret in secrets:
+            assert secret not in result, f"{secret} leaked: {result}"
+
+    def test_non_coordinate_parameters_survive(self):
+        """The redaction is scoped: the rest of the URL stays diagnosable."""
+        result = add_pii_filter(
+            None,
+            "info",
+            {"event": "GET /connectors/google-routes/static-map?polyline=abc123&origin=48.85,2.35"},
+        )["event"]
+
+        assert "polyline=abc123" in result
+        assert "origin=[REDACTED]" in result
+
+    def test_coordinates_in_a_dedicated_url_field_are_stripped_too(self):
+        """The same net applies to a URL carried in a normal log field."""
+        result = add_pii_filter(
+            None,
+            "debug",
+            {"event": "static_map_requested", "map_url": "/static-map?lat=48.8566&lng=2.3522"},
+        )
+
+        assert "48.8566" not in str(result)
+        assert "2.3522" not in str(result)

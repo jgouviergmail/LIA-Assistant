@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versione** : 3.9
-**Data** : 2026-07-24
-**Applicazione** : LIA v1.25.19
+**Data** : 2026-07-25
+**Applicazione** : LIA v1.25.20
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -104,7 +104,7 @@ L'obiettivo di LIA non è trasformarti in un amministratore di sistema. È offri
 
 ## 3. Cosa sa fare LIA
 
-LIA agisce concretamente nella tua vita digitale grazie a 19+ agenti specializzati che coprono tutte le esigenze di tutti i giorni: gestione dei tuoi dati personali (email, calendario, contatti, attività, file), accesso alle informazioni esterne (ricerca web, meteo, luoghi, itinerari), creazione di contenuti (immagini, diagrammi), controllo della casa connessa, navigazione web autonoma, e anticipazione proattiva dei tuoi bisogni.
+LIA agisce concretamente nella tua vita digitale grazie a 20+ agenti specializzati che coprono tutte le esigenze di tutti i giorni: gestione dei tuoi dati personali (email, calendario, contatti, attività, file), accesso alle informazioni esterne (ricerca web, meteo, luoghi, itinerari), creazione di contenuti (immagini, diagrammi), controllo della casa connessa, navigazione web autonoma, e anticipazione proattiva dei tuoi bisogni.
 
 Scegli tu come ragiona LIA, tramite un semplice toggle (⚡) nell'intestazione della chat:
 
@@ -224,7 +224,7 @@ Con LIA, **tutto rimane nel tuo PostgreSQL**: conversazioni, memoria, profilo ps
 
 ### 5.2. Basta anche un Raspberry Pi
 
-LIA gira in produzione su un **Raspberry Pi 5** — un computer a scheda singola da 80 euro. 19+ agenti specializzati, uno stack di osservabilità completo, un sistema di memoria psicologica, il tutto su un micro-server ARM. Le immagini Docker multi-architettura (amd64/arm64) permettono il deployment su qualsiasi hardware: NAS Synology, VPS a pochi euro al mese, server aziendale, o cluster Kubernetes.
+LIA gira in produzione su un **Raspberry Pi 5** — un computer a scheda singola da 80 euro. 20+ agenti specializzati, uno stack di osservabilità completo, un sistema di memoria psicologica, il tutto su un micro-server ARM. Le immagini Docker multi-architettura (amd64/arm64) permettono il deployment su qualsiasi hardware: NAS Synology, VPS a pochi euro al mese, server aziendale, o cluster Kubernetes.
 
 La sovranità digitale non è più un privilegio per le aziende — è un diritto accessibile a tutti.
 
@@ -349,6 +349,14 @@ LIA non rifiuta le azioni sensibili — te le **sottopone** con il livello di de
 ### 8.5. Le tue risposte non hanno bisogno di te
 
 Invia una domanda, chiudi la scheda, vai via. La generazione continua sul server, e la risposta ti aspetta nella conversazione — oppure riprende in diretta, esattamente dove era rimasta, se torni mentre è ancora in scrittura. Niente da fare, niente da configurare: la continuità è il comportamento predefinito. E quando sei tu a cambiare idea, un pulsante di stop interrompe la generazione in un secondo — ciò che è già scritto resta visibile, onestamente contrassegnato come interrotto. Un assistente affidabile non è solo quello che risponde bene: è quello che finisce ciò che inizia.
+
+### 8.6. Nulla gira alle tue spalle
+
+Un assistente capace di agire è un assistente capace di *sbagliare*. Due regole lo rendono accettabile.
+
+Primo, **nulla tocca il tuo server senza il tuo sì** — e la conferma mostra tutto ciò che verrà inviato, comprese le istruzioni che LIA ha scritto per sé stessa. Un riepilogo che non puoi leggere per intero non è una conferma, è una formalità. Il permesso viene verificato di nuovo nel momento in cui l'azione parte, non solo quando l'hai chiesta.
+
+Secondo, **ciò che gira, gira in una scatola sigillata**. Il codice di una skill viene eseguito in un container creato per quella singola esecuzione e distrutto subito dopo: niente rete, niente accesso ai tuoi file, niente chiavi, nessun modo di raggiungere la macchina sottostante. Se quella scatola non può essere costruita, lo script semplicemente non gira — nessun ripiego silenzioso verso una modalità più debole. Una skill si installa per ciò che produce, non per la fiducia che si dovrebbe accordare al suo autore.
 
 ---
 

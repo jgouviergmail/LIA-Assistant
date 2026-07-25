@@ -7,6 +7,11 @@ prove the A1/A2 hardening did not regress legitimate skill execution.
 
 Uses a real on-disk skill (temp dir) via a patched ``SkillsCache`` so no DB
 is required.
+
+Every test here pins ``SKILLS_SCRIPT_SANDBOX=subprocess``: this module
+characterizes the in-process path specifically. The container path (SEC-001,
+the production default) is covered by ``test_executor_container_sandbox.py``,
+which must not depend on a reachable Docker daemon.
 """
 
 from __future__ import annotations
@@ -22,6 +27,19 @@ from unittest.mock import patch
 import pytest
 
 from src.domains.skills.executor import SkillScriptExecutor
+
+
+@pytest.fixture(autouse=True)
+def _force_subprocess_sandbox(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the in-process path for this module.
+
+    ``get_settings()`` is ``@lru_cache``d, so setting an environment variable
+    after the first call changes nothing — the cached instance is the only
+    thing ``execute()`` ever sees, and patching it is the only lever.
+    """
+    from src.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "skills_script_sandbox", "subprocess")
 
 
 @pytest.fixture

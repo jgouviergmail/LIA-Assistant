@@ -14,8 +14,14 @@ Each server entry supports:
   - working_directory: str — where Claude CLI runs (default "~/lia-workspace")
   - allowed_claude_tools: list[str] — Claude CLI --allowedTools
   - disallowed_claude_tools: list[str] — Claude CLI --disallowedTools (priority over allowed)
-  - max_turns: int — Claude CLI --max-turns (default 30)
   - description: str — server description for the LLM planner
+
+Not implemented: a ``max_turns`` entry is accepted by the JSON parser but is
+NEVER forwarded to the CLI — neither ``_build_claude_args`` nor the streaming
+variant emits ``--max-turns``, so the CLI applies its own internal default and
+setting this key bounds nothing. It is documented here as absent rather than
+silently ignored: an operator reading the previous version of this docstring
+could reasonably believe iterations were capped by configuration.
 """
 
 from __future__ import annotations

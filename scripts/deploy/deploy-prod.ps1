@@ -381,7 +381,13 @@ if (-not $DryRun) {
         # --partial = garde les fichiers partiellement transferes
         # --progress = affiche la progression
         # -e "ssh -p PORT" = utilise SSH sur port specifique
-        $rsyncSshOpts = "ssh -p $SshPort -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -o StrictHostKeyChecking=no"
+        # SEC-014: accept-new pins the host key on first contact and REFUSES a
+        # changed key afterwards. `no` accepted any key, every time — this flow
+        # ships source and .env to the host and then triggers the deployment, so
+        # an operator on a spoofed host/DNS could receive the secrets and return
+        # arbitrary output. `accept-new` keeps first-run bootstrap frictionless
+        # (no manual known_hosts seeding) while closing the substitution case.
+        $rsyncSshOpts = "ssh -p $SshPort -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -o StrictHostKeyChecking=accept-new"
         $rsyncDst = "${sshTarget}:$RemoteDir/"
 
         if ($rsyncMode -eq "wsl") {
@@ -413,11 +419,19 @@ if (-not $DryRun) {
             }
 
             # Construire les options SSH
-            # NOTE SECURITE: StrictHostKeyChecking=no desactive la verification de l'hote
-            # Acceptable pour deploiement reseau local vers Raspberry Pi connu
-            # En production cloud, utiliser StrictHostKeyChecking=accept-new et gerer known_hosts
+            # SEC-014: host authenticity used to be disabled outright, and the
+            # learned key was written to a throwaway file, so a substituted host
+            # went undetected even on the second deployment. This transfer
+            # carries the sources and the production .env, then runs deploy.sh
+            # remotely.
+            #
+            # `accept-new` + the default persistent known_hosts inside WSL keeps
+            # the first run frictionless (the key is learned and pinned) and
+            # fails loudly if the host key ever changes. Rotating the Pi's host
+            # key therefore requires removing its entry from ~/.ssh/known_hosts
+            # in WSL — that friction is the control.
             $sshKeyOpt = if ($wslKeyPath) { "-i $wslKeyPath" } else { "" }
-            $rsyncSshOpts = "ssh -p $SshPort $sshKeyOpt -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+            $rsyncSshOpts = "ssh -p $SshPort $sshKeyOpt -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -o StrictHostKeyChecking=accept-new"
 
             Write-Info "Chemin WSL: $rsyncSrc"
             Write-Info "Destination: $rsyncDst"
@@ -526,10 +540,16 @@ scp $SshOptionsStr -P $SshPort "$LocalCreds" ${SshUser}@${SshHost}:~/.claude/.cr
 # mounts; `docker compose` runs as the owner and traverses its own 0700 dir —
 # so 0600/0700 breaks nothing. Idempotent and non-fatal: a permission tweak
 # must never abort a deploy.
+#
+# The Firebase service-account key was missing from this list and was found at
+# 0775 in production on 2026-07-24 — a Google service-account private key
+# readable by every process of the API container, including a skill script.
+# The 0700 parent directory hides it from other host users, but the key is
+# bind-mounted into the container, so in-container modes are what protect it.
 Write-Step "Durcissement des permissions des secrets (SEC-013)..."
 
 if (-not $DryRun) {
-    $hardenCmd = "chmod 700 ~/$RemoteDir 2>/dev/null; [ -f ~/$RemoteDir/.env ] && chmod 600 ~/$RemoteDir/.env; [ -d ~/.claude ] && chmod 700 ~/.claude; [ -f ~/.claude/.credentials.json ] && chmod 600 ~/.claude/.credentials.json; echo PERMS_HARDENED"
+    $hardenCmd = "chmod 700 ~/$RemoteDir 2>/dev/null; [ -f ~/$RemoteDir/.env ] && chmod 600 ~/$RemoteDir/.env; [ -d ~/.claude ] && chmod 700 ~/.claude; [ -f ~/.claude/.credentials.json ] && chmod 600 ~/.claude/.credentials.json; [ -d ~/$RemoteDir/apps/api/config ] && chmod 700 ~/$RemoteDir/apps/api/config; find ~/$RemoteDir/apps/api/config -maxdepth 1 -type f -name '*.json' -exec chmod 600 {} + 2>/dev/null; echo PERMS_HARDENED"
     $hardenSsh = "ssh -p $SshPort $SshOptionsStr $sshTarget `"$hardenCmd`""
     $hardenResult = Invoke-WithRetry -Command $hardenSsh -OperationName "Harden secret permissions" -MaxAttempts 2
     if ($hardenResult -match "PERMS_HARDENED") {
@@ -538,7 +558,7 @@ if (-not $DryRun) {
         Write-Warning "Durcissement des permissions non confirme (deploiement poursuivi)"
     }
 } else {
-    Write-Info "[DRY RUN] ssh chmod 700 ~/$RemoteDir ; chmod 600 ~/$RemoteDir/.env ; chmod 700 ~/.claude ; chmod 600 ~/.claude/.credentials.json"
+    Write-Info "[DRY RUN] ssh chmod 700 ~/$RemoteDir ; chmod 600 ~/$RemoteDir/.env ; chmod 700 ~/.claude ; chmod 600 ~/.claude/.credentials.json ; chmod 700 apps/api/config ; chmod 600 apps/api/config/*.json"
 }
 
 # ============================================================================

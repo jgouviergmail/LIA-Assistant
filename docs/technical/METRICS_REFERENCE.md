@@ -1361,22 +1361,22 @@ topk(5,
 
 ```python
 # apps/api/src/domains/agents/utils/rate_limiting.py
-from slowapi import Limiter
+from src.domains.agents.utils.rate_limiting import rate_limit
 
-limiter = Limiter(key_func=get_user_id)
-
-@limiter.limit("10/minute", scope="user")
+@tool
+@track_tool_metrics(...)
+@rate_limit(
+    max_calls=lambda: settings.rate_limit_contacts_search_calls,
+    window_seconds=lambda: settings.rate_limit_contacts_search_window,
+    scope=RATE_LIMIT_SCOPE_USER,
+)
 async def search_contacts_tool(...):
-    try:
-        return await _search(...)
-    except RateLimitExceeded:
-        agent_tool_rate_limit_hits.labels(
-            tool_name="search_contacts_tool",
-            user_id_hash=hash(user_id),
-            scope="user"
-        ).inc()
-        raise
+    ...
 ```
+
+Le décorateur incrémente lui-même `agent_tool_rate_limit_hits_total` en
+dépassement et renvoie le payload `rate_limit_exceeded` **avant** l'appel
+externe — le tool n'a rien à instrumenter.
 
 **Query PromQL:**
 

@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.25.19</strong> — <strong>LIA asks before it acts.</strong> Twenty-two silent defects, found by testing the safety mechanisms instead of trusting them. None of them raised, logged or failed a suite. <strong>A bulk action could run without ever asking</strong>: both production call sites let the gate auto-detect the operation from the tool name, but the detector kept a private copy of the mutation verbs that had drifted — <code>reply</code> and <code>forward</code> were missing, so "reply to each of these 9 emails" sent <strong>nine replies with no confirmation at all</strong>. <strong>The assistant could act on its own</strong>: the initiative phase executes tools to enrich an answer, gated on a category that — absent an explicit declaration — is inferred from the tool NAME and defaults to read-only; seven mutating tools were therefore declared safe for proactive execution, including a physical light switch and arbitrary script execution, and the "defense in depth" check downstream re-used the very same list. <strong>Deleted mail resurfaced</strong> in ordinary searches because the trash keywords matched the bare words <em>trash</em> and <em>deleted</em> as substrings. <strong>"Reschedule my meeting" created a duplicate</strong> instead of moving it: <em>reschedule</em> contains <em>schedule</em>, and create is tested first, so the declared pattern was unreachable. <strong>Cached tokens were billed twice</strong> on the legacy extraction path. Also fixed: a <code>javascript:</code> URL reaching an <code>href</code>, a colour escaping its <code>style</code> attribute, a tool result keyed <code>items</code> silently breaking FOR_EACH, a whole parameter type escaping validation, and connector errors reported as success. <strong>14,847 backend</strong> + <strong>2,538 frontend</strong> tests (+1,565), <strong>12 executable guards</strong>, coverage gate 45 % → 59 %, MyPy strict clean, all ratchets hold. — 24 July 2026.
+  <strong>Version 1.25.20</strong> — <strong>Two security controls that were declared but never applied.</strong> A skill script ran as a child of the API process, and in production that process belongs to the <code>docker</code> group — a group children inherit, socket included, so a script was one connection away from root on the host. It now runs in a <strong>throwaway container</strong>: no socket, no network, read-only filesystem, unprivileged uid, all capabilities dropped, and an unreachable daemon refuses the execution instead of falling back. Non-regression proven by differential — the ten shipped scripts produce <strong>byte-for-byte identical output</strong> in both modes on nine of ten (the tenth draws random numbers). The <strong>global rate limit</strong> was a <code>slowapi</code> object stored on the app and consulted by nothing: no middleware, no decorator, and in-memory counters that would have meant one budget per worker. It is now a real ASGI middleware on the shared Redis limiter, sized from a measured 67 req/min peak. Also: <strong>every DevOps task is confirmed before it runs</strong> — including the instructions the model itself wrote into the remote prompt, which the first version of that card hid; request bodies are <strong>bounded before being read</strong>, on the webhooks that is before authentication; browser requests are validated <strong>per destination</strong>, not per scheme; and the access logs finally pass through the PII filter, which <code>uvicorn.access</code> had been bypassing. <strong>15,023 backend</strong> + <strong>2,567 frontend</strong> tests, MyPy strict clean, all ratchets hold. — 25 July 2026.
 
 </p>
 
@@ -78,7 +78,7 @@
 | ------------------------------- | -------------------------------------------------------------------------------------------- |
 | **Unpredictable LLM costs**     | Real-time token tracking, budget alerts, 93% optimization                                    |
 | **Uncontrolled hallucinations** | Human-in-the-Loop (HITL) with 6 approval levels                                              |
-| **Fragmented integrations**     | Unified multi-domain orchestration (19+ agents + MCP + sub-agents)                           |
+| **Fragmented integrations**     | Unified multi-domain orchestration (20+ agents + MCP + sub-agents)                           |
 | **Limited observability**       | 425 Prometheus metrics, 25 Grafana dashboards, email alerting with runbooks, GeoIP analytics |
 | **Inconsistent performance**    | Gemini embedding-001 with asymmetric task types, semantic routing with hybrid scoring        |
 
@@ -196,7 +196,7 @@ The result is measured, not proclaimed:
 
 ### Multi-Agent Intelligence (LangGraph 1.x)
 
-- **19+ Specialized Agents**: Contacts, Emails, Calendar, Drive, Tasks, Reminders, Places, Routes, Weather, Wikipedia, Perplexity, Brave, Web Search, Web Fetch, Browser Control (with progressive screenshot streaming), Smart Home (Philips Hue), Context, Query + dynamic MCP agents
+- **20+ Specialized Agents**: Contacts, Emails, Calendar, Drive, Tasks, Reminders, Places, Routes, Weather, Wikipedia, Perplexity, Brave, Web Search, Web Fetch, Browser Control (with progressive screenshot streaming), Smart Home (Philips Hue), Context, Query + dynamic MCP agents
 - **ReAct Execution Mode** ([ADR-070](docs/architecture/ADR-070-ReAct-Execution-Mode.md)): Alternative to the pipeline — the LLM iteratively reasons about tool outputs and decides next steps autonomously. User-toggleable preference, 4-node LangGraph architecture with native HITL support, timeout enforcement, cross-domain initiative via prompt engineering. Supports all tools including MCP and Skills
 - **MCP (Model Context Protocol)**: Per-user external tool servers with OAuth 2.1, SSRF protection, structured items parsing, MCP Apps (interactive iframe widgets), **Iterative Mode (ReAct)** for complex servers — a dedicated agent reads docs then calls tools correctly
 - **Agent Initiative Phase**: Post-execution cross-domain enrichment — the assistant proactively verifies related information (e.g., weather shows rain → checks calendar for outdoor events). Prompt-driven, read-only, fully configurable
@@ -884,12 +884,12 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md)   | Complete development workflow                             |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent                                 |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md)   | How to create a new tool                                  |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~14,847 backend tests across 803 files) |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~15,023 backend tests across 814 files) |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md)           | LangGraph and log debugging                               |
 
 ### Architecture Decision Records (ADR)
 
-147 ADRs (numbered up to ADR-148) documenting major architectural decisions:
+148 ADRs (numbered up to ADR-149) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)
@@ -1024,6 +1024,8 @@ ESLint + TypeScript check       ────────────────
 | Prompt Injection | External content wrapping (`<external_content>` safety markers)                            |
 | OAuth 2.1        | Mandatory PKCE                                                                             |
 | Supply chain     | Hash-verified universal lockfiles, pip-audit on the full transitive tree, SBOM per release |
+| Untrusted code   | Skill scripts execute in a throwaway container: no Docker socket, no network, read-only filesystem, unprivileged uid, all capabilities dropped — and no sandbox means no execution, never a weaker fallback |
+| Resource abuse   | Global Redis-backed rate limit in front of every route, request bodies bounded before they are read (webhooks included, ahead of authentication) |
 
 ### Reporting a Vulnerability
 

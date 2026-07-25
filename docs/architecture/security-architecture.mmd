@@ -17,7 +17,7 @@ graph TB
         CookieExtract --> SessionValid{Session Valid?}
         SessionValid -->|Yes| PermCheck["Permission Check"]
         SessionValid -->|No| Unauth["401 Unauthorized"]
-        PermCheck --> RateLimit["Rate Limiting<br/>SlowAPI + Per-provider"]
+        PermCheck --> RateLimit["Rate Limiting<br/>Global (Redis) + Per-provider"]
         RateLimit --> Authorized["Authorized"]
     end
 

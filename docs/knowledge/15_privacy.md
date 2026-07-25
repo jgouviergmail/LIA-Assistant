@@ -37,10 +37,16 @@ Multiple security levels protect your data:
 • Minimal access to external APIs
 • No personal data in operational logs — home address, GPS coordinates, contact names/emails, email recipients/subjects and memory content are kept out of the technical logs (only counters and technical identifiers remain), with an automatic safety net enforcing it (GDPR data-minimization)
 
+**📦 Isolated execution:**
+• A skill's Python code runs in a throwaway container destroyed right after — no network, no access to your files, no credentials
+• If that isolation cannot be set up, the script does not run at all rather than running less protected
+• Any administration task on the server is submitted for your approval first, showing in full what will be sent
+
 **📋 Best practices:**
 • Automatic logout after inactivity
 • Ability to revoke connector access
 • Audit logs of sensitive actions
+• Sensitive data kept locally is wiped when you sign out, and also when a different account signs in on the same device
 
 **💾 Durability:**
 • Automatic daily database backups (7 days / 4 weeks / 6 months of history kept)

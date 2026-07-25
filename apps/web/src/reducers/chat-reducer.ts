@@ -26,6 +26,7 @@ import { initialHitlCardState } from '@/types/hitl';
 import { MAX_TRACE_STEPS } from '@/types/execution-trace';
 import { Message } from '@/types/chat';
 import { generateUUID } from '@/lib/utils';
+import { DEBUG_METRICS_HISTORY_KEY } from '@/lib/constants';
 
 /** Non-optional shape of the STREAM_DONE metadata payload. */
 type StreamDoneMetadata = NonNullable<
@@ -715,7 +716,9 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
   return handler ? handler(state, action) : state;
 }
 
-const DEBUG_HISTORY_STORAGE_KEY = 'lia_debug_metrics_history';
+// SEC-035: the key lives in lib/constants so the logout purge registry
+// (client-storage-purge.ts) and this reducer can never drift apart.
+const DEBUG_HISTORY_STORAGE_KEY = DEBUG_METRICS_HISTORY_KEY;
 /** Keep only the N most recent entries to avoid filling sessionStorage (5 MB limit). */
 const DEBUG_HISTORY_MAX_ENTRIES = 50;
 

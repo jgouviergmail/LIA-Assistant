@@ -1,6 +1,6 @@
 [project]
 name = "lia-api"
-version = "1.25.19"
+version = "1.25.20"
 description = "LIA Assistant - AI conversational assistant with multi-agent orchestration"
 license = "AGPL-3.0-or-later"
 authors = [
@@ -109,7 +109,10 @@ strict_optional = true
 
 [[tool.mypy.overrides]]
 module = [
-    "slowapi.*",
+    # NOTE: "slowapi.*" was removed with the unenforced SlowAPI limiter (SEC-016).
+    # The `slowapi` package itself is still pinned in requirements.txt and is now
+    # unused — dropping it needs `task deps:lock` (ADR-112), so it is left for a
+    # dedicated dependency change rather than regenerating the lockfile here.
     "prometheus_client.*",
     "pgvector.*",
     "langchain.agents.middleware.*",

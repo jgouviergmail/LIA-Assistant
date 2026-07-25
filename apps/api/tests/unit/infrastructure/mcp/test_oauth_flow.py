@@ -14,16 +14,48 @@ from unittest.mock import AsyncMock
 
 import httpx
 import pytest
+from structlog.testing import capture_logs
 
-from src.infrastructure.mcp.oauth_flow import MCPAuthServerMetadata, MCPOAuthFlowHandler
+from src.infrastructure.mcp.oauth_flow import (
+    MCPAuthServerMetadata,
+    MCPOAuthFlowHandler,
+    _safe_oauth_error_code,
+)
 
 
 @pytest.fixture
-def handler():
-    """Create handler with mocked HTTP client."""
+def raw_handler():
+    """Handler with a mocked HTTP client and the REAL SEC-008 SSRF guard.
+
+    Used by the guard's own tests. They pass IP literals (127.0.0.1, 169.254…),
+    which ``validate_http_endpoint`` classifies without any DNS lookup, so the
+    tests stay hermetic.
+    """
     h = MCPOAuthFlowHandler()
     h._http_client = AsyncMock(spec=httpx.AsyncClient)
     return h
+
+
+@pytest.fixture
+def handler(monkeypatch, raw_handler):
+    """Handler with a mocked HTTP client and a permissive SSRF guard.
+
+    The SEC-008 guard added to the discovery/token/registration paths calls
+    ``validate_http_endpoint``, which resolves the hostname for real. These
+    discovery tests use ``auth.example.com`` — a name that does not resolve — so
+    leaving the guard active would make them depend on public DNS and assert the
+    wrong thing (a rejected endpoint instead of a parsed metadata document).
+
+    The guard is not left untested: ``TestSSRFGuardOnDiscoveredEndpoints`` below
+    exercises it directly, and the underlying validator has its own suite in
+    ``test_security.py``. Separating the two keeps each test on one
+    responsibility.
+    """
+    monkeypatch.setattr(
+        "src.infrastructure.mcp.oauth_flow.validate_http_endpoint",
+        AsyncMock(return_value=(True, None)),
+    )
+    return raw_handler
 
 
 class TestFetchAuthServerMetadata:
@@ -357,3 +389,204 @@ class TestParseTokenResponse:
         )
         with pytest.raises(ValueError, match="unparseable response"):
             MCPOAuthFlowHandler._parse_token_response(resp)
+
+
+class TestSSRFGuardOnDiscoveredEndpoints:
+    """SEC-008: endpoints taken from a server's response must be revalidated.
+
+    The MCP server's own URL is validated when the server is registered, but
+    everything discovered afterwards — ``authorization_servers[0]``, the
+    ``resource_metadata`` URL, ``authorization_endpoint``, ``token_endpoint``,
+    ``registration_endpoint`` — comes out of a body that server controls.
+
+    All targets below are IP literals, so no DNS lookup happens and the tests
+    are hermetic.
+    """
+
+    @pytest.mark.asyncio
+    async def test_discovery_skips_loopback_endpoint(self, raw_handler):
+        """A loopback discovery URL is not fetched at all."""
+        result = await raw_handler._try_fetch_json("http://127.0.0.1:8000/.well-known/x")
+
+        assert result is None
+        raw_handler._http_client.get.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_discovery_skips_cloud_metadata_endpoint(self, raw_handler):
+        """The cloud metadata address is not fetched."""
+        result = await raw_handler._try_fetch_json("http://169.254.169.254/latest/meta-data/")
+
+        assert result is None
+        raw_handler._http_client.get.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_discovery_skips_plain_http_endpoint(self, raw_handler):
+        """HTTP (no TLS) is refused even on a public address."""
+        result = await raw_handler._try_fetch_json("http://93.184.216.34/.well-known/x")
+
+        assert result is None
+        raw_handler._http_client.get.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_registration_is_skipped_for_private_endpoint(self, raw_handler):
+        """Dynamic registration does not publish our callback to a private host."""
+        result = await raw_handler._try_dynamic_registration(
+            registration_endpoint="https://10.0.0.5/register",
+            mcp_url="https://mcp.example.com/sse",
+        )
+
+        assert result is None
+        raw_handler._http_client.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_guard_accepts_a_public_https_endpoint(self, raw_handler):
+        """Control: a public HTTPS IP literal passes the guard.
+
+        Without this, the tests above could pass for the wrong reason (a guard
+        that rejects everything).
+        """
+        assert await raw_handler._is_safe_endpoint(
+            "https://93.184.216.34/.well-known/x", phase="test"
+        )
+
+    @pytest.mark.asyncio
+    async def test_heuristic_probe_skips_private_endpoint(self, raw_handler):
+        """The convention-based fallback must not probe a private address.
+
+        This path bypasses ``_try_fetch_json``, so it does NOT inherit the
+        discovery guard — and it is precisely where a hostile server lands: the
+        well-known probes return nothing (they are blocked or absent), which is
+        exactly the condition that routes execution into the heuristic.
+        """
+        result = await raw_handler._try_heuristic_endpoints("https://10.0.0.5/oauth")
+
+        assert result is None
+        raw_handler._http_client.get.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_www_authenticate_probe_skips_private_endpoint(self, raw_handler):
+        """A stored MCP URL is revalidated before the WWW-Authenticate probe.
+
+        The URL was checked at registration; DNS may have moved since (TOCTOU).
+        A rejection must skip only this strategy — discovery still tries the
+        well-known probes, which is asserted by the absence of an exception.
+        """
+        with pytest.raises(ValueError, match="Could not discover"):
+            await raw_handler.discover_auth_server("https://127.0.0.1:8000/sse")
+
+        raw_handler._http_client.get.assert_not_called()
+
+
+class TestEveryOutboundCallIsGuarded:
+    """No outbound call in this module may skip the SEC-008 check.
+
+    Enumerating the known call sites would only pin today's code: the failure
+    mode is a NEW request added later without its guard. This walks the AST
+    instead, so an unguarded call fails the test the moment it is written.
+    """
+
+    def test_no_unguarded_http_call_site(self):
+        """Every ``self._http_client.get/post`` sits under a guard."""
+        import ast
+        import inspect as _inspect
+        import textwrap
+
+        from src.infrastructure.mcp import oauth_flow as module
+
+        source = textwrap.dedent(_inspect.getsource(module))
+        tree = ast.parse(source)
+
+        # Functions whose body mentions the guard, by name.
+        guarded_functions: set[str] = set()
+        call_site_functions: list[tuple[str, int]] = []
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.AsyncFunctionDef | ast.FunctionDef):
+                continue
+            body_src = ast.dump(node)
+            if "_is_safe_endpoint" in body_src:
+                guarded_functions.add(node.name)
+            for inner in ast.walk(node):
+                if not isinstance(inner, ast.Call):
+                    continue
+                func = inner.func
+                if (
+                    isinstance(func, ast.Attribute)
+                    and func.attr in {"get", "post", "request"}
+                    and isinstance(func.value, ast.Attribute)
+                    and func.value.attr == "_http_client"
+                ):
+                    call_site_functions.append((node.name, inner.lineno))
+
+        assert call_site_functions, "AST walk found no HTTP call sites — the probe is broken"
+
+        unguarded = [
+            f"{name}() at module line {lineno}"
+            for name, lineno in call_site_functions
+            if name not in guarded_functions
+        ]
+        assert not unguarded, (
+            "these functions issue an outbound request without calling "
+            f"_is_safe_endpoint: {unguarded}. Every URL reaching this module can "
+            "come from an MCP server's response body (authorization_servers, "
+            "resource_metadata, token/registration endpoints), so each call site "
+            "must revalidate before connecting."
+        )
+
+
+class TestOAuthErrorCodeAllowlist:
+    """SEC-030: only RFC-defined error codes may be extracted for logging."""
+
+    def test_known_error_code_is_returned(self):
+        """A code from RFC 6749 §5.2 is surfaced for diagnostics."""
+        resp = httpx.Response(
+            400,
+            json={"error": "invalid_grant", "error_description": "code expired"},
+        )
+        assert _safe_oauth_error_code(resp) == "invalid_grant"
+
+    def test_unknown_error_code_is_dropped(self):
+        """A provider-invented code is NOT surfaced (it is free text)."""
+        resp = httpx.Response(400, json={"error": "our_internal_db_said_no_42"})
+        assert _safe_oauth_error_code(resp) is None
+
+    def test_non_json_body_yields_no_code(self):
+        """An HTML/opaque body yields no code rather than raising."""
+        resp = httpx.Response(500, content=b"<html>boom</html>")
+        assert _safe_oauth_error_code(resp) is None
+
+    def test_json_array_body_yields_no_code(self):
+        """A JSON body that is not an object is handled defensively."""
+        resp = httpx.Response(400, json=["invalid_grant"])
+        assert _safe_oauth_error_code(resp) is None
+
+
+class TestNoProviderBodyReachesLogs:
+    """SEC-030: an MCP authorization server's response body must never be logged.
+
+    The body is third-party text: it can carry a code, a token, PII, or CRLF
+    injection, and a generic PII filter cannot reliably sanitise opaque vendor
+    content. These tests assert absence, which is the only assertion that
+    actually protects the log stream.
+    """
+
+    _SENTINEL = "SENTINEL-c0de-and-t0ken-in-body"
+
+    def test_unparseable_response_does_not_log_the_body(self):
+        """The unparseable-response error logs size, never content."""
+        resp = httpx.Response(
+            200,
+            content=f"<html>{self._SENTINEL}</html>".encode(),
+            headers={"content-type": "text/html"},
+        )
+
+        with capture_logs() as logs:
+            with pytest.raises(ValueError):
+                MCPOAuthFlowHandler._parse_token_response(resp)
+
+        assert logs, "the failure path must still emit a diagnostic event"
+        serialized = repr(logs)
+        assert self._SENTINEL not in serialized
+        assert any(
+            entry.get("body_bytes") for entry in logs
+        ), "size must remain observable so an operator can still triage"

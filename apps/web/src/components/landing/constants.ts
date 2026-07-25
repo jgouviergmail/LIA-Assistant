@@ -4,26 +4,28 @@
  * (animated counters + engineering proof) and JsonLd (SEO feature list).
  *
  * Verified against the codebase (2026-07):
- * - agents: 17 statically registered domain agents (infrastructure/startup/
- *   agents.py, ADR-123) + MCP iterative agent + sub-agents → "19+" is the
- *   defensible public claim
+ * - agents: 18 statically registered domain agents (infrastructure/startup/
+ *   agents.py, ADR-123) + MCP iterative agent + sub-agents = 20. Re-measured
+ *   2026-07-25: `grep -c 'register_agent(' agents.py` — the telephony agent
+ *   had landed without this counter following it.
  * - tools: ToolManifest entries across src/domains/agents/{domain}/catalogue_manifests.py
+ *   — re-measured 2026-07-25 (top-level `X = ToolManifest(` definitions) = 81.
  * - providers: ProviderType Literal in infrastructure/llm/providers/adapter.py
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
- * - metrics: Prometheus metric definitions across src/ — measured 2026-07-24
- *   (v1.25.18): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 438
- *   (heartbeat_source_dropped_total added by ADR-148)
+ * - metrics: Prometheus metric definitions across src/ — measured 2026-07-25
+ *   (v1.25.20): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 440
+ *   (http_rate_limit_degraded_total + http_request_body_rejected_total, ADR-149)
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Measured 2026-07-24 (v1.25.19): backend pytest 14,847 collected (803 files)
- *   + frontend vitest 2,538 (259 files) = 17,385. Re-measure both suites every
+ *   Measured 2026-07-25 (v1.25.20): backend pytest 15,023 collected (814 files)
+ *   + frontend vitest 2,567 (261 files) = 17,590. Re-measure both suites every
  *   release: the value carried the backend count alone until v1.25.9, while its
  *   comment already claimed both.
- * - adrs: docs/architecture/ ADR files (147 files, numbered up to ADR-148 —
- *   the six founding ADRs were reconstituted in this cycle, so files and
- *   numbering now agree).
+ * - adrs: docs/architecture/ ADR files (148 files, numbered up to ADR-149 —
+ *   the six founding ADRs were reconstituted in an earlier cycle, so files and
+ *   numbering agree).
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   167 headings, no Unreleased pending.
+ *   168 headings, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -33,15 +35,15 @@
  */
 
 export const LANDING_STATS = {
-  agents: 19,
-  tools: 76,
+  agents: 20,
+  tools: 81,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 438,
+  metrics: 440,
   uiLanguages: 6,
-  tests: 17300,
-  adrs: 147,
-  releases: 167,
+  tests: 17500,
+  adrs: 148,
+  releases: 168,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

@@ -142,7 +142,7 @@ Each server in `DEVOPS_SERVERS` supports:
 | `working_directory` | string | No | Claude CLI working directory (default `/opt/claude-workspace`) |
 | `allowed_claude_tools` | list | No | Claude CLI `--allowedTools` |
 | `disallowed_claude_tools` | list | No | Claude CLI `--disallowedTools` (takes precedence) |
-| `max_turns` | int | No | Claude CLI `--max-turns` (default 30) |
+| `max_turns` | int | No | ⚠️ **Accepted by the parser, never forwarded** — no code emits `--max-turns`, so this key bounds nothing (see *Layer 2* below). Kept documented as inert rather than removed, because existing `DEVOPS_SERVERS` values carry it. |
 | `description` | string | No | Server description for the LLM planner |
 
 ### Example: Dev (full access)
@@ -207,18 +207,26 @@ Claude CLI runs on a remote server via SSH (`asyncssh`). Useful if Claude CLI is
 
 ## Security Model
 
+> **State of this section.** It previously described controls that the code did
+> not implement (a manifest-level admin role, a mandatory HITL confirmation, and
+> a `--max-turns` cap). The confirmation now exists (FN-1, below); the other two
+> claims are corrected in place — an operator must not assume a guard rail that
+> is not there.
+
 ### Layer 1 — LIA (before execution)
 
-- **Admin role check**: `PermissionProfile.allowed_roles=["admin"]` enforced by the SemanticValidator
-- **HITL approval**: `hitl_required=True` — user must confirm before each execution
+- **Admin role check**: enforced **inside the tool**, not by the manifest. `claude_server_task_tool` calls `_check_user_is_admin(user_id)` and returns `FORBIDDEN` for non-superusers. The catalogue manifest carries `allowed_roles=[]`, because the catalogue has no role context at plan time — do not rely on the SemanticValidator for this.
+- **Confirmation before execution (FN-1)**: the tool does **not** run the task. It returns a `DEVOPS_TASK` draft showing the target server, the full task text **and the `context` field** — the latter is model-produced and lands in `--append-system-prompt`, so it is the field an injection would use; approving what you cannot see is not approving. The SSH run happens in `execute_devops_task_draft` only after the user confirms, and the admin check is **re-run there**: a superuser revoked between the draft and its confirmation gets nothing executed. This holds **without exception** — including a `resume_session` follow-up, which drives the same CLI with the same powers, and regardless of how "read-only" the task sounds.
+  The draft is the mechanism because it is the only one both execution modes honour: the pipeline ignores `hitl_required` (its `approval_gate` is a pass-through) and ReAct would otherwise ask twice. For the same reason the manifest **must keep** `hitl_required=False` — an invariant pinned by `test_hitl_required_consistency.py`.
+- **Rate limit**: `@rate_limit` — `DEVOPS_RATE_LIMIT_CALLS` per `DEVOPS_RATE_LIMIT_WINDOW` per user.
 - **Audit logging**: Every execution logged with structlog (user_id, server, task, duration)
 
 ### Layer 2 — Claude CLI (during execution)
 
-- **`--allowedTools`**: Configurable per server (granular Bash prefix patterns)
-- **`--disallowedTools`**: Always takes precedence over allowed (deny > allow)
-- **Shell-aware**: Claude CLI understands shell operators — `Bash(docker logs *)` does NOT permit `docker logs x && rm -rf /`
-- **`--max-turns`**: Limits iterations (default 30)
+- **`--allowedTools`**: Configurable per server. ⚠️ The default is `("Read", "Grep", "Glob", "Bash")` (`DEVOPS_DEFAULT_ALLOWED_TOOLS`), so a server entry that omits `allowed_claude_tools` **inherits `Bash`**.
+- **`--disallowedTools`**: Passed after `--allowedTools`. It is a deny list of patterns, not an allowlist — treat it as defence in depth, not as a boundary.
+- **`--max-turns`**: ⚠️ **not passed**. Neither `_build_claude_args` nor the streaming variant emits this flag, so a `max_turns` key in `DEVOPS_SERVERS` bounds nothing and the CLI applies its own default.
+- **`--append-system-prompt`**: receives the tool's `context` parameter, which is produced by the model. Content reaching the agent from an untrusted source (email, web page, MCP result) can therefore influence the remote CLI's system prompt.
 
 ### Layer 3 — Infrastructure
 

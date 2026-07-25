@@ -12,6 +12,7 @@ unchanged: RequestID → SecurityHeaders → Logging → ErrorHandler → routes
 
 import time
 import uuid
+from contextlib import suppress
 from typing import Any
 
 import structlog
@@ -22,9 +23,21 @@ from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from src.core.config import settings
-from src.core.constants import GEOIP_COUNTRY_LOCAL
+from src.core.constants import (
+    GEOIP_COUNTRY_LOCAL,
+    MAX_REQUEST_BODY_EXEMPT_PATHS,
+    RATE_LIMIT_GLOBAL_EXEMPT_PATHS,
+    RATE_LIMIT_GLOBAL_WINDOW_SECONDS,
+)
+from src.core.rate_limit_config import rate_limiting_enabled
 from src.infrastructure.observability.geoip import geoip_resolver
-from src.infrastructure.observability.metrics import http_requests_by_country_total
+from src.infrastructure.observability.metrics import (
+    http_rate_limit_degraded_total,
+    http_rate_limit_hits_total,
+    http_request_body_rejected_total,
+    http_requests_by_country_total,
+)
+from src.infrastructure.rate_limiting.redis_limiter import get_rate_limiter
 
 logger = structlog.get_logger(__name__)
 
@@ -64,6 +77,293 @@ class RequestIDMiddleware:
             await send(message)
 
         await self.app(scope, receive, send_with_request_id)
+
+
+class RateLimitMiddleware:
+    """Pure-ASGI global HTTP rate limit, actually enforced (SEC-016).
+
+    A ``slowapi.Limiter`` was built with ``default_limits`` and stored on
+    ``app.state``, but no middleware or decorator ever consulted it: the limit
+    was declared, never applied. Specialised limiters (login, register, export,
+    static maps, DevOps, tools) do run, so the exposure was every OTHER route —
+    which is most of the 327.
+
+    This is a FLOOD BACKSTOP, not a business rule. Those specialised budgets are
+    stricter and stay exactly where they are; this one only stops a single
+    client from consuming the whole API. Its ceiling is sized from measurement:
+    a real browser session peaked at 67 requests in a minute, so the default of
+    300 cannot fire on legitimate use.
+
+    Design decisions worth keeping:
+
+    - **Redis-backed**, via the existing ``RedisRateLimiter`` sliding window. The
+      SlowAPI limiter defaulted to in-memory counters, which on four uvicorn
+      workers means four independent budgets — a limit four times looser than
+      advertised, and inconsistent between requests.
+    - **Fail-open** when Redis is unavailable, matching the policy already
+      documented for every other limiter in the codebase. On a single-instance
+      deployment, failing closed converts a Redis outage into a total outage —
+      a self-inflicted denial of service worse than the abuse it prevents. The
+      blind window is made visible by ``http_rate_limit_degraded_total``.
+    - **Keyed on the client address** as uvicorn resolved it (``--proxy-headers``
+      with a trusted peer), never on a cookie: a cookie-derived key is rotatable
+      by the very client we are trying to bound.
+    - **Probes exempt**, or Docker's healthcheck and Prometheus would rate-limit
+      the platform's own supervision and read it back as an outage.
+    - **SSE is charged once**, at admission. Only the request direction is
+      inspected; an accepted stream is never interrupted afterwards.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+        self.max_calls = settings.rate_limit_global_per_minute
+        self.window_seconds = RATE_LIMIT_GLOBAL_WINDOW_SECONDS
+        self.exempt_paths = RATE_LIMIT_GLOBAL_EXEMPT_PATHS
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or not self._is_subject_to_limit(scope):
+            await self.app(scope, receive, send)
+            return
+
+        if await self._is_allowed(scope):
+            await self.app(scope, receive, send)
+            return
+
+        await self._reject(scope, send)
+
+    def _is_subject_to_limit(self, scope: Scope) -> bool:
+        """Whether this request is in scope for the global limit."""
+        if not rate_limiting_enabled(settings):
+            return False
+        path = scope.get("path", "")
+        return not any(path.startswith(p) for p in self.exempt_paths)
+
+    @staticmethod
+    def _client_key(scope: Scope) -> str:
+        """Build the bucket key for a request.
+
+        Uses the peer address as uvicorn resolved it. Behind the reverse proxy
+        that is the real client (``--proxy-headers``, trusted peer); reading
+        ``X-Forwarded-For`` here instead would let any direct caller forge it and
+        mint themselves a fresh budget per request — the same reasoning already
+        documented in ``auth/dependencies._get_client_ip``.
+        """
+        client = scope.get("client")
+        host = client[0] if client else "unknown"
+        return f"http:global:{host}"
+
+    async def _is_allowed(self, scope: Scope) -> bool:
+        """Consume one token, allowing the request when Redis is unavailable."""
+        try:
+            limiter = await get_rate_limiter()
+            return await limiter.acquire(
+                key=self._client_key(scope),
+                max_calls=self.max_calls,
+                window_seconds=self.window_seconds,
+            )
+        except Exception as exc:
+            # Fail-open, consistent with every other limiter here. Counted so
+            # the unprotected window is visible instead of silent.
+            http_rate_limit_degraded_total.inc()
+            logger.error(
+                "global_rate_limit_check_failed",
+                path=scope.get("path", ""),
+                error=str(exc),
+            )
+            return True
+
+    async def _reject(self, scope: Scope, send: Send) -> None:
+        """Answer 429 with the retry contract the frontend already handles."""
+        path = scope.get("path", "")
+        logger.warning(
+            "global_rate_limit_exceeded",
+            path=path,
+            method=scope.get("method", ""),
+            max_calls=self.max_calls,
+            window_seconds=self.window_seconds,
+        )
+        # `endpoint_type="global"` keeps this counter's cardinality bounded: the
+        # raw path is attacker-chosen, and one label value per URL is how a
+        # metric takes down the Prometheus meant to watch it.
+        http_rate_limit_hits_total.labels(endpoint="global", endpoint_type="global").inc()
+
+        async def _no_body() -> Message:
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        response = JSONResponse(
+            status_code=429,
+            content={
+                "error": "rate_limit_exceeded",
+                "message": "Too many requests. Please slow down and try again.",
+                "retry_after": self.window_seconds,
+            },
+            headers={"Retry-After": str(self.window_seconds)},
+        )
+        await response(scope, _no_body, send)
+
+
+class BodySizeLimitMiddleware:
+    """Pure-ASGI middleware bounding the size of any request body (SEC-031).
+
+    Endpoints validated their payload *after* materialising it — ``await
+    request.body()`` on the Telegram and telephony webhooks, ``await
+    file.read()`` on attachments and skill imports, the health-metrics batch —
+    so the peak memory of a request was set by the client, not by us. Concurrent
+    oversized POSTs therefore cost N × body before a single check ran, and on
+    the webhooks that happened before authentication.
+
+    Two complementary checks, in the order that matters:
+
+    1. ``Content-Length``, when present and over the ceiling, is refused before
+       the body is even requested. This is an optimisation, never the guarantee:
+       the header is client-supplied and may be absent, understated, or replaced
+       by chunked transfer encoding.
+    2. The bytes actually delivered are counted as the handler consumes them.
+       Crossing the ceiling ends the stream with an error, so an oversized body
+       costs at most one chunk beyond the limit whatever the header claimed.
+
+    The ceiling is a memory bound, not a business rule: per-endpoint limits are
+    stricter and stay exactly where they are. This only removes the ability to
+    choose how much of our RAM a request occupies.
+
+    Streaming responses (SSE) are unaffected — only the request direction is
+    wrapped. Non-HTTP scopes (WebSocket, lifespan) pass straight through.
+
+    Known limit, inherited rather than introduced: ``CORSMiddleware`` is the
+    innermost middleware, so it only decorates responses produced by the ROUTES.
+    A 413 emitted from here therefore carries no ``Access-Control-Allow-Origin``,
+    and a browser on the cross-origin frontend (``lia-back`` vs ``lia``) reports
+    a network error instead of the status. ``ErrorHandlerMiddleware`` has the
+    same property for its 500s. It stays acceptable because this ceiling only
+    fires ABOVE every legitimate upload: a file over its own endpoint's limit is
+    rejected by that endpoint, inside CORS, with a proper message. Reaching this
+    guard means a body larger than anything the product accepts.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+        self.max_bytes = settings.max_request_body_bytes
+        self.exempt_paths = MAX_REQUEST_BODY_EXEMPT_PATHS
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or self._is_exempt(scope):
+            await self.app(scope, receive, send)
+            return
+
+        declared = self._oversized_declared_length(scope)
+        if declared is not None:
+            await self._reject(scope, send, declared_bytes=declared)
+            return
+
+        await self._run_bounded(scope, receive, send)
+
+    def _is_exempt(self, scope: Scope) -> bool:
+        """Whether this path opted out of the ceiling."""
+        path = scope.get("path", "")
+        return any(path.startswith(p) for p in self.exempt_paths)
+
+    def _oversized_declared_length(self, scope: Scope) -> int | None:
+        """Return the declared body length when it already exceeds the ceiling.
+
+        Reading the header lets an oversized request be refused without pulling
+        a single byte from the stream. It is an optimisation, never the
+        guarantee: the value is client-supplied and may be absent, understated,
+        or replaced by chunked transfer encoding.
+
+        Args:
+            scope: ASGI HTTP scope.
+
+        Returns:
+            The declared length when it is over the ceiling, else ``None``.
+        """
+        raw = Headers(scope=scope).get("content-length")
+        if raw is None:
+            return None
+
+        # A malformed Content-Length is a client or proxy quirk, not an attack
+        # signal. Rejecting on it would turn any such quirk into a 413, so the
+        # guard degrades to the byte counter — which enforces the real limit.
+        with suppress(ValueError):
+            declared = int(raw)
+            if declared > self.max_bytes:
+                return declared
+        return None
+
+    async def _run_bounded(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Run the app while counting the bytes it is allowed to consume."""
+        state = {"received": 0, "limit_hit": False, "response_started": False}
+
+        async def receive_bounded() -> Message:
+            """Count what the client actually sends and stop at the ceiling."""
+            message = await receive()
+            if message["type"] != "http.request":
+                return message
+
+            state["received"] += len(message.get("body", b""))
+            if state["received"] > self.max_bytes:
+                state["limit_hit"] = True
+                logger.warning(
+                    "request_body_limit_exceeded",
+                    path=scope.get("path", ""),
+                    method=scope.get("method", ""),
+                    received_bytes=state["received"],
+                    max_bytes=self.max_bytes,
+                )
+                http_request_body_rejected_total.labels(reason="streamed_bytes").inc()
+                # Report a disconnect so the handler's read unwinds instead of
+                # waiting for bytes we will never deliver. Starlette turns this
+                # into `ClientDisconnect`; the 413 below is what the client
+                # actually receives, because `send_guarded` suppresses whatever
+                # the unwinding handler tries to emit.
+                return {"type": "http.disconnect"}
+            return message
+
+        async def send_guarded(message: Message) -> None:
+            """Drop handler output once we have answered 413 ourselves."""
+            if state["limit_hit"]:
+                return
+            if message["type"] == "http.response.start":
+                state["response_started"] = True
+            await send(message)
+
+        try:
+            await self.app(scope, receive_bounded, send_guarded)
+        except Exception:
+            # A handler unwinding on the synthetic disconnect must not surface
+            # as a 500: the request was refused on purpose. Any other failure is
+            # re-raised untouched for the error handler above us.
+            if not state["limit_hit"]:
+                raise
+
+        if state["limit_hit"] and not state["response_started"]:
+            await self._send_413(scope, send)
+
+    async def _reject(self, scope: Scope, send: Send, *, declared_bytes: int) -> None:
+        """Answer 413 on the declared length, without touching the body."""
+        logger.warning(
+            "request_body_too_large_declared",
+            path=scope.get("path", ""),
+            method=scope.get("method", ""),
+            declared_bytes=declared_bytes,
+            max_bytes=self.max_bytes,
+        )
+        http_request_body_rejected_total.labels(reason="declared_length").inc()
+        await self._send_413(scope, send)
+
+    @staticmethod
+    async def _send_413(scope: Scope, send: Send) -> None:
+        """Emit the 413 without consuming the request stream.
+
+        The response is sent with a receive callable that reports an immediately
+        empty body: `JSONResponse.__call__` never reads it, and supplying the
+        real one would pull the very bytes this guard exists to avoid buffering.
+        """
+
+        async def _no_body() -> Message:
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        response = JSONResponse(status_code=413, content={"detail": "Request body too large"})
+        await response(scope, _no_body, send)
 
 
 class SecurityHeadersMiddleware:
@@ -311,8 +611,23 @@ def setup_middleware(app: FastAPI) -> None:
         expose_headers=["X-Request-ID"],
     )
 
-    # Custom middleware (order matters - applied in reverse)
+    # Custom middleware (order matters - applied in reverse: the LAST added runs
+    # FIRST). Effective order: RequestID → SecurityHeaders → Logging →
+    # BodySizeLimit → ErrorHandler → routes.
+    #
+    # BodySizeLimit sits directly above the routes so it is the last thing a
+    # request crosses before a handler can read its body — nothing between them
+    # can consume the stream unbounded. It stays BELOW RequestID and Logging so
+    # a rejected request keeps its correlation id and is still logged like any
+    # other, and below SecurityHeaders so the 413 carries them too.
+    #
+    # RateLimit runs just ABOVE BodySizeLimit: a client over its budget is
+    # refused before we spend anything reading its body, which is the cheaper
+    # rejection of the two. Both stay under Logging so every refusal is
+    # observable.
     app.add_middleware(ErrorHandlerMiddleware)
+    app.add_middleware(BodySizeLimitMiddleware)
+    app.add_middleware(RateLimitMiddleware)
     app.add_middleware(LoggingMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestIDMiddleware)

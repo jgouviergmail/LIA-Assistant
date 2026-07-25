@@ -106,10 +106,7 @@ class TestConfigureLogging:
 
     @patch("src.infrastructure.observability.logging.settings")
     @patch("src.infrastructure.observability.logging.structlog.configure")
-    @patch("src.infrastructure.observability.logging.logging.basicConfig")
-    def test_configure_logging_sets_up_structlog(
-        self, mock_basic_config, mock_structlog_configure, mock_settings
-    ):
+    def test_configure_logging_sets_up_structlog(self, mock_structlog_configure, mock_settings):
         """Test that configure_logging sets up structlog correctly."""
         mock_settings.log_level = "INFO"
         mock_settings.environment = "test"
@@ -121,11 +118,158 @@ class TestConfigureLogging:
 
         configure_logging()
 
-        # Verify structlog.configure called
         mock_structlog_configure.assert_called_once()
 
-        # Verify logging.basicConfig called
-        mock_basic_config.assert_called_once()
+    @patch("src.infrastructure.observability.logging.settings")
+    def test_root_handler_renders_through_the_shared_chain(self, mock_settings):
+        """The root handler must carry the ProcessorFormatter (FN-4).
+
+        This replaced an assertion that ``logging.basicConfig`` had been called
+        — a check on HOW the handler was installed, which said nothing about
+        what it does. What matters is that stdlib records (uvicorn.access,
+        httpx, any library) are rendered by the shared chain: a handler without
+        that formatter emits unfiltered plain text that Promtail cannot parse
+        and that bypasses the PII filter entirely.
+        """
+        import logging as stdlib_logging
+
+        import structlog
+
+        mock_settings.log_level = "INFO"
+        mock_settings.environment = "test"
+        mock_settings.log_level_uvicorn = "WARNING"
+        mock_settings.log_level_uvicorn_access = "WARNING"
+        mock_settings.log_level_sqlalchemy = "WARNING"
+        mock_settings.log_level_httpx = "WARNING"
+        mock_settings.is_production = False
+
+        configure_logging()
+
+        handlers = stdlib_logging.getLogger().handlers
+        assert handlers, "the root logger must have a handler"
+        assert any(
+            isinstance(h.formatter, structlog.stdlib.ProcessorFormatter) for h in handlers
+        ), "no root handler renders through ProcessorFormatter — stdlib logs would skip the PII filter"
+
+    @patch("src.infrastructure.observability.logging.settings")
+    def test_stdlib_record_is_filtered_and_rendered_as_json(self, mock_settings):
+        """A foreign record is sanitised and structured, end to end (FN-4).
+
+        `uvicorn.access` logs the full request target, so an OAuth callback
+        (`?code=…&state=…`) or a static-map URL (`?lat=…&lng=…`) used to reach
+        Loki verbatim: those loggers never went through structlog, so the PII
+        filter never saw them.
+        """
+        import io
+        import json
+        import logging as stdlib_logging
+
+        mock_settings.log_level = "INFO"
+        mock_settings.environment = "test"
+        mock_settings.log_level_uvicorn = "WARNING"
+        mock_settings.log_level_uvicorn_access = "ERROR"
+        mock_settings.log_level_sqlalchemy = "WARNING"
+        mock_settings.log_level_httpx = "WARNING"
+        mock_settings.is_production = False
+
+        configure_logging()
+
+        buffer = io.StringIO()
+        stdlib_logging.getLogger().handlers[0].stream = buffer  # type: ignore[attr-defined]
+
+        code, state = "4/0AY0e-g7SENTINELCODE", "Zx8QpLmv3NrTfKe1Ab9YsWc7Hd2Gj5Uo0"
+        stdlib_logging.getLogger("uvicorn.access").error(
+            f'127.0.0.1 - "GET /auth/google/callback?code={code}&state={state}" 302'
+        )
+
+        line = buffer.getvalue().strip()
+        assert line, "the record was not emitted"
+        payload = json.loads(line)  # must be JSON: Promtail parses it
+        assert code not in line
+        assert state not in line
+        assert "code=[REDACTED]" in payload["event"]
+        assert "state=[REDACTED]" in payload["event"]
+
+    @patch("src.infrastructure.observability.logging.settings")
+    def test_access_log_is_filtered_even_after_uvicorn_detached_it(self, mock_settings):
+        """Reproduces production ordering: uvicorn configures logging FIRST.
+
+        `uvicorn.config.LOGGING_CONFIG` gives `uvicorn.access` its own handler
+        with `propagate: False`, and applies that when the server builds its
+        Config — before this module is imported. A formatter installed only on
+        the ROOT logger therefore never sees an access record.
+
+        The earlier tests in this class passed for the wrong reason: in a bare
+        `logging` setup `uvicorn.access` propagates by default, so they never
+        exercised the configuration that actually ships. This one applies
+        uvicorn's dictConfig first, which is the only way to prove the fix.
+        """
+        import io
+        import json
+        import logging as stdlib_logging
+        import logging.config as stdlib_logging_config
+
+        from uvicorn.config import LOGGING_CONFIG
+
+        mock_settings.log_level = "INFO"
+        mock_settings.environment = "test"
+        mock_settings.log_level_uvicorn = "INFO"
+        mock_settings.log_level_uvicorn_access = "INFO"
+        mock_settings.log_level_sqlalchemy = "WARNING"
+        mock_settings.log_level_httpx = "WARNING"
+        mock_settings.is_production = False
+
+        # 1. uvicorn detaches its loggers from the root, as it does at startup.
+        stdlib_logging_config.dictConfig(LOGGING_CONFIG)
+        assert stdlib_logging.getLogger("uvicorn.access").propagate is False
+
+        # 2. The application configures logging afterwards — and must reclaim them.
+        configure_logging()
+
+        buffer = io.StringIO()
+        stdlib_logging.getLogger().handlers[0].stream = buffer  # type: ignore[attr-defined]
+
+        code = "4/0AY0e-g7SENTINELCODE"
+        stdlib_logging.getLogger("uvicorn.access").info(
+            f'127.0.0.1 - "GET /auth/google/callback?code={code}" 302'
+        )
+
+        line = buffer.getvalue().strip()
+        assert line, (
+            "the access record never reached the shared handler — uvicorn's "
+            "propagate=False was not reclaimed, so the PII filter is bypassed"
+        )
+        payload = json.loads(line)
+        assert code not in line
+        assert "code=[REDACTED]" in payload["event"]
+
+    @patch("src.infrastructure.observability.logging.settings")
+    def test_gps_coordinates_are_redacted_from_stdlib_records(self, mock_settings):
+        """Coordinates are PII the policy forbids at INFO — including in URLs."""
+        import io
+        import json
+        import logging as stdlib_logging
+
+        mock_settings.log_level = "INFO"
+        mock_settings.environment = "test"
+        mock_settings.log_level_uvicorn = "WARNING"
+        mock_settings.log_level_uvicorn_access = "ERROR"
+        mock_settings.log_level_sqlalchemy = "WARNING"
+        mock_settings.log_level_httpx = "WARNING"
+        mock_settings.is_production = False
+
+        configure_logging()
+
+        buffer = io.StringIO()
+        stdlib_logging.getLogger().handlers[0].stream = buffer  # type: ignore[attr-defined]
+
+        stdlib_logging.getLogger("uvicorn.access").error(
+            "GET /api/v1/connectors/google-location/static-map?lat=48.8566&lng=2.3522 200"
+        )
+
+        payload = json.loads(buffer.getvalue().strip())
+        assert "48.8566" not in payload["event"]
+        assert "2.3522" not in payload["event"]
 
 
 class TestGetLogger:

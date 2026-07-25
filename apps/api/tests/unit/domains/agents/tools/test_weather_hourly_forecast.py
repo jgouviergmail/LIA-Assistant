@@ -321,9 +321,18 @@ class TestExecuteHonorsDate:
 class TestRegistryResponse:
     """The registry item and the LLM summary describe the day actually covered."""
 
+    # The covered day is derived from "now", never hardcoded: the oracle below
+    # is "the item is stamped with the covered day, NOT with today", and a fixed
+    # future date silently stops testing that the day the calendar reaches it
+    # (2026-07-25 did exactly that).
+    @staticmethod
+    def _covered_day() -> str:
+        return (datetime.now(UTC) + timedelta(days=1)).strftime("%Y-%m-%d")
+
     def _result(self, language: str = "fr") -> dict:
+        day = self._covered_day()
         forecast = {
-            "list": [_entry_at_local(f"2026-07-25T{h:02d}:00") for h in (0, 3, 6, 9, 12)],
+            "list": [_entry_at_local(f"{day}T{h:02d}:00") for h in (0, 3, 6, 9, 12)],
             "city": {"name": "Paris", "country": "FR"},
         }
         formatted = _format_hourly_response(
@@ -332,10 +341,10 @@ class TestRegistryResponse:
             "FR",
             entries_needed=99,
             units="metric",
-            target_date="2026-07-25",
+            target_date=day,
             user_timezone=PARIS,
         )
-        formatted["data"]["date"] = "2026-07-25"
+        formatted["data"]["date"] = day
         formatted[_get_hourly_forecast_tool_impl._LANGUAGE_RESULT_KEY] = language
         return formatted
 
@@ -343,7 +352,7 @@ class TestRegistryResponse:
         """Not `today`: a future-day request produced an item dated now (prod bug)."""
         out = _get_hourly_forecast_tool_impl.format_registry_response(self._result())
         item = next(iter(out.registry_updates.values()))
-        assert item.payload["date"] == "2026-07-25"
+        assert item.payload["date"] == self._covered_day()
         assert item.payload["date"] != datetime.now(UTC).strftime("%Y-%m-%d")
 
     def test_same_day_and_place_yields_a_stable_item_id(self):

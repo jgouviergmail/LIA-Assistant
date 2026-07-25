@@ -805,7 +805,6 @@ RATE_LIMIT_BURST_DEFAULT = 10
 # Endpoint-specific rate limits
 RATE_LIMIT_AUTH_LOGIN_PER_MINUTE = 10  # Brute force protection
 RATE_LIMIT_AUTH_REGISTER_PER_MINUTE = 5  # Spam protection
-RATE_LIMIT_SSE_MAX_PER_MINUTE = 120  # Cap for SSE multiplier (2x default, max 120)
 
 # ============================================================================
 # STRONG AUTHENTICATION — MFA / WebAuthn passkeys (security program D1)
@@ -990,6 +989,70 @@ STATIC_MAP_BASE_URL_LENGTH = 400  # Estimated length of URL without polyline
 STATIC_MAP_MIN_DIMENSION = 50  # Minimum width/height in pixels
 STATIC_MAP_MAX_DIMENSION = 2048  # Maximum width/height in pixels
 
+# Google profile-image proxy (SEC-026). Redirects are followed manually so each
+# hop can be re-validated against the host allowlist; these bound that loop.
+# Google answers avatar URLs with at most one redirect (size/crop variants), so
+# three hops is generous while still ending a redirect loop quickly.
+PROFILE_IMAGE_MAX_REDIRECTS = 3
+
+# Ceiling on a proxied avatar, in bytes. Google serves these at a few hundred
+# kilobytes; 5 MB leaves room for a large original without letting an allowlisted
+# host stream unbounded content into the API's memory.
+PROFILE_IMAGE_MAX_BYTES = 5 * 1024 * 1024
+
+# SEC-016 — global HTTP rate limit, per client, per minute.
+#
+# A FLOOD BACKSTOP, not a business rule. The specialised limiters keep enforcing
+# their own, much stricter budgets (login, register, export, static maps, DevOps,
+# tools); this one only stops a single client from consuming the whole API.
+#
+# Calibrated on measurement, not intuition: one browser session on a single page
+# was observed peaking at 67 requests in a minute (background-run polling,
+# statistics, usage limits, personalities, scheduled actions...). The existing
+# `RATE_LIMIT_PER_MINUTE=60` — declared for the SlowAPI limiter that never ran —
+# would therefore have blocked a normal user the moment it was enforced. 300
+# leaves room for several tabs and a burst of navigation while still bounding a
+# flood to 5 requests/second.
+RATE_LIMIT_GLOBAL_PER_MINUTE_DEFAULT = 300
+
+# Window for the global limit, in seconds.
+RATE_LIMIT_GLOBAL_WINDOW_SECONDS = 60
+
+# Paths exempt from the global limit. The liveness/readiness probes are polled
+# by Docker's healthcheck and by Prometheus: rate-limiting them would make the
+# platform's own supervision look like an outage.
+RATE_LIMIT_GLOBAL_EXEMPT_PATHS: tuple[str, ...] = ("/health", "/ready", "/metrics")
+
+# Global ceiling on an HTTP request body, in bytes (SEC-031). This is a MEMORY
+# bound, not a business rule: each endpoint keeps its own, tighter validation
+# (20 MB per RAG document, per-type attachment limits, ZIP decompression caps).
+# The value has to clear the largest legitimate upload — a 20 MB document plus
+# its multipart envelope — so it is set one megabyte above the RAG file limit.
+# Anything past it is refused before the bytes are buffered, which is what turns
+# "N concurrent uploads cost N × body" into a bounded cost.
+MAX_REQUEST_BODY_BYTES_DEFAULT = 21 * 1024 * 1024
+
+# Headroom the global ceiling must keep above the largest configured upload, to
+# cover the multipart envelope (boundaries, part headers, filename). Both upload
+# ceilings are operator-configurable up to 100 MB, so `Settings` asserts this
+# relation at boot instead of letting a raised limit turn into a remote-only 413
+# that no endpoint log explains.
+MULTIPART_ENVELOPE_OVERHEAD_BYTES = 1024 * 1024
+
+# Paths exempt from the global body ceiling. Empty by design: no endpoint
+# legitimately needs an unbounded body, and an exemption list is the usual way
+# such a guard quietly stops guarding. Kept as a named seam so a future,
+# justified exception is a config change rather than a code change.
+MAX_REQUEST_BODY_EXEMPT_PATHS: tuple[str, ...] = ()
+
+# Per-user budget for the Google Static Maps proxies. Each proxied request is a
+# BILLED Google call, so the endpoints are authenticated (see connectors/router)
+# and this limit is defence in depth. One assistant answer can legitimately
+# render a dozen cards (a places list, a multi-leg route), and a user may reload
+# a conversation, so the window is deliberately generous: it exists to bound a
+# runaway loop or a scripted account, not to police normal browsing.
+RATE_LIMIT_STATIC_MAP_PER_MINUTE = 60
+
 # Static map display dimensions (for RouteCard component)
 # Single high-quality size used for all viewports; CSS handles responsive scaling
 STATIC_MAP_DESKTOP_WIDTH = 800
@@ -1098,16 +1161,6 @@ FUZZY_MATCH_DISTANCE_THRESHOLD = 3
 FUZZY_MATCH_MAX_SUGGESTIONS = 3
 
 # ============================================================================
-# RATE LIMITING ENDPOINT PATHS
-# ============================================================================
-
-# Endpoints requiring specific rate limit treatment
-# Used in main.py middleware for rate limit multiplier calculation
-RATE_LIMIT_ENDPOINT_AUTH_LOGIN = "/auth/login"
-RATE_LIMIT_ENDPOINT_AUTH_REGISTER = "/auth/register"
-RATE_LIMIT_ENDPOINT_CHAT_STREAM = "/chat/stream"
-
-# ============================================================================
 # OAUTH TOKEN MANAGEMENT
 # ============================================================================
 
@@ -1127,6 +1180,18 @@ OAUTH_TOKEN_DEFAULT_LIFETIME_SECONDS = 3599
 OAUTH_TOKEN_REFRESH_MAX_RETRIES = 3
 OAUTH_TOKEN_REFRESH_RETRY_MIN_WAIT = 2  # seconds
 OAUTH_TOKEN_REFRESH_RETRY_MAX_WAIT = 10  # seconds
+
+# ============================================================================
+# FCM WEBPUSH PAYLOAD
+# ============================================================================
+# Icon shown by the browser on a web push notification. This is a FRONTEND
+# asset path: it must name a file that exists in apps/web/public/, and it must
+# stay in step with the icon the service worker sets on locally-built
+# notifications (apps/web/public/firebase-messaging-sw.js). A wrong path never
+# fails loudly — Next.js answers unknown paths with the HTML app shell, the
+# browser cannot decode it as an image and quietly falls back to a generic
+# bell, so the notification merely loses its branding.
+FCM_WEBPUSH_ICON_PATH = "/icon-192.png"
 
 # ============================================================================
 # OAUTH HEALTH CHECK (Push Notifications for Broken Connectors)
@@ -3772,6 +3837,76 @@ SKILLS_SCRIPT_MAX_CPU_SECONDS = 30  # RLIMIT_CPU — CPU-time ceiling (complemen
 # RLIMIT_NPROC effective (it is bypassed for uid 0). "nobody" (65534) is the
 # conventional unprivileged id present in Debian-based images.
 SKILLS_SCRIPT_DROP_PRIVILEGES = True
+
+# SEC-001 — where a skill script runs.
+#
+# "container": each execution gets a throwaway container with no Docker socket,
+#   no network, a read-only root and an unprivileged uid. This is what closes the
+#   critical chain: the in-process subprocess inherits the API's supplementary
+#   groups, so on a non-root API (production runs as `appuser`) a script reaches
+#   the mounted `/var/run/docker.sock` and, through it, the host. Dropping those
+#   groups needs CAP_SETGID, which `cap_add` alone does NOT grant to a non-root
+#   user — measured, not assumed.
+# "subprocess": the historical path. Kept for environments with no Docker access
+#   (running the API bare on a workstation), and ONLY protective when the API
+#   itself runs as root, where the uid/gid drop in `_build_rlimit_preexec` arms.
+#
+# There is deliberately no automatic downgrade: if "container" is selected and
+# Docker is unreachable, execution FAILS rather than silently falling back to the
+# weaker path — a fallback is how a sandbox stops being one.
+SKILLS_SCRIPT_SANDBOX_DEFAULT = "container"
+
+# Image used for the throwaway container. The API's OWN image by default: same
+# interpreter, same installed packages, so a script behaves identically inside
+# and outside the sandbox. A separate image would drift and break skills that
+# import a backend dependency (`segno` for the QR skill, `yaml` for the skill
+# generator).
+SKILLS_SCRIPT_SANDBOX_IMAGE_DEFAULT = "lia-api:local"
+
+# Import path handed to the sandbox. The production image installs dependencies
+# with `pip install --user` into appuser's home, so a container running as uid
+# 65534 resolves a DIFFERENT home and finds none of them: `segno` and `yaml`
+# would go missing and their skills would fail with a misleading "not installed".
+# Measured on the real image — do not remove without re-checking those two.
+SKILLS_SCRIPT_SANDBOX_PYTHONPATH_DEFAULT = "/home/appuser/.local/lib/python3.12/site-packages"
+
+# Unprivileged uid/gid the sandboxed process runs as (nobody:nogroup). It owns
+# nothing in the image, so even a mount added later by mistake stays unwritable.
+SKILLS_SCRIPT_SANDBOX_UID = 65534
+
+# Writable scratch space inside the sandbox, in MB. The root filesystem is
+# read-only; scripts get `/tmp` only, and `HOME` points there so anything writing
+# to a home-relative path lands in the tmpfs rather than failing.
+SKILLS_SCRIPT_SANDBOX_TMPFS_MB = 32
+
+# Ceiling on the script source passed to the sandbox, in bytes. The source is
+# handed over as an argument (no bind mount, so no host-path resolution and no
+# named-volume lookup — the API runs in a container and its own paths mean
+# nothing to the daemon). Arguments are bounded by ARG_MAX (~2 MB on Linux);
+# 256 KB is an order of magnitude above the largest shipped script (~18 KB) and
+# fails loudly instead of producing a truncated program.
+SKILLS_SCRIPT_SANDBOX_MAX_SOURCE_BYTES = 256 * 1024
+
+# Grace period added to the script timeout for container startup (~350-400 ms
+# measured on the dev host, slower on a Raspberry Pi). Without it, a script using
+# its full budget would be killed by the outer timeout before finishing.
+SKILLS_SCRIPT_SANDBOX_STARTUP_GRACE_SECONDS = 15
+
+# Prefix of the per-run container name. Killing the `docker run` CLIENT on
+# timeout does NOT stop the container (measured), and a script that sleeps
+# rather than spins burns no CPU, so neither the CPU rlimit nor `--rm` reclaims
+# it — the name is what lets the timeout path force-remove it.
+SKILLS_SCRIPT_SANDBOX_NAME_PREFIX = "lia-skill-"
+
+# Budget for that force-removal. It runs on the timeout path, so it must be
+# short enough not to stack on top of an already-exhausted budget.
+SKILLS_SCRIPT_SANDBOX_CLEANUP_TIMEOUT_SECONDS = 10
+
+# `docker run` exit code meaning the daemon/CLI refused to START the container
+# (missing image, bad flag, daemon down) — as opposed to a script that ran and
+# failed. Distinguishing it keeps daemon internals out of the LLM's context.
+SKILLS_SCRIPT_SANDBOX_DAEMON_ERROR_CODE = 125
+
 SKILLS_SCRIPT_UNPRIVILEGED_UID = 65534  # nobody
 SKILLS_SCRIPT_UNPRIVILEGED_GID = 65534  # nogroup
 
@@ -3987,6 +4122,27 @@ BROWSER_CONTENT_ROLES = frozenset(
 
 # URL schemes blocked for browser navigation (SSRF prevention)
 BROWSER_BLOCKED_SCHEMES = frozenset({"file", "javascript", "data", "chrome", "about", "blob"})
+
+# SEC-032 — the browser request interceptor.
+#
+# `validate_navigation_url` only guards the URL the agent explicitly asks for.
+# Everything else the page then does — redirects, sub-resources, iframes, XHR,
+# navigations triggered by a click — goes through the interceptor instead, which
+# historically checked the scheme and nothing more (and let any exception
+# through, fail-open).
+#
+# Enforcement starts OFF on purpose. The check resolves DNS and refuses
+# non-public addresses; on real pages that also touches CDNs, analytics and font
+# hosts, so the block rate has to be observed before it can be trusted. Flip
+# BROWSER_SSRF_ENFORCE to true once `browser_request_ssrf_blocked` shows only
+# what it should.
+BROWSER_SSRF_ENFORCE_DEFAULT = False
+
+# Per-host verdict cache. A single page can pull hundreds of sub-resources, and
+# an uncached check would add a DNS lookup to each one. The TTL is deliberately
+# short: this window is also how long a rebinding attack could reuse a verdict.
+BROWSER_SSRF_CACHE_TTL_SECONDS_DEFAULT = 30
+BROWSER_SSRF_CACHE_MAX_HOSTS_DEFAULT = 512
 
 # Progressive screenshots: SSE side-channel thumbnails during browser actions
 BROWSER_SCREENSHOT_THUMBNAIL_WIDTH: int = 640

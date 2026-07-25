@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Audit public, autonome et non sécuritaire de la qualité applicative de LIA, établi le 24 juillet 2026.">
+  <link rel="icon" href="data:,">
+  <title>Audit public de la qualité applicative — LIA — 24 juillet 2026</title>
+  <style>
+    :root{
+      color-scheme:light;
+      --ink:#172033;--muted:#56627a;--line:#d7deea;--panel:#f5f7fb;--brand:#123b72;
+      --brand2:#23599a;--good:#116329;--good-bg:#eaf7ee;--moderate:#8b4b00;--moderate-bg:#fff3df;
+      --major:#a12222;--major-bg:#ffebeb;--white:#fff;--shadow:0 12px 30px rgba(23,32,51,.09);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:#edf1f7;color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+    a{color:#1458a6;text-underline-offset:2px}
+    a:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:3px solid #ffbf47;outline-offset:3px}
+    .skip{position:absolute;left:-9999px;top:8px;background:#fff;color:#000;padding:10px;z-index:10}
+    .skip:focus{left:8px}
+    main{max-width:1240px;margin:28px auto;padding:0 18px}
+    .sheet{background:var(--white);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+    header{padding:38px 42px;background:linear-gradient(135deg,#102d56,#174b86);color:#fff}
+    header h1{margin:0 0 10px;font-size:clamp(1.8rem,4vw,3rem);line-height:1.1}
+    .meta{margin:0;max-width:1000px;color:#e6effc}
+    .scope{display:inline-block;margin-top:18px;padding:7px 12px;border:1px solid #bcd2ef;border-radius:999px;background:#fff;color:#172033;font-weight:800}
+    section{padding:30px 42px;border-top:1px solid var(--line)}
+    h2{margin:0 0 16px;color:var(--brand);font-size:1.65rem}
+    h3{margin:22px 0 10px;color:#263d62}
+    h4{margin:0;color:#263d62;font-size:1.08rem}
+    p{margin:10px 0}
+    code{padding:.1em .35em;border-radius:4px;background:#eef2f8;font:0.92em ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+    .grid.two{grid-template-columns:repeat(auto-fit,minmax(330px,1fr))}
+    .box{padding:17px 18px;border:1px solid var(--line);border-radius:11px;background:var(--panel)}
+    .box h3{margin-top:0}
+    .big{font-size:2.15rem;font-weight:850;color:var(--brand)}
+    .notice{margin:16px 0;padding:14px 16px;border-left:5px solid var(--brand2);background:#eef5ff}
+    .notice.good{border-left-color:var(--good);background:var(--good-bg)}
+    .notice.warn{border-left-color:var(--moderate);background:var(--moderate-bg)}
+    .toc{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:8px}
+    .toc a{padding:9px 11px;border:1px solid var(--line);border-radius:7px;background:#fff;text-decoration:none}
+    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}
+    table{width:100%;border-collapse:collapse;min-width:760px;background:#fff}
+    caption{text-align:left;padding:12px 14px;background:#eaf0f8;font-weight:800;color:var(--brand)}
+    th,td{padding:11px 12px;border-top:1px solid var(--line);vertical-align:top;text-align:left}
+    thead th{background:#f1f4f9;border-top:0}
+    tbody tr:nth-child(even){background:#fafbfd}
+    .score{font-size:1.08rem;font-weight:850;white-space:nowrap;color:var(--brand)}
+    .chip{display:inline-block;padding:3px 8px;border-radius:999px;font-size:.78rem;font-weight:850;letter-spacing:.02em}
+    .chip.good{background:var(--good-bg);color:var(--good)}
+    .chip.moderate{background:var(--moderate-bg);color:var(--moderate)}
+    .chip.major{background:var(--major-bg);color:var(--major)}
+    .finding{margin:18px 0;border:1px solid var(--line);border-left:6px solid var(--moderate);border-radius:10px;padding:17px 19px;background:#fff}
+    .fh{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
+    .fid{text-align:right;min-width:145px;color:var(--muted);font-size:.9rem}
+    .prompt{white-space:pre-wrap;padding:14px;border:1px solid #cbd5e5;border-radius:8px;background:#f6f8fc;font:0.88rem/1.48 ui-monospace,SFMono-Regular,Consolas,monospace;color:#182338}
+    .evidence-list{margin:0;padding-left:18px}
+    .evidence-list li+li{margin-top:5px}
+    .kpi{font-variant-numeric:tabular-nums}
+    details{margin:12px 0;border:1px solid var(--line);border-radius:8px;background:#fff}
+    summary{cursor:pointer;padding:12px 14px;font-weight:800;color:var(--brand)}
+    details>div{padding:0 14px 14px}
+    .footer{padding:24px 42px;background:#f2f5fa;color:var(--muted);border-top:1px solid var(--line)}
+    .small{font-size:.88rem;color:var(--muted)}
+    @media(max-width:700px){
+      main{margin:0;padding:0}.sheet{border-radius:0;border-left:0;border-right:0}
+      header,section,.footer{padding:25px 19px}.grid.two{grid-template-columns:1fr}.fh{display:block}.fid{text-align:left;margin-top:9px}
+    }
+    @media print{
+      body{background:#fff;font-size:10pt}main{max-width:none;margin:0;padding:0}.sheet{border:0;box-shadow:none}
+      header{background:#fff;color:#000;border-bottom:2px solid #000;padding:18px 22px}.meta{color:#333}.scope{border-color:#333}
+      section{padding:18px 22px}.finding,.box,table{break-inside:avoid}a{color:inherit;text-decoration:none}
+      details>div{display:block}.toc{display:none}
+    }
+  </style>
+</head>
+<body>
+<a class="skip" href="#contenu">Aller au contenu</a>
+<main id="contenu">
+<article class="sheet">
+  <header>
+    <h1>Audit public de la qualité applicative — LIA</h1>
+    <p class="meta"><strong>Rapport autonome</strong> · identifiant LIA-QA-2026-07-24 · objet audité : arbre de travail visible le 24 juillet 2026 à 12:29 CEST · FastAPI, Next.js, LangGraph, PostgreSQL, Redis et chaîne de livraison · 24 périmètres normalisés.</p>
+    <span class="scope">Sécurité explicitement et intégralement hors périmètre</span>
+  </header>
+
+  <section aria-labelledby="opinion">
+    <h2 id="opinion">1. Opinion d’audit</h2>
+    <div class="grid">
+      <div class="box"><h3>Note globale</h3><p><span class="big">8,3/10</span><br><span class="kpi">199 / 240 points</span></p></div>
+      <div class="box"><h3>Périmètres</h3><p><span class="big">24</span><br>tous notés sur preuves</p></div>
+      <div class="box"><h3>Chantiers actifs</h3><p><span class="big">7</span><br>7 modérés · 0 majeur · 0 mineur</p></div>
+      <div class="box"><h3>E2E navigateur</h3><p><span class="big">44/44</span><br>Chromium hermétique</p></div>
+    </div>
+    <p><strong>Opinion :</strong> la qualité applicative de LIA est <strong>maîtrisée et industrialisée</strong>. Le monorepo est linté et typé sans erreur, ses lockfiles sont cohérents, les images de production sont constructibles, la chaîne Alembic rejoue depuis une base vide, les intégrations PostgreSQL/Redis sont concluantes et les parcours navigateur s’exécutent contre un build Next.js de production. Aucun défaut reproductible majeur ou mineur n’est retenu dans le périmètre non sécuritaire.</p>
+    <p>La maturité reste en dessous d’un niveau exemplaire en raison de dettes structurelles mesurées : hotspots backend, cycles d’import runtime, exemptions de typage, complexité et écarts React baselinés, skips permanents, ainsi qu’une suspension globale de la recherche RAG pendant la réindexation. Les ratchets empêchent l’aggravation silencieuse ; ils ne valent toutefois ni correction ni preuve de résorption.</p>
+    <div class="notice good"><strong>Conclusion :</strong> application intégrable et rapport apte à publication publique. Cette opinion est une évaluation technique interne alignée sur des référentiels industriels. Elle ne constitue ni une certification par un organisme accrédité, ni une garantie d’absence de défaut, ni une attestation de conformité WCAG.</div>
+    <div class="notice"><strong>Livraison :</strong> le chemin standard <code>task deploy:prod</code> n’est pas qualifié de défaillant. Les harness de déploiement, readiness et rollback sont verts ; les images de production ont été construites. Le transfert de contexte observé par BuildKit lors de la vérification Web finale est de <strong>640,29 Ko</strong> et le build génère <strong>316 pages</strong>.</div>
+
+    <h3>Navigation</h3>
+    <nav class="toc" aria-label="Sommaire du rapport">
+      <a href="#scope">2. Objet, périmètre et exclusions</a>
+      <a href="#method">3. Référentiels et méthode</a>
+      <a href="#architecture">4. Vue de l’application</a>
+      <a href="#scores">5. Notes des 24 périmètres</a>
+      <a href="#evidence">6. Registre des preuves</a>
+      <a href="#strengths">7. Contrôles positifs</a>
+      <a href="#findings">8. Chantiers et prompts IA</a>
+      <a href="#counter">9. Contre-analyse</a>
+      <a href="#roadmap">10. Priorisation</a>
+      <a href="#publication">11. Aptitude à publication</a>
+      <a href="#annex-tests">Annexe A. Méthode de tests</a>
+      <a href="#annex-score">Annexe B. Méthode de notation</a>
+      <a href="#annex-inventory">Annexe C. Inventaire</a>
+      <a href="#annex-limits">Annexe D. Limites</a>
+      <a href="#reproduce">Annexe E. Reproduction</a>
+      <a href="#references">Annexe F. Références</a>
+    </nav>
+  </section>
+
+  <section aria-labelledby="scope">
+    <h2 id="scope">2. Objet, périmètre et exclusions</h2>
+    <div class="grid two">
+      <div class="box"><h3>Inclus</h3><p>Architecture et DDD ; orchestration LangGraph ; backend Python ; frontend TypeScript/React ; données et migrations ; configuration ; dépendances et locks ; tests ; robustesse ; fiabilité ; performance sur preuves disponibles ; accessibilité automatisée ; i18n ; observabilité ; documentation ; images et scripts de livraison.</p></div>
+      <div class="box"><h3>Objet matériel</h3><p><code>apps/api</code>, <code>apps/web</code>, <code>infrastructure</code>, <code>scripts</code>, <code>docs</code>, <code>Taskfile.yml</code>, manifests, lockfiles, Dockerfiles, Compose et workflows CI visibles à la coupure.</p></div>
+      <div class="box"><h3>Exclusion absolue</h3><p>Toute analyse de sécurité : vulnérabilités, secrets, authentification ou autorisation, cryptographie, durcissement, SAST/DAST, dépendances vulnérables, menaces et tests d’intrusion. Aucun score, constat ou prompt n’en tient compte.</p></div>
+      <div class="box"><h3>Non exécuté</h3><p>Déploiement réel de production, appels réels aux fournisseurs LLM ou connecteurs, campagne de charge complète, matrice Firefox/WebKit pendant cette passe, audit manuel NVDA/VoiceOver et suite backend exhaustive expressément déconseillée par les règles du dépôt.</p></div>
+    </div>
+    <p>L’objet est un <strong>snapshot de travail visible</strong> comprenant des changements non committés et stagés. Aucune commande Git n’a été exécutée, conformément aux règles du dépôt ; l’audit ne prétend donc pas fournir une empreinte de commit ni séparer l’index du reste de l’arbre de travail. Les preuves chiffrées sont celles du contenu réellement exécuté pendant la fenêtre d’audit.</p>
+  </section>
+
+  <section aria-labelledby="method">
+    <h2 id="method">3. Référentiels et méthode</h2>
+    <div class="grid two">
+      <div class="box"><h3>Qualité produit</h3><p><a href="https://www.iso.org/standard/78176.html">ISO/IEC 25010:2023</a> et <a href="https://www.iso.org/standard/83467.html">ISO/IEC 25040:2024</a> : modèle de qualité produit et cadre d’évaluation. La caractéristique sécurité est neutralisée.</p></div>
+      <div class="box"><h3>Architecture</h3><p><a href="https://www.iso.org/standard/74393.html">ISO/IEC/IEEE 42010:2022</a> : parties prenantes, préoccupations, vues, décisions et cohérence des dépendances.</p></div>
+      <div class="box"><h3>Tests et code source</h3><p><a href="https://www.iso.org/standard/79428.html">ISO/IEC/IEEE 29119-2:2021</a> pour les processus de test et <a href="https://www.iso.org/standard/80623.html">ISO/IEC 5055:2021</a> pour les mesures automatisées de qualité structurelle.</p></div>
+      <div class="box"><h3>Interaction</h3><p><a href="https://www.w3.org/TR/WCAG22/">WCAG 2.2</a> niveau AA comme grille de contrôle d’accessibilité, complétée par les pratiques WAI-ARIA. Aucune revendication de conformité complète n’est formulée.</p></div>
+    </div>
+    <h3>Processus appliqué</h3>
+    <ol>
+      <li><strong>Cadrage :</strong> lecture des règles du dépôt, du protocole d’audit, de l’architecture et des guides de tests.</li>
+      <li><strong>Inventaire :</strong> cartographie des domaines, fichiers, fonctions, tests, migrations, workflows, dashboards et documents.</li>
+      <li><strong>Contrôles statiques :</strong> Ruff, Black, MyPy strict, ESLint, TypeScript propre, parité i18n, documentation, observabilité, cycles, complexité, taille et dettes baselinées.</li>
+      <li><strong>Contrôles dynamiques :</strong> suites backend, intégrations PostgreSQL/Redis, migrations, Vitest avec couverture, Playwright/axe, déploiement hermétique et builds Docker de production.</li>
+      <li><strong>Contre-épreuves :</strong> isolation des processus concurrents, vérification des skips et baselines, distinction environnement/défaut applicatif, revue du chemin Task réellement utilisé et analyse des assertions de tests frontend.</li>
+      <li><strong>Qualification :</strong> aucun constat n’est fondé uniquement sur un commentaire, une baseline verte, un skip, un code de sortie isolé ou une observation historique.</li>
+      <li><strong>Notation :</strong> 24 notes indépendantes par pas de 0,5 ; au moins trois éléments de preuve par périmètre ; moyenne arithmétique simple.</li>
+    </ol>
+    <p>Les constats sont classés <strong>majeur</strong> lorsqu’une qualité utilisateur essentielle ou l’assurance globale est significativement compromise, <strong>modéré</strong> pour une dette substantielle mais bornée, et <strong>mineur</strong> pour un défaut localisé sans impact fonctionnel confirmé. L’effort E1 à E5 est défini en annexe B.</p>
+  </section>
+
+  <section aria-labelledby="architecture">
+    <h2 id="architecture">4. Vue de l’application auditée</h2>
+    <p>LIA est un monorepo associant une API FastAPI structurée par domaines, une interface Next.js 16/React 19, une orchestration LangGraph à deux modes, PostgreSQL pour la persistance et le checkpointing, Redis pour les caches et la coordination, ainsi qu’une pile Prometheus/Grafana/Langfuse. Le pipeline privilégie le déterminisme ; le mode ReAct prend en charge les demandes exploratoires. Les agrégations en lecture seule sensibles à la latence disposent d’un patron direct distinct.</p>
+    <div class="grid two">
+      <div class="box"><h3>Backend</h3><p>978 fichiers Python source, 34 domaines mesurés, 6 501 fonctions et 209 219 SLOC logiques. DDD, repositories/services/routers, contrats d’outils, settings Pydantic et observabilité structurée.</p></div>
+      <div class="box"><h3>Frontend</h3><p>778 fichiers TypeScript/TSX, App Router multilingue, React typé, SSE, voix, administration, connecteurs et RAG Spaces. Six locales à parité stricte.</p></div>
+      <div class="box"><h3>Données</h3><p>SQLAlchemy 2, Alembic, PostgreSQL/pgvector, jobs RAG durables, leases et reapers. La chaîne compte 122 migrations, une tête unique et rejoue depuis une base vide.</p></div>
+      <div class="box"><h3>Livraison</h3><p>Task, workflows CI, images multi-stage, Compose, bundle distant, readiness, rollback, sauvegarde PostgreSQL et observabilité. Les images locales de production sont constructibles depuis les locks.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="scores">
+    <h2 id="scores">5. Notes des 24 périmètres</h2>
+    <p>La note globale est <strong>199 / 240 = 8,2917</strong>, arrondie à <strong>8,3/10</strong>. La sécurité est exclue du calcul. Chaque ligne fournit trois preuves déterminantes ; le registre détaillé suit.</p>
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Scorecard des 24 périmètres">
+    <table>
+      <caption>Scorecard normalisée — sécurité exclue</caption>
+      <thead><tr><th scope="col">#</th><th scope="col">Périmètre</th><th scope="col">Note /10</th><th scope="col">Éléments de preuve déterminants</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Infrastructure</td><td class="score" data-score="8.5">8,5</td><td><ul class="evidence-list"><li>Images API et Web de production construites.</li><li>Topologie Compose, readiness, sauvegarde et restauration documentées.</li><li>Transfert BuildKit final observé à 640,29 Ko ; harness de déploiement verts.</li></ul></td></tr>
+        <tr><td>2</td><td>Données et persistance</td><td class="score" data-score="8.5">8,5</td><td><ul class="evidence-list"><li>Replay Alembic depuis une base vide, tête unique et drift nul.</li><li>605 intégrations principales passent contre PostgreSQL/Redis réels.</li><li>Jobs RAG durables ; continuité de lecture incomplète au reindex global.</li></ul></td></tr>
+        <tr><td>3</td><td>Configuration et dépendances</td><td class="score" data-score="8.5">8,5</td><td><ul class="evidence-list"><li>Lockfiles synchronisés et consommés en mode figé.</li><li>Settings modulaires, feature flags et exemples d’environnement.</li><li>Typechecks hôte et build Linux alignés ; six locales à parité.</li></ul></td></tr>
+        <tr><td>4</td><td>Architecture</td><td class="score" data-score="7.5">7,5</td><td><ul class="evidence-list"><li>34 domaines et assemblage explicite.</li><li>Pipeline, ReAct et agrégation read-only séparés.</li><li>25 cycles d’import runtime bidirectionnels restent présents.</li></ul></td></tr>
+        <tr><td>5</td><td>Design applicatif</td><td class="score" data-score="8.5">8,5</td><td><ul class="evidence-list"><li>Contrats HITL multiniveaux et état LangGraph borné.</li><li>Taxonomies d’erreurs et dégradation partielle.</li><li>Leases, reapers et jobs durables pour travaux longs.</li></ul></td></tr>
+        <tr><td>6</td><td>Généricité</td><td class="score" data-score="8.0">8,0</td><td><ul class="evidence-list"><li>27 sous-classes de BaseRepository et mixins de validation.</li><li>Factories LLM et résolveurs de connecteurs.</li><li>Registries et contrôles de complétude au démarrage.</li></ul></td></tr>
+        <tr><td>7</td><td>Extensibilité</td><td class="score" data-score="8.5">8,5</td><td><ul class="evidence-list"><li>Guides agents/outils et checklists d’intégration.</li><li>83 prompts versionnés et feature flags.</li><li>Parité de six langues contrôlée automatiquement.</li></ul></td></tr>
+        <tr><td>8</td><td>Implémentation</td><td class="score" data-score="7.5">7,5</td><td><ul class="evidence-list"><li>Ruff, Black, MyPy, ESLint et TypeScript verts.</li><li>6 501 fonctions backend analysées sans fichier invalide.</li><li>347 fonctions backend à CC≥15 et 172 fonctions au-delà de 100 SLOC.</li></ul></td></tr>
+        <tr><td>9</td><td>Maintenabilité</td><td class="score" data-score="7.0">7,0</td><td><ul class="evidence-list"><li>Ratchets taille, complexité, couplage et typage présents.</li><li>38 fichiers backend atteignent au moins 800 SLOC.</li><li>Hotspot de 690 SLOC ; complexité frontend maximale 60.</li></ul></td></tr>
+        <tr><td>10</td><td>Outillage qualité</td><td class="score" data-score="9.0">9,0</td><td><ul class="evidence-list"><li>Gates statiques, AST et documentaires automatisés.</li><li>Ratchets cycles, complexité, MyPy, React, a11y et couverture.</li><li>Lint, migrations, intégration, E2E, déploiement et builds reproductibles.</li></ul></td></tr>
+        <tr><td>11</td><td>Patterns et pratiques</td><td class="score" data-score="8.0">8,0</td><td><ul class="evidence-list"><li>Logging structuré et contrats d’outils centralisés.</li><li>DDD, Pydantic v2 et SQLAlchemy v2 cohérents.</li><li>91 couples d’exemption MyPy limitent la garantie stricte.</li></ul></td></tr>
+        <tr><td>12</td><td>Robustesse</td><td class="score" data-score="8.5">8,5</td><td><ul class="evidence-list"><li>Timeouts, retries, erreurs partielles et fallbacks couverts.</li><li>Rollback de migration et reprise de jobs testés.</li><li>Suites strictes sans fuite async reproductible.</li></ul></td></tr>
+        <tr><td>13</td><td>Fiabilité</td><td class="score" data-score="8.0">8,0</td><td><ul class="evidence-list"><li>12 599 unitaires rapides et 973 tests agents réussis.</li><li>605 intégrations principales réussies sans skip.</li><li>Interruption RAG au reindex et 12 skips permanents résiduels.</li></ul></td></tr>
+        <tr><td>14</td><td>Performance</td><td class="score" data-score="7.5">7,5</td><td><ul class="evidence-list"><li>Métriques TTFT, durées et coûts instrumentées.</li><li>Caches, single-flight et streaming dédiés.</li><li>Aucune campagne de charge complète exécutée.</li></ul></td></tr>
+        <tr><td>15</td><td>Optimisation</td><td class="score" data-score="8.0">8,0</td><td><ul class="evidence-list"><li>Caches multiniveaux et agrégations concurrentes.</li><li>Mode pipeline économe et pricing en mémoire.</li><li>Hotspots structurels limitant l’optimisation raisonnée.</li></ul></td></tr>
+        <tr><td>16</td><td>Scalabilité</td><td class="score" data-score="8.5">8,5</td><td><ul class="evidence-list"><li>Pools PostgreSQL/Redis et sessions séparées en concurrence.</li><li>Concurrence LangGraph et stores vérifiée sous Windows.</li><li>Coordination multi-worker et jobs réclamables ; capacité maximale non établie.</li></ul></td></tr>
+        <tr><td>17</td><td>Opérabilité et observabilité</td><td class="score" data-score="8.5">8,5</td><td><ul class="evidence-list"><li>2 fichiers de règles Prometheus valides.</li><li>25 dashboards Grafana structurellement valides.</li><li>Logs structurés, probes, métriques métier et runbooks ; deux nœuds sans métriques d’état dédiées.</li></ul></td></tr>
+        <tr><td>18</td><td>CI/CD et livraison</td><td class="score" data-score="9.0">9,0</td><td><ul class="evidence-list"><li>Images de production construites avec locks figés.</li><li>E2E hermétique et migrations intégrés aux gates.</li><li>Readiness, bundle et rollback couverts par Bash et 27 tests PowerShell.</li></ul></td></tr>
+        <tr><td>19</td><td>Tests et assurance</td><td class="score" data-score="9.0">9,0</td><td><ul class="evidence-list"><li>14 430 tests backend collectés ; aucun nouvel orphelin.</li><li>2 538 tests frontend et 44 E2E Chromium réussis.</li><li>Couverture frontend au-dessus des seuils ; 12 skips permanents à résorber.</li></ul></td></tr>
+        <tr><td>20</td><td>Documentation</td><td class="score" data-score="8.5">8,5</td><td><ul class="evidence-list"><li>0 lien cassé et 0 chemin périmé dans la documentation vivante.</li><li>389 documents, 147 ADR, guides et runbooks riches.</li><li>Dette historique isolée : 7 liens et 65 chemins périmés.</li></ul></td></tr>
+        <tr><td>21</td><td>Portabilité</td><td class="score" data-score="8.5">8,5</td><td><ul class="evidence-list"><li>Développement Windows et images Linux validés.</li><li>Playwright exécuté dans l’image officielle glibc.</li><li>Testcontainers et pools concurrents passent sous SelectorEventLoop Windows.</li></ul></td></tr>
+        <tr><td>22</td><td>Compatibilité</td><td class="score" data-score="8.0">8,0</td><td><ul class="evidence-list"><li>Versionnement API et tests de symétrie SSE.</li><li>Interopérabilité MCP, CalDAV, IMAP et vCard structurée.</li><li>Validation navigateur de cette passe limitée à Chromium.</li></ul></td></tr>
+        <tr><td>23</td><td>Adéquation fonctionnelle</td><td class="score" data-score="8.5">8,5</td><td><ul class="evidence-list"><li>Surface fonctionnelle large et domaines explicitement câblés.</li><li>Builds, unitaires, agents, intégrations, E2E et migrations réussis.</li><li>Fournisseurs réels non exercés et maintenance RAG globalement bloquante.</li></ul></td></tr>
+        <tr><td>24</td><td>Utilisabilité et accessibilité</td><td class="score" data-score="9.0">9,0</td><td><ul class="evidence-list"><li>0 violation jsx-a11y et parité de six langues.</li><li>44 E2E : axe, clavier, focus, 320 px, zoom, contraste et sombre.</li><li>Matrice navigateur et technologies d’assistance non exécutées intégralement.</li></ul></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="evidence">
+    <h2 id="evidence">6. Registre des preuves exécutées</h2>
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Registre des preuves exécutées">
+    <table>
+      <caption>Résultats observés sur le snapshot audité</caption>
+      <thead><tr><th scope="col">Contrôle</th><th scope="col">Résultat observé</th><th scope="col">Qualification</th></tr></thead>
+      <tbody>
+        <tr><td><code>task lint</code></td><td>Ruff, Black, MyPy strict, ESLint, TypeScript, i18n, observabilité, documentation et ratchets : exit 0.</td><td><span class="chip good">Conforme</span></td></tr>
+        <tr><td>TypeScript propre</td><td><code>pnpm exec tsc --noEmit --incremental false</code> : exit 0.</td><td><span class="chip good">Conforme</span></td></tr>
+        <tr><td>Mesures backend</td><td>978 fichiers, 6 501 fonctions, 209 219 SLOC logiques ; 347 fonctions CC≥15, maximum 89 ; 172 fonctions &gt;100 SLOC, dont 43 &gt;200.</td><td><span class="chip moderate">Dette bornée</span></td></tr>
+        <tr><td>Couplage et typage</td><td>34 domaines ; 25 cycles d’import runtime ; 91 couples module/code exemptés MyPy sur 13 modules ; baselines respectées.</td><td><span class="chip moderate">Dette bornée</span></td></tr>
+        <tr><td>Documentation Python</td><td>Docstrings : 960/978 modules, 6 050/6 501 fonctions et 1 349/1 357 classes.</td><td><span class="chip good">Solide</span></td></tr>
+        <tr><td>Conventions ORM</td><td>51/51 ForeignKey avec <code>ondelete</code> ; 58/58 DateTime avec <code>timezone=True</code> ; aucun <code>bare except</code> ni <code>except: pass</code>.</td><td><span class="chip good">Conforme</span></td></tr>
+        <tr><td>Collecte backend</td><td>14 430 tests collectés ; 11 cas volontairement hors jobs PR et aucun nouveau run orphelin.</td><td><span class="chip good">Conforme</span></td></tr>
+        <tr><td>Unitaires backend rapides</td><td>12 599 réussis, 32 ignorés conditionnellement, 3 désélectionnés, en 351,10 s.</td><td><span class="chip good">Conforme avec limites explicites</span></td></tr>
+        <tr><td>Agents</td><td>973 réussis, 209 ignorés principalement faute de fournisseur réel, 4 désélectionnés, en 300,98 s.</td><td><span class="chip good">Conforme avec limite externe</span></td></tr>
+        <tr><td>Intégration principale</td><td>605 réussis, 0 ignoré, 7 désélectionnés, en 197,92 s, contre PostgreSQL/Redis réels.</td><td><span class="chip good">Conforme</span></td></tr>
+        <tr><td>Intégrations co-localisées</td><td>3 réussies, 3 ignorées explicitement pour plateforme ou setup complet, 13 814 désélectionnées.</td><td><span class="chip good">Conforme avec limites</span></td></tr>
+        <tr><td>Migrations</td><td>Upgrade depuis base vide, tête unique <code>b9d5f7a32c84</code>, downgrade/upgrade final, modèle-schémas équivalents et <code>alembic check</code> vert.</td><td><span class="chip good">Conforme</span></td></tr>
+        <tr><td>Frontend Vitest</td><td>259 fichiers et 2 538 tests réussis. Couverture : statements 63,35 %, branches 57,72 %, fonctions 57,65 %, lignes 63,82 %.</td><td><span class="chip good">Seuils franchis</span></td></tr>
+        <tr><td>Profondeur de couverture</td><td>499 fichiers instrumentés ; 171 à zéro, soit 34,3 %. Seuils imposés : 62 % statements, 56 % branches, 56 % fonctions, 62 % lignes.</td><td><span class="chip moderate">Hétérogène mais contrôlée</span></td></tr>
+        <tr><td>Frontend structurel</td><td>0 défaut jsx-a11y ; 56 fonctions CC≥15, maximum 60, sur 50 fichiers ; 34 écarts React strict sur 29 fichiers.</td><td><span class="chip moderate">Dette bornée</span></td></tr>
+        <tr><td>E2E de production</td><td>44/44 tests Chromium contre build Next.js standalone : parcours métier, axe, clavier/focus, 320 px, zoom, contraste, thème sombre et six langues.</td><td><span class="chip good">Conforme avec limite navigateur</span></td></tr>
+        <tr><td>Déploiement</td><td>Harness Bash : 0 assertion en échec. Pester : 27 réussis, 0 échec, 0 ignoré. Bundle, readiness et rollback exercés hermétiquement.</td><td><span class="chip good">Conforme</span></td></tr>
+        <tr><td>Build de production</td><td>Images API et Web construites ; build Web final : transfert de contexte BuildKit observé à 640,29 Ko, TypeScript vert et 316 pages générées.</td><td><span class="chip good">Conforme</span></td></tr>
+        <tr><td>Dépendances</td><td><code>scripts/check_requirements_lock.py</code> vert ; locks Python et pnpm consommés en mode figé dans les Dockerfiles.</td><td><span class="chip good">Conforme</span></td></tr>
+        <tr><td>Documentation</td><td>Vivante : 0 lien cassé, 0 chemin périmé. Historique : 7 liens cassés, 65 chemins périmés. Roadmap : 0 lien cassé, 22 chemins anticipés.</td><td><span class="chip good">Conforme</span></td></tr>
+        <tr><td>Observabilité</td><td>2 fichiers de règles Prometheus et 25 dashboards Grafana structurellement valides.</td><td><span class="chip good">Conforme</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="strengths">
+    <h2 id="strengths">7. Contrôles positifs significatifs</h2>
+    <div class="grid two">
+      <div class="box"><h3>Reproductibilité</h3><p>Les builds consomment les locks, le frontend standalone compile dans Linux et les deux images de production sont exportables. Le contexte Web ne contient plus les artefacts d’analyse lourds.</p></div>
+      <div class="box"><h3>Persistance</h3><p>La chaîne Alembic possède une tête unique, rejoue depuis une base vide et ne montre aucun écart entre métadonnées et schéma.</p></div>
+      <div class="box"><h3>Hygiène asynchrone</h3><p>Les pools checkpointer/store sont fermés sur leur boucle d’ouverture ; aucune fuite async reproductible n’a survécu à la contre-analyse.</p></div>
+      <div class="box"><h3>Portabilité</h3><p>Testcontainers, psycopg et les concurrences LangGraph s’exécutent sous Windows tandis que les artefacts Linux et le navigateur glibc sont validés.</p></div>
+      <div class="box"><h3>Assurance frontend</h3><p>Le typecheck propre, les 2 538 tests Vitest et les 44 E2E couvrent six langues, le clavier, le focus, l’accessibilité automatisée, le zoom et plusieurs tailles d’écran.</p></div>
+      <div class="box"><h3>Gouvernance de dette</h3><p>Cycles, tailles, complexités, exemptions MyPy, skips permanents et écarts React sont quantifiés et protégés contre toute croissance silencieuse.</p></div>
+      <div class="box"><h3>Déploiement</h3><p>Le déploiement publié est piloté par Task et ses drivers ; les scénarios hermétiques vérifient livraison applicative, variables, readiness, rollback et état distant simulé.</p></div>
+      <div class="box"><h3>Documentation vivante</h3><p>Aucun lien cassé ni chemin périmé n’est détecté dans la documentation active ; la dette historique est isolée du gate vivant.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="findings">
+    <h2 id="findings">8. Chantiers actifs et prompts de résolution pour IA de coding</h2>
+    <p>Sept chantiers modérés sont retenus. Aucun constat majeur ou mineur actif n’est maintenu. Chaque prompt est autonome, impose une analyse de cause racine et interdit l’affaiblissement des gates ou des tests.</p>
+
+    <article class="finding" id="ac-001" data-finding="AC-001">
+      <div class="fh"><h4>AC-001 — La réindexation RAG suspend globalement la recherche utilisateur</h4><div class="fid"><span class="chip moderate">MODÉRÉ</span><br>Données · Fiabilité · E4</div></div>
+      <p><strong>Preuve :</strong> <code>apps/api/src/domains/rag_spaces/retrieval.py:204-209</code> lit le flag global <code>REINDEX_FLAG_KEY</code> et retourne <code>None</code> lorsqu’il est actif. Toutes les recherches sont donc neutralisées pendant la fenêtre de réindexation.</p>
+      <p><strong>Impact :</strong> indisponibilité fonctionnelle temporaire de la recherche, sans distinction d’espace ni possibilité de servir l’index stable précédent.</p>
+      <p><strong>Contre-vérification :</strong> les jobs sont durables, réclamables et les chunks sont échangés transactionnellement ; ces garanties évitent l’incohérence d’écriture mais ne suppriment pas le court-circuit global de lecture.</p>
+      <p><strong>Critère de clôture :</strong> lecture continue sur une génération stable, bascule atomique par espace et tests d’intégration prouvant l’absence de fenêtre vide ou de mélange de générations.</p>
+      <div class="prompt" data-prompt-for="AC-001"><strong>Prompt IA — AC-001</strong>
+Dans le dépôt LIA, élimine l’interruption globale de la recherche RAG pendant une réindexation.
+
+1. Lis retrieval.py, reindex.py, les modèles/jobs RAG, repositories, migrations et tests d’intégration.
+2. Reproduis le comportement actuel où REINDEX_FLAG_KEY provoque un retour None global.
+3. Conçois une stratégie générationnelle par espace : l’index N reste lisible pendant la construction de N+1, puis un pointeur de génération est basculé atomiquement.
+4. Garantit qu’une requête ne mélange jamais deux générations et qu’un échec conserve N.
+5. Réutilise les patterns de jobs durables, leases, repositories, métriques et logging structuré existants.
+6. Ajoute la migration nécessaire, les tests unitaires et les intégrations concurrentes : lecture pendant reindex, bascule, échec, reprise, deux espaces simultanés.
+7. Mets à jour la documentation et les runbooks concernés.
+8. Ne désactive aucun gate, ne remplace pas un défaut par un retry aveugle et n’introduis pas de fallback silencieux.
+
+Termine par task lint, les tests RAG ciblés, les intégrations PostgreSQL/Redis et alembic check. Fournis les preuves et les limites résiduelles.</div>
+    </article>
+
+    <article class="finding" id="ac-002" data-finding="AC-002">
+      <div class="fh"><h4>AC-002 — Des hotspots backend cumulent volume et complexité</h4><div class="fid"><span class="chip moderate">MODÉRÉ</span><br>Implémentation · Maintenabilité · E5</div></div>
+      <p><strong>Preuve :</strong> 38 fichiers atteignent au moins 800 SLOC, dont 30 modules de logique ; 347 fonctions ont une complexité cyclomatique ≥15, maximum 89 ; 172 fonctions dépassent 100 SLOC et 43 dépassent 200. <code>_stream_with_new_services</code> atteint 690 SLOC.</p>
+      <p><strong>Impact :</strong> coût de compréhension, surface de régression et difficulté de test local accrues dans des chemins centraux de streaming, orchestration et connecteurs.</p>
+      <p><strong>Contre-vérification :</strong> les modules de données sont séparés, les suites sont vertes et les ratchets empêchent une hausse. La concentration dans les modules de logique et les fonctions longues demeure mesurable.</p>
+      <p><strong>Critère de clôture :</strong> programme incrémental par hotspot, responsabilités extraites derrière des contrats testables, baisse vérifiée des maxima et aucune modification de comportement.</p>
+      <div class="prompt" data-prompt-for="AC-002"><strong>Prompt IA — AC-002</strong>
+Réduis progressivement les hotspots backend de LIA sans big-bang ni changement fonctionnel.
+
+1. Exécute measure_sloc.py et measure_cc.py et classe les hotspots par criticité, churn, couverture et couplage.
+2. Commence par un seul chemin à fort risque, notamment _stream_with_new_services, stream_chat, _handle_execution_plan ou planner_node_v3.
+3. Établis des characterization tests avant extraction.
+4. Identifie les responsabilités séparables : validation, orchestration, transformation, persistance, émission d’événements et gestion d’erreurs.
+5. Réutilise services, repositories, helpers, modèles et constantes existants ; applique SRP et composition.
+6. Conserve signatures publiques, ordre des événements, métriques, logs et contrats SSE/LangGraph.
+7. Mesure avant/après SLOC et CC ; réduis la baseline uniquement après preuve.
+8. Documente la stratégie de lots et les risques de compatibilité.
+
+Ne masque pas la complexité dans un helper monolithique et n’ajoute aucun noqa ou ignore. Termine par task lint et les suites ciblées, puis fournis les métriques comparatives.</div>
+    </article>
+
+    <article class="finding" id="ac-003" data-finding="AC-003">
+      <div class="fh"><h4>AC-003 — Vingt-cinq cycles d’import runtime restent tolérés</h4><div class="fid"><span class="chip moderate">MODÉRÉ</span><br>Architecture · Couplage · E4</div></div>
+      <p><strong>Preuve :</strong> <code>measure_coupling.py</code> détecte 25 cycles bidirectionnels runtime sur 34 domaines. Les hubs <code>agents</code> et <code>users</code> participent à la majorité des relations cycliques.</p>
+      <p><strong>Impact :</strong> frontières DDD moins nettes, initialisation plus fragile, difficulté d’extraction et dépendances transverses implicites.</p>
+      <p><strong>Contre-vérification :</strong> l’analyse sépare tous les imports (28 cycles) des seuls imports runtime (25) ; les cycles retenus ne sont donc pas de simples imports sous <code>TYPE_CHECKING</code>.</p>
+      <p><strong>Critère de clôture :</strong> sens de dépendance explicite, ports partagés minimaux, ratchet réduit par lots sans déplacement artificiel des imports.</p>
+      <div class="prompt" data-prompt-for="AC-003"><strong>Prompt IA — AC-003</strong>
+Réduis les 25 cycles d’import runtime entre domaines de LIA par lots sûrs.
+
+1. Exécute measure_coupling.py et construis le graphe exact des imports runtime.
+2. Priorise les cycles à faible coût et fort bénéfice ; traite un cycle à la fois.
+3. Pour chaque cycle, définis le sens architectural attendu et la cause racine : modèle partagé, appel de service, événement ou assemblage.
+4. Déplace uniquement les contrats stables vers un module partagé neutre, ou inverse la dépendance via Protocol, port ou événement existant.
+5. Garde le wiring dans les composition roots et évite les imports locaux utilisés comme camouflage.
+6. Ajoute des tests de contrat et un test d’architecture si la frontière n’est pas déjà protégée.
+7. Mets à jour ADR et diagrammes lorsque le sens de dépendance change.
+8. Réduis la baseline après chaque suppression vérifiée.
+
+Termine par task lint, les tests des deux domaines et measure_coupling.py --check-cycles. Rapporte les cycles supprimés et ceux encore justifiés.</div>
+    </article>
+
+    <article class="finding" id="ac-004" data-finding="AC-004">
+      <div class="fh"><h4>AC-004 — Quatre-vingt-onze exemptions MyPy bornent la garantie de typage</h4><div class="fid"><span class="chip moderate">MODÉRÉ</span><br>Typage · Pratiques · E3</div></div>
+      <p><strong>Preuve :</strong> 91 couples module/code sont exemptés dans la configuration, répartis sur 13 modules ; 251 fichiers source sont couverts par la mesure. MyPy strict est vert sur 978 fichiers grâce à cette surface bornée.</p>
+      <p><strong>Impact :</strong> certaines catégories d’erreur statique ne sont pas garanties dans des modules connus, avec risque de propagation lors des évolutions.</p>
+      <p><strong>Contre-vérification :</strong> la mesure compte des couples d’exemption, pas des erreurs actuelles ; les modules externes sans stubs nécessitent parfois un override légitime. Le constat porte sur la surface de garantie, non sur un échec MyPy.</p>
+      <p><strong>Critère de clôture :</strong> suppression graduelle et prouvée des exemptions internes, maintien documenté des seules limites de bibliothèques externes.</p>
+      <div class="prompt" data-prompt-for="AC-004"><strong>Prompt IA — AC-004</strong>
+Réduis la surface des 91 exemptions MyPy de LIA sans assouplir le mode strict.
+
+1. Exécute measure_mypy_debt.py et inventorie chaque couple module/code avec sa cause.
+2. Sépare dépendances externes sans stubs, limites de framework, typage incomplet interne et ignores devenus inutiles.
+3. Priorise les modules internes à fort trafic et les corrections locales à faible risque.
+4. Ajoute Protocol, TypedDict, Generic, narrowing ou adapters typés selon les patterns existants ; évite Any.
+5. Pour une dépendance non typée, centralise l’adapter ou garde un override minimal et documenté.
+6. Ajoute les tests runtime nécessaires lorsque le typage révèle une ambiguïté de contrat.
+7. Supprime les exemptions résolues et abaisse la baseline ; n’en ajoute aucune sans justification explicite.
+8. Vérifie l’alignement Windows hôte et Linux Docker.
+
+Termine par task lint, MyPy strict et measure_mypy_debt.py --check. Fournis le nombre avant/après et la justification des exemptions conservées.</div>
+    </article>
+
+    <article class="finding" id="ac-005" data-finding="AC-005">
+      <div class="fh"><h4>AC-005 — La complexité frontend reste concentrée dans 56 fonctions</h4><div class="fid"><span class="chip moderate">MODÉRÉ</span><br>Frontend · Maintenabilité · E4</div></div>
+      <p><strong>Preuve :</strong> 56 fonctions atteignent CC≥15, maximum 60, dans 50 fichiers. Le ratchet par fichier et maximum est vert.</p>
+      <p><strong>Impact :</strong> composants et hooks plus difficiles à raisonner, tester et faire évoluer sans effet de bord sur les états, flux SSE et interactions.</p>
+      <p><strong>Contre-vérification :</strong> la mesure provient d’ESLint sur le code réellement parsé ; elle n’est pas une estimation de taille. La baseline empêche l’aggravation mais laisse subsister les hotspots.</p>
+      <p><strong>Critère de clôture :</strong> extractions testables de reducers, hooks et fonctions pures, baisse du nombre et du maximum sans fragmentation artificielle.</p>
+      <div class="prompt" data-prompt-for="AC-005"><strong>Prompt IA — AC-005</strong>
+Réduis la complexité cyclomatique frontend de LIA par lots comportementalement neutres.
+
+1. Exécute check-cc-ratchet.mjs et classe les 56 fonctions par CC, rôle et couverture.
+2. Choisis un hotspot et écris ou renforce les characterization tests, interactions et cas d’erreur.
+3. Extrait les transitions d’état en reducers, les règles en fonctions pures et les effets dans des hooks/services cohérents.
+4. Respecte App Router, i18n, hooks API existants, contrats SSE, accessibilité et design system.
+5. Conserve les types précis ; n’utilise ni any, ni double cast pour faire passer les tests.
+6. Mesure CC avant/après et réduis la baseline uniquement lorsque les tests prouvent l’équivalence.
+7. Vérifie rendu mobile, clavier, focus, thème sombre et six langues si le composant est visible.
+
+Termine par pnpm lint, tsc --noEmit --incremental false, Vitest ciblé, ratchets et E2E concernés. Rapporte les métriques et risques résiduels.</div>
+    </article>
+
+    <article class="finding" id="ac-006" data-finding="AC-006">
+      <div class="fh"><h4>AC-006 — Trente-quatre écarts React strict restent baselinés</h4><div class="fid"><span class="chip moderate">MODÉRÉ</span><br>React · Fiabilité UI · E3</div></div>
+      <p><strong>Preuve :</strong> le contrôle strict React dénombre 34 violations sur 29 fichiers, protégées par une baseline par fichier.</p>
+      <p><strong>Impact :</strong> risque de dépendances d’effets incomplètes, mutations ou patterns de hooks rendant le comportement plus difficile à prévoir lors des rerenders.</p>
+      <p><strong>Contre-vérification :</strong> ESLint standard et TypeScript sont verts ; le constat vise les règles strictes additionnelles, pas une erreur de compilation. Chaque écart est compté et toute croissance est bloquée.</p>
+      <p><strong>Critère de clôture :</strong> zéro dérogation injustifiée, correction par sémantique React et baisse shrink-only de la baseline.</p>
+      <div class="prompt" data-prompt-for="AC-006"><strong>Prompt IA — AC-006</strong>
+Résorbe progressivement les 34 violations React strict de LIA sans désactiver les règles.
+
+1. Exécute check-react-hooks-ratchet.mjs et inventorie règle, fichier et comportement concerné.
+2. Traite d’abord les corrections localisées avec tests existants, puis les hooks à effets complexes.
+3. Corrige la cause : dépendances stables, séparation calcul/effet, useCallback/useMemo justifié, état dérivé ou reducer.
+4. Évite les eslint-disable, effets à dépendances volontairement tronquées et références mutables utilisées comme contournement.
+5. Préserve l’ordre des appels, abonnements SSE, annulations, focus et traductions.
+6. Ajoute des tests de rerender, cleanup, StrictMode et concurrence lorsque pertinent.
+7. Réduis la baseline après chaque lot.
+
+Termine par ESLint, TypeScript propre, Vitest ciblé, le ratchet React et les E2E affectés. Documente les écarts conservés avec justification technique vérifiable.</div>
+    </article>
+
+    <article class="finding" id="ac-007" data-finding="AC-007">
+      <div class="fh"><h4>AC-007 — Douze skips permanents maintiennent des trous d’assurance connus</h4><div class="fid"><span class="chip moderate">MODÉRÉ</span><br>Tests · Fiabilité · E3</div></div>
+      <p><strong>Preuve :</strong> <code>permanent_skips_allowlist.json</code> recense 12 skips inconditionnels : 6 <em>coverage-gap</em>, 3 <em>tech-debt</em> et 3 tests morts. Ils concernent notamment le streaming HITL complet, l’orchestration, des métriques d’état, un rollback de session et d’anciens callbacks.</p>
+      <p><strong>Impact :</strong> comportements explicitement non exercés ou tests obsolètes conservés dans la collecte, créant une assurance partielle et du bruit de maintenance.</p>
+      <p><strong>Contre-vérification :</strong> un guard shrink-only échoue sur tout nouveau skip ou entrée périmée ; les 11 tests hors jobs PR sont un mécanisme distinct. L’allowlist rend la dette visible mais confirme son existence.</p>
+      <p><strong>Critère de clôture :</strong> suppression des trois tests morts, restauration ou reclassification conditionnelle justifiée des neuf autres, baseline ramenée à zéro.</p>
+      <div class="prompt" data-prompt-for="AC-007"><strong>Prompt IA — AC-007</strong>
+Résorbe les 12 skips pytest permanents de LIA sans supprimer de couverture utile.
+
+1. Lis test_permanent_skip_allowlist_guard.py et permanent_skips_allowlist.json.
+2. Pour chaque entrée, confirme la catégorie et le comportement actuel dans le code.
+3. Supprime les trois tests dead uniquement après preuve que le flux remplacé est couvert.
+4. Réécris les six coverage-gap contre les contrats actuels ; déplace en intégration les scénarios exigeant graphe, PostgreSQL ou Redis.
+5. Corrige les trois tech-debt avec les fixtures partagées et des mocks async conformes, ou transforme-les en intégrations réelles.
+6. N’utilise skipif que pour une dépendance environnementale véritable et documentée ; ne remplace pas un skip permanent par une désélection silencieuse.
+7. Retire chaque entrée de l’allowlist dès que son test est actif et vérifie le marker coverage.
+8. Mets à jour la stratégie de tests si un job CI doit exécuter un nouveau groupe.
+
+Termine par le guard des skips, check_test_marker_coverage.py, les suites ciblées puis task lint. Fournis un tableau entrée → action → preuve d’exécution.</div>
+    </article>
+  </section>
+
+  <section aria-labelledby="counter">
+    <h2 id="counter">9. Contre-analyse : faux positifs et faux négatifs</h2>
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Contre-analyse des hypothèses">
+    <table>
+      <caption>Hypothèses contradictoires testées avant qualification</caption>
+      <thead><tr><th scope="col">Hypothèse</th><th scope="col">Contre-épreuve</th><th scope="col">Conclusion</th></tr></thead>
+      <tbody>
+        <tr><td>Le déploiement Unix publié serait techniquement non fonctionnel.</td><td>Exécution du harness Bash, de 27 tests Pester, des builds d’images et lecture du chemin <code>task deploy:prod</code>.</td><td><strong>Faux positif écarté :</strong> bundle, variables, livraison, readiness et rollback sont couverts et verts.</td></tr>
+        <tr><td>Deux échecs Vitest de couverture révéleraient une régression.</td><td>Identification d’un processus Vitest concurrent partageant <code>coverage/.tmp</code>, puis exécution complète dans un répertoire de rapports isolé.</td><td><strong>Faux positif écarté :</strong> 2 538 tests passent et les quatre seuils sont franchis.</td></tr>
+        <tr><td>Le timeout initial de la suite agents serait un défaut de code.</td><td>Détection d’une suite backend concurrente lourde, arrêt de l’interférence puis relance dédiée.</td><td><strong>Faux positif écarté :</strong> 973 tests passent ; les 209 skips dépendent principalement de fournisseurs réels.</td></tr>
+        <tr><td>Les doubles assertions TypeScript restantes invalideraient les helpers de props.</td><td>Inspection des 57 occurrences de tests : données volontairement invalides, mocks Web API, événements futurs et contrats navigateur. Vérification ciblée de <code>VoiceOverlay</code>.</td><td><strong>Faux positif écarté :</strong> le helper corrigé ne contourne plus ses props ; aucune assertion double n’est présente dans ce test.</td></tr>
+        <tr><td>L’état unhealthy d’un conteneur de développement prouverait une défaillance de l’image.</td><td>Distinction du conteneur ancien soumis aux charges simultanées et construction fraîche des images de production.</td><td><strong>Signal environnemental non qualifié :</strong> aucun constat applicatif sans reproduction sur l’image fraîche.</td></tr>
+        <tr><td>Une baseline verte suffirait à clore les dettes structurelles.</td><td>Mesures brutes SLOC, CC, cycles, exemptions, hooks et skips comparées aux baselines.</td><td><strong>Faux négatif évité :</strong> AC-002 à AC-007 restent actifs malgré des ratchets verts.</td></tr>
+        <tr><td>Les jobs RAG durables garantiraient la continuité de lecture.</td><td>Inspection du chemin de retrieval et de la bascule de réindexation.</td><td><strong>Faux négatif évité :</strong> le retour <code>None</code> sous flag global justifie AC-001.</td></tr>
+        <tr><td>La couverture frontend serait encore sous son gate.</td><td>Exécution isolée avec thresholds 62/56/56/62 et analyse des 499 fichiers instrumentés.</td><td><strong>Faux positif écarté :</strong> les seuils passent ; l’hétérogénéité des 171 fichiers à zéro reste une limite, pas un chantier autonome.</td></tr>
+        <tr><td>Le contexte Docker resterait dominé par les caches et rapports locaux.</td><td>Build frais après exclusion de <code>.next-e2e</code>, <code>.mypy_cache</code>, <code>htmlcov</code> et couvertures.</td><td><strong>Faux positif écarté :</strong> transfert de contexte BuildKit observé à 640,29 Ko ; cette valeur de transfert incrémental n’est pas présentée comme la taille logique absolue du contexte.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="roadmap">
+    <h2 id="roadmap">10. Priorisation recommandée</h2>
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Priorisation des chantiers">
+    <table>
+      <caption>Ordonnancement indicatif fondé sur risque, dépendances et effort</caption>
+      <thead><tr><th scope="col">Horizon</th><th scope="col">Chantiers</th><th scope="col">Résultat attendu</th></tr></thead>
+      <tbody>
+        <tr><td><strong>0–30 jours</strong></td><td>AC-007 skips permanents ; AC-006 React strict ; démarrage AC-004 MyPy.</td><td>Assurance plus sincère, bruit de tests réduit et surface de typage élargie.</td></tr>
+        <tr><td><strong>30–90 jours</strong></td><td>AC-001 continuité RAG ; AC-005 complexité frontend ; premiers lots AC-002.</td><td>Recherche disponible pendant maintenance et composants plus testables.</td></tr>
+        <tr><td><strong>90–180 jours</strong></td><td>AC-002 programme hotspots ; AC-003 cycles ; poursuite MyPy et ratchets shrink-only.</td><td>Architecture moins couplée, maxima réduits et coût d’évolution abaissé.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>Les horizons sont des recommandations de séquencement, non des engagements calendaires. Chaque lot doit conserver une preuve avant/après et diminuer la baseline associée.</p>
+  </section>
+
+  <section aria-labelledby="publication">
+    <h2 id="publication">11. Aptitude à publication publique</h2>
+    <div class="grid two">
+      <div class="box"><h3>Autonomie</h3><p>Le rapport contient son contexte, sa méthode, ses scores, preuves, constats, prompts, limites et références. Sa compréhension ne dépend d’aucun autre rapport.</p></div>
+      <div class="box"><h3>Traçabilité</h3><p>Les constats citent des chemins relatifs, mesures reproductibles et critères de clôture. Les commandes sont listées en annexe.</p></div>
+      <div class="box"><h3>Lisibilité</h3><p>HTML autonome, responsive, imprimable, navigation clavier, lien d’évitement, titres hiérarchiques et tableaux dans des régions défilables.</p></div>
+      <div class="box"><h3>Prudence</h3><p>Le document distingue conformité observée, dette, limite et absence de preuve. Il ne revendique aucune certification externe.</p></div>
+    </div>
+    <div class="notice good"><strong>Avis de publication :</strong> favorable. Les sept chantiers modérés sont compatibles avec une publication transparente dès lors que leur statut de dette bornée et leurs limites sont conservés dans le document.</div>
+  </section>
+
+  <section aria-labelledby="annex-tests">
+    <h2 id="annex-tests">Annexe A — Méthodologie de tests</h2>
+    <h3>A.1 Pyramide et sélection</h3>
+    <p>La stratégie combine contrôles statiques, tests unitaires nombreux, intégrations sur services réels, migrations depuis une base vide, tests navigateur sur build de production et harness de livraison. La sélection privilégie les chemins métier, les erreurs, la concurrence, la persistance, l’i18n et l’accessibilité. Les résultats ne sont pas additionnés lorsque deux commandes peuvent sélectionner un même test.</p>
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Matrice de tests">
+    <table>
+      <caption>Matrice de validation exécutée</caption>
+      <thead><tr><th scope="col">Niveau</th><th scope="col">Objet</th><th scope="col">Oracle</th><th scope="col">Limite</th></tr></thead>
+      <tbody>
+        <tr><td>Statique</td><td>Style, types, imports, documentation, i18n, observabilité, complexité.</td><td>Exit 0, baselines shrink-only et compteurs exacts.</td><td>Ne prouve pas le comportement runtime.</td></tr>
+        <tr><td>Unitaire backend</td><td>Services, outils, modèles, orchestrations et erreurs.</td><td>12 599 réussis en mode strict.</td><td>32 skips conditionnels et fournisseurs externes simulés.</td></tr>
+        <tr><td>Agents</td><td>Graphe, nœuds, plans, HITL et outils.</td><td>973 réussis.</td><td>209 skips principalement dépendants d’un fournisseur réel.</td></tr>
+        <tr><td>Intégration</td><td>PostgreSQL, Redis, repositories, jobs et streaming.</td><td>605 réussis, aucun skip principal.</td><td>Pas d’environnement de production.</td></tr>
+        <tr><td>Migrations</td><td>Chaîne Alembic et conformité schéma/modèles.</td><td>Upgrade vide, tête unique, downgrade/upgrade, check sans drift.</td><td>Pas de volumétrie de production.</td></tr>
+        <tr><td>Frontend</td><td>Composants, hooks, reducers et utilitaires.</td><td>2 538 réussis et quatre seuils de couverture franchis.</td><td>171 fichiers instrumentés à zéro.</td></tr>
+        <tr><td>E2E</td><td>Parcours, rendu, clavier, focus, axe, responsive et six langues.</td><td>44/44 sur Chromium et build standalone.</td><td>Firefox/WebKit et lecteurs d’écran non exécutés.</td></tr>
+        <tr><td>Livraison</td><td>Bundle, heredocs, readiness, rollback et images.</td><td>Bash sans échec, Pester 27/27, builds API/Web verts.</td><td>Aucun déploiement réel.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>A.2 Couverture et interprétation</h3>
+    <p>La couverture frontend a été exécutée dans un répertoire de rapports isolé afin d’éliminer une collision entre processus Vitest. Les résultats sont <strong>63,35 % statements</strong>, <strong>57,72 % branches</strong>, <strong>57,65 % fonctions</strong> et <strong>63,82 % lignes</strong>, au-dessus des seuils respectifs 62/56/56/62. Le taux ne constitue pas à lui seul un oracle de qualité : l’audit tient aussi compte des 171 fichiers à zéro, des parcours E2E, de la criticité et des tests d’intégration.</p>
+
+    <h3>A.3 Accessibilité</h3>
+    <p>La passe associe un ratchet jsx-a11y à zéro violation et des tests Playwright/axe couvrant clavier, ordre et visibilité du focus, contraste, thème sombre, largeur 320 px, zoom et six langues. Cette automatisation ne couvre qu’une partie des critères WCAG. En l’absence d’une campagne NVDA/VoiceOver et de la matrice Firefox/WebKit pendant cette passe, le rapport formule une opinion de qualité et non une attestation de conformité.</p>
+
+    <h3>A.4 Gestion des skips</h3>
+    <p>Trois populations sont distinguées : skips conditionnels d’environnement, tests délibérément hors jobs PR mais exécutables ailleurs, et skips inconditionnels permanents. Seule la troisième population constitue AC-007. Son allowlist est shrink-only et vérifiée contre les entrées devenues obsolètes.</p>
+  </section>
+
+  <section aria-labelledby="annex-score">
+    <h2 id="annex-score">Annexe B — Méthodologie de notation</h2>
+    <h3>B.1 Échelle</h3>
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Échelle de notation">
+    <table>
+      <caption>Interprétation normalisée des notes</caption>
+      <thead><tr><th scope="col">Plage</th><th scope="col">Interprétation</th><th scope="col">Condition typique</th></tr></thead>
+      <tbody>
+        <tr><td>9,0–10</td><td>Maîtrise élevée à exemplaire</td><td>Preuves fortes, automatisation, écarts résiduels limités et surveillés.</td></tr>
+        <tr><td>8,0–8,5</td><td>Maîtrisé</td><td>Pratiques industrielles en place, quelques limites ou dettes bornées.</td></tr>
+        <tr><td>7,0–7,5</td><td>Acceptable sous réserve</td><td>Qualité fonctionnelle établie mais dette substantielle mesurable.</td></tr>
+        <tr><td>6,0–6,5</td><td>Fragile</td><td>Contrôles incomplets ou qualité dépendante de pratiques manuelles.</td></tr>
+        <tr><td>&lt;6,0</td><td>Insuffisant</td><td>Défauts majeurs, preuve faible ou maîtrise non démontrée.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>Les notes sont attribuées par pas de 0,5. Une baseline verte ne relève pas automatiquement la note : elle démontre une non-aggravation. Une commande échouée pour cause environnementale n’abaisse pas automatiquement la note : la cause doit être reproduite et qualifiée.</p>
+
+    <h3>B.2 Calcul</h3>
+    <p>Chaque périmètre a le même poids. Somme des 24 notes : <strong>199</strong>. Maximum : <strong>240</strong>. Note globale : <strong>(199 ÷ 240) × 10 = 8,2917</strong>, arrondie au dixième à <strong>8,3/10</strong>. Aucun coefficient de sécurité n’est inclus.</p>
+
+    <h3>B.3 Sévérité et effort</h3>
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Sévérité et effort">
+    <table>
+      <caption>Qualification des constats et estimation d’effort</caption>
+      <thead><tr><th scope="col">Code</th><th scope="col">Définition</th></tr></thead>
+      <tbody>
+        <tr><td>Majeur</td><td>Qualité essentielle significativement compromise, défaut systémique ou assurance globale insuffisante.</td></tr>
+        <tr><td>Modéré</td><td>Dette substantielle ou risque réel, borné par des contrôles et sans rupture majeure reproduite.</td></tr>
+        <tr><td>Mineur</td><td>Défaut local, faible portée et correction limitée.</td></tr>
+        <tr><td>E1</td><td>Moins d’une journée ; correction locale, faible dépendance.</td></tr>
+        <tr><td>E2</td><td>Un à trois jours ; plusieurs fichiers, tests ciblés.</td></tr>
+        <tr><td>E3</td><td>Trois à dix jours ; lot transversal limité ou dette répartie.</td></tr>
+        <tr><td>E4</td><td>Deux à six semaines ; changement de conception, migration ou plusieurs domaines.</td></tr>
+        <tr><td>E5</td><td>Programme pluri-itérations ; refactoring progressif et coordination étendue.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="annex-inventory">
+    <h2 id="annex-inventory">Annexe C — Inventaire quantitatif</h2>
+    <div class="grid">
+      <div class="box"><h3>Backend source</h3><p><span class="big">978</span><br>fichiers Python</p></div>
+      <div class="box"><h3>Backend tests</h3><p><span class="big">900</span><br>fichiers Python</p></div>
+      <div class="box"><h3>Frontend source</h3><p><span class="big">778</span><br>fichiers TS/TSX</p></div>
+      <div class="box"><h3>Frontend tests</h3><p><span class="big">259</span><br>fichiers test/spec</p></div>
+      <div class="box"><h3>E2E</h3><p><span class="big">14</span><br>fichiers spec</p></div>
+      <div class="box"><h3>Migrations</h3><p><span class="big">122</span><br>révisions Python</p></div>
+      <div class="box"><h3>Documentation</h3><p><span class="big">389</span><br>fichiers Markdown</p></div>
+      <div class="box"><h3>ADR</h3><p><span class="big">147</span><br>décisions documentées</p></div>
+      <div class="box"><h3>Dashboards</h3><p><span class="big">25</span><br>Grafana validés</p></div>
+      <div class="box"><h3>Prompts</h3><p><span class="big">83</span><br>fichiers versionnés</p></div>
+    </div>
+    <p class="small">Les comptes utilisent les extensions et répertoires fonctionnels ; ils ne sont pas un total de fichiers du dépôt et excluent les artefacts générés.</p>
+  </section>
+
+  <section aria-labelledby="annex-limits">
+    <h2 id="annex-limits">Annexe D — Limites et réserves</h2>
+    <ul>
+      <li><strong>Snapshot non commit-pinned :</strong> l’objet contient des changements stagés/non committés et aucune commande Git n’a été exécutée.</li>
+      <li><strong>Production :</strong> aucune mutation ni observation de production réelle ; les validations de livraison sont hermétiques.</li>
+      <li><strong>Services externes :</strong> aucun fournisseur LLM, messagerie, calendrier, voix ou autre connecteur réel n’a été sollicité.</li>
+      <li><strong>Charge :</strong> aucune campagne de capacité, endurance ou comparaison de latence complète ; les notes performance/scalabilité restent prudentes.</li>
+      <li><strong>Navigateurs :</strong> Chromium exécuté ; Firefox et WebKit sont prévus par la matrice périodique mais non exécutés ici.</li>
+      <li><strong>Accessibilité :</strong> contrôles automatisés et clavier exécutés, sans campagne documentée NVDA/VoiceOver ; aucune conformité WCAG complète revendiquée.</li>
+      <li><strong>Tests :</strong> suite backend exhaustive non lancée suivant les instructions du dépôt ; des suites rapides, agents, intégrations et ciblées la remplacent comme preuves proportionnées.</li>
+      <li><strong>Sécurité :</strong> totalement exclue ; l’absence de constat de sécurité ne permet aucune conclusion sur ce sujet.</li>
+      <li><strong>Certification :</strong> le document est un audit technique interne et non un certificat délivré par une entité accréditée.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="reproduce">
+    <h2 id="reproduce">Annexe E — Commandes de reproduction</h2>
+    <p>Les commandes ci-dessous supposent les dépendances du dépôt installées et les services requis disponibles. Elles sont données pour la traçabilité ; les tests destructifs ou de production ne sont pas requis.</p>
+    <div class="grid two">
+      <div class="box"><h3>Statique</h3><p><code>task lint</code><br><code>pnpm --dir apps/web exec tsc --noEmit --incremental false</code><br><code>apps/api/.venv/Scripts/python scripts/audit/measure_sloc.py</code><br><code>apps/api/.venv/Scripts/python scripts/audit/measure_coupling.py</code><br><code>apps/api/.venv/Scripts/python scripts/audit/measure_mypy_debt.py</code></p></div>
+      <div class="box"><h3>Frontend ratchets</h3><p><code>cd apps/web</code><br><code>pnpm exec node scripts/check-a11y-ratchet.mjs</code><br><code>pnpm exec node scripts/check-react-hooks-ratchet.mjs</code><br><code>pnpm exec node scripts/check-cc-ratchet.mjs</code></p></div>
+      <div class="box"><h3>Backend</h3><p><code>task test:backend:unit:fast</code><br><code>task test:backend:agents</code><br><code>task test:backend:integration</code><br><code>cd apps/api &amp;&amp; python ../../scripts/audit/check_test_marker_coverage.py</code></p></div>
+      <div class="box"><h3>Frontend</h3><p><code>task test:frontend</code><br><code>cd apps/web &amp;&amp; pnpm exec vitest run --coverage</code><br><code>task build:web</code></p></div>
+      <div class="box"><h3>Migrations</h3><p><code>cd apps/api &amp;&amp; alembic heads</code><br><code>cd apps/api &amp;&amp; alembic upgrade head</code><br><code>cd apps/api &amp;&amp; alembic check</code></p></div>
+      <div class="box"><h3>Livraison</h3><p><code>task build</code><br><code>task build:web</code><br>Harness de <code>scripts/deploy</code> et tests Pester associés.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="references">
+    <h2 id="references">Annexe F — Références publiques</h2>
+    <ul>
+      <li><a href="https://www.iso.org/standard/78176.html">ISO/IEC 25010:2023 — Product quality model</a>.</li>
+      <li><a href="https://www.iso.org/standard/83467.html">ISO/IEC 25040:2024 — Quality evaluation framework</a>.</li>
+      <li><a href="https://www.iso.org/standard/74393.html">ISO/IEC/IEEE 42010:2022 — Architecture description</a>.</li>
+      <li><a href="https://www.iso.org/standard/79428.html">ISO/IEC/IEEE 29119-2:2021 — Test processes</a>.</li>
+      <li><a href="https://www.iso.org/standard/80623.html">ISO/IEC 5055:2021 — Automated source code quality measures</a>.</li>
+      <li><a href="https://www.w3.org/TR/WCAG22/">W3C — Web Content Accessibility Guidelines 2.2</a>.</li>
+    </ul>
+    <p class="small">Les normes sont utilisées comme référentiels d’évaluation. Le présent document ne reproduit pas leurs contenus normatifs et ne prétend pas constituer une certification de conformité.</p>
+  </section>
+
+  <footer class="footer">
+    <p><strong>Rapport LIA-QA-2026-07-24</strong> · établi sur preuves exécutées · 24 périmètres · sécurité hors périmètre · note globale 8,3/10.</p>
+    <p class="small">Fin du rapport autonome.</p>
+  </footer>
+</article>
+</main>
+</body>
+</html>

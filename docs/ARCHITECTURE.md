@@ -3317,7 +3317,7 @@ data/skills/
 | `domains/skills/cache.py` | `SkillsCache` singleton en mémoire (cross-worker invalidation via ADR-063) |
 | `domains/skills/injection.py` | Constructeur du catalogue L1 (XML) |
 | `domains/skills/activation.py` | Wrapping structuré L2 |
-| `domains/skills/executor.py` | Exécution scripts en subprocess sandboxé (`env -i` pour isolation debugpy, `unshare -rn` fallback) |
+| `domains/skills/executor.py` | Exécution scripts en conteneur jetable (SEC-001 : sans socket Docker, sans réseau, rootfs read-only, uid 65534) ; mode `subprocess` historique conservé pour les environnements sans démon Docker |
 | `domains/skills/tools.py` | Outils LangChain (`activate_skill`, `run_skill_script`, `read_skill_resource`) — auto-injection `_lang`/`_tz` |
 | `domains/skills/script_output.py` | `SkillScriptOutput` (contrat JSON rich outputs), `parse_skill_stdout()` |
 | `domains/skills/output_builder.py` | `build_skill_app_output()` — `RegistryItem(type=SKILL_APP)`, CSP injection, snippet auto-resize |

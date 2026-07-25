@@ -4,21 +4,34 @@ Why this matters (it ties the two execution modes together):
 
 - ``hitl_required`` (a manifest permission) drives ONLY ReAct's pre-execution
   interrupt: ``react_tool_selector`` puts the tool in ``hitl_map`` and
-  ``react_execute_tools_node`` calls ``interrupt({"type": "react_tool_approval"})``
-  BEFORE the tool runs.
-- That interrupt carries NO ``action_requests``, so the streaming service emits
-  nothing → the user sees no confirmation and the graph stays suspended
-  (silent hang, issue #3).
+  ``react_execute_tools_node`` interrupts BEFORE the tool runs. That interrupt
+  now carries a type-tagged ``action_requests`` entry (``tool_confirmation``),
+  so the streaming service renders a real confirmation and the resume is routed
+  back through ``_parse_approval_decision``. The legacy bare
+  ``react_tool_approval`` payload carried no ``action_requests`` and hung
+  silently (issue #3); it is gone — see ``react_nodes.py`` where the interrupt
+  is built.
 - The pipeline does NOT gate on this flag (``approval_gate`` is a pass-through);
   it confirms mutations POST-execution via the tool's own
   ``requires_confirmation`` output (draft_critique / tool_confirmation).
 
 Therefore a DRAFT-BASED tool (returns ``requires_confirmation`` → a draft) must
-be ``hitl_required=False``: the draft *is* its confirmation, and the pre-exec
-interrupt would be both redundant and (today) unrendered. ``hitl_required=True``
-is reserved for genuinely NON-draft mutation tools that need a pre-execution
-confirmation (sub-agent delegation; user MCP mutation tools whose flag comes
-from server config).
+be ``hitl_required=False``: the draft *is* its confirmation, so a pre-execution
+interrupt would ask the user twice. ``hitl_required=True`` is reserved for
+genuinely NON-draft mutation tools that need a pre-execution confirmation
+(sub-agent delegation; user MCP mutation tools whose flag comes from server
+config).
+
+Mind the asymmetry when adding a tool: because the pipeline ignores this flag,
+``hitl_required=True`` alone only covers ReAct. A non-draft tool that must be
+confirmed in BOTH modes needs a second mechanism — a state-changing
+``tool_category`` (so ``tool_is_mutation()`` keeps it inside the
+``semantic_validator_node`` safety net) or a draft-shaped return.
+
+``claude_server_task_tool`` is the worked example (FN-1): a remote-server task
+must be confirmed in both modes, and changing ``tool_category`` would have
+rerouted the semantic validator, so the tool returns a ``DEVOPS_TASK`` draft
+instead and keeps ``hitl_required=False`` like every other draft producer.
 
 This test locks the invariant so a stale/new flag fails CI instead of shipping
 a ReAct hang.

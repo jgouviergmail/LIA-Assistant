@@ -50,9 +50,33 @@
 
 Tous les call-sites (auth, connecteurs, channels, voice, health metrics) obtiennent le limiteur via **`get_rate_limiter()`** — un singleton module-level branché sur le Redis cache. Historiquement chaque call-site instanciait son propre `RedisRateLimiter` (un `SCRIPT LOAD` Lua par requête, et le SHA caché sur l'instance devenait invalide après un restart Redis → `NOSCRIPT` → **fail-open permanent** jusqu'au restart du process). Le singleton gère désormais le **retry `NOSCRIPT`** (re-`SCRIPT LOAD` + un retry) ; ne jamais appeler `close()` sur l'instance partagée (voir la docstring).
 
+### Plafond HTTP global réellement appliqué (SEC-016)
+
+Jusqu'à SEC-016, un `slowapi.Limiter` était construit avec `default_limits` puis
+posé sur `app.state.limiter` — et **rien ne le consultait** : ni `SlowAPIMiddleware`,
+ni décorateur `@limiter.limit`. L'API annonçait un plafond qu'elle n'appliquait
+pas, et ses compteurs par défaut étaient en mémoire, donc un budget par worker
+uvicorn (quatre en production).
+
+`RateLimitMiddleware` (`src/core/middleware.py`) le remplace : middleware ASGI pur,
+adossé au `RedisRateLimiter` partagé (donc au même budget pour tous les workers),
+keyé sur l'adresse du pair, `fail-open` si Redis tombe — avec incrément de
+`http_rate_limit_degraded_total` pour que la fenêtre non protégée soit visible
+plutôt que silencieuse. Les sondes (`/health`, `/ready`, `/metrics`) sont exemptées :
+les faire tomber sous le plafond fait redémarrer le conteneur au pire moment.
+
+| Réglage | Valeur | Rôle |
+|---------|--------|------|
+| `RATE_LIMIT_GLOBAL_PER_MINUTE` | 300 | Plafond par IP et par minute (pic réel mesuré : 67 req/min) |
+| `RATE_LIMIT_ENABLED` | `true` | Interrupteur commun à toutes les couches HTTP |
+| `RATE_LIMIT_GLOBAL_EXEMPT_PATHS` | `/health`, `/ready`, `/metrics` | Sondes hors plafond |
+
+Ce plafond global **ne remplace pas** les limites par endpoint (auth, voice,
+channels…) : il borne le volume total d'une source, elles bornent l'abus ciblé.
+
 ### Clés « par IP » réellement par visiteur (ADR-093)
 
-Les limiteurs keyés par IP (slowapi global, rate limit auth) lisent `request.client.host`. Avant l'ADR-093, uvicorn tournait sans `--proxy-headers` : derrière cloudflared, cette valeur était **l'IP de la gateway Docker pour tous les clients** — le rate limit « par IP » était en réalité un bucket global partagé (un client agressif 429 tout le monde), et le chemin auth lisait un `X-Forwarded-For` brut spoofable. Depuis : uvicorn valide les proxy headers (`--proxy-headers --forwarded-allow-ips="*"`, sûr car les ports publiés sont bindés loopback), `request.client.host` porte la vraie IP du visiteur, et aucun code applicatif ne lit le header XFF brut.
+Les limiteurs keyés par IP (plafond HTTP global, rate limit auth) lisent `request.client.host`. Avant l'ADR-093, uvicorn tournait sans `--proxy-headers` : derrière cloudflared, cette valeur était **l'IP de la gateway Docker pour tous les clients** — le rate limit « par IP » était en réalité un bucket global partagé (un client agressif 429 tout le monde), et le chemin auth lisait un `X-Forwarded-For` brut spoofable. Depuis : uvicorn valide les proxy headers (`--proxy-headers --forwarded-allow-ips="*"`, sûr car les ports publiés sont bindés loopback), `request.client.host` porte la vraie IP du visiteur, et aucun code applicatif ne lit le header XFF brut.
 
 ---
 
@@ -403,12 +427,13 @@ CLIENT_RATE_LIMIT_PERPLEXITY_PER_SECOND=...
 
 ## 🔌 Intégration
 
-### Deux couches complémentaires
+### Trois couches complémentaires
 
-LIA applique le rate limiting à **deux niveaux distincts** :
+LIA applique le rate limiting à **trois niveaux distincts** :
 
 | Couche | Mécanisme | Portée | Clé |
 |--------|-----------|--------|-----|
+| **HTTP global (SEC-016)** | `RateLimitMiddleware` (`core/middleware.py`) sur le `RedisRateLimiter` partagé | Toute requête HTTP sauf les sondes | `http:global:{ip}` dans Redis |
 | **HTTP & clients connecteurs** | `RedisRateLimiter` (ce document) — sliding window distribué, scripts Lua atomiques | Endpoints API (auth, voice, health ingest, channels) et clients externes (`BaseGoogleClient`, `BaseAPIKeyClient`, `BaseAppleClient`, Hue) | `{scope}:{user_id}` dans Redis |
 | **Tools LangGraph** | Décorateur `@rate_limit` (`src/domains/agents/utils/rate_limiting.py`) — sliding window **in-memory**, par process | Chaque tool d'agent, seuils settings-driven via lambda | `(tool_name, user_id)` |
 

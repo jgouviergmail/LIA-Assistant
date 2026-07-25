@@ -37,7 +37,7 @@ Data Registry LOT 5.4: Write Operations
 
 from __future__ import annotations
 
-from collections.abc import Callable, Coroutine
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
@@ -46,7 +46,12 @@ from langchain_core.runnables import RunnableConfig
 
 from src.core.field_names import FIELD_METADATA, FIELD_USER_ID
 from src.domains.agents.context.access import get_tcm_session
-from src.domains.agents.drafts.models import DraftAction, DraftType
+from src.domains.agents.drafts.models import DraftAction
+from src.domains.agents.services.draft_executor_registry import ensure_executors_registered
+from src.domains.agents.services.draft_executor_types import (
+    EXECUTOR_REGISTRY,
+    register_executor,
+)
 from src.infrastructure.observability.metrics_agents import (
     registry_drafts_executed_total,
 )
@@ -56,133 +61,35 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-# Type alias for executor functions
-ExecutorFn = Callable[[dict[str, Any], UUID, Any], Coroutine[Any, Any, dict[str, Any]]]
+# Backward-compatible aliases. The registry moved to `draft_executor_types` and
+# its population to `draft_executor_registry` (file-size ratchet: this engine
+# must not grow with every new draft type). Callers that imported the private
+# names keep working — they name the same objects.
+_EXECUTOR_REGISTRY = EXECUTOR_REGISTRY
+_ensure_executors_registered = ensure_executors_registered
 
-# Registry of executor functions per draft type
-# Populated by register_executor() or lazily on first use
-_EXECUTOR_REGISTRY: dict[str, ExecutorFn] = {}
+
+# SSE side channel for the executor currently running.
+#
+# The executor contract is `(draft_content, user_id, deps)` — no config — but a
+# long-running executor (a DevOps task takes 30 s and more) needs the same
+# progress channel its tool had, or confirming a draft turns a streamed action
+# into a silent wait. A ContextVar carries it without changing a signature
+# shared by 19 executors; it is set around the call and always reset, so
+# concurrent runs never see each other's queue.
+_CURRENT_SIDE_CHANNEL_QUEUE: ContextVar[Any | None] = ContextVar(
+    "draft_executor_side_channel_queue", default=None
+)
 
 
-def register_executor(draft_type: str, executor_fn: ExecutorFn) -> None:
+def get_current_side_channel_queue() -> Any | None:
+    """Return the SSE side-channel queue of the running draft executor.
+
+    Returns:
+        The queue when the executor runs inside a streamed graph run, else None
+        (background execution, tests) — callers must treat it as optional.
     """
-    Register an executor function for a draft type.
-
-    Args:
-        draft_type: Draft type string (email, event, contact, etc.)
-        executor_fn: Async function(draft_content, user_id, deps) -> result_dict
-    """
-    _EXECUTOR_REGISTRY[draft_type] = executor_fn
-    logger.debug(
-        "draft_executor_registered",
-        draft_type=draft_type,
-        executor_fn=executor_fn.__name__,
-    )
-
-
-def _ensure_executors_registered() -> None:
-    """
-    Lazy-load executor functions to avoid circular imports.
-
-    Called on first use of DraftExecutor.
-    Registers all draft type executors for the HITL confirmation flow.
-    """
-    if _EXECUTOR_REGISTRY:
-        return  # Already registered
-
-    # Import and register all executor functions
-    try:
-        # Calendar executors
-        from src.domains.agents.tools.calendar_tools import (
-            execute_event_delete_draft,
-            execute_event_draft,
-            execute_event_update_draft,
-        )
-
-        # Drive executors
-        from src.domains.agents.tools.drive_tools import execute_file_delete_draft
-
-        # Email executors
-        from src.domains.agents.tools.emails_tools import (
-            execute_email_delete_draft,
-            execute_email_draft,
-            execute_email_forward_draft,
-            execute_email_reply_draft,
-        )
-
-        # Contact executors
-        from src.domains.agents.tools.google_contacts_tools import (
-            execute_contact_delete_draft,
-            execute_contact_draft,
-            execute_contact_update_draft,
-        )
-
-        # Label executors
-        from src.domains.agents.tools.labels_tools import execute_label_delete_draft
-
-        # Reminder executors
-        from src.domains.agents.tools.reminder_tools import execute_reminder_delete_draft
-
-        # Task executors
-        from src.domains.agents.tools.tasks_tools import (
-            execute_task_delete_draft,
-            execute_task_draft,
-            execute_task_update_draft,
-        )
-
-        # Telephony executor (per-user connector; import is flag-independent — a
-        # confirmed phone_call draft must always resolve to an executor)
-        from src.domains.agents.tools.telephony_tools import execute_phone_call_draft
-
-        # Register all executors
-        # Email
-        register_executor(DraftType.EMAIL.value, execute_email_draft)
-        register_executor(DraftType.EMAIL_REPLY.value, execute_email_reply_draft)
-        register_executor(DraftType.EMAIL_FORWARD.value, execute_email_forward_draft)
-        register_executor(DraftType.EMAIL_DELETE.value, execute_email_delete_draft)
-
-        # Calendar events
-        register_executor(DraftType.EVENT.value, execute_event_draft)
-        register_executor(DraftType.EVENT_UPDATE.value, execute_event_update_draft)
-        register_executor(DraftType.EVENT_DELETE.value, execute_event_delete_draft)
-
-        # Contacts
-        register_executor(DraftType.CONTACT.value, execute_contact_draft)
-        register_executor(DraftType.CONTACT_UPDATE.value, execute_contact_update_draft)
-        register_executor(DraftType.CONTACT_DELETE.value, execute_contact_delete_draft)
-
-        # Tasks
-        register_executor(DraftType.TASK.value, execute_task_draft)
-        register_executor(DraftType.TASK_UPDATE.value, execute_task_update_draft)
-        register_executor(DraftType.TASK_DELETE.value, execute_task_delete_draft)
-
-        # Drive files
-        register_executor(DraftType.FILE_DELETE.value, execute_file_delete_draft)
-
-        # Labels
-        register_executor(DraftType.LABEL_DELETE.value, execute_label_delete_draft)
-
-        # Reminders
-        register_executor(DraftType.REMINDER_DELETE.value, execute_reminder_delete_draft)
-
-        # Telephony
-        register_executor(DraftType.PHONE_CALL.value, execute_phone_call_draft)
-
-        # Automations (chat-created scheduled actions, ADR-140)
-        from src.domains.agents.tools.automation_tools import execute_scheduled_action_draft
-
-        register_executor(DraftType.SCHEDULED_ACTION.value, execute_scheduled_action_draft)
-
-        logger.info(
-            "draft_executors_initialized",
-            registered_types=list(_EXECUTOR_REGISTRY.keys()),
-            total_count=len(_EXECUTOR_REGISTRY),
-        )
-    except ImportError as e:
-        logger.error(
-            "draft_executor_import_error",
-            error=str(e),
-        )
+    return _CURRENT_SIDE_CHANNEL_QUEUE.get()
 
 
 class DraftExecutionResult:
@@ -325,7 +232,7 @@ async def execute_draft_if_confirmed(
         - "edit" → Return result indicating edit in progress (re-critique)
         - "cancel" → Return result indicating cancellation
     """
-    _ensure_executors_registered()
+    ensure_executors_registered()
 
     if not draft_action_result:
         return None
@@ -719,7 +626,7 @@ async def _execute_confirmed_draft(
     )
 
     # Get executor for this draft type
-    executor_fn = _EXECUTOR_REGISTRY.get(draft_type)
+    executor_fn = EXECUTOR_REGISTRY.get(draft_type)
 
     if not executor_fn:
         error_msg = f"No executor registered for draft type: {draft_type}"
@@ -727,7 +634,7 @@ async def _execute_confirmed_draft(
             "draft_executor_no_executor",
             run_id=run_id,
             draft_type=draft_type,
-            available_types=list(_EXECUTOR_REGISTRY.keys()),
+            available_types=list(EXECUTOR_REGISTRY.keys()),
         )
         registry_drafts_executed_total.labels(
             draft_type=draft_type,
@@ -806,7 +713,13 @@ async def _execute_confirmed_draft(
 
         # Execute draft using the registered executor
         # Executor functions have signature: (draft_content, user_id, deps) -> result_dict
-        result_data = await executor_fn(draft_content, user_id, deps)
+        token = _CURRENT_SIDE_CHANNEL_QUEUE.set(
+            config.get("configurable", {}).get("__side_channel_queue")
+        )
+        try:
+            result_data = await executor_fn(draft_content, user_id, deps)
+        finally:
+            _CURRENT_SIDE_CHANNEL_QUEUE.reset(token)
 
         registry_drafts_executed_total.labels(
             draft_type=draft_type,

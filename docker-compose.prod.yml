@@ -150,6 +150,10 @@ services:
       - LANGFUSE_DEBUG=false
       # Trust X-Forwarded-Proto from Cloudflare (Flexible SSL sends HTTP to origin)
       - FORWARDED_ALLOW_IPS=*
+      # SEC-001: the skill-script sandbox reuses THIS service's image so the
+      # interpreter and installed packages match exactly. Pinned here rather
+      # than left to a default so the two can never drift apart.
+      - SKILLS_SCRIPT_SANDBOX_IMAGE=lia-api:local
     # tmpfs mount for tiktoken and other libs that need writable temp directory
     # Increased to 500M to handle model operations
     tmpfs:

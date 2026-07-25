@@ -368,7 +368,47 @@ the dialogue resumes where it left off instead of restarting. One-shot skills
 
 ## Script Execution Security
 
-Scripts run in a sandboxed subprocess:
+### Default mode — throwaway container (SEC-001)
+
+`SKILLS_SCRIPT_SANDBOX=container` (the default) runs every script in a
+one-shot sibling container instead of a local subprocess. This is what
+actually removes the Docker socket from a script's reach: the in-process path
+below only isolates when the API itself runs as root, and in production it
+runs as `appuser`, a member of the `docker` group — a group a child process
+inherits, socket included.
+
+| Property | Enforcement |
+| --- | --- |
+| Docker socket | Not mounted — the container has no `/var/run/docker.sock` at all |
+| Network | `--network none` (no LAN, no metadata service, no egress) |
+| Filesystem | `--read-only` root + a `--tmpfs /tmp` sized by `SKILLS_SCRIPT_SANDBOX_TMPFS_MB`; `HOME=/tmp` |
+| Identity | `--user 65534:65534`, `--cap-drop=ALL`, `--security-opt no-new-privileges` |
+| Resources | `--memory`, `--pids-limit`, `--ulimit cpu`/`fsize` from the same `SKILLS_SCRIPT_MAX_*` settings |
+| Secrets | None: no bind mount, so no `config/`, no credentials, no user data |
+
+The script **source** is passed inline (`python -c <source>`) rather than
+mounted: the API is itself a container, so a bind of `/app/data/skills/...`
+would resolve against the *host* filesystem, and user skills live in a named
+volume. Passing the source also keeps stdin free for the JSON payload, which
+is the contract every skill relies on. Two consequences for skill authors:
+a script cannot read files from its own skill directory, and it cannot import
+a sibling module from `scripts/` — a single self-contained file, stdin in,
+stdout out.
+
+The image is pinned per environment in `docker-compose*.yml`
+(`SKILLS_SCRIPT_SANDBOX_IMAGE`) so the sandbox interpreter and packages match
+the API exactly. The prod image installs dependencies with `pip install
+--user`, hence `SKILLS_SCRIPT_SANDBOX_PYTHONPATH`; the dev image installs
+them system-wide and sets it empty.
+
+If the Docker daemon is unreachable the execution is **refused**
+(`Script sandbox unavailable`) — it never falls back to the in-process path,
+since a sandbox that downgrades on demand protects nothing.
+
+### Legacy mode — in-process subprocess
+
+`SKILLS_SCRIPT_SANDBOX=subprocess` keeps the historical path, retained for
+environments with no Docker daemon:
 
 1. **Process isolation**: `subprocess.run()` (no `shell=True`)
 2. **Environment filtering**: Only PATH, HOME, LANG, LC_ALL, TZ

@@ -42,8 +42,52 @@ from src.core.security.utils import (
     generate_code_verifier,
     generate_state_token,
 )
+from src.infrastructure.mcp.security import validate_http_endpoint
 
 logger = structlog.get_logger(__name__)
+
+
+# RFC 6749 §5.2 + RFC 8628 §3.5 error codes. An MCP authorization server is a
+# third party: its response body is arbitrary text we do not control, so it must
+# never reach the logs (SEC-030) — a provider can echo a code, a token, PII or a
+# CRLF-injected line, and no generic PII filter can reliably sanitise opaque
+# vendor text. Only a code matching this allowlist is logged; anything else
+# (including `error_description`) is dropped.
+_OAUTH_ERROR_CODES: frozenset[str] = frozenset(
+    {
+        "invalid_request",
+        "invalid_client",
+        "invalid_grant",
+        "unauthorized_client",
+        "unsupported_grant_type",
+        "invalid_scope",
+        "access_denied",
+        "expired_token",
+        "authorization_pending",
+        "slow_down",
+    }
+)
+
+
+def _safe_oauth_error_code(response: httpx.Response) -> str | None:
+    """Extract the OAuth ``error`` code from a response, if it is a known one.
+
+    Args:
+        response: Token/authorization endpoint response.
+
+    Returns:
+        The RFC-defined error code when the body is JSON and carries one from
+        :data:`_OAUTH_ERROR_CODES`; ``None`` otherwise. Never returns
+        provider-controlled free text.
+    """
+    try:
+        payload = response.json()
+    except (json.JSONDecodeError, ValueError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    code = payload.get("error")
+    return code if isinstance(code, str) and code in _OAUTH_ERROR_CODES else None
 
 
 class MCPAuthServerMetadata:
@@ -89,6 +133,43 @@ class MCPOAuthFlowHandler:
         """Close the HTTP client."""
         await self._http_client.aclose()
 
+    @staticmethod
+    async def _is_safe_endpoint(url: str, *, phase: str) -> bool:
+        """Whether a discovered OAuth endpoint may be contacted (SEC-008).
+
+        The MCP server's own URL is validated when the server is created or
+        updated (``user_mcp/service.py`` calls ``validate_http_endpoint``), but
+        every endpoint reached *afterwards* comes out of a response body the
+        server controls: ``authorization_servers[0]``, the ``resource_metadata``
+        URL in a ``WWW-Authenticate`` header, ``authorization_endpoint``,
+        ``token_endpoint``, ``registration_endpoint``. Without this check a
+        user-registered MCP server could steer the backend at internal hosts, or
+        receive an authorization code at an origin that was never approved.
+
+        Reusing ``validate_http_endpoint`` keeps one single rule (HTTPS only,
+        hostname blocklist, resolved IP not private/loopback/link-local/
+        metadata/reserved) — the same one already enforced at registration, so a
+        server that is legitimate today stays legitimate.
+
+        Args:
+            url: Endpoint URL to check.
+            phase: Protocol phase, for the rejection log (no URL is logged).
+
+        Returns:
+            True when the endpoint is safe to contact.
+        """
+        is_valid, error = await validate_http_endpoint(url)
+        if not is_valid:
+            # The URL is attacker-influenced: log the host only, never the full
+            # URL (it can carry query parameters).
+            logger.warning(
+                "mcp_oauth_endpoint_rejected",
+                phase=phase,
+                host=urlparse(url).hostname or "unparseable",
+                reason=error,
+            )
+        return is_valid
+
     async def discover_auth_server(self, mcp_url: str) -> MCPAuthServerMetadata:
         """
         Discover the OAuth authorization server for an MCP endpoint.
@@ -114,18 +195,25 @@ class MCPOAuthFlowHandler:
             return await self._fetch_auth_server_metadata(auth_server_url)
 
         # Strategy 2: Unauthenticated request → WWW-Authenticate header
-        with suppress(httpx.HTTPError):
-            resp = await self._http_client.get(mcp_url)
-            if resp.status_code == 401:
-                www_auth = resp.headers.get("www-authenticate", "")
-                if "resource_metadata" in www_auth:
-                    # Parse resource_metadata URL from header
-                    rm_url = self._parse_www_authenticate_resource_metadata(www_auth)
-                    if rm_url:
-                        rm_data = await self._try_fetch_json(rm_url)
-                        if rm_data and "authorization_servers" in rm_data:
-                            auth_server_url = rm_data["authorization_servers"][0]
-                            return await self._fetch_auth_server_metadata(auth_server_url)
+        # SEC-008: `mcp_url` was validated when the server was registered, but
+        # that was another point in time — DNS can have moved since (TOCTOU).
+        # Revalidating immediately before the call costs one lookup and makes
+        # the check hold at the moment it matters. A rejection only skips this
+        # strategy; discovery continues with the well-known probes below, which
+        # carry their own check.
+        if await self._is_safe_endpoint(mcp_url, phase="www_authenticate_probe"):
+            with suppress(httpx.HTTPError):
+                resp = await self._http_client.get(mcp_url)
+                if resp.status_code == 401:
+                    www_auth = resp.headers.get("www-authenticate", "")
+                    if "resource_metadata" in www_auth:
+                        # Parse resource_metadata URL from header
+                        rm_url = self._parse_www_authenticate_resource_metadata(www_auth)
+                        if rm_url:
+                            rm_data = await self._try_fetch_json(rm_url)
+                            if rm_data and "authorization_servers" in rm_data:
+                                auth_server_url = rm_data["authorization_servers"][0]
+                                return await self._fetch_auth_server_metadata(auth_server_url)
 
         # Strategy 3: .well-known/oauth-authorization-server (RFC 8414)
         metadata = await self._try_fetch_json(f"{base_url}/.well-known/oauth-authorization-server")
@@ -242,6 +330,21 @@ class MCPOAuthFlowHandler:
         # Remove empty params
         params = {k: v for k, v in params.items() if v}
 
+        # SEC-002/SEC-008: `authorization_endpoint` comes from the server's own
+        # metadata (or from its cached copy) and is handed to the browser, which
+        # assigns it to `window.location`. An unvalidated value there is a
+        # navigation primitive — `javascript:`/`data:` would execute in the LIA
+        # origin, and a private host would turn the browser into an SSRF probe.
+        # Validate before building the URL, and fail the flow rather than
+        # returning something the frontend has to second-guess.
+        if not await self._is_safe_endpoint(
+            metadata.authorization_endpoint, phase="authorization_endpoint"
+        ):
+            raise ValueError(
+                "The MCP server advertised an unusable authorization endpoint "
+                "(it must be an HTTPS URL on a public host)."
+            )
+
         auth_url = f"{metadata.authorization_endpoint}?{urlencode(params)}"
 
         # Metadata to cache on the server record
@@ -314,6 +417,16 @@ class MCPOAuthFlowHandler:
         if client_secret:
             token_data["client_secret"] = client_secret
 
+        # SEC-008: this POST carries the authorization code, the PKCE verifier
+        # and possibly the client secret. `token_endpoint` was discovered from
+        # the server's metadata and stored in Redis at initiation, so revalidate
+        # it here — the destination must never be inferred from data we did not
+        # re-check at the moment of use.
+        if not await self._is_safe_endpoint(token_endpoint, phase="token_endpoint"):
+            raise ValueError(
+                "Refusing to send the authorization code to an unvalidated token endpoint."
+            )
+
         try:
             resp = await self._http_client.post(
                 token_endpoint,
@@ -328,7 +441,10 @@ class MCPOAuthFlowHandler:
             logger.error(
                 "mcp_oauth_token_exchange_http_error",
                 status_code=resp.status_code,
-                response_body=resp.text[:200],
+                # SEC-030: never log the provider-controlled body.
+                oauth_error=_safe_oauth_error_code(resp),
+                content_type=resp.headers.get("content-type", "")[:64],
+                body_bytes=len(resp.content),
             )
             raise ValueError(
                 f"Token exchange returned HTTP {resp.status_code}. "
@@ -400,7 +516,9 @@ class MCPOAuthFlowHandler:
         logger.error(
             "mcp_oauth_token_unparseable_response",
             content_type=content_type,
-            response_body=resp.text[:200],
+            # SEC-030: the body is unparseable *and* provider-controlled — the
+            # worst case to echo. Size alone is enough to triage.
+            body_bytes=len(resp.content),
         )
         raise ValueError(
             f"Token endpoint returned unparseable response "
@@ -408,7 +526,15 @@ class MCPOAuthFlowHandler:
         )
 
     async def _try_fetch_json(self, url: str) -> dict[str, Any] | None:
-        """Fetch a URL and parse as JSON, returning None on failure."""
+        """Fetch a URL and parse as JSON, returning None on failure.
+
+        SEC-008: this is the single funnel for every discovery GET, so the SSRF
+        check lives here. A rejected endpoint returns ``None`` — the same shape
+        as "not found" — which lets the caller fall through to the next
+        discovery strategy instead of surfacing an SSRF probe as a hard error.
+        """
+        if not await self._is_safe_endpoint(url, phase="discovery"):
+            return None
         with suppress(httpx.HTTPError, json.JSONDecodeError):
             resp = await self._http_client.get(url)
             if resp.status_code == 200:
@@ -459,6 +585,15 @@ class MCPOAuthFlowHandler:
         convention) and assumes PKCE S256 support (required by MCP spec).
         """
         authorize_url = f"{auth_server_url}/authorize"
+
+        # SEC-008: this probe bypasses `_try_fetch_json`, so it needs its own
+        # check. `auth_server_url` reaches here from `authorization_servers[0]`
+        # — a value the MCP server controls — and the well-known probes above
+        # returning nothing is exactly what routes a private address into this
+        # fallback. Without this guard the heuristic path would still emit the
+        # request the rest of the flow refuses to make.
+        if not await self._is_safe_endpoint(authorize_url, phase="heuristic_probe"):
+            return None
 
         try:
             resp = await self._http_client.get(
@@ -513,6 +648,12 @@ class MCPOAuthFlowHandler:
             return None
 
         redirect_uri = f"{callback_base}{MCP_USER_OAUTH_CALLBACK_PATH}"
+
+        # SEC-008: `registration_endpoint` is another server-supplied URL, and
+        # this POST publishes our callback URI to it. Returning None keeps the
+        # caller's existing "registration unavailable" path.
+        if not await self._is_safe_endpoint(registration_endpoint, phase="registration_endpoint"):
+            return None
 
         try:
             resp = await self._http_client.post(

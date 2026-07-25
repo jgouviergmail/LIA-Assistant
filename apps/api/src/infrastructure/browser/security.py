@@ -12,7 +12,10 @@ Phase: evolution F7 — Browser Control (Playwright)
 from __future__ import annotations
 
 import re
+import time
+from collections import OrderedDict
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 import structlog
 
@@ -23,6 +26,45 @@ if TYPE_CHECKING:
     from playwright.async_api import Page, Route
 
 logger = structlog.get_logger(__name__)
+
+
+class _HostVerdictCache:
+    """Bounded, expiring cache of per-host SSRF verdicts (SEC-032).
+
+    The interceptor runs on EVERY request a page makes — a content-heavy page
+    easily issues a few hundred — and the underlying check resolves DNS. Without
+    a cache the guard would add a lookup per sub-resource and make browsing
+    unusably slow, which is the kind of cost that gets a security control turned
+    off.
+
+    Entries expire quickly on purpose: the TTL is exactly the window in which a
+    rebinding attack could reuse a stale "allowed" verdict.
+    """
+
+    def __init__(self, *, ttl_seconds: int, max_hosts: int) -> None:
+        self._ttl = ttl_seconds
+        self._max = max_hosts
+        self._entries: OrderedDict[str, tuple[float, bool]] = OrderedDict()
+
+    def get(self, host: str) -> bool | None:
+        """Return a cached verdict, or None when absent or expired."""
+        entry = self._entries.get(host)
+        if entry is None:
+            return None
+        expires_at, allowed = entry
+        if time.monotonic() >= expires_at:
+            del self._entries[host]
+            return None
+        self._entries.move_to_end(host)
+        return allowed
+
+    def set(self, host: str, allowed: bool) -> None:
+        """Record a verdict, evicting the least recently used host when full."""
+        self._entries[host] = (time.monotonic() + self._ttl, allowed)
+        self._entries.move_to_end(host)
+        while len(self._entries) > self._max:
+            self._entries.popitem(last=False)
+
 
 # Maximum length for fill values (prevents abuse)
 _MAX_FILL_VALUE_LENGTH = 10_000
@@ -64,6 +106,37 @@ class BrowserSecurityPolicy:
             self._blocked_domains = {
                 d.strip().lower() for d in settings.browser_blocked_domains.split(",") if d.strip()
             }
+        self._host_verdicts = _HostVerdictCache(
+            ttl_seconds=settings.browser_ssrf_cache_ttl_seconds,
+            max_hosts=settings.browser_ssrf_cache_max_hosts,
+        )
+
+    async def _host_is_reachable(self, url: str) -> bool:
+        """Whether a URL's host resolves to a public address (SEC-032).
+
+        Verdicts are cached per host: this runs on every request a page makes,
+        and the check behind it performs a DNS resolution.
+
+        Args:
+            url: URL about to be requested by the page.
+
+        Returns:
+            True when the host may be contacted.
+        """
+        host = (urlparse(url).hostname or "").lower()
+        if not host:
+            return False
+
+        cached = self._host_verdicts.get(host)
+        if cached is not None:
+            return cached
+
+        # Lazy import to avoid a circular dependency at module load.
+        from src.domains.agents.web_fetch.url_validator import validate_url
+
+        result = await validate_url(url)
+        self._host_verdicts.set(host, result.valid)
+        return result.valid
 
     async def validate_navigation_url(self, url: str) -> tuple[bool, str]:
         """Validate a URL for browser navigation.
@@ -102,22 +175,36 @@ class BrowserSecurityPolicy:
         return True, ""
 
     async def create_request_interceptor(self, page: Page) -> None:
-        """Register a request interceptor to block dangerous requests.
+        """Register a request interceptor on every request the page makes.
 
-        Blocks requests to private IPs, dangerous schemes, and file downloads
-        while allowing the main navigation request to proceed.
+        ``validate_navigation_url`` only covers the URL the agent explicitly
+        asks for. Everything the page does next reaches this handler instead:
+        redirects, sub-resources, iframes, workers, XHR, and navigations caused
+        by a click or a form submission. It used to check the scheme and a
+        "download" substring, forward everything else, and — on any exception —
+        forward the request too. So a public page could redirect to a loopback,
+        private, link-local or cloud-metadata address and the browser would
+        fetch it (SEC-032).
+
+        Each request now resolves its host and is refused unless it is public,
+        with verdicts cached per host so the DNS cost stays bearable, and any
+        failure aborts instead of forwarding.
+
+        Enforcement is behind ``BROWSER_SSRF_ENFORCE`` and starts OFF: a real
+        page also pulls CDNs, fonts and analytics, so the block rate is observed
+        (``browser_request_ssrf_report_only``) before it is trusted. In
+        report-only the request proceeds and the decision is logged.
 
         Args:
             page: The Playwright page to intercept requests on.
         """
+        enforce = settings.browser_ssrf_enforce
 
         async def _intercept(route: Route) -> None:
             request = route.request
             url = request.url
 
             try:
-                from urllib.parse import urlparse
-
                 parsed = urlparse(url)
 
                 # Block dangerous schemes
@@ -136,12 +223,37 @@ class BrowserSecurityPolicy:
                     await route.abort("blockedbyclient")
                     return
 
-                # Allow all other requests
+                # SEC-032: the destination itself, not just its scheme.
+                if not await self._host_is_reachable(url):
+                    if enforce:
+                        logger.warning(
+                            "browser_request_ssrf_blocked",
+                            url=url[:200],
+                            resource_type=request.resource_type,
+                        )
+                        await route.abort("blockedbyclient")
+                        return
+                    logger.warning(
+                        "browser_request_ssrf_report_only",
+                        url=url[:200],
+                        resource_type=request.resource_type,
+                        msg="would be blocked once BROWSER_SSRF_ENFORCE is enabled",
+                    )
+
                 await route.continue_()
 
-            except Exception:
-                # On any error, allow the request to proceed
-                await route.continue_()
+            except Exception as exc:
+                # Fail CLOSED. This used to forward the request, so any failure
+                # in the guard — a DNS error, a malformed URL, a Playwright
+                # hiccup — silently disabled it for that request. A blocked
+                # sub-resource degrades a page; a forwarded one can reach an
+                # internal service.
+                logger.warning(
+                    "browser_request_interceptor_failed",
+                    url=url[:200],
+                    error=str(exc),
+                )
+                await route.abort("blockedbyclient")
 
         await page.route("**/*", _intercept)
 

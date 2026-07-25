@@ -198,6 +198,28 @@ http_rate_limit_hits_total = Counter(
     ["endpoint", "endpoint_type"],  # endpoint_type: auth_login, auth_register, sse, default
 )
 
+# SEC-031. `reason` distinguishes a request refused on its declared
+# Content-Length (cheap, nothing buffered) from one cut mid-stream because the
+# real byte count crossed the ceiling — the latter meaning a client understated
+# its length or used chunked encoding. The label is the ROUTE TEMPLATE, never
+# the raw path: a per-URL label on an attacker-chosen path is unbounded
+# cardinality, which is how a metric takes down the very Prometheus meant to
+# watch it.
+# SEC-016. The global limiter fails OPEN when Redis is unavailable — on a
+# single-instance deployment, failing closed turns a cache outage into a total
+# outage. This counter is what keeps that trade-off honest: it measures how long
+# the API ran unprotected, so the degraded window is visible instead of silent.
+http_rate_limit_degraded_total = Counter(
+    "http_rate_limit_degraded_total",
+    "Requests admitted without a rate-limit check because the limiter was unavailable",
+)
+
+http_request_body_rejected_total = Counter(
+    "http_request_body_rejected_total",
+    "Total HTTP requests rejected for exceeding the global body size limit",
+    ["reason"],  # reason: declared_length, streamed_bytes
+)
+
 # ============================================================================
 # BUSINESS METRICS (User Activity & Engagement)
 # ============================================================================

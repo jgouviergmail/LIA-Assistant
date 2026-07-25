@@ -24,6 +24,9 @@ from src.core.constants import (
     BROWSER_AX_TREE_MAX_TOKENS_DEFAULT,
     BROWSER_DEFAULT_TIMEOUT_MS,
     BROWSER_REACT_MAX_ITERATIONS_DEFAULT,
+    BROWSER_SSRF_CACHE_MAX_HOSTS_DEFAULT,
+    BROWSER_SSRF_CACHE_TTL_SECONDS_DEFAULT,
+    BROWSER_SSRF_ENFORCE_DEFAULT,
 )
 
 
@@ -162,6 +165,35 @@ class BrowserSettings(BaseSettings):
     browser_blocked_domains: str = Field(
         default="",
         description="Additional blocked domains (CSV). Combined with SSRF protection.",
+    )
+
+    browser_ssrf_enforce: bool = Field(
+        default=BROWSER_SSRF_ENFORCE_DEFAULT,
+        description=(
+            "SEC-032. When true, the request interceptor ABORTS every navigation, "
+            "redirect, sub-resource or click that resolves to a non-public address. "
+            "When false it only logs what it would have blocked (report-only), so "
+            "the block rate can be measured on real traffic before enforcing — a "
+            "wrongly-blocked CDN would otherwise break page rendering silently."
+        ),
+    )
+
+    browser_ssrf_cache_ttl_seconds: int = Field(
+        default=BROWSER_SSRF_CACHE_TTL_SECONDS_DEFAULT,
+        ge=1,
+        le=300,
+        description=(
+            "How long a per-host SSRF verdict is reused. The check resolves DNS, "
+            "and a page pulls dozens to hundreds of sub-resources — without a "
+            "cache the interceptor would add one lookup per request. Kept short: "
+            "the cache is also the DNS-rebinding window."
+        ),
+    )
+
+    browser_ssrf_cache_max_hosts: int = Field(
+        default=BROWSER_SSRF_CACHE_MAX_HOSTS_DEFAULT,
+        ge=16,
+        description="Maximum hosts held in the SSRF verdict cache (bounded memory).",
     )
 
     browser_user_agent: str = Field(

@@ -50,24 +50,53 @@ class TestValidateSignature:
             assert result is False
 
     @pytest.mark.asyncio
-    async def test_no_secret_configured_accepts_all(self, handler: TelegramWebhookHandler) -> None:
-        """Dev mode: no secret configured → accept everything."""
+    async def test_no_secret_configured_rejects_everything(
+        self, handler: TelegramWebhookHandler
+    ) -> None:
+        """SEC-024: no secret configured → refuse, never accept.
+
+        This test asserted the opposite ("dev mode: accept everything"). The
+        webhook route is mounted whenever CHANNELS_ENABLED is true — including
+        in long-polling mode, where no secret exists — so that dev-mode
+        exception was reachable on a public production URL, turning the
+        endpoint into an unauthenticated entry point to the message router,
+        the OTP flow and pending HITL interruptions.
+        """
         with patch(
             "src.infrastructure.channels.telegram.webhook_handler.settings"
         ) as mock_settings:
             mock_settings.telegram_webhook_secret = None
             result = await handler.validate_signature(b"body", "anything")
-            assert result is True
+            assert result is False
 
     @pytest.mark.asyncio
-    async def test_no_secret_attr_accepts_all(self, handler: TelegramWebhookHandler) -> None:
-        """Settings missing the attribute entirely → accept (dev mode)."""
+    async def test_no_secret_attr_rejects_everything(self, handler: TelegramWebhookHandler) -> None:
+        """SEC-024: a settings object without the attribute is refused too.
+
+        A missing attribute is a misconfiguration, not an authorisation.
+        """
         with patch(
             "src.infrastructure.channels.telegram.webhook_handler.settings"
         ) as mock_settings:
             del mock_settings.telegram_webhook_secret
             result = await handler.validate_signature(b"body", "anything")
-            assert result is True
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_empty_secret_string_rejects_everything(
+        self, handler: TelegramWebhookHandler
+    ) -> None:
+        """SEC-024: an empty secret is as good as none — refuse.
+
+        Covers the `TELEGRAM_WEBHOOK_SECRET=` (declared but blank) case, which a
+        truthiness check treats like an absent secret.
+        """
+        with patch(
+            "src.infrastructure.channels.telegram.webhook_handler.settings"
+        ) as mock_settings:
+            mock_settings.telegram_webhook_secret = ""
+            result = await handler.validate_signature(b"body", "")
+            assert result is False
 
 
 # =============================================================================

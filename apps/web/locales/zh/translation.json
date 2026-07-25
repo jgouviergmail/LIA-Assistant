@@ -3167,7 +3167,7 @@
       "features": {
         "architecture": {
           "title": "🏗️ LangGraph 多智能体架构",
-          "description": "LIA 使用 LangGraph，一个用于 AI 智能体编排的状态图框架。19+个专门的智能体覆盖各个领域（邮件、日历、联系人、任务、云端硬盘、天气、地点、路线、维基百科、Perplexity、Brave Search、网页阅读、网络搜索、提醒、Hue、上下文、本地查询等），具有条件转换和通过 PostgreSQL 检查点实现的状态持久化。动态MCP代理无限扩展能力。"
+          "description": "LIA 使用 LangGraph，一个用于 AI 智能体编排的状态图框架。20+个专门的智能体覆盖各个领域（邮件、日历、联系人、任务、云端硬盘、天气、地点、路线、维基百科、Perplexity、Brave Search、网页阅读、网络搜索、提醒、Hue、上下文、本地查询等），具有条件转换和通过 PostgreSQL 检查点实现的状态持久化。动态MCP代理无限扩展能力。"
         },
         "queryAnalyzer": {
           "title": "🧭 Query Analyzer v3.2",
@@ -3231,7 +3231,7 @@
         },
         "security": {
           "title": "🔐 多层安全",
-          "description": "从登录到数据的纵深防御。<b>强身份验证</b>（ADR-143）：WebAuthn 通行密钥（Face ID、指纹 — 抗钓鱼）、带一次性备用码的 TOTP 第二因素，以及敏感操作的 step-up 重新验证。<b>我的设备</b>（ADR-144）：每个在线会话均可查看并撤销，元数据刻意限定（浏览器/系统类别、截断的 IP），并在从无法识别的设备登录时发出提醒。底层：Google 服务的 OAuth 2.0 + PKCE、令牌刷新的分布式锁、日志与追踪中的 PII 过滤、按用户/端点的速率限制、用户间完全隔离、敏感数据的 Fernet 加密。<b>完整 GDPR 导出</b>（ADR-145）：Markdown + JSON + 文件归档，机密材料在设计上无法导出。每日自动备份、三级轮换、单命令测试恢复（ADR-109）。"
+          "description": "从登录到数据的纵深防御。<b>强身份验证</b>（ADR-143）：WebAuthn 通行密钥（Face ID、指纹 — 抗钓鱼）、带一次性备用码的 TOTP 第二因素，以及敏感操作的 step-up 重新验证。<b>我的设备</b>（ADR-144）：每个在线会话均可查看并撤销，元数据刻意限定（浏览器/系统类别、截断的 IP），并在从无法识别的设备登录时发出提醒。底层：Google 服务的 OAuth 2.0 + PKCE、令牌刷新的分布式锁、日志与追踪中的 PII 过滤、按用户/端点的速率限制、用户间完全隔离、敏感数据的 Fernet 加密。<b>隔离执行</b>：技能运行在一次性容器中，无套接字、无网络、只读；任何服务器任务都先确认再执行。<b>完整 GDPR 导出</b>（ADR-145）：Markdown + JSON + 文件归档，机密材料在设计上无法导出。每日自动备份、三级轮换、单命令测试恢复（ADR-109）。"
         },
         "resilience": {
           "title": "🛡️ 性能与 Token 优化",
@@ -3262,8 +3262,8 @@
           "description": "完整堆栈：Prometheus 指标（token、延迟、错误、成本）、25 个 Grafana 仪表板、Tempo 分布式追踪、Loki 集中日志，以及 Langfuse 集成用于 LLM 性能分析。邮件告警已启用：13 项关键告警核心，按环境设置阈值，每条告警附带处置指南（runbook）。专用的存活探针（/health）与就绪探针（/ready），区分「进程在运行」与「PostgreSQL 和 Redis 确实可用」。"
         },
         "tools": {
-          "title": "🔧 75+类型化工具",
-          "description": "超过75个原生工具，JSON 模式从 Python/Pydantic 自动生成。声明式清单带 semantic_keywords 支持智能路由。统一的 StandardToolOutput 带注册表更新支持上下文引用。通过MCP服务器无限扩展。"
+          "title": "🔧 80+类型化工具",
+          "description": "超过80个原生工具，JSON 模式从 Python/Pydantic 自动生成。声明式清单带 semantic_keywords 支持智能路由。统一的 StandardToolOutput 带注册表更新支持上下文引用。通过MCP服务器无限扩展。"
         },
         "costTransparency": {
           "title": "💰 成本透明度",
@@ -3380,6 +3380,22 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_25_20": {
+          "title": "v1.25.20 — 🔒 运行的一切，都运行在密封盒中",
+          "date": "2026年7月",
+          "count": "9",
+          "items": {
+            "i1": "<b>📦 技能脚本运行在密封盒中</b> — 技能的代码现在运行在一个为这一次执行而创建、随后立即销毁的容器里：没有网络、无法访问你的文件、没有密钥。安装一个技能，是为了它产出的东西，而不是为了必须给予其作者的信任。",
+            "i2": "<b>🖥️ 任何服务器任务都需要你的批准</b> — 对远程服务器的管理请求现在会先准备再提交，绝不直接执行。继续一次已经开始的排查也同样如此。",
+            "i3": "<b>👁️ 确认会展示将要发送的全部内容</b> — 卡片会显示目标服务器、完整的任务文本，以及 LIA 为自己写下的指令。一份无法完整读完的摘要不是确认。",
+            "i4": "<b>📍 你的坐标和令牌离开日志</b> — GPS 位置加入被遮蔽的参数，访问过的地址也终于经过隐私过滤器，包括此前绕过它的那些。",
+            "i5": "<b>🧹 切换账号会清理设备</b> — 本地保存的敏感数据在退出登录时清除，会话过期后由另一个账号登录时同样清除。",
+            "i6": "<b>🗺️ 你的地图只属于你</b> — 地图与路线的显示现在需要你的会话，并拥有独立的配额。",
+            "i7": "<b>💬 Telegram 通道必须配置密钥</b> — 未配置密钥时，webhook 会拒绝所有消息而不是接受它们；残留的示例值会阻止应用启动。",
+            "i8": "<b>🚦 面对突发流量服务依然可用</b> — 一道全局上限现在保护所有路由，其阈值远高于真实用量，因此在正常使用中不可见。",
+            "i9": "<b>⬆️ 过大的上传会被立即拒绝</b> — 超出限制的文件在被载入之前就被拒绝，而不是占用服务器内存后再报错。"
+          }
+        },
         "v1_25_19": {
           "title": "v1.25.19 — 🛡️ LIA 先询问再行动",
           "date": "2026年7月",
@@ -6452,7 +6468,7 @@
   "landing": {
     "meta": {
       "title": "LIA — 开源个人AI助手 | 多智能体、HITL、6种语言",
-      "description": "LIA编排19+个专业AI智能体管理您的邮件、日历、联系人、Drive等。开源、人工验证(HITL)、7个LLM供应商、6种语言。隐私设计。"
+      "description": "LIA编排20+个专业AI智能体管理您的邮件、日历、联系人、Drive等。开源、人工验证(HITL)、7个LLM供应商、6种语言。隐私设计。"
     },
     "nav": {
       "features": "概览",
@@ -6487,7 +6503,7 @@
       "trust_gdpr": "符合GDPR",
       "badge_opensource": "开源项目",
       "cta_github": "GitHub",
-      "intro_paragraph": "LIA是一个开源的个人AI助手，协调19+个专业代理来管理您的邮件、日历、联系人、文件、任务、提醒、网络搜索、天气、路线和智能家居。兼容Google Workspace、Apple iCloud和Microsoft 365，LIA使用自然语言工作，对每个敏感操作进行人工验证。"
+      "intro_paragraph": "LIA是一个开源的个人AI助手，协调20+个专业代理来管理您的邮件、日历、联系人、文件、任务、提醒、网络搜索、天气、路线和智能家居。兼容Google Workspace、Apple iCloud和Microsoft 365，LIA使用自然语言工作，对每个敏感操作进行人工验证。"
     },
     "chat_mockup": {
       "aria": "动画演示：四个真实场景——LIA 并行调度多个智能体并等待你的确认、主动交叉分析天气与日程、拨打真实电话完成预订、并直接在聊天中创建迷你应用。工作时可以看到幕后的编排过程。",
@@ -6605,7 +6621,7 @@
         "description": "无需记忆任何命令。像对人类助手一样提出需求，LIA理解并执行。"
       },
       "multi_agent": {
-        "title": "19+个专业智能体",
+        "title": "20+个专业智能体",
         "description": "邮件、日历、联系人、文件、任务、天气、网络搜索、Wikipedia、地点、路线、提醒等。一条指令自动激活正确的智能体。"
       },
       "proactive": {
@@ -6761,7 +6777,7 @@
     "security": {
       "title": "安全与隐私",
       "subtitle": "天生强大。隐私至上。",
-      "intro": "LIA从第一天起就采用隐私设计理念。与集中式云助手不同，您的凭据永远不会通过前端传输：后端前端架构完全隔离您的令牌。自动PII过滤防止个人身份数据到达LLM提供商。 你的账户本身也被锁定：通行密钥、第二因素以及敏感操作的身份确认，每个已连接设备均可查看并撤销。",
+      "intro": "LIA从第一天起就采用隐私设计理念。与集中式云助手不同，您的凭据永远不会通过前端传输：后端前端架构完全隔离您的令牌。自动PII过滤防止个人身份数据到达LLM提供商。 你的账户本身也被锁定：通行密钥、第二因素以及敏感操作的身份确认，每个已连接设备均可查看并撤销。 而为你运行的一切都运行在密封盒中：技能代码在一次性容器中执行，未经你同意不会有任何操作触碰你的服务器。",
       "privacy_link": "阅读我们的隐私政策",
       "data_control": {
         "title": "数据控制",
@@ -6769,7 +6785,7 @@
       },
       "bff": {
         "title": "安全架构",
-        "description": "BFF 模式：HTTP-only Cookie、Redis 会话、令牌绝不暴露给前端。WebAuthn 通行密钥和 TOTP 双因素；敏感操作由 step-up 重新验证保护。严格的 Content-Security-Policy 和 OWASP Top 10 防护。"
+        "description": "BFF 模式：HTTP-only Cookie、Redis 会话、令牌绝不暴露给前端。WebAuthn 通行密钥和 TOTP 双因素；敏感操作由 step-up 重新验证保护。严格的 Content-Security-Policy 和 OWASP Top 10 防护。 第三方代码隔离运行——一次性容器、无套接字、无网络——任何管理任务在发出前都需确认。"
       },
       "encryption": {
         "title": "加密",
@@ -6783,7 +6799,7 @@
     "tech": {
       "title": "技术底层",
       "subtitle": "为性能和可扩展性设计的架构",
-      "intro": "不是聊天机器人，而是一套编排系统。每个请求都经过语义路由、规划器和并行执行的智能体——端到端全程可观测，从Token到欧元，关键信号异常时自动邮件告警。\n\n界面背后：贝叶斯计划学习、BM25+语义嵌入混合记忆、以PostgreSQL做检查点的LangGraph状态机。全部可自托管——小到一台树莓派。\n\n它所断言的，都是它读到的：每个回答都锚定在真实获取的数据上，而非对早先措辞的记忆；从未获取到的信息会被明确说明，而不是被补全。",
+      "intro": "不是聊天机器人，而是一套编排系统。每个请求都经过语义路由、规划器和并行执行的智能体——端到端全程可观测，从Token到欧元，关键信号异常时自动邮件告警。\n\n界面背后：贝叶斯计划学习、BM25+语义嵌入混合记忆、以PostgreSQL做检查点的LangGraph状态机。全部可自托管——小到一台树莓派。\n\n它所断言的，都是它读到的：每个回答都锚定在真实获取的数据上，而非对早先措辞的记忆；从未获取到的信息会被明确说明，而不是被补全。\n\n被执行的东西与执行它的东西相互隔离：技能代码运行在仅为一次调用而创建的容器中——无套接字、无网络、只读——如果这个沙箱无法建立，就什么都不会运行。",
       "deep_dive_link": "完整技术深度解析",
       "langgraph": {
         "title": "LangGraph",
@@ -6936,7 +6952,7 @@
         "b3_d": "「调暗客厅」「填这个表单」：灯光、网站、导航——她来搞定。",
         "b4_t": "成批处理，不是苦差。",
         "b4_d": "「每个会议的前一天提醒我」：她遍历整周日程，只需一句话。",
-        "how": "19+ 个并行编排的智能体 · 通过你的 ElevenLabs 连接器实现智能体电话 · 浏览器控制 · Philips Hue · 按需生成图片与图表。",
+        "how": "20+ 个并行编排的智能体 · 通过你的 ElevenLabs 连接器实现智能体电话 · 浏览器控制 · Philips Hue · 按需生成图片与图表。",
         "catalog_hint": "8 项能力详情",
         "v_query": "「每个会议的前一天提醒我」",
         "v_t1": "📅 日历",
@@ -7348,7 +7364,7 @@
     },
     "articles": {
       "multi-agent-orchestration": {
-        "title": "LIA如何编排19+个专业AI智能体",
+        "title": "LIA如何编排20+个专业AI智能体",
         "excerpt": "探索LIA的多智能体系统：智能路由器通过LangGraph、规划器和并行任务编排器将每个请求导向正确的智能体。",
         "body": "<h2>系统核心：8节点状态图</h2><p>当您向LIA发送消息时，消息并不会直接发送到语言模型，而是经过一个<strong>由8个节点组成的LangGraph状态机</strong>：<code>compaction</code>、<code>router_v3</code>、<code>planner</code>、<code>task_orchestrator</code>、<code>approval_gate</code>、<code>semantic_validator</code>、<code>clarification</code>和<code>response</code>。每个节点都是一个专门的异步函数，具有条件转换。</p><h2>统一智能路由器</h2><p><code>router_v3</code>节点使用<code>QueryAnalyzerService.analyze_full()</code>对每条消息进行统一分析。结果是一个<strong>RouterOutput</strong>，包含：意图（<code>action</code>或<code>conversation</code>）、置信度分数、检测到的领域列表以及路由器的推理过程。如果意图是对话性的，流程直接进入<code>response</code>节点；如果是操作性的，流程进入<code>planner</code>生成结构化计划。</p><h2>丰富的状态与Token管理</h2><p>LangGraph状态（<code>MessagesState</code>）是一个包含<strong>50多个字段</strong>的TypedDict。它使用基于tiktoken的自定义reducer <code>add_messages_with_truncate</code>来管理按Token截断、消息窗口化和OpenAI消息序列验证。该状态通过LangGraph持久化系统检查点保存到<strong>PostgreSQL</strong>中。</p><h2>原生并行执行</h2><p>对于可操作的请求（如\"发送一封邮件并创建一个日程\"），LIA通过规划节点生成结构化的<strong>ExecutionPlan</strong>。任务编排器分析依赖图，并通过原生<code>asyncio.gather()</code>（Phase 5.2B）并行执行独立步骤，大幅减少了多领域请求的响应时间。</p><h2>按领域专门化的智能体</h2><p>每个领域都有自己的智能体：邮件、日历、联系人、任务、Drive、天气、路线、网络搜索、Wikipedia、智能家居等。每个智能体都有专属工具、专业提示和独立上下文。这种划分使LIA能够自动协调多个智能体来处理跨领域请求，例如\"将我下次会议的详情发送给所有参与者\"。</p><h2>持久化与恢复</h2><p>每个对话的完整状态通过LangGraph持久化系统检查点保存到PostgreSQL中。如果中断，对话会从中断处精确恢复，保留所有上下文——包括正在执行的计划和等待中的审批。每个 worker 通过专属连接池与 PostgreSQL 通信：同时进行的对话在保存状态时不再互相排队等待——断开的连接也会被自动检测并替换。</p>"
       },
@@ -7385,7 +7401,7 @@
       "skills-system": {
         "title": "技能：专家指令定制LIA",
         "excerpt": "导入或创建专业技能，让LIA掌握新领域 — 除文本外还包括交互式地图、迷你仪表板和图像。",
-        "body": "<h2>什么是技能？</h2><p><strong>技能</strong>是一组结构化指令，使LIA能够掌握特定领域。与执行操作的工具不同，技能丰富的是助手的<strong>推理和行为</strong>。架构基于一个关键原则：<strong>磁盘是技能内容的唯一真实来源</strong>，而数据库仅管理元数据（激活状态、所有者、统计信息）。</p><h2>丰富的输出（v1.16.8）</h2><p>自 v1.16.8 起，Python 脚本除了文本之外，还可以返回<strong>交互式 HTML 框架</strong>（Google 地图视图、天气仪表板、番茄钟计时器……）和/或<strong>图像</strong>（QR 码、图表）。合约很简单：脚本在 stdout 上写入 JSON 对象（<code>SkillScriptOutput</code>），包含 <code>text</code>（必需）、<code>frame</code> 和 <code>image</code> 字段 — 独立且可组合。框架在严格的<em>沙盒</em> iframe 中运行，为用户技能自动注入<strong>内容安全策略</strong>。主题和语言通过 <code>postMessage</code> 实时同步。七个新的内置技能展示了该机制：<code>interactive-map</code>、<code>weather-dashboard</code>、<code>calendar-month</code>、<code>qr-code</code>、<code>pomodoro-timer</code>、<code>unit-converter</code>、<code>dice-roller</code>。</p><h2>三种技能类型</h2><ul><li><strong>Prompt Expert</strong> — 某一领域的详细指令（如：专业写作、财务分析）</li><li><strong>Advisory</strong> — 建议和最佳实践（如：风格指南、质量检查清单）</li><li><strong>Plan Template</strong> — 常见场景的执行计划模板</li></ul><h2>沙盒执行</h2><p>可执行技能在<strong>沙盒环境</strong>中通过<code>subprocess</code>运行（永远不使用<code>shell=True</code>）。执行环境经过过滤：仅<code>PATH</code>、<code>HOME</code>、<code>LANG</code>、<code>LC_ALL</code>和<code>TZ</code>变量传递给子进程。在Linux上，通过<code>unshare</code>实现<strong>网络隔离</strong>，防止技能脚本进行任何网络访问。</p><h2>结构化结果</h2><p>每次技能执行返回一个标准化的<strong>ScriptResult</strong>对象，包含：<code>success</code>（布尔值）、<code>output</code>（stdout）、<code>error</code>（stderr）、<code>exit_code</code>和<code>execution_time_ms</code>。这种格式使系统能够统一处理成功和错误情况。</p><h2>SkillBypassStrategy：绕过规划器</h2><p>当确定性技能完全匹配请求时，<strong>SkillBypassStrategy</strong>会短路LLM规划器。技能直接执行，无需经过planner → validator → orchestrator链，从而降低延迟和Token消耗。</p><h2>规划器技能守卫</h2><p>规划器具有早期检测功能，在缺少必需参数时请求澄清。然而，多域确定性技能（例如：每日简报 = 事件 + 任务 + 天气 + 邮件）可能会触发<strong>错误的澄清请求</strong>。技能守卫检测到确定性技能与查询具有高域重叠时，会让完整的规划器管道来决定，而不是直接跳转到澄清。</p><h2>技能生成器</h2><p>LIA包含内置的<strong>技能生成器</strong>。用自然语言描述所需的专业领域，LIA会自动生成符合agentskills.io标准的SKILL.md格式的结构化技能。 完成的技能经过验证后<strong>直接安装到您的技能中</strong> — 以名称宣布、立即激活、无需手动上传。</p><h2>用户管理</h2><p>每个用户可以在设置界面中激活、停用、导入或删除技能 — 现在是一个<strong>技能库</strong>，带预览图和声明的输出通道（文本、交互框架、图片）。导入支持文件或经服务器端校验的 <strong>https URL</strong>（同一条强化管线），所有从外部导入的技能都带有来源警告。管理员还可以定义面向所有用户的全局技能。</p><p>交互式小组件经久耐用：它们随对话一起保存，在重新加载后或另一台设备上会重新打开；无法加载的框架会显示可操作的错误状态——说明、重试、在新标签页打开——而不是一个空白矩形。</p>"
+        "body": "<h2>什么是技能？</h2><p><strong>技能</strong>是一组结构化指令，使LIA能够掌握特定领域。与执行操作的工具不同，技能丰富的是助手的<strong>推理和行为</strong>。架构基于一个关键原则：<strong>磁盘是技能内容的唯一真实来源</strong>，而数据库仅管理元数据（激活状态、所有者、统计信息）。</p><h2>丰富的输出（v1.16.8）</h2><p>自 v1.16.8 起，Python 脚本除了文本之外，还可以返回<strong>交互式 HTML 框架</strong>（Google 地图视图、天气仪表板、番茄钟计时器……）和/或<strong>图像</strong>（QR 码、图表）。合约很简单：脚本在 stdout 上写入 JSON 对象（<code>SkillScriptOutput</code>），包含 <code>text</code>（必需）、<code>frame</code> 和 <code>image</code> 字段 — 独立且可组合。框架在严格的<em>沙盒</em> iframe 中运行，为用户技能自动注入<strong>内容安全策略</strong>。主题和语言通过 <code>postMessage</code> 实时同步。七个新的内置技能展示了该机制：<code>interactive-map</code>、<code>weather-dashboard</code>、<code>calendar-month</code>、<code>qr-code</code>、<code>pomodoro-timer</code>、<code>unit-converter</code>、<code>dice-roller</code>。</p><h2>三种技能类型</h2><ul><li><strong>Prompt Expert</strong> — 某一领域的详细指令（如：专业写作、财务分析）</li><li><strong>Advisory</strong> — 建议和最佳实践（如：风格指南、质量检查清单）</li><li><strong>Plan Template</strong> — 常见场景的执行计划模板</li></ul><h2>在密封罩下执行</h2><p>技能脚本运行在一个<strong>为该次调用创建、随后立即销毁的容器</strong>中：没有 Docker 套接字，<code>--network none</code>，只读根文件系统外加一小块可写 <code>tmpfs</code>，非特权身份，并丢弃全部 capability。内存、进程数、CPU 时间和写入文件大小均设上限。</p><p>这里的关键是子进程<em>继承</em>了什么。仅仅切换 uid 并不够：生产环境中服务属于 <code>docker</code> 组，而组是会被继承的——套接字仍然可达。容器从构造上消除了这种继承。而如果沙箱无法创建，脚本<strong>就完全不会运行</strong>：不存在退回到保护更弱模式的路径。</p><p>脚本源码以参数形式传入而非挂载，从而让 <code>stdin</code> 保持空闲以承载 JSON 负载——技能的输入/输出契约保持不变。</p><h2>结构化结果</h2><p>每次技能执行返回一个标准化的<strong>ScriptResult</strong>对象，包含：<code>success</code>（布尔值）、<code>output</code>（stdout）、<code>error</code>（stderr）、<code>exit_code</code>和<code>execution_time_ms</code>。这种格式使系统能够统一处理成功和错误情况。</p><h2>SkillBypassStrategy：绕过规划器</h2><p>当确定性技能完全匹配请求时，<strong>SkillBypassStrategy</strong>会短路LLM规划器。技能直接执行，无需经过planner → validator → orchestrator链，从而降低延迟和Token消耗。</p><h2>规划器技能守卫</h2><p>规划器具有早期检测功能，在缺少必需参数时请求澄清。然而，多域确定性技能（例如：每日简报 = 事件 + 任务 + 天气 + 邮件）可能会触发<strong>错误的澄清请求</strong>。技能守卫检测到确定性技能与查询具有高域重叠时，会让完整的规划器管道来决定，而不是直接跳转到澄清。</p><h2>技能生成器</h2><p>LIA包含内置的<strong>技能生成器</strong>。用自然语言描述所需的专业领域，LIA会自动生成符合agentskills.io标准的SKILL.md格式的结构化技能。 完成的技能经过验证后<strong>直接安装到您的技能中</strong> — 以名称宣布、立即激活、无需手动上传。</p><h2>用户管理</h2><p>每个用户可以在设置界面中激活、停用、导入或删除技能 — 现在是一个<strong>技能库</strong>，带预览图和声明的输出通道（文本、交互框架、图片）。导入支持文件或经服务器端校验的 <strong>https URL</strong>（同一条强化管线），所有从外部导入的技能都带有来源警告。管理员还可以定义面向所有用户的全局技能。</p><p>交互式小组件经久耐用：它们随对话一起保存，在重新加载后或另一台设备上会重新打开；无法加载的框架会显示可操作的错误状态——说明、重试、在新标签页打开——而不是一个空白矩形。</p>"
       },
       "voice-mode": {
         "title": "语音模式：像与个人助手一样与LIA对话",

@@ -47,6 +47,8 @@
  * - Google Fonts stylesheet + font files (see app/[lng]/layout.tsx).
  * - In production the API is a separate origin (NEXT_PUBLIC_API_URL) reached
  *   via fetch/SSE/WebSocket → connect-src includes it (+ ws(s) variant).
+ * - Enrolling a device for push calls two Google APIs from the document →
+ *   connect-src allowlists them (see FIREBASE_MESSAGING_CONNECT_SRC).
  * - Dev: turbopack HMR needs eval() and websockets.
  */
 
@@ -61,6 +63,32 @@ export const WIDGET_FRAME_PATH = '/widget-frame.html';
  * silently re-block the airlock.
  */
 export const APP_HEADERS_SOURCE = '/((?!widget-frame\\.html).*)';
+
+/**
+ * Google hosts the Firebase Web Push SDK reaches FROM THE DOCUMENT when a user
+ * enrolls a device (`getToken()` in src/lib/firebase.ts). Two sequential
+ * fetches, both governed by connect-src:
+ *
+ *   1. `firebaseinstallations` — mints the short-lived FIS auth token;
+ *   2. `fcmregistrations` — exchanges it (as a header) + the browser's push
+ *      subscription for the FCM registration token we POST to the backend.
+ *
+ * Omitting them does NOT break push DELIVERY — that path is server →
+ * firebase-admin → FCM → service worker, with no client call to Google. It
+ * breaks ENROLMENT only. That asymmetry is why the gap shipped unnoticed on
+ * 2026-07-03 with the first CSP (v1.21.5) and stayed invisible for three
+ * weeks: every already-registered device kept receiving notifications, so the
+ * failure only surfaced the day a user disabled notifications and could not
+ * re-enable them — for anyone, including first-time activations.
+ *
+ * Keep them as two exact hosts: a wildcard would re-open every Google origin,
+ * and no backend proxy can substitute for them (the SDK issues the fetches
+ * itself, from the page).
+ */
+export const FIREBASE_MESSAGING_CONNECT_SRC = [
+  'https://firebaseinstallations.googleapis.com',
+  'https://fcmregistrations.googleapis.com',
+] as const;
 
 /**
  * Build the connect-src directive value for the app policy.
@@ -81,6 +109,8 @@ export function buildConnectSrc(isDev: boolean, apiUrl: string | undefined): str
       // Malformed URL — fall back to same-origin only
     }
   }
+  // Push enrolment — required in dev too, or the feature cannot be tested
+  sources.push(...FIREBASE_MESSAGING_CONNECT_SRC);
   if (isDev) {
     sources.push('ws:', 'wss:', 'http://localhost:8000', 'http://127.0.0.1:8000');
   }

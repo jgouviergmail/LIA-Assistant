@@ -318,6 +318,7 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         # Draft header
         "draft_created": "📄 **Brouillon créé**: {title}",
         "action_required": "**Action requise**: confirmez, modifiez ou annulez.",
+        "devops_task": "Tâche serveur {server} : {task}",
     },
     "en": {
         "email_to": "Email to {to}",
@@ -338,6 +339,7 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "phone_call": "Call to {name}: {objective}",
         "draft_created": "📄 **Draft created**: {title}",
         "action_required": "**Action required**: confirm, edit, or cancel.",
+        "devops_task": "Server task on {server}: {task}",
     },
     "es": {
         "email_to": "Email a {to}",
@@ -358,6 +360,7 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "phone_call": "Llamada a {name}: {objective}",
         "draft_created": "📄 **Borrador creado**: {title}",
         "action_required": "**Acción requerida**: confirme, modifique o cancele.",
+        "devops_task": "Tarea de servidor en {server}: {task}",
     },
     "de": {
         "email_to": "E-Mail an {to}",
@@ -378,6 +381,7 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "phone_call": "Anruf an {name}: {objective}",
         "draft_created": "📄 **Entwurf erstellt**: {title}",
         "action_required": "**Aktion erforderlich**: bestätigen, bearbeiten oder abbrechen.",
+        "devops_task": "Serveraufgabe auf {server}: {task}",
     },
     "it": {
         "email_to": "Email a {to}",
@@ -398,6 +402,7 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "phone_call": "Chiamata a {name}: {objective}",
         "draft_created": "📄 **Bozza creata**: {title}",
         "action_required": "**Azione richiesta**: conferma, modifica o annulla.",
+        "devops_task": "Attività server su {server}: {task}",
     },
     "zh-CN": {
         "email_to": "发送邮件给 {to}",
@@ -418,6 +423,7 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "phone_call": "致电 {name}: {objective}",
         "draft_created": "📄 **草稿已创建**: {title}",
         "action_required": "**需要操作**: 确认、修改或取消。",
+        "devops_task": "服务器任务 {server}：{task}",
     },
 }
 
@@ -461,6 +467,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "title": "Titre",
         "schedule": "Planification",
         "instruction": "Instruction",
+        "server": "Serveur",
+        "context": "Consignes",
     },
     "en": {
         "to": "To",
@@ -495,6 +503,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "title": "Title",
         "schedule": "Schedule",
         "instruction": "Instruction",
+        "server": "Server",
+        "context": "Instructions",
     },
     "es": {
         "to": "Destinatario",
@@ -529,6 +539,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "title": "Título",
         "schedule": "Programación",
         "instruction": "Instrucción",
+        "server": "Servidor",
+        "context": "Instrucciones",
     },
     "de": {
         "to": "An",
@@ -563,6 +575,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "title": "Titel",
         "schedule": "Zeitplan",
         "instruction": "Anweisung",
+        "server": "Server",
+        "context": "Vorgaben",
     },
     "it": {
         "to": "Destinatario",
@@ -597,6 +611,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "title": "Titolo",
         "schedule": "Pianificazione",
         "instruction": "Istruzione",
+        "server": "Server",
+        "context": "Istruzioni",
     },
     "zh-CN": {
         "to": "收件人",
@@ -631,6 +647,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "title": "标题",
         "schedule": "计划",
         "instruction": "指令",
+        "server": "服务器",
+        "context": "附加说明",
     },
 }
 
@@ -991,6 +1009,12 @@ DRAFT_RESULT_VERBS_PAST: dict[Language, dict[str, str | dict[str, str]]] = {
             "f_sing": "programmée",
             "f_plur": "programmées",
         },
+        "executed": {
+            "m_sing": "exécuté",
+            "m_plur": "exécutés",
+            "f_sing": "exécutée",
+            "f_plur": "exécutées",
+        },
     },
     "en": {
         "sent": "sent",
@@ -999,6 +1023,7 @@ DRAFT_RESULT_VERBS_PAST: dict[Language, dict[str, str | dict[str, str]]] = {
         "updated": "updated",
         "placed": "placed",
         "scheduled": "scheduled",
+        "executed": "executed",
     },
     "es": {
         "sent": {
@@ -1037,6 +1062,12 @@ DRAFT_RESULT_VERBS_PAST: dict[Language, dict[str, str | dict[str, str]]] = {
             "f_sing": "programada",
             "f_plur": "programadas",
         },
+        "executed": {
+            "m_sing": "ejecutado",
+            "m_plur": "ejecutados",
+            "f_sing": "ejecutada",
+            "f_plur": "ejecutadas",
+        },
     },
     "de": {
         "sent": "gesendet",
@@ -1045,6 +1076,7 @@ DRAFT_RESULT_VERBS_PAST: dict[Language, dict[str, str | dict[str, str]]] = {
         "updated": "aktualisiert",
         "placed": "getätigt",
         "scheduled": "geplant",
+        "executed": "ausgeführt",
     },
     "it": {
         "sent": {
@@ -1083,6 +1115,12 @@ DRAFT_RESULT_VERBS_PAST: dict[Language, dict[str, str | dict[str, str]]] = {
             "f_sing": "programmata",
             "f_plur": "programmate",
         },
+        "executed": {
+            "m_sing": "eseguito",
+            "m_plur": "eseguiti",
+            "f_sing": "eseguita",
+            "f_plur": "eseguite",
+        },
     },
     "zh-CN": {
         "sent": "已发送",
@@ -1091,6 +1129,7 @@ DRAFT_RESULT_VERBS_PAST: dict[Language, dict[str, str | dict[str, str]]] = {
         "updated": "已更新",
         "placed": "已拨打",
         "scheduled": "已安排",
+        "executed": "已执行",
     },
 }
 

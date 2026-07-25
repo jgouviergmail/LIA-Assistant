@@ -318,23 +318,36 @@ class TestUpdateUser:
         assert exc_info.value.status_code == 404
         mock_repository.update.assert_not_called()
 
-    async def test_update_user_email(self, service, mock_repository, mock_db, sample_user):
-        """Test updating user email."""
-        # Arrange
-        updated_user = sample_user
-        updated_user.email = "newemail@example.com"
-        mock_repository.get_by_id.return_value = sample_user
-        mock_repository.update.return_value = updated_user
+    async def test_update_user_cannot_change_email(
+        self, service, mock_repository, mock_db, sample_user
+    ):
+        """SEC-005: the generic profile update must never change the address.
 
-        update_data = UserUpdate(email="newemail@example.com")
+        This test previously asserted the opposite — that ``UserUpdate(email=...)``
+        was applied — which is the takeover primitive: the generic PATCH is
+        guarded by the session cookie and an ownership check only, so a stolen
+        session could swap the address and then use password recovery. ``email``
+        is no longer part of ``UserUpdate``; Pydantic ignores the extra key, so
+        the address must be absent from the persisted payload.
+        """
+        # Arrange
+        mock_repository.get_by_id.return_value = sample_user
+        mock_repository.update.return_value = sample_user
+        original_email = sample_user.email
+
+        update_data = UserUpdate.model_validate(
+            {"email": "attacker@example.com", "full_name": "Legit Rename"}
+        )
 
         # Act
         result = await service.update_user(sample_user.id, update_data)
 
-        # Assert
-        assert result.email == "newemail@example.com"
-        update_call_args = mock_repository.update.call_args[0]
-        assert update_call_args[1]["email"] == "newemail@example.com"
+        # Assert — the rename goes through, the address does not
+        persisted = mock_repository.update.call_args[0][1]
+        assert "email" not in persisted, f"email must not be persisted, got {persisted}"
+        assert persisted["full_name"] == "Legit Rename"
+        assert result.email == original_email
+        assert not hasattr(update_data, "email")
 
     async def test_update_user_timezone(self, service, mock_repository, mock_db, sample_user):
         """Test updating user timezone triggers special logging."""

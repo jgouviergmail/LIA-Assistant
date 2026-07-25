@@ -32,6 +32,7 @@ from src.core.security import (
     generate_state_token,
 )
 from src.infrastructure.cache.redis import SessionService
+from src.infrastructure.observability.pii_filter import fingerprint_secret
 
 from .exceptions import (
     OAuthProviderError,
@@ -153,10 +154,16 @@ class OAuthFlowHandler:
 
         auth_url = f"{self.provider.authorization_endpoint}?{urlencode(params)}"
 
+        # SEC-012/FN-3: the raw state is a single-use CSRF credential. The PII
+        # filter fingerprints it before rendering, but that is a detection net
+        # placed at the end of the pipeline — anything bypassing structlog (a
+        # stdlib logger, a third-party handler) would emit it verbatim. Passing
+        # the fingerprint directly keeps init↔callback correlation without ever
+        # handing the secret to the logging stack.
         logger.info(
             "oauth_flow_initiated",
             provider=self.provider.provider_name,
-            state=state,
+            state_fp=fingerprint_secret(state),
             scopes=self.provider.scopes,
             pkce=True,
         )
@@ -210,7 +217,7 @@ class OAuthFlowHandler:
         logger.info(
             "oauth_token_exchange_success",
             provider=self.provider.provider_name,
-            state=state,
+            state_fp=fingerprint_secret(state),
             has_refresh_token=token_data.get("refresh_token") is not None,
             expires_in=token_data.get("expires_in"),
         )
@@ -244,7 +251,7 @@ class OAuthFlowHandler:
             logger.warning(
                 "oauth_invalid_state",
                 provider=self.provider.provider_name,
-                state=state,
+                state_fp=fingerprint_secret(state),
             )
             # Track state validation failure
             oauth_state_validation_total.labels(
@@ -258,7 +265,7 @@ class OAuthFlowHandler:
                 "oauth_provider_mismatch",
                 expected=self.provider.provider_name,
                 got=stored_state.get("provider"),
-                state=state,
+                state_fp=fingerprint_secret(state),
             )
             # Track state validation failure (provider mismatch)
             oauth_state_validation_total.labels(
@@ -272,7 +279,7 @@ class OAuthFlowHandler:
             logger.error(
                 "oauth_missing_code_verifier",
                 provider=self.provider.provider_name,
-                state=state,
+                state_fp=fingerprint_secret(state),
             )
             # Track PKCE validation failure (missing code_verifier)
             oauth_pkce_validation_total.labels(
@@ -294,7 +301,7 @@ class OAuthFlowHandler:
         logger.debug(
             "oauth_state_validated",
             provider=self.provider.provider_name,
-            state=state,
+            state_fp=fingerprint_secret(state),
             has_metadata=len(stored_state) > 3,  # More than provider, code_verifier, timestamp
         )
 

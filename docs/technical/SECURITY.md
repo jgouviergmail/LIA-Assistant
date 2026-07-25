@@ -166,7 +166,7 @@ I - Information Disclosure (Divulgation d'informations)
   ✅ Mitigation: Messages d'erreur génériques (OWASP enumeration prevention)
 
 D - Denial of Service (Déni de service)
-  ✅ Mitigation: Rate limiting HTTP (SlowAPI)
+  ✅ Mitigation: Rate limiting HTTP (middleware global Redis)
   ✅ Mitigation: Rate limiting per-tool (sliding window)
   ✅ Mitigation: Timeouts sur tous les appels externes
 
@@ -192,7 +192,7 @@ E - Elevation of Privilege (Élévation de privilèges)
 #### Chaîne proxy de confiance & frontière XSS (ADR-093, 2026-07)
 
 - **Réseau** : en production, les ports API publiés (`8000`, `9091`) sont bindés sur `127.0.0.1` — cloudflared (systemd sur l'hôte) est l'unique point d'entrée public ; le trafic inter-conteneurs (SSR web → `http://api:8000`, scrape Prometheus → `api:9091`) passe par le réseau compose et n'est pas affecté. uvicorn tourne avec `--proxy-headers --forwarded-allow-ips="*"` : le `"*"` n'est sûr **que** grâce au binding loopback (tout pair pouvant atteindre le port est de confiance) — invariant couplé, ne modifier ni l'un ni l'autre isolément.
-- **IP client** : `request.client.host` (validé par uvicorn) est l'unique source — slowapi, GeoIP, logs et rate limit auth. Aucun code applicatif ne lit le header `X-Forwarded-For` brut (spoofable).
+- **IP client** : `request.client.host` (validé par uvicorn) est l'unique source — plafond global, GeoIP, logs et rate limit auth. Aucun code applicatif ne lit le header `X-Forwarded-For` brut (spoofable).
 - **Rendu LLM** : le pipeline markdown du chat applique `rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex` avec un schéma audité (`apps/web/src/lib/markdown-sanitize-schema.ts`) — `script`/`iframe`/`form`/handlers supprimés, HTML légitime des cartes préservé ; les MCP/Skill Apps ne passent jamais par le markdown (sentinelle → widget iframe sandboxé). `rehypeMathInText` rend les formules `$…$`/`$$…$$` situées dans le HTML émis par l'assistant (que `remark-math` ne voit pas) : il ne lit que du texte déjà sanitizé et n'émet que des `<span>` à classe fixe, sans nouvelle surface XSS. Toute nouvelle feature produisant du HTML doit étendre le schéma explicitement.
 - **Données structurées SEO (JSON-LD)** (v1.21.14, CA-5) : les `<script type="application/ld+json">` sérialisent des champs compilés depuis le dépôt (questions FAQ, titres/extraits d'articles de blog). Tous passent par le helper unique `serializeJsonLd` (`apps/web/src/components/seo/JsonLd.tsx`), qui échappe chaque `<` en sa forme JSON `U+003C` — ainsi une séquence `</script>` dans un champ ne peut plus fermer la balise ni injecter de markup, tout en restant du JSON-LD valide et re-parseable. Un garde vitest systémique (`__tests__/JsonLd.test.tsx`) interdit tout `JSON.stringify` brut dans un `dangerouslySetInnerHTML` de script à travers `apps/web/src`.
 
@@ -1231,81 +1231,54 @@ colonnes PII, pas le schéma ni les colonnes non chiffrées. La procédure de re
 
 ## Rate Limiting et prévention des abus
 
-### 1. HTTP Rate Limiting (SlowAPI)
+### 1. HTTP Rate Limiting (middleware global, Redis)
 
-#### Configuration
+Un plafond global s'applique à **toute requête HTTP** via `RateLimitMiddleware`
+(`apps/api/src/core/middleware.py`), un middleware ASGI pur adossé au
+`RedisRateLimiter` partagé — donc au **même budget pour les quatre workers
+uvicorn**, contrairement à un compteur en mémoire.
 
 ```python
-# apps/api/src/core/rate_limit_config.py
+# apps/api/src/core/middleware.py (extrait)
 
-"""
-Rate limiting configuration utilities for SlowAPI integration.
+class RateLimitMiddleware:
+    """Plafond HTTP global, réellement appliqué (SEC-016)."""
 
-This module provides centralized configuration helpers for HTTP rate limiting,
-ensuring consistent application of limits across all FastAPI endpoints.
-"""
-
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from src.core.config import Settings
-
-
-def build_default_limit(settings: Settings) -> str:
-    """
-    Build the default rate limit string for SlowAPI.
-
-    Args:
-        settings: Application settings instance
-
-    Returns:
-        Rate limit string in SlowAPI format (e.g., "60/minute")
-    """
-    return f"{settings.rate_limit_per_minute}/minute"
-
-
-def resolve_endpoint_limit(endpoint_type: str, settings: Settings) -> str:
-    """
-    Resolve rate limit for specific endpoint types.
-
-    Different endpoints may require different rate limiting strategies:
-    - SSE/streaming endpoints: more permissive to allow long-running connections
-    - Authentication endpoints: stricter to prevent brute force attacks
-    - Standard API endpoints: default limits
-
-    Args:
-        endpoint_type: Type of endpoint ('sse', 'auth_login', 'auth_register', 'default')
-        settings: Application settings instance
-
-    Returns:
-        Rate limit string in SlowAPI format
-
-    Example:
-        >>> settings = Settings(rate_limit_per_minute=60)
-        >>> resolve_endpoint_limit('auth_login', settings)
-        '10/minute'
-        >>> resolve_endpoint_limit('sse', settings)
-        '30/minute'
-    """
-    # Map endpoint types to their rate limits
-    endpoint_limits = {
-        "sse": min(settings.rate_limit_per_minute * 2, 120),  # More permissive for SSE
-        "auth_login": 10,  # Strict limit to prevent brute force
-        "auth_register": 5,  # Very strict for registration
-        "default": settings.rate_limit_per_minute,
-    }
-
-    if endpoint_type not in endpoint_limits:
-        raise ValueError(
-            f"Unknown endpoint_type: {endpoint_type}. "
-            f"Valid types: {', '.join(endpoint_limits.keys())}"
-        )
-
-    limit = endpoint_limits[endpoint_type]
-    return f"{limit}/minute"
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+        self.max_calls = settings.rate_limit_global_per_minute
+        self.window_seconds = RATE_LIMIT_GLOBAL_WINDOW_SECONDS
+        self.exempt_paths = RATE_LIMIT_GLOBAL_EXEMPT_PATHS
 ```
+
+| Propriété | Choix | Raison |
+|-----------|-------|--------|
+| Clé | `http:global:{ip}` — `scope["client"]` résolu par uvicorn | Un cookie serait rotatable par le client qu'on cherche à borner |
+| Plafond | `RATE_LIMIT_GLOBAL_PER_MINUTE` (300) | Calibré sur la mesure : pic réel de 67 req/min pour une session navigateur |
+| Exemptions | `/health`, `/ready`, `/metrics` | Brider les sondes ferait redémarrer le conteneur au pire moment |
+| Panne Redis | **fail-open**, compté (`http_rate_limit_degraded_total`) et alerté | Sur instance unique, échouer fermé transformerait une panne de cache en panne totale |
+| SSE | Facturé une fois, à l'admission | Un flux accepté n'est jamais interrompu ensuite |
+
+> **Historique.** Un `slowapi.Limiter` était construit avec `default_limits` et
+> posé sur `app.state.limiter`, **sans middleware ni décorateur pour le
+> consulter** : l'API annonçait un plafond qu'elle n'appliquait pas. L'objet et
+> ses helpers ont été supprimés (ADR-149) plutôt que conservés sous perfusion de
+> tests. Ce plafond global **ne remplace pas** les limites par endpoint
+> (`auth/dependencies.py`), qui restent plus strictes.
+
+### 1 bis. Taille des corps de requête
+
+`BodySizeLimitMiddleware` refuse un corps hors limite **avant** que le handler
+ne le matérialise : sur la longueur déclarée quand elle est présente, sur les
+octets comptés sinon (`Transfer-Encoding: chunked`). Le pic mémoire d'une
+requête est ainsi fixé par la configuration et non par l'appelant — sur les
+webhooks Telegram et téléphonie, cela se produit **avant l'authentification**.
+
+Le plafond global (`MAX_REQUEST_BODY_BYTES`, 21 Mo) doit rester au-dessus du
+plus gros upload légitime. Les deux plafonds d'upload étant configurables
+jusqu'à 100 Mo, la cohérence est **assertée au démarrage** : `Settings` refuse
+de se construire sur la contradiction plutôt que de livrer un 413 distant
+qu'aucun log d'endpoint n'expliquerait.
 
 ### 2. Tool Rate Limiting (Per-User Sliding Window)
 
@@ -2122,8 +2095,7 @@ REDIS_URL=redis://localhost:6379
 ```python
 # apps/api/src/domains/auth/router.py
 
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+from src.core.middleware import RateLimitMiddleware
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -2715,7 +2687,8 @@ cd apps/web && pnpm audit --audit-level=high
 ### SSRF Prevention
 - URL validation reuses `validate_url()` from web_fetch (DNS resolution, private IP blocking)
 - Blocked schemes: `file://`, `javascript:`, `data:`, `chrome://`, `about:`, `blob://`
-- Request interception blocks dangerous sub-requests during page load
+- Request interception validates **every** request the page makes — redirects, sub-resources, iframes, workers, XHR and click-driven navigations — not only the URL the agent asked for. Each destination host is resolved behind a bounded LRU+TTL verdict cache (the check performs DNS, and a content-heavy page issues hundreds of requests), and any failure **aborts** instead of forwarding: a blocked sub-resource degrades a page, a forwarded one can reach an internal service.
+- Enforcement is behind `BROWSER_SSRF_ENFORCE` and ships **report-only** (`browser_request_ssrf_report_only`): a real page also pulls CDNs, fonts and analytics, so the block rate is observed before it is trusted.
 
 ### Input Sanitization
 - Fill values: control characters stripped, max length enforced (10,000 chars)
@@ -2768,6 +2741,64 @@ All 10 OAuth callbacks (Gmail, Google Contacts/Calendar/Drive/Tasks, Microsoft O
 3. Logs full error context server-side for debugging
 
 ---
+
+## Skill Script Execution Isolation (SEC-001)
+
+### Threat model
+
+A skill script is arbitrary Python supplied by whoever wrote the skill. The
+historical defence dropped the subprocess to an unprivileged uid before `exec`
+— protective **only when the API itself runs as root**. In production it runs
+as `appuser`, a member of the `docker` group, and a child process **inherits
+supplementary groups**: the mounted Docker socket therefore remained reachable,
+which is root on the host.
+
+`cap_add: SETGID` was measured as a dead end: `cap_add` grants no *ambient*
+capability to a non-root process (`PermissionError` with and without
+`no-new-privileges`).
+
+### Control
+
+`SKILLS_SCRIPT_SANDBOX=container` (default) runs each script in a one-shot
+sibling container:
+
+| Surface | Enforcement |
+| --- | --- |
+| Docker socket | Not mounted — absent from the container filesystem |
+| Network | `--network none` |
+| Filesystem | `--read-only` root + `--tmpfs /tmp` (`SKILLS_SCRIPT_SANDBOX_TMPFS_MB`), `HOME=/tmp` |
+| Identity | `--user 65534:65534`, `--cap-drop=ALL`, `--security-opt no-new-privileges` |
+| Resources | `--memory`, `--pids-limit`, `--ulimit cpu`/`fsize` from `SKILLS_SCRIPT_MAX_*` |
+| Secrets | None: no bind mount, so no `config/`, no credentials, no user data |
+
+The script **source** is passed inline (`python -c`) rather than mounted: the
+API is itself a container, so a bind of `/app/data/skills/...` would resolve
+against the *host* filesystem, and user skills live in a named volume. Passing
+the source also keeps stdin free for the JSON payload every skill depends on.
+
+### Fail-closed and cleanup
+
+An unreachable daemon returns `Script sandbox unavailable` — the execution is
+**refused**, never downgraded to the in-process path, because the downgrade is
+exactly what an attacker would aim for. Exit code 125 (daemon refused to start
+the container) is reported as a sandbox failure rather than surfacing the CLI's
+stderr, which would hand the LLM image names and daemon state.
+
+Killing the `docker run` **client** on timeout does not stop the container, and
+a script that sleeps consumes no CPU — so neither the CPU rlimit nor `--rm`
+reclaims it. Every run therefore carries a unique `--name` and the timeout path
+force-removes it from the worker thread, so the cleanup survives cancellation of
+the awaiting coroutine.
+
+### Verification
+
+Isolation is proven at runtime rather than asserted: uid/groups `65534`, socket
+absent (`FileNotFoundError`), network `OSError`, read-only rootfs, credentials
+unreadable, no LIA secret in the environment. Non-regression is proven by
+differential — the shipped skill scripts produce byte-for-byte identical output
+in both modes, except the one that draws random numbers.
+
+See [ADR-149](../architecture/ADR-149-Security-Remediation-Wave-1.md).
 
 ## Dependency Vulnerability Management
 

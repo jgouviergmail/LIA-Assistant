@@ -5,7 +5,7 @@ Users domain schemas (Pydantic models for API).
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
 from src.core.field_names import FIELD_IS_ACTIVE
@@ -27,9 +27,26 @@ class UserUpdate(
     FontFamilyValidatorMixin,
     ImageGenerationValidatorMixin,
 ):
-    """Schema for updating user profile."""
+    """Schema for updating user profile.
 
-    email: EmailStr | None = Field(None, description="User email address")
+    SEC-005: ``email`` is deliberately NOT part of this schema. The generic
+    ``PATCH /users/{user_id}`` is guarded by the session cookie and an ownership
+    check only — no recent re-authentication, no proof of owning the new
+    mailbox, no notification to the previous address, no session revocation.
+    Allowing the address to change there turns a stolen session into a permanent
+    account takeover: the attacker swaps the address, then drives the standard
+    password-recovery flow.
+
+    Changing the address needs its own flow (recent step-up via
+    ``require_recent_step_up``, a single-use token hashed at rest, confirmation
+    from the new mailbox, notification of the old one). Until that exists the
+    address is immutable through the API, which is the safe default — and no UI
+    ever exposed the field, so nothing regresses.
+
+    Pydantic's default ``extra="ignore"`` means a client still sending ``email``
+    is silently ignored rather than erroring: the address simply does not change.
+    """
+
     full_name: str | None = Field(None, description="User full name")
     picture_url: str | None = Field(None, description="Profile picture URL")
     timezone: str | None = Field(None, description="User's IANA timezone")

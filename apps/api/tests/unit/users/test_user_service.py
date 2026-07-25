@@ -486,8 +486,14 @@ class TestUpdateUser:
         mock_db.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_update_user_email_success(self):
-        """Test updating user email."""
+    async def test_update_user_cannot_change_email(self):
+        """SEC-005: the address is not settable through the generic profile PATCH.
+
+        Was ``test_update_user_email_success``, which asserted the address DID
+        change — the exact behaviour that turns a stolen session into an account
+        takeover (swap address, then run password recovery). ``email`` is no
+        longer a field of ``UserUpdate``, so the key never reaches the repository.
+        """
         # Arrange
         mock_db = MagicMock(spec=AsyncSession)
         mock_db.commit = AsyncMock()
@@ -497,18 +503,18 @@ class TestUpdateUser:
         mock_user = create_mock_user(user_id=user_id, email="old@example.com")
 
         service.repository.get_by_id = AsyncMock(return_value=mock_user)
+        service.repository.update = AsyncMock(return_value=mock_user)
 
-        updated_user = create_mock_user(user_id=user_id, email="new@example.com")
-        service.repository.update = AsyncMock(return_value=updated_user)
-
-        update_data = UserUpdate(email="new@example.com")
+        update_data = UserUpdate.model_validate({"email": "attacker@example.com"})
 
         # Act
         result = await service.update_user(user_id, update_data)
 
         # Assert
-        assert result.email == "new@example.com"
-        mock_db.commit.assert_awaited_once()
+        assert "email" not in update_data.model_dump(exclude_unset=True)
+        assert result.email == "old@example.com"
+        # Nothing to persist: the only supplied key was dropped by the schema.
+        service.repository.update.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_update_user_timezone_change_logged(self):

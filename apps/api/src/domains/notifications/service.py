@@ -13,6 +13,7 @@ from uuid import UUID
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.constants import FCM_WEBPUSH_ICON_PATH
 from src.domains.notifications.models import UserFCMToken
 from src.domains.notifications.repository import FCMTokenRepository
 
@@ -370,7 +371,7 @@ class FCMNotificationService:
                     notification=messaging.WebpushNotification(
                         title=title,
                         body=body,
-                        icon="/icon-192x192.png",
+                        icon=FCM_WEBPUSH_ICON_PATH,
                         require_interaction=True,
                     ),
                 ),

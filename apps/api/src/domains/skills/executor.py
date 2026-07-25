@@ -1,10 +1,21 @@
-"""Skill script executor — sandboxed subprocess execution.
+"""Skill script executor — sandboxed script execution.
 
 Executes Python scripts from skill scripts/ directories.
 Standard: agentskills.io (scripts/ convention).
 Code never enters LLM context — only stdout output is returned.
 
-Security:
+Two modes, selected by ``SKILLS_SCRIPT_SANDBOX``:
+
+**container** (default, SEC-001) — one throwaway sibling container per run:
+no Docker socket, ``--network none``, read-only rootfs + a small tmpfs,
+uid 65534, all capabilities dropped, memory/pids/CPU/fsize bounded. The
+script SOURCE is passed inline (``python -c``) so nothing from the API
+filesystem is mounted and stdin stays free for the JSON payload. An
+unreachable daemon fails the execution — never a silent downgrade.
+
+**subprocess** (legacy) — in-process execution, kept for environments with
+no Docker daemon. It only isolates when the API itself runs as root:
+
 1. Process isolation: subprocess.run() — no shell=True
 2. Env filtering: Only PATH, HOME, LANG, LC_ALL, TZ
 3. Network isolation (Linux): unshare -rn (when CAP_SYS_ADMIN is available)
@@ -12,11 +23,13 @@ Security:
    the blast radius (fork bombs, memory/disk exhaustion, CPU spin) even when
    namespace isolation is unavailable (audit A2)
 5. Temp working dir — no write access to skill/app dirs
-6. Path traversal protection: resolve + relative_to check
-7. Timeout + output limits
+
+Common to both: path-traversal protection (resolve + relative_to), extension
+allow-list, stdin/stdout size caps and a wall-clock timeout.
 """
 
 import asyncio
+import contextlib
 import json
 import os
 import platform
@@ -25,14 +38,26 @@ import subprocess
 import sys
 import tempfile
 import time
+import uuid
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
-from src.core.constants import SKILLS_SCRIPT_ALLOWED_EXTENSIONS
+from src.core.constants import (
+    SKILLS_SCRIPT_ALLOWED_EXTENSIONS,
+    SKILLS_SCRIPT_SANDBOX_CLEANUP_TIMEOUT_SECONDS,
+    SKILLS_SCRIPT_SANDBOX_DAEMON_ERROR_CODE,
+    SKILLS_SCRIPT_SANDBOX_MAX_SOURCE_BYTES,
+    SKILLS_SCRIPT_SANDBOX_NAME_PREFIX,
+    SKILLS_SCRIPT_SANDBOX_STARTUP_GRACE_SECONDS,
+    SKILLS_SCRIPT_SANDBOX_UID,
+)
 from src.infrastructure.observability.logging import get_logger
+
+if TYPE_CHECKING:
+    from src.core.config import Settings
 
 logger = get_logger(__name__)
 
@@ -139,6 +164,274 @@ class SkillScriptExecutor:
             cls._unshare_checked = True
         return cls._unshare_works
 
+    @staticmethod
+    def _build_sandbox_command(
+        *,
+        source: str,
+        skill_name: str,
+        container_name: str,
+        timeout: int,
+        settings: "Settings",
+    ) -> list[str]:
+        """Build the `docker run` argv for one sandboxed script execution.
+
+        The script SOURCE is passed as an argument rather than mounted. The API
+        itself runs in a container, so a `-v /app/data/skills/...` bind would
+        resolve against the HOST filesystem — where that path does not exist —
+        and user skills live in a named volume anyway. Handing over the source
+        removes both problems and leaves stdin free for the JSON payload, which
+        is the contract every existing skill relies on.
+
+        Args:
+            source: Python source of the script.
+            skill_name: Skill the script belongs to (exposed as SKILL_NAME).
+            container_name: Unique name, so a timed-out run can be force-removed.
+            timeout: Wall-clock budget, used for the CPU rlimit inside.
+            settings: Application settings.
+
+        Returns:
+            The argv list for `docker run`.
+        """
+        limits = [
+            "--rm",
+            "--interactive",
+            # Killing the `docker run` client does NOT stop the container
+            # (measured): without a name to target, a script that ignores its
+            # budget — `time.sleep(1e9)` burns no CPU, so the CPU rlimit never
+            # fires — would linger forever holding memory and pids.
+            f"--name={container_name}",
+            # No network at all: no skill shipped today makes a network call
+            # (verified across all of them), and an isolated script has no
+            # business reaching the LAN or the metadata service.
+            "--network",
+            "none",
+            "--read-only",
+            f"--user={SKILLS_SCRIPT_SANDBOX_UID}:{SKILLS_SCRIPT_SANDBOX_UID}",
+            f"--tmpfs=/tmp:size={settings.skills_script_sandbox_tmpfs_mb}m,mode=1777",
+            "--cap-drop=ALL",
+            "--security-opt=no-new-privileges:true",
+            f"--memory={settings.skills_script_max_memory_mb}m",
+            f"--pids-limit={settings.skills_script_max_processes}",
+            # Belt and braces with the outer timeout: a script that ignores
+            # SIGTERM still dies when the CPU budget runs out.
+            f"--ulimit=cpu={min(settings.skills_script_max_cpu_seconds, timeout)}",
+            f"--ulimit=fsize={settings.skills_script_max_file_size_mb * 1024 * 1024}",
+            "--env",
+            f"SKILL_NAME={skill_name}",
+            # HOME must point at the tmpfs: the root filesystem is read-only, so
+            # anything writing to a home-relative path would fail otherwise.
+            "--env",
+            "HOME=/tmp",
+        ]
+        if settings.skills_script_sandbox_pythonpath:
+            limits += ["--env", f"PYTHONPATH={settings.skills_script_sandbox_pythonpath}"]
+
+        return [
+            "docker",
+            "run",
+            *limits,
+            "--entrypoint",
+            "python",
+            settings.skills_script_sandbox_image,
+            "-c",
+            source,
+        ]
+
+    @staticmethod
+    def _run_sandbox_sync(
+        *,
+        cmd: list[str],
+        container_name: str,
+        stdin_payload: str,
+        timeout: int,
+    ) -> "subprocess.CompletedProcess[str]":
+        """Run the sandbox container, force-removing it if it outlives its budget.
+
+        Runs entirely in a worker thread on purpose. ``subprocess.run`` kills
+        the `docker run` CLIENT on timeout, which leaves the CONTAINER running
+        on the daemon (measured) — so the cleanup has to happen here, where it
+        still runs even if the awaiting coroutine was cancelled in the
+        meantime.
+
+        Args:
+            cmd: The `docker run` argv.
+            container_name: Name given to the container, used for the cleanup.
+            stdin_payload: JSON payload written to the script's stdin.
+            timeout: Wall-clock budget for the whole run, in seconds.
+
+        Returns:
+            The completed `docker run` process.
+
+        Raises:
+            subprocess.TimeoutExpired: Budget exhausted (container removed).
+            FileNotFoundError: No docker CLI on PATH.
+        """
+        try:
+            return subprocess.run(
+                cmd,
+                input=stdin_payload,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired:
+            # Best-effort: a script sleeping forever burns no CPU, so neither
+            # the CPU rlimit nor `--rm` would ever reclaim it.
+            with contextlib.suppress(OSError, subprocess.SubprocessError):
+                subprocess.run(
+                    ["docker", "rm", "--force", container_name],
+                    capture_output=True,
+                    timeout=SKILLS_SCRIPT_SANDBOX_CLEANUP_TIMEOUT_SECONDS,
+                )
+            raise
+
+    @classmethod
+    async def _execute_in_container(
+        cls,
+        *,
+        skill_name: str,
+        script_name: str,
+        script_path: Path,
+        stdin_payload: str,
+        timeout: int,
+        max_output: int,
+        user_id: str | None,
+        settings: "Settings",
+    ) -> ScriptResult:
+        """Run a skill script in a throwaway container (SEC-001).
+
+        Args:
+            skill_name: Skill owning the script.
+            script_name: Script file name, for logs and errors.
+            script_path: Resolved path of the script on the API's filesystem.
+            stdin_payload: JSON payload handed to the script on stdin.
+            timeout: Wall-clock budget in seconds.
+            max_output: Maximum stdout kept, in bytes.
+            user_id: Caller, for the audit trail.
+            settings: Application settings.
+
+        Returns:
+            The script result, or a failure describing why it could not run.
+        """
+        try:
+            source = script_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            logger.warning("skill_script_unreadable", skill_name=skill_name, error=str(exc))
+            return ScriptResult(success=False, output="", error="Script could not be read")
+
+        if len(source.encode("utf-8")) > SKILLS_SCRIPT_SANDBOX_MAX_SOURCE_BYTES:
+            # Fail loudly rather than hand the daemon a truncated program.
+            return ScriptResult(
+                success=False,
+                output="",
+                error=f"Script exceeds {SKILLS_SCRIPT_SANDBOX_MAX_SOURCE_BYTES // 1024}KB",
+            )
+
+        container_name = f"{SKILLS_SCRIPT_SANDBOX_NAME_PREFIX}{uuid.uuid4().hex[:16]}"
+        cmd = cls._build_sandbox_command(
+            source=source,
+            skill_name=skill_name,
+            container_name=container_name,
+            timeout=timeout,
+            settings=settings,
+        )
+        start_time = time.monotonic()
+
+        try:
+            result = await asyncio.to_thread(
+                cls._run_sandbox_sync,
+                cmd=cmd,
+                container_name=container_name,
+                stdin_payload=stdin_payload,
+                # The container has to start before the script does; without the
+                # grace period a script using its full budget would be killed by
+                # this timeout instead of its own.
+                timeout=timeout + SKILLS_SCRIPT_SANDBOX_STARTUP_GRACE_SECONDS,
+            )
+        except subprocess.TimeoutExpired:
+            elapsed_ms = int((time.monotonic() - start_time) * 1000)
+            logger.warning(
+                "skill_script_timeout",
+                skill_name=skill_name,
+                script=script_name,
+                timeout_seconds=timeout,
+                user_id=user_id,
+                sandbox="container",
+            )
+            return ScriptResult(
+                success=False,
+                output="",
+                error=f"Timeout after {timeout}s",
+                exit_code=-1,
+                execution_time_ms=elapsed_ms,
+            )
+        except FileNotFoundError:
+            # No Docker client reachable. Refuse rather than fall back to the
+            # in-process path: a sandbox with an automatic downgrade protects
+            # nothing, since the downgrade is exactly what an attacker wants.
+            logger.error(
+                "skill_script_sandbox_unavailable",
+                skill_name=skill_name,
+                msg="docker CLI not found — refusing to run the script unsandboxed",
+            )
+            return ScriptResult(
+                success=False,
+                output="",
+                error="Script sandbox unavailable",
+            )
+
+        elapsed_ms = int((time.monotonic() - start_time) * 1000)
+        output = result.stdout[:max_output] if result.stdout else ""
+
+        if result.returncode == SKILLS_SCRIPT_SANDBOX_DAEMON_ERROR_CODE:
+            # 125 is the daemon/CLI refusing to start the container (missing
+            # image, bad flag, daemon down) — not a script failure. Surfacing
+            # its stderr would hand the LLM our image names and daemon state.
+            logger.error(
+                "skill_script_sandbox_unavailable",
+                skill_name=skill_name,
+                script=script_name,
+                stderr=result.stderr[:500] if result.stderr else "",
+                user_id=user_id,
+            )
+            return ScriptResult(
+                success=False,
+                output="",
+                error="Script sandbox unavailable",
+                exit_code=result.returncode,
+                execution_time_ms=elapsed_ms,
+            )
+
+        if result.returncode != 0:
+            logger.warning(
+                "skill_script_failed",
+                skill_name=skill_name,
+                script=script_name,
+                exit_code=result.returncode,
+                stderr=result.stderr[:500] if result.stderr else "",
+                stdout=result.stdout[:500] if result.stdout else "",
+                user_id=user_id,
+                sandbox="container",
+            )
+            return ScriptResult(
+                success=False,
+                output=output,
+                error=result.stderr[:1000] if result.stderr else "Script failed",
+                exit_code=result.returncode,
+                execution_time_ms=elapsed_ms,
+            )
+
+        logger.info(
+            "skill_script_executed",
+            skill_name=skill_name,
+            script=script_name,
+            user_id=user_id,
+            output_length=len(output),
+            elapsed_ms=elapsed_ms,
+            sandbox="container",
+        )
+        return ScriptResult(success=True, output=output, execution_time_ms=elapsed_ms)
+
     @classmethod
     async def execute(
         cls,
@@ -209,6 +502,22 @@ class SkillScriptExecutor:
         safe_env = {k: v for k, v in os.environ.items() if k in cls._ALLOWED_ENV_KEYS}
         safe_env["SKILL_NAME"] = skill_name
         safe_env["SKILL_DIR"] = str(skill_dir)
+
+        # SEC-001 — throwaway container. Everything below this branch is the
+        # historical in-process path, which only isolates when the API runs as
+        # root; production runs as `appuser`, so a script there inherits the
+        # supplementary `docker` group and reaches the mounted socket.
+        if settings.skills_script_sandbox == "container":
+            return await cls._execute_in_container(
+                skill_name=skill_name,
+                script_name=script_name,
+                script_path=script_path,
+                stdin_payload=stdin_payload,
+                timeout=timeout,
+                max_output=max_output,
+                user_id=user_id,
+                settings=settings,
+            )
 
         # Privilege drop (audit A1): if we are root, run the script as an
         # unprivileged uid so it cannot open the root-owned Docker socket and

@@ -34,18 +34,32 @@ class TelegramWebhookHandler(BaseChannelWebhookHandler):
         as a plain string header (not HMAC). We use constant-time
         comparison to prevent timing attacks.
 
+        SEC-024 — fail closed when no secret is configured. This used to return
+        ``True``, "accept all (dev mode)", which made the endpoint an
+        unauthenticated entry point into the message router, the OTP flow and
+        pending HITL interruptions. The dev-mode rationale did not hold: the
+        route is mounted whenever ``CHANNELS_ENABLED`` is true — including in
+        long-polling mode, where no secret is expected at all — so the "dev"
+        exception was reachable in production the moment a secret went missing.
+
+        Refusing costs nothing legitimate: in webhook mode the secret is
+        mandatory (validated at startup), and in polling mode Telegram never
+        calls this endpoint, so the only callers left are unsolicited.
+
         Args:
             body: Raw request body (unused for Telegram, kept for interface).
             signature: Value of X-Telegram-Bot-Api-Secret-Token header.
 
         Returns:
-            True if the signature matches the configured secret.
+            True only if a secret is configured AND the header matches it.
         """
         expected = getattr(settings, "telegram_webhook_secret", None)
         if not expected:
-            # No secret configured — accept all (dev mode)
-            logger.warning("telegram_webhook_no_secret_configured")
-            return True
+            logger.error(
+                "telegram_webhook_rejected_no_secret",
+                reason="no TELEGRAM_WEBHOOK_SECRET configured — request refused",
+            )
+            return False
 
         if not signature:
             return False

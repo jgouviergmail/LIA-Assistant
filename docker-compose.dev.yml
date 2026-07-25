@@ -21,7 +21,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "${POSTGRES_HOST_PORT:-5432}:5432"
+      - "${DEV_BIND_HOST:-127.0.0.1}:${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -43,7 +43,7 @@ services:
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
       PGADMIN_CONFIG_ALLOW_SPECIAL_EMAIL_DOMAINS: "['local']"
     ports:
-      - "${PGADMIN_HOST_PORT:-5050}:80"
+      - "${DEV_BIND_HOST:-127.0.0.1}:${PGADMIN_HOST_PORT:-5050}:80"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
       - ./infrastructure/pgadmin/servers.json:/pgadmin4/servers.json:ro
@@ -91,7 +91,7 @@ services:
     container_name: lia-redis-dev
     command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD}"
     ports:
-      - "${REDIS_HOST_PORT:-6379}:6379"
+      - "${DEV_BIND_HOST:-127.0.0.1}:${REDIS_HOST_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -137,10 +137,16 @@ services:
       - LANGFUSE_DEBUG=true
       # Trust X-Forwarded-Proto from reverse proxies
       - FORWARDED_ALLOW_IPS=*
+      # SEC-001: the skill-script sandbox reuses THIS service's image. The dev
+      # image is built by compose (no explicit tag) and installs its
+      # dependencies system-wide, so no PYTHONPATH override applies here —
+      # unlike the prod image, which uses `pip install --user`.
+      - SKILLS_SCRIPT_SANDBOX_IMAGE=lia-api
+      - SKILLS_SCRIPT_SANDBOX_PYTHONPATH=
     ports:
-      - "${API_HOST_PORT:-8000}:8000"
-      - "${DEBUG_HOST_PORT:-5678}:5678"  # Debug port
-      - "${API_METRICS_HOST_PORT:-9091}:9091"  # Prometheus metrics (HTTP-only, no TLS)
+      - "${DEV_BIND_HOST_APP:-${DEV_BIND_HOST:-127.0.0.1}}:${API_HOST_PORT:-8000}:8000"
+      - "${DEV_BIND_HOST:-127.0.0.1}:${DEBUG_HOST_PORT:-5678}:5678"  # Debug port
+      - "${DEV_BIND_HOST:-127.0.0.1}:${API_METRICS_HOST_PORT:-9091}:9091"  # Prometheus metrics (HTTP-only, no TLS)
     volumes:
       - ./apps/api:/app
       - api_venv:/app/.venv
@@ -206,7 +212,7 @@ services:
       - NODE_TLS_REJECT_UNAUTHORIZED=0
       # Other NEXT_PUBLIC_* variables are read from .env
     ports:
-      - "${WEB_HOST_PORT:-3000}:3000"
+      - "${DEV_BIND_HOST_APP:-${DEV_BIND_HOST:-127.0.0.1}}:${WEB_HOST_PORT:-3000}:3000"
     volumes:
       # Mount the entire web app directory for hot-reload
       - ./apps/web:/monorepo/apps/web
@@ -255,7 +261,7 @@ services:
     tmpfs:
       - /etc/prometheus/file_sd:mode=0777,size=1m
     ports:
-      - "${PROMETHEUS_HOST_PORT:-9090}:9090"
+      - "${DEV_BIND_HOST:-127.0.0.1}:${PROMETHEUS_HOST_PORT:-9090}:9090"
     volumes:
       - ./infrastructure/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./infrastructure/observability/prometheus/alerts-core.yml:/etc/prometheus/alerts-core.yml
@@ -278,7 +284,7 @@ services:
       - '--storage.path=/alertmanager'
       - '--web.external-url=http://localhost:${ALERTMANAGER_HOST_PORT:-9094}'
     ports:
-      - "${ALERTMANAGER_HOST_PORT:-9094}:9093"
+      - "${DEV_BIND_HOST:-127.0.0.1}:${ALERTMANAGER_HOST_PORT:-9094}:9093"
     volumes:
       - ./infrastructure/observability/alertmanager/docker-entrypoint.sh:/docker-entrypoint.sh:ro
       - ./infrastructure/observability/alertmanager/alertmanager.yml.template:/etc/alertmanager/alertmanager.yml.template:ro
@@ -316,7 +322,7 @@ services:
       - GF_SERVER_ROOT_URL=http://localhost:${GRAFANA_HOST_PORT:-3001}
       - GF_INSTALL_PLUGINS=grafana-clock-panel
     ports:
-      - "${GRAFANA_HOST_PORT:-3001}:3000"
+      - "${DEV_BIND_HOST:-127.0.0.1}:${GRAFANA_HOST_PORT:-3001}:3000"
     volumes:
       - ./infrastructure/observability/grafana/provisioning:/etc/grafana/provisioning
       - ./infrastructure/observability/grafana/dashboards:/var/lib/grafana/dashboards
@@ -337,7 +343,7 @@ services:
       - no-new-privileges:true
     command: -config.file=/etc/loki/local-config.yaml
     ports:
-      - "${LOKI_HOST_PORT:-3100}:3100"
+      - "${DEV_BIND_HOST:-127.0.0.1}:${LOKI_HOST_PORT:-3100}:3100"
     volumes:
       - ./infrastructure/observability/loki/loki-config.yml:/etc/loki/local-config.yaml
       - loki_data:/loki
@@ -352,7 +358,7 @@ services:
       - no-new-privileges:true
     command: -config.file=/etc/promtail/promtail-config.yml
     ports:
-      - "${PROMTAIL_HOST_PORT:-9080}:9080"  # Promtail metrics endpoint
+      - "${DEV_BIND_HOST:-127.0.0.1}:${PROMTAIL_HOST_PORT:-9080}:9080"  # Promtail metrics endpoint
     volumes:
       - ./infrastructure/observability/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml
       - /var/run/docker.sock:/var/run/docker.sock:ro  # Docker socket (read-only)
@@ -371,9 +377,9 @@ services:
       - no-new-privileges:true
     command: [ "-config.file=/etc/tempo/tempo.yml" ]
     ports:
-      - "${TEMPO_HOST_PORT:-3200}:3200"   # Tempo HTTP
-      - "${OTLP_GRPC_HOST_PORT:-4317}:4317"   # OTLP gRPC
-      - "${OTLP_HTTP_HOST_PORT:-4318}:4318"   # OTLP HTTP
+      - "${DEV_BIND_HOST:-127.0.0.1}:${TEMPO_HOST_PORT:-3200}:3200"   # Tempo HTTP
+      - "${DEV_BIND_HOST:-127.0.0.1}:${OTLP_GRPC_HOST_PORT:-4317}:4317"   # OTLP gRPC
+      - "${DEV_BIND_HOST:-127.0.0.1}:${OTLP_HTTP_HOST_PORT:-4318}:4318"   # OTLP HTTP
     volumes:
       - ./infrastructure/observability/tempo/tempo.yml:/etc/tempo/tempo.yml
       - tempo_data:/var/tempo
@@ -386,7 +392,7 @@ services:
     container_name: lia-cadvisor-dev
     privileged: true
     ports:
-      - "${CADVISOR_HOST_PORT:-8080}:8080"
+      - "${DEV_BIND_HOST:-127.0.0.1}:${CADVISOR_HOST_PORT:-8080}:8080"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -407,7 +413,7 @@ services:
     environment:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
     ports:
-      - "${PG_EXPORTER_HOST_PORT:-9187}:9187"
+      - "${DEV_BIND_HOST:-127.0.0.1}:${PG_EXPORTER_HOST_PORT:-9187}:9187"
     depends_on:
       postgres:
         condition: service_healthy
@@ -424,7 +430,7 @@ services:
       REDIS_ADDR: "redis:6379"
       REDIS_PASSWORD: "${REDIS_PASSWORD}"
     ports:
-      - "${REDIS_EXPORTER_HOST_PORT:-9121}:9121"
+      - "${DEV_BIND_HOST:-127.0.0.1}:${REDIS_EXPORTER_HOST_PORT:-9121}:9121"
     depends_on:
       redis:
         condition: service_healthy
@@ -443,7 +449,7 @@ services:
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
       - '--no-collector.hwmon'  # Disable hwmon on Windows
     ports:
-      - "${NODE_EXPORTER_HOST_PORT:-9100}:9100"
+      - "${DEV_BIND_HOST:-127.0.0.1}:${NODE_EXPORTER_HOST_PORT:-9100}:9100"
     volumes:
       - /:/host:ro
     networks:
@@ -466,8 +472,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     ports:
-      - "${MINIO_API_HOST_PORT:-9092}:9000"  # MinIO API
-      - "${MINIO_CONSOLE_HOST_PORT:-9093}:9001"  # MinIO Console
+      - "${DEV_BIND_HOST:-127.0.0.1}:${MINIO_API_HOST_PORT:-9092}:9000"  # MinIO API
+      - "${DEV_BIND_HOST:-127.0.0.1}:${MINIO_CONSOLE_HOST_PORT:-9093}:9001"  # MinIO Console
     volumes:
       - minio_data:/data
     networks:
@@ -567,7 +573,7 @@ services:
       minio:
         condition: service_healthy
     ports:
-      - "${LANGFUSE_HOST_PORT:-3002}:3000"
+      - "${DEV_BIND_HOST:-127.0.0.1}:${LANGFUSE_HOST_PORT:-3002}:3000"
     environment:
       # Next.js Server Binding (CRITICAL for Docker healthcheck)
       # Binds Next.js server to all network interfaces (0.0.0.0) instead of localhost only
@@ -683,7 +689,7 @@ services:
       minio:
         condition: service_healthy
     ports:
-      - "${LANGFUSE_WORKER_HOST_PORT:-3030}:3030"  # Health check and metrics endpoint
+      - "${DEV_BIND_HOST:-127.0.0.1}:${LANGFUSE_WORKER_HOST_PORT:-3030}:3030"  # Health check and metrics endpoint
     environment:
       # Node.js memory configuration (match container memory)
       NODE_OPTIONS: "--max-old-space-size=2048"

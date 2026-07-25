@@ -13,6 +13,8 @@ Reference: docs/technical/SKILLS_INTEGRATION.md
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
@@ -25,6 +27,10 @@ from src.core.constants import (
     SKILLS_SCRIPT_MAX_MEMORY_MB,
     SKILLS_SCRIPT_MAX_OUTPUT_KB,
     SKILLS_SCRIPT_MAX_PROCESSES,
+    SKILLS_SCRIPT_SANDBOX_DEFAULT,
+    SKILLS_SCRIPT_SANDBOX_IMAGE_DEFAULT,
+    SKILLS_SCRIPT_SANDBOX_PYTHONPATH_DEFAULT,
+    SKILLS_SCRIPT_SANDBOX_TMPFS_MB,
     SKILLS_SCRIPT_TIMEOUT_SECONDS,
     SKILLS_SCRIPT_UNPRIVILEGED_GID,
     SKILLS_SCRIPT_UNPRIVILEGED_UID,
@@ -239,4 +245,43 @@ class SkillsSettings(BaseSettings):
         default=SKILLS_SCRIPT_UNPRIVILEGED_GID,
         ge=1,
         description="Target gid for dropped skill subprocesses (default: nogroup).",
+    )
+
+    skills_script_sandbox: Literal["container", "subprocess"] = Field(
+        default=SKILLS_SCRIPT_SANDBOX_DEFAULT,  # type: ignore[arg-type]
+        description=(
+            "SEC-001. 'container': run each script in a throwaway container with "
+            "no Docker socket, no network, read-only root and an unprivileged uid "
+            "— the only option that stops a script inheriting the API's docker "
+            "group. 'subprocess': historical in-process path, protective ONLY when "
+            "the API itself runs as root. Selecting 'container' without a reachable "
+            "Docker daemon fails the execution; it never downgrades silently."
+        ),
+    )
+
+    skills_script_sandbox_image: str = Field(
+        default=SKILLS_SCRIPT_SANDBOX_IMAGE_DEFAULT,
+        min_length=1,
+        description=(
+            "Image for the sandbox container. Defaults to the API's own image so "
+            "the interpreter and installed packages match exactly — a different "
+            "image drifts and breaks skills importing a backend dependency."
+        ),
+    )
+
+    skills_script_sandbox_pythonpath: str = Field(
+        default=SKILLS_SCRIPT_SANDBOX_PYTHONPATH_DEFAULT,
+        description=(
+            "PYTHONPATH exported into the sandbox. The production image installs "
+            "packages under appuser's home (`pip install --user`); a container "
+            "running as another uid resolves a different home and would find none "
+            "of them. Empty disables the override."
+        ),
+    )
+
+    skills_script_sandbox_tmpfs_mb: int = Field(
+        default=SKILLS_SCRIPT_SANDBOX_TMPFS_MB,
+        ge=1,
+        le=512,
+        description="Size of the writable /tmp tmpfs inside the sandbox (MB).",
     )

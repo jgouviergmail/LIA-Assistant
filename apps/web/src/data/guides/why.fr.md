@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 3.9
-**Date** : 2026-07-24
-**Application** : LIA v1.25.19
+**Date** : 2026-07-25
+**Application** : LIA v1.25.20
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -104,7 +104,7 @@ Le but de LIA n'est pas de vous transformer en administrateur système. C'est de
 
 ## 3. Ce que LIA sait faire
 
-LIA agit concrètement dans votre vie numérique grâce à 19+ agents spécialisés qui couvrent l'ensemble des besoins du quotidien : gestion de vos données personnelles (emails, calendrier, contacts, tâches, fichiers), accès aux informations externes (recherche web, météo, lieux, itinéraires), création de contenu (images, diagrammes), contrôle de votre maison connectée, navigation web autonome, et anticipation proactive de vos besoins.
+LIA agit concrètement dans votre vie numérique grâce à 20+ agents spécialisés qui couvrent l'ensemble des besoins du quotidien : gestion de vos données personnelles (emails, calendrier, contacts, tâches, fichiers), accès aux informations externes (recherche web, météo, lieux, itinéraires), création de contenu (images, diagrammes), contrôle de votre maison connectée, navigation web autonome, et anticipation proactive de vos besoins.
 
 Vous choisissez comment LIA raisonne, via un simple toggle (⚡) dans le chat :
 
@@ -224,7 +224,7 @@ Avec LIA, **tout reste dans votre PostgreSQL** : conversations, mémoire, profil
 
 ### 5.2. Même un Raspberry Pi suffit
 
-LIA tourne en production sur un **Raspberry Pi 5** — un ordinateur monocarte à 80 euros. 19+ agents spécialisés, une stack d'observabilité complète, un système de mémoire psychologique, le tout sur un micro-serveur ARM. Les images Docker multi-architecture (amd64/arm64) permettent le déploiement sur n'importe quel matériel : NAS Synology, VPS à quelques euros par mois, serveur d'entreprise, ou cluster Kubernetes.
+LIA tourne en production sur un **Raspberry Pi 5** — un ordinateur monocarte à 80 euros. 20+ agents spécialisés, une stack d'observabilité complète, un système de mémoire psychologique, le tout sur un micro-serveur ARM. Les images Docker multi-architecture (amd64/arm64) permettent le déploiement sur n'importe quel matériel : NAS Synology, VPS à quelques euros par mois, serveur d'entreprise, ou cluster Kubernetes.
 
 La souveraineté numérique n'est plus un privilège d'entreprise — c'est un droit accessible à tous.
 
@@ -349,6 +349,14 @@ LIA ne refuse pas les actions sensibles — elle vous les **soumet** avec le niv
 ### 8.5. Vos réponses n'ont pas besoin de vous
 
 Envoyez une question, fermez l'onglet, partez. La génération continue sur le serveur, et la réponse vous attend dans la conversation — ou reprend en direct, exactement là où elle en était, si vous revenez pendant qu'elle s'écrit. Rien à faire, rien à configurer : la continuité est le comportement par défaut. Et quand c'est vous qui changez d'avis, un bouton stop interrompt la génération en une seconde — ce qui est déjà écrit reste affiché, honnêtement marqué comme interrompu. Un assistant fiable n'est pas seulement un assistant qui répond juste : c'est un assistant qui finit ce qu'il commence.
+
+### 8.6. Rien ne s'exécute dans ton dos
+
+Un assistant capable d'agir est un assistant capable de se tromper. Deux règles rendent cela acceptable.
+
+D'abord, **rien ne touche à ton serveur sans ton accord** — et la confirmation montre tout ce qui va être envoyé, y compris les consignes que LIA s'est écrites à elle-même. Un résumé qu'on ne peut pas lire entièrement n'est pas une confirmation, c'est une formalité. Le droit est revérifié au moment où l'action démarre, pas seulement au moment où tu l'as demandée.
+
+Ensuite, **ce qui s'exécute s'exécute dans une boîte scellée**. Le code d'une skill tourne dans un conteneur créé pour cette seule exécution et détruit juste après : pas de réseau, pas d'accès à tes fichiers, pas de clés, aucun moyen d'atteindre la machine en dessous. Si cette boîte ne peut pas être construite, le script ne tourne tout simplement pas — aucun repli silencieux vers un mode plus faible. On installe une skill pour ce qu'elle produit, pas pour la confiance qu'il faudrait accorder à son auteur.
 
 ---
 

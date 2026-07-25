@@ -76,7 +76,6 @@ export function NotificationPrompt({
     isConfigured,
     isIOSPWA,
     isLoading,
-    error: fcmError,
     requestPermission,
     registeredTokens,
   } = useFCMToken();
@@ -102,23 +101,31 @@ export function NotificationPrompt({
       isIOSPWA,
     });
 
-    const token = await requestPermission();
+    // Every branch below reads `result`, never the hook's state: past an
+    // await, `error` / `permissionStatus` still hold the values captured by
+    // the render that created this handler (see EnrollmentResult).
+    const result = await requestPermission();
 
-    if (token) {
+    if (result.status === 'enrolled') {
       toast.success(t('notifications.enabled_success'));
-      onSuccess?.(token);
+      onSuccess?.(result.token);
       onOpenChange(false);
-    } else {
-      // Check if permission was denied
-      if (permissionStatus === 'denied') {
-        toast.error(t('notifications.permission_denied'));
-      } else {
-        // Show detailed error message in development for debugging
-        const errorMsg = fcmError || t('notifications.enable_failed');
-        console.error('[NotificationPrompt] Enable failed:', fcmError);
-        toast.error(errorMsg);
-      }
+      return;
     }
+
+    if (result.status === 'denied') {
+      toast.error(t('notifications.permission_denied'));
+      return;
+    }
+
+    // Technical failure: the cause is for us, the message is for the user. An
+    // SDK string ("Failed to fetch") is untranslated and unactionable, so it
+    // goes to the logger — where it is what makes an incident diagnosable.
+    logger.error('NotificationPrompt: enable failed', undefined, {
+      component: 'NotificationPrompt',
+      cause: result.error,
+    });
+    toast.error(t('notifications.enable_failed'));
   };
 
   // Don't render if not supported or not configured

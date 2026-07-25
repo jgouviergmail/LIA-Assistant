@@ -84,20 +84,55 @@ describe('buildAppCsp (strict app policy)', () => {
 });
 
 describe('buildConnectSrc', () => {
+  // Hosts are spelled out here on purpose: asserting against the exported
+  // constant would make a typo in that constant pass its own pinning test.
+  const FIREBASE_HOSTS =
+    'https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com';
+
   it('includes the API origin and its websocket variant in prod', () => {
     expect(buildConnectSrc(false, 'https://api.example.com')).toBe(
-      "'self' https://api.example.com wss://api.example.com"
+      `'self' https://api.example.com wss://api.example.com ${FIREBASE_HOSTS}`
     );
   });
 
-  it('falls back to self on malformed API URL', () => {
-    expect(buildConnectSrc(false, 'not a url')).toBe("'self'");
+  it('falls back to self (plus push enrolment) on malformed API URL', () => {
+    const value = buildConnectSrc(false, 'not a url');
+    expect(value).toBe(`'self' ${FIREBASE_HOSTS}`);
+    expect(value).not.toContain('not a url');
   });
 
   it('adds HMR websockets and local API origins in dev', () => {
     const value = buildConnectSrc(true, undefined);
     expect(value).toContain('ws:');
     expect(value).toContain('http://localhost:8000');
+  });
+
+  // Regression, 2026-07-24: the first CSP (v1.21.5, 2026-07-03) never
+  // allowlisted these two hosts, so `getToken()` died on "Refused to connect"
+  // and NO browser could enrol for push — first activation included. It stayed
+  // invisible for three weeks because delivery to already-registered devices
+  // is server-side and needs no client call to Google. Both hosts are used
+  // sequentially (FIS mints the auth token fcmregistrations then requires), so
+  // dropping either one re-breaks enrolment.
+  it.each([
+    ['https://firebaseinstallations.googleapis.com'],
+    ['https://fcmregistrations.googleapis.com'],
+  ])('allows %s — Firebase Web Push enrolment fetches it from the document', host => {
+    expect(buildConnectSrc(false, 'https://api.example.com').split(' ')).toContain(host);
+    expect(buildConnectSrc(true, undefined).split(' ')).toContain(host);
+    expect(parsePolicy(buildAppCsp(false, 'https://api.example.com')).get('connect-src')).toContain(
+      host
+    );
+  });
+
+  it('keeps the allowlist to exact hosts — never a wildcard Google origin', () => {
+    const sources = buildConnectSrc(false, 'https://api.example.com').split(' ');
+    expect(sources.filter(s => s.includes('googleapis.com'))).toEqual([
+      'https://firebaseinstallations.googleapis.com',
+      'https://fcmregistrations.googleapis.com',
+    ]);
+    expect(sources).not.toContain('https:');
+    expect(sources).not.toContain('*');
   });
 });
 

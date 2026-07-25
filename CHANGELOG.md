@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.20] - 2026-07-25
+
+Security remediation of the 2026-07-13 audit ([ADR-149](docs/architecture/ADR-149-Security-Remediation-Wave-1.md)). Every finding was re-verified against the code before being treated — several were false positives, and the verification exhumed defects the audit had missed. Two controls turned out to be declared but never applied: a skill script inherited the API's Docker group, and the "global rate limit" was an object nothing ever consulted. Backend tests **14,847 → 15,023**.
+
+### Added
+
+- **Skill scripts run in a throwaway container** (SEC-001) — no Docker socket, `--network none`, read-only rootfs with a sized tmpfs, uid 65534, all capabilities dropped, memory/pids/CPU/file-size bounded. The privilege drop it replaces only isolated when the API ran as root; production runs as `appuser`, a member of the `docker` group that a child process inherits — socket included. The script SOURCE is passed inline (`python -c`) rather than mounted: the API is itself a container, so a bind would resolve against the host, and stdin stays free for the JSON payload every skill relies on. An unreachable daemon fails the execution; it never downgrades. Settings: `SKILLS_SCRIPT_SANDBOX`, `_IMAGE`, `_PYTHONPATH`, `_TMPFS_MB`.
+- **A global HTTP rate limit that is actually enforced** (SEC-016) — `RateLimitMiddleware`, pure ASGI, backed by the shared `RedisRateLimiter` so the budget is common to the four uvicorn workers. Sized from measurement (a real browser session peaked at 67 req/min; default 300), probes exempt, fail-open when Redis is down with the blind window counted (`http_rate_limit_degraded_total`) and alerted (`GlobalRateLimitDegraded`).
+- **Request bodies bounded before they are read** (SEC-031) — `BodySizeLimitMiddleware` refuses on the declared length when it can, and counts streamed bytes when it cannot. Endpoints used to materialise the payload before validating it — on the webhooks, before authenticating it. `Settings` now refuses to boot when the global ceiling sits below a configured upload limit, instead of shipping a remote-only 413 that no endpoint log explains.
+- **Every DevOps task is confirmed before it runs** (FN-1) — `claude_server_task_tool` no longer executes: it returns a `DEVOPS_TASK` draft carrying the target server, the full task text and the model-authored `context`, and the SSH session happens in `execute_devops_task_draft` after approval. The draft is the only mechanism both execution modes honour — the pipeline ignores `hitl_required`, and ReAct would otherwise ask twice. Progress streaming is preserved through a `ContextVar` carrying the SSE queue into the executor.
+- **Browser requests validated per destination** (SEC-032) — the interceptor checked nothing beyond the scheme and forwarded on exception, so a public page could redirect to loopback, a private range or the metadata service. Each request now resolves its host behind a bounded LRU+TTL verdict cache and fails closed. Behind `BROWSER_SSRF_ENFORCE`, report-only first.
+- **Outbound MCP OAuth calls guarded at all five sites** (SEC-008/SEC-030), two of which the audit had not seen — the heuristic endpoint probes and the `WWW-Authenticate` probe. An AST guard now fails the build if any outbound call in that module is left unguarded.
+- Profile-image fetching follows redirects **hop by hop** with a per-hop allowlist and a bounded read (SEC-026); the RAG upload proxy authenticates, admits, then reads a strictly bounded body over a single native transport (SEC-006); the static-map proxies require a session and carry their own budget (FN-5); the Telegram webhook refuses when no secret is configured, and the configuration refuses to start on a placeholder (SEC-024).
+- Sensitive client storage is purged on logout **and on account change** (SEC-035), via an owner marker that also covers a session expiry followed by a different login.
+- GPS parameters (`lat`, `lng`, `origin`, `dest`…) joined the sanitized query parameters, and the uvicorn access loggers are reclaimed so their URLs pass through the PII filter — `uvicorn.access` sets `propagate=False`, so those lines used to bypass it entirely.
+- Executable guards for the classes found here: the sandbox argv contract and its fail-closed behaviour, tool-family import order in a fresh interpreter, body-ceiling/upload-ceiling consistency, and MCP outbound-call exhaustiveness.
+
+### Changed
+
+- The SlowAPI `Limiter` and its 429 handler are gone from `main.py`, together with the helpers only their own tests kept alive (`build_default_limit`, `resolve_endpoint_limit`, `get_rate_limit_message`) and the constants that became unreachable with them.
+- `draft_executor` split into engine / registry population / leaf registry (`draft_executor_types`), so adding a draft type no longer grows the engine past its size cap.
+- The RAG upload proxy reads its ceiling from `RAG_SPACES_MAX_FILE_SIZE_MB` — the same `.env` both containers load — instead of a hardcoded copy that would silently reject valid uploads once an operator raised the backend limit.
+- `email` is no longer part of `UserUpdate` (SEC-005): the generic profile endpoint has no re-authentication, no proof of owning the new mailbox and no session revocation, so a stolen session could become a permanent takeover through the recovery flow.
+- Dev Compose binds its published ports to loopback by default (SEC-015), with `DEV_BIND_HOST_APP` for the app ports when the dev app is reached from the LAN; the deploy script pins host-key checking and tightens the permissions of the credential directory it uploads (SEC-013/SEC-014).
+
+### Fixed
+
+- **A timed-out sandbox container outlived its own timeout.** Killing the `docker run` client does not stop the container, and a script that sleeps burns no CPU — so neither the CPU rlimit nor `--rm` reclaimed it. Each run now carries a unique name and the timeout path force-removes it, from the worker thread so the cleanup survives cancellation of the awaiting coroutine.
+- **An import cycle silently removed the whole DevOps tool family at boot.** `drafts.service` imports `agents.tools.output`, which runs the tools package init, which conditionally imports the DevOps module — importing the draft service at module level closed the loop. The unit suite never saw it: importing the module directly takes the safe order.
+- **The DevOps confirmation card hid the one field an injection would use.** `context` is model-authored and lands in the remote CLI's `--append-system-prompt`; it is now displayed in full alongside the task.
+- **Admin rights were only checked when the draft was built.** An arbitrary delay separates that from the confirmation and a HITL decision can be replayed, so a revoked superuser still got their pending task executed. The check runs again at execution.
+- The OAuth `state` is fingerprinted instead of logged verbatim (FN-3), and a daemon refusal (exit 125) is reported as a sandbox failure rather than handing the LLM our image names and daemon state.
+- The DevOps guide contradicted itself on `max_turns` — advertised as a working cap in its configuration table, documented as never forwarded three sections below.
+
+### Tests
+
+- **176 new backend tests** covering the sandbox command contract and its fail-closed paths, the DevOps confirmation in both directions, the body-ceiling invariant at its exact boundary, and the import-order regression.
+- Non-regression of the skills feature proven by differential rather than by assertion: the ten shipped scripts, executed in both modes with identical parameters, produce **byte-for-byte identical output on nine of ten** (the tenth uses `secrets`).
+- The new guards were falsified before being trusted — reintroducing the import cycle reds two of three cases, and removing the outbound guards reds the AST check.
+
 ## [1.25.19] - 2026-07-24
 
 Twenty-two silent defects, found by testing the safety mechanisms instead of trusting them. None of them raised, logged or failed a suite: an assistant that ran a bulk action without asking, proactive tool calls that could switch your lights, deleted mail resurfacing in an ordinary search, a rescheduled meeting duplicated instead of moved, and cached tokens billed twice. Backend tests **13,282 → 14,847**.

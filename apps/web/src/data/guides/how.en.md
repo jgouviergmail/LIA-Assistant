@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 3.4
-**Date**: 2026-07-24
-**Application**: LIA v1.25.19
+**Date**: 2026-07-25
+**Application**: LIA v1.25.20
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 438 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 120+ ADRs, ~14,847 pytest-collected tests across 803 files, native observability, 6-level HITL |
+| Production reliability | 140+ ADRs, ~15,023 pytest-collected tests across 814 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -71,7 +71,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~14,847 (collected by pytest across 803 test files) + 2,538 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~15,023 (collected by pytest across 803 test files) + 2,538 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
@@ -763,14 +763,24 @@ Autonomous ReAct agent (headless Playwright Chromium). Redis-backed session pool
 | XSS (LLM rendering) | `rehype-sanitize` boundary on the chat markdown pipeline (`rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`, audited schema — `script`/`iframe`/`form`/handlers dropped), HTTP-only cookies, backend CSP; MCP/Skill Apps never go through markdown (sentinel → sandboxed iframe widget) |
 | CSRF | SameSite=Lax |
 | SQL Injection | SQLAlchemy ORM (parameterized queries) |
-| SSRF | DNS resolution + IP blocklist (Web Fetch, MCP, Browser); skill install-from-URL reuses the same validator with stricter terms: https only, redirects refused, streamed size cap, TOTAL transfer deadline, per-user rate limit |
+| SSRF | DNS resolution + IP blocklist (Web Fetch, MCP, Browser); skill install-from-URL reuses the same validator with stricter terms: https only, redirects refused, streamed size cap, TOTAL transfer deadline, per-user rate limit The browser goes further: **every request a page makes** — redirect, sub-resource, iframe, XHR — resolves its own destination behind a bounded verdict cache, and a failure aborts instead of forwarding. |
 | Prompt Injection | `<external_content>` safety markers |
-| Rate Limiting / IP spoofing | Distributed Redis sliding window (atomic Lua); trusted proxy chain — API ports loopback-bound (cloudflared = single entry), uvicorn `--proxy-headers`, `request.client.host` validated as the single IP source (no more shared global bucket, raw XFF never read) |
+| Rate Limiting / IP spoofing | Distributed Redis sliding window (atomic Lua); trusted proxy chain — API ports loopback-bound (cloudflared = single entry), uvicorn `--proxy-headers`, `request.client.host` validated as the single IP source (no more shared global bucket, raw XFF never read) A global ceiling sits in front of every route as real ASGI middleware on that same shared limiter, so one client cannot consume the whole API; probes stay exempt so supervision is never throttled. |
 | Supply Chain | SHA-pinned GitHub Actions, Dependabot weekly |
 
 ### 19.4. Data durability: automated backups (ADR-109)
 
 **A backup is only real once a restore has been proven.** A `postgres-backup` sidecar snapshots the full database on a cron schedule with three-tier rotation (daily / weekly / monthly); every parameter — schedule, retention, target directory, pg_dump options — is `.env`-driven. Dumps carry `--clean --if-exists`, so a restore is a single command into the live database or a throwaway container. The drill itself is versioned: `task backup:verify` restores the latest dump into an ephemeral pgvector container and compares the Alembic schema revision and reference row counts against the live source. RPO: ≤ 24 h (tunable). The accepted limits (off-site copy, attachments volume) are tracked in ADR-109 rather than left implicit.
+
+### 19.5. Isolating what executes
+
+Three surfaces execute something on the user's behalf, and each is treated as hostile by construction.
+
+**Skill scripts run in a throwaway container.** No Docker socket, no network, a read-only root filesystem with a small writable tmpfs, an unprivileged uid, every capability dropped, and memory / process / CPU / file-size ceilings. The point is what a child process *inherits*: the API belongs to the `docker` group in production, and a group is inherited — dropping the uid alone would leave the socket reachable. The script SOURCE is handed over as an argument rather than mounted, because the API is itself a container and a bind would resolve against the host; that choice also leaves stdin free for the JSON payload the contract is built on. When no daemon is reachable the execution is refused rather than downgraded — a sandbox that disables itself protects nothing.
+
+**Infrastructure tasks are confirmed, never assumed.** A remote server task is prepared, not run: the confirmation shows the target server, the full task text and the instructions the model itself wrote into the remote prompt — the field an injection would use is exactly the one that must not be hidden. The privilege is verified again at execution, because rights granted when a request was phrased may no longer hold when it is approved.
+
+**Request bodies are bounded before they are read.** The ceiling is enforced ahead of the handler, on the declared length when there is one and on the counted bytes when there is not, so peak memory is set by us rather than by the caller — on webhooks that happens before authentication. Its consistency with the per-endpoint upload limits is asserted at startup: a contradiction refuses to boot instead of surfacing as a remote-only rejection that no log explains.
 
 ---
 
@@ -1026,7 +1036,7 @@ Six localized manifests (`/manifest-{lng}.json` — localized `lang`, `start_url
 
 ## 24. Architecture Decision Records (ADR)
 
-120+ ADRs in MADR format document the major architectural decisions. Some representative examples:
+140+ ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1109,10 +1119,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 120+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~14,847 tests across 803 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 140+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~15,023 tests across 814 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (280+ documents), 120+ ADRs, and the changelog (v1.0 to v1.25.18). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (380+ documents), 140+ ADRs, and the changelog (v1.0 to v1.25.20). All metrics, versions, and patterns cited are verifiable in the codebase.*

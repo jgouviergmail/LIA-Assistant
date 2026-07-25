@@ -153,7 +153,6 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | Technologie | Version | Role |
 |-------------|---------|------|
 | **httpx** | 0.28.x | HTTP client async |
-| **slowapi** | 0.1.x | Rate limiting |
 | **apscheduler** | 3.11.2 | Background jobs |
 | **edge-tts** | 7.2.8 | Text-to-Speech |
 | **firebase-admin** | 7.4.0 | Firebase integration |

@@ -14,12 +14,13 @@ from enum import Enum
 from functools import lru_cache
 from typing import Any
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core.constants import (
     DEFAULT_CURRENCY,
     HTTP_LOG_EXCLUDE_PATHS_DEFAULT,
+    MULTIPART_ENVELOPE_OVERHEAD_BYTES,
     SESSION_COOKIE_SECURE_PRODUCTION,
     SUPPORTED_LANGUAGES,
 )
@@ -327,6 +328,38 @@ class Settings(
                 f"{field_name} too high ({v}), max recommended: 100 for production safety"
             )
         return v
+
+    @model_validator(mode="after")
+    def _validate_body_ceiling_covers_uploads(self) -> "Settings":
+        """Refuse to boot when the global body cap is below a legitimate upload.
+
+        ``BodySizeLimitMiddleware`` (SEC-031) runs BEFORE any handler, so a cap
+        smaller than an endpoint's own ceiling turns a valid upload into a 413
+        that no endpoint log explains. Both upload ceilings are configurable up
+        to 100 MB while the cap defaults to 21 MB — raising one without the
+        other is a silent, remote-only breakage. Failing here makes the
+        contradiction impossible to ship.
+
+        Returns:
+            The validated settings instance.
+
+        Raises:
+            ValueError: The cap cannot carry the largest configured upload.
+        """
+        largest_upload_mb = max(
+            self.attachments_max_doc_size_mb,
+            self.attachments_max_image_size_mb,
+            self.rag_spaces_max_file_size_mb,
+        )
+        required = largest_upload_mb * 1024 * 1024 + MULTIPART_ENVELOPE_OVERHEAD_BYTES
+        if self.max_request_body_bytes < required:
+            raise ValueError(
+                "max_request_body_bytes "
+                f"({self.max_request_body_bytes}) is below the largest configured "
+                f"upload ({largest_upload_mb} MB + multipart envelope = {required} "
+                "bytes): raise MAX_REQUEST_BODY_BYTES or lower the upload ceilings."
+            )
+        return self
 
     # ========================================================================
     # Properties (from original config.py)

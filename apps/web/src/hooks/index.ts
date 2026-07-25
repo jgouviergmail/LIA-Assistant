@@ -59,7 +59,7 @@ export { useVoicePlayback } from './useVoicePlayback';
 
 // Push Notifications (FCM)
 export { useFCMToken } from './useFCMToken';
-export type { FCMPermissionStatus, UseFCMTokenReturn } from './useFCMToken';
+export type { EnrollmentResult, FCMPermissionStatus, UseFCMTokenReturn } from './useFCMToken';
 
 // Real-time Notifications (SSE)
 export { useNotifications } from './useNotifications';

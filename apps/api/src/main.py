@@ -12,23 +12,14 @@ from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from slowapi import Limiter
-from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 
 from src.api.health import health_router
 from src.api.v1.routes import api_router
 from src.core.bootstrap import log_event_loop_configuration, log_rate_limiting_status
 from src.core.config import settings
-from src.core.constants import (
-    API_VERSION,
-    RATE_LIMIT_ENDPOINT_AUTH_LOGIN,
-    RATE_LIMIT_ENDPOINT_AUTH_REGISTER,
-    RATE_LIMIT_ENDPOINT_CHAT_STREAM,
-)
+from src.core.constants import API_VERSION
 from src.core.field_names import FIELD_STATUS
 from src.core.middleware import setup_middleware
-from src.core.rate_limit_config import build_default_limit, rate_limiting_enabled
 from src.infrastructure.observability.logging import configure_logging
 from src.infrastructure.observability.metrics import PrometheusMiddleware, metrics_endpoint
 from src.infrastructure.observability.tracing import configure_tracing
@@ -47,61 +38,13 @@ configure_logging()
 logger = structlog.get_logger(__name__)
 
 
-# Rate limiter with centralized configuration
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=[build_default_limit(settings)],
-    enabled=rate_limiting_enabled(settings),
-)
-
-
-def custom_rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
-    """
-    Custom handler for rate limit exceeded errors.
-
-    Returns structured JSON response with retry information.
-    """
-    # Extract endpoint path for context-specific messaging
-    endpoint_path = request.url.path
-
-    # Determine endpoint type for better messaging
-    endpoint_type = "default"
-    if RATE_LIMIT_ENDPOINT_AUTH_LOGIN in endpoint_path:
-        endpoint_type = "auth_login"
-    elif RATE_LIMIT_ENDPOINT_AUTH_REGISTER in endpoint_path:
-        endpoint_type = "auth_register"
-    elif RATE_LIMIT_ENDPOINT_CHAT_STREAM in endpoint_path:
-        endpoint_type = "sse"
-
-    from src.core.rate_limit_config import get_rate_limit_message
-    from src.infrastructure.observability.metrics import http_rate_limit_hits_total
-
-    error_message = get_rate_limit_message(endpoint_type)
-
-    # Track rate limit hit in metrics
-    http_rate_limit_hits_total.labels(
-        endpoint=endpoint_path,
-        endpoint_type=endpoint_type,
-    ).inc()
-
-    # Log rate limit hit for monitoring
-    logger.warning(
-        "rate_limit_exceeded",
-        endpoint=endpoint_path,
-        remote_addr=get_remote_address(request),
-        endpoint_type=endpoint_type,
-    )
-
-    return JSONResponse(
-        status_code=429,
-        content={
-            **error_message,
-            "retry_after": getattr(exc, "retry_after", 60),  # Default 60 seconds
-        },
-        headers={
-            "Retry-After": str(getattr(exc, "retry_after", 60)),
-        },
-    )
+# SEC-016 — the SlowAPI `Limiter` and its 429 handler used to live here.
+# They were never enforced: no `SlowAPIMiddleware`, no `@limiter.limit`
+# decorator, so `default_limits` bound nothing while `app.state.limiter`
+# made the API look rate-limited. It also defaulted to in-memory counters,
+# meaning one budget per uvicorn worker (four in production).
+# `RateLimitMiddleware` (core/middleware.py) replaces it: Redis-backed,
+# shared across workers, and actually on the request path.
 
 
 # Scheduler for background tasks
@@ -229,10 +172,6 @@ setup_middleware(app)
 
 # Add Prometheus metrics middleware
 app.add_middleware(PrometheusMiddleware)
-
-# Add rate limiter with custom error handler
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 
 
 # Pydantic / FastAPI request validation error metric (dashboard 16).

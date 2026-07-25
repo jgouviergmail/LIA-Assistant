@@ -330,6 +330,16 @@ export const VOICE_MODE_IDLE_TIMEOUT_SECONDS = 300;
 export const VOICE_MODE_ENABLED_KEY = 'voice_mode_enabled';
 
 /**
+ * SessionStorage key holding the debug metrics history (SEC-035).
+ *
+ * The entries carry the user's own request text plus execution details, and the
+ * key is global — not namespaced per account — so on a shared browser profile
+ * account B could read what account A ran. Listed in
+ * `SENSITIVE_CLIENT_STORAGE_KEYS` so logout purges it.
+ */
+export const DEBUG_METRICS_HISTORY_KEY = 'lia_debug_metrics_history';
+
+/**
  * Touch padding tolerance (px) for push-to-talk touch move cancellation.
  * Allows small finger movements without accidentally stopping the recording.
  */

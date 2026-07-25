@@ -23,7 +23,9 @@ from src.core.constants import (
     HTTP_LOG_LEVEL_DEFAULT,
     JWT_ALGORITHM_DEFAULT,
     LOG_LEVEL_DEFAULT,
+    MAX_REQUEST_BODY_BYTES_DEFAULT,
     RATE_LIMIT_BURST_DEFAULT,
+    RATE_LIMIT_GLOBAL_PER_MINUTE_DEFAULT,
     RATE_LIMIT_PER_MINUTE_DEFAULT,
     SECRET_KEY_MIN_LENGTH,
     SESSION_COOKIE_NAME,
@@ -78,7 +80,30 @@ class SecuritySettings(BaseSettings):
         description="CORS allowed origins (comma-separated or list)",
     )
 
-    # HTTP Rate Limiting (SlowAPI - FastAPI Endpoints)
+    rate_limit_global_per_minute: int = Field(
+        default=RATE_LIMIT_GLOBAL_PER_MINUTE_DEFAULT,
+        ge=1,
+        description=(
+            "SEC-016. Requests per minute per client for the globally enforced "
+            "rate limit (RateLimitMiddleware, Redis-backed). A flood backstop: "
+            "the specialised per-endpoint limiters stay stricter. Sized well above "
+            "a real session — one measured at 67 req/min on a single page — so it "
+            "never fires on legitimate use."
+        ),
+    )
+
+    max_request_body_bytes: int = Field(
+        default=MAX_REQUEST_BODY_BYTES_DEFAULT,
+        ge=1024,
+        description=(
+            "Global ceiling on an HTTP request body, in bytes (SEC-031). A memory "
+            "bound applied by BodySizeLimitMiddleware before any handler runs; "
+            "per-endpoint limits stay in place and are stricter. Must remain above "
+            "the largest legitimate upload (RAG document + multipart envelope)."
+        ),
+    )
+
+    # HTTP Rate Limiting (RateLimitMiddleware + per-endpoint limiters)
     rate_limit_per_minute: int = Field(
         default=RATE_LIMIT_PER_MINUTE_DEFAULT,
         gt=0,

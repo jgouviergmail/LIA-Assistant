@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 3.9
-**Date**: 2026-07-24
-**Application**: LIA v1.25.19
+**Date**: 2026-07-25
+**Application**: LIA v1.25.20
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -104,7 +104,7 @@ LIA's goal is not to turn you into a system administrator. It's to give you the 
 
 ## 3. What LIA can do
 
-LIA acts concretely in your digital life through 19+ specialized agents covering all everyday needs: managing your personal data (emails, calendar, contacts, tasks, files), accessing external information (web search, weather, places, routing), creating content (images, diagrams), controlling your smart home, autonomous web browsing, and proactively anticipating your needs.
+LIA acts concretely in your digital life through 20+ specialized agents covering all everyday needs: managing your personal data (emails, calendar, contacts, tasks, files), accessing external information (web search, weather, places, routing), creating content (images, diagrams), controlling your smart home, autonomous web browsing, and proactively anticipating your needs.
 
 You choose how LIA reasons, via a simple toggle (⚡) in the chat header:
 
@@ -224,7 +224,7 @@ With LIA, **everything stays in your PostgreSQL**: conversations, memory, psycho
 
 ### 5.2. Even a Raspberry Pi is enough
 
-LIA runs in production on a **Raspberry Pi 5** — a single-board computer costing around $80. 19+ specialized agents, a full observability stack, a psychological memory system, all on a tiny ARM server. Multi-architecture Docker images (amd64/arm64) enable deployment on any hardware: Synology NAS, VPS for a few dollars a month, enterprise server, or Kubernetes cluster.
+LIA runs in production on a **Raspberry Pi 5** — a single-board computer costing around $80. 20+ specialized agents, a full observability stack, a psychological memory system, all on a tiny ARM server. Multi-architecture Docker images (amd64/arm64) enable deployment on any hardware: Synology NAS, VPS for a few dollars a month, enterprise server, or Kubernetes cluster.
 
 Digital sovereignty is no longer an enterprise privilege — it's a right accessible to everyone.
 
@@ -349,6 +349,14 @@ LIA doesn't refuse sensitive actions — it **submits** them to you with the app
 ### 8.5. Your answers don't need you
 
 Send a question, close the tab, walk away. Generation continues on the server, and the answer is waiting in the conversation — or resumes live, exactly where it left off, if you come back while it is still being written. Nothing to do, nothing to configure: continuity is the default behavior. And when you are the one changing your mind, a stop button interrupts generation within a second — what was already written stays on screen, honestly marked as interrupted. A reliable assistant isn't just one that answers correctly: it's one that finishes what it starts.
+
+### 8.6. Nothing runs behind your back
+
+An assistant that can act is an assistant that can act *wrongly*. Two rules make that acceptable.
+
+First, **nothing touches your server without you saying yes** — and the confirmation shows everything that will be sent, including the instructions LIA wrote for itself. A summary you cannot fully read is not a confirmation, it is a formality. The permission is checked again the moment the action starts, not only when you asked for it.
+
+Second, **what does run, runs in a sealed box**. A skill's code executes in a container created for that single run and destroyed straight after: no network, no access to your files, no keys, no way to reach the machine underneath. If that box cannot be built, the script simply does not run — no silent fallback to a weaker mode. You install a skill for what it produces, not for the trust you must extend to its author.
 
 ---
 

@@ -61,6 +61,11 @@ A skill package (.zip) can contain:
 
 These resources are loaded on demand (L3 tier) to optimize token usage.
 
+## How isolated is a skill script, exactly?
+Each run gets its **own throwaway container**, destroyed as soon as the script ends: no Docker socket, no network access, a read-only filesystem apart from a small temporary space, an unprivileged identity and no capabilities. It cannot read your files, your credentials or anything else on the machine — it receives its JSON input on stdin and writes its result to stdout, and that is the whole of its world.
+
+If that container cannot be created, the script **does not run at all** — there is no weaker fallback mode. A script that overruns its time budget is force-removed rather than left behind. In short: you install a skill for what it produces, not for the trust you would otherwise have to place in whoever wrote it.
+
 ## Rich outputs (frames + images)
 
 Since **v1.16.8**, skills can return interactive content beyond text by writing

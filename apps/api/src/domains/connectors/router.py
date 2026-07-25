@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.constants import (
     GOOGLE_STATIC_MAPS_URL_LIMIT,
+    RATE_LIMIT_STATIC_MAP_PER_MINUTE,
     STATIC_MAP_MARKER_DEST_COLOR,
     STATIC_MAP_MARKER_ORIGIN_COLOR,
     STATIC_MAP_MAX_DIMENSION,
@@ -35,6 +36,7 @@ from src.core.exceptions import (
 from src.core.i18n import Language, _, get_language_from_header
 from src.core.i18n_api_messages import APIMessages
 from src.core.session_dependencies import get_current_active_session, get_current_superuser_session
+from src.domains.auth.dependencies import create_user_rate_limiter
 from src.domains.connectors.error_handlers import handle_oauth_callback_error_redirect
 from src.domains.connectors.models import CONNECTOR_FUNCTIONAL_CATEGORIES, ConnectorType
 from src.domains.connectors.preferences.schemas import PreferencesRequest
@@ -75,6 +77,14 @@ logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/connectors", tags=["Connectors"])
 
+# Per-user budget for the two Google Static Maps proxies. The dependency chains
+# `get_current_active_session`, so it also carries the authentication these
+# endpoints now require.
+rate_limit_static_map = create_user_rate_limiter(
+    action="static_map",
+    max_calls=RATE_LIMIT_STATIC_MAP_PER_MINUTE,
+)
+
 
 @router.get(
     "",
@@ -107,8 +117,22 @@ async def list_connector_types() -> list[str]:
 
 
 # Google Routes Static Map proxy (MUST be before /{connector_id} to avoid path matching conflict)
-# Note: This endpoint is public (no auth) because browser <img> tags don't send session cookies.
-# The API key is still protected server-side. The polyline is already visible in the HTML.
+#
+# This endpoint was public. The stated reason — "browser <img> tags don't send
+# session cookies" — does not hold here: the URL handed to the browser is
+# RELATIVE (`/api/v1/connectors/google-routes/static-map?...`, built in
+# routes_tools.py), so it resolves against the FRONTEND origin and is same-origin;
+# the browser attaches the session cookie and Next's `/api/v1/:path*` rewrite
+# forwards it. `auth/profile_image_router.py` already relies on exactly that:
+# an authenticated proxy consumed from an <img> via a relative URL, and avatars
+# render fine in production.
+#
+# Left public, each call is an unauthenticated, BILLED Google Static Maps request
+# that anyone on the internet can issue in a loop (OWASP API4). Authentication
+# closes that, and costs nothing functionally: these maps are only ever rendered
+# inside an authenticated chat (RouteCard via html_renderer) — never in an email,
+# a push or an export. Cards already stored in conversation history keep working:
+# the reader is signed in.
 @router.get(
     "/google-routes/static-map",
     summary="Proxy Google Routes static map",
@@ -116,6 +140,8 @@ async def list_connector_types() -> list[str]:
     responses={
         200: {"content": {"image/png": {}}, "description": "Static map image"},
         400: {"description": "Invalid parameters"},
+        401: {"description": "Authentication required"},
+        429: {"description": "Per-user rate limit exceeded"},
     },
 )
 async def proxy_routes_static_map(
@@ -124,6 +150,8 @@ async def proxy_routes_static_map(
     height: int = 300,
     origin: str | None = None,
     dest: str | None = None,
+    current_user: User = Depends(get_current_active_session),
+    _rate_limit: None = Depends(rate_limit_static_map),
 ) -> StreamingResponse:
     """
     Proxy Google Static Maps API with encoded polyline and optional markers.
@@ -270,7 +298,8 @@ async def proxy_routes_static_map(
 
 
 # Location Static Map proxy (single marker, no polyline)
-# Same pattern as route static map — public endpoint, API key server-side.
+# Same pattern as the route static map above — authenticated and rate limited,
+# for the same reason: every call is a billed Google request.
 @router.get(
     "/google-location/static-map",
     summary="Proxy Google location static map",
@@ -278,6 +307,8 @@ async def proxy_routes_static_map(
     responses={
         200: {"content": {"image/png": {}}, "description": "Static map image"},
         400: {"description": "Invalid parameters"},
+        401: {"description": "Authentication required"},
+        429: {"description": "Per-user rate limit exceeded"},
     },
 )
 async def proxy_location_static_map(
@@ -286,6 +317,8 @@ async def proxy_location_static_map(
     width: int = 600,
     height: int = 300,
     zoom: int = 14,
+    current_user: User = Depends(get_current_active_session),
+    _rate_limit: None = Depends(rate_limit_static_map),
 ) -> StreamingResponse:
     """Proxy Google Static Maps API with a single marker for current position.
 

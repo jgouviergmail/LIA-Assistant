@@ -33,6 +33,23 @@ export interface RegisteredToken {
   last_used_at: string | null;
 }
 
+/**
+ * Outcome of an enrolment attempt.
+ *
+ * Discriminated on purpose. A refusal and a technical failure call for
+ * different things from the user — re-allow notifications in the browser, or
+ * report a bug — so the caller must be able to tell them apart from the return
+ * value alone. The former shape (`string | null`) forced callers to re-read the
+ * hook's `error` / `permissionStatus` state after an `await`, which in React
+ * yields the values captured by the render that created the handler: always
+ * stale. In production that surfaced as `Enable failed: null` while the hook
+ * held the real cause (2026-07-24, CSP blocking `getToken()`).
+ */
+export type EnrollmentResult =
+  | { status: 'enrolled'; token: string }
+  | { status: 'denied' }
+  | { status: 'failed'; error: string };
+
 export interface UseFCMTokenReturn {
   /** Current FCM token (null if not obtained) */
   token: string | null;
@@ -50,8 +67,8 @@ export interface UseFCMTokenReturn {
   error: string | null;
   /** List of registered tokens for the user */
   registeredTokens: RegisteredToken[];
-  /** Request permission and get FCM token */
-  requestPermission: () => Promise<string | null>;
+  /** Request permission, get the FCM token and register it with the backend */
+  requestPermission: () => Promise<EnrollmentResult>;
   /** Unregister a token by ID from backend */
   unregisterToken: (tokenId: string) => Promise<void>;
   /** Refresh the list of registered tokens */
@@ -72,10 +89,10 @@ interface RegisterTokenRequest {
  * const { token, permissionStatus, requestPermission, isLoading } = useFCMToken();
  *
  * const handleEnable = async () => {
- *   const newToken = await requestPermission();
- *   if (newToken) {
- *     toast.success('Notifications enabled!');
- *   }
+ *   const result = await requestPermission();
+ *   if (result.status === 'enrolled') toast.success('Notifications enabled!');
+ *   else if (result.status === 'denied') toast.error('You blocked notifications');
+ *   else logger.error('enrolment_failed', undefined, { cause: result.error });
  * };
  * ```
  */
@@ -148,17 +165,19 @@ export function useFCMToken(): UseFCMTokenReturn {
    * Request notification permission and register FCM token.
    * MUST be called from a user interaction (click event).
    */
-  const requestPermission = useCallback(async (): Promise<string | null> => {
+  const requestPermission = useCallback(async (): Promise<EnrollmentResult> => {
     if (!isSupported) {
-      setError('Notifications are not supported in this browser');
+      const message = 'Notifications are not supported in this browser';
+      setError(message);
       logger.warn('FCM: Notifications not supported', { component: 'useFCMToken' });
-      return null;
+      return { status: 'failed', error: message };
     }
 
     if (!isConfigured) {
-      setError('Firebase is not configured');
+      const message = 'Firebase is not configured';
+      setError(message);
       logger.warn('FCM: Firebase not configured', { component: 'useFCMToken' });
-      return null;
+      return { status: 'failed', error: message };
     }
 
     setIsLoading(true);
@@ -177,7 +196,7 @@ export function useFCMToken(): UseFCMTokenReturn {
           component: 'useFCMToken',
           permission: newPermission,
         });
-        return null;
+        return { status: 'denied' };
       }
 
       // Register token with backend
@@ -201,7 +220,7 @@ export function useFCMToken(): UseFCMTokenReturn {
       // Refresh token list after registration
       await refreshTokens();
 
-      return fcmToken;
+      return { status: 'enrolled', token: fcmToken };
     } catch (err) {
       // Extract detailed error message for debugging
       const message = err instanceof Error ? err.message : 'Failed to enable notifications';
@@ -214,10 +233,12 @@ export function useFCMToken(): UseFCMTokenReturn {
         errorStack: err instanceof Error ? err.stack : undefined,
       });
 
-      // Also log to console for easier debugging
+      // Also log to console: the structured logger only carries err.message
+      // ("Failed to fetch"), while the raw object keeps the browser's
+      // explanation (e.g. the CSP directive that refused the connection).
       console.error('[useFCMToken] Registration failed:', err);
 
-      return null;
+      return { status: 'failed', error: message };
     } finally {
       setIsLoading(false);
     }

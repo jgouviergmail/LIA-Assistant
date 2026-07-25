@@ -5,8 +5,8 @@
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
 **Version**: 3.4
-**Datum**: 2026-07-24
-**Application**: LIA v1.25.19
+**Datum**: 2026-07-25
+**Application**: LIA v1.25.20
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 438 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 120+ ADRs, ~14.847 von pytest gesammelte Tests in 803 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 140+ ADRs, ~15.023 von pytest gesammelte Tests in 814 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -71,7 +71,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~14.847 von pytest gesammelt (von pytest über 803 Testdateien gesammelt) + 2.538 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | ~15.023 von pytest gesammelt (von pytest über 803 Testdateien gesammelt) + 2.538 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
@@ -763,14 +763,24 @@ Autonomer ReAct-Agent (Playwright Chromium Headless). Redis-gesicherter Session 
 | XSS (LLM-Rendering) | `rehype-sanitize`-Grenze in der Chat-Markdown-Pipeline (`rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`, auditiertes Schema — `script`/`iframe`/`form`/Handler entfernt), HTTP-only Cookies, Backend-CSP; MCP/Skill Apps laufen nie durch Markdown (Sentinel → sandboxed iframe-Widget) |
 | CSRF | SameSite=Lax |
 | SQL Injection | SQLAlchemy ORM (parametrisierte Abfragen) |
-| SSRF | DNS-Auflösung + IP-Blockliste (Web Fetch, MCP, Browser); die Skill-Installation per URL nutzt denselben Validator mit strikteren Regeln: nur https, Weiterleitungen verweigert, gestreamtes Größenlimit, TOTALE Transfer-Deadline, Rate-Limit pro Nutzer |
+| SSRF | DNS-Auflösung + IP-Blockliste (Web Fetch, MCP, Browser); die Skill-Installation per URL nutzt denselben Validator mit strikteren Regeln: nur https, Weiterleitungen verweigert, gestreamtes Größenlimit, TOTALE Transfer-Deadline, Rate-Limit pro Nutzer Der Browser geht weiter: **jede Anfrage einer Seite** — Weiterleitung, Unterressource, iframe, XHR — löst ihr eigenes Ziel hinter einem begrenzten Verdikt-Cache auf, und ein Fehler bricht ab, statt durchzureichen. |
 | Prompt Injection | `<external_content>` Safety Markers |
-| Rate Limiting / IP-Spoofing | Verteiltes Redis Sliding Window (atomisches Lua); vertrauenswürdige Proxy-Kette — API-Ports loopback-gebunden (cloudflared = einziger Eingang), uvicorn `--proxy-headers`, `request.client.host` validiert als einzige IP-Quelle (kein geteilter globaler Bucket mehr, rohes XFF nie gelesen) |
+| Rate Limiting / IP-Spoofing | Verteiltes Redis Sliding Window (atomisches Lua); vertrauenswürdige Proxy-Kette — API-Ports loopback-gebunden (cloudflared = einziger Eingang), uvicorn `--proxy-headers`, `request.client.host` validiert als einzige IP-Quelle (kein geteilter globaler Bucket mehr, rohes XFF nie gelesen) Eine globale Obergrenze steht als echte ASGI-Middleware auf demselben geteilten Limiter vor jeder Route, sodass ein einzelner Client nicht die gesamte API verbrauchen kann; Health-Probes bleiben ausgenommen, damit die Überwachung nie gedrosselt wird. |
 | Supply Chain | SHA-gepinnte GitHub Actions, Dependabot wöchentlich |
 
 ### 19.4. Dauerhaftigkeit der Daten: automatisierte Backups (ADR-109)
 
 **Ein Backup ist erst dann real, wenn die Wiederherstellung bewiesen wurde.** Ein `postgres-backup`-Sidecar sichert die gesamte Datenbank per Cron-Zeitplan mit dreistufiger Rotation (täglich / wöchentlich / monatlich); jeder Parameter — Zeitplan, Aufbewahrung, Zielverzeichnis, pg_dump-Optionen — wird über `.env` gesteuert. Die Dumps tragen `--clean --if-exists`: Die Wiederherstellung ist ein einziger Befehl, in die Live-Datenbank oder einen Wegwerf-Container. Auch die Übung selbst ist versioniert: `task backup:verify` stellt den letzten Dump in einem ephemeren pgvector-Container wieder her und vergleicht die Alembic-Schemarevision und Referenz-Zeilenzahlen mit der Live-Quelle. RPO: ≤ 24 h (einstellbar). Die akzeptierten Grenzen (Off-Site-Kopie, Attachments-Volume) sind in ADR-109 dokumentiert statt implizit gelassen.
+
+### 19.5. Isolieren, was ausgeführt wird
+
+Drei Flächen führen etwas im Auftrag der Nutzerin aus, und jede wird konstruktiv als feindlich behandelt.
+
+**Skill-Skripte laufen in einem Wegwerf-Container.** Kein Docker-Socket, kein Netzwerk, ein schreibgeschütztes Root-Dateisystem mit kleinem beschreibbarem tmpfs, eine unprivilegierte uid, alle Capabilities entzogen sowie Obergrenzen für Speicher, Prozesse, CPU und Dateigröße. Entscheidend ist, was ein Kindprozess *erbt*: In der Produktion gehört die API zur `docker`-Gruppe, und eine Gruppe wird vererbt — ein bloßer uid-Wechsel ließe den Socket erreichbar. Der QUELLTEXT des Skripts wird als Argument übergeben statt gemountet, denn die API ist selbst ein Container und ein Bind würde gegen den Host aufgelöst; das hält zugleich stdin für die JSON-Nutzlast frei, auf der der Vertrag beruht. Ist kein Daemon erreichbar, wird die Ausführung verweigert statt herabgestuft — eine Sandbox, die sich selbst abschaltet, schützt nichts.
+
+**Infrastrukturaufgaben werden bestätigt, nicht unterstellt.** Eine Aufgabe auf einem entfernten Server wird vorbereitet, nicht gestartet: Die Bestätigung zeigt den Zielserver, den vollständigen Aufgabentext und die Anweisungen, die das Modell selbst in den entfernten Prompt geschrieben hat — genau das Feld, das eine Injection nutzen würde, darf nicht verborgen bleiben. Das Privileg wird bei der Ausführung erneut geprüft, denn Rechte, die beim Formulieren galten, gelten bei der Freigabe womöglich nicht mehr.
+
+**Anfragekörper werden begrenzt, bevor sie gelesen werden.** Die Obergrenze greift vor dem Handler — auf der deklarierten Länge, wo es sie gibt, und auf gezählten Bytes, wo nicht —, sodass der Speicherspitzenwert von uns bestimmt wird und nicht vom Aufrufer; bei Webhooks geschieht das vor der Authentifizierung. Ihre Konsistenz mit den Upload-Grenzen je Endpunkt wird beim Start geprüft: Ein Widerspruch verweigert den Start, statt als entfernte Ablehnung aufzutauchen, die kein Log erklärt.
 
 ---
 
@@ -1027,7 +1037,7 @@ Sechs lokalisierte Manifeste (`/manifest-{lng}.json` — lokalisiertes `lang`, `
 
 ## 24. Architekturentscheidungen (ADR)
 
-120+ ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+140+ ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1081,10 +1091,10 @@ Die Psyche Engine verleiht dem Assistenten einen dynamischen psychologischen Zus
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 120+ ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~14.847 Tests in 803 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 140+ ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~15.023 Tests in 814 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (280+ Dokumente), der 120+ ADRs und des Changelogs (v1.0 bis v1.25.18). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (380+ Dokumente), der 140+ ADRs und des Changelogs (v1.0 bis v1.25.20). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

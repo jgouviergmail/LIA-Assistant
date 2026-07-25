@@ -1,115 +1,30 @@
-"""
-Integration tests for HTTP rate limiting with SlowAPI.
+"""HTTP rate limiting — the global limit is actually enforced (SEC-016).
 
-Tests the enforcement of rate limits on FastAPI endpoints,
-including the default limits and custom handler behavior.
+A ``slowapi.Limiter`` was built with ``default_limits`` and parked on
+``app.state``, but nothing ever consulted it: no ``SlowAPIMiddleware``, no
+``@limiter.limit`` decorator. The API advertised a limit it did not apply, and
+this very file asserted the illusion — it tested the 429 handler in isolation
+and ended its "enforcement" test on a bare ``pass``.
 
-Covers:
-- Default rate limits applied to all endpoints
-- Custom rate limit messages and retry headers
-- Rate limiting can be disabled globally via settings
-- Different rate limits for different endpoint types
+``RateLimitMiddleware`` replaces it: Redis-backed (shared across the four
+uvicorn workers, unlike SlowAPI's in-memory default), keyed on the client
+address, fail-open when Redis is down, and on the request path.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import Request
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from slowapi.errors import RateLimitExceeded
 
 from src.core.config import Settings
-from src.core.constants import (
-    RATE_LIMIT_AUTH_LOGIN_PER_MINUTE,
-    RATE_LIMIT_AUTH_REGISTER_PER_MINUTE,
-    RATE_LIMIT_SSE_MAX_PER_MINUTE,
-)
-from src.main import app, custom_rate_limit_handler
-
-# ============================================================================
-# Custom Handler Tests
-# ============================================================================
-
-
-def test_custom_rate_limit_handler_returns_structured_json():
-    """Test that custom_rate_limit_handler returns structured JSON with retry info."""
-    # Mock request
-    mock_request = MagicMock(spec=Request)
-    mock_request.url.path = "/api/v1/test"
-
-    # Mock exception
-    mock_exc = MagicMock(spec=RateLimitExceeded)
-    mock_exc.retry_after = 60
-
-    # Call handler
-    response = custom_rate_limit_handler(mock_request, mock_exc)
-
-    # Verify response
-    assert response.status_code == 429
-    assert "error" in response.body.decode()
-    assert "rate_limit_exceeded" in response.body.decode()
-    assert response.headers["Retry-After"] == "60"
-
-
-def test_custom_rate_limit_handler_auth_login_endpoint():
-    """Test custom handler provides specific message for auth/login endpoint."""
-    mock_request = MagicMock(spec=Request)
-    mock_request.url.path = "/api/v1/auth/login"
-
-    mock_exc = MagicMock(spec=RateLimitExceeded)
-    mock_exc.retry_after = 60
-
-    response = custom_rate_limit_handler(mock_request, mock_exc)
-
-    assert response.status_code == 429
-    body = response.body.decode()
-    assert "login" in body.lower() or "rate_limit_exceeded" in body
-
-
-def test_custom_rate_limit_handler_auth_register_endpoint():
-    """Test custom handler provides specific message for auth/register endpoint."""
-    mock_request = MagicMock(spec=Request)
-    mock_request.url.path = "/api/v1/auth/register"
-
-    mock_exc = MagicMock(spec=RateLimitExceeded)
-    mock_exc.retry_after = 60
-
-    response = custom_rate_limit_handler(mock_request, mock_exc)
-
-    assert response.status_code == 429
-    body = response.body.decode()
-    assert "registration" in body.lower() or "rate_limit_exceeded" in body
-
-
-def test_custom_rate_limit_handler_sse_endpoint():
-    """Test custom handler provides specific message for SSE/chat endpoint."""
-    mock_request = MagicMock(spec=Request)
-    mock_request.url.path = "/api/v1/agents/chat/stream"
-
-    mock_exc = MagicMock(spec=RateLimitExceeded)
-    mock_exc.retry_after = 30
-
-    response = custom_rate_limit_handler(mock_request, mock_exc)
-
-    assert response.status_code == 429
-    body = response.body.decode()
-    assert "streaming" in body.lower() or "rate_limit_exceeded" in body
-    assert response.headers["Retry-After"] == "30"
-
+from src.core.constants import RATE_LIMIT_GLOBAL_EXEMPT_PATHS
+from src.core.middleware import RateLimitMiddleware
+from src.main import app
 
 # ============================================================================
 # Rate Limit Configuration Tests
 # ============================================================================
-
-
-def test_rate_limit_config_build_default_limit():
-    """Test that build_default_limit creates correct limit string."""
-    from src.core.rate_limit_config import build_default_limit
-
-    settings = Settings(rate_limit_per_minute=60)
-    limit_string = build_default_limit(settings)
-
-    assert limit_string == "60/minute"
 
 
 def test_rate_limit_config_rate_limiting_enabled():
@@ -125,165 +40,46 @@ def test_rate_limit_config_rate_limiting_enabled():
     assert rate_limiting_enabled(settings_disabled) is False
 
 
-def test_rate_limit_config_resolve_endpoint_limit():
-    """Test that resolve_endpoint_limit returns correct limits for different endpoint types."""
-    from src.core.rate_limit_config import resolve_endpoint_limit
-
-    settings = Settings(rate_limit_per_minute=60)
-
-    # SSE should be more permissive (min of 2x default or SSE_MAX)
-    sse_limit = resolve_endpoint_limit("sse", settings)
-    assert f"{RATE_LIMIT_SSE_MAX_PER_MINUTE}/minute" in sse_limit or "60/minute" in sse_limit
-
-    # Auth login should be strict
-    login_limit = resolve_endpoint_limit("auth_login", settings)
-    assert f"{RATE_LIMIT_AUTH_LOGIN_PER_MINUTE}/minute" in login_limit
-
-    # Auth register should be very strict
-    register_limit = resolve_endpoint_limit("auth_register", settings)
-    assert f"{RATE_LIMIT_AUTH_REGISTER_PER_MINUTE}/minute" in register_limit
-
-    # Default should match settings
-    default_limit = resolve_endpoint_limit("default", settings)
-    assert "60/minute" in default_limit
-
-
-def test_rate_limit_config_resolve_endpoint_limit_invalid_type():
-    """Test that resolve_endpoint_limit raises error for invalid endpoint type."""
-    from src.core.rate_limit_config import resolve_endpoint_limit
-
-    settings = Settings()
-
-    with pytest.raises(ValueError) as exc_info:
-        resolve_endpoint_limit("invalid_type", settings)
-
-    assert "Unknown endpoint_type" in str(exc_info.value)
-
-
-def test_rate_limit_config_get_rate_limit_message():
-    """Test that get_rate_limit_message returns appropriate messages."""
-    from src.core.rate_limit_config import get_rate_limit_message
-
-    # Test auth_login
-    login_message = get_rate_limit_message("auth_login")
-    assert login_message["error"] == "rate_limit_exceeded"
-    assert "login" in login_message["message"].lower()
-
-    # Test auth_register
-    register_message = get_rate_limit_message("auth_register")
-    assert register_message["error"] == "rate_limit_exceeded"
-    assert "registration" in register_message["message"].lower()
-
-    # Test SSE
-    sse_message = get_rate_limit_message("sse")
-    assert sse_message["error"] == "rate_limit_exceeded"
-    assert "streaming" in sse_message["message"].lower()
-
-    # Test default
-    default_message = get_rate_limit_message("default")
-    assert default_message["error"] == "rate_limit_exceeded"
-    assert "rate limit" in default_message["message"].lower()
-
-
-# ============================================================================
-# Limiter Configuration Tests
-# ============================================================================
-
-
-def test_limiter_is_configured_with_default_limits():
-    """Test that the Limiter instance is configured with default limits."""
-    from src.main import limiter
-
-    # Limiter should be configured
-    assert limiter is not None
-    assert hasattr(limiter, "enabled")
-
-    # Should have default limits configured
-    # Note: This test verifies the limiter exists and has the enabled attribute
-    # Actual limit enforcement is tested in integration tests
-
-
-def test_limiter_respects_rate_limit_enabled_setting():
-    """Test that limiter.enabled is set based on settings.rate_limit_enabled."""
-    # This is tested by verifying that the limiter configuration in main.py
-    # uses rate_limiting_enabled(settings) for the enabled parameter
-
-    # Test with rate limiting enabled
-    with patch("src.main.settings") as mock_settings:
-        mock_settings.rate_limit_enabled = True
-        mock_settings.rate_limit_per_minute = 60
-
-        from src.core.rate_limit_config import rate_limiting_enabled
-
-        assert rate_limiting_enabled(mock_settings) is True
-
-    # Test with rate limiting disabled
-    with patch("src.main.settings") as mock_settings:
-        mock_settings.rate_limit_enabled = False
-        mock_settings.rate_limit_per_minute = 60
-
-        from src.core.rate_limit_config import rate_limiting_enabled
-
-        assert rate_limiting_enabled(mock_settings) is False
-
-
 # ============================================================================
 # Integration Tests (require full app context)
 # ============================================================================
 
 
-def test_app_has_limiter_state():
-    """Test that the FastAPI app has limiter configured in state."""
-    assert hasattr(app.state, "limiter"), "App should have limiter in state"
-    assert app.state.limiter is not None
+def test_slowapi_limiter_is_gone():
+    """SEC-016: the unenforced SlowAPI limiter must not come back.
 
-
-def test_app_has_rate_limit_exception_handler():
-    """Test that the app has custom rate limit exception handler registered."""
-    # Check that exception handlers are registered
-    assert hasattr(app, "exception_handlers")
-
-    # The RateLimitExceeded handler should be registered
-    from slowapi.errors import RateLimitExceeded
-
-    assert RateLimitExceeded in app.exception_handlers or any(
-        issubclass(RateLimitExceeded, exc_class) for exc_class in app.exception_handlers.keys()
+    `app.state.limiter` and the `RateLimitExceeded` handler used to exist while
+    NOTHING consulted them — no middleware, no decorator. The API looked
+    rate-limited and was not. Restoring that object without wiring it would
+    recreate exactly the illusion this finding is about.
+    """
+    assert not hasattr(app.state, "limiter"), (
+        "app.state.limiter is back — if SlowAPI is reintroduced it must be "
+        "enforced (SlowAPIMiddleware or @limiter.limit), not merely declared."
     )
 
 
-# ============================================================================
-# End-to-End Tests with TestClient
-# ============================================================================
+def test_global_rate_limit_middleware_is_installed():
+    """The replacement control is actually on the request path."""
+    from src.core.middleware import RateLimitMiddleware
+
+    installed = [m.cls for m in app.user_middleware]
+    assert RateLimitMiddleware in installed, (
+        "RateLimitMiddleware must be installed — a limit that no middleware "
+        "applies is the defect SEC-016 describes."
+    )
 
 
-@pytest.mark.skipif(
-    not hasattr(Settings(), "rate_limit_enabled") or not Settings().rate_limit_enabled,
-    reason="Rate limiting is disabled in test settings",
-)
-def test_rate_limiting_on_endpoint_with_many_requests():
+def test_rate_limit_runs_before_the_body_is_read():
+    """A client over budget is refused before we spend memory on its body.
+
+    Ordering is the whole point: rejecting after buffering up to 21 MB would
+    make the cheap refusal the expensive one.
     """
-    Test that rate limiting is enforced on endpoints when many requests are made.
+    from src.core.middleware import BodySizeLimitMiddleware, RateLimitMiddleware
 
-    Note: This test may be slow and is marked for conditional skip based on settings.
-    """
-    client = TestClient(app)
-
-    # Make many requests to trigger rate limit
-    # Default limit is typically 60/minute, so we make more than that
-    responses = []
-    for _ in range(70):
-        response = client.get("/health")
-        responses.append(response)
-
-    # Count how many were rate limited (429)
-    sum(1 for r in responses if r.status_code == 429)
-
-    # If rate limiting is enabled, we should see some 429s
-    # Note: This test is probabilistic and may need adjustment based on actual limits
-    if Settings().rate_limit_enabled:
-        # We expect at least some requests to be rate limited
-        # The exact number depends on timing and the configured limit
-        pass  # Actual assertion depends on configured rate limit
+    order = [m.cls for m in app.user_middleware]
+    assert order.index(RateLimitMiddleware) < order.index(BodySizeLimitMiddleware)
 
 
 def test_health_endpoint_returns_200():
@@ -322,3 +118,204 @@ def test_root_endpoint_returns_200():
 
     assert response.status_code == 200
     assert response.json()["name"] == "LIA API"
+
+
+# ============================================================================
+# RateLimitMiddleware behaviour (SEC-016)
+# ============================================================================
+
+
+def _make_client(*, allowed: bool | Exception, monkeypatch, max_calls: int = 5) -> TestClient:
+    """Build a minimal app carrying only the middleware under test.
+
+    Args:
+        allowed: Verdict the Redis limiter returns, or an exception it raises.
+        monkeypatch: pytest fixture.
+        max_calls: Ceiling advertised to the middleware.
+
+    Returns:
+        TestClient over an app with one echo route.
+    """
+    monkeypatch.setattr(
+        "src.core.middleware.settings.rate_limit_global_per_minute", max_calls, raising=False
+    )
+    monkeypatch.setattr("src.core.middleware.rate_limiting_enabled", lambda _s: True)
+
+    limiter = MagicMock()
+    if isinstance(allowed, Exception):
+        limiter.acquire = AsyncMock(side_effect=allowed)
+    else:
+        limiter.acquire = AsyncMock(return_value=allowed)
+    monkeypatch.setattr("src.core.middleware.get_rate_limiter", AsyncMock(return_value=limiter))
+
+    test_app = FastAPI()
+    test_app.add_middleware(RateLimitMiddleware)
+
+    @test_app.get("/api/v1/thing")
+    async def thing() -> dict[str, bool]:
+        return {"ok": True}
+
+    @test_app.get("/health")
+    async def health() -> dict[str, bool]:
+        return {"ok": True}
+
+    client = TestClient(test_app)
+    client.limiter = limiter  # type: ignore[attr-defined]
+    return client
+
+
+class TestGlobalLimitEnforcement:
+    """A request over budget is actually refused."""
+
+    def test_allowed_request_reaches_the_route(self, monkeypatch):
+        """Within budget, nothing changes for the caller."""
+        client = _make_client(allowed=True, monkeypatch=monkeypatch)
+
+        response = client.get("/api/v1/thing")
+
+        assert response.status_code == 200
+        assert response.json() == {"ok": True}
+
+    def test_over_budget_request_is_refused(self, monkeypatch):
+        """Over budget, the route is never reached.
+
+        The old test made 70 requests and ended on `pass` — it could not have
+        failed. This one asserts the status AND that the handler did not run.
+        """
+        client = _make_client(allowed=False, monkeypatch=monkeypatch)
+
+        response = client.get("/api/v1/thing")
+
+        assert response.status_code == 429
+        assert "ok" not in response.json()
+
+    def test_refusal_carries_the_retry_contract(self, monkeypatch):
+        """The client is told when to come back, in header and body."""
+        client = _make_client(allowed=False, monkeypatch=monkeypatch)
+
+        response = client.get("/api/v1/thing")
+
+        assert response.headers["Retry-After"] == "60"
+        body = response.json()
+        assert body["error"] == "rate_limit_exceeded"
+        assert body["retry_after"] == 60
+
+    def test_configured_ceiling_is_the_one_applied(self, monkeypatch):
+        """The limiter is called with the configured budget, not a hardcoded one."""
+        client = _make_client(allowed=True, monkeypatch=monkeypatch, max_calls=123)
+
+        client.get("/api/v1/thing")
+
+        kwargs = client.limiter.acquire.await_args.kwargs
+        assert kwargs["max_calls"] == 123
+        assert kwargs["window_seconds"] == 60
+
+
+class TestRedisUnavailable:
+    """The documented fail-open policy, and its visibility."""
+
+    def test_request_is_admitted_when_redis_fails(self, monkeypatch):
+        """A Redis outage must not become an API outage.
+
+        Single-instance deployment: failing closed would turn a cache incident
+        into total unavailability — worse than the abuse the limit prevents.
+        Consistent with every other limiter in this codebase.
+        """
+        client = _make_client(allowed=ConnectionError("redis down"), monkeypatch=monkeypatch)
+
+        response = client.get("/api/v1/thing")
+
+        assert response.status_code == 200
+
+    def test_degraded_window_is_counted(self, monkeypatch):
+        """Fail-open is only acceptable if it is measurable."""
+        from src.infrastructure.observability.metrics import http_rate_limit_degraded_total
+
+        before = http_rate_limit_degraded_total._value.get()
+        client = _make_client(allowed=RuntimeError("boom"), monkeypatch=monkeypatch)
+
+        client.get("/api/v1/thing")
+
+        assert http_rate_limit_degraded_total._value.get() == before + 1
+
+
+class TestExemptionsAndScope:
+    """What the limit must never break."""
+
+    def test_health_probe_is_exempt(self, monkeypatch):
+        """Docker's healthcheck and Prometheus must not rate-limit supervision."""
+        client = _make_client(allowed=False, monkeypatch=monkeypatch)
+
+        response = client.get("/health")
+
+        assert response.status_code == 200
+        client.limiter.acquire.assert_not_awaited()
+
+    def test_every_declared_probe_path_is_exempt(self):
+        """The exemption list covers the probes the platform actually polls."""
+        assert "/health" in RATE_LIMIT_GLOBAL_EXEMPT_PATHS
+        assert "/ready" in RATE_LIMIT_GLOBAL_EXEMPT_PATHS
+        assert "/metrics" in RATE_LIMIT_GLOBAL_EXEMPT_PATHS
+
+    def test_disabled_setting_skips_the_check(self, monkeypatch):
+        """RATE_LIMIT_ENABLED=false must bypass the limiter entirely."""
+        client = _make_client(allowed=False, monkeypatch=monkeypatch)
+        monkeypatch.setattr("src.core.middleware.rate_limiting_enabled", lambda _s: False)
+
+        response = client.get("/api/v1/thing")
+
+        assert response.status_code == 200
+        client.limiter.acquire.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_websocket_scope_is_not_intercepted(self, monkeypatch):
+        """WebSockets have their own admission (single-use ticket + connection cap).
+
+        Charging frames against an HTTP-per-minute budget would drop the voice
+        transcription socket mid-session.
+        """
+        seen: dict[str, object] = {}
+
+        async def downstream(scope, receive, send):
+            seen["type"] = scope["type"]
+
+        middleware = RateLimitMiddleware(downstream)
+
+        async def receive():
+            return {"type": "websocket.connect"}
+
+        async def send(message):
+            return None
+
+        await middleware({"type": "websocket", "path": "/ws/audio"}, receive, send)
+
+        assert seen["type"] == "websocket"
+
+
+class TestClientKeying:
+    """One budget per client, not one shared bucket."""
+
+    def test_key_is_derived_from_the_peer_address(self, monkeypatch):
+        """Distinct clients get distinct buckets."""
+        client = _make_client(allowed=True, monkeypatch=monkeypatch)
+
+        client.get("/api/v1/thing")
+
+        key = client.limiter.acquire.await_args.kwargs["key"]
+        assert key.startswith("http:global:")
+
+    def test_key_ignores_a_forged_forwarded_header(self, monkeypatch):
+        """X-Forwarded-For is NOT read here — uvicorn already resolved the peer.
+
+        Reading the raw header would let any direct caller mint a fresh budget
+        per request by rotating the value, defeating the limit entirely.
+        """
+        client = _make_client(allowed=True, monkeypatch=monkeypatch)
+
+        client.get("/api/v1/thing", headers={"X-Forwarded-For": "1.2.3.4"})
+        forged_key = client.limiter.acquire.await_args.kwargs["key"]
+
+        client.get("/api/v1/thing", headers={"X-Forwarded-For": "5.6.7.8"})
+        other_key = client.limiter.acquire.await_args.kwargs["key"]
+
+        assert forged_key == other_key, "a spoofed header must not change the bucket"

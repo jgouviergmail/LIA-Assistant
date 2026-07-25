@@ -431,6 +431,34 @@ def _render_phone_call(
     return lines
 
 
+def _render_devops_task(
+    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
+) -> list[str]:
+    """Render a remote-server task preview (server, task, extra instructions).
+
+    Everything that reaches the remote CLI is shown, in full and untruncated:
+    a confirmation the user cannot read is not a confirmation.
+
+    ``context`` matters as much as ``task``. It is produced by the model and
+    lands in the CLI's ``--append-system-prompt``, so content the agent picked
+    up from an untrusted source (an email, a web page, an MCP result) can steer
+    the remote session through it. Hiding it would leave the one field an
+    injection would use invisible to the person approving.
+
+    No datetime — the task runs as soon as it is confirmed.
+    """
+    server = content.get("server") or "?"
+    task = content.get("task", "")
+    extra = content.get("context", "")
+
+    lines = [f"<br/>**{lbl['server']}**: {server}"]
+    if task:
+        lines.append(f"<br/>**{lbl['task']}**: {task}")
+    if extra:
+        lines.append(f"<br/>**{lbl['context']}**: {extra}")
+    return lines
+
+
 def _render_scheduled_action(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
 ) -> list[str]:
@@ -476,6 +504,7 @@ _PREVIEW_RENDERERS: dict[DraftType, _PreviewRenderer] = {
     DraftType.REMINDER_DELETE: _render_reminder_delete,
     DraftType.PHONE_CALL: _render_phone_call,
     DraftType.SCHEDULED_ACTION: _render_scheduled_action,
+    DraftType.DEVOPS_TASK: _render_devops_task,
 }
 
 

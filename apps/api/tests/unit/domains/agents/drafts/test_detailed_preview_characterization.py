@@ -628,6 +628,34 @@ CASES: tuple[PreviewCase, ...] = (
         {"callee_name": "John Smith"},
         language="en",
     ),
+    # ------------------------------------------------------------------ DevOps
+    # FN-1: the task text is what the user approves, so it is never truncated.
+    PreviewCase(
+        "devops_task_full_fr",
+        DraftType.DEVOPS_TASK,
+        {
+            "server": "prod-rpi5",
+            "task": "Redémarre le conteneur lia-api-prod et vérifie les logs",
+        },
+    ),
+    # With model-authored context: it reaches the CLI system prompt, so it is
+    # part of what the user approves and must appear byte-for-byte.
+    PreviewCase(
+        "devops_task_with_context_fr",
+        DraftType.DEVOPS_TASK,
+        {
+            "server": "prod-rpi5",
+            "task": "Vérifie les logs",
+            "context": "reste en lecture seule",
+        },
+    ),
+    # Minimal: server only — the task row is omitted like every optional field.
+    PreviewCase(
+        "devops_task_minimal_en",
+        DraftType.DEVOPS_TASK,
+        {"server": "staging"},
+        language="en",
+    ),
     # Automation draft (ADR-140): title + pre-localized schedule + instruction.
     PreviewCase(
         "scheduled_action_full_fr",
@@ -718,6 +746,9 @@ EXPECTED: dict[str, str] = {
     "scheduled_action_full_fr": "<br/>**Titre**: Revue de presse IA<br/><br/>**Planification**: Lun, Mer à 08:00<br/><br/>**Instruction**: Fais-moi une revue de presse IA",
     "phone_call_minimal_en": "<br/>**Callee**: John Smith",
     "scheduled_action_minimal_en": "<br/>**Title**: Daily digest",
+    "devops_task_full_fr": "<br/>**Serveur**: prod-rpi5<br/><br/>**Tâche**: Redémarre le conteneur lia-api-prod et vérifie les logs",
+    "devops_task_minimal_en": "<br/>**Server**: staging",
+    "devops_task_with_context_fr": "<br/>**Serveur**: prod-rpi5<br/><br/>**Tâche**: Vérifie les logs<br/><br/>**Consignes**: reste en lecture seule",
 }
 
 

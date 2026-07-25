@@ -326,6 +326,21 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
         noun_key="call",
         verb_past_key="placed",
     ),
+    # ----------------------------------------------------------------- DevOps
+    # FN-1: every remote-server task is confirmed before it runs. The draft IS
+    # the confirmation — the tool builds it, `execute_devops_task_draft` runs
+    # the task only once the user has approved.
+    DraftType.DEVOPS_TASK: DraftDisplayConfig(
+        emoji="🖥",  # 🖥
+        item_label_fields=("task",),
+        item_secondary_datetime_key=None,
+        detail_fields=(
+            DraftDisplayField("server", "🖥", "server"),
+            DraftDisplayField("task", "📋", "task"),
+        ),
+        noun_key="task",
+        verb_past_key="executed",
+    ),
     DraftType.SCHEDULED_ACTION: DraftDisplayConfig(
         emoji="⏰",  # ⏰
         item_label_fields=("title",),

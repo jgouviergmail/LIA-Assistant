@@ -14,7 +14,7 @@
  * `src/__tests__/service-worker.test.ts`; bump it with every release.
  */
 
-const CACHE_VERSION = '1.25.19';
+const CACHE_VERSION = '1.25.20';
 const SHELL_CACHE = `lia-shell-v${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
 
@@ -145,8 +145,13 @@ self.addEventListener('push', (event) => {
 
   const notificationOptions = {
     body: body,
-    icon: '/icon-192x192.png',
-    badge: '/badge-72x72.png',
+    // Must name a file that actually exists in public/ — a 404 here does not
+    // fail loudly, the browser just falls back to a generic bell, so every
+    // push silently loses its branding (the previous '/icon-192x192.png' had
+    // no such file and resolved to the HTML app shell). No `badge` is set:
+    // LIA ships no monochrome badge asset, and naming a missing one is the
+    // same silent lie. Guarded by src/__tests__/service-worker.test.ts.
+    icon: '/icon-192.png',
     // Use reminder_id as tag to prevent duplicate notifications
     tag: data.reminder_id || 'lia-notification',
     // Keep notification visible until user interacts
@@ -206,20 +211,8 @@ self.addEventListener('notificationclose', (event) => {
   console.log('[SW] Notification closed:', event);
 });
 
-/**
- * Handle service worker installation.
- */
-self.addEventListener('install', (event) => {
-  console.log('[SW] Installing...');
-  // Skip waiting to activate immediately
-  self.skipWaiting();
-});
-
-/**
- * Handle service worker activation.
- */
-self.addEventListener('activate', (event) => {
-  console.log('[SW] Activated');
-  // Claim all clients immediately
-  event.waitUntil(clients.claim());
-});
+// NOTE: install/activate are declared ONCE, at the top of this file. A second
+// pair used to live here — leftovers from the push-only service worker this
+// file replaced when the offline shell moved in (ADR-146). They were dead
+// weight: an install whose waitUntil rejects is discarded whatever a bare
+// skipWaiting() says, and clients.claim() was already handled above.

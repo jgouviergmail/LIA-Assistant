@@ -135,9 +135,11 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Generate SBOM (CycloneDX)
-        uses: CycloneDX/gh-dotnet-generate-sbom@c183e4ac30e5b99354cb9a98c38548e07c538346 # v1.0.1
-        continue-on-error: true
+      # NOTE: a `CycloneDX/gh-dotnet-generate-sbom` step used to run here with
+      # `continue-on-error: true`. It is a .NET generator — this repo is Python +
+      # TypeScript — so it produced nothing and swallowed its own failure. The
+      # real SBOM is the `cyclonedx_py` step below, built from the lockfile.
+      # Frontend coverage is still missing (SEC-021).
 
       - name: Set up Python 3.12
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6

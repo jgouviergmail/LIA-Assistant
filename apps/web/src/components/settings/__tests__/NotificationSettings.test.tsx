@@ -46,7 +46,7 @@ function fcm(over: Partial<UseFCMTokenReturn> = {}): UseFCMTokenReturn {
     isLoading: false,
     error: null,
     registeredTokens: [],
-    requestPermission: vi.fn().mockResolvedValue(null),
+    requestPermission: vi.fn().mockResolvedValue({ status: 'denied' }),
     unregisterToken: vi.fn().mockResolvedValue(undefined),
     refreshTokens: vi.fn().mockResolvedValue(undefined),
     ...over,

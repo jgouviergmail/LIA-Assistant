@@ -58,6 +58,47 @@ ls -lR ./backups/postgres
 docker exec lia-postgres-backup-dev sh -c 'ls -lR /backups'
 ```
 
+### Fallback source: pre-deploy snapshots
+
+**Check this whenever `./backups/postgres` looks empty or unexpectedly recent.**
+
+`deploy-prod.ps1` copies the entire production directory to
+`~/lia-backups/backup-<timestamp>/` before each deployment (`cp -r`, step 5). Those
+snapshots therefore contain a **full copy of the backup tree as it was at deploy
+time**, including `daily/`, `weekly/`, `monthly/` and `last/`.
+
+That makes them a second, independent restore source — and it has already
+mattered: on 2026-07-24 the live `~/lia/backups/postgres` was found empty (the
+directory itself had been recreated at 18:27), while a complete dump from 02:23
+the same day was still sitting in `~/lia-backups/backup-2026-07-24_022316/`.
+Nothing in this runbook pointed there, so the operator would have concluded no
+restore point existed.
+
+```bash
+# Newest dump across ALL sources, live tree and snapshots alike
+find ~/lia/backups ~/lia-backups -name '*.sql.gz' \
+  -printf '%TY-%Tm-%Td %TH:%TM  %10s  %p\n' 2>/dev/null | sort -r | head
+
+# Recover a dump from a snapshot into the live tree
+cp ~/lia-backups/backup-<timestamp>/backups/postgres/daily/lia-<date>.sql.gz \
+   ~/lia/backups/postgres/daily/
+```
+
+Two caveats before relying on it:
+
+- Snapshot retention is driven by the deploy cadence, not by
+  `BACKUP_KEEP_DAYS`/`WEEKS`/`MONTHS` — an infrequently deployed period leaves no
+  new snapshot.
+- A snapshot is only as fresh as the last deployment. Treat it as a safety net,
+  never as the primary RPO.
+
+If the live tree is empty, restore the safety net immediately rather than waiting
+for the `@daily` schedule — a manual run costs one command:
+
+```bash
+docker exec lia-postgres-backup-prod /backup.sh
+```
+
 ---
 
 ## Integrity verification (restore drill)

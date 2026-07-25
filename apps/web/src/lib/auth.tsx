@@ -3,6 +3,10 @@
 import React, { createContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { clearInputDraft } from '@/hooks/useInputDraft';
+import {
+  purgeSensitiveClientStorage,
+  purgeSensitiveClientStorageOnAccountChange,
+} from '@/lib/client-storage-purge';
 import apiClient from './api-client';
 
 export interface User {
@@ -133,6 +137,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     initAuth();
   }, []);
+
+  /**
+   * SEC-035 — drop the previous account's client-side state.
+   *
+   * Logging out is not the only way the active account changes: a session can
+   * expire and the next person signs in through the same tab, so no logout ever
+   * runs while `sessionStorage` survives. Every sign-in path (password, MFA,
+   * register, OAuth callback) ends up here because they all resolve an identity
+   * into `user`, which makes this the one place that sees the transition.
+   *
+   * Ownership is compared rather than purged unconditionally: this state is
+   * meant to survive navigation, and wiping it on every reload would break the
+   * feature it protects.
+   */
+  useEffect(() => {
+    if (user?.id) purgeSensitiveClientStorageOnAccountChange(user.id);
+  }, [user?.id]);
 
   /**
    * Login with email and password
@@ -271,6 +292,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // UXR Lot 2 (A7): purge the persisted chat draft — a shared computer
       // must not leak one account's draft to the next session.
       if (user?.id) clearInputDraft(user.id);
+      // SEC-035: same reasoning for the client state stored under GLOBAL keys,
+      // which cannot be attributed to a user once written (debug metrics
+      // history carries the request text and execution details).
+      purgeSensitiveClientStorage();
       setUser(null);
       router.push('/login');
     }

@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 3.9
-**Datum** : 2026-07-24
-**Anwendung** : LIA v1.25.19
+**Datum** : 2026-07-25
+**Anwendung** : LIA v1.25.20
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -104,7 +104,7 @@ Das Ziel von LIA ist nicht, Sie zum Systemadministrator zu machen. Es geht darum
 
 ## 3. Was LIA kann
 
-LIA handelt konkret in Ihrem digitalen Leben dank 19+ spezialisierter Agenten, die alle alltäglichen Bedürfnisse abdecken: Verwaltung Ihrer persönlichen Daten (E-Mails, Kalender, Kontakte, Aufgaben, Dateien), Zugang zu externen Informationen (Websuche, Wetter, Orte, Routen), Inhaltserstellung (Bilder, Diagramme), Steuerung Ihres Smart Home, autonomes Web-Browsing und proaktive Antizipation Ihrer Bedürfnisse.
+LIA handelt konkret in Ihrem digitalen Leben dank 20+ spezialisierter Agenten, die alle alltäglichen Bedürfnisse abdecken: Verwaltung Ihrer persönlichen Daten (E-Mails, Kalender, Kontakte, Aufgaben, Dateien), Zugang zu externen Informationen (Websuche, Wetter, Orte, Routen), Inhaltserstellung (Bilder, Diagramme), Steuerung Ihres Smart Home, autonomes Web-Browsing und proaktive Antizipation Ihrer Bedürfnisse.
 
 Sie wählen, wie LIA denkt, über einen einfachen Toggle (⚡) im Chat-Header:
 
@@ -224,7 +224,7 @@ Mit LIA **bleibt alles in Ihrem PostgreSQL**: Gespräche, Gedächtnis, psycholog
 
 ### 5.2. Sogar ein Raspberry Pi reicht
 
-LIA läuft produktiv auf einem **Raspberry Pi 5** — einem Einplatinencomputer für 80 Euro. 19+ spezialisierte Agenten, ein vollständiger Observability-Stack, ein psychologisches Gedächtnissystem — alles auf einem ARM-Mikroserver. Die Multi-Architektur-Docker-Images (amd64/arm64) ermöglichen den Einsatz auf beliebiger Hardware: Synology NAS, VPS für wenige Euro im Monat, Unternehmensserver oder Kubernetes-Cluster.
+LIA läuft produktiv auf einem **Raspberry Pi 5** — einem Einplatinencomputer für 80 Euro. 20+ spezialisierte Agenten, ein vollständiger Observability-Stack, ein psychologisches Gedächtnissystem — alles auf einem ARM-Mikroserver. Die Multi-Architektur-Docker-Images (amd64/arm64) ermöglichen den Einsatz auf beliebiger Hardware: Synology NAS, VPS für wenige Euro im Monat, Unternehmensserver oder Kubernetes-Cluster.
 
 Digitale Souveränität ist kein Vorrecht von Unternehmen mehr — sie ist ein Recht, das allen zugänglich ist.
 
@@ -349,6 +349,14 @@ LIA lehnt sensible Aktionen nicht ab — sie **legt sie Ihnen vor** mit dem jewe
 ### 8.5. Ihre Antworten brauchen Sie nicht
 
 Eine Frage senden, den Tab schließen, weggehen. Die Generierung läuft auf dem Server weiter, und die Antwort wartet in der Konversation — oder setzt live fort, genau dort, wo sie stand, wenn Sie zurückkommen, während sie noch geschrieben wird. Nichts zu tun, nichts zu konfigurieren: Kontinuität ist das Standardverhalten. Und wenn Sie selbst Ihre Meinung ändern, unterbricht ein Stop-Button die Generierung innerhalb einer Sekunde — das bereits Geschriebene bleibt sichtbar, ehrlich als unterbrochen markiert. Ein zuverlässiger Assistent ist nicht nur einer, der richtig antwortet: Es ist einer, der zu Ende bringt, was er beginnt.
+
+### 8.6. Nichts läuft hinter deinem Rücken
+
+Ein Assistent, der handeln kann, ist ein Assistent, der sich *irren* kann. Zwei Regeln machen das akzeptabel.
+
+Erstens: **Nichts berührt deinen Server ohne dein Ja** — und die Bestätigung zeigt alles, was gesendet wird, einschließlich der Anweisungen, die LIA sich selbst geschrieben hat. Eine Zusammenfassung, die man nicht vollständig lesen kann, ist keine Bestätigung, sondern eine Formalität. Die Berechtigung wird erneut geprüft, wenn die Aktion startet — nicht nur, als du sie angefragt hast.
+
+Zweitens: **Was läuft, läuft in einer versiegelten Box**. Der Code einer Skill läuft in einem Container, der für genau diesen Lauf entsteht und danach verschwindet: kein Netzwerk, kein Zugriff auf deine Dateien, keine Schlüssel, kein Weg zur darunterliegenden Maschine. Lässt sich diese Box nicht bauen, läuft das Skript schlicht nicht — kein stiller Rückfall in einen schwächeren Modus. Man installiert eine Skill für das, was sie liefert, nicht für das Vertrauen, das man ihrem Autor entgegenbringen müsste.
 
 ---
 
