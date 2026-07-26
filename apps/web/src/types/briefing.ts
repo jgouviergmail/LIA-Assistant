@@ -65,7 +65,11 @@ export interface WeatherData {
   location_city: string | null;
   /** Wind speed in km/h */
   wind_speed_kmh: number | null;
-  /** Cardinal direction: N, NE, E, SE, S, SW, W, NW */
+  /**
+   * 8-point compass CODE (N, NE, E, SE, S, SW, W, NW) — not a display label.
+   * The abbreviations are language-specific, so resolve it through
+   * `dashboard.briefing.cards.weather.wind_cardinal.<CODE>`.
+   */
   wind_direction_cardinal: string | null;
   /** Next 3 h precipitation probability (0.0 – 1.0) */
   precipitation_probability: number | null;

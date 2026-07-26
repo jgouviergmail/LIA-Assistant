@@ -93,7 +93,12 @@ function broadcast(over: Partial<BroadcastInfo> = {}): BroadcastInfo {
 }
 
 function unreadResponse(broadcasts: BroadcastInfo[]) {
-  return new Response(JSON.stringify({ broadcasts }), { status: 200 });
+  // With the content-type a real backend always sends: `apiClient` only parses
+  // a body it was told is JSON.
+  return new Response(JSON.stringify({ broadcasts }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
 }
 
 function setup(isAuthenticated = true) {

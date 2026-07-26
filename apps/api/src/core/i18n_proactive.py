@@ -69,6 +69,18 @@ class ProactiveMessages:
             "it": "Azione pianificata",
             "zh-CN": "计划操作",
         },
+        # Used by the reminder scheduler, which kept its OWN inline table keyed
+        # "zh" — the third occurrence of the very bug this module exists for.
+        # It sends both the FCM title and the external-channel title, so a
+        # Chinese user was getting "Reminder" in English on every reminder.
+        "reminder": {
+            "fr": "Rappel",
+            "en": "Reminder",
+            "es": "Recordatorio",
+            "de": "Erinnerung",
+            "it": "Promemoria",
+            "zh-CN": "提醒",
+        },
     }
 
     _SOURCES_LABEL: dict[str, str] = {
@@ -84,16 +96,25 @@ class ProactiveMessages:
     def notification_title(task_type: str, language: str) -> str:
         """Localized push/chat title for a proactive task type.
 
+        The code is normalized through the single chokepoint before keying the
+        table: callers hold raw locales of every spelling (``zh`` from the
+        frontend, ``fr-FR`` from a header, ``zh_CN`` from a legacy row), and
+        keying on a raw locale is precisely the defect this module was created
+        to fix. Normalizing here makes every call site safe by construction
+        rather than by discipline.
+
         Args:
             task_type: Proactive task type (interest, birthday, ...).
-            language: Backend-canonical language code (e.g. "fr", "zh-CN").
+            language: Any locale spelling; normalized internally.
 
         Returns:
             The localized title; English fallback per task type, then a
             generic "Notification" for unknown task types.
         """
+        from src.core.i18n import normalize_language
+
         task_titles = ProactiveMessages._TITLES.get(task_type, {})
-        return task_titles.get(language, task_titles.get("en", "Notification"))
+        return task_titles.get(normalize_language(language), task_titles.get("en", "Notification"))
 
     @staticmethod
     def sources_label(language: str) -> str:

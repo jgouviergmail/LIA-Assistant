@@ -30,22 +30,14 @@ from pydantic import BaseModel, Field
 from src.core.config import settings
 from src.core.field_names import FIELD_QUERY
 from src.core.llm_config_helper import get_llm_config_for_agent
-from src.domains.agents.constants import (
-    ACTION_TYPE_CREATE,
-    ACTION_TYPE_DELETE,
-    ACTION_TYPE_DRAFT_CRITIQUE,
-    ACTION_TYPE_FOR_EACH_CONFIRMATION,
-    ACTION_TYPE_GENERIC,
-    ACTION_TYPE_GET,
-    ACTION_TYPE_LIST,
-    ACTION_TYPE_PLAN_APPROVAL,
-    ACTION_TYPE_SEARCH,
-    ACTION_TYPE_SEND,
-)
 from src.domains.agents.prompts import (
     get_current_datetime_context,
     get_hitl_classifier_prompt,
     load_prompt,
+)
+from src.domains.agents.services.hitl.action_taxonomy import (
+    assert_examples_coverage,
+    classify_action_type,
 )
 from src.domains.agents.services.hitl.validator import HitlValidator
 from src.infrastructure.llm.factory import get_llm
@@ -108,6 +100,20 @@ def _load_classifier_example_sections() -> dict[str, str]:
     if current_key is not None:
         sections[current_key] = "\n".join(buffer).strip()
     return sections
+
+
+def assert_classifier_examples_coverage() -> None:
+    """Assert the examples file covers every action type the taxonomy can emit.
+
+    Called from the lifespan startup so a new action type shipped without its
+    few-shot block refuses to boot, and from a unit test so CI catches it first.
+    Also warms the section cache.
+
+    Raises:
+        AssertionError: Propagated from
+            :func:`~src.domains.agents.services.hitl.action_taxonomy.assert_examples_coverage`.
+    """
+    assert_examples_coverage(_load_classifier_example_sections())
 
 
 class HitlResponseClassifier:
@@ -316,14 +322,11 @@ class HitlResponseClassifier:
                     has_clarification=bool(classification.clarification_question),
                 )
 
-                # Convert to AMBIGUOUS with existing or fallback clarification
+                # Convert to AMBIGUOUS, keeping whatever question the LLM produced.
+                # No fallback text here on purpose: this service does not know the
+                # user's language, and the question is streamed VERBATIM to them.
+                # The resume mapper owns the localized fallback (HitlResumeMessage).
                 classification.decision = "AMBIGUOUS"
-                if not classification.clarification_question:
-                    classification.clarification_question = (
-                        "Tu veux modifier quelque chose ? Peux-tu préciser exactement quoi ?"
-                        if user_response
-                        else "Peux-tu clarifier ta demande ?"
-                    )
                 classification.confidence = settings.hitl_demotion_confidence
                 classification.edited_params = {}  # Clear empty params
 
@@ -354,13 +357,11 @@ class HitlResponseClassifier:
                     user_response=user_response[:50],
                 )
 
-                # Convert to AMBIGUOUS with clarification request
+                # Convert to AMBIGUOUS, keeping whatever question the LLM produced
+                # (the previous code overwrote it, discarding a more specific
+                # question than any fallback could be). Localization of the
+                # fallback belongs to the resume mapper, which knows the language.
                 classification.decision = "AMBIGUOUS"
-                classification.clarification_question = (
-                    "Tu veux modifier quelque chose ? Peux-tu préciser exactement quoi ?"
-                    if user_response
-                    else "Peux-tu clarifier ta demande ?"
-                )
                 classification.confidence = settings.hitl_demotion_confidence
                 classification.edited_params = {}  # Clear uncertain edits
 
@@ -441,7 +442,10 @@ class HitlResponseClassifier:
     def _extract_action_type(self, context: list[dict]) -> str:
         """Extract action type for contextualized classification.
 
-        Issue #61 Fix: Added support for plan_approval type.
+        Delegates to the action taxonomy so the announced type and the few-shot
+        block cannot drift apart; see
+        :mod:`src.domains.agents.services.hitl.action_taxonomy` for why the
+        classification is verb-first.
 
         Args:
             context: List of action_requests dicts.
@@ -449,48 +453,7 @@ class HitlResponseClassifier:
         Returns:
             Action type constant from constants.py
         """
-        if not context or len(context) != 1:
-            return ACTION_TYPE_GENERIC
-
-        action = context[0]
-
-        # Issue #61: Check for plan_approval type FIRST (before tool extraction)
-        # Plan-level HITL has "type": "plan_approval" instead of tool_name
-        action_type = action.get("type", "")
-        if action_type == "plan_approval":
-            return ACTION_TYPE_PLAN_APPROVAL
-
-        # Draft critique: HITL for draft review before execution
-        if action_type == "draft_critique":
-            return ACTION_TYPE_DRAFT_CRITIQUE
-
-        # FOR_EACH confirmation: HITL for bulk operations on item lists
-        if action_type == "for_each_confirmation":
-            return ACTION_TYPE_FOR_EACH_CONFIRMATION
-
-        # PHASE 3.2.8: Use centralized validator for tool extraction
-        validator = HitlValidator()
-        try:
-            tool_name = validator.extract_tool_name(action)
-        except ValueError:
-            tool_name = "action"
-
-        tool_name_lower = tool_name.lower()
-
-        if "search" in tool_name_lower or "recherche" in tool_name_lower:
-            return ACTION_TYPE_SEARCH
-        elif "send" in tool_name_lower or "envoi" in tool_name_lower or "email" in tool_name_lower:
-            return ACTION_TYPE_SEND
-        elif "delete" in tool_name_lower or "suppr" in tool_name_lower:
-            return ACTION_TYPE_DELETE
-        elif "create" in tool_name_lower or "add" in tool_name_lower:
-            return ACTION_TYPE_CREATE
-        elif "list" in tool_name_lower:
-            return ACTION_TYPE_LIST
-        elif "get" in tool_name_lower or "details" in tool_name_lower:
-            return ACTION_TYPE_GET
-        else:
-            return ACTION_TYPE_GENERIC
+        return classify_action_type(context)
 
     def _get_contextual_examples(self, action_type: str, action_desc: str) -> str:
         """Load language-neutral (English) few-shot examples for the action type.
@@ -782,8 +745,18 @@ class HitlResponseClassifier:
             return ClassificationResult(**data)
 
         except json.JSONDecodeError as e:
-            logger.error("json_parse_error", error=str(e), content=json_content[:200])
+            logger.error("json_parse_error", error=str(e), content=str(json_content)[:200])
             raise ValueError(f"Invalid JSON from classifier: {e}") from e
-        except Exception as e:
-            logger.error("result_parse_error", error=str(e), content=json_content[:200])
+        except ValueError:
+            # Missing fields, or a Pydantic ValidationError (itself a ValueError):
+            # already the type the contract promises.
+            logger.error("result_parse_error", content=str(json_content)[:200])
             raise
+        except Exception as e:
+            # Anything else — a non-string payload from an exotic provider
+            # adapter, say — must still surface as the documented ValueError.
+            # Callers catch by type and fall back to a safe decision; letting an
+            # AttributeError through made the docstring a lie and the failure
+            # depend on which provider was configured.
+            logger.error("result_parse_error", error=str(e), content=str(json_content)[:200])
+            raise ValueError(f"Unparseable classification payload: {e}") from e

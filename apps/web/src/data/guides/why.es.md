@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versión** : 3.9
-**Fecha** : 2026-07-25
-**Aplicación** : LIA v1.25.22
+**Fecha** : 2026-07-26
+**Aplicación** : LIA v1.25.23
 **Licencia** : AGPL-3.0 (Open Source)
 
 ---
@@ -270,6 +270,8 @@ La transparencia no es un añadido técnico. Cambia la relación con tu asistent
 Esta transparencia se extiende a la calidad del propio sistema. La auditoría técnica completa — notas, método, fortalezas y lo que queda por mejorar — está publicada en el repositorio, con el protocolo para repetirla y los comandos para verificar las mediciones: [informe de auditoría completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). No se le pide que crea las cifras de este sitio; puede comprobarlas.
 
 El mismo principio se aplica a las propias protecciones. Una seguridad anunciada pero no verificable se trata como inexistente: cada control se apoya en una prueba que falla si el control desaparece y, cuando se escribe una corrección, se restaura el comportamiento anterior el tiempo necesario para comprobar que la prueba lo detecta. Una prueba que no puede fallar no demuestra nada.
+
+Tampoco una prueba que nunca se ejecuta — y ese es el descubrimiento más incómodo de este proyecto. Diez archivos de pruebas se habían desactivado a sí mismos en cuanto faltaba una clave de proveedor, y ya nada lo señalaba: una prueba omitida cuenta como verde, la cobertura mide líneas alcanzadas y no aserciones ejecutadas, y una revisión ve un archivo de pruebas y concluye que la superficie está protegida. Doscientas diecinueve pruebas no se habían ejecutado ni una sola vez; al volver a encenderlas aparecieron cuatro defectos bien reales — entre ellos una voz que partía en dos todos los números, y un recordatorio perdido definitivamente cuando la cuota se agotaba en el minuto equivocado. La ausencia de señal roja no es una prueba de salud: a veces es solo la ausencia de medición. Una guarda de integración continua impide ahora que un módulo de pruebas se apague en silencio.
 
 ## 7. Profundidad emocional
 

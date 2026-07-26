@@ -96,6 +96,13 @@ class TestExtractNumericTemp:
 
 
 class TestWindDirection:
+    """The card renders the point in the READER's language.
+
+    The bearing→point mapping is `core.geo_utils.wind_deg_to_cardinal` (shared
+    with the briefing card, which used to carry a second, English-spelled
+    table); this component only localizes the resulting code.
+    """
+
     @pytest.mark.parametrize(
         ("angle", "cardinal"),
         [
@@ -113,26 +120,53 @@ class TestWindDirection:
         ],
     )
     def test_angle_maps_to_cardinal(self, card: WeatherCard, angle: float, cardinal: str) -> None:
-        assert card._angle_to_cardinal(angle) == cardinal
+        assert card._angle_to_cardinal(angle, "fr") == cardinal
+
+    @pytest.mark.parametrize(
+        ("language", "expected"),
+        [("fr", "SO"), ("en", "SW"), ("de", "SW"), ("es", "SO"), ("it", "SO"), ("zh-CN", "西南")],
+    )
+    def test_the_same_bearing_reads_in_each_language(
+        self, card: WeatherCard, language: str, expected: str
+    ) -> None:
+        assert card._angle_to_cardinal(225, language) == expected
+
+    def test_german_writes_ost_where_english_writes_east(self, card: WeatherCard) -> None:
+        assert card._angle_to_cardinal(90, "de") == "O"
+        assert card._angle_to_cardinal(90, "en") == "E"
 
     def test_angle_is_normalised_modulo_360(self, card: WeatherCard) -> None:
-        assert card._angle_to_cardinal(450) == card._angle_to_cardinal(90)
+        assert card._angle_to_cardinal(450, "fr") == card._angle_to_cardinal(90, "fr")
 
     @pytest.mark.parametrize(
         ("raw", "expected"),
-        [("180°", "S"), ("180", "S"), ("270", "O")],
+        [("180°", "S"), ("180", "S"), ("270", "O"), (" 270 ", "O")],
     )
     def test_degree_strings_become_cardinal(
         self, card: WeatherCard, raw: str, expected: str
     ) -> None:
-        assert card._format_wind_direction(raw) == expected
+        assert card._format_wind_direction(raw, "fr") == expected
 
-    def test_already_cardinal_is_kept(self, card: WeatherCard) -> None:
-        assert card._format_wind_direction("NO") == "NO"
+    def test_a_canonical_code_is_localized_not_echoed(self, card: WeatherCard) -> None:
+        # The briefing ships codes; "SW" must read "SO" for a French user.
+        assert card._format_wind_direction("SW", "fr") == "SO"
+        assert card._format_wind_direction("sw", "fr") == "SO"
+        assert card._format_wind_direction("SW", "en") == "SW"
 
     def test_empty_direction_is_blank(self, card: WeatherCard) -> None:
         assert card._format_wind_direction("") == ""
         assert card._format_wind_direction(None) == ""
+
+    @pytest.mark.parametrize("unknown", ["N/A", "N/A°", "unknown", "—", "Nord", "NNE"])
+    def test_an_unknown_direction_never_becomes_a_real_bearing(
+        self, card: WeatherCard, unknown: str
+    ) -> None:
+        # `weather_formatting` builds the field as f"{wind.get('deg', 'N/A')}°",
+        # so a provider that omits `deg` yields the literal "N/A°". Letter
+        # extraction used to read the leading "N" out of it and print North —
+        # and turned the word "Nord" into "NO" (north-WEST) by grabbing its
+        # first two matching letters.
+        assert card._format_wind_direction(unknown, "fr") == ""
 
 
 # ============================================================================

@@ -10,12 +10,12 @@
  * the field error explaining why.
  *
  * These tests drive the real error classes, never a hand-written stand-in, so
- * a change to either client's shape breaks here rather than in production.
+ * a change to either client's shape breaks here rather than in production. The
+ * ratchet that stops the axios shape from reappearing anywhere in `src/` lives
+ * in `src/__tests__/source-ratchets.guard.test.ts`.
  */
 
 import { describe, it, expect } from 'vitest';
-import fs from 'node:fs';
-import path from 'node:path';
 
 import { ApiError, ApiStepUpError } from '@/lib/api-client';
 import { getApiErrorDetail } from '@/lib/api-error';
@@ -132,52 +132,5 @@ describe('error-class contract the extractor depends on', () => {
     expect(error.data).toEqual({ detail: 'conflict' });
     expect('response' in error).toBe(false);
     expect(getApiErrorDetail(error)).toBe('conflict');
-  });
-});
-
-describe('guard — the axios shape must not come back', () => {
-  /** Every first-party source file, tests included. */
-  function sourceFiles(): string[] {
-    const root = path.resolve(__dirname, '../..');
-    return fs
-      .readdirSync(root, { recursive: true, encoding: 'utf8' })
-      .filter(entry => /\.(ts|tsx)$/.test(entry))
-      .map(entry => path.join(root, entry))
-      .filter(file => fs.statSync(file).isFile());
-  }
-
-  /** The historical defect, in both its optional-chained and plain forms. */
-  const AXIOS_SHAPE = /\.response\s*(\?\.|\.)\s*data\b/;
-
-  /** Lines that are pure prose — naming the defect in a doc block is allowed. */
-  function isCommentLine(line: string): boolean {
-    const trimmed = line.trimStart();
-    return trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*');
-  }
-
-  it('no source file reads an error through `.response.data`', () => {
-    const offenders = sourceFiles()
-      // This file spells the defect out on purpose, in the oracle below.
-      .filter(file => path.basename(file) !== 'api-error.test.ts')
-      .filter(file =>
-        fs
-          .readFileSync(file, 'utf8')
-          .split('\n')
-          .some(line => !isCommentLine(line) && AXIOS_SHAPE.test(line))
-      )
-      .map(file => path.relative(path.resolve(__dirname, '../..'), file));
-    expect(offenders).toEqual([]);
-  });
-
-  it('the guard actually catches the historical defect', () => {
-    expect(AXIOS_SHAPE.test("apiError.response?.data?.detail || t('x')")).toBe(true);
-    expect(AXIOS_SHAPE.test('err.response.data.detail')).toBe(true);
-    expect(AXIOS_SHAPE.test('getApiErrorDetail(error) ?? fallback')).toBe(false);
-  });
-
-  it('the guard still reads code that carries a trailing comment', () => {
-    const line = 'const x = err.response?.data?.detail; // legacy';
-    expect(isCommentLine(line)).toBe(false);
-    expect(AXIOS_SHAPE.test(line)).toBe(true);
   });
 });

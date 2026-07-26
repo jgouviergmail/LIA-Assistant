@@ -626,16 +626,25 @@ async def _build_tool_level_command(
         edited_args = edited_action.get("args", {})
         tool_name = edited_action.get("name", "unknown_tool")
 
-        # Build reformulated user intent based on tool and edited params (localized)
-        if tool_name == "get_contacts_tool" and "query" in edited_args:
-            reformulated_intent = HitlMessages.get_reformulation(
-                ReformulationKind.SEARCH_QUERY, tool_user_language, value=edited_args["query"]
-            )
-        else:
-            # Generic fallback
-            reformulated_intent = HitlMessages.get_reformulation(
-                ReformulationKind.EXECUTE_TOOL_MODIFIED, tool_user_language, tool=tool_name
-            )
+        # Build reformulated user intent from the edited params (localized).
+        #
+        # Delegates to the SAME builder the plan-level path uses. It used to be
+        # a second, degraded copy keyed on one hardcoded tool name
+        # (`get_contacts_tool`): every other tool — `search_contacts_tool`,
+        # `search_emails_tool`, `update_event_tool`, … — fell to the generic
+        # sentence, which names the tool but DROPS the value the user just
+        # corrected. Since this message REPLACES the user's own turn in the
+        # state (the original HumanMessage is removed just below), the
+        # correction disappeared from the conversation for every tool but one.
+        reformulated_intent = build_edit_reformulated_intent(
+            [{"modification_type": "edit_params", "new_parameters": edited_args}],
+            tool_user_language,
+        ) or HitlMessages.get_reformulation(
+            # Genuine last resort: the edit carried no usable parameter at all.
+            ReformulationKind.EXECUTE_TOOL_MODIFIED,
+            tool_user_language,
+            tool=tool_name,
+        )
 
         # Load state snapshot to get last HumanMessage ID
         try:
@@ -1173,7 +1182,7 @@ class ConversationalHitlResumption:
         assistant_response_content = ""
         first_values_logged = False
         # Extract user preferences from graph state (populated on first "values" chunk)
-        state_user_language = "fr"
+        state_user_language = DEFAULT_LANGUAGE
         state_user_timezone = DEFAULT_USER_DISPLAY_TIMEZONE
 
         try:
@@ -1198,7 +1207,7 @@ class ConversationalHitlResumption:
                     )
                     first_values_logged = True
                     # Capture user preferences from graph state
-                    state_user_language = chunk.get("user_language", "fr")
+                    state_user_language = chunk.get("user_language") or DEFAULT_LANGUAGE
                     state_user_timezone = chunk.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
 
                 # === NESTED HITL: Detect interrupt during resume ===
@@ -1401,7 +1410,14 @@ class ConversationalHitlResumption:
                 error_type=type(e).__name__,
             )
 
-            yield ChatStreamChunk(type="error", content=get_hitl_resumption_error_message(e))
+            # Localized: the language captured from the graph state, not the
+            # configured default. This chunk is rendered verbatim in the chat,
+            # so falling back to the default shipped French to every user whose
+            # resume failed — the one moment they need to understand the message.
+            yield ChatStreamChunk(
+                type="error",
+                content=get_hitl_resumption_error_message(e, state_user_language),
+            )
 
             # PHASE 3.3.2: Always yield done chunk after error (PHASE 3.1.4 - DTO refactored)
             zero_summary = TokenSummaryDTO.zero()

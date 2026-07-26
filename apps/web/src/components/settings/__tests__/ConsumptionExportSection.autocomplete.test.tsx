@@ -28,8 +28,13 @@ function deferred<T>(): Deferred<T> {
   return { promise, resolve };
 }
 
-function userPayload(users: Array<{ id: string; email: string }>) {
-  return { ok: true, json: () => Promise.resolve({ users }) } as unknown as Response;
+/** A real Response: the autocomplete goes through `apiClient`, which reads
+ *  `status` and `headers` before touching the body. */
+function userPayload(users: Array<{ id: string; email: string }>): Response {
+  return new Response(JSON.stringify({ users }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
 }
 
 function renderAdmin() {

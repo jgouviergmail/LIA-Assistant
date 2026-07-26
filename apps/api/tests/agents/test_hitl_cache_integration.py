@@ -1,10 +1,26 @@
-"""Integration tests for HITL LLM caching (Phase 5).
+"""End-to-end tests for HITL LLM caching (Phase 5).
 
 Validates that:
 1. HITL classifier caching works end-to-end
 2. HITL question generator caching works end-to-end
 3. Cache hits return same results as cache misses
 4. Latency improvement is measurable
+
+Every test here issues TWO real provider calls and compares their latency: the
+cache is the thing under test, so stubbing the LLM would remove the subject. It
+therefore needs a paid provider and a reachable Redis, and it is priced and
+non-deterministic — an end-to-end check to run deliberately, not a unit test.
+
+Hence the two markers below, in this order:
+
+- ``e2e`` makes the exclusion VISIBLE in every CI command (they all pass
+  ``-m "not ... and not e2e ..."``). Without it the suite was invisibly absent:
+  the credential skip alone reported nothing but a green run.
+- the credential skip then keeps a local run from failing on a missing key.
+
+The caching MECHANISM itself (key derivation, TTL, invalidation) is unit-tested
+without a provider; what only this file can prove is that the wiring holds
+end-to-end.
 """
 
 import os
@@ -15,11 +31,13 @@ import pytest
 from src.domains.agents.services.hitl.question_generator import HitlQuestionGenerator
 from src.domains.agents.services.hitl_classifier import HitlResponseClassifier
 
-# Skip all tests if OPENAI_API_KEY is not set (integration tests that call real LLM)
-pytestmark = pytest.mark.skipif(
-    not os.getenv("OPENAI_API_KEY"),
-    reason="Requires OPENAI_API_KEY for integration tests with real LLM",
-)
+pytestmark = [
+    pytest.mark.e2e,
+    pytest.mark.skipif(
+        not os.getenv("OPENAI_API_KEY"),
+        reason="Requires OPENAI_API_KEY: this suite calls a real provider twice per test",
+    ),
+]
 
 
 class TestHITLClassifierCaching:

@@ -7,9 +7,10 @@ and the numeric aggregates it prints:
 * ``is_event_past`` filters the agenda. Anything it wrongly calls "past"
   disappears from the home page with no error anywhere — the user simply never
   sees the meeting.
-* the weather aggregates (``_pick_dominant_condition``, ``_wind_deg_to_cardinal``,
+* the weather aggregates (``_pick_dominant_condition``,
   ``_today_min_max_from_forecast``, ``_first_forecast_pop``) turn 3-hour slots
-  into the single line the card prints.
+  into the single line the card prints. The bearing→compass mapping moved to
+  ``core.geo_utils`` — see ``tests/unit/core/test_wind_cardinals.py``.
 * the health helpers turn a raw daily breakdown into "moy. 14 j (12 jours)".
 * ``_parse_from_header`` splits the RFC 2822 ``From`` of every mail row.
 
@@ -30,7 +31,6 @@ from src.domains.briefing.formatters import (
     _parse_from_header,
     _pick_dominant_condition,
     _today_min_max_from_forecast,
-    _wind_deg_to_cardinal,
     daily_average_from_breakdown,
     extract_today_value_from_summary,
     is_event_past,
@@ -184,45 +184,6 @@ class TestParseFromHeader:
         self, raw: str, expected: tuple[str | None, str | None]
     ) -> None:
         assert _parse_from_header(raw) == expected
-
-
-class TestWindDegToCardinal:
-    """8 sectors of 45°, centred on each point."""
-
-    # NOTE — the codes are the English 8-point abbreviations, and the weather
-    # card prints them verbatim (`WeatherCard.tsx`: `${wind_direction_cardinal}`).
-    # A French user therefore reads "SW"/"W" where the language expects
-    # "SO"/"O". Pinned here as the CURRENT behaviour; localizing it means
-    # treating this field as a code and resolving a label_key client-side
-    # (the documented contract in apps/web/CLAUDE.md) — a product decision,
-    # not a silent rewrite.
-    @pytest.mark.parametrize(
-        ("deg", "expected"),
-        [
-            (0, "N"),
-            (22.4, "N"),
-            (22.5, "NE"),
-            (45, "NE"),
-            (90, "E"),
-            (135, "SE"),
-            (180, "S"),
-            (225, "SW"),
-            (270, "W"),
-            (315, "NW"),
-            (337.5, "N"),
-            (359.9, "N"),
-        ],
-    )
-    def test_maps_a_degree_to_its_sector(self, deg: float, expected: str) -> None:
-        assert _wind_deg_to_cardinal(deg) == expected
-
-    def test_wraps_degrees_beyond_a_full_turn(self) -> None:
-        assert _wind_deg_to_cardinal(360) == _wind_deg_to_cardinal(0)
-        assert _wind_deg_to_cardinal(450) == _wind_deg_to_cardinal(90)
-
-    @pytest.mark.parametrize("deg", [None, "not-a-number"])
-    def test_returns_none_for_an_unusable_value(self, deg: Any) -> None:
-        assert _wind_deg_to_cardinal(deg) is None
 
 
 class TestPickDominantCondition:

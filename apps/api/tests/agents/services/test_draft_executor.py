@@ -5,36 +5,36 @@ Tests cover:
 - execute_draft_if_confirmed() routing (confirm/edit/cancel)
 - _execute_confirmed_draft() with ToolDependencies injection
 - DraftExecutionResult creation and formatting
-- Executor registry pattern (register_executor, _ensure_executors_registered)
+- Executor registry pattern (register_executor, ensure_executors_registered)
 - Prometheus metrics tracking (registry_drafts_executed_total)
 - Error handling and graceful degradation
 
 Architecture:
     draft_critique_node → state["draft_action_result"] = {action: "confirm", ...}
     → response_node → execute_draft_if_confirmed()
-    → draft_executor → _EXECUTOR_REGISTRY[draft_type]
+    → draft_executor → EXECUTOR_REGISTRY[draft_type]
     → execute_*_draft() → API call → DraftExecutionResult
 
 Created: 2025-11-26
 LARS LOT 7: Tests E2E
 """
 
-import os
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
 
-# Skip all tests if OPENAI_API_KEY is not set (integration tests that call real LLM)
-pytestmark = pytest.mark.skipif(
-    not os.getenv("OPENAI_API_KEY"),
-    reason="Requires OPENAI_API_KEY for integration tests with real LLM",
-)
+pytestmark = pytest.mark.unit
 from langchain_core.runnables import RunnableConfig  # noqa: E402
 
+from src.core.i18n_drafts import (  # noqa: E402
+    get_draft_cancel_message,
+    get_draft_success_message,
+)
 from src.domains.agents.services.draft_executor import (  # noqa: E402
+    EXECUTOR_REGISTRY,
     DraftExecutionResult,
-    _ensure_executors_registered,
+    ensure_executors_registered,
     execute_draft_if_confirmed,
     register_executor,
 )
@@ -42,6 +42,28 @@ from src.domains.agents.services.draft_executor import (  # noqa: E402
 # ============================================================================
 # Fixtures
 # ============================================================================
+
+
+@pytest.fixture(autouse=True)
+def no_tcm_session():
+    """Keep the suite hermetic: no TCM session, therefore no database socket.
+
+    After a confirmed draft, the engine mirrors the result into the Tool Context
+    Manager. Acquiring that session opens the LangGraph Postgres store, which in
+    a unit environment means a real connection attempt that only fails on the
+    5-second connect timeout — measured 41 s for this file, all of it waiting on
+    a socket a unit test must never open. `get_tcm_session` returns None when the
+    store is unavailable and the engine treats that as "skip the mirror", so
+    returning None here reproduces the production contract exactly.
+
+    The mirroring itself is covered by
+    ``tests/unit/domains/agents/services/test_draft_executor_tcm_sync.py``.
+    """
+    with patch(
+        "src.domains.agents.services.draft_executor.get_tcm_session",
+        AsyncMock(return_value=None),
+    ):
+        yield
 
 
 @pytest.fixture
@@ -206,7 +228,13 @@ class TestDraftExecutionResult:
         assert result_dict["error"] == "Gmail API error"
 
     def test_to_agent_result_success_email(self):
-        """Test agent result format for successful email execution."""
+        """Test agent result format for successful email execution.
+
+        The oracle is the i18n table, not a literal: the wording is product copy
+        that may be reworded (it lost its type prefix — "Envoyé avec succès", no
+        longer "Email envoyé"), while what must hold is that the message comes
+        from the entry for THIS draft type.
+        """
         result = DraftExecutionResult(
             success=True,
             draft_id="draft_123",
@@ -218,7 +246,7 @@ class TestDraftExecutionResult:
         agent_result = result.to_agent_result()
 
         assert agent_result["status"] == "success"
-        assert "Email envoyé" in agent_result["message"]
+        assert agent_result["message"] == get_draft_success_message("email", "fr")
         assert agent_result["draft_id"] == "draft_123"
         assert agent_result["action"] == "confirm"
 
@@ -235,8 +263,33 @@ class TestDraftExecutionResult:
         agent_result = result.to_agent_result()
 
         assert agent_result["status"] == "success"
-        assert "Événement" in agent_result["message"]
+        assert agent_result["message"] == get_draft_success_message(
+            "event", "fr", summary="Team Meeting"
+        )
+        # The placeholder was actually substituted, not left as "{summary}".
         assert "Team Meeting" in agent_result["message"]
+        assert "{" not in agent_result["message"]
+
+    def test_to_agent_result_honours_the_user_language(self):
+        """A non-French user must not receive the French copy.
+
+        `user_language` is threaded from the graph state down to this result;
+        a default that silently wins would ship French to every user.
+        """
+        result = DraftExecutionResult(
+            success=True,
+            draft_id="draft_456",
+            draft_type="event",
+            action="confirm",
+            result_data={"summary": "Team Meeting"},
+            user_language="de",
+        )
+
+        message = result.to_agent_result()["message"]
+
+        assert message == get_draft_success_message("event", "de", summary="Team Meeting")
+        assert message != get_draft_success_message("event", "fr", summary="Team Meeting")
+        assert "Team Meeting" in message
 
     def test_to_agent_result_success_contact(self):
         """Test agent result format for successful contact creation."""
@@ -251,8 +304,11 @@ class TestDraftExecutionResult:
         agent_result = result.to_agent_result()
 
         assert agent_result["status"] == "success"
-        assert "Contact" in agent_result["message"]
+        assert agent_result["message"] == get_draft_success_message(
+            "contact", "fr", name="Jean Dupont"
+        )
         assert "Jean Dupont" in agent_result["message"]
+        assert "{" not in agent_result["message"]
 
     def test_to_agent_result_cancelled(self):
         """Test agent result format for cancelled draft."""
@@ -266,7 +322,7 @@ class TestDraftExecutionResult:
         agent_result = result.to_agent_result()
 
         assert agent_result["status"] == "cancelled"
-        assert "annulé" in agent_result["message"]
+        assert agent_result["message"] == get_draft_cancel_message("email", "fr")
 
     def test_to_agent_result_error(self):
         """Test agent result format for error."""
@@ -373,7 +429,7 @@ class TestExecuteDraftIfConfirmedExecution:
 
         with (
             patch(
-                "src.domains.agents.services.draft_executor._EXECUTOR_REGISTRY",
+                "src.domains.agents.services.draft_executor.EXECUTOR_REGISTRY",
                 {"email": AsyncMock(return_value=mock_execute_result)},
             ),
             patch(
@@ -406,7 +462,7 @@ class TestExecuteDraftIfConfirmedExecution:
 
         with (
             patch(
-                "src.domains.agents.services.draft_executor._EXECUTOR_REGISTRY",
+                "src.domains.agents.services.draft_executor.EXECUTOR_REGISTRY",
                 {"event": AsyncMock(return_value=mock_execute_result)},
             ),
             patch(
@@ -436,7 +492,7 @@ class TestExecuteDraftIfConfirmedExecution:
 
         with (
             patch(
-                "src.domains.agents.services.draft_executor._EXECUTOR_REGISTRY",
+                "src.domains.agents.services.draft_executor.EXECUTOR_REGISTRY",
                 {"contact": AsyncMock(return_value=mock_execute_result)},
             ),
             patch(
@@ -469,7 +525,7 @@ class TestDraftExecutorErrorHandling:
         """Test that missing ToolDependencies returns error result."""
         with (
             patch(
-                "src.domains.agents.services.draft_executor._EXECUTOR_REGISTRY",
+                "src.domains.agents.services.draft_executor.EXECUTOR_REGISTRY",
                 {"email": AsyncMock()},
             ),
             patch(
@@ -494,7 +550,7 @@ class TestDraftExecutorErrorHandling:
         """Test that missing user_id returns error result."""
         with (
             patch(
-                "src.domains.agents.services.draft_executor._EXECUTOR_REGISTRY",
+                "src.domains.agents.services.draft_executor.EXECUTOR_REGISTRY",
                 {"email": AsyncMock()},
             ),
             patch(
@@ -523,7 +579,7 @@ class TestDraftExecutorErrorHandling:
 
         with (
             patch(
-                "src.domains.agents.services.draft_executor._EXECUTOR_REGISTRY",
+                "src.domains.agents.services.draft_executor.EXECUTOR_REGISTRY",
                 {},  # Empty registry - no executor for unknown_type
             ),
             patch(
@@ -549,7 +605,7 @@ class TestDraftExecutorErrorHandling:
 
         with (
             patch(
-                "src.domains.agents.services.draft_executor._EXECUTOR_REGISTRY",
+                "src.domains.agents.services.draft_executor.EXECUTOR_REGISTRY",
                 {"email": mock_executor},
             ),
             patch(
@@ -574,64 +630,73 @@ class TestDraftExecutorErrorHandling:
 
 
 class TestExecutorRegistry:
-    """Tests for executor registry pattern."""
+    """Tests for executor registry pattern.
+
+    The registry is ONE dict object shared by three modules (`draft_executor`,
+    `draft_executor_types`, `draft_executor_registry`). It must therefore be
+    mutated in place — `EXECUTOR_REGISTRY = {}` rebinds this module's name only,
+    leaves the object every other module holds untouched, and the assertions
+    then read an empty dict the code under test never sees. That is exactly how
+    these tests used to "pass" while asserting nothing.
+    """
+
+    @pytest.fixture(autouse=True)
+    def restore_registry(self):
+        """Snapshot and restore the shared registry around each test."""
+        original = EXECUTOR_REGISTRY.copy()
+        yield
+        EXECUTOR_REGISTRY.clear()
+        EXECUTOR_REGISTRY.update(original)
 
     def test_register_executor_adds_to_registry(self):
         """Test that register_executor adds function to registry."""
-        from src.domains.agents.services import draft_executor
 
-        # Save original registry
-        original_registry = draft_executor._EXECUTOR_REGISTRY.copy()
+        async def test_executor(content, user_id, deps):
+            return {"test": True}
 
-        try:
-            # Register a test executor
-            async def test_executor(content, user_id, deps):
-                return {"test": True}
+        register_executor("test_type", test_executor)
 
-            register_executor("test_type", test_executor)
-
-            assert "test_type" in draft_executor._EXECUTOR_REGISTRY
-            assert draft_executor._EXECUTOR_REGISTRY["test_type"] is test_executor
-        finally:
-            # Restore original registry
-            draft_executor._EXECUTOR_REGISTRY = original_registry
+        assert EXECUTOR_REGISTRY["test_type"] is test_executor
 
     def test_ensure_executors_registered_populates_registry(self):
-        """Test that _ensure_executors_registered populates the registry."""
-        from src.domains.agents.services import draft_executor
+        """Test that ensure_executors_registered populates the registry."""
+        EXECUTOR_REGISTRY.clear()
+        ensure_executors_registered()
 
-        # Clear and re-populate
-        original_registry = draft_executor._EXECUTOR_REGISTRY.copy()
-
-        try:
-            draft_executor._EXECUTOR_REGISTRY = {}
-            _ensure_executors_registered()
-
-            # Should have email, event, contact executors
-            assert "email" in draft_executor._EXECUTOR_REGISTRY
-            assert "event" in draft_executor._EXECUTOR_REGISTRY
-            assert "contact" in draft_executor._EXECUTOR_REGISTRY
-        finally:
-            draft_executor._EXECUTOR_REGISTRY = original_registry
+        # Should have email, event, contact executors
+        assert "email" in EXECUTOR_REGISTRY
+        assert "event" in EXECUTOR_REGISTRY
+        assert "contact" in EXECUTOR_REGISTRY
 
     def test_ensure_executors_registered_is_idempotent(self):
-        """Test that calling _ensure_executors_registered twice is safe."""
-        from src.domains.agents.services import draft_executor
+        """Test that calling ensure_executors_registered twice is safe."""
+        EXECUTOR_REGISTRY.clear()
+        ensure_executors_registered()
+        first_call_keys = set(EXECUTOR_REGISTRY)
 
-        original_registry = draft_executor._EXECUTOR_REGISTRY.copy()
+        # Second call short-circuits on the non-empty registry.
+        ensure_executors_registered()
 
-        try:
-            draft_executor._EXECUTOR_REGISTRY = {}
-            _ensure_executors_registered()
-            first_call_keys = set(draft_executor._EXECUTOR_REGISTRY.keys())
+        assert set(EXECUTOR_REGISTRY) == first_call_keys
 
-            # Second call should not modify registry
-            _ensure_executors_registered()
-            second_call_keys = set(draft_executor._EXECUTOR_REGISTRY.keys())
+    def test_registry_is_the_object_the_engine_reads(self):
+        """Guard: one registry object, reachable under one name per module.
 
-            assert first_call_keys == second_call_keys
-        finally:
-            draft_executor._EXECUTOR_REGISTRY = original_registry
+        A back-compat alias in `draft_executor` used to shadow this: patching it
+        rebound the alias while `_execute_confirmed_draft` read
+        `EXECUTOR_REGISTRY`, so eleven tests silently ran the REAL executors.
+        """
+        from src.domains.agents.services import (
+            draft_executor,
+            draft_executor_registry,
+            draft_executor_types,
+        )
+
+        assert draft_executor.EXECUTOR_REGISTRY is draft_executor_types.EXECUTOR_REGISTRY
+        assert draft_executor_registry.EXECUTOR_REGISTRY is draft_executor_types.EXECUTOR_REGISTRY
+        assert not hasattr(
+            draft_executor, "_EXECUTOR_REGISTRY"
+        ), "the aliased name is back — patching it is a silent no-op"
 
 
 # ============================================================================
@@ -651,7 +716,7 @@ class TestDraftExecutorMetrics:
 
         with (
             patch(
-                "src.domains.agents.services.draft_executor._EXECUTOR_REGISTRY",
+                "src.domains.agents.services.draft_executor.EXECUTOR_REGISTRY",
                 {"email": AsyncMock(return_value=mock_execute_result)},
             ),
             patch(
@@ -693,7 +758,7 @@ class TestDraftExecutorMetrics:
 
         with (
             patch(
-                "src.domains.agents.services.draft_executor._EXECUTOR_REGISTRY",
+                "src.domains.agents.services.draft_executor.EXECUTOR_REGISTRY",
                 {"email": mock_executor},
             ),
             patch(
@@ -728,7 +793,7 @@ class TestResponseNodeIntegrationPattern:
 
         with (
             patch(
-                "src.domains.agents.services.draft_executor._EXECUTOR_REGISTRY",
+                "src.domains.agents.services.draft_executor.EXECUTOR_REGISTRY",
                 {"email": AsyncMock(return_value=mock_execute_result)},
             ),
             patch(
@@ -765,7 +830,7 @@ class TestResponseNodeIntegrationPattern:
 
         with (
             patch(
-                "src.domains.agents.services.draft_executor._EXECUTOR_REGISTRY",
+                "src.domains.agents.services.draft_executor.EXECUTOR_REGISTRY",
                 {"email": mock_execute},
             ),
             patch(
@@ -797,7 +862,7 @@ class TestResponseNodeIntegrationPattern:
 
         with (
             patch(
-                "src.domains.agents.services.draft_executor._EXECUTOR_REGISTRY",
+                "src.domains.agents.services.draft_executor.EXECUTOR_REGISTRY",
                 {"email": mock_execute},
             ),
             patch(

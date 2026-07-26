@@ -61,12 +61,14 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-# Backward-compatible aliases. The registry moved to `draft_executor_types` and
-# its population to `draft_executor_registry` (file-size ratchet: this engine
-# must not grow with every new draft type). Callers that imported the private
-# names keep working — they name the same objects.
-_EXECUTOR_REGISTRY = EXECUTOR_REGISTRY
-_ensure_executors_registered = ensure_executors_registered
+# The registry lives in `draft_executor_types` and its population in
+# `draft_executor_registry` (file-size ratchet: this engine must not grow with
+# every new draft type). Import them under their real names — an underscore
+# alias used to exist here for callers of the pre-extraction private names, and
+# it was a trap: `patch("draft_executor._EXECUTOR_REGISTRY", {...})` rebinds the
+# ALIAS while `_execute_confirmed_draft` reads `EXECUTOR_REGISTRY`, so the patch
+# silently did nothing and eleven tests ran the REAL email executor against a
+# real connector resolution. One name, the one the engine reads.
 
 
 # SSE side channel for the executor currently running.

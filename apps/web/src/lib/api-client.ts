@@ -8,6 +8,7 @@
  * - Native TypeScript support
  */
 
+import { readErrorDetail } from '@/lib/api-error';
 import { API_TIMEOUT_DEFAULT } from '@/lib/constants';
 
 /**
@@ -278,23 +279,23 @@ async function handleResponse<T>(response: Response): Promise<T> {
   const contentType = response.headers.get('content-type');
   const isJson = contentType?.includes('application/json');
 
-  // Handle empty responses
   const text = await response.text();
-  if (!text) {
-    return undefined as T;
-  }
+  const data = text ? (isJson ? JSON.parse(text) : text) : undefined;
 
-  const data = isJson ? JSON.parse(text) : text;
-
-  // Handle error responses
+  // Errors are raised BEFORE the empty-body shortcut below. The other order
+  // made a bare 5xx — what a load balancer answers when the upstream is down —
+  // resolve with `undefined`, so the caller either read a field off nothing and
+  // crashed somewhere unrelated, or displayed "no data" for an outage.
+  //
+  // The message goes through `readErrorDetail` rather than `data.detail`
+  // directly: FastAPI answers a validation failure with a LIST of entries, and
+  // handing that to `new Error(...)` stringifies it to the literal
+  // "[object Object]" — which is then what the user reads on the form.
   if (!response.ok) {
-    throw new ApiError(
-      data?.message || data?.detail || `HTTP ${response.status}`,
-      response.status,
-      data
-    );
+    throw new ApiError(readErrorDetail(data) ?? `HTTP ${response.status}`, response.status, data);
   }
 
+  // A successful response with no body (some 200s, every 202) is not an error.
   return data as T;
 }
 
@@ -307,6 +308,24 @@ async function handleResponse<T>(response: Response): Promise<T> {
  */
 function createAbortSignal(timeout: number): AbortSignal {
   return AbortSignal.timeout(timeout);
+}
+
+/**
+ * Combine the client's timeout with a caller-supplied cancellation signal.
+ *
+ * Both must be able to abort the request: the timeout is the client's contract,
+ * the caller's signal is how a debounced search or an unmounting component
+ * stops work it no longer needs.
+ *
+ * @param timeoutSignal - The client's own timeout signal.
+ * @param callerSignal - Whatever the caller passed in its RequestInit, if any.
+ * @returns A single signal that fires when either does.
+ */
+function combineSignals(
+  timeoutSignal: AbortSignal,
+  callerSignal: AbortSignal | null | undefined
+): AbortSignal {
+  return callerSignal ? AbortSignal.any([timeoutSignal, callerSignal]) : timeoutSignal;
 }
 
 /**
@@ -339,7 +358,11 @@ class ApiClient {
     const { params, timeout = this.defaultTimeout, ...fetchConfig } = config;
 
     const url = buildUrl(endpoint, params);
-    const signal = createAbortSignal(timeout);
+    // The timeout and the caller's own cancellation are COMBINED, not ranked:
+    // keeping only the timeout would make a debounced search unable to cancel
+    // its in-flight request, and keeping only the caller's would silently drop
+    // the timeout every consumer relies on.
+    const signal = combineSignals(createAbortSignal(timeout), fetchConfig.signal);
 
     // Only include Content-Type for requests with body (POST, PUT, PATCH)
     // GET/DELETE without Content-Type avoids CORS preflight for simple requests

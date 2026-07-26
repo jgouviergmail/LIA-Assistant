@@ -37,6 +37,9 @@ LIA offers voice interaction through two input methods and configurable speech o
 ### What the voice actually reads
 The spoken text is stripped of markup before synthesis: formatting HTML, and the decorative icons of data cards whose names ("event", "mail") would otherwise be read aloud before the sentence. Prose is left untouched — a comparison such as "x<a and b>c" is not markup and is read as written.
 
+### Where a spoken sentence ends
+A full stop closes a sentence only when a space follows it, so a decimal number, a price, a version number or a web address stays inside one spoken sentence: "it's 3.5 degrees" is read as a single phrase rather than "it's three" followed by "point five degrees" in a separate audio chunk. The same rule governs both the one-shot and the progressive path, so the sentence you hear does not depend on how fast the response was generated.
+
 ## Configuration
 
 - **Enable Voice Mode**: Settings > Voice Mode

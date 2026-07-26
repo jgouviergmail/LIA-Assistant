@@ -47,6 +47,30 @@ function skyAnimationFor(conditionCode: string): SkyAnimation {
   return null;
 }
 
+/**
+ * Build the wind line, or `null` when the provider sent no speed.
+ *
+ * `wind_direction_cardinal` is a CODE (N/NE/E/SE/S/SW/W/NW), not a label:
+ * German writes "O" for Ost where English writes "E", and the Romance
+ * languages write "O" for Ouest/Oeste/Ovest where English writes "W".
+ * Printing it raw showed a French reader "15 km/h W" for a westerly wind.
+ * A code the locale has no entry for resolves to the empty default and the
+ * bearing is simply dropped — a raw code is worse than no bearing at all.
+ */
+function windLabelFor(
+  data: Pick<WeatherData, 'wind_speed_kmh' | 'wind_direction_cardinal'>,
+  t: (key: string, options?: { defaultValue?: string }) => string
+): string | null {
+  if (data.wind_speed_kmh === null) return null;
+  const cardinal = data.wind_direction_cardinal
+    ? t(`dashboard.briefing.cards.weather.wind_cardinal.${data.wind_direction_cardinal}`, {
+        defaultValue: '',
+      })
+    : '';
+  const speed = `${Math.round(data.wind_speed_kmh)} km/h`;
+  return cardinal ? `${speed} ${cardinal}` : speed;
+}
+
 interface WeatherCardProps {
   section: CardSection<WeatherData>;
   isRefreshing: boolean;
@@ -89,10 +113,7 @@ function WeatherContent({ data }: { data: WeatherData }) {
     data.precipitation_probability !== null
       ? Math.round(data.precipitation_probability * 100)
       : null;
-  const windLabel =
-    data.wind_speed_kmh !== null
-      ? `${Math.round(data.wind_speed_kmh)} km/h${data.wind_direction_cardinal ? ` ${data.wind_direction_cardinal}` : ''}`
-      : null;
+  const windLabel = windLabelFor(data, t);
 
   const showMetricsRow = windLabel !== null || popPct !== null || data.forecast_alert !== null;
 

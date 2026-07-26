@@ -1,7 +1,9 @@
 'use client';
 
 import { createContext, useState, useCallback, useRef, useEffect, type ReactNode } from 'react';
+import apiClient from '@/lib/api-client';
 import { onForegroundMessage } from '@/lib/firebase';
+import { logger } from '@/lib/logger';
 import type { MessagePayload } from 'firebase/messaging';
 
 /**
@@ -35,6 +37,7 @@ export const BroadcastContext = createContext<BroadcastContextValue | undefined>
 const BROADCAST_CHANNEL_NAME = 'admin_broadcasts';
 const INITIAL_CHECK_DEBOUNCE_MS = 5 * 60 * 1000; // 5 minutes for initial mount
 const VISIBILITY_CHECK_DEBOUNCE_MS = 10 * 1000; // 10 seconds for visibility change
+// Still needed for the SSE stream: EventSource cannot go through apiClient.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 interface BroadcastProviderProps {
@@ -114,17 +117,19 @@ export function BroadcastProvider({ children, isAuthenticated }: BroadcastProvid
       lastCheckRef.current = now;
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/notifications/broadcasts/unread`, {
-          credentials: 'include',
-        });
-        if (!response.ok) return;
-        const data = await response.json();
-        if (data.broadcasts?.length > 0) {
+        // Through `apiClient`: a 401 here means the session died while the tab
+        // was hidden (this also runs on visibility change), and it must eject
+        // to the login like every other data call rather than silently return
+        // no announcements forever.
+        const data = await apiClient.get<{ broadcasts?: BroadcastInfo[] }>(
+          '/notifications/broadcasts/unread'
+        );
+        if (data?.broadcasts?.length) {
           setQueue(data.broadcasts);
           showNext(data.broadcasts);
         }
       } catch (error) {
-        console.error('Failed to fetch unread broadcasts:', error);
+        logger.error('broadcast_unread_fetch_failed', error as Error, { component: 'Broadcast' });
       }
     },
     [showNext]
@@ -229,12 +234,11 @@ export function BroadcastProvider({ children, isAuthenticated }: BroadcastProvid
     if (!currentBroadcast) return;
 
     try {
-      await fetch(`${API_BASE_URL}/api/v1/notifications/broadcasts/${currentBroadcast.id}/read`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await apiClient.post(`/notifications/broadcasts/${currentBroadcast.id}/read`);
     } catch (error) {
-      console.error('Failed to mark broadcast as read:', error);
+      // Dismissing locally regardless is deliberate: the modal must close even
+      // if the read receipt fails, otherwise the user is stuck behind it.
+      logger.error('broadcast_mark_read_failed', error as Error, { component: 'Broadcast' });
     }
 
     const remaining = queue.filter(b => b.id !== currentBroadcast.id);

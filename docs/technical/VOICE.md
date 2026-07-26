@@ -425,14 +425,13 @@ are pipelined at the sentence level by ``ProgressiveSentenceStreamer``
 ```
 LLM stream tokens ──► streamer.feed("Bonjour, com")
                        ↓                                   no terminator → buffer
-LLM stream tokens ──► streamer.feed("ment ça va ?")
-                       ↓                                   "?" → dispatch sentence #0
+LLM stream tokens ──► streamer.feed("ment ça va ? Au")
+                       ↓                                   "? " → dispatch sentence #0
                        ├── asyncio.create_task(synth)  ── ▶ TTS provider call (parallel)
-LLM stream tokens ──► streamer.feed("Aujourd'hui je vais bien.")
-                       ↓                                   "." → dispatch sentence #1
-                       ├── asyncio.create_task(synth)  ── ▶ TTS provider call (parallel)
+LLM stream tokens ──► streamer.feed("jourd'hui je vais bien.")
+                       ↓                                   "." at end → still buffered
 LLM closes  ────────► streamer.close_input()
-                       ↓                                   trailing buffer empty
+                       ↓                                   trailing buffer → dispatch #1
                        ▼
    in-order delivery via _pending: dict[int, VoiceAudioChunk] + _drain_lock
                        ▼
@@ -441,13 +440,27 @@ LLM closes  ────────► streamer.close_input()
             agents SSE main loop emits VoiceAudioChunk
 ```
 
-Three guarantees:
+A delimiter dispatches only when a **whitespace follows it inside the buffer**
+(ADR-154). Two reasons, and they are the same one: a dot glued to the next
+character belongs to a token (`3.5`, `12.99`, `1.2.3`, `exemple.fr`), and a dot
+sitting at the end of the buffer may simply be one whose next character has not
+streamed in yet. `close_input()` flushes whatever never got its space, which is
+also the path for an LLM that stops without punctuation.
+
+Four guarantees:
 
 | Invariant | Mechanism |
 |---|---|
+| A number, a price or a URL is never split across two audio chunks | `[délims]+(?=\s)` — the boundary needs a following whitespace |
 | In-order delivery (sentence #1 before #2 even when #2's TTS is faster) | `_pending` map + `_next_emit_idx` counter under `_drain_lock` |
 | One sentence failure does NOT block the rest | `_failed: set[int]` skipped during drain |
 | End-of-stream sentinel pushed exactly once | `_sentinel_pushed: bool` idempotence flag |
+
+The boundary rule is shared with the one-shot path
+(`VoiceCommentService._extract_sentences`) and both are pinned to the same case
+table by `tests/unit/domains/voice/test_sentence_boundaries.py`, which also
+feeds the text one character at a time — the only way to reproduce a buffer that
+ends on a dot.
 
 The resulting **Time-To-First-Audio (TTFA)**:
 

@@ -548,8 +548,10 @@ def map_execution_result_to_agent_result(
     This function converts the ExecutionResult from PlanExecutor into the
     agent_results format expected by the state graph and response_node.
 
-    The agent_results format uses composite keys: "{turn_id}_{agent_name}"
-    to track multiple agent executions within the same turn.
+    The agent_results format uses composite keys built by
+    :func:`~src.domains.agents.constants.make_agent_result_key`:
+    ``"{turn_id}:{agent_name}"`` — colon, not underscore — to track multiple
+    agent executions within the same turn.
 
     **Phase 5.2B Enhancement - Generic Result Normalization**:
     Detects domain-specific results (contacts, emails, calendar, etc.) and
@@ -571,7 +573,7 @@ def map_execution_result_to_agent_result(
     Returns:
         Dict mapping composite_key → agent_result dict with structure:
         {
-            "{turn_id}_plan_executor": {
+            "{turn_id}:plan_executor": {
                 "agent_name": "plan_executor",
                 "status": "success" | "failed",
                 "data": ContactsResultData | dict,  // Normalized to domain schema if detected
@@ -653,9 +655,12 @@ def map_execution_result_to_agent_result(
                     item_ids=list(step_registry.keys()),
                 )
 
-            # Extract data from tool result
-            # The result is ALREADY the data content (not wrapped in {"success": ..., "data": ...})
-            # This is because plan_executor extracts the "data" field before storing in StepResult
+            # Append the tool result AS THE EXECUTOR STORED IT — the full
+            # ToolResponse envelope (`{"success", "message", "data", ...}`).
+            # The previous comment claimed the executor had already unwrapped
+            # `data`; it has not (`parallel_executor` passes `tool_result`
+            # straight through, and reads `success`/`error` off it right above),
+            # so consumers must go through `["data"]`.
             if isinstance(step_result.result, dict):
                 # Skip CONDITIONAL steps (they have condition_result, not contacts data)
                 if "condition_result" in step_result.result:

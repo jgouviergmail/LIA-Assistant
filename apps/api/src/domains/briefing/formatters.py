@@ -10,6 +10,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from src.core.geo_utils import wind_deg_to_cardinal
 from src.core.i18n_v3 import V3Messages
 from src.core.time_utils import format_time_with_date_context
 from src.domains.briefing.schemas import (
@@ -111,7 +112,9 @@ def format_weather_data(
         round(float(wind_speed_ms) * 3.6, 1) if wind_speed_ms is not None else None
     )
     wind_deg = wind.get("deg")
-    wind_direction_cardinal: str | None = _wind_deg_to_cardinal(wind_deg)
+    # A CODE, not a label: the frontend resolves it through
+    # `dashboard.weather.wind_cardinal.*` (never a pre-translated payload).
+    wind_direction_cardinal: str | None = wind_deg_to_cardinal(wind_deg)
 
     # Today's min/max from forecast slots in user's local "today" date.
     temp_min, temp_max = _today_min_max_from_forecast(forecast, user_tz)
@@ -243,27 +246,6 @@ def _aggregate_daily_forecast(
             )
         )
     return items[:daily_forecast_days]
-
-
-# Cardinal direction lookup — 8 sectors of 45° each, centered on N=0°.
-_CARDINALS: tuple[str, ...] = ("N", "NE", "E", "SE", "S", "SW", "W", "NW")
-
-
-def _wind_deg_to_cardinal(deg: float | int | None) -> str | None:
-    """Convert wind degrees (0-360, 0=N, clockwise) to a cardinal point.
-
-    Uses 8 equal sectors of 45° centered on each cardinal/intercardinal point:
-    N covers [-22.5, 22.5), NE [22.5, 67.5), E [67.5, 112.5), etc.
-    """
-    if deg is None:
-        return None
-    try:
-        d = float(deg) % 360
-    except (TypeError, ValueError):
-        return None
-    # Shift by +22.5 then floor-divide by 45 → index 0..7 in _CARDINALS.
-    index = int(((d + 22.5) % 360) // 45)
-    return _CARDINALS[index]
 
 
 def _today_min_max_from_forecast(

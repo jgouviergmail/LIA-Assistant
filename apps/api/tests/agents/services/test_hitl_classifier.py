@@ -1,7 +1,23 @@
 """
-Tests for HitlResponseClassifier.
+Evaluation suite for HitlResponseClassifier — asserts MODEL quality, not code.
 
-Tests classification of natural language responses into approve/reject/edit/ambiguous.
+Every test here calls a real provider with no mock and asserts what the LLM
+decides ("oui" -> APPROVE with confidence >= 0.8). That is an eval: it costs
+money, it is non-deterministic, and a failure means the model or the prompt
+drifted — not that a function is wrong.
+
+Hence the two markers below, in this order:
+
+- ``e2e`` makes the exclusion VISIBLE in every CI command (they all pass
+  ``-m "not ... and not e2e ..."``). Without it the suite was invisibly absent:
+  the credential skip alone reported nothing but a green run.
+- the credential skip then keeps a local run from failing on a missing key.
+
+Code-level behaviour of the classifier (prompt assembly, action-type
+announcement, EDIT demotion, result parsing) is covered by unconditional unit
+tests: ``tests/agents/test_hitl_classifier.py``,
+``tests/unit/domains/agents/services/test_hitl_classifier_i18n.py`` and
+``tests/unit/domains/agents/services/hitl/test_action_taxonomy.py``.
 """
 
 import os
@@ -10,11 +26,13 @@ import pytest
 
 from src.domains.agents.services.hitl_classifier import HitlResponseClassifier
 
-# Skip all tests if OPENAI_API_KEY is not set (integration tests that call real LLM)
-pytestmark = pytest.mark.skipif(
-    not os.getenv("OPENAI_API_KEY"),
-    reason="Requires OPENAI_API_KEY for integration tests with real LLM",
-)
+pytestmark = [
+    pytest.mark.e2e,
+    pytest.mark.skipif(
+        not os.getenv("OPENAI_API_KEY"),
+        reason="Requires OPENAI_API_KEY: this suite evaluates a real LLM",
+    ),
+]
 
 
 @pytest.fixture

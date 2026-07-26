@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 3.9
-**Datum** : 2026-07-25
-**Anwendung** : LIA v1.25.22
+**Datum** : 2026-07-26
+**Anwendung** : LIA v1.25.23
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -270,6 +270,8 @@ Transparenz ist kein technisches Gadget. Sie verändert die Beziehung zu Ihrem A
 Diese Transparenz erstreckt sich auf die Qualität des Systems selbst. Das vollständige technische Audit — Bewertungen, Methode, Stärken und was noch zu verbessern bleibt — ist im Repository veröffentlicht, mit dem Protokoll, um es erneut durchzuführen, und den Befehlen, um die Messungen zu überprüfen: [vollständiger Audit-Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). Sie müssen den Zahlen auf dieser Seite nicht glauben; Sie können sie überprüfen.
 
 Dasselbe Prinzip gilt für die Schutzmaßnahmen selbst. Sicherheit, die angekündigt, aber nicht überprüfbar ist, wird als nicht vorhanden behandelt: Jede Maßnahme wird von einem Test gestützt, der fehlschlägt, sobald sie verschwindet, und wenn eine Korrektur geschrieben wird, stellt man das alte Verhalten so lange wieder her, bis feststeht, dass der Test es erkennt. Ein Test, der nicht scheitern kann, beweist nichts.
+
+Ein Test, der nie läuft, ebenso wenig — und das ist die unbequemste Entdeckung dieses Projekts. Zehn Testdateien hatten sich selbst abgeschaltet, sobald ein Provider-Schlüssel fehlte, und nichts meldete es mehr: ein übersprungener Test zählt als grün, Coverage misst erreichte Zeilen statt ausgeführter Zusicherungen, und eine Review sieht eine Testdatei und schließt daraus, die Fläche sei geschützt. Zweihundertneunzehn Tests waren kein einziges Mal gelaufen; beim Wiedereinschalten kamen vier echte Defekte zum Vorschein — darunter eine Stimme, die jede Zahl in zwei Teile zerschnitt, und eine Erinnerung, die endgültig verloren ging, wenn das Nutzungsbudget in der falschen Minute aufgebraucht war. Das Fehlen eines roten Signals ist kein Gesundheitsnachweis: manchmal ist es nur das Fehlen der Messung. Eine CI-Wache verhindert nun, dass ein Testmodul stillschweigend verstummt.
 
 ## 7. Emotionale Tiefe
 

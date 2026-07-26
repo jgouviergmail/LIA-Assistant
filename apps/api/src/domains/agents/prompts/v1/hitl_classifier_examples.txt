@@ -60,6 +60,54 @@ FORMAT: one section per action type, delimited by a line "=== <key> ===" where
 **EDIT** (change the target):
 - "no delete the other one" → EDIT (imprecise value, leave edited_params empty)
 - "file2.pdf instead" → EDIT {"file_name": "file2.pdf"}
+=== transfert ===
+**APPROVE**:
+- "yes" → APPROVE
+- "ok forward it" → APPROVE
+
+**REJECT** (refusal WITHOUT an alternative):
+- "no cancel" → REJECT
+- "no don't forward" → REJECT
+
+**EDIT** (change who receives it, or the note added on top):
+- "no forward to jean" → EDIT {"to": "jean"}
+- "to marie@example.com instead" → EDIT {"to": "marie@example.com"}
+- "add: for your information" → EDIT {"body": "for your information"}
+
+⚠️ WARNING: a forward keeps the ORIGINAL content — an instruction about the
+text ("say it's urgent") edits "body" (the added note), never the original.
+=== réponse ===
+**APPROVE**:
+- "yes" → APPROVE
+- "ok reply" → APPROVE
+
+**REJECT** (refusal WITHOUT an alternative):
+- "no cancel" → REJECT
+- "no leave it" → REJECT
+
+**EDIT** (change the reply text, or who is included):
+- "say I'll be there tomorrow" → EDIT {"body": "I'll be there tomorrow"}
+- "shorter" → EDIT (imprecise value, leave edited_params empty)
+- "reply to everyone" → EDIT {"reply_all": true}
+
+⚠️ WARNING: a reply has NO recipient parameter — the thread decides it. A new
+addressee ("send it to paul instead") is a DIFFERENT action → REPLAN, not EDIT.
+=== modification ===
+**APPROVE**:
+- "yes" → APPROVE
+- "ok change it" → APPROVE
+
+**REJECT** (refusal WITHOUT an alternative):
+- "no cancel" → REJECT
+- "no leave it as it is" → REJECT
+
+**EDIT** (change one field of the update — the new value is IN the response):
+- "3pm instead" → EDIT {"start_time": "15:00"}
+- "no, call it Weekly sync" → EDIT {"title": "Weekly sync"}
+- "change something else" → EDIT (imprecise value, leave edited_params empty)
+
+⚠️ CRITICAL: emit ONLY the fields the user actually named. Asking for a
+different operation ("delete it instead") = REPLAN, not EDIT.
 === plan_approval ===
 **Plan Approval Classification** (generic, works for any tool/agent):
 

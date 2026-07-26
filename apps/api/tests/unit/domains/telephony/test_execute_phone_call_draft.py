@@ -76,13 +76,13 @@ def test_phone_call_executor_is_registered() -> None:
     """The PHONE_CALL draft type resolves to execute_phone_call_draft (wiring guard)."""
     from src.domains.agents.drafts.models import DraftType
     from src.domains.agents.services.draft_executor import (
-        _EXECUTOR_REGISTRY as registry,
+        EXECUTOR_REGISTRY as registry,
     )
     from src.domains.agents.services.draft_executor import (
-        _ensure_executors_registered,
+        ensure_executors_registered,
     )
 
-    _ensure_executors_registered()
+    ensure_executors_registered()
     assert DraftType.PHONE_CALL.value in registry
 
 

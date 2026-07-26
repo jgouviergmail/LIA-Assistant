@@ -5,8 +5,8 @@
 > 面向架构师、工程师和技术专家的技术展示文档。
 
 **版本**：3.4
-**日期**：2026-07-25
-**应用**：LIA v1.25.22
+**日期**：2026-07-26
+**应用**：LIA v1.25.23
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -53,7 +53,7 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 | 数据主权 | 本地 PostgreSQL（非 SaaS 数据库）、Fernet 静态加密、本地 Redis 会话 |
 | 多 LLM 供应商 | Factory 模式搭配 8 个适配器，按节点配置，不与特定供应商强耦合 |
 | 完全透明 | 438 Prometheus 指标、内嵌调试面板、逐 token 追踪 |
-| 生产可靠性 | 149 篇 ADR、由 pytest 在 817 个文件中收集的 ~15,031 个测试、原生可观测性、6 层 HITL |
+| 生产可靠性 | 154 篇 ADR、由 pytest 在 837 个文件中收集的 ~15,877 个测试、原生可观测性、6 层 HITL |
 | 成本可控 | Smart Services（节省 89% token）、语义嵌入、prompt 缓存、目录过滤 |
 
 ### 1.2. 架构原则
@@ -71,7 +71,7 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 
 | 指标 | 数值 |
 |------|------|
-| 测试 | ~15,031 个（由 pytest 在 817 个测试文件中收集）+ 前端 2,567 个 vitest 测试（覆盖率阈值已锁定，ADR-116） |
+| 测试 | ~15,877 个（由 pytest 在 837 个测试文件中收集）+ 前端 2,832 个 vitest 测试（覆盖率阈值已锁定，ADR-116） |
 | 可复用 Fixtures | 170+ |
 | 文档 | 280+ |
 | ADR（架构决策记录） | 149 篇 |
@@ -679,7 +679,7 @@ LIA 可以代表用户拨打外呼电话、进行目标导向的对话，然后�
 
 ### 15.2. TTS
 
-**目录驱动**的 Factory（ADR-081）：`factory.get_tts_client()` 读取激活的 `voice_tts` 覆盖（提供商 + 模型 + 声音 + 调优，存储于 `llm_config_overrides.voice_tts.provider_config` JSONB 字段）并实例化对应的客户端。已交付三家提供商：Edge（免费、默认）、OpenAI（`tts-1` / `tts-1-hd`）和 ElevenLabs（`eleven_multilingual_v2`、`eleven_turbo_v2_5`、`eleven_flash_v2_5`）。当付费提供商的 API 密钥缺失时，Factory 会透明地回退到 Edge（记录警告）。通过 `ProgressiveSentenceStreamer`（ADR-082）实现按句逐步流式合成以最小化延迟——首句在 LLM 生成后续句子的同时即被合成。
+**目录驱动**的 Factory（ADR-081）：`factory.get_tts_client()` 读取激活的 `voice_tts` 覆盖（提供商 + 模型 + 声音 + 调优，存储于 `llm_config_overrides.voice_tts.provider_config` JSONB 字段）并实例化对应的客户端。已交付三家提供商：Edge（免费、默认）、OpenAI（`tts-1` / `tts-1-hd`）和 ElevenLabs（`eleven_multilingual_v2`、`eleven_turbo_v2_5`、`eleven_flash_v2_5`）。当付费提供商的 API 密钥缺失时，Factory 会透明地回退到 Edge（记录警告）。通过 `ProgressiveSentenceStreamer`（ADR-082）实现按句逐步流式合成以最小化延迟——首句在 LLM 生成后续句子的同时即被合成。 只有位于输入末尾或后面跟着空格时，分隔符才会结束一句话（ADR-154）：在逐句流式路径上，缓冲区是逐个 token 增长的，因此 `"3."` 是一个完全正常的中间状态——小数、价格、版本号和网址都会保持完整，两个切分器（`_extract_sentences` 与流式切分器）由一张共享用例表以及一个要求二者一致的测试共同钉住。
 
 ---
 
@@ -850,7 +850,7 @@ Pre-commit (local)                GitHub Actions CI
 ========================          =========================
 .bak files check                  Lint Backend (Ruff + Black + MyPy strict)
 Secrets grep                      Lint Frontend (ESLint + TypeScript)
-Ruff + Black + MyPy               Unit tests + coverage (45 %)
+Ruff + Black + MyPy               Unit tests + coverage (62 %)
                                   Integration tests (PostgreSQL + Redis)
 快速单元测试                      Code Hygiene (i18n, Alembic, lockfiles)
 关键模式检测                      Docker build smoke test
@@ -872,7 +872,7 @@ ESLint + TypeScript check           CodeQL (Python + JS)
 | 类型检查 | MyPy | strict 模式 |
 | 提交 | Conventional Commits | `feat(scope):`、`fix(scope):` |
 | 测试 | pytest | `asyncio_mode = "auto"` |
-| 覆盖率 | 45% 最低 | CI 中强制执行 |
+| 覆盖率 | 62% 最低（棘轮，只升不降） | CI 中强制执行 |
 
 ### 22.3. 可复现的依赖构建
 
@@ -1088,10 +1088,10 @@ LIA 通过统一模式接受外部事件摄入（iPhone Apple Health 样本、�
 
 LIA 是一项软件工程实践，尝试解决一个具体问题：构建一个生产级的多智能体 AI 助手，透明、安全、可扩展，并且能在 Raspberry Pi 上运行。
 
-149 篇 ADR 不仅记录了做出的决策，还记录了被否决的替代方案和接受的权衡。817 个文件里的 ~15,031 个测试、完整的 CI/CD 和严格的 MyPy 并非虚荣指标 — 它们是让这种复杂度的系统能够无回归演进的机制。
+154 篇 ADR 不仅记录了做出的决策，还记录了被否决的替代方案和接受的权衡。837 个文件里的 ~15,877 个测试、完整的 CI/CD 和严格的 MyPy 并非虚荣指标 — 它们是让这种复杂度的系统能够无回归演进的机制。
 
 子系统之间的交织 — 心理记忆、贝叶斯学习、语义路由、系统化 HITL、LLM 驱动的主动性、内省日志 — 创造了一个各组件相互增强的系统。HITL 为模式学习提供数据，模式学习降低成本，降低的成本支撑更多功能，更多功能为记忆产生更多数据，记忆改善响应质量。这是一个设计中的良性循环，而非偶然。
 
 ---
 
-*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、149 篇 ADR 及变更日志（v1.0 至 v1.25.22）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*
+*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（280+ 份文档）、154 篇 ADR 及变更日志（v1.0 至 v1.25.23）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*

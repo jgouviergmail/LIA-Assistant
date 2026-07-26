@@ -56,16 +56,24 @@ MAX_RETRIES = 3
 
 
 def get_localized_title(language: str) -> str:
-    """Get localized notification title."""
-    titles = {
-        "fr": "Rappel",
-        "en": "Reminder",
-        "es": "Recordatorio",
-        "de": "Erinnerung",
-        "it": "Promemoria",
-        "zh": "提醒",
-    }
-    return titles.get(language, "Reminder")
+    """Localized push/channel title for a fired reminder.
+
+    Delegates to the central proactive table. The inline dict that used to live
+    here was keyed ``"zh"`` while ``User.language`` is backend-canonical
+    ``"zh-CN"`` (see the column comment on ``users.language``), so the lookup
+    never matched and every Chinese user received the English title on every
+    reminder — the exact defect [ADR-131] centralized this table to eliminate,
+    reproduced here for the third time.
+
+    Args:
+        language: Any locale spelling; normalized by the accessor.
+
+    Returns:
+        The localized title, English fallback.
+    """
+    from src.core.i18n_proactive import ProactiveMessages
+
+    return ProactiveMessages.notification_title("reminder", language)
 
 
 def truncate_for_notification(text: str, max_length: int = 150) -> str:
@@ -440,6 +448,12 @@ async def process_pending_reminders() -> dict[str, Any]:
                         layer="reminder_notification",
                         extra_log_fields={"reminder_id": str(reminder.id)},
                     ):
+                        # Release the lease: the block is TEMPORARY (a budget
+                        # window), so the reminder must be selectable again on a
+                        # later tick. Left in PROCESSING it would never be
+                        # picked up (the query filters on PENDING) and never
+                        # fire — a reminder lost with no error anywhere.
+                        reminder.status = ReminderStatus.PENDING.value
                         stats["skipped"] += 1
                         continue
 
@@ -464,6 +478,12 @@ async def process_pending_reminders() -> dict[str, Any]:
                             user_id=str(reminder.user_id),
                             is_active=user.is_active,
                         )
+                        # Release the lease here too. Deactivation is
+                        # reversible, so deleting would destroy a reminder the
+                        # user may still want; a hard delete is the account
+                        # purge's job (`user_data_map`: reminders are purged in
+                        # full on erasure, and the FK cascades on user delete).
+                        reminder.status = ReminderStatus.PENDING.value
                         stats["skipped"] += 1
                         continue
 

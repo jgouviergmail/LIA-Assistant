@@ -16,16 +16,15 @@
  *   (v1.25.22): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 441
  *   (unchanged: the security wave added alerting and guards, not new metrics)
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Measured 2026-07-25 (v1.25.22): backend pytest 15,331 collected (824 files)
- *   + frontend vitest 2,729 (269 files) = 18,060. Re-measure both suites every
+ *   Measured 2026-07-26 (v1.25.23): backend pytest 15,877 collected (837 files)
+ *   + frontend vitest 2,832 (275 files) = 18,709. Re-measure both suites every
  *   release: the value carried the backend count alone until v1.25.9, while its
  *   comment already claimed both.
- * - adrs: docs/architecture/ ADR files (149 files, numbered up to ADR-150 —
- *   the six founding ADRs were reconstituted in an earlier cycle, so files and
- *   numbering agree).
+ * - adrs: docs/architecture/ ADR files (154 files, numbered up to ADR-155 —
+ *   ADR-008 has no separate file, so 155 numbers map to 154 files).
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   170 headings, no Unreleased pending.
+ *   171 headings, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -41,9 +40,9 @@ export const LANDING_STATS = {
   voiceLanguages: 99,
   metrics: 441,
   uiLanguages: 6,
-  tests: 18000,
-  adrs: 149,
-  releases: 170,
+  tests: 18500,
+  adrs: 154,
+  releases: 171,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

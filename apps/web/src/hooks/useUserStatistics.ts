@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
 import { useLoggingContext } from '@/lib/logging-context';
 import { useStaleGuard } from '@/hooks/useStaleGuard';
@@ -64,21 +65,10 @@ export const useUserStatistics = (): UseUserStatisticsReturn => {
     }
 
     try {
-      // `??`, not `||`: empty string = same-origin relative URLs (api-config.ts).
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
-      const response = await fetch(`${API_BASE_URL}/api/v1/chat/users/me/statistics`, {
-        method: 'GET',
-        credentials: 'include', // Send session cookie
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch statistics: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      // Through `apiClient`, like every other data call: an expired session
+      // must eject to the localized login rather than leave the statistics
+      // panel showing a bare "Failed to fetch statistics: 401".
+      const data = await apiClient.get<UserStatistics>('/chat/users/me/statistics');
       if (isStale()) return;
       setStatistics(data);
       setError(null);

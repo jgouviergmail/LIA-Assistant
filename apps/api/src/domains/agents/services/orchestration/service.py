@@ -31,6 +31,7 @@ from src.core.field_names import (
     FIELD_SESSION_ID,
     FIELD_USER_ID,
 )
+from src.core.i18n import DEFAULT_LANGUAGE
 from src.domains.agents.constants import (
     HITL_DECISION_NEW_REQUEST,
 )
@@ -152,6 +153,7 @@ class OrchestrationService:
         user_message: str,
         conversation_id: uuid.UUID,
         run_id: str,
+        user_language: str = DEFAULT_LANGUAGE,
     ) -> dict[str, Any]:
         """
         Parse user's natural language message to extract approval decision.
@@ -169,6 +171,9 @@ class OrchestrationService:
             user_message: User's response message
             conversation_id: Conversation UUID for Redis lookup
             run_id: Run ID for logging
+            user_language: Language of the static notices the parser may emit
+                (ambiguity, clarification) — taken from the checkpointed state
+                by the caller, since some are streamed verbatim to the user
 
         Returns:
             dict with "decision" key (APPROVE/REJECT/EDIT/REPLAN/AMBIGUOUS)
@@ -193,7 +198,7 @@ class OrchestrationService:
             parse_approval_decision,
         )
 
-        return await parse_approval_decision(user_message, conversation_id, run_id)
+        return await parse_approval_decision(user_message, conversation_id, run_id, user_language)
 
     async def _inject_proactive_messages(
         self,
@@ -632,6 +637,9 @@ class OrchestrationService:
                     user_message=user_message,
                     conversation_id=conversation_id,
                     run_id=run_id,
+                    # From the checkpoint: the language the previous turn ran in.
+                    # Some resume notices are streamed verbatim to the user.
+                    user_language=state.get("user_language") or DEFAULT_LANGUAGE,
                 )
 
             # === FIX 2026-01-11: Handle NEW_REQUEST (stale HITL state) ===

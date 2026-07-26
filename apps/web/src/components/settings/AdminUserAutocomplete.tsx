@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { User, X, Search, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/i18n/client';
+import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
 import { useDebounce } from '@/hooks/useDebounce';
 import { cn } from '@/lib/utils';
@@ -73,22 +74,23 @@ export function AdminUserAutocomplete({
 
     const fetchUsers = async () => {
       try {
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-        const response = await fetch(
-          `${API_BASE_URL}/api/v1/users/admin/autocomplete?q=${encodeURIComponent(debouncedQuery)}`,
-          { credentials: 'include', signal: controller.signal }
+        // Through `apiClient`: the abort signal is combined with the client's
+        // timeout, so the debounce still cancels a superseded request while an
+        // expired session still ejects to the login.
+        const data = await apiClient.get<{ users?: UserSuggestion[] }>(
+          '/users/admin/autocomplete',
+          { params: { q: debouncedQuery }, signal: controller.signal }
         );
 
         if (controller.signal.aborted) return;
-        if (response.ok) {
-          const data = await response.json();
-          if (controller.signal.aborted) return;
-          setUserSuggestions(data.users || []);
-          setActiveIndex(-1);
-          setShowDropdown(true);
-        }
+        setUserSuggestions(data.users || []);
+        setActiveIndex(-1);
+        setShowDropdown(true);
       } catch (error) {
-        if ((error as Error).name === 'AbortError') return; // superseded request, ignore
+        // A superseded request aborts with AbortError, the client's timeout
+        // with TimeoutError — neither is worth a log line here.
+        const name = (error as Error).name;
+        if (controller.signal.aborted || name === 'AbortError' || name === 'TimeoutError') return;
         logger.error('Failed to fetch user suggestions', error as Error);
       } finally {
         if (!controller.signal.aborted) setLoadingUsers(false);

@@ -242,9 +242,14 @@ class VoiceCommentService:
         # Normalize text first to handle ellipsis and other special patterns
         text = self._normalize_text_for_tts(text)
 
-        # Build regex pattern for sentence splitting
-        # Keep delimiters with the sentence
-        pattern = f"([^{re.escape(delimiters)}]*[{re.escape(delimiters)}])"
+        # Split AFTER a delimiter, but only when it actually ends the prose —
+        # that is, at end of text or before whitespace. A delimiter glued to the
+        # next character belongs to the token, not to the sentence: splitting on
+        # every "." turned "3.5 degrés" into "3." + "5 degrés", "12.99 EUR" into
+        # two amounts, and "exemple.fr" into two fragments, each synthesized as
+        # its own audio chunk. The split is zero-width, so each part keeps its
+        # own delimiter.
+        pattern = f"(?<=[{re.escape(delimiters)}])(?=\\s|$)"
         parts = re.split(pattern, text)
 
         sentences = []

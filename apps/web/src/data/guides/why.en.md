@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 3.9
-**Date**: 2026-07-25
-**Application**: LIA v1.25.22
+**Date**: 2026-07-26
+**Application**: LIA v1.25.23
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -270,6 +270,8 @@ Transparency is not a technical gimmick. It changes your relationship with your 
 This transparency extends to the system's own quality. The complete technical audit — scores, method, strengths and what remains to be improved — is published in the repository, with the protocol to rerun it and the commands to verify the measurements: [full audit report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). You are not asked to trust the figures on this site; you can check them.
 
 The same principle applies to the protections themselves. Security that is announced but unverifiable is treated as absent: every control is backed by a test that fails if the control disappears, and when a fix is written the old behaviour is restored long enough to confirm the test catches it. A test that cannot fail proves nothing.
+
+Nor does a test that never runs — and that is the least comfortable discovery this project has made. Ten test files had switched themselves off whenever a provider key was missing, and nothing reported it any more: a skipped test counts as green, coverage measures lines reached rather than assertions executed, and a review sees a test file and concludes the surface is protected. Two hundred and nineteen tests had never run once; switching them back on surfaced four genuine defects — among them a voice that split every number in two, and a reminder lost for good when the usage budget ran out in the wrong minute. The absence of a red signal is not proof of health: sometimes it is only the absence of measurement. A continuous-integration guard now refuses to let a test module go quiet.
 
 ## 7. Emotional depth
 

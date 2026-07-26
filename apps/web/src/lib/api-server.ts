@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 
+import { readErrorDetail } from '@/lib/api-error';
 import { SERVER_ACTION_TIMEOUT } from '@/lib/constants';
 
 /**
@@ -116,9 +117,14 @@ class ServerApiClient {
       url = `${url}?${searchParams.toString()}`;
     }
 
-    // Create abort controller for timeout
+    // Create abort controller for timeout. A caller-supplied signal is
+    // COMBINED with it rather than ranked: keeping only one would either drop
+    // the timeout or take the caller's ability to cancel.
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
+    const signal = fetchConfig.signal
+      ? AbortSignal.any([controller.signal, fetchConfig.signal])
+      : controller.signal;
 
     try {
       // Debug logging in development
@@ -145,7 +151,7 @@ class ServerApiClient {
           }),
           ...fetchConfig.headers,
         },
-        signal: controller.signal,
+        signal,
       });
 
       clearTimeout(timeoutId);
@@ -159,17 +165,17 @@ class ServerApiClient {
       const contentType = response.headers.get('content-type');
       const isJson = contentType?.includes('application/json');
 
-      // Handle empty responses
       const text = await response.text();
-      if (!text) {
-        return undefined as T;
-      }
+      const data = text ? (isJson ? JSON.parse(text) : text) : undefined;
 
-      const data = isJson ? JSON.parse(text) : text;
-
-      // Handle errors
+      // Errors are raised BEFORE the empty-body shortcut below: the other order
+      // made a bare 5xx (a load balancer answering for a dead upstream) resolve
+      // with `undefined`, and the Server Action reported success.
       if (!response.ok) {
-        const errorMessage = data?.message || data?.detail || `HTTP ${response.status}`;
+        // Through `readErrorDetail`, not `data.detail` directly: a Pydantic
+        // validation body carries a LIST, and `new Error(list)` stringifies it
+        // to the literal "[object Object]".
+        const errorMessage = readErrorDetail(data) ?? `HTTP ${response.status}`;
 
         // Log errors in development, critical errors in production
         if (this.isDevelopment) {
@@ -198,6 +204,7 @@ class ServerApiClient {
         });
       }
 
+      // A successful response with no body is not an error.
       return data as T;
     } catch (error) {
       clearTimeout(timeoutId);

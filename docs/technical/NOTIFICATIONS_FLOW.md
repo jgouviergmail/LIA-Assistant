@@ -213,8 +213,22 @@ sequenceDiagram
     REPO-->>JOB: reminders[]
 
     loop For each reminder
+        JOB->>JOB: usage-limit pre-check
+        alt User blocked for LLM
+            JOB->>REPO: UPDATE status='pending'
+            Note right of REPO: Release the lease —<br/>the block is temporary,<br/>the reminder must survive it
+        end
+
         JOB->>CTX: load_user_context(user_id)
         CTX-->>JOB: {timezone, language, personality}
+
+        alt User not found
+            JOB->>REPO: DELETE reminder
+            Note right of REPO: Orphan: no recipient
+        else User inactive
+            JOB->>REPO: UPDATE status='pending'
+            Note right of REPO: Deactivation is reversible;<br/>deletion is the purge's job
+        end
 
         JOB->>MEM: asearch(user_id, reminder.content)
         MEM-->>JOB: relevant_memories[] (top 5, score >= 0.6)
@@ -267,6 +281,10 @@ stateDiagram-v2
 
     PROCESSING --> PENDING: RETRY<br/>(retry_count < 3)
 
+    PROCESSING --> PENDING: DEFERRED<br/>(usage limit reached,<br/>or user deactivated)
+
+    PROCESSING --> [*]: ORPHAN<br/>(user no longer exists, DELETE)
+
     PROCESSING --> [*]: PERMANENT_FAIL<br/>(retry_count >= 3, DELETE)
 
     PENDING --> CANCELLED: User cancels
@@ -278,6 +296,19 @@ stateDiagram-v2
         duplicate notifications
     end note
 ```
+
+`PROCESSING` is a **lease**, not a resting state: the selection query only ever
+looks at `PENDING` rows, so a reminder left in `PROCESSING` is never picked up
+again, never sent and never cleaned up. Every exit of the loop therefore either
+finishes the work, deletes the row, or puts the status back to `PENDING` — the
+two skip paths above (usage limit, deactivated user) are deferrals, not
+terminations. `tests/unit/infrastructure/scheduler/test_reminder_processing_lease.py`
+asserts the outcome of each exit.
+
+The push title comes from the central proactive table
+(`ProactiveMessages.notification_title("reminder", language)`), which normalizes
+the language code before keying: `User.language` holds the backend-canonical
+`zh-CN`, and a table keyed on the frontend spelling `zh` silently served English.
 
 ---
 

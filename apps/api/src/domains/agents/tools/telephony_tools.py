@@ -336,7 +336,7 @@ async def execute_phone_call_draft(
 ) -> dict:
     """Execute a confirmed PHONE_CALL draft: actually place the call.
 
-    Registered in ``draft_executor._ensure_executors_registered()``. On success
+    Registered in ``draft_executor.ensure_executors_registered()``. On success
     it returns ``{"name", "call_id"}`` so the framework renders the async-safe
     ``phone_call`` success message ("I'm calling {name} now …"). Non-placed
     outcomes raise :class:`TelephonyExecutionError` with a localized message —

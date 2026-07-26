@@ -16,12 +16,12 @@ Coverage target: 85%+ for hitl_classifier.py
 """
 
 import json
-import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from langchain_core.messages import SystemMessage
 
+from src.core.config import settings
 from src.core.constants import HITL_CLASSIFIER_PROMPT_VERSION_DEFAULT
 from src.domains.agents.constants import (
     ACTION_TYPE_CREATE,
@@ -42,16 +42,44 @@ from src.domains.agents.services.hitl_classifier import (
 # ============================================================================
 
 
-# Skip all tests if OPENAI_API_KEY is not set (integration tests that call real LLM)
-pytestmark = pytest.mark.skipif(
-    not os.getenv("OPENAI_API_KEY"),
-    reason="Requires OPENAI_API_KEY for integration tests with real LLM",
-)
+class _LlmReply:
+    """Stand-in for the message the classifier reads back from the LLM.
+
+    LangChain 1.x exposes the text through ``.text``; this suite was written
+    against ``.content`` and, once the accessor changed, every ``classify``
+    test here fed the parser a ``MagicMock`` instead of a JSON string. The
+    module-level credential skip meant nobody ever saw it. Mirroring both
+    accessors keeps the original test literals while exercising the one
+    production actually reads.
+    """
+
+    def __init__(self) -> None:
+        self._value: str = ""
+
+    @property
+    def content(self) -> str:
+        """Legacy accessor, kept so existing assignments read naturally."""
+        return self._value
+
+    @content.setter
+    def content(self, value: str) -> None:
+        self._value = value
+
+    @property
+    def text(self) -> str:
+        """The accessor ``HitlResponseClassifier.classify`` uses."""
+        return self._value
 
 
 @pytest.fixture
 def mock_llm():
-    """Mock get_llm factory to return mocked LLM."""
+    """Mock get_llm factory to return mocked LLM.
+
+    ``with_structured_output`` is left as a plain ``MagicMock``: awaiting it
+    raises, which is exactly what drives the classifier down its documented
+    "structured output failed, fall back to raw invoke + JSON parsing" path —
+    the path these tests assert on.
+    """
     with patch("src.domains.agents.services.hitl_classifier.get_llm") as mock:
         llm_instance = MagicMock()
         llm_instance.ainvoke = AsyncMock()
@@ -290,34 +318,41 @@ class TestActionTypeExtraction:
 
 
 class TestContextFormatting:
-    """Test _format_action_context method."""
+    """Test _format_action_context method.
+
+    The description is ENGLISH on purpose: it is prompt scaffolding around a
+    versioned English prompt, and the user's reply may be in any of the six
+    languages. These assertions were written when it was French and pinned the
+    old wording; the language migration is guarded by
+    ``tests/unit/domains/agents/services/test_hitl_classifier_i18n.py``.
+    """
 
     def test_format_search_context(self, classifier):
         """Test formatting search action context."""
         context = [{"name": "search_contacts", "args": {"query": "John"}}]
         formatted = classifier._format_action_context(context)
-        assert "recherche de 'John'" in formatted
-        assert "paramètre: query" in formatted
+        assert "search for 'John'" in formatted
+        assert "parameter: query" in formatted
 
     def test_format_delete_context(self, classifier):
         """Test formatting delete action context."""
         context = [{"name": "delete_contact", "args": {"id": "123"}}]
         formatted = classifier._format_action_context(context)
-        assert "suppression" in formatted
+        assert "deletion" in formatted
         assert "delete_contact" in formatted
 
     def test_format_send_context(self, classifier):
         """Test formatting send action context."""
         context = [{"name": "send_email", "args": {"to": "john@example.com"}}]
         formatted = classifier._format_action_context(context)
-        assert "envoi" in formatted
+        assert "send" in formatted
         assert "send_email" in formatted
 
     def test_format_create_context(self, classifier):
         """Test formatting create action context."""
         context = [{"name": "create_contact", "args": {"name": "Jane"}}]
         formatted = classifier._format_action_context(context)
-        assert "création" in formatted
+        assert "creation" in formatted
         assert "create_contact" in formatted
 
     def test_format_generic_context(self, classifier):
@@ -330,7 +365,7 @@ class TestContextFormatting:
     def test_format_empty_context(self, classifier):
         """Test formatting empty context."""
         formatted = classifier._format_action_context([])
-        assert formatted == "une action"
+        assert formatted == "an action"
 
     def test_format_multiple_actions(self, classifier):
         """Test formatting multiple actions."""
@@ -345,13 +380,13 @@ class TestContextFormatting:
         """Test formatting context with legacy tool_name/tool_args keys."""
         context = [{"tool_name": "search_contacts", "tool_args": {"query": "Marie"}}]
         formatted = classifier._format_action_context(context)
-        assert "recherche de 'Marie'" in formatted
+        assert "search for 'Marie'" in formatted
 
     def test_format_context_with_alternate_query_key(self, classifier):
         """Test formatting context with alternate query key 'q'."""
         context = [{"name": "search_contacts", "args": {"q": "Paul"}}]
         formatted = classifier._format_action_context(context)
-        assert "recherche de 'Paul'" in formatted
+        assert "search for 'Paul'" in formatted
 
     def test_format_context_none_tool_name(self, classifier):
         """Test formatting context when name is None."""
@@ -568,7 +603,7 @@ class TestClassifyApprove:
     async def test_classify_approve_simple_yes(self, classifier, mock_llm):
         """Test classification of simple 'oui' as APPROVE."""
         # Mock LLM response
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "APPROVE",
@@ -587,7 +622,7 @@ class TestClassifyApprove:
 
     async def test_classify_approve_ok_vas_y(self, classifier, mock_llm):
         """Test classification of 'ok vas-y' as APPROVE."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "APPROVE",
@@ -615,7 +650,7 @@ class TestClassifyReject:
 
     async def test_classify_reject_simple_no(self, classifier, mock_llm):
         """Test classification of simple 'non' as REJECT."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "REJECT",
@@ -633,7 +668,7 @@ class TestClassifyReject:
 
     async def test_classify_reject_non_annule(self, classifier, mock_llm):
         """Test classification of 'non annule' as REJECT."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "REJECT",
@@ -660,7 +695,7 @@ class TestClassifyEdit:
 
     async def test_classify_edit_with_new_query(self, classifier, mock_llm):
         """Test classification of 'non recherche paul' as EDIT with new query."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "EDIT",
@@ -680,7 +715,7 @@ class TestClassifyEdit:
 
     async def test_classify_edit_plutot_matheo(self, classifier, mock_llm):
         """Test classification of 'plutôt jean' as EDIT."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "EDIT",
@@ -725,7 +760,7 @@ class TestEditDemotion:
 
     async def test_edit_demoted_missing_params(self, classifier, mock_llm):
         """Test EDIT demoted to AMBIGUOUS when edited_params is missing."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "EDIT",
@@ -741,13 +776,16 @@ class TestEditDemotion:
 
         # Should be demoted to AMBIGUOUS
         assert result.decision == "AMBIGUOUS"
-        assert result.confidence == 0.5  # Reset to 0.5
-        assert result.clarification_question is not None
+        # Read from settings, never hardcoded: the threshold is configurable.
+        assert result.confidence == settings.hitl_demotion_confidence
+        # No invented question: this service does not know the user's language,
+        # and the question is streamed verbatim. The resume mapper localizes it.
+        assert result.clarification_question is None
         assert result.edited_params == {}
 
     async def test_edit_demoted_empty_params(self, classifier, mock_llm):
         """Test EDIT demoted to AMBIGUOUS when edited_params is empty dict."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "EDIT",
@@ -763,7 +801,7 @@ class TestEditDemotion:
 
         # Should be demoted to AMBIGUOUS (empty dict is falsy)
         assert result.decision == "AMBIGUOUS"
-        assert result.clarification_question is not None
+        assert result.clarification_question is None
 
     async def test_edit_not_demoted_low_confidence_with_valid_params(self, classifier, mock_llm):
         """Test EDIT NOT demoted when confidence < 0.75 but params are present.
@@ -771,7 +809,7 @@ class TestEditDemotion:
         Issue #60 Fix: Don't demote if edited_params contains valid values!
         If the LLM extracted actual parameters, trust the extraction even with lower confidence.
         """
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "EDIT",
@@ -792,7 +830,7 @@ class TestEditDemotion:
 
     async def test_edit_not_demoted_high_confidence_with_params(self, classifier, mock_llm):
         """Test EDIT not demoted when confidence >= 0.75 and params present."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "EDIT",
@@ -813,7 +851,7 @@ class TestEditDemotion:
 
     async def test_edit_demoted_with_existing_clarification(self, classifier, mock_llm):
         """Test EDIT demotion preserves existing clarification question."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "EDIT",
@@ -853,7 +891,7 @@ class TestClassifyAmbiguous:
 
     async def test_classify_ambiguous_unclear_response(self, classifier, mock_llm):
         """Test classification of unclear response as AMBIGUOUS."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "AMBIGUOUS",
@@ -882,7 +920,7 @@ class TestClassifyWithTracker:
 
     async def test_classify_with_tracker(self, classifier, mock_llm, mock_tracker):
         """Test classification with tracker passes it to LLM."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "APPROVE",
@@ -904,7 +942,7 @@ class TestClassifyWithTracker:
 
     async def test_classify_without_tracker(self, classifier, mock_llm):
         """Test classification without tracker (no config parameter)."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "APPROVE",
@@ -943,7 +981,7 @@ class TestErrorHandling:
 
     async def test_classify_json_parse_error(self, classifier, mock_llm):
         """Test classification handles JSON parsing errors."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = "not valid json"
         mock_llm.ainvoke.return_value = mock_response
 
@@ -953,7 +991,7 @@ class TestErrorHandling:
 
     async def test_classify_handles_list_content(self, classifier, mock_llm):
         """Test classification handles LLM returning list content."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = ["not", "a", "string"]  # List instead of string
         mock_llm.ainvoke.return_value = mock_response
 
@@ -980,7 +1018,7 @@ class TestMetricsTracking:
         self, mock_confidence, mock_duration, mock_method, classifier, mock_llm
     ):
         """Test metrics are recorded for APPROVE classification."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "APPROVE",
@@ -1009,7 +1047,7 @@ class TestMetricsTracking:
         self, mock_demoted, mock_fallback, classifier, mock_llm
     ):
         """Test demotion metric recorded when EDIT demoted for missing params."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "EDIT",
@@ -1038,7 +1076,7 @@ class TestMetricsTracking:
         Issue #60 Fix: Demotion only happens if confidence is low AND no params extracted.
         This test uses empty params to trigger the demotion path.
         """
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "EDIT",
@@ -1061,7 +1099,7 @@ class TestMetricsTracking:
     @patch("src.infrastructure.observability.metrics_agents.hitl_clarification_fallback_total")
     async def test_metrics_recorded_on_ambiguous(self, mock_fallback, classifier, mock_llm):
         """Test clarification fallback metric recorded for AMBIGUOUS."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "AMBIGUOUS",
@@ -1099,7 +1137,7 @@ class TestEdgeCases:
 
     async def test_classify_empty_response(self, classifier, mock_llm):
         """Test classification with empty user response."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "AMBIGUOUS",
@@ -1119,7 +1157,7 @@ class TestEdgeCases:
 
     async def test_classify_very_long_response(self, classifier, mock_llm):
         """Test classification with very long user response."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "EDIT",
@@ -1138,7 +1176,7 @@ class TestEdgeCases:
 
     async def test_classify_empty_action_context(self, classifier, mock_llm):
         """Test classification with empty action context."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "APPROVE",
@@ -1154,7 +1192,7 @@ class TestEdgeCases:
 
     async def test_classify_with_unicode_characters(self, classifier, mock_llm):
         """Test classification with Unicode characters in response."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "EDIT",
@@ -1173,7 +1211,7 @@ class TestEdgeCases:
 
     async def test_classify_confidence_exactly_at_threshold(self, classifier, mock_llm):
         """Test EDIT with confidence exactly at 0.75 threshold (should NOT demote)."""
-        mock_response = MagicMock()
+        mock_response = _LlmReply()
         mock_response.content = json.dumps(
             {
                 "decision": "EDIT",
@@ -1190,3 +1228,102 @@ class TestEdgeCases:
         # Should NOT be demoted (>= 0.75)
         assert result.decision == "EDIT"
         assert result.confidence == 0.75
+
+
+# ============================================================================
+# Test the PRIMARY path (structured output)
+#
+# Everything above drives the classifier down its documented fallback ("raw
+# invoke + JSON parsing"), because the mocked LLM cannot satisfy
+# `with_structured_output`. That is real behaviour, but it is the DEGRADED one:
+# in production the structured-output call succeeds and `_parse_result` never
+# runs. The post-processing (EDIT demotion, metrics, AMBIGUOUS handling) lives
+# AFTER the two paths converge, so it must hold on the primary one too.
+# ============================================================================
+
+
+@pytest.mark.asyncio
+class TestPrimaryStructuredOutputPath:
+    """Post-processing invariants when structured output succeeds."""
+
+    @pytest.fixture(autouse=True)
+    def mock_metrics(self):
+        """Mock Prometheus metrics to avoid multiprocess registry issues in tests."""
+        with (
+            patch(
+                "src.infrastructure.observability.metrics_agents.hitl_classification_demoted_total"
+            ) as mock_demoted,
+            patch(
+                "src.infrastructure.observability.metrics_agents.hitl_clarification_fallback_total"
+            ) as mock_fallback,
+        ):
+            mock_demoted.labels.return_value.inc = MagicMock()
+            mock_fallback.inc = MagicMock()
+            yield
+
+    @staticmethod
+    def _structured(result: ClassificationResult):
+        """Patch the structured-output helper to return ``result`` directly."""
+        return patch(
+            "src.domains.agents.services.hitl_classifier.get_structured_output",
+            AsyncMock(return_value=result),
+        )
+
+    async def test_approve_passes_through_untouched(self, classifier, mock_llm):
+        approved = ClassificationResult(decision="APPROVE", confidence=0.95, reasoning="clear yes")
+        with self._structured(approved):
+            result = await classifier.classify("oui", [{"name": "search_contacts"}])
+
+        assert result.decision == "APPROVE"
+        assert result.confidence == 0.95
+        # The raw fallback must NOT have been used.
+        assert not mock_llm.ainvoke.called
+
+    async def test_edit_without_params_is_demoted_here_too(self, classifier):
+        edit = ClassificationResult(decision="EDIT", confidence=0.95, reasoning="wants a change")
+        with self._structured(edit):
+            result = await classifier.classify("change it", [{"name": "search_contacts"}])
+
+        assert result.decision == "AMBIGUOUS"
+        assert result.confidence == settings.hitl_demotion_confidence
+        assert result.edited_params == {}
+        assert result.clarification_question is None
+
+    async def test_low_confidence_edit_without_params_is_demoted(self, classifier):
+        edit = ClassificationResult(
+            decision="EDIT",
+            confidence=settings.hitl_classifier_confidence_threshold - 0.1,
+            reasoning="unsure",
+        )
+        with self._structured(edit):
+            result = await classifier.classify("hmm", [{"name": "search_contacts"}])
+
+        assert result.decision == "AMBIGUOUS"
+
+    async def test_low_confidence_edit_with_params_is_trusted(self, classifier):
+        """Extracted parameters outweigh a low confidence (Issue #60)."""
+        edit = ClassificationResult(
+            decision="EDIT",
+            confidence=settings.hitl_classifier_confidence_threshold - 0.1,
+            reasoning="unsure but explicit",
+            edited_params={"query": "paul"},
+        )
+        with self._structured(edit):
+            result = await classifier.classify("plutot paul", [{"name": "search_contacts"}])
+
+        assert result.decision == "EDIT"
+        assert result.edited_params == {"query": "paul"}
+
+    async def test_llm_question_survives_the_demotion(self, classifier):
+        """A question the model produced is more specific than any fallback."""
+        edit = ClassificationResult(
+            decision="EDIT",
+            confidence=0.95,
+            reasoning="wants a change",
+            clarification_question="Welches Feld?",
+        )
+        with self._structured(edit):
+            result = await classifier.classify("ändern", [{"name": "search_contacts"}])
+
+        assert result.decision == "AMBIGUOUS"
+        assert result.clarification_question == "Welches Feld?"

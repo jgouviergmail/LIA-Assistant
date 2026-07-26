@@ -19,10 +19,10 @@ from src.domains.agents.constants import (
     ACTION_TYPE_DRAFT_CRITIQUE,
     ACTION_TYPE_FOR_EACH_CONFIRMATION,
     ACTION_TYPE_GENERIC,
-    ACTION_TYPE_PLAN_APPROVAL,
     ACTION_TYPE_SEARCH,
     ACTION_TYPE_SEND,
 )
+from src.domains.agents.services.hitl.action_taxonomy import assert_examples_coverage
 from src.domains.agents.services.hitl_classifier import (
     HitlResponseClassifier,
     _load_classifier_example_sections,
@@ -126,25 +126,17 @@ def test_format_for_each_context_is_english() -> None:
 
 
 def test_classifier_example_sections_cover_all_action_types() -> None:
-    """Every specialized action type has its OWN versioned section.
+    """Every action type the taxonomy can announce has its OWN versioned section.
 
     Guards against a renamed/misspelled section key silently falling back to the
     generic 'default' block (which would drop action-specific EDIT guidance).
+
+    The expected set is DERIVED from the taxonomy rather than hand-listed: the
+    hand-listed version could not see a newly emittable type, which is exactly
+    how 'transfert', 'réponse' and 'modification' reached the classifier with no
+    examples behind them.
     """
-    sections = _load_classifier_example_sections()
-    expected = {
-        ACTION_TYPE_SEARCH,
-        ACTION_TYPE_SEND,
-        ACTION_TYPE_DELETE,
-        ACTION_TYPE_PLAN_APPROVAL,
-        ACTION_TYPE_DRAFT_CRITIQUE,
-        ACTION_TYPE_FOR_EACH_CONFIRMATION,
-        "default",
-    }
-    missing = expected - set(sections)
-    assert not missing, f"classifier example sections missing: {sorted(missing)}"
-    for key in expected:
-        assert sections[key].strip(), f"section '{key}' is empty"
+    assert_examples_coverage(_load_classifier_example_sections())
 
 
 # ============================================================================

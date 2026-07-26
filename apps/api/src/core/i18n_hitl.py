@@ -1501,6 +1501,51 @@ _USER_REFUSED_ACTION: dict[str, str] = {
 }
 
 
+class HitlResumeMessage(str, Enum):
+    """Static messages emitted while classifying a reply to a HITL interrupt.
+
+    These fire when the LLM classifier produces no usable question of its own
+    (demoted EDIT, ambiguous answer). They are STREAMED VERBATIM to the user —
+    ``draft_critique`` re-presents the draft with this text — so they must be in
+    the user's language, not the developer's.
+    """
+
+    #: Draft critique: the user asked for a change but named no value.
+    CLARIFY_WHAT_TO_CHANGE = "clarify_what_to_change"
+    #: Bulk (FOR_EACH) confirmation: unusable answer, the batch is not run.
+    AMBIGUOUS_CANCELLED = "ambiguous_cancelled"
+    #: Plan-level approval: unusable answer, the user is asked to restate.
+    AMBIGUOUS_SPECIFY = "ambiguous_specify"
+
+
+_RESUME_MESSAGES: dict[HitlResumeMessage, dict[str, str]] = {
+    HitlResumeMessage.CLARIFY_WHAT_TO_CHANGE: {
+        "fr": "Tu veux modifier quelque chose ? Peux-tu préciser exactement quoi ?",
+        "en": "Do you want to change something? Can you tell me exactly what?",
+        "es": "¿Quieres cambiar algo? ¿Puedes decirme exactamente qué?",
+        "de": "Möchtest du etwas ändern? Kannst du mir genau sagen, was?",
+        "it": "Vuoi modificare qualcosa? Puoi dirmi esattamente cosa?",
+        "zh-CN": "你想修改什么吗？可以具体说明是哪里吗？",
+    },
+    HitlResumeMessage.AMBIGUOUS_CANCELLED: {
+        "fr": "Réponse ambiguë — opération annulée.",
+        "en": "Ambiguous answer — operation cancelled.",
+        "es": "Respuesta ambigua — operación cancelada.",
+        "de": "Mehrdeutige Antwort — Vorgang abgebrochen.",
+        "it": "Risposta ambigua — operazione annullata.",
+        "zh-CN": "回答不明确 — 操作已取消。",
+    },
+    HitlResumeMessage.AMBIGUOUS_SPECIFY: {
+        "fr": "Réponse ambiguë, précise ta demande.",
+        "en": "Ambiguous answer, please specify your request.",
+        "es": "Respuesta ambigua, especifica tu solicitud.",
+        "de": "Mehrdeutige Antwort, bitte präzisiere deine Anfrage.",
+        "it": "Risposta ambigua, precisa la tua richiesta.",
+        "zh-CN": "回答不明确，请说明你的请求。",
+    },
+}
+
+
 class HitlMessages:
     """
     Centralized HITL message provider.
@@ -1613,6 +1658,27 @@ class HitlMessages:
         lang = HitlMessages._normalize_language(language)
         template = _REJECT_ENRICHED_MESSAGE.get(lang, _REJECT_ENRICHED_MESSAGE["en"])
         return template.format(user_response=user_response)
+
+    @staticmethod
+    def get_resume_message(message: HitlResumeMessage, language: str) -> str:
+        """Localized static message for a HITL resume classification outcome.
+
+        Args:
+            message: Which message; see :class:`HitlResumeMessage`.
+            language: User language code (any spelling; normalized internally).
+
+        Returns:
+            The message in the user's language, English if that language is
+            somehow absent.
+
+        Raises:
+            KeyError: If ``message`` has no entry — loud on purpose; a silent
+                empty string would ship an invisible blank question. Both the
+                enum coverage and the six-language coverage are asserted in CI.
+        """
+        lang = HitlMessages._normalize_language(language)
+        templates = _RESUME_MESSAGES[message]
+        return templates.get(lang, templates["en"])
 
     @staticmethod
     def get_user_refused_action(language: str) -> str:

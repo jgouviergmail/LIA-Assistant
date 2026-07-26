@@ -92,6 +92,12 @@ Push notifications alert you even when the app is closed:
 **⚙️ Technology used:**
 LIA uses **Firebase Cloud Messaging (FCM)** to send notifications reliably and instantly.
 
+**🌍 Language:**
+The notification title and the message body are delivered in your interface language, for all six supported languages.
+
+**⏳ If your usage budget is exhausted:**
+A reminder that comes due while your usage limit is reached is not lost — it goes back into the queue and is delivered on a later pass, once you are no longer capped.
+
 **💡 Tip:**
 For the best experience, enable notifications in settings and add LIA to your home screen on mobile.
 

@@ -615,18 +615,34 @@ class SemanticToolSelector:
 
             # Get manifest from cache or available_tools
             manifest = self._get_manifest(name, available_tools)
-            if manifest:
-                match = ToolMatch(
+            if not manifest:
+                # Dropping it is correct — a tool cannot be injected without its
+                # contract — but it must not be invisible: the score stays in
+                # `all_scores`, so `top_score` can point at a tool that was
+                # never offered to the LLM, and the assistant then answers that
+                # it cannot do something it scored highest on. Reachable when a
+                # per-request embedding (user MCP) names a tool that neither the
+                # offered list nor the startup cache knows.
+                logger.warning(
+                    "semantic_tool_selection_manifest_missing",
                     tool_name=name,
-                    tool_manifest=manifest,
-                    score=calibrated_score,  # Use calibrated score
-                    primary_min=self._calibrated_primary_min,
+                    calibrated_score=round(calibrated_score, 3),
+                    is_top_scorer=name == sorted_tools[0][0],
+                    had_available_tools=available_tools is not None,
                 )
-                selected.append(match)
+                continue
 
-                # Track uncertainty if calibrated score is low
-                if calibrated_score < 0.40:  # Less than 40% probability = uncertainty
-                    has_uncertainty = True
+            match = ToolMatch(
+                tool_name=name,
+                tool_manifest=manifest,
+                score=calibrated_score,  # Use calibrated score
+                primary_min=self._calibrated_primary_min,
+            )
+            selected.append(match)
+
+            # Track uncertainty if calibrated score is low
+            if calibrated_score < 0.40:  # Less than 40% probability = uncertainty
+                has_uncertainty = True
 
         result = ToolSelectionResult(
             selected_tools=selected,

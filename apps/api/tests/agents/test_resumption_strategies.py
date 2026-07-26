@@ -13,7 +13,6 @@ Coverage target: 85%+ for resumption_strategies.py
 """
 
 import json
-import os
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -21,21 +20,21 @@ import pytest
 from langchain_core.messages import AIMessageChunk, HumanMessage, RemoveMessage, ToolMessage
 from langgraph.types import Command
 
+from src.core.i18n import DEFAULT_LANGUAGE
+from src.core.i18n_hitl import HitlMessages
 from src.domains.agents.domain_schemas import ToolApprovalDecision
+from src.domains.agents.prompts import get_hitl_resumption_error_message
 from src.domains.agents.services.hitl.resumption_strategies import (
     ConversationalHitlResumption,
 )
+from src.domains.chat.schemas import TokenSummaryDTO
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
 
-# Skip all tests if OPENAI_API_KEY is not set (integration tests that call real LLM)
-pytestmark = pytest.mark.skipif(
-    not os.getenv("OPENAI_API_KEY"),
-    reason="Requires OPENAI_API_KEY for integration tests with real LLM",
-)
+pytestmark = pytest.mark.unit
 
 
 @pytest.fixture
@@ -66,23 +65,41 @@ def resumption_strategy(conversation_service_mock):
 
 @pytest.fixture
 def mock_graph():
-    """Mock CompiledStateGraph with astream."""
+    """Mock CompiledStateGraph with astream and a REALISTIC state snapshot.
+
+    `aget_state` must resolve to something whose `.values` is a real mapping.
+    A bare `AsyncMock()` is not: its return value is another AsyncMock, so
+    `snapshot.values.get("user_language")` yields a *coroutine*, which blew up
+    downstream as `'coroutine' object has no attribute 'lower'` and silently
+    pushed every reject/edit test into its error fallback. The tests then
+    asserted on the fallback while claiming to cover the nominal path.
+    """
     graph = MagicMock()
-    graph.aget_state = AsyncMock()
+    graph.aget_state = AsyncMock(
+        return_value=MagicMock(values={"user_language": "fr", "messages": []})
+    )
     return graph
 
 
 @pytest.fixture
 def mock_tracker():
-    """Mock TrackingContext for token tracking."""
+    """Mock TrackingContext returning a REAL TokenSummaryDTO.
+
+    The strategy reads `tracker.get_summary_dto()`; this fixture only stubbed
+    the dict-returning `get_summary()` it replaced, so the code under test got a
+    bare MagicMock and the metadata assertions compared MagicMocks to integers.
+    Returning the production dataclass keeps `to_metadata()` — which the done
+    chunk actually carries — honest.
+    """
     tracker = MagicMock()
-    tracker.get_summary = MagicMock(
-        return_value={
-            "tokens_in": 100,
-            "tokens_out": 200,
-            "tokens_cache": 50,
-            "cost_eur": 0.005,
-        }
+    tracker.get_summary_dto = MagicMock(
+        return_value=TokenSummaryDTO(
+            tokens_in=100,
+            tokens_out=200,
+            tokens_cache=50,
+            cost_eur=0.005,
+            message_count=1,
+        )
     )
     return tracker
 
@@ -305,7 +322,7 @@ class TestResumeAndStreamReject:
     @pytest.mark.asyncio
     @patch("src.infrastructure.database.get_db_context")
     @patch("src.infrastructure.cache.redis.get_redis_cache")
-    async def test_reject_injects_tool_message(
+    async def test_reject_injects_the_enriched_human_message(
         self,
         mock_redis_cache,
         mock_get_db_context,
@@ -316,7 +333,13 @@ class TestResumeAndStreamReject:
         mock_tracker,
         mock_db,
     ):
-        """Test reject injects ToolMessage with tool_call_id."""
+        """A resolvable tool_call_id yields ONE enriched, localized HumanMessage.
+
+        The contract changed with the HITL i18n work: rejection is no longer
+        expressed as a `ToolMessage` alongside the raw answer, but as a single
+        HumanMessage that states the refusal in the user's language so the model
+        does not retry the action. This test was pinning the removed shape.
+        """
         # Setup mock DB
         mock_get_db_context.return_value.__aenter__ = AsyncMock(return_value=mock_db)
         mock_get_db_context.return_value.__aexit__ = AsyncMock()
@@ -349,17 +372,67 @@ class TestResumeAndStreamReject:
         ):
             chunks.append(chunk)
 
-        # Verify Command has ToolMessage with tool_call_id
         assert captured_command is not None
         messages = captured_command.update["messages"]
 
-        # Should have HumanMessage + ToolMessage
-        assert len(messages) == 2
+        assert len(messages) == 1
         assert isinstance(messages[0], HumanMessage)
-        assert messages[0].content == "non"
-        assert isinstance(messages[1], ToolMessage)
-        assert messages[1].tool_call_id == "tool_call_abc123"
-        assert "refusé" in messages[1].content
+        # Localized from the state's user_language ("fr" in the fixture), and it
+        # quotes the user's own words — not the bare "non".
+        assert messages[0].content == HitlMessages.get_reject_enriched_message("non", "fr")
+        assert messages[0].content != "non"
+        assert "non" in messages[0].content
+        assert not any(isinstance(m, ToolMessage) for m in messages)
+
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.database.get_db_context")
+    @patch("src.infrastructure.cache.redis.get_redis_cache")
+    async def test_reject_enriched_message_is_localized(
+        self,
+        mock_redis_cache,
+        mock_get_db_context,
+        resumption_strategy,
+        mock_graph,
+        approval_decision_reject,
+        base_test_ids,
+        mock_tracker,
+        mock_db,
+    ):
+        """The injected refusal follows the language held in the graph state."""
+        mock_get_db_context.return_value.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_get_db_context.return_value.__aexit__ = AsyncMock()
+
+        redis_mock = AsyncMock()
+        redis_mock.get = AsyncMock(return_value=json.dumps({"0": "tool_call_abc123"}))
+        mock_redis_cache.return_value = redis_mock
+
+        mock_graph.aget_state = AsyncMock(
+            return_value=MagicMock(values={"user_language": "de", "messages": []})
+        )
+
+        captured_command = None
+
+        async def mock_stream(*args, **kwargs):
+            nonlocal captured_command
+            captured_command = args[0] if args else None
+            yield ("values", {"messages": []})
+
+        mock_graph.astream = mock_stream
+
+        async for _ in resumption_strategy.resume_and_stream(
+            graph=mock_graph,
+            approval_decision=approval_decision_reject,
+            conversation_id=base_test_ids["conversation_id"],
+            user_id=base_test_ids["user_id"],
+            run_id=base_test_ids["run_id"],
+            tracker=mock_tracker,
+            user_response="nein",
+        ):
+            pass
+
+        content = captured_command.update["messages"][0].content
+        assert content == HitlMessages.get_reject_enriched_message("nein", "de")
+        assert content != HitlMessages.get_reject_enriched_message("nein", "fr")
 
     @pytest.mark.asyncio
     @patch("src.infrastructure.database.get_db_context")
@@ -698,7 +771,13 @@ class TestNestedHitlInterrupts:
         mock_tracker,
         mock_db,
     ):
-        """Test nested interrupt is detected during resume."""
+        """Test nested interrupt is detected during resume.
+
+        The confirmation question is generated by an LLM. It MUST be mocked:
+        unmocked, this test reached a real provider (observed: a 401 from the
+        configured endpoint), which made it non-hermetic, slow, and dependent on
+        a key CI does not have — the very reason the whole file was gated off.
+        """
         # Setup mocks
         mock_get_db_context.return_value.__aenter__ = AsyncMock(return_value=mock_db)
         mock_get_db_context.return_value.__aexit__ = AsyncMock()
@@ -713,6 +792,7 @@ class TestNestedHitlInterrupts:
                 "values",
                 {
                     "messages": [],
+                    "user_language": "de",
                     "__interrupt__": [
                         MagicMock(
                             value={
@@ -728,22 +808,42 @@ class TestNestedHitlInterrupts:
 
         mock_graph.astream = mock_stream
 
-        # Execute
-        chunks = []
-        async for chunk in resumption_strategy.resume_and_stream(
-            graph=mock_graph,
-            approval_decision=approval_decision_approve,
-            conversation_id=base_test_ids["conversation_id"],
-            user_id=base_test_ids["user_id"],
-            run_id=base_test_ids["run_id"],
-            tracker=mock_tracker,
-        ):
-            chunks.append(chunk)
+        generator = MagicMock()
+        generator.generate_confirmation_question = AsyncMock(return_value="Soll ich fortfahren?")
 
-        # Verify hitl_interrupt chunk was yielded
+        with patch(
+            "src.domains.agents.services.hitl.question_generator.HitlQuestionGenerator",
+            return_value=generator,
+        ):
+            chunks = []
+            async for chunk in resumption_strategy.resume_and_stream(
+                graph=mock_graph,
+                approval_decision=approval_decision_approve,
+                conversation_id=base_test_ids["conversation_id"],
+                user_id=base_test_ids["user_id"],
+                run_id=base_test_ids["run_id"],
+                tracker=mock_tracker,
+            ):
+                chunks.append(chunk)
+
+        # Verify hitl_interrupt chunk was yielded, carrying the generated question
         interrupt_chunks = [c for c in chunks if c.type == "hitl_interrupt"]
         assert len(interrupt_chunks) == 1
         assert interrupt_chunks[0].metadata["nested"] is True
+        assert interrupt_chunks[0].content == "Soll ich fortfahren?"
+        assert interrupt_chunks[0].metadata["action_requests"] == [
+            {"name": "nested_tool", "args": {"param": "value"}}
+        ]
+
+        # The question is asked in the language held by the graph state, and the
+        # tool identity reaches the generator (a wrong name = a wrong question).
+        kwargs = generator.generate_confirmation_question.await_args.kwargs
+        assert kwargs["user_language"] == "de"
+        assert kwargs["tool_name"] == "nested_tool"
+        assert kwargs["tool_args"] == {"param": "value"}
+
+        # The pending interrupt is persisted so the next turn can resume it.
+        redis_mock.set.assert_awaited()
 
     @pytest.mark.asyncio
     @patch("src.infrastructure.database.get_db_context")
@@ -811,9 +911,11 @@ class TestErrorHandling:
     ):
         """Test graph execution error yields error chunk."""
 
-        # Setup mock graph to raise error
+        failure = RuntimeError("Graph execution failed")
+
         async def mock_stream(*args, **kwargs):
-            raise Exception("Graph execution failed")
+            raise failure
+            yield  # pragma: no cover - makes this an async generator
 
         mock_graph.astream = mock_stream
 
@@ -829,13 +931,59 @@ class TestErrorHandling:
         ):
             chunks.append(chunk)
 
-        # Verify error chunk was yielded
+        # A single error chunk, then a done chunk carrying ZEROED token metadata
+        # so a failed turn is never billed.
         error_chunks = [c for c in chunks if c.type == "error"]
         assert len(error_chunks) == 1
-        assert (
-            "erreur" in error_chunks[0].content.lower()
-            or "error" in error_chunks[0].content.lower()
+        assert error_chunks[0].content == get_hitl_resumption_error_message(
+            failure, DEFAULT_LANGUAGE
         )
+
+        done_chunks = [c for c in chunks if c.type == "done"]
+        assert len(done_chunks) == 1
+        assert done_chunks[0].metadata["error"] is True
+        assert done_chunks[0].metadata["tokens_in"] == 0
+        assert done_chunks[0].metadata["cost_eur"] == 0
+
+    @pytest.mark.asyncio
+    async def test_error_chunk_is_localized_from_the_graph_state(
+        self,
+        resumption_strategy,
+        mock_graph,
+        approval_decision_approve,
+        base_test_ids,
+        mock_tracker,
+    ):
+        """The failure notice is rendered verbatim in the chat: it must be localized.
+
+        The language is captured from the first "values" chunk of the graph
+        state. It used to be ignored at this call site, so every user whose
+        resume failed read French — at the one moment they need to understand
+        the message.
+        """
+        failure = RuntimeError("Graph execution failed")
+
+        async def mock_stream(*args, **kwargs):
+            yield ("values", {"messages": [], "user_language": "de"})
+            raise failure
+
+        mock_graph.astream = mock_stream
+
+        chunks = []
+        async for chunk in resumption_strategy.resume_and_stream(
+            graph=mock_graph,
+            approval_decision=approval_decision_approve,
+            conversation_id=base_test_ids["conversation_id"],
+            user_id=base_test_ids["user_id"],
+            run_id=base_test_ids["run_id"],
+            tracker=mock_tracker,
+        ):
+            chunks.append(chunk)
+
+        error_chunks = [c for c in chunks if c.type == "error"]
+        assert len(error_chunks) == 1
+        assert error_chunks[0].content == get_hitl_resumption_error_message(failure, "de")
+        assert error_chunks[0].content != get_hitl_resumption_error_message(failure, "fr")
 
 
 # ============================================================================
@@ -881,8 +1029,9 @@ class TestTrackerManagement:
         ):
             chunks.append(chunk)
 
-        # Verify tracker.get_summary was called
-        mock_tracker.get_summary.assert_called_once()
+        # The strategy reads the typed DTO, not the legacy dict summary.
+        mock_tracker.get_summary_dto.assert_called_once()
+        assert not mock_tracker.get_summary.called
 
     # Note: Testing tracker=None path is complex due to dynamic import
     # The main path (with tracker provided) is tested above

@@ -212,7 +212,17 @@
           "forecast_alert_rain": "{{time}}有雨",
           "forecast_alert_thunderstorm": "{{time}}有雷暴",
           "forecast_alert_snow": "{{time}}有雪",
-          "forecast_alert_drizzle": "{{time}}有毛毛雨"
+          "forecast_alert_drizzle": "{{time}}有毛毛雨",
+          "wind_cardinal": {
+            "N": "北",
+            "NE": "东北",
+            "E": "东",
+            "SE": "东南",
+            "S": "南",
+            "SW": "西南",
+            "W": "西",
+            "NW": "西北"
+          }
         },
         "agenda": {
           "title": "日程",
@@ -3239,11 +3249,11 @@
         },
         "voice": {
           "title": "🎙️ 完整语音模式",
-          "description": "双向系统。<b>TTS</b> 由目录驱动（由管理员配置）：内置三家提供商——Edge（Microsoft 神经语音、免费、默认）、OpenAI（<code>tts-1</code> / <code>tts-1-hd</code>）和 ElevenLabs（<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>）。按句级流式合成在约 1 秒内启动第一段音频。<b>STT</b> 默认使用免费的服务器端 Sherpa-onnx Whisper（99+ 语言，音频不会离开服务器）；每位用户可选择启用远程 ElevenLabs Scribe（0.22 美元/小时）以在对话语音上获得更高精度。每条消息的成本徽章（🎤 用户 / 🔊 助手）用于付费语音调用；管理员级总开关和 5 分钟时长上限可防止成本激增。通过\"OK Guy\"唤醒词或麦克风按钮激活；自动语音结束检测（VAD）。朗读的文本会系统性地去除标记（排版 HTML、装饰性图标），使语音只读出句子本身。"
+          "description": "双向系统。<b>TTS</b> 由目录驱动（由管理员配置）：内置三家提供商——Edge（Microsoft 神经语音、免费、默认）、OpenAI（<code>tts-1</code> / <code>tts-1-hd</code>）和 ElevenLabs（<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>）。按句级流式合成在约 1 秒内启动第一段音频。<b>STT</b> 默认使用免费的服务器端 Sherpa-onnx Whisper（99+ 语言，音频不会离开服务器）；每位用户可选择启用远程 ElevenLabs Scribe（0.22 美元/小时）以在对话语音上获得更高精度。每条消息的成本徽章（🎤 用户 / 🔊 助手）用于付费语音调用；管理员级总开关和 5 分钟时长上限可防止成本激增。通过\"OK Guy\"唤醒词或麦克风按钮激活；自动语音结束检测（VAD）。朗读的文本会系统性地去除标记（排版 HTML、装饰性图标），使语音只读出句子本身。 只有后面跟着空格的句点才会结束一句朗读，因此小数、价格、版本号或网址都会保持完整——直接路径和逐句流式路径都一样。"
         },
         "reminders": {
           "title": "🔔 提醒与推送通知",
-          "description": "个人提醒系统，具有多设备 FCM（Firebase Cloud Messaging）推送通知。自然语言创建，自动时区转换，智能引用解析（'下一个'、数字、内容匹配）。使用活跃个性和用户记忆进行个性化消息。"
+          "description": "个人提醒系统，支持多设备 FCM 推送通知（Firebase Cloud Messaging）。自然语言创建、时区自动转换、引用智能解析（「下一个」、编号、内容）。消息会结合当前人格和用户记忆进行个性化，标题与正文以用户自己的语言送达，六种语言均支持。挑选到期提醒时会取得一个租约（该行切换为 <code>PROCESSING</code>，下一轮只读取 <code>PENDING</code>）：任何提前退出——使用额度已达上限、没有已注册设备——都会释放它，因此未送达的提醒会在下一轮回来，而不是消失。"
         },
         "personalities": {
           "title": "🎭 14动态人格",
@@ -3319,7 +3329,7 @@
         },
         "qualityAssurance": {
           "title": "🎯 LLM-as-Judge 质量保证",
-          "description": "自动化回答质量评估管道。三个专业LLM评估器：相关性（查询/回答适配度）、幻觉（虚构内容检测）、延迟（性能SLA合规）。指标导出至Prometheus和Langfuse用于生产监控。实时识别和纠正质量退化。"
+          "description": "自动化回答质量评估管道。三个专业LLM评估器：相关性（查询/回答适配度）、幻觉（虚构内容检测）、延迟（性能SLA合规）。指标导出至Prometheus和Langfuse用于生产监控。实时识别和纠正质量退化。 在测试套件一侧，一道 AST 守卫拒绝让模块因缺少提供商密钥而自行停用：被跳过的测试是绿色的，因而不可见——十个文件就这样藏起了 219 个从未运行过的测试。豁免清单只减不增，且目前为空。"
         },
         "attachments": {
           "title": "📎 照片与文件附件",
@@ -3335,7 +3345,7 @@
         },
         "subAgents": {
           "title": "子代理",
-          "description": "将复杂任务委派给并行工作的专业临时专家。助手透明地编排和综合它们的发现。"
+          "description": "把复杂任务委派给并行工作的专业化临时专家。助手会透明地编排并综合它们的结果。每个子代理在一份显式允许的工具清单上运行有界的 ReAct 循环（最多 10 轮迭代）——默认是网页搜索和页面读取——而不是整个工具目录：一次四处探索的委派不会收敛。传递的指令有令牌上限，并拥有独立的超时和独立的上限，这样更长的推理预算永远不需要抬高整个应用的限制。"
         },
         "browserControl": {
           "title": "🌐 浏览器控制",
@@ -3380,6 +3390,20 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_25_23": {
+          "title": "v1.25.23 — 🔍 从未运行过的测试",
+          "date": "2026年7月",
+          "count": "7",
+          "items": {
+            "i1": "<b>🔊 语音不再把数字读成两半</b> — LIA 朗读「现在 3.5 度」时，会先说「现在三。」然后在另一段音频里说「五度」。小数点被当成了句号。价格、版本号和网址也一样。现在只有后面跟着空格的句点才会结束一句话。",
+            "i2": "<b>⏰ 配额用尽时提醒不再丢失</b> — 如果提醒到点的那一分钟你恰好用完了使用额度，它不会被推迟，而是彻底消失，没有报错也没有通知。现在它会重新排队，在下一轮送达。",
+            "i3": "<b>🌍 通知和追问都使用你的语言</b> — 中文账号收到的提醒标题是英文的；LIA 请你补充说明修改内容时，无论你使用哪种语言，那句话都是法语。现在六种语言在所有位置都得到支持，包括天气卡片上的风向。",
+            "i4": "<b>✏️ 你更正的值会留在对话里</b> — 当你对确认请求回答「改成 Jean」时，你的更正会把原始消息替换为「用修改后的参数执行该工具」：你刚给出的名字从历史记录中消失了。现在所有工具都会保留它。",
+            "i5": "<b>⚠️ 错误提示终于说明发生了什么</b> — 服务器返回的具体信息（「该模型已存在」「地址无效」）会被一句通用文案取代，校验错误则显示为「[object Object]」。真实信息现在会完整传达。没有响应内容的服务器故障也不再被当作静默成功。",
+            "i6": "<b>🗑️ 确认会说明它针对的对象</b> — 删除标签前的确认没有指出是哪个标签，而删除邮件被当作发送邮件呈现给 LIA，使其针对删除的谨慎规则失效。现在每个操作都按其真实性质告知。",
+            "i7": "<b>🔧 管理侧</b> — 每次模型调用的费用计算都会重新从数据库读取汇率，现在真正做了缓存。个性面板在会话过期后不再卡住，用量跟踪会显示拒绝的确切原因而非通用消息。"
+          }
+        },
         "v1_25_22": {
           "title": "v1.25.22 — 🔒 退出登录后不再留下痕迹",
           "date": "2026 年 7 月",
@@ -5245,7 +5269,7 @@
           },
           "q4": {
             "question": "推送通知如何工作？",
-            "answer": "即使应用关闭，推送通知也会提醒您：<br><br><strong>🔔 工作原理：</strong><br>• 在预定时间，您的设备会收到通知<br>• 通知包含您的提醒内容<br>• 消息根据您活跃的LIA个性进行个性化<br>• 即使应用关闭或在后台也能工作<br><br><strong>📱 支持的设备：</strong><br>• 网络浏览器（Chrome、Firefox、Edge、Safari）<br>• Android（浏览器和PWA）<br>• iOS（仅限已安装的PWA）<br><br><strong>⚙️ 使用的技术：</strong><br>LIA使用<strong>Firebase Cloud Messaging（FCM）</strong>可靠且即时地发送通知。<br><br><strong>💡 提示：</strong><br>为获得最佳体验，请在设置中启用通知，并在手机上将LIA添加到主屏幕。"
+            "answer": "即使应用关闭，推送通知也会提醒您：<br><br><strong>🔔 工作原理：</strong><br>• 在预定时间，您的设备会收到通知<br>• 通知包含您的提醒内容<br>• 消息根据您活跃的LIA个性进行个性化<br>• 即使应用关闭或在后台也能工作<br><br><strong>📱 支持的设备：</strong><br>• 网络浏览器（Chrome、Firefox、Edge、Safari）<br>• Android（浏览器和PWA）<br>• iOS（仅限已安装的PWA）<br><br><strong>⚙️ 使用的技术：</strong><br>LIA使用<strong>Firebase Cloud Messaging（FCM）</strong>可靠且即时地发送通知。<br><br><strong>💡 提示：</strong><br>为获得最佳体验，请在设置中启用通知，并在手机上将LIA添加到主屏幕。<br><br><strong>🌍 使用你的语言：</strong><br>通知的标题和内容会以你的界面语言送达，六种受支持的语言均可。<br><br><strong>⏳ 如果你的使用额度已用尽：</strong><br>在使用额度已达上限时到期的提醒不会丢失 —— 它会重新回到队列，待额度恢复后在随后的一轮中送达。"
           },
           "q5": {
             "question": "如何在我的设备上启用通知？",
@@ -5689,7 +5713,7 @@
       "voice_mode": {
         "title": "语音模式",
         "description": "与 LIA 语音交流，并让它出声回答。按住说话、唤醒词、转写语言，以及哪些数据会离开你的设备。",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "如何激活语音模式？",
@@ -5714,6 +5738,10 @@
           "q6": {
             "question": "LIA 用什么声音说话？TTS 的费用是多少？",
             "answer": "LIA 的语音合成由管理员从一个统一的目录配置，目录提供三家提供商：<b>Edge TTS</b>（Microsoft 神经语音、免费、默认）、<b>OpenAI TTS</b>（<code>tts-1</code> / <code>tts-1-hd</code>，高品质语音：alloy、echo、nova 等）以及 <b>ElevenLabs</b>（<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>，包含已配置账户中的自定义和库声音）。对于付费提供商，助手消息上的 🔊 徽章会显示字符数和欧元成本；Edge 保持免费，无徽章。延迟方面：一个按句级流式合成器约 1 秒后即开始播放第一句，而助手仍在撰写其余部分的回答。"
+          },
+          "q7": {
+            "question": "LIA 能正确朗读数字、价格和网址吗？",
+            "answer": "可以。只有后面跟着空格的句点才会结束一句朗读，因此小数、价格、版本号或网址都会保留在同一句话里。「现在 3.5 度」会一口气读完，而不是先读「现在三」再在另一段音频里读「五度」。<br><br>无论回答是一次性朗读还是逐句流式播放，规则都相同：你听到的内容不取决于回答生成的快慢。"
           }
         }
       },
@@ -6640,7 +6668,7 @@
       },
       "voice_mode": {
         "title": "语音模式，本地识别",
-        "description": "与LIA对话并聆听回复。唤醒词和语音识别完全在浏览器本地运行——在你开口之前不会发送任何数据。自然的多引擎语音合成。也可通过Telegram语音消息使用。"
+        "description": "与LIA对话并聆听回复。唤醒词和语音识别完全在浏览器本地运行——在你开口之前不会发送任何数据。自然的多引擎语音合成。也可通过Telegram语音消息使用。数字、价格和网址会一口气读完。"
       },
       "natural_language": {
         "title": "自然语言",
@@ -6664,7 +6692,7 @@
       },
       "reminders_scheduling": {
         "title": "提醒与自动化",
-        "description": "用自然语言设置提醒（\"提醒我明天9点给玛丽打电话\"）。规划定期自动操作（周一邮件摘要、早晨天气...）。"
+        "description": "用自然语言设置提醒（\"提醒我明天9点给玛丽打电话\"）。规划定期自动操作（周一邮件摘要、早晨天气...）。在额度已达上限时到期的提醒会重新排队，绝不会丢失。"
       },
       "memory": {
         "title": "上下文记忆",
@@ -6861,7 +6889,7 @@
       },
       "hitl": {
         "title": "Human-in-the-Loop",
-        "description": "六个审批级别 — 计划审批、澄清、草稿评审、破坏性确认、FOR_EACH 确认、修改审查。在执行前进行计划级防护，而不是在失败后回滚。自动风险分类和受影响项目的预览。"
+        "description": "六个审批级别 — 计划审批、澄清、草稿评审、破坏性确认、FOR_EACH 确认、修改审查。在执行前进行计划级防护，而不是在失败后回滚。自动风险分类和受影响项目的预览。 告知分类器的操作类型由工具名称的动词推导得出，而非子串匹配：删除不会再被呈现为发送——正是这一点此前让提示词自身的删除审慎规则无法生效。"
       }
     },
     "architecture": {
@@ -7432,7 +7460,7 @@
       "voice-mode": {
         "title": "语音模式：像与个人助手一样与LIA对话",
         "excerpt": "LIA 的语音领域结合了免费的本地 STT（Sherpa-onnx Whisper，可选远程 ElevenLabs Scribe 以获得更高精度）和目录驱动的 TTS（Edge / OpenAI / ElevenLabs）。按句级流式合成在约 1 秒内带来第一段音频。按消息的成本归属使付费语音调用完全可审计。",
-        "body": "<h2>三种激活模式</h2><p>LIA 支持三种语音交互方式：</p><ul><li><strong>唤醒词</strong> — 说\"OK Guy\"启动免提聆听。检测完全在浏览器中通过 Sherpa-onnx WASM 进行（仅英语模型）。唤醒词检测不会有任何音频离开浏览器。</li><li><strong>按住说话</strong> — 按住麦克风按钮说话。已针对移动端优化。</li><li><strong>自动语音结束检测 (VAD)</strong> — 静音 ~0.75 秒后自动停止聆听。</li></ul><h2>语音识别：本地默认，远程可选</h2><p>每位用户在 <strong>设置 → 语音模式</strong> 选择 STT 模式：</p><ul><li><strong>本地</strong>（默认，免费）— 在 LIA 服务器上以 <strong>16 kHz 单声道</strong> 运行的 Sherpa-onnx Whisper，采用 INT8 量化。支持 <strong>99+ 种语言</strong>。音频从不离开 LIA 服务器。</li><li><strong>远程</strong>（可选启用）— ElevenLabs Scribe，0.22 美元/小时，按音频时长计费。在对话语音上精度更高，尤其在嘈杂环境下。每条用户气泡上的低调 🎤 徽章显示时长和欧元成本；成本汇入仪表板的常规 <strong>成本</strong> 磁贴和您的使用上限——无独立配额。</li></ul><p>启用远程时，两个管理员侧的安全杠杆可防范成本激增：全局总开关（<code>ELEVENLABS_STT_ENABLED</code>）和按片段的时长上限（<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>，默认 300 秒），在任何提供商调用前都会校验。</p><h2>目录驱动的语音合成</h2><p>语音合成现在通过单一管理表单（LLM 配置 → Voice TTS）配置，第一天即提供三家提供商：</p><ul><li><strong>Edge TTS</strong> — Microsoft 神经语音、免费、默认。SSML rate / pitch / volume 微调。</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> 或 <code>tts-1-hd</code>，高品质语音（alloy、echo、fable、onyx、nova、shimmer）。speed + response_format 微调。</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>、<code>eleven_turbo_v2_5</code>、<code>eleven_flash_v2_5</code>。stability、similarity_boost、style、use_speaker_boost 微调。从已配置账户实时选择声音（自定义 + 库声音）。</li></ul><p>对于付费提供商，助手消息上的 🔊 徽章显示字符数和欧元成本；Edge 保持免费，无徽章。支持的音频格式：<strong>MP3、Opus、AAC、FLAC、WAV、PCM</strong>——按提供商选择。</p><h2>按句级流式合成实现亚秒级延迟</h2><p>语音管线现在 <strong>按完整句子并行</strong> 触发 TTS 合成，而不再等待完整的 LLM 响应。第一句在 <strong>约 1 秒</strong> 内开始播放，而助手仍在撰写答案的其余部分。ElevenLabs 上的持久 HTTP 长连接在 #2…N 调用中每句再节省约 100–300 毫秒。有序送达由缓冲队列保证——失败槽位会被跳过，不阻塞整体流。</p><h2>语音评论与导出</h2><p>LIA 可在其响应上附加简短的 <strong>语音评论</strong>（一种 TTS 叙述插入）。音频通过 WebSocket 流式传输，使用一次性 BFF 票据（TTL 60 秒）确保安全。两项新的 CSV 导出——<code>stt-usage</code> 和 <code>tts-usage</code>——列出每次付费语音调用的对话、消息 ID、提供商、时长 / 字符数与欧元成本。现有的 <code>consumption-summary</code> 导出也新增 STT 和 TTS 列，使总计始终位于一处。</p>"
+        "body": "<h2>三种激活模式</h2><p>LIA 支持三种语音交互方式：</p><ul><li><strong>唤醒词</strong> — 说\"OK Guy\"启动免提聆听。检测完全在浏览器中通过 Sherpa-onnx WASM 进行（仅英语模型）。唤醒词检测不会有任何音频离开浏览器。</li><li><strong>按住说话</strong> — 按住麦克风按钮说话。已针对移动端优化。</li><li><strong>自动语音结束检测 (VAD)</strong> — 静音 ~0.75 秒后自动停止聆听。</li></ul><h2>语音识别：本地默认，远程可选</h2><p>每位用户在 <strong>设置 → 语音模式</strong> 选择 STT 模式：</p><ul><li><strong>本地</strong>（默认，免费）— 在 LIA 服务器上以 <strong>16 kHz 单声道</strong> 运行的 Sherpa-onnx Whisper，采用 INT8 量化。支持 <strong>99+ 种语言</strong>。音频从不离开 LIA 服务器。</li><li><strong>远程</strong>（可选启用）— ElevenLabs Scribe，0.22 美元/小时，按音频时长计费。在对话语音上精度更高，尤其在嘈杂环境下。每条用户气泡上的低调 🎤 徽章显示时长和欧元成本；成本汇入仪表板的常规 <strong>成本</strong> 磁贴和您的使用上限——无独立配额。</li></ul><p>启用远程时，两个管理员侧的安全杠杆可防范成本激增：全局总开关（<code>ELEVENLABS_STT_ENABLED</code>）和按片段的时长上限（<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>，默认 300 秒），在任何提供商调用前都会校验。</p><h2>目录驱动的语音合成</h2><p>语音合成现在通过单一管理表单（LLM 配置 → Voice TTS）配置，第一天即提供三家提供商：</p><ul><li><strong>Edge TTS</strong> — Microsoft 神经语音、免费、默认。SSML rate / pitch / volume 微调。</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> 或 <code>tts-1-hd</code>，高品质语音（alloy、echo、fable、onyx、nova、shimmer）。speed + response_format 微调。</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>、<code>eleven_turbo_v2_5</code>、<code>eleven_flash_v2_5</code>。stability、similarity_boost、style、use_speaker_boost 微调。从已配置账户实时选择声音（自定义 + 库声音）。</li></ul><p>对于付费提供商，助手消息上的 🔊 徽章显示字符数和欧元成本；Edge 保持免费，无徽章。支持的音频格式：<strong>MP3、Opus、AAC、FLAC、WAV、PCM</strong>——按提供商选择。</p><h2>按句级流式合成实现亚秒级延迟</h2><p>语音管线现在 <strong>按完整句子并行</strong> 触发 TTS 合成，而不再等待完整的 LLM 响应。第一句在 <strong>约 1 秒</strong> 内开始播放，而助手仍在撰写答案的其余部分。ElevenLabs 上的持久 HTTP 长连接在 #2…N 调用中每句再节省约 100–300 毫秒。有序送达由缓冲队列保证——失败槽位会被跳过，不阻塞整体流。</p><h2>一句话在哪里结束</h2><p>「按句」切分的前提是知道一句话在哪里结束 —— 而仅凭一个句点说明不了这一点。只有<strong>后面跟着空格</strong>，或位于输入末尾时，分隔符才会结束一句话：「现在 3.5 度」因此保持完整，而不会先读成「现在三。」再在另一段音频里读「五度」。价格、版本号和网址同理。在逐句流式路径上，这条规则更是必需的：缓冲区是逐个 token 增长的，所以 <code>\"3.\"</code> 是一个完全正常的中间状态 —— 在它上面分发，等于还没读完就开口。管线中的两个切分器由一张共享的用例表以及一个要求二者一致的测试共同钉住。</p><h2>语音评论与导出</h2><p>LIA 可在其响应上附加简短的 <strong>语音评论</strong>（一种 TTS 叙述插入）。音频通过 WebSocket 流式传输，使用一次性 BFF 票据（TTL 60 秒）确保安全。两项新的 CSV 导出——<code>stt-usage</code> 和 <code>tts-usage</code>——列出每次付费语音调用的对话、消息 ID、提供商、时长 / 字符数与欧元成本。现有的 <code>consumption-summary</code> 导出也新增 STT 和 TTS 列，使总计始终位于一处。</p>"
       },
       "knowledge-spaces": {
         "title": "知识空间：将文档转化为AI智能",
@@ -7452,7 +7480,7 @@
       "reminders-scheduling": {
         "title": "提醒和计划操作：自动化您的日常",
         "excerpt": "用自然语言创建提醒并安排定期操作。",
-        "body": "<h2>自然语言提醒</h2><p>使用LIA创建提醒就像说话一样简单：</p><ul><li>\"提醒我明天9点给Marie打电话\"</li><li>\"30分钟后提醒：检查烤箱\"</li><li>\"今晚记得买面包\"</li></ul><p>LIA自动解释时间表达式，并使用正确的时区创建提醒。</p><h2>提醒生命周期</h2><p>每个提醒遵循精确的生命周期：<strong>PENDING → PROCESSING → 通知后删除</strong>。提醒是<strong>一次性的</strong>：成功发送后自动删除。每个提醒包含三个关键字段：</p><ul><li><code>content</code> — LIA理解的内容（必要时会重新表述）</li><li><code>original_message</code> — 用户的原始文本</li><li><code>trigger_at</code> — UTC触发时间</li></ul><h2>时区管理</h2><p>所有提醒以<strong>UTC</strong>存储在数据库中。用户的IANA时区（如：<code>Europe/Paris</code>、<code>America/New_York</code>）被跟踪并用于将相对时间表达式（\"明天9点\"）转换为绝对UTC时间戳。显示时始终转换为用户的本地时区。</p><h2>推送通知</h2><p>提醒通过<strong>Firebase Cloud Messaging（FCM）</strong>发送，支持浏览器和移动端通知。即使应用未打开也能收到通知。</p><h2>计划操作</h2><p>计划操作（Scheduled Actions）是一个<strong>独立领域</strong>，比简单提醒更进一步。它与<strong>APScheduler</strong>集成，可安排LIA自动执行的定期任务：</p><ul><li>每天早上7点的天气摘要</li><li>每2小时检查重要邮件</li><li>每周一的任务周报</li></ul><h2>合理限制</h2><p>为防止滥用，每个用户最多可同时拥有20个活跃计划操作。带退避的重试逻辑处理临时故障。</p>"
+        "body": "<h2>自然语言提醒</h2><p>使用LIA创建提醒就像说话一样简单：</p><ul><li>\"提醒我明天9点给Marie打电话\"</li><li>\"30分钟后提醒：检查烤箱\"</li><li>\"今晚记得买面包\"</li></ul><p>LIA自动解释时间表达式，并使用正确的时区创建提醒。</p><h2>提醒生命周期</h2><p>每个提醒遵循精确的生命周期：<strong>PENDING → PROCESSING → 通知后删除</strong>。提醒是<strong>一次性的</strong>：成功发送后自动删除。每个提醒包含三个关键字段：</p><ul><li><code>content</code> — LIA理解的内容（必要时会重新表述）</li><li><code>original_message</code> — 用户的原始文本</li><li><code>trigger_at</code> — UTC触发时间</li></ul><p>切换到 <code>PROCESSING</code> 是一个<strong>租约</strong>，而不是不可逆的终点：选取查询只看 <code>PENDING</code> 行，因此正在处理中的提醒不会被两个并发轮次重复取走。任何提前退出都会释放它 —— 使用额度已达上限、没有已注册设备 —— 提醒随即回到 <code>PENDING</code>，等待下一轮。若不释放，恰好在用户用尽额度那一分钟到期的提醒就会被彻底丢失，既无报错也无痕迹。</p><h2>时区管理</h2><p>所有提醒以<strong>UTC</strong>存储在数据库中。用户的IANA时区（如：<code>Europe/Paris</code>、<code>America/New_York</code>）被跟踪并用于将相对时间表达式（\"明天9点\"）转换为绝对UTC时间戳。显示时始终转换为用户的本地时区。</p><h2>推送通知</h2><p>提醒通过<strong>Firebase Cloud Messaging（FCM）</strong>发送，支持浏览器和移动端通知。即使应用未打开也能收到通知。</p><p>通知的标题和正文会以用户自己的语言呈现，六种受支持的语言均可。区域设置的规范化由标题表本身完成，而非交给每个调用方，因为调用方持有的是各种写法的原始区域设置 —— 而唯一本该规范化却没有这么做的地方，正是向中文用户发送英文标题的原因。</p><h2>计划操作</h2><p>计划操作（Scheduled Actions）是一个<strong>独立领域</strong>，比简单提醒更进一步。它与<strong>APScheduler</strong>集成，可安排LIA自动执行的定期任务：</p><ul><li>每天早上7点的天气摘要</li><li>每2小时检查重要邮件</li><li>每周一的任务周报</li></ul><h2>合理限制</h2><p>为防止滥用，每个用户最多可同时拥有20个活跃计划操作。带退避的重试逻辑处理临时故障。</p>"
       },
       "sub-agents": {
         "title": "子智能体：用于复杂问题的临时专家",

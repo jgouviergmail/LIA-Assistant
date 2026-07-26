@@ -68,13 +68,16 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
-        // Global floor — re-measured 2026-07-25 (in the lia-web-dev container,
-        // a safe LOWER bound: it under-exercises some env-sensitive branches vs
-        // CI): statements 65.09 / branches 58.73 / functions 58.97 / lines 65.67.
-        // Raised to lock the API-error-contract wave (api-error, api-server,
-        // settings server actions, the i18n middleware and the connector hooks
-        // — was 62/56/56/62, measured then 63.38/57.63/57.67/63.85). Set just
-        // under, raise as coverage grows, NEVER lower.
+        // Global floor — re-measured 2026-07-26 on the release snapshot
+        // (274 files / 2,819 tests): statements 65.75 / branches 59.47 /
+        // functions 59.76 / lines 66.34. Left at 64/58/58/65: the doctrine
+        // wants >= 2 points of margin before a raise, and the smallest here is
+        // 1.34 (lines). Raise on the next coverage wave, not on this one.
+        // Raised twice in one pass: first for the API-error-contract wave
+        // (api-error, api-server, settings server actions, the i18n middleware,
+        // the connector hooks — was 62/56/56/62), then for the localized wind
+        // card plus ADR-152, which took 861 lines of orphan code out of the
+        // denominator. Set just under, raise as coverage grows, NEVER lower.
         //
         // How it got here (audit F010, chantier "couverture par le risque"):
         // the hook wave and component Lots 1-4, then the F057 builder
@@ -86,10 +89,10 @@ export default defineConfig({
         // other lanes: App Router pages (hermetic E2E) and the WASM/Web-Audio
         // modules `sherpaKws` / `audio-queue`, which jsdom cannot simulate
         // without the test degenerating into a test of its own mocks.
-        statements: 63,
-        branches: 57,
-        functions: 57,
-        lines: 64,
+        statements: 64,
+        branches: 58,
+        functions: 58,
+        lines: 65,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {
           statements: 100,

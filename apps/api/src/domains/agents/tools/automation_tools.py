@@ -245,7 +245,7 @@ async def execute_scheduled_action_draft(
 ) -> dict[str, Any]:
     """Execute a confirmed SCHEDULED_ACTION draft: persist the automation.
 
-    Registered in ``draft_executor._ensure_executors_registered()``. Runs on
+    Registered in ``draft_executor.ensure_executors_registered()``. Runs on
     its own DB session (same pattern as the telephony executor). The service
     computes ``next_trigger_at`` from the schedule + user timezone and
     enforces the per-user cap.

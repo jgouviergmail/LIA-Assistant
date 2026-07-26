@@ -125,7 +125,12 @@ class WeatherData(BaseModel):
     )
     wind_direction_cardinal: str | None = Field(
         None,
-        description="Wind direction as cardinal point: N, NE, E, SE, S, SW, W, NW",
+        description=(
+            "Wind direction as an 8-point compass CODE (N, NE, E, SE, S, SW, W, NW) "
+            "from core.geo_utils.WIND_CARDINAL_CODES. Not a display label: the "
+            "abbreviations differ per language, so the client resolves it through "
+            "`dashboard.weather.wind_cardinal.<CODE>`."
+        ),
     )
     precipitation_probability: float | None = Field(
         None,

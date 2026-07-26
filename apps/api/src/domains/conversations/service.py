@@ -52,138 +52,6 @@ class ConversationService:
     Follows existing patterns from auth/users services.
     """
 
-    @staticmethod
-    def _should_filter_hitl_message(role: str, metadata: dict[str, Any] | None) -> bool:
-        """
-        Determine if a HITL message should be filtered (hidden from UI and excluded from count).
-
-        DISABLED: All messages are now shown and counted (HITL or not).
-        This simplifies the conversation history and ensures accurate message counting.
-
-        Previous filtering rules (now disabled):
-        - User HITL responses: APPROVE/REJECT were filtered
-        - Assistant HITL questions: were filtered as ephemeral UI state
-
-        Current behavior:
-        - ALL messages are shown (HITL interrupt, responses, questions)
-        - ALL messages are counted for accurate tracking
-
-        Args:
-            role: Message role ("user", "assistant", "system") - unused
-            metadata: Message metadata dict - unused
-
-        Returns:
-            Always False - no filtering applied
-        """
-        # DISABLED: No longer filter any messages
-        # All HITL messages (user responses, assistant questions, interrupted messages)
-        # are now shown in conversation history for transparency and accurate counting
-        _ = role, metadata  # Explicitly mark as unused
-        return False
-
-    @staticmethod
-    def _filter_hitl_messages(
-        messages: list[ConversationMessage],
-    ) -> list[ConversationMessage]:
-        """
-        Filter out trivial HITL responses (APPROVE, REJECT) from ConversationMessage list.
-
-        Keeps meaningful interactions (EDIT, AMBIGUOUS, non-HITL messages).
-        Utility method to keep conversation history clean by hiding trivial responses
-        that don't add context value.
-
-        Args:
-            messages: List of ConversationMessage objects
-
-        Returns:
-            Filtered list with trivial HITL responses removed
-        """
-        filtered_messages = []
-        filtered_count = 0
-        filtered_types = {"APPROVE": 0, "REJECT": 0}
-
-        for msg in messages:
-            if ConversationService._should_filter_hitl_message(msg.role, msg.message_metadata):
-                filtered_count += 1
-                decision_type = (
-                    msg.message_metadata.get("decision_type") if msg.message_metadata else None
-                )
-                if decision_type in filtered_types:
-                    filtered_types[decision_type] += 1
-
-                logger.debug(
-                    "hitl_message_filtered",
-                    message_id=str(msg.id),
-                    decision_type=decision_type,
-                    content_preview=msg.content[:50] if msg.content else "",
-                )
-            else:
-                filtered_messages.append(msg)
-
-        if filtered_count > 0:
-            logger.info(
-                "hitl_messages_filtered_summary",
-                total=len(messages),
-                filtered=filtered_count,
-                shown=len(filtered_messages),
-                approve_filtered=filtered_types["APPROVE"],
-                reject_filtered=filtered_types["REJECT"],
-            )
-
-        return filtered_messages
-
-    @staticmethod
-    def _filter_hitl_messages_dict(
-        messages: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
-        """
-        Filter out trivial HITL responses (APPROVE, REJECT) from dict message list.
-
-        Same logic as _filter_hitl_messages but works on dict representations
-        (used by get_messages_with_tokens methods).
-
-        Args:
-            messages: List of message dicts with 'role' and 'message_metadata'
-
-        Returns:
-            Filtered list with trivial HITL responses removed
-        """
-        filtered_messages = []
-        filtered_count = 0
-        filtered_types = {"APPROVE": 0, "REJECT": 0}
-
-        for msg in messages:
-            if ConversationService._should_filter_hitl_message(
-                msg.get("role", ""),
-                msg.get("message_metadata"),
-            ):
-                filtered_count += 1
-                metadata = msg.get("message_metadata", {})
-                decision_type = metadata.get("decision_type") if metadata else None
-                if decision_type in filtered_types:
-                    filtered_types[decision_type] += 1
-
-                logger.debug(
-                    "hitl_message_dict_filtered",
-                    message_id=msg.get("id"),
-                    decision_type=decision_type,
-                    content_preview=msg.get(FIELD_CONTENT, "")[:50],
-                )
-            else:
-                filtered_messages.append(msg)
-
-        if filtered_count > 0:
-            logger.info(
-                "hitl_messages_dict_filtered_summary",
-                total=len(messages),
-                filtered=filtered_count,
-                shown=len(filtered_messages),
-                approve_filtered=filtered_types["APPROVE"],
-                reject_filtered=filtered_types["REJECT"],
-            )
-
-        return filtered_messages
-
     async def get_or_create_conversation(self, user_id: UUID, db: AsyncSession) -> Conversation:
         """
         Get user's active conversation, reactivate soft-deleted, or create new one.
@@ -1056,7 +924,6 @@ class ConversationService:
         user_id: UUID,
         limit: int,
         db: AsyncSession,
-        hide_hitl_approvals: bool = False,
     ) -> list[ConversationMessage]:
         """
         Get conversation message history for UI display.
@@ -1065,37 +932,23 @@ class ConversationService:
         By default, shows ALL messages including HITL APPROVE/REJECT responses
         for complete conversation history and accurate token/message counting.
 
+        Every message is returned, HITL interactions included: hiding the
+        approve/reject turns used to be an option, but the predicate behind it
+        was hardcoded to "filter nothing" and no caller ever asked for it, so
+        the option, its two filter passes and the docstring describing their
+        rules were removed rather than left describing behaviour the code did
+        not have.
+
         Args:
             user_id: User UUID
             limit: Maximum number of messages to return
             db: Database session
-            hide_hitl_approvals: If True, exclude HITL APPROVE/REJECT responses from history.
-                                 EDIT/AMBIGUOUS are always kept for context.
-                                 Default: False (show all messages)
 
         Returns:
             List of ConversationMessage (newest first)
 
         Example:
-            >>> # Default: Show ALL messages including HITL
             >>> messages = await service.get_messages(user_id, limit=50, db=db)
-            >>>
-            >>> # Hide HITL APPROVE/REJECT responses (legacy behavior)
-            >>> filtered_messages = await service.get_messages(
-            ...     user_id, limit=50, db=db, hide_hitl_approvals=True
-            ... )
-
-        Filter Logic (when hide_hitl_approvals=True):
-            Excluded messages:
-            - role="user" AND metadata.hitl_response=True AND metadata.decision_type="APPROVE"
-            - role="user" AND metadata.hitl_response=True AND metadata.decision_type="REJECT"
-            - role="assistant" AND metadata.hitl_question=True
-
-            Kept messages:
-            - All assistant messages (non-HITL)
-            - All regular user messages (no HITL)
-            - HITL EDIT responses
-            - HITL AMBIGUOUS responses
         """
         # Get active conversation
         conversation = await self.get_active_conversation(user_id, db)
@@ -1110,17 +963,12 @@ class ConversationService:
             limit=limit,
         )
 
-        # Filter trivial HITL responses (APPROVE, REJECT) if requested
-        if hide_hitl_approvals:
-            messages = self._filter_hitl_messages(messages)
-
         logger.debug(
             "messages_loaded",
             user_id=str(user_id),
             conversation_id=str(conversation.id),
             count=len(messages),
             limit=limit,
-            hide_hitl_approvals=hide_hitl_approvals,
         )
 
         return list(messages)
@@ -1149,7 +997,6 @@ class ConversationService:
         user_id: UUID,
         limit: int,
         db: AsyncSession,
-        hide_hitl_approvals: bool = False,
     ) -> list[dict[str, Any]]:
         """
         Get conversation message history with token usage and recalculated cost.
@@ -1161,7 +1008,6 @@ class ConversationService:
             user_id: User UUID
             limit: Maximum number of messages to return
             db: Database session
-            hide_hitl_approvals: If True, exclude HITL APPROVE/REJECT responses from history.
                                  Default: False (show all messages for complete token counting)
 
         Returns:
@@ -1256,10 +1102,6 @@ class ConversationService:
 
             enriched_messages.append(msg_data)
 
-        # Filter trivial HITL responses (APPROVE, REJECT) if requested
-        if hide_hitl_approvals:
-            enriched_messages = self._filter_hitl_messages_dict(enriched_messages)
-
         # Filter assistant messages with empty/whitespace-only content (ephemeral progress messages)
         # Also filter out None values that may have been introduced by upstream processing
         enriched_messages = [
@@ -1302,7 +1144,6 @@ class ConversationService:
             conversation_id=str(conversation.id),
             count=len(enriched_messages),
             with_tokens=len([m for m in enriched_messages if m.get(FIELD_TOKENS_IN) is not None]),
-            hide_hitl_approvals=hide_hitl_approvals,
         )
 
         return enriched_messages
@@ -1312,7 +1153,6 @@ class ConversationService:
         user_id: UUID,
         limit: int,
         db: AsyncSession,
-        hide_hitl_approvals: bool = False,
         search: str | None = None,
         before_created_at: datetime | None = None,
     ) -> list[dict[str, Any]]:
@@ -1331,7 +1171,6 @@ class ConversationService:
             user_id: User UUID
             limit: Maximum number of messages to return
             db: Database session
-            hide_hitl_approvals: If True, exclude HITL APPROVE/REJECT responses from history.
                                  Default: False (show all messages for complete token counting)
             search: Optional case-insensitive ILIKE filter on message content.
             before_created_at: Keyset pagination cursor (scroll-up). When set,
@@ -1416,10 +1255,6 @@ class ConversationService:
 
             enriched_messages.append(msg_data)
 
-        # Filter trivial HITL responses (APPROVE, REJECT) if requested
-        if hide_hitl_approvals:
-            enriched_messages = self._filter_hitl_messages_dict(enriched_messages)
-
         # Filter assistant messages with empty/whitespace-only content (ephemeral progress messages)
         # Also filter out None values that may have been introduced by upstream processing
         enriched_messages = [
@@ -1463,7 +1298,6 @@ class ConversationService:
             count=len(enriched_messages),
             with_tokens=len([m for m in enriched_messages if m.get(FIELD_TOKENS_IN) is not None]),
             optimization="left_join_repository",
-            hide_hitl_approvals=hide_hitl_approvals,
         )
 
         return enriched_messages
@@ -1473,7 +1307,6 @@ class ConversationService:
         user_id: UUID,
         limit: int,
         db: AsyncSession,
-        hide_hitl_approvals: bool = False,
         search: str | None = None,
         before_created_at: datetime | None = None,
     ) -> list[dict[str, Any]]:
@@ -1493,7 +1326,6 @@ class ConversationService:
             user_id: User UUID
             limit: Maximum number of messages to return
             db: Database session
-            hide_hitl_approvals: If True, exclude HITL APPROVE/REJECT responses from history.
                                  Default: False (show all messages for complete token counting)
             search: Optional case-insensitive ILIKE filter on message content.
             before_created_at: Keyset pagination cursor (scroll-up). When set,
@@ -1512,7 +1344,6 @@ class ConversationService:
                 user_id,
                 limit,
                 db,
-                hide_hitl_approvals=hide_hitl_approvals,
                 search=search,
                 before_created_at=before_created_at,
             )

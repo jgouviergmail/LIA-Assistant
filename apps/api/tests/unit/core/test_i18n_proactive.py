@@ -48,8 +48,31 @@ class TestProactiveMessages:
         assert ProactiveMessages.notification_title("scheduled_action", "fr") == "Action planifiée"
         assert ProactiveMessages.notification_title("scheduled_action", "zh-CN") == "计划操作"
 
-    def test_unknown_language_falls_back_to_english(self) -> None:
-        assert ProactiveMessages.notification_title("interest", "xx") == "For you"
+    def test_unknown_language_resolves_to_the_configured_default(self) -> None:
+        """The accessor now normalizes, so an unsupported code lands on the default.
+
+        It used to key the table on the RAW code and fall through to English.
+        That made the accessor safe only for callers who had already
+        canonicalized — the discipline whose failure produced this module's
+        founding bug. It normalizes internally now, matching what
+        ``HitlMessages`` does (normalize, then an English belt-and-braces
+        ``.get``), so an unsupported language answers with the configured
+        default language rather than English.
+        """
+        from src.core.i18n import DEFAULT_LANGUAGE
+
+        assert ProactiveMessages.notification_title(
+            "interest", "xx"
+        ) == ProactiveMessages.notification_title("interest", DEFAULT_LANGUAGE)
+
+    @pytest.mark.parametrize("spelling", ["zh", "zh_CN", "zh-cn", "ZH-CN"])
+    def test_every_chinese_spelling_reaches_the_canonical_entry(self, spelling: str) -> None:
+        """Callers hold raw locales; none of them may degrade to English."""
+        assert ProactiveMessages.notification_title("interest", spelling) == "为你推荐"
+
+    def test_a_regional_variant_resolves_to_its_base_language(self) -> None:
+        assert ProactiveMessages.notification_title("interest", "fr-FR") == "Pour toi"
+        assert ProactiveMessages.notification_title("interest", "en_US") == "For you"
 
     def test_unknown_task_type_generic_title(self) -> None:
         assert ProactiveMessages.notification_title("nope", "en") == "Notification"

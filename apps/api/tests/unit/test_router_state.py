@@ -1,6 +1,21 @@
-"""
-Unit tests for router node state management.
-Ensures router JSON output does NOT pollute the messages state.
+"""End-to-end checks that the router's decision never reaches the chat.
+
+Every test here invokes the WHOLE compiled graph (`graph.ainvoke`) against a
+real provider: the router's LLM cascade AND the response node run for real.
+That is a genuine end-to-end check — and it is priced, slow and
+non-deterministic, so it cannot run on every push.
+
+Hence the two markers below, in this order:
+
+- ``e2e`` makes the exclusion VISIBLE in every CI command (they all pass
+  ``-m "not ... and not e2e ..."``). Previously each test carried its own
+  credential ``skipif``, so the whole file reported nothing but a green run.
+- the credential skip then keeps a local run from failing on a missing key.
+
+The invariant itself — the router writes to ``routing_history``, never to
+``messages`` — is proven hermetically at the node level in
+``tests/unit/domains/agents/nodes/test_router_state_isolation.py``. What only
+this file can add is the end-to-end version: no leak survives the FULL graph.
 """
 
 import os
@@ -11,6 +26,14 @@ from langchain_core.messages import AIMessage, HumanMessage
 
 from src.domains.agents.graph import build_graph
 from src.domains.agents.models import create_initial_state
+
+pytestmark = [
+    pytest.mark.e2e,
+    pytest.mark.skipif(
+        not os.getenv("OPENAI_API_KEY"),
+        reason="Requires OPENAI_API_KEY: this suite drives the full graph through a real LLM",
+    ),
+]
 
 
 @pytest.fixture
@@ -26,9 +49,6 @@ class TestRouterStateManagement:
     """Test that router node doesn't add JSON output to messages state."""
 
     @pytest.mark.asyncio
-    @pytest.mark.skipif(
-        not os.getenv("OPENAI_API_KEY"), reason="Requires OPENAI_API_KEY for integration test"
-    )
     async def test_router_does_not_add_json_to_messages(self, mock_store, agent_registry):
         """
         Test that router node does NOT add its JSON decision to messages.
@@ -94,11 +114,6 @@ class TestRouterStateManagement:
         assert hasattr(last_routing, "next_node")
 
     @pytest.mark.asyncio
-    @pytest.mark.skipif(
-        not os.getenv("OPENAI_API_KEY"),
-        reason="Requires OPENAI_API_KEY: asserts per-turn RouterOutput entries "
-        "that the LLM-failure fallback path does not produce",
-    )
     async def test_router_output_only_in_routing_history(self, mock_store, agent_registry):
         """
         Test that router decision exists ONLY in routing_history.
@@ -153,9 +168,6 @@ class TestRouterStateManagement:
                 ), "AIMessage appears to be router decision instead of conversation"
 
     @pytest.mark.asyncio
-    @pytest.mark.skipif(
-        not os.getenv("OPENAI_API_KEY"), reason="Requires OPENAI_API_KEY for integration test"
-    )
     async def test_multiple_messages_conversation(self, mock_store, agent_registry):
         """
         Test multi-turn conversation doesn't accumulate router JSON in messages.
@@ -205,11 +217,6 @@ class TestRouterWithStructuredOutput:
     """Test with_structured_output() integration."""
 
     @pytest.mark.asyncio
-    @pytest.mark.skipif(
-        not os.getenv("OPENAI_API_KEY"),
-        reason="Requires OPENAI_API_KEY: asserts a structured RouterOutput "
-        "that only a real router LLM call produces",
-    )
     async def test_router_returns_pydantic_object(self, mock_store, agent_registry):
         """Test that router node correctly returns RouterOutput Pydantic object."""
 
@@ -256,9 +263,6 @@ class TestRouterJSONNotStreamedToUser:
     """Test that router JSON is NOT streamed to user via SSE."""
 
     @pytest.mark.asyncio
-    @pytest.mark.skipif(
-        not os.getenv("OPENAI_API_KEY"), reason="Requires OPENAI_API_KEY for integration test"
-    )
     async def test_router_json_not_in_sse_stream(self, mock_store, agent_registry):
         """
         Test that router JSON tokens are NOT streamed to user.
@@ -321,9 +325,6 @@ class TestRouterJSONNotStreamedToUser:
         assert len(full_response) > 0, "Response should contain content"
 
     @pytest.mark.asyncio
-    @pytest.mark.skipif(
-        not os.getenv("OPENAI_API_KEY"), reason="Requires OPENAI_API_KEY for integration test"
-    )
     async def test_only_response_node_tokens_streamed(self, mock_store, agent_registry):
         """
         Test that ONLY response node tokens are streamed, not router tokens.

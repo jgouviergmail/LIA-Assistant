@@ -1,8 +1,22 @@
 /**
  * Personality API Client
- * Handles personality-related API calls
+ *
+ * Goes through `apiClient` like every other data path in the app. It used to
+ * call `fetch` directly, which cost three things:
+ *
+ * - **Session handling**: a 401 must eject to the localized login. A raw fetch
+ *   threw `Error("Failed to fetch personalities: 401")` and left the user on a
+ *   dead settings panel.
+ * - **A timeout**: `apiClient` arms `AbortSignal.timeout`; a raw fetch hangs as
+ *   long as the network lets it.
+ * - **One error contract**: four of these functions hand-rolled their own
+ *   `detail` reader — two handling the Pydantic list shape, two interpolating
+ *   the list straight into a template (printing `[object Object]`) — and the
+ *   other four never read the backend reason at all. `ApiError` now carries the
+ *   parsed body on `.data` for all of them, and `getApiErrorDetail` reads it.
  */
 
+import apiClient from '@/lib/api-client';
 import {
   PersonalityListResponse,
   PersonalityResponse,
@@ -12,39 +26,18 @@ import {
   UserPersonalityUpdate,
 } from '@/types/personality';
 
-// `??`, not `||`: empty string = same-origin relative URLs (see api-config.ts).
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
-
 /**
  * Fetch all active personalities (localized to user's language)
  */
 export async function fetchPersonalities(): Promise<PersonalityListResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/personalities`, {
-    method: 'GET',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch personalities: ${response.status}`);
-  }
-
-  return response.json();
+  return apiClient.get<PersonalityListResponse>('/personalities');
 }
 
 /**
  * Fetch user's current personality preference
  */
 export async function fetchCurrentPersonality(): Promise<UserPersonalityResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/personalities/current`, {
-    method: 'GET',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch current personality: ${response.status}`);
-  }
-
-  return response.json();
+  return apiClient.get<UserPersonalityResponse>('/personalities/current');
 }
 
 /**
@@ -53,20 +46,7 @@ export async function fetchCurrentPersonality(): Promise<UserPersonalityResponse
 export async function updateCurrentPersonality(
   data: UserPersonalityUpdate
 ): Promise<UserPersonalityResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/personalities/current`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to update personality: ${response.status}`);
-  }
-
-  return response.json();
+  return apiClient.patch<UserPersonalityResponse>('/personalities/current', data);
 }
 
 // ============================================================================
@@ -77,51 +57,14 @@ export async function updateCurrentPersonality(
  * Fetch all personalities with full details (admin only)
  */
 export async function fetchPersonalitiesAdmin(): Promise<PersonalityResponse[]> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/personalities/admin`, {
-    method: 'GET',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch personalities: ${response.status}`);
-  }
-
-  return response.json();
+  return apiClient.get<PersonalityResponse[]>('/personalities/admin');
 }
 
 /**
  * Create a new personality (admin only)
  */
 export async function createPersonality(data: PersonalityCreate): Promise<PersonalityResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/personalities/admin`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    // Handle Pydantic validation errors (detail can be array or object)
-    let errorMessage = `Failed to create personality: ${response.status}`;
-    if (errorData.detail) {
-      if (typeof errorData.detail === 'string') {
-        errorMessage = errorData.detail;
-      } else if (Array.isArray(errorData.detail)) {
-        // Pydantic validation errors
-        errorMessage = errorData.detail
-          .map((e: { msg?: string; loc?: string[] }) => e.msg || JSON.stringify(e))
-          .join(', ');
-      } else {
-        errorMessage = JSON.stringify(errorData.detail);
-      }
-    }
-    throw new Error(errorMessage);
-  }
-
-  return response.json();
+  return apiClient.post<PersonalityResponse>('/personalities/admin', data);
 }
 
 /**
@@ -136,50 +79,16 @@ export async function updatePersonality(
   data: PersonalityUpdate,
   propagate: boolean = true
 ): Promise<PersonalityResponse> {
-  const url = new URL(`${API_BASE_URL}/api/v1/personalities/admin/${id}`);
-  url.searchParams.set('propagate', propagate.toString());
-
-  const response = await fetch(url.toString(), {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-    body: JSON.stringify(data),
+  return apiClient.patch<PersonalityResponse>(`/personalities/admin/${id}`, data, {
+    params: { propagate },
   });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    // Handle Pydantic validation errors and conflict errors
-    let errorMessage = `Failed to update personality: ${response.status}`;
-    if (errorData.detail) {
-      if (typeof errorData.detail === 'string') {
-        errorMessage = errorData.detail;
-      } else if (Array.isArray(errorData.detail)) {
-        errorMessage = errorData.detail
-          .map((e: { msg?: string }) => e.msg || JSON.stringify(e))
-          .join(', ');
-      }
-    }
-    throw new Error(errorMessage);
-  }
-
-  return response.json();
 }
 
 /**
  * Delete a personality (admin only)
  */
 export async function deletePersonality(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/personalities/admin/${id}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || `Failed to delete personality: ${response.status}`);
-  }
+  await apiClient.delete<void>(`/personalities/admin/${id}`);
 }
 
 /**
@@ -189,15 +98,7 @@ export async function deletePersonality(id: string): Promise<void> {
 export async function translatePersonality(
   id: string
 ): Promise<{ translations_created: number; source_language: string }> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/personalities/admin/${id}/auto-translate`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || `Failed to translate personality: ${response.status}`);
-  }
-
-  return response.json();
+  return apiClient.post<{ translations_created: number; source_language: string }>(
+    `/personalities/admin/${id}/auto-translate`
+  );
 }

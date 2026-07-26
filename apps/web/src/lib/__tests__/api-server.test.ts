@@ -166,12 +166,19 @@ describe('createServerApiClient — request shaping', () => {
     expect(headers['Content-Type']).toBe('application/json');
   });
 
-  it('keeps its own abort signal even when the caller supplies one', async () => {
+  it('combines its timeout with a caller-supplied cancellation', async () => {
     const api = await createServerApiClient();
-    const callerSignal = AbortSignal.abort();
-    await api.get('/slow', { signal: callerSignal });
+    const caller = new AbortController();
+    await api.get('/slow', { signal: caller.signal });
 
-    expect(lastCall()[1].signal).not.toBe(callerSignal);
+    const combined = lastCall()[1].signal as AbortSignal;
+    // Neither signal is dropped: the caller can still cancel, and the client
+    // keeps the timeout it promises.
+    expect(combined).not.toBe(caller.signal);
+    expect(combined.aborted).toBe(false);
+
+    caller.abort();
+    expect(combined.aborted).toBe(true);
   });
 });
 

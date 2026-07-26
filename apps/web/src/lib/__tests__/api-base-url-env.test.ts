@@ -25,7 +25,17 @@ function setEnv(value: string | undefined): void {
 
 beforeEach(() => {
   vi.resetModules();
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }));
+  // A real Response: `apiClient` reads `status` and `headers` before the body,
+  // so a `{ok, json}` duck would only exercise the raw-fetch call sites.
+  vi.stubGlobal(
+    'fetch',
+    vi
+      .fn()
+      .mockImplementation(
+        async () =>
+          new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } })
+      )
+  );
 });
 
 afterEach(() => {
@@ -62,9 +72,26 @@ describe('NEXT_PUBLIC_API_URL absent (unset → dev fallback preserved)', () => 
     expect(API_BASE_URL).toBe('http://localhost:8000');
   });
 
-  it('personality API targets the dev API origin', async () => {
+  it('apiClient stays relative and lets the Next.js rewrite proxy the call', async () => {
+    // `api-config` (a module-level constant) and `apiClient` (the request path)
+    // answer an ABSENT variable differently, on purpose: the client documents
+    // relative URLs as the development contract, because the Next.js rewrite
+    // proxies `/api/*` and that is what keeps the session cookie same-site.
+    // Every data call in the app goes through the client, so this is the
+    // behaviour that matters at runtime.
+    const { default: apiClient } = await import('@/lib/api-client');
+    await apiClient.get('/personalities');
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe('/api/v1/personalities');
+  });
+
+  it('the personality API follows the client, not its own resolver', async () => {
+    // It used to carry `process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'`
+    // of its own, so an unset variable sent personality traffic cross-origin
+    // while every other call stayed relative. Migrating it onto `apiClient`
+    // (ADR-less cleanup: session handling, timeout, one error contract) removed
+    // that divergence.
     const { fetchPersonalities } = await import('@/lib/api/personality');
     await fetchPersonalities();
-    expect(vi.mocked(fetch).mock.calls[0][0]).toBe('http://localhost:8000/api/v1/personalities');
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe('/api/v1/personalities');
   });
 });

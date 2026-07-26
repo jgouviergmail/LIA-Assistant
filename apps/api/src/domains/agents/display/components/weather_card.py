@@ -11,10 +11,12 @@ Renders weather data with:
 
 from __future__ import annotations
 
+import re
 from contextlib import suppress
 from typing import Any
 
 from src.core.config import settings
+from src.core.geo_utils import WIND_CARDINAL_CODES, wind_deg_to_cardinal
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.constants import CONTEXT_DOMAIN_WEATHER
 from src.domains.agents.display.components.base import (
@@ -222,7 +224,7 @@ class WeatherCard(BaseComponent):
         description = data.get("description", "")
         humidity = data.get("humidity", "")
         wind = data.get("wind_speed", "")
-        wind_dir = self._format_wind_direction(data.get("wind_direction", ""))
+        wind_dir = self._format_wind_direction(data.get("wind_direction", ""), ctx.language)
 
         # Extract and format date
         date_str = self._get_date(data, ctx)
@@ -614,36 +616,43 @@ class WeatherCard(BaseComponent):
                 return float(match.group(1))
         return None
 
-    def _format_wind_direction(self, direction: Any) -> str:
-        """Format wind direction with cardinality (no angles)."""
+    def _format_wind_direction(self, direction: Any, language: str = "fr") -> str:
+        """Format a provider wind direction as a localized compass point.
+
+        The provider field is built as ``f"{wind.get('deg', 'N/A')}°"``
+        (``agents/tools/weather_formatting.py``), so a missing bearing arrives
+        as the literal ``"N/A°"``. Letter extraction used to read the leading
+        "N" out of it and print North — a fabricated bearing on a card the user
+        reads as fact. Anything that is not a bearing or a known compass code
+        now renders blank.
+
+        Args:
+            direction: Raw provider value (degrees string, or a compass code).
+            language: User language for the localized abbreviation.
+
+        Returns:
+            Localized compass abbreviation, or ``""`` when unreadable.
+        """
         if not direction:
             return ""
-        dir_str = str(direction)
-        # If it's just degrees, convert to cardinal
-        with suppress(ValueError, TypeError):
-            import re
+        dir_str = str(direction).strip()
 
-            # Match angle pattern like "180°" or "180"
-            match = re.match(r"^(\d+\.?\d*)°?$", dir_str.strip())
-            if match:
-                angle = float(match.group(1))
-                return self._angle_to_cardinal(angle)
-        # Already cardinal or mixed - extract just the letters
-        import re
+        # Bearing in degrees, with or without the degree sign.
+        match = re.match(r"^(\d+\.?\d*)°?$", dir_str)
+        if match:
+            return self._angle_to_cardinal(float(match.group(1)), language)
 
-        cardinal_match = re.search(r"([NESWO]+)", dir_str.upper())
-        if cardinal_match:
-            return cardinal_match.group(1)
-        return dir_str
+        # Already a canonical compass code (what the briefing ships).
+        code = dir_str.upper()
+        if code in WIND_CARDINAL_CODES:
+            return V3Messages.get_wind_cardinal(code, language)
 
-    def _angle_to_cardinal(self, angle: float) -> str:
-        """Convert angle in degrees to cardinal direction."""
-        directions = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"]
-        # Normalize angle to 0-360
-        angle = angle % 360
-        # Each direction covers 45 degrees, offset by 22.5
-        index = int((angle + 22.5) / 45) % 8
-        return directions[index]
+        return ""
+
+    def _angle_to_cardinal(self, angle: float, language: str = "fr") -> str:
+        """Convert a bearing in degrees to its localized compass abbreviation."""
+        code = wind_deg_to_cardinal(angle)
+        return V3Messages.get_wind_cardinal(code, language) if code else ""
 
     def _get_weather_visual(self, description: str) -> tuple[str, str]:
         """Get icon name and CSS class for weather description."""

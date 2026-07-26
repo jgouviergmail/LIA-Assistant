@@ -450,7 +450,17 @@ def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
     """
     Format messages for extraction prompt.
 
-    Converts LangChain messages to readable conversation format.
+    Converts LangChain messages to readable conversation format. Only the
+    conversation itself is kept: tool results and system scaffolding are
+    dropped, mirroring the journals extractor
+    (``domains/journals/extraction_service``), which has always skipped them.
+
+    They used to reach the prompt under a ``SYSTEM`` label. The context window
+    is the four messages preceding the new user message, so right after a tool
+    call it carried a raw tool payload — a contact list, a message body — into
+    a prompt whose only question is "what does the USER care about". That both
+    invited an interest inferred from data the user never mentioned, and copied
+    personal data into a prompt that has no use for it.
 
     Args:
         messages: List of conversation messages
@@ -470,7 +480,7 @@ def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
                 continue
             prefix = "ASSISTANT"
         else:
-            prefix = "SYSTEM"
+            continue  # Skip tool messages, system messages
 
         content = str(msg.text)
         # Truncate very long messages

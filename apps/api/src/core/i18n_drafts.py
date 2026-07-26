@@ -746,9 +746,9 @@ def get_draft_success_message(
 
     Example:
         >>> get_draft_success_message("event", "fr", summary="Meeting")
-        "Événement 'Meeting' créé avec succès"
+        "'Meeting' créé avec succès"
         >>> get_draft_success_message("email", "en")
-        "Email sent successfully"
+        "Sent successfully"
     """
     lang = _normalize_language(language)
     messages = DRAFT_SUCCESS_MESSAGES.get(lang, DRAFT_SUCCESS_MESSAGES[DEFAULT_LANGUAGE])

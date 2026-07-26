@@ -38,8 +38,9 @@ def run_failfast_validations() -> None:
 
     Validates, in order: LLM configuration completeness, ToolErrorCode enum
     completeness, Draft Display Registry exhaustivity (ADR-085), Draft
-    Preview Renderer exhaustivity (ADR-085 pattern) and the evidence-driven
-    expansion entity types (ADR-085 pattern).
+    Preview Renderer exhaustivity (ADR-085 pattern), the evidence-driven
+    expansion entity types (ADR-085 pattern), the HITL classifier few-shot
+    coverage (ADR-085 pattern) and the PostgreSQL connection budget (F004).
 
     Raises:
         RuntimeError: If any validation fails (the app must not boot).
@@ -93,6 +94,19 @@ def run_failfast_validations() -> None:
     except RuntimeError as exc:
         logger.error("evidence_entity_registry_incomplete", error=str(exc), exc_info=True)
         raise
+
+    # Validate HITL classifier few-shot coverage (ADR-085 pattern: fail-fast if
+    # an action type can be announced to the classifier without an example block
+    # behind it — it would silently degrade to the generic one).
+    try:
+        from src.domains.agents.services.hitl_classifier import (
+            assert_classifier_examples_coverage,
+        )
+
+        assert_classifier_examples_coverage()
+    except AssertionError as exc:
+        logger.error("hitl_classifier_examples_incomplete", error=str(exc), exc_info=True)
+        raise RuntimeError(f"HITL classifier examples incomplete: {exc}") from exc
 
     # Enforce the PostgreSQL connection budget (F004): fail-fast in production,
     # warn in development. The shipped prod profile fits (168 ≤ 195 usable), so an

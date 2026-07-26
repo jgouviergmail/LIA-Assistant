@@ -5,8 +5,8 @@
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
 **Version** : 3.4
-**Date** : 2026-07-25
-**Application** : LIA v1.25.22
+**Date** : 2026-07-26
+**Application** : LIA v1.25.23
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 438 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 140+ ADRs, ~15 031 tests collectés par pytest sur 817 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 140+ ADRs, ~15 877 tests collectés par pytest sur 837 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -71,7 +71,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~15 031 (collectés par pytest sur 817 fichiers de test) + 2 567 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | ~15 877 (collectés par pytest sur 837 fichiers de test) + 2 832 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures réutilisables | 170+ |
 | Documents de documentation | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
@@ -678,7 +678,7 @@ Wake word ("OK Guy") via Sherpa-onnx WASM dans le navigateur (zéro envoi extern
 
 ### 15.2. TTS
 
-Factory **catalogue-driven** (ADR-081) : `factory.get_tts_client()` lit l'override actif `voice_tts` (provider + model + voice + tuning, stockés dans `llm_config_overrides.voice_tts.provider_config` JSONB) et instancie le client correspondant. Trois providers livrés : Edge (gratuit, défaut), OpenAI (`tts-1` / `tts-1-hd`) et ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`). Si la clé d'un provider payant manque, repli automatique sur Edge (warning loggé). Streaming progressif phrase-par-phrase via `ProgressiveSentenceStreamer` (ADR-082) pour minimiser la latence — la première phrase est synthétisée pendant que le LLM en génère encore d'autres.
+Factory **catalogue-driven** (ADR-081) : `factory.get_tts_client()` lit l'override actif `voice_tts` (provider + model + voice + tuning, stockés dans `llm_config_overrides.voice_tts.provider_config` JSONB) et instancie le client correspondant. Trois providers livrés : Edge (gratuit, défaut), OpenAI (`tts-1` / `tts-1-hd`) et ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`). Si la clé d'un provider payant manque, repli automatique sur Edge (warning loggé). Streaming progressif phrase-par-phrase via `ProgressiveSentenceStreamer` (ADR-082) pour minimiser la latence — la première phrase est synthétisée pendant que le LLM en génère encore d'autres. Un délimiteur ne ferme une phrase qu'en fin d'entrée ou suivi d'une espace (ADR-154) : sur le chemin progressif le tampon grandit token par token, si bien que `"3."` est un état transitoire parfaitement normal — nombres décimaux, prix, numéros de version et URL restent d'un seul tenant, et les deux découpeurs (`_extract_sentences` et le streamer) sont épinglés par une table de cas commune assortie d'un test qui exige leur accord.
 
 ---
 
@@ -850,7 +850,7 @@ Pre-commit (local)                GitHub Actions CI
 ========================          =========================
 .bak files check                  Lint Backend (Ruff + Black + MyPy strict)
 Secrets grep                      Lint Frontend (ESLint + TypeScript)
-Ruff + Black + MyPy               Unit tests + coverage (45 %)
+Ruff + Black + MyPy               Unit tests + coverage (62 %)
                                   Integration tests (PostgreSQL + Redis)
 Unit tests rapides                Code Hygiene (i18n, Alembic, lockfiles)
 Détection patterns critiques      Docker build smoke test
@@ -872,7 +872,7 @@ ESLint + TypeScript check           CodeQL (Python + JS)
 | Type checking | MyPy | strict mode |
 | Commits | Conventional Commits | `feat(scope):`, `fix(scope):` |
 | Tests | pytest | `asyncio_mode = "auto"` |
-| Coverage | 45 % minimum | Imposé en CI |
+| Coverage | 62 % minimum (ratchet, jamais abaissé) | Imposé en CI |
 
 ### 22.3. Builds de dépendances reproductibles
 
@@ -1131,10 +1131,10 @@ Le contexte psyché est injecté dans **tous** les points de génération utilis
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 140+ ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~15 031 tests sur 817 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 140+ ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~15 877 tests sur 837 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (380+ documents), des 140+ ADRs, et du changelog (v1.0 à v1.25.22). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (380+ documents), des 140+ ADRs, et du changelog (v1.0 à v1.25.23). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 40 |
-| ADRs | 151 (ADR-151 le plus récent ; ADR-008 n'a pas de fichier séparé) |
+| ADRs | 155 (ADR-155 le plus récent ; ADR-008 n'a pas de fichier séparé) |
 | Fiches knowledge (RAG système) | 24 |
 
 ---
@@ -297,11 +297,11 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-151 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-155 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 
-> **Cette table n'est pas exhaustive** : elle saute de ADR-151 à ADR-126 — les
+> **Cette table n'est pas exhaustive** : elle saute de ADR-155 à ADR-126 — les
 > ADR-127 à ADR-150 n'y ont jamais été reportées. La liste complète et à jour
 > est [ADR_INDEX.md](./architecture/ADR_INDEX.md), qui fait foi.
 

@@ -232,9 +232,25 @@ class AsyncPricingService:
 
         Manual caching is used instead of @lru_cache (incompatible with async).
         Do not call directly, use get_active_currency_rate() instead.
+
+        The value is stored on a miss and returned on a hit — which the previous
+        version did not do: it stamped the timestamp, then queried
+        unconditionally and dropped the result, so ``_currency_rate_cache`` was
+        written by nobody and only ever cleared. Every cost computation (one per
+        LLM call) therefore issued a SELECT, behind a name, a docstring and an
+        invalidation path that all described a cache. Expiry stays the caller's
+        job: :meth:`get_active_currency_rate` invalidates before delegating.
         """
         cache_key = f"async_currency_rate_{from_currency}_{to_currency}"
-        self._cache_timestamp[cache_key] = time.time()
+
+        cached = self._currency_rate_cache.get(cache_key)
+        if cached is not None:
+            logger.debug(
+                "currency_rate_cache_hit",
+                from_currency=from_currency,
+                to_currency=to_currency,
+            )
+            return cached
 
         stmt = select(CurrencyExchangeRate).where(
             CurrencyExchangeRate.from_currency == from_currency,
@@ -255,6 +271,12 @@ class AsyncPricingService:
                 remediation="Run currency sync: python -m src.infrastructure.scheduler.currency_sync",
             )
             raise ValueError(f"Currency rate not found: {from_currency}/{to_currency}")
+
+        # Store on the miss only: a failed lookup raises above, so nothing is
+        # cached for a pair that has no rate — the next call retries instead of
+        # inheriting a stale "known missing" entry.
+        self._currency_rate_cache[cache_key] = rate.rate
+        self._cache_timestamp[cache_key] = time.time()
 
         logger.debug(
             "currency_rate_retrieved",

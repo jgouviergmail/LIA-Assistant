@@ -220,7 +220,17 @@
           "forecast_alert_rain": "Rain at {{time}}",
           "forecast_alert_thunderstorm": "Storm at {{time}}",
           "forecast_alert_snow": "Snow at {{time}}",
-          "forecast_alert_drizzle": "Drizzle at {{time}}"
+          "forecast_alert_drizzle": "Drizzle at {{time}}",
+          "wind_cardinal": {
+            "N": "N",
+            "NE": "NE",
+            "E": "E",
+            "SE": "SE",
+            "S": "S",
+            "SW": "SW",
+            "W": "W",
+            "NW": "NW"
+          }
         },
         "agenda": {
           "title": "Agenda",
@@ -3253,11 +3263,11 @@
         },
         "voice": {
           "title": "🎙️ Full Voice Mode",
-          "description": "Bidirectional system. <b>TTS</b> is catalogue-driven (admin-configured): three providers seeded — Edge (Microsoft neural voices, free, default), OpenAI (<code>tts-1</code> / <code>tts-1-hd</code>) and ElevenLabs (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>). Sentence-level streaming starts the first audio in ~1 s. <b>STT</b> defaults to free, on-server Sherpa-onnx Whisper (99+ languages, audio never leaves the server); each user can opt into remote ElevenLabs Scribe ($0.22/h) for higher accuracy on conversational speech. Per-message cost badges (🎤 user / 🔊 assistant) for paid voice calls; admin-side kill switch and 5-min duration cap protect against cost spikes. Activate with \"OK Guy\" wake word or microphone button; auto end-of-speech detection (VAD). The spoken text is systematically stripped of markup (formatting HTML, decorative icons) so the voice reads the sentence and nothing else."
+          "description": "Bidirectional system. <b>TTS</b> is catalogue-driven (admin-configured): three providers seeded — Edge (Microsoft neural voices, free, default), OpenAI (<code>tts-1</code> / <code>tts-1-hd</code>) and ElevenLabs (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>). Sentence-level streaming starts the first audio in ~1 s. <b>STT</b> defaults to free, on-server Sherpa-onnx Whisper (99+ languages, audio never leaves the server); each user can opt into remote ElevenLabs Scribe ($0.22/h) for higher accuracy on conversational speech. Per-message cost badges (🎤 user / 🔊 assistant) for paid voice calls; admin-side kill switch and 5-min duration cap protect against cost spikes. Activate with \"OK Guy\" wake word or microphone button; auto end-of-speech detection (VAD). The spoken text is systematically stripped of markup (formatting HTML, decorative icons) so the voice reads the sentence and nothing else. A full stop closes a spoken sentence only when a space follows it, so a decimal number, a price, a version number or a URL stays inside one spoken phrase — on the direct path as on the progressive one."
         },
         "reminders": {
           "title": "🔔 Reminders & Push Notifications",
-          "description": "Personal reminder system with multi-device FCM (Firebase Cloud Messaging) push notifications. Natural language creation, automatic timezone conversion, intelligent reference resolution ('next one', number, content match). Messages personalized with active personality and user memories."
+          "description": "Personal reminder system with multi-device FCM push notifications (Firebase Cloud Messaging). Natural-language creation, automatic timezone conversion, smart reference resolution (\"the next one\", number, content). Messages personalised with the active personality and the user's memories, title and body delivered in the user's own language across all 6 languages. Selecting due reminders takes a lease (the row flips to <code>PROCESSING</code>, and the next pass only reads <code>PENDING</code> ones): every early exit — usage limit reached, no registered device — releases it, so an undelivered reminder comes back on the following pass instead of vanishing."
         },
         "personalities": {
           "title": "🎭 14 Dynamic Personalities",
@@ -3293,7 +3303,7 @@
         },
         "mcpApps": {
           "title": "📱 Interactive MCP Apps",
-          "description": "Sandboxed HTML widgets rendered directly in the conversation via secure iframes. JSON-RPC PostMessage bridge for bidirectional communication. Built-in XSS protection and COEP credentialless policy for safe loading of external resources."
+          "description": "Interactive HTML widgets rendered in sandboxed iframes directly in the conversation. JSON-RPC bridge over PostMessage for bidirectional communication (forms, downloads, links). Security: sandbox without allow-same-origin, origin validation, XSS protection. COEP credentialless for loading external resources (esm.sh, fonts). Admin and user support."
         },
         "excalidraw": {
           "title": "🎨 Excalidraw Generation",
@@ -3301,7 +3311,7 @@
         },
         "multichannel": {
           "title": "📲 Multi-Channel (Telegram)",
-          "description": "Generic multi-channel messaging architecture with Telegram as first implementation. Telegram bot with OTP binding for secure account linking. Voice message support with automatic transcription. Async webhook processing for reliable message handling."
+          "description": "Generic multi-channel messaging architecture with Telegram as the first implementation. Telegram bot with OTP binding via Redis, text and voice support (audio messages transcribed via Whisper). Asynchronous webhook (immediate 200, processing in a background task, each update claimed once so a redelivery is not replayed). BaseChannelSender abstraction for adding future channels. Multi-channel push notifications (archive + SSE + FCM + Telegram)."
         },
         "heartbeatAutonome": {
           "title": "💓 Autonomous Heartbeat",
@@ -3333,7 +3343,7 @@
         },
         "qualityAssurance": {
           "title": "🎯 LLM-as-Judge Quality Assurance",
-          "description": "Automated response quality evaluation pipeline. Three specialized LLM evaluators: relevance (query/response adequacy), hallucination (fabricated content detection), latency (performance SLA compliance). Metrics exported to Prometheus and Langfuse for production monitoring. Real-time identification and correction of quality degradations."
+          "description": "Automated response quality evaluation pipeline. Three specialized LLM evaluators: relevance (query/response adequacy), hallucination (fabricated content detection), latency (performance SLA compliance). Metrics exported to Prometheus and Langfuse for production monitoring. Real-time identification and correction of quality degradations. On the test-suite side, an AST guard refuses to let a module disable itself when a provider key is absent: a skipped test is green, therefore invisible — ten files had hidden 219 tests that had never run once. The exemption list is shrink-only, and empty."
         },
         "attachments": {
           "title": "📎 Photos & File Attachments",
@@ -3349,7 +3359,7 @@
         },
         "subAgents": {
           "title": "Sub-Agents",
-          "description": "Delegate complex tasks to specialized ephemeral experts working in parallel. The assistant orchestrates and synthesizes their findings transparently."
+          "description": "Delegate complex tasks to ephemeral specialised experts working in parallel. The assistant orchestrates and synthesises their results transparently. Each sub-agent runs a bounded ReAct loop (10 iterations at most) over an explicitly allowlisted toolset — web search and page reading by default — rather than the full catalogue: a delegation that explores does not converge. The instruction handed over is capped in tokens, with its own timeout and its own ceiling, so a longer reasoning budget never requires raising the application-wide limit."
         },
         "browserControl": {
           "title": "🌐 Browser Control",
@@ -3394,6 +3404,20 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_23": {
+          "title": "v1.25.23 — 🔍 The tests that never ran",
+          "date": "July 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>🔊 The voice no longer splits numbers in two</b> — when LIA read out \"it's 3.5 degrees\", it said \"it's three.\" and then, in a separate audio clip, \"point five degrees\". The dot of a decimal was taken for a full stop. Same for prices, version numbers and web addresses. A dot now ends a sentence only when a space follows it.",
+            "i2": "<b>⏰ A reminder is no longer lost when your quota runs out at the wrong moment</b> — if you had used up your usage budget in the exact minute a reminder was due, it was not postponed: it disappeared for good, with no error and no notification. It is now put back in the queue and reaches you on the next pass.",
+            "i3": "<b>🌍 Notifications and follow-up questions in your language</b> — reminder titles arrived in English for Chinese accounts, and whenever LIA asked you to clarify a change, the sentence was always in French whatever your language. All six languages are now served everywhere, including the wind direction on the weather card.",
+            "i4": "<b>✏️ The value you correct stays in the conversation</b> — when you answered \"make it Jean instead\" to a confirmation request, your correction replaced your original message with \"run this tool with the modified parameters\": the name you had just given vanished from the history. It is now preserved for every tool.",
+            "i5": "<b>⚠️ Error messages finally tell you what happened</b> — the detail returned by the server (\"this model already exists\", \"invalid address\") was replaced by a generic sentence, and a validation error displayed as \"[object Object]\". The real message now comes through everywhere. A server failure with an empty body is no longer mistaken for a silent success either.",
+            "i6": "<b>🗑️ Confirmations name what they act on</b> — a confirmation before deleting a label did not say which label, and deleting an email was presented to LIA as sending one, which switched off its caution rule for deletions. Every action is now announced for what it is.",
+            "i7": "<b>🔧 On the admin side</b> — the cost of each model call re-read the exchange rate from the database on every computation; it is now genuinely cached. The personality panel survives an expired session instead of freezing, and usage tracking shows the exact reason for a refusal rather than a generic message."
+          }
+        },
         "v1_25_22": {
           "title": "v1.25.22 — 🔒 A sign-out that leaves nothing behind",
           "date": "July 2026",
@@ -5259,7 +5283,7 @@
           },
           "q4": {
             "question": "How do push notifications work?",
-            "answer": "Push notifications alert you even when the app is closed:<br><br><strong>🔔 How it works:</strong><br>• At the scheduled time, you receive a notification on your device<br>• The notification contains your reminder content<br>• The message is personalized based on your active LIA personality<br>• Works even if the app is closed or in the background<br><br><strong>📱 Supported devices:</strong><br>• Web browsers (Chrome, Firefox, Edge, Safari)<br>• Android (browser and PWA)<br>• iOS (installed PWA only)<br><br><strong>⚙️ Technology used:</strong><br>LIA uses <strong>Firebase Cloud Messaging (FCM)</strong> to send notifications reliably and instantly.<br><br><strong>💡 Tip:</strong><br>For the best experience, enable notifications in settings and add LIA to your home screen on mobile."
+            "answer": "Push notifications alert you even when the app is closed:<br><br><strong>🔔 How it works:</strong><br>• At the scheduled time, you receive a notification on your device<br>• The notification contains your reminder content<br>• The message is personalized based on your active LIA personality<br>• Works even if the app is closed or in the background<br><br><strong>📱 Supported devices:</strong><br>• Web browsers (Chrome, Firefox, Edge, Safari)<br>• Android (browser and PWA)<br>• iOS (installed PWA only)<br><br><strong>⚙️ Technology used:</strong><br>LIA uses <strong>Firebase Cloud Messaging (FCM)</strong> to send notifications reliably and instantly.<br><br><strong>💡 Tip:</strong><br>For the best experience, enable notifications in settings and add LIA to your home screen on mobile.<br><br><strong>🌍 In your language:</strong><br>The notification title and body are delivered in your interface language, for all six supported languages.<br><br><strong>⏳ If your usage budget is exhausted:</strong><br>A reminder that comes due while your usage limit is reached is not lost — it returns to the queue and is delivered on a later pass, once you are no longer capped."
           },
           "q5": {
             "question": "How do I enable notifications on my device?",
@@ -5703,7 +5727,7 @@
       "voice_mode": {
         "title": "Voice Mode",
         "description": "Speak to LIA and let it answer out loud. Push-to-talk, wake word, transcription languages, and what leaves your device.",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "How do I activate voice mode?",
@@ -5728,6 +5752,10 @@
           "q6": {
             "question": "Which voices does LIA use for speech, and what does TTS cost?",
             "answer": "LIA's voice synthesis is configured by the administrator from a single catalogue with three providers: <b>Edge TTS</b> (Microsoft neural voices, free, default), <b>OpenAI TTS</b> (<code>tts-1</code> / <code>tts-1-hd</code>, premium voices: alloy, echo, nova, ...), and <b>ElevenLabs</b> (<code>eleven_multilingual_v2</code> / <code>eleven_turbo_v2_5</code> / <code>eleven_flash_v2_5</code>, including custom and library voices from the configured account). For paid providers, a 🔊 badge on the assistant message shows the character count and the EUR cost; Edge stays free with no badge. Latency-side: a sentence-level streamer starts playing the first sentence in about 1 second, while the assistant is still composing the rest of the answer."
+          },
+          "q7": {
+            "question": "Does LIA read numbers, prices and addresses correctly?",
+            "answer": "Yes. A full stop ends a spoken sentence only when a space follows it, so a decimal number, a price, a version number or a web address stays inside a single spoken phrase: \"it's 3.5 degrees\" is read as one sentence, not as \"it's three\" followed by \"point five degrees\" in a separate audio clip.<br><br>The rule is the same whether the response is spoken in one go or streamed sentence by sentence, so what you hear does not depend on how fast the answer was generated."
           }
         }
       },
@@ -6725,7 +6753,7 @@
       },
       "voice_mode": {
         "title": "Voice mode, local recognition",
-        "description": "Talk to LIA and listen to her responses. Wake word and speech recognition run entirely in your browser — nothing is sent before you speak to LIA. Natural multi-engine speech synthesis. Also works via Telegram audio messages."
+        "description": "Talk to LIA and listen to her responses. Wake word and speech recognition run entirely in your browser — nothing is sent before you speak to LIA. Natural multi-engine speech synthesis. Also works via Telegram audio messages. Numbers, prices and web addresses are read as a single phrase."
       },
       "natural_language": {
         "title": "Natural language",
@@ -6749,7 +6777,7 @@
       },
       "reminders_scheduling": {
         "title": "Reminders & automations",
-        "description": "Schedule reminders in natural language (\"Remind me tomorrow at 9am to call Marie\"). Plan recurring automatic actions (Monday email summary, morning weather...)."
+        "description": "Schedule reminders in natural language (\"Remind me tomorrow at 9am to call Marie\"). Plan recurring automatic actions (Monday email summary, morning weather...). A reminder that comes due while your quota is reached goes back into the queue — never lost."
       },
       "memory": {
         "title": "Contextual memory",
@@ -6946,7 +6974,7 @@
       },
       "hitl": {
         "title": "Human-in-the-Loop",
-        "description": "Six approval levels — plan approval, clarification, draft critique, destructive confirm, FOR_EACH confirm, modifier review. Plan-level guardrails before execution rather than rollback after failure. Automatic risk classification and preview of affected items."
+        "description": "Six approval levels — plan approval, clarification, draft critique, destructive confirm, FOR_EACH confirm, modifier review. Plan-level guardrails before execution rather than rollback after failure. Automatic risk classification and preview of affected items. The action type announced to the classifier is derived from the verb of the tool name rather than from substring matching: a deletion can no longer be presented as a send, which is what kept the prompt's own delete-safety rule from firing."
       }
     },
     "architecture": {
@@ -7517,7 +7545,7 @@
       "voice-mode": {
         "title": "Voice Mode: Talk to LIA Like a Personal Assistant",
         "excerpt": "LIA's voice domain combines a free local STT (Sherpa-onnx Whisper, opt-in remote ElevenLabs Scribe for higher accuracy) and a catalogue-driven TTS (Edge / OpenAI / ElevenLabs). Sentence-level streaming brings the first audio chunk in ~1 second. Per-message cost attribution makes paid voice calls fully auditable.",
-        "body": "<h2>Three activation modes</h2><p>LIA supports three ways to interact by voice:</p><ul><li><strong>Wake word</strong> — say \"OK Guy\" to start listening hands-free. Detection runs entirely in the browser via Sherpa-onnx WASM (English-only model). No audio leaves the browser for wake-word detection.</li><li><strong>Push-to-talk</strong> — hold the microphone button to speak. Optimized for mobile.</li><li><strong>Automatic end-of-speech detection (VAD)</strong> — listening stops automatically after ~0.75 s of silence.</li></ul><h2>Speech-to-text: local default, remote opt-in</h2><p>Each user picks an STT mode in <strong>Settings → Voice mode</strong>:</p><ul><li><strong>Local</strong> (default, free) — Sherpa-onnx Whisper running on the LIA server in <strong>16 kHz mono</strong> with INT8 quantization. Supports <strong>99+ languages</strong>. Audio never leaves the LIA server.</li><li><strong>Remote</strong> (opt-in) — ElevenLabs Scribe at $0.22/h, billed by audio duration. Higher accuracy on conversational speech, especially in noisy environments. A discreet 🎤 badge on each user message bubble surfaces the duration and EUR cost; the cost flows into your usual <strong>Cost</strong> dashboard tile and your usage limits — no separate quota.</li></ul><p>Two admin-side safety levers protect against cost spikes when remote is enabled: a global kill switch (<code>ELEVENLABS_STT_ENABLED</code>) and a per-clip duration cap (<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>, default 300 s) verified before any provider call.</p><h2>Catalogue-driven text-to-speech</h2><p>Voice synthesis is now configured from a single admin form (Configuration LLM → Voice TTS), with three providers seeded from day one:</p><ul><li><strong>Edge TTS</strong> — Microsoft neural voices, free, default. SSML rate / pitch / volume tuning.</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> or <code>tts-1-hd</code>, premium voices (alloy, echo, fable, onyx, nova, shimmer). Speed + response_format tuning.</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>, <code>eleven_turbo_v2_5</code>, <code>eleven_flash_v2_5</code>. Stability, similarity_boost, style and use_speaker_boost tuning. Live voice picker pulls custom and library voices from the configured account.</li></ul><p>For paid providers, a 🔊 badge on the assistant message shows the character count and the EUR cost; Edge stays free with no badge. Audio formats supported: <strong>MP3, Opus, AAC, FLAC, WAV, PCM</strong> — selected per provider.</p><h2>Sentence-level streaming for sub-second latency</h2><p>The voice pipeline now dispatches TTS synthesis <strong>per complete sentence in parallel</strong>, instead of waiting for the full LLM response. The first sentence starts playing in <strong>about one second</strong> while the assistant is still composing the rest of the answer. A persistent HTTP keep-alive on ElevenLabs saves another ~100–300 ms per sentence on calls #2…N. In-order delivery is enforced via a buffered queue — failed slots are skipped without stalling the stream.</p><h2>Voice comments and exports</h2><p>LIA can attach short <strong>voice comments</strong> (a TTS narrative aside) to its responses. Audio streams over WebSocket with a single-use BFF ticket (60-second TTL) for security. Two new CSV exports — <code>stt-usage</code> and <code>tts-usage</code> — list every paid voice call with its conversation, message ID, provider, duration / characters and EUR cost. The existing <code>consumption-summary</code> export gains STT and TTS columns so totals stay in one place.</p>"
+        "body": "<h2>Three activation modes</h2><p>LIA supports three ways to interact by voice:</p><ul><li><strong>Wake word</strong> — say \"OK Guy\" to start listening hands-free. Detection runs entirely in the browser via Sherpa-onnx WASM (English-only model). No audio leaves the browser for wake-word detection.</li><li><strong>Push-to-talk</strong> — hold the microphone button to speak. Optimized for mobile.</li><li><strong>Automatic end-of-speech detection (VAD)</strong> — listening stops automatically after ~0.75 s of silence.</li></ul><h2>Speech-to-text: local default, remote opt-in</h2><p>Each user picks an STT mode in <strong>Settings → Voice mode</strong>:</p><ul><li><strong>Local</strong> (default, free) — Sherpa-onnx Whisper running on the LIA server in <strong>16 kHz mono</strong> with INT8 quantization. Supports <strong>99+ languages</strong>. Audio never leaves the LIA server.</li><li><strong>Remote</strong> (opt-in) — ElevenLabs Scribe at $0.22/h, billed by audio duration. Higher accuracy on conversational speech, especially in noisy environments. A discreet 🎤 badge on each user message bubble surfaces the duration and EUR cost; the cost flows into your usual <strong>Cost</strong> dashboard tile and your usage limits — no separate quota.</li></ul><p>Two admin-side safety levers protect against cost spikes when remote is enabled: a global kill switch (<code>ELEVENLABS_STT_ENABLED</code>) and a per-clip duration cap (<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>, default 300 s) verified before any provider call.</p><h2>Catalogue-driven text-to-speech</h2><p>Voice synthesis is now configured from a single admin form (Configuration LLM → Voice TTS), with three providers seeded from day one:</p><ul><li><strong>Edge TTS</strong> — Microsoft neural voices, free, default. SSML rate / pitch / volume tuning.</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> or <code>tts-1-hd</code>, premium voices (alloy, echo, fable, onyx, nova, shimmer). Speed + response_format tuning.</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>, <code>eleven_turbo_v2_5</code>, <code>eleven_flash_v2_5</code>. Stability, similarity_boost, style and use_speaker_boost tuning. Live voice picker pulls custom and library voices from the configured account.</li></ul><p>For paid providers, a 🔊 badge on the assistant message shows the character count and the EUR cost; Edge stays free with no badge. Audio formats supported: <strong>MP3, Opus, AAC, FLAC, WAV, PCM</strong> — selected per provider.</p><h2>Sentence-level streaming for sub-second latency</h2><p>The voice pipeline now dispatches TTS synthesis <strong>per complete sentence in parallel</strong>, instead of waiting for the full LLM response. The first sentence starts playing in <strong>about one second</strong> while the assistant is still composing the rest of the answer. A persistent HTTP keep-alive on ElevenLabs saves another ~100–300 ms per sentence on calls #2…N. In-order delivery is enforced via a buffered queue — failed slots are skipped without stalling the stream.</p><h2>Where a sentence ends</h2><p>Splitting \"by sentence\" presupposes knowing where a sentence ends — and a period alone does not say. A delimiter closes a sentence only when <strong>a space follows it</strong>, or at the end of the input: \"it's 3.5 degrees\" therefore stays in one piece, instead of being read as \"it's three.\" and then, in a separate audio clip, \"point five degrees\". The same holds for prices, version numbers and web addresses. On the progressive path the rule is doubly necessary: the buffer grows token by token, so <code>\"3.\"</code> is a perfectly normal transient state — dispatching on it amounts to speaking before you have finished reading. Both splitters in the pipeline are pinned by a shared case table and by a test that requires them to agree.</p><h2>Voice comments and exports</h2><p>LIA can attach short <strong>voice comments</strong> (a TTS narrative aside) to its responses. Audio streams over WebSocket with a single-use BFF ticket (60-second TTL) for security. Two new CSV exports — <code>stt-usage</code> and <code>tts-usage</code> — list every paid voice call with its conversation, message ID, provider, duration / characters and EUR cost. The existing <code>consumption-summary</code> export gains STT and TTS columns so totals stay in one place.</p>"
       },
       "knowledge-spaces": {
         "title": "Knowledge Spaces: Turn Your Documents into AI Intelligence",
@@ -7537,7 +7565,7 @@
       "reminders-scheduling": {
         "title": "Reminders and Scheduled Actions: Automate Your Daily Life",
         "excerpt": "Create reminders in natural language and schedule recurring actions. LIA handles timing, timezones, and push notifications.",
-        "body": "<h2>Natural language reminders</h2><p>Creating a reminder with LIA is as simple as saying:</p><ul><li>\"Remind me to call Marie tomorrow at 9am\"</li><li>\"Reminder in 30 minutes: check the oven\"</li><li>\"Remember to buy bread tonight\"</li></ul><p>LIA automatically interprets time expressions and creates the reminder with the correct timezone.</p><h2>Reminder lifecycle</h2><p>Each reminder follows a precise lifecycle: <strong>PENDING → PROCESSING → deleted</strong> after notification. Reminders are <strong>one-shot</strong>: once successfully delivered, they are automatically deleted. Each reminder contains three key fields:</p><ul><li><code>content</code> — The content understood by LIA (reformulated if needed)</li><li><code>original_message</code> — The user's exact text</li><li><code>trigger_at</code> — The trigger time in UTC</li></ul><h2>Timezone management</h2><p>All reminders are stored in <strong>UTC</strong> in the database. The user's IANA timezone (e.g., <code>Europe/Paris</code>, <code>America/New_York</code>) is tracked and used to convert relative time expressions (\"tomorrow at 9am\") into absolute UTC timestamps. Display is always converted to the user's local timezone.</p><h2>Push notifications</h2><p>Reminders are delivered via <strong>Firebase Cloud Messaging (FCM)</strong> for browser and mobile notifications. Notifications arrive even when the app isn't open.</p><h2>Scheduled actions</h2><p>Scheduled Actions constitute a <strong>separate domain</strong> that goes beyond simple reminders. They integrate with <strong>APScheduler</strong> to schedule recurring tasks that LIA executes automatically:</p><ul><li>Weather summary every morning at 7am</li><li>Important email check every 2 hours</li><li>Weekly task report every Monday</li></ul><h2>Reasonable limits</h2><p>To prevent abuse, each user can have up to 20 active scheduled actions simultaneously. Retry logic with backoff handles temporary failures.</p>"
+        "body": "<h2>Natural language reminders</h2><p>Creating a reminder with LIA is as simple as saying:</p><ul><li>\"Remind me to call Marie tomorrow at 9am\"</li><li>\"Reminder in 30 minutes: check the oven\"</li><li>\"Remember to buy bread tonight\"</li></ul><p>LIA automatically interprets time expressions and creates the reminder with the correct timezone.</p><h2>Reminder lifecycle</h2><p>Each reminder follows a precise lifecycle: <strong>PENDING → PROCESSING → deleted</strong> after notification. Reminders are <strong>one-shot</strong>: once successfully delivered, they are automatically deleted. Each reminder contains three key fields:</p><ul><li><code>content</code> — The content understood by LIA (reformulated if needed)</li><li><code>original_message</code> — The user's exact text</li><li><code>trigger_at</code> — The trigger time in UTC</li></ul><p>The move to <code>PROCESSING</code> is a <strong>lease</strong>, not a point of no return: the selection query only ever looks at <code>PENDING</code> rows, so a reminder already being handled cannot be picked up twice by two concurrent passes. Every early exit releases it — usage limit reached, no registered device — and the reminder returns to <code>PENDING</code> for the next pass. Without that release, a reminder falling due in the very minute a user hits their quota would be lost for good, with no error and no trace.</p><h2>Timezone management</h2><p>All reminders are stored in <strong>UTC</strong> in the database. The user's IANA timezone (e.g., <code>Europe/Paris</code>, <code>America/New_York</code>) is tracked and used to convert relative time expressions (\"tomorrow at 9am\") into absolute UTC timestamps. Display is always converted to the user's local timezone.</p><h2>Push notifications</h2><p>Reminders are delivered via <strong>Firebase Cloud Messaging (FCM)</strong> for browser and mobile notifications. Notifications arrive even when the app isn't open.</p><p>The notification title and body are rendered in the user's own language, across all six supported languages. Locale normalisation is done by the title table itself rather than by each caller, because callers hold raw locales of every spelling — and the one place that had to normalise and did not sent Chinese users English titles.</p><h2>Scheduled actions</h2><p>Scheduled Actions constitute a <strong>separate domain</strong> that goes beyond simple reminders. They integrate with <strong>APScheduler</strong> to schedule recurring tasks that LIA executes automatically:</p><ul><li>Weather summary every morning at 7am</li><li>Important email check every 2 hours</li><li>Weekly task report every Monday</li></ul><h2>Reasonable limits</h2><p>To prevent abuse, each user can have up to 20 active scheduled actions simultaneously. Retry logic with backoff handles temporary failures.</p>"
       },
       "sub-agents": {
         "title": "Sub-Agents: Ephemeral Experts for Complex Questions",

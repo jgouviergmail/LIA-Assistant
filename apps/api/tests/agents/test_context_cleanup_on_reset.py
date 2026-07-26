@@ -17,26 +17,36 @@ References:
     - User requirement: "faire le ménage en base de données maintenant !"
 """
 
-import os
 from uuid import uuid4
 
 import pytest
+from langgraph.store.memory import InMemoryStore
 
 from src.domains.agents.context.manager import ToolContextManager
-from src.domains.agents.context.store import get_tool_context_store
 
-# Skip all tests if OPENAI_API_KEY is not set (integration tests that call real LLM)
-pytestmark = pytest.mark.skipif(
-    not os.getenv("OPENAI_API_KEY"),
-    reason="Requires OPENAI_API_KEY for integration tests with real LLM",
-)
+pytestmark = pytest.mark.unit
+
+
+@pytest.fixture
+def store() -> InMemoryStore:
+    """A real ``BaseStore`` implementation, held in memory.
+
+    These tests exercise ``ToolContextManager`` against a store: saving,
+    reading back, deleting. They used to acquire the production LangGraph
+    Postgres store, which makes them require a database — and, without one,
+    a five-second connect timeout per call. ``InMemoryStore`` implements the
+    same interface, so the manager's behaviour is exercised for real while
+    the suite stays hermetic; only the DB-backed reset test below needs the
+    real thing, and it is marked accordingly.
+    """
+    return InMemoryStore()
 
 
 class TestCleanupSessionContexts:
     """Test ToolContextManager.cleanup_session_contexts() method."""
 
     @pytest.mark.asyncio
-    async def test_cleanup_single_domain(self):
+    async def test_cleanup_single_domain(self, store):
         """
         Test cleanup of a single domain (contacts).
 
@@ -47,7 +57,6 @@ class TestCleanupSessionContexts:
             - All 3 keys are deleted
             - cleanup_stats shows correct counts
         """
-        store = await get_tool_context_store()
         manager = ToolContextManager()
 
         user_id = str(uuid4())
@@ -98,7 +107,7 @@ class TestCleanupSessionContexts:
         assert context_list_after is None
 
     @pytest.mark.asyncio
-    async def test_cleanup_multiple_domains(self):
+    async def test_cleanup_multiple_domains(self, store):
         """
         Test cleanup of multiple domains (contacts + emails).
 
@@ -110,7 +119,6 @@ class TestCleanupSessionContexts:
             - Both domains are cleaned
             - cleanup_stats shows 2 domains cleaned
         """
-        store = await get_tool_context_store()
         manager = ToolContextManager()
 
         user_id = str(uuid4())
@@ -162,7 +170,7 @@ class TestCleanupSessionContexts:
             assert context_list is None
 
     @pytest.mark.asyncio
-    async def test_cleanup_session_isolation(self):
+    async def test_cleanup_session_isolation(self, store):
         """
         Test that cleanup only affects the target session.
 
@@ -174,7 +182,6 @@ class TestCleanupSessionContexts:
             - cleanup(session1) deletes session1 contexts
             - session2 contexts remain untouched
         """
-        store = await get_tool_context_store()
         manager = ToolContextManager()
 
         user_id = str(uuid4())
@@ -229,7 +236,7 @@ class TestCleanupSessionContexts:
         assert context_s2_after.items[0]["id"] == f"session_{session2}"
 
     @pytest.mark.asyncio
-    async def test_cleanup_empty_session_no_error(self):
+    async def test_cleanup_empty_session_no_error(self, store):
         """
         Test cleanup of session with no contexts (idempotent).
 
@@ -238,7 +245,6 @@ class TestCleanupSessionContexts:
             - cleanup_stats shows 0 domains cleaned
             - success=True
         """
-        store = await get_tool_context_store()
         manager = ToolContextManager()
 
         user_id = str(uuid4())
@@ -257,7 +263,7 @@ class TestCleanupSessionContexts:
         assert cleanup_stats["total_items_deleted"] == 0
 
     @pytest.mark.asyncio
-    async def test_cleanup_all_store_keys(self):
+    async def test_cleanup_all_store_keys(self, store):
         """
         Test that cleanup deletes ALL Store keys (list, details, current).
 
@@ -269,7 +275,6 @@ class TestCleanupSessionContexts:
         Validate:
             - All 3 keys are deleted after cleanup
         """
-        store = await get_tool_context_store()
         manager = ToolContextManager()
 
         user_id = str(uuid4())
@@ -321,6 +326,7 @@ class TestCleanupSessionContexts:
         assert context_current_after is None
 
 
+@pytest.mark.integration
 class TestResetConversationIntegration:
     """
     Integration tests for reset_conversation() with Store cleanup.
@@ -328,7 +334,11 @@ class TestResetConversationIntegration:
     These tests validate that ConversationService.reset_conversation()
     correctly calls cleanup_session_contexts() as part of the reset flow.
 
-    Note: These are integration tests that require database setup.
+    Marked ``integration``: unlike the class above, this one needs a real
+    database (``db_session`` / ``test_user``) and the production store, so the
+    exclusion is explicit in the CI marker filter rather than hidden behind a
+    credential check. Without a reachable database the fixture chain degrades to
+    a readable skip (it fails loudly only under ``LIA_REQUIRE_DB=1``).
     """
 
     @pytest.mark.asyncio
@@ -351,6 +361,7 @@ class TestResetConversationIntegration:
             - db_session: AsyncSession
             - test_user: User model instance
         """
+        from src.domains.agents.context.store import get_tool_context_store
         from src.domains.conversations.service import ConversationService
 
         # Skip if fixtures not available (run with: pytest -v test_context_cleanup_on_reset.py)
@@ -358,8 +369,10 @@ class TestResetConversationIntegration:
             pytest.skip("Requires test_user fixture")
 
         service = ConversationService()
-        store = await get_tool_context_store()
         manager = ToolContextManager()
+        # The PRODUCTION store on purpose: this test asserts that
+        # `reset_conversation` reaches the same store the application writes to.
+        store = await get_tool_context_store()
 
         # Setup: Create conversation
         conversation = await service.get_or_create_conversation(test_user.id, db_session)

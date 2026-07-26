@@ -369,13 +369,13 @@ class TestWiring:
 
     def test_executor_is_registered_for_the_draft_type(self) -> None:
         from src.domains.agents.services.draft_executor import (
-            _EXECUTOR_REGISTRY,
-            _ensure_executors_registered,
+            EXECUTOR_REGISTRY,
+            ensure_executors_registered,
         )
 
-        _ensure_executors_registered()
+        ensure_executors_registered()
 
-        assert DraftType.DEVOPS_TASK.value in _EXECUTOR_REGISTRY
+        assert DraftType.DEVOPS_TASK.value in EXECUTOR_REGISTRY
 
     def test_manifest_keeps_hitl_required_false(self) -> None:
         """A draft-producing tool must not ALSO pre-interrupt in ReAct.

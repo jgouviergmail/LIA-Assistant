@@ -12,26 +12,33 @@ Phase 5: HITL Streaming Optimization
 """
 
 import asyncio
-import os
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from langchain_core.messages import AIMessageChunk
 
 from src.domains.agents.services.hitl.question_generator import HitlQuestionGenerator
 
-# Skip all tests if OPENAI_API_KEY is not set (integration tests that call real LLM)
-pytestmark = pytest.mark.skipif(
-    not os.getenv("OPENAI_API_KEY"),
-    reason="Requires OPENAI_API_KEY for integration tests with real LLM",
-)
+pytestmark = pytest.mark.unit
 
 
 @pytest.fixture
 def question_generator():
-    """Create HitlQuestionGenerator instance."""
-    return HitlQuestionGenerator()
+    """HitlQuestionGenerator whose LLM clients are substitutable stubs.
+
+    Every test here patches `astream` on the client. That cannot be done on the
+    real one: `ChatOpenAI` is a pydantic model which rejects unknown instance
+    fields, and `astream` lives on the class — `patch.object` raised
+    `"ChatOpenAI" object has no field "astream"`. Substituting the collaborator
+    itself keeps all call sites working and makes the seam explicit. The single
+    `llm` attribute these tests were written against was also split per prompt
+    family (`tool_question_llm` / `plan_approval_llm`).
+    """
+    generator = HitlQuestionGenerator()
+    generator.tool_question_llm = MagicMock()
+    generator.plan_approval_llm = MagicMock()
+    return generator
 
 
 @pytest.fixture
@@ -58,7 +65,9 @@ class TestHitlQuestionStreaming:
         tokens = ["Je ", "vais ", "rechercher ", "le ", "contact ", "'jean'. ", "Continuer", "?"]
         expected_question = "".join(tokens)
 
-        with patch.object(question_generator.llm, "astream", return_value=mock_llm_stream(tokens)):
+        with patch.object(
+            question_generator.tool_question_llm, "astream", return_value=mock_llm_stream(tokens)
+        ):
             # Act
             full_question = ""
             async for token in question_generator.generate_confirmation_question_stream(
@@ -80,18 +89,20 @@ class TestHitlQuestionStreaming:
         expected_ttft_range = (0.01, 0.1)  # 10-100ms expected
 
         with patch.object(
-            question_generator.llm, "astream", return_value=mock_llm_stream(tokens, delay_ms=20)
+            question_generator.tool_question_llm,
+            "astream",
+            return_value=mock_llm_stream(tokens, delay_ms=20),
         ):
             # Act
             start = time.time()
             first_token_time = None
 
-            async for i, _token in enumerate(
-                question_generator.generate_confirmation_question_stream(
-                    tool_name="test_tool",
-                    tool_args={"arg": "value"},
-                )
+            index = 0
+            async for _token in question_generator.generate_confirmation_question_stream(
+                tool_name="test_tool",
+                tool_args={"arg": "value"},
             ):
+                i, index = index, index + 1
                 if i == 0:
                     first_token_time = time.time() - start
                     break
@@ -107,9 +118,13 @@ class TestHitlQuestionStreaming:
         tokens = ["Metric", " test"]
 
         with (
-            patch.object(question_generator.llm, "astream", return_value=mock_llm_stream(tokens)),
+            patch.object(
+                question_generator.tool_question_llm,
+                "astream",
+                return_value=mock_llm_stream(tokens),
+            ),
             patch(
-                "src.domains.agents.services.hitl.question_generator.hitl_question_ttft_seconds"
+                "src.infrastructure.observability.metrics_agents.hitl_question_ttft_seconds"
             ) as mock_ttft_metric,
         ):
             # Act
@@ -119,9 +134,12 @@ class TestHitlQuestionStreaming:
             ):
                 pass  # Consume all tokens
 
-            # Assert
-            mock_ttft_metric.observe.assert_called_once()
-            ttft_value = mock_ttft_metric.observe.call_args[0][0]
+            # Assert — the metric is labelled by question type, so the
+            # observation happens on labels(...), not on the metric itself.
+            mock_ttft_metric.labels.assert_called_once_with(type="tool_confirmation")
+            observe = mock_ttft_metric.labels.return_value.observe
+            observe.assert_called_once()
+            ttft_value = observe.call_args[0][0]
             assert 0 < ttft_value < 1.0  # TTFT should be < 1 second
 
     @pytest.mark.asyncio
@@ -133,7 +151,9 @@ class TestHitlQuestionStreaming:
         timestamps = []
 
         with patch.object(
-            question_generator.llm, "astream", return_value=mock_llm_stream(tokens, delay_ms=50)
+            question_generator.tool_question_llm,
+            "astream",
+            return_value=mock_llm_stream(tokens, delay_ms=50),
         ):
             # Act
             async for token in question_generator.generate_confirmation_question_stream(
@@ -159,10 +179,12 @@ class TestHitlQuestionStreaming:
         async def stream_with_empty():
             yield AIMessageChunk(content="Start")
             yield AIMessageChunk(content="")  # Empty chunk
-            yield AIMessageChunk(content=None)  # None content
+            yield AIMessageChunk(content="")  # empty content (None is unrepresentable)
             yield AIMessageChunk(content="End")
 
-        with patch.object(question_generator.llm, "astream", return_value=stream_with_empty()):
+        with patch.object(
+            question_generator.tool_question_llm, "astream", return_value=stream_with_empty()
+        ):
             # Act
             tokens = []
             async for token in question_generator.generate_confirmation_question_stream(
@@ -183,7 +205,7 @@ class TestHitlQuestionStreaming:
         mock_tracker = MagicMock()
 
         with patch.object(
-            question_generator.llm, "astream", return_value=mock_llm_stream(tokens)
+            question_generator.tool_question_llm, "astream", return_value=mock_llm_stream(tokens)
         ) as mock_astream:
             # Act
             async for _ in question_generator.generate_confirmation_question_stream(
@@ -206,9 +228,13 @@ class TestHitlQuestionStreaming:
         tokens = ["Config", " test"]
 
         with (
-            patch.object(question_generator.llm, "astream", return_value=mock_llm_stream(tokens)),
+            patch.object(
+                question_generator.tool_question_llm,
+                "astream",
+                return_value=mock_llm_stream(tokens),
+            ),
             patch(
-                "src.domains.agents.services.hitl.question_generator.create_instrumented_config"
+                "src.infrastructure.llm.instrumentation.create_instrumented_config"
             ) as mock_create_config,
         ):
             mock_create_config.return_value = {"callbacks": [], "metadata": {}}
@@ -242,7 +268,9 @@ class TestHitlQuestionStreaming:
             yield AIMessageChunk(content="Start")
             raise RuntimeError("LLM API error")
 
-        with patch.object(question_generator.llm, "astream", return_value=failing_stream()):
+        with patch.object(
+            question_generator.tool_question_llm, "astream", return_value=failing_stream()
+        ):
             # Act & Assert
             with pytest.raises(RuntimeError, match="LLM API error"):
                 async for _ in question_generator.generate_confirmation_question_stream(
@@ -258,7 +286,11 @@ class TestHitlQuestionStreaming:
         tokens = ["Complete", " test"]
 
         with (
-            patch.object(question_generator.llm, "astream", return_value=mock_llm_stream(tokens)),
+            patch.object(
+                question_generator.tool_question_llm,
+                "astream",
+                return_value=mock_llm_stream(tokens),
+            ),
             patch("src.domains.agents.services.hitl.question_generator.logger") as mock_logger,
         ):
             # Act
@@ -282,9 +314,15 @@ class TestHitlQuestionStreaming:
 
         # Mock both streaming and blocking
         with (
-            patch.object(question_generator.llm, "astream", return_value=mock_llm_stream(tokens)),
             patch.object(
-                question_generator.llm, "ainvoke", return_value=MagicMock(content=expected)
+                question_generator.tool_question_llm,
+                "astream",
+                return_value=mock_llm_stream(tokens),
+            ),
+            patch.object(
+                question_generator.tool_question_llm,
+                "ainvoke",
+                AsyncMock(return_value=MagicMock(content=expected, text=expected)),
             ),
         ):
             # Act
@@ -316,7 +354,7 @@ class TestHitlQuestionStreamingPerformance:
         tokens = ["Token"] * 20  # 20 tokens
 
         with patch.object(
-            question_generator.llm,
+            question_generator.tool_question_llm,
             "astream",
             return_value=mock_llm_stream(tokens, delay_ms=50),  # 50ms per token
         ):
@@ -324,12 +362,12 @@ class TestHitlQuestionStreamingPerformance:
             start = time.time()
             first_token_time = None
 
-            async for i, _ in enumerate(
-                question_generator.generate_confirmation_question_stream(
-                    tool_name="test_tool",
-                    tool_args={},
-                )
+            index = 0
+            async for _ in question_generator.generate_confirmation_question_stream(
+                tool_name="test_tool",
+                tool_args={},
             ):
+                i, index = index, index + 1
                 if i == 0:
                     first_token_time = time.time() - start
 
@@ -348,7 +386,9 @@ class TestHitlQuestionStreamingPerformance:
         tokens = ["Token" for _ in range(1000)]
 
         with patch.object(
-            question_generator.llm, "astream", return_value=mock_llm_stream(tokens, delay_ms=1)
+            question_generator.tool_question_llm,
+            "astream",
+            return_value=mock_llm_stream(tokens, delay_ms=1),
         ):
             # Act
             token_count = 0

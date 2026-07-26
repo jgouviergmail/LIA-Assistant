@@ -231,7 +231,7 @@ async def execute_devops_task_draft(
 ) -> dict[str, Any]:
     """Execute a confirmed DEVOPS_TASK draft: run the task on the server.
 
-    Registered in ``draft_executor._ensure_executors_registered()``.
+    Registered in ``draft_executor.ensure_executors_registered()``.
 
     The admin check is repeated here on purpose. It ran when the draft was
     BUILT, and an arbitrary delay separates that from the confirmation — a

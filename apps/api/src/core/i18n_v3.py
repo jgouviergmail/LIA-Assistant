@@ -549,6 +549,74 @@ _DISPLAY_WIND: dict[str, str] = {
     "zh-CN": "风",
 }
 
+# Compass points, keyed by the canonical code of ``core.geo_utils``.
+# The abbreviations are NOT universal: German writes Ost/"O" where English
+# writes East/"E", and the Romance languages write Ouest/Oeste/Ovest — "O"
+# where English writes "W". Printing the code raw showed a French reader
+# "15 km/h W" for a westerly wind.
+_DISPLAY_WIND_CARDINALS: dict[str, dict[str, str]] = {
+    "fr": {
+        "N": "N",
+        "NE": "NE",
+        "E": "E",
+        "SE": "SE",
+        "S": "S",
+        "SW": "SO",
+        "W": "O",
+        "NW": "NO",
+    },
+    "en": {
+        "N": "N",
+        "NE": "NE",
+        "E": "E",
+        "SE": "SE",
+        "S": "S",
+        "SW": "SW",
+        "W": "W",
+        "NW": "NW",
+    },
+    "es": {
+        "N": "N",
+        "NE": "NE",
+        "E": "E",
+        "SE": "SE",
+        "S": "S",
+        "SW": "SO",
+        "W": "O",
+        "NW": "NO",
+    },
+    "de": {
+        "N": "N",
+        "NE": "NO",
+        "E": "O",
+        "SE": "SO",
+        "S": "S",
+        "SW": "SW",
+        "W": "W",
+        "NW": "NW",
+    },
+    "it": {
+        "N": "N",
+        "NE": "NE",
+        "E": "E",
+        "SE": "SE",
+        "S": "S",
+        "SW": "SO",
+        "W": "O",
+        "NW": "NO",
+    },
+    "zh-CN": {
+        "N": "北",
+        "NE": "东北",
+        "E": "东",
+        "SE": "东南",
+        "S": "南",
+        "SW": "西南",
+        "W": "西",
+        "NW": "西北",
+    },
+}
+
 _DISPLAY_FORECAST: dict[str, str] = {
     "fr": "Prévisions",
     "en": "Forecast",
@@ -2716,7 +2784,10 @@ class V3Messages:
     Centralized v3 architecture message provider.
 
     Provides all translated strings for v3 components across all 6 languages.
-    Falls back to English if requested language is not available.
+    An unsupported or missing language code normalizes to ``DEFAULT_LANGUAGE``
+    (``fr``), NOT to English — see :meth:`_normalize_language`. The per-table
+    ``.get(lang, table["en"])` fallbacks below therefore only guard a table
+    that is missing an entry for a supported language, never an unknown locale.
     """
 
     @staticmethod
@@ -2946,6 +3017,22 @@ class V3Messages:
         """Get 'wind' label."""
         lang = V3Messages._normalize_language(language)
         return _DISPLAY_WIND.get(lang, _DISPLAY_WIND["en"])
+
+    @staticmethod
+    def get_wind_cardinal(code: str, language: str) -> str:
+        """Get the localized abbreviation of an 8-point compass code.
+
+        Args:
+            code: Canonical code from ``core.geo_utils.WIND_CARDINAL_CODES``.
+            language: User language.
+
+        Returns:
+            The localized abbreviation, or an empty string for an unknown code
+            — a compass point is never guessed.
+        """
+        lang = V3Messages._normalize_language(language)
+        table = _DISPLAY_WIND_CARDINALS.get(lang, _DISPLAY_WIND_CARDINALS["en"])
+        return table.get(code, "")
 
     @staticmethod
     def get_forecast(language: str) -> str:

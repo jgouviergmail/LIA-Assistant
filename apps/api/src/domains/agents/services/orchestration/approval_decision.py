@@ -31,6 +31,8 @@ from src.core.field_names import (
     FIELD_INTERRUPT_DATA,
     FIELD_TYPE,
 )
+from src.core.i18n import DEFAULT_LANGUAGE
+from src.core.i18n_hitl import HitlMessages, HitlResumeMessage
 from src.domains.agents.constants import (
     ACTION_TYPE_DRAFT_CRITIQUE,
     HITL_DECISION_NEW_REQUEST,
@@ -107,9 +109,26 @@ async def _fetch_interrupt_context(
 
 
 def _map_draft_critique_result(
-    result: ClassificationResult, draft_id: str | None, user_message: str, run_id: str
+    result: ClassificationResult,
+    draft_id: str | None,
+    user_message: str,
+    run_id: str,
+    user_language: str,
 ) -> dict[str, Any]:
-    """Map a classifier result to a ``draft_critique`` resume payload."""
+    """Map a classifier result to a ``draft_critique`` resume payload.
+
+    Args:
+        result: Classifier output for the user's reply.
+        draft_id: Draft the reply is about.
+        user_message: Raw reply, reused as edit instructions when the classifier
+            extracted none.
+        run_id: Run ID for logging.
+        user_language: Language the fallback question is emitted in — it is
+            streamed verbatim to the user (see :class:`HitlResumeMessage`).
+
+    Returns:
+        The ``{"action": ...}`` resume payload.
+    """
     if result.decision == "APPROVE":
         return {"action": "confirm", "draft_id": draft_id}
 
@@ -145,7 +164,9 @@ def _map_draft_critique_result(
             "action": "clarify",
             "draft_id": draft_id,
             "clarification_question": result.clarification_question
-            or "Peux-tu préciser ce que tu veux modifier ?",
+            or HitlMessages.get_resume_message(
+                HitlResumeMessage.CLARIFY_WHAT_TO_CHANGE, user_language
+            ),
         }
 
     if result.decision == "REPLAN":
@@ -179,8 +200,10 @@ def _map_draft_critique_result(
     )
     return {
         "action": "cancel",
+        # Technical diagnostic, not user copy: `decision` is a Literal whose five
+        # values are all handled above, so this branch is defensive only.
+        "reason": f"unknown classification: {result.decision}",
         "draft_id": draft_id,
-        "reason": f"Classification inconnue: {result.decision}",
     }
 
 
@@ -190,6 +213,7 @@ async def _classify_draft_critique(
     action_context: list[dict[str, Any]],
     draft_id: str | None,
     run_id: str,
+    user_language: str,
 ) -> dict[str, Any]:
     """Classify a ``draft_critique`` reply into a ``{"action": ...}`` payload."""
     logger.info(
@@ -228,7 +252,7 @@ async def _classify_draft_critique(
             confidence=result.confidence,
             has_edited_params=bool(result.edited_params),
         )
-        return _map_draft_critique_result(result, draft_id, user_message, run_id)
+        return _map_draft_critique_result(result, draft_id, user_message, run_id, user_language)
     except (ValueError, KeyError, TypeError, RuntimeError, AttributeError) as e:
         # Classifier failed — a complex response after seeing a draft means the
         # user wants to MODIFY it; fall back to EDIT with their message.
@@ -248,9 +272,20 @@ async def _classify_draft_critique(
 
 
 def _map_for_each_result(
-    result: ClassificationResult, user_message: str, run_id: str
+    result: ClassificationResult, user_message: str, run_id: str, user_language: str
 ) -> dict[str, Any]:
-    """Map a classifier result to a ``for_each_confirmation`` resume payload."""
+    """Map a classifier result to a ``for_each_confirmation`` resume payload.
+
+    Args:
+        result: Classifier output for the user's reply.
+        user_message: Raw reply, reused as exclusion criteria when the classifier
+            extracted none.
+        run_id: Run ID for logging.
+        user_language: Language the ambiguity notice is emitted in.
+
+    Returns:
+        The ``{"decision": ...}`` resume payload.
+    """
     if result.decision == "APPROVE":
         return {"decision": "APPROVE"}
 
@@ -287,18 +322,21 @@ def _map_for_each_result(
         return {
             "decision": "REJECT",
             "rejection_reason": result.clarification_question
-            or "Réponse ambiguë - opération annulée",
+            or HitlMessages.get_resume_message(
+                HitlResumeMessage.AMBIGUOUS_CANCELLED, user_language
+            ),
         }
 
     logger.warning("approval_decision_for_each_unknown", run_id=run_id, decision=result.decision)
     return {
         "decision": "REJECT",
-        "rejection_reason": f"Classification inconnue: {result.decision}",
+        # Technical diagnostic (defensive branch): every Literal value is handled above.
+        "rejection_reason": f"unknown classification: {result.decision}",
     }
 
 
 async def _classify_for_each(
-    user_message: str, action_context: list[dict[str, Any]], run_id: str
+    user_message: str, action_context: list[dict[str, Any]], run_id: str, user_language: str
 ) -> dict[str, Any]:
     """Classify a ``for_each_confirmation`` reply (always via the LLM classifier)."""
     logger.info(
@@ -321,7 +359,7 @@ async def _classify_for_each(
             confidence=result.confidence,
             has_edited_params=bool(result.edited_params),
         )
-        return _map_for_each_result(result, user_message, run_id)
+        return _map_for_each_result(result, user_message, run_id, user_language)
     except (ValueError, KeyError, TypeError, RuntimeError, AttributeError) as e:
         # Classifier failed — treat the message as EDIT exclusion criteria.
         logger.warning(
@@ -379,9 +417,23 @@ async def _classify_tool_confirmation(
 
 
 def _map_generic_result(
-    result: ClassificationResult, action_context: list[dict[str, Any]], run_id: str
+    result: ClassificationResult,
+    action_context: list[dict[str, Any]],
+    run_id: str,
+    user_language: str,
 ) -> dict[str, Any]:
-    """Map a classifier result to a generic (plan-level) ``{"decision": ...}`` payload."""
+    """Map a classifier result to a generic (plan-level) ``{"decision": ...}`` payload.
+
+    Args:
+        result: Classifier output for the user's reply.
+        action_context: Pending action requests, used to build plan modifications.
+        run_id: Run ID for logging.
+        user_language: Language the ambiguity notice is emitted in — it reaches
+            the response node as the rejection summary.
+
+    Returns:
+        The ``{"decision": ...}`` resume payload.
+    """
     if result.decision == "APPROVE":
         return {"decision": "APPROVE"}
 
@@ -438,13 +490,14 @@ def _map_generic_result(
         return {
             "decision": "REJECT",
             "rejection_reason": result.clarification_question
-            or "Réponse ambiguë, précise ta demande",
+            or HitlMessages.get_resume_message(HitlResumeMessage.AMBIGUOUS_SPECIFY, user_language),
         }
 
     logger.warning("approval_decision_unknown_type", run_id=run_id, decision=result.decision)
     return {
         "decision": "REJECT",
-        "rejection_reason": f"Classification inconnue: {result.decision}",
+        # Technical diagnostic (defensive branch): every Literal value is handled above.
+        "rejection_reason": f"unknown classification: {result.decision}",
     }
 
 
@@ -523,6 +576,7 @@ async def _classify_generic(
     action_context: list[dict[str, Any]],
     interrupt_type: str | None,
     run_id: str,
+    user_language: str,
 ) -> dict[str, Any]:
     """Classify a generic / plan-level reply into a ``{"decision": ...}`` payload.
 
@@ -571,7 +625,7 @@ async def _classify_generic(
             reasoning=result.reasoning[:100] if result.reasoning else None,
             has_edited_params=bool(result.edited_params),
         )
-        return _map_generic_result(result, action_context, run_id)
+        return _map_generic_result(result, action_context, run_id, user_language)
     except (ValueError, KeyError, TypeError, RuntimeError, AttributeError) as e:
         logger.error(
             "approval_decision_classifier_error",
@@ -580,9 +634,13 @@ async def _classify_generic(
             error_type=type(e).__name__,
             user_message=user_message[:100],
         )
+        # English scaffolding, like the sibling "User declined": this reason is
+        # summarized by the response node, which writes to the user in their own
+        # language. The exception type alone — never its message, which can carry
+        # raw payload fragments into the prompt.
         return {
             "decision": "REJECT",
-            "rejection_reason": f"Erreur de classification: {e!s}",
+            "rejection_reason": f"classification failed ({type(e).__name__})",
         }
 
 
@@ -721,7 +779,10 @@ async def build_structured_decision(
 
 
 async def parse_approval_decision(
-    user_message: str, conversation_id: uuid.UUID, run_id: str
+    user_message: str,
+    conversation_id: uuid.UUID,
+    run_id: str,
+    user_language: str = DEFAULT_LANGUAGE,
 ) -> dict[str, Any]:
     """Parse a user's natural-language HITL reply into a resume payload.
 
@@ -733,6 +794,10 @@ async def parse_approval_decision(
         user_message: User's response message.
         conversation_id: Conversation UUID for Redis lookup.
         run_id: Run ID for logging.
+        user_language: Language of the static notices this may emit (ambiguity,
+            clarification). Some are streamed verbatim to the user, so the caller
+            passes the language from the checkpointed state; the configured
+            default only applies when it has none.
 
     Returns:
         The interrupt-kind-specific resume payload (see module docstring).
@@ -762,10 +827,10 @@ async def parse_approval_decision(
 
     if interrupt_type == "draft_critique":
         return await _classify_draft_critique(
-            user_message, message_lower, action_context, draft_id, run_id
+            user_message, message_lower, action_context, draft_id, run_id, user_language
         )
     if interrupt_type == "for_each_confirmation":
-        return await _classify_for_each(user_message, action_context, run_id)
+        return await _classify_for_each(user_message, action_context, run_id, user_language)
     if interrupt_type == "tool_confirmation":
         return await _classify_tool_confirmation(
             user_message, message_lower, action_context, run_id
@@ -773,5 +838,5 @@ async def parse_approval_decision(
     if interrupt_type == "clarification":
         return await _classify_clarification(user_message, message_lower, action_context, run_id)
     return await _classify_generic(
-        user_message, message_lower, action_context, interrupt_type, run_id
+        user_message, message_lower, action_context, interrupt_type, run_id, user_language
     )

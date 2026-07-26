@@ -1,10 +1,12 @@
 /**
  * Unit tests for `useUserStatistics`.
  *
- * Drives the raw-fetch polling hook with a mocked `useAuth` (auth gate),
- * `logging-context` and logger, and a stubbed global `fetch`. Covers the
+ * Drives the polling hook with a mocked `useAuth` (auth gate),
+ * `logging-context` and logger, over a stubbed global `fetch`. Covers the
  * success path, HTTP-error and thrown-error paths, and the no-user short
- * circuit (no request, loading cleared). The real `useStaleGuard` is used.
+ * circuit (no request, loading cleared). The real `useStaleGuard` and the real
+ * `apiClient` are used: the hook goes through the client so an expired session
+ * ejects to the login instead of printing a bare status line.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
@@ -38,10 +40,13 @@ afterEach(() => {
 
 describe('useUserStatistics', () => {
   it('fetches and exposes statistics on success', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(STATS),
-    });
+    const fetchMock = vi.fn().mockImplementation(
+      async () =>
+        new Response(JSON.stringify(STATS), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     const { result } = renderHook(() => useUserStatistics());
@@ -55,7 +60,13 @@ describe('useUserStatistics', () => {
   it('surfaces an error on a non-ok response', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue({ ok: false, status: 500, statusText: 'Server Error' })
+      vi.fn().mockImplementation(
+        async () =>
+          new Response('{}', {
+            status: 500,
+            headers: { 'content-type': 'application/json' },
+          })
+      )
     );
 
     const { result } = renderHook(() => useUserStatistics());
@@ -73,6 +84,25 @@ describe('useUserStatistics', () => {
 
     await waitFor(() => expect(result.current.error).toBe('network down'));
     expect(result.current.isLoading).toBe(false);
+  });
+
+  it('surfaces the backend reason when the API refuses', async () => {
+    // Through apiClient the detail reaches the panel; the raw-fetch version
+    // printed "Failed to fetch statistics: 402 Payment Required".
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(
+        async () =>
+          new Response(JSON.stringify({ detail: 'billing cycle not initialised' }), {
+            status: 409,
+            headers: { 'content-type': 'application/json' },
+          })
+      )
+    );
+
+    const { result } = renderHook(() => useUserStatistics());
+
+    await waitFor(() => expect(result.current.error).toBe('billing cycle not initialised'));
   });
 
   it('does not fetch when there is no authenticated user', async () => {

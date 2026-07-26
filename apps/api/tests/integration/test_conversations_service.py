@@ -86,141 +86,6 @@ def service() -> ConversationService:
     return ConversationService()
 
 
-# ============================================================================
-# Static Method Tests: HITL Filtering Logic (NOW DISABLED)
-# ============================================================================
-
-
-class TestHITLFiltering:
-    """Test HITL approval filtering static methods - NOW DISABLED.
-
-    HITL message filtering is disabled. All messages are shown and counted.
-    These tests verify that no filtering occurs.
-    """
-
-    def test_should_not_filter_hitl_approve(self, service):
-        """Test HITL APPROVE messages are NOT filtered (filtering disabled)."""
-        assert not service._should_filter_hitl_message(
-            role="user",
-            metadata={"hitl_response": True, "decision_type": "APPROVE"},
-        )
-
-    def test_should_not_filter_hitl_edit(self, service):
-        """Test HITL EDIT messages are NOT filtered."""
-        assert not service._should_filter_hitl_message(
-            role="user",
-            metadata={"hitl_response": True, "decision_type": "EDIT"},
-        )
-
-    def test_should_not_filter_hitl_reject(self, service):
-        """Test HITL REJECT messages are NOT filtered."""
-        assert not service._should_filter_hitl_message(
-            role="user",
-            metadata={"hitl_response": True, "decision_type": "REJECT"},
-        )
-
-    def test_should_not_filter_assistant(self, service):
-        """Test assistant messages are NOT filtered."""
-        assert not service._should_filter_hitl_message(
-            role="assistant",
-            metadata={"hitl_response": True, "decision_type": "APPROVE"},
-        )
-
-    def test_should_not_filter_no_metadata(self, service):
-        """Test messages without metadata are NOT filtered."""
-        assert not service._should_filter_hitl_message(role="user", metadata=None)
-
-    def test_should_not_filter_empty_metadata(self, service):
-        """Test messages with empty metadata are NOT filtered."""
-        assert not service._should_filter_hitl_message(role="user", metadata={})
-
-    def test_filter_hitl_messages_keeps_all_messages(self, service, sample_conversation):
-        """Test filtering keeps ALL messages (filtering disabled)."""
-        messages = [
-            ConversationMessage(
-                id=uuid4(),
-                conversation_id=sample_conversation.id,
-                role="user",
-                content="hello",
-                message_metadata=None,
-            ),
-            ConversationMessage(
-                id=uuid4(),
-                conversation_id=sample_conversation.id,
-                role="user",
-                content="oui",  # APPROVE - now kept
-                message_metadata={"hitl_response": True, "decision_type": "APPROVE"},
-            ),
-            ConversationMessage(
-                id=uuid4(),
-                conversation_id=sample_conversation.id,
-                role="assistant",
-                content="response",
-                message_metadata=None,
-            ),
-        ]
-
-        filtered = service._filter_hitl_messages(messages)
-
-        # All 3 messages should be kept (no filtering)
-        assert len(filtered) == 3
-        assert filtered[0].content == "hello"
-        assert filtered[1].content == "oui"  # APPROVE now kept
-        assert filtered[2].content == "response"
-
-    def test_filter_hitl_messages_keeps_edit(self, service, sample_conversation):
-        """Test filtering keeps HITL EDIT messages."""
-        messages = [
-            ConversationMessage(
-                id=uuid4(),
-                conversation_id=sample_conversation.id,
-                role="user",
-                content="non recherche paul",
-                message_metadata={"hitl_response": True, "decision_type": "EDIT"},
-            ),
-        ]
-
-        filtered = service._filter_hitl_messages(messages)
-
-        assert len(filtered) == 1
-        assert filtered[0].content == "non recherche paul"
-
-    def test_filter_hitl_messages_empty_list(self, service):
-        """Test filtering empty list returns empty list."""
-        filtered = service._filter_hitl_messages([])
-        assert len(filtered) == 0
-
-    def test_filter_hitl_messages_dict_keeps_all_messages(self, service):
-        """Test filtering keeps ALL dict messages (filtering disabled)."""
-        messages = [
-            {"role": "user", "content": "hello", "message_metadata": None},
-            {
-                "role": "user",
-                "content": "oui",
-                "message_metadata": {"hitl_response": True, "decision_type": "APPROVE"},
-            },
-            {"role": "assistant", "content": "response", "message_metadata": None},
-        ]
-
-        filtered = service._filter_hitl_messages_dict(messages)
-
-        # All 3 messages should be kept (no filtering)
-        assert len(filtered) == 3
-        assert filtered[0]["content"] == "hello"
-        assert filtered[1]["content"] == "oui"  # APPROVE now kept
-        assert filtered[2]["content"] == "response"
-
-    def test_filter_hitl_messages_dict_empty(self, service):
-        """Test filtering empty dict list."""
-        filtered = service._filter_hitl_messages_dict([])
-        assert len(filtered) == 0
-
-
-# ============================================================================
-# get_or_create_conversation Tests
-# ============================================================================
-
-
 class TestGetOrCreateConversation:
     """Test get_or_create_conversation method."""
 
@@ -648,10 +513,16 @@ class TestGetMessages:
         assert messages[0].content == "Message 5"
         assert messages[1].content == "Message 4"
 
-    async def test_shows_all_messages_with_hide_hitl_flag(
+    async def test_hitl_turns_are_part_of_the_history(
         self, service, sample_user, sample_conversation, async_session
     ):
-        """Test ALL messages shown even with hide_hitl_approvals=True (filtering disabled)."""
+        """Approve/reject turns are shown and counted like any other message.
+
+        Hiding them used to be an option; its predicate was hardcoded to filter
+        nothing and no caller ever passed it, so the flag and its two filter
+        passes were removed. What remains true — and is what this asserts — is
+        that the history is complete.
+        """
         # Create mixed messages
         await service.archive_message(
             conversation_id=sample_conversation.id,
@@ -676,12 +547,10 @@ class TestGetMessages:
         )
         await async_session.commit()
 
-        # Even with hide_hitl_approvals=True, all messages are returned (filtering disabled)
         messages = await service.get_messages(
             user_id=sample_user.id,
             limit=10,
             db=async_session,
-            hide_hitl_approvals=True,
         )
 
         # All 3 messages should be returned (no filtering)
@@ -689,37 +558,6 @@ class TestGetMessages:
         assert messages[0].content == "response"
         assert messages[1].content == "oui"  # APPROVE now kept
         assert messages[2].content == "hello"
-
-    async def test_shows_all_messages_by_default(
-        self, service, sample_user, sample_conversation, async_session
-    ):
-        """Test all messages shown by default (hide_hitl_approvals=False)."""
-        # Create mixed messages
-        await service.archive_message(
-            conversation_id=sample_conversation.id,
-            role="user",
-            content="hello",
-            metadata=None,
-            db=async_session,
-        )
-        await service.archive_message(
-            conversation_id=sample_conversation.id,
-            role="user",
-            content="oui",  # APPROVE - kept
-            metadata={"hitl_response": True, "decision_type": "APPROVE"},
-            db=async_session,
-        )
-        await async_session.commit()
-
-        messages = await service.get_messages(
-            user_id=sample_user.id,
-            limit=10,
-            db=async_session,
-            hide_hitl_approvals=False,
-        )
-
-        # All messages should be returned
-        assert len(messages) == 2
 
 
 # ============================================================================

@@ -284,6 +284,20 @@ scheduler.add_job(
    - Else: status = 'pending' (retry next minute)
 ```
 
+**`processing` is a lease, not a terminal state.** Step 1 only ever selects
+`pending` rows, so the flip at 2.a is what stops two concurrent passes from
+firing the same reminder twice. It follows that **every early exit must put the
+row back to `pending`**, or the reminder becomes unselectable forever — no
+error, no log, no notification. Two exits do so:
+
+| Early exit | Why the lease is released |
+|---|---|
+| User blocked by a usage limit (checked before any DB/LLM work) | The block is a **budget window**, therefore temporary — the reminder must fire on a later tick |
+| User is inactive (deactivated account) | Deactivation is **reversible**; deleting would destroy a reminder the user may still want. Hard deletion belongs to the account purge (`user_data_map`) and to the FK cascade |
+
+An orphan reminder (user row gone) is the one early exit that *deletes* rather
+than releasing: there is nobody left to notify.
+
 ---
 
 ## LLM Message Generation
@@ -601,6 +615,16 @@ MAX_RETRIES = 3
    ```bash
    docker logs api 2>&1 | grep "reminder_notification_failed"
    ```
+
+4. Check for reminders stuck holding a lease — a row left in `processing` is
+   invisible to the selection query and will never fire again:
+   ```sql
+   SELECT id, user_id, trigger_at, retry_count FROM reminders
+   WHERE status = 'processing' AND trigger_at < NOW() - INTERVAL '5 minutes';
+   ```
+   The loop releases the lease on every early exit, so a non-empty result means
+   the process died mid-pass (before the transaction committed) or a new exit
+   path forgot to release. Set the rows back to `pending` to recover them.
 
 ### No FCM notifications
 

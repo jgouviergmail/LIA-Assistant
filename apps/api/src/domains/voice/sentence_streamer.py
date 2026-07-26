@@ -65,9 +65,17 @@ def _build_sentence_end_regex(delimiters: str) -> re.Pattern[str]:
     admin opts into delimiters that have regex meta-meaning (e.g. ``$`` or
     ``+``). Empty input falls back to the default ``.!?`` to keep the
     streamer functional rather than silently never splitting anything.
+
+    The run must be FOLLOWED BY WHITESPACE to count as a boundary. Two reasons,
+    and they are the same reason: a delimiter glued to the next character is
+    part of a token ("3.5", "12.99", "1.2.3", "exemple.fr"), and a delimiter at
+    the very end of the buffer may simply be one whose next character has not
+    streamed in yet. Without the lookahead the streamer dispatched "il fait 3."
+    to the TTS engine and spoke "cinq degrés" as a separate sentence. The tail
+    that never gets a following space is flushed by :meth:`close_input`.
     """
     chars = delimiters or ".!?"
-    return re.compile(f"[{re.escape(chars)}]+")
+    return re.compile(f"[{re.escape(chars)}]+(?=\\s)")
 
 
 SynthCallable = Callable[[str], Awaitable[str]]

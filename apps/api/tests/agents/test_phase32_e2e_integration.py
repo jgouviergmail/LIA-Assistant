@@ -13,12 +13,12 @@ These tests ensure that the Pydantic migration works correctly in production sce
 """
 
 import json
-import os
 import time
 
 import pytest
 from pydantic import ValidationError
 
+from src.domains.agents.constants import make_agent_result_key
 from src.domains.agents.orchestration.mappers import map_execution_result_to_agent_result
 from src.domains.agents.orchestration.schemas import (
     AgentResult,
@@ -28,11 +28,7 @@ from src.domains.agents.orchestration.schemas import (
 )
 from src.domains.agents.tools.schemas import ToolResponse
 
-# Skip all tests if OPENAI_API_KEY is not set (integration tests that call real LLM)
-pytestmark = pytest.mark.skipif(
-    not os.getenv("OPENAI_API_KEY"),
-    reason="Requires OPENAI_API_KEY for integration tests with real LLM",
-)
+pytestmark = pytest.mark.unit
 
 
 class TestToolResponseToAgentResultWorkflow:
@@ -88,8 +84,8 @@ class TestToolResponseToAgentResultWorkflow:
         )
 
         # Then: AgentResult structure is correct
-        assert "5_plan_executor" in agent_results
-        result = agent_results["5_plan_executor"]
+        assert make_agent_result_key(5, "plan_executor") in agent_results
+        result = agent_results[make_agent_result_key(5, "plan_executor")]
 
         # Validate AgentResult fields
         assert result["agent_name"] == "plan_executor"
@@ -100,7 +96,13 @@ class TestToolResponseToAgentResultWorkflow:
         # Validate data contains aggregated results
         assert "aggregated_results" in result["data"]
         assert len(result["data"]["aggregated_results"]) == 1
-        assert result["data"]["aggregated_results"][0]["contacts"][0]["name"] == "Jean Dupont"
+        # `aggregated_results` holds the tool result AS THE EXECUTOR STORED IT:
+        # the full ToolResponse envelope, so the payload lives under "data".
+        # (A comment in `mappers.py` used to claim the envelope had already
+        # been unwrapped — it never was.)
+        aggregated = result["data"]["aggregated_results"][0]
+        assert aggregated["success"] is True
+        assert aggregated["data"]["contacts"][0]["name"] == "Jean Dupont"
 
     def test_multiple_tools_aggregation_workflow(self):
         """
@@ -162,7 +164,7 @@ class TestToolResponseToAgentResultWorkflow:
         )
 
         # Then: Results are aggregated
-        result = agent_results["10_plan_executor"]
+        result = agent_results[make_agent_result_key(10, "plan_executor")]
         assert result["status"] == "success"
         assert result["data"]["completed_steps"] == 2
         assert result["data"]["total_steps"] == 2
@@ -170,8 +172,8 @@ class TestToolResponseToAgentResultWorkflow:
         # Verify aggregation
         aggregated = result["data"]["aggregated_results"]
         assert len(aggregated) == 2
-        assert aggregated[0]["contacts"][0]["name"] == "Jean"
-        assert aggregated[1]["contacts"][0]["name"] == "Marie"
+        assert aggregated[0]["data"]["contacts"][0]["name"] == "Jean"
+        assert aggregated[1]["data"]["contacts"][0]["name"] == "Marie"
 
     def test_tool_error_propagation_workflow(self):
         """
@@ -217,7 +219,7 @@ class TestToolResponseToAgentResultWorkflow:
         )
 
         # Then: AgentResult reflects failure
-        result = agent_results["15_plan_executor"]
+        result = agent_results[make_agent_result_key(15, "plan_executor")]
         assert result["status"] == "failed"
         assert result["error"] == "Step 0 failed: Contact not found"
         assert result["data"]["completed_steps"] == 0
@@ -279,12 +281,27 @@ class TestBackwardCompatibility:
     """Test backward compatibility with existing code."""
 
     def test_agent_result_dict_format_preserved(self):
-        """Test AgentResult.model_dump() produces same dict format as TypedDict."""
-        # Given: Pydantic AgentResult
+        """`model_dump()` keeps a producer's dict payload intact.
+
+        This is the invariant `AgentResultData(extra="forbid")` exists to
+        protect, in the schema's own words: without it "a dict with arbitrary
+        keys could be coerced to a domain-specific model … causing the dict's
+        actual data (like step_results) to be silently discarded". So the
+        payload here is the one a real producer emits — the plan-executor
+        shape — not a one-key stub.
+        """
+        # Given: Pydantic AgentResult holding a plan-executor payload
+        payload = {
+            "plan_id": "plan123",
+            "completed_steps": 2,
+            "total_steps": 2,
+            "step_results": [{"step_id": "s1", "success": True}],
+            "aggregated_results": [{"success": True, "data": {"contacts": []}}],
+        }
         agent_result = AgentResult(
             agent_name="contacts_agent",
             status="success",
-            data={"total": 10},
+            data=payload,
             error=None,
             tokens_in=100,
             tokens_out=200,
@@ -297,11 +314,38 @@ class TestBackwardCompatibility:
         # Then: Dict format matches TypedDict expectations
         assert result_dict["agent_name"] == "contacts_agent"
         assert result_dict["status"] == "success"
-        assert result_dict["data"] == {"total": 10}
+        assert result_dict["data"] == payload  # untouched, no field invented
         assert result_dict["error"] is None
         assert result_dict["tokens_in"] == 100
         assert result_dict["tokens_out"] == 200
         assert result_dict["duration_ms"] == 500
+
+    def test_a_dict_matching_a_domain_schema_is_absorbed_by_it(self):
+        """Characterization: `extra="forbid"` cannot disambiguate a subset payload.
+
+        `EmailsResultData` requires only `total`; everything else is defaulted.
+        A payload of exactly `{"total": 10}` is therefore a VALID member of the
+        union and is promoted to it, gaining `emails: []`, `data_source`, a
+        timestamp… — fields the producer never set. No real producer emits that
+        shape (plan executor, contacts and places payloads all carry keys no
+        domain model declares, which `extra="forbid"` rejects), so this is a
+        documented limit of the union, not a live defect. It is pinned here so
+        that adding a domain model with NO required field — which would swallow
+        `{}` and every dict — fails loudly instead of silently.
+        """
+        absorbed = AgentResult(
+            agent_name="emails_agent", status="success", data={"total": 10}
+        ).model_dump()
+
+        assert absorbed["data"]["total"] == 10
+        assert absorbed["data"]["result_type"] == "emails"
+        assert absorbed["data"]["emails"] == []
+
+        # The guard that keeps real payloads out of the domain models.
+        untouched = AgentResult(
+            agent_name="emails_agent", status="success", data={"total": 10, "unknown_key": 1}
+        ).model_dump()
+        assert untouched["data"] == {"total": 10, "unknown_key": 1}
 
     def test_tool_response_json_format_preserved(self):
         """Test ToolResponse.model_dump_json() matches legacy json.dumps() format."""
@@ -354,10 +398,10 @@ class TestBackwardCompatibility:
 
         # Then: Output is dict (not Pydantic model)
         assert isinstance(agent_results, dict)
-        assert "20_plan_executor" in agent_results
+        assert make_agent_result_key(20, "plan_executor") in agent_results
 
         # And: Inner result is dict (model_dump() was called)
-        result = agent_results["20_plan_executor"]
+        result = agent_results[make_agent_result_key(20, "plan_executor")]
         assert isinstance(result, dict)
         assert "agent_name" in result
         assert "status" in result
@@ -478,7 +522,7 @@ class TestErrorHandlingScenarios:
         )
 
         # Then: AgentResult reflects partial completion
-        result = agent_results["25_plan_executor"]
+        result = agent_results[make_agent_result_key(25, "plan_executor")]
         assert result["status"] == "failed"
         assert result["error"] == "Step 1 failed: Operation timeout"
         assert result["data"]["completed_steps"] == 1
@@ -486,7 +530,8 @@ class TestErrorHandlingScenarios:
 
         # And: Only successful step results are aggregated
         assert len(result["data"]["aggregated_results"]) == 1
-        assert result["data"]["aggregated_results"][0]["step1"] == "ok"
+        # The envelope is preserved, so the payload is under "data".
+        assert result["data"]["aggregated_results"][0]["data"]["step1"] == "ok"
 
     def test_tool_response_with_empty_data(self):
         """Test ToolResponse handles empty data correctly."""
@@ -622,22 +667,30 @@ class TestLLMConfigE2E:
     """E2E tests for LLM config refactoring."""
 
     @pytest.mark.e2e
-    def test_router_node_with_centralized_config(self):
-        """
-        Test router node uses centralized LLM config pattern.
+    def test_router_llm_carries_no_static_metrics_callback(self):
+        """The factory attaches NO static callback — that is the fix, not a gap.
 
-        Scenario: Router node creates LLM with no override → should use
-                  get_llm_config_for_agent() helper → centralized config.
+        This test used to assert ``len(llm.callbacks) >= 1``, pinning the
+        behaviour that caused **double token counting**: a static
+        ``MetricsCallbackHandler`` on the instance PLUS the dynamic one added by
+        ``enrich_config_with_node_metadata`` at invoke time. LangChain merges
+        ``llm.callbacks`` with ``config["callbacks"]`` *after* the dynamic
+        injector has filtered its own list, so both handlers ran and every call
+        was counted twice. The factory now leaves the list empty on purpose
+        (factory.py, "Metrics Double Counting Fix"); the handler is attached per
+        invoke, which is also what gives it the node name for attribution.
         """
         from src.infrastructure.llm.factory import get_llm
+        from src.infrastructure.observability.callbacks import MetricsCallbackHandler
 
-        # When: Get router LLM (no override)
         llm = get_llm("router")
 
-        # Then: LLM created successfully
         assert llm is not None
-        assert hasattr(llm, "callbacks")
-        assert len(llm.callbacks) >= 1  # Metrics callback attached
+        assert llm.callbacks == [], (
+            "a static callback on the instance is merged with the per-invoke one "
+            "and doubles every token count"
+        )
+        assert not any(isinstance(cb, MetricsCallbackHandler) for cb in llm.callbacks or [])
 
     @pytest.mark.e2e
     def test_response_node_with_centralized_config(self):

@@ -484,11 +484,20 @@ class TestClarificationCancel:
         assert result["decision"] == "REJECT"
         assert "NOPE" in result["rejection_reason"]
 
-    async def test_classifier_error_maps_to_reject(self):
+    async def test_classifier_error_maps_to_reject_without_leaking_the_message(self):
+        """The reason names the failure TYPE, never the exception text.
+
+        ``rejection_reason`` is summarized into the response node's prompt, so an
+        arbitrary exception string would ship whatever it carries (a validation
+        error echoing the user's payload, an HTTP error with its query string)
+        straight into an LLM call. The full message stays in the structured log.
+        """
         result = await _parse(
             "complex ambiguous message",
             _pending("plan_approval"),
-            classifier_error=RuntimeError("kaboom"),
+            classifier_error=RuntimeError("kaboom user@example.com"),
         )
         assert result["decision"] == "REJECT"
-        assert "kaboom" in result["rejection_reason"]
+        assert "RuntimeError" in result["rejection_reason"]
+        assert "kaboom" not in result["rejection_reason"]
+        assert "user@example.com" not in result["rejection_reason"]

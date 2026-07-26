@@ -10,17 +10,7 @@ export { useApiQuery } from './useApiQuery';
 export type { UseApiQueryOptions, UseApiQueryResult } from './useApiQuery';
 export { useApiMutation } from './useApiMutation';
 export type { UseApiMutationOptions, UseApiMutationResult } from './useApiMutation';
-export { usePaginatedQuery } from './usePaginatedQuery';
-export type {
-  PaginatedResponse,
-  UsePaginatedQueryOptions,
-  UsePaginatedQueryResult,
-} from './usePaginatedQuery';
 export { useLanguageParam } from './useLanguageParam';
-
-// LOT 6: Draft Actions
-export { useDraftActions } from './useDraftActions';
-export type { UseDraftActionsReturn } from './useDraftActions';
 
 // Personality System
 export { usePersonality } from './usePersonality';
@@ -72,10 +62,6 @@ export type {
 
 // LIA Gender Preference (masculine/feminine avatar)
 export { useLiaGender } from './useLiaGender';
-
-// Form handling
-export { useFormHandler } from './useFormHandler';
-export type { UseFormHandlerOptions, UseFormHandlerReturn } from './useFormHandler';
 
 // Admin Broadcast
 export { useBroadcast } from './useBroadcast';

@@ -1454,8 +1454,11 @@ async def _handle_execution_plan(
                     if "pending_entity_disambiguation" in result or state.get(
                         "pending_entity_disambiguation"
                     ):
-                        queue = state.get("pending_disambiguations_queue", [])
-                        queue.append(draft_data)
+                        # A NEW list, never `state.get(...).append(...)`: mutating
+                        # the object held by the state channel makes a replay of
+                        # this node (HITL resume re-enters it) append a second
+                        # time to the list it already grew.
+                        queue = [*state.get("pending_disambiguations_queue", []), draft_data]
                         result["pending_disambiguations_queue"] = queue
                         logger.info(
                             "registry_disambiguation_queued",

@@ -103,5 +103,5 @@ class TestScheduledActionDraftExecutor:
     def test_executor_is_registered_for_draft_type(self):
         from src.domains.agents.services import draft_executor
 
-        draft_executor._ensure_executors_registered()
-        assert DraftType.SCHEDULED_ACTION.value in draft_executor._EXECUTOR_REGISTRY
+        draft_executor.ensure_executors_registered()
+        assert DraftType.SCHEDULED_ACTION.value in draft_executor.EXECUTOR_REGISTRY

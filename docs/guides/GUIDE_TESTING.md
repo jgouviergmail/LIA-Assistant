@@ -147,6 +147,38 @@ pytest -m slow
 pytest -m security
 ```
 
+### Un module ne se désactive jamais sur une clé de provider (ADR-155)
+
+```python
+# INTERDIT — le fichier entier sort de la CI, en silence
+pytestmark = pytest.mark.skipif(
+    not os.getenv("OPENAI_API_KEY"), reason="Requires OPENAI_API_KEY"
+)
+```
+
+`OPENAI_API_KEY` n'est présente ni dans le job CI `test-backend`, ni sur le
+poste de qui n'en configure pas. Un module portant ce marqueur est donc
+**intégralement sauté à chaque exécution** — et rien ne le signale : un test
+sauté est vert, la couverture mesure les lignes atteintes et non les assertions
+exécutées, et une revue voit un fichier de tests et en conclut que la surface
+est protégée. Mesuré le 2026-07-26 : dix fichiers masquaient ainsi **219
+fonctions de test** qui n'avaient jamais tourné ; réactivées, **142 revenaient
+au rouge**, et leur réparation a exhumé quatre défauts de production réels.
+
+Trois issues, par ordre de préférence :
+
+1. **Le test n'a besoin que de la *forme* d'une réponse LLM** → on la simule.
+   C'est un test unitaire, sans aucune porte d'environnement. Cas quasi général.
+2. **Le test appelle réellement un provider payant** → `@pytest.mark.e2e` (ou
+   `integration`). Les filtres `-m` de la CI nomment ces marqueurs, donc
+   l'exclusion est **lisible dans la commande** au lieu d'être un silence.
+3. **Un seul test a besoin d'une clé** → on garde le `skipif` sur *cette
+   fonction*. Le reste du fichier continue de tourner.
+
+Appliqué par `apps/api/tests/unit/test_no_env_skipped_suite_guard.py` (balayage
+AST sur six variables de credential). Sa liste d'exemption est **shrink-only et
+vide** : une entrée y signifie des tests que personne n'exécute.
+
 ---
 
 ## Configuration et Environnement
@@ -2025,7 +2057,7 @@ async def test_with_mocked_llm_call():
 ```toml
 # pyproject.toml
 [tool.pytest.ini_options]
-addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=60"
+addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=62"
 ```
 
 **Rapports générés** :
@@ -2058,9 +2090,10 @@ Règles :
    le gate, c'est la PR qu'on corrige, pas le gate.
 4. Historique : 43 % (baseline audit) → 45 % (v1.21.22, couverture réelle
    mesurée : 52,3 %) → 58 % (2026-07-24, réel 62,5 % sur le sous-ensemble gated
-   fast-unit) → 59 % (2026-07-24, réel 62,79 % — 13 016 tests) → **60 %
-   (2026-07-25, réel 63,16 % — 13 422 tests)**. Palier suivant 65 % dès que le
-   réel dépasse ~67 %.
+   fast-unit) → 59 % (2026-07-24, réel 62,79 % — 13 016 tests) → 60 %
+   (2026-07-25, réel 63,16 % — 13 422 tests) → 61 % (2026-07-25, réel 63,67 %
+   — 13 737 tests) → **62 % (2026-07-26, réel 64,13 % — 14 058 tests dans le sous-ensemble gated)**. Palier
+   suivant 65 % dès que le réel dépasse ~67 %.
 
    La marge volontairement conservée (~4 pts) couvre l'écart entre la mesure
    locale (Windows) et le runner CI (Linux) : quelques branches dépendent de la
@@ -2069,7 +2102,7 @@ Règles :
 ### Exécuter Coverage
 
 ```bash
-# Coverage complète (applique le gate --cov-fail-under=60)
+# Coverage complète (applique le gate --cov-fail-under=62)
 cd apps/api
 pytest --cov=src --cov-report=term-missing --cov-report=html
 
@@ -2111,7 +2144,7 @@ TOTAL                                       311     19    94%
 
 Le rapport XML est uploadé vers Codecov par le job `test-backend`
 (`codecov-action`, flag `backend`, non bloquant) ; le **gate bloquant** est le
-`--cov-fail-under=60` porté par `task test:backend:unit:coverage`, que ce job
+`--cov-fail-under=62` porté par `task test:backend:unit:coverage`, que ce job
 appelle (voir la doctrine ratchet ci-dessus). Pour le reproduire en local,
 lancer cette tâche — et non `test:backend:unit:fast`, qui troque la couverture
 contre le parallélisme.
@@ -2128,7 +2161,7 @@ Lancer la tâche en local, c'est exécuter littéralement ce que la CI exécute.
 
 | Job CI | Tâche appelée | Sélection | Gate |
 |---|---|---|---|
-| `test-backend` | `task test:backend:unit:coverage` | `tests/unit/`, `-m "not integration and not slow and not e2e and not benchmark and not multiprocess"` | couverture ≥ 60 % |
+| `test-backend` | `task test:backend:unit:coverage` | `tests/unit/`, `-m "not integration and not slow and not e2e and not benchmark and not multiprocess"` | couverture ≥ 62 % |
 | `test-backend` (step 2) | `task test:backend:agents` | `tests/agents/`, `-m "not slow and not e2e and not benchmark and not multiprocess"`, `--no-cov` | tests verts |
 | `test-backend` (step 3) | `task test:markers` | tous les nodeids + leurs markers | aucun test ne tourne dans **zéro** job (F006) |
 | `test-backend-integration` | `task test:backend:integration` | `tests/integration/`, **puis** les tests marqués `integration` sous `tests/unit`/`tests/agents` (F006), `--no-cov` | tests verts |

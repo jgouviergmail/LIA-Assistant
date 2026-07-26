@@ -7,19 +7,62 @@ Tests LangGraph v1.0 best practices compliance.
 TODO: Update tests for LangGraph v1.0 API changes (base_agent_builder migration)
 """
 
-import os
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langchain_core.runnables import RunnableLambda
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph.state import CompiledStateGraph
 
 from src.core.config import Settings
+from src.domains.agents.constants import AGENT_CONTACT
 from src.domains.agents.graph import build_graph
 
-# Skip all tests if OPENAI_API_KEY is not set (integration tests that call real LLM)
-pytestmark = pytest.mark.skipif(
-    not os.getenv("OPENAI_API_KEY"),
-    reason="Requires OPENAI_API_KEY for integration tests with real LLM",
-)
+pytestmark = pytest.mark.unit
+
+
+@pytest.fixture(autouse=True)
+def stub_agent_registry():
+    """Populate the global registry with trivial agents.
+
+    `build_graph` resolves every domain agent from the registry to wrap it in a
+    node. Building the real ones drags in each agent's LLM clients and tool
+    surface, which is not what this suite asserts: it asserts the SHAPE of the
+    graph — which nodes exist, where it starts, where it ends. A registry whose
+    agents are no-op runnables keeps the shape identical and the test hermetic.
+
+    The previous global registry is restored so no other suite inherits this one.
+    """
+    from src.domains.agents.registry import agent_registry as registry_module
+
+    stub = MagicMock()
+    stub.get_agent.return_value = RunnableLambda(lambda state: state)
+    stub._checkpointer = None
+
+    previous = registry_module._global_registry
+    registry_module._global_registry = stub
+    try:
+        yield stub
+    finally:
+        registry_module._global_registry = previous
+
+
+@pytest.fixture(autouse=True)
+def stub_tool_context_store():
+    """Keep graph construction hermetic: no LangGraph Postgres store.
+
+    `build_graph` awaits `get_tool_context_store()` before compiling, which
+    opens the LangGraph store pool — a real database connection that only fails
+    on its connect timeout in a unit environment. The store is injected into
+    `graph.compile(store=...)`; a stand-in is enough to assert the graph's
+    SHAPE, which is all this suite is about.
+    """
+    store = MagicMock()
+    with patch(
+        "src.domains.agents.graph.get_tool_context_store",
+        AsyncMock(return_value=store),
+    ):
+        yield store
 
 
 @pytest.fixture
@@ -37,25 +80,25 @@ def test_settings():
 class TestGraphConstruction:
     """Test suite for graph building and compilation."""
 
-    def test_graph_builds_successfully_without_checkpointer(self, test_settings):
+    async def test_graph_builds_successfully_without_checkpointer(self, test_settings):
         """
         GIVEN valid settings
         WHEN build_graph is called without checkpointer
         THEN graph should compile successfully
         """
-        graph, store = build_graph(config=test_settings, checkpointer=None)
+        graph, store = await build_graph(config=test_settings, checkpointer=None)
 
         # Validate graph compilation
         assert isinstance(graph, CompiledStateGraph)
         assert store is not None
 
-    def test_graph_has_correct_nodes(self, test_settings):
+    async def test_graph_has_correct_nodes(self, test_settings):
         """
         GIVEN a compiled graph
         WHEN inspecting graph structure
         THEN all expected nodes should be present
         """
-        graph, _ = build_graph(config=test_settings, checkpointer=None)
+        graph, _ = await build_graph(config=test_settings, checkpointer=None)
 
         # Extract node names from compiled graph
         # LangGraph internal structure: graph.nodes contains node definitions
@@ -66,7 +109,7 @@ class TestGraphConstruction:
             "compaction",  # F4: Context compaction before router
             "router",
             "task_orchestrator",
-            "contacts_agent",
+            AGENT_CONTACT,
             "response",
             "__start__",  # LangGraph internal entry node
         ]
@@ -74,13 +117,13 @@ class TestGraphConstruction:
         for expected in expected_nodes:
             assert expected in node_names, f"Missing node: {expected}"
 
-    def test_graph_entry_point_is_compaction(self, test_settings):
+    async def test_graph_entry_point_is_compaction(self, test_settings):
         """
         GIVEN a compiled graph
         WHEN checking entry point
         THEN compaction should be the entry node (F4), routing to router
         """
-        graph, _ = build_graph(config=test_settings, checkpointer=None)
+        graph, _ = await build_graph(config=test_settings, checkpointer=None)
 
         # LangGraph v1.0: Verify graph has compaction and router nodes
         # Entry point validation is done by successful compilation
@@ -90,25 +133,25 @@ class TestGraphConstruction:
 
         # Graph compiled successfully means routing is correct
 
-    def test_graph_state_schema_is_messages_state(self, test_settings):
+    async def test_graph_state_schema_is_messages_state(self, test_settings):
         """
         GIVEN a compiled graph
         WHEN inspecting state schema
         THEN state should use MessagesState
         """
-        graph, _ = build_graph(config=test_settings, checkpointer=None)
+        graph, _ = await build_graph(config=test_settings, checkpointer=None)
 
         # Validate state schema
         # LangGraph v1.0: graph.config_schema contains state definition
         assert graph.config_schema is not None
 
-    def test_store_is_injected_into_graph(self, test_settings):
+    async def test_store_is_injected_into_graph(self, test_settings):
         """
         GIVEN a compiled graph with store
         WHEN checking store availability
         THEN store should be accessible in graph
         """
-        graph, store = build_graph(config=test_settings, checkpointer=None)
+        graph, store = await build_graph(config=test_settings, checkpointer=None)
 
         # Store should be non-None
         assert store is not None
@@ -117,24 +160,18 @@ class TestGraphConstruction:
         assert hasattr(store, "aget")
         assert hasattr(store, "aput")
 
-    def test_graph_compilation_with_checkpointer(self, test_settings):
+    async def test_graph_compilation_with_checkpointer(self, test_settings):
         """
         GIVEN a mock checkpointer
         WHEN build_graph is called with checkpointer
         THEN graph should compile with checkpoint support
         """
 
-        # Mock checkpointer (minimal interface)
-        class MockCheckpointer:
-            async def aget(self, *args, **kwargs):
-                return None
+        # LangGraph 1.x validates the type at compile time: a duck-typed
+        # stand-in is rejected outright, so use the real in-memory saver.
+        mock_checkpointer = InMemorySaver()
 
-            async def aput(self, *args, **kwargs):
-                pass
-
-        mock_checkpointer = MockCheckpointer()
-
-        graph, store = build_graph(
+        graph, store = await build_graph(
             config=test_settings,
             checkpointer=mock_checkpointer,
         )
@@ -143,13 +180,13 @@ class TestGraphConstruction:
         assert isinstance(graph, CompiledStateGraph)
         assert store is not None
 
-    def test_graph_conditional_edges_from_router(self, test_settings):
+    async def test_graph_conditional_edges_from_router(self, test_settings):
         """
         GIVEN a compiled graph
         WHEN checking router edges
         THEN router should have conditional routing to orchestrator and response
         """
-        graph, _ = build_graph(config=test_settings, checkpointer=None)
+        graph, _ = await build_graph(config=test_settings, checkpointer=None)
 
         # Router should have conditional edges
         router_node = graph.nodes.get("router")
@@ -160,28 +197,28 @@ class TestGraphConstruction:
         # Note: Exact structure depends on LangGraph internal representation
         # Validation: graph should not raise errors during compilation
 
-    def test_contacts_agent_is_wrapper_node(self, test_settings):
+    async def test_contact_agent_is_wrapper_node(self, test_settings):
         """
         GIVEN a compiled graph
-        WHEN inspecting contacts_agent node
+        WHEN inspecting contact_agent node
         THEN it should be a wrapper function node (not direct subgraph)
         """
-        graph, _ = build_graph(config=test_settings, checkpointer=None)
+        graph, _ = await build_graph(config=test_settings, checkpointer=None)
 
-        # Contacts agent should exist as a node
-        contacts_node = graph.nodes.get("contacts_agent")
+        # Contact agent should exist as a node
+        contacts_node = graph.nodes.get(AGENT_CONTACT)
         assert contacts_node is not None
 
         # Wrapper pattern: node should be a callable function
         # Not a direct StateGraph (which would be problematic for HITL)
 
-    def test_graph_ends_at_response_node(self, test_settings):
+    async def test_graph_ends_at_response_node(self, test_settings):
         """
         GIVEN a compiled graph
         WHEN checking terminal nodes
         THEN response node should connect to END
         """
-        graph, _ = build_graph(config=test_settings, checkpointer=None)
+        graph, _ = await build_graph(config=test_settings, checkpointer=None)
 
         # Response node should exist
         response_node = graph.nodes.get("response")
@@ -190,7 +227,7 @@ class TestGraphConstruction:
         # Response should have edge to __end__ (LangGraph internal)
         # Validated by successful compilation
 
-    def test_graph_uses_correct_llm_models_from_config(self, test_settings):
+    async def test_graph_uses_correct_llm_models_from_config(self, test_settings):
         """
         GIVEN test settings with specific LLM models
         WHEN building graph
@@ -205,7 +242,7 @@ class TestGraphConstruction:
         )
 
         # Build graph with custom config
-        graph, _ = build_graph(config=custom_settings, checkpointer=None)
+        graph, _ = await build_graph(config=custom_settings, checkpointer=None)
 
         # Graph should compile successfully
         assert isinstance(graph, CompiledStateGraph)
@@ -217,22 +254,22 @@ class TestGraphConstruction:
 class TestGraphV1Architecture:
     """Test suite validating V1 sequential architecture compliance."""
 
-    def test_v1_sequential_execution_path(self, test_settings):
+    async def test_v1_sequential_execution_path(self, test_settings):
         """
         GIVEN V1 architecture
         WHEN analyzing execution flow
         THEN path should be: router → orchestrator → agent → response
         """
-        graph, _ = build_graph(config=test_settings, checkpointer=None)
+        graph, _ = await build_graph(config=test_settings, checkpointer=None)
 
         # Validate all V1 nodes exist
-        expected_v1_nodes = ["router", "task_orchestrator", "contacts_agent", "response"]
+        expected_v1_nodes = ["router", "task_orchestrator", AGENT_CONTACT, "response"]
         node_names = list(graph.nodes.keys())
 
         for node in expected_v1_nodes:
             assert node in node_names
 
-    def test_no_parallel_execution_in_v1(self, test_settings):
+    async def test_no_parallel_execution_in_v1(self, test_settings):
         """
         GIVEN V1 architecture
         WHEN checking orchestration
@@ -240,12 +277,12 @@ class TestGraphV1Architecture:
         """
         # This is a documentation test - V1 only supports sequential
         # Parallel execution is planned for V2
-        graph, _ = build_graph(config=test_settings, checkpointer=None)
+        graph, _ = await build_graph(config=test_settings, checkpointer=None)
 
         # Graph should compile successfully with sequential-only logic
         assert isinstance(graph, CompiledStateGraph)
 
-    def test_graph_supports_future_agents_roadmap(self, test_settings):
+    async def test_graph_supports_future_agents_roadmap(self, test_settings):
         """
         GIVEN V1 architecture
         WHEN checking for future extensibility
@@ -253,7 +290,7 @@ class TestGraphV1Architecture:
         """
         # This is a structural validation
         # V2 will add: emails_agent, calendar_agent
-        graph, _ = build_graph(config=test_settings, checkpointer=None)
+        graph, _ = await build_graph(config=test_settings, checkpointer=None)
 
         # Current V1 nodes
         current_nodes = list(graph.nodes.keys())
