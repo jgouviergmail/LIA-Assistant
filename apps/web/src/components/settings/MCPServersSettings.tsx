@@ -381,7 +381,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
   // Form dialog (shared for create and edit)
   const formDialog = (isOpen: boolean, onClose: () => void, titleKey: string) => (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
-      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[560px] max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t(titleKey)}</DialogTitle>
           <DialogDescription>{t('settings.mcp.form_description')}</DialogDescription>
@@ -917,7 +917,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
         open={listTestResult !== null}
         onOpenChange={open => !open && setListTestResult(null)}
       >
-        <DialogContent className="sm:max-w-[480px] max-h-[80vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[480px] max-h-[80dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {t('settings.mcp.test_results_title', { name: listTestServerName })}

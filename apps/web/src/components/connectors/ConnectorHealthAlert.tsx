@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
+import { logger } from '@/lib/logger';
 
 interface ConnectorHealthAlertProps {
   lng: Language;
@@ -49,7 +50,9 @@ async function initiateOAuthReconnect(authorizeUrl: string): Promise<void> {
     navigateToAuthorizationUrl(response.authorization_url, 'connector-reconnect');
   } catch (error) {
     // If API call fails, show error toast
-    console.error('Failed to initiate OAuth reconnect:', error);
+    logger.error('connector_reconnect_failed', error as Error, {
+      component: 'ConnectorHealthAlert',
+    });
     throw error;
   }
 }

@@ -9,6 +9,11 @@
     "edit": "Edit",
     "search": "Search",
     "close": "Close",
+    "copy": "Copy",
+    "copyFailed": "Could not copy.",
+    "hide": "Hide",
+    "show": "Show",
+    "menu": "Menu",
     "download": "Download",
     "back": "Back",
     "next": "Next",
@@ -52,16 +57,6 @@
   },
   "theme": {
     "toggle": "Toggle theme"
-  },
-  "memory": {
-    "toggle": {
-      "enable": "Enable memory",
-      "disable": "Disable memory",
-      "enabled": "Memory enabled",
-      "disabled": "Memory disabled",
-      "tooltip_enabled": "Long-term memory active - I remember our conversations",
-      "tooltip_disabled": "Long-term memory disabled - Simple conversation mode"
-    }
   },
   "executionMode": {
     "toggle": {
@@ -302,6 +297,9 @@
         "task_reschedule": "Reschedule the task “{{subject}}”",
         "document_summarize": "Summarize the document “{{subject}}”"
       },
+      "not_configured_intro_one": "One card is waiting to be set up:",
+      "not_configured_intro_other": "{{count}} cards are waiting to be set up:",
+      "not_configured_cta": "Set up the {{card}} card",
       "all_hidden": "Every card is hidden.",
       "all_hidden_cta": "Choose cards in the settings"
     },
@@ -550,7 +548,6 @@
     "title": "Chat",
     "new_chat": "Delete",
     "loading_conversation": "Loading conversation...",
-    "reset_conversation_confirm": "Are you sure you want to permanently delete the conversation history? This action cannot be undone.",
     "conversation_reset_success": "Conversation reset",
     "conversation_reset_error": "Error while resetting",
     "input": {
@@ -610,9 +607,6 @@
       "instruction_listening": "Tap to start speaking",
       "instruction_recording": "Listening... Tap to stop",
       "instruction_processing": "Processing your message...",
-      "instruction_speaking": "Playing response...",
-      "recording": "Recording",
-      "hint_tap_to_speak": "Tap anywhere to start recording",
       "hint_listening": "Say \"OK Guy\" or tap to speak",
       "hint_recording": "Listening... speak now",
       "hint_processing": "Processing...",
@@ -624,7 +618,6 @@
       "error_generic": "Voice mode error. Please try again.",
       "hold_to_enable": "Hold to enable",
       "hold_to_disable": "Hold to disable",
-      "enabled_toast": "Voice mode enabled",
       "disabled_toast": "Voice mode disabled",
       "settings_title": "Voice settings",
       "settings_wake_word": "Wake word",
@@ -685,6 +678,18 @@
     "error": {
       "title": "Loading error",
       "message": "Messages cannot be displayed. Please refresh the page."
+    },
+    "image_expiry": {
+      "until": "Available until {{date}} — download it to keep it",
+      "soon_one": "Expires in {{count}} hour — download it to keep it",
+      "soon_other": "Expires in {{count}} hours — download it to keep it",
+      "expired": "This image has expired and is no longer available"
+    },
+    "starters": {
+      "label": "Try one of these",
+      "capabilities": "What can you do?",
+      "reminder": "Remind me to call Jean on Friday at 6pm",
+      "explain": "Explain quantum computing in simple terms"
     },
     "empty_state": {
       "title": "Start a conversation",
@@ -798,7 +803,13 @@
       "reconnect_message": "LIA could not access {{connector}} — the connection has expired.",
       "rate_limit_message": "{{connector}} is rate-limiting requests. Please try again in a few minutes.",
       "reconnect_button": "Reconnect",
-      "dismiss": "Dismiss notice"
+      "dismiss": "Dismiss notice",
+      "summary_reconnect_one": "{{count}} service needs reconnecting",
+      "summary_reconnect_other": "{{count}} services need reconnecting",
+      "summary_rate_limit_one": "{{count}} service is rate-limited",
+      "summary_rate_limit_other": "{{count}} services are rate-limited",
+      "summary_expand": "Show details",
+      "summary_collapse": "Hide details"
     },
     "search": {
       "loaded_count_one": "{{count}} result in loaded messages",
@@ -867,6 +878,16 @@
       "news_description": "News on my interests",
       "news_intent": "Any news on my interests today?",
       "skill_intent": "Start the {{name}} skill"
+    },
+    "reset_confirm": {
+      "title": "Delete this conversation?",
+      "description": "Every message will be deleted, along with all your attachments — AI-generated images included. LIA also forgets the context of this conversation. This cannot be undone.",
+      "confirm": "Delete everything"
+    },
+    "active_call": {
+      "dialing": "LIA is calling {{name}}…",
+      "in_progress": "LIA is on the phone with {{name}}",
+      "details": "Details"
     }
   },
   "skill_apps": {
@@ -1178,7 +1199,6 @@
       "available_google": "Google Connectors",
       "available_external": "External Connectors",
       "all_connected": "All available connectors are already connected",
-      "disconnect_confirm": "Are you sure you want to disconnect this service?",
       "disconnect_error": "Disconnection error",
       "connected_success": "{{name}} has been connected successfully",
       "unknown_connector": "The connector",
@@ -1431,19 +1451,11 @@
         "secret_placeholder": "Webhook signing secret",
         "activate": "Activate telephony",
         "activated": "Telephony activated. LIA can now place calls on your behalf.",
-        "no_calls": "No calls yet.",
-        "recent_calls": "Recent calls",
-        "call_status": {
-          "dialing": "Dialing",
-          "in_progress": "In progress",
-          "completed": "Completed",
-          "no_answer": "No answer",
-          "voicemail": "Voicemail",
-          "failed": "Failed",
-          "cancelled": "Cancelled"
-        },
         "secret_label": "Webhook signing secret"
-      }
+      },
+      "disconnect": "Disconnect",
+      "disconnect_title": "Disconnect {{name}}?",
+      "disconnect_description": "LIA will no longer be able to read or act on your {{name}} data. Nothing is deleted on {{name}}'s side, and you can reconnect at any time."
     },
     "user": {
       "export": {
@@ -1526,14 +1538,16 @@
           "erase": "Erase (GDPR)"
         },
         "deactivation_reason_prompt": "Reason for deactivating this user:",
-        "delete_confirmation": "⚠️ ACCOUNT DELETION\n\nDelete account for \"{{email}}\"?\n\nThis will IRREVERSIBLY purge:\n• Conversations and messages\n• Memories and journals\n• OAuth connectors\n• RAG spaces and files\n• Personal data\n\nBilling history will be preserved.",
-        "erase_confirmation": "⚠️ PERMANENT ERASURE (GDPR)\n\nPermanently erase \"{{email}}\"?\n\nThis will remove the last trace of the account (email, name).\nBilling history will become anonymous.\n\nThis action CANNOT be undone.",
+        "delete_confirmation": "Delete account for \"{{email}}\"?\n\nThis will IRREVERSIBLY purge:\n• Conversations and messages\n• Memories and journals\n• OAuth connectors\n• RAG spaces and files\n• Personal data\n\nBilling history will be preserved.",
+        "erase_confirmation": "Permanently erase \"{{email}}\"?\n\nThis will remove the last trace of the account (email, name).\nBilling history will become anonymous.\n\nThis action CANNOT be undone.",
         "errors": {
           "loading": "Error loading users",
           "toggle_status": "Error {{action}}ing user",
           "delete": "Error deleting account",
           "erase": "Error erasing user (GDPR)"
-        }
+        },
+        "delete_title": "⚠️ ACCOUNT DELETION",
+        "erase_title": "⚠️ PERMANENT ERASURE (GDPR)"
       },
       "pricing": {
         "title": "LLM Pricing",
@@ -2151,7 +2165,8 @@
       "update_success": "Language updated successfully",
       "update_error": "Error updating language",
       "persistence_info": "Your language preference has been saved. Notification emails will use this language.",
-      "info_note": "💡 Language affects the user interface and notification emails. Changing language automatically updates the URL."
+      "info_note": "💡 Language affects the user interface and notification emails. Changing language automatically updates the URL.",
+      "selector_label": "Language: {{name}}"
     },
     "interests": {
       "settings": {
@@ -2283,43 +2298,24 @@
     "location": {
       "geolocation": {
         "title": "Geolocation",
-        "description": "Allow LIA to use your location for weather and place searches",
-        "auto_label": "Automatic geolocation",
-        "auto_description": "Automatically send your position with each message",
         "permission_status": "Permission status",
         "permission_granted": "Granted",
         "permission_denied": "Denied",
         "unsupported": "Not supported",
-        "current_position": "Current position",
-        "accuracy": "Accuracy: ~{{meters}}m",
-        "refresh": "Refresh",
         "enabled": "Geolocation enabled",
         "disabled": "Geolocation disabled",
-        "refreshed": "Position refreshed",
-        "denied_help": "To enable geolocation, change your browser permissions in the site settings.",
-        "info_note": "Your position is only sent with your messages for contextual responses (local weather, nearby places). It is not stored on our servers."
+        "denied_help": "To enable geolocation, change your browser permissions in the site settings."
       },
       "home": {
         "title": "Home address",
-        "description": "Set your address to use 'at home' in your queries",
-        "places_required": "Google Places required",
-        "places_required_help": "Enable the Google Places connector in Settings > Connectors to configure your home.",
-        "current": "Current address",
-        "set_address": "Set home address",
         "placeholder": "Enter your address...",
-        "input_help": "Enter your complete address (street, city, postal code)",
         "save": "Save",
         "clear": "Delete",
         "saved": "Home address saved",
         "cleared": "Home address deleted",
         "save_error": "Error saving address",
         "clear_error": "Error deleting address",
-        "address_required": "Please enter an address",
-        "usage_title": "Usage:",
-        "usage_weather": "\"Weather at home\" will use this address",
-        "usage_places": "\"Restaurants near home\" will use this address",
-        "usage_phrases": "Works with: \"at home\", \"near home\", \"my neighborhood\"",
-        "privacy_note": "Your address is encrypted and stored securely. It is never shared with third parties."
+        "address_required": "Please enter an address"
       }
     },
     "skills": {
@@ -2815,6 +2811,28 @@
         "title": "Strong authentication",
         "description": "Passkeys, authenticator app and password sign-in."
       }
+    },
+    "telephony": {
+      "calls": {
+        "title": "Recent calls",
+        "description": "Outbound calls LIA placed for you",
+        "in_flight": "A call is in progress",
+        "status": {
+          "dialing": "Dialing",
+          "in_progress": "In progress",
+          "completed": "Completed",
+          "no_answer": "No answer",
+          "voicemail": "Voicemail",
+          "failed": "Failed",
+          "cancelled": "Cancelled"
+        },
+        "outcome": {
+          "objective_met": "Objective met",
+          "partial": "Partly met",
+          "declined": "Declined",
+          "unreachable": "Unreachable"
+        }
+      }
     }
   },
   "spaces": {
@@ -3177,6 +3195,7 @@
   "faq": {
     "title": "Frequently Asked Questions",
     "subtitle": "Find answers to the most common questions about LIA",
+    "try_example": "Try this example: {{example}}",
     "show_welcome": "Show welcome guide",
     "search": {
       "placeholder": "Search the FAQ...",
@@ -3239,7 +3258,7 @@
         },
         "hitl": {
           "title": "👤 Advanced Human-in-the-Loop",
-          "description": "8 intelligent interaction types: clarification, entity disambiguation (ENTITY_DISAMBIGUATION), plan approval, tool confirmation, draft critique, edit confirmation (EDIT_CONFIRMATION), bulk operation confirmation (FOR_EACH), and destructive validation (mass deletions ≥3 items). Configurable thresholds and item preview before execution. Review loops are replay-safe (ADR-092): one interrupt per node execution with loop state flowing through the checkpointed graph state — each LLM modification runs exactly once and the confirmed content is guaranteed identical to the last content displayed. Whether an operation counts as a mutation is read from the tool's declared catalogue category rather than guessed from its name, so bulk replies and forwards are gated exactly like creations and deletions."
+          "description": "8 intelligent interaction types: clarification, entity disambiguation (ENTITY_DISAMBIGUATION), plan approval, tool confirmation, draft critique, edit confirmation (EDIT_CONFIRMATION), bulk operation confirmation (FOR_EACH), and destructive validation (mass deletions ≥3 items). Configurable thresholds and item preview before execution. Review loops are replay-safe (ADR-092): one interrupt per node execution with loop state flowing through the checkpointed graph state — each LLM modification runs exactly once and the confirmed content is guaranteed identical to the last content displayed. Whether an operation counts as a mutation is read from the tool's declared catalogue category rather than guessed from its name, so bulk replies and forwards are gated exactly like creations and deletions. Symmetrically, a confirmation must never be asked twice: the nineteen draft types already show a preview and wait for an explicit agreement, so the semantic validator upstream judges the <b>structure</b> of the plan — missing parameter, wrong tool, cardinality — and not how consequential the action feels. A question asked twice is not extra safety: it is a user forced to insist in order to be obeyed."
         },
         "connectors": {
           "title": "🔌 Connectors & Registry",
@@ -3291,7 +3310,7 @@
         },
         "costTransparency": {
           "title": "💰 Cost Transparency",
-          "description": "Optional real-time display: input/output/cache tokens, EUR cost per message and conversation total. Dashboard statistics: messages, tokens, and costs for current cycle. User control via 💲 icon in title bar."
+          "description": "Optional real-time display: input/output/cache tokens, EUR cost per message and conversation total. Dashboard statistics: messages, tokens, and costs for current cycle. User control via 💲 icon in title bar. When a quota is in place it no longer arrives as a wall: a warning appears at 80 % of whichever limit binds first — across tokens, messages and cost, per cycle or absolute — naming it and, for a per-period limit, giving the reset date. An absolute limit promises no reset at all."
         },
         "scheduledActions": {
           "title": "📅 Scheduled Actions",
@@ -3379,7 +3398,7 @@
         },
         "imageGeneration": {
           "title": "🎨 Image Generation & Editing",
-          "description": "Generate images from text descriptions and edit existing images with natural language instructions. Multi-provider factory architecture, per-user quality/size/format preferences, cost tracking with database-cached pricing, attachment-based storage with cascade cleanup."
+          "description": "Generate images from text descriptions and edit existing images with natural language instructions. Multi-provider factory architecture, per-user quality/size/format preferences, cost tracking with database-cached pricing, attachment-based storage with cascade cleanup. A generated image is an attachment with a limited lifetime: the card shows the deadline returned by the server — never a duration hard-coded in the interface, since it is configurable — and switches to an alert tone in the final hours, so downloading stays possible before the cleanup."
         },
         "reactMode": {
           "title": "⚡ ReAct Execution Mode",
@@ -3391,11 +3410,11 @@
         },
         "telephony": {
           "title": "📞 Agentic Telephony",
-          "description": "LIA can place outbound phone calls through a goal-directed ElevenLabs Agent, driven by your <b>own per-user connector</b> (bring-your-own credentials — no LIA-side metering). Data protection is enforced <b>by capability, not by prompt</b>: the call agent exposes a single read-only availability tool that returns free/busy slots only — never event titles, attendees, locations or content. Nothing is recorded and the transcript is never persisted; when the call ends, a <b>signed per-user webhook</b> triggers a tool-less LLM synthesis reinjected asynchronously into the chat as a short, expiring summary with an optional one-tap follow-up. Every call is confirmed by you before dialing (HITL draft) and the whole subsystem is feature-flagged (ADR-127). The agent operates under a <b>strict mandate</b> enforced by its system prompt: no expense or commitment beyond the objective; any out-of-mandate offer is captured in dedicated structured fields (additional cost, pending decision) that the post-call synthesis must surface."
+          "description": "LIA can place outbound phone calls through a goal-directed ElevenLabs Agent, driven by your <b>own per-user connector</b> (bring-your-own credentials — no LIA-side metering). Data protection is enforced <b>by capability, not by prompt</b>: the call agent exposes a single read-only availability tool that returns free/busy slots only — never event titles, attendees, locations or content. Nothing is recorded and the transcript is never persisted; when the call ends, a <b>signed per-user webhook</b> triggers a tool-less LLM synthesis reinjected asynchronously into the chat as a short, expiring summary with an optional one-tap follow-up. Every call is confirmed by you before dialing (HITL draft) and the whole subsystem is feature-flagged (ADR-127). The agent operates under a <b>strict mandate</b> enforced by its system prompt: no expense or commitment beyond the objective; any out-of-mandate offer is captured in dedicated structured fields (additional cost, pending decision) that the post-call synthesis must surface. During the call the product no longer goes silent: a banner states who is being called and where the dialling stands, and a dedicated section keeps the history — name, objective, outcome and recap, never the number, which the API does not expose. A vendor refusal is treated as one: it answers <code>200</code> even when declining, so an unverified source number used to leave a live row blocking every further call; that case is now distinguished from a transient failure, and the message says so."
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
-          "description": "The dashboard home page is a daily briefing: personalized LLM greeting + 2-3 sentence synthesis above a 9-card grid (enriched weather, agenda, unread mails, birthdays, reminders, health, « For you » — open loops + automations digest —, pending/overdue tasks, latest Drive documents). Pure architecture: no LangGraph chain, parallel asyncio.gather, per-section Redis cache with adapted TTL (weather 1 h, agenda 10 min, mails 5 min…). Split endpoints (/briefing/cards fast + /briefing/synthesis LLM-bound) for progressive rendering. Tokens and EUR cost of each LLM call surfaced in the UI next to the timestamp and tracked in user usage statistics via track_proactive_tokens (cached tokens correctly subtracted)."
+          "description": "The dashboard home page is a daily briefing: personalized LLM greeting + 2-3 sentence synthesis above a 9-card grid (enriched weather, agenda, unread mails, birthdays, reminders, health, « For you » — open loops + automations digest —, pending/overdue tasks, latest Drive documents). Pure architecture: no LangGraph chain, parallel asyncio.gather, per-section Redis cache with adapted TTL (weather 1 h, agenda 10 min, mails 5 min…). Split endpoints (/briefing/cards fast + /briefing/synthesis LLM-bound) for progressive rendering. Tokens and EUR cost of each LLM call surfaced in the UI next to the timestamp and tracked in user usage statistics via track_proactive_tokens (cached tokens correctly subtracted). Seven of those nine cards render nothing until their source is configured: rather than invisible holes, a single line names them and links each one to the setting that switches it on — while the cards you hid yourself stay, rightly, out of the conversation."
         }
       },
       "diagram_alt": "LIA architecture diagram"
@@ -3404,6 +3423,23 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_24": {
+          "title": "v1.25.24 — 🧭 Finding what LIA already knows how to do",
+          "date": "July 2026",
+          "count": "10",
+          "items": {
+            "i1": "<b>📱 The logo becomes your menu on a phone</b> — below a certain width the navigation bar disappeared and nothing replaced it: from the chat you could reach neither settings nor help without typing a URL. Tap the LIA logo now and the four destinations open, with the current page announced.",
+            "i2": "<b>🎯 Links land you on the right section</b> — the getting-started checklist sent six of its seven items to the top of the settings page, in front of about thirty collapsed blocks. Each item now opens its own section, unfolds it and scrolls to it. Seventeen sections are addressable this way, including from the home cards.",
+            "i3": "<b>🏠 Unconfigured home cards are no longer holes</b> — seven of the nine cards render nothing at all until their source is connected, so a fresh account met two empty cards and seven unexplained absences. One discreet line now names them and links to the setting that switches each on. Cards you hid yourself are never mentioned.",
+            "i4": "<b>⚠️ A warning before the usage wall</b> — until now nothing signalled that your quota was close: the interface simply blocked, mid-task. A banner now appears at 80 % of whichever limit binds first, names it, and gives the reset date when it is a per-period limit.",
+            "i5": "<b>🖼️ Generated images announce their deletion date</b> — they are kept for a limited time and then removed. Nothing said so: the image vanished from the history without warning. Each card now states how long it stays available, and switches to an alert tone in its final hours.",
+            "i6": "<b>🔁 A failed turn replays in one click</b> — when a turn failed you had to find your question and retype it. A Retry button replays exactly the request that failed, even if other messages arrived in between.",
+            "i7": "<b>💬 The FAQ examples are clickable</b> — the hundreds of ready-made phrases in this FAQ had to be copied by hand. One click now drops them into the chat composer, ready to edit before sending. Nothing is ever sent on your behalf.",
+            "i8": "<b>📞 Calls: followed during, explained after</b> — between your confirmation and the recap, LIA went completely silent. A banner now says who she is calling and where the call stands, and a settings section keeps the history. Above all: a call refused by the carrier (unverified source number, exhausted credit) used to block every further call for a quarter of an hour — the refusal is now detected and explained instead of being mistaken for a call in progress.",
+            "i9": "<b>🗣️ LIA no longer asks for the same confirmation twice</b> — for an email, an appointment or a call she warned that the action was irreversible and waited for your agreement… while a preview and an explicit confirmation were coming right after. You had to insist to be obeyed. That duplicate question is gone; the confirmation that matters, the one showing exactly what will be sent, is of course still there.",
+            "i10": "<b>✅ In-app confirmations, and an interface that fits the screen</b> — the most final admin actions went through the operating system's own dialog, which ignores the theme and labels its buttons in the computer's language. They now use LIA's dialogs. Along the way: on mobile the composer no longer hides under the browser's address bar, and on a tablet the logout button no longer sits off-screen in German."
+          }
+        },
         "v1_25_23": {
           "title": "v1.25.23 — 🔍 The tests that never ran",
           "date": "July 2026",
@@ -4817,23 +4853,23 @@
       "chat": {
         "title": "Conversations",
         "description": "Using chat and conversations",
-        "count": "22",
+        "count": "23",
         "questions": {
           "q1": {
             "question": "Can I have multiple conversations at the same time?",
-            "answer": "LIA works with <strong>one active conversation</strong>. This design choice allows:<br><br>• A <strong>coherent context</strong>: LIA remembers the entire conversation<br>• <strong>Natural references</strong>: \"<em>the first email</em>\", \"<em>the previous contact</em>\"<br>• A <strong>smooth experience</strong>: no need to juggle between windows<br><br><strong>To start fresh:</strong><br>Click the <strong>New conversation</strong> button (🗑️ icon). Warning: this deletes the current history."
+            "answer": "LIA works with <strong>one active conversation</strong>. This design choice buys you:<br><br>• A <strong>coherent context</strong>: LIA remembers the whole exchange<br>• <strong>Natural references</strong>: \"<em>the first email</em>\", \"<em>the previous contact</em>\"<br>• A <strong>smooth experience</strong>: nothing to juggle between windows<br><br><strong>To start fresh:</strong><br>Click the <strong>🗑️</strong> button in the chat header. It deletes every message <strong>and every attachment</strong> — AI-generated images included — so export anything you want to keep first."
           },
           "q2": {
             "question": "How do I reset a conversation?",
-            "answer": "To clear history and start over:<br><br>1. In the chat, find the button with the 🗑️ icon in the header<br>2. Click it<br>3. Confirm deletion<br><br><strong>⚠️ Warning:</strong> This action is <strong>irreversible</strong>. All conversation history will be permanently deleted.<br><br><strong>💡 When to reset?</strong><br>• When you completely change topics<br>• If LIA seems confused by previous context<br>• For privacy reasons"
+            "answer": "To clear everything and start over:<br><br>1. In the chat header, find the <strong>🗑️</strong> button<br>2. Click it<br>3. Confirm in the dialog<br><br><strong>⚠️ What is actually deleted:</strong><br>Every message, <strong>all your attachments — AI-generated images included</strong>, and the context LIA had built from this conversation. The action is <strong>irreversible</strong>.<br><br><strong>💡 When is it worth it?</strong><br>• You switch to a completely different topic<br>• LIA seems confused by earlier context<br>• You would rather not leave that history behind"
           },
           "q3": {
             "question": "Are conversations saved?",
-            "answer": "Yes, your conversations are <strong>automatically saved</strong>:<br><br>• <strong>Real-time sync</strong>: each message is recorded instantly<br>• <strong>Multi-device</strong>: access your conversation from any device<br>• <strong>Persistence</strong>: find your conversation even after logging out<br><br><strong>📱 Multi-device tip:</strong><br>You can start a conversation on your computer and continue on mobile (and vice-versa)."
+            "answer": "Yes, your conversation is <strong>saved as it happens</strong>:<br><br>• <strong>Real-time</strong>: every message is recorded the moment it is sent<br>• <strong>Multi-device</strong>: pick it up from any device signed in to your account<br>• <strong>Persistent</strong>: it survives logging out and closing the browser<br><br><strong>📱 In practice:</strong><br>Start a conversation on your computer and continue it on your phone — and back again.<br><br><strong>🗑️ Deleting it is a deliberate act:</strong><br>Nothing is removed until you use the <strong>🗑️</strong> button and confirm."
           },
           "q4": {
             "question": "How do I use line breaks in my messages?",
-            "answer": "Two keyboard shortcuts to know:<br><br>• <strong>Enter</strong> = Send the message<br>• <strong>Shift + Enter</strong> = New line (line break)<br><br><strong>💡 Practical example:</strong><br>To send a structured email, type:<br><br><em>Send an email to John:<br>Subject: Project meeting<br>Body:<br>Hello John,<br><br>I confirm our meeting tomorrow.<br><br>Best regards</em><br><br>Use Shift+Enter between each line, then Enter to send."
+            "answer": "Two keyboard shortcuts to know:<br><br>• <strong>Enter</strong> = send the message<br>• <strong>Shift + Enter</strong> = new line<br><br><strong>💡 Worked example:</strong><br>To dictate a structured email, type:<br><br><em>Send an email to John:<br>Subject: Project meeting<br>Body:<br>Hello John,<br><br>I confirm our meeting tomorrow.<br><br>Best regards</em><br><br>Use Shift+Enter between each line, then Enter to send the whole thing at once."
           },
           "q5": {
             "question": "Does LIA remember the conversation context?",
@@ -4906,6 +4942,10 @@
           "q22": {
             "question": "The thread no longer jumps while I re-read — how does it work? (v1.25.16)",
             "answer": "<p>When you scroll up to re-read, a streaming answer <strong>never drags you back to the bottom</strong>. A floating button appears with a counter of the responses that arrived off-screen; one tap brings you back. Sending a message still jumps to it, as expected. Under the latest answer, up to 3 <strong>follow-up suggestions</strong> may appear as chips: tapping one fills the input (never sends).</p>"
+          },
+          "q23": {
+            "question": "A message failed — do I have to retype my question?",
+            "answer": "No. An error bubble now carries a <b>Retry</b> button, and it replays <b>exactly</b> the request that failed.<br><br><strong>Why that precision matters:</strong><br>Between your question and your click, LIA may have sent you a proactive notification. Replaying \"the last message\" would then send something other than what you asked for. The question is therefore pinned to the failure bubble at the moment it happens.<br><br><strong>💡 Good to know:</strong><br>A failure with no preceding question (a notification, for instance) shows no button: there would be nothing to replay."
           }
         }
       },
@@ -4916,11 +4956,11 @@
         "questions": {
           "q1": {
             "question": "How do I change my timezone?",
-            "answer": "The timezone affects date display in your conversations:<br><br><strong>To change it:</strong><br>1. Go to <strong>Settings</strong> (⚙️ icon in the menu)<br>2. Find the <strong>Timezone</strong> section<br>3. Select your timezone from the dropdown list<br><br><strong>🌍 Automatic detection:</strong><br>On your first login, LIA automatically detects your timezone via your browser.<br><br><strong>💡 Traveler tip:</strong><br>If you travel, LIA will offer to update your timezone when it detects a mismatch."
+            "answer": "The timezone affects how dates and times are displayed in your conversations:<br><br><strong>To change it:</strong><br>1. Go to <strong>Settings</strong> (⚙️ icon in the menu)<br>2. Open the <strong>Preferences</strong> tab<br>3. Under <strong>Personalization</strong>, unfold <strong>Timezone</strong> and pick yours<br><br><strong>🌍 Automatic detection:</strong><br>On your first login, LIA detects your timezone from your browser.<br><br><strong>💡 Traveler tip:</strong><br>If you travel, LIA notices the mismatch with your browser and offers to update your timezone in one click."
           },
           "q2": {
             "question": "How do I change the interface language?",
-            "answer": "Two methods to change language:<br><br><strong>Quick method:</strong><br>Click the <strong>globe icon</strong> 🌐 in the title bar and select your language.<br><br><strong>Via settings:</strong><br>1. Go to <strong>Settings</strong> (⚙️ icon in the menu)<br>2. Find the <strong>Language</strong> section<br>3. Select your desired language<br><br><strong>🔄 Sync:</strong><br>Both methods sync your preference. The language is saved in your profile.<br><br><strong>📧 Impact on emails:</strong><br>Notification emails will also use this language."
+            "answer": "Two ways to change the language:<br><br><strong>Quick method:</strong><br>Click the <strong>globe icon</strong> 🌐 in the title bar and pick your language.<br><br><strong>Via settings:</strong><br>1. Go to <strong>Settings</strong> (⚙️ icon in the menu)<br>2. Open the <strong>Preferences</strong> tab<br>3. Under <strong>Personalization</strong>, unfold <strong>Language</strong><br><br><strong>🔄 Sync:</strong><br>Both methods save the same preference to your profile, so it follows you across devices.<br><br><strong>📧 Beyond the interface:</strong><br>Notification emails and the push notifications LIA sends you also use this language."
           },
           "q3": {
             "question": "How do I customize appearance (themes)?",
@@ -4928,7 +4968,7 @@
           },
           "q4": {
             "question": "How do I update my profile?",
-            "answer": "Manage your personal information:<br><br><strong>Editable:</strong><br>• ✏️ <strong>Full name</strong>: your name displayed in the app<br>• 🌍 <strong>Timezone</strong>: for date display<br>• 🌐 <strong>Language</strong>: interface language<br>• 🎨 <strong>Theme</strong>: visual appearance<br><br><strong>Not editable:</strong><br>• 📧 <strong>Email</strong>: login identifier (fixed after registration)<br><br><strong>To modify:</strong><br>Go to <strong>Settings</strong> (⚙️ icon in the menu) and find the corresponding sections."
+            "answer": "Manage your personal information:<br><br><strong>Editable:</strong><br>• ✏️ <strong>Full name</strong>: the name shown in the app — <strong>Settings > Profile</strong><br>• 🌍 <strong>Timezone</strong>, 🌐 <strong>Language</strong>, 🎨 <strong>Appearance</strong>: <strong>Settings > Preferences</strong>, under <strong>Personalization</strong><br><br><strong>Not editable:</strong><br>• 📧 <strong>Email</strong>: it is your login identifier and is fixed after registration<br><br><strong>💡 Good to know:</strong><br>Your name is what LIA uses to address you, so a nickname works just as well as a legal name."
           },
           "q5": {
             "question": "How do I customize LIA's style?",
@@ -5054,7 +5094,7 @@
       "telephony": {
         "title": "Phone Calls",
         "description": "LIA can place real phone calls on your behalf. Complete setup guide (Twilio + ElevenLabs) and everyday use.",
-        "count": "12",
+        "count": "13",
         "questions": {
           "q1": {
             "question": "What can LIA do on the phone?",
@@ -5103,6 +5143,10 @@
           "q12": {
             "question": "It doesn't work — what should I check?",
             "answer": "<strong>\"Invalid key\" at step 1</strong><br>→ The key is mistyped or lacks permissions (Agents platform access required).<br><br><strong>\"No numbers\" after validating the key</strong><br>→ Your number isn't imported into the ElevenLabs <strong>Agents</strong> workspace, or was imported as a SIP trunk instead of the native Twilio integration.<br><br><strong>The call goes out but no summary comes back</strong><br>→ The webhook is the issue: URL not publicly reachable, wrong signing secret, or wrong event type (it must be <strong>post_call_transcription</strong>).<br><br><strong>\"A call is already in progress\"</strong><br>→ Only one active call at a time, by design. A stuck call is automatically cleaned up after ~15 minutes.<br><br><strong>Calls refused after several in a row</strong><br>→ You've hit the hourly cap (10 calls/hour by default).<br><br><strong>Still stuck?</strong> Ask your administrator: the server logs state precisely which webhook events were received and why any were ignored."
+          },
+          "q13": {
+            "question": "Can I follow a call while it is happening?",
+            "answer": "Yes. As soon as LIA starts dialling, a banner appears above the conversation: who she is calling, and where the call stands. It disappears the moment the call ends.<br><br><strong>📒 Afterwards:</strong><br>The history lives in <b>Settings → Preferences → Recent calls</b>: name, objective, status, outcome and recap. Never the number — the API does not expose it. The section does not appear at all if you have never placed a call.<br><br><strong>⚠️ If the call is refused:</strong><br>The message says so plainly, and distinguishes two cases: a transient failure (retrying makes sense) and a refusal from the carrier — unverified source number, exhausted credit — where retrying changes nothing until it is fixed on their side."
           }
         }
       },
@@ -5684,11 +5728,11 @@
       "usage_limits": {
         "title": "Usage Limits",
         "description": "Per-user token, message and cost quotas",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "What are usage limits?",
-            "answer": "Usage limits are <strong>quotas set by your administrator</strong> to control resource consumption:<br><br><strong>📊 3 dimensions:</strong><br>• <strong>Tokens</strong> (prompt + response + cache) — volume of data processed by AI<br>• <strong>Messages</strong> — number of messages sent<br>• <strong>Cost (EUR)</strong> — combined LLM + Google API cost<br><br><strong>📅 2 modes:</strong><br>• <strong>Per period</strong> — monthly rolling cycle from account creation<br>• <strong>Global</strong> — cumulative total since registration<br><br>Each dimension can be set or unlimited."
+            "answer": "Usage limits are <strong>quotas set by your administrator</strong> to keep resource consumption predictable:<br><br><strong>📊 3 dimensions:</strong><br>• <strong>Tokens</strong> (prompt + response + cache) — the volume of data the AI processes<br>• <strong>Messages</strong> — the number of messages you send<br>• <strong>Cost (EUR)</strong> — the combined LLM + Google API cost<br><br><strong>📅 2 modes:</strong><br>• <strong>Per period</strong> — a monthly rolling cycle anchored on your account creation date, not on the first of the month<br>• <strong>Global</strong> — a cumulative total since registration, which never resets<br><br>Each dimension can be given a value or left unlimited, independently of the others."
           },
           "q2": {
             "question": "How is the billing period calculated?",
@@ -5721,6 +5765,10 @@
           "q9": {
             "question": "How does limit enforcement work?",
             "answer": "LIA uses a <strong>5-layer defense-in-depth</strong> architecture:<br><br>1. <strong>Router</strong> — HTTP 429 before streaming<br>2. <strong>Service</strong> — SSE error for scheduled actions<br>3. <strong>LLM Guard</strong> — Centralized check before each LLM call<br>4. <strong>Proactive Runner</strong> — Skip blocked users<br>5. <strong>Direct call migration</strong> — Full coverage<br><br><strong>⚡ Fail-open:</strong> If Redis/DB is down, access is allowed (cost control, not security)."
+          },
+          "q10": {
+            "question": "Am I warned before I reach a limit?",
+            "answer": "Yes. At <b>80 %</b> of whichever limit will bind first, a banner appears in the chat naming it — tokens, messages or cost — with its percentage. At <b>95 %</b> the same banner takes a more urgent tone.<br><br><strong>Why \"whichever binds first\":</strong><br>Any one dimension blocks the account. Warning about a less advanced one would point at the wrong deadline, so it is always the binding dimension that gets named.<br><br><strong>📅 Reset date:</strong><br>It is shown only for a <b>per-period</b> limit. An absolute limit never resets, and the banner does not suggest otherwise.<br><br><strong>💡 Once blocked:</strong><br>The warning disappears — the blocking banner explains the situation better, and two messages about the same limit at the worst possible moment would just be noise."
           }
         }
       },
@@ -5762,7 +5810,7 @@
       "image_generation": {
         "title": "AI Image Generation",
         "description": "Generate and edit images using AI",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "How do I generate an image?",
@@ -5787,6 +5835,10 @@
           "q6": {
             "question": "Is there a limit to how many images I can generate?",
             "answer": "<p>Two safeguards apply. Your account's <strong>usage limits</strong> (cost caps per billing cycle, set by the administrator) cover image generation costs like any other cost. On top of that, a <strong>technical rate limit</strong> protects against runaway loops: by default, <strong>10 image generations (and 10 edits) per 5 minutes</strong> per user. Normal use is unaffected — if the limit is reached, the assistant tells you how long to wait before trying again. The administrator can tune the threshold and the window via the <code>IMAGE_GENERATION_RATE_LIMIT_CALLS</code> and <code>IMAGE_GENERATION_RATE_LIMIT_WINDOW</code> environment variables.</p>"
+          },
+          "q7": {
+            "question": "How long does a generated image stay available?",
+            "answer": "Not indefinitely. A generated image is an attachment with an expiry, and a scheduled cleanup removes expired attachments every few hours.<br><br><strong>🕒 What the card shows:</strong><br>The deadline returned by the server, and an alert tone in the final hours so downloading stays possible in time.<br><br><strong>Why not a hard-coded duration:</strong><br>The retention window is configurable by the administrator, so a value written into the interface would eventually be wrong. Images that predate this feature show nothing rather than guess.<br><br><strong>💡 Tip:</strong><br>Use the download button as soon as an image matters to you — that is the only way to keep it past the deadline."
           }
         }
       },
@@ -6040,7 +6092,8 @@
     "settings": {
       "title": "LIA Style",
       "description": "Customize the tone and style of your assistant's responses"
-    }
+    },
+    "selector_label": "Personality: {{name}}"
   },
   "memories": {
     "purge_risk_badge_at_risk": "May be forgotten",
@@ -6773,7 +6826,7 @@
       },
       "telephony": {
         "title": "LIA can call for you",
-        "description": "Ask LIA to place a real phone call on your behalf — reach a contact, ask a quick question, check a slot. You approve who it calls and why before it dials; LIA holds the conversation, then drops a written summary back into the chat, with a one-tap follow-up when useful. And never a commitment without you: any unplanned expense or option is noted with its price, never accepted — you make the call."
+        "description": "Ask LIA to place a real phone call on your behalf — reach a contact, ask a quick question, check a slot. You approve who it calls and why before it dials; LIA holds the conversation, then drops a written summary back into the chat, with a one-tap follow-up when useful. And never a commitment without you: any unplanned expense or option is noted with its price, never accepted — you make the call. While the call is happening you can see who she has on the line and where it stands — the product no longer stays silent between your agreement and the recap."
       },
       "reminders_scheduling": {
         "title": "Reminders & automations",
@@ -7515,7 +7568,7 @@
       "human-in-the-loop": {
         "title": "Human-in-the-Loop: 6 Approval Levels to Keep You in Control",
         "excerpt": "LIA never takes critical actions without your consent. Its 6-level HITL system protects you against errors and hallucinations.",
-        "body": "<h2>Why human validation is essential</h2><p>Language models can hallucinate or misinterpret intent. LIA solves this by placing <strong>humans at the center of every critical decision</strong>. No email is sent, no event created, no data modified without your explicit validation.</p><h2>The 6 approval levels</h2><p>LIA's HITL system classifies each action into 6 levels:</p><ul><li><strong>Plan Approval</strong> — Before executing a multi-step plan, LIA generates a <code>PlanApprovalRequest</code> containing a plan summary and modifiable parameters, then waits for your go-ahead.</li><li><strong>Clarification</strong> — If intent is ambiguous, LIA asks for details rather than guessing.</li><li><strong>Draft Critique</strong> — For emails or messages, LIA submits a draft for approval before sending.</li><li><strong>Destructive Confirmation</strong> — Any deletion or irreversible modification requires explicit confirmation.</li><li><strong>FOR_EACH Confirmation</strong> — For batch operations, each item can be validated individually.</li><li><strong>Modifier Review</strong> — Parameter changes are presented for verification.</li></ul><h2>5 possible decisions with confidence</h2><p>The HITL classifier produces a <strong>ClassificationResult</strong> with 5 possible decisions, each accompanied by a confidence score between 0.0 and 1.0:</p><ul><li><strong>APPROVE</strong> — The action is validated and passes to the <code>task_orchestrator</code></li><li><strong>REJECT</strong> — The action is refused, the flow is redirected to the <code>response</code> node</li><li><strong>EDIT</strong> — The user modifies parameters via <code>edited_params</code>, a <code>PlanEditor</code> applies the changes</li><li><strong>REPLAN</strong> — The user reformulates their intent via <code>reformulated_intent</code>, the flow returns to the <code>planner</code></li><li><strong>AMBIGUOUS</strong> — The system asks a <code>clarification_question</code> to resolve the ambiguity</li></ul><h2>Native LangGraph interruption</h2><p>Technically, the <code>approval_gate</code> node uses LangGraph's <code>interrupt()</code> function to <strong>suspend graph execution</strong> and wait for the user's response. The state is persisted in PostgreSQL, allowing asynchronous resumption even after a disconnection.</p><h2>You always have the last word</h2><p>At each validation point, classification strategies are composable: based on tool manifests, estimated cost, data sensitivity, and user role. LIA never bypasses this step.</p><p>And that last word is honored to the letter: review loops follow a replay-safe pattern (one <code>interrupt()</code> per node execution, checkpointed loop state — ADR-092), so a resume never replays a past LLM or API call. What you approve, after as many edits as you need, is exactly what gets executed.</p>"
+        "body": "<h2>Why human validation is essential</h2><p>Language models can hallucinate or misinterpret intent. LIA solves this by placing <strong>humans at the center of every critical decision</strong>. No email is sent, no event created, no data modified without your explicit validation.</p><h2>The 6 approval levels</h2><p>LIA's HITL system classifies each action into 6 levels:</p><ul><li><strong>Plan Approval</strong> — Before executing a multi-step plan, LIA generates a <code>PlanApprovalRequest</code> containing a plan summary and modifiable parameters, then waits for your go-ahead.</li><li><strong>Clarification</strong> — If intent is ambiguous, LIA asks for details rather than guessing.</li><li><strong>Draft Critique</strong> — For emails or messages, LIA submits a draft for approval before sending.</li><li><strong>Destructive Confirmation</strong> — Any deletion or irreversible modification requires explicit confirmation.</li><li><strong>FOR_EACH Confirmation</strong> — For batch operations, each item can be validated individually.</li><li><strong>Modifier Review</strong> — Parameter changes are presented for verification.</li></ul><h2>5 possible decisions with confidence</h2><p>The HITL classifier produces a <strong>ClassificationResult</strong> with 5 possible decisions, each accompanied by a confidence score between 0.0 and 1.0:</p><ul><li><strong>APPROVE</strong> — The action is validated and passes to the <code>task_orchestrator</code></li><li><strong>REJECT</strong> — The action is refused, the flow is redirected to the <code>response</code> node</li><li><strong>EDIT</strong> — The user modifies parameters via <code>edited_params</code>, a <code>PlanEditor</code> applies the changes</li><li><strong>REPLAN</strong> — The user reformulates their intent via <code>reformulated_intent</code>, the flow returns to the <code>planner</code></li><li><strong>AMBIGUOUS</strong> — The system asks a <code>clarification_question</code> to resolve the ambiguity</li></ul><h2>Native LangGraph interruption</h2><p>Technically, the <code>approval_gate</code> node uses LangGraph's <code>interrupt()</code> function to <strong>suspend graph execution</strong> and wait for the user's response. The state is persisted in PostgreSQL, allowing asynchronous resumption even after a disconnection.</p><h2>You always have the last word</h2><p>At each validation point, classification strategies are composable: based on tool manifests, estimated cost, data sensitivity, and user role. LIA never bypasses this step.</p><p>And that last word is honored to the letter: review loops follow a replay-safe pattern (one <code>interrupt()</code> per node execution, checkpointed loop state — ADR-092), so a resume never replays a past LLM or API call. What you approve, after as many edits as you need, is exactly what gets executed.</p><h2>Validate once, never twice</h2><p>A safeguard in the wrong place works against its own intent. Upstream of the plan, a semantic validator could halt on an action it judged \"irreversible\" — sending an email, booking an appointment, placing a call — while a preview and an explicit confirmation were arriving right after, on exactly the same action. The user had to <strong>insist in order to be obeyed</strong>.</p><p>The rule is now written down: an action that already carries its own confirmation downstream is never halted upstream. The validator judges the <strong>structure</strong> of the plan — missing parameter, wrong tool, inconsistent cardinality — and not how consequential the action feels. Asking the same question twice adds no safety: it shifts the burden onto the user and eventually teaches them to click without reading.</p>"
       },
       "llm-providers": {
         "title": "Multi-Provider AI: choose the right model for every task",
@@ -7685,6 +7738,19 @@
       "error": "Failed to update limits",
       "default_block_reason": "Blocked by administrator",
       "current_usage": "Current usage"
+    },
+    "warning": {
+      "warning": "You have used {{percent}}% of your quota.",
+      "critical": "You are at {{percent}}% of your quota.",
+      "resets_on": "resets on {{date}}",
+      "dimension": {
+        "cycle_tokens": "tokens this cycle",
+        "cycle_messages": "messages this cycle",
+        "cycle_cost": "cost this cycle",
+        "absolute_tokens": "total tokens",
+        "absolute_messages": "total messages",
+        "absolute_cost": "total cost"
+      }
     },
     "blocked": {
       "title": "Limit reached",

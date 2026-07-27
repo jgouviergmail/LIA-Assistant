@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { CONNECTOR_LABELS, isValidConnectorType } from '@/constants/connectors';
 import UserConnectorsSection from '@/components/settings/UserConnectorsSection';
+import TelephonyCallsSection from '@/components/settings/TelephonyCallsSection';
 import AdminUsersSection from '@/components/settings/AdminUsersSection';
 import AdminConnectorsSection from '@/components/settings/AdminConnectorsSection';
 import AdminLLMPricingSection from '@/components/settings/AdminLLMPricingSection';
@@ -73,6 +74,11 @@ import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
 import { useTranslation } from '@/i18n/client';
 import { FeatureErrorBoundary } from '@/components/errors';
 import { CatalogueInvalidationProvider } from '@/lib/catalogue-invalidation-context';
+import {
+  SETTINGS_SECTIONS,
+  resolveSettingsSection,
+  type SettingsSectionTarget,
+} from '@/lib/settings-sections';
 
 interface SettingsPageProps {
   params: Promise<{ lng: string }>;
@@ -98,10 +104,11 @@ export default function SettingsPage({ params }: SettingsPageProps) {
   // Track if we should auto-expand connectors section after OAuth callback
   const [shouldExpandConnectors, setShouldExpandConnectors] = React.useState(false);
 
-  // QW-10: deep-link (?section=journals) and the Identity & Memory shortcut
-  // both open the Journals section (Features tab) and scroll to it — where
-  // the "How LIA sees you" portrait lives.
-  const [shouldOpenJournals, setShouldOpenJournals] = React.useState(false);
+  // W2: pending `?section=` target. Any token of SETTINGS_SECTIONS opens its
+  // tab, expands its accordion item and scrolls to it — previously only
+  // `connectors` and `journals` were understood, while the getting-started
+  // checklist pointed six of its seven items at the bare settings page.
+  const [pendingSection, setPendingSection] = React.useState<SettingsSectionTarget | null>(null);
 
   // Track if OAuth callback toast has been shown (prevents duplicate toasts)
   const oauthToastShownRef = React.useRef(false);
@@ -112,15 +119,16 @@ export default function SettingsPage({ params }: SettingsPageProps) {
     const error = searchParams.get('error');
     const section = searchParams.get('section');
 
-    // Handle direct navigation to a section (e.g., from dashboard). Each
-    // supported value maps to a tab + accordion target; the param is cleaned
-    // either way so a reload does not replay the navigation.
-    if (section === 'connectors' || section === 'journals') {
-      if (section === 'connectors') {
-        setShouldExpandConnectors(true);
-      } else {
-        setShouldOpenJournals(true);
-      }
+    // Handle direct navigation to a section (from the dashboard, the starter
+    // checklist, a briefing card…). The token maps to a tab + accordion target
+    // through SETTINGS_SECTIONS; an unknown token simply resolves to null and
+    // leaves the page on its default tab. The param is cleaned either way so a
+    // reload does not replay the navigation.
+    const target = resolveSettingsSection(section);
+    if (target) {
+      setPendingSection(target);
+    }
+    if (section) {
       const url = new URL(window.location.href);
       url.searchParams.delete('section');
       window.history.replaceState({}, '', url.toString());
@@ -183,41 +191,46 @@ export default function SettingsPage({ params }: SettingsPageProps) {
     }
   }, [searchParams, t]);
 
-  // QW-10: open the Journals section (both layouts share the featuresSections
-  // accordion on the Features tab), then scroll to it once expanded.
+  // The OAuth callback lands on the connectors section — same mechanism as a
+  // `?section=` deep link, so it goes through the same state.
   React.useEffect(() => {
-    if (!shouldOpenJournals) return;
-    setActiveTab('features');
-    setFeaturesSections((prev: string[]) =>
-      prev.includes('journals') ? prev : [...prev, 'journals']
-    );
+    if (!shouldExpandConnectors) return;
+    setPendingSection(SETTINGS_SECTIONS.connectors);
+    setShouldExpandConnectors(false);
+  }, [shouldExpandConnectors]);
+
+  // W2: honour a pending section target — activate its tab, expand its
+  // accordion item, scroll to it. Which accordion holds it depends on the tab
+  // AND on the layout: superusers get three tabs (preferences / features /
+  // administration), everyone else two, and the non-superuser preferences tab
+  // uses its own `allSections` state.
+  React.useEffect(() => {
+    if (!pendingSection) return;
+    const { tab, accordionValue } = pendingSection;
+    setActiveTab(tab);
+
+    const expand = (prev: string[]) =>
+      prev.includes(accordionValue) ? prev : [...prev, accordionValue];
+    if (tab === 'features') {
+      setFeaturesSections(expand);
+    } else if (tab === 'administration') {
+      setConnectorSections(expand);
+    } else if (user?.is_superuser) {
+      setAppearanceSections(expand);
+    } else {
+      setAllSections(expand);
+    }
+
+    // The accordion animates open; scrolling before it has height would land
+    // short. The id is derived from the same `value` (SettingsSection).
     const timer = window.setTimeout(() => {
       document
-        .getElementById('settings-section-journals')
+        .getElementById(`settings-section-${accordionValue}`)
         ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      setShouldOpenJournals(false);
+      setPendingSection(null);
     }, 150);
     return () => window.clearTimeout(timer);
-  }, [shouldOpenJournals]);
-
-  // Auto-expand connectors section when needed
-  React.useEffect(() => {
-    if (shouldExpandConnectors) {
-      // For superusers: switch to preferences tab and expand connectors section
-      if (user?.is_superuser) {
-        setActiveTab('preferences');
-        setAppearanceSections((prev: string[]) =>
-          prev.includes('connectors') ? prev : [...prev, 'connectors']
-        );
-      } else {
-        // For non-superusers: expand in the main accordion
-        setAllSections((prev: string[]) =>
-          prev.includes('connectors') ? prev : [...prev, 'connectors']
-        );
-      }
-      setShouldExpandConnectors(false);
-    }
-  }, [shouldExpandConnectors, user?.is_superuser]);
+  }, [pendingSection, user?.is_superuser]);
 
   if (!user) return null;
 
@@ -303,6 +316,12 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <FeatureErrorBoundary feature="connectors">
                 <UserConnectorsSection lng={lng} />
               </FeatureErrorBoundary>
+              {/* A6: the calls surface the backend already served, and
+                  nothing consumed. Renders nothing when telephony is off
+                  or no call was ever placed. */}
+              <FeatureErrorBoundary feature="telephony-calls">
+                <TelephonyCallsSection lng={lng} />
+              </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="admin-mcp-servers">
                 <AdminMCPServersSettings lng={lng} />
               </FeatureErrorBoundary>
@@ -325,7 +344,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               {/* QW-10: "What LIA understands about you" — jumps to the
                   portrait inside Journals (renders only with a portrait). */}
               <FeatureErrorBoundary feature="journals">
-                <PortraitShortcut onOpen={() => setShouldOpenJournals(true)} />
+                <PortraitShortcut onOpen={() => setPendingSection(SETTINGS_SECTIONS.journals)} />
               </FeatureErrorBoundary>
               <PersonalitySettings lng={lng} />
               <FeatureErrorBoundary feature="psyche">
@@ -483,6 +502,12 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <FeatureErrorBoundary feature="connectors">
                 <UserConnectorsSection lng={lng} />
               </FeatureErrorBoundary>
+              {/* A6: the calls surface the backend already served, and
+                  nothing consumed. Renders nothing when telephony is off
+                  or no call was ever placed. */}
+              <FeatureErrorBoundary feature="telephony-calls">
+                <TelephonyCallsSection lng={lng} />
+              </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="admin-mcp-servers">
                 <AdminMCPServersSettings lng={lng} />
               </FeatureErrorBoundary>
@@ -506,7 +531,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               {/* QW-10: "What LIA understands about you" — jumps to the
                   portrait inside Journals (renders only with a portrait). */}
               <FeatureErrorBoundary feature="journals">
-                <PortraitShortcut onOpen={() => setShouldOpenJournals(true)} />
+                <PortraitShortcut onOpen={() => setPendingSection(SETTINGS_SECTIONS.journals)} />
               </FeatureErrorBoundary>
               <PersonalitySettings lng={lng} />
               <FeatureErrorBoundary feature="psyche">

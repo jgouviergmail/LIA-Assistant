@@ -106,21 +106,45 @@ describe('UserConnectorsSection — shell', () => {
   });
 });
 
+/**
+ * W4a: the confirmation is now an in-app AlertDialog, not `window.confirm`.
+ * The card's button OPENS it; the destructive action lives inside. Every test
+ * therefore goes through both steps, which is also what the user does.
+ */
+const CONFIRM = 'settings.connectors.disconnect';
+
+/** Click the card's disconnect button, then confirm in the dialog. */
+async function disconnectAndConfirm(user: ReturnType<typeof render>['user']) {
+  await user.click(await screen.findByRole('button', { name: DISCONNECT }));
+  await user.click(await screen.findByText(CONFIRM));
+}
+
 describe('UserConnectorsSection — disconnect', () => {
   it('does nothing when the confirmation is dismissed', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     const { user } = render();
     await openGoogleFamily(user);
     await user.click(await screen.findByRole('button', { name: DISCONNECT }));
+    // The dialog is up; cancelling must leave everything alone.
+    await user.click(await screen.findByText('common.cancel'));
     expect(deleteConnector).not.toHaveBeenCalled();
     expect(setData).not.toHaveBeenCalled();
   });
 
-  it('deletes the connector and prunes it from the cached list', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('does nothing while the dialog is merely open', async () => {
+    // Opening the confirmation must not act on its own — the whole point of
+    // replacing a blocking `confirm` is that nothing happens until the user
+    // chooses.
     const { user } = render();
     await openGoogleFamily(user);
     await user.click(await screen.findByRole('button', { name: DISCONNECT }));
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+    expect(deleteConnector).not.toHaveBeenCalled();
+  });
+
+  it('deletes the connector and prunes it from the cached list', async () => {
+    const { user } = render();
+    await openGoogleFamily(user);
+    await disconnectAndConfirm(user);
     await waitFor(() => expect(deleteConnector).toHaveBeenCalledWith('/connectors/c1'));
     // Optimistic prune: the updater drops exactly the disconnected row.
     const next = takeUpdater(setData)({
@@ -133,11 +157,10 @@ describe('UserConnectorsSection — disconnect', () => {
   });
 
   it('reports a failed disconnect and leaves the cache untouched', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     deleteConnector.mockRejectedValue(new Error('boom'));
     const { user } = render();
     await openGoogleFamily(user);
-    await user.click(await screen.findByRole('button', { name: DISCONNECT }));
+    await disconnectAndConfirm(user);
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('settings.connectors.disconnect_error')
     );

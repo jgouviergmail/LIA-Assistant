@@ -5,8 +5,8 @@
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
 **Version**: 3.4
-**Datum**: 2026-07-26
-**Application**: LIA v1.25.23
+**Datum**: 2026-07-27
+**Application**: LIA v1.25.24
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 438 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 140+ ADRs, ~15.877 von pytest gesammelte Tests in 837 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 140+ ADRs, ~15.954 von pytest gesammelte Tests in 842 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -71,7 +71,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~15.877 von pytest gesammelt (von pytest über 837 Testdateien gesammelt) + 2.832 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | ~15.954 von pytest gesammelt (von pytest über 842 Testdateien gesammelt) + 3.460 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
@@ -894,6 +894,31 @@ auditiert und inventarisiert, nicht nur die deklarierten Pakete.
 
 Das in diesem Guide beschriebene Qualitätsniveau ist nicht selbst deklariert: ein vollständiges technisches 360°-Audit — **8,3/10 über 24 normalisierte Bereiche** des ISO/IEC-25010-Rasters, offene Befunde inklusive — ist im Repository veröffentlicht ([vollständiger Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), zusammen mit dem [Audit-Protokoll](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md), das jeden Zyklus reproduzierbar macht: gepinnter Commit, Nachweisanforderungen pro Bereich, verankerte Bewertung und ein versioniertes Skript, das Größe in logischen SLOC misst. Der Bericht endet mit den exakten Befehlen, um die Messungen selbst zu reproduzieren.
 
+### 22.5. Eine Wache taugt nur so viel wie das, was sie misst
+
+`html { overflow-x: hidden }` beschneidet einen horizontalen Überlauf, statt
+einen Scroll zu erzeugen. Jede Wache auf Basis von `scrollWidth - clientWidth`
+ist damit **strukturell blind** für ein Bedienelement, das aus dem Bild
+geschoben wurde: über 108 Messpunkte meldete sie bei jeder Breite null, während
+die Abmelde-Schaltfläche auf Deutsch 235 px jenseits des rechten Randes lag. Die
+Wache vergleicht nun die Box jedes interaktiven Elements mit dem Ansichtsfenster
+— Breite für Breite **und Sprache für Sprache**: Deutsch und Italienisch tragen
+die längsten Beschriftungen und brechen zuerst.
+
+Dieselbe Logik gilt für die Höhe: `100vh` bezeichnet das *große* Ansichtsfenster,
+also jenes bei eingefahrener Adressleiste — nicht den Zustand, in dem eine Seite
+auf dem Telefon lädt. Ein Test verbietet jede Höhenbeschränkung allein in `vh`,
+mit schriftlicher Ausnahmeliste und einem Selbsttest, der belegt, dass der
+Detektor noch erkennt.
+
+Und was das mobile Layout weglassen darf, steht in einer Tabelle statt im
+Ermessen: Jede breitenabhängige Fläche erklärt, ob sie blockierend, ersetzt oder
+nur für den Desktop ist — mit Begründung. Tests halten diese Tabelle gegen den
+Code: Der Ort muss existieren, die Tailwind-Variante der angegebenen Schwelle
+tragen, und eine Fläche, die Daten holt oder tickt, muss **bedingt gemountet**
+werden statt nur versteckt: `display:none` mountet die Komponente trotzdem, die
+weiter Netz und Akku für etwas verbraucht, das niemand sehen wird.
+
 ## 23. Übergreifende Engineering-Patterns
 
 ### 23.1. Tool-System: 5-Schichten-Architektur
@@ -1091,10 +1116,10 @@ Die Psyche Engine verleiht dem Assistenten einen dynamischen psychologischen Zus
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 140+ ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~15.877 Tests in 837 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 140+ ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~15.954 Tests in 842 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (380+ Dokumente), der 140+ ADRs und des Changelogs (v1.0 bis v1.25.23). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (380+ Dokumente), der 140+ ADRs und des Changelogs (v1.0 bis v1.25.24). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

@@ -33,6 +33,8 @@ from src.core.field_names import (
     FIELD_TOTAL_TOKENS_IN,
     FIELD_TOTAL_TOKENS_OUT,
 )
+from src.core.i18n import DEFAULT_LANGUAGE, normalize_language
+from src.core.i18n_api_messages import APIMessages
 from src.domains.conversations.models import (
     Conversation,
     ConversationAuditLog,
@@ -52,7 +54,9 @@ class ConversationService:
     Follows existing patterns from auth/users services.
     """
 
-    async def get_or_create_conversation(self, user_id: UUID, db: AsyncSession) -> Conversation:
+    async def get_or_create_conversation(
+        self, user_id: UUID, db: AsyncSession, language: str | None = None
+    ) -> Conversation:
         """
         Get user's active conversation, reactivate soft-deleted, or create new one.
 
@@ -67,6 +71,10 @@ class ConversationService:
         Args:
             user_id: User UUID
             db: Database session
+            language: Raw or canonical language code, used only when a title has
+                to be generated (creation / reactivation). ``None`` keeps the
+                historical French default — pass it whenever the caller has a
+                user context.
 
         Returns:
             Active conversation (deleted_at IS NULL)
@@ -101,7 +109,7 @@ class ConversationService:
             )
             conversation = await repo.reactivate_conversation(
                 conversation=soft_deleted,
-                new_title=self._generate_title(),
+                new_title=self._generate_title(language),
             )
             await db.commit()
 
@@ -117,7 +125,7 @@ class ConversationService:
         # 3. Create new conversation with audit log (atomic operation)
         conversation = await repo.create_with_audit(
             user_id=user_id,
-            title=self._generate_title(),
+            title=self._generate_title(language),
             initial_message_count=0,
             initial_tokens=0,
         )
@@ -188,22 +196,33 @@ class ConversationService:
         self,
         user_id: UUID,
         db: AsyncSession,
+        language: str | None = None,
     ) -> None:
         """
-        Reset conversation: reset stats + purge messages + audit log.
+        Reset conversation: reset stats + purge everything attached to it.
 
         IMPORTANT: Does NOT soft-delete the conversation itself to avoid duplicate key errors.
         Instead, resets counters to 0 and deletes all messages.
 
         This approach:
         - Preserves the conversation record (avoids id=user_id duplicate key)
-        - Purges all conversation_messages (cascade)
-        - Resets stats to 0
-        - LangGraph checkpoints are automatically cleared on next message (new thread state)
+        - Resets stats to 0 and generates a fresh localized title
+        - Purges all conversation_messages
+        - Purges ALL attachments of the USER (AI-generated images included)
+        - Purges the per-conversation token summaries
+        - Purges the LangGraph checkpoints EXPLICITLY via ``adelete_thread()``
+          (the thread id is the conversation id, which survives the reset — so
+          nothing would clear them otherwise)
+        - Purges the tool contexts and user-scoped entries of the Store
+
+        The checkpoint / context / store purges are best-effort: a failure is
+        logged and does not abort the reset.
 
         Args:
             user_id: User UUID
             db: Database session
+            language: Raw or canonical language code used for the fresh title.
+                ``None`` keeps the historical French default.
 
         Note:
             - Conversation record persists (id stays valid)
@@ -262,7 +281,7 @@ class ConversationService:
         # Reset conversation stats (keep record alive, avoid duplicate key)
         conversation.message_count = 0
         conversation.total_tokens = 0
-        conversation.title = self._generate_title()  # New title for fresh start
+        conversation.title = self._generate_title(language)  # New title for fresh start
 
         # Delete all messages using repository
         repo = ConversationRepository(db)
@@ -1453,14 +1472,24 @@ class ConversationService:
             "context_threshold": int(threshold),
         }
 
-    def _generate_title(self) -> str:
+    def _generate_title(self, language: str | None = None) -> str:
         """
-        Generate default conversation title.
+        Generate the default conversation title, localized.
 
-        Format: "Conversation du DD/MM/YYYY" (French default)
+        This is the i18n chokepoint for the title: the raw locale is routed
+        through ``normalize_language`` here (``zh`` → ``zh-CN``, ``fr-FR`` →
+        ``fr``) so ``APIMessages`` — which, like every table in that module,
+        does a plain lookup — always receives a backend-canonical code.
+
+        The date is taken from an aware UTC datetime, per the systemic rule
+        forbidding ``date.today()``.
+
+        Args:
+            language: Raw or canonical language code. ``None`` keeps the
+                historical French default, for callers with no user context.
 
         Returns:
-            Generated title string
+            Localized title, e.g. ``"Conversation du 26/07/2026"``.
         """
-        now = datetime.now(UTC)
-        return f"Conversation du {now.strftime('%d/%m/%Y')}"
+        canonical = normalize_language(language) if language else DEFAULT_LANGUAGE
+        return APIMessages.conversation_default_title(datetime.now(UTC).date(), canonical)

@@ -9,15 +9,31 @@ Usage limits are **quotas set by your administrator** to control resource consum
 - **Cost (EUR)** — combined LLM + API + image generation cost
 
 **2 modes:**
-- **Per period** — monthly rolling cycle from account creation
-- **Global** — cumulative total since registration
+- **Per period** — a monthly rolling cycle anchored on your account creation date, not on the first of the month
+- **Global** — a cumulative total since registration, which never resets
 
-Each dimension can be set or unlimited.
+Each dimension can be given a value or left unlimited, independently of the others.
 
 ## How is the billing period calculated?
 The period is a **monthly rolling cycle** aligned with your account creation date.
 
 **Example:** If you registered on January 15th, your cycle runs from the 15th of each month to the 15th of the next. This is the same period shown on the dashboard.
+
+## Am I warned before I hit a limit?
+
+Yes. When you cross **80 %** of whichever limit will bind first, a banner
+appears in the chat naming that dimension — tokens, messages or cost — and its
+percentage. At **95 %** the same banner takes on a more urgent tone.
+
+The dimension named is the *binding* one, meaning the one closest to its ceiling:
+any single dimension blocks the account, so warning about a lower one would point
+at the wrong deadline. If the limit is a per-cycle one, the banner also gives the
+date it resets. An absolute limit has no reset, and the banner does not pretend
+otherwise.
+
+Once you are actually blocked, the warning disappears: the blocking banner
+explains the situation better, and two messages about the same limit at the worst
+possible moment would be noise.
 
 ## What happens when I reach a limit?
 When a limit is reached:

@@ -684,7 +684,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
 
           {/* Edit Dialog */}
           <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[500px] max-h-[90dvh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{t('memories.edit_title')}</DialogTitle>
                 <DialogDescription>{t('memories.edit_description')}</DialogDescription>
@@ -823,7 +823,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
 
           {/* Create Dialog */}
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[500px] max-h-[90dvh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{t('memories.create_title')}</DialogTitle>
                 <DialogDescription>{t('memories.create_description')}</DialogDescription>

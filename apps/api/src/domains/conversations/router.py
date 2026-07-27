@@ -302,26 +302,43 @@ async def submit_response_feedback(
     "/me/reset",
     response_model=ConversationResetResponse,
     summary="Reset conversation",
-    description="Reset conversation: soft delete + purge history. Requires explicit user confirmation on frontend.",
+    description=(
+        "Reset the conversation IN PLACE: the row is kept, its content is purged. "
+        "Irreversible — requires explicit user confirmation on the frontend."
+    ),
 )
 async def reset_my_conversation(
     current_user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> ConversationResetResponse:
     """
-    Reset user's conversation: soft delete + purge checkpoints.
+    Reset the user's conversation in place and purge everything attached to it.
 
-    This operation:
-    - Soft deletes the conversation (sets deleted_at timestamp)
-    - Cascade deletes all conversation messages
-    - Creates audit log entry
-    - Next message will create a new conversation
+    The conversation ROW is deliberately kept (``deleted_at`` is NOT set): the
+    1:1 mapping makes its id equal to the user id, so soft-deleting it would
+    make the next insert collide on the unique key. Counters are zeroed and a
+    fresh title is generated instead — see
+    ``ConversationService.reset_conversation``.
 
-    IMPORTANT: Frontend MUST show explicit confirmation dialog before calling this endpoint.
-    This action is permanent and cannot be undone (soft delete is for audit trail only).
+    What the call actually purges (all irreversible):
+    - every archived message of the conversation;
+    - **every attachment of the USER**, not just this conversation's — this
+      includes AI-generated images (they are stored as attachments);
+    - the per-conversation token summaries (stale totals otherwise);
+    - the LangGraph checkpoints of the thread (``adelete_thread``, which also
+      invalidates the checkpointer's internal caches);
+    - the tool contexts held in the AsyncPostgresStore for that session, plus
+      the user-scoped store entries.
+
+    Checkpoint, context and store purges are best-effort: a failure there is
+    logged and does not abort the reset (the message purge and the audit log
+    are the transactional part).
+
+    IMPORTANT: the frontend MUST show an explicit confirmation dialog before
+    calling this endpoint. Nothing here can be undone.
 
     Returns:
-        Success response with previous message count
+        Success response with the message count captured before the purge.
 
     Raises:
         HTTPException 404: If user has no active conversation
@@ -337,7 +354,7 @@ async def reset_my_conversation(
     previous_message_count = conversation.message_count
 
     # Reset conversation (soft delete + audit log)
-    await service.reset_conversation(current_user.id, db)
+    await service.reset_conversation(current_user.id, db, language=current_user.language)
 
     logger.info(
         "conversation_reset_endpoint",

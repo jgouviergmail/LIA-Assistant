@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 3.9
-**Date**: 2026-07-26
-**Application**: LIA v1.25.23
+**Date**: 2026-07-27
+**Application**: LIA v1.25.24
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -326,6 +326,8 @@ LIA has a built-in knowledge base about its own capabilities, allowing it to ans
 ### 8.1. The real challenge of agentic AI
 
 The vast majority of agentic AI projects never reach production. Uncontrolled costs, non-deterministic behavior, missing audit trails, failing agent coordination. LIA has solved these problems — and runs in production 24/7 on a Raspberry Pi. And your data survives incidents: the database is backed up automatically every night, and the restore procedure is not theoretical — it is tested.
+
+A feature nobody can find does not exist. That is why the interface's reachability is treated like server uptime: measured, not assumed. Every header control is compared against the browser viewport, width by width and **in all six languages** — German and Italian carry the longest labels and break first. And what the mobile layout is allowed to drop is written down, with its reason: an action never disappears without a substitute taking its place.
 
 ### 8.2. A professional observability stack
 

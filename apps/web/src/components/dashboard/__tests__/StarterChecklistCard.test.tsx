@@ -11,10 +11,12 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { ChecklistState } from '../StarterChecklistCard';
 
 const mutate = vi.fn(async () => ({}));
-const auth = { user: { id: 'u1', voice_enabled: false, onboarding_checklist: null } as Record<
-  string,
-  unknown
-> | null };
+const auth = {
+  user: { id: 'u1', voice_enabled: false, onboarding_checklist: null } as Record<
+    string,
+    unknown
+  > | null,
+};
 const config = {
   features: {
     channels_enabled: true,
@@ -108,6 +110,33 @@ describe('StarterChecklistCard', () => {
     expect(
       screen.getByRole('link', { name: 'dashboard.checklist.items.connector' })
     ).toBeInTheDocument();
+  });
+
+  /**
+   * W2: six of the seven items used to point at the bare settings page, which
+   * meant landing at the top of ~30 collapsed accordions with nothing saying
+   * where to look. Every item must now carry its own `?section=` token.
+   */
+  it('sends every undone item to its own settings section', () => {
+    render(<StarterChecklistCard />);
+
+    const expected: Record<string, string> = {
+      connector: 'connectors',
+      personality: 'personality',
+      voice: 'voice-mode',
+      telegram: 'channels',
+      heartbeat: 'heartbeat',
+      space: 'rag-spaces',
+      automation: 'scheduled-actions',
+    };
+
+    for (const [item, token] of Object.entries(expected)) {
+      const link = screen.getByRole('link', { name: `dashboard.checklist.items.${item}` });
+      expect(link, `${item} must deep-link to its section`).toHaveAttribute(
+        'href',
+        `/fr/dashboard/settings?section=${token}`
+      );
+    }
   });
 
   it('never renders once dismissed server-side', () => {

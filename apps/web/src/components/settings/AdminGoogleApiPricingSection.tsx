@@ -19,6 +19,7 @@ import {
   reloadGoogleApiPricingCache,
 } from '@/lib/actions/settings-actions';
 import { useTranslation } from '@/i18n/client';
+import { useConfirm } from '@/components/ui/use-confirm';
 import type { Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import type { BaseSettingsProps } from '@/types/settings';
@@ -83,6 +84,9 @@ export default function AdminGoogleApiPricingSection({
   );
 
   const [isPending, startTransition] = useTransition();
+  // W4b: replaces the native `confirm()` — an OS dialog whose buttons ignore
+  // the app's language and theme, on irreversible pricing edits.
+  const { confirm, confirmDialog } = useConfirm();
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -217,7 +221,7 @@ export default function AdminGoogleApiPricingSection({
   };
 
   // React 19 useOptimistic pattern: instant entry edit
-  const handleEditEntry = (
+  const handleEditEntry = async (
     originalApiName: string,
     originalEndpoint: string,
     formData: {
@@ -227,11 +231,12 @@ export default function AdminGoogleApiPricingSection({
       cost_per_1000_usd: string;
     }
   ) => {
-    const confirmed = confirm(
-      `${t('settings.admin.google_api.confirm.edit_title')}\n\n` +
+    const confirmed = await confirm({
+      title: t('settings.admin.google_api.confirm.edit_title'),
+      description:
         `${t('settings.admin.google_api.confirm.edit_message', { name: `${originalApiName}:${originalEndpoint}` })}\n\n` +
-        `${t('settings.admin.google_api.confirm.edit_confirm')}`
-    );
+        `${t('settings.admin.google_api.confirm.edit_confirm')}`,
+    });
 
     if (!confirmed) return;
 
@@ -255,12 +260,15 @@ export default function AdminGoogleApiPricingSection({
   };
 
   // React 19 useOptimistic pattern: instant deactivation
-  const handleDeactivate = (pricingId: string, apiName: string, endpoint: string) => {
-    const confirmed = confirm(
-      `${t('settings.admin.google_api.confirm.deactivate_title', { name: `${apiName}:${endpoint}` })}\n\n` +
+  const handleDeactivate = async (pricingId: string, apiName: string, endpoint: string) => {
+    const confirmed = await confirm({
+      title: t('settings.admin.google_api.confirm.deactivate_title', {
+        name: `${apiName}:${endpoint}`,
+      }),
+      description:
         `${t('settings.admin.google_api.confirm.deactivate_message')}\n\n` +
-        `${t('settings.admin.google_api.confirm.deactivate_confirm')}`
-    );
+        `${t('settings.admin.google_api.confirm.deactivate_confirm')}`,
+    });
 
     if (!confirmed) return;
 
@@ -525,6 +533,7 @@ export default function AdminGoogleApiPricingSection({
       collapsible={collapsible}
     >
       {content}
+      {confirmDialog}
     </SettingsSection>
   );
 }

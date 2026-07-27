@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiClient } from '@/lib/api-client';
-import { Message } from '@/types/chat';
+import { Message, type GeneratedImage } from '@/types/chat';
 import { useAuth } from '@/hooks/useAuth';
 import { CHAT_SEARCH_RESULTS_PAGE_SIZE } from '@/lib/constants';
 import { executionTraceFromMetadata } from '@/lib/execution-trace-hydration';
@@ -202,9 +202,10 @@ export const useConversation = (): UseConversationReturn => {
       // stored i18n keys so history rows render the same disclosure as live ones
       executionTrace: executionTraceFromMetadata(msg.message_metadata, t),
       // AI-generated images persisted in message_metadata for history display
+      // Narrowed from the untyped JSONB the API returns — the named type keeps
+      // this boundary and the live SSE path describing the same thing.
       generatedImages:
-        (msg.message_metadata?.generated_images as { url: string; alt: string }[] | undefined) ??
-        undefined,
+        (msg.message_metadata?.generated_images as GeneratedImage[] | undefined) ?? undefined,
       browserScreenshot:
         (msg.message_metadata?.browser_screenshot as { url: string; alt: string } | undefined) ??
         undefined,

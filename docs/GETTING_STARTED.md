@@ -4,8 +4,8 @@
 > Every default value in this guide is the **production-proven configuration** actually running in production; you can adopt them as-is with confidence.
 
 **Version**: 4.0
-**Last Updated**: 2026-07-26
-**Compatibility**: LIA v1.25.23
+**Last Updated**: 2026-07-27
+**Compatibility**: LIA v1.25.24
 
 ## Table of Contents
 

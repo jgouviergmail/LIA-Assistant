@@ -55,15 +55,17 @@ class JournalResponseFeedbackHooks:
     async def record_correction(self, db: AsyncSession, user_id: UUID, comment: str) -> None:
         """Land the correction as an L0 ``user_correction`` entry.
 
-        Same shape as the portrait-feedback lever (theme/source/level) so the
-        next consolidation prioritizes it — deliberately WITHOUT the
-        synchronous recompilation.
+        Same source/level as the portrait-feedback lever so the next
+        consolidation prioritizes it — deliberately WITHOUT the synchronous
+        recompilation. The theme differs by subject: feedback on a response is
+        a lesson about what the assistant did.
         """
+        from src.domains.journals.constants import JOURNAL_RESPONSE_FEEDBACK_THEME
         from src.domains.journals.service import JournalService
 
         await JournalService(db).create_entry(
             user_id=user_id,
-            theme="self_reflection",
+            theme=JOURNAL_RESPONSE_FEEDBACK_THEME,
             title="User feedback on a response",
             content=comment[: settings.journal_max_entry_chars],
             source="user_correction",

@@ -19,6 +19,7 @@ import {
   type ScrollUiState,
 } from '@/lib/chat-scroll';
 import { logger } from '@/lib/logger';
+import { CHAT_STARTER_IDS, starterTextKey } from '@/lib/chat-starters';
 
 export interface ChatMessageListProps {
   messages: Message[];
@@ -38,6 +39,17 @@ export interface ChatMessageListProps {
   onLoadOlder?: () => void;
   /** History-search term highlighted inside the rendered bubbles (QW-2). */
   searchHighlight?: string;
+  /**
+   * Replay a failed prompt (W3). Offered on the LAST error bubble only:
+   * re-running an older failure would drop it into a conversation that has
+   * since moved on.
+   */
+  onRetry?: (prompt: string) => void;
+  /**
+   * Prefill the composer from an empty-chat starter (W8). Shares the
+   * follow-up chips' rail: it fills the input, it never sends.
+   */
+  onStarterPick?: (text: string) => void;
   /** QW-2 history view: the floating button becomes "return to the present"
    *  and delegates to ``onReturnToPresent`` (UXR Lot 3, A3). */
   historyView?: boolean;
@@ -167,19 +179,51 @@ function lastIdOf(messages: Message[]): string | null {
 }
 
 /**
+ * Id of the error bubble that may offer a retry (W3), or null.
+ *
+ * The rule is deliberately narrow: the failure must be the LAST thing in the
+ * conversation, and it must have pinned a prompt.
+ *
+ * - Not "the most recent error anywhere": once anything follows it — a retry
+ *   that worked, a new question, a proactive notification — the conversation
+ *   has moved on, and replaying the old prompt would drop it into a context it
+ *   was never written for.
+ * - Not "any error": a proactive turn can fail with no question behind it, and
+ *   there is then nothing to replay.
+ *
+ * Exported for its own test: this predicate is the whole placement policy.
+ */
+export function lastRetryableErrorId(messages: Message[]): string | null {
+  const last = messages[messages.length - 1];
+  if (!last || last.metadata?.type !== 'error') return null;
+  return typeof last.metadata?.retryPrompt === 'string' ? last.id : null;
+}
+
+/**
  * Empty-conversation hero: time-aware greeting (☕ morning · 👋 day ·
  * 🌛 evening · 😴 deep night). AnimatedEmoji falls back to the static glyph on
  * missing asset / reduced motion; neutral day glyph until mounted (avoids the
  * SSR hydration mismatch). Extracted from the render hotspot (CC discipline).
  */
-function EmptyConversation({ mounted }: { mounted: boolean }) {
+function EmptyConversation({
+  mounted,
+  onStarterPick,
+}: {
+  mounted: boolean;
+  onStarterPick?: (text: string) => void;
+}) {
   const { t } = useTranslation();
   const greeting: TimeGreeting = mounted
     ? greetingForHour(new Date().getHours())
     : { glyph: '👋', isNight: false };
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center px-4">
-      <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/20 backdrop-blur-sm animate-greet-float">
+    // `min-h-full`, not `h-full`: the starters (W8) made this block taller than
+    // the viewport on a 320×640 screen, and a fixed-height centred box simply
+    // overflowed — pushing the composer 39 px below the fold. With `min-h-full`
+    // the block still centres when there is room, and grows into the parent's
+    // scroll area when there is not, leaving the composer anchored.
+    <div className="flex min-h-full flex-col items-center justify-center px-4 py-4 text-center">
+      <div className="mb-6 flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-primary/20 backdrop-blur-sm animate-greet-float max-[380px]:mb-4 max-[380px]:h-16 max-[380px]:w-16">
         <AnimatedEmoji
           glyph={greeting.glyph}
           animate
@@ -197,6 +241,47 @@ function EmptyConversation({ mounted }: { mounted: boolean }) {
             {t('chat.empty_state.night_note')}
           </p>
         )}
+      </div>
+      {onStarterPick && <EmptyConversationStarters onPick={onStarterPick} />}
+    </div>
+  );
+}
+
+/**
+ * W8: three ways in, instead of a decorative dead end.
+ *
+ * The empty chat showed a greeting and nothing to act on — the one screen where
+ * a newcomer has no idea what to type. Each starter PREFILLS the composer (the
+ * follow-up chips' rail, never an auto-send) and is chosen to resolve on ANY
+ * account, connected or not (see `lib/chat-starters`). The full catalogue stays
+ * one link away in the FAQ, whose examples became clickable in W1.
+ */
+function EmptyConversationStarters({ onPick }: { onPick: (text: string) => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="mt-6 flex w-full max-w-md flex-col items-center gap-2 max-[380px]:mt-4">
+      <p className="text-xs uppercase tracking-wide text-muted-foreground/70">
+        {t('chat.starters.label')}
+      </p>
+      <div
+        role="group"
+        aria-label={t('chat.starters.label')}
+        className="flex flex-wrap justify-center gap-2"
+      >
+        {CHAT_STARTER_IDS.map(id => {
+          const text = t(starterTextKey(id));
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onPick(text)}
+              title={text}
+              className="inline-flex max-w-full items-center rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-foreground/90 transition-colors hover:border-primary/50 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="truncate">{text}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -260,6 +345,8 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   isLoadingOlder = false,
   onLoadOlder,
   searchHighlight,
+  onRetry,
+  onStarterPick,
   historyView = false,
   onReturnToPresent,
   ownSendTick = 0,
@@ -667,10 +754,11 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   }
 
   if (messages.length === 0) {
-    return <EmptyConversation mounted={mounted} />;
+    return <EmptyConversation mounted={mounted} onStarterPick={onStarterPick} />;
   }
 
   const lastAssistantId = getLastAssistantMessageId(messages);
+  const lastErrorId = lastRetryableErrorId(messages);
 
   return (
     // pt-8 (32px) provides top padding; scroll-mt-8 on messages must match for proper scroll alignment
@@ -699,6 +787,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
               isActiveStream={message.id === activeStreamId}
               streamPhase={streamPhase}
               searchHighlight={searchHighlight}
+              onRetry={message.id === lastErrorId ? onRetry : undefined}
             />
           </div>
         ))}

@@ -102,6 +102,9 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
             "Un appel est déjà en cours. Je n'en lance pas un second — "
             "réessaie une fois qu'il sera terminé."
         ),
+        "call_rejected": (
+            "Le service de téléphonie a refusé l'appel : sa configuration doit être corrigée (numéro émetteur non vérifié, crédit épuisé…). Réessayer n'y changera rien tant que ce n'est pas réglé côté fournisseur."
+        ),
         "call_failed": "Je n'ai pas pu passer l'appel pour le moment. Réessaie dans un instant.",
         "not_configured": (
             "La téléphonie n'est pas activée. Active le connecteur ElevenLabs dans "
@@ -119,6 +122,9 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
             "A call is already in progress. I won't start a second one — "
             "try again once it's finished."
         ),
+        "call_rejected": (
+            "The telephony provider declined the call: its configuration needs fixing (source number not verified, credit exhausted…). Retrying will not help until that is sorted out on the provider side."
+        ),
         "call_failed": "I couldn't place the call right now. Please try again in a moment.",
         "not_configured": (
             "Telephony is not enabled. Activate the ElevenLabs connector in "
@@ -135,6 +141,9 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
         "already_active": (
             "Ein Anruf läuft bereits. Ich starte keinen zweiten — "
             "versuche es erneut, sobald er beendet ist."
+        ),
+        "call_rejected": (
+            "Der Telefonie-Dienst hat den Anruf abgelehnt: seine Konfiguration muss korrigiert werden (Absendernummer nicht verifiziert, Guthaben aufgebraucht …). Ein erneuter Versuch hilft erst danach."
         ),
         "call_failed": (
             "Ich konnte den Anruf gerade nicht tätigen. Bitte versuche es gleich noch einmal."
@@ -154,6 +163,9 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
         "already_active": (
             "Ya hay una llamada en curso. No inicio una segunda; inténtalo cuando termine."
         ),
+        "call_rejected": (
+            "El servicio de telefonía rechazó la llamada: su configuración debe corregirse (número emisor no verificado, crédito agotado…). Reintentar no servirá de nada hasta que se resuelva en el proveedor."
+        ),
         "call_failed": "No pude realizar la llamada ahora mismo. Inténtalo de nuevo en un momento.",
         "not_configured": (
             "La telefonía no está activada. Activa el conector de ElevenLabs en "
@@ -170,6 +182,9 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
         "already_active": (
             "C'è già una chiamata in corso. Non ne avvio una seconda; riprova quando è finita."
         ),
+        "call_rejected": (
+            "Il servizio di telefonia ha rifiutato la chiamata: la sua configurazione va corretta (numero mittente non verificato, credito esaurito…). Riprovare non servirà finché non è risolto lato fornitore."
+        ),
         "call_failed": "Non sono riuscito a effettuare la chiamata al momento. Riprova tra poco.",
         "not_configured": (
             "La telefonia non è attivata. Attiva il connettore ElevenLabs in "
@@ -184,6 +199,9 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
     },
     "zh": {
         "already_active": "已有一通电话正在进行中。我不会再拨打第二通，请等它结束后再试。",
+        "call_rejected": (
+            "电话服务拒绝了这次通话：其配置需要修正（主叫号码未验证、余额不足等）。在服务商侧解决之前，重试不会有帮助。"
+        ),
         "call_failed": "我暂时无法拨打这通电话，请稍后再试。",
         "not_configured": "电话功能未启用。请在“偏好设置 → 我的连接器”中激活 ElevenLabs 连接器，我才能拨打电话。",
         "not_found": "我没有找到名为“{name}”的联系人。",

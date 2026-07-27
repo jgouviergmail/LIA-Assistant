@@ -34,43 +34,57 @@ Write in {user_language}. This is the user's configured language.
 SECTION 2 — THEMES (definitions, examples, common misclassification)
 =================================================================
 
-The four themes are NOT interchangeable; each has a distinct cognitive trigger.
-When an entry is misclassified, fix it using the discriminators below — but never
-change a theme that is already correct, and never reclassify to chase a particular
-theme distribution.
+The four themes are told apart by WHAT the directive is ABOUT — never by how it is
+grounded. EVERY theme's evidence is a past moment; a `BECAUSE` clause citing one is
+therefore NOT a signal of misclassification. Ask the questions in order and stop at
+the first YES; this is the same ladder the extraction prompt uses.
 
 ────────────────────────────────────────────────────────────────
-**learnings** — EVENT-DRIVEN LESSON
-The `BECAUSE` references a SPECIFIC past moment (a correction, a wrong assumption,
-a successful approach). Example:
-  WHEN I cite a film as "available now" → DO verify the release date first
-  (BECAUSE I was corrected at T-N for citing an unreleased film).
+1. **self_reflection** — MY OWN DELIVERY
+About MY tone, register, pace or posture, grounded in a user reaction to something
+I said. It stays `self_reflection` even though the user's reaction is a specific
+past moment — the SUBJECT is my delivery, not a fact I got wrong.
+Example:
+  WHEN my reply turns sharp → DO reformulate before sending (BECAUSE the user told
+  me my tone put him off).
 
-**user_observations** — STABLE TRAIT
-A preference visible across many exchanges, NOT triggered by a single correction.
+2. **ideas_analyses** — TOPIC-INDEPENDENT SIGNAL
+A reading of a signal whose meaning holds whatever the subject is. The normal
+evidence is the same signal seen on two DIFFERENT subjects; it does not need to
+have been stated. Rare, but do not discard it for lack of an explicit statement.
+Example:
+  WHEN the user introduces a new topic with a short transition word
+  ("bon", "bref", "anyway") → interpret it as exiting one thread and opening
+  another, NOT as agreement on the previous one.
+
+3. **user_observations** — STABLE TRAIT OF THE USER
+A preference or trait of the user, stated or demonstrated at least twice.
 Example:
   User consistently asks for the cost / time / trade-off side of a recommendation
   → surface it without being prompted.
 
-**self_reflection** — MY OWN POSTURE
-About MY tone, MY pace, MY internal posture — not the user.
+4. **learnings** — LESSON ABOUT THE WORLD OR MY METHOD
+A specific moment taught me something repeatable about a fact I got wrong or an
+approach that worked.
 Example:
-  WHEN I sense frustration in my own tone → DO slow down before sending.
-
-**ideas_analyses** — ABSTRACT FRAMEWORK
-A meta-rule applying across topics, a signal whose meaning is consistent
-regardless of subject. Rare. Don't force.
-Example:
-  WHEN the user introduces a new topic with a short transition word
-  ("ok", "well", "anyway") → interpret it as exiting one thread and opening
-  another, NOT as agreement on the previous one.
+  WHEN I cite a film as "available now" → DO verify the release date first
+  (BECAUSE I was corrected at T-N for citing an unreleased film).
 
 ────────────────────────────────────────────────────────────────
-**Reclassification audit**: as you review entries, watch for entries whose
-content describes a past correction or failure ("BECAUSE the user corrected",
-"BECAUSE I assumed wrong") that are currently classified as `user_observations`
-or `self_reflection`. Those are MISCLASSIFIED and should be `update`d to
-`learnings`. This is a known systematic bias.
+**Reclassification audit** — apply the ladder above, by SUBJECT:
+
+- An entry about the USER's stable traits that is filed under `learnings` because
+  its `BECAUSE` cites a correction → `user_observations`.
+- An entry reading a signal that holds across subjects, filed anywhere else →
+  `ideas_analyses`.
+- NEVER reclassify an entry about MY OWN tone, register or posture out of
+  `self_reflection` on the grounds that its `BECAUSE` cites a past moment. That
+  rule used to exist here and it silently emptied the theme: every well-formed
+  `self_reflection` carries such a clause by construction, because the extraction
+  prompt REQUIRES a user reaction to ground it.
+
+Never change a theme that is already correct, and never reclassify to chase a
+particular theme distribution.
 
 =================================================================
 SECTION 3 — YOUR MISSION (execute steps in order)
@@ -100,18 +114,21 @@ same topic — distinct actions are not duplicates. Merge wording, not behaviour
 Dedup is the #1 quality lever. Be aggressive on true duplicates, within this guard.
 
 ────────────────────────────────────────────────────────────────
-### STEP 2 — RECLASSIFICATION audit (commit 4 of journal refactor)
+### STEP 2 — RECLASSIFICATION audit
 
-Scan every active entry for theme misclassification:
+Scan every active entry for theme misclassification, using SUBJECT — not the
+presence of a `BECAUSE` clause, which every theme has:
 
-1. Read the `BECAUSE` clause of each entry.
-2. If it cites a SPECIFIC past event ("the user corrected me at T-N",
-   "I assumed X and was wrong", "this approach worked at T-M") AND the entry
-   is currently `user_observations` or `self_reflection` →
-   propose `update` with `theme=learnings` (the rest of the content can stay).
-3. If the directive describes a META-RULE applying regardless of topic
-   (a signal interpretation, a cross-topic pattern) AND it's not yet
-   `ideas_analyses` → propose `update` with `theme=ideas_analyses`.
+1. Read what the directive is ABOUT, then run the Section 2 ladder on it.
+2. If the ladder's answer differs from the current theme → propose `update` with
+   the corrected `theme` (the rest of the content can stay).
+3. If the ladder's answer matches → leave it alone.
+
+Two rules that override any impression of misclassification:
+- An entry about MY tone/register/posture STAYS `self_reflection`, whatever its
+  `BECAUSE` says.
+- An entry reading a signal valid across subjects STAYS (or becomes)
+  `ideas_analyses`, even if the user never named the signal.
 
 Don't change themes for entries that are correctly classified. Audit, don't churn.
 
@@ -241,9 +258,9 @@ Before emitting JSON, verify:
 1. **Dedup completeness**: did you actually merge similar topics? If two
    entries describe the same topic with different wording and you didn't
    merge them, REVISIT.
-2. **Reclassification completeness**: did you scan all entries for misclassi-
-   fied `learnings` (a `BECAUSE` clause citing past events still classified
-   as `user_observations`)? If not, REVISIT.
+2. **Reclassification completeness**: did you run the Section 2 ladder, by
+   SUBJECT, on every entry? If you used the presence of a `BECAUSE` clause as
+   the discriminator, REVISIT — every theme has one.
 3. **Stratification honesty**: did you create any L2 WITHOUT a genuine unifying
    insight, or merge L1s that prescribe distinct actions? If so, REVISIT — a
    forced or spurious L2 is worse than none. Zero L2 is fine when there is no
@@ -251,10 +268,10 @@ Before emitting JSON, verify:
 4. **Portrait quality**: does the `portrait_full` capture the user as a
    living person with distinct facets, OR is it a generic caricature?
    If caricatural, rewrite.
-5. **Reclassification correctness (not a quota)**: if entries whose `BECAUSE`
-   cites a past correction are still classified as `user_observations` or
-   `self_reflection`, reclassify them to `learnings`. This is about the
-   CORRECTNESS of classification, never about hitting a theme distribution.
+5. **Theme balance is an OUTCOME, never a target**: did any reclassification
+   move an entry only because `learnings` felt safer? Undo it. Conversely, a
+   journal where three of the four themes are empty is a symptom — re-run the
+   Section 2 ladder on the entries you left untouched, by subject.
 
 =================================================================
 SECTION 7 — OUTPUT FORMAT (JSON OBJECT, not array)

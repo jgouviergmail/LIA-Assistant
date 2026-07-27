@@ -26,6 +26,7 @@ from src.domains.conversations.response_feedback import (
     persist_verdict,
     record_comment_as_correction,
 )
+from src.domains.journals.constants import JOURNAL_RESPONSE_FEEDBACK_THEME
 from src.domains.journals.models import JournalEntry
 
 pytestmark = pytest.mark.integration
@@ -169,6 +170,11 @@ class TestResponseFeedback:
         )
         assert len(corrections) == 1
         assert corrections[0].level == "L0"
+        # Feedback on a response is a lesson about what the assistant did. It used
+        # to be filed as `self_reflection`, which both mislabelled it and made the
+        # feedback hook the only live producer of a theme reserved for the
+        # assistant's own tone (see test_theme_reachability.py).
+        assert corrections[0].theme == JOURNAL_RESPONSE_FEEDBACK_THEME
         assert "La date était fausse." in corrections[0].content
 
     async def test_journals_disabled_persists_verdict_without_counters(

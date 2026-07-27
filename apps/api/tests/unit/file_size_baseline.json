@@ -47,7 +47,7 @@
     "domains/connectors/router.py": 1602,
     "domains/connectors/service.py": 1562,
     "domains/conversations/repository.py": 688,
-    "domains/conversations/service.py": 929,
+    "domains/conversations/service.py": 847,
     "domains/heartbeat/context_aggregator.py": 753,
     "domains/interests/services/extraction_service.py": 886,
     "domains/journals/extraction_service.py": 730,

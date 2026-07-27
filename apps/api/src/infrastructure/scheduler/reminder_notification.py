@@ -558,7 +558,9 @@ async def process_pending_reminders() -> dict[str, Any]:
 
                         conv_service = ConversationService()
                         conversation = await conv_service.get_or_create_conversation(
-                            reminder.user_id, db
+                            reminder.user_id,
+                            db,
+                            language=user.language or settings.default_language,
                         )
 
                         # Calculate cost if we have token usage

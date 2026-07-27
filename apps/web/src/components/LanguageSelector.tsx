@@ -9,6 +9,7 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { Globe } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,6 +46,7 @@ export function LanguageSelector({ currentLocale }: LanguageSelectorProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, refreshUser } = useAuth();
+  const { t } = useTranslation();
 
   const handleLanguageChange = async (newLang: Language) => {
     if (newLang === currentLocale) return;
@@ -86,10 +88,20 @@ export function LanguageSelector({ currentLocale }: LanguageSelectorProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2 h-11">
-          <Globe className="hidden sm:block h-4 w-4" />
-          <span className="hidden sm:inline">{languageNames[currentLocale].native}</span>
-          <span className="sm:hidden">{languageFlags[currentLocale]}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-2 h-11 px-3 max-[380px]:gap-1 max-[380px]:h-9 max-[380px]:px-2"
+          // Below `xl` only the flag renders (the header row cannot fit the
+          // language name next to the nav), and a flag emoji is not an
+          // accessible name — carry it explicitly, with the current value.
+          aria-label={t('settings.language.selector_label', {
+            name: languageNames[currentLocale].native,
+          })}
+        >
+          <Globe className="hidden xl:block h-4 w-4" />
+          <span className="hidden xl:inline">{languageNames[currentLocale].native}</span>
+          <span className="xl:hidden">{languageFlags[currentLocale]}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

@@ -28,6 +28,7 @@ import { Plus, Pencil, Trash2, Languages, GripVertical, Star, Sparkles } from 'l
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { logger } from '@/lib/logger';
 import { useTranslation } from '@/i18n/client';
+import { useConfirm } from '@/components/ui/use-confirm';
 import { fallbackLng, languages } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import type { BaseSettingsProps } from '@/types/settings';
@@ -37,6 +38,9 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
   const [personalities, setPersonalities] = useState<PersonalityResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
+  // W4b: replaces the native `confirm()` — an OS dialog whose buttons
+  // ignore the app's language and theme, on irreversible admin actions.
+  const { confirm, confirmDialog } = useConfirm();
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -180,15 +184,16 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
     });
   };
 
-  const handleDelete = (personality: PersonalityResponse) => {
+  const handleDelete = async (personality: PersonalityResponse) => {
     if (personality.is_default) {
       toast.error(t('settings.admin.personalities.errors.delete_default'));
       return;
     }
 
-    const confirmed = confirm(
-      `${t('settings.admin.personalities.confirm.delete_title', { code: personality.code })}\n\n${t('settings.admin.personalities.confirm.delete_message')}`
-    );
+    const confirmed = await confirm({
+      title: t('settings.admin.personalities.confirm.delete_title', { code: personality.code }),
+      description: t('settings.admin.personalities.confirm.delete_message'),
+    });
 
     if (!confirmed) return;
 
@@ -591,6 +596,7 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
       collapsible={collapsible}
     >
       {content}
+      {confirmDialog}
     </SettingsSection>
   );
 }

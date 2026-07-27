@@ -50,6 +50,24 @@ export async function generateMetadata({
   return buildAppMetadata(validateLanguage(lngParam));
 }
 
+/**
+ * Viewport contract.
+ *
+ * `viewportFit` is deliberately LEFT AT ITS DEFAULT (`auto`). Under `auto`, iOS
+ * confines the viewport to the safe area on notched devices — including in the
+ * installed PWA — so no control can end up beneath the home indicator, and
+ * `env(safe-area-inset-*)` correctly resolves to 0.
+ *
+ * Switching to `cover` would extend the page under the system areas and only
+ * then require `env(safe-area-inset-*)` padding on every edge-anchored surface
+ * (the sticky header, the chat composer, the dialogs). That is an aesthetic
+ * change — it buys screen real estate — with a real regression surface, and it
+ * cannot be verified without a physical notched device. Not taken.
+ *
+ * Height sizing uses the DYNAMIC viewport instead (`dvh`, see the
+ * `viewport-units` guard): that is what actually moves under the user, as the
+ * browser's URL bar retracts and reappears.
+ */
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,

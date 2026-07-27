@@ -1261,7 +1261,7 @@ function LLMConfigDialog({
           <DialogDescription>{t(config.info.description_key)}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto pr-1">
+        <div className="space-y-4 py-2 max-h-[60dvh] overflow-y-auto pr-1">
           <ProviderField
             form={form}
             metadataProviders={metadata.providers}

@@ -155,27 +155,7 @@ capturés).
 
 ## Composants Frontend
 
-### 1. VoiceOverlay.tsx
-
-**Fichier** : `apps/web/src/components/voice/VoiceOverlay.tsx`
-
-Interface overlay fullscreen remplaçant l'input texte.
-
-**États visuels** :
-| État | Visuel | Action |
-|------|--------|--------|
-| `idle` | Non rendu | - |
-| `listening` | Microphone fixe | "Dites OK ou appuyez" |
-| `recording` | Waves animées (pulse) | "J'écoute..." |
-| `processing` | Spinner | "Traitement..." |
-| `speaking` | Speaker pulsant | "LIA parle..." |
-
-**Interactions** :
-- Click sur conteneur = `onTap()` (listening) ou `onStop()` (recording)
-- Bouton X = `onDisable()` (quitter voice mode)
-- Clavier : Enter/Espace = click
-
-### 2. VoiceModeBadge.tsx
+### 1. VoiceModeBadge.tsx
 
 **Fichier** : `apps/web/src/components/voice/VoiceModeBadge.tsx`
 
@@ -197,7 +177,7 @@ onMouseUp (before 500ms) → cancel timer
 | Processing | Green/80 | Spinner |
 | Speaking | Dark green | - |
 
-### 3. useVoiceMode.ts
+### 2. useVoiceMode.ts
 
 **Fichier** : `apps/web/src/hooks/useVoiceMode.ts` (830 lignes)
 
@@ -868,11 +848,9 @@ la vague 3).
 
 ### Frontend
 
-- **VoiceOverlay**: `apps/web/src/components/voice/VoiceOverlay.tsx`
 - **VoiceModeBadge**: `apps/web/src/components/voice/VoiceModeBadge.tsx`
 - **useVoiceMode**: `apps/web/src/hooks/useVoiceMode.ts`
 - **useSherpaKws**: `apps/web/src/hooks/useSherpaKws.ts`
-- **useVAD**: `apps/web/src/hooks/useVAD.ts`
 - **sherpaKws**: `apps/web/src/lib/audio/sherpaKws.ts`
 - **vad**: `apps/web/src/lib/audio/vad.ts`
 - **VoiceInputService**: `apps/web/src/lib/voice-input-service.ts`

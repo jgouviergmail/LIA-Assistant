@@ -16,6 +16,7 @@ import { InlinePlaceCarousel } from '@/components/ui/inline-place-carousel';
 import { ReasoningScroll } from '@/components/chat/ReasoningScroll';
 import { formatPhonesInText } from '@/lib/format';
 import { isImageLoaded, markImageLoaded } from '@/lib/image-cache';
+import { logger } from '@/lib/logger';
 
 // MCP Apps widget — lazy loaded (only needed when MCP App sentinel divs are present)
 const McpAppWidget = lazy(() =>
@@ -230,7 +231,10 @@ const PlacePhotoWrapper = ({
     try {
       return JSON.parse(photoUrlsJson) as string[];
     } catch (error) {
-      console.warn('[PlacePhotoWrapper] Failed to parse photo URLs:', error);
+      logger.warn('place_photo_urls_parse_failed', {
+        component: 'PlacePhotoWrapper',
+        error: error instanceof Error ? error.message : String(error),
+      });
       return [];
     }
   }, [photoUrlsJson]);

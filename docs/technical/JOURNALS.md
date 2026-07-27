@@ -15,8 +15,9 @@ This document describes the journal in its current form, which combines:
 - The Gemini embeddings migration ([ADR-069](../architecture/ADR-069-Gemini-Embedding-Migration.md), 2026-04-09): switch to Gemini `gemini-embedding-001`, dual-vector strategy (content + keywords).
 - **The stratified consciousness refactor** ([ADR-079](../architecture/ADR-079-Stratified-Journal-Consciousness.md), 2026-05-06): four abstraction levels, epistemic status, deferred self-evaluation T → T+1, ambient diffusion of the compiled portrait, three-lever user correction.
 - **Write restraint + level-routed injection** ([ADR-088](../architecture/ADR-088-Journal-Restraint-And-Level-Routed-Injection.md), 2026-06-02): restraint-first extraction (default `[]`, explicit-signal grounding bar, generic capability prohibition, capped L0 release valve), de-pressured consolidation (conditional L2, no synthesis quota), operational injection restricted to **L1/L2** (L0/L3 excluded), and ReAct directive coherence.
+- **Theme reachability** ([ADR-159](../architecture/ADR-159-Journal-Theme-Reachability.md), 2026-07-27): subject-based classification shared by both prompts, three grounding kinds (SAID / SHOWN twice / REACTED), removal of the consolidation ratchet that emptied `self_reflection`, correct theme on user-feedback entries, plus a CI reachability guard and a measurement harness. Restored per-theme recall from 1.00 / 0.58 / **0.00** / **0.00** to **1.00 across all four**, at unchanged noise (0.00).
 
-The sections below reflect the post-ADR-088 state.
+The sections below reflect the post-ADR-159 state.
 
 ## Architecture
 
@@ -237,16 +238,39 @@ The historical post-extraction merge guard (v1.12.1) has been retired. Deduplica
 
 Result: noise is collapsed periodically by an LLM that sees the full corpus, not opportunistically on every turn. No silent merge LLM, no orphan migrations, no `JOURNAL_DEDUP_SIMILARITY_THRESHOLD` to tune.
 
-### Theme Selection (ADR-079)
+### Theme Selection (ADR-079, reworked in [ADR-159](../architecture/ADR-159-Journal-Theme-Reachability.md))
 
-The introspection prompt uses a discriminator-based decision tree:
+Both the introspection and the consolidation prompt run the **same ordered ladder**, keyed on **what the directive is ABOUT** — never on how it is grounded. Stop at the first YES:
 
-- "Internal observation about my own behavior or evolution" → `self_reflection`
-- "Stable signal observed about the user (preference, value, repeated context)" → `user_observations`
-- "Cross-cutting pattern, hypothesis, or recurring contradiction worth analyzing" → `ideas_analyses`
-- "Concrete lesson I can apply to do better next time" → `learnings`
+1. My own tone, register, pace or posture → `self_reflection`
+2. A signal whose meaning holds whatever the topic is → `ideas_analyses`
+3. A stable trait or preference of the user → `user_observations`
+4. A specific moment taught me something about the world or my method → `learnings`
 
-Classification uses **discriminators**, not a theme distribution to balance: since [ADR-088](../architecture/ADR-088-Journal-Restraint-And-Level-Routed-Injection.md) the prompts no longer push the LLM toward "underrepresented" themes (that production pressure manufactured weak entries). The discriminators (e.g. a `BECAUSE` citing a past correction → `learnings`) are kept for correctness. Combined with the L0/L1/L2/L3 axis (see *Stratification* above), classification has two orthogonal dimensions: **what kind of insight** (theme) and **how distilled it is** (level).
+Grounding is a separate axis with exactly three admissible kinds:
+
+| Kind | Evidence | Notes |
+|---|---|---|
+| **(a) SAID** | a correction, an instruction, a stated preference | quotable |
+| **(b) SHOWN** | the same behaviour at least **twice** | a *full* grounding, not a lesser one; two occurrences on **different subjects** is its strongest form |
+| **(c) REACTED** | the user visibly reacted to something the assistant did | **one** clear reaction suffices — both sides are pointable |
+
+`self_reflection` requires **(c) and only (c)**: no user reaction, no entry. Surface features of the messages (length, tone, punctuation, spelling) are excluded from (b) **however often they repeat** — (b) covers what the user *does*, never how their sentences look.
+
+Classification is **never** a distribution to balance: since [ADR-088](../architecture/ADR-088-Journal-Restraint-And-Level-Routed-Injection.md) the prompts do not push the LLM toward "underrepresented" themes (that production pressure manufactured weak entries). ADR-159 removed the opposite failure instead — a taxonomy whose rules made two of the four themes *impossible to produce or to survive*. Combined with the L0/L1/L2/L3 axis (see *Stratification* above), classification has two orthogonal dimensions: **what kind of insight** (theme) and **how distilled it is** (level).
+
+> **Trap (measured 2026-07-27, ADR-159)** — discriminating themes on the presence of a `BECAUSE` clause empties them. *Every* theme's evidence is a past moment, so the consolidation rule "a `BECAUSE` citing a past event means `learnings`" matched every well-formed `self_reflection` (6/6 rewritten in test). Reclassify by **subject**, never by grounding shape.
+
+**Verification.** The property "the four themes stay reachable" is enforced two ways:
+
+- `apps/api/tests/unit/domains/journals/test_theme_reachability.py` — CI guard, pure text analysis of the shipped prompts (no LLM, no DB). Checks **parity** (every theme has a heading, an illustration and a named grounding) and **non-contradiction** (no rule rewrites `self_reflection` into `learnings`).
+- `apps/api/scripts/measure_journal_themes.py` — measurement instrument: 13 conversations (two positives per theme, explicit + implicit, plus **five negatives** that must stay silent), reporting per-theme recall, volume, noise rate and token cost. Renders through `apps/api/src/domains/journals/prompt_builders.py`, the runtime's own module, so it cannot drift. Use `--introspection <file>` to A/B a candidate prompt. Placed under `apps/api/scripts/` so it ships in the prod image (`Dockerfile.prod` does `COPY . .` from that context — repo-root `scripts/` does not).
+
+```bash
+docker exec lia-api-dev python scripts/measure_journal_themes.py --reps 8 --mode both
+```
+
+Run it after **any** edit to `journal_introspection_prompt.txt` or `journal_consolidation_prompt.txt`: the CI guard catches structural regressions, only the harness catches behavioural ones.
 
 ### Anti-Hallucination Guards (v1.8.1, extended in ADR-079)
 

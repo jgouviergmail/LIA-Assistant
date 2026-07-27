@@ -1,21 +1,23 @@
 import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Message, MessageAttachmentMeta } from '@/types/chat';
+import { Message, MessageAttachmentMeta, type GeneratedImage } from '@/types/chat';
 import {
-  User,
   AlertCircle,
-  ThumbsUp,
-  ThumbsDown,
   Ban,
-  FileText,
-  X,
-  Globe,
-  Download,
-  Copy,
   Check,
+  Copy,
+  Download,
+  FileText,
+  Globe,
+  RotateCcw,
+  ThumbsDown,
+  ThumbsUp,
+  User,
+  X,
 } from 'lucide-react';
 import { formatNumber, formatEuro } from '@/lib/format';
-import { proxyGoogleImageUrl } from '@/lib/utils';
+import { cn, proxyGoogleImageUrl } from '@/lib/utils';
+import { classifyImageExpiry } from '@/lib/image-expiry';
 import { MarkdownContent } from './MarkdownContent';
 import { isInterestNotificationMetadata } from './InterestNotificationCard';
 import { useTranslation } from 'react-i18next';
@@ -51,6 +53,13 @@ export interface ChatMessageProps {
   streamPhase?: StreamPhase;
   /** History-search term highlighted in the rendered content (QW-2). */
   searchHighlight?: string;
+  /**
+   * Replay the prompt pinned on an error bubble (W3).
+   *
+   * Only wired for the LATEST error: replaying an old failure would send it
+   * into a conversation that has moved on. Absent → no retry is offered.
+   */
+  onRetry?: (prompt: string) => void;
 }
 
 type FeedbackType = 'thumbs_up' | 'thumbs_down' | 'block';
@@ -229,6 +238,19 @@ function responseFeedbackProps(
 }
 
 /**
+ * The prompt an error bubble pinned for replay (W3), or undefined.
+ *
+ * Lives here rather than inline in the bubble: the render function is a
+ * complexity hotspot under a shrink-only ratchet, and this predicate is worth
+ * testing on its own — it is what decides whether a failure has a way back.
+ */
+export function retryPromptOf(message: Message): string | undefined {
+  if (message.metadata?.type !== 'error') return undefined;
+  const prompt = message.metadata?.retryPrompt;
+  return typeof prompt === 'string' && prompt.length > 0 ? prompt : undefined;
+}
+
+/**
  * Bubble action row (UXR Lot 1): Copy + response-feedback chips (QW-5,
  * ADR-138) in flow at the bubble's bottom — the interest-notification
  * pattern; the former top-right overlay covered the first text lines on
@@ -241,13 +263,20 @@ function AssistantActionRow({
   onCopy,
   feedbackProps,
   trace,
+  message,
+  onRetry,
 }: {
   copied: boolean;
   onCopy: () => void;
   feedbackProps: ResponseFeedbackButtonsProps | null;
   trace?: ExecutionTrace;
+  /** The bubble being decorated — read for its pinned retry prompt. */
+  message: Message;
+  /** W3: wired only on the latest error bubble (the list decides). */
+  onRetry?: (prompt: string) => void;
 }) {
   const { t } = useTranslation();
+  const retryPrompt = retryPromptOf(message);
   return (
     <div className="flex flex-wrap items-center gap-1 mt-2 pt-2 border-t border-border/30">
       <Tooltip>
@@ -267,9 +296,64 @@ function AssistantActionRow({
         </TooltipTrigger>
         <TooltipContent>{t('chat.message.copy')}</TooltipContent>
       </Tooltip>
+      {/* W3: a failed turn used to be a dead end — the user had to find their
+          question and retype it. Labelled, not icon-only: this one re-runs a
+          request that may cost tokens, so it must read as a deliberate act. */}
+      {retryPrompt && onRetry && (
+        <button
+          type="button"
+          onClick={() => onRetry(retryPrompt)}
+          className="inline-flex items-center gap-1.5 rounded-md border border-border/30 bg-background/80 px-2 py-1 text-xs font-medium text-foreground/90 hover:bg-background transition-colors"
+        >
+          <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+          {t('chat.message.retry')}
+        </button>
+      )}
       {feedbackProps && <ResponseFeedbackButtons {...feedbackProps} />}
       <ExecutionTraceDisclosure trace={trace} />
     </div>
+  );
+}
+
+/**
+ * N2: say that a generated image does not last forever.
+ *
+ * Generated images are attachments with an `expires_at`, and a scheduler purges
+ * them every 6 hours. The card offered a download button but never a reason to
+ * use it — the image simply vanished from the history a day later.
+ *
+ * The deadline always comes from the backend: `attachments_ttl_hours` is
+ * configurable, so a "24 h" written here would eventually be a lie. No
+ * deadline (history predating N2) means no notice at all.
+ */
+function ImageExpiryNotice({ expiresAt }: { expiresAt?: string | null }) {
+  const { t, i18n } = useTranslation();
+  // Read once per render: the notice is informational, not a live countdown —
+  // a ticking timer on every image card would re-render the whole thread.
+  const expiry = classifyImageExpiry(expiresAt, new Date());
+  if (expiry.kind === 'unknown') return null;
+
+  if (expiry.kind === 'expired') {
+    return (
+      <p className="mt-1 text-[11px] text-muted-foreground">{t('chat.image_expiry.expired')}</p>
+    );
+  }
+
+  const at = expiry.at.toLocaleString(i18n.language, {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+  return (
+    <p
+      className={cn(
+        'mt-1 text-[11px]',
+        expiry.kind === 'soon' ? 'text-amber-600 dark:text-amber-500' : 'text-muted-foreground'
+      )}
+    >
+      {expiry.kind === 'soon'
+        ? t('chat.image_expiry.soon', { count: expiry.hoursLeft })
+        : t('chat.image_expiry.until', { date: at })}
+    </p>
   );
 }
 
@@ -279,7 +363,7 @@ function AssistantActionRow({
  * Uses relative URLs served by the reverse proxy in production.
  * In dev with self-signed certs, images may not load through the proxy.
  */
-function GeneratedImageCards({ images }: { images: { url: string; alt: string }[] }) {
+function GeneratedImageCards({ images }: { images: GeneratedImage[] }) {
   const { t } = useTranslation();
   const [lightboxImage, setLightboxImage] = useState<{ url: string; alt: string } | null>(null);
 
@@ -325,6 +409,7 @@ function GeneratedImageCards({ images }: { images: { url: string; alt: string }[
                 </TooltipTrigger>
                 <TooltipContent>{t('common.download')}</TooltipContent>
               </Tooltip>
+              <ImageExpiryNotice expiresAt={img.expires_at} />
             </div>
           );
         })}
@@ -518,7 +603,7 @@ function MessageAttachments({ attachments }: { attachments: MessageAttachmentMet
               <img
                 src={expandedImage.url}
                 alt={expandedImage.filename}
-                className="max-w-[85vw] max-h-[75vh] mobile:max-w-[70vw] mobile:max-h-[70vh] object-contain rounded-lg shadow-2xl"
+                className="max-w-[85vw] max-h-[75dvh] mobile:max-w-[70vw] mobile:max-h-[70dvh] object-contain rounded-lg shadow-2xl"
                 {...(expandedImage.url.startsWith('blob:')
                   ? {}
                   : { crossOrigin: 'use-credentials' as const })}
@@ -536,7 +621,7 @@ function MessageAttachments({ attachments }: { attachments: MessageAttachmentMet
  * Issue #64: Without memo, images would flash on every token because React recreates the DOM.
  */
 export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
-  const { message, isUser, isLatestAssistant = false, isActiveStream = false } = props;
+  const { message, isUser, isLatestAssistant = false, isActiveStream = false, onRetry } = props;
   // Streaming styling on the active bubble only: dim/pulse the execution-step
   // lines during the progress phase, blinking caret while the answer streams.
   const streamClass = isActiveStream
@@ -795,6 +880,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
                 onCopy={handleCopyMessage}
                 feedbackProps={feedbackProps}
                 trace={message.executionTrace}
+                message={message}
+                onRetry={onRetry}
               />
             )}
           </div>

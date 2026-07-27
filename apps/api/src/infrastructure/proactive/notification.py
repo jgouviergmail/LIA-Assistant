@@ -583,7 +583,9 @@ class NotificationDispatcher:
         conv_service = ConversationService()
 
         # Get or create conversation
-        conversation = await conv_service.get_or_create_conversation(user.id, db)
+        conversation = await conv_service.get_or_create_conversation(
+            user.id, db, language=user.language
+        )
 
         # Archive the proactive message
         message = await conv_service.archive_message(

@@ -161,7 +161,9 @@ async def execute_single_action(
         # === Guard: Check for pending HITL interrupt on user's conversation ===
         try:
             conv_service = ConversationService()
-            conversation = await conv_service.get_or_create_conversation(user_id, db)
+            conversation = await conv_service.get_or_create_conversation(
+                user_id, db, language=user_language
+            )
             agent_service = AgentService()
             await agent_service._ensure_graph_built()
 

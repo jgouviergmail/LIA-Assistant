@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { answerConfirmDialog, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import type { ImagePricing } from '../AdminImagePricingSection';
 
 const { get } = vi.hoisted(() => ({ get: vi.fn() }));
@@ -198,44 +198,44 @@ describe('AdminImagePricingSection — mutations', () => {
   });
 
   it('edits an entry without ever resending the intrinsic provider', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: EDIT }));
     await fillModal(user);
     await user.click(screen.getByRole('button', { name: SUBMIT_EDIT }));
+    await answerConfirmDialog(user);
     // Exact payload: `provider` must be absent (the backend rejects it).
     await waitFor(() => expect(updateImagePricing).toHaveBeenCalledWith('p1', EDITED));
   });
 
   it('does not edit when the confirmation is dismissed', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: EDIT }));
     await user.click(screen.getByRole('button', { name: SUBMIT_EDIT }));
+    await answerConfirmDialog(user, false);
     expect(updateImagePricing).not.toHaveBeenCalled();
   });
 
   it('does not deactivate when the confirmation is dismissed', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: DISABLE }));
+    await answerConfirmDialog(user, false);
     expect(deactivateImagePricing).not.toHaveBeenCalled();
   });
 
   it('deactivates a confirmed entry, drops the row and invalidates', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: DISABLE }));
+    await answerConfirmDialog(user);
     await waitFor(() => expect(deactivateImagePricing).toHaveBeenCalledWith('p1'));
     await waitFor(() => expect(screen.queryByText('gpt-image-1')).not.toBeInTheDocument());
     expect(invalidateCatalogue).toHaveBeenCalledWith(CATALOGUE_KEY);
   });
 
   it('rolls the optimistic removal back when the deactivation is refused', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     deactivateImagePricing.mockResolvedValue({ success: false, error: 'in use' });
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: DISABLE }));
+    await answerConfirmDialog(user);
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('in use'));
     expect(await screen.findByText('gpt-image-1')).toBeInTheDocument();
     expect(invalidateCatalogue).not.toHaveBeenCalled();

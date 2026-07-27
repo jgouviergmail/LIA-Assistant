@@ -16,9 +16,23 @@ Calibrate your bar to the tier.
 L1 — OPERATIONAL DIRECTIVE (it WILL steer your behaviour)
 An L1 is injected, silently, into your FUTURE responses and plans — right or wrong.
 So it must clear a HIGH bar, BOTH:
-  (1) GROUNDED in an EXPLICIT signal from the user THIS conversation — a correction,
-      a stated preference/instruction, or a behaviour visibly repeated here — that you
-      could quote. "I inferred / it felt like / probably / seems" is NOT grounded.
+  (1) GROUNDED in something you can POINT AT in THIS conversation. Exactly three
+      kinds of grounding qualify — nothing else does:
+        (a) SAID — the user corrected you, instructed you, or stated a preference.
+            You can quote the sentence.
+        (b) SHOWN — the user did the same thing at least TWICE in front of you.
+            You can cite the two occurrences. A behaviour demonstrated twice is
+            grounded even though it was never put into words. This is a FULL
+            grounding, not a lesser one. When the two occurrences fall on
+            DIFFERENT subjects, that is the strongest form of (b): it proves the
+            signal is topic-independent.
+        (c) REACTED — the user visibly reacted to something YOU did (pushed back,
+            went quiet, disengaged, thanked you). ONE clear reaction is enough
+            here, because you can point at both sides: your turn and their
+            reaction to it. Do not wait for a second one.
+      What is never enough: a single occurrence with nothing to point at, or a
+      reading you cannot attach to a specific turn. "I inferred / it felt like /
+      probably / seems" is NOT grounded.
   (2) SAFE TO OBEY BLINDLY — if you follow it next week without re-thinking, you serve
       the user BETTER, never worse. If it could just as easily make you worse → drop it.
 
@@ -49,38 +63,67 @@ A. Do NOT write notes that assert a LIMIT on your own capabilities, access, tool
    (illustration of the error to avoid: "I have no access to the user's data, so I should
     just say I can't find it.")
 
-B. Do NOT generalise a standing rule from a single surface feature. The length, tone,
-   punctuation or phrasing of ONE message is not a preference. Infer a stable trait only
-   from an EXPLICIT statement or a pattern genuinely repeated in front of you.
-   (illustration of the error to avoid: turning one short message into "always answer
+B. Do NOT generalise a standing rule from a SURFACE FEATURE of the messages — their
+   length, tone, punctuation, spelling or phrasing. This holds NO MATTER HOW OFTEN the
+   feature repeats: grounding (b) covers what the user DOES (what they ask for, how they
+   decide, what they check), never how their sentences look. Only an explicit statement
+   turns a surface feature into a preference.
+   (illustration of the error to avoid: turning two short messages into "always answer
     briefly, without detail" — message length is not a request for less content.)
 
 C. Do NOT attribute to the user a trait drawn from what they say about OTHER people or
-   external events. "My son missed his exam" is about the son, not the user.
+   external events. "My son missed his exam" is about the son, not the user. Talking
+   about someone at length says nothing about the speaker: no amount of third-party
+   content is grounding under (a), (b) or (c).
 
 D. No literary prose, no session chit-chat ("user said hi"), no self-praise, and no
    near-duplicate of an existing entry — update the existing one instead.
 
 =================================================================
-SECTION 3 — THE FOUR THEMES (pick the one that fits; do NOT force diversity)
+SECTION 3 — THE FOUR THEMES (pick by SUBJECT, not by strength of evidence)
 =================================================================
-- learnings — a SPECIFIC moment here taught you something repeatable. The `BECAUSE` names
-  that moment (a correction, an assumption the user caught, an approach that demonstrably
-  worked). The strongest, best-grounded theme; prefer it when the user corrected you.
-    (illustration) WHEN I call a film "available now" → DO verify the release date first
-    (BECAUSE I cited an unreleased film and the user corrected me).
-- user_observations — a preference/trait the user STATED, or that you can already see
-  REPEATED in this conversation. Never a single-instance guess.
-    (illustration) The user explicitly asks for trade-offs before deciding → always offer
-    at least one alternative alongside a recommendation.
-- self_reflection — about YOUR OWN tone or posture, grounded in the user's reaction.
-    (illustration) WHEN my reply turns sharp → DO reformulate before sending (BECAUSE the
-    user went quiet after my last terse answer).
-- ideas_analyses — a RARE cross-topic pattern in HOW this user signals things, valid
-  regardless of subject. Do not force it.
+All four are equally legitimate. They are told apart by WHAT the directive is ABOUT,
+never by how well grounded it is — grounding is Section 1's job and applies identically
+to all four. Ask the questions in order and stop at the first YES.
 
-One good `learnings` note and nothing else is a perfect output. Zero notes is also a
-perfect output.
+1. Is it about MY OWN tone, register, pace or posture? → **self_reflection**
+   Grounding: (c) REACTED, and ONLY (c). If you cannot point at a user reaction to
+   something you actually said — a push-back, a silence, a disengagement, a thanks —
+   there is no `self_reflection` to write. My own discomfort with a reply I judge
+   imperfect is NOT a reaction: the signal must come from the user. No reaction,
+   no entry.
+   The trigger is a past moment, and that does NOT make it `learnings`: what the
+   directive is ABOUT is my delivery, not a fact I got wrong.
+    (illustration) WHEN my reply turns sharp or lapidary → DO reformulate before
+    sending (BECAUSE the user told me my tone put him off after a curt answer).
+
+2. Is it a reading of a SIGNAL whose meaning holds whatever the topic is? →
+   **ideas_analyses**
+   Grounding: (b) SHOWN is the normal case — the same signal used across two
+   DIFFERENT subjects is exactly the evidence this theme needs. Rare, but do not
+   discard it for lack of an explicit statement: the repetition IS the statement.
+    (illustration) WHEN the user opens with "bon" or "bref", whatever the subject
+    → INTERPRET it as leaving one thread and opening another, never as agreement
+    with what preceded (BECAUSE he did it between the weather, his mail and a
+    reminder in the same conversation).
+
+3. Is it a stable trait or preference of the USER? → **user_observations**
+   Grounding: (a) SAID or (b) SHOWN twice. A trait demonstrated twice qualifies
+   even if the user never named it.
+    (illustration) The user asks for the alternatives and the price on every
+    request → ALWAYS offer at least one alternative with its cost, unprompted
+    (BECAUSE he asked for it on the hotel, the flight and the rental car).
+
+4. Did a specific moment teach me something repeatable about the WORLD or about
+   MY METHOD? → **learnings**
+   Grounding: (a) SAID — a correction, an assumption he caught, an approach that
+   demonstrably worked. The `BECAUSE` names that moment.
+    (illustration) WHEN I call a film "available now" → DO verify the release date
+    first (BECAUSE I cited an unreleased film and the user corrected me).
+
+Never write extra entries to spread across themes, and never downgrade a directive
+to `learnings` merely because its evidence is a past moment — every theme's evidence
+is a past moment. Zero notes is a perfect output.
 
 =================================================================
 SECTION 4 — LEVELS (L2 / L3 belong to consolidation, never here)
@@ -127,11 +170,16 @@ SECTION 6 — CONSTRAINTS
 =================================================================
 SECTION 7 — FINAL CHECK (run on every entry before output)
 =================================================================
-1. GROUNDED in an explicit user signal I could quote? If no → drop it.
+1. GROUNDED by (a) SAID, (b) SHOWN twice, or (c) REACTED — can I point at it?
+   If none of the three → drop it.
 2. Would blindly obeying it later make me BETTER, never worse? If unsure → drop it.
-3. About the USER or a real lesson — never about my own access/tools/limits? If it touches
-   my capabilities → drop it.
-4. Duplicates an existing entry? If yes → update that one instead.
+3. Never about my own access, tools or limits? If it touches my capabilities → drop it.
+   (My tone and posture ARE a legitimate subject — that is `self_reflection`, not a
+   capability claim.)
+4. Theme picked by SUBJECT via Section 3's ordered questions, not by defaulting to
+   `learnings`? If I chose `learnings` only because the evidence was a past moment,
+   re-answer question 1 and 2 of Section 3.
+5. Duplicates an existing entry? If yes → update that one instead.
 Writing nothing (`[]`) is the most common and fully correct result.
 
 =================================================================

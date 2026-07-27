@@ -9,6 +9,11 @@
     "edit": "Bearbeiten",
     "search": "Suchen",
     "close": "Schließen",
+    "copy": "Kopieren",
+    "copyFailed": "Kopieren fehlgeschlagen.",
+    "hide": "Ausblenden",
+    "show": "Anzeigen",
+    "menu": "Menü",
     "download": "Herunterladen",
     "back": "Zurück",
     "next": "Weiter",
@@ -44,16 +49,6 @@
   },
   "theme": {
     "toggle": "Thema wechseln"
-  },
-  "memory": {
-    "toggle": {
-      "enable": "Erinnerung aktivieren",
-      "disable": "Erinnerung deaktivieren",
-      "enabled": "Erinnerung aktiviert",
-      "disabled": "Erinnerung deaktiviert",
-      "tooltip_enabled": "Langzeitgedächtnis aktiv - Ich erinnere mich an unsere Gespräche",
-      "tooltip_disabled": "Langzeitgedächtnis deaktiviert - Einfacher Gesprächsmodus"
-    }
   },
   "executionMode": {
     "toggle": {
@@ -294,6 +289,9 @@
         "task_reschedule": "Plane die Aufgabe „{{subject}}“ neu",
         "document_summarize": "Fasse das Dokument „{{subject}}“ zusammen"
       },
+      "not_configured_intro_one": "Eine Karte wartet auf die Einrichtung:",
+      "not_configured_intro_other": "{{count}} Karten warten auf die Einrichtung:",
+      "not_configured_cta": "Karte {{card}} einrichten",
       "all_hidden": "Alle Karten sind ausgeblendet.",
       "all_hidden_cta": "Karten in den Einstellungen auswählen"
     },
@@ -529,7 +527,6 @@
     "title": "Chat",
     "new_chat": "Löschen",
     "loading_conversation": "Gespräch wird geladen...",
-    "reset_conversation_confirm": "Sind Sie sicher, dass Sie den Gesprächsverlauf dauerhaft löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
     "conversation_reset_success": "Gespräch zurückgesetzt",
     "conversation_reset_error": "Fehler beim Zurücksetzen",
     "input": {
@@ -589,9 +586,6 @@
       "instruction_listening": "Tippen Sie, um zu sprechen",
       "instruction_recording": "Ich höre... Tippen zum Stoppen",
       "instruction_processing": "Verarbeitung läuft...",
-      "instruction_speaking": "LIA antwortet...",
-      "recording": "Aufnahme",
-      "hint_tap_to_speak": "Tippen Sie irgendwo, um aufzunehmen",
       "hint_listening": "Sagen Sie \"OK Guy\" oder tippen Sie zum Sprechen",
       "hint_recording": "Ich höre... sprechen Sie jetzt",
       "hint_processing": "Wird verarbeitet...",
@@ -609,7 +603,6 @@
       "source_voice": "Sprache",
       "hold_to_enable": "Gedrückt halten zum Aktivieren",
       "hold_to_disable": "Gedrückt halten zum Deaktivieren",
-      "enabled_toast": "Sprachmodus aktiviert",
       "disabled_toast": "Sprachmodus deaktiviert"
     },
     "attachments": {
@@ -664,6 +657,18 @@
     "error": {
       "title": "Ladefehler",
       "message": "Nachrichten können nicht angezeigt werden. Bitte aktualisieren Sie die Seite."
+    },
+    "image_expiry": {
+      "until": "Verfügbar bis {{date}} — zum Behalten herunterladen",
+      "soon_one": "Läuft in {{count}} Stunde ab — zum Behalten herunterladen",
+      "soon_other": "Läuft in {{count}} Stunden ab — zum Behalten herunterladen",
+      "expired": "Dieses Bild ist abgelaufen und nicht mehr verfügbar"
+    },
+    "starters": {
+      "label": "Zum Beispiel",
+      "capabilities": "Was kannst du?",
+      "reminder": "Erinnere mich, Jean am Freitag um 18 Uhr anzurufen",
+      "explain": "Erkläre mir Quantencomputing einfach"
     },
     "empty_state": {
       "title": "Gespräch beginnen",
@@ -776,7 +781,13 @@
       "reconnect_message": "LIA konnte nicht auf {{connector}} zugreifen — die Verbindung ist abgelaufen.",
       "rate_limit_message": "{{connector}} begrenzt derzeit die Anfragen. Bitte in einigen Minuten erneut versuchen.",
       "reconnect_button": "Neu verbinden",
-      "dismiss": "Hinweis schließen"
+      "dismiss": "Hinweis schließen",
+      "summary_reconnect_one": "{{count}} Dienst muss neu verbunden werden",
+      "summary_reconnect_other": "{{count}} Dienste müssen neu verbunden werden",
+      "summary_rate_limit_one": "{{count}} Dienst drosselt Anfragen",
+      "summary_rate_limit_other": "{{count}} Dienste drosseln Anfragen",
+      "summary_expand": "Details anzeigen",
+      "summary_collapse": "Details ausblenden"
     },
     "search": {
       "loaded_count_one": "{{count}} Treffer in den geladenen Nachrichten",
@@ -845,6 +856,16 @@
       "news_description": "Neuigkeiten zu meinen Interessen",
       "news_intent": "Gibt es heute Neuigkeiten zu meinen Interessen?",
       "skill_intent": "Starte den Skill {{name}}"
+    },
+    "reset_confirm": {
+      "title": "Diese Unterhaltung löschen?",
+      "description": "Alle Nachrichten werden gelöscht, ebenso sämtliche Anhänge – einschließlich der KI-generierten Bilder. LIA vergisst außerdem den Kontext dieser Unterhaltung. Dies kann nicht rückgängig gemacht werden.",
+      "confirm": "Alles löschen"
+    },
+    "active_call": {
+      "dialing": "LIA ruft {{name}} an…",
+      "in_progress": "LIA telefoniert mit {{name}}",
+      "details": "Details"
     }
   },
   "skill_apps": {
@@ -995,7 +1016,6 @@
       "available_google": "Google-Konnektoren",
       "available_external": "Externe Konnektoren",
       "all_connected": "Alle verfügbaren Konnektoren sind bereits verbunden",
-      "disconnect_confirm": "Sind Sie sicher, dass Sie diesen Dienst trennen möchten?",
       "disconnect_error": "Trennungsfehler",
       "connected_success": "{{name}} wurde erfolgreich verbunden",
       "unknown_connector": "Der Connector",
@@ -1250,19 +1270,11 @@
         "secret_placeholder": "Webhook-Signatur-Secret",
         "activate": "Telefonie aktivieren",
         "activated": "Telefonie aktiviert. LIA kann jetzt in deinem Namen anrufen.",
-        "no_calls": "Noch keine Anrufe.",
-        "recent_calls": "Letzte Anrufe",
-        "call_status": {
-          "dialing": "Wählt",
-          "in_progress": "Läuft",
-          "completed": "Abgeschlossen",
-          "no_answer": "Keine Antwort",
-          "voicemail": "Mailbox",
-          "failed": "Fehlgeschlagen",
-          "cancelled": "Abgebrochen"
-        },
         "secret_label": "Webhook-Signaturgeheimnis"
-      }
+      },
+      "disconnect": "Trennen",
+      "disconnect_title": "{{name}} trennen?",
+      "disconnect_description": "LIA kann Ihre {{name}}-Daten dann weder lesen noch darauf reagieren. Auf Seiten von {{name}} wird nichts gelöscht, und Sie können sich jederzeit wieder verbinden."
     },
     "user": {
       "export": {
@@ -1345,14 +1357,16 @@
           "erase": "Endgültig löschen (DSGVO)"
         },
         "deactivation_reason_prompt": "Grund für die Deaktivierung dieses Benutzers:",
-        "delete_confirmation": "⚠️ KONTO LÖSCHEN\n\nKonto von \"{{email}}\" löschen?\n\nDies wird UNWIDERRUFLICH entfernen:\n• Gespräche und Nachrichten\n• Erinnerungen und Tagebücher\n• OAuth-Konnektoren\n• RAG-Räume und Dateien\n• Persönliche Daten\n\nAbrechnungshistorie wird beibehalten.",
-        "erase_confirmation": "⚠️ ENDGÜLTIGE LÖSCHUNG (DSGVO)\n\n\"{{email}}\" endgültig löschen?\n\nDies entfernt die letzte Spur des Kontos (E-Mail, Name).\nDie Abrechnungshistorie wird anonymisiert.\n\nDiese Aktion kann NICHT rückgängig gemacht werden.",
+        "delete_confirmation": "Konto von \"{{email}}\" löschen?\n\nDies wird UNWIDERRUFLICH entfernen:\n• Gespräche und Nachrichten\n• Erinnerungen und Tagebücher\n• OAuth-Konnektoren\n• RAG-Räume und Dateien\n• Persönliche Daten\n\nAbrechnungshistorie wird beibehalten.",
+        "erase_confirmation": "\"{{email}}\" endgültig löschen?\n\nDies entfernt die letzte Spur des Kontos (E-Mail, Name).\nDie Abrechnungshistorie wird anonymisiert.\n\nDiese Aktion kann NICHT rückgängig gemacht werden.",
         "errors": {
           "loading": "Fehler beim Laden der Benutzer",
           "toggle_status": "Fehler beim {{action}} des Benutzers",
           "delete": "Fehler beim Löschen des Kontos",
           "erase": "Fehler beim endgültigen Löschen (DSGVO)"
-        }
+        },
+        "delete_title": "⚠️ KONTO LÖSCHEN",
+        "erase_title": "⚠️ ENDGÜLTIGE LÖSCHUNG (DSGVO)"
       },
       "pricing": {
         "title": "LLM-Preise",
@@ -2129,7 +2143,8 @@
       "update_success": "Sprache erfolgreich aktualisiert",
       "update_error": "Fehler beim Aktualisieren der Sprache",
       "persistence_info": "Ihre Spracheinstellung wurde gespeichert. Benachrichtigungs-E-Mails verwenden diese Sprache.",
-      "info_note": "💡 Die Sprache beeinflusst die Benutzeroberfläche und Benachrichtigungs-E-Mails. Das Ändern der Sprache aktualisiert automatisch die URL."
+      "info_note": "💡 Die Sprache beeinflusst die Benutzeroberfläche und Benachrichtigungs-E-Mails. Das Ändern der Sprache aktualisiert automatisch die URL.",
+      "selector_label": "Sprache: {{name}}"
     },
     "interests": {
       "settings": {
@@ -2261,43 +2276,24 @@
     "location": {
       "geolocation": {
         "title": "Geolokalisierung",
-        "description": "Ermöglicht LIA, Ihren Standort für Wetter- und Ortsabfragen zu verwenden",
-        "auto_label": "Automatische Geolokalisierung",
-        "auto_description": "Ihre Position wird automatisch mit jeder Nachricht gesendet",
         "permission_status": "Berechtigungsstatus",
         "permission_granted": "Erteilt",
         "permission_denied": "Verweigert",
         "unsupported": "Nicht unterstützt",
-        "current_position": "Aktuelle Position",
-        "accuracy": "Genauigkeit: ~{{meters}}m",
-        "refresh": "Aktualisieren",
         "enabled": "Geolokalisierung aktiviert",
         "disabled": "Geolokalisierung deaktiviert",
-        "refreshed": "Position aktualisiert",
-        "denied_help": "Um die Geolokalisierung zu aktivieren, ändern Sie die Browserberechtigungen in den Seiteneinstellungen.",
-        "info_note": "Ihre Position wird nur mit Ihren Nachrichten für kontextbezogene Antworten gesendet (lokales Wetter, Orte in der Nähe). Sie wird nicht auf unseren Servern gespeichert."
+        "denied_help": "Um die Geolokalisierung zu aktivieren, ändern Sie die Browserberechtigungen in den Seiteneinstellungen."
       },
       "home": {
         "title": "Heimatadresse",
-        "description": "Legen Sie Ihre Adresse fest, um \"zuhause\" in Ihren Anfragen zu verwenden",
-        "places_required": "Google Places erforderlich",
-        "places_required_help": "Aktivieren Sie den Google Places-Connector unter Einstellungen > Konnektoren, um Ihr Zuhause zu konfigurieren.",
-        "current": "Aktuelle Adresse",
-        "set_address": "Heimatadresse festlegen",
         "placeholder": "Geben Sie Ihre Adresse ein...",
-        "input_help": "Geben Sie Ihre vollständige Adresse ein (Straße, Stadt, Postleitzahl)",
         "save": "Speichern",
         "clear": "Löschen",
         "saved": "Heimatadresse gespeichert",
         "cleared": "Heimatadresse gelöscht",
         "save_error": "Fehler beim Speichern der Adresse",
         "clear_error": "Fehler beim Löschen der Adresse",
-        "address_required": "Bitte geben Sie eine Adresse ein",
-        "usage_title": "Verwendung:",
-        "usage_weather": "\"Wetter zuhause\" verwendet diese Adresse",
-        "usage_places": "\"Restaurants in der Nähe von zuhause\" verwendet diese Adresse",
-        "usage_phrases": "Funktioniert mit: \"zuhause\", \"in meiner Nähe\", \"meine Nachbarschaft\"",
-        "privacy_note": "Ihre Adresse wird verschlüsselt und sicher gespeichert. Sie wird niemals an Dritte weitergegeben."
+        "address_required": "Bitte geben Sie eine Adresse ein"
       }
     },
     "skills": {
@@ -2793,6 +2789,28 @@
         "title": "Starke Authentifizierung",
         "description": "Passkeys, Authenticator-App und Passwort-Anmeldung."
       }
+    },
+    "telephony": {
+      "calls": {
+        "title": "Letzte Anrufe",
+        "description": "Anrufe, die LIA für Sie getätigt hat",
+        "in_flight": "Ein Anruf läuft",
+        "status": {
+          "dialing": "Wählt",
+          "in_progress": "Läuft",
+          "completed": "Abgeschlossen",
+          "no_answer": "Keine Antwort",
+          "voicemail": "Mailbox",
+          "failed": "Fehlgeschlagen",
+          "cancelled": "Abgebrochen"
+        },
+        "outcome": {
+          "objective_met": "Ziel erreicht",
+          "partial": "Teilweise erreicht",
+          "declined": "Abgelehnt",
+          "unreachable": "Nicht erreichbar"
+        }
+      }
     }
   },
   "spaces": {
@@ -3168,6 +3186,7 @@
   "faq": {
     "title": "Häufig gestellte Fragen",
     "subtitle": "Finden Sie Antworten auf die häufigsten Fragen zu LIA",
+    "try_example": "Dieses Beispiel ausprobieren: {{example}}",
     "show_welcome": "Präsentation anzeigen",
     "search": {
       "placeholder": "FAQ durchsuchen...",
@@ -3230,7 +3249,7 @@
         },
         "hitl": {
           "title": "👤 Erweitertes Human-in-the-Loop",
-          "description": "8 intelligente Interaktionstypen: Klärung, Entitäts-Disambiguierung (ENTITY_DISAMBIGUATION), Plan-Genehmigung, Tool-Bestätigung, Entwurfskritik, Bearbeitungsbestätigung (EDIT_CONFIRMATION), Bulk-Operationsbestätigung (FOR_EACH) und destruktive Validierung (Massenlöschungen ≥3 Elemente). Konfigurierbare Schwellenwerte und Vorschau betroffener Elemente vor der Ausführung. Die Überarbeitungsschleifen sind replay-safe (ADR-092): ein Interrupt pro Node-Ausführung, der Schleifenzustand fließt durch den checkpointed Graph-State — jede LLM-Änderung läuft genau einmal und der bestätigte Inhalt ist garantiert identisch mit dem zuletzt angezeigten. Ob eine Operation als Änderung gilt, wird aus der im Katalog deklarierten Kategorie des Werkzeugs gelesen und nicht aus dem Namen erraten — Massenantworten und -weiterleitungen werden damit genauso abgesichert wie Anlagen und Löschungen."
+          "description": "8 intelligente Interaktionstypen: Klärung, Entitäts-Disambiguierung (ENTITY_DISAMBIGUATION), Plan-Genehmigung, Tool-Bestätigung, Entwurfskritik, Bearbeitungsbestätigung (EDIT_CONFIRMATION), Bulk-Operationsbestätigung (FOR_EACH) und destruktive Validierung (Massenlöschungen ≥3 Elemente). Konfigurierbare Schwellenwerte und Vorschau betroffener Elemente vor der Ausführung. Die Überarbeitungsschleifen sind replay-safe (ADR-092): ein Interrupt pro Node-Ausführung, der Schleifenzustand fließt durch den checkpointed Graph-State — jede LLM-Änderung läuft genau einmal und der bestätigte Inhalt ist garantiert identisch mit dem zuletzt angezeigten. Ob eine Operation als Änderung gilt, wird aus der im Katalog deklarierten Kategorie des Werkzeugs gelesen und nicht aus dem Namen erraten — Massenantworten und -weiterleitungen werden damit genauso abgesichert wie Anlagen und Löschungen. Umgekehrt darf eine Bestätigung nie zweimal eingeholt werden: Die neunzehn Entwurfstypen zeigen bereits eine Vorschau und warten auf ausdrückliche Zustimmung, sodass der vorgelagerte semantische Validator die <b>Struktur</b> des Plans beurteilt — fehlender Parameter, falsches Werkzeug, Kardinalität — und nicht, wie folgenschwer die Aktion wirkt. Eine doppelt gestellte Frage ist keine zusätzliche Sicherheit: Sie zwingt die Nutzerin, auf ihrer Bitte zu bestehen."
         },
         "connectors": {
           "title": "🔌 Konnektoren & Registry",
@@ -3282,7 +3301,7 @@
         },
         "costTransparency": {
           "title": "💰 Kostentransparenz",
-          "description": "Optionale Echtzeit-Anzeige: Ein-/Ausgabe-/Cache-Tokens, EUR-Kosten pro Nachricht und Gesamtkonversation. Statistiken im Dashboard: Nachrichten, Tokens und Kosten des aktuellen Zyklus. Benutzersteuerung über das 💲-Symbol in der Titelleiste."
+          "description": "Optionale Echtzeit-Anzeige: Ein-/Ausgabe-/Cache-Tokens, EUR-Kosten pro Nachricht und Gesamtkonversation. Statistiken im Dashboard: Nachrichten, Tokens und Kosten des aktuellen Zyklus. Benutzersteuerung über das 💲-Symbol in der Titelleiste. Wenn ein Kontingent gilt, taucht es nicht mehr als Wand auf: Eine Warnung erscheint bei 80 % derjenigen Grenze, die zuerst greift — über Token, Nachrichten und Kosten, je Zyklus oder absolut — benennt sie und nennt bei einer Periodengrenze das Rücksetzdatum. Eine absolute Grenze verspricht überhaupt keine Rücksetzung."
         },
         "scheduledActions": {
           "title": "📅 Geplante Aktionen",
@@ -3370,7 +3389,7 @@
         },
         "imageGeneration": {
           "title": "🎨 Bildgenerierung & -bearbeitung",
-          "description": "Bilder aus Textbeschreibungen generieren und bestehende Bilder mit natürlichsprachlichen Anweisungen bearbeiten. Multi-Provider-Factory-Architektur, benutzerspezifische Qualitäts-/Größen-/Formateinstellungen, Kostenverfolgung mit datenbankgestützter Preisgestaltung."
+          "description": "Bilder aus Textbeschreibungen generieren und bestehende Bilder mit natürlichsprachlichen Anweisungen bearbeiten. Multi-Provider-Factory-Architektur, benutzerspezifische Qualitäts-/Größen-/Formateinstellungen, Kostenverfolgung mit datenbankgestützter Preisgestaltung. Ein erzeugtes Bild ist ein Anhang mit begrenzter Lebensdauer: Die Karte zeigt die vom Server gelieferte Frist — nie eine fest in der Oberfläche verdrahtete Dauer, da sie konfigurierbar ist — und wechselt in den letzten Stunden in einen Warnton, damit der Download vor der Bereinigung noch möglich bleibt."
         },
         "reactMode": {
           "title": "⚡ ReAct-Ausführungsmodus",
@@ -3382,11 +3401,11 @@
         },
         "telephony": {
           "title": "📞 Agentische Telefonie",
-          "description": "LIA kann ausgehende Anrufe über einen zielorientierten ElevenLabs-Agenten tätigen, gesteuert durch Ihren <b>eigenen benutzerspezifischen Connector</b> (eigene Zugangsdaten — keine Abrechnung seitens LIA). Der Datenschutz wird <b>durch Fähigkeiten erzwungen, nicht durch Prompts</b>: Der Anruf-Agent stellt ein einziges schreibgeschütztes Verfügbarkeitstool bereit, das nur Frei/Gebucht-Zeitfenster zurückgibt — nie Titel, Teilnehmer, Orte oder Inhalte. Es wird nichts aufgezeichnet und das Transkript wird nie gespeichert; am Ende des Anrufs löst ein <b>signierter, benutzereigener Webhook</b> eine werkzeuglose LLM-Synthese aus, die asynchron als kurze, ablaufende Zusammenfassung mit optionaler Ein-Tipp-Folgeaktion in den Chat zurückgespielt wird. Jeder Anruf wird von Ihnen vor dem Wählen bestätigt (HITL-Entwurf) und das gesamte Subsystem ist per Feature-Flag geschützt (ADR-127). Der Agent arbeitet unter einem <b>strikten Mandat</b> seines System-Prompts: keine Ausgabe oder Verpflichtung über das Ziel hinaus; jedes Angebot außerhalb des Mandats wird in dedizierten strukturierten Feldern erfasst (Zusatzkosten, offene Entscheidung), die die Nachanruf-Synthese zwingend ausweisen muss."
+          "description": "LIA kann ausgehende Anrufe über einen zielorientierten ElevenLabs-Agenten tätigen, gesteuert durch Ihren <b>eigenen benutzerspezifischen Connector</b> (eigene Zugangsdaten — keine Abrechnung seitens LIA). Der Datenschutz wird <b>durch Fähigkeiten erzwungen, nicht durch Prompts</b>: Der Anruf-Agent stellt ein einziges schreibgeschütztes Verfügbarkeitstool bereit, das nur Frei/Gebucht-Zeitfenster zurückgibt — nie Titel, Teilnehmer, Orte oder Inhalte. Es wird nichts aufgezeichnet und das Transkript wird nie gespeichert; am Ende des Anrufs löst ein <b>signierter, benutzereigener Webhook</b> eine werkzeuglose LLM-Synthese aus, die asynchron als kurze, ablaufende Zusammenfassung mit optionaler Ein-Tipp-Folgeaktion in den Chat zurückgespielt wird. Jeder Anruf wird von Ihnen vor dem Wählen bestätigt (HITL-Entwurf) und das gesamte Subsystem ist per Feature-Flag geschützt (ADR-127). Der Agent arbeitet unter einem <b>strikten Mandat</b> seines System-Prompts: keine Ausgabe oder Verpflichtung über das Ziel hinaus; jedes Angebot außerhalb des Mandats wird in dedizierten strukturierten Feldern erfasst (Zusatzkosten, offene Entscheidung), die die Nachanruf-Synthese zwingend ausweisen muss. Während des Anrufs schweigt das Produkt nicht mehr: Ein Banner nennt die angerufene Person und den Stand des Wählvorgangs, und ein eigener Abschnitt bewahrt den Verlauf — Name, Ziel, Ergebnis und Bericht, nie die Nummer, die die API gar nicht herausgibt. Eine Ablehnung des Anbieters wird als solche behandelt: Er antwortet <code>200</code> auch beim Ablehnen, sodass eine nicht verifizierte Absendernummer eine laufende Zeile hinterließ, die jeden weiteren Anruf blockierte; dieser Fall wird jetzt von einer vorübergehenden Störung unterschieden, und die Meldung sagt das auch."
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
-          "description": "Die Startseite des Dashboards ist ein Tagesbriefing: personalisierte LLM-Begrüßung + 2-3-Satz-Synthese über einem Raster aus 9 Karten (erweitertes Wetter, Kalender, ungelesene Mails, Geburtstage, Erinnerungen, Gesundheit, „Für dich“ — offene Schleifen + Automatisierungs-Digest —, offene/überfällige Aufgaben, neueste Drive-Dokumente). Reine Architektur: keine LangGraph-Kette, paralleler asyncio.gather, Redis-Cache pro Sektion mit angepasstem TTL (Wetter 1 h, Kalender 10 min, Mails 5 min…). Geteilte Endpoints (/briefing/cards schnell + /briefing/synthesis LLM-gebunden) für progressives Rendering. Tokens und EUR-Kosten jedes LLM-Aufrufs in der UI neben dem Zeitstempel sichtbar und in den Nutzungsstatistiken über track_proactive_tokens nachverfolgt (Cache-Tokens korrekt subtrahiert)."
+          "description": "Die Startseite des Dashboards ist ein Tagesbriefing: personalisierte LLM-Begrüßung + 2-3-Satz-Synthese über einem Raster aus 9 Karten (erweitertes Wetter, Kalender, ungelesene Mails, Geburtstage, Erinnerungen, Gesundheit, „Für dich“ — offene Schleifen + Automatisierungs-Digest —, offene/überfällige Aufgaben, neueste Drive-Dokumente). Reine Architektur: keine LangGraph-Kette, paralleler asyncio.gather, Redis-Cache pro Sektion mit angepasstem TTL (Wetter 1 h, Kalender 10 min, Mails 5 min…). Geteilte Endpoints (/briefing/cards schnell + /briefing/synthesis LLM-gebunden) für progressives Rendering. Tokens und EUR-Kosten jedes LLM-Aufrufs in der UI neben dem Zeitstempel sichtbar und in den Nutzungsstatistiken über track_proactive_tokens nachverfolgt (Cache-Tokens korrekt subtrahiert). Sieben dieser neun Karten zeigen nichts, solange ihre Quelle nicht eingerichtet ist: Statt unsichtbarer Lücken benennt eine einzige Zeile sie und verweist jede auf die Einstellung, die sie aktiviert — während selbst ausgeblendete Karten zu Recht unerwähnt bleiben."
         }
       },
       "diagram_alt": "LIA-Architekturdiagramm"
@@ -3395,6 +3414,23 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_25_24": {
+          "title": "v1.25.24 — 🧭 Finden, was LIA längst kann",
+          "date": "Juli 2026",
+          "count": "10",
+          "items": {
+            "i1": "<b>📱 Das Logo wird auf dem Telefon zum Menü</b> — unterhalb einer bestimmten Breite verschwand die Navigationsleiste, und nichts ersetzte sie: Aus dem Chat heraus waren weder Einstellungen noch Hilfe erreichbar, außer über eine eingetippte Adresse. Tippen Sie nun auf das LIA-Logo: Die vier Ziele öffnen sich, die aktuelle Seite wird angesagt.",
+            "i2": "<b>🎯 Links führen zum richtigen Abschnitt</b> — die Einstiegs-Checkliste schickte sechs ihrer sieben Einträge an den Anfang der Einstellungsseite, vor rund dreißig geschlossene Blöcke. Jeder Eintrag öffnet jetzt seinen eigenen Abschnitt, klappt ihn auf und scrollt dorthin. Siebzehn Abschnitte sind so adressierbar, auch von den Startkarten aus.",
+            "i3": "<b>🏠 Nicht eingerichtete Startkarten sind keine Löcher mehr</b> — sieben der neun Karten zeigen gar nichts, solange ihre Quelle nicht verbunden ist. Ein frisches Konto sah also zwei leere Karten und sieben unerklärliche Lücken. Eine dezente Zeile benennt sie nun und verweist auf die Einstellung, die sie aktiviert. Selbst ausgeblendete Karten werden nie erwähnt.",
+            "i4": "<b>⚠️ Eine Warnung vor der Nutzungsgrenze</b> — bisher wies nichts darauf hin, dass das Kontingent knapp wurde: Die Oberfläche blockierte mitten in der Arbeit. Ein Hinweis erscheint jetzt bei 80 % der zuerst greifenden Grenze, benennt sie und nennt das Rücksetzdatum, sofern es sich um eine Periodengrenze handelt.",
+            "i5": "<b>🖼️ Erzeugte Bilder nennen ihr Löschdatum</b> — sie werden begrenzte Zeit aufbewahrt und dann entfernt. Nichts sagte das: Das Bild verschwand ohne Vorwarnung aus dem Verlauf. Jede Karte gibt nun an, bis wann sie verfügbar ist, und wechselt in den letzten Stunden in einen Warnton.",
+            "i6": "<b>🔁 Ein fehlgeschlagener Zug wird mit einem Klick wiederholt</b> — bisher mussten Sie Ihre Frage suchen und neu tippen. Eine Schaltfläche wiederholt genau die Anfrage, die fehlschlug, auch wenn zwischenzeitlich andere Nachrichten eintrafen.",
+            "i7": "<b>💬 Die Beispiele dieser FAQ sind anklickbar</b> — die Hunderte fertiger Sätze mussten von Hand abgeschrieben werden. Ein Klick legt sie nun in das Eingabefeld des Chats, bereit zum Anpassen vor dem Senden. Nichts wird jemals für Sie abgeschickt.",
+            "i8": "<b>📞 Anrufe: begleitet währenddessen, erklärt danach</b> — zwischen Ihrer Bestätigung und dem Bericht schwieg LIA vollständig. Ein Banner zeigt jetzt, wen sie anruft und wie weit der Anruf ist, und ein Abschnitt der Einstellungen bewahrt den Verlauf. Vor allem: Ein vom Anbieter abgelehnter Anruf (nicht verifizierte Absendernummer, aufgebrauchtes Guthaben) blockierte alle weiteren Anrufe eine Viertelstunde lang — die Ablehnung wird nun erkannt und erklärt, statt für ein laufendes Gespräch gehalten zu werden.",
+            "i9": "<b>🗣️ LIA fragt dieselbe Bestätigung nicht mehr doppelt ab</b> — bei einer E-Mail, einem Termin oder einem Anruf warnte sie vor der Unumkehrbarkeit und wartete auf Ihr Einverständnis … obwohl direkt danach eine Vorschau mit ausdrücklicher Bestätigung folgte. Man musste darauf bestehen, um gehört zu werden. Diese doppelte Frage ist weg; die entscheidende Bestätigung, die zeigt, was tatsächlich hinausgeht, bleibt selbstverständlich.",
+            "i10": "<b>✅ Eingebettete Bestätigungen und eine Oberfläche, die auf den Bildschirm passt</b> — die endgültigsten Verwaltungsaktionen liefen über das Systemfenster des Betriebssystems, das weder Thema noch Sprache der Anwendung kennt. Sie nutzen jetzt LIAs eigene Dialoge. Nebenbei: Auf dem Mobilgerät verschwindet das Eingabefeld nicht mehr unter der Adressleiste, und auf dem Tablet steht die Abmelde-Schaltfläche auf Deutsch nicht mehr außerhalb des Bildschirms."
+          }
+        },
         "v1_25_23": {
           "title": "v1.25.23 — 🔍 Die Tests, die nie liefen",
           "date": "Juli 2026",
@@ -4525,7 +4561,7 @@
           "items": {
             "i1": "<b>Iterativer Modus für Ihre MCP-Server</b> — Ihre persönlichen MCP-Server können jetzt den iterativen Modus (ReAct-Agent) nutzen. Aktivieren Sie ihn in den Einstellungen, damit LIA zuerst die Server-Dokumentation liest und dann die Tools Schritt für Schritt ausführt — ideal für komplexe APIs wie Excalidraw",
             "i2": "<b>3-Phasen-Gedächtnisauflösung</b> — Wenn Sie 'ruf meinen Bruder an' oder 'sende eine E-Mail an meine Frau' sagen, erkennt LIA persönliche Referenzen jetzt präziser durch gezielte Suche pro Referenz. Weniger Fehler, weniger Rauschen, mehr Relevanz",
-            "i3": "<b>Verbesserte Fehlermeldungen</b> — Bei Problemen (KI-Anbieter überlastet, Inhaltsfilter, Zeitüberschreitung) sind Fehlermeldungen jetzt klar und in Ihrer Sprache übersetzt",
+            "i3": "<b>Verbesserte Fehlermeldungen</b> — Bei Problemen (KI-Anbieter überlastet, Inhaltsfilter, Zeitüberschreitung) sind Fehlermeldungen jetzt klar und in Ihre Sprache übersetzt, statt technische Codes anzuzeigen",
             "i4": "<b>Verfeinerte proaktive Initiative</b> — Proaktive Vorschläge nach einer Aktion konzentrieren sich jetzt nur auf andere Bereiche als den bereits bearbeiteten",
             "i5": "<b>Sichere Erinnerungslöschung</b> — Das Löschen einer Erinnerung erfordert jetzt eine Bestätigung vor der Ausführung",
             "i6": "<b>Lokalisierte Wetterdaten</b> — Wettervorhersagen zeigen Daten jetzt in Ihrer Sprache an",
@@ -4808,23 +4844,23 @@
       "chat": {
         "title": "Unterhaltungen",
         "description": "Chat- und Unterhaltungsnutzung",
-        "count": "22",
+        "count": "23",
         "questions": {
           "q1": {
             "question": "Kann ich mehrere Unterhaltungen gleichzeitig führen?",
-            "answer": "Nein, LIA arbeitet mit jeweils einer aktiven Unterhaltung. Sie können jederzeit eine <strong>Neue Unterhaltung</strong> erstellen, aber dies ersetzt die aktuelle Unterhaltung. Der Verlauf Ihrer vorherigen Unterhaltung wird gelöscht."
+            "answer": "LIA arbeitet mit <strong>einer aktiven Unterhaltung</strong>. Diese Design-Entscheidung bringt Ihnen:<br><br>• Einen <strong>zusammenhängenden Kontext</strong>: LIA erinnert sich an den gesamten Austausch<br>• <strong>Natürliche Bezüge</strong>: „<em>die erste E-Mail</em>“, „<em>der vorherige Kontakt</em>“<br>• Ein <strong>flüssiges Erlebnis</strong>: kein Jonglieren zwischen Fenstern<br><br><strong>Für einen Neuanfang:</strong><br>Klicken Sie auf die Schaltfläche <strong>🗑️</strong> in der Kopfzeile des Chats. Sie löscht alle Nachrichten <strong>und sämtliche Anhänge</strong> – einschließlich der KI-generierten Bilder. Exportieren Sie vorher, was Sie behalten möchten."
           },
           "q2": {
             "question": "Wie setze ich eine Unterhaltung zurück?",
-            "answer": "Klicken Sie in einer Unterhaltung auf die Schaltfläche mit dem Aktualisierungssymbol in der Kopfzeile. Warnung: Diese Aktion löscht dauerhaft den gesamten Unterhaltungsverlauf."
+            "answer": "Um alles zu löschen und neu zu beginnen:<br><br>1. Suchen Sie in der Kopfzeile des Chats die Schaltfläche <strong>🗑️</strong><br>2. Klicken Sie darauf<br>3. Bestätigen Sie im Dialog<br><br><strong>⚠️ Was tatsächlich gelöscht wird:</strong><br>Alle Nachrichten, <strong>sämtliche Anhänge – einschließlich der KI-generierten Bilder</strong>, und der Kontext, den LIA aus dieser Unterhaltung aufgebaut hatte. Die Aktion ist <strong>unwiderruflich</strong>.<br><br><strong>💡 Wann lohnt sich das?</strong><br>• Sie wechseln zu einem völlig anderen Thema<br>• LIA wirkt vom bisherigen Kontext verwirrt<br>• Sie möchten diesen Verlauf lieber nicht zurücklassen"
           },
           "q3": {
             "question": "Werden Unterhaltungen gespeichert?",
-            "answer": "Ja, alle Ihre Unterhaltungen werden automatisch gespeichert und synchronisiert. Sie können von jedem mit Ihrem Konto verbundenen Gerät darauf zugreifen."
+            "answer": "Ja, Ihre Unterhaltung wird <strong>laufend gespeichert</strong>:<br><br>• <strong>In Echtzeit</strong>: Jede Nachricht wird in dem Moment festgehalten, in dem sie abgeht<br>• <strong>Geräteübergreifend</strong>: Nehmen Sie sie auf jedem an Ihrem Konto angemeldeten Gerät wieder auf<br>• <strong>Dauerhaft</strong>: Sie übersteht eine Abmeldung und das Schließen des Browsers<br><br><strong>📱 In der Praxis:</strong><br>Beginnen Sie eine Unterhaltung am Computer und setzen Sie sie am Telefon fort — und umgekehrt.<br><br><strong>🗑️ Das Löschen ist eine bewusste Handlung:</strong><br>Nichts wird entfernt, solange Sie nicht die Schaltfläche <strong>🗑️</strong> verwenden und bestätigen."
           },
           "q4": {
             "question": "Wie verwende ich Zeilenumbrüche in meinen Nachrichten?",
-            "answer": "Drücken Sie <strong>Shift + Enter</strong>, um einen Zeilenumbruch hinzuzufügen. Drücken Sie einfach <strong>Enter</strong>, um Ihre Nachricht zu senden."
+            "answer": "Zwei Tastenkürzel, die Sie kennen sollten:<br><br>• <strong>Enter</strong> = Nachricht senden<br>• <strong>Shift + Enter</strong> = neue Zeile<br><br><strong>💡 Ausgearbeitetes Beispiel:</strong><br>Um eine strukturierte E-Mail zu diktieren, tippen Sie:<br><br><em>Sende eine E-Mail an Hans:<br>Betreff: Projektbesprechung<br>Text:<br>Hallo Hans,<br><br>ich bestätige unseren Termin morgen.<br><br>Viele Grüße</em><br><br>Verwenden Sie Shift+Enter zwischen den Zeilen und dann Enter, um alles auf einmal zu senden."
           },
           "q5": {
             "question": "Was ist Streaming und warum werden Antworten progressiv angezeigt?",
@@ -4897,6 +4933,10 @@
           "q22": {
             "question": "Der Verlauf springt beim Nachlesen nicht mehr — wie funktioniert das? (v1.25.16)",
             "answer": "<p>Wenn Sie nach oben scrollen, zieht eine laufende Antwort Sie <strong>nicht mehr nach unten</strong>. Ein schwebender Button erscheint mit der Zahl der außerhalb des Bildschirms eingetroffenen Antworten; ein Tipp bringt Sie zurück. Eigenes Senden springt weiterhin zur Nachricht. Unter der letzten Antwort können bis zu 3 <strong>Folgevorschläge</strong> als Chips erscheinen: Antippen füllt das Eingabefeld (sendet nie).</p>"
+          },
+          "q23": {
+            "question": "Eine Nachricht ist fehlgeschlagen — muss ich meine Frage neu tippen?",
+            "answer": "Nein. Eine Fehlerblase trägt jetzt eine Schaltfläche <b>Wiederholen</b>, und sie wiederholt <b>genau</b> die fehlgeschlagene Anfrage.<br><br><strong>Warum diese Genauigkeit zählt:</strong><br>Zwischen Ihrer Frage und Ihrem Klick kann LIA Ihnen eine proaktive Benachrichtigung geschickt haben. „Die letzte Nachricht“ zu wiederholen würde dann etwas anderes senden als das, worum Sie gebeten hatten. Die Frage wird deshalb im Moment des Fehlschlags an die Blase geheftet.<br><br><strong>💡 Gut zu wissen:</strong><br>Ein Fehlschlag ohne vorangehende Frage (etwa eine Benachrichtigung) zeigt keine Schaltfläche: Es gäbe nichts zu wiederholen."
           }
         }
       },
@@ -4907,11 +4947,11 @@
         "questions": {
           "q1": {
             "question": "Wie ändere ich meine Zeitzone?",
-            "answer": "Gehen Sie zu <strong>Einstellungen > Erscheinungsbild > Zeitzone</strong>. Ihre Zeitzone wird automatisch erkannt, aber Sie können sie bei Bedarf manuell ändern."
+            "answer": "Die Zeitzone bestimmt, wie Datum und Uhrzeit in Ihren Unterhaltungen angezeigt werden:<br><br><strong>So ändern Sie sie:</strong><br>1. Gehen Sie zu <strong>Einstellungen</strong> (⚙️-Symbol im Menü)<br>2. Öffnen Sie den Tab <strong>Präferenzen</strong><br>3. Klappen Sie unter <strong>Personalisierung</strong> den Abschnitt <strong>Zeitzone</strong> auf und wählen Sie Ihre aus<br><br><strong>🌍 Automatische Erkennung:</strong><br>Bei Ihrer ersten Anmeldung erkennt LIA Ihre Zeitzone über Ihren Browser.<br><br><strong>💡 Tipp für Reisende:</strong><br>Wenn Sie verreisen, bemerkt LIA die Abweichung zu Ihrem Browser und bietet an, Ihre Zeitzone mit einem Klick zu aktualisieren."
           },
           "q2": {
             "question": "Wie ändere ich die Sprache der Benutzeroberfläche?",
-            "answer": "Sie können die Sprache auf zwei Arten ändern:<br>1. Über die Sprachauswahl (Globussymbol) in der Titelleiste<br>2. In <strong>Einstellungen > Erscheinungsbild > Sprache</strong><br><br>Beide Methoden synchronisieren Ihre Präferenz mit der Datenbank."
+            "answer": "Zwei Wege, die Sprache zu ändern:<br><br><strong>Schnell:</strong><br>Klicken Sie auf das <strong>Globussymbol</strong> 🌐 in der Titelleiste und wählen Sie Ihre Sprache.<br><br><strong>Über die Einstellungen:</strong><br>1. Gehen Sie zu <strong>Einstellungen</strong> (⚙️-Symbol im Menü)<br>2. Öffnen Sie den Tab <strong>Präferenzen</strong><br>3. Klappen Sie unter <strong>Personalisierung</strong> den Abschnitt <strong>Sprache</strong> auf<br><br><strong>🔄 Synchronisierung:</strong><br>Beide Wege speichern dieselbe Präferenz in Ihrem Profil — sie begleitet Sie geräteübergreifend.<br><br><strong>📧 Über die Oberfläche hinaus:</strong><br>Auch Benachrichtigungs-E-Mails und die Push-Benachrichtigungen von LIA verwenden diese Sprache."
           },
           "q3": {
             "question": "Was ist das Theme und wie ändere ich es?",
@@ -4919,7 +4959,7 @@
           },
           "q4": {
             "question": "Wie aktualisiere ich mein Profil?",
-            "answer": "Gehen Sie zu <strong>Einstellungen > Profil</strong>, um Ihren vollständigen Namen und andere persönliche Informationen zu bearbeiten. Ihre E-Mail-Adresse kann nach der Registrierung nicht geändert werden."
+            "answer": "Verwalten Sie Ihre persönlichen Informationen:<br><br><strong>Änderbar:</strong><br>• ✏️ <strong>Vollständiger Name</strong>: der in der App angezeigte Name — <strong>Einstellungen > Profil</strong><br>• 🌍 <strong>Zeitzone</strong>, 🌐 <strong>Sprache</strong>, 🎨 <strong>Erscheinungsbild</strong>: <strong>Einstellungen > Präferenzen</strong>, unter <strong>Personalisierung</strong><br><br><strong>Nicht änderbar:</strong><br>• 📧 <strong>E-Mail</strong>: Sie ist Ihr Anmeldename und steht nach der Registrierung fest<br><br><strong>💡 Gut zu wissen:</strong><br>Mit diesem Namen spricht LIA Sie an — ein Spitzname erfüllt den Zweck genauso gut wie der bürgerliche Name."
           },
           "q5": {
             "question": "Wie wähle ich eine Persönlichkeit für LIA?",
@@ -5045,7 +5085,7 @@
       "telephony": {
         "title": "Telefonanrufe",
         "description": "LIA kann echte Telefonanrufe in Ihrem Namen tätigen. Vollständige Einrichtungsanleitung (Twilio + ElevenLabs) und täglicher Gebrauch.",
-        "count": "12",
+        "count": "13",
         "questions": {
           "q1": {
             "question": "Was kann LIA am Telefon tun?",
@@ -5094,6 +5134,10 @@
           "q12": {
             "question": "Es funktioniert nicht — was soll ich prüfen?",
             "answer": "<strong>„Ungültiger Schlüssel\" in Schritt 1</strong><br>→ Der Schlüssel ist falsch kopiert oder hat nicht die nötigen Berechtigungen (Zugriff auf die Agents-Plattform erforderlich).<br><br><strong>„Keine Nummern\" nach der Schlüsselvalidierung</strong><br>→ Ihre Nummer ist nicht in den ElevenLabs-<strong>Agents</strong>-Workspace importiert oder wurde als SIP-Trunk statt über die native Twilio-Integration importiert.<br><br><strong>Der Anruf geht hinaus, aber keine Zusammenfassung kommt zurück</strong><br>→ Das Problem liegt beim Webhook: URL öffentlich nicht erreichbar, falsches Signatur-Secret oder falscher Ereignistyp (es muss <strong>post_call_transcription</strong> sein).<br><br><strong>„Ein Anruf läuft bereits\"</strong><br>→ Nur ein aktiver Anruf gleichzeitig, per Design. Ein hängender Anruf wird nach ~15 Minuten automatisch bereinigt.<br><br><strong>Anrufe werden nach mehreren in Folge abgelehnt</strong><br>→ Sie haben die stündliche Obergrenze erreicht (standardmäßig 10 Anrufe/Stunde).<br><br><strong>Immer noch blockiert?</strong> Fragen Sie Ihren Administrator: Die Server-Logs geben genau an, welche Webhook-Ereignisse empfangen und warum welche ignoriert wurden."
+          },
+          "q13": {
+            "question": "Kann ich einen Anruf verfolgen, während er läuft?",
+            "answer": "Ja. Sobald LIA wählt, erscheint über der Unterhaltung ein Banner: wen sie anruft und wie weit der Anruf ist. Es verschwindet, sobald das Gespräch endet.<br><br><strong>📒 Danach:</strong><br>Der Verlauf liegt unter <b>Einstellungen → Präferenzen → Letzte Anrufe</b>: Name, Ziel, Status, Ergebnis und Bericht. Nie die Nummer — die API gibt sie nicht heraus. Der Abschnitt erscheint gar nicht, wenn Sie noch nie angerufen haben.<br><br><strong>⚠️ Wenn der Anruf abgelehnt wird:</strong><br>Die Meldung sagt es deutlich und unterscheidet zwei Fälle: eine vorübergehende Störung (ein neuer Versuch ist sinnvoll) und eine Ablehnung des Anbieters — nicht verifizierte Absendernummer, aufgebrauchtes Guthaben — bei der ein neuer Versuch nichts ändert, solange es dort nicht behoben ist."
           }
         }
       },
@@ -5675,11 +5719,11 @@
       "usage_limits": {
         "title": "Nutzungslimits",
         "description": "Pro-Benutzer-Token-, Nachrichten- und Kostenkontingente",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "Was sind Nutzungslimits?",
-            "answer": "Nutzungslimits sind <strong>von Ihrem Administrator festgelegte Kontingente</strong> zur Kontrolle des Ressourcenverbrauchs:<br><br>• <strong>Tokens</strong> — Datenvolumen<br>• <strong>Nachrichten</strong> — Anzahl gesendeter Nachrichten<br>• <strong>Kosten (EUR)</strong> — kombinierte LLM + Google API Kosten<br><br>Jede Dimension kann pro Zeitraum oder global festgelegt werden."
+            "answer": "Nutzungslimits sind <strong>von Ihrem Administrator festgelegte Kontingente</strong>, die den Ressourcenverbrauch vorhersehbar halten:<br><br><strong>📊 3 Dimensionen:</strong><br>• <strong>Tokens</strong> (Prompt + Antwort + Cache) — das von der KI verarbeitete Datenvolumen<br>• <strong>Nachrichten</strong> — die Anzahl der von Ihnen gesendeten Nachrichten<br>• <strong>Kosten (EUR)</strong> — die kombinierten LLM- und Google-API-Kosten<br><br><strong>📅 2 Modi:</strong><br>• <strong>Pro Zeitraum</strong> — ein monatlich gleitender Zyklus, der am Erstellungsdatum Ihres Kontos ausgerichtet ist, nicht am Monatsersten<br>• <strong>Global</strong> — eine kumulierte Gesamtsumme seit der Registrierung, die nie zurückgesetzt wird<br><br>Jede Dimension kann einen Wert erhalten oder unbegrenzt bleiben, unabhängig von den anderen."
           },
           "q2": {
             "question": "Wie wird der Abrechnungszeitraum berechnet?",
@@ -5712,6 +5756,10 @@
           "q9": {
             "question": "Wie funktioniert die Durchsetzung?",
             "answer": "5-Schichten-Verteidigung: Router, Service, LLM-Guard, Proaktiver Runner, Direkte Aufrufe. Fail-open bei Infrastrukturausfall."
+          },
+          "q10": {
+            "question": "Werde ich gewarnt, bevor ich eine Grenze erreiche?",
+            "answer": "Ja. Bei <b>80 %</b> derjenigen Grenze, die zuerst greift, erscheint im Chat ein Hinweis, der sie benennt — Token, Nachrichten oder Kosten — samt Prozentwert. Bei <b>95 %</b> wird derselbe Hinweis dringlicher.<br><br><strong>Warum „die zuerst greift“:</strong><br>Jede einzelne Dimension blockiert das Konto. Vor einer weniger fortgeschrittenen zu warnen, würde die falsche Frist nennen; deshalb wird immer die maßgebliche Dimension genannt.<br><br><strong>📅 Rücksetzdatum:</strong><br>Es erscheint nur bei einer <b>Perioden</b>grenze. Eine absolute Grenze wird nie zurückgesetzt, und der Hinweis erweckt nicht diesen Eindruck.<br><br><strong>💡 Einmal blockiert:</strong><br>Die Warnung verschwindet — der Blockierhinweis erklärt die Lage besser, und zwei Meldungen zur selben Grenze im ungünstigsten Moment wären nur Lärm."
           }
         }
       },
@@ -5753,7 +5801,7 @@
       "image_generation": {
         "title": "KI-Bildgenerierung",
         "description": "Bilder mit KI generieren und bearbeiten",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "Wie generiere ich ein Bild?",
@@ -5778,6 +5826,10 @@
           "q6": {
             "question": "Gibt es ein Limit, wie viele Bilder ich generieren kann?",
             "answer": "<p>Zwei Schutzmechanismen greifen. Die <strong>Nutzungslimits</strong> Ihres Kontos (Kostenobergrenzen pro Abrechnungszyklus, vom Administrator festgelegt) erfassen die Kosten der Bildgenerierung wie jede andere Ausgabe. Zusätzlich schützt ein <strong>technisches Limit</strong> vor Endlosschleifen: standardmäßig <strong>10 Generierungen (und 10 Bearbeitungen) pro 5 Minuten</strong> und Nutzer. Die normale Nutzung bleibt unberührt — wird das Limit erreicht, sagt Ihnen der Assistent, wie lange Sie warten müssen. Der Administrator kann Schwellwert und Zeitfenster über die Umgebungsvariablen <code>IMAGE_GENERATION_RATE_LIMIT_CALLS</code> und <code>IMAGE_GENERATION_RATE_LIMIT_WINDOW</code> anpassen.</p>"
+          },
+          "q7": {
+            "question": "Wie lange bleibt ein erzeugtes Bild verfügbar?",
+            "answer": "Nicht unbegrenzt. Ein erzeugtes Bild ist ein Anhang mit Ablaufdatum, und eine geplante Bereinigung entfernt abgelaufene Anhänge alle paar Stunden.<br><br><strong>🕒 Was die Karte anzeigt:</strong><br>Die vom Server gelieferte Frist und in den letzten Stunden einen Warnton, damit der Download rechtzeitig möglich bleibt.<br><br><strong>Warum keine fest verdrahtete Dauer:</strong><br>Die Aufbewahrungszeit ist von der Administration konfigurierbar; ein in die Oberfläche geschriebener Wert wäre irgendwann falsch. Bilder von vor dieser Funktion zeigen lieber nichts an, als zu raten.<br><br><strong>💡 Tipp:</strong><br>Nutzen Sie die Download-Schaltfläche, sobald Ihnen ein Bild wichtig ist — nur so behalten Sie es über die Frist hinaus."
           }
         }
       },
@@ -5952,7 +6004,8 @@
     "settings": {
       "title": "LIA-Stil",
       "description": "Passen Sie Ton und Stil der Antworten Ihres Assistenten an"
-    }
+    },
+    "selector_label": "Persönlichkeit: {{name}}"
   },
   "memories": {
     "purge_risk_badge_at_risk": "Könnte vergessen werden",
@@ -6693,7 +6746,7 @@
       },
       "telephony": {
         "title": "LIA ruft für Sie an",
-        "description": "Bitten Sie LIA, in Ihrem Namen einen echten Anruf zu tätigen — einen Kontakt erreichen, eine kurze Frage stellen, einen Termin prüfen. Sie bestätigen, wen LIA anruft und warum, bevor gewählt wird; LIA führt das Gespräch und legt anschließend eine schriftliche Zusammenfassung in den Chat — mit einer Folgeaktion per Fingertipp, wenn es sinnvoll ist. Und nie eine Verpflichtung ohne Sie: jede ungeplante Ausgabe oder Option wird mit Preis notiert, nie akzeptiert — Sie entscheiden."
+        "description": "Bitten Sie LIA, in Ihrem Namen einen echten Anruf zu tätigen — einen Kontakt erreichen, eine kurze Frage stellen, einen Termin prüfen. Sie bestätigen, wen LIA anruft und warum, bevor gewählt wird; LIA führt das Gespräch und legt anschließend eine schriftliche Zusammenfassung in den Chat — mit einer Folgeaktion per Fingertipp, wenn es sinnvoll ist. Und nie eine Verpflichtung ohne Sie: jede ungeplante Ausgabe oder Option wird mit Preis notiert, nie akzeptiert — Sie entscheiden. Während des Anrufs sehen Sie, wen sie in der Leitung hat und wie weit er ist — das Produkt bleibt zwischen Ihrer Zustimmung und dem Bericht nicht mehr stumm."
       },
       "reminders_scheduling": {
         "title": "Erinnerungen & Automatisierungen",
@@ -7435,7 +7488,7 @@
       "human-in-the-loop": {
         "title": "Human-in-the-Loop: 6 Genehmigungsstufen für volle Kontrolle",
         "excerpt": "LIA führt keine kritische Aktion ohne Ihre Zustimmung durch. Sein 6-stufiges HITL-System schützt Sie vor Fehlern und Halluzinationen.",
-        "body": "<h2>Warum menschliche Validierung unverzichtbar ist</h2><p>Sprachmodelle können halluzinieren oder eine Absicht falsch interpretieren. LIA löst dieses Problem, indem es den <strong>Menschen in den Mittelpunkt jeder kritischen Entscheidung</strong> stellt. Keine E-Mail wird gesendet, kein Termin erstellt, keine Daten geändert ohne Ihre ausdrückliche Genehmigung.</p><h2>Die 6 Genehmigungsstufen</h2><p>Das HITL-System von LIA klassifiziert jede Aktion nach 6 Stufen:</p><ul><li><strong>Plan-Genehmigung</strong> — Vor der Ausführung eines mehrstufigen Plans generiert LIA eine <code>PlanApprovalRequest</code> mit einer Planzusammenfassung und änderbaren Parametern und wartet auf Ihre Freigabe.</li><li><strong>Klärung</strong> — Bei mehrdeutiger Absicht fragt LIA nach Präzisierungen, anstatt zu raten.</li><li><strong>Entwurfskritik</strong> — Bei E-Mails oder Nachrichten legt LIA einen Entwurf zur Genehmigung vor dem Versand vor.</li><li><strong>Destruktive Bestätigung</strong> — Jede Löschung oder irreversible Änderung erfordert eine ausdrückliche Bestätigung.</li><li><strong>FOR_EACH-Bestätigung</strong> — Bei Stapeloperationen kann jedes Element einzeln genehmigt werden.</li><li><strong>Änderungsprüfung</strong> — Parameteränderungen werden zur Überprüfung vorgelegt.</li></ul><h2>5 mögliche Entscheidungen mit Konfidenz</h2><p>Der HITL-Klassifizierer erzeugt ein <strong>ClassificationResult</strong> mit 5 möglichen Entscheidungen, jeweils mit einem Konfidenzwert zwischen 0.0 und 1.0:</p><ul><li><strong>APPROVE</strong> — Die Aktion wird genehmigt und an den <code>task_orchestrator</code> weitergeleitet</li><li><strong>REJECT</strong> — Die Aktion wird abgelehnt, der Fluss wird zum Knoten <code>response</code> umgeleitet</li><li><strong>EDIT</strong> — Der Benutzer ändert die Parameter über <code>edited_params</code>, ein <code>PlanEditor</code> wendet die Änderungen an</li><li><strong>REPLAN</strong> — Der Benutzer formuliert seine Absicht über <code>reformulated_intent</code> um, der Fluss kehrt zum <code>planner</code> zurück</li><li><strong>AMBIGUOUS</strong> — Das System stellt eine <code>clarification_question</code>, um die Mehrdeutigkeit aufzulösen</li></ul><h2>Native LangGraph-Unterbrechung</h2><p>Technisch verwendet der Knoten <code>approval_gate</code> die Funktion <code>interrupt()</code> von LangGraph, um die <strong>Ausführung des Graphen zu unterbrechen</strong> und auf die Antwort des Benutzers zu warten. Der Zustand wird in PostgreSQL persistiert, was eine asynchrone Wiederaufnahme selbst nach einer Trennung ermöglicht.</p><h2>Sie haben immer das letzte Wort</h2><p>An jedem Validierungspunkt sind die Klassifizierungsstrategien komponierbar: basierend auf dem Tool-Manifest, den geschätzten Kosten, der Datensensibilität und der Benutzerrolle. LIA umgeht diesen Schritt niemals.</p><p>Und dieses letzte Wort wird wortwörtlich respektiert: Die Überarbeitungsschleifen folgen einem replay-sicheren Muster (ein <code>interrupt()</code> pro Node-Ausführung, checkpointed Schleifenzustand — ADR-092), sodass eine Wiederaufnahme niemals einen vergangenen LLM- oder API-Aufruf wiederholt. Was Sie bestätigen — nach beliebig vielen Überarbeitungen — wird exakt so ausgeführt.</p>"
+        "body": "<h2>Warum menschliche Validierung unverzichtbar ist</h2><p>Sprachmodelle können halluzinieren oder eine Absicht falsch interpretieren. LIA löst dieses Problem, indem es den <strong>Menschen in den Mittelpunkt jeder kritischen Entscheidung</strong> stellt. Keine E-Mail wird gesendet, kein Termin erstellt, keine Daten geändert ohne Ihre ausdrückliche Genehmigung.</p><h2>Die 6 Genehmigungsstufen</h2><p>Das HITL-System von LIA klassifiziert jede Aktion nach 6 Stufen:</p><ul><li><strong>Plan-Genehmigung</strong> — Vor der Ausführung eines mehrstufigen Plans generiert LIA eine <code>PlanApprovalRequest</code> mit einer Planzusammenfassung und änderbaren Parametern und wartet auf Ihre Freigabe.</li><li><strong>Klärung</strong> — Bei mehrdeutiger Absicht fragt LIA nach Präzisierungen, anstatt zu raten.</li><li><strong>Entwurfskritik</strong> — Bei E-Mails oder Nachrichten legt LIA einen Entwurf zur Genehmigung vor dem Versand vor.</li><li><strong>Destruktive Bestätigung</strong> — Jede Löschung oder irreversible Änderung erfordert eine ausdrückliche Bestätigung.</li><li><strong>FOR_EACH-Bestätigung</strong> — Bei Stapeloperationen kann jedes Element einzeln genehmigt werden.</li><li><strong>Änderungsprüfung</strong> — Parameteränderungen werden zur Überprüfung vorgelegt.</li></ul><h2>5 mögliche Entscheidungen mit Konfidenz</h2><p>Der HITL-Klassifizierer erzeugt ein <strong>ClassificationResult</strong> mit 5 möglichen Entscheidungen, jeweils mit einem Konfidenzwert zwischen 0.0 und 1.0:</p><ul><li><strong>APPROVE</strong> — Die Aktion wird genehmigt und an den <code>task_orchestrator</code> weitergeleitet</li><li><strong>REJECT</strong> — Die Aktion wird abgelehnt, der Fluss wird zum Knoten <code>response</code> umgeleitet</li><li><strong>EDIT</strong> — Der Benutzer ändert die Parameter über <code>edited_params</code>, ein <code>PlanEditor</code> wendet die Änderungen an</li><li><strong>REPLAN</strong> — Der Benutzer formuliert seine Absicht über <code>reformulated_intent</code> um, der Fluss kehrt zum <code>planner</code> zurück</li><li><strong>AMBIGUOUS</strong> — Das System stellt eine <code>clarification_question</code>, um die Mehrdeutigkeit aufzulösen</li></ul><h2>Native LangGraph-Unterbrechung</h2><p>Technisch verwendet der Knoten <code>approval_gate</code> die Funktion <code>interrupt()</code> von LangGraph, um die <strong>Ausführung des Graphen zu unterbrechen</strong> und auf die Antwort des Benutzers zu warten. Der Zustand wird in PostgreSQL persistiert, was eine asynchrone Wiederaufnahme selbst nach einer Trennung ermöglicht.</p><h2>Sie haben immer das letzte Wort</h2><p>An jedem Validierungspunkt sind die Klassifizierungsstrategien komponierbar: basierend auf dem Tool-Manifest, den geschätzten Kosten, der Datensensibilität und der Benutzerrolle. LIA umgeht diesen Schritt niemals.</p><p>Und dieses letzte Wort wird wortwörtlich respektiert: Die Überarbeitungsschleifen folgen einem replay-sicheren Muster (ein <code>interrupt()</code> pro Node-Ausführung, checkpointed Schleifenzustand — ADR-092), sodass eine Wiederaufnahme niemals einen vergangenen LLM- oder API-Aufruf wiederholt. Was Sie bestätigen — nach beliebig vielen Überarbeitungen — wird exakt so ausgeführt.</p><h2>Einmal bestätigen, nie zweimal</h2><p>Eine falsch platzierte Schutzmaßnahme wendet sich gegen ihre eigene Absicht. Vor dem Plan konnte ein semantischer Validator bei einer als „unumkehrbar“ eingestuften Aktion anhalten — eine E-Mail senden, einen Termin buchen, anrufen — obwohl unmittelbar danach eine Vorschau mit ausdrücklicher Bestätigung für genau dieselbe Aktion folgte. Die Nutzerin musste <strong>darauf bestehen, um gehört zu werden</strong>.</p><p>Die Regel steht nun geschrieben: Eine Aktion, die stromabwärts bereits ihre eigene Bestätigung trägt, wird stromaufwärts nie angehalten. Der Validator beurteilt die <strong>Struktur</strong> des Plans — fehlender Parameter, falsches Werkzeug, widersprüchliche Kardinalität — und nicht, wie folgenschwer die Aktion wirkt. Dieselbe Frage zweimal zu stellen schafft keine Sicherheit: Sie verlagert die Last auf die Nutzerin und bringt ihr am Ende bei, ungelesen zu klicken.</p>"
       },
       "llm-providers": {
         "title": "Wählen Sie das richtige Modell für jede Aufgabe",
@@ -7605,6 +7658,19 @@
       "error": "Fehler beim Aktualisieren",
       "default_block_reason": "Vom Administrator gesperrt",
       "current_usage": "Aktueller Verbrauch"
+    },
+    "warning": {
+      "warning": "Sie haben {{percent}} % Ihres Kontingents verbraucht.",
+      "critical": "Sie sind bei {{percent}} % Ihres Kontingents.",
+      "resets_on": "Zurücksetzung am {{date}}",
+      "dimension": {
+        "cycle_tokens": "Tokens in diesem Zyklus",
+        "cycle_messages": "Nachrichten in diesem Zyklus",
+        "cycle_cost": "Kosten in diesem Zyklus",
+        "absolute_tokens": "Tokens insgesamt",
+        "absolute_messages": "Nachrichten insgesamt",
+        "absolute_cost": "Gesamtkosten"
+      }
     },
     "blocked": {
       "title": "Limit erreicht",

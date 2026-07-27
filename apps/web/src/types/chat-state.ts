@@ -13,7 +13,7 @@
  * - Immutable state updates
  */
 
-import { Message, RegistryItem, DebugMetrics, BrowserScreenshotData } from './chat';
+import { Message, RegistryItem, DebugMetrics, BrowserScreenshotData, GeneratedImage } from './chat';
 import { HitlCardState, NormalizedHitlPayload, initialHitlCardState } from './hitl';
 import type { ExecutionTrace } from './execution-trace';
 
@@ -232,7 +232,9 @@ export type ChatAction =
           // progress pill in the chat header bar.
           context_tokens?: number;
           context_threshold?: number;
-          generated_images?: { url: string; alt: string }[];
+          // Shared declaration (ADR-117: BOTH done-metadata types must carry
+          // the same fields). This copy silently lagged behind `expires_at`.
+          generated_images?: GeneratedImage[];
           browser_screenshot?: { url: string; alt: string };
           psyche_state?: {
             mood_label: string;

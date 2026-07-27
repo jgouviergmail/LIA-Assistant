@@ -81,9 +81,21 @@ journal_level_distribution = Gauge(
     multiprocess_mode="mostrecent",
 )
 
-journal_dedup_actions_total = Counter(
-    "journal_dedup_actions_total",
-    "Dedup actions performed during consolidation (merges that delete sources).",
+journal_consolidation_deletes_total = Counter(
+    "journal_consolidation_deletes_total",
+    "Entries removed by the consolidation pass — merge sources absorbed into a "
+    "denser entry, plus stale or contradicted directives pruned. Rising with no "
+    "matching creates means the journal is shrinking, not being restructured.",
+)
+
+journal_theme_distribution = Gauge(
+    "journal_theme_distribution",
+    "Number of active entries per theme. Sampled periodically. A theme stuck at "
+    "zero across all users is the signature of an unreachable theme — the exact "
+    "defect that went unnoticed between 2026-06-02 and 2026-07-27.",
+    ["theme"],
+    # theme: self_reflection | user_observations | ideas_analyses | learnings
+    multiprocess_mode="mostrecent",
 )
 
 # =============================================================================

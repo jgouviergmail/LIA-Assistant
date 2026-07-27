@@ -9,6 +9,11 @@
     "edit": "Modifica",
     "search": "Cerca",
     "close": "Chiudi",
+    "copy": "Copia",
+    "copyFailed": "Impossibile copiare.",
+    "hide": "Nascondi",
+    "show": "Mostra",
+    "menu": "Menu",
     "download": "Scarica",
     "back": "Indietro",
     "next": "Avanti",
@@ -44,16 +49,6 @@
   },
   "theme": {
     "toggle": "Cambia tema"
-  },
-  "memory": {
-    "toggle": {
-      "enable": "Attiva memoria",
-      "disable": "Disattiva memoria",
-      "enabled": "Memoria attivata",
-      "disabled": "Memoria disattivata",
-      "tooltip_enabled": "Memoria a lungo termine attiva - Ricordo le nostre conversazioni",
-      "tooltip_disabled": "Memoria a lungo termine disattivata - Modalità conversazione semplice"
-    }
   },
   "executionMode": {
     "toggle": {
@@ -294,6 +289,9 @@
         "task_reschedule": "Ripianifica l'attività «{{subject}}»",
         "document_summarize": "Riassumi il documento «{{subject}}»"
       },
+      "not_configured_intro_one": "Una scheda attende la configurazione:",
+      "not_configured_intro_other": "{{count}} schede attendono la configurazione:",
+      "not_configured_cta": "Configura la scheda {{card}}",
       "all_hidden": "Tutte le schede sono nascoste.",
       "all_hidden_cta": "Scegli le schede nelle impostazioni"
     },
@@ -529,7 +527,6 @@
     "title": "Chat",
     "new_chat": "Elimina",
     "loading_conversation": "Caricamento conversazione...",
-    "reset_conversation_confirm": "Sei sicuro di voler eliminare definitivamente la cronologia della conversazione? Questa azione non può essere annullata.",
     "conversation_reset_success": "Conversazione ripristinata",
     "conversation_reset_error": "Errore durante il ripristino",
     "input": {
@@ -589,9 +586,6 @@
       "instruction_listening": "Tocca per iniziare a parlare",
       "instruction_recording": "Sto ascoltando... Tocca per fermare",
       "instruction_processing": "Elaborazione in corso...",
-      "instruction_speaking": "LIA sta rispondendo...",
-      "recording": "Registrazione",
-      "hint_tap_to_speak": "Tocca ovunque per registrare",
       "hint_listening": "Dì \"OK Guy\" o tocca per parlare",
       "hint_recording": "Sto ascoltando... parla ora",
       "hint_processing": "Elaborazione in corso...",
@@ -609,7 +603,6 @@
       "source_voice": "Voce",
       "hold_to_enable": "Tieni premuto per attivare",
       "hold_to_disable": "Tieni premuto per disattivare",
-      "enabled_toast": "Modalità vocale attivata",
       "disabled_toast": "Modalità vocale disattivata"
     },
     "attachments": {
@@ -664,6 +657,18 @@
     "error": {
       "title": "Errore di caricamento",
       "message": "I messaggi non possono essere visualizzati. Si prega di aggiornare la pagina."
+    },
+    "image_expiry": {
+      "until": "Disponibile fino al {{date}} — scaricala per conservarla",
+      "soon_one": "Scade tra {{count}} ora — scaricala per conservarla",
+      "soon_other": "Scade tra {{count}} ore — scaricala per conservarla",
+      "expired": "Questa immagine è scaduta e non è più disponibile"
+    },
+    "starters": {
+      "label": "Prova ad esempio",
+      "capabilities": "Cosa sai fare?",
+      "reminder": "Ricordami di chiamare Jean venerdì alle 18",
+      "explain": "Spiegami l'informatica quantistica in modo semplice"
     },
     "empty_state": {
       "title": "Inizia una conversazione",
@@ -778,7 +783,13 @@
       "reconnect_message": "LIA non è riuscita ad accedere a {{connector}} — la connessione è scaduta.",
       "rate_limit_message": "{{connector}} sta limitando le richieste. Riprova tra qualche minuto.",
       "reconnect_button": "Riconnetti",
-      "dismiss": "Chiudi avviso"
+      "dismiss": "Chiudi avviso",
+      "summary_reconnect_one": "{{count}} servizio da riconnettere",
+      "summary_reconnect_other": "{{count}} servizi da riconnettere",
+      "summary_rate_limit_one": "{{count}} servizio limita le richieste",
+      "summary_rate_limit_other": "{{count}} servizi limitano le richieste",
+      "summary_expand": "Mostra dettagli",
+      "summary_collapse": "Nascondi dettagli"
     },
     "search": {
       "loaded_count_one": "{{count}} risultato nei messaggi caricati",
@@ -847,6 +858,16 @@
       "news_description": "Notizie sui miei interessi",
       "news_intent": "Ci sono novità sui miei interessi oggi?",
       "skill_intent": "Avvia la skill {{name}}"
+    },
+    "reset_confirm": {
+      "title": "Eliminare questa conversazione?",
+      "description": "Tutti i messaggi verranno eliminati, insieme a tutti i tuoi allegati, immagini generate dall'IA comprese. LIA dimenticherà anche il contesto di questa conversazione. L'azione è irreversibile.",
+      "confirm": "Elimina tutto"
+    },
+    "active_call": {
+      "dialing": "LIA sta chiamando {{name}}…",
+      "in_progress": "LIA è al telefono con {{name}}",
+      "details": "Dettagli"
     }
   },
   "skill_apps": {
@@ -997,7 +1018,6 @@
       "available_google": "Connettori Google",
       "available_external": "Connettori esterni",
       "all_connected": "Tutti i connettori disponibili sono già connessi",
-      "disconnect_confirm": "Sei sicuro di voler disconnettere questo servizio?",
       "disconnect_error": "Errore durante la disconnessione",
       "connected_success": "{{name}} è stato connesso con successo",
       "unknown_connector": "Il connettore",
@@ -1252,19 +1272,11 @@
         "secret_placeholder": "Segreto di firma del webhook",
         "activate": "Attiva la telefonia",
         "activated": "Telefonia attivata. LIA può ora effettuare chiamate per tuo conto.",
-        "no_calls": "Ancora nessuna chiamata.",
-        "recent_calls": "Chiamate recenti",
-        "call_status": {
-          "dialing": "Composizione",
-          "in_progress": "In corso",
-          "completed": "Completata",
-          "no_answer": "Nessuna risposta",
-          "voicemail": "Segreteria",
-          "failed": "Non riuscita",
-          "cancelled": "Annullata"
-        },
         "secret_label": "Segreto di firma del webhook"
-      }
+      },
+      "disconnect": "Disconnetti",
+      "disconnect_title": "Disconnettere {{name}}?",
+      "disconnect_description": "LIA non potrà più consultare i tuoi dati {{name}} né agire su di essi. Nulla viene eliminato su {{name}} e puoi riconnetterti quando vuoi."
     },
     "user": {
       "export": {
@@ -1347,14 +1359,16 @@
           "erase": "Cancella (GDPR)"
         },
         "deactivation_reason_prompt": "Motivo per disattivare questo utente:",
-        "delete_confirmation": "⚠️ ELIMINAZIONE ACCOUNT\n\nEliminare l'account di \"{{email}}\"?\n\nQuesto eliminerà IRREVERSIBILMENTE:\n• Conversazioni e messaggi\n• Memorie e diari\n• Connettori OAuth\n• Spazi RAG e file\n• Dati personali\n\nLo storico di fatturazione sarà conservato.",
-        "erase_confirmation": "⚠️ CANCELLAZIONE DEFINITIVA (GDPR)\n\nCancellare definitivamente \"{{email}}\"?\n\nQuesto rimuoverà l'ultima traccia dell'account (email, nome).\nLo storico di fatturazione diventerà anonimo.\n\nQuesta azione NON può essere annullata.",
+        "delete_confirmation": "Eliminare l'account di \"{{email}}\"?\n\nQuesto eliminerà IRREVERSIBILMENTE:\n• Conversazioni e messaggi\n• Memorie e diari\n• Connettori OAuth\n• Spazi RAG e file\n• Dati personali\n\nLo storico di fatturazione sarà conservato.",
+        "erase_confirmation": "Cancellare definitivamente \"{{email}}\"?\n\nQuesto rimuoverà l'ultima traccia dell'account (email, nome).\nLo storico di fatturazione diventerà anonimo.\n\nQuesta azione NON può essere annullata.",
         "errors": {
           "loading": "Errore nel caricamento degli utenti",
           "toggle_status": "Errore durante la {{action}} dell'utente",
           "delete": "Errore durante l'eliminazione dell'account",
           "erase": "Errore durante la cancellazione (GDPR)"
-        }
+        },
+        "delete_title": "⚠️ ELIMINAZIONE ACCOUNT",
+        "erase_title": "⚠️ CANCELLAZIONE DEFINITIVA (GDPR)"
       },
       "pricing": {
         "title": "Prezzi LLM",
@@ -2131,7 +2145,8 @@
       "update_success": "Lingua aggiornata con successo",
       "update_error": "Errore durante l'aggiornamento della lingua",
       "persistence_info": "La tua preferenza linguistica è stata salvata. Le email di notifica utilizzeranno questa lingua.",
-      "info_note": "💡 La lingua influisce sull'interfaccia utente e sulle email di notifica. Cambiare lingua aggiorna automaticamente l'URL."
+      "info_note": "💡 La lingua influisce sull'interfaccia utente e sulle email di notifica. Cambiare lingua aggiorna automaticamente l'URL.",
+      "selector_label": "Lingua: {{name}}"
     },
     "interests": {
       "settings": {
@@ -2263,43 +2278,24 @@
     "location": {
       "geolocation": {
         "title": "Geolocalizzazione",
-        "description": "Permette a LIA di utilizzare la tua posizione per richieste meteo e luoghi",
-        "auto_label": "Geolocalizzazione automatica",
-        "auto_description": "Invia automaticamente la tua posizione con ogni messaggio",
         "permission_status": "Stato del permesso",
         "permission_granted": "Concesso",
         "permission_denied": "Negato",
         "unsupported": "Non supportato",
-        "current_position": "Posizione attuale",
-        "accuracy": "Precisione: ~{{meters}}m",
-        "refresh": "Aggiorna",
         "enabled": "Geolocalizzazione attivata",
         "disabled": "Geolocalizzazione disattivata",
-        "refreshed": "Posizione aggiornata",
-        "denied_help": "Per attivare la geolocalizzazione, modifica i permessi del browser nelle impostazioni del sito.",
-        "info_note": "La tua posizione viene inviata solo con i tuoi messaggi per risposte contestuali (meteo locale, luoghi vicini). Non viene memorizzata sui nostri server."
+        "denied_help": "Per attivare la geolocalizzazione, modifica i permessi del browser nelle impostazioni del sito."
       },
       "home": {
         "title": "Indirizzo di casa",
-        "description": "Imposta il tuo indirizzo per usare 'a casa' nelle tue richieste",
-        "places_required": "Google Places richiesto",
-        "places_required_help": "Attiva il connettore Google Places in Impostazioni > Connettori per configurare la tua casa.",
-        "current": "Indirizzo attuale",
-        "set_address": "Imposta indirizzo di casa",
         "placeholder": "Inserisci il tuo indirizzo...",
-        "input_help": "Inserisci il tuo indirizzo completo (via, città, codice postale)",
         "save": "Salva",
         "clear": "Elimina",
         "saved": "Indirizzo di casa salvato",
         "cleared": "Indirizzo di casa eliminato",
         "save_error": "Errore nel salvataggio dell'indirizzo",
         "clear_error": "Errore nell'eliminazione dell'indirizzo",
-        "address_required": "Inserisci un indirizzo",
-        "usage_title": "Uso:",
-        "usage_weather": "\"Meteo a casa\" userà questo indirizzo",
-        "usage_places": "\"Ristoranti vicino a casa\" userà questo indirizzo",
-        "usage_phrases": "Funziona con: \"a casa\", \"vicino a casa\", \"il mio quartiere\"",
-        "privacy_note": "Il tuo indirizzo è crittografato e memorizzato in modo sicuro. Non viene mai condiviso con terzi."
+        "address_required": "Inserisci un indirizzo"
       }
     },
     "skills": {
@@ -2795,6 +2791,28 @@
         "title": "Autenticazione forte",
         "description": "Passkey, app di autenticazione e password."
       }
+    },
+    "telephony": {
+      "calls": {
+        "title": "Chiamate recenti",
+        "description": "Le chiamate che LIA ha fatto per te",
+        "in_flight": "Una chiamata è in corso",
+        "status": {
+          "dialing": "Composizione",
+          "in_progress": "In corso",
+          "completed": "Completata",
+          "no_answer": "Nessuna risposta",
+          "voicemail": "Segreteria",
+          "failed": "Fallita",
+          "cancelled": "Annullata"
+        },
+        "outcome": {
+          "objective_met": "Obiettivo raggiunto",
+          "partial": "Parzialmente raggiunto",
+          "declined": "Rifiutata",
+          "unreachable": "Irraggiungibile"
+        }
+      }
     }
   },
   "spaces": {
@@ -3170,6 +3188,7 @@
   "faq": {
     "title": "Domande frequenti",
     "subtitle": "Trova risposte alle domande più comuni su LIA",
+    "try_example": "Prova questo esempio: {{example}}",
     "show_welcome": "Mostra la presentazione",
     "search": {
       "placeholder": "Cerca nelle FAQ...",
@@ -3232,7 +3251,7 @@
         },
         "hitl": {
           "title": "👤 Human-in-the-Loop Avanzato",
-          "description": "8 tipi di interazioni intelligenti: chiarimento, disambiguazione entità (ENTITY_DISAMBIGUATION), approvazione piano, conferma strumento, critica bozze, conferma modifica (EDIT_CONFIRMATION), conferma operazioni massive (FOR_EACH) e validazione distruttiva (eliminazioni massive ≥3 elementi). Soglie configurabili e anteprima elementi interessati prima dell'esecuzione. I cicli di revisione sono replay-safe (ADR-092): un solo interrupt per esecuzione di nodo, con lo stato del ciclo che passa dallo state checkpointed — ogni modifica LLM viene eseguita esattamente una volta e il contenuto confermato è garantito identico all'ultimo mostrato. Se un’operazione conti come modifica viene letto dalla categoria dichiarata dello strumento a catalogo, non dedotto dal nome: risposte e inoltri in serie sono così protetti esattamente come creazioni ed eliminazioni."
+          "description": "8 tipi di interazioni intelligenti: chiarimento, disambiguazione entità (ENTITY_DISAMBIGUATION), approvazione piano, conferma strumento, critica bozze, conferma modifica (EDIT_CONFIRMATION), conferma operazioni massive (FOR_EACH) e validazione distruttiva (eliminazioni massive ≥3 elementi). Soglie configurabili e anteprima elementi interessati prima dell'esecuzione. I cicli di revisione sono replay-safe (ADR-092): un solo interrupt per esecuzione di nodo, con lo stato del ciclo che passa dallo state checkpointed — ogni modifica LLM viene eseguita esattamente una volta e il contenuto confermato è garantito identico all'ultimo mostrato. Se un’operazione conti come modifica viene letto dalla categoria dichiarata dello strumento a catalogo, non dedotto dal nome: risposte e inoltri in serie sono così protetti esattamente come creazioni ed eliminazioni. Simmetricamente, una conferma non va mai chiesta due volte: i diciannove tipi di bozza mostrano già un'anteprima e attendono un assenso esplicito, così il validatore semantico a monte giudica la <b>struttura</b> del piano — parametro mancante, strumento sbagliato, cardinalità — e non quanto l'azione appaia consequenziale. Una domanda posta due volte non è sicurezza in più: è un utente costretto a insistere per essere ascoltato."
         },
         "connectors": {
           "title": "🔌 Connettori & Registry",
@@ -3284,7 +3303,7 @@
         },
         "costTransparency": {
           "title": "💰 Trasparenza dei Costi",
-          "description": "Visualizzazione opzionale in tempo reale: token di input/output/cache, costo EUR per messaggio e totale conversazione. Statistiche nella dashboard: messaggi, token e costi del ciclo corrente. Controllo utente tramite l'icona 💲 nella barra del titolo."
+          "description": "Visualizzazione opzionale in tempo reale: token di input/output/cache, costo EUR per messaggio e totale conversazione. Statistiche nella dashboard: messaggi, token e costi del ciclo corrente. Controllo utente tramite l'icona 💲 nella barra del titolo. Quando è attiva una quota, non arriva più come un muro: un avviso compare all'80 % del limite che scatterà per primo — tra token, messaggi e costo, per ciclo o assoluto — nominandolo e, se è un limite di periodo, indicando la data di azzeramento. Un limite assoluto non promette alcun azzeramento."
         },
         "scheduledActions": {
           "title": "📅 Azioni Pianificate",
@@ -3372,7 +3391,7 @@
         },
         "imageGeneration": {
           "title": "🎨 Generazione e Modifica Immagini",
-          "description": "Genera immagini da descrizioni testuali e modifica immagini esistenti con istruzioni in linguaggio naturale. Architettura factory multi-provider, preferenze utente per qualità/dimensione/formato, tracciamento costi con prezzi in database."
+          "description": "Genera immagini da descrizioni testuali e modifica immagini esistenti con istruzioni in linguaggio naturale. Architettura factory multi-provider, preferenze utente per qualità/dimensione/formato, tracciamento costi con prezzi in database. Un'immagine generata è un allegato a durata limitata: la scheda mostra la scadenza restituita dal server — mai una durata scritta nell'interfaccia, dato che è configurabile — e passa a un tono di allerta nelle ultime ore, perché il download resti possibile prima della pulizia."
         },
         "reactMode": {
           "title": "⚡ Modalità di Esecuzione ReAct",
@@ -3384,11 +3403,11 @@
         },
         "telephony": {
           "title": "📞 Telefonia agentica",
-          "description": "LIA può effettuare chiamate in uscita tramite un Agente ElevenLabs orientato all'obiettivo, guidato dal tuo <b>connettore personale per utente</b> (le tue credenziali — nessuna misurazione lato LIA). La protezione dei dati è garantita <b>per capacità, non per prompt</b>: l'agente di chiamata espone un unico strumento di disponibilità in sola lettura che restituisce solo le fasce libero/occupato — mai titoli, partecipanti, luoghi o contenuti. Nulla viene registrato e la trascrizione non viene mai conservata; al termine della chiamata, un <b>webhook firmato specifico per ogni utente</b> avvia una sintesi LLM senza strumenti reiniettata in modo asincrono nella chat come un breve riepilogo effimero, con un'azione di follow-up in un tocco. Ogni chiamata viene confermata da te prima di comporre il numero (bozza HITL) e l'intero sottosistema è protetto da un feature flag (ADR-127). L'agente opera sotto un <b>mandato rigoroso</b> imposto dal suo prompt di sistema: nessuna spesa o impegno oltre l'obiettivo; ogni offerta fuori mandato viene catturata in campi strutturati dedicati (costo aggiuntivo, decisione in sospeso) che la sintesi post-chiamata deve obbligatoriamente restituire."
+          "description": "LIA può effettuare chiamate in uscita tramite un Agente ElevenLabs orientato all'obiettivo, guidato dal tuo <b>connettore personale per utente</b> (le tue credenziali — nessuna misurazione lato LIA). La protezione dei dati è garantita <b>per capacità, non per prompt</b>: l'agente di chiamata espone un unico strumento di disponibilità in sola lettura che restituisce solo le fasce libero/occupato — mai titoli, partecipanti, luoghi o contenuti. Nulla viene registrato e la trascrizione non viene mai conservata; al termine della chiamata, un <b>webhook firmato specifico per ogni utente</b> avvia una sintesi LLM senza strumenti reiniettata in modo asincrono nella chat come un breve riepilogo effimero, con un'azione di follow-up in un tocco. Ogni chiamata viene confermata da te prima di comporre il numero (bozza HITL) e l'intero sottosistema è protetto da un feature flag (ADR-127). L'agente opera sotto un <b>mandato rigoroso</b> imposto dal suo prompt di sistema: nessuna spesa o impegno oltre l'obiettivo; ogni offerta fuori mandato viene catturata in campi strutturati dedicati (costo aggiuntivo, decisione in sospeso) che la sintesi post-chiamata deve obbligatoriamente restituire. Durante la chiamata il prodotto non tace più: un avviso indica chi viene chiamato e a che punto è la composizione, e una sezione dedicata conserva lo storico — nome, obiettivo, esito e resoconto, mai il numero, che l'API non espone. Un rifiuto del fornitore viene trattato come tale: risponde <code>200</code> anche quando declina, così un numero mittente non verificato lasciava una riga in corso che bloccava ogni chiamata successiva; quel caso è ora distinto da un guasto passeggero, e il messaggio lo dice."
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
-          "description": "La home della dashboard è un briefing giornaliero: saluto LLM personalizzato + sintesi di 2-3 frasi sopra una griglia di 9 card (meteo arricchito, agenda, mail non lette, compleanni, promemoria, salute, «Per te» — cicli aperti + digest delle automazioni —, attività in corso/in ritardo, ultimi documenti Drive). Architettura pura: nessuna catena LangGraph, asyncio.gather parallelo, cache Redis per sezione con TTL adattato (meteo 1 h, agenda 10 min, mail 5 min…). Endpoint separati (/briefing/cards veloce + /briefing/synthesis LLM-bound) per rendering progressivo. Token e costo in EUR di ogni chiamata LLM esposti nell'UI accanto al timestamp e tracciati nelle statistiche d'uso utente tramite track_proactive_tokens (token in cache correttamente sottratti)."
+          "description": "La home della dashboard è un briefing giornaliero: saluto LLM personalizzato + sintesi di 2-3 frasi sopra una griglia di 9 card (meteo arricchito, agenda, mail non lette, compleanni, promemoria, salute, «Per te» — cicli aperti + digest delle automazioni —, attività in corso/in ritardo, ultimi documenti Drive). Architettura pura: nessuna catena LangGraph, asyncio.gather parallelo, cache Redis per sezione con TTL adattato (meteo 1 h, agenda 10 min, mail 5 min…). Endpoint separati (/briefing/cards veloce + /briefing/synthesis LLM-bound) per rendering progressivo. Token e costo in EUR di ogni chiamata LLM esposti nell'UI accanto al timestamp e tracciati nelle statistiche d'uso utente tramite track_proactive_tokens (token in cache correttamente sottratti). Sette di quelle nove schede non mostrano nulla finché la loro fonte non è configurata: invece di buchi invisibili, una sola riga le nomina e rimanda ciascuna all'impostazione che la attiva — mentre le schede che hai nascosto tu restano, giustamente, fuori discorso."
         }
       },
       "diagram_alt": "Diagramma dell'architettura di LIA"
@@ -3397,6 +3416,23 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_25_24": {
+          "title": "v1.25.24 — 🧭 Trovare ciò che LIA sa già fare",
+          "date": "Luglio 2026",
+          "count": "10",
+          "items": {
+            "i1": "<b>📱 Il logo diventa il tuo menu sul telefono</b> — sotto una certa larghezza la barra di navigazione spariva e nulla la sostituiva: dalla chat non potevi raggiungere né le impostazioni né la guida se non digitando un indirizzo. Ora tocca il logo LIA: si aprono le quattro destinazioni e la pagina corrente viene annunciata.",
+            "i2": "<b>🎯 I collegamenti portano alla sezione giusta</b> — l'elenco dei primi passi mandava sei delle sue sette voci in cima alla pagina delle impostazioni, davanti a una trentina di blocchi chiusi. Ogni voce apre adesso la propria sezione, la espande e vi scorre. Diciassette sezioni sono raggiungibili così, anche dalle schede della home.",
+            "i3": "<b>🏠 Le schede della home non configurate non sono più buchi</b> — sette schede su nove non mostrano nulla finché la loro fonte non è collegata, così un account nuovo trovava due schede vuote e sette assenze inspiegabili. Una riga discreta le nomina e rimanda all'impostazione che le attiva. Le schede che hai nascosto tu non vengono mai citate.",
+            "i4": "<b>⚠️ Un avviso prima del limite di utilizzo</b> — finora nulla segnalava che la quota stava per esaurirsi: l'interfaccia si bloccava di colpo, a metà lavoro. Ora un avviso compare all'80 % del limite che scatta per primo, lo nomina e indica la data di azzeramento quando si tratta di un limite di periodo.",
+            "i5": "<b>🖼️ Le immagini generate annunciano la data di cancellazione</b> — vengono conservate per un tempo limitato e poi rimosse. Nulla lo diceva: l'immagine spariva dalla cronologia senza preavviso. Ogni scheda indica ora fino a quando resta disponibile e passa a un tono di allerta nelle ultime ore.",
+            "i6": "<b>🔁 Un turno fallito si ripete con un clic</b> — prima bisognava ritrovare la domanda e riscriverla. Un pulsante ripete esattamente la richiesta fallita, anche se nel frattempo sono arrivati altri messaggi.",
+            "i7": "<b>💬 Gli esempi di queste FAQ sono cliccabili</b> — le centinaia di frasi già pronte andavano ricopiate a mano. Un clic le deposita ora nel campo di scrittura della chat, pronte da modificare prima dell'invio. Nulla viene mai inviato al posto tuo.",
+            "i8": "<b>📞 Le chiamate: seguite durante, spiegate dopo</b> — tra la tua conferma e il resoconto, LIA restava del tutto muta. Ora un avviso indica chi sta chiamando e a che punto è la chiamata, e una sezione delle impostazioni conserva lo storico. Soprattutto: una chiamata rifiutata dall'operatore (numero mittente non verificato, credito esaurito) bloccava tutte le successive per un quarto d'ora; il rifiuto viene ora rilevato e spiegato invece di essere scambiato per una chiamata in corso.",
+            "i9": "<b>🗣️ LIA non chiede più due volte la stessa conferma</b> — per un'email, un appuntamento o una chiamata avvisava che l'azione era irreversibile e aspettava il tuo assenso… mentre subito dopo arrivava un'anteprima con una conferma esplicita. Bisognava insistere per essere ascoltati. Quella domanda doppia è sparita; la conferma che conta, quella che mostra esattamente cosa partirà, resta ovviamente al suo posto.",
+            "i10": "<b>✅ Conferme integrate e un'interfaccia che sta nello schermo</b> — le azioni di amministrazione più definitive passavano dalla finestra del sistema operativo, che ignora il tema e scrive i pulsanti nella lingua del computer. Ora usano le finestre di LIA. Nel frattempo: su mobile il campo di scrittura non si nasconde più sotto la barra degli indirizzi del browser, e su tablet il pulsante di disconnessione non finisce più fuori schermo in tedesco."
+          }
+        },
         "v1_25_23": {
           "title": "v1.25.23 — 🔍 I test che non venivano mai eseguiti",
           "date": "Luglio 2026",
@@ -4527,7 +4563,7 @@
           "items": {
             "i1": "<b>Modalità iterativa per i tuoi server MCP</b> — I tuoi server MCP personali possono ora utilizzare la modalità iterativa (agente ReAct). Attivala nelle impostazioni affinché LIA legga prima la documentazione del server, poi esegua gli strumenti passo dopo passo — ideale per API complesse come Excalidraw",
             "i2": "<b>Risoluzione memoria in 3 fasi</b> — Quando dici «chiama mio fratello» o «invia un'email a mia moglie», LIA identifica i riferimenti personali con maggiore precisione tramite ricerca mirata per riferimento",
-            "i3": "<b>Messaggi di errore migliorati</b> — I messaggi di errore sono ora chiari e tradotti nella tua lingua",
+            "i3": "<b>Messaggi di errore migliorati</b> — In caso di problema (sovraccarico del fornitore IA, filtro dei contenuti, timeout), i messaggi di errore sono ora chiari e tradotti nella tua lingua invece di mostrare codici tecnici",
             "i4": "<b>Iniziativa proattiva affinata</b> — I suggerimenti proattivi si concentrano solo su domini diversi da quello già gestito",
             "i5": "<b>Cancellazione sicura dei promemoria</b> — La cancellazione di un promemoria richiede ora una conferma",
             "i6": "<b>Date meteo localizzate</b> — Le previsioni meteo mostrano le date nella tua lingua",
@@ -4810,23 +4846,23 @@
       "chat": {
         "title": "Conversazioni",
         "description": "Utilizzo della chat e delle conversazioni",
-        "count": "22",
+        "count": "23",
         "questions": {
           "q1": {
             "question": "Posso avere più conversazioni contemporaneamente?",
-            "answer": "No, LIA funziona con una sola conversazione attiva alla volta. Puoi creare una <strong>Nuova conversazione</strong> in qualsiasi momento, ma questo sostituirà la conversazione corrente. La cronologia della tua conversazione precedente verrà eliminata."
+            "answer": "LIA funziona con <strong>una sola conversazione attiva</strong>. Questa scelta di progettazione ti offre:<br><br>• Un <strong>contesto coerente</strong>: LIA ricorda l'intero scambio<br>• <strong>Riferimenti naturali</strong>: «<em>la prima email</em>», «<em>il contatto precedente</em>»<br>• Un'<strong>esperienza fluida</strong>: niente da destreggiare tra le finestre<br><br><strong>Per ripartire da zero:</strong><br>Fai clic sul pulsante <strong>🗑️</strong> nell'intestazione della chat. Elimina tutti i messaggi <strong>e tutti i tuoi allegati</strong>, immagini generate dall'IA comprese: esporta prima ciò che vuoi conservare."
           },
           "q2": {
             "question": "Come resetto una conversazione?",
-            "answer": "In una conversazione, fai clic sul pulsante con l'icona di aggiornamento nell'intestazione. Attenzione: questa azione eliminerà permanentemente tutta la cronologia delle conversazioni."
+            "answer": "Per cancellare tutto e ripartire da zero:<br><br>1. Nell'intestazione della chat, individua il pulsante <strong>🗑️</strong><br>2. Fai clic su di esso<br>3. Conferma nella finestra di dialogo<br><br><strong>⚠️ Cosa viene eliminato davvero:</strong><br>Tutti i messaggi, <strong>tutti i tuoi allegati, immagini generate dall'IA comprese</strong>, e il contesto che LIA aveva costruito da questa conversazione. L'azione è <strong>irreversibile</strong>.<br><br><strong>💡 Quando conviene?</strong><br>• Cambi completamente argomento<br>• LIA sembra confusa dal contesto precedente<br>• Preferisci non lasciarti dietro quella cronologia"
           },
           "q3": {
             "question": "Le conversazioni vengono salvate?",
-            "answer": "Sì, tutte le tue conversazioni vengono salvate e sincronizzate automaticamente. Puoi accedervi da qualsiasi dispositivo connesso al tuo account."
+            "answer": "Sì, la tua conversazione viene <strong>salvata man mano</strong>:<br><br>• <strong>In tempo reale</strong>: ogni messaggio viene registrato nell'istante in cui parte<br>• <strong>Multi-dispositivo</strong>: riprendila da qualsiasi dispositivo collegato al tuo account<br>• <strong>Persistente</strong>: sopravvive a una disconnessione e alla chiusura del browser<br><br><strong>📱 In pratica:</strong><br>Inizia una conversazione al computer e continuala sul telefono — e viceversa.<br><br><strong>🗑️ Eliminarla è un gesto deliberato:</strong><br>Nulla viene rimosso finché non usi il pulsante <strong>🗑️</strong> e confermi."
           },
           "q4": {
             "question": "Come uso le interruzioni di riga nei miei messaggi?",
-            "answer": "Premi <strong>Shift + Invio</strong> per aggiungere un'interruzione di riga. Premi semplicemente <strong>Invio</strong> per inviare il tuo messaggio."
+            "answer": "Due scorciatoie da tastiera da conoscere:<br><br>• <strong>Invio</strong> = invia il messaggio<br>• <strong>Shift + Invio</strong> = nuova riga<br><br><strong>💡 Esempio concreto:</strong><br>Per dettare un'email strutturata, scrivi:<br><br><em>Invia un'email a Giovanni:<br>Oggetto: Riunione di progetto<br>Corpo:<br>Ciao Giovanni,<br><br>confermo il nostro incontro di domani.<br><br>Cordiali saluti</em><br><br>Usa Shift+Invio tra una riga e l'altra, poi Invio per inviare tutto in una volta."
           },
           "q5": {
             "question": "Cos'è lo streaming e perché le risposte appaiono progressivamente?",
@@ -4899,6 +4935,10 @@
           "q22": {
             "question": "Il filo non salta più mentre rileggo — come funziona? (v1.25.16)",
             "answer": "<p>Quando risali a rileggere, una risposta in corso <strong>non ti trascina più in fondo</strong>. Appare un pulsante fluttuante con il numero di risposte arrivate fuori schermo; un tocco ti riporta giù. Inviare un messaggio continua a saltarci, come previsto. Sotto l'ultima risposta possono apparire fino a 3 <strong>suggerimenti di follow-up</strong> come chip: toccarne uno riempie il campo (non invia mai).</p>"
+          },
+          "q23": {
+            "question": "Un messaggio è fallito: devo riscrivere la domanda?",
+            "answer": "No. Una bolla d'errore porta ora un pulsante <b>Riprova</b>, che ripete <b>esattamente</b> la richiesta fallita.<br><br><strong>Perché questa precisione conta:</strong><br>Tra la tua domanda e il tuo clic, LIA può averti inviato una notifica proattiva. Ripetere «l'ultimo messaggio» invierebbe allora qualcosa di diverso da quanto avevi chiesto. La domanda viene perciò fissata alla bolla di errore nel momento in cui si verifica.<br><br><strong>💡 Da sapere:</strong><br>Un errore senza domanda precedente (una notifica, per esempio) non mostra alcun pulsante: non ci sarebbe nulla da ripetere."
           }
         }
       },
@@ -4909,19 +4949,19 @@
         "questions": {
           "q1": {
             "question": "Come cambio il mio fuso orario?",
-            "answer": "Vai su <strong>Impostazioni > Aspetto > Fuso orario</strong>. Il tuo fuso orario viene rilevato automaticamente, ma puoi cambiarlo manualmente se necessario."
+            "answer": "Il fuso orario determina come vengono mostrate date e ore nelle tue conversazioni:<br><br><strong>Per modificarlo:</strong><br>1. Vai su <strong>Impostazioni</strong> (icona ⚙️ nel menu)<br>2. Apri la scheda <strong>Preferenze</strong><br>3. In <strong>Personalizzazione</strong>, espandi <strong>Fuso orario</strong> e scegli il tuo<br><br><strong>🌍 Rilevamento automatico:</strong><br>Al primo accesso, LIA rileva il tuo fuso orario dal browser.<br><br><strong>💡 Consiglio per chi viaggia:</strong><br>Se sei in viaggio, LIA nota lo scarto con quello del browser e ti propone di aggiornare il tuo con un clic."
           },
           "q2": {
             "question": "Come cambio la lingua dell'interfaccia?",
-            "answer": "Puoi cambiare la lingua in due modi:<br>1. Tramite il selettore di lingua (icona del globo) nella barra del titolo<br>2. In <strong>Impostazioni > Aspetto > Lingua</strong><br><br>Entrambi i metodi sincronizzano la tua preferenza con il database."
+            "answer": "Due modi per cambiare lingua:<br><br><strong>Metodo rapido:</strong><br>Fai clic sull'<strong>icona del globo</strong> 🌐 nella barra del titolo e scegli la tua lingua.<br><br><strong>Dalle impostazioni:</strong><br>1. Vai su <strong>Impostazioni</strong> (icona ⚙️ nel menu)<br>2. Apri la scheda <strong>Preferenze</strong><br>3. In <strong>Personalizzazione</strong>, espandi <strong>Lingua</strong><br><br><strong>🔄 Sincronizzazione:</strong><br>Entrambi i metodi salvano la stessa preferenza nel tuo profilo: ti segue da un dispositivo all'altro.<br><br><strong>📧 Oltre l'interfaccia:</strong><br>Anche le email di notifica e le notifiche push che LIA ti invia usano questa lingua."
           },
           "q3": {
             "question": "Cos'è il tema e come lo cambio?",
-            "answer": "Il tema controlla l'aspetto visivo dell'applicazione. Vai su <strong>Impostazioni > Aspetto > Tema</strong> per scegliere tra 5 temi diversi: Blu Professionale, Turchese, Salvia, Rosa e Lavanda. Puoi anche alternare tra modalità chiara e scura."
+            "answer": "Il tema controlla l'aspetto visivo dell'applicazione:<br><br><strong>5 temi disponibili:</strong><br>• 💙 <strong>Blu Professionale</strong>: elegante e senza tempo<br>• 🌊 <strong>Turchese</strong>: teal profondo, sofisticato e rilassante<br>• 🌿 <strong>Salvia</strong>: verde salvia moderno e naturale<br>• 🌸 <strong>Rosa</strong>: rosa cipria, elegante e caldo<br>• 💜 <strong>Lavanda</strong>: viola tenue, raffinato e creativo<br><br><strong>Modalità chiara/scura:</strong><br>Ogni tema esiste in versione chiara e scura. Alterna con il pulsante ☀️/🌙 nella barra del titolo.<br><br><strong>Per cambiare tema:</strong><br>Vai su <strong>Impostazioni</strong> (icona ⚙️), scheda <strong>Preferenze</strong>, e in <strong>Personalizzazione</strong> espandi <strong>Aspetto</strong>."
           },
           "q4": {
             "question": "Come aggiorno il mio profilo?",
-            "answer": "Vai su <strong>Impostazioni > Profilo</strong> per modificare il tuo nome completo e altre informazioni personali. Il tuo indirizzo email non può essere modificato dopo la registrazione."
+            "answer": "Gestisci le tue informazioni personali:<br><br><strong>Modificabile:</strong><br>• ✏️ <strong>Nome completo</strong>: il nome mostrato nell'applicazione — <strong>Impostazioni > Profilo</strong><br>• 🌍 <strong>Fuso orario</strong>, 🌐 <strong>Lingua</strong>, 🎨 <strong>Aspetto</strong>: <strong>Impostazioni > Preferenze</strong>, in <strong>Personalizzazione</strong><br><br><strong>Non modificabile:</strong><br>• 📧 <strong>Email</strong>: è il tuo identificativo di accesso, fissato alla registrazione<br><br><strong>💡 Buono a sapersi:</strong><br>Il tuo nome è quello con cui LIA si rivolge a te: un soprannome va bene quanto il nome anagrafico."
           },
           "q5": {
             "question": "Come scelgo una personalità per LIA?",
@@ -5047,7 +5087,7 @@
       "telephony": {
         "title": "Chiamate telefoniche",
         "description": "LIA può fare vere telefonate al posto tuo. Guida di configurazione completa (Twilio + ElevenLabs) e uso quotidiano.",
-        "count": "12",
+        "count": "13",
         "questions": {
           "q1": {
             "question": "Cosa può fare LIA al telefono?",
@@ -5096,6 +5136,10 @@
           "q12": {
             "question": "Non funziona — cosa devo verificare?",
             "answer": "<strong>«Chiave non valida» al passo 1</strong><br>→ La chiave è copiata male o non ha i permessi richiesti (accesso alla piattaforma Agents).<br><br><strong>«Nessun numero» dopo la convalida della chiave</strong><br>→ Il tuo numero non è importato nel workspace <strong>Agents</strong> di ElevenLabs, oppure è stato importato come trunk SIP invece dell'integrazione Twilio nativa.<br><br><strong>La chiamata parte ma nessun riepilogo torna</strong><br>→ Il problema è il webhook: URL non raggiungibile pubblicamente, segreto di firma errato o tipo di evento sbagliato (deve essere <strong>post_call_transcription</strong>).<br><br><strong>«Una chiamata è già in corso»</strong><br>→ Una sola chiamata attiva alla volta, per progettazione. Una chiamata bloccata viene ripulita automaticamente dopo ~15 minuti.<br><br><strong>Chiamate rifiutate dopo diverse di seguito</strong><br>→ Hai raggiunto il limite orario (10 chiamate/ora per impostazione predefinita).<br><br><strong>Ancora bloccato?</strong> Chiedi al tuo amministratore: i log del server indicano con precisione quali eventi webhook sono stati ricevuti e perché alcuni sono stati ignorati."
+          },
+          "q13": {
+            "question": "Posso seguire una chiamata mentre è in corso?",
+            "answer": "Sì. Appena LIA compone il numero, sopra la conversazione compare un avviso: chi sta chiamando e a che punto è la chiamata. Sparisce nel momento in cui la chiamata finisce.<br><br><strong>📒 Dopo:</strong><br>Lo storico si trova in <b>Impostazioni → Preferenze → Chiamate recenti</b>: nome, obiettivo, stato, esito e resoconto. Mai il numero — l'API non lo espone. La sezione non compare affatto se non hai mai effettuato una chiamata.<br><br><strong>⚠️ Se la chiamata viene rifiutata:</strong><br>Il messaggio lo dice chiaramente e distingue due casi: un guasto passeggero (riprovare ha senso) e un rifiuto dell'operatore — numero mittente non verificato, credito esaurito — dove riprovare non cambia nulla finché non è risolto dalla loro parte."
           }
         }
       },
@@ -5677,11 +5721,11 @@
       "usage_limits": {
         "title": "Limiti di utilizzo",
         "description": "Quote di token, messaggi e costi per utente",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "Cosa sono i limiti di utilizzo?",
-            "answer": "I limiti sono <strong>quote definite dall'amministratore</strong> per controllare il consumo di risorse (token, messaggi, costi EUR). Possono essere per periodo o globali."
+            "answer": "I limiti di utilizzo sono <strong>quote definite dall'amministratore</strong> per mantenere prevedibile il consumo di risorse:<br><br><strong>📊 3 dimensioni:</strong><br>• <strong>Token</strong> (prompt + risposta + cache) — il volume di dati elaborato dall'IA<br>• <strong>Messaggi</strong> — il numero di messaggi che invii<br>• <strong>Costo (EUR)</strong> — il costo combinato LLM + API Google<br><br><strong>📅 2 modalità:</strong><br>• <strong>Per periodo</strong> — un ciclo mensile scorrevole ancorato alla data di creazione del tuo account, non al primo del mese<br>• <strong>Globale</strong> — un totale cumulativo dall'iscrizione, che non si azzera mai<br><br>Ogni dimensione può ricevere un valore o restare illimitata, indipendentemente dalle altre."
           },
           "q2": {
             "question": "Come viene calcolato il periodo di fatturazione?",
@@ -5714,6 +5758,10 @@
           "q9": {
             "question": "Come funziona l'applicazione dei limiti?",
             "answer": "Architettura di difesa a 5 livelli. Fail-open in caso di guasto infrastrutturale."
+          },
+          "q10": {
+            "question": "Vengo avvisato prima di raggiungere un limite?",
+            "answer": "Sì. All'<b>80 %</b> del limite che scatterà per primo compare un avviso nella chat che lo nomina — token, messaggi o costo — con la sua percentuale. Al <b>95 %</b> lo stesso avviso assume un tono più urgente.<br><br><strong>Perché «quello che scatta per primo»:</strong><br>Qualsiasi dimensione blocca l'account. Avvisare su una meno avanzata indicherebbe la scadenza sbagliata, quindi viene sempre nominata la dimensione determinante.<br><br><strong>📅 Data di azzeramento:</strong><br>È indicata solo per un limite di <b>periodo</b>. Un limite assoluto non si azzera mai, e l'avviso non lascia credere il contrario.<br><br><strong>💡 Una volta bloccato:</strong><br>L'avviso sparisce — il messaggio di blocco spiega meglio la situazione, e due avvisi sullo stesso limite nel momento peggiore sarebbero solo rumore."
           }
         }
       },
@@ -5755,7 +5803,7 @@
       "image_generation": {
         "title": "Generazione immagini IA",
         "description": "Generare e modificare immagini con IA",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "Come genero unimmagine?",
@@ -5780,6 +5828,10 @@
           "q6": {
             "question": "C'è un limite al numero di immagini che posso generare?",
             "answer": "<p>Si applicano due protezioni. I <strong>limiti di utilizzo</strong> del tuo account (tetti di costo per ciclo di fatturazione, definiti dall'amministratore) coprono i costi di generazione delle immagini come qualsiasi altro costo. In più, un <strong>limite tecnico</strong> protegge dai loop impazziti: per impostazione predefinita, <strong>10 generazioni (e 10 modifiche) ogni 5 minuti</strong> per utente. L'uso normale non è toccato — se il limite viene raggiunto, l'assistente ti indica quanto attendere prima di riprovare. L'amministratore può regolare soglia e finestra tramite le variabili d'ambiente <code>IMAGE_GENERATION_RATE_LIMIT_CALLS</code> e <code>IMAGE_GENERATION_RATE_LIMIT_WINDOW</code>.</p>"
+          },
+          "q7": {
+            "question": "Per quanto tempo resta disponibile un'immagine generata?",
+            "answer": "Non all'infinito. Un'immagine generata è un allegato con una scadenza, e una pulizia programmata rimuove gli allegati scaduti ogni poche ore.<br><br><strong>🕒 Cosa mostra la scheda:</strong><br>La scadenza restituita dal server, e un tono di allerta nelle ultime ore perché il download resti possibile in tempo.<br><br><strong>Perché non una durata scritta nel codice:</strong><br>Il periodo di conservazione è configurabile dall'amministrazione, quindi un valore scritto nell'interfaccia finirebbe per essere falso. Le immagini precedenti a questa funzione non mostrano nulla invece di indovinare.<br><br><strong>💡 Consiglio:</strong><br>Usa il pulsante di download appena un'immagine ti sta a cuore — è l'unico modo per conservarla oltre la scadenza."
           }
         }
       },
@@ -5954,7 +6006,8 @@
     "settings": {
       "title": "Stile di LIA",
       "description": "Personalizza il tono e lo stile delle risposte del tuo assistente"
-    }
+    },
+    "selector_label": "Personalità: {{name}}"
   },
   "memories": {
     "purge_risk_badge_at_risk": "Rischio di oblio",
@@ -6695,7 +6748,7 @@
       },
       "telephony": {
         "title": "LIA telefona per te",
-        "description": "Chiedi a LIA di fare una vera telefonata al posto tuo — raggiungere un contatto, porre una domanda veloce, verificare una disponibilità. Approvi chi chiama e perché prima che componga il numero; LIA conduce la conversazione, poi lascia un riepilogo scritto nella chat, con un'azione di follow-up in un tocco quando è utile. E mai un impegno senza di voi: qualsiasi spesa od opzione imprevista viene annotata con il prezzo, mai accettata — decidete voi."
+        "description": "Chiedi a LIA di fare una vera telefonata al posto tuo — raggiungere un contatto, porre una domanda veloce, verificare una disponibilità. Approvi chi chiama e perché prima che componga il numero; LIA conduce la conversazione, poi lascia un riepilogo scritto nella chat, con un'azione di follow-up in un tocco quando è utile. E mai un impegno senza di voi: qualsiasi spesa od opzione imprevista viene annotata con il prezzo, mai accettata — decidete voi. Mentre la chiamata è in corso vedi chi ha in linea e a che punto è — il prodotto non resta più silenzioso tra il tuo assenso e il resoconto."
       },
       "reminders_scheduling": {
         "title": "Promemoria e automatizzazioni",
@@ -7437,7 +7490,7 @@
       "human-in-the-loop": {
         "title": "Human-in-the-Loop: 6 livelli di approvazione per mantenere il controllo",
         "excerpt": "LIA non esegue mai azioni critiche senza il tuo consenso. Il suo sistema HITL a 6 livelli ti protegge da errori e allucinazioni.",
-        "body": "<h2>Perché la validazione umana è essenziale</h2><p>I modelli linguistici possono allucinare o interpretare male un'intenzione. LIA risolve questo problema ponendo l'<strong>umano al centro di ogni decisione critica</strong>. Nessuna email viene inviata, nessun evento creato, nessun dato modificato senza la tua validazione esplicita.</p><h2>I 6 livelli di approvazione</h2><p>Il sistema HITL di LIA classifica ogni azione secondo 6 livelli:</p><ul><li><strong>Approvazione del piano</strong> — Prima dell'esecuzione di un piano multi-step, LIA genera una <code>PlanApprovalRequest</code> contenente un riepilogo del piano e i parametri modificabili, poi attende il tuo via libera.</li><li><strong>Chiarimento</strong> — Se l'intenzione è ambigua, LIA chiede precisazioni piuttosto che indovinare.</li><li><strong>Critica della bozza</strong> — Per email o messaggi, LIA ti sottopone una bozza da validare prima dell'invio.</li><li><strong>Conferma distruttiva</strong> — Qualsiasi eliminazione o modifica irreversibile richiede una conferma esplicita.</li><li><strong>Conferma FOR_EACH</strong> — Per le operazioni in batch, ogni elemento può essere validato individualmente.</li><li><strong>Revisione modifica</strong> — Le modifiche ai parametri vengono presentate per la verifica.</li></ul><h2>5 decisioni possibili con confidenza</h2><p>Il classificatore HITL produce un <strong>ClassificationResult</strong> con 5 decisioni possibili, ciascuna accompagnata da un punteggio di confidenza tra 0.0 e 1.0:</p><ul><li><strong>APPROVE</strong> — L'azione è validata e passa al <code>task_orchestrator</code></li><li><strong>REJECT</strong> — L'azione è rifiutata, il flusso viene reindirizzato al nodo <code>response</code></li><li><strong>EDIT</strong> — L'utente modifica i parametri tramite <code>edited_params</code>, un <code>PlanEditor</code> applica le modifiche</li><li><strong>REPLAN</strong> — L'utente riformula la propria intenzione tramite <code>reformulated_intent</code>, il flusso ritorna al <code>planner</code></li><li><strong>AMBIGUOUS</strong> — Il sistema pone una <code>clarification_question</code> per risolvere l'ambiguità</li></ul><h2>Interruzione LangGraph nativa</h2><p>Tecnicamente, il nodo <code>approval_gate</code> utilizza la funzione <code>interrupt()</code> di LangGraph per <strong>sospendere l'esecuzione del grafo</strong> e attendere la risposta dell'utente. Lo stato viene persistito in PostgreSQL, permettendo una ripresa asincrona anche dopo una disconnessione.</p><h2>Hai sempre l'ultima parola</h2><p>In ogni punto di validazione, le strategie di classificazione sono componibili: basate sul manifesto degli strumenti, sul costo stimato, sulla sensibilità dei dati e sul ruolo dell'utente. LIA non aggira mai questa fase.</p><p>E quest'ultima parola è rispettata alla lettera: i cicli di revisione seguono un pattern replay-safe (un solo <code>interrupt()</code> per esecuzione di nodo, stato del ciclo checkpointed — ADR-092), quindi una ripresa non riesegue mai una chiamata LLM o API passata. Ciò che approvi, dopo tutte le modifiche necessarie, è esattamente ciò che viene eseguito.</p>"
+        "body": "<h2>Perché la validazione umana è essenziale</h2><p>I modelli linguistici possono allucinare o interpretare male un'intenzione. LIA risolve questo problema ponendo l'<strong>umano al centro di ogni decisione critica</strong>. Nessuna email viene inviata, nessun evento creato, nessun dato modificato senza la tua validazione esplicita.</p><h2>I 6 livelli di approvazione</h2><p>Il sistema HITL di LIA classifica ogni azione secondo 6 livelli:</p><ul><li><strong>Approvazione del piano</strong> — Prima dell'esecuzione di un piano multi-step, LIA genera una <code>PlanApprovalRequest</code> contenente un riepilogo del piano e i parametri modificabili, poi attende il tuo via libera.</li><li><strong>Chiarimento</strong> — Se l'intenzione è ambigua, LIA chiede precisazioni piuttosto che indovinare.</li><li><strong>Critica della bozza</strong> — Per email o messaggi, LIA ti sottopone una bozza da validare prima dell'invio.</li><li><strong>Conferma distruttiva</strong> — Qualsiasi eliminazione o modifica irreversibile richiede una conferma esplicita.</li><li><strong>Conferma FOR_EACH</strong> — Per le operazioni in batch, ogni elemento può essere validato individualmente.</li><li><strong>Revisione modifica</strong> — Le modifiche ai parametri vengono presentate per la verifica.</li></ul><h2>5 decisioni possibili con confidenza</h2><p>Il classificatore HITL produce un <strong>ClassificationResult</strong> con 5 decisioni possibili, ciascuna accompagnata da un punteggio di confidenza tra 0.0 e 1.0:</p><ul><li><strong>APPROVE</strong> — L'azione è validata e passa al <code>task_orchestrator</code></li><li><strong>REJECT</strong> — L'azione è rifiutata, il flusso viene reindirizzato al nodo <code>response</code></li><li><strong>EDIT</strong> — L'utente modifica i parametri tramite <code>edited_params</code>, un <code>PlanEditor</code> applica le modifiche</li><li><strong>REPLAN</strong> — L'utente riformula la propria intenzione tramite <code>reformulated_intent</code>, il flusso ritorna al <code>planner</code></li><li><strong>AMBIGUOUS</strong> — Il sistema pone una <code>clarification_question</code> per risolvere l'ambiguità</li></ul><h2>Interruzione LangGraph nativa</h2><p>Tecnicamente, il nodo <code>approval_gate</code> utilizza la funzione <code>interrupt()</code> di LangGraph per <strong>sospendere l'esecuzione del grafo</strong> e attendere la risposta dell'utente. Lo stato viene persistito in PostgreSQL, permettendo una ripresa asincrona anche dopo una disconnessione.</p><h2>Hai sempre l'ultima parola</h2><p>In ogni punto di validazione, le strategie di classificazione sono componibili: basate sul manifesto degli strumenti, sul costo stimato, sulla sensibilità dei dati e sul ruolo dell'utente. LIA non aggira mai questa fase.</p><p>E quest'ultima parola è rispettata alla lettera: i cicli di revisione seguono un pattern replay-safe (un solo <code>interrupt()</code> per esecuzione di nodo, stato del ciclo checkpointed — ADR-092), quindi una ripresa non riesegue mai una chiamata LLM o API passata. Ciò che approvi, dopo tutte le modifiche necessarie, è esattamente ciò che viene eseguito.</p><h2>Confermare una volta, mai due</h2><p>Una salvaguardia messa nel posto sbagliato lavora contro la propria intenzione. A monte del piano, un validatore semantico poteva fermarsi su un'azione giudicata «irreversibile» — inviare un'email, fissare un appuntamento, fare una chiamata — mentre subito dopo arrivava un'anteprima con una conferma esplicita sulla stessa identica azione. L'utente doveva <strong>insistere per essere ascoltato</strong>.</p><p>La regola è ora scritta: un'azione che porta già la propria conferma a valle non viene mai fermata a monte. Il validatore giudica la <strong>struttura</strong> del piano — parametro mancante, strumento sbagliato, cardinalità incoerente — e non quanto l'azione appaia consequenziale. Porre due volte la stessa domanda non aggiunge sicurezza: sposta il peso sull'utente e finisce per insegnargli a cliccare senza leggere.</p>"
       },
       "llm-providers": {
         "title": "Multi-provider IA: scegli il modello giusto per ogni attività",
@@ -7607,6 +7660,19 @@
       "error": "Errore durante l'aggiornamento",
       "default_block_reason": "Bloccato dall'amministratore",
       "current_usage": "Consumo attuale"
+    },
+    "warning": {
+      "warning": "Hai usato il {{percent}} % della tua quota.",
+      "critical": "Sei al {{percent}} % della tua quota.",
+      "resets_on": "si azzera il {{date}}",
+      "dimension": {
+        "cycle_tokens": "token di questo ciclo",
+        "cycle_messages": "messaggi di questo ciclo",
+        "cycle_cost": "costo di questo ciclo",
+        "absolute_tokens": "token totali",
+        "absolute_messages": "messaggi totali",
+        "absolute_cost": "costo totale"
+      }
     },
     "blocked": {
       "title": "Limite raggiunto",

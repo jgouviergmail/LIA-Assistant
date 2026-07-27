@@ -55,7 +55,7 @@ import {
 import { AppleCredentialForm } from './connectors/AppleCredentialForm';
 import { HueBridgePairingForm } from './connectors/HueBridgePairingForm';
 import { TelephonyConnectorForm } from './connectors/TelephonyConnectorForm';
-import { TelephonyCallHistory } from './connectors/TelephonyCallHistory';
+import { DisconnectConnectorConfirm } from './connectors/DisconnectConnectorConfirm';
 import { CONNECTOR_LABELS, type ConnectorType } from '@/constants/connectors';
 import type { BaseSettingsProps } from '@/types/settings';
 import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
@@ -70,6 +70,8 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
   const [apiKeyInputs, setApiKeyInputs] = useState<Record<string, string>>({});
   const [activatingConnector, setActivatingConnector] = useState<string | null>(null);
   const [reconnectingConnector, setReconnectingConnector] = useState<string | null>(null);
+  // W4a: connector awaiting disconnect confirmation (id), or null.
+  const [pendingDisconnect, setPendingDisconnect] = useState<string | null>(null);
   // Apple credential form: list of services to connect (null = form hidden)
   const [appleConnectTarget, setAppleConnectTarget] = useState<string[] | null>(null);
 
@@ -184,10 +186,25 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
     t,
   });
 
+  // Human label of the connector pending confirmation — the dialog names it
+  // (a page can list several, "this service" said nothing about which).
+  const pendingDisconnectLabel = (() => {
+    if (!pendingDisconnect) return '';
+    const type = connectors.find(c => c.id === pendingDisconnect)?.connector_type;
+    if (!type) return '';
+    // Human label, same resolution as the cards; falls back to the raw type
+    // rather than showing nothing for a connector added after this map.
+    return CONNECTOR_LABELS[type as ConnectorType] || type;
+  })();
+
   // Handlers
+  // W4a: confirmation happens in an in-app AlertDialog (see `pendingDisconnect`
+  // below), not `window.confirm` — an OS dialog ignores the theme, the chosen
+  // typography and the app's language, and blocks the thread. This runs AFTER
+  // the user confirmed.
   const handleDisconnect = async (connectorId: string) => {
     if (deleteLoading) return;
-    if (!confirm(t('settings.connectors.disconnect_confirm'))) return;
+    setPendingDisconnect(null);
 
     try {
       await deleteConnector(`/connectors/${connectorId}`);
@@ -434,7 +451,7 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
                       lng={lng}
                       t={t}
                       deleteLoading={deleteLoading}
-                      onDisconnect={handleDisconnect}
+                      onDisconnect={setPendingDisconnect}
                       savedPrefs={savedPrefs[connector.id]}
                       savingPreference={savingPreference}
                       onSelectPreference={selectPreference}
@@ -469,7 +486,7 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
                       lng={lng}
                       t={t}
                       deleteLoading={deleteLoading}
-                      onDisconnect={handleDisconnect}
+                      onDisconnect={setPendingDisconnect}
                       savedPrefs={savedPrefs[connector.id]}
                       savingPreference={savingPreference}
                       onSelectPreference={selectPreference}
@@ -501,7 +518,7 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
                       lng={lng}
                       t={t}
                       deleteLoading={deleteLoading}
-                      onDisconnect={handleDisconnect}
+                      onDisconnect={setPendingDisconnect}
                       savedPrefs={savedPrefs[connector.id]}
                       savingPreference={savingPreference}
                       onSelectPreference={selectPreference}
@@ -533,7 +550,7 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
                       lng={lng}
                       t={t}
                       deleteLoading={deleteLoading}
-                      onDisconnect={handleDisconnect}
+                      onDisconnect={setPendingDisconnect}
                     >
                       {/* LocationSettings for Google Places (global API key mode) */}
                       {connector.connector_type === 'google_places' && <LocationSettings t={t} />}
@@ -894,7 +911,11 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
                       }}
                     />
                   ))}
-                  <TelephonyCallHistory lng={lng} />
+                  {/* The call history is NOT repeated here: it has its own
+                      deep-linkable section on this page (A6,
+                      `TelephonyCallsSection`), which the in-call banner links
+                      to. Two lists of the same rows on one page is noise, and
+                      it made the same request twice. */}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -929,10 +950,11 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
                       onCancel={() => setShowTelephonyWizard(false)}
                     />
                   )}
-                  {/* Past calls belong to the user, not the connector — keep the
-                      history visible after a disconnect (rows are never erased).
-                      hideWhenEmpty: no "no calls yet" noise for never-users. */}
-                  <TelephonyCallHistory lng={lng} hideWhenEmpty />
+                  {/* Past calls belong to the USER, not the connector, so they
+                      stay visible after a disconnect — which is precisely why
+                      they now live in their own section outside this accordion
+                      (A6, `TelephonyCallsSection`) rather than being repeated
+                      inside it. */}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -1049,6 +1071,19 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
           </AccordionItem>
         </Accordion>
       )}
+
+      {/* W4a: in-app confirmation for the destructive disconnect. Mounted once
+          for the whole list; `pendingDisconnect` holds the connector id. */}
+      <DisconnectConnectorConfirm
+        open={pendingDisconnect !== null}
+        onOpenChange={open => {
+          if (!open) setPendingDisconnect(null);
+        }}
+        connectorLabel={pendingDisconnectLabel}
+        onConfirm={() => {
+          if (pendingDisconnect) void handleDisconnect(pendingDisconnect);
+        }}
+      />
     </div>
   );
 

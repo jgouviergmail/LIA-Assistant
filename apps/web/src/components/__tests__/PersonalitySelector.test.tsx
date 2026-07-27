@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 
 import { PersonalitySelector } from '../PersonalitySelector';
 
@@ -60,5 +60,24 @@ describe('PersonalitySelector', () => {
     mockReturn.loading = true;
     const { container } = render(<PersonalitySelector />);
     expect(container.querySelector('img')).toBeNull();
+  });
+
+  /**
+   * Header reachability (S10): the visible title is hidden below `lg` so the
+   * header row fits at tablet widths. An emoji is not an accessible name, so
+   * the trigger must carry one explicitly — otherwise the control becomes
+   * anonymous to assistive technology on every viewport under 1024 px.
+   * The i18n stub echoes keys, so the assertion is on the key, not on the
+   * interpolated value.
+   */
+  it('names the trigger independently of the visible title', () => {
+    render(<PersonalitySelector />);
+    expect(screen.getByRole('button', { name: 'personality.selector_label' })).toBeInTheDocument();
+  });
+
+  it('names the trigger while loading, when no title exists at all', () => {
+    mockReturn.loading = true;
+    render(<PersonalitySelector />);
+    expect(screen.getByRole('button', { name: 'common.loading' })).toBeInTheDocument();
   });
 });

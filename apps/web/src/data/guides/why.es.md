@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versión** : 3.9
-**Fecha** : 2026-07-26
-**Aplicación** : LIA v1.25.23
+**Fecha** : 2026-07-27
+**Aplicación** : LIA v1.25.24
 **Licencia** : AGPL-3.0 (Open Source)
 
 ---
@@ -326,6 +326,8 @@ LIA dispone de una base de conocimientos integrada sobre sus propias funcionalid
 ### 8.1. El verdadero desafío de la IA agéntica
 
 La gran mayoría de los proyectos de IA agéntica nunca llegan a producción. Costes descontrolados, comportamiento no determinista, ausencia de trazas de auditoría, coordinación deficiente entre agentes. LIA ha resuelto estos problemas — y funciona en producción 24/7 sobre una Raspberry Pi. Y tus datos sobreviven a los incidentes: la base de datos se respalda automáticamente cada noche, y el procedimiento de restauración no es teórico — está probado.
+
+Una funcionalidad que nadie encuentra no existe. Por eso la accesibilidad de la interfaz se trata como la disponibilidad del servidor: medida, no supuesta. Cada control de la cabecera se compara con la ventana del navegador, ancho por ancho y **en los seis idiomas** — el alemán y el italiano llevan las etiquetas más largas y ceden primero. Y lo que la maquetación móvil puede abandonar está escrito, con su razón: una acción nunca desaparece sin que un sustituto ocupe su lugar.
 
 ### 8.2. Una stack de observabilidad profesional
 

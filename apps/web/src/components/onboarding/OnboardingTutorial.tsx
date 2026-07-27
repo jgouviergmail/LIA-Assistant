@@ -20,6 +20,7 @@ import { Page4Memory } from './pages/Page4Memory';
 import { Page5Interests } from './pages/Page5Interests';
 import { Page6Notifications } from './pages/Page6Notifications';
 import { Page7Examples } from './pages/Page7Examples';
+import { logger } from '@/lib/logger';
 
 interface OnboardingTutorialProps {
   lng: Language;
@@ -79,11 +80,15 @@ export function OnboardingTutorial({ lng, open, onComplete }: OnboardingTutorial
 
       // Refresh user in background (non-blocking)
       refreshUser().catch(error => {
-        console.error('Failed to refresh user after onboarding:', error);
+        logger.error('onboarding_user_refresh_failed', error as Error, {
+          component: 'OnboardingTutorial',
+        });
       });
       return true;
     } catch (error) {
-      console.error('Failed to update onboarding preference:', error);
+      logger.error('onboarding_preference_update_failed', error as Error, {
+        component: 'OnboardingTutorial',
+      });
       toast.error(t('common.error'));
       return false;
     } finally {

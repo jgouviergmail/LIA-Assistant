@@ -660,7 +660,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               // useSlashMenu (CC discipline).
               aria-controls={slashMenu.controlsId}
               aria-activedescendant={slashMenu.activeOptionId}
-              className="w-full resize-none rounded-lg border border-input bg-background px-4 py-3 text-base mobile:text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-transparent mobile:placeholder:text-muted-foreground"
+              // `block`: a textarea is INLINE by default, so its baseline adds ~6 px
+              // below it — the wrapper grew to 54 px while every control
+              // stayed 48 px, and the field sat 6 px above the paperclip and
+              // the send button (measured). Nothing else aligned them.
+              className="block w-full resize-none rounded-lg border border-input bg-background px-4 py-3 text-base mobile:text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-transparent mobile:placeholder:text-muted-foreground"
               rows={1}
               disabled={disabled || !apiAvailable}
               style={{ minHeight: '48px', maxHeight: '200px' }}

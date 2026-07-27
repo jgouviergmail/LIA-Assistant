@@ -131,7 +131,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
         await navigator.clipboard.writeText(value);
         toast.success(t(messageKey, defaultMessage));
       } catch {
-        toast.error(t('common.copyFailed', 'Impossible de copier.'));
+        toast.error(t('common.copyFailed'));
       }
     },
     [t]
@@ -334,11 +334,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                         variant="outline"
                         size="icon"
                         onClick={() => setShowJustCreated(v => !v)}
-                        aria-label={
-                          showJustCreated
-                            ? t('common.hide', 'Masquer')
-                            : t('common.show', 'Afficher')
-                        }
+                        aria-label={showJustCreated ? t('common.hide') : t('common.show')}
                       >
                         {showJustCreated ? (
                           <EyeOff className="h-4 w-4" />

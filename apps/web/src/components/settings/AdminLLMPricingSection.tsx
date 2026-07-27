@@ -37,6 +37,7 @@ import {
 } from '@/components/settings/admin-llm-pricing-helpers';
 import { useCatalogueInvalidator } from '@/lib/catalogue-invalidation-context';
 import { useTranslation } from '@/i18n/client';
+import { useConfirm } from '@/components/ui/use-confirm';
 import type { Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import type { BaseSettingsProps } from '@/types/settings';
@@ -210,6 +211,9 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
   );
 
   const [isPending, startTransition] = useTransition();
+  // W4b: replaces the native `confirm()` — an OS dialog whose buttons
+  // ignore the app's language and theme, on irreversible admin actions.
+  const { confirm, confirmDialog } = useConfirm();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -372,12 +376,13 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
     });
   };
 
-  const handleEditModel = (originalModelName: string, formData: ModelPricingFormData) => {
-    const confirmed = confirm(
-      `${t('settings.admin.llm.confirm.edit_title')}\n\n` +
+  const handleEditModel = async (originalModelName: string, formData: ModelPricingFormData) => {
+    const confirmed = await confirm({
+      title: t('settings.admin.llm.confirm.edit_title'),
+      description:
         `${t('settings.admin.llm.confirm.edit_message', { name: originalModelName })}\n\n` +
-        `${t('settings.admin.llm.confirm.edit_confirm')}`
-    );
+        `${t('settings.admin.llm.confirm.edit_confirm')}`,
+    });
     if (!confirmed) return;
 
     startTransition(async () => {
@@ -434,12 +439,13 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
     });
   };
 
-  const handleDeactivate = (pricing_id: string, model_name: string) => {
-    const confirmed = confirm(
-      `${t('settings.admin.llm.confirm.deactivate_title', { name: model_name })}\n\n` +
+  const handleDeactivate = async (pricing_id: string, model_name: string) => {
+    const confirmed = await confirm({
+      title: t('settings.admin.llm.confirm.deactivate_title', { name: model_name }),
+      description:
         `${t('settings.admin.llm.confirm.deactivate_message')}\n\n` +
-        `${t('settings.admin.llm.confirm.deactivate_confirm')}`
-    );
+        `${t('settings.admin.llm.confirm.deactivate_confirm')}`,
+    });
     if (!confirmed) return;
 
     startTransition(async () => {
@@ -655,6 +661,7 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
       collapsible={collapsible}
     >
       {content}
+      {confirmDialog}
     </SettingsSection>
   );
 }

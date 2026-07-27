@@ -56,7 +56,7 @@ export function TokensDisplayToggle({ lng = 'fr' }: TokensDisplayToggleProps) {
   // Show placeholder during SSR
   if (!mounted) {
     return (
-      <Button variant="ghost" size="sm" className="w-11 h-11 px-0">
+      <Button variant="ghost" size="sm" className="w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9">
         <CircleDollarSign className="h-[1.2rem] w-[1.2rem]" />
         <span className="sr-only">{t('tokens_display.toggle.enable')}</span>
       </Button>
@@ -69,7 +69,7 @@ export function TokensDisplayToggle({ lng = 'fr' }: TokensDisplayToggleProps) {
     <Button
       variant="ghost"
       size="sm"
-      className="w-11 h-11 px-0"
+      className="w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9"
       onClick={handleToggle}
       disabled={isLoading || !user}
       aria-label={

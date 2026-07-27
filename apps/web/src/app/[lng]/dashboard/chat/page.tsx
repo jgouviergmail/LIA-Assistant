@@ -14,13 +14,9 @@ import { ChatMessageList } from '@/components/chat/ChatMessageList';
 import { PsycheMilestoneWatcher } from '@/components/psyche/PsycheMilestoneWatcher';
 import { useLiveTabTitle } from '@/hooks/useLiveTabTitle';
 import { ChatInput } from '@/components/chat/ChatInput';
-import { FollowupChips, visibleFollowups } from '@/components/chat/FollowupChips';
-import { HitlActionCard } from '@/components/chat/HitlActionCard';
-import { ConnectorNoticeBanner } from '@/components/chat/ConnectorNoticeBanner';
 import { ContextUsagePill } from '@/components/chat/ContextUsagePill';
 import { ChatSearchBar } from '@/components/chat/search/ChatSearchBar';
 import { useChatHistorySearch } from '@/hooks/useChatHistorySearch';
-import { GeolocationPrompt } from '@/components/chat/GeolocationPrompt';
 import { DebugPanel } from '@/components/debug/DebugPanel';
 import { useDebugMetrics } from '@/components/debug/hooks/useDebugMetrics';
 import { WifiOff, Trash2, Search, X } from 'lucide-react';
@@ -29,6 +25,10 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { logger } from '@/lib/logger';
 import { toPlainPreview, NOTIFICATION_PREVIEW_MAX_LENGTH } from '@/lib/notification-preview';
 import { sentHistoryOf } from '@/lib/sent-history';
+import { hitlAwaitsUser, visibleChatSurfaces } from '@/lib/chat-surfaces';
+import { visibleFollowups } from '@/components/chat/FollowupChips';
+import { ChatConditionalSurfaces } from '@/components/chat/ChatConditionalSurfaces';
+import { ResetConversationConfirm } from '@/components/chat/ResetConversationConfirm';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { FeatureErrorBoundary } from '@/components/errors';
@@ -39,7 +39,8 @@ import { useInputDraft } from '@/hooks/useInputDraft';
 import { useSkills } from '@/hooks/useSkills';
 import type { SlashCommand } from '@/lib/slash-commands';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
-import { UsageBlockedBanner } from '@/components/usage/UsageBlockedBanner';
+import { UsageBanners } from '@/components/usage/UsageBanners';
+import { ActiveCallBanner } from '@/components/telephony/ActiveCallBanner';
 import { ActiveSpacesIndicator } from '@/components/spaces/ActiveSpacesIndicator';
 
 /**
@@ -61,7 +62,6 @@ function shortLang(language: string | undefined): string {
   return (language || 'fr').split('-')[0];
 }
 
-
 export default function ChatPage() {
   const { user, isLoading } = useAuth();
   const searchParams = useSearchParams();
@@ -72,7 +72,11 @@ export default function ChatPage() {
   const { config: appConfig } = useAppConfig(!!user && !isLoading);
 
   // Usage limits (per-user quotas)
-  const { isBlocked: isUsageBlocked, blockReason: usageBlockReason } = useUsageLimits();
+  const {
+    isBlocked: isUsageBlocked,
+    blockReason: usageBlockReason,
+    limits: usageLimits,
+  } = useUsageLimits();
 
   // UXR Lot 2 (A7): per-user persisted input draft. The layout mounts this
   // page only once the user is resolved, so the one-shot read is reliable.
@@ -159,6 +163,7 @@ export default function ChatPage() {
   const { t, i18n } = useTranslation();
   const lng = shortLang(i18n.language);
   const [isResetting, setIsResetting] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [currentMessage, setCurrentMessage] = useState('');
 
   // Debug Panel: Get validated metrics for current request
@@ -403,6 +408,17 @@ export default function ChatPage() {
   // through them (ChatInput owns the key handling).
   const sentHistory = useMemo(() => sentHistoryOf(messages), [messages]);
 
+  // W3: replay a failed prompt. It goes through `sendMessageFromPresent`, the
+  // exact path a typed message takes — the retry must not be a second, subtly
+  // different send route (history view, own-send tick, HITL resolution all
+  // depend on it).
+  const handleRetry = useCallback(
+    (prompt: string) => {
+      void sendMessageFromPresent(prompt);
+    },
+    [sendMessageFromPresent]
+  );
+
   // UXR Lot 3 (A3): stable handler for the floating button's history-view
   // delegation (returnToPresent owns its own in-flight guard).
   const handleReturnToPresent = useCallback(() => {
@@ -514,11 +530,30 @@ export default function ChatPage() {
   );
 
   // UXR Lot 4 (A2): follow-up chips — latest answer only, hidden while the
-  // surface is blocked; a chip click PREFILLS the input (never sends).
+  // surface is transiently busy (streaming, history view); a chip click
+  // PREFILLS the input (never sends). Whether they may take the slot at all is
+  // decided by the surface arbiter below, not here.
   const followupSuggestions = useMemo(
+    () => visibleFollowups(messages, isTyping || !!activeStreamId || historyView),
+    [messages, isTyping, activeStreamId, historyView]
+  );
+
+  // S1: single priority rule for everything stacked between the thread and the
+  // composer. Measured (S0): a pending HITL card plus chips takes the chrome to
+  // 443 px of a 716 px shell. More importantly, the combination is incoherent —
+  // LIA cannot ask for a confirmation and offer unrelated follow-ups at once.
+  // Blocking surfaces are never suppressed; comfort ones yield.
+  const chatSurfaces = useMemo(
     () =>
-      visibleFollowups(messages, isTyping || !!activeStreamId || historyView || isUsageBlocked),
-    [messages, isTyping, activeStreamId, historyView, isUsageBlocked]
+      visibleChatSurfaces({
+        usageBlocked: isUsageBlocked,
+        hitlAwaitingAction: hitlAwaitsUser(hitl.status),
+        hasConnectorNotices: connectorNotices.length > 0,
+        // The prompt owns its own trigger; this only offers it the slot.
+        wantsGeolocationPrompt: true,
+        hasFollowups: followupSuggestions.length > 0,
+      }),
+    [isUsageBlocked, hitl.status, connectorNotices.length, followupSuggestions.length]
   );
   const [chipPrefill, setChipPrefill] = useState({ text: '', nonce: 0 });
   const handleFollowupPick = useCallback((text: string) => {
@@ -684,14 +719,13 @@ export default function ChatPage() {
     };
   }, [user, apiAvailable, isTyping, loadConversationPage, setMessages, checkAndResumeActiveRun]);
 
-  // Handle conversation reset with confirmation
+  // W4a: the confirmation is an in-app AlertDialog, not `window.confirm` — an
+  // OS dialog ignores the theme, the chosen typography and the app's language
+  // (its buttons come from the operating system), and it blocks the thread.
+  // This runs AFTER the user confirmed; the dialog owns that decision.
   const handleResetConversation = async () => {
     if (isResetting) return;
-
-    // Show confirmation dialog
-    const confirmed = window.confirm(t('chat.reset_conversation_confirm'));
-    if (!confirmed) return;
-
+    setResetConfirmOpen(false);
     setIsResetting(true);
     try {
       await resetConversation();
@@ -728,7 +762,14 @@ export default function ChatPage() {
 
   return (
     <FeatureErrorBoundary feature="chat">
-      <div className="flex h-[calc(100vh-5.25rem)] gap-4">
+      {/* The shell is sized on the DYNAMIC viewport: `100vh` is the height the
+          page would have with the browser's URL bar retracted, so while that
+          bar is visible — the state a page loads in on mobile — the bottom of
+          this container, i.e. the composer, sits below the fold. `dvh` tracks
+          the bar. The `vh` declaration stays as the fallback: unlike the
+          `max-h` caps elsewhere, losing this one entirely would collapse the
+          flex column, so it degrades to the old behaviour rather than to none. */}
+      <div className="flex h-[calc(100vh-5.25rem)] supports-[height:100dvh]:h-[calc(100dvh-5.25rem)] gap-4">
         {/* Main Chat Area */}
         <div
           className={`flex flex-col flex-1 bg-background rounded-xl border border-border/50 shadow-lg overflow-hidden ${showDebugPanel ? 'max-w-[calc(100%-420px)]' : ''}`}
@@ -795,18 +836,25 @@ export default function ChatPage() {
                 </div>
               </div>
 
-              {/* Center: Voice Mode Badge - Single instance, always mounted to preserve KWS state */}
-              <div className="absolute left-1/2 -translate-x-1/2">
+              {/* Center: Voice Mode Badge — single instance, always mounted to
+                  preserve KWS state — and, beside it, the active-spaces
+                  indicator.
+
+                  The indicator used to sit in the flow, which pushed it flush
+                  against the right-hand controls; and centring it on its own
+                  would have put it UNDER the voice badge, which is absolutely
+                  centred. Sharing one centred row makes the overlap impossible
+                  by construction: alone it is centred, together they sit side
+                  by side with a gap. */}
+              <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-2">
                 <VoiceModeBadge
                   onTranscription={(text, meta) =>
                     sendMessageFromPresent(text, undefined, undefined, meta)
                   }
                   disabled={!apiAvailable || isTyping || isUsageBlocked}
                 />
+                <ActiveSpacesIndicator />
               </div>
-
-              {/* RAG Spaces Indicator */}
-              <ActiveSpacesIndicator />
 
               {/* Right side: Context-usage pill + Delete/New chat (the search
                   field lives in the LEFT slot, after the status pill). */}
@@ -815,30 +863,43 @@ export default function ChatPage() {
                     Hidden until the first turn completes (no data yet).
                     Desktop order on this side: [Pill] [Delete]. Conversation
                     totals ride its tooltip (QW-12) — the dedicated banner
-                    line is gone. */}
+                    line is gone.
+
+                    Below `mobile` (880 px) it steps aside: it is OBSERVATION,
+                    and the row must keep room for the search toggle, the
+                    spaces indicator and the destructive action. Its tooltip is
+                    a hover affordance anyway — unavailable on touch — and the
+                    same totals live on the dashboard usage tile. */}
                 {contextUsage && (
-                  <ContextUsagePill
-                    usage={contextUsage}
-                    totals={
-                      user?.tokens_display_enabled &&
-                      (combinedTotals.tokensIn > 0 || combinedTotals.tokensOut > 0)
-                        ? { ...combinedTotals, userMessageCount }
-                        : null
-                    }
-                  />
+                  <div className="hidden mobile:block">
+                    <ContextUsagePill
+                      usage={contextUsage}
+                      totals={
+                        user?.tokens_display_enabled &&
+                        (combinedTotals.tokensIn > 0 || combinedTotals.tokensOut > 0)
+                          ? { ...combinedTotals, userMessageCount }
+                          : null
+                      }
+                    />
+                  </div>
                 )}
-                {/* Delete/New chat button */}
+                {/* Delete/New chat button. Below `sm` the label steps aside —
+                    the row cannot carry it next to the spaces indicator — so
+                    the accessible name is carried explicitly: a bare trash
+                    icon names nothing. The ACTION itself never disappears; it
+                    is destructive and the only way to start over. */}
                 <button
-                  onClick={handleResetConversation}
+                  onClick={() => setResetConfirmOpen(true)}
                   disabled={isResetting || !apiAvailable}
-                  className="flex items-center gap-2 rounded-full bg-rose-100 dark:bg-rose-900 px-3 py-1.5 shadow-sm border border-rose-200 dark:border-rose-800 cursor-pointer transition-colors hover:bg-rose-200 dark:hover:bg-rose-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label={t('chat.new_chat')}
+                  className="flex shrink-0 items-center gap-2 rounded-full bg-rose-100 dark:bg-rose-900 px-3 py-1.5 shadow-sm border border-rose-200 dark:border-rose-800 cursor-pointer transition-colors hover:bg-rose-200 dark:hover:bg-rose-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isResetting ? (
                     <LoadingSpinner className="h-3.5 w-3.5 text-rose-600 dark:text-rose-300" />
                   ) : (
                     <Trash2 className="h-3.5 w-3.5 text-rose-600 dark:text-rose-300" />
                   )}
-                  <span className="text-[11px] mobile:text-xs font-semibold text-rose-600 dark:text-rose-300">
+                  <span className="hidden sm:inline text-[11px] mobile:text-xs font-semibold text-rose-600 dark:text-rose-300">
                     {t('chat.new_chat')}
                   </span>
                 </button>
@@ -870,8 +931,16 @@ export default function ChatPage() {
             onReturnToPresent={returnToPresent}
           />
 
-          {/* Usage Limit Blocked Banner */}
-          {isUsageBlocked && <UsageBlockedBanner blockReason={usageBlockReason} />}
+          {/* Quota surface: the wall, or the A5 warning that precedes it —
+              never both (UsageBanners owns that rule). */}
+          {/* A6: while LIA is on the phone, say so — the chat used to go
+              completely silent between the confirmation and the recap. */}
+          <ActiveCallBanner lng={lng} conversationTick={messages.length} />
+          <UsageBanners
+            limits={usageLimits}
+            isBlocked={isUsageBlocked}
+            blockReason={usageBlockReason}
+          />
 
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto chat-scrollbar">
@@ -897,25 +966,28 @@ export default function ChatPage() {
                 historyView={historyView}
                 onReturnToPresent={handleReturnToPresent}
                 ownSendTick={ownSendTick}
+                onRetry={handleRetry}
+                // W8: an empty chat offers three ways in. Same rail as the
+                // follow-up chips — it prefills the composer, never sends.
+                onStarterPick={handleFollowupPick}
               />
             </RegistryProvider>
           </div>
 
-          {/* Follow-up chips (UXR Lot 4, A2) — under the thread, above the
-              input; renders nothing without suggestions. */}
-          <FollowupChips suggestions={followupSuggestions} onPick={handleFollowupPick} />
-
-          {/* Geolocation Prompt - Shows when user types location phrases */}
-          <GeolocationPrompt currentMessage={currentMessage} />
-
-          {/* HITL approval card (Lot 1 P1-V1) — additive: the typed/voice
-              reply below stays fully functional next to the buttons. */}
-          <HitlActionCard hitl={hitl} onAction={submitHitlDecision} />
-
-          {/* Connector error notices (Lot 3 P3, ADR-134): reconnect /
-              rate-limit banners emitted when a tool broke on connector auth.
-              Renders nothing (not even the padding) without notices. */}
-          <ConnectorNoticeBanner notices={connectorNotices} onDismiss={dismissConnectorNotice} />
+          {/* Conditional surfaces between the thread and the composer, gated by
+              the S1 arbiter. Extracted as one element on purpose: four inline
+              branches here would grow this render hotspot past its complexity
+              cap, and the band is a subject of its own. */}
+          <ChatConditionalSurfaces
+            surfaces={chatSurfaces}
+            followupSuggestions={followupSuggestions}
+            onFollowupPick={handleFollowupPick}
+            currentMessage={currentMessage}
+            hitl={hitl}
+            onHitlAction={submitHitlDecision}
+            connectorNotices={connectorNotices}
+            onDismissConnectorNotice={dismissConnectorNotice}
+          />
 
           {/* Input Area - Enhanced with elevation */}
           <div className="border-t border-border/40 bg-card/80 backdrop-blur-sm shadow-lg">
@@ -936,6 +1008,12 @@ export default function ChatPage() {
             />
           </div>
         </div>
+
+        <ResetConversationConfirm
+          open={resetConfirmOpen}
+          onOpenChange={setResetConfirmOpen}
+          onConfirm={handleResetConversation}
+        />
 
         {/* Debug Panel - Right side (only when enabled + desktop viewport ≥1024px) */}
         {showDebugPanel && (

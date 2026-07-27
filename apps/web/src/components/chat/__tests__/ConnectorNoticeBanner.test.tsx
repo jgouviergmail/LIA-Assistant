@@ -75,9 +75,11 @@ describe('ConnectorNoticeBanner', () => {
 
   it('dismiss fires with the exact (connector, action) pair', async () => {
     const onDismiss = vi.fn();
+    // Mixed actions on purpose: such a set is never condensed (no single
+    // sentence would be true of both), so each notice keeps its own row.
     render(
       <ConnectorNoticeBanner
-        notices={[notice(), notice({ connectorType: 'google_calendar' })]}
+        notices={[notice(), notice({ connectorType: 'google_calendar', action: 'rate_limit' })]}
         onDismiss={onDismiss}
       />
     );
@@ -86,6 +88,94 @@ describe('ConnectorNoticeBanner', () => {
     expect(buttons).toHaveLength(2);
     await userEvent.click(buttons[1]);
 
-    expect(onDismiss).toHaveBeenCalledWith('google_calendar', 'reconnect');
+    expect(onDismiss).toHaveBeenCalledWith('google_calendar', 'rate_limit');
+  });
+});
+
+/**
+ * S4 — condensation. One expired Google refresh token invalidates Gmail,
+ * Calendar and Drive at once: three amber rows, ~120 px of a band S0 measured
+ * as already tight.
+ */
+describe('ConnectorNoticeBanner — condensation', () => {
+  const threeReconnects = [
+    notice({ connectorType: 'google_gmail' }),
+    notice({ connectorType: 'google_calendar' }),
+    notice({ connectorType: 'google_drive' }),
+  ];
+
+  it('collapses same-action notices into a single counted line', () => {
+    render(<ConnectorNoticeBanner notices={threeReconnects} onDismiss={() => undefined} />);
+
+    expect(screen.getByText('chat.connector_notice.summary_reconnect')).toBeInTheDocument();
+    // The individual messages are not rendered while collapsed.
+    expect(
+      screen.queryByText('chat.connector_notice.reconnect_message:Gmail')
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps ONE reconnect link on the summary — not one per connector', () => {
+    render(<ConnectorNoticeBanner notices={threeReconnects} onDismiss={() => undefined} />);
+    expect(
+      screen.getAllByRole('link', { name: 'chat.connector_notice.reconnect_button' })
+    ).toHaveLength(1);
+  });
+
+  it('reveals every notice on demand, each with its own dismiss control', async () => {
+    render(<ConnectorNoticeBanner notices={threeReconnects} onDismiss={() => undefined} />);
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'chat.connector_notice.summary_expand' })
+    );
+
+    expect(screen.getByText('chat.connector_notice.reconnect_message:Gmail')).toBeInTheDocument();
+    // 3 per-notice dismiss buttons + the group one.
+    expect(screen.getAllByRole('button', { name: 'chat.connector_notice.dismiss' })).toHaveLength(
+      4
+    );
+  });
+
+  it('lets the group be dismissed WITHOUT expanding it', async () => {
+    // Condensing the display must not cost a capability: the user could
+    // dismiss each notice before, so the group must be dismissible too.
+    const onDismiss = vi.fn();
+    render(<ConnectorNoticeBanner notices={threeReconnects} onDismiss={onDismiss} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'chat.connector_notice.dismiss' }));
+
+    expect(onDismiss).toHaveBeenCalledTimes(3);
+    expect(onDismiss).toHaveBeenCalledWith('google_gmail', 'reconnect');
+    expect(onDismiss).toHaveBeenCalledWith('google_drive', 'reconnect');
+  });
+
+  it('exposes the expansion state to assistive technology', async () => {
+    render(<ConnectorNoticeBanner notices={threeReconnects} onDismiss={() => undefined} />);
+
+    const toggle = screen.getByRole('button', { name: 'chat.connector_notice.summary_expand' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(toggle);
+    expect(
+      screen.getByRole('button', { name: 'chat.connector_notice.summary_collapse' })
+    ).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('does not condense a single notice', () => {
+    render(<ConnectorNoticeBanner notices={[notice()]} onDismiss={() => undefined} />);
+    expect(screen.getByText('chat.connector_notice.reconnect_message:Gmail')).toBeInTheDocument();
+    expect(screen.queryByText('chat.connector_notice.summary_reconnect')).not.toBeInTheDocument();
+  });
+
+  it('does not condense mixed actions', () => {
+    render(
+      <ConnectorNoticeBanner
+        notices={[notice(), notice({ connectorType: 'google_drive', action: 'rate_limit' })]}
+        onDismiss={() => undefined}
+      />
+    );
+    expect(screen.queryByText('chat.connector_notice.summary_reconnect')).not.toBeInTheDocument();
+    expect(screen.getByText('chat.connector_notice.reconnect_message:Gmail')).toBeInTheDocument();
+    expect(
+      screen.getByText('chat.connector_notice.rate_limit_message:Google Drive')
+    ).toBeInTheDocument();
   });
 });

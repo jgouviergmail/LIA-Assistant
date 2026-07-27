@@ -32,6 +32,7 @@ from src.core.constants import (
 from src.core.dependencies import get_db
 from src.core.exceptions import ResourceNotFoundError, ValidationError
 from src.core.session_dependencies import get_current_active_session
+from src.domains.journals.constants import JOURNAL_PORTRAIT_FEEDBACK_THEME
 from src.domains.journals.models import JournalEntry, JournalEntrySource, JournalTheme
 from src.domains.journals.schemas import (
     JournalConsolidationResponse,
@@ -569,10 +570,12 @@ async def portrait_feedback(
             f"User highlighted: «{data.highlighted_section.strip()}»\n"
             f"User feedback: {correction_body}"
         )
+    # Theme by subject (see JOURNAL_PORTRAIT_FEEDBACK_THEME): portrait feedback
+    # corrects the model of the USER, so it is a `user_observations` feedstock.
     service = JournalService(db)
     await service.create_entry(
         user_id=user.id,
-        theme="self_reflection",
+        theme=JOURNAL_PORTRAIT_FEEDBACK_THEME,
         title=correction_title,
         content=correction_body[: settings.journal_max_entry_chars],
         source="user_correction",

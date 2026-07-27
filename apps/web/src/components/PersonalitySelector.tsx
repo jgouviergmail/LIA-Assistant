@@ -55,9 +55,15 @@ export function PersonalitySelector() {
   // Show loading state
   if (loading) {
     return (
-      <Button variant="ghost" size="sm" className="gap-2 h-11" disabled>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="gap-2 h-11 px-3 max-[380px]:gap-1 max-[380px]:h-9 max-[380px]:px-2"
+        disabled
+        aria-label={t('common.loading')}
+      >
         <Sparkles className="h-4 w-4 animate-pulse" />
-        <span className="hidden sm:inline">...</span>
+        <span className="hidden xl:inline">...</span>
       </Button>
     );
   }
@@ -69,14 +75,23 @@ export function PersonalitySelector() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2 h-11" disabled={updating}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-2 h-11 px-3 max-[380px]:gap-1 max-[380px]:h-9 max-[380px]:px-2"
+          disabled={updating}
+          // The visible title is hidden below `xl` (the header row cannot fit
+          // it next to the nav), and an emoji is not an accessible name — so
+          // the name is carried explicitly and states the current value.
+          aria-label={t('personality.selector_label', { name: displayTitle })}
+        >
           <AnimatedEmoji
             glyph={displayEmoji}
             animate
             imgClassName="w-5 h-5"
             spanClassName="text-base"
           />
-          <span className="hidden sm:inline">{displayTitle}</span>
+          <span className="hidden xl:inline">{displayTitle}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">

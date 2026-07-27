@@ -32,6 +32,7 @@ const PROVIDER_OPTIONS: readonly LLMProviderName[] = [
   'qwen',
 ] as const;
 import { useTranslation } from '@/i18n/client';
+import { useConfirm } from '@/components/ui/use-confirm';
 import type { Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import type { BaseSettingsProps } from '@/types/settings';
@@ -94,6 +95,9 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
   );
 
   const [isPending, startTransition] = useTransition();
+  // W4b: replaces the native `confirm()` — an OS dialog whose buttons
+  // ignore the app's language and theme, on irreversible admin actions.
+  const { confirm, confirmDialog } = useConfirm();
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -202,8 +206,10 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
     });
   };
 
-  const handleEditEntry = (pricingId: string, formData: ImagePricingFormData) => {
-    const confirmed = confirm(t('settings.admin.image_pricing.confirm.edit_message'));
+  const handleEditEntry = async (pricingId: string, formData: ImagePricingFormData) => {
+    const confirmed = await confirm({
+      title: t('settings.admin.image_pricing.confirm.edit_message'),
+    });
     if (!confirmed) return;
 
     startTransition(async () => {
@@ -231,10 +237,10 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
     });
   };
 
-  const handleDeactivate = (pricingId: string, label: string) => {
-    const confirmed = confirm(
-      t('settings.admin.image_pricing.confirm.deactivate_message', { name: label })
-    );
+  const handleDeactivate = async (pricingId: string, label: string) => {
+    const confirmed = await confirm({
+      title: t('settings.admin.image_pricing.confirm.deactivate_message', { name: label }),
+    });
     if (!confirmed) return;
 
     startTransition(async () => {
@@ -441,6 +447,7 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
       collapsible={collapsible}
     >
       {content}
+      {confirmDialog}
     </SettingsSection>
   );
 }

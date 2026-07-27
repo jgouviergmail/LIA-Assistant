@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { answerConfirmDialog, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import type { PersonalityResponse } from '@/types/personality';
 
 const {
@@ -121,9 +121,11 @@ describe('AdminPersonalitiesSection — protected default', () => {
 
 describe('AdminPersonalitiesSection — row actions', () => {
   it('deletes a non-default personality once confirmed and refreshes', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    // W4b: the destructive path now goes through the in-app dialog, so the
+    // test presses the confirming button instead of stubbing window.confirm.
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: `${TIP}.delete` }));
+    await answerConfirmDialog(user);
     await waitFor(() => expect(deletePersonality).toHaveBeenCalledWith('p1'));
     expect(toast.success).toHaveBeenCalledWith(`${I18N}.success.deleted`);
     // The list is re-read after the mutation (initial + refresh).
@@ -131,17 +133,17 @@ describe('AdminPersonalitiesSection — row actions', () => {
   });
 
   it('does not delete when the confirmation is dismissed', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: `${TIP}.delete` }));
+    await answerConfirmDialog(user, false);
     expect(deletePersonality).not.toHaveBeenCalled();
   });
 
   it('surfaces the server message when a delete is refused', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     deletePersonality.mockRejectedValue(new Error('personality is in use'));
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: `${TIP}.delete` }));
+    await answerConfirmDialog(user);
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('personality is in use'));
   });
 

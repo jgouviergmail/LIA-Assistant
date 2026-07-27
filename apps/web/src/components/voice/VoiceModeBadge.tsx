@@ -1,13 +1,19 @@
 'use client';
 
 /**
- * VoiceModeBadge - Toggle badge for Voice Mode.
+ * VoiceModeBadge - in-chat control for Voice Mode.
+ *
+ * Renders ONLY while voice mode is enabled (it returns null otherwise), so it
+ * never shows an "inactive" state: enabling happens in Settings › Voice, while
+ * a long press here disables it. Every render helper below therefore treats
+ * "enabled" as an invariant rather than a branch.
  *
  * Visual states:
- * - Inactive (gray): Click to enable voice mode
- * - Active/Listening (green): Waiting for user to speak
- * - Recording (green pulse): Recording user speech
+ * - Initializing (amber spin): enabled, wake-word mic not open yet
+ * - Listening (green): waiting for the user to speak
+ * - Recording (green pulse): recording user speech
  * - Processing (green spin): STT in progress
+ * - Speaking: TTS playing the answer
  *
  * Accessibility:
  * - aria-label describes current action
@@ -163,20 +169,15 @@ export function VoiceModeBadge({
       longPressTimerRef.current = setTimeout(() => {
         didLongPressRef.current = true;
         setIsLongPressing(false);
-        // Toggle voice mode on long-press
-        const newEnabled = !isEnabled;
+        // The badge only renders while voice mode is ON (see the early return
+        // below), so a long press can only ever turn it OFF. Enabling is done
+        // from Settings › Voice.
         toggle();
-        // Show toast feedback
-        if (isEnabled) {
-          toast.info(t('chat.voice_mode.disabled_toast'));
-        } else {
-          toast.info(t('chat.voice_mode.enabled_toast'));
-        }
-        // Sync to server (non-blocking)
-        syncToServer(newEnabled);
+        toast.info(t('chat.voice_mode.disabled_toast'));
+        syncToServer(false);
       }, LONG_PRESS_DURATION_MS);
     },
-    [toggle, isEnabled, t, syncToServer]
+    [toggle, t, syncToServer]
   );
 
   /**
@@ -207,13 +208,8 @@ export function VoiceModeBadge({
       return;
     }
 
-    if (!isEnabled) {
-      // Show hint that long-press is needed to enable
-      toast.info(t('chat.voice_mode.hold_to_enable'));
-      return;
-    }
-
-    // Voice mode is enabled - handle based on current state
+    // Voice mode is necessarily enabled here (the badge is not rendered
+    // otherwise) — handle based on current state.
     if (state === 'listening') {
       // Start recording
       await startRecording();
@@ -224,16 +220,12 @@ export function VoiceModeBadge({
       // Show hint that long-press is needed to disable
       toast.info(t('chat.voice_mode.hold_to_disable'));
     }
-  }, [isEnabled, state, isRecording, isProcessing, isSpeaking, startRecording, stopRecording, t]);
+  }, [state, isRecording, isProcessing, isSpeaking, startRecording, stopRecording, t]);
 
   /**
    * Get aria-label based on state.
    */
-  const getAriaLabel = (currentState: VoiceModeState, enabled: boolean): string => {
-    if (!enabled) {
-      return t('chat.voice_mode.hold_to_enable');
-    }
-
+  const getAriaLabel = (currentState: VoiceModeState): string => {
     // Show initializing state while KWS is loading
     if (isInitializing) {
       return t('chat.voice_mode.badge_initializing');
@@ -256,13 +248,9 @@ export function VoiceModeBadge({
   /**
    * Get icon based on state.
    */
-  const getIcon = (currentState: VoiceModeState, enabled: boolean, supported: boolean) => {
+  const getIcon = (currentState: VoiceModeState, supported: boolean) => {
     if (!supported) {
       return <MicOff className="h-3.5 w-3.5" />;
-    }
-
-    if (!enabled) {
-      return <Mic className="h-3.5 w-3.5" />;
     }
 
     // Show spinner during initialization
@@ -285,14 +273,9 @@ export function VoiceModeBadge({
   /**
    * Get badge classes based on state.
    */
-  const getBadgeClasses = (currentState: VoiceModeState, enabled: boolean): string => {
+  const getBadgeClasses = (currentState: VoiceModeState): string => {
     const baseClasses =
       'gap-2 text-[11px] mobile:text-xs font-semibold transition-all duration-200';
-
-    if (!enabled) {
-      // Inactive - gray
-      return cn(baseClasses, 'bg-muted text-muted-foreground hover:bg-muted/80');
-    }
 
     // Initializing - amber/orange with spinner
     if (isInitializing) {
@@ -321,11 +304,7 @@ export function VoiceModeBadge({
   /**
    * Get label text.
    */
-  const getLabel = (currentState: VoiceModeState, enabled: boolean): string => {
-    if (!enabled) {
-      return t('chat.voice_mode.badge_inactive');
-    }
-
+  const getLabel = (currentState: VoiceModeState): string => {
     // Show initializing state while KWS is loading
     if (isInitializing) {
       return t('chat.voice_mode.badge_initializing');
@@ -365,18 +344,18 @@ export function VoiceModeBadge({
       onTouchStart={handlePressStart}
       onTouchEnd={handlePressEnd}
       disabled={isDisabled}
-      aria-label={getAriaLabel(state, isEnabled)}
+      aria-label={getAriaLabel(state)}
       aria-pressed={isEnabled}
-      title={getAriaLabel(state, isEnabled)}
+      title={getAriaLabel(state)}
       className={cn(
         'px-3 py-1.5 rounded-full touch-manipulation',
-        getBadgeClasses(state, isEnabled),
+        getBadgeClasses(state),
         isLongPressing && 'scale-95 opacity-80',
         className
       )}
     >
-      {getIcon(state, isEnabled, isSupported)}
-      <span className="hidden sm:inline">{getLabel(state, isEnabled)}</span>
+      {getIcon(state, isSupported)}
+      <span className="hidden sm:inline">{getLabel(state)}</span>
     </Button>
   );
 }

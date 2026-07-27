@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 40 |
-| ADRs | 155 (ADR-155 le plus récent ; ADR-008 n'a pas de fichier séparé) |
+| ADRs | 159 (ADR-159 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 158 fichiers) |
 | Fiches knowledge (RAG système) | 24 |
 
 ---
@@ -297,16 +297,20 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-155 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-159 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 
-> **Cette table n'est pas exhaustive** : elle saute de ADR-155 à ADR-126 — les
+> **Cette table n'est pas exhaustive** : elle saute de ADR-159 à ADR-126 — les
 > ADR-127 à ADR-150 n'y ont jamais été reportées. La liste complète et à jour
 > est [ADR_INDEX.md](./architecture/ADR_INDEX.md), qui fait foi.
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-159 | Atteignabilité des quatre thèmes du journal — deux des quatre thèmes (`self_reflection`, `ideas_analyses`) n'avaient **aucune** entrée en base, en dev comme en production : classement par sujet, ancrage à trois voies et harnais de mesure versionné | 2026-07 |
+| ADR-158 | Cliquet sur la troncature des traductions — la parité de clés ne mesure pas le contenu derrière la clé : une locale qui remplace une réponse de 500 caractères par un résumé de 150 passait indéfiniment. Comparaison inter-locales à script latin, liste d'exemptions écrite | 2026-07 |
+| ADR-157 | `brace-expansion` corrigé par un patch d'interopérabilité — alerte Dependabot #192 (high, DoS par expansion non bornée) sans version corrigée compatible avec la chaîne de linters ; patch pnpm plutôt qu'exemption d'audit | 2026-07 |
+| ADR-156 | Suppression de neuf modules frontend orphelins — 1 561 lignes de code et 592 de tests à zéro consommateur, dont deux composants déjà cassés (clés i18n absentes des six locales) ; couverture maintenue sans abaisser un seul seuil | 2026-07 |
 | ADR-151 | Thin CI Workflow — `ci.yml` contenait 144 lignes de commandes (97 de gates inline) et **zéro** appel `task` : CI et Taskfile étaient deux implémentations parallèles, d'où des gates découverts par un build rouge après un local vert. Chaque étape `run:` devient un appel `task <nom>` (15 appels, −128 lignes nettes), contrôles bash inline portés en Python (hôte Windows / runner Linux), 8 tâches créées pour des gates sans équivalent local, deux paliers (`ci:fast` sans service / `ci` complet) ; garde `check_ci_parity.py` avec 3 exceptions CI-only motivées ; 4 divergences réelles exhumées dont le plancher de couverture 60 % absent en local et une fuite d'environnement mesurée (`dotenv: .env` global) ; limite assumée : iso des commandes, pas de l'environnement | 2026-07 |
 | ADR-126 | Auth/Users Domain Decoupling — remédiation de la violation des dépendances stables du cycle 3 (auth : Ca=26 et Ce=14, 11 des 31 cycles) en 3 lots à comportement identique : frontière **auth = identité/session, users = agrégat User + cycle de vie**, modèle `User` déplacé byte-identique vers users (~84 sites migrés, zéro migration DB), `user_location_service` et provisioning de création (`AccountProvisioningService`, flag `commit_per_step` préservant les 2 topologies transactionnelles) rejoignent users, `haversine_distance` et sonde de clé provider promues dans core ; résultat : Ce(auth) 14→2, Ca(auth) 26→0, plus aucun cycle impliquant auth (relocalisation assumée des paires de hub vers users, all 31→32 / runtime 24→31, documentée), instrument `scripts/audit/measure_coupling.py` committé (reproduction exacte du cycle 3 + split runtime/typing) | 2026-07 |
 | ADR-125 | Draft Preview Renderer Extraction — extraction n°2 de la série complexité (audit cycle 3) : `Draft.get_detailed_preview` (CC ≈ 93, cascade de 14 `elif`, logique de présentation dans un module models) vers `drafts/preview_renderer.py` en dispatch table + 3 helpers « modifié ✏️ / préservé », filet golden byte-identique vert à l'identique avant/après (cas mixtes anti-câblage-croisé, 16 DraftType, 6 langues), assert de complétude boot-time pattern ADR-085, `models.py` 803 → 579 SLOC (sort du registre des fichiers gelés), CC max 9 par fonction ; follow-up même livraison : 3 comportements épinglés corrigés (clé i18n `no_subject` ×6 langues assainissant 5 couches de français en dur, body `None` rendu vide, reminder vide → `?`) avec diff golden chirurgical, + instrument `scripts/audit/measure_cc.py` committé | 2026-07 |

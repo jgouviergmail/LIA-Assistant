@@ -200,7 +200,40 @@ class TestConversationOrchestrator:
                 )
 
                 # Assert: Service was called with correct params
-                mock_get_or_create.assert_called_once_with(sample_user_id, mock_db)
+                mock_get_or_create.assert_called_once_with(sample_user_id, mock_db, language=None)
+
+    @pytest.mark.asyncio
+    async def test_setup_conversation_forwards_the_user_language(
+        self, orchestrator, mock_db, sample_user_id, sample_conversation_id
+    ):
+        """The user's locale reaches the conversation factory.
+
+        This is the NOMINAL path: every first chat message creates the
+        conversation here, and its default title is user-facing. Dropping the
+        language on this call is what left every non-French account with a
+        French title while the localized table looked correctly wired.
+        """
+        mock_conversation = MagicMock()
+        mock_conversation.id = sample_conversation_id
+
+        with patch(
+            "src.domains.agents.services.conversation_orchestrator.ConversationService"
+        ) as mock_conv_svc:
+            mock_get_or_create = AsyncMock(return_value=mock_conversation)
+            mock_conv_svc.return_value.get_or_create_conversation = mock_get_or_create
+
+            with patch.object(
+                orchestrator, "_get_user_oauth_scopes", new=AsyncMock(return_value=[])
+            ):
+                await orchestrator.setup_conversation(
+                    user_id=sample_user_id,
+                    session_id="test-session",
+                    run_id="test-run",
+                    db=mock_db,
+                    language="de",
+                )
+
+                mock_get_or_create.assert_called_once_with(sample_user_id, mock_db, language="de")
 
     @pytest.mark.asyncio
     async def test_setup_conversation_fetches_oauth_scopes(

@@ -44,7 +44,7 @@ export const OnboardingDialogContent = React.forwardRef<
           'fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%]',
           // Responsive sizing
           'w-[95vw] sm:w-[90vw] md:max-w-2xl lg:max-w-4xl',
-          'h-[92vh] sm:h-[88vh] md:h-[85vh]',
+          'h-[92dvh] sm:h-[88dvh] md:h-[85dvh]',
           // Layout - flex column for header/content/footer
           'flex flex-col overflow-hidden',
           // Style

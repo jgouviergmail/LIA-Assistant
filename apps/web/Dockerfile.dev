@@ -34,6 +34,10 @@ COPY --chown=node:node package.json ./
 # Copy web app package.json
 COPY --chown=node:node apps/web/package.json ./apps/web/
 
+# Patched dependencies (pnpm.patchedDependencies in the root package.json).
+# The install resolves these paths, so a missing directory is a hard failure.
+COPY --chown=node:node patches ./patches
+
 # Install dependencies using pnpm workspace filter
 # --filter @lia-assistant/web... installs dependencies for @lia-assistant/web and its workspace dependencies
 # BuildKit cache mount speeds up reinstallation when lockfile hasn't changed

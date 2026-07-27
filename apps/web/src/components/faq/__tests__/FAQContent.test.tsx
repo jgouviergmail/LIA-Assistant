@@ -34,9 +34,14 @@ const CONTENT: Record<string, string> = {
   // component reads as "no question" — the real page has all of them filled.
   'faq.sections.chat.count': '2',
   'faq.sections.chat.title': 'Conversation',
+  'faq.try_example': 'Essayer cet exemple : {{example}}',
   'faq.sections.chat.questions.q1.question': 'Comment gérer ma préférence ?',
+  // Carries a bulleted command (W1) alongside prose emphasis: only the former
+  // becomes clickable.
   'faq.sections.chat.questions.q1.answer':
-    '<p>LIA mémorise vos <strong>préférences</strong> de style.</p>',
+    '<p>LIA mémorise vos <strong>préférences</strong> de style.</p>' +
+    '<br>• «<em>Retiens que je préfère les réponses courtes</em>»' +
+    '<br>Dites <em>le premier</em> pour choisir.',
   'faq.sections.chat.questions.q2.question': 'Puis-je interrompre une réponse ?',
   'faq.sections.chat.questions.q2.answer': '<p>Oui, le bouton stop coupe le flux.</p>',
   'faq.sections.privacy.count': '1',
@@ -61,6 +66,24 @@ vi.mock('@/i18n/client', () => ({
     t: translate,
     i18n: { language: 'fr', changeLanguage: vi.fn() },
   }),
+}));
+
+// The global stub hands back a FRESH `push` on every `useRouter()` call, so
+// the navigation a click triggers would be unobservable. A stable spy is the
+// only way to assert where an example actually sends the user.
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push,
+    replace: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    refresh: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+  usePathname: () => '/fr/dashboard/faq',
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 import { FAQContent } from '../FAQContent';
@@ -241,5 +264,62 @@ describe('FAQContent — highlighting', () => {
 
     expect(screen.getByText('1 résultat(s)')).toBeInTheDocument();
     expect(question('Mes données sont-elles chiffrées ?')).toBeInTheDocument();
+  });
+});
+
+describe('FAQContent — actionable examples (W1)', () => {
+  /** Open the accordion holding the bulleted command. */
+  async function openExampleQuestion(user: ReturnType<typeof render>['user']) {
+    await user.click(question('Comment gérer ma préférence ?')!);
+  }
+
+  it('sends a clicked example to the chat as a prefilled draft', async () => {
+    const { user } = render();
+    await openExampleQuestion(user);
+
+    await user.click(
+      screen.getByRole('button', { name: /Retiens que je préfère les réponses courtes/ })
+    );
+
+    // Prefilled, NEVER sent: the user lands in the composer with the phrase
+    // ready to read, edit or discard.
+    expect(push).toHaveBeenCalledWith(
+      `/fr/dashboard/chat?draft=${encodeURIComponent('Retiens que je préfère les réponses courtes')}`
+    );
+  });
+
+  it('keeps prose emphasis inert', async () => {
+    const { user } = render();
+    await openExampleQuestion(user);
+
+    expect(screen.queryByRole('button', { name: /^le premier$/ })).not.toBeInTheDocument();
+    expect(screen.getByText('le premier')).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('keeps the answer formatting around the examples', async () => {
+    const { user } = render();
+    await openExampleQuestion(user);
+
+    // The split must not swallow the surrounding markup.
+    expect(screen.getByText('préférences')).toBeInTheDocument();
+  });
+
+  it('still works on a highlighted answer while searching', async () => {
+    // Searching rewrites the answer HTML with <mark> before it reaches the
+    // splitter — the commands must survive that rewrite. Search does NOT
+    // auto-expand the matches, so the journey is: search, open, act.
+    const { user } = render();
+    await search(user, 'préférence');
+    await openExampleQuestion(user);
+
+    const example = screen.getByRole('button', {
+      name: /Retiens que je préfère les réponses courtes/,
+    });
+    await user.click(example);
+
+    expect(push).toHaveBeenCalledWith(
+      `/fr/dashboard/chat?draft=${encodeURIComponent('Retiens que je préfère les réponses courtes')}`
+    );
   });
 });

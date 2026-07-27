@@ -1,0 +1,26 @@
+diff --git a/dist/commonjs/index.js b/dist/commonjs/index.js
+index be9df86be09c7655787a65c55ae6da01858894c3..414b2f9710e88b3298d7515da3b734a1b141c9db 100644
+--- a/dist/commonjs/index.js
++++ b/dist/commonjs/index.js
+@@ -261,3 +261,21 @@ function expand_(str, max, maxLength, isTop) {
+     return acc;
+ }
+ //# sourceMappingURL=index.js.map
++/* LIA interop shim — see patches/brace-expansion@5.0.8.patch.
++ *
++ * 5.x publishes ONLY the named `expand`, but the two `minimatch` versions in
++ * this tree predate that change and load it as a default export:
++ *   minimatch@3.1.5  `var expand = require('brace-expansion'); expand(p)`
++ *   minimatch@9.0.9  `__importDefault(require(...)).default(p)`
++ * Without this, ESLint dies with `TypeError: expand is not a function`
++ * (minimatch.js:271) before linting a single file.
++ *
++ * Re-exporting the function itself satisfies both, and keeping `.expand`
++ * attached satisfies minimatch@10.x should it ever enter the tree. We do NOT
++ * set `__esModule`, so minimatch@9's `__importDefault` wraps the function into
++ * `{ default: fn }` as it does for any plain CJS module.
++ */
++module.exports = expand;
++module.exports.expand = expand;
++module.exports.EXPANSION_MAX = exports.EXPANSION_MAX;
++module.exports.EXPANSION_MAX_LENGTH = exports.EXPANSION_MAX_LENGTH;

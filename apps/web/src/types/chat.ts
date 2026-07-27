@@ -20,6 +20,30 @@ export interface MessageAttachmentMeta {
   previewUrl?: string;
 }
 
+/**
+ * One AI-generated image attached to an assistant turn.
+ *
+ * Declared ONCE and imported everywhere it travels — the live SSE action
+ * payload, the `done` metadata, the message model, the reducer and the archived
+ * history mapper. The shape used to be written inline at each of those points,
+ * and when `expires_at` was added the copy in `chat-state.ts` was missed: the
+ * wire carried the field, one type said it did not, and the mismatch was
+ * invisible because an optional field makes the narrower shape assignable to
+ * the wider one. A single declaration removes the possibility.
+ */
+export interface GeneratedImage {
+  /** Relative attachment URL, e.g. `/api/v1/attachments/{id}`. */
+  url: string;
+  /** Alt text (the sanitized prompt). */
+  alt: string;
+  /**
+   * ISO-8601 instant after which the cleanup scheduler deletes the attachment
+   * (`attachments_ttl_hours`). Absent on history predating the feature — the UI
+   * then says nothing rather than guess a duration.
+   */
+  expires_at?: string | null;
+}
+
 export interface Message {
   id: string;
   content: string;
@@ -35,7 +59,7 @@ export interface Message {
   // Skill activation metadata (only for assistant messages)
   skillName?: string;
   // AI-generated images (only for assistant messages with image generation)
-  generatedImages?: { url: string; alt: string }[];
+  generatedImages?: GeneratedImage[];
   // Browser screenshot card (only for assistant messages with browser automation)
   browserScreenshot?: { url: string; alt: string };
   // Voice input metadata (only for user messages)
@@ -147,7 +171,7 @@ export interface DoneMetadata {
   // Skill activation
   skill_name?: string;
   // AI-generated images
-  generated_images?: { url: string; alt: string }[];
+  generated_images?: GeneratedImage[];
   // Browser screenshot card
   browser_screenshot?: { url: string; alt: string };
   // Psyche Engine: mood state summary from post-response processing

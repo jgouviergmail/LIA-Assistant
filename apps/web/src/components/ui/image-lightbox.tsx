@@ -210,7 +210,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
           cannot reach it. */}
         <div
           className={cn(
-            'pointer-events-auto relative max-w-7xl max-h-[90vh] p-4',
+            'pointer-events-auto relative max-w-7xl max-h-[90dvh] p-4',
             'animate-in zoom-in-95 duration-300'
           )}
         >
@@ -220,7 +220,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
             alt={alt}
             referrerPolicy="no-referrer"
             className={cn(
-              'max-w-full max-h-[90vh] w-auto h-auto',
+              'max-w-full max-h-[90dvh] w-auto h-auto',
               'rounded-lg shadow-2xl',
               'border-2 border-border/30'
             )}
@@ -230,7 +230,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
               width: 'auto',
               height: 'auto',
               maxWidth: '100%',
-              maxHeight: '90vh',
+              maxHeight: '90dvh',
             }}
           />
         </div>

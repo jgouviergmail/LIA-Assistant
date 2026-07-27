@@ -64,7 +64,7 @@ export function VoiceToggle({ lng = 'fr' }: VoiceToggleProps) {
   // Show placeholder during SSR
   if (!mounted) {
     return (
-      <Button variant="ghost" size="sm" className="w-11 h-11 px-0">
+      <Button variant="ghost" size="sm" className="w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9">
         <Volume2 className="h-[1.2rem] w-[1.2rem]" />
         <span className="sr-only">{t('voice.toggle.enable')}</span>
       </Button>
@@ -77,7 +77,7 @@ export function VoiceToggle({ lng = 'fr' }: VoiceToggleProps) {
     <Button
       variant="ghost"
       size="sm"
-      className="w-11 h-11 px-0"
+      className="w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9"
       onClick={handleToggle}
       disabled={isLoading || !user}
       aria-label={isEnabled ? t('voice.toggle.disable') : t('voice.toggle.enable')}

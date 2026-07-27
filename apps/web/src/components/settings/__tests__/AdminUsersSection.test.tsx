@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { answerConfirmDialog, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import type { AdminUserRow } from '../AdminUsersSection';
 
 const { get } = vi.hoisted(() => ({ get: vi.fn() }));
@@ -186,17 +186,17 @@ describe('AdminUsersSection — destructive paths', () => {
   const deactivated = adminUser({ is_active: false });
 
   it('does not delete when the confirmation is dismissed', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     const { user } = await renderLoaded([deactivated]);
     await user.click(screen.getByRole('button', { name: `${ACT.delete} alice@example.com` }));
+    await answerConfirmDialog(user, false);
     expect(deleteUserAccount).not.toHaveBeenCalled();
   });
 
   it('soft-deletes a deactivated user and switches the row to the erase affordance', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     deleteUserAccount.mockResolvedValue({ success: true, message: 'deleted' });
     const { user } = await renderLoaded([deactivated]);
     await user.click(screen.getByRole('button', { name: `${ACT.delete} alice@example.com` }));
+    await answerConfirmDialog(user);
     await waitFor(() => expect(deleteUserAccount).toHaveBeenCalledWith('u1'));
     expect(toast.success).toHaveBeenCalledWith('deleted');
     // Soft-deleted rows expose GDPR erase instead of delete.
@@ -206,28 +206,28 @@ describe('AdminUsersSection — destructive paths', () => {
   });
 
   it('reports a failed soft delete', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     deleteUserAccount.mockResolvedValue({ success: false, error: 'still active' });
     const { user } = await renderLoaded([deactivated]);
     await user.click(screen.getByRole('button', { name: `${ACT.delete} alice@example.com` }));
+    await answerConfirmDialog(user);
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('still active'));
   });
 
   it('erases a soft-deleted user, removing the row', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     deleteUserGDPR.mockResolvedValue({ success: true, message: 'erased' });
     const { user } = await renderLoaded([adminUser({ is_deleted: true, is_active: false })]);
     await user.click(screen.getByRole('button', { name: `${ACT.erase} alice@example.com` }));
+    await answerConfirmDialog(user);
     await waitFor(() => expect(deleteUserGDPR).toHaveBeenCalledWith('u1'));
     await waitFor(() => expect(screen.queryByText('alice@example.com')).not.toBeInTheDocument());
     expect(toast.success).toHaveBeenCalledWith('erased');
   });
 
   it('rolls the optimistic removal back when the erase is refused', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     deleteUserGDPR.mockResolvedValue({ success: false, error: 'nope' });
     const { user } = await renderLoaded([adminUser({ is_deleted: true, is_active: false })]);
     await user.click(screen.getByRole('button', { name: `${ACT.erase} alice@example.com` }));
+    await answerConfirmDialog(user);
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('nope'));
     // React reverts the optimistic delete: the row is back.
     expect(await screen.findByText('alice@example.com')).toBeInTheDocument();

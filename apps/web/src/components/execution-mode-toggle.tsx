@@ -9,6 +9,7 @@ import apiClient from '@/lib/api-client';
 import { toast } from 'sonner';
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
+import { logger } from '@/lib/logger';
 
 interface ExecutionModeToggleProps {
   lng?: Language;
@@ -42,7 +43,9 @@ export function ExecutionModeToggle({ lng = 'fr' }: ExecutionModeToggleProps) {
         newMode === 'react' ? t('executionMode.toggle.enabled') : t('executionMode.toggle.disabled')
       );
     } catch (error) {
-      console.error('Failed to update execution mode:', error);
+      logger.error('execution_mode_update_failed', error as Error, {
+        component: 'ExecutionModeToggle',
+      });
       toast.error(t('common.error'));
     } finally {
       setIsLoading(false);
@@ -52,7 +55,7 @@ export function ExecutionModeToggle({ lng = 'fr' }: ExecutionModeToggleProps) {
   // Show placeholder during SSR
   if (!mounted) {
     return (
-      <Button variant="ghost" size="sm" className="w-11 h-11 px-0">
+      <Button variant="ghost" size="sm" className="w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9">
         <Workflow className="h-[1.2rem] w-[1.2rem]" />
         <span className="sr-only">{t('executionMode.toggle.enable_react')}</span>
       </Button>
@@ -65,7 +68,7 @@ export function ExecutionModeToggle({ lng = 'fr' }: ExecutionModeToggleProps) {
     <Button
       variant="ghost"
       size="sm"
-      className="w-11 h-11 px-0"
+      className="w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9"
       onClick={handleToggle}
       disabled={isLoading || !user}
       aria-label={

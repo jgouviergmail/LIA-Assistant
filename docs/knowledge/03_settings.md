@@ -5,8 +5,8 @@ The timezone affects date display in your conversations:
 
 **To change it:**
 1. Go to **Settings** (⚙️ icon in the menu)
-2. Find the **Timezone** section
-3. Select your timezone from the dropdown list
+2. Open the **Preferences** tab
+3. Under **Personalization**, unfold **Timezone** and pick yours
 
 **🌍 Automatic detection:**
 On your first login, LIA automatically detects your timezone via your browser.
@@ -183,8 +183,8 @@ Click the **globe icon** 🌐 in the title bar and select your language.
 
 **Via settings:**
 1. Go to **Settings** (⚙️ icon in the menu)
-2. Find the **Language** section
-3. Select your desired language
+2. Open the **Preferences** tab
+3. Under **Personalization**, unfold **Language**
 
 **🔄 Sync:**
 Both methods sync your preference. The language is saved in your profile.
@@ -222,7 +222,7 @@ Manage your personal information:
 • 📧 **Email**: login identifier (fixed after registration)
 
 **To modify:**
-Go to **Settings** (⚙️ icon in the menu) and find the corresponding sections.
+Your full name lives in **Settings > Profile**. Timezone, language, theme and font live in **Settings > Preferences**, under the **Personalization** group.
 
 ## How do I customize LIA's style?
 LIA can adapt its **communication style** to your preferences:
@@ -398,3 +398,15 @@ Yes — Settings → "My dashboard". Hide any of the 9 briefing cards or reorder
 
 ## What is the "Open loops" section?
 LIA automatically detects **commitments** in your conversations ("I must call the plumber back", "waiting for Marc's reply"). Settings → "Open loops" lists them by direction (you owe / you are waiting), with three one-tap actions: **Done**, **Relaunch in chat** (pre-fills a follow-up message) or **No longer relevant**. Nothing is created manually — the ledger's value is being automatic.
+
+## Can I link straight to a settings section?
+
+Yes. Adding `?section=<name>` to the settings URL opens the right tab, unfolds
+that section and scrolls to it. Seventeen sections are addressable this way, and
+the app uses those links itself — the getting-started checklist, the home cards
+and the in-call banner all point at their own section rather than at the top of
+the page.
+
+An unknown or stale value simply leaves the page on its default tab; nothing
+breaks, and the parameter is cleaned from the URL so a reload does not replay
+the jump.

@@ -40,7 +40,11 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-_InitiateStatus = Literal["placed", "already_active", "not_configured", "failed"]
+# "failed"   → transient (network, vendor 5xx): retrying can work.
+# "rejected" → the vendor DECLINED for a configuration reason (unverified
+#              source number, exhausted credit). Retrying changes nothing, so
+#              the two must not share a message that says "try again".
+_InitiateStatus = Literal["placed", "already_active", "not_configured", "failed", "rejected"]
 
 # Vendor conversation statuses meaning the call itself is over ("processing" =
 # ended, transcript still being prepared). spike: values per the conversations
@@ -330,9 +334,54 @@ class TelephonyService:
         }
 
         # Vendor HTTP call — OUTSIDE any DB transaction.
-        client = self._client_factory(creds.api_key)
+        return await self._dial_and_interpret(
+            api_key=creds.api_key,
+            repo=repo,
+            user_id=user_id,
+            call_id=call_id,
+            agent_id=agent_id,
+            agent_phone_number_id=agent_phone_number_id,
+            callee_phone=callee_phone,
+            dynamic_variables=dynamic_variables,
+        )
+
+    async def _dial_and_interpret(
+        self,
+        *,
+        api_key: str,
+        repo: TelephonyRepository,
+        user_id: UUID,
+        call_id: UUID,
+        agent_id: str,
+        agent_phone_number_id: str,
+        callee_phone: str,
+        dynamic_variables: dict[str, str],
+    ) -> InitiateCallResult:
+        """Place the call and turn the vendor's answer into a terminal status.
+
+        Extracted from :meth:`initiate_call` because reading that answer is a
+        subject of its own — the vendor has three ways of saying something other
+        than "placed", and only one of them is an HTTP error. Keeping the four
+        branches here also keeps the caller under the complexity ratchet.
+
+        The DIALING row already exists and is committed; this method owns its
+        transition. It runs entirely outside any DB transaction.
+
+        Args:
+            api_key: Vendor credential of the user's connector.
+            repo: Repository bound to the caller's session.
+            user_id: Owner of the call (logging only).
+            call_id: The committed DIALING row to transition.
+            agent_id: Provisioned vendor agent.
+            agent_phone_number_id: Vendor-side source number.
+            callee_phone: Plaintext E.164 number sent to the vendor.
+            dynamic_variables: Per-call variables, ``call_id`` included.
+
+        Returns:
+            ``placed``, ``failed`` (transient) or ``rejected`` (configuration).
+        """
         try:
-            result = await client.initiate_outbound_call(
+            result = await self._client_factory(api_key).initiate_outbound_call(
                 agent_id=agent_id,
                 agent_phone_number_id=agent_phone_number_id,
                 to_number=callee_phone,  # plaintext to the vendor; only the column is encrypted
@@ -349,6 +398,33 @@ class TelephonyService:
             )
             return InitiateCallResult(status="failed", call_id=call_id)
 
+        # The vendor answers 200 even when it REFUSES to dial (unverified number,
+        # exhausted credit, bad phone id): the rejection lives in the body, as
+        # `success: false`. Ignoring it left a DIALING row that no call would
+        # ever end — and, having no conversation id, one the self-healing probe
+        # cannot even ask about, so it blocked every further call until the
+        # 15-minute stale threshold. Observed in dev: a user unable to place a
+        # call for a quarter of an hour after a silent refusal.
+        if not result.success:
+            await repo.mark_dial_failed(call_id, error=f"initiate_rejected:{result.message or '?'}")
+            logger.warning(
+                "telephony_initiate_call_rejected",
+                user_id=str(user_id),
+                call_id=str(call_id),
+                vendor_message=result.message,
+            )
+            return InitiateCallResult(status="rejected", call_id=call_id)
+
         await repo.set_conversation_id(call_id, result.conversation_id)
+        if not result.conversation_id:
+            # Accepted but unidentifiable: the call may well be ringing, so the
+            # row STAYS active (closing it would allow a concurrent second
+            # call). It is simply unprobeable — the stale threshold is then the
+            # only way out, and that is worth saying out loud.
+            logger.warning(
+                "telephony_call_initiated_without_conversation_id",
+                user_id=str(user_id),
+                call_id=str(call_id),
+            )
         logger.info("telephony_call_initiated", user_id=str(user_id), call_id=str(call_id))
         return InitiateCallResult(status="placed", call_id=call_id)

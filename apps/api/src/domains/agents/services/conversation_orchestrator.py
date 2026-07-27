@@ -85,6 +85,7 @@ class ConversationOrchestrator:
         session_id: str,
         run_id: str,
         db: AsyncSession,
+        language: str | None = None,
     ) -> ConversationContext:
         """
         Setup conversation: get/create, setup tracking, fetch OAuth scopes.
@@ -94,6 +95,11 @@ class ConversationOrchestrator:
             session_id: Session identifier
             run_id: Unique run identifier
             db: Database session
+            language: Raw locale of the user, used only when the conversation
+                has to be CREATED (its default title is user-facing). This is
+                the nominal path — every first chat message lands here — so
+                omitting it is what leaves a non-French user with a French
+                title. ``None`` keeps the historical default.
 
         Returns:
             ConversationContext with conversation_id, tracking_context, oauth_scopes
@@ -105,7 +111,7 @@ class ConversationOrchestrator:
         """
         # Get or create conversation
         conv_service = ConversationService()
-        conversation = await conv_service.get_or_create_conversation(user_id, db)
+        conversation = await conv_service.get_or_create_conversation(user_id, db, language=language)
         conversation_id = conversation.id
 
         logger.info(

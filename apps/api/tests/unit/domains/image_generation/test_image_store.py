@@ -110,3 +110,40 @@ class TestPendingImageStore:
         images = get_and_clear_pending_images("conv-1")
         assert "[" not in images[0].alt_text
         assert "(" not in images[0].alt_text
+
+
+class TestExpiryPropagation:
+    """N2: the purge deadline must reach the frontend.
+
+    Generated images are attachments deleted by the cleanup scheduler
+    (``attachments_ttl_hours``, purged every 6 h — ``list_expired`` does not
+    spare non-orphans). Until now the frontend was never told, so a user could
+    only discover the loss after the fact.
+    """
+
+    def test_deadline_is_carried_through(self) -> None:
+        """The ISO deadline survives store → read."""
+        store_pending_image("conv-1", "/url", "alt", expires_at="2026-07-27T12:00:00+00:00")
+
+        images = get_and_clear_pending_images("conv-1")
+
+        assert images[0].expires_at == "2026-07-27T12:00:00+00:00"
+
+    def test_deadline_survives_a_peek(self) -> None:
+        """Archiving (peek) sees the same deadline as the done chunk."""
+        store_pending_image("conv-1", "/url", "alt", expires_at="2026-07-27T12:00:00+00:00")
+
+        peeked = peek_pending_images("conv-1")
+        cleared = get_and_clear_pending_images("conv-1")
+
+        assert peeked[0].expires_at == cleared[0].expires_at
+
+    def test_absent_deadline_stays_none(self) -> None:
+        """No deadline means None — never a fabricated default.
+
+        The UI renders nothing in that case; inventing a duration here would
+        make it lie on every legacy path that does not pass one.
+        """
+        store_pending_image("conv-1", "/url", "alt")
+
+        assert get_and_clear_pending_images("conv-1")[0].expires_at is None

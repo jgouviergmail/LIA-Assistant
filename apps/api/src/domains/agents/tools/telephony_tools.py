@@ -37,6 +37,21 @@ logger = structlog.get_logger(__name__)
 # only phone punctuation — a contact name never matches this.
 _PHONE_RE = re.compile(r"^\+?\d[\d\s().\-]{6,}$")
 
+# Non-placed initiate outcomes → the locale key that explains them. Module level
+# so the completeness test can IMPORT it: this lookup is unguarded, and a status
+# added without its phrase would raise KeyError right after the user confirmed
+# the call — the least forgiving moment there is.
+_STATUS_TO_PHRASE: dict[str, str] = {
+    "already_active": "already_active",
+    "not_configured": "not_configured",
+    # Transient (network, vendor 5xx): "try again in a moment" is true.
+    "failed": "call_failed",
+    # The vendor DECLINED on configuration grounds (observed: a source number
+    # not verified on the Twilio account). Telling the user to retry would be
+    # a lie — nothing changes until the provider side is fixed.
+    "rejected": "call_rejected",
+}
+
 
 def _looks_like_phone(value: str) -> bool:
     """True when the raw callee is already a dialable number (skip resolution)."""
@@ -375,9 +390,4 @@ async def execute_phone_call_draft(
         # 'name' drives the phone_call success template (async-safe, not past tense).
         return {"success": True, "name": callee_name, "call_id": str(result.call_id)}
 
-    _STATUS_TO_PHRASE = {
-        "already_active": "already_active",
-        "not_configured": "not_configured",
-        "failed": "call_failed",
-    }
     raise TelephonyExecutionError(phrases[_STATUS_TO_PHRASE[result.status]])

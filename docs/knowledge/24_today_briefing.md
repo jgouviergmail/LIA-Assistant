@@ -50,6 +50,20 @@ Each LLM call (greeting + synthesis) shows two things next to the "il y a X min"
 
 Hover the badge for a tooltip detailing the exact model used (`gpt-4.1-nano` by default) and the `IN / OUT / CACHE` breakdown. These same numbers also feed your usual usage statistics — cached input tokens are correctly subtracted before tracking, so a cached prompt is not charged twice.
 
+## Some cards are missing entirely. How do I know which?
+
+Seven of the nine cards render **nothing at all** when their data source is not
+configured — no card, no message. On a new account that means two empty cards and
+seven invisible gaps.
+
+A single discreet line above the grid now names those cards, and each name links
+straight to the settings section that switches it on: the connectors for the
+agenda, the mail, the birthdays, the tasks and the documents; the weather key and
+your location for the weather; the health-metrics toggle for health.
+
+Cards you hid yourself are never listed there. Asking you to connect something
+you deliberately turned off would be noise, not help.
+
 ## Why is a card not showing up?
 
 There are 4 possible card states:

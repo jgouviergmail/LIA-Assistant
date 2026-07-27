@@ -44,6 +44,10 @@ WORKDIR /monorepo
 # Copy workspace configuration and lockfile
 COPY .npmrc pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY apps/web/package.json ./apps/web/
+# `pnpm.patchedDependencies` in package.json points at this directory. Without
+# it `--frozen-lockfile` fails outright on the missing patch file, so this COPY
+# is load-bearing, not incidental.
+COPY patches ./patches
 
 # Install all dependencies (including dev for build)
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \

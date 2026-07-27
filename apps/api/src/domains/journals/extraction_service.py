@@ -29,7 +29,6 @@ if TYPE_CHECKING:
 
 from src.core.config import settings
 from src.core.llm_config_helper import get_llm_config_for_agent
-from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.utils.json_parser import extract_json_from_llm_response
 from src.domains.journals.constants import (
     JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
@@ -40,6 +39,7 @@ from src.domains.journals.constants import (
     JOURNAL_EXTRACTION_SEMANTIC_LIMIT,
 )
 from src.domains.journals.models import JournalEntryMood, JournalEntrySource
+from src.domains.journals.prompt_builders import build_introspection_prompt
 from src.domains.journals.schemas import ConsolidationParseResult, ExtractedJournalEntry
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
@@ -113,21 +113,6 @@ def pop_extraction_debug(run_id: str) -> dict[str, Any] | None:
     _evict_stale_debug_entries()
     entry = _extraction_debug_results.pop(run_id, None)
     return entry[1] if entry is not None else None
-
-
-# =============================================================================
-# Prompt Helpers
-# =============================================================================
-
-
-def _get_introspection_prompt() -> str:
-    """Load the journal introspection prompt from file."""
-    return str(load_prompt("journal_introspection_prompt"))
-
-
-def _get_analyst_persona_prompt() -> str:
-    """Load the journal analyst persona prompt from file."""
-    return str(load_prompt("journal_analyst_persona"))
 
 
 async def _maybe_build_inner_state_section(user_id: str) -> str:
@@ -857,8 +842,8 @@ async def extract_journal_entry_background(
             previous_turn_injected_ids=previous_turn_injected_ids or [],
         )
 
-        # Build prompt
-        prompt = _get_introspection_prompt().format(
+        # Build prompt (shared renderer — see domains/journals/prompt_builders.py)
+        prompt = build_introspection_prompt(
             conversation=conversation,
             existing_entries=existing_context,
             current_chars=total_chars,
@@ -869,11 +854,7 @@ async def extract_journal_entry_background(
             health_context=health_context,
             inner_state_section=inner_state_section,
             previous_turn_directives_section=previous_turn_directives_section,
-        )
-
-        # Add analyst persona (always injected, independent of conversational personality)
-        prompt += "\n\n" + _get_analyst_persona_prompt().format(
-            personality_code=personality_code or "none"
+            personality_code=personality_code,
         )
 
         # Call LLM
@@ -982,59 +963,65 @@ async def extract_journal_entry_background(
                 service = JournalService(db)
 
                 for action in actions:
+                    # One SAVEPOINT per action — see the same guard in
+                    # consolidation_service: without it the first DB-level error
+                    # poisons the transaction and every later action fails on the
+                    # aborted session, so this `except ... continue` degrades into
+                    # all-or-nothing instead of skipping the bad action.
                     try:
-                        if (
-                            action.action == "create"
-                            and action.theme
-                            and action.title
-                            and action.content
-                        ):
-                            await service.create_entry(
-                                user_id=UUID(user_id),
-                                theme=action.theme.value,
-                                title=action.title,
-                                content=action.content,
-                                mood=(
-                                    action.mood.value
-                                    if action.mood
-                                    else JournalEntryMood.REFLECTIVE.value
-                                ),
-                                source=JournalEntrySource.CONVERSATION.value,
-                                session_id=session_id,
-                                personality_code=personality_code,
-                                max_entry_chars=max_entry_chars,
-                                search_hints=action.search_hints,
-                                confidence=(
-                                    action.confidence.value if action.confidence else "medium"
-                                ),
-                                level=(action.level.value if action.level else "L1"),
-                            )
-                            applied_count += 1
-
-                        elif action.action == "update" and action.entry_id:
-                            entry = await service.repo.get_by_id(UUID(action.entry_id))
-                            if entry and str(entry.user_id) == user_id:
-                                await service.update_entry(
-                                    entry=entry,
+                        async with db.begin_nested():
+                            if (
+                                action.action == "create"
+                                and action.theme
+                                and action.title
+                                and action.content
+                            ):
+                                await service.create_entry(
+                                    user_id=UUID(user_id),
+                                    theme=action.theme.value,
                                     title=action.title,
                                     content=action.content,
-                                    mood=(action.mood.value if action.mood else None),
+                                    mood=(
+                                        action.mood.value
+                                        if action.mood
+                                        else JournalEntryMood.REFLECTIVE.value
+                                    ),
+                                    source=JournalEntrySource.CONVERSATION.value,
+                                    session_id=session_id,
+                                    personality_code=personality_code,
                                     max_entry_chars=max_entry_chars,
                                     search_hints=action.search_hints,
                                     confidence=(
-                                        action.confidence.value if action.confidence else None
+                                        action.confidence.value if action.confidence else "medium"
                                     ),
-                                    evidence_outcome=action.evidence_outcome,
-                                    level=(action.level.value if action.level else None),
-                                    theme=(action.theme.value if action.theme else None),
+                                    level=(action.level.value if action.level else "L1"),
                                 )
                                 applied_count += 1
 
-                        elif action.action == "delete" and action.entry_id:
-                            entry = await service.repo.get_by_id(UUID(action.entry_id))
-                            if entry and str(entry.user_id) == user_id:
-                                await service.delete_entry(entry)
-                                applied_count += 1
+                            elif action.action == "update" and action.entry_id:
+                                entry = await service.repo.get_by_id(UUID(action.entry_id))
+                                if entry and str(entry.user_id) == user_id:
+                                    await service.update_entry(
+                                        entry=entry,
+                                        title=action.title,
+                                        content=action.content,
+                                        mood=(action.mood.value if action.mood else None),
+                                        max_entry_chars=max_entry_chars,
+                                        search_hints=action.search_hints,
+                                        confidence=(
+                                            action.confidence.value if action.confidence else None
+                                        ),
+                                        evidence_outcome=action.evidence_outcome,
+                                        level=(action.level.value if action.level else None),
+                                        theme=(action.theme.value if action.theme else None),
+                                    )
+                                    applied_count += 1
+
+                            elif action.action == "delete" and action.entry_id:
+                                entry = await service.repo.get_by_id(UUID(action.entry_id))
+                                if entry and str(entry.user_id) == user_id:
+                                    await service.delete_entry(entry)
+                                    applied_count += 1
 
                     except Exception as e:
                         logger.warning(

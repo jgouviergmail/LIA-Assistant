@@ -9,22 +9,21 @@
  *   2026-07-25: `grep -c 'register_agent(' agents.py` — the telephony agent
  *   had landed without this counter following it.
  * - tools: ToolManifest entries across src/domains/agents/{domain}/catalogue_manifests.py
- *   — re-measured 2026-07-25 (top-level `X = ToolManifest(` definitions) = 81.
+ *   — re-measured 2026-07-27 (top-level `X = ToolManifest(` definitions) = 85.
  * - providers: ProviderType Literal in infrastructure/llm/providers/adapter.py
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
- * - metrics: Prometheus metric definitions across src/ — re-measured 2026-07-25
- *   (v1.25.22): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 441
- *   (unchanged: the security wave added alerting and guards, not new metrics)
+ * - metrics: Prometheus metric definitions across src/ — re-measured 2026-07-27
+ *   (v1.25.24): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 442.
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Measured 2026-07-26 (v1.25.23): backend pytest 15,877 collected (837 files)
- *   + frontend vitest 2,832 (275 files) = 18,709. Re-measure both suites every
+ *   Measured 2026-07-27 (v1.25.24): backend pytest 15,954 collected (842 files)
+ *   + frontend vitest 3,460 (296 files) = 19,414. Re-measure both suites every
  *   release: the value carried the backend count alone until v1.25.9, while its
  *   comment already claimed both.
- * - adrs: docs/architecture/ ADR files (154 files, numbered up to ADR-155 —
- *   ADR-008 has no separate file, so 155 numbers map to 154 files).
+ * - adrs: docs/architecture/ ADR files (158 files, numbered up to ADR-159 —
+ *   ADR-008 has no separate file, so 159 numbers map to 158 files).
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   171 headings, no Unreleased pending.
+ *   172 headings, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -35,14 +34,14 @@
 
 export const LANDING_STATS = {
   agents: 20,
-  tools: 81,
+  tools: 85,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 441,
+  metrics: 442,
   uiLanguages: 6,
-  tests: 18500,
-  adrs: 154,
-  releases: 171,
+  tests: 19000,
+  adrs: 158,
+  releases: 172,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

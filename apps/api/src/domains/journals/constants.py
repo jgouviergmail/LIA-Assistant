@@ -40,6 +40,25 @@ JOURNAL_EXTRACTION_DEDUP_MIN_SCORE = 0.4  # Min similarity for pre-filter
 JOURNAL_OPERATIONAL_INJECTION_EXCLUDE_LEVELS: list[str] = ["L0", "L3"]
 
 # =========================================================================
+# User-correction feedstock themes
+# =========================================================================
+
+# Both feedback levers land an L0 entry that the next consolidation reviews.
+# The theme is picked with the introspection prompt's ordered ladder, by
+# SUBJECT: feedback on a RESPONSE is a lesson about what the assistant did
+# (`learnings`); feedback on the PORTRAIT corrects the model of the user
+# (`user_observations`).
+#
+# Neither is `self_reflection`. That theme is reserved for the assistant's own
+# tone/posture and requires a visible user reaction to it — labelling arbitrary
+# user feedback `self_reflection` both mislabels it and made the theme's only
+# live producer the one path that should never use it.
+# Plain literals, not JournalTheme members: models.py imports this module, so
+# importing it back would create a cycle.
+JOURNAL_RESPONSE_FEEDBACK_THEME = "learnings"
+JOURNAL_PORTRAIT_FEEDBACK_THEME = "user_observations"
+
+# =========================================================================
 # Embedding
 # =========================================================================
 

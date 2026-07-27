@@ -5,8 +5,8 @@
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
 **Versión**: 3.3
-**Fecha**: 2026-07-26
-**Aplicación**: LIA v1.25.23
+**Fecha**: 2026-07-27
+**Aplicación**: LIA v1.25.24
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 438 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 140+ ADRs, ~15.877 tests recogidos por pytest en 837 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 140+ ADRs, ~15.954 tests recogidos por pytest en 842 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -71,7 +71,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | ~15.877 (recopilados por pytest en 837 archivos de prueba) + 2.832 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | ~15.954 (recopilados por pytest en 842 archivos de prueba) + 3.460 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures reutilizables | 170+ |
 | Documentos de documentación | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
@@ -894,6 +894,32 @@ no solo los paquetes declarados.
 
 El nivel de exigencia descrito en esta guía no es autodeclarado: una auditoría técnica 360° completa — **8,3/10 sobre 24 perímetros normalizados** de la matriz ISO/IEC 25010, hallazgos abiertos incluidos — está publicada en el repositorio ([informe completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), junto con el [protocolo de auditoría](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) que hace reproducible cada ciclo: commit fijado, requisitos de evidencia por perímetro, calificación anclada y un script versionado que mide el tamaño en SLOC lógicas. El informe termina con los comandos exactos para reproducir las mediciones usted mismo.
 
+### 22.5. Una garantía vale lo que mide
+
+`html { overflow-x: hidden }` recorta un desbordamiento horizontal en lugar de
+producir un desplazamiento. Cualquier garantía construida sobre
+`scrollWidth - clientWidth` es por tanto **estructuralmente ciega** a un control
+empujado fuera de pantalla: medida sobre 108 muestras, devolvía cero en todos
+los anchos mientras el botón de cerrar sesión estaba 235 px más allá del borde
+derecho en alemán. Ahora compara la caja de cada control interactivo con la
+ventana, ancho por ancho **e idioma por idioma** — el alemán y el italiano
+llevan las etiquetas más largas y ceden primero.
+
+La misma lógica para la altura: `100vh` designa la ventana *grande*, la que
+habría con la barra de direcciones retraída — que no es el estado en el que una
+página carga en un teléfono. Un test prohíbe cualquier restricción de altura
+expresada solo en `vh`, con una lista de exenciones escrita y un auto-test que
+demuestra que el detector sigue detectando.
+
+Por último, lo que la maquetación móvil puede abandonar está escrito en una
+tabla en lugar de quedar al criterio de cada cual: cada superficie condicionada
+al ancho declara si es bloqueante, sustituida o exclusiva de escritorio, con su
+razón. Los tests sostienen esa tabla contra el código — la ubicación debe
+existir, llevar la variante Tailwind del umbral declarado, y una superficie que
+consulta o temporiza debe estar **montada condicionalmente**, no solo oculta:
+`display:none` monta igualmente el componente, que sigue gastando red y batería
+en algo que nadie verá.
+
 ## 23. Patrones de ingeniería transversales
 
 ### 23.1. Sistema de Tools: arquitectura de 5 capas
@@ -1091,10 +1117,10 @@ El Psyche Engine dota al asistente de un estado psicológico dinámico que evolu
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 140+ ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~15.877 tests en 837 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 140+ ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~15.954 tests en 842 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (380+ documentos), de los 140+ ADRs y del changelog (v1.0 a v1.25.23). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (380+ documentos), de los 140+ ADRs y del changelog (v1.0 a v1.25.24). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

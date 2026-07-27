@@ -167,3 +167,29 @@ LIA adds **no charge of its own** — costs go to your two external accounts:
 → You've hit the hourly cap (10 calls/hour by default).
 
 **Still stuck?** Ask your administrator: the server logs state precisely which webhook events were received and why any were ignored.
+
+## Can I see a call while it is happening?
+
+Yes. From the moment LIA starts dialling, a banner appears above the conversation
+saying who she is calling and where the call stands, and it disappears the moment
+the call ends. Before this, the product went completely silent between your
+confirmation and the written recap.
+
+## Where do I find my past calls?
+
+In **Settings > Preferences > Recent calls**. Each entry shows the person's name,
+the objective, the status, the outcome and the recap — never the phone number,
+which the API deliberately does not expose. The section is not shown at all if
+you have never placed a call.
+
+## LIA says the call was refused. What does that mean?
+
+It means the telephony provider declined to dial, and that retrying will not help
+until something is fixed on its side. The usual causes are a **source number not
+verified** on your Twilio account, or **exhausted credit**.
+
+This case is worth distinguishing from a temporary failure, because the provider
+answers with an HTTP success even when it refuses: the refusal is inside the
+response body. Until that was read, the call was recorded as ringing, and the
+"one call at a time" rule then blocked every further attempt for a quarter of an
+hour. The message you get now says which of the two situations you are in.

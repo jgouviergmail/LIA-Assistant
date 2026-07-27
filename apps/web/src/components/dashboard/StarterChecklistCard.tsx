@@ -28,6 +28,7 @@ import { useHeartbeatSettings } from '@/hooks/useHeartbeatSettings';
 import { usePersonality } from '@/hooks/usePersonality';
 import { useScheduledActions } from '@/hooks/useScheduledActions';
 import { useSpaces } from '@/hooks/useSpaces';
+import { settingsSectionHref, type SettingsSectionToken } from '@/lib/settings-sections';
 
 export type ChecklistItemId =
   | 'connector'
@@ -64,15 +65,23 @@ export function shouldRenderChecklist(state: ChecklistState | null | undefined):
   return !state?.dismissed_at && !state?.celebrated_at;
 }
 
-/** Where each item sends the user (settings deep links; QW-10 `?section=`). */
-const ITEM_LINKS: Record<ChecklistItemId, string> = {
-  connector: '/dashboard/settings?section=connectors',
-  personality: '/dashboard/settings',
-  voice: '/dashboard/settings',
-  telegram: '/dashboard/settings',
-  heartbeat: '/dashboard/settings',
-  space: '/dashboard/settings',
-  automation: '/dashboard/settings',
+/**
+ * Where each item sends the user.
+ *
+ * W2: every item now targets its OWN section. Six of the seven used to point at
+ * the bare settings page — "choose a personality" landed the user at the top of
+ * ~30 collapsed accordions, with nothing indicating where to look. The tokens
+ * are keys of SETTINGS_SECTIONS, whose targets are checked against the
+ * components that declare them.
+ */
+const ITEM_SECTIONS: Record<ChecklistItemId, SettingsSectionToken> = {
+  connector: 'connectors',
+  personality: 'personality',
+  voice: 'voice-mode',
+  telegram: 'channels',
+  heartbeat: 'heartbeat',
+  space: 'rag-spaces',
+  automation: 'scheduled-actions',
 };
 
 /** Live detection of each item — tolerant: a failed probe = not done. */
@@ -214,7 +223,7 @@ function ChecklistBody({
                 </span>
               ) : (
                 <Link
-                  href={`/${lng}${ITEM_LINKS[id]}`}
+                  href={settingsSectionHref(lng, ITEM_SECTIONS[id])}
                   className="text-foreground/90 hover:text-primary hover:underline"
                 >
                   {t(`dashboard.checklist.items.${id}`)}

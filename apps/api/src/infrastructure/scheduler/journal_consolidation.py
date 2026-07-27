@@ -29,6 +29,8 @@ from src.infrastructure.locks import SchedulerLock
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_journals import (
     journal_level_distribution,
+    journal_portrait_age_hours,
+    journal_theme_distribution,
     journal_zero_injection_age_days,
 )
 
@@ -36,7 +38,7 @@ logger = get_logger(__name__)
 
 
 async def _refresh_effectiveness_gauge() -> None:
-    """Refresh the journal_zero_injection_age_days + journal_level_distribution gauges.
+    """Refresh the journal effectiveness gauges after a consolidation batch.
 
     - ``journal_zero_injection_age_days``: average age (in days) of active entries
       never injected into a prompt. Central effectiveness metric — high values
@@ -45,10 +47,15 @@ async def _refresh_effectiveness_gauge() -> None:
       abstraction level (L0/L1/L2/L3). Reveals the cognitive shape of the
       journal — too many L0 means insufficient maturation, too many L1 with
       no L2 means missing pattern synthesis.
+    - ``journal_theme_distribution{theme}``: count of active entries per theme.
+      A theme flat at zero is an unreachable theme, not a quiet one.
+    - ``journal_portrait_age_hours``: age of the oldest compiled portrait —
+      rises when a user's consolidation has stalled.
 
     Best-effort: never raises, never blocks the consolidation flow.
     """
     try:
+        from src.domains.journals.models import JournalTheme
         from src.domains.journals.repository import JournalEntryRepository
         from src.infrastructure.database import get_db_context
 
@@ -56,16 +63,27 @@ async def _refresh_effectiveness_gauge() -> None:
             repo = JournalEntryRepository(db)
             avg_days = await repo.compute_zero_injection_age_days_avg()
             level_counts = await repo.count_by_level_global()
+            theme_counts = await repo.count_by_theme_global()
+            portrait_age = await repo.compute_max_portrait_age_hours()
         journal_zero_injection_age_days.set(avg_days)
         # Reset all known level labels to 0 (so absent levels report 0, not stale)
         for known_level in ("L0", "L1", "L2", "L3"):
             journal_level_distribution.labels(level=known_level).set(
                 level_counts.get(known_level, 0)
             )
+        # Same for themes — an absent theme must read 0, which is the alertable
+        # value, not "no series".
+        for theme in JournalTheme:
+            journal_theme_distribution.labels(theme=theme.value).set(
+                theme_counts.get(theme.value, 0)
+            )
+        journal_portrait_age_hours.set(portrait_age)
         logger.debug(
             "journal_effectiveness_gauges_refreshed",
             avg_days=round(avg_days, 2),
             level_counts=level_counts,
+            theme_counts=theme_counts,
+            portrait_age_hours=round(portrait_age, 1),
         )
     except Exception as exc:
         logger.warning(

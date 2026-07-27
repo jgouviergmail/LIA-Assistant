@@ -5,8 +5,8 @@
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
 **Versione**: 3.4
-**Data**: 2026-07-26
-**Applicazione**: LIA v1.25.23
+**Data**: 2026-07-27
+**Applicazione**: LIA v1.25.24
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 438 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 140+ ADR, ~15.877 test raccolti da pytest in 837 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 140+ ADR, ~15.954 test raccolti da pytest in 842 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -71,7 +71,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~15.877 (raccolti da pytest su 837 file di test) + 2.832 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~15.954 (raccolti da pytest su 842 file di test) + 3.460 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 280+ |
 | ADR (Architecture Decision Record) | 120+ |
@@ -894,6 +894,32 @@ inventariato, non solo i pacchetti dichiarati.
 
 Il livello di rigore descritto in questa guida non è autodichiarato: un audit tecnico a 360° completo — **8,3/10 su 24 perimetri normalizzati** della griglia ISO/IEC 25010, rilievi aperti inclusi — è pubblicato nel repository ([rapporto completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), insieme al [protocollo di audit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) che rende riproducibile ogni ciclo: commit fissato, requisiti di evidenza per perimetro, valutazione ancorata e uno script versionato che misura le dimensioni in SLOC logiche. Il rapporto si chiude con i comandi esatti per riprodurre le misurazioni da soli.
 
+### 22.5. Una garanzia vale quanto ciò che misura
+
+`html { overflow-x: hidden }` taglia un traboccamento orizzontale invece di
+produrre uno scorrimento. Qualsiasi garanzia costruita su
+`scrollWidth - clientWidth` è dunque **strutturalmente cieca** a un controllo
+spinto fuori schermo: misurata su 108 campioni, restituiva zero a ogni larghezza
+mentre il pulsante di disconnessione si trovava 235 px oltre il bordo destro in
+tedesco. Ora confronta il riquadro di ogni controllo interattivo con la
+finestra, larghezza per larghezza **e lingua per lingua** — tedesco e italiano
+portano le etichette più lunghe e cedono per primi.
+
+Stessa logica per l'altezza: `100vh` indica la finestra *ampia*, quella che si
+avrebbe con la barra degli indirizzi ritratta — cioè non lo stato in cui una
+pagina si carica su un telefono. Un test vieta ogni vincolo di altezza espresso
+nel solo `vh`, con un elenco di esenzioni scritto e un auto-test che prova che
+il rilevatore rileva ancora.
+
+Infine, ciò che il layout mobile può abbandonare è scritto in una tabella
+anziché lasciato al giudizio: ogni superficie condizionata alla larghezza
+dichiara se è bloccante, sostituita o riservata al desktop, con la sua
+motivazione. I test tengono quella tabella contro il codice — il punto deve
+esistere, portare la variante Tailwind della soglia dichiarata, e una superficie
+che interroga o scandisce dev'essere **montata condizionalmente**, non solo
+nascosta: `display:none` monta comunque il componente, che continua a consumare
+rete e batteria per qualcosa che nessuno vedrà.
+
 ## 23. Pattern di ingegneria trasversali
 
 ### 23.1. Sistema di Tool: architettura a 5 livelli
@@ -1091,10 +1117,10 @@ Il Psyche Engine dota l'assistente di uno stato psicologico dinamico che evolve 
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 140+ ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~15.877 test in 837 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 140+ ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~15.954 test in 842 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (380+ documenti), dei 140+ ADR e del changelog (da v1.0 a v1.25.23). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (380+ documenti), dei 140+ ADR e del changelog (da v1.0 a v1.25.24). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

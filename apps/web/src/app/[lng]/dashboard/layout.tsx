@@ -18,6 +18,7 @@ import { OnboardingTutorial } from '@/components/onboarding';
 import { CompanionPresence } from '@/components/companion/CompanionPresence';
 import { BroadcastProvider } from '@/lib/broadcast';
 import { BroadcastModal } from '@/components/broadcast';
+import { MobileNavMenu } from '@/components/dashboard/MobileNavMenu';
 import { useTranslation } from '@/i18n/client';
 import { LayoutDashboard, MessageSquare, Settings, HelpCircle, LogOut } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -118,53 +119,72 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
         {/* Navbar - Enhanced Glassmorphism */}
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 shadow-sm">
           <div className="w-full max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-            {/* Logo & Navigation */}
-            <div className="flex items-center gap-8">
+            {/* Logo & Navigation. `min-w-0` makes THIS group the one that
+                yields when the row is tight, so the trailing controls — the
+                logout button in particular — are never pushed off-screen. */}
+            <div className="flex min-w-0 items-center gap-4 xl:gap-8">
+              {/* A2: below `md` the nav below is hidden, so the logo becomes
+                  the way to every page instead of a dead "go home" link.
+                  Two exclusive elements, never one changing role — a link at
+                  one width and a button at another cannot announce itself. */}
+              <div className="md:hidden">
+                <MobileNavMenu
+                  buildHref={route => buildLocalizedPath(route, pathLng)}
+                  translate={t}
+                  isActiveRoute={isActiveRoute}
+                  triggerLabel={t('common.menu')}
+                />
+              </div>
               <Link
                 href={buildLocalizedPath('/dashboard', pathLng)}
-                className="flex items-center gap-2 group"
+                className="hidden shrink-0 items-center gap-2 group md:flex"
               >
                 <div className="flex h-10 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-md group-hover:shadow-lg transition-all">
                   <span className="text-sm font-bold text-primary-foreground">LIA</span>
                 </div>
               </Link>
-              <nav className="hidden md:flex items-center gap-1">
+              <nav className="hidden min-w-0 md:flex items-center gap-1">
                 <Link href={buildLocalizedPath('/dashboard', pathLng)} className={navLinkClass('')}>
-                  <LayoutDashboard className="h-4 w-4" />
+                  <LayoutDashboard className="hidden h-4 w-4 xl:block" />
                   <span>{t('navigation.dashboard')}</span>
                 </Link>
                 <Link
                   href={buildLocalizedPath('/dashboard/chat', pathLng)}
                   className={navLinkClass('chat')}
                 >
-                  <MessageSquare className="h-4 w-4" />
+                  <MessageSquare className="hidden h-4 w-4 xl:block" />
                   <span>{t('navigation.chat')}</span>
                 </Link>
                 <Link
                   href={buildLocalizedPath('/dashboard/settings', pathLng)}
                   className={navLinkClass('settings')}
                 >
-                  <Settings className="h-4 w-4" />
+                  <Settings className="hidden h-4 w-4 xl:block" />
                   <span>{t('navigation.settings')}</span>
                 </Link>
                 <Link
                   href={buildLocalizedPath('/dashboard/faq', pathLng)}
                   className={navLinkClass('faq')}
                 >
-                  <HelpCircle className="h-4 w-4" />
+                  <HelpCircle className="hidden h-4 w-4 xl:block" />
                   <span>{t('navigation.faq')}</span>
                 </Link>
               </nav>
             </div>
 
-            {/* User Actions */}
-            <div className="flex items-center flex-1 md:flex-none">
-              {/* Icons container - evenly spaced on mobile, normal gap on desktop */}
-              <div className="flex items-center flex-1 justify-evenly md:justify-end md:gap-3">
+            {/* User Actions. `shrink-0` on the whole group: between 768 px and
+                1024 px the nav and the control labels show together, and the
+                row used to overflow — silently, because the root is
+                `overflow-x: hidden`. Pinned by the header-reachability spec. */}
+            <div className="flex shrink-0 items-center flex-1 md:flex-none">
+              {/* Icons container - evenly spaced on mobile, tighter until the
+                  labels come back at `lg`. */}
+              <div className="flex items-center flex-1 justify-evenly md:justify-end md:gap-1 xl:gap-3">
                 <ExecutionModeToggle lng={lng} />
                 <VoiceToggle lng={lng} />
-                {/* TokensDisplayToggle - Desktop only */}
-                <div className="hidden md:block">
+                {/* Token counters are observation, not action: they only earn
+                    their width once the row has room for the labels (`xl`). */}
+                <div className="hidden xl:block">
                   <TokensDisplayToggle lng={lng} />
                 </div>
                 <ThemeToggle />
@@ -172,10 +192,11 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                 <LanguageSelector currentLocale={lng} />
               </div>
 
-              {/* Logout button */}
+              {/* Logout button — never compressible: signing out must stay
+                  possible at every width. */}
               <button
                 onClick={logout}
-                className="flex items-center justify-center h-9 w-9 rounded-lg bg-destructive text-destructive-foreground cursor-pointer transition-colors hover:bg-destructive/90 ml-3 shadow-sm"
+                className="flex shrink-0 items-center justify-center h-11 w-11 max-[380px]:h-9 max-[380px]:w-9 rounded-lg bg-destructive text-destructive-foreground cursor-pointer transition-colors hover:bg-destructive/90 ml-2 xl:ml-3 shadow-sm"
                 title={t('navigation.logout')}
                 aria-label={t('navigation.logout')}
               >

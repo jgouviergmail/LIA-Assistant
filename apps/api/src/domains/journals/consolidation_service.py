@@ -25,7 +25,6 @@ if TYPE_CHECKING:
 
 from src.core.config import settings
 from src.core.llm_config_helper import get_llm_config_for_agent
-from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.journals.constants import JOURNAL_ENTRY_CONTENT_MAX_LENGTH
 from src.domains.journals.extraction_service import (
     _parse_consolidation_result,
@@ -33,10 +32,12 @@ from src.domains.journals.extraction_service import (
     _update_user_last_cost,
 )
 from src.domains.journals.models import JournalEntryMood, JournalEntrySource
+from src.domains.journals.prompt_builders import build_consolidation_prompt
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_journals import (
+    journal_consolidation_deletes_total,
     journal_portrait_compile_duration_seconds,
 )
 
@@ -175,14 +176,30 @@ async def _persist_compiled_portrait(
         )
 
 
-def _get_consolidation_prompt() -> str:
-    """Load the journal consolidation prompt from file."""
-    return str(load_prompt("journal_consolidation_prompt"))
+async def _stamp_last_consolidated(user_id: UUID) -> None:
+    """Mark the user's consolidation cooldown as consumed.
 
+    Called on EVERY completed run, including runs whose LLM answer contained no
+    maintenance action. The scheduler's eligibility gate reads this column, so
+    skipping the stamp on a no-action run left the user permanently eligible and
+    the consolidation LLM re-ran at every tick — measured in dev on 2026-07-27,
+    where the portrait had been recompiled 40 h after the last stamp, i.e. eight
+    wasted runs at ``journal_consolidation_interval_hours=5``.
 
-def _get_analyst_persona_prompt() -> str:
-    """Load the journal analyst persona prompt from file."""
-    return str(load_prompt("journal_analyst_persona"))
+    Args:
+        user_id: Owner user UUID.
+    """
+    from sqlalchemy import select
+
+    from src.domains.users.models import User
+    from src.infrastructure.database import get_db_context
+
+    async with get_db_context() as db:
+        user_result = await db.execute(select(User).where(User.id == user_id))
+        user = user_result.scalar_one_or_none()
+        if user:
+            user.journal_last_consolidated_at = datetime.now(UTC)
+            await db.commit()
 
 
 async def _maybe_build_health_signals_section(user_id: UUID) -> str:
@@ -457,8 +474,8 @@ async def consolidate_journals_for_user(
         # Health Metrics signals — empty string when disabled / no data.
         health_signals_section = await _maybe_build_health_signals_section(user_id)
 
-        # Build prompt
-        prompt = _get_consolidation_prompt().format(
+        # Build prompt (shared renderer — see domains/journals/prompt_builders.py)
+        prompt = build_consolidation_prompt(
             all_entries=all_entries_text,
             current_chars=total_chars,
             max_chars=max_total_chars,
@@ -470,11 +487,7 @@ async def consolidate_journals_for_user(
             max_entry_chars=max_entry_chars,
             size_management_instruction=size_management_instruction,
             health_signals_section=health_signals_section,
-        )
-
-        # Add analyst persona (always injected, independent of conversational personality)
-        prompt += "\n\n" + _get_analyst_persona_prompt().format(
-            personality_code=personality_code or "none"
+            personality_code=personality_code,
         )
 
         # Call LLM
@@ -520,6 +533,9 @@ async def consolidate_journals_for_user(
                 )
 
         if not actions:
+            # A run that legitimately decides "nothing to maintain" still
+            # consumed its turn — stamp the cooldown before returning.
+            await _stamp_last_consolidated(user_id)
             logger.debug(
                 "journal_consolidation_no_actions",
                 user_id=str(user_id),
@@ -567,59 +583,67 @@ async def consolidate_journals_for_user(
             async with get_db_context() as db:
                 service = JournalService(db)
 
+                deleted_count = 0
                 for action in actions:
+                    # One SAVEPOINT per action: without it the first DB-level
+                    # error poisons the whole transaction, every later action
+                    # fails on the aborted session and the final commit raises —
+                    # so the per-action `except ... continue` below silently
+                    # degraded into all-or-nothing.
                     try:
-                        if (
-                            action.action == "create"
-                            and action.theme
-                            and action.title
-                            and action.content
-                        ):
-                            await service.create_entry(
-                                user_id=user_id,
-                                theme=action.theme.value,
-                                title=action.title,
-                                content=action.content,
-                                mood=(
-                                    action.mood.value
-                                    if action.mood
-                                    else JournalEntryMood.REFLECTIVE.value
-                                ),
-                                source=JournalEntrySource.CONSOLIDATION.value,
-                                personality_code=personality_code,
-                                max_entry_chars=max_entry_chars,
-                                search_hints=action.search_hints,
-                                confidence=(
-                                    action.confidence.value if action.confidence else "medium"
-                                ),
-                                level=(action.level.value if action.level else "L1"),
-                            )
-                            applied_count += 1
-
-                        elif action.action == "update" and action.entry_id:
-                            entry = await service.repo.get_by_id(UUID(action.entry_id))
-                            if entry and entry.user_id == user_id:
-                                await service.update_entry(
-                                    entry=entry,
+                        async with db.begin_nested():
+                            if (
+                                action.action == "create"
+                                and action.theme
+                                and action.title
+                                and action.content
+                            ):
+                                await service.create_entry(
+                                    user_id=user_id,
+                                    theme=action.theme.value,
                                     title=action.title,
                                     content=action.content,
-                                    mood=(action.mood.value if action.mood else None),
+                                    mood=(
+                                        action.mood.value
+                                        if action.mood
+                                        else JournalEntryMood.REFLECTIVE.value
+                                    ),
+                                    source=JournalEntrySource.CONSOLIDATION.value,
+                                    personality_code=personality_code,
                                     max_entry_chars=max_entry_chars,
                                     search_hints=action.search_hints,
                                     confidence=(
-                                        action.confidence.value if action.confidence else None
+                                        action.confidence.value if action.confidence else "medium"
                                     ),
-                                    evidence_outcome=action.evidence_outcome,
-                                    level=(action.level.value if action.level else None),
-                                    theme=(action.theme.value if action.theme else None),
+                                    level=(action.level.value if action.level else "L1"),
                                 )
                                 applied_count += 1
 
-                        elif action.action == "delete" and action.entry_id:
-                            entry = await service.repo.get_by_id(UUID(action.entry_id))
-                            if entry and entry.user_id == user_id:
-                                await service.delete_entry(entry)
-                                applied_count += 1
+                            elif action.action == "update" and action.entry_id:
+                                entry = await service.repo.get_by_id(UUID(action.entry_id))
+                                if entry and entry.user_id == user_id:
+                                    await service.update_entry(
+                                        entry=entry,
+                                        title=action.title,
+                                        content=action.content,
+                                        mood=(action.mood.value if action.mood else None),
+                                        max_entry_chars=max_entry_chars,
+                                        search_hints=action.search_hints,
+                                        confidence=(
+                                            action.confidence.value if action.confidence else None
+                                        ),
+                                        evidence_outcome=action.evidence_outcome,
+                                        level=(action.level.value if action.level else None),
+                                        theme=(action.theme.value if action.theme else None),
+                                    )
+                                    applied_count += 1
+
+                            elif action.action == "delete" and action.entry_id:
+                                entry = await service.repo.get_by_id(UUID(action.entry_id))
+                                if entry and entry.user_id == user_id:
+                                    await service.delete_entry(entry)
+                                    applied_count += 1
+                                    deleted_count += 1
 
                     except Exception as e:
                         logger.warning(
@@ -631,20 +655,13 @@ async def consolidate_journals_for_user(
                         continue
 
                 await db.commit()
+                # metrics never break the pipeline
+                with suppress(Exception):
+                    journal_consolidation_deletes_total.inc(deleted_count)
         finally:
             clear_embedding_context()
 
-        # Update last_consolidated_at
-        async with get_db_context() as db:
-            from sqlalchemy import select
-
-            from src.domains.users.models import User
-
-            user_result = await db.execute(select(User).where(User.id == user_id))
-            user = user_result.scalar_one_or_none()
-            if user:
-                user.journal_last_consolidated_at = datetime.now(UTC)
-                await db.commit()
+        await _stamp_last_consolidated(user_id)
 
         logger.info(
             "journal_consolidation_completed",

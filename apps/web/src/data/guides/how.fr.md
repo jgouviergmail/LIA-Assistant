@@ -5,8 +5,8 @@
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
 **Version** : 3.4
-**Date** : 2026-07-26
-**Application** : LIA v1.25.23
+**Date** : 2026-07-27
+**Application** : LIA v1.25.24
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 438 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 140+ ADRs, ~15 877 tests collectés par pytest sur 837 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 140+ ADRs, ~15 954 tests collectés par pytest sur 842 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -71,7 +71,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~15 877 (collectés par pytest sur 837 fichiers de test) + 2 832 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | ~15 954 (collectés par pytest sur 842 fichiers de test) + 3 460 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures réutilisables | 170+ |
 | Documents de documentation | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
@@ -894,6 +894,32 @@ transitif complet est audité et inventorié, pas seulement les paquets déclar�
 
 Le niveau d'exigence décrit dans ce guide n'est pas auto-déclaré : un audit technique 360° complet — **8,3/10 sur 24 périmètres normalisés** de la grille ISO/IEC 25010, constats ouverts compris — est publié dans le dépôt ([rapport complet](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), avec le [protocole d'audit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) qui rend chaque cycle reproductible : commit épinglé, exigences de preuve par périmètre, notation ancrée, et un script versionné qui mesure la taille en SLOC logiques. Le rapport se termine par les commandes exactes pour reproduire les mesures vous-même.
 
+### 22.5. Une garde ne vaut que ce qu'elle mesure
+
+`html { overflow-x: hidden }` rogne un débordement horizontal au lieu de produire
+un défilement. Toute garde bâtie sur `scrollWidth - clientWidth` est donc
+**structurellement aveugle** à un contrôle poussé hors de l'écran : mesurée sur
+108 échantillons, elle renvoyait zéro à chaque largeur pendant que le bouton de
+déconnexion se trouvait 235 px au-delà du bord droit en allemand. La garde
+compare désormais la boîte de chaque contrôle interactif à la fenêtre, largeur
+par largeur **et langue par langue** — l'allemand et l'italien portent les
+libellés les plus longs et cèdent les premiers.
+
+Même logique pour la hauteur : `100vh` désigne la fenêtre *large*, celle qu'on
+aurait si la barre d'adresse du navigateur était rétractée — donc pas l'état
+dans lequel une page se charge sur un téléphone. Un test interdit toute
+contrainte de hauteur exprimée en `vh` seul, avec une liste d'exemptions écrites
+et un auto-test qui prouve que le détecteur détecte encore.
+
+Enfin, ce que la mise en page mobile a le droit d'abandonner est écrit dans une
+table plutôt que laissé au jugement : chaque surface conditionnée à la largeur
+déclare si elle est bloquante, substituée ou réservée au bureau, avec sa raison.
+Les tests tiennent cette table contre le code — l'emplacement doit exister,
+porter la variante Tailwind du seuil annoncé, et une surface qui requête ou
+minute doit être **montée conditionnellement**, pas simplement masquée :
+`display:none` monte quand même le composant, qui continue de consommer réseau
+et batterie pour un affichage que personne ne verra.
+
 ## 23. Patterns d'ingénierie transversaux
 
 ### 23.1. Système de Tools : architecture en 5 couches
@@ -1131,10 +1157,10 @@ Le contexte psyché est injecté dans **tous** les points de génération utilis
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 140+ ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~15 877 tests sur 837 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 140+ ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~15 954 tests sur 842 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (380+ documents), des 140+ ADRs, et du changelog (v1.0 à v1.25.23). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (380+ documents), des 140+ ADRs, et du changelog (v1.0 à v1.25.24). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

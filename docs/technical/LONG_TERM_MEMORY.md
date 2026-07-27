@@ -288,22 +288,7 @@ Champs éditables :
 
 Composant Radix UI pour les champs numériques.
 
-### 3. EmotionalStateIndicator Component
-
-**Fichier** : `apps/web/src/components/chat/EmotionalStateIndicator.tsx`
-
-```tsx
-type EmotionalState = 'comfort' | 'danger' | 'neutral';
-
-// Indicateur visuel dans le chat
-const EMOTIONAL_CONFIG = {
-  comfort: { color: 'green', icon: '🟢', label: 'Terrain positif' },
-  danger:  { color: 'red',   icon: '🔴', label: 'Zone sensible' },
-  neutral: { color: 'gray',  icon: '⚪', label: 'Mode factuel' },
-};
-```
-
-### 4. useMemories Hook
+### 3. useMemories Hook
 
 **Fichier** : `apps/web/src/hooks/useMemories.ts`
 
@@ -335,7 +320,7 @@ function useMemories() {
 }
 ```
 
-### 5. Internationalisation (i18n)
+### 4. Internationalisation (i18n)
 
 **Fichiers** : `apps/web/locales/{fr,en,es,de,it,zh}/translation.json`
 

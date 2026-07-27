@@ -62,6 +62,29 @@ User Message → Layer 0 (Router: HTTP 429)
 
 The reset is only *applied* when an event actually crosses the boundary. If a user hasn't sent a message (or triggered any of the three paths) since the cycle rollover, the cached cycle data is stale. The `_is_cycle_stale()` method detects this by comparing `stats.current_cycle_start` with the theoretical current cycle start.
 
+## Warning before the wall (A5)
+
+The backend already computed a graded `status` (`ok` / `warning` ≥ 80 % /
+`critical` ≥ 95 % / `blocked_*`) and six per-dimension usages. The chat read
+exactly two fields — `is_blocked` and `block_reason` — so everything else was
+fetched, polled every 60 s and thrown away. The user met a wall with no warning.
+
+`usageWarningOf()` (`lib/usage-warning.ts`) is the pure rule:
+
+- returns `null` when the account is **already blocked** — the blocking banner
+  owns that state, and two messages about the same limit would be noise;
+- picks the **binding** dimension, meaning the highest percentage: any single
+  dimension blocks the whole account, so naming a lower one would point at the
+  wrong deadline;
+- returns `cycleEnd` only for a `cycle_*` dimension — an absolute limit does not
+  reset, and promising a reset date for one would be a lie;
+- returns `null` when the status says `warning` but no dimension reports a
+  percentage: trust the dimensions, not the label.
+
+`UsageBanners` owns the mutual exclusion (blocked wins, always), which keeps the
+"never both" rule inside one component instead of two independent conditions in
+the page.
+
 ## API Endpoints
 
 | Method | Path | Auth | Description |

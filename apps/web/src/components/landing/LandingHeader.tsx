@@ -155,9 +155,7 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
               size="sm"
               className="mobile:hidden w-10 h-10 p-0"
               onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label={
-                mobileOpen ? t('common.close') || 'Close menu' : t('common.menu') || 'Menu'
-              }
+              aria-label={mobileOpen ? t('common.close') : t('common.menu')}
               aria-expanded={mobileOpen}
             >
               {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}

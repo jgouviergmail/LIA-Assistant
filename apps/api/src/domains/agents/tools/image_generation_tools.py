@@ -258,6 +258,12 @@ async def generate_image(
                     ),
                 }
             )
+            # Serialized here, next to the value that produced it: what leaves
+            # this block is an ISO string, so no `datetime` ever reaches the SSE
+            # payload or the JSONB metadata. (The session is created with
+            # `expire_on_commit=False`, so reading before or after the commit is
+            # equivalent — the line below reads `attachment.id` after it.)
+            expires_at_iso = attachment.expires_at.isoformat() if attachment.expires_at else None
             await db.commit()
             attachment_id = str(attachment.id)
 
@@ -273,6 +279,7 @@ async def generate_image(
             conversation_id=str(conversation_id),
             url=image_url,
             alt_text=prompt,
+            expires_at=expires_at_iso,
         )
 
         logger.info(
@@ -594,6 +601,11 @@ async def edit_image(
                     + timedelta(hours=settings.attachments_ttl_hours),
                 }
             )
+            # Same as the generate path: serialized next to its source, so the
+            # transport layer only ever handles a string.
+            expires_at_iso = (
+                new_attachment.expires_at.isoformat() if new_attachment.expires_at else None
+            )
             await db.commit()
             attachment_id = str(new_attachment.id)
 
@@ -606,6 +618,7 @@ async def edit_image(
             conversation_id=str(conversation_id),
             url=image_url,
             alt_text=prompt,
+            expires_at=expires_at_iso,
         )
 
         logger.info(

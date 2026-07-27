@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 3.4
-**Date**: 2026-07-26
-**Application**: LIA v1.25.23
+**Date**: 2026-07-27
+**Application**: LIA v1.25.24
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 438 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 140+ ADRs, ~15,877 pytest-collected tests across 837 files, native observability, 6-level HITL |
+| Production reliability | 140+ ADRs, ~15,954 pytest-collected tests across 842 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -71,7 +71,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~15,877 (collected by pytest across 837 test files) + 2,832 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~15,954 (collected by pytest across 842 test files) + 3,460 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 280+ |
 | ADRs (Architecture Decision Records) | 120+ |
@@ -893,6 +893,30 @@ not just the declared packages.
 
 The quality bar described in this guide is not self-declared: a complete 360° technical audit — **8.3/10 across 24 normalized areas** on the ISO/IEC 25010 grid, open findings included — is published in the repository ([full report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), together with the [audit protocol](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) that makes every cycle reproducible: pinned commit, per-area evidence requirements, anchored scoring, and a committed script measuring size in logical SLOC. The report ends with the exact commands to reproduce the measurements yourself.
 
+### 22.5. A guard is only worth what it measures
+
+`html { overflow-x: hidden }` clips a horizontal overflow instead of producing a
+scroll. Any guard built on `scrollWidth - clientWidth` is therefore
+**structurally blind** to a control pushed off-screen: measured across 108
+samples, it reported zero at every width while the logout button sat 235 px past
+the right edge in German. The guard now compares each interactive control's box
+against the viewport, width by width **and locale by locale** — German and
+Italian carry the longest labels and break first.
+
+The same reasoning applies to height: `100vh` is the *large* viewport, the one
+you would have with the browser's address bar retracted — which is not the state
+a page loads in on a phone. A test forbids any height constraint expressed in
+`vh` alone, with a written exemption list and a self-test proving the detector
+still detects.
+
+Finally, what the mobile layout is allowed to drop is written in a table rather
+than left to judgement: every width-gated surface declares whether it is
+blocking, substituted or desktop-only, with its reason. Tests hold that table
+against the code — the location must exist, carry the Tailwind variant of its
+declared threshold, and a surface that fetches or ticks must be **conditionally
+mounted**, not merely hidden: `display:none` still mounts the component, which
+keeps spending network and battery on something nobody will see.
+
 ## 23. Cross-cutting engineering patterns
 
 ### 23.1. Tool System: 5-layer architecture
@@ -1119,10 +1143,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 140+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~15,877 tests across 837 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 140+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~15,954 tests across 842 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (380+ documents), 140+ ADRs, and the changelog (v1.0 to v1.25.23). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (380+ documents), 140+ ADRs, and the changelog (v1.0 to v1.25.24). All metrics, versions, and patterns cited are verifiable in the codebase.*

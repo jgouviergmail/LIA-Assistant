@@ -5,11 +5,7 @@ import { Sunrise } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useBriefing } from '@/hooks/useBriefing';
 import { useBriefingPreferences } from '@/hooks/useBriefingPreferences';
-import type {
-  BriefingPreferences,
-  BriefingSection,
-  CardsBundle,
-} from '@/types/briefing';
+import type { BriefingPreferences, BriefingSection, CardsBundle } from '@/types/briefing';
 import { BriefingError } from './BriefingError';
 import { BriefingSynthesis } from './BriefingSynthesis';
 import { HeroLiaCard } from './HeroLiaCard';
@@ -18,6 +14,8 @@ import { StarterChecklistCard } from './StarterChecklistCard';
 import { InstallHint } from '@/components/pwa/InstallHint';
 import { QuickAccessCompact } from './QuickAccessCompact';
 import { RefreshAllButton } from './RefreshAllButton';
+import { BriefingSetupHint } from './BriefingSetupHint';
+import { unconfiguredCards } from '@/lib/briefing-setup';
 import { AgendaCard } from './cards/AgendaCard';
 import { BirthdaysCard } from './cards/BirthdaysCard';
 import { DocumentsCard } from './cards/DocumentsCard';
@@ -87,12 +85,14 @@ function BriefingCardsGrid({
   refreshingSections,
   refetchSection,
   settingsHref,
+  lng,
 }: {
   cards: CardsBundle;
   sections: BriefingSection[];
   refreshingSections: Set<string>;
   refetchSection: (section: BriefingSection) => void;
   settingsHref: string;
+  lng: string;
 }) {
   const { t } = useTranslation();
   if (sections.length === 0) {
@@ -109,17 +109,23 @@ function BriefingCardsGrid({
     );
   }
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-      {sections.map((name, index) => (
-        <div key={name} className="contents">
-          {CARD_RENDERERS[name](cards, {
-            isRefreshing: refreshingSections.has(name),
-            onRefresh: () => refetchSection(name),
-            staggerIndex: index,
-          })}
-        </div>
-      ))}
-    </div>
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+        {sections.map((name, index) => (
+          <div key={name} className="contents">
+            {CARD_RENDERERS[name](cards, {
+              isRefreshing: refreshingSections.has(name),
+              onRefresh: () => refetchSection(name),
+              staggerIndex: index,
+            })}
+          </div>
+        ))}
+      </div>
+      {/* W7: a card with no source renders NOTHING (BriefingCard returns null),
+          so an unconfigured account used to face silent holes. Name them once,
+          below the grid, each linking to the settings that fill it. */}
+      <BriefingSetupHint cards={unconfiguredCards(cards, sections)} lng={lng} />
+    </>
   );
 }
 
@@ -204,6 +210,7 @@ export function TodayBriefing() {
             refreshingSections={refreshingSections}
             refetchSection={refetchSection}
             settingsHref={`/${lng}/dashboard/settings`}
+            lng={lng}
           />
         ) : cardsLoading ? (
           <CardsGridSkeleton />

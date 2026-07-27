@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import {
@@ -12,6 +13,8 @@ import {
 } from '@/components/ui/accordion';
 import { normalizeSearchText } from '@/lib/utils';
 import { highlightText, stripHtml } from '@/lib/faq-search';
+import { chatDraftHref } from '@/lib/briefing-utils';
+import { FaqAnswer } from './FaqAnswer';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { FAQ_SECTION_ICONS } from './faq-sections';
@@ -108,6 +111,7 @@ const sections = [
  * releases. `__tests__/changelog-wiring.test.ts` now fails on any drift in either direction.
  */
 export const changelogVersionKeys = [
+  'v1_25_24',
   'v1_25_23',
   'v1_25_22',
   'v1_25_21',
@@ -317,9 +321,20 @@ const featureKeys = [
 
 export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FAQContentProps) {
   const { t } = useTranslation(lng);
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [showIntro, setShowIntro] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
+
+  // W1: a written example becomes a real intent. The phrase is handed to the
+  // chat composer through the shared `?draft=` rail — prefilled, NEVER sent, so
+  // the user reads it, edits it and decides.
+  const handleExampleClick = useCallback(
+    (example: string) => {
+      router.push(chatDraftHref(lng, example));
+    },
+    [router, lng]
+  );
 
   // Build searchable FAQ data
   const faqData = useMemo(() => {
@@ -616,10 +631,10 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
                       )}
                     </AccordionTrigger>
                     <AccordionContent className="text-muted-foreground">
-                      <div
-                        dangerouslySetInnerHTML={{
-                          __html: isSearching ? highlightText(answer, searchQuery) : answer,
-                        }}
+                      <FaqAnswer
+                        lng={lng}
+                        html={isSearching ? highlightText(answer, searchQuery) : answer}
+                        onExampleClick={handleExampleClick}
                       />
                     </AccordionContent>
                   </AccordionItem>

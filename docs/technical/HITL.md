@@ -439,6 +439,24 @@ ExecutionStep(
 
 ---
 
+## 🚫 Never ask the same confirmation twice
+
+The semantic validator runs **upstream** of the plan and may HALT on a dangerous
+action. That rule and the HITL layers below it overlapped: every draft-producing
+tool already shows a preview and waits for an explicit confirmation before
+executing — nineteen `DraftType` members, from `EMAIL` to `PHONE_CALL` to
+`DEVOPS_TASK`.
+
+Halting upstream on "this is irreversible" therefore asked the same question
+twice, and users had to **insist to be obeyed** (reported live on outbound
+calls). `prompts/v1/semantic_validator_prompt.txt` now states the exception
+explicitly: judge those plans on their STRUCTURE only — missing parameter, wrong
+tool, cardinality — never on how consequential the action feels.
+
+The list in the prompt is not decorative: it mirrors `DraftType` member for
+member. An action with **no** downstream confirmation (a payment, say) is not in
+it and still halts.
+
 ## 💬 Question Generation
 
 ### hitl_plan_approval_question_generator

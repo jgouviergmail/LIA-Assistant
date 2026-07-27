@@ -21,5 +21,17 @@ Yes, image generation is enabled by default for all users. The administrator can
 ## How do I download a generated image?
 Three options: **(1)** Click the download button (arrow icon) that appears on hover over the image in the chat — on mobile, the button is always visible. **(2)** Open the full-screen lightbox by clicking the image, then use the download button in the top-right corner. **(3)** On mobile, long-press the image to trigger the native browser "Save Image" menu, just like on any other website.
 
+## How long does a generated image stay available?
+
+Not forever. A generated image is stored as an attachment with an expiry, and a
+scheduled cleanup removes expired attachments every few hours. Each image card
+now states the deadline it received from the server, and switches to an amber
+tone in the final hours so you can download it in time.
+
+The deadline always comes from the server rather than being written into the
+interface: the retention window is configurable by the administrator, so a
+duration hard-coded in the app would eventually be wrong. Images generated before
+this was introduced simply say nothing rather than guess.
+
 ## Are my generated images saved?
 Yes, images are saved as attachments on disk and linked to your conversation. They persist across page reloads. When you delete a conversation, all associated images are automatically cleaned up.

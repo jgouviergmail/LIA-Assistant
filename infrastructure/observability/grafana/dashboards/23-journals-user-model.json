@@ -189,7 +189,7 @@
     },
     {
       "id": 4,
-      "title": "Dedup merges (24h)",
+      "title": "Consolidation deletes (24h)",
       "type": "stat",
       "datasource": "$datasource",
       "description": "Dedup actions performed during consolidation (merges that delete sources).",
@@ -201,7 +201,7 @@
       },
       "targets": [
         {
-          "expr": "sum(increase(journal_dedup_actions_total[24h]))",
+          "expr": "sum(increase(journal_consolidation_deletes_total[24h]))",
           "legendFormat": " ",
           "refId": "A"
         }
@@ -477,6 +477,46 @@
         {
           "expr": "sum by (level) (journal_level_distribution)",
           "legendFormat": "L{{level}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 103,
+      "title": "Active entries per theme",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "Number of active entries per theme, sampled by the consolidation scheduler. A theme flat at zero is UNREACHABLE, not quiet: the extraction/consolidation prompts have made it impossible to produce. Alert on any series stuck at 0.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 22
+      },
+      "targets": [
+        {
+          "expr": "sum by (theme) (journal_theme_distribution)",
+          "legendFormat": "{{theme}}",
           "refId": "A"
         }
       ],

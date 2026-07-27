@@ -31,12 +31,13 @@ describe('visibleFollowups — latest-only gate', () => {
   });
 
   it('disappears as soon as a newer turn starts (latest is the user)', () => {
-    expect(
-      visibleFollowups([withChips(), makeMessage({ role: 'user' })], false)
-    ).toEqual([]);
+    expect(visibleFollowups([withChips(), makeMessage({ role: 'user' })], false)).toEqual([]);
   });
 
-  it('is empty while the surface is blocked (streaming/history/usage)', () => {
+  it('is empty while the surface is transiently busy (streaming / history view)', () => {
+    // Competition with the usage wall and a pending approval moved to the
+    // surface arbiter (S1, lib/chat-surfaces) — this flag is now only about
+    // the surface being momentarily unusable.
     expect(visibleFollowups([withChips()], true)).toEqual([]);
   });
 

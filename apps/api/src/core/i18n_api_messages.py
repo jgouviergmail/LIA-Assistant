@@ -31,6 +31,8 @@ Design Principles:
 - Fallback to English if language not found
 """
 
+from datetime import date as date_type
+
 from src.core.i18n_types import SupportedLanguage
 
 
@@ -637,6 +639,40 @@ class APIMessages:
     # =========================================================================
     # CONVERSATIONS
     # =========================================================================
+
+    @staticmethod
+    def conversation_default_title(day: date_type, language: SupportedLanguage = "fr") -> str:
+        """Default title given to a conversation on creation, reactivation or reset.
+
+        The title is exposed to the client through ``ConversationResponse.title``,
+        so it is a user-facing string and must be localized (it used to be a
+        hard-coded French f-string). Each locale carries BOTH its wording and
+        its own numeric date convention — ``26/07`` in France, ``07/26`` in the
+        United States, ``26.07`` in Germany, ``年月日`` in China — because a
+        single format would read as a wrong date in half the languages.
+
+        Callers must pass a backend-canonical code; route raw locales through
+        ``normalize_language`` first (this module never normalizes, matching
+        every other table here).
+
+        Args:
+            day: The date the title refers to (caller-supplied, so the helper
+                stays deterministic and testable).
+            language: Backend-canonical language code.
+
+        Returns:
+            The localized title, e.g. ``"Conversation du 26/07/2026"``.
+        """
+        formats = {
+            "fr": ("Conversation du {date}", "%d/%m/%Y"),
+            "en": ("Conversation of {date}", "%m/%d/%Y"),
+            "es": ("Conversación del {date}", "%d/%m/%Y"),
+            "de": ("Unterhaltung vom {date}", "%d.%m.%Y"),
+            "it": ("Conversazione del {date}", "%d/%m/%Y"),
+            "zh-CN": ("{date}的对话", "%Y年%m月%d日"),
+        }
+        template, date_format = formats.get(language, formats["en"])
+        return template.format(date=day.strftime(date_format))
 
     @staticmethod
     def no_active_conversation(language: SupportedLanguage = "fr") -> str:

@@ -1,12 +1,12 @@
 {
   "_comment": "Frontend cyclomatic-complexity ratchet (audit F011). Shrink-only: `over` (functions >= CC 15), `max` (worst function) and each per-file {count, max} fingerprint may only DECREASE; a regression, a new offending file, or a function growing inside an offending file fails CI. Regenerate with --update ONLY after decomposing a hotspot, never to absorb a regression.",
-  "over": 52,
+  "over": 50,
   "max": 60,
   "threshold": 15,
   "perFile": {
     "src/app/[lng]/dashboard/chat/page.tsx": {
       "count": 1,
-      "max": 32
+      "max": 31
     },
     "src/components/chat/ChatInput.tsx": {
       "count": 1,
@@ -108,10 +108,6 @@
       "count": 2,
       "max": 31
     },
-    "src/components/settings/APIKeyConnectorForm.tsx": {
-      "count": 1,
-      "max": 19
-    },
     "src/components/settings/ChannelSettings.tsx": {
       "count": 1,
       "max": 17
@@ -163,10 +159,6 @@
     "src/components/usage/UsageLimitsTile.tsx": {
       "count": 1,
       "max": 17
-    },
-    "src/components/voice/VoiceOverlay.tsx": {
-      "count": 1,
-      "max": 16
     },
     "src/hooks/useChat.ts": {
       "count": 1,

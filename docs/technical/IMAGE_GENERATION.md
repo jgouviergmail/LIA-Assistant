@@ -139,6 +139,24 @@ Task Orchestrator → parallel_executor invokes edit_image tool
 
 ---
 
+## Expiry surfaced to the client (N2)
+
+A generated image is an `Attachment` with `expires_at = now + attachments_ttl_hours`,
+and the cleanup scheduler deletes expired attachments every 6 hours —
+`list_expired` does not spare non-orphans, so a generated image really is purged.
+Until N2 the frontend was never told: the image simply vanished from the history.
+
+`PendingImage` now carries `expires_at` (ISO-8601 string, `None` when unknown),
+and `to_wire_metadata()` serializes the list for **both** emission paths — the
+SSE `done` chunk and the archived `message_metadata` row. One serializer rather
+than two hand-written dict literals: the reloaded card must be the live one.
+
+On the client, `classifyImageExpiry()` is a pure function returning
+`unknown | expired | soon | later`. The deadline always comes from the backend —
+the TTL is configurable, so a "24 h" written into the UI would eventually lie —
+and a message with no `expires_at` (history predating the feature) renders
+nothing rather than guessing.
+
 ## Configuration
 
 ### Environment Variables

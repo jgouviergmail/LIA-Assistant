@@ -8,21 +8,21 @@ LIA works with **one active conversation**. This design choice allows:
 • A **smooth experience**: no need to juggle between windows
 
 **To start fresh:**
-Click the **New conversation** button (🗑️ icon). Warning: this deletes the current history.
+Click the **🗑️** button in the chat header. It deletes every message **and every attachment** — AI-generated images included — so export anything you want to keep first.
 
 ## How do I reset a conversation?
 To clear history and start over:
 
-1. In the chat, find the button with the 🗑️ icon in the header
+1. In the chat header, find the **🗑️** button
 2. Click it
-3. Confirm deletion
+3. Confirm in the dialog
 
-**⚠️ Warning:** This action is **irreversible**. All conversation history will be permanently deleted.
+**⚠️ What is actually deleted:** Every message, **all your attachments — AI-generated images included** — and the context LIA had built from this conversation (`POST /conversations/me/reset` also clears the token summaries, the LangGraph checkpoints and the tool contexts). The action is **irreversible**.
 
 **💡 When to reset?**
 • When you completely change topics
 • If LIA seems confused by previous context
-• For privacy reasons
+• When you would rather not leave that history behind
 
 ## Are conversations saved?
 Yes, your conversations are **automatically saved**:
@@ -33,6 +33,8 @@ Yes, your conversations are **automatically saved**:
 
 **📱 Multi-device tip:**
 You can start a conversation on your computer and continue on mobile (and vice-versa).
+
+**🗑️ Deleting is a deliberate act:** nothing is removed until you use the 🗑️ button and confirm.
 
 ## How do I use line breaks in my messages?
 Two keyboard shortcuts to know:
@@ -333,3 +335,32 @@ Yes. Your draft is saved per account as you type and restored after a refresh or
 
 ## The thread no longer jumps while I re-read — how does it work?
 When you scroll up to re-read, a streaming answer **never drags you back to the bottom**. A floating button appears with a counter of the responses that arrived off-screen; one tap brings you back. Sending a message still jumps to it, as expected. Under the latest answer, up to 3 **follow-up suggestions** may appear as chips: tapping one fills the input (never sends).
+
+## A message failed. Do I have to retype my question?
+
+No. A failed turn now carries a **Retry** button, and it replays exactly the
+request that failed — not whatever the latest message happens to be when you
+press it. That distinction matters: a proactive notification from LIA can land
+between your question and your click, and replaying the wrong text would send
+something you never asked for.
+
+## The chat is empty. Where do I start?
+
+A brand-new conversation offers three starting points under the greeting. They
+were chosen because they work on **any** account — no connector, no memory, no
+history required: ask what LIA can do, set a reminder, or have something
+explained. Tapping one **fills the composer**; it never sends on your behalf, so
+you can edit first.
+
+## Can I use the examples written in the FAQ directly?
+
+Yes. Every bulleted example in the in-app FAQ is a button: one tap drops the
+phrase into the chat composer, ready to adjust before you send it. The FAQ holds
+several hundred of them, in all six languages.
+
+## On my phone, how do I get from the chat to the settings?
+
+Tap the **LIA logo** at the top left. On narrow screens the navigation bar is
+hidden, so the logo opens a menu with the same four destinations — dashboard,
+chat, settings, help — and announces which page you are currently on. On a
+desktop the logo stays what it has always been: a link back to the dashboard.

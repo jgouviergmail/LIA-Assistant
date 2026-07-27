@@ -8,7 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { answerConfirmDialog, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import type { GoogleApiPricing } from '../AdminGoogleApiPricingSection';
 
 const { get } = vi.hoisted(() => ({ get: vi.fn() }));
@@ -189,12 +189,12 @@ describe('AdminGoogleApiPricingSection — creating', () => {
 
 describe('AdminGoogleApiPricingSection — editing & deactivating', () => {
   it('edits an entry once the change is confirmed, keyed on the original identity', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: EDIT }));
     await user.clear(screen.getByPlaceholderText(`${I18N}.modal.cost_placeholder`));
     await user.type(screen.getByPlaceholderText(`${I18N}.modal.cost_placeholder`), '7.25');
     await user.click(screen.getByRole('button', { name: SUBMIT_EDIT }));
+    await answerConfirmDialog(user);
     await waitFor(() =>
       expect(updateGoogleApiPricing).toHaveBeenCalledWith(
         'routes',
@@ -205,34 +205,34 @@ describe('AdminGoogleApiPricingSection — editing & deactivating', () => {
   });
 
   it('does not edit when the confirmation is dismissed', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: EDIT }));
     await user.click(screen.getByRole('button', { name: SUBMIT_EDIT }));
+    await answerConfirmDialog(user, false);
     expect(updateGoogleApiPricing).not.toHaveBeenCalled();
   });
 
   it('does not deactivate when the confirmation is dismissed', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: DISABLE }));
+    await answerConfirmDialog(user, false);
     expect(deactivateGoogleApiPricing).not.toHaveBeenCalled();
   });
 
   it('deactivates a confirmed entry and drops it from the list', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: DISABLE }));
+    await answerConfirmDialog(user);
     await waitFor(() => expect(deactivateGoogleApiPricing).toHaveBeenCalledWith('p1'));
     expect(toast.success).toHaveBeenCalledWith('disabled');
     await waitFor(() => expect(screen.queryByText('routes')).not.toBeInTheDocument());
   });
 
   it('reports a refused deactivation so the optimistic removal rolls back', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     deactivateGoogleApiPricing.mockResolvedValue({ success: false, error: 'in use' });
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: DISABLE }));
+    await answerConfirmDialog(user);
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('in use'));
     expect(await screen.findByText('routes')).toBeInTheDocument();
   });

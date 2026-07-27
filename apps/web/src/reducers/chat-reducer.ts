@@ -63,7 +63,9 @@ function applyDoneMetadata(m: Message, metadata: StreamDoneMetadata): Message {
     ttsCharacters: metadata.tts_characters ?? null,
     ttsCostEur: metadata.tts_cost_eur ?? null,
     skillName: metadata.skill_name,
-    generatedImages: metadata.generated_images as { url: string; alt: string }[] | undefined,
+    // No assertion: both sides now name the same `GeneratedImage` shape, so a
+    // future field lands on the action payload and the message together.
+    generatedImages: metadata.generated_images,
     browserScreenshot: metadata.browser_screenshot as { url: string; alt: string } | undefined,
     // Store psyche state snapshot for avatar display.
     // ADR-117 Lot 3: a cancelled run's synthesized done flags the partial
@@ -166,6 +168,35 @@ function hitlAfterSend(hitl: ChatState['hitl']): ChatState['hitl'] {
     return initialHitlCardState;
   }
   return hitl;
+}
+
+/**
+ * Build the bubble that reports a failed turn (W3).
+ *
+ * A failure used to end as an anonymous assistant bubble: the user had to find
+ * their question and retype it. The bubble is now marked as an error AND pins
+ * the prompt that produced it, so the retry replays exactly what was asked —
+ * not whatever happens to be the latest user text when the button is pressed
+ * (a proactive notification can land in between).
+ *
+ * `retryPrompt` is omitted when nothing meaningful can be replayed: a failure
+ * with no preceding question (a proactive turn), or an empty one.
+ */
+function errorBubble(messages: Message[], error: string): Message {
+  const lastUserText = [...messages]
+    .reverse()
+    .find(m => m.role === 'user')
+    ?.content?.trim();
+  return {
+    id: generateUUID(),
+    content: error,
+    role: 'assistant',
+    timestamp: new Date(),
+    metadata: {
+      type: 'error',
+      ...(lastUserText ? { retryPrompt: lastUserText } : {}),
+    },
+  };
 }
 
 const ACTION_HANDLERS: ChatActionHandlers = {
@@ -307,15 +338,7 @@ const ACTION_HANDLERS: ChatActionHandlers = {
     // (useChat resolves the ChatStreamError i18nKey / generic key through
     // t()) — the pure reducer has no i18n access and must not prepend
     // hardcoded text in any language.
-    messages: [
-      ...state.messages,
-      {
-        id: generateUUID(),
-        content: action.payload.error,
-        role: 'assistant',
-        timestamp: new Date(),
-      },
-    ],
+    messages: [...state.messages, errorBubble(state.messages, action.payload.error)],
   }),
 
   // ------------------------------------------------------------------ Streaming Events
@@ -478,15 +501,7 @@ const ACTION_HANDLERS: ChatActionHandlers = {
       sseStatus: 'error',
     },
     // Add error message to chat (already localized by backend)
-    messages: [
-      ...state.messages,
-      {
-        id: generateUUID(),
-        content: action.payload.error,
-        role: 'assistant',
-        timestamp: new Date(),
-      },
-    ],
+    messages: [...state.messages, errorBubble(state.messages, action.payload.error)],
     // HITL card: a transport failure while submitting re-arms the buttons
     // (retryable). The typed hitl_decision_stale error dispatches
     // HITL_EXPIRED separately — this branch only covers generic failures.

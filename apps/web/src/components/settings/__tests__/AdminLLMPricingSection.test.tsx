@@ -13,7 +13,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { answerConfirmDialog, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import { makeLLMPricing } from '@/__tests__/factories';
 import type { LLMModelPricing } from '../AdminLLMPricingSection';
 
@@ -140,26 +140,26 @@ describe('AdminLLMPricingSection — cache reload', () => {
 
 describe('AdminLLMPricingSection — deactivation', () => {
   it('does not deactivate when the confirmation is dismissed', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: DISABLE }));
+    await answerConfirmDialog(user, false);
     expect(deactivateLLMPricing).not.toHaveBeenCalled();
   });
 
   it('deactivates a confirmed model, drops the row and invalidates', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: DISABLE }));
+    await answerConfirmDialog(user);
     await waitFor(() => expect(deactivateLLMPricing).toHaveBeenCalledWith('m1'));
     await waitFor(() => expect(screen.queryByText('claude-x')).not.toBeInTheDocument());
     expect(invalidateCatalogue).toHaveBeenCalledWith(CATALOGUE_KEY);
   });
 
   it('rolls the optimistic removal back when the deactivation is refused', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     deactivateLLMPricing.mockResolvedValue({ success: false, error: 'in use' });
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: DISABLE }));
+    await answerConfirmDialog(user);
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('in use'));
     expect(await screen.findByText('claude-x')).toBeInTheDocument();
     expect(invalidateCatalogue).not.toHaveBeenCalled();
@@ -174,18 +174,18 @@ describe('AdminLLMPricingSection — editing', () => {
   });
 
   it('does not submit an edit when the confirmation is dismissed', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: EDIT }));
     await user.click(await screen.findByRole('button', { name: SUBMIT_EDIT }));
+    await answerConfirmDialog(user, false);
     expect(updateLLMPricing).not.toHaveBeenCalled();
   });
 
   it('submits a confirmed edit against the original model name and invalidates', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { user } = await renderLoaded();
     await user.click(screen.getByRole('button', { name: EDIT }));
     await user.click(await screen.findByRole('button', { name: SUBMIT_EDIT }));
+    await answerConfirmDialog(user);
     await waitFor(() =>
       expect(updateLLMPricing).toHaveBeenCalledWith('claude-x', expect.anything())
     );

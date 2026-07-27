@@ -19,9 +19,13 @@ import type { Message } from '@/types/chat';
 /**
  * Visibility rule (pure, exported for tests): chips belong to the LATEST
  * message only when it is an assistant answer carrying suggestions, and
- * never while the surface is blocked (streaming, history view, usage block —
- * the page folds those into `blocked`). Disappearing on the next user turn
- * is a consequence of the latest-only rule.
+ * never while the surface is TRANSIENTLY busy (streaming, history view — the
+ * page folds those into `blocked`). Disappearing on the next user turn is a
+ * consequence of the latest-only rule.
+ *
+ * Competition with the other conditional surfaces — the usage wall, a pending
+ * approval — is NOT decided here: `lib/chat-surfaces` arbitrates that in one
+ * place (S1), and the page only mounts the chips when they hold the slot.
  */
 export function visibleFollowups(messages: Message[], blocked: boolean): string[] {
   if (blocked) return [];

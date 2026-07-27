@@ -9,6 +9,11 @@
     "edit": "编辑",
     "search": "搜索",
     "close": "关闭",
+    "copy": "复制",
+    "copyFailed": "无法复制。",
+    "hide": "隐藏",
+    "show": "显示",
+    "menu": "菜单",
     "download": "下载",
     "back": "返回",
     "next": "下一个",
@@ -44,16 +49,6 @@
   },
   "theme": {
     "toggle": "切换主题"
-  },
-  "memory": {
-    "toggle": {
-      "enable": "启用记忆",
-      "disable": "禁用记忆",
-      "enabled": "记忆已启用",
-      "disabled": "记忆已禁用",
-      "tooltip_enabled": "长期记忆已激活 - 我会记住我们的对话",
-      "tooltip_disabled": "长期记忆已禁用 - 简单对话模式"
-    }
   },
   "executionMode": {
     "toggle": {
@@ -294,6 +289,9 @@
         "task_reschedule": "重新安排任务“{{subject}}”",
         "document_summarize": "帮我总结文档“{{subject}}”"
       },
+      "not_configured_intro_one": "{{count}} 张卡片待配置：",
+      "not_configured_intro_other": "{{count}} 张卡片待配置：",
+      "not_configured_cta": "配置{{card}}卡片",
       "all_hidden": "所有卡片均已隐藏。",
       "all_hidden_cta": "在设置中选择卡片"
     },
@@ -542,7 +540,6 @@
     "title": "聊天",
     "new_chat": "删除",
     "loading_conversation": "加载对话中...",
-    "reset_conversation_confirm": "您确定要永久删除对话历史记录吗？此操作不可逆。",
     "conversation_reset_success": "对话已重置",
     "conversation_reset_error": "重置时出错",
     "input": {
@@ -602,9 +599,6 @@
       "instruction_listening": "点击开始说话",
       "instruction_recording": "正在听... 点击停止",
       "instruction_processing": "处理中...",
-      "instruction_speaking": "LIA正在回复...",
-      "recording": "录音中",
-      "hint_tap_to_speak": "点击任意位置开始录音",
       "hint_listening": "说 \"OK Guy\" 或点击说话",
       "hint_recording": "正在听... 请说话",
       "hint_processing": "处理中...",
@@ -622,7 +616,6 @@
       "source_voice": "语音",
       "hold_to_enable": "长按启用",
       "hold_to_disable": "长按禁用",
-      "enabled_toast": "语音模式已启用",
       "disabled_toast": "语音模式已禁用"
     },
     "attachments": {
@@ -677,6 +670,18 @@
     "error": {
       "title": "加载错误",
       "message": "无法显示消息。请刷新页面。"
+    },
+    "image_expiry": {
+      "until": "可用至 {{date}} — 下载以保存",
+      "soon_one": "{{count}} 小时后过期 — 下载以保存",
+      "soon_other": "{{count}} 小时后过期 — 下载以保存",
+      "expired": "该图片已过期，不再可用"
+    },
+    "starters": {
+      "label": "试试这些",
+      "capabilities": "你能做什么？",
+      "reminder": "提醒我周五18点给Jean打电话",
+      "explain": "用简单的方式解释量子计算"
     },
     "empty_state": {
       "title": "开始对话",
@@ -784,7 +789,13 @@
       "reconnect_message": "LIA 无法访问 {{connector}} — 连接已过期。",
       "rate_limit_message": "{{connector}} 正在限制请求频率。请几分钟后重试。",
       "reconnect_button": "重新连接",
-      "dismiss": "关闭提示"
+      "dismiss": "关闭提示",
+      "summary_reconnect_one": "{{count}} 项服务需要重新连接",
+      "summary_reconnect_other": "{{count}} 项服务需要重新连接",
+      "summary_rate_limit_one": "{{count}} 项服务限制了请求",
+      "summary_rate_limit_other": "{{count}} 项服务限制了请求",
+      "summary_expand": "显示详情",
+      "summary_collapse": "隐藏详情"
     },
     "search": {
       "loaded_count_one": "已加载消息中有 {{count}} 条结果",
@@ -853,6 +864,16 @@
       "news_description": "我关注领域的新闻",
       "news_intent": "今天我关注的领域有什么新消息吗？",
       "skill_intent": "启动 {{name}} 技能"
+    },
+    "reset_confirm": {
+      "title": "删除此对话？",
+      "description": "所有消息都将被删除，您的全部附件（包括 AI 生成的图片）也会一并删除。LIA 还会忘记本次对话的上下文。此操作无法撤销。",
+      "confirm": "全部删除"
+    },
+    "active_call": {
+      "dialing": "LIA 正在拨打 {{name}}…",
+      "in_progress": "LIA 正在与 {{name}} 通话",
+      "details": "详情"
     }
   },
   "skill_apps": {
@@ -1005,7 +1026,6 @@
       "available_google": "Google 连接器",
       "available_external": "外部连接器",
       "all_connected": "所有可用连接器已连接",
-      "disconnect_confirm": "您确定要断开此服务的连接吗？",
       "disconnect_error": "断开连接时出错",
       "connected_success": "{{name}} 已成功连接",
       "unknown_connector": "连接器",
@@ -1258,19 +1278,11 @@
         "secret_placeholder": "Webhook 签名密钥",
         "activate": "启用电话功能",
         "activated": "电话功能已启用。LIA 现在可以代你拨打电话了。",
-        "no_calls": "暂无通话。",
-        "recent_calls": "最近通话",
-        "call_status": {
-          "dialing": "拨号中",
-          "in_progress": "进行中",
-          "completed": "已完成",
-          "no_answer": "无人接听",
-          "voicemail": "语音信箱",
-          "failed": "失败",
-          "cancelled": "已取消"
-        },
         "secret_label": "Webhook 签名密钥"
-      }
+      },
+      "disconnect": "断开连接",
+      "disconnect_title": "断开 {{name}} 的连接？",
+      "disconnect_description": "LIA 将无法再读取您的 {{name}} 数据或对其执行操作。{{name}} 侧不会删除任何内容，您可以随时重新连接。"
     },
     "user": {
       "export": {
@@ -1353,14 +1365,16 @@
           "erase": "彻底清除 (GDPR)"
         },
         "deactivation_reason_prompt": "停用此用户的原因：",
-        "delete_confirmation": "⚠️ 删除账户\n\n删除\"{{email}}\"的账户？\n\n这将不可逆地清除：\n• 对话和消息\n• 记忆和日志\n• OAuth连接器\n• RAG空间和文件\n• 个人数据\n\n计费历史将被保留。",
-        "erase_confirmation": "⚠️ 永久清除 (GDPR)\n\n永久清除\"{{email}}\"？\n\n这将删除账户的最后痕迹（邮箱、姓名）。\n计费历史将变为匿名。\n\n此操作无法撤消。",
+        "delete_confirmation": "删除\"{{email}}\"的账户？\n\n这将不可逆地清除：\n• 对话和消息\n• 记忆和日志\n• OAuth连接器\n• RAG空间和文件\n• 个人数据\n\n计费历史将被保留。",
+        "erase_confirmation": "永久清除\"{{email}}\"？\n\n这将删除账户的最后痕迹（邮箱、姓名）。\n计费历史将变为匿名。\n\n此操作无法撤消。",
         "errors": {
           "loading": "加载用户时出错",
           "toggle_status": "{{action}}用户时出错",
           "delete": "删除账户时出错",
           "erase": "彻底清除时出错 (GDPR)"
-        }
+        },
+        "delete_title": "⚠️ 删除账户",
+        "erase_title": "⚠️ 永久清除 (GDPR)"
       },
       "pricing": {
         "title": "LLM定价",
@@ -2137,7 +2151,8 @@
       "update_success": "语言更新成功",
       "update_error": "更新语言时出错",
       "persistence_info": "您的语言偏好已保存。通知邮件将使用此语言。",
-      "info_note": "💡 语言影响用户界面和通知邮件。更改语言会自动更新URL。"
+      "info_note": "💡 语言影响用户界面和通知邮件。更改语言会自动更新URL。",
+      "selector_label": "语言：{{name}}"
     },
     "interests": {
       "settings": {
@@ -2269,43 +2284,24 @@
     "location": {
       "geolocation": {
         "title": "地理位置",
-        "description": "允许LIA使用您的位置进行天气和地点查询",
-        "auto_label": "自动地理位置",
-        "auto_description": "每条消息自动发送您的位置",
         "permission_status": "权限状态",
         "permission_granted": "已授予",
         "permission_denied": "已拒绝",
         "unsupported": "不支持",
-        "current_position": "当前位置",
-        "accuracy": "精度：~{{meters}}米",
-        "refresh": "刷新",
         "enabled": "地理位置已启用",
         "disabled": "地理位置已禁用",
-        "refreshed": "位置已更新",
-        "denied_help": "要启用地理位置，请在网站设置中更改浏览器权限。",
-        "info_note": "您的位置仅随消息一起发送，用于上下文响应（本地天气、附近地点）。不会存储在我们的服务器上。"
+        "denied_help": "要启用地理位置，请在网站设置中更改浏览器权限。"
       },
       "home": {
         "title": "家庭地址",
-        "description": "设置您的地址以在查询中使用「在家」",
-        "places_required": "需要Google地点",
-        "places_required_help": "在设置 > 连接器中启用Google地点连接器以配置您的家庭地址。",
-        "current": "当前地址",
-        "set_address": "设置家庭地址",
         "placeholder": "输入您的地址...",
-        "input_help": "输入完整地址（街道、城市、邮政编码）",
         "save": "保存",
         "clear": "删除",
         "saved": "家庭地址已保存",
         "cleared": "家庭地址已删除",
         "save_error": "保存地址时出错",
         "clear_error": "删除地址时出错",
-        "address_required": "请输入地址",
-        "usage_title": "用途：",
-        "usage_weather": "\"家里的天气\"将使用此地址",
-        "usage_places": "\"家附近的餐厅\"将使用此地址",
-        "usage_phrases": "适用于：\"在家\"、\"家附近\"、\"我的社区\"",
-        "privacy_note": "您的地址已加密并安全存储。绝不会与第三方共享。"
+        "address_required": "请输入地址"
       }
     },
     "skills": {
@@ -2801,6 +2797,28 @@
         "title": "强身份验证",
         "description": "通行密钥、身份验证器应用和密码登录。"
       }
+    },
+    "telephony": {
+      "calls": {
+        "title": "最近通话",
+        "description": "LIA 为你拨打的电话",
+        "in_flight": "通话进行中",
+        "status": {
+          "dialing": "拨号中",
+          "in_progress": "进行中",
+          "completed": "已完成",
+          "no_answer": "无人接听",
+          "voicemail": "语音信箱",
+          "failed": "失败",
+          "cancelled": "已取消"
+        },
+        "outcome": {
+          "objective_met": "目标达成",
+          "partial": "部分达成",
+          "declined": "被拒绝",
+          "unreachable": "无法接通"
+        }
+      }
     }
   },
   "spaces": {
@@ -3163,6 +3181,7 @@
   "faq": {
     "title": "常见问题",
     "subtitle": "查找有关LIA最常见问题的答案",
+    "try_example": "试试这个例子：{{example}}",
     "show_welcome": "查看欢迎指南",
     "search": {
       "placeholder": "搜索常见问题...",
@@ -3225,7 +3244,7 @@
         },
         "hitl": {
           "title": "👤 高级人机协同",
-          "description": "8 种智能交互类型：澄清、实体消歧（ENTITY_DISAMBIGUATION）、计划审批、工具确认、草稿批评、编辑确认（EDIT_CONFIRMATION）、批量操作确认（FOR_EACH）和破坏性验证（批量删除 ≥3 项）。可配置阈值，执行前预览受影响项目。审阅循环具备 replay-safe 特性（ADR-092）：每次节点执行仅一个 interrupt，循环状态通过 checkpointed 图状态传递——每次 LLM 修改只执行一次，确认的内容保证与最后显示的内容完全一致。 一次操作是否算作修改，取自工具在目录中声明的类别，而不是根据名称推测——因此批量回复和转发与创建、删除受到完全相同的保护。"
+          "description": "8 种智能交互类型：澄清、实体消歧（ENTITY_DISAMBIGUATION）、计划审批、工具确认、草稿批评、编辑确认（EDIT_CONFIRMATION）、批量操作确认（FOR_EACH）和破坏性验证（批量删除 ≥3 项）。可配置阈值，执行前预览受影响项目。审阅循环具备 replay-safe 特性（ADR-092）：每次节点执行仅一个 interrupt，循环状态通过 checkpointed 图状态传递——每次 LLM 修改只执行一次，确认的内容保证与最后显示的内容完全一致。 一次操作是否算作修改，取自工具在目录中声明的类别，而不是根据名称推测——因此批量回复和转发与创建、删除受到完全相同的保护。 与之对称的是，同一个确认绝不应索取两次：十九种草稿类型本就会展示预览并等待明确同意，因此上游的语义校验器只判断计划的<b>结构</b>——参数缺失、工具选错、数量对应——而不判断这个动作看起来有多严重。重复提问并不等于更安全：它只会迫使用户反复坚持才能被执行。"
         },
         "connectors": {
           "title": "🔌 连接器与注册表",
@@ -3277,7 +3296,7 @@
         },
         "costTransparency": {
           "title": "💰 成本透明度",
-          "description": "可选实时显示：输入/输出/缓存 token、每条消息欧元成本和对话总计。仪表板统计：当前周期的消息、token 和成本。用户通过标题栏 💲 图标控制。"
+          "description": "可选实时显示：输入/输出/缓存 token、每条消息欧元成本和对话总计。仪表板统计：当前周期的消息、token 和成本。用户通过标题栏 💲 图标控制。 当存在配额时，它不再像一堵墙那样突然出现：在最先触及的那项限额达到 80 % 时会给出提醒——涵盖词元、消息数与费用，周期限额与绝对限额皆然——并点明是哪一项；若属周期限额，还会给出重置日期。绝对限额则不会承诺任何重置。"
         },
         "scheduledActions": {
           "title": "📅 计划操作",
@@ -3365,7 +3384,7 @@
         },
         "imageGeneration": {
           "title": "🎨 图像生成与编辑",
-          "description": "从文本描述生成图像，用自然语言指令编辑现有图像。多提供商工厂架构，用户级质量/尺寸/格式偏好，数据库缓存定价的成本跟踪。"
+          "description": "从文本描述生成图像，用自然语言指令编辑现有图像。多提供商工厂架构，用户级质量/尺寸/格式偏好，数据库缓存定价的成本跟踪。 生成的图片是有存续期限的附件：卡片会显示服务端返回的截止时间——绝不写死在界面里，因为该时长可配置——并在最后几小时切换为警示色，让你在清理前仍能完成下载。"
         },
         "reactMode": {
           "title": "⚡ ReAct执行模式",
@@ -3377,11 +3396,11 @@
         },
         "telephony": {
           "title": "📞 智能体电话",
-          "description": "LIA 可以通过目标导向的 ElevenLabs 智能体拨打外呼电话，由你<b>自己的按用户连接器</b>驱动（自带凭证 —— LIA 侧不计费）。数据保护由<b>能力限制而非提示词</b>保障：通话智能体仅暴露一个只读的可用性工具，只返回空闲/忙碌时段 —— 绝不返回日程的标题、参与者、地点或内容。全程不录音，转写从不留存；通话结束时，一个<b>每个用户专属的签名 Webhook</b> 触发一次无工具的 LLM 归纳，作为一份简短、会过期的小结异步回注到聊天中，并附带可选的一键后续操作。每通电话在拨号前都由你确认（HITL 草稿），整个子系统受特性开关保护（ADR-127）。该代理在系统提示词强制的<b>严格授权边界</b>内运行：不进行任何超出目标的支出或承诺；所有超出授权的提议都会被记录到专用结构化字段（附加费用、待定决策）中，通话后合成必须如实呈现。"
+          "description": "LIA 可以通过目标导向的 ElevenLabs 智能体拨打外呼电话，由你<b>自己的按用户连接器</b>驱动（自带凭证 —— LIA 侧不计费）。数据保护由<b>能力限制而非提示词</b>保障：通话智能体仅暴露一个只读的可用性工具，只返回空闲/忙碌时段 —— 绝不返回日程的标题、参与者、地点或内容。全程不录音，转写从不留存；通话结束时，一个<b>每个用户专属的签名 Webhook</b> 触发一次无工具的 LLM 归纳，作为一份简短、会过期的小结异步回注到聊天中，并附带可选的一键后续操作。每通电话在拨号前都由你确认（HITL 草稿），整个子系统受特性开关保护（ADR-127）。该代理在系统提示词强制的<b>严格授权边界</b>内运行：不进行任何超出目标的支出或承诺；所有超出授权的提议都会被记录到专用结构化字段（附加费用、待定决策）中，通话后合成必须如实呈现。 通话过程中，产品不再沉默：横幅会显示正在拨打给谁以及拨号进行到哪一步，专门的区块保存历史记录——姓名、目标、结果与摘要，唯独不含号码，因为 API 根本不暴露它。供应商的拒接会被当作拒接处理：它在拒绝时同样返回 <code>200</code>，因此未验证的主叫号码会留下一条进行中的记录，堵住后续所有通话；现在这种情况已与短暂故障区分开来，提示信息也会如实说明。"
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
-          "description": "仪表盘主页是一份每日简报：个性化 LLM 问候语 + 2-3 句综述，置于 9 张卡片网格之上（增强天气、日程、未读邮件、生日、提醒、健康、「为你」——开放事项 + 自动化摘要——、进行中/逾期任务、最近的 Drive 文档）。纯净架构：无 LangGraph 链，并行 asyncio.gather，按板块的 Redis 缓存配合自适应 TTL（天气 1 小时、日程 10 分钟、邮件 5 分钟…）。拆分端点（/briefing/cards 快速 + /briefing/synthesis LLM 绑定）实现渐进式渲染。每次 LLM 调用的 token 与 EUR 费用在时间戳旁的 UI 中展示，并通过 track_proactive_tokens 计入用户使用统计（缓存 token 已正确扣除）。"
+          "description": "仪表盘主页是一份每日简报：个性化 LLM 问候语 + 2-3 句综述，置于 9 张卡片网格之上（增强天气、日程、未读邮件、生日、提醒、健康、「为你」——开放事项 + 自动化摘要——、进行中/逾期任务、最近的 Drive 文档）。纯净架构：无 LangGraph 链，并行 asyncio.gather，按板块的 Redis 缓存配合自适应 TTL（天气 1 小时、日程 10 分钟、邮件 5 分钟…）。拆分端点（/briefing/cards 快速 + /briefing/synthesis LLM 绑定）实现渐进式渲染。每次 LLM 调用的 token 与 EUR 费用在时间戳旁的 UI 中展示，并通过 track_proactive_tokens 计入用户使用统计（缓存 token 已正确扣除）。 这九张卡片中有七张在数据源未配置前不会渲染任何内容：与其留下看不见的空洞，不如用一行文字点名它们，并各自链接到启用该卡片的设置——而你自己隐藏的卡片则理所当然不在其列。"
         }
       },
       "diagram_alt": "LIA架构图"
@@ -3390,6 +3409,23 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_25_24": {
+          "title": "v1.25.24 — 🧭 找到 LIA 早已具备的能力",
+          "date": "2026 年 7 月",
+          "count": "10",
+          "items": {
+            "i1": "<b>📱 手机上，标志即菜单</b> — 屏幕宽度低于某个阈值时导航栏会消失，且没有任何替代：在对话页面中，除了手动输入网址，你无法进入设置或帮助。现在点按 LIA 标志即可：四个入口全部展开，并会朗读当前所在页面。",
+            "i2": "<b>🎯 链接直达对应的设置区块</b> — 入门清单的七项中有六项只把你送到设置页顶部，面对三十来个折叠区块。现在每一项都会打开自己的区块、展开并滚动定位。共有十七个区块支持这种直达，首页卡片同样适用。",
+            "i3": "<b>🏠 未配置的首页卡片不再是空洞</b> — 九张卡片中有七张在数据源未连接时完全不显示，因此新账户只会看到两张空卡片和七处无从解释的缺失。现在有一行简洁的提示点名这些卡片，并链接到启用它们的设置。你自己隐藏的卡片永远不会被提及。",
+            "i4": "<b>⚠️ 触及用量上限前先给出提醒</b> — 此前没有任何迹象表明配额将尽：界面会在任务中途直接锁死。现在当最先触发的那项限额达到 80 % 时会出现提示，指明是哪一项；若属于周期限额，还会给出重置日期。",
+            "i5": "<b>🖼️ 生成的图片会说明删除时间</b> — 它们仅保留一段时间随后被清除，而此前对此只字未提：图片会在毫无预警的情况下从历史记录中消失。现在每张卡片都会标明可用截止时间，并在最后几小时切换为警示色。",
+            "i6": "<b>🔁 失败的一轮对话一键重试</b> — 以前你必须找回自己的问题并重新输入。现在的重试按钮会精确重放失败的那次请求，即使期间又收到了其他消息。",
+            "i7": "<b>💬 常见问题中的示例可以点击</b> — 这里数百条现成语句此前只能手动抄写。现在一次点击就会把它们放入对话输入框，可在发送前自行修改。系统绝不会代你发送。",
+            "i8": "<b>📞 通话：过程中可见，结束后有解释</b> — 从你确认到收到摘要之间，LIA 完全沉默。现在会有横幅显示她正在拨打给谁、通话进行到哪一步，设置中也有专门区块保存记录。更重要的是：被运营商拒接的通话（主叫号码未验证、余额不足）此前会把后续所有通话堵住一刻钟；现在这种拒绝会被识别并加以说明，而不再被当成通话进行中。",
+            "i9": "<b>🗣️ LIA 不再重复索取同一个确认</b> — 面对邮件、日程或通话，她会提示该操作不可撤销并等待你同意……而紧接着本来就会出现预览和明确的确认。你必须坚持才能被执行。这个重复的提问已经取消；真正重要的那次确认——展示究竟会发出什么的那一次——当然仍然保留。",
+            "i10": "<b>✅ 内置确认框，以及放得下的界面</b> — 最不可逆的管理操作此前使用操作系统自带的弹窗，它既不遵循主题，按钮文字也取自电脑的语言。现在改用 LIA 自己的对话框。顺带修复：手机上输入框不再被浏览器地址栏遮住，平板上德语界面的退出按钮也不再跑到屏幕之外。"
+          }
+        },
         "v1_25_23": {
           "title": "v1.25.23 — 🔍 从未运行过的测试",
           "date": "2026年7月",
@@ -4803,23 +4839,23 @@
       "chat": {
         "title": "对话",
         "description": "使用聊天和对话",
-        "count": "22",
+        "count": "23",
         "questions": {
           "q1": {
             "question": "我可以同时进行多个对话吗？",
-            "answer": "不可以，LIA一次只能进行一个活动对话。您可以随时创建<strong>新对话</strong>，但这将替换当前对话。您之前对话的历史记录将被删除。"
+            "answer": "LIA 只维持<strong>一个活动对话</strong>。这一设计取舍换来的是：<br><br>• <strong>连贯的上下文</strong>：LIA 记得整段交流<br>• <strong>自然的指代</strong>：「<em>第一封邮件</em>」「<em>上一个联系人</em>」<br>• <strong>顺畅的体验</strong>：无需在多个窗口之间周旋<br><br><strong>重新开始：</strong><br>点击聊天标题栏中的 <strong>🗑️</strong> 按钮。它会删除所有消息<strong>以及你的全部附件</strong>（包括 AI 生成的图片），想保留的内容请先导出。"
           },
           "q2": {
             "question": "如何重置对话？",
-            "answer": "在对话中，点击标题中的🗑️图标按钮。<strong>警告</strong>：此操作将永久删除所有对话历史记录，不可恢复。"
+            "answer": "要清空并重新开始：<br><br>1. 在聊天标题栏中找到 <strong>🗑️</strong> 按钮<br>2. 点击它<br>3. 在对话框中确认<br><br><strong>⚠️ 实际会被删除的内容：</strong><br>所有消息、<strong>你的全部附件（包括 AI 生成的图片）</strong>，以及 LIA 从这段对话中建立的上下文。此操作<strong>不可撤销</strong>。<br><br><strong>💡 什么时候值得这么做？</strong><br>• 你要转向一个完全不同的话题<br>• LIA 似乎被此前的上下文干扰了<br>• 你不希望把这段历史留在身后"
           },
           "q3": {
             "question": "对话会被保存吗？",
-            "answer": "是的，您的所有对话都会<strong>自动保存和同步</strong>。您可以从连接到您账户的任何设备访问它们。对话历史会保留，直到您明确删除它们。"
+            "answer": "会的，你的对话是<strong>边聊边保存</strong>的：<br><br>• <strong>实时</strong>：每条消息在发出的那一刻就被记录<br>• <strong>多设备</strong>：在任何登录了你账户的设备上都能接着聊<br>• <strong>持久</strong>：退出登录、关闭浏览器都不会丢失<br><br><strong>📱 实际使用：</strong><br>在电脑上开始一段对话，换到手机上继续 —— 反过来也一样。<br><br><strong>🗑️ 删除是一个主动的动作：</strong><br>在你使用 <strong>🗑️</strong> 按钮并确认之前，什么都不会被清除。"
           },
           "q4": {
             "question": "如何在消息中使用换行符？",
-            "answer": "按<strong>Shift + Enter</strong>添加换行符。只需按<strong>Enter</strong>发送您的消息。"
+            "answer": "两个需要知道的快捷键：<br><br>• <strong>Enter</strong> = 发送消息<br>• <strong>Shift + Enter</strong> = 换行<br><br><strong>💡 完整示例：</strong><br>要口述一封结构化的邮件，可以输入：<br><br><em>给 John 发一封邮件：<br>主题：项目会议<br>正文：<br>你好 John，<br><br>确认我们明天的会议。<br><br>此致</em><br><br>每行之间用 Shift+Enter，最后按 Enter 一次性发送。"
           },
           "q5": {
             "question": "为什么消息是逐渐显示的？",
@@ -4892,6 +4928,10 @@
           "q22": {
             "question": "回看时对话不再跳动 — 这是怎么做到的？(v1.25.16)",
             "answer": "<p>当您向上回看时，正在生成的回复<strong>不再把您强行拉到底部</strong>。悬浮按钮会显示屏幕外新到回复的数量；轻点即可返回底部。您自己发送消息时仍会跳到该消息，符合预期。最新回复下方最多可出现 3 个<strong>后续建议</strong>芯片：点击填入输入框（绝不自动发送）。</p>"
+          },
+          "q23": {
+            "question": "消息失败了，我必须重新输入问题吗？",
+            "answer": "不必。错误气泡现在带有<b>重试</b>按钮，它会<b>精确</b>重放失败的那次请求。<br><br><strong>为什么这种精确很重要：</strong><br>在你提问与点击之间，LIA 可能给你发过一条主动通知。此时重放「最后一条消息」发出去的就不是你原本要的内容了。因此问题会在失败发生的那一刻被钉在气泡上。<br><br><strong>💡 小提示：</strong><br>如果失败之前没有任何提问（例如一条通知），则不会显示按钮：没有可重放的内容。"
           }
         }
       },
@@ -4902,11 +4942,11 @@
         "questions": {
           "q1": {
             "question": "如何更改时区？",
-            "answer": "转到<strong>设置 > 偏好设置 > 时区</strong>。您的时区会自动检测，但如果需要，您可以手动更改。时区会影响消息和事件中时间的显示。"
+            "answer": "时区决定了对话中日期和时间的显示方式：<br><br><strong>如何更改：</strong><br>1. 进入<strong>设置</strong>（菜单中的 ⚙️ 图标）<br>2. 打开<strong>偏好设置</strong>标签页<br>3. 在<strong>个性化</strong>下展开<strong>时区</strong>并选择你的时区<br><br><strong>🌍 自动检测：</strong><br>首次登录时，LIA 会通过浏览器检测你的时区。<br><br><strong>💡 出行提示：</strong><br>如果你在旅途中，LIA 会发现与浏览器时区的差异，并提示你一键更新。"
           },
           "q2": {
             "question": "如何更改界面语言？",
-            "answer": "您可以通过两种方式更改语言：<br><br>1. 通过标题栏中的<strong>🌐语言选择器</strong>（地球图标）<br>2. 在<strong>设置 > 偏好设置 > 语言</strong>中<br><br>两种方法都会将您的偏好同步到数据库。通知邮件也会使用您选择的语言发送。"
+            "answer": "更改语言有两种方式：<br><br><strong>快捷方式：</strong><br>点击标题栏中的<strong>地球图标</strong> 🌐 并选择你的语言。<br><br><strong>通过设置：</strong><br>1. 进入<strong>设置</strong>（菜单中的 ⚙️ 图标）<br>2. 打开<strong>偏好设置</strong>标签页<br>3. 在<strong>个性化</strong>下展开<strong>语言</strong><br><br><strong>🔄 同步：</strong><br>两种方式保存的是同一项偏好，写入你的个人资料，因此会跨设备跟随你。<br><br><strong>📧 不止于界面：</strong><br>通知邮件以及 LIA 发送的推送通知同样使用这一语言。"
           },
           "q3": {
             "question": "什么是主题，如何更改？",
@@ -4914,7 +4954,7 @@
           },
           "q4": {
             "question": "如何更新我的个人资料？",
-            "answer": "转到<strong>设置 > 个人资料</strong>以编辑您的全名和其他个人信息。注册后无法更改您的电子邮件地址。"
+            "answer": "管理你的个人信息：<br><br><strong>可修改：</strong><br>• ✏️ <strong>全名</strong>：应用中显示的名字 —— <strong>设置 > 个人资料</strong><br>• 🌍 <strong>时区</strong>、🌐 <strong>语言</strong>、🎨 <strong>外观</strong>：<strong>设置 > 偏好设置</strong>，位于<strong>个性化</strong>下<br><br><strong>不可修改：</strong><br>• 📧 <strong>邮箱</strong>：它是你的登录标识，注册后固定不变<br><br><strong>💡 小提示：</strong><br>这个名字就是 LIA 称呼你时使用的名字，用昵称和用真名一样合适。"
           },
           "q5": {
             "question": "如何选择LIA的个性？",
@@ -5040,7 +5080,7 @@
       "telephony": {
         "title": "电话呼叫",
         "description": "LIA 可以代你拨打真实的电话。完整配置指南（Twilio + ElevenLabs）与日常使用。",
-        "count": "12",
+        "count": "13",
         "questions": {
           "q1": {
             "question": "LIA 在电话里能做什么？",
@@ -5089,6 +5129,10 @@
           "q12": {
             "question": "不好用 —— 该检查什么？",
             "answer": "<strong>第 1 步提示「密钥无效」</strong><br>→ 密钥复制有误，或权限不足（需要 Agents 平台权限）。<br><br><strong>密钥验证后提示「没有号码」</strong><br>→ 你的号码没有导入 ElevenLabs 的 <strong>Agents</strong> 工作区，或者是以 SIP 中继而非原生 Twilio 集成导入的。<br><br><strong>电话打出去了，但小结没有回来</strong><br>→ 问题出在 Webhook：URL 无法从公网访问、签名密钥错误，或事件类型不对（必须是 <strong>post_call_transcription</strong>）。<br><br><strong>「已有一通电话在进行中」</strong><br>→ 设计上同一时间只允许一通活跃通话。卡住的通话约 15 分钟后会被自动清理。<br><br><strong>连续几通之后被拒绝</strong><br>→ 你达到了每小时上限（默认 10 通/小时）。<br><br><strong>还是不行？</strong>请联系你的管理员：服务器日志会准确记录收到了哪些 Webhook 事件，以及被忽略的原因。"
+          },
+          "q13": {
+            "question": "通话进行时我能跟进吗？",
+            "answer": "可以。LIA 一开始拨号，对话上方就会出现横幅：她正在拨给谁，通话进行到哪一步。通话结束时横幅随即消失。<br><br><strong>📒 事后：</strong><br>历史记录位于<b>设置 → 偏好设置 → 最近通话</b>：姓名、目标、状态、结果与摘要。唯独不含号码——API 并不暴露它。如果你从未拨打过电话，该区块根本不会出现。<br><br><strong>⚠️ 如果通话被拒绝：</strong><br>提示会明确说明，并区分两种情况：短暂故障（重试有意义），以及运营商的拒绝——主叫号码未验证、余额不足——这种情况下在对方修复之前，重试不会有任何改变。"
           }
         }
       },
@@ -5670,11 +5714,11 @@
       "usage_limits": {
         "title": "使用限制",
         "description": "每用户令牌、消息和成本配额",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "什么是使用限制？",
-            "answer": "使用限制是<strong>管理员设置的配额</strong>，用于控制资源消耗（令牌、消息、成本EUR）。可以按周期或全局设置。"
+            "answer": "使用限制是<strong>由管理员设定的配额</strong>，用于让资源消耗保持可预期：<br><br><strong>📊 三个维度：</strong><br>• <strong>令牌</strong>（提示词 + 回复 + 缓存）—— AI 处理的数据量<br>• <strong>消息数</strong> —— 你发送的消息条数<br>• <strong>费用（欧元）</strong> —— LLM 与 Google API 的合计费用<br><br><strong>📅 两种模式：</strong><br>• <strong>按周期</strong> —— 以你的账户创建日期为锚点的滚动月周期，而不是每月 1 号<br>• <strong>全局</strong> —— 自注册以来的累计总量，永不重置<br><br>每个维度都可以单独设定数值或保持不限，互不影响。"
           },
           "q2": {
             "question": "计费周期如何计算？",
@@ -5707,6 +5751,10 @@
           "q9": {
             "question": "限制如何执行？",
             "answer": "5层纵深防御架构。基础设施故障时fail-open。"
+          },
+          "q10": {
+            "question": "达到限额之前会有提醒吗？",
+            "answer": "会。当最先触发的那项限额达到 <b>80 %</b> 时，聊天中会出现提示并点明是哪一项——词元、消息数还是费用——并给出百分比。达到 <b>95 %</b> 时，同一提示会转为更紧迫的语气。<br><br><strong>为什么是「最先触发的那项」：</strong><br>任何一个维度都会锁住账户。对一个尚不紧张的维度发出提醒，指向的就是错误的期限，因此始终点名最具约束力的那一项。<br><br><strong>📅 重置日期：</strong><br>仅对<b>周期</b>限额显示。绝对限额永不重置，提示也不会让你误以为会。<br><br><strong>💡 一旦被锁定：</strong><br>提醒会消失——锁定横幅能更好地说明处境，而在最糟的时刻就同一限额发出两条消息只会造成干扰。"
           }
         }
       },
@@ -5748,7 +5796,7 @@
       "image_generation": {
         "title": "AI图像生成",
         "description": "使用AI生成和编辑图像",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "如何生成图像？",
@@ -5773,6 +5821,10 @@
           "q6": {
             "question": "我可以生成的图像数量有限制吗？",
             "answer": "<p>有两道防线。您账户的<strong>使用限额</strong>（按计费周期的费用上限，由管理员设定）会像其他费用一样计入图像生成成本。此外，一个<strong>技术限制</strong>可防止失控循环：默认为<strong>每用户每 5 分钟 10 次生成（及 10 次编辑）</strong>。正常使用不受影响——达到限制时，助手会提示你需等待多久再重试。管理员可通过环境变量 <code>IMAGE_GENERATION_RATE_LIMIT_CALLS</code> 和 <code>IMAGE_GENERATION_RATE_LIMIT_WINDOW</code> 调整阈值和时间窗口。</p>"
+          },
+          "q7": {
+            "question": "生成的图片能保留多久？",
+            "answer": "并非永久。生成的图片是带有到期时间的附件，定时清理任务每隔数小时就会删除已过期的附件。<br><br><strong>🕒 卡片会显示什么：</strong><br>服务端返回的到期时间，以及在最后几小时切换为警示色，让你还来得及下载。<br><br><strong>为什么不把时长写死：</strong><br>保留时长由管理员配置，写死在界面里的数值迟早会变成谎言。早于该功能生成的图片则宁可什么都不显示，也不去猜测。<br><br><strong>💡 建议：</strong><br>只要某张图片对你重要，就尽快使用下载按钮——这是让它超过到期时间仍然保留下来的唯一办法。"
           }
         }
       },
@@ -5947,7 +5999,8 @@
     "settings": {
       "title": "LIA风格",
       "description": "自定义助手回复的语气和风格"
-    }
+    },
+    "selector_label": "个性：{{name}}"
   },
   "memories": {
     "purge_risk_badge_at_risk": "可能被遗忘",
@@ -6688,7 +6741,7 @@
       },
       "telephony": {
         "title": "LIA 可以替你打电话",
-        "description": "让 LIA 代你拨打一通真实的电话 —— 联系某个联系人、问个小问题、确认一个时间段。拨号前你先确认它打给谁、为什么打；LIA 完成通话后，会在聊天中留下一份书面小结，并在合适时提供一键后续操作。而且绝不会替你做主：任何计划外的花费或选项都只会连同价格一起记录下来，绝不擅自接受——最终由你决定。"
+        "description": "让 LIA 代你拨打一通真实的电话 —— 联系某个联系人、问个小问题、确认一个时间段。拨号前你先确认它打给谁、为什么打；LIA 完成通话后，会在聊天中留下一份书面小结，并在合适时提供一键后续操作。而且绝不会替你做主：任何计划外的花费或选项都只会连同价格一起记录下来，绝不擅自接受——最终由你决定。 通话进行时，你能看到她正与谁通话、进行到哪一步——从你同意到收到摘要之间，产品不再保持沉默。"
       },
       "reminders_scheduling": {
         "title": "提醒与自动化",
@@ -7430,7 +7483,7 @@
       "human-in-the-loop": {
         "title": "人在回路中：6级审批保持您的控制",
         "excerpt": "LIA从不在未经您同意的情况下执行关键操作。其6级HITL系统保护您免受错误和幻觉的影响。",
-        "body": "<h2>为什么人工验证至关重要</h2><p>语言模型可能产生幻觉或误解意图。LIA通过将<strong>人类置于每个关键决策的中心</strong>来解决这一问题。未经您的明确验证，不会发送任何邮件、创建任何日程或修改任何数据。</p><h2>6个审批级别</h2><p>LIA的HITL系统根据6个级别对每个操作进行分类：</p><ul><li><strong>计划审批</strong> — 在执行多步骤计划之前，LIA生成包含计划摘要和可修改参数的<code>PlanApprovalRequest</code>，然后等待您的批准。</li><li><strong>澄清</strong> — 如果意图不明确，LIA会请求更多信息，而不是猜测。</li><li><strong>草稿审查</strong> — 对于邮件或消息，LIA在发送前提交草稿供您审核。</li><li><strong>破坏性确认</strong> — 任何不可逆的删除或修改都需要明确确认。</li><li><strong>FOR_EACH确认</strong> — 对于批量操作，每个元素都可以单独验证。</li><li><strong>修改审查</strong> — 参数变更需提交验证。</li></ul><h2>5种决策与置信度</h2><p>HITL分类器生成包含5种可能决策的<strong>ClassificationResult</strong>，每种决策附带0.0到1.0之间的置信度分数：</p><ul><li><strong>APPROVE</strong> — 操作已验证，传递给<code>task_orchestrator</code></li><li><strong>REJECT</strong> — 操作被拒绝，流程重定向到<code>response</code>节点</li><li><strong>EDIT</strong> — 用户通过<code>edited_params</code>修改参数，<code>PlanEditor</code>应用修改</li><li><strong>REPLAN</strong> — 用户通过<code>reformulated_intent</code>重新表述意图，流程返回<code>planner</code></li><li><strong>AMBIGUOUS</strong> — 系统提出<code>clarification_question</code>以消除歧义</li></ul><h2>LangGraph原生中断</h2><p>从技术上讲，<code>approval_gate</code>节点使用LangGraph的<code>interrupt()</code>函数<strong>暂停图的执行</strong>并等待用户响应。状态持久化在PostgreSQL中，即使断开连接后也支持异步恢复。</p><h2>您始终拥有最终决定权</h2><p>在每个验证点，分类策略都是可组合的：基于工具清单、估计成本、数据敏感性和用户角色。LIA永远不会绕过这一步骤。</p><p>而且这个最终决定权得到严格尊重：审阅循环遵循 replay-safe 模式（每次节点执行仅一个 <code>interrupt()</code>，循环状态通过 checkpoint 保存——ADR-092），因此恢复执行绝不会重放过去的 LLM 或 API 调用。无论经过多少次修改，您确认的内容正是实际执行的内容。</p>"
+        "body": "<h2>为什么人工验证至关重要</h2><p>语言模型可能产生幻觉或误解意图。LIA通过将<strong>人类置于每个关键决策的中心</strong>来解决这一问题。未经您的明确验证，不会发送任何邮件、创建任何日程或修改任何数据。</p><h2>6个审批级别</h2><p>LIA的HITL系统根据6个级别对每个操作进行分类：</p><ul><li><strong>计划审批</strong> — 在执行多步骤计划之前，LIA生成包含计划摘要和可修改参数的<code>PlanApprovalRequest</code>，然后等待您的批准。</li><li><strong>澄清</strong> — 如果意图不明确，LIA会请求更多信息，而不是猜测。</li><li><strong>草稿审查</strong> — 对于邮件或消息，LIA在发送前提交草稿供您审核。</li><li><strong>破坏性确认</strong> — 任何不可逆的删除或修改都需要明确确认。</li><li><strong>FOR_EACH确认</strong> — 对于批量操作，每个元素都可以单独验证。</li><li><strong>修改审查</strong> — 参数变更需提交验证。</li></ul><h2>5种决策与置信度</h2><p>HITL分类器生成包含5种可能决策的<strong>ClassificationResult</strong>，每种决策附带0.0到1.0之间的置信度分数：</p><ul><li><strong>APPROVE</strong> — 操作已验证，传递给<code>task_orchestrator</code></li><li><strong>REJECT</strong> — 操作被拒绝，流程重定向到<code>response</code>节点</li><li><strong>EDIT</strong> — 用户通过<code>edited_params</code>修改参数，<code>PlanEditor</code>应用修改</li><li><strong>REPLAN</strong> — 用户通过<code>reformulated_intent</code>重新表述意图，流程返回<code>planner</code></li><li><strong>AMBIGUOUS</strong> — 系统提出<code>clarification_question</code>以消除歧义</li></ul><h2>LangGraph原生中断</h2><p>从技术上讲，<code>approval_gate</code>节点使用LangGraph的<code>interrupt()</code>函数<strong>暂停图的执行</strong>并等待用户响应。状态持久化在PostgreSQL中，即使断开连接后也支持异步恢复。</p><h2>您始终拥有最终决定权</h2><p>在每个验证点，分类策略都是可组合的：基于工具清单、估计成本、数据敏感性和用户角色。LIA永远不会绕过这一步骤。</p><p>而且这个最终决定权得到严格尊重：审阅循环遵循 replay-safe 模式（每次节点执行仅一个 <code>interrupt()</code>，循环状态通过 checkpoint 保存——ADR-092），因此恢复执行绝不会重放过去的 LLM 或 API 调用。无论经过多少次修改，您确认的内容正是实际执行的内容。</p><h2>确认一次，绝不两次</h2><p>放错位置的防护会背离自己的初衷。在计划的上游，语义校验器可能因为认定某个动作「不可撤销」而停下来——发送邮件、预约日程、拨打电话——而紧接着，针对完全相同的动作，本就会出现预览和明确的确认。用户必须<strong>反复坚持才能被执行</strong>。</p><p>如今这条规则已经写明：下游已经自带确认的动作，绝不在上游被拦截。校验器只判断计划的<strong>结构</strong>——参数缺失、工具选错、数量对应不一致——而不判断这个动作看起来有多严重。把同一个问题问两遍并不会带来更多安全：它只是把负担转嫁给用户，最终教会他们不读就点。</p>"
       },
       "llm-providers": {
         "title": "多供应商AI：为每个任务选择合适的模型",
@@ -7600,6 +7653,19 @@
       "error": "更新失败",
       "default_block_reason": "被管理员封禁",
       "current_usage": "当前使用量"
+    },
+    "warning": {
+      "warning": "您已使用配额的 {{percent}}%。",
+      "critical": "您已达到配额的 {{percent}}%。",
+      "resets_on": "{{date}} 重置",
+      "dimension": {
+        "cycle_tokens": "本周期的 token",
+        "cycle_messages": "本周期的消息",
+        "cycle_cost": "本周期的费用",
+        "absolute_tokens": "总 token",
+        "absolute_messages": "总消息数",
+        "absolute_cost": "总费用"
+      }
     },
     "blocked": {
       "title": "已达限制",

@@ -44,7 +44,9 @@ def _install_fakes(
     *,
     connector: object | None = "default",
     active_existing: object | None = None,
-    conversation_id: str = "conv_1",
+    conversation_id: str | None = "conv_1",
+    vendor_success: bool = True,
+    vendor_message: str | None = None,
     client_error: bool = False,
     sync_error: bool = False,
     vendor_conversation_status: str | object = "in-progress",
@@ -105,7 +107,12 @@ def _install_fakes(
             captured["call_kwargs"] = kwargs
             if client_error:
                 raise ElevenLabsAgentsError(502, "bad gateway")
-            return OutboundCallResult(success=True, conversation_id=conversation_id, call_sid="CA1")
+            return OutboundCallResult(
+                success=vendor_success,
+                conversation_id=conversation_id,
+                call_sid="CA1",
+                message=vendor_message,
+            )
 
         async def update_agent(self, agent_id, **kwargs) -> None:  # noqa: ANN001
             if sync_error:
@@ -379,3 +386,94 @@ async def test_guard_refuses_when_close_is_denied(monkeypatch: pytest.MonkeyPatc
     result = await _call(TelephonyService(db, client_factory=factory))
     assert result.status == "already_active"
     assert "call_kwargs" not in captured
+
+
+# =============================================================================
+# Vendor refusal — the 200 that means "no" (fix: silent DIALING zombie)
+# =============================================================================
+
+
+@pytest.mark.unit
+async def test_vendor_refusal_marks_the_row_failed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A `success: false` body must close the row, not leave it dialing.
+
+    The vendor answers HTTP 200 even when it declines (unverified number,
+    exhausted credit). Treating that as a placed call left a DIALING row that
+    nothing would ever end: with no conversation id the self-healing probe
+    cannot ask about it either, so it blocked EVERY further call until the
+    15-minute stale threshold — observed in dev.
+    """
+    captured, factory = _install_fakes(
+        monkeypatch,
+        vendor_success=False,
+        conversation_id=None,
+        vendor_message="number not verified",
+    )
+    result = await _call(TelephonyService(_FakeDB(_user()), client_factory=factory))
+
+    assert result.status == "rejected"
+    assert "initiate_rejected" in captured["dial_failed_error"]
+    assert "number not verified" in captured["dial_failed_error"]
+    # And no conversation id was persisted for a call that never happened.
+    assert "conversation_id" not in captured
+
+
+@pytest.mark.unit
+async def test_accepted_call_without_conversation_id_stays_active(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Accepted but unidentifiable: the row must NOT be closed.
+
+    The call may well be ringing. Closing it would let a second one start in
+    parallel — the one thing the active-call guard exists to prevent. It is
+    simply unprobeable, and the stale threshold remains the way out.
+    """
+    captured, factory = _install_fakes(monkeypatch, vendor_success=True, conversation_id=None)
+    result = await _call(TelephonyService(_FakeDB(_user()), client_factory=factory))
+
+    assert result.status == "placed"
+    assert "dial_failed_error" not in captured
+
+
+@pytest.mark.unit
+async def test_successful_call_is_unaffected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The nominal path keeps persisting the conversation id."""
+    captured, factory = _install_fakes(monkeypatch, vendor_success=True, conversation_id="conv_9")
+    result = await _call(TelephonyService(_FakeDB(_user()), client_factory=factory))
+
+    assert result.status == "placed"
+    assert captured["conversation_id"] == "conv_9"
+    assert "dial_failed_error" not in captured
+
+
+# =============================================================================
+# Status → phrase completeness (a status with no phrase raises KeyError at the
+# worst moment: in front of the user, after they confirmed the call)
+# =============================================================================
+
+
+@pytest.mark.unit
+def test_every_failure_status_has_a_phrase_in_every_language() -> None:
+    """Each non-placed status maps to a phrase that exists in all 6 languages.
+
+    `_STATUS_TO_PHRASE[result.status]` is an unguarded lookup, and the phrase is
+    then read from the locale table. A status added without its phrase would
+    raise KeyError right after the user confirmed — the least forgiving moment.
+    """
+    from typing import get_args
+
+    # The real objects, not a copy and not a re-parse of the source: the table
+    # is a module constant precisely so this test binds to what runs.
+    from src.core.i18n_telephony import TOOL_PHRASES
+    from src.domains.agents.tools.telephony_tools import _STATUS_TO_PHRASE
+    from src.domains.telephony.service import _InitiateStatus
+
+    non_placed = {s for s in get_args(_InitiateStatus) if s != "placed"}
+    assert non_placed == set(
+        _STATUS_TO_PHRASE
+    ), f"status/phrase mismatch: {non_placed ^ set(_STATUS_TO_PHRASE)}"
+
+    for language, phrases in TOOL_PHRASES.items():
+        for status, phrase_key in _STATUS_TO_PHRASE.items():
+            assert phrase_key in phrases, f"{language}: {status} → {phrase_key} missing"
+            assert phrases[phrase_key].strip(), f"{language}: {phrase_key} is empty"

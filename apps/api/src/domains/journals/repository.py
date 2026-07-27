@@ -451,6 +451,52 @@ class JournalEntryRepository:
         result = await self.db.execute(stmt)
         return float(result.scalar() or 0.0)
 
+    async def count_by_theme_global(self) -> dict[str, int]:
+        """Get global counts of active entries grouped by theme.
+
+        Used by the consolidation scheduler to refresh the
+        ``journal_theme_distribution`` Prometheus gauge. A theme reported at 0
+        across every user means the extraction/consolidation prompts have made
+        it unreachable — the failure mode this gauge exists to surface.
+
+        Returns:
+            Dict mapping theme code to count.
+        """
+        result = await self.db.execute(
+            select(JournalEntry.theme, func.count(JournalEntry.id))
+            .where(JournalEntry.status == JournalEntryStatus.ACTIVE.value)
+            .group_by(JournalEntry.theme)
+        )
+        return {str(row[0]): int(row[1]) for row in result.all()}
+
+    async def compute_max_portrait_age_hours(self) -> float:
+        """Compute the age in hours of the OLDEST compiled portrait still in use.
+
+        Journals-enabled users whose portrait was never compiled are ignored:
+        they have no stale portrait, they have none at all (a different signal,
+        already visible through the level distribution).
+
+        Returns:
+            Age in hours of the least recently compiled portrait, or 0.0 when no
+            portrait has been compiled yet.
+        """
+        from sqlalchemy import Float, cast
+
+        from src.domains.users.models import User
+
+        age_hours_expr = cast(
+            func.extract("epoch", func.now() - User.journal_portrait_compiled_at) / 3600.0,
+            Float,
+        )
+        stmt = select(func.coalesce(func.max(age_hours_expr), 0.0)).where(
+            and_(
+                User.journals_enabled.is_(True),
+                User.journal_portrait_compiled_at.isnot(None),
+            )
+        )
+        result = await self.db.execute(stmt)
+        return float(result.scalar() or 0.0)
+
     async def count_by_level_global(self) -> dict[str, int]:
         """Get global counts of active entries grouped by abstraction level.
 

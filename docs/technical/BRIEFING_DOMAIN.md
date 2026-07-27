@@ -215,6 +215,29 @@ The i18n key `dashboard.briefing.synthesis_unavailable` is provided in all 6 sup
 
 ---
 
+## Unconfigured cards (W7)
+
+`BriefingCard` returns `null` on `status === 'not_configured'`, and **seven of
+the nine** sections can reach that status: weather, agenda, mails, birthdays,
+health, tasks and documents each raise `ConnectorNotConfiguredError` when their
+source is missing. Only `reminders` and `for_you` always resolve — and both are
+empty on a new account.
+
+The first screen after signing up therefore showed two empty cards and seven
+invisible holes: no card, no message, no path to the settings. The existing
+fallback in `TodayBriefing` only covers the case where the user **hid** every
+card, which is a different situation.
+
+`unconfiguredCards()` (`lib/briefing-setup.ts`) answers, purely: among the
+sections the user actually displays, which ones report a missing configuration,
+and where each is configured (`SECTION_SETTINGS_TARGET`, verified against the
+fetchers one raise site at a time). Hidden cards are excluded — asking someone
+to connect a card they chose to hide is noise, not help.
+
+`BriefingSetupHint` renders one discreet line, each card name linking to its
+settings section. Never seven promotional cards: on mobile the grid is already
+the whole screen.
+
 ## Frontend layout
 
 ```

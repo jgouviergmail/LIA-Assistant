@@ -20,7 +20,7 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-[60dvh]">
         <div className="flex flex-col items-center gap-3">
           <LoadingSpinner size="xl" />
           <p className="text-sm text-muted-foreground">{t('dashboard.loading')}</p>

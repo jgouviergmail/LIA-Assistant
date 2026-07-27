@@ -32,6 +32,7 @@ import {
   deleteUserGDPR,
 } from '@/lib/actions/settings-actions';
 import { useTranslation } from '@/i18n/client';
+import { useConfirm } from '@/components/ui/use-confirm';
 import { LOCALE_MAP } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import type { BaseSettingsProps } from '@/types/settings';
@@ -130,6 +131,9 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
 
   // ✅ useTransition for pending state during mutations
   const [isPending, startTransition] = useTransition();
+  // W4b: replaces two native `confirm()` on the account deletion / GDPR
+  // erasure paths — an OS dialog whose buttons ignore the app's language.
+  const { confirm, confirmDialog } = useConfirm();
 
   // Pagination and sorting state
   const [page, setPage] = useState(1);
@@ -280,8 +284,12 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
 
   // ✅ Soft-delete: purge personal data, preserve billing history
   // Precondition: user must be deactivated (is_active=false)
-  const handleDeleteUser = (userId: string, userEmail: string) => {
-    const confirmed = confirm(t('settings.admin.users.delete_confirmation', { email: userEmail }));
+  const handleDeleteUser = async (userId: string, userEmail: string) => {
+    const confirmed = await confirm({
+      title: t('settings.admin.users.delete_title'),
+      description: t('settings.admin.users.delete_confirmation', { email: userEmail }),
+      confirmLabel: t('settings.admin.users.actions.delete'),
+    });
 
     if (!confirmed) return;
 
@@ -308,8 +316,12 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
 
   // ✅ GDPR hard-erase: permanently remove user row (email, name) from database
   // Precondition: user must be soft-deleted (is_deleted=true)
-  const handleEraseUser = (userId: string, userEmail: string) => {
-    const confirmed = confirm(t('settings.admin.users.erase_confirmation', { email: userEmail }));
+  const handleEraseUser = async (userId: string, userEmail: string) => {
+    const confirmed = await confirm({
+      title: t('settings.admin.users.erase_title'),
+      description: t('settings.admin.users.erase_confirmation', { email: userEmail }),
+      confirmLabel: t('settings.admin.users.actions.erase'),
+    });
 
     if (!confirmed) return;
 
@@ -1011,6 +1023,7 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
       collapsible={collapsible}
     >
       {content}
+      {confirmDialog}
     </SettingsSection>
   );
 }

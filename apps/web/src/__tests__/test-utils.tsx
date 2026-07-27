@@ -26,7 +26,13 @@
  */
 
 import { type ReactElement, type ReactNode } from 'react';
-import { render, type RenderOptions, type RenderResult } from '@testing-library/react';
+import {
+  render,
+  screen,
+  within,
+  type RenderOptions,
+  type RenderResult,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -102,6 +108,36 @@ export function renderWithProviders(
     ...rtlOptions,
   });
   return { user: userEvent.setup(), queryClient, ...result };
+}
+
+/**
+ * Answer the in-app confirmation dialog (W4b).
+ *
+ * The destructive admin actions moved off `window.confirm` — which a test could
+ * simply stub — onto a real `alertdialog`. Driving it means finding the dialog
+ * and pressing the right button, which every one of those tests would otherwise
+ * reimplement.
+ *
+ * The confirming button is identified by ELIMINATION: it is the one that is not
+ * the cancel button. Matching it by label would tie ~15 tests to whichever
+ * wording each call site passes.
+ *
+ * Args:
+ *   user: The `userEvent` session from `renderWithProviders`.
+ *   accept: `true` to confirm, `false` to cancel.
+ */
+export async function answerConfirmDialog(
+  user: ReturnType<typeof userEvent.setup>,
+  accept = true
+): Promise<void> {
+  const dialog = await screen.findByRole('alertdialog');
+  const buttons = within(dialog).getAllByRole('button');
+  // The global i18n stub echoes keys, so cancel renders as `common.cancel`.
+  const cancel = buttons.find(button => (button.textContent ?? '').includes('common.cancel'));
+  if (!cancel) throw new Error('confirm dialog has no cancel button');
+  const target = accept ? buttons.find(button => button !== cancel) : cancel;
+  if (!target) throw new Error('confirm dialog has no confirming button');
+  await user.click(target);
 }
 
 // Re-export the RTL surface + userEvent so tests import everything from here.

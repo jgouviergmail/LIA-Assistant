@@ -48,7 +48,7 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <Button variant="ghost" size="sm" className="w-11 h-11 px-0">
+      <Button variant="ghost" size="sm" className="w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9">
         <Sun className="h-[1.2rem] w-[1.2rem]" />
         <span className="sr-only">{t('theme.toggle')}</span>
       </Button>
@@ -59,7 +59,7 @@ export function ThemeToggle() {
     <Button
       variant="ghost"
       size="sm"
-      className="w-11 h-11 px-0"
+      className="w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9"
       onClick={handleThemeChange}
       aria-label={t('theme.toggle')}
     >

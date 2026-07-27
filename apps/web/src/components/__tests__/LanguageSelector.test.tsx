@@ -45,4 +45,17 @@ describe('LanguageSelector', () => {
     expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
     expect(screen.getByText(languageNames.fr.native)).toBeInTheDocument();
   });
+
+  /**
+   * Header reachability (S10): below `lg` only the flag renders, and a flag
+   * emoji is not an accessible name — a screen-reader user would hear "🇫🇷"
+   * or nothing. The trigger therefore carries an explicit name at every
+   * viewport. The i18n stub echoes keys, so the key is what is asserted.
+   */
+  it('names the trigger independently of the visible label', () => {
+    renderWithProviders(<LanguageSelector currentLocale="de" />);
+    expect(
+      screen.getByRole('button', { name: 'settings.language.selector_label' })
+    ).toBeInTheDocument();
+  });
 });

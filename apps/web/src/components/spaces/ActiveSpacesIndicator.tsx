@@ -22,13 +22,21 @@ export function ActiveSpacesIndicator() {
   if (loading || activeCount === 0) return null;
 
   return (
-    <Link href={buildLocalizedPath('/dashboard/spaces', lng)}>
+    // The accessible name lives on the LINK and is the same at every width.
+    // Below `sm` the badge shows the bare count next to an icon, so the name
+    // was literally "2" — and the `title` that would have explained it is a
+    // hover affordance, which touch does not have. Naming the link states what
+    // the number means without costing a pixel.
+    <Link
+      href={buildLocalizedPath('/dashboard/spaces', lng)}
+      aria-label={t('spaces.indicator_tooltip', { count: activeCount })}
+    >
       <Badge
         variant="info"
         className="gap-1.5 cursor-pointer hover:bg-primary/20 transition-colors"
         title={t('spaces.indicator_tooltip', { count: activeCount })}
       >
-        <Library className="h-3 w-3" />
+        <Library className="h-3 w-3" aria-hidden="true" />
         <span className="hidden sm:inline">{t('spaces.indicator', { count: activeCount })}</span>
         <span className="sm:hidden">{activeCount}</span>
       </Badge>

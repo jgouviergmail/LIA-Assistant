@@ -133,6 +133,55 @@ duplicated webhook loses the `mark_completed` race (exactly-once) and never
 reverts a SYNTHESIZED row back to RECEIVED. Worst case is a rare duplicate
 notification on a mid-dispatch crash — deliberately preferred over a lost return.
 
+## Vendor refusal — the 200 that means "no"
+
+`POST /convai/conversations/outbound-call` answers **HTTP 200 even when it
+declines to dial**: the refusal lives in the body, as `success: false` with a
+`message` (observed: *"The source phone number provided … is not yet verified
+for your account"*).
+
+Treating that as a placed call left a `DIALING` row that nothing would ever
+close. Worse, such a row carries **no conversation id**, so the self-healing
+probe of the one-active-call guard cannot even ask the vendor about it: the row
+blocked every further call until the 15-minute stale threshold elapsed.
+
+`TelephonyService._dial_and_interpret` therefore reads three distinct outcomes:
+
+| Vendor answer | Status | Row transition | What the user is told |
+|---|---|---|---|
+| `ElevenLabsAgentsError` (network, 5xx) | `failed` | `mark_dial_failed(initiate_failed:<code>)` | transient — "try again in a moment" |
+| `200` + `success: false` | `rejected` | `mark_dial_failed(initiate_rejected:<message>)` | configuration — retrying will not help |
+| `200` + `success: true` | `placed` | `set_conversation_id(...)` | the call is ringing |
+
+A `placed` call **without** a conversation id keeps its row active on purpose:
+it may well be ringing, and closing it would let a second call start in
+parallel — the one thing the guard exists to prevent. It is simply unprobeable,
+and a `telephony_call_initiated_without_conversation_id` warning says so.
+
+`_STATUS_TO_PHRASE` (`agents/tools/telephony_tools.py`) maps each non-placed
+status to a locale key. The mapping is a module constant so the completeness
+test imports it rather than re-parsing the source, and it asserts the set of
+statuses equals `get_args(_InitiateStatus)` minus `placed`, with every phrase
+present and non-empty in all six languages.
+
+## Calls surface (A6)
+
+`GET /telephony/calls` shipped with the domain and was consumed by nothing.
+Two frontend surfaces read it now:
+
+- `TelephonyCallsSection` — a deep-linkable settings section
+  (`?section=telephony-calls`) listing name, objective, status, outcome, recap
+  and duration. Never the number: `TelephonyCallSummary` has no field for it.
+- `ActiveCallBanner` — a status line above the chat thread, visible only while
+  a call is `dialing` or `in_progress`.
+
+`useTelephonyCalls` polls **only** while a call is in flight (15 s) and stops as
+soon as none is: there is no intermediate webhook, only a post-call one, so
+there is nothing to stream and the hook does not pretend otherwise. A 404
+(feature flag off) silences it permanently. The banner also re-reads on every new
+conversation turn, because a chat opened *before* the call would otherwise never
+see one start.
+
 ## Configuration
 
 All knobs are deployment-wide (`TelephonySettings`, `.env`); per-user secrets

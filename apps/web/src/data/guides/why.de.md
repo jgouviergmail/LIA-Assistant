@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 3.9
-**Datum** : 2026-07-26
-**Anwendung** : LIA v1.25.23
+**Datum** : 2026-07-27
+**Anwendung** : LIA v1.25.24
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -326,6 +326,8 @@ LIA verfügt über eine integrierte Wissensbasis zu seinen eigenen Funktionen, d
 ### 8.1. Die eigentliche Herausforderung agentischer KI
 
 Die große Mehrheit agentischer KI-Projekte erreicht nie die Produktion. Unkontrollierte Kosten, nicht-deterministisches Verhalten, fehlende Audit-Trails, fehlerhafte Koordination zwischen Agenten. LIA hat diese Probleme gelöst — und läuft 24/7 auf einem Raspberry Pi in Produktion. Und Ihre Daten überstehen Zwischenfälle: Die Datenbank wird jede Nacht automatisch gesichert, und die Wiederherstellungsprozedur ist nicht theoretisch — sie wird getestet.
+
+Eine Funktion, die niemand findet, existiert nicht. Deshalb wird die Erreichbarkeit der Oberfläche behandelt wie die Verfügbarkeit des Servers: gemessen, nicht vermutet. Jedes Bedienelement der Kopfzeile wird mit dem Ansichtsfenster verglichen, Breite für Breite und **in allen sechs Sprachen** — Deutsch und Italienisch tragen die längsten Beschriftungen und brechen zuerst. Und was das mobile Layout weglassen darf, steht geschrieben, mit Begründung: Eine Aktion verschwindet nie, ohne dass ein Ersatz an ihre Stelle tritt.
 
 ### 8.2. Ein professioneller Observability-Stack
 

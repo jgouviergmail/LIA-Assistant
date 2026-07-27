@@ -717,7 +717,7 @@ class AgentService(
         async with get_db_context() as db:
             # === Step 1: Setup conversation (get/create, tracking, OAuth scopes) ===
             context = await conversation_orchestrator.setup_conversation(
-                user_id, session_id, run_id, db
+                user_id, session_id, run_id, db, language=user_language
             )
 
             conversation_id = context.conversation_id
@@ -1213,13 +1213,17 @@ class AgentService(
                             if getattr(settings, "image_generation_enabled", False):
                                 from src.domains.image_generation.image_store import (
                                     peek_pending_images,
+                                    to_wire_metadata,
                                 )
 
                                 peeked = peek_pending_images(str(conversation_id))
                                 if peeked:
-                                    assistant_metadata["generated_images"] = [
-                                        {"url": img.url, "alt": img.alt_text} for img in peeked
-                                    ]
+                                    # Same serializer as the done chunk below: the
+                                    # reloaded card must be the live one, purge
+                                    # deadline (N2) included.
+                                    assistant_metadata["generated_images"] = to_wire_metadata(
+                                        peeked
+                                    )
 
                             # Persist last browser screenshot as Attachment for card display
                             if getattr(settings, "browser_progressive_screenshots", False):
@@ -1631,13 +1635,12 @@ class AgentService(
                     if getattr(settings, "image_generation_enabled", False):
                         from src.domains.image_generation.image_store import (
                             get_and_clear_pending_images,
+                            to_wire_metadata,
                         )
 
                         pending_images = get_and_clear_pending_images(str(conversation_id))
                         if pending_images:
-                            done_metadata["generated_images"] = [
-                                {"url": img.url, "alt": img.alt_text} for img in pending_images
-                            ]
+                            done_metadata["generated_images"] = to_wire_metadata(pending_images)
 
                     # Browser screenshot card: reuse URL computed at archive time
                     if browser_screenshot_card_url:

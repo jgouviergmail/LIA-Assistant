@@ -1,31 +1,22 @@
 /**
- * F013 — image-open actions and the voice overlay are native, keyboard-first.
+ * F013 — image-open actions are native and keyboard-first.
  *
  * The chat images (markdown place/profile photos, galleries) used to carry
- * onClick on the <img> itself (mouse-only), and the voice overlay was a
- * role="button" container that CONTAINED the close button (invalid nesting).
- * These tests drive the fixed components with real userEvent keyboard
- * interaction: named buttons, Tab reachability, Enter/Space activation,
- * single activation, and sibling controls staying independent.
+ * onClick on the <img> itself, which is mouse-only. These tests drive the
+ * fixed component with real userEvent keyboard interaction: named buttons,
+ * Enter/Space activation, single activation per press, and no nested
+ * interactive content inside the action button.
+ *
+ * The companion `voice overlay` block was removed with `VoiceOverlay` itself:
+ * the component had no consumer left (the live surface is `VoiceModeBadge`),
+ * and its F013 fixes died with it.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { MarkdownContent } from '../MarkdownContent';
-import { VoiceOverlay, type VoiceOverlayProps } from '../../voice/VoiceOverlay';
-
-function voiceProps(over: Partial<VoiceOverlayProps> = {}): VoiceOverlayProps {
-  return {
-    isEnabled: true,
-    state: 'listening',
-    onTap: vi.fn(),
-    onStop: vi.fn(),
-    onDisable: vi.fn(),
-    ...over,
-  };
-}
 
 describe('markdown image-open actions (F013)', () => {
   const PLACE_MD = '![Terrasse du café](/api/v1/connectors/google-places/photo?ref=abc)';
@@ -64,64 +55,5 @@ describe('markdown image-open actions (F013)', () => {
     expect(img?.getAttribute('alt')).toBe('Terrasse du café');
     // No nested interactive content inside the action button.
     expect(expand.querySelector('button, a, input')).toBeNull();
-  });
-});
-
-describe('voice overlay (F013)', () => {
-  it('listening: the tap action is a named button, Enter activates it once', async () => {
-    const user = userEvent.setup();
-    const onTap = vi.fn();
-    render(<VoiceOverlay {...voiceProps({ onTap })} />);
-
-    const action = screen.getByRole('button', {
-      name: 'chat.voice_mode.instruction_listening',
-    });
-    action.focus();
-    await user.keyboard('{Enter}');
-    expect(onTap).toHaveBeenCalledTimes(1);
-  });
-
-  it('recording: Space stops exactly once', async () => {
-    const user = userEvent.setup();
-    const onStop = vi.fn();
-    render(<VoiceOverlay {...voiceProps({ state: 'recording', onStop })} />);
-
-    screen.getByRole('button', { name: 'chat.voice_mode.instruction_recording' }).focus();
-    await user.keyboard(' ');
-    expect(onStop).toHaveBeenCalledTimes(1);
-  });
-
-  it('processing: no action button is rendered (nothing to activate)', () => {
-    render(<VoiceOverlay {...voiceProps({ state: 'processing' })} />);
-    expect(
-      screen.queryByRole('button', { name: 'chat.voice_mode.instruction_processing' })
-    ).toBeNull();
-    // The close button remains available in every state.
-    expect(screen.getByRole('button', { name: 'chat.voice_mode.disable' })).toBeTruthy();
-  });
-
-  it('close stays independent: it never triggers the tap action (no nesting)', async () => {
-    const user = userEvent.setup();
-    const onTap = vi.fn();
-    const onDisable = vi.fn();
-    render(<VoiceOverlay {...voiceProps({ onTap, onDisable })} />);
-
-    await user.click(screen.getByRole('button', { name: 'chat.voice_mode.disable' }));
-    expect(onDisable).toHaveBeenCalledTimes(1);
-    expect(onTap).not.toHaveBeenCalled();
-  });
-
-  it('focus order: the action button precedes the close button', async () => {
-    const user = userEvent.setup();
-    render(<VoiceOverlay {...voiceProps()} />);
-
-    await user.tab();
-    expect(document.activeElement).toBe(
-      screen.getByRole('button', { name: 'chat.voice_mode.instruction_listening' })
-    );
-    await user.tab();
-    expect(document.activeElement).toBe(
-      screen.getByRole('button', { name: 'chat.voice_mode.disable' })
-    );
   });
 });
