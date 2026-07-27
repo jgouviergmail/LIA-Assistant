@@ -78,13 +78,19 @@ WORKDIR /app
 
 # Install system dependencies + uv (ultra-fast pip replacement)
 # Includes Docker CLI for container management from within the container
-# (Node.js is installed in the next layer, from the official tarball)
+# (Node.js is installed in the next layer, from the official distribution)
+#
+# gnupg is listed EXPLICITLY: `gpg --dearmor` below used to work only because the
+# NodeSource setup script installed gnupg as a side effect of its own bootstrap.
+# Dropping that script therefore broke this layer with `gpg: not found` — an
+# implicit dependency is one nobody can see until it disappears.
 RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
     curl \
     git \
     ffmpeg \
+    gnupg \
     xz-utils \
     && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bookworm stable" > /etc/apt/sources.list.d/docker.list \
@@ -92,18 +98,32 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && pip install uv
 
-# Install Node.js from the OFFICIAL tarball — see Dockerfile.prod for why
-# NodeSource is no longer used (403 since 2026-07, silently swallowed by
-# `| bash -`, leaving a Debian Node without npm).
-ARG NODE_VERSION=22.14.0
+# Install Node.js from the OFFICIAL nodejs.org distribution, latest of the 24 LTS
+# line — same line as the web image, CI and the `engines` lock. See
+# Dockerfile.prod for why NodeSource is no longer used (`| bash -` cannot fail
+# loudly, so a transient outage silently left a Debian Node without npm) and why
+# the version floats inside the line rather than being hard-coded.
+ARG NODE_MAJOR=24
 RUN set -eux; \
     arch="$(dpkg --print-architecture)"; \
     case "$arch" in amd64) node_arch=x64 ;; arm64) node_arch=arm64 ;; \
-      *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac; \
-    curl -fsSL -o /tmp/node.tar.xz \
-      "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz"; \
-    tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 --no-same-owner; \
-    rm /tmp/node.tar.xz; \
+      *) echo "ERROR: unsupported architecture: $arch" >&2; exit 1 ;; esac; \
+    base="https://nodejs.org/dist/latest-v${NODE_MAJOR}.x"; \
+    cd /tmp; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 \
+         -o SHASUMS256.txt "${base}/SHASUMS256.txt"; \
+    file="$(grep -oE "node-v[0-9]+\.[0-9]+\.[0-9]+-linux-${node_arch}\.tar\.xz" \
+            SHASUMS256.txt | head -1)"; \
+    [ -n "${file}" ] || { \
+      echo "ERROR: no ${node_arch} tarball listed for Node ${NODE_MAJOR}.x" >&2; exit 1; }; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o "${file}" "${base}/${file}"; \
+    expected="$(grep -F " ${file}" SHASUMS256.txt | awk '{print $1}')"; \
+    actual="$(sha256sum "${file}" | awk '{print $1}')"; \
+    if [ -z "${expected}" ] || [ "${expected}" != "${actual}" ]; then \
+      echo "ERROR: checksum mismatch for ${file}" >&2; exit 1; \
+    fi; \
+    tar -xJf "${file}" -C /usr/local --strip-components=1 --no-same-owner; \
+    rm -f "${file}" SHASUMS256.txt; \
     node -v; npm -v
 
 # Install Claude Code CLI for DevOps remote server management

@@ -123,22 +123,48 @@ ENV APP_VERSION=${APP_VERSION} \
 RUN apt-get update && apt-get install -y --no-install-recommends curl gnupg xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js from the OFFICIAL tarball (not NodeSource).
-# deb.nodesource.com answers 403 since 2026-07: `curl -f` failed, `| bash -` read
-# an empty stdin and exited 0, and apt silently resolved `nodejs` from Debian
-# (18.x, which does NOT ship npm) — the build then died on `npm: not found`.
-# The tarball is arch-aware so the multi-arch release build keeps working, and
-# the version check below makes any future upstream change fail LOUDLY here
-# instead of degrading into a Node without npm.
-ARG NODE_VERSION=22.14.0
+# Install Node.js from the OFFICIAL nodejs.org distribution, latest of the 24 LTS
+# line — the same line the web image (node:24-alpine), CI (node-version: "24")
+# and the `engines` lock (>=24.0.0, enforced by engine-strict) already run on.
+#
+# NodeSource is deliberately NOT used, and the reason is the FAILURE MODE, not
+# the outage that revealed it. `curl -fsSL <url> | bash -` cannot fail loudly: a
+# pipeline reports the exit status of its LAST command, so when curl fails, bash
+# reads an empty stdin and exits 0. On 2026-07-27 deb.nodesource.com answered 403
+# for about an hour (it answers 200 again since — this was an outage, not a
+# removal). That was enough: the layer SUCCEEDED, apt resolved `nodejs` from
+# Debian instead (18.x, which ships no npm), and the build died four layers later
+# on `npm: not found`. Any future hiccup of that endpoint would do the same.
+# Fetching a versioned archive from the official distribution and verifying it
+# removes both the third-party dependency and the silent-degradation mode.
+#
+# The version floats inside the 24 line, like both neighbouring bases
+# (python:3.12-slim-bookworm, node:24-alpine): security patches then land without
+# a manual bump, and a hard-coded version in a file nobody re-reads is precisely
+# what failed above. SHASUMS256.txt is what makes floating safe — it yields BOTH
+# the exact archive name to fetch AND its checksum, so the download is verified
+# instead of merely trusted (it was not verified at all before).
+ARG NODE_MAJOR=24
 RUN set -eux; \
     arch="$(dpkg --print-architecture)"; \
     case "$arch" in amd64) node_arch=x64 ;; arm64) node_arch=arm64 ;; \
-      *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac; \
-    curl -fsSL -o /tmp/node.tar.xz \
-      "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz"; \
-    tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 --no-same-owner; \
-    rm /tmp/node.tar.xz; \
+      *) echo "ERROR: unsupported architecture: $arch" >&2; exit 1 ;; esac; \
+    base="https://nodejs.org/dist/latest-v${NODE_MAJOR}.x"; \
+    cd /tmp; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 \
+         -o SHASUMS256.txt "${base}/SHASUMS256.txt"; \
+    file="$(grep -oE "node-v[0-9]+\.[0-9]+\.[0-9]+-linux-${node_arch}\.tar\.xz" \
+            SHASUMS256.txt | head -1)"; \
+    [ -n "${file}" ] || { \
+      echo "ERROR: no ${node_arch} tarball listed for Node ${NODE_MAJOR}.x" >&2; exit 1; }; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o "${file}" "${base}/${file}"; \
+    expected="$(grep -F " ${file}" SHASUMS256.txt | awk '{print $1}')"; \
+    actual="$(sha256sum "${file}" | awk '{print $1}')"; \
+    if [ -z "${expected}" ] || [ "${expected}" != "${actual}" ]; then \
+      echo "ERROR: checksum mismatch for ${file}" >&2; exit 1; \
+    fi; \
+    tar -xJf "${file}" -C /usr/local --strip-components=1 --no-same-owner; \
+    rm -f "${file}" SHASUMS256.txt; \
     node -v; npm -v
 
 # Add the Docker CE repository (Docker CLI for DevOps container management)

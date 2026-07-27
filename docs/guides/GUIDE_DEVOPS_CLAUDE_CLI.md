@@ -53,23 +53,32 @@ npm install -g @anthropic-ai/claude-code
 
 **Raspberry Pi / Linux (prod)**:
 
-Install Node.js from the official tarball. The NodeSource repository this guide
-used to recommend now answers **403**, and piping it into `bash` fails silently
-(`bash` reads an empty stdin and exits 0), leaving apt to install Debian's Node
-18 — which does not ship npm. The same trap broke the production image build;
-the Dockerfiles use the tarball for the same reason.
+Install Node.js from the official distribution. This guide used to recommend
+`curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -`, which **cannot
+fail loudly**: a pipeline reports the status of its last command, so when curl
+fails, `bash` reads an empty stdin and exits 0, and apt then installs Debian's
+Node 18 — which does not ship npm. A one-hour outage of that endpoint on
+2026-07-27 was enough to break the production image build this way. The
+Dockerfiles now use the official distribution for the same reason.
 
 ```bash
-NODE_VERSION=22.14.0
+# Node 24 LTS — the line CI, the web image and the `engines` lock all run on.
+# The exact patch release is resolved from nodejs.org rather than written here,
+# so this procedure does not go stale; the checksum is verified, not trusted.
+NODE_MAJOR=24
 case "$(dpkg --print-architecture)" in
   amd64) NODE_ARCH=x64 ;;
   arm64) NODE_ARCH=arm64 ;;   # Raspberry Pi 5 under a 64-bit OS
   *) echo "unsupported architecture" >&2; exit 1 ;;
 esac
-curl -fsSL -o /tmp/node.tar.xz \
-  "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
-sudo tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 --no-same-owner
-rm /tmp/node.tar.xz
+BASE="https://nodejs.org/dist/latest-v${NODE_MAJOR}.x"
+cd /tmp
+curl -fsSL -o SHASUMS256.txt "${BASE}/SHASUMS256.txt"
+FILE=$(grep -oE "node-v[0-9]+\.[0-9]+\.[0-9]+-linux-${NODE_ARCH}\.tar\.xz" SHASUMS256.txt | head -1)
+curl -fsSL -o "${FILE}" "${BASE}/${FILE}"
+grep -F " ${FILE}" SHASUMS256.txt | sha256sum -c -   # must print "OK"
+sudo tar -xJf "${FILE}" -C /usr/local --strip-components=1 --no-same-owner
+rm -f "${FILE}" SHASUMS256.txt
 node -v && npm -v   # verify BOTH: a Node without npm is the failure mode above
 sudo npm install -g @anthropic-ai/claude-code
 ```
