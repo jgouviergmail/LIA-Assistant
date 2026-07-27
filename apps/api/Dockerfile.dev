@@ -14,9 +14,21 @@ WORKDIR /models/whisper-small
 # Source: HuggingFace csukuangfj/sherpa-onnx-whisper-small
 ARG HF_BASE_URL=https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/resolve/main
 
-RUN curl -L -o encoder.onnx "${HF_BASE_URL}/small-encoder.int8.onnx" && \
-    curl -L -o decoder.onnx "${HF_BASE_URL}/small-decoder.int8.onnx" && \
-    curl -L -o tokens.txt "${HF_BASE_URL}/small-tokens.txt"
+# Same three properties as Dockerfile.prod — see the comment there for why a
+# plain `-L -o` silently produced an HTML file named `encoder.onnx`, and why a
+# single HTTP/2 stream reset used to kill the build.
+RUN set -eu; \
+    for f in "encoder.onnx:small-encoder.int8.onnx:1000000" \
+             "decoder.onnx:small-decoder.int8.onnx:1000000" \
+             "tokens.txt:small-tokens.txt:1000"; do \
+        out="${f%%:*}"; rest="${f#*:}"; src="${rest%%:*}"; min="${rest#*:}"; \
+        curl -fL --http1.1 --retry 5 --retry-all-errors --retry-delay 5 \
+             -o "${out}" "${HF_BASE_URL}/${src}"; \
+        size="$(wc -c < "${out}")"; \
+        [ "${size}" -ge "${min}" ] || { \
+            echo "ERROR: ${out} is ${size} bytes, expected at least ${min}" >&2; exit 1; }; \
+        echo "${out}: ${size} bytes"; \
+    done
 
 # =============================================================================
 # GeoIP database download stage - DB-IP Lite City (free, CC-BY-4.0)
@@ -65,21 +77,34 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # Install system dependencies + uv (ultra-fast pip replacement)
-# Includes Node.js 22.x for Claude Code CLI (DevOps remote management)
 # Includes Docker CLI for container management from within the container
+# (Node.js is installed in the next layer, from the official tarball)
 RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
     curl \
     git \
     ffmpeg \
-    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y nodejs \
+    xz-utils \
     && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bookworm stable" > /etc/apt/sources.list.d/docker.list \
     && apt-get update && apt-get install -y docker-ce-cli \
     && rm -rf /var/lib/apt/lists/* \
     && pip install uv
+
+# Install Node.js from the OFFICIAL tarball — see Dockerfile.prod for why
+# NodeSource is no longer used (403 since 2026-07, silently swallowed by
+# `| bash -`, leaving a Debian Node without npm).
+ARG NODE_VERSION=22.14.0
+RUN set -eux; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in amd64) node_arch=x64 ;; arm64) node_arch=arm64 ;; \
+      *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac; \
+    curl -fsSL -o /tmp/node.tar.xz \
+      "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz"; \
+    tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 --no-same-owner; \
+    rm /tmp/node.tar.xz; \
+    node -v; npm -v
 
 # Install Claude Code CLI for DevOps remote server management
 # Auth is persisted via Docker volume (~/.claude/)

@@ -73,17 +73,32 @@ for file in "${FILES[@]}"; do
         fi
     fi
 
-    # Download with wget or curl
+    # Download with wget or curl.
+    # --fail / --content-on-error matter: without them a 404 or a CDN error page
+    # is written INTO the model file, the script reports success, and sherpa-onnx
+    # fails much later on an opaque parse error. Retries cover the stream resets
+    # HuggingFace occasionally returns mid-transfer on these large files.
     if command -v wget &> /dev/null; then
-        wget -q --show-progress -O "$target" "$url"
+        wget -q --show-progress --tries=5 --waitretry=5 -O "$target" "$url"
     elif command -v curl &> /dev/null; then
-        curl -L --progress-bar -o "$target" "$url"
+        curl -fL --progress-bar --http1.1 --retry 5 --retry-all-errors \
+             --retry-delay 5 -o "$target" "$url"
     else
         echo "ERROR: Neither wget nor curl found. Please install one."
         exit 1
     fi
 
-    echo "  Downloaded: $file"
+    # Verify what was actually written, not merely that the transfer exited 0:
+    # a short body returned with a 200 passes every check above.
+    actual_size=$(stat -f%z "$target" 2>/dev/null || stat -c%s "$target" 2>/dev/null)
+    min_size=$((FILE_SIZES[$file] * 95 / 100))
+    if [ "$actual_size" -lt "$min_size" ]; then
+        echo "ERROR: $file is $actual_size bytes, expected at least $min_size."
+        rm -f "$target"
+        exit 1
+    fi
+
+    echo "  Downloaded: $file ($actual_size bytes)"
 done
 
 # Rename files to standard names expected by sherpa-onnx

@@ -41,9 +41,30 @@ WORKDIR /models/whisper-small
 # Source: HuggingFace csukuangfj/sherpa-onnx-whisper-small
 ARG HF_BASE_URL=https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/resolve/main
 
-RUN curl -L -o encoder.onnx "${HF_BASE_URL}/small-encoder.int8.onnx" && \
-    curl -L -o decoder.onnx "${HF_BASE_URL}/small-decoder.int8.onnx" && \
-    curl -L -o tokens.txt "${HF_BASE_URL}/small-tokens.txt"
+# Three properties this layer needs and did not have:
+#   --fail       a plain `-L -o` writes the HTTP error BODY to the file: a 404 or
+#                a CDN maintenance page produced a few hundred bytes of HTML named
+#                `encoder.onnx`, the build SUCCEEDED, and speech-to-text failed at
+#                runtime on an opaque onnx parse error.
+#   --retry      a single stream reset on a 107 MB transfer killed the whole build
+#                (observed in CI: `curl: (92) HTTP/2 stream 1 was not closed
+#                cleanly: CANCEL (err 8)` after 3.6 s at 0 byte received).
+#   --http1.1    that reset is an HTTP/2 multiplexing failure against the CDN;
+#                HTTP/1.1 costs nothing on three sequential large downloads.
+# The size floor is the last line of defence: it catches any short body that still
+# came back with a 200, which --fail cannot see.
+RUN set -eu; \
+    for f in "encoder.onnx:small-encoder.int8.onnx:1000000" \
+             "decoder.onnx:small-decoder.int8.onnx:1000000" \
+             "tokens.txt:small-tokens.txt:1000"; do \
+        out="${f%%:*}"; rest="${f#*:}"; src="${rest%%:*}"; min="${rest#*:}"; \
+        curl -fL --http1.1 --retry 5 --retry-all-errors --retry-delay 5 \
+             -o "${out}" "${HF_BASE_URL}/${src}"; \
+        size="$(wc -c < "${out}")"; \
+        [ "${size}" -ge "${min}" ] || { \
+            echo "ERROR: ${out} is ${size} bytes, expected at least ${min}" >&2; exit 1; }; \
+        echo "${out}: ${size} bytes"; \
+    done
 
 # =============================================================================
 # GeoIP database download stage - DB-IP Lite City (free, CC-BY-4.0)
@@ -99,20 +120,35 @@ ENV APP_VERSION=${APP_VERSION} \
     BUILD_DATE=${BUILD_DATE}
 
 # Install prerequisites for repository setup (curl, gnupg needed for apt key imports)
-RUN apt-get update && apt-get install -y --no-install-recommends curl gnupg \
+RUN apt-get update && apt-get install -y --no-install-recommends curl gnupg xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Add Node.js 22.x and Docker CE repositories
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
+# Install Node.js from the OFFICIAL tarball (not NodeSource).
+# deb.nodesource.com answers 403 since 2026-07: `curl -f` failed, `| bash -` read
+# an empty stdin and exited 0, and apt silently resolved `nodejs` from Debian
+# (18.x, which does NOT ship npm) — the build then died on `npm: not found`.
+# The tarball is arch-aware so the multi-arch release build keeps working, and
+# the version check below makes any future upstream change fail LOUDLY here
+# instead of degrading into a Node without npm.
+ARG NODE_VERSION=22.14.0
+RUN set -eux; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in amd64) node_arch=x64 ;; arm64) node_arch=arm64 ;; \
+      *) echo "unsupported architecture: $arch" >&2; exit 1 ;; esac; \
+    curl -fsSL -o /tmp/node.tar.xz \
+      "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz"; \
+    tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 --no-same-owner; \
+    rm /tmp/node.tar.xz; \
+    node -v; npm -v
+
+# Add the Docker CE repository (Docker CLI for DevOps container management)
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bookworm stable" > /etc/apt/sources.list.d/docker.list
 
-# Install runtime dependencies, security patches, Chromium system deps, Node.js, and Docker CLI
+# Install runtime dependencies, security patches, Chromium system deps, and Docker CLI
 # Chromium deps required for Playwright browser agent (evolution F7)
-# Node.js required for Claude Code CLI (DevOps remote management)
 # Docker CLI required for DevOps container management from within the container
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
-    nodejs \
     docker-ce-cli \
     postgresql-client \
     ffmpeg \
