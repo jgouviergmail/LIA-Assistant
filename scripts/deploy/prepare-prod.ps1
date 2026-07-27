@@ -43,23 +43,49 @@ Write-Host ""
 # ============================================================================
 Write-Host "[1/9] Copie des fichiers racine..." -ForegroundColor Green
 
-$rootFiles = @(
-    ".npmrc",
-    "package.json",
-    "pnpm-workspace.yaml",
-    "pnpm-lock.yaml",
-    "docker-compose.prod.yml",
-    ".sops.yaml"
+# Chemins racine embarques dans le dossier PROD, qui est le CONTEXTE de build
+# de l'image web. La CI construit depuis le depot entier et ne voit donc jamais
+# un oubli ici : seule cette liste decide de ce que `docker build` trouvera.
+#
+# `Required` = son absence casse le build. Un simple avertissement jaune est
+# precisement ce qui a laisse passer `patches/` (ADR-157) : la preparation
+# reussissait, et l'echec ne survenait que dix minutes plus tard, sur le Pi,
+# dans `COPY patches ./patches`. La garde
+# `apps/api/tests/unit/test_prepare_prod_build_context_guard.py` derive cette
+# liste des instructions COPY du Dockerfile de production.
+$rootPaths = @(
+    @{ Path = ".npmrc";                  Required = $true;  Recurse = $false },
+    @{ Path = "package.json";            Required = $true;  Recurse = $false },
+    @{ Path = "pnpm-workspace.yaml";     Required = $true;  Recurse = $false },
+    @{ Path = "pnpm-lock.yaml";          Required = $true;  Recurse = $false },
+    # `pnpm.patchedDependencies` pointe dessus : sans ce repertoire,
+    # `pnpm install --frozen-lockfile` echoue d'emblee.
+    @{ Path = "patches";                 Required = $true;  Recurse = $true  },
+    @{ Path = "docker-compose.prod.yml"; Required = $true;  Recurse = $false },
+    @{ Path = ".sops.yaml";              Required = $false; Recurse = $false }
 )
 
-foreach ($file in $rootFiles) {
-    $src = Join-Path $SourceDir $file
+$missingRequired = @()
+foreach ($entry in $rootPaths) {
+    $src = Join-Path $SourceDir $entry.Path
     if (Test-Path $src) {
-        Copy-Item $src -Destination $OutputDir
-        Write-Host "  + $file" -ForegroundColor DarkGray
+        if ($entry.Recurse) {
+            Copy-Item $src -Destination $OutputDir -Recurse -Force
+        } else {
+            Copy-Item $src -Destination $OutputDir
+        }
+        Write-Host "  + $($entry.Path)" -ForegroundColor DarkGray
+    } elseif ($entry.Required) {
+        $missingRequired += $entry.Path
+        Write-Host "  X $($entry.Path) (REQUIS, introuvable)" -ForegroundColor Red
     } else {
-        Write-Host "  ! $file (non trouve)" -ForegroundColor Yellow
+        Write-Host "  ! $($entry.Path) (optionnel, non trouve)" -ForegroundColor Yellow
     }
+}
+
+if ($missingRequired.Count -gt 0) {
+    throw "Chemins racine requis absents de la source : $($missingRequired -join ', '). " +
+          "Le build Docker echouerait sur le Pi ; la preparation s'arrete ici."
 }
 
 # ============================================================================

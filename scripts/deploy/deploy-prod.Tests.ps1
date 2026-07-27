@@ -61,6 +61,16 @@ BeforeAll {
         Set-Content (Join-Path $proj "package.json") '{"version": "9.9.9-test"}'
         Set-Content (Join-Path $proj "docker-compose.prod.yml") "services: {}"
         Set-Content (Join-Path $proj ".sops.yaml") "creation_rules: []"
+        # The pnpm workspace files and the patch directory: prepare-prod refuses
+        # to produce a bundle without them, because the web image's build CONTEXT
+        # is the PROD folder itself and `COPY patches ./patches` fails on the
+        # production host otherwise (v1.25.24). A sandbox missing them is not a
+        # deployable tree, so it must not stand in for one.
+        Set-Content (Join-Path $proj ".npmrc") "node-linker=isolated"
+        Set-Content (Join-Path $proj "pnpm-workspace.yaml") "packages:`n  - apps/*"
+        Set-Content (Join-Path $proj "pnpm-lock.yaml") "lockfileVersion: '9.0'"
+        New-Item -ItemType Directory (Join-Path $proj "patches") -Force | Out-Null
+        Set-Content (Join-Path $proj "patches/fake@1.0.0.patch") "diff --git a/x b/x"
         Set-Content (Join-Path $proj ".env.prod") "POSTGRES_BACKUP_HOST_DIR=./backups/postgres`nSENTINEL_ENV=1"
         New-Item -ItemType Directory (Join-Path $proj "keys") -Force | Out-Null
         Set-Content (Join-Path $proj "keys/age-key-prod.txt") "AGE-SECRET-KEY-FAKE-PROD"
