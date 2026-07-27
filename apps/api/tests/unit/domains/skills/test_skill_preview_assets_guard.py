@@ -16,6 +16,7 @@ instead of silently degrading the gallery.
 from __future__ import annotations
 
 import importlib.util
+import io
 import sys
 from pathlib import Path
 
@@ -92,14 +93,16 @@ def test_every_system_skill_has_a_registered_drawing() -> None:
 
 @pytest.mark.parametrize("skill_name", _system_skill_names())
 def test_preview_matches_its_generator(skill_name: str) -> None:
-    """The committed PNG is exactly what the generator produces today.
+    """The committed PNG shows what the generator draws today.
 
     Without this, editing a drawing silently leaves the old image shipped.
 
-    Byte equality also ties the images to the pinned Pillow build: a version
-    bump that changes the encoder output makes this fail, and regenerating is
-    the expected answer — the assertion message says so. That is the price of
-    catching a stale drawing, and the lockfile makes it a rare event.
+    Compared as **decoded pixels**, not as bytes. Byte equality looked stricter
+    and was in fact unusable: zlib's output depends on the platform, so images
+    generated on Windows never match a Linux CI run — the first push failed all
+    fourteen with "differs from what the generator produces" while every drawing
+    was in fact identical. Pixels are the invariant that carries the meaning
+    ("the shipped image is the drawing"); the encoding is not.
 
     Args:
         skill_name: System skill under test.
@@ -108,8 +111,17 @@ def test_preview_matches_its_generator(skill_name: str) -> None:
     if skill_name not in module.DRAWINGS:
         pytest.skip("covered by test_every_system_skill_has_a_registered_drawing")
 
-    on_disk = (SKILLS_DIR / skill_name / "assets" / "preview.png").read_bytes()
-    assert on_disk == module.render(skill_name), (
-        f"{skill_name}: preview.png differs from what the generator produces. "
+    from PIL import Image
+
+    shipped = Image.open(SKILLS_DIR / skill_name / "assets" / "preview.png")
+    regenerated = Image.open(io.BytesIO(module.render(skill_name)))
+
+    assert (shipped.size, shipped.mode) == (regenerated.size, regenerated.mode), (
+        f"{skill_name}: preview.png is {shipped.size}/{shipped.mode}, the generator "
+        f"produces {regenerated.size}/{regenerated.mode}. "
+        f"Run: python scripts/generate_skill_previews.py"
+    )
+    assert shipped.tobytes() == regenerated.tobytes(), (
+        f"{skill_name}: preview.png no longer shows what the generator draws. "
         f"Run: python scripts/generate_skill_previews.py"
     )

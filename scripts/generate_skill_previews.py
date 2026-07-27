@@ -432,6 +432,24 @@ def render(skill_name: str) -> bytes:
     return buffer.getvalue()
 
 
+def _same_pixels(left: bytes, right: bytes) -> bool:
+    """Whether two encoded PNGs decode to the same image.
+
+    Args:
+        left: First encoded PNG.
+        right: Second encoded PNG.
+
+    Returns:
+        True when size, mode and pixel data all match.
+    """
+    first, second = Image.open(io.BytesIO(left)), Image.open(io.BytesIO(right))
+    return (first.size, first.mode, first.tobytes()) == (
+        second.size,
+        second.mode,
+        second.tobytes(),
+    )
+
+
 def main() -> int:
     """Write (or verify) every system skill's preview.
 
@@ -464,7 +482,9 @@ def main() -> int:
         target = skill_dir / "assets" / "preview.png"
         payload = render(skill_name)
         if args.check:
-            if not target.is_file() or target.read_bytes() != payload:
+            # Pixels, not bytes: zlib output is platform-dependent, so a
+            # byte comparison flags every image as stale on another OS.
+            if not target.is_file() or not _same_pixels(target.read_bytes(), payload):
                 stale.append(skill_name)
             continue
         target.parent.mkdir(parents=True, exist_ok=True)
