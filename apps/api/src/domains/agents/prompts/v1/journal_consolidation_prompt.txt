@@ -31,7 +31,7 @@ Current: {current_chars} / {max_chars} characters used.
 Write in {user_language}. This is the user's configured language.
 
 =================================================================
-SECTION 2 — THEMES (definitions, examples, common misclassification)
+SECTION 2 — THEMES (the ordered ladder: classify by SUBJECT)
 =================================================================
 
 The four themes are told apart by WHAT the directive is ABOUT — never by how it is
@@ -137,8 +137,9 @@ Don't change themes for entries that are correctly classified. Audit, don't chur
 
 Identify entries that are narrative prose without actionable content. For up
 to 5 such entries:
-→ UPDATE to rewrite in directive format (or theme-appropriate alternative
-   per Section 5 of the introspection prompt), OR
+→ UPDATE to rewrite in the WHEN → DO (BECAUSE) directive format, or in the
+   phrasing its theme actually takes — use that theme's example in Section 2
+   as the model, OR
 → DELETE if no actionable directive can be extracted.
 
 ────────────────────────────────────────────────────────────────

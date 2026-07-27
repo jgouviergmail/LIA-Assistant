@@ -261,6 +261,21 @@ Classification is **never** a distribution to balance: since [ADR-088](../archit
 
 > **Trap (measured 2026-07-27, ADR-159)** — discriminating themes on the presence of a `BECAUSE` clause empties them. *Every* theme's evidence is a past moment, so the consolidation rule "a `BECAUSE` citing a past event means `learnings`" matched every well-formed `self_reflection` (6/6 rewritten in test). Reclassify by **subject**, never by grounding shape.
 
+> **Trap (ADR-159)** — the consolidation cooldown is stamped by
+> `_stamp_last_consolidated`, which must run on **every** completed run,
+> including the very common one that produces no action. Returning early before
+> the stamp leaves `journal_last_consolidated_at` untouched, so the scheduler's
+> eligibility gate never closes and the consolidation LLM re-runs at every tick,
+> forever. Measured in dev: the portrait had been recompiled 40 h after the last
+> stamp — eight wasted runs at a 5 h interval.
+
+> **Trap (ADR-159)** — "the scheduler may still process this user" has ONE
+> definition, `consolidation_eligible_user_conditions()` in
+> `domains/journals/repository.py`, shared by the eligibility query and the
+> portrait-age gauge. A gauge measuring a population the scheduler ignores
+> reports a staleness nobody can act on: one soft-deleted account pinned it high
+> for good.
+
 **Verification.** The property "the four themes stay reachable" is enforced two ways:
 
 - `apps/api/tests/unit/domains/journals/test_theme_reachability.py` — CI guard, pure text analysis of the shipped prompts (no LLM, no DB). Checks **parity** (every theme has a heading, an illustration and a named grounding) and **non-contradiction** (no rule rewrites `self_reflection` into `learnings`).

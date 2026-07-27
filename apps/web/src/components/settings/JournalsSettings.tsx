@@ -185,10 +185,11 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
   const entryList = entries?.entries ?? [];
   const sizeInfo = journalSettings?.size_info;
   const lastCost = journalSettings?.last_cost;
-  const themeGroups = (entries?.by_theme ?? []).reduce(
-    (acc, tc) => ({ ...acc, [tc.theme]: tc.count }),
-    {} as Record<string, number>
-  );
+  // The API paginates (50 by default); `total` counts every active entry. When
+  // they differ the list is a partial view and must say so — a group badge over
+  // a silently truncated list reads as an exhaustive count.
+  const totalEntries = entries?.total ?? entryList.length;
+  const isTruncated = totalEntries > entryList.length;
 
   // Handlers
   const handleToggle = async (field: string, value: boolean) => {
@@ -819,198 +820,214 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                   label: string;
                   icon: string;
                   filter: (e: JournalEntry) => boolean;
-                  count: number;
                 };
+                // No `count` on the group: it is derived from the rows actually
+                // rendered, below. Theme badges used to carry the server-side
+                // total while the list was paginated and filtered by
+                // `showOnlyUnused`, so a badge could claim 12 over three rows.
                 const groups: Group[] =
                   groupBy === 'theme'
                     ? themeKeys.map(theme => ({
                         key: theme,
-                        label: t(`journals.themes.${theme}`, theme.replace('_', ' ')),
+                        label: t(`journals.themes.${theme}`, theme.replaceAll('_', ' ')),
                         icon: THEME_INFO[theme].icon,
                         filter: (e: JournalEntry) => e.theme === theme,
-                        count: themeGroups[theme] ?? 0,
                       }))
                     : ALL_LEVELS.map(level => ({
                         key: level,
                         label: t(`journals.levels.${level}.label`, level),
                         icon: level,
                         filter: (e: JournalEntry) => e.level === level,
-                        count: entryList.filter(e => e.level === level).length,
                       }));
                 return (
-                  <Accordion type="multiple" className="w-full">
-                    {groups.map(g => {
-                      const baseEntries = entryList.filter(g.filter);
-                      const groupEntries = showOnlyUnused
-                        ? baseEntries.filter(e => e.injection_count === 0)
-                        : baseEntries;
-                      return (
-                        <AccordionItem key={g.key} value={g.key}>
-                          <AccordionTrigger className="text-sm">
-                            <span className="flex items-center gap-2">
-                              {groupBy === 'level' ? (
-                                <Badge
-                                  variant="outline"
-                                  className={`text-[10px] px-1.5 py-0 font-mono ${
-                                    LEVEL_BADGE[g.key as JournalEntryLevel]
-                                  }`}
-                                >
-                                  {g.icon}
-                                </Badge>
-                              ) : (
-                                <span>{g.icon}</span>
-                              )}
-                              <span>{g.label}</span>
-                              <Badge variant="secondary" className="ml-1">
-                                {g.count}
-                              </Badge>
-                            </span>
-                          </AccordionTrigger>
-                          <AccordionContent>
-                            {groupEntries.length === 0 ? (
-                              <p className="text-sm text-muted-foreground py-2">
-                                {t('journals.noEntries', 'No entries in this group')}
-                              </p>
-                            ) : (
-                              <div className="space-y-2">
-                                {groupEntries.map(entry => (
-                                  <div
-                                    key={entry.id}
-                                    className="flex items-start justify-between p-3 rounded-lg border bg-card"
+                  <>
+                    {isTruncated && (
+                      <p
+                        role="status"
+                        className="text-xs text-muted-foreground mb-2"
+                        data-testid="journals-truncated-notice"
+                      >
+                        {t('journals.listTruncated', {
+                          shown: entryList.length,
+                          total: totalEntries,
+                          defaultValue: 'Showing the {{shown}} most recent of {{total}} entries.',
+                        })}
+                      </p>
+                    )}
+                    <Accordion type="multiple" className="w-full">
+                      {groups.map(g => {
+                        const baseEntries = entryList.filter(g.filter);
+                        const groupEntries = showOnlyUnused
+                          ? baseEntries.filter(e => e.injection_count === 0)
+                          : baseEntries;
+                        return (
+                          <AccordionItem key={g.key} value={g.key}>
+                            <AccordionTrigger className="text-sm">
+                              <span className="flex items-center gap-2">
+                                {groupBy === 'level' ? (
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[10px] px-1.5 py-0 font-mono ${
+                                      LEVEL_BADGE[g.key as JournalEntryLevel]
+                                    }`}
                                   >
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 mb-1">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                          <span className="text-xs">
-                                            {MOOD_EMOJI[entry.mood] ?? ''}
-                                          </span>
-                                          <span className="font-medium text-sm truncate">
-                                            {entry.title}
-                                          </span>
+                                    {g.icon}
+                                  </Badge>
+                                ) : (
+                                  <span>{g.icon}</span>
+                                )}
+                                <span>{g.label}</span>
+                                <Badge variant="secondary" className="ml-1">
+                                  {groupEntries.length}
+                                </Badge>
+                              </span>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              {groupEntries.length === 0 ? (
+                                <p className="text-sm text-muted-foreground py-2">
+                                  {t('journals.noEntries', 'No entries in this group')}
+                                </p>
+                              ) : (
+                                <div className="space-y-2">
+                                  {groupEntries.map(entry => (
+                                    <div
+                                      key={entry.id}
+                                      className="flex items-start justify-between p-3 rounded-lg border bg-card"
+                                    >
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 mb-1">
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <span className="text-xs">
+                                              {MOOD_EMOJI[entry.mood] ?? ''}
+                                            </span>
+                                            <span className="font-medium text-sm truncate">
+                                              {entry.title}
+                                            </span>
+                                          </div>
+                                          <Badge variant="outline" className="text-xs w-fit">
+                                            {SOURCE_EMOJI[entry.source] ?? ''} {entry.source}
+                                          </Badge>
                                         </div>
-                                        <Badge variant="outline" className="text-xs w-fit">
-                                          {SOURCE_EMOJI[entry.source] ?? ''} {entry.source}
-                                        </Badge>
-                                      </div>
-                                      <p className="text-xs text-muted-foreground whitespace-pre-wrap">
-                                        {entry.content}
-                                      </p>
-                                      {entry.search_hints && entry.search_hints.length > 0 && (
-                                        <div className="flex flex-wrap gap-1 mt-1">
-                                          {entry.search_hints.map((hint, idx) => (
-                                            <Badge
-                                              key={idx}
-                                              variant="outline"
-                                              className="text-[10px] px-1.5 py-0 font-normal text-muted-foreground"
-                                            >
-                                              {hint}
-                                            </Badge>
-                                          ))}
-                                        </div>
-                                      )}
-                                      {/* Epistemic + lifecycle metrics row (commit 1) */}
-                                      <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px] text-muted-foreground">
-                                        <span
-                                          className="flex items-center gap-1"
-                                          title={t(
-                                            `journals.confidence.${entry.confidence}`,
-                                            entry.confidence
-                                          )}
-                                        >
+                                        <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                                          {entry.content}
+                                        </p>
+                                        {entry.search_hints && entry.search_hints.length > 0 && (
+                                          <div className="flex flex-wrap gap-1 mt-1">
+                                            {entry.search_hints.map((hint, idx) => (
+                                              <Badge
+                                                key={idx}
+                                                variant="outline"
+                                                className="text-[10px] px-1.5 py-0 font-normal text-muted-foreground"
+                                              >
+                                                {hint}
+                                              </Badge>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {/* Epistemic + lifecycle metrics row (commit 1) */}
+                                        <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px] text-muted-foreground">
                                           <span
-                                            className={`inline-block h-2 w-2 rounded-full ${CONFIDENCE_DOT[entry.confidence]}`}
-                                          />
-                                          {t(
-                                            `journals.confidence.${entry.confidence}`,
-                                            entry.confidence
-                                          )}
-                                        </span>
-                                        <Badge
-                                          variant="outline"
-                                          className={`text-[10px] px-1.5 py-0 font-mono ${LEVEL_BADGE[entry.level]}`}
-                                          title={t(
-                                            `journals.levels.${entry.level}.description`,
-                                            entry.level
-                                          )}
-                                        >
-                                          {entry.level}
-                                        </Badge>
-                                        <span title={t('journals.injectionCount', 'Times used')}>
-                                          ✨ {entry.injection_count}
-                                        </span>
-                                        <span title={t('journals.lastInjected', 'Last used')}>
-                                          {t('journals.lastUsed', 'last')}:{' '}
-                                          {formatRelativeDate(entry.last_injected_at)}
-                                        </span>
-                                        {(entry.evidence_count > 0 ||
-                                          entry.contradiction_count > 0) && (
-                                          <span
+                                            className="flex items-center gap-1"
                                             title={t(
-                                              'journals.evidenceTooltip',
-                                              'Confirmations / contradictions'
+                                              `journals.confidence.${entry.confidence}`,
+                                              entry.confidence
                                             )}
                                           >
-                                            ✓{entry.evidence_count} / ✗{entry.contradiction_count}
+                                            <span
+                                              className={`inline-block h-2 w-2 rounded-full ${CONFIDENCE_DOT[entry.confidence]}`}
+                                            />
+                                            {t(
+                                              `journals.confidence.${entry.confidence}`,
+                                              entry.confidence
+                                            )}
                                           </span>
-                                        )}
-                                        <span>
-                                          · {new Date(entry.created_at).toLocaleDateString()}
-                                        </span>
+                                          <Badge
+                                            variant="outline"
+                                            className={`text-[10px] px-1.5 py-0 font-mono ${LEVEL_BADGE[entry.level]}`}
+                                            title={t(
+                                              `journals.levels.${entry.level}.description`,
+                                              entry.level
+                                            )}
+                                          >
+                                            {entry.level}
+                                          </Badge>
+                                          <span title={t('journals.injectionCount', 'Times used')}>
+                                            ✨ {entry.injection_count}
+                                          </span>
+                                          <span title={t('journals.lastInjected', 'Last used')}>
+                                            {t('journals.lastUsed', 'last')}:{' '}
+                                            {formatRelativeDate(entry.last_injected_at)}
+                                          </span>
+                                          {(entry.evidence_count > 0 ||
+                                            entry.contradiction_count > 0) && (
+                                            <span
+                                              title={t(
+                                                'journals.evidenceTooltip',
+                                                'Confirmations / contradictions'
+                                              )}
+                                            >
+                                              ✓{entry.evidence_count} / ✗{entry.contradiction_count}
+                                            </span>
+                                          )}
+                                          <span>
+                                            · {new Date(entry.created_at).toLocaleDateString()}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <div className="flex gap-1 ml-2">
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="h-7 w-7"
+                                          onClick={() => openEdit(entry)}
+                                        >
+                                          <Pencil className="h-3 w-3" />
+                                        </Button>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              className="h-7 w-7 text-destructive"
+                                            >
+                                              <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>
+                                                {t('journals.deleteTitle', 'Delete entry?')}
+                                              </AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                {t(
+                                                  'journals.deleteDescription',
+                                                  'This entry will be permanently deleted.'
+                                                )}
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>
+                                                {t('common.cancel', 'Cancel')}
+                                              </AlertDialogCancel>
+                                              <AlertDialogAction
+                                                onClick={() => handleDelete(entry.id)}
+                                              >
+                                                {t('common.delete', 'Delete')}
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
                                       </div>
                                     </div>
-                                    <div className="flex gap-1 ml-2">
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-7 w-7"
-                                        onClick={() => openEdit(entry)}
-                                      >
-                                        <Pencil className="h-3 w-3" />
-                                      </Button>
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-7 w-7 text-destructive"
-                                          >
-                                            <Trash2 className="h-3 w-3" />
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>
-                                              {t('journals.deleteTitle', 'Delete entry?')}
-                                            </AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              {t(
-                                                'journals.deleteDescription',
-                                                'This entry will be permanently deleted.'
-                                              )}
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>
-                                              {t('common.cancel', 'Cancel')}
-                                            </AlertDialogCancel>
-                                            <AlertDialogAction
-                                              onClick={() => handleDelete(entry.id)}
-                                            >
-                                              {t('common.delete', 'Delete')}
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </AccordionContent>
-                        </AccordionItem>
-                      );
-                    })}
-                  </Accordion>
+                                  ))}
+                                </div>
+                              )}
+                            </AccordionContent>
+                          </AccordionItem>
+                        );
+                      })}
+                    </Accordion>
+                  </>
                 );
               })()
             ) : (

@@ -7425,6 +7425,7 @@
       "theme": "主题",
       "level": "层级"
     },
+    "listTruncated": "显示 {{total}} 条记录中最近的 {{shown}} 条。",
     "levelLabel": "层级",
     "levelDescription": "认知抽象层级——L0 原始观察、L1 指令、L2 横向模式、L3 画像层面。",
     "levels": {

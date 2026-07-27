@@ -7510,6 +7510,7 @@
       "theme": "Theme",
       "level": "Level"
     },
+    "listTruncated": "Showing the {{shown}} most recent of {{total}} entries.",
     "levelLabel": "Level",
     "levelDescription": "Cognitive abstraction level — L0 raw observations, L1 directives, L2 transversal patterns, L3 portrait facets.",
     "levels": {

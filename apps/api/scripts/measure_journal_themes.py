@@ -612,7 +612,9 @@ async def _amain(args: argparse.Namespace) -> int:
         report["extraction"] = [r.as_dict() for r in results]
         report["summary"] = summarize(results)
         calls = _TOKEN_TALLY["calls"] or 1
-        report["tokens_per_call"] = {
+        # Extraction only — the consolidation battery does not tally, and a key
+        # named `tokens_per_call` would read as covering both.
+        report["extraction_tokens_per_call"] = {
             "input": round(_TOKEN_TALLY["input"] / calls, 1),
             "output": round(_TOKEN_TALLY["output"] / calls, 1),
             "calls": _TOKEN_TALLY["calls"],
@@ -620,7 +622,7 @@ async def _amain(args: argparse.Namespace) -> int:
         print("\n--- summary ---")
         for key, value in report["summary"].items():
             print(f"  {key:<22}: {value}")
-        print(f"  {'tokens_per_call':<22}: {report['tokens_per_call']}")
+        print(f"  {'extraction_tokens':<22}: {report['extraction_tokens_per_call']}")
 
     if args.mode in ("consolidation", "both"):
         print("\n" + "=" * 78)

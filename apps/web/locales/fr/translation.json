@@ -7436,6 +7436,7 @@
       "theme": "Thème",
       "level": "Niveau"
     },
+    "listTruncated": "Affichage des {{shown}} entrées les plus récentes sur {{total}}.",
     "levelLabel": "Niveau",
     "levelDescription": "Niveau d'abstraction cognitive — L0 observations brutes, L1 directives, L2 patterns transversaux, L3 facettes du portrait.",
     "levels": {

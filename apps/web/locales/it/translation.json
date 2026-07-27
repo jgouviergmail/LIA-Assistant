@@ -7432,6 +7432,7 @@
       "theme": "Tema",
       "level": "Livello"
     },
+    "listTruncated": "Vengono mostrate le {{shown}} voci più recenti su {{total}}.",
     "levelLabel": "Livello",
     "levelDescription": "Livello di astrazione cognitiva — L0 osservazioni grezze, L1 direttive, L2 pattern trasversali, L3 sfaccettature del ritratto.",
     "levels": {

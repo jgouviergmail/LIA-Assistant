@@ -137,6 +137,28 @@ class TestActionLoopAtomicity:
         )
         assert sorted(titles) == ["first", "third"]
 
+    async def test_savepoint_works_as_the_first_operation_on_the_session(
+        self, async_session: AsyncSession, _no_embeddings: None
+    ) -> None:
+        """``begin_nested()`` may open the outer transaction itself.
+
+        This is the production sequence: both services build the service object
+        and enter the savepoint before touching the database, so the SAVEPOINT
+        is requested on a session that has not autobegun yet. PostgreSQL rejects
+        a SAVEPOINT outside a transaction, so this pins that SQLAlchemy opens
+        the outer one first rather than relying on a previous statement.
+        """
+        user = await _make_user(async_session)
+        await async_session.commit()
+
+        async with async_session.begin_nested():
+            service = JournalService(async_session)
+            await service.create_entry(
+                user_id=user.id, theme="learnings", title="first-op", content="ok"
+            )
+
+        assert await _count_entries(async_session, user.id) == 1
+
     async def test_savepoint_leaves_the_session_usable_after_the_batch(
         self, async_session: AsyncSession, _no_embeddings: None
     ) -> None:

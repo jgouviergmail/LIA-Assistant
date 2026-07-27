@@ -173,6 +173,48 @@ introduite par l'administration, pas d'un défaut logiciel. Coût mesuré du
 passage à `low` : entrée inchangée (3 512 jetons), sortie **64 → 178 jetons par
 tour**. L'entrée dominant la facture, l'impact réel est marginal.
 
+## Compléments issus de la contre-revue
+
+Une relecture adversariale du correctif lui-même a sorti quatre défauts de plus,
+tous corrigés et couverts :
+
+1. **Jauge d'âge du portrait non filtrée.** `compute_max_portrait_age_hours`
+   comptait tous les utilisateurs journaux-activés, y compris ceux
+   désactivés, supprimés en douceur ou ayant coupé la consolidation. Un seul
+   compte supprimé épinglait la jauge à une valeur croissante indéfiniment :
+   l'alerte de péremption ne pouvait plus retomber, donc ne servait à rien. La
+   jauge est désormais restreinte aux utilisateurs **éligibles**.
+2. **Prédicat d'éligibilité dupliqué.** Les mêmes quatre conditions vivaient
+   dans l'ordonnanceur et dans la jauge. Extraites dans
+   `consolidation_eligible_user_conditions()`, source unique : une jauge qui
+   mesure une population que l'ordonnanceur ne traite pas est une jauge fausse.
+3. **Référence croisée périmée entre les deux prompts.** La consolidation
+   renvoyait à « Section 5 of the introspection prompt » pour le format des
+   entrées — or cette section est devenue « INPUTS » lors de la réécriture du
+   2026-06-02. Le modèle était envoyé consulter une section sans rapport depuis
+   deux mois. Remplacée par un renvoi aux exemples locaux.
+4. **`GET /journals` renvoyait 500 sur un thème hors énumération.**
+   `JournalTheme(valeur_inconnue)` lève `ValueError` ; une seule ligne
+   inattendue cassait toute la page du journal, pas un compteur. Le thème
+   inconnu est désormais ignoré **et journalisé** (`journal_unknown_theme_in_corpus`)
+   — jamais avalé en silence.
+
+Côté interface, le badge de chaque groupe affichait le total serveur
+(`by_theme`, toutes entrées) alors que la liste en dessous est paginée (50) et
+filtrée par « non utilisées » : un badge pouvait annoncer 12 au-dessus de trois
+lignes. Défaut préexistant, mais sur le chemin d'affichage que ce correctif
+alimente — deux des quatre groupes étant jusqu'ici toujours vides. Le compteur
+est désormais dérivé des lignes réellement rendues, et une liste tronquée le
+dit (`journals.listTruncated`, 6 locales) au lieu de se faire passer pour
+exhaustive.
+
+Gardes de non-récurrence ajoutées, toutes falsifiées contre l'état antérieur :
+interdiction AST d'un `theme=` littéral sur tout site d'écriture (attrape le
+`theme='self_reflection'` d'origine), présence du `begin_nested()` dans les deux
+boucles d'application, publication d'une valeur pour **chaque** thème y compris
+absent (un thème sans série lit « no data », un thème à 0 lit « inatteignable »,
+seul le second est alertable).
+
 ## Alternatives écartées
 
 - **Revenir au prompt d'avant le 2026-06-02.** Mesuré : ce prompt produit 2 à 3

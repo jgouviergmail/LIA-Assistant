@@ -123,6 +123,9 @@ async def process_journal_consolidation() -> dict[str, Any]:
                 from sqlalchemy import and_, func, select
 
                 from src.domains.journals.models import JournalEntry, JournalEntryStatus
+                from src.domains.journals.repository import (
+                    consolidation_eligible_user_conditions,
+                )
                 from src.domains.users.models import User
 
                 # Calculate cooldown threshold
@@ -149,10 +152,9 @@ async def process_journal_consolidation() -> dict[str, Any]:
                     .join(active_count_subq, User.id == active_count_subq.c.user_id)
                     .where(
                         and_(
-                            User.journals_enabled.is_(True),
-                            User.journal_consolidation_enabled.is_(True),
-                            User.is_active.is_(True),
-                            User.deleted_at.is_(None),
+                            # Shared with the portrait-age gauge — see the helper's
+                            # docstring for why the two must not drift apart.
+                            *consolidation_eligible_user_conditions(),
                             # Cooldown: never consolidated OR last > cooldown
                             (
                                 User.journal_last_consolidated_at.is_(None)

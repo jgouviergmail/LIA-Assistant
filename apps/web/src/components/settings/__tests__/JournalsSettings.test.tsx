@@ -214,3 +214,95 @@ describe('JournalsSettings — entry creation', () => {
     expect(createEntry).not.toHaveBeenCalled();
   });
 });
+
+describe('JournalsSettings — theme grouping and counts', () => {
+  /**
+   * Until ADR-159 two of the four themes were permanently empty, so nothing
+   * exercised the populated-group path. They now fill up, and the group badge
+   * is the first thing a reader trusts.
+   */
+  it('renders one group per theme, including the two that used to be empty', async () => {
+    useJournals.mockReturnValue(
+      hook({
+        entries: entriesResponse([
+          entry({ id: 'a', theme: 'self_reflection' }),
+          entry({ id: 'b', theme: 'ideas_analyses' }),
+          entry({ id: 'c', theme: 'learnings' }),
+          entry({ id: 'd', theme: 'user_observations' }),
+        ]),
+      })
+    );
+    render();
+    for (const theme of ['self_reflection', 'user_observations', 'ideas_analyses', 'learnings']) {
+      expect(await screen.findByText(`journals.themes.${theme}`)).toBeInTheDocument();
+    }
+  });
+
+  it('counts on the badge exactly what the group renders', async () => {
+    useJournals.mockReturnValue(
+      hook({
+        entries: entriesResponse([
+          entry({ id: 'a', theme: 'learnings', title: 'L one' }),
+          entry({ id: 'b', theme: 'learnings', title: 'L two' }),
+          entry({ id: 'c', theme: 'ideas_analyses', title: 'I one' }),
+        ]),
+      })
+    );
+    const { user } = render();
+    await user.click(await screen.findByText('journals.themes.learnings'));
+    expect(await screen.findByText('L one')).toBeInTheDocument();
+    expect(screen.getByText('L two')).toBeInTheDocument();
+
+    const trigger = screen.getByText('journals.themes.learnings').closest('button');
+    expect(trigger).not.toBeNull();
+    // The badge sits next to the label inside the same trigger.
+    expect(trigger?.textContent).toContain('2');
+  });
+
+  it('keeps the badge in step with the unused-only filter', async () => {
+    /**
+     * The badge used to come from the server-side `by_theme` total while the
+     * rows came from the loaded page filtered client-side, so switching the
+     * filter left a badge contradicting the list right under it.
+     */
+    useJournals.mockReturnValue(
+      hook({
+        entries: entriesResponse([
+          entry({ id: 'a', theme: 'learnings', title: 'Used', injection_count: 4 }),
+          entry({ id: 'b', theme: 'learnings', title: 'Never used', injection_count: 0 }),
+        ]),
+      })
+    );
+    const { user } = render();
+    await user.click(await screen.findByText('journals.themes.learnings'));
+    const label = () => screen.getByText('journals.themes.learnings').closest('button');
+    expect(label()?.textContent).toContain('2');
+
+    await user.click(await screen.findByLabelText('journals.filterUnused'));
+    await waitFor(() => expect(label()?.textContent).toContain('1'));
+    expect(screen.queryByText('Used')).not.toBeInTheDocument();
+    expect(screen.getByText('Never used')).toBeInTheDocument();
+  });
+});
+
+describe('JournalsSettings — truncated list', () => {
+  it('says so when the response is a partial page', async () => {
+    const response = entriesResponse([entry({ id: 'a', theme: 'learnings' })]);
+    useJournals.mockReturnValue(hook({ entries: { ...response, total: 120 } }));
+    render();
+    // Asserted by its accessible role and its text, not only by a test id: the
+    // notice exists to be *read*, and a live region is how it reaches a screen
+    // reader once the list resolves.
+    const notice = await screen.findByRole('status');
+    expect(notice).toHaveTextContent('journals.listTruncated');
+  });
+
+  it('stays silent when every entry is on the page', async () => {
+    useJournals.mockReturnValue(
+      hook({ entries: entriesResponse([entry({ id: 'a', theme: 'learnings' })]) })
+    );
+    render();
+    await screen.findByText('journals.themes.learnings');
+    expect(screen.queryByTestId('journals-truncated-notice')).not.toBeInTheDocument();
+  });
+});

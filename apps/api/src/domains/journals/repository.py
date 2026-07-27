@@ -15,12 +15,39 @@ from uuid import UUID
 
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from src.domains.journals.models import JournalEntry, JournalEntryStatus
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_journals import journal_entries_total
 
 logger = get_logger(__name__)
+
+
+def consolidation_eligible_user_conditions() -> list[ColumnElement[bool]]:
+    """Return the conditions selecting users whose journal can be consolidated.
+
+    Single source of truth for "the scheduler may still process this user",
+    shared by the eligibility query in
+    ``infrastructure/scheduler/journal_consolidation.py`` and by the
+    portrait-age gauge. The cooldown predicate is deliberately NOT part of it:
+    it is the scheduler's pacing concern, not a property of the user.
+
+    Keeping the two in one place is not cosmetic. A gauge that counts users the
+    scheduler will never pick up reports a staleness nobody can act on, and pins
+    the alert high forever.
+
+    Returns:
+        Conditions to splice into a ``select(...).where(and_(*conditions))``.
+    """
+    from src.domains.users.models import User
+
+    return [
+        User.journals_enabled.is_(True),
+        User.journal_consolidation_enabled.is_(True),
+        User.is_active.is_(True),
+        User.deleted_at.is_(None),
+    ]
 
 
 class JournalEntryRepository:
@@ -470,15 +497,21 @@ class JournalEntryRepository:
         return {str(row[0]): int(row[1]) for row in result.all()}
 
     async def compute_max_portrait_age_hours(self) -> float:
-        """Compute the age in hours of the OLDEST compiled portrait still in use.
+        """Compute the age in hours of the OLDEST portrait the scheduler still owns.
 
-        Journals-enabled users whose portrait was never compiled are ignored:
-        they have no stale portrait, they have none at all (a different signal,
-        already visible through the level distribution).
+        Restricted to consolidation-eligible users
+        (:func:`consolidation_eligible_user_conditions`). A user who opted out,
+        was deactivated or soft-deleted will never be consolidated again, so
+        counting them would pin this gauge high forever and make the staleness
+        alert unactionable — the opposite of what it exists for.
+
+        Users whose portrait was never compiled are ignored: they have no stale
+        portrait, they have none at all (a different signal, already visible
+        through the level distribution).
 
         Returns:
             Age in hours of the least recently compiled portrait, or 0.0 when no
-            portrait has been compiled yet.
+            eligible user has a compiled portrait.
         """
         from sqlalchemy import Float, cast
 
@@ -490,7 +523,7 @@ class JournalEntryRepository:
         )
         stmt = select(func.coalesce(func.max(age_hours_expr), 0.0)).where(
             and_(
-                User.journals_enabled.is_(True),
+                *consolidation_eligible_user_conditions(),
                 User.journal_portrait_compiled_at.isnot(None),
             )
         )

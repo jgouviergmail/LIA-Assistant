@@ -7430,6 +7430,7 @@
       "theme": "Thema",
       "level": "Ebene"
     },
+    "listTruncated": "Es werden die {{shown}} neuesten von {{total}} Einträgen angezeigt.",
     "levelLabel": "Ebene",
     "levelDescription": "Kognitive Abstraktionsebene — L0 Rohbeobachtungen, L1 Direktiven, L2 transversale Muster, L3 Porträtfacetten.",
     "levels": {

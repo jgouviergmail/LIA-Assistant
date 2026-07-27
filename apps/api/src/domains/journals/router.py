@@ -74,6 +74,38 @@ def _entry_to_response(entry: JournalEntry) -> JournalEntryResponse:
     return JournalEntryResponse.model_validate(entry)
 
 
+def _build_theme_counts(theme_counts: dict[str, int], user_id: UUID) -> list[ThemeCount]:
+    """Convert raw per-theme counts into validated response items.
+
+    A theme string absent from :class:`JournalTheme` is skipped, not raised on:
+    ``JournalTheme(unknown)`` raises ``ValueError``, which would turn a single
+    unexpected row into a 500 on ``GET /journals`` — the whole journal page,
+    not just one counter. Skipping keeps the page usable; the warning keeps the
+    anomaly visible rather than silently swallowed.
+
+    Args:
+        theme_counts: Mapping of raw theme code to active entry count.
+        user_id: Owner user UUID, for the anomaly log.
+
+    Returns:
+        One ``ThemeCount`` per recognised theme.
+    """
+    counts: list[ThemeCount] = []
+    for raw_theme, count in theme_counts.items():
+        try:
+            theme = JournalTheme(raw_theme)
+        except ValueError:
+            logger.warning(
+                "journal_unknown_theme_in_corpus",
+                user_id=str(user_id),
+                theme=raw_theme,
+                count=count,
+            )
+            continue
+        counts.append(ThemeCount(theme=theme, count=count))
+    return counts
+
+
 async def _build_settings_response(user: User, service: JournalService) -> JournalSettingsResponse:
     """Build full settings response with size and cost info.
 
@@ -330,7 +362,7 @@ async def list_entries(
     return JournalEntryListResponse(
         entries=[_entry_to_response(e) for e in entries],
         total=total,
-        by_theme=[ThemeCount(theme=JournalTheme(t), count=c) for t, c in theme_counts.items()],
+        by_theme=_build_theme_counts(theme_counts, user_id=user.id),
         total_chars=size_info.total_chars,
         max_total_chars=size_info.max_total_chars,
         usage_pct=size_info.usage_pct,

@@ -24,7 +24,9 @@ recall per theme is measured separately by
 
 from __future__ import annotations
 
+import ast
 import re
+from pathlib import Path
 
 import pytest
 
@@ -203,6 +205,91 @@ class TestConsolidationDoesNotStarveThemes:
         )
 
 
+_SRC_ROOT = Path(__file__).parents[4] / "src"
+
+# The only spellings allowed for a `theme=` argument at a write site. A bare
+# string literal is what put `self_reflection` on every user-feedback entry.
+_ALLOWED_THEME_CONSTANTS = frozenset(
+    {"JOURNAL_RESPONSE_FEEDBACK_THEME", "JOURNAL_PORTRAIT_FEEDBACK_THEME"}
+)
+
+
+def _hardcoded_theme_call_sites() -> list[str]:
+    """Return ``file:line`` for every ``theme=<str literal>`` write site.
+
+    Scans the whole source tree, not just the journals domain: the response
+    feedback hook lives there today, but the port it implements is registered
+    from ``infrastructure/startup`` and nothing stops another domain from
+    calling ``create_entry``.
+
+    Returns:
+        Human-readable locations of the offending keyword arguments.
+    """
+    offenders: list[str] = []
+    for path in _SRC_ROOT.rglob("*.py"):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except (SyntaxError, UnicodeDecodeError):  # pragma: no cover — defensive
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", "")
+            if name not in {"create_entry", "update_entry"}:
+                continue
+            for keyword in node.keywords:
+                if keyword.arg != "theme":
+                    continue
+                if isinstance(keyword.value, ast.Constant) and isinstance(keyword.value.value, str):
+                    rel = path.relative_to(_SRC_ROOT.parent).as_posix()
+                    offenders.append(f"{rel}:{keyword.lineno} theme={keyword.value.value!r}")
+    return offenders
+
+
+class TestNoHardcodedThemeAtWriteSites:
+    """A theme is chosen through the taxonomy, never typed as a literal."""
+
+    def test_no_write_site_passes_a_bare_theme_string(self) -> None:
+        """``theme=`` must reference the enum or a named feedstock constant.
+
+        Both feedback levers used to pass ``theme="self_reflection"`` inline.
+        The value was wrong AND invisible: nothing tied it to the taxonomy, so
+        no review and no test could relate it to the discriminators the prompts
+        enforce. Named constants make the choice greppable and reviewable.
+        """
+        offenders = _hardcoded_theme_call_sites()
+        assert not offenders, (
+            "journal write sites must pass `theme=` as JournalTheme.X.value, a value "
+            "already validated upstream, or one of "
+            f"{sorted(_ALLOWED_THEME_CONSTANTS)} — found: {offenders}"
+        )
+
+
+class TestActionLoopsKeepTheirSavepoint:
+    """Both maintenance loops isolate each action, or neither is resilient."""
+
+    @pytest.mark.parametrize(
+        "module",
+        ["domains/journals/extraction_service.py", "domains/journals/consolidation_service.py"],
+    )
+    def test_action_loop_wraps_each_action_in_a_savepoint(self, module: str) -> None:
+        """The per-action ``try/except ... continue`` needs a SAVEPOINT to mean anything.
+
+        On PostgreSQL a statement error aborts the whole transaction, so without
+        ``begin_nested()`` every later action fails on the poisoned session and
+        the final commit raises — the loop silently becomes all-or-nothing while
+        still logging per-action warnings. Behaviour is pinned against the real
+        database in ``tests/integration/domains/journals/test_action_atomicity.py``;
+        this guard makes the removal of the wrapper impossible to miss.
+        """
+        source = (_SRC_ROOT / module).read_text(encoding="utf-8")
+        assert "begin_nested()" in source, (
+            f"{module} applies LLM actions in a loop without a SAVEPOINT: one bad "
+            "action will take the whole batch down while pretending to skip it."
+        )
+
+
 class TestFeedbackFeedstockThemes:
     """User-correction entries must not squat a theme they do not belong to."""
 
@@ -210,6 +297,35 @@ class TestFeedbackFeedstockThemes:
         """Both feedstock themes are real ``JournalTheme`` values."""
         assert JOURNAL_RESPONSE_FEEDBACK_THEME in ALL_THEMES
         assert JOURNAL_PORTRAIT_FEEDBACK_THEME in ALL_THEMES
+
+    @pytest.mark.parametrize(
+        "module,expected_constant",
+        [
+            ("domains/journals/feedback_hooks.py", "JOURNAL_RESPONSE_FEEDBACK_THEME"),
+            ("domains/journals/router.py", "JOURNAL_PORTRAIT_FEEDBACK_THEME"),
+        ],
+    )
+    def test_each_lever_wires_its_own_constant(self, module: str, expected_constant: str) -> None:
+        """Each feedback lever passes ITS constant, not merely a named one.
+
+        The no-literal guard above proves nothing is typed inline; it cannot
+        tell the two levers apart. Feedback on a response and feedback on the
+        portrait have different subjects — swapping them would file a portrait
+        correction as a lesson about what the assistant did, silently and with
+        every static check still green.
+        """
+        tree = ast.parse((_SRC_ROOT / module).read_text(encoding="utf-8"))
+        wired = {
+            keyword.value.id
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            for keyword in node.keywords
+            if keyword.arg == "theme" and isinstance(keyword.value, ast.Name)
+        }
+        assert expected_constant in wired, (
+            f"{module} no longer passes {expected_constant} as its `theme=`; "
+            f"found {sorted(wired) or 'no named constant at all'}."
+        )
 
     def test_feedback_is_not_labelled_self_reflection(self) -> None:
         """Neither lever writes ``self_reflection``.
