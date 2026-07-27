@@ -52,9 +52,25 @@ npm install -g @anthropic-ai/claude-code
 ```
 
 **Raspberry Pi / Linux (prod)**:
+
+Install Node.js from the official tarball. The NodeSource repository this guide
+used to recommend now answers **403**, and piping it into `bash` fails silently
+(`bash` reads an empty stdin and exits 0), leaving apt to install Debian's Node
+18 — which does not ship npm. The same trap broke the production image build;
+the Dockerfiles use the tarball for the same reason.
+
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -
-sudo apt-get install -y nodejs
+NODE_VERSION=22.14.0
+case "$(dpkg --print-architecture)" in
+  amd64) NODE_ARCH=x64 ;;
+  arm64) NODE_ARCH=arm64 ;;   # Raspberry Pi 5 under a 64-bit OS
+  *) echo "unsupported architecture" >&2; exit 1 ;;
+esac
+curl -fsSL -o /tmp/node.tar.xz \
+  "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
+sudo tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 --no-same-owner
+rm /tmp/node.tar.xz
+node -v && npm -v   # verify BOTH: a Node without npm is the failure mode above
 sudo npm install -g @anthropic-ai/claude-code
 ```
 
