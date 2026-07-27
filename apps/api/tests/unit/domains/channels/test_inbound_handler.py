@@ -105,6 +105,8 @@ class TestTextMessageHandling:
             user_language="fr",
             user_timezone="Europe/Paris",
             user_memory_enabled=True,
+            user_journals_enabled=True,
+            user_psyche_enabled=True,
             conversation_id=None,
             pending_hitl=None,
         )
@@ -136,6 +138,8 @@ class TestTextMessageHandling:
             user_language="fr",
             user_timezone="Europe/Paris",
             user_memory_enabled=True,
+            user_journals_enabled=True,
+            user_psyche_enabled=True,
             conversation_id=None,
             pending_hitl=None,
         )
@@ -164,6 +168,8 @@ class TestTextMessageHandling:
             user_language="en",
             user_timezone="America/New_York",
             user_memory_enabled=False,
+            user_journals_enabled=True,
+            user_psyche_enabled=True,
             conversation_id=None,
             pending_hitl=None,
         )
@@ -200,6 +206,8 @@ class TestTextMessageHandling:
             user_language="fr",
             user_timezone="Europe/Paris",
             user_memory_enabled=True,
+            user_journals_enabled=True,
+            user_psyche_enabled=True,
             conversation_id=None,
             pending_hitl=None,
         )
@@ -234,6 +242,8 @@ class TestVoiceMessage:
                 user_language="fr",
                 user_timezone="Europe/Paris",
                 user_memory_enabled=True,
+                user_journals_enabled=True,
+                user_psyche_enabled=True,
                 conversation_id=None,
                 pending_hitl=None,
             )
@@ -271,6 +281,8 @@ class TestVoiceMessage:
                 user_language="fr",
                 user_timezone="Europe/Paris",
                 user_memory_enabled=True,
+                user_journals_enabled=True,
+                user_psyche_enabled=True,
                 conversation_id=None,
                 pending_hitl=None,
             )
@@ -323,6 +335,8 @@ class TestHITLResponse:
             user_language="fr",
             user_timezone="Europe/Paris",
             user_memory_enabled=True,
+            user_journals_enabled=True,
+            user_psyche_enabled=True,
             conversation_id="conv-789",
             pending_hitl=pending_hitl,
         )
@@ -351,6 +365,8 @@ class TestHITLResponse:
             user_language="fr",
             user_timezone="Europe/Paris",
             user_memory_enabled=True,
+            user_journals_enabled=True,
+            user_psyche_enabled=True,
             conversation_id=None,
             pending_hitl=None,
         )
@@ -395,6 +411,8 @@ class TestHITLInterruptDetection:
             user_language="fr",
             user_timezone="Europe/Paris",
             user_memory_enabled=True,
+            user_journals_enabled=True,
+            user_psyche_enabled=True,
             conversation_id=None,
             pending_hitl=None,
         )
@@ -485,6 +503,8 @@ class TestContentReplacementAndErrors:
             user_language="fr",
             user_timezone="Europe/Paris",
             user_memory_enabled=True,
+            user_journals_enabled=True,
+            user_psyche_enabled=True,
             conversation_id=None,
             pending_hitl=None,
         )
@@ -533,6 +553,8 @@ class TestContentReplacementAndErrors:
             user_language="fr",
             user_timezone="Europe/Paris",
             user_memory_enabled=True,
+            user_journals_enabled=True,
+            user_psyche_enabled=True,
             conversation_id=None,
             pending_hitl=None,
         )
@@ -571,6 +593,8 @@ class TestContentReplacementAndErrors:
             user_language="fr",
             user_timezone="Europe/Paris",
             user_memory_enabled=True,
+            user_journals_enabled=True,
+            user_psyche_enabled=True,
             conversation_id=None,
             pending_hitl=None,
         )
@@ -606,6 +630,8 @@ class TestContentReplacementAndErrors:
             user_language="fr",
             user_timezone="Europe/Paris",
             user_memory_enabled=True,
+            user_journals_enabled=True,
+            user_psyche_enabled=True,
             conversation_id=None,
             pending_hitl=None,
         )
@@ -637,6 +663,8 @@ class TestContentReplacementAndErrors:
             user_language="fr",
             user_timezone="Europe/Paris",
             user_memory_enabled=True,
+            user_journals_enabled=True,
+            user_psyche_enabled=True,
             conversation_id=None,
             pending_hitl=None,
         )

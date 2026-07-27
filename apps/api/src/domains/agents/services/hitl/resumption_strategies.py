@@ -42,6 +42,7 @@ from src.domains.agents.services.hitl.validator import HitlValidator
 from src.domains.chat.schemas import TokenSummaryDTO
 from src.domains.chat.service import TrackingContext
 from src.domains.conversations.service import ConversationService
+from src.domains.shared.extraction_targets import SYNTHETIC_MESSAGE_KEY
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.callbacks import TokenTrackingCallback
 from src.infrastructure.observability.logging import get_logger
@@ -758,9 +759,23 @@ async def _build_tool_level_command(
                         user_response or "", tool_user_language
                     )
 
+                    # Flagged as scaffolding: the body is a localized instruction
+                    # block for the response LLM, not something the user said.
+                    # Without the flag it became the extraction target — memory,
+                    # interests and journal all analysing the assistant's own
+                    # directives. The two fallback branches below inject the raw
+                    # user_response instead, which IS a genuine utterance and is
+                    # deliberately left unflagged.
                     command_input = Command(
                         resume=resume_value,
-                        update={STATE_KEY_MESSAGES: [HumanMessage(content=enriched_user_message)]},
+                        update={
+                            STATE_KEY_MESSAGES: [
+                                HumanMessage(
+                                    content=enriched_user_message,
+                                    additional_kwargs={SYNTHETIC_MESSAGE_KEY: True},
+                                )
+                            ]
+                        },
                     )
 
                     logger.info(

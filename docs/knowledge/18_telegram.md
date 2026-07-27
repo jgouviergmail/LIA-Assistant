@@ -37,3 +37,8 @@ In **Settings > Messaging Channels**, you can:
 • You can use both the web interface and Telegram simultaneously
 • Conversations are shared — messages sent via Telegram appear in the web chat too
 • All your preferences (personality, language, memories) apply across channels
+
+## Is a Telegram conversation treated like a browser one?
+Yes. An external channel is not a degraded mode: whatever you switched on applies there identically — long-term memory, logbooks, emotional state. Previously only long-term memory was forwarded, so journals and mood silently never ran on Telegram whatever your settings said.
+
+Both channel entry points — an incoming message and a reply to a confirmation button — now resolve your preferences through the same single path, precisely so none of these features can be forgotten on one side only.

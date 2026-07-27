@@ -6,7 +6,7 @@
 
 **Version**: 3.5
 **Datum**: 2026-07-27
-**Application**: LIA v1.25.27
+**Application**: LIA v1.25.28
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 438 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 160+ ADRs, ~16.159 von pytest gesammelte Tests in 854 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 160+ ADRs, ~16.293 von pytest gesammelte Tests in 854 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -71,7 +71,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~16.159 von pytest gesammelt (von pytest über 854 Testdateien gesammelt) + 3.473 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | ~16.293 von pytest gesammelt (von pytest über 854 Testdateien gesammelt) + 3.473 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 400+ |
 | ADRs (Architecture Decision Records) | 160+ |
@@ -555,6 +555,8 @@ Jede Erinnerung ist ein strukturiertes Dokument mit:
 
 **Injection**: Die Middleware `memory_injection.py` sucht semantisch ähnliche Erinnerungen, baut das injizierbare psychologische Profil auf und aktiviert bei Bedarf die `DANGER_DIRECTIVE`. Injection in den System-Prompt des Response Node.
 
+**Welche Züge das Gedächtnis speisen.** Eine Nachricht, die eine Aktion auslöst, zählt genauso wie ein Gespräch: Das Fortsetzen eines Entwurfs fügt keine Nachricht ein, sodass die ursprüngliche Anfrage zum Zeitpunkt der Extraktion weiterhin die letzte Äußerung des Nutzers ist. Umgekehrt werden **vom System erzeugte** Nachrichten — das bei einer HITL-Ablehnung eingefügte Gerüst — in ihren Metadaten markiert und sowohl als Ziel wie als Kontext ausgeschlossen: niemals an ihrem Text erkannt, denn es existiert in sechs Sprachen. Schließlich gilt die Heuristik, die Bestätigungen verwirft, nur für das, was der Nutzer tatsächlich getippt hat — auf einen Personennamen angewandt, ließ sie die Erinnerungen an Kontakte verschwinden, deren Nachname „gut“ oder „cool“ ähnelt. Jede Entscheidung wird pro Teilsystem und Ausgang gezählt (`post_response_extraction_scheduled_total`), wo es zuvor nur Debug-Logs gab.
+
 ### 11.4. Hybride Suche BM25 + Semantisch
 
 Kombination mit konfigurierbarem Alpha (Standard 0.6 semantisch / 0.4 BM25). 10 % Boost, wenn beide Signale stark sind (> 0.5). Graceful Fallback auf rein semantische Suche, wenn BM25 fehlschlägt. Performance: 40-90 ms mit Cache.
@@ -997,6 +999,8 @@ Eine Bibliothek eingebauter Skills demonstriert den Vertrag: `interactive-map`, 
 
 Die Skills-Oberfläche ist eine **Galerie**: Karten öffnen ein Detailblatt mit lokalisierter Beschreibung, den deklarierten **Ausgabekanälen** (der Loader liest endlich das `outputs:`-Frontmatter-Feld, das der Generator schon immer validierte — Parität CI-gepinnt), einem mitgelieferten `assets/preview.png` über einen dedizierten Endpoint (Traversal-Guard per Namensmuster, Größenlimit, undifferenziertes 404 für admin-deaktivierte Skills) und einem Herkunftshinweis auf jeder Nicht-System-Skill. Die Installation akzeptiert neben dem Datei-Upload eine zweite Quelle: eine https-URL, gehärtet wie in §19.3 beschrieben, die exakt dieselbe Import-Pipeline speist (`skill_url_imports_total{outcome}` zählt jeden Pfad).
 
+**Eine Fähigkeit ändern.** Die Schreib-Engine existierte bereits — das erneute Importieren der eigenen Fähigkeit ist ein atomares Upsert (ADR-118) —, doch drei Sperren machten sie unerreichbar: Das Manifest war nicht lesbar (die Aktivierung entfernt das Frontmatter), ein Ersetzen löschte das Vorschaubild, das der Chat nicht transportieren kann, und der Prompt des Generators befahl bei Konflikt eine Umbenennung. Eine Änderung ist nun eine **vollständige Neuerzeugung** unter demselben Namen, der das Lesen des aktuellen Pakets vorausgeht. Die Bestätigung lebt **im Werkzeug**, nicht im HITL: Eine Fähigkeit mit einem `scripts/`-Verzeichnis läuft in einem ReAct-Unteragenten auf isoliertem Thread, dessen Entwürfe den Hauptgraphen nie erreichen. Sie stützt sich auf ein aus dem Inhalt abgeleitetes Token — ein einfaches Flag wäre eine Konvention, die das Modell überspringen kann, während ein Digest nur empfangen worden sein kann und die Zustimmung an genau das Paket bindet, das geschrieben wird (ADR-165).
+
 ### 23.8. Konversations-Verlauf, Suche und reiches Chat-Rendering
 
 Fünf bereichsübergreifende Funktionen teilen dieselbe Produktphilosophie: **sofortiges Feedback, keine Server-Kosten, wenn nicht nötig**.
@@ -1119,10 +1123,10 @@ Die Psyche Engine verleiht dem Assistenten einen dynamischen psychologischen Zus
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 160+ ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~16.159 Tests in 854 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 160+ ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~16.293 Tests in 854 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 160+ ADRs und des Changelogs (v1.0 bis v1.25.27). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 160+ ADRs und des Changelogs (v1.0 bis v1.25.28). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

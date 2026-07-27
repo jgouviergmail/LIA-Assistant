@@ -17,17 +17,17 @@
  * - providers: ProviderType Literal in infrastructure/llm/providers/adapter.py
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
  * - metrics: Prometheus metric definitions across src/ — re-measured 2026-07-27
- *   (v1.25.27): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 444.
+ *   (v1.25.28): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 445.
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Measured 2026-07-27 (v1.25.27): backend pytest 16,159 collected (854 files)
- *   + frontend vitest 3,473 (296 files) = 19,632. Re-measure both suites every
+ *   Measured 2026-07-27 (v1.25.28): backend pytest 16,293 collected (856 files)
+ *   + frontend vitest 3,473 (296 files) = 19,766. Re-measure both suites every
  *   release: the value carried the backend count alone until v1.25.9, while its
  *   comment already claimed both.
- * - adrs: docs/architecture/ ADR files (162 files, numbered up to ADR-163 —
- *   ADR-008 has no separate file, so 163 numbers map to 162 files).
+ * - adrs: docs/architecture/ ADR files (164 files, numbered up to ADR-165 —
+ *   ADR-008 has no separate file, so 165 numbers map to 164 files).
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   175 headings, no Unreleased pending.
+ *   176 headings, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -41,11 +41,11 @@ export const LANDING_STATS = {
   tools: 82,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 444,
+  metrics: 445,
   uiLanguages: 6,
   tests: 19000,
-  adrs: 162,
-  releases: 175,
+  adrs: 164,
+  releases: 176,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

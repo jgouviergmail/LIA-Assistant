@@ -3544,6 +3544,27 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                     "current_turn_registry": current_turn_registry,
                 }
                 track_state_updates(state, draft_state_update, "response", run_id)
+                # A confirmed/cancelled draft is still a real turn: the last
+                # user message in state is the request that opened the flow
+                # ("send Marie a mail saying I'm moving to Lyon"), because draft
+                # resumption is a bare Command(resume=...) with no message
+                # injection. Returning here without scheduling meant that turn —
+                # and the interrupted one before it — fed nothing at all.
+                # psyche_appraisal/final_content are not yet computed on this
+                # path: there was no LLM call to self-report, and the response
+                # text is the short confirmation.
+                _schedule_post_response_extractions(
+                    state,
+                    config,
+                    run_id,
+                    user_msg_is_trivial=context_bundle.user_msg_is_trivial,
+                    personality_instruction=personality_instruction,
+                    user_message_embedding=context_bundle.user_message_embedding,
+                    user_language=user_language,
+                    final_content=short_response,
+                    previous_journal_injected_ids=previous_journal_injected_ids,
+                    psyche_appraisal=None,
+                )
                 return draft_state_update
 
         # =====================================================================

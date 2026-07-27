@@ -3,14 +3,19 @@ Return [] if nothing is worth memorizing.
 
 ## WHAT TO EXTRACT (ALL four must hold)
 - **Durable utility** — helps personalize future unrelated conversations
-- **Stable** — lasts weeks+ (not a transient mood, state, or task)
-- **Unique** — not derivable from user profile, settings, or system context
-- **Actionable** — enables meaningful tone or content adaptation or useful informations
+- **Stable** — lasts weeks+ (not a transient mood, state or task, and not a claim about
+  the state of the world that will be false in a few months)
+- **Unique** — not derivable from user profile, settings, or system context, and not true
+  of almost anyone ("I like it when the weather is nice" personalizes nothing)
+- **Actionable** — enables a concrete adaptation of tone or content in a LATER, unrelated
+  conversation
 
 ## WHAT NOT TO EXTRACT
 - Transient states ("I'm tired today", "busy right now")
 - Conversational feedback ("thanks", "shorter please", "perfect")
-- Transient logistics — appointments, reservations, meetings, calls, deliveries and other scheduled slots, even with a date/time. A moment being scheduled is an agenda/task item that lives in a dedicated source and is irrelevant once past — not a durable fact about the user
+- Transient logistics — a ONE-OFF appointment, reservation, meeting, call, delivery or any other slot scheduled once, even with a date/time. A moment being scheduled is an agenda/task item that lives in a dedicated source and is irrelevant once past — not a durable fact about the user. A RECURRING slot is the opposite: it shapes how the user's weeks look, so it is a `pattern` and it IS worth memorizing ("my son's tennis class every Monday", "we work from home on Fridays")
+- **The SUBJECT of the exchange** — a topic the user asked about, an entity that came up, a fact about the world. What the user asks is not what the user is: asking about black holes says nothing about the user
+- **A third party's own facts** — another person qualifies only through their LINK to the user or their effect on the user's life. A correction about a stranger ("X is a man, not a woman") is not a memory about the user
 - Facts already in EXISTING MEMORIES with equivalent content
 
 ## RULES (all mandatory)
@@ -25,8 +30,8 @@ Return [] if nothing is worth memorizing.
 
 ## CATEGORIES (choose the narrowest fit; decompose when multiple fit)
 - `preference` — enduring likes/dislikes/tastes
-- `personal` — stable identity attribute (job, city, nationality, belief)
-- `relationship` — a person + their link to the user (include name if known)
+- `personal` — stable identity attribute of the USER (job, city, nationality, belief, what they own and use daily) — never a fact about somebody else
+- `relationship` — a person AND their link to the user (include name if known)
 - `event` — a personally significant life occurrence whose relevance outlives its date (e.g. wedding, birth, graduation, bereavement, relocation, new job). NOT a routine appointment, reservation or meeting: that is transient logistics (see WHAT NOT TO EXTRACT), even when dated
 - `pattern` — recurring behavior or habit over time ("I run every morning")
 - `sensitivity` — pain, trauma, illness, grief, conflict, active avoidance
@@ -77,6 +82,20 @@ JSON array only. No markdown, no comments. Use ONLY UUIDs from EXISTING MEMORIES
 3. Existing: `[id=abc-123 | personal | importance=0.8] Je travaille chez Google`
    Message: *"En fait j'ai changé, je suis chez Meta maintenant."*
    → `[{{"action":"update","memory_id":"abc-123","content":"Je travaille chez Meta","emotional_weight":0}}]`
+
+4. Message: *"Ma bière préférée c'est la 1664."*
+   → `[{{"action":"create","content":"Ma bière préférée est la 1664","category":"preference","emotional_weight":2,"trigger_topic":"bière boisson préférée","usage_nuance":"Utiliser pour les suggestions de boissons, bars, restaurants","importance":0.5}}]`
+
+### Near misses — the errors that actually happen (all → `[]`)
+
+5. *"C'est quoi la différence entre un trou noir et une étoile à neutrons ?"* → `[]`
+   The subject of a question is not a fact about the user.
+6. *"J'aime bien quand il fait beau."* → `[]`
+   True of almost everyone: personalizes nothing (fails Unique and Actionable).
+7. *"Au fait, le fondateur de cette startup est un homme, pas une femme."* → `[]`
+   A correction about a stranger, with no link to the user's life.
+8. *"OpenAI a bien rattrapé son retard sur les autres."* → `[]`
+   A claim about the state of the world, false in a few months (fails Stable).
 
 ## HEALTH CONTEXT RULES
 

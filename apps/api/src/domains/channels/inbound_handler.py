@@ -62,6 +62,9 @@ class InboundMessageHandler:
         conversation_id: str | None,
         pending_hitl: dict[str, Any] | None,
         user_display_name: str | None = None,
+        *,
+        user_journals_enabled: bool,
+        user_psyche_enabled: bool,
     ) -> None:
         """
         Process an inbound message through the agent pipeline.
@@ -76,6 +79,13 @@ class InboundMessageHandler:
             pending_hitl: Pending HITL interrupt data (None if no pending HITL).
             user_display_name: User's friendly first name for sender/signature
                 context (None = unknown).
+            user_journals_enabled: Whether personal journals are enabled. Required
+                keyword-only: this parameter did not exist, so the service default
+                (False) applied and a channel conversation NEVER fed the journals,
+                whatever the user had enabled. A defaulted parameter would let the
+                same omission happen again on the next caller.
+            user_psyche_enabled: Whether the psyche engine is enabled. Same
+                contract, same reason.
         """
         from src.domains.channels.abstractions import ChannelOutboundMessage
         from src.infrastructure.channels.telegram.formatter import (
@@ -133,6 +143,8 @@ class InboundMessageHandler:
                 user_timezone=user_timezone,
                 user_language=user_language,
                 user_memory_enabled=user_memory_enabled,
+                user_journals_enabled=user_journals_enabled,
+                user_psyche_enabled=user_psyche_enabled,
                 original_run_id=original_run_id,
                 channel_user_id=channel_user_id,
                 conversation_id=conversation_id,
@@ -185,6 +197,9 @@ class InboundMessageHandler:
         channel_user_id: str,
         conversation_id: str | None = None,
         user_display_name: str | None = None,
+        *,
+        user_journals_enabled: bool,
+        user_psyche_enabled: bool,
     ) -> str:
         """
         Stream agent response and collect tokens into a single string.
@@ -226,6 +241,8 @@ class InboundMessageHandler:
             user_display_name=user_display_name,
             original_run_id=original_run_id,
             user_memory_enabled=user_memory_enabled,
+            user_journals_enabled=user_journals_enabled,
+            user_psyche_enabled=user_psyche_enabled,
         ):
             if chunk.type == "token" and chunk.content and isinstance(chunk.content, str):
                 content_parts.append(chunk.content)

@@ -19,13 +19,12 @@ from typing import TYPE_CHECKING
 from src.core.constants import (
     CHANNEL_MESSAGE_LOCK_PREFIX,
     CHANNEL_RATE_LIMIT_REDIS_PREFIX,
-    DEFAULT_USER_DISPLAY_TIMEZONE,
 )
-from src.core.user_display import resolve_user_display_name
 from src.domains.channels.abstractions import (
     ChannelInboundMessage,
     ChannelOutboundMessage,
 )
+from src.domains.channels.preferences import resolve_channel_preferences
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_channels import (
     channel_message_processing_duration_seconds,
@@ -204,12 +203,7 @@ class ChannelMessageRouter:
                 )
                 return
 
-            user_language = getattr(user, "language", None) or settings.default_language
-            user_timezone = getattr(user, "timezone", None) or DEFAULT_USER_DISPLAY_TIMEZONE
-            user_memory_enabled = getattr(user, "memory_enabled", True)
-            user_display_name = resolve_user_display_name(
-                getattr(user, "full_name", None), getattr(user, "email", None)
-            )
+            prefs = resolve_channel_preferences(user)
 
             # === 5. Check pending HITL ===
             conversation_id = await get_conversation_id_cached(user_id)
@@ -229,12 +223,14 @@ class ChannelMessageRouter:
             await inbound_handler.handle(
                 message=message,
                 user_id=user_id,
-                user_language=user_language,
-                user_timezone=user_timezone,
-                user_memory_enabled=user_memory_enabled,
+                user_language=prefs.language,
+                user_timezone=prefs.timezone,
+                user_memory_enabled=prefs.memory_enabled,
+                user_journals_enabled=prefs.journals_enabled,
+                user_psyche_enabled=prefs.psyche_enabled,
                 conversation_id=conversation_id,
                 pending_hitl=pending_hitl,
-                user_display_name=user_display_name,
+                user_display_name=prefs.display_name,
             )
 
             # Track successful processing duration
@@ -259,9 +255,10 @@ class ChannelMessageRouter:
                 exc_info=True,
             )
             try:
-                # user_language may not be defined if the error occurred
-                # before the user object was loaded (step 4).
-                lang = user_language if "user_language" in locals() else "fr"
+                # prefs may not be defined if the error occurred before the user
+                # object was loaded (step 4). The fallback is the configured
+                # default language, never a hardcoded locale.
+                lang = prefs.language if "prefs" in locals() else settings.default_language
                 await self.sender.send_message(
                     channel_user_id,
                     ChannelOutboundMessage(

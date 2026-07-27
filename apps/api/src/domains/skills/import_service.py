@@ -47,6 +47,7 @@ from src.core.constants import (
     SKILLS_MAX_FILE_SIZE_KB,
     SKILLS_NAME_MAX_LENGTH,
 )
+from src.core.exceptions import BaseAPIException
 from src.domains.skills.exceptions import (
     raise_skill_file_too_large,
     raise_skill_invalid_format,
@@ -125,6 +126,139 @@ def _parse_frontmatter_name(text: str) -> str:
     if not isinstance(name, str) or not name:
         raise_skill_invalid_format("SKILL.md frontmatter must declare a non-empty 'name'")
     return name
+
+
+def parse_incoming_skill_name(files: dict[str, str]) -> tuple[str, str | None]:
+    """Read and validate the frontmatter name of an incoming chat package.
+
+    Lets a caller know which skill a file map targets *before* committing to the
+    import — the chat path needs it to decide whether this is a creation or a
+    replacement, and to refuse the latter until the user confirms.
+
+    Args:
+        files: Mapping of relative path to text content.
+
+    Returns:
+        Tuple of (name, error). Exactly one is meaningful: on failure the name
+        is empty and the error is a caller-facing message.
+    """
+    skill_md = files.get("SKILL.md")
+    if not skill_md:
+        return "", "import must include a top-level 'SKILL.md' file"
+    try:
+        name = _parse_frontmatter_name(skill_md)
+        validate_skill_name(name)
+    except BaseAPIException as exc:
+        return "", str(getattr(exc, "detail", exc))
+    return name, None
+
+
+_FENCED_BLOCK = re.compile(r"^```.*?^```", re.MULTILINE | re.DOTALL)
+_RESOURCES_HEADING = re.compile(
+    r"^##\s+(?:Ressources disponibles|Available resources)\s*$(.*?)(?=^##\s|\Z)",
+    re.MULTILINE | re.DOTALL | re.IGNORECASE,
+)
+# A bullet naming a file. The extension must start with a letter and stay short,
+# so a bullet like "- 1.5 seconds of delay" is not mistaken for a file path.
+_RESOURCE_BULLET = re.compile(r"^\s*[-*]\s+`?([\w][\w./-]*\.[A-Za-z][A-Za-z0-9]{0,4})`?(?:\s|$)")
+
+
+def _declared_resources(instructions: str) -> list[str]:
+    """Extract the resource paths a SKILL.md advertises under its resources heading.
+
+    The convention every system skill follows is a bullet list under a
+    ``## Ressources disponibles`` heading, each item starting with the relative
+    path (``- references/rules.md — description``).
+
+    Fenced code blocks are stripped first, and this is not a detail: a skill may
+    legitimately SHOW a sample SKILL.md — the shipped ``skill-generator`` does
+    exactly that, complete with its own ``## Ressources disponibles`` section
+    listing ``references/example.md``. Parsing that sample as a real declaration
+    made the integrity check reject the generator itself.
+
+    Args:
+        instructions: SKILL.md body (frontmatter already stripped).
+
+    Returns:
+        Relative paths declared by the skill; empty when it declares none.
+    """
+    prose = _FENCED_BLOCK.sub("", instructions)
+    match = _RESOURCES_HEADING.search(prose)
+    if not match:
+        return []
+    return [
+        bullet.group(1)
+        for line in match.group(1).splitlines()
+        if (bullet := _RESOURCE_BULLET.match(line))
+    ]
+
+
+def _validate_package_integrity(skill: dict[str, Any], skill_dir: Path) -> None:
+    """Reject a package whose manifest and files contradict each other.
+
+    Two contradictions matter, and both produce a skill that loads but does not
+    work:
+
+    - an ``outputs`` declaring ``frame`` or ``image`` with no Python script to
+      emit it (the generator only ever warned about this, against the manifest
+      text — never against the real package);
+    - a resource advertised under the resources heading that is not shipped.
+
+    Args:
+        skill: Parsed skill dict from ``parse_skill_file``.
+        skill_dir: Staged directory holding the full package.
+
+    Raises:
+        ValidationError: 400 when the package is internally inconsistent.
+    """
+    outputs = skill.get("outputs") or []
+    if {"frame", "image"} & set(outputs) and not (skill_dir / "scripts").is_dir():
+        raise_skill_invalid_format(
+            f"outputs declares {sorted({'frame', 'image'} & set(outputs))} but the package "
+            "ships no scripts/ directory — such a skill cannot emit anything"
+        )
+
+    missing = [
+        declared
+        for declared in _declared_resources(skill.get("instructions", ""))
+        if not (skill_dir / declared).is_file()
+    ]
+    if missing:
+        raise_skill_invalid_format(
+            "SKILL.md declares resources that are not in the package: " + ", ".join(sorted(missing))
+        )
+
+
+def _carry_over_untransportable(backup_dir: Path, target_dir: Path) -> None:
+    """Restore, from the replaced version, files chat cannot transport.
+
+    Binary assets never survive a chat round-trip: ``import_user_skill`` accepts
+    text only, so a regenerated package always arrives without them. Copying
+    them back is what makes "adjust my skill" non-destructive for the gallery
+    thumbnail. Files the new version does provide are never overwritten.
+
+    Called via ``asyncio.to_thread``; a no-op on a first import (no backup).
+
+    Args:
+        backup_dir: Parked previous version (may not exist).
+        target_dir: Freshly installed skill directory.
+    """
+    if not backup_dir.is_dir():
+        return
+    for previous in backup_dir.rglob("*"):
+        if not previous.is_file():
+            continue
+        if previous.suffix.lower() in SKILLS_IMPORT_TEXT_EXTENSIONS:
+            continue
+        destination = target_dir / previous.relative_to(backup_dir)
+        if destination.exists():
+            continue
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(previous, destination)
+        logger.info(
+            "skill_untransportable_file_carried_over",
+            path=str(previous.relative_to(backup_dir)),
+        )
 
 
 class SkillImportService:
@@ -224,7 +358,12 @@ class SkillImportService:
             # Offload the blocking file writes off the event loop (CA-4).
             await asyncio.to_thread(self._write_text_files, files, skill_dir, settings)
             return await self._finalize(
-                skill_dir, name, owner_id=owner_id, is_system=False, settings=settings
+                skill_dir,
+                name,
+                owner_id=owner_id,
+                is_system=False,
+                settings=settings,
+                carry_over_untransportable=True,
             )
 
     # ------------------------------------------------------------------
@@ -371,8 +510,23 @@ class SkillImportService:
         owner_id: UUID | None,
         is_system: bool,
         settings: Any,
+        carry_over_untransportable: bool = False,
     ) -> dict[str, Any]:
-        """Validate the staged skill, then commit it to the live tree + DB."""
+        """Validate the staged skill, then commit it to the live tree + DB.
+
+        Args:
+            staged_skill_dir: Fully staged skill directory (temp location).
+            name: Validated skill name.
+            owner_id: Importing user's id (None for system imports).
+            is_system: True for admin/system imports.
+            settings: Application settings.
+            carry_over_untransportable: Chat path only. Copies back, from the
+                replaced version, every file whose extension chat cannot carry
+                (``assets/preview.png`` above all — 14/14 system skills ship
+                one). Without it, editing a skill by conversation silently
+                stripped its gallery thumbnail. A zip upload stays a strict full
+                replacement, with no such side effect.
+        """
         from src.domains.skills.cache import SkillsCache
         from src.domains.skills.loader import parse_skill_file
         from src.domains.skills.preference_service import SkillPreferenceService
@@ -389,6 +543,12 @@ class SkillImportService:
             raise_skill_invalid_format(
                 f"Description exceeds {SKILLS_DESCRIPTION_MAX_LENGTH} characters"
             )
+        # S5 — package integrity. The generator only ever validated the manifest
+        # TEXT, so a skill declaring an interactive output with no script, or
+        # advertising a resource it does not ship, was accepted and simply did
+        # not work. Editing makes that failure mode routine: a regeneration that
+        # drops a script must be rejected, not stored.
+        _validate_package_integrity(skill, staged_skill_dir)
 
         # S2 — conflict + quota. Admin import is trusted and intentionally
         # overwrites system skills, but must not capture a USER-owned name
@@ -412,6 +572,9 @@ class SkillImportService:
         backup_dir = staged_skill_dir.parent / "__previous__"
         # Blocking disk swap → offload off the event loop (CA-4).
         await asyncio.to_thread(self._swap_in, staged_skill_dir, target_dir, backup_dir)
+
+        if carry_over_untransportable:
+            await asyncio.to_thread(_carry_over_untransportable, backup_dir, target_dir)
 
         # Rebase source_path onto the live location for the response.
         skill["source_path"] = str(target_dir / "SKILL.md")

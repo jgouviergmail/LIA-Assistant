@@ -43,6 +43,10 @@ from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.prompts import load_prompt
 from src.domains.agents.utils.json_parser import extract_json_from_llm_response
 from src.domains.memories.schemas import ExtractedMemory
+from src.domains.shared.extraction_targets import (
+    find_last_user_message,
+    is_synthetic_message,
+)
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.embedding_context import (
     clear_embedding_context,
@@ -217,6 +221,9 @@ def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
     lines = []
     for msg in messages:
         if isinstance(msg, HumanMessage):
+            # System-fabricated HITL scaffolding is not conversation.
+            if is_synthetic_message(msg):
+                continue
             prefix = "USER"
         elif isinstance(msg, AIMessage):
             if msg.additional_kwargs.get("proactive_notification"):
@@ -428,15 +435,9 @@ async def extract_memories_background(
             conversation_id=conversation_id,
         )
 
-        # Find the LAST HumanMessage
-        last_human_message: HumanMessage | None = None
-        last_human_index = -1
-        for i in range(len(messages) - 1, -1, -1):
-            msg = messages[i]
-            if isinstance(msg, HumanMessage):
-                last_human_message = msg
-                last_human_index = i
-                break
+        # The LAST message the user actually typed (system-fabricated HITL
+        # scaffolding is skipped — see domains/shared/extraction_targets.py).
+        last_human_message, last_human_index = find_last_user_message(messages)
 
         if not last_human_message:
             if parent_run_id:
@@ -867,27 +868,3 @@ async def extract_memories_background(
 
     finally:
         clear_embedding_context()
-
-
-async def extract_memories_from_single_message(
-    user_id: str,
-    message: str,
-    personality_instruction: str | None = None,
-) -> int:
-    """Extract memories from a single user message.
-
-    Args:
-        user_id: Target user ID.
-        message: Single user message.
-        personality_instruction: Optional personality context.
-
-    Returns:
-        Number of memories extracted.
-    """
-    messages: list[BaseMessage] = [HumanMessage(content=message)]
-    return await extract_memories_background(
-        user_id=user_id,
-        messages=messages,
-        session_id="single_message",
-        personality_instruction=personality_instruction,
-    )

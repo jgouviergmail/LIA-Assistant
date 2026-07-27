@@ -921,8 +921,10 @@ class ContextAggregator:
         from src.infrastructure.llm.user_message_embedding import get_or_compute_embedding
 
         search_query = query or "important upcoming events preferences routines"
+        # An internal retrieval query, not something the user typed.
         query_embedding = await get_or_compute_embedding(
             message=search_query,
+            is_conversational=False,
         )
 
         if not query_embedding:

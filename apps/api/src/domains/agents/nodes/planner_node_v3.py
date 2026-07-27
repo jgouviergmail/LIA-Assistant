@@ -436,6 +436,7 @@ async def planner_node_v3(
                     message=planner_query,
                     user_id=user_id_for_journal,
                     session_id=thread_id_for_journal,
+                    is_conversational=True,
                 )
 
                 async with get_db_context() as journal_db:

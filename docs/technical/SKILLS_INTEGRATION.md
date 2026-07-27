@@ -379,7 +379,8 @@ the single hardened pipeline in `src/domains/skills/import_service.py`
 The skill-generator delivers finished skills directly: it calls
 `import_user_skill(files={path: content, ...})` (in `skills_tools`, so it is
 available inside the skill ReAct runner), then announces the imported skill
-by name. Gated by `SKILLS_CHAT_IMPORT_ENABLED`, rate-limited 5/min/user.
+by name. Gated by `SKILLS_CHAT_IMPORT_ENABLED`, rate-limited 10/min/user
+(raised from 5 when editing made a change cost two calls).
 Failures return structured errors (invalid name, conflict, quota) that the
 LLM uses to fix the files and retry once; after two failures it falls back to
 the legacy code-block delivery protocol.
@@ -390,6 +391,32 @@ registration or commit fails — a failed import can neither destroy an
 existing skill nor leave disk and DB diverging. A lost registration race
 (concurrent import winning the name between check and flush) rolls the disk
 back and answers the same 409 as the up-front conflict check.
+
+### Editing an existing skill (ADR-165)
+
+The same tool updates a skill: pass the **same name** with the complete
+regenerated package. A skill is never patched — the manifest, the scripts and
+the references must stay consistent with each other, so the assistant reads the
+current package, applies the request on top, and rewrites all of it.
+
+Four mechanisms make that safe:
+
+| Mechanism | Why |
+|---|---|
+| `read_skill_resource` also serves `SKILL.md` and `translations.json` | Activation strips the frontmatter; without this the assistant cannot see `description`, `category`, `priority`, `plan_template`, `outputs` and would silently drop them. Both files stay out of `all_resources`, so no activation prompt changes. |
+| Two-phase confirmation (`replace_token`) | The first call is **refused**, lists what the replacement adds, replaces and removes, and returns a token. Fail-closed *structurally*: the token is a digest of the exact package, so it cannot be guessed — a boolean flag would have been a convention the model is free to skip. It also binds the approval to the content, so a package altered between summary and confirmation is refused. HITL is unavailable here — a skill with `scripts/` runs in an isolated ReAct sub-agent whose drafts never reach the main graph. |
+| Server-side carry-over of untransportable files | Chat accepts text only, so `assets/preview.png` (14/14 system skills ship one) could never be resent. Copied back from the parked previous version. Chat path only; a zip upload stays a strict full replacement. |
+| Blocking package integrity | `outputs: [frame\|image]` with no `scripts/`, or a resource declared under `## Ressources disponibles` and not shipped, is rejected. The generator only ever validated the manifest *text*, never the real package. |
+
+Three refusals, by design: **system** skills (no fork offered), another user's
+skill (undifferentiated, its existence is not disclosed), and a skill the user
+has **disabled** — it is absent from the injected catalogue, but
+`SkillsCache.get_by_name_for_user` does not filter on activity, so naming it
+explicitly would otherwise edit something the user believes is off.
+
+There is **no version history**: a replacement cannot be undone. The
+confirmation summary is the safeguard, which is why it enumerates the files that
+disappear instead of announcing a vague modification.
 
 ### Dialogue skills (`dialogue: true` extension field)
 

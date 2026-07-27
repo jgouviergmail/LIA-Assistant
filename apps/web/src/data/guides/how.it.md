@@ -6,7 +6,7 @@
 
 **Versione**: 3.5
 **Data**: 2026-07-27
-**Applicazione**: LIA v1.25.27
+**Applicazione**: LIA v1.25.28
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 438 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 160+ ADR, ~16.159 test raccolti da pytest in 854 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 160+ ADR, ~16.293 test raccolti da pytest in 854 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -71,7 +71,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~16.159 (raccolti da pytest su 854 file di test) + 3.473 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~16.293 (raccolti da pytest su 854 file di test) + 3.473 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 400+ |
 | ADR (Architecture Decision Record) | 160+ |
@@ -555,6 +555,8 @@ Ogni ricordo è un documento strutturato con:
 
 **Iniezione**: il middleware `memory_injection.py` ricerca le memorie semanticamente vicine, costruisce il profilo psicologico iniettabile e attiva la `DANGER_DIRECTIVE` se necessario. Iniezione nel prompt di sistema del Response Node.
 
+**Quali turni alimentano la memoria.** Un messaggio che avvia un'azione conta quanto una conversazione: la ripresa di una bozza non inietta alcun messaggio, cosicché la richiesta originale resta l'ultima parola dell'utente al momento dell'estrazione. Al contrario, i messaggi **fabbricati dal sistema** — l'impalcatura iniettata in caso di rifiuto HITL — sono marcati nei loro metadati ed esclusi sia come bersaglio sia come contesto: mai riconosciuti dal loro testo, poiché esistono in sei lingue. Infine, l'euristica che scarta gli assensi si applica solo a ciò che l'utente ha realmente digitato — applicata a un nome di persona, faceva sparire i ricordi dei contatti il cui cognome somiglia a «bene» o «cool». Ogni decisione è conteggiata per sottosistema e per esito (`post_response_extraction_scheduled_total`), dove esistevano solo log di debug.
+
 ### 11.4. Ricerca ibrida BM25 + semantica
 
 Combinazione con alpha configurabile (default 0.6 semantica / 0.4 BM25). Boost del 10% quando entrambi i segnali sono forti (> 0.5). Fallback grazioso verso semantica sola se BM25 fallisce. Performance: 40-90 ms con cache.
@@ -998,6 +1000,8 @@ Una libreria di skill integrati dimostra il contratto: `interactive-map`, `weath
 
 La superficie delle skill è una **galleria**: le schede aprono un dettaglio con la descrizione localizzata, i **canali di output** dichiarati (il loader legge finalmente il campo frontmatter `outputs:` che il generatore ha sempre validato — parità fissata in CI), una `assets/preview.png` inclusa servita da un endpoint dedicato (guardia traversal per pattern del nome, tetto di dimensione, 404 indifferenziato per le skill disattivate dall'admin) e un avviso di provenienza su ogni skill non di sistema. L'installazione accetta una seconda sorgente oltre all'upload di file: un URL https, indurito come descritto in §19.3, che alimenta esattamente la stessa pipeline di import (`skill_url_imports_total{outcome}` conta ogni percorso).
 
+**Modificare una competenza.** Il motore di scrittura esisteva già — reimportare la propria competenza è un upsert atomico (ADR-118) — ma tre serrature lo rendevano irraggiungibile: il manifesto era illeggibile (l'attivazione rimuove il frontmatter), una sostituzione cancellava l'anteprima che la chat non può trasportare, e il prompt del generatore ordinava di rinominare in caso di conflitto. Una modifica è ora una **rigenerazione integrale** sotto lo stesso nome, preceduta dalla lettura del pacchetto corrente. La conferma vive **nello strumento**, non nell'HITL: una competenza che include una cartella `scripts/` viene eseguita in un sotto-agente ReAct su thread isolato, le cui bozze non raggiungono mai il grafo principale. Si fonda su un token derivato dal contenuto — un semplice flag sarebbe una convenzione che il modello può ignorare, mentre un digest può solo essere stato ricevuto, e lega il consenso al pacchetto esatto che verrà scritto (ADR-165).
+
 ### 23.8. Cronologia conversazioni, ricerca e rendering ricco della chat
 
 Cinque capacità trasversali condividono la stessa filosofia di prodotto: **feedback immediato, zero costo server quando non necessario**.
@@ -1120,10 +1124,10 @@ Il Psyche Engine dota l'assistente di uno stato psicologico dinamico che evolve 
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 160+ ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~16.159 test in 854 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 160+ ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~16.293 test in 854 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 160+ ADR e del changelog (da v1.0 a v1.25.27). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 160+ ADR e del changelog (da v1.0 a v1.25.28). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

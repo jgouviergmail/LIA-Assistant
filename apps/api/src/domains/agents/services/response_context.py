@@ -36,6 +36,7 @@ from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr
 from src.domains.agents.middleware.memory_injection import build_psychological_profile
+from src.domains.shared.extraction_targets import is_synthetic_message
 
 if TYPE_CHECKING:
     from langchain_core.runnables import RunnableConfig
@@ -73,12 +74,21 @@ class ResponseContextBundle:
 
 
 def extract_last_user_message(state: MessagesState) -> str:
-    """Extract the last human message text from state (response-node convention)."""
+    """Extract the last human message text from state (response-node convention).
+
+    Skips messages the system fabricated. On a tool-level HITL refusal the
+    resumption layer injects a ``HumanMessage`` carrying localized instructions
+    for the response LLM; treating it as the user's message made this function
+    the origin of three wrong decisions at once — the triviality verdict, the
+    embedding paid for and cached, and the memory/journal context injected for
+    the turn. The extractors already target the genuine message, so leaving this
+    one unfiltered also desynchronized the embedding from what it embeds.
+    """
     # Literal key: MessagesState is a TypedDict — a variable key degrades
     # mypy's inference of the value type to ``object``.
     messages: list[Any] = state.get("messages") or []
     for msg in reversed(messages):
-        if isinstance(msg, HumanMessage) and msg.content:
+        if isinstance(msg, HumanMessage) and msg.content and not is_synthetic_message(msg):
             return msg.text
     return ""
 
@@ -212,6 +222,7 @@ async def fetch_response_context(
                 message=last_user_message,
                 user_id=_user_id_for_embed,
                 session_id=_thread_id_for_embed,
+                is_conversational=True,
             )
         except Exception as _embed_err:
             logger.warning(

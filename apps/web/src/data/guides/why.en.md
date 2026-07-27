@@ -4,7 +4,7 @@
 
 **Version**: 3.9
 **Date**: 2026-07-27
-**Application**: LIA v1.25.27
+**Application**: LIA v1.25.28
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -280,6 +280,8 @@ Nor does a test that never runs — and that is the least comfortable discovery 
 Major assistants remember your preferences and personal facts. That's useful, but flat. LIA goes further with a structured **psychological and emotional understanding**.
 
 Each memory carries an emotional weight (-10 to +10), an importance score, a usage nuance, and a psychological category. This isn't a simple database — it's a profile that understands what moves you, what motivates you, what hurts you.
+
+Those memories still have to arrive. A memory is only worth what it actually captures, and silence is its worst failure mode: nothing signals a memory that was never formed. So LIA counts each of its memorisation decisions — kept, skipped, disabled — so that the gap between what it should retain and what it does retain is visible rather than assumed. What you entrust to it while asking for an action counts as much as a confidence, what you write from a messenger counts as much as from the browser, and what the system says to itself never counts at all.
 
 ### 7.2. The Psyche Engine: a living personality
 

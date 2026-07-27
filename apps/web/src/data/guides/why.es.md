@@ -4,7 +4,7 @@
 
 **Versión** : 3.9
 **Fecha** : 2026-07-27
-**Aplicación** : LIA v1.25.27
+**Aplicación** : LIA v1.25.28
 **Licencia** : AGPL-3.0 (Open Source)
 
 ---
@@ -280,6 +280,8 @@ Tampoco una prueba que nunca se ejecuta — y ese es el descubrimiento más inc�
 Los grandes asistentes recuerdan tus preferencias y datos personales. Es útil, pero es superficial. LIA va más allá con una comprensión **psicológica y emocional** estructurada.
 
 Cada recuerdo tiene un peso emocional (-10 a +10), una puntuación de importancia, un matiz de uso y una categoría psicológica. No es una simple base de datos — es un perfil que comprende lo que te conmueve, lo que te motiva, lo que te duele.
+
+Aún hace falta que esos recuerdos lleguen. Una memoria solo vale por lo que capta realmente, y el silencio es ahí el peor de los fallos: nada señala un recuerdo que nunca llegó a formarse. Por eso LIA cuenta cada una de sus decisiones de memorización — retenido, ignorado, desactivado — para que la distancia entre lo que debería retener y lo que retiene sea visible en lugar de supuesta. Lo que le confía de pasada al pedir una acción cuenta tanto como una confidencia, lo que escribe desde una mensajería cuenta tanto como desde el navegador, y lo que el sistema se dice a sí mismo no cuenta nunca.
 
 ### 7.2. El Psyche Engine: una personalidad viva
 

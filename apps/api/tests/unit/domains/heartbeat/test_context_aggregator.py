@@ -1047,7 +1047,10 @@ class TestSecondPassMemories:
             )
 
         embedding_mock.assert_awaited_once_with(
-            message="upcoming events: Standup weather: light rain"
+            message="upcoming events: Standup weather: light rain",
+            # An internal retrieval query must never be judged a trivial
+            # acknowledgement (L2 / D7).
+            is_conversational=False,
         )
         assert result == ["User loves hiking in the Alps"]
 
@@ -1068,7 +1071,8 @@ class TestSecondPassMemories:
             result = await aggregator._fetch_memories(uuid4(), settings, query="")
 
         embedding_mock.assert_awaited_once_with(
-            message="important upcoming events preferences routines"
+            message="important upcoming events preferences routines",
+            is_conversational=False,
         )
         assert result is None
 

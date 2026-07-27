@@ -19,16 +19,13 @@ from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import (
-    DEFAULT_USER_DISPLAY_TIMEZONE,
-    TELEGRAM_UPDATE_DEDUP_REDIS_PREFIX,
-)
+from src.core.constants import TELEGRAM_UPDATE_DEDUP_REDIS_PREFIX
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_webhook_signature
 from src.core.session_dependencies import get_current_active_session
-from src.core.user_display import resolve_user_display_name
 from src.domains.channels.abstractions import ChannelInboundMessage
 from src.domains.channels.models import ChannelType
+from src.domains.channels.preferences import resolve_channel_preferences
 from src.domains.channels.schemas import (
     ChannelBindingListResponse,
     ChannelBindingResponse,
@@ -399,31 +396,23 @@ async def _handle_hitl_callback(message: ChannelInboundMessage) -> None:
         )
         return
 
-    # Load user settings (single DB call for both message editing and handler dispatch)
-    user_language = "fr"
-    user_timezone = DEFAULT_USER_DISPLAY_TIMEZONE
-    user_memory_enabled = True
-    user_display_name: str | None = None
-
+    # Load user settings (single DB call for both message editing and handler dispatch).
+    # Resolution is shared with the inbound route (domains/channels/preferences.py):
+    # one contract, so a preference added later reaches every channel by construction.
+    # A failed lookup yields the fail-closed defaults.
+    prefs = resolve_channel_preferences(None)
     try:
         async with get_db_context() as db:
             from src.domains.users.service import UserService
 
             user_service = UserService(db)
-            user = await user_service.get_user_by_id(user_id)
-            if user:
-                user_language = getattr(user, "language", None) or settings.default_language
-                user_timezone = getattr(user, "timezone", None) or DEFAULT_USER_DISPLAY_TIMEZONE
-                user_memory_enabled = getattr(user, "memory_enabled", True)
-                user_display_name = resolve_user_display_name(
-                    getattr(user, "full_name", None), getattr(user, "email", None)
-                )
+            prefs = resolve_channel_preferences(await user_service.get_user_by_id(user_id))
     except Exception:
         logger.debug("channel_hitl_user_fetch_failed", exc_info=True)
 
     # Edit original message: remove keyboard, show decision
     if message.message_id:
-        label = get_button_label(action, user_language)
+        label = get_button_label(action, prefs.language)
         check = "✓" if action in ("approve", "confirm", "continue") else "✗"
         await sender.edit_message(
             channel_user_id,
@@ -432,7 +421,7 @@ async def _handle_hitl_callback(message: ChannelInboundMessage) -> None:
         )
 
     # Map callback action to localized user message for LangGraph resumption
-    user_message = get_button_label(action, user_language)
+    user_message = get_button_label(action, prefs.language)
 
     # Resume agent pipeline via stream_chat_response
     from src.domains.channels.inbound_handler import InboundMessageHandler
@@ -450,12 +439,14 @@ async def _handle_hitl_callback(message: ChannelInboundMessage) -> None:
     await inbound_handler.handle(
         message=hitl_message,
         user_id=user_id,
-        user_language=user_language,
-        user_timezone=user_timezone,
-        user_memory_enabled=user_memory_enabled,
+        user_language=prefs.language,
+        user_timezone=prefs.timezone,
+        user_memory_enabled=prefs.memory_enabled,
+        user_journals_enabled=prefs.journals_enabled,
+        user_psyche_enabled=prefs.psyche_enabled,
         conversation_id=conversation_id,
         pending_hitl=pending,
-        user_display_name=user_display_name,
+        user_display_name=prefs.display_name,
     )
 
     logger.info(

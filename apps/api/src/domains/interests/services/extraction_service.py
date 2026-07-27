@@ -61,6 +61,10 @@ from src.domains.agents.utils.json_parser import extract_json_from_llm_response
 from src.domains.interests.models import UserInterest
 from src.domains.interests.repository import InterestRepository
 from src.domains.interests.schemas import ExtractedInterest
+from src.domains.shared.extraction_targets import (
+    find_last_user_message,
+    is_synthetic_message,
+)
 from src.infrastructure.database import get_db_context
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
@@ -473,6 +477,9 @@ def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
 
     for msg in messages:
         if isinstance(msg, HumanMessage):
+            # System-fabricated HITL scaffolding is not conversation.
+            if is_synthetic_message(msg):
+                continue
             prefix = "USER"
         elif isinstance(msg, AIMessage):
             # Skip proactive notifications (interest/heartbeat) — not user-generated content
@@ -667,15 +674,7 @@ async def _analyze_interests_core(
         )
 
     # Find the LAST HumanMessage (the new user message to analyze)
-    last_human_message: HumanMessage | None = None
-    last_human_index = -1
-
-    for i in range(len(messages) - 1, -1, -1):
-        msg = messages[i]
-        if isinstance(msg, HumanMessage):
-            last_human_message = msg
-            last_human_index = i
-            break
+    last_human_message, last_human_index = find_last_user_message(messages)
 
     if not last_human_message:
         return InterestAnalysisResult(

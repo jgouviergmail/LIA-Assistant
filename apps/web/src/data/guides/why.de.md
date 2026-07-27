@@ -4,7 +4,7 @@
 
 **Version** : 3.9
 **Datum** : 2026-07-27
-**Anwendung** : LIA v1.25.27
+**Anwendung** : LIA v1.25.28
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -280,6 +280,8 @@ Ein Test, der nie läuft, ebenso wenig — und das ist die unbequemste Entdeckun
 Die großen Assistenten merken sich Ihre Präferenzen und persönlichen Fakten. Das ist nützlich, aber flach. LIA geht weiter mit einem strukturierten **psychologischen und emotionalen** Verständnis.
 
 Jede Erinnerung trägt ein emotionales Gewicht (-10 bis +10), einen Wichtigkeitswert, eine Nutzungsnuance und eine psychologische Kategorie. Das ist keine simple Datenbank — das ist ein Profil, das versteht, was Sie berührt, was Sie motiviert, was Ihnen wehtut.
+
+Diese Erinnerungen müssen allerdings erst ankommen. Ein Gedächtnis ist nur so viel wert wie das, was es tatsächlich erfasst, und Stille ist dabei der schlimmste Fehler: Nichts weist auf eine Erinnerung hin, die nie entstanden ist. LIA zählt daher jede ihrer Merk-Entscheidungen — behalten, übergangen, deaktiviert —, damit die Lücke zwischen dem, was sie behalten sollte, und dem, was sie behält, sichtbar statt vermutet ist. Was Sie ihr nebenbei bei einer Aktion anvertrauen, zählt so viel wie eine Vertraulichkeit, was Sie aus einem Messenger schreiben, zählt so viel wie aus dem Browser, und was das System zu sich selbst sagt, zählt nie.
 
 ### 7.2. Die Psyche Engine: eine lebendige Persönlichkeit
 

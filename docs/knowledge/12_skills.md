@@ -145,3 +145,12 @@ Settings → Skills now displays your skills as **cards**. Opening one shows its
 
 ## Can I install a skill directly from a URL?
 Yes — "From URL" in Settings → Skills. Paste an **https** address serving a SKILL.md file or a .zip package. The server validates everything: https only, no private/internal addresses, no redirects, size cap, and the **same strict import pipeline** as a file upload (name conflicts, quota, content validation). Failed attempts are rate-limited per user.
+
+## Can I have an existing skill modified?
+Yes, by talking to LIA: "*adjust my X skill*", "*add a section to it*", "*fix the wording*". LIA re-reads the complete skill — its manifest, its scripts, its reference documents — applies your request, then **regenerates the whole thing** rather than patching one spot: that is what keeps the description, the scripts and the resources consistent with each other.
+
+Before writing anything, LIA shows you **exactly what will be replaced and what will disappear**, and waits for your agreement. That confirmation is not a courtesy: technically, the change cannot go through without it. **There is no version history** — once replaced, the previous version cannot be recovered, so read the summary. The gallery thumbnail, however, is preserved automatically: chat can only carry text, so the server copies bundled images back from the version being replaced.
+
+Three cases are refused: **system** skills (maintained by the administrator, no fork offered), another **user's** skills, and your own ones that are **disabled** — re-enable it first in Settings → Skills.
+
+A regenerated package is also checked for internal consistency: a skill declaring an interactive output with no script, or advertising a resource it does not ship, is rejected rather than stored broken.

@@ -7,7 +7,10 @@ Per agentskills.io client implementation guide (Step 4):
 Pattern: web_fetch_tools.py (validate_runtime_config → UnifiedToolOutput).
 """
 
+import asyncio
+import hashlib
 import json
+from pathlib import Path
 from typing import Annotated, Any
 
 from langchain.tools import ToolRuntime
@@ -85,7 +88,11 @@ def _coerce_parameters(
 # Rate limit constants (per-user, per minute)
 _RATE_LIMIT_SCRIPT = 5  # subprocess execution — conservative
 _RATE_LIMIT_RESOURCE = 20  # file reads — more permissive
-_RATE_LIMIT_IMPORT = 5  # skill import — disk write + DB + cache reload
+# Skill import — disk write + DB + cache reload. Raised from 5 when replacement
+# confirmation became two-phase: an edit now costs two calls (the refused one
+# that describes the impact, then the confirmed one), so the old budget allowed
+# only 2.5 edits per minute and a single retry could exhaust it.
+_RATE_LIMIT_IMPORT = 10
 _RATE_LIMIT_WINDOW = 60
 
 
@@ -294,6 +301,34 @@ async def run_skill_script(
     )
 
 
+class _ResourceTooLarge(Exception):
+    """A bundled resource exceeds the read cap (raised inside the worker thread)."""
+
+
+def _read_resource_file(resource_path: Path) -> tuple[int, str]:
+    """Stat, size-check and read one resource file. Runs off the event loop.
+
+    Args:
+        resource_path: Absolute path to the resolved resource.
+
+    Returns:
+        Tuple of (size in bytes, decoded text).
+
+    Raises:
+        FileNotFoundError: Missing file, or a path that is not a regular file.
+        _ResourceTooLarge: File exceeds ``SKILLS_RESOURCE_MAX_SIZE_KB``.
+        UnicodeDecodeError: File is not valid UTF-8 text.
+    """
+    from src.core.constants import SKILLS_RESOURCE_MAX_SIZE_KB
+
+    if not resource_path.exists() or not resource_path.is_file():
+        raise FileNotFoundError(str(resource_path))
+    file_size = resource_path.stat().st_size
+    if file_size > SKILLS_RESOURCE_MAX_SIZE_KB * 1024:
+        raise _ResourceTooLarge(str(resource_path))
+    return file_size, resource_path.read_text(encoding="utf-8")
+
+
 @tool
 @track_tool_metrics(
     tool_name="read_skill_resource",
@@ -314,14 +349,20 @@ async def read_skill_resource(
     Per agentskills.io standard L3: on-demand resource loading.
     Use this to read templates, examples, references, or any file
     listed in <skill_resources> after activating a skill.
+
+    Also serves the two files that are NOT advertised as resources —
+    ``SKILL.md`` and ``translations.json`` — so a skill can be understood
+    before being edited. Activation strips the frontmatter, so without this
+    the assistant could never see a skill's own ``description``, ``category``,
+    ``priority``, ``plan_template`` or ``outputs``: it could only rewrite it
+    blind. They stay out of ``all_resources`` on purpose, to keep every
+    activation prompt unchanged.
     """
     config = validate_runtime_config(runtime, "read_skill_resource")
     if isinstance(config, UnifiedToolOutput):
         return config
 
-    from pathlib import Path
-
-    from src.core.constants import SKILLS_RESOURCE_MAX_SIZE_KB
+    from src.core.constants import SKILLS_RESOURCE_MAX_SIZE_KB, SKILLS_RESOURCE_SKIP_FILES
     from src.domains.skills.cache import SkillsCache
 
     user_id = str(config.user_id)
@@ -332,9 +373,9 @@ async def read_skill_resource(
             error_code="NOT_FOUND",
         )
 
-    # Validate path is in discovered resources
+    # Validate path is a discovered resource, or one of the two manifest files.
     all_resources = skill.get("all_resources", [])
-    if path not in all_resources:
+    if path not in all_resources and path not in SKILLS_RESOURCE_SKIP_FILES:
         return UnifiedToolOutput.failure(
             message=f"Resource '{path}' not found in skill '{skill_name}'",
             error_code="NOT_FOUND",
@@ -351,22 +392,21 @@ async def read_skill_resource(
             error_code="VALIDATION_ERROR",
         )
 
-    if not resource_path.exists() or not resource_path.is_file():
+    # Disk stat + read are blocking: offload them, like the import pipeline does.
+    # An async path must never sit on filesystem I/O — it freezes the loop for
+    # every concurrent request, SSE streams included.
+    try:
+        file_size, content = await asyncio.to_thread(_read_resource_file, resource_path)
+    except FileNotFoundError:
         return UnifiedToolOutput.failure(
             message=f"Resource '{path}' not found on disk",
             error_code="NOT_FOUND",
         )
-
-    # Size check
-    file_size = resource_path.stat().st_size
-    if file_size > SKILLS_RESOURCE_MAX_SIZE_KB * 1024:
+    except _ResourceTooLarge:
         return UnifiedToolOutput.failure(
             message=f"Resource exceeds {SKILLS_RESOURCE_MAX_SIZE_KB}KB limit",
             error_code="VALIDATION_ERROR",
         )
-
-    try:
-        content = resource_path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
         return UnifiedToolOutput.failure(
             message=f"Resource '{path}' is not a text file",
@@ -381,6 +421,179 @@ async def read_skill_resource(
             "size_bytes": file_size,
         },
     )
+
+
+async def _resolve_edit_target(
+    name: str, user_id: str
+) -> tuple[dict[str, Any] | None, UnifiedToolOutput | None]:
+    """Resolve an existing skill of that name, rejecting the ones a user cannot edit.
+
+    Three refusals, all deliberate product decisions:
+
+    - a **system** skill is never editable, and no fork is offered;
+    - another user's skill is refused without disclosing that it exists;
+    - a skill the user has switched off must be re-enabled first — it is absent
+      from the injected catalogue, so editing it would silently modify something
+      the user believes is inactive.
+
+    Args:
+        name: Frontmatter name of the incoming package.
+        user_id: Caller's user id.
+
+    Returns:
+        ``(existing_skill, None)`` when the name is free (``existing_skill`` is
+        None) or points at an editable skill of the caller; ``(None, failure)``
+        when the import must be refused.
+    """
+    from uuid import UUID
+
+    from src.domains.skills.cache import SkillsCache
+    from src.domains.skills.preference_service import SkillPreferenceService
+    from src.infrastructure.database.session import get_db_context
+
+    # The caller's own skill wins, exactly like the resolution the assistant
+    # sees. get_by_name alone returns the first match in ANY scope, so a name
+    # held by both a system skill and this user would have been reported as
+    # read-only — refusing to edit something the user owns.
+    existing = SkillsCache.get_by_name_for_user(name, user_id) or SkillsCache.get_by_name(name)
+    if existing is None:
+        return None, None
+
+    if existing.get("scope") == "admin":
+        return None, UnifiedToolOutput.failure(
+            message=(
+                f"'{name}' is a system skill and cannot be modified. System skills are "
+                "maintained by the administrator."
+            ),
+            error_code="SYSTEM_SKILL_READ_ONLY",
+        )
+
+    if existing.get("owner_id") != user_id:
+        # Undifferentiated with a free name would be wrong (the import WILL fail
+        # downstream); undifferentiated with "not found" is what protects the
+        # other user's privacy — the name is simply unavailable.
+        return None, UnifiedToolOutput.failure(
+            message=f"The name '{name}' is not available. Choose a different one.",
+            error_code="NAME_UNAVAILABLE",
+        )
+
+    async with get_db_context() as db:
+        active = await SkillPreferenceService(db).get_active_skills_for_user(UUID(user_id))
+    if name not in active:
+        return None, UnifiedToolOutput.failure(
+            message=(
+                f"Skill '{name}' is currently disabled. Re-enable it in "
+                "Settings > LIA Skills > My Skills before modifying it."
+            ),
+            error_code="SKILL_DISABLED",
+        )
+
+    return existing, None
+
+
+def replacement_token(name: str, files: dict[str, str]) -> str:
+    """Derive the confirmation token binding an approval to one exact package.
+
+    A boolean flag would not be a safeguard: the model can set it on the very
+    first call, so "two calls" would be a convention it is free to skip. The
+    token cannot be guessed — it is a digest the model can only obtain by first
+    receiving the refusal — which is what makes the confirmation *structural*.
+
+    It also closes a subtler hole: because the digest covers the file contents,
+    a package altered between the summary and the confirmation no longer
+    matches. The user therefore approves exactly what gets written.
+
+    Args:
+        name: Frontmatter name of the incoming package.
+        files: Incoming file map (relative path → content).
+
+    Returns:
+        Short hexadecimal token.
+    """
+    digest = hashlib.sha256(name.encode("utf-8"))
+    for path in sorted(files):
+        digest.update(path.encode("utf-8"))
+        digest.update(hashlib.sha256(files[path].encode("utf-8")).digest())
+    return digest.hexdigest()[:12]
+
+
+def _describe_replacement(existing: dict[str, Any], files: dict[str, str]) -> UnifiedToolOutput:
+    """Refuse an unconfirmed replacement, describing exactly what it would drop.
+
+    Mirrors the unconditional draft confirmation the DevOps tool uses — the HITL
+    machinery itself is unavailable here, because skills with scripts run inside
+    an isolated ReAct sub-agent whose drafts never reach the main graph.
+
+    Args:
+        existing: Cached dict of the skill being replaced.
+        files: Incoming file map (relative path → content).
+
+    Returns:
+        A structured failure carrying the impact summary and the token that the
+        confirming call must echo back.
+    """
+    from src.core.constants import SKILLS_IMPORT_TEXT_EXTENSIONS
+
+    current = {"SKILL.md", *(existing.get("all_resources") or [])}
+    incoming = set(files)
+    # Binary assets are carried over by the server, so they are never "lost".
+    dropped = sorted(
+        path
+        for path in current - incoming
+        if Path(path).suffix.lower() in SKILLS_IMPORT_TEXT_EXTENSIONS
+    )
+    added = sorted(incoming - current)
+
+    lines = [f"Replacing the existing skill '{existing['name']}' — confirm with the user first."]
+    lines.append(f"Replaced: {', '.join(sorted(current & incoming)) or 'nothing'}")
+    if added:
+        lines.append(f"Added: {', '.join(added)}")
+    if dropped:
+        lines.append(f"REMOVED (content lost): {', '.join(dropped)}")
+    lines.append(
+        "There is no version history: the previous content cannot be restored. "
+        "Present this to the user in their language and get their agreement, then "
+        "call again with the SAME files and "
+        f'replace_token="{replacement_token(str(existing["name"]), files)}". '
+        "The token is bound to these exact file contents: change anything and it "
+        "no longer applies."
+    )
+    return UnifiedToolOutput.failure(
+        message="\n".join(lines),
+        error_code="CONFIRMATION_REQUIRED",
+    )
+
+
+async def _precheck_import(
+    files: dict[str, str], user_id: str, *, replace_token: str
+) -> UnifiedToolOutput | None:
+    """Run every refusal that precedes an import, in one place.
+
+    Kept out of the tool body on purpose: the tool sits at CC 8 without it and
+    would land one branch short of the complexity threshold with it inlined —
+    crossing that line trips the shrink-only ratchet for the whole backend.
+
+    Args:
+        files: Coerced file map of the incoming package.
+        user_id: Caller's user id.
+        replace_token: Token echoed from a previous refusal, proving the user
+            approved this exact package.
+
+    Returns:
+        A failure to return verbatim, or None when the import may proceed.
+    """
+    from src.domains.skills.import_service import parse_incoming_skill_name
+
+    incoming_name, name_error = parse_incoming_skill_name(files)
+    if name_error is not None:
+        return UnifiedToolOutput.failure(message=name_error, error_code="IMPORT_REJECTED")
+
+    existing, refusal = await _resolve_edit_target(incoming_name, user_id)
+    if refusal is not None:
+        return refusal
+    if existing is not None and replace_token != replacement_token(incoming_name, files):
+        return _describe_replacement(existing, files)
+    return None
 
 
 @tool
@@ -401,14 +614,35 @@ async def import_user_skill(
             "Either a JSON object (preferred) or a JSON string."
         ),
     ],
+    replace_token: Annotated[
+        str,
+        (
+            "Only when replacing an existing skill: the token returned by the "
+            "previous CONFIRMATION_REQUIRED refusal, after the user agreed. It "
+            "cannot be guessed and is bound to these exact file contents. Leave "
+            "empty when creating a new skill."
+        ),
+    ] = "",
     runtime: Annotated[ToolRuntime | None, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
-    """Import a generated skill directly into the user's imported skills.
+    """Import or update a skill in the user's own skills.
 
-    Validates the SKILL.md and every bundled file, then registers the skill so
-    it is immediately available (no manual upload). Used by the skill-generator
-    to deliver a finished skill. On any validation error, returns a failure
-    describing the problem so the caller can fix the files and retry.
+    Creating: pass the full file map under a free name — imports immediately.
+
+    Updating: pass the SAME name with the complete regenerated package. The
+    whole package is replaced, so send every file the skill needs, not just the
+    ones that changed (read the current ones first with ``read_skill_resource``,
+    including ``SKILL.md``). The first call is REFUSED and returns exactly what
+    the replacement would drop, plus a token: show the summary to the user, then
+    call again with the SAME files and that ``replace_token``. The token cannot be
+    guessed and is bound to the exact file contents, so the user approves exactly
+    what gets written. There is no version history — a replacement cannot
+    be undone. Bundled binary assets (the gallery thumbnail) are preserved
+    automatically.
+
+    System skills, other users' skills, and skills the user has disabled are
+    refused. On any validation error, the failure describes the problem so the
+    caller can fix the files and retry.
     """
     coerced_files, coercion_error = _coerce_files(files)
     if coercion_error is not None:
@@ -431,6 +665,12 @@ async def import_user_skill(
     from src.core.exceptions import BaseAPIException
     from src.domains.skills.import_service import SkillImportService
     from src.infrastructure.database.session import get_db_context
+
+    refusal = await _precheck_import(
+        coerced_files or {}, str(config.user_id), replace_token=replace_token
+    )
+    if refusal is not None:
+        return refusal
 
     try:
         async with get_db_context() as db:

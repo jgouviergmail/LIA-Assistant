@@ -176,7 +176,10 @@ async def _fetch_person_memories(user_id: UUID, person_name: str) -> list[str] |
     from src.infrastructure.database.session import get_db_context
     from src.infrastructure.llm.user_message_embedding import get_or_compute_embedding
 
-    query_embedding = await get_or_compute_embedding(message=person_name)
+    # A person name is a lookup key, never an utterance: the triviality patterns
+    # collide with real surnames (Fine, Cool, Bien), and treating one as trivial
+    # returned None here — silently erasing that contact's memories.
+    query_embedding = await get_or_compute_embedding(message=person_name, is_conversational=False)
     if not query_embedding:
         return None
     async with get_db_context() as db:

@@ -115,3 +115,8 @@ Journal operations use **background LLM calls**:
 • When you disable journals, data is preserved but not used until re-enabled
 • When an account is deleted, the compiled portrait is scrubbed alongside the entries
 • The assistant writes in your configured language
+
+## Do my logbooks fill up if I chat from Telegram?
+Yes. That was not the case before: a conversation held from an external messenger fed neither your logbooks nor LIA's emotional state, even with those features switched on. Your setting was saved correctly — it simply was not passed along when the message was processed.
+
+Now whatever you switched on applies identically wherever you write from: long-term memory, logbooks and mood. If you had turned them off, they stay off everywhere — it is your setting that travels, not a default value. With no identified account, nothing is written at all.

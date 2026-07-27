@@ -60,6 +60,21 @@ class TestCoerceFiles:
         assert files == {"SKILL.md": "123"}
 
 
+_VALID_SKILL_MD = """---
+name: chat-skill
+description: >
+  Generates something useful, purely for the purposes of this test.
+category: test
+priority: 50
+---
+
+# Chat Skill
+
+## Instructions
+1. Do the thing.
+"""
+
+
 def _runtime() -> MagicMock:
     rt = MagicMock()
     rt.config = {
@@ -108,7 +123,7 @@ class TestImportUserSkillTool:
             ),
         ):
             result = await import_user_skill.coroutine(
-                files={"SKILL.md": "..."}, runtime=_runtime()
+                files={"SKILL.md": _VALID_SKILL_MD}, runtime=_runtime()
             )
 
         assert result.success is True
@@ -141,7 +156,7 @@ class TestImportUserSkillTool:
             ),
         ):
             result = await import_user_skill.coroutine(
-                files={"SKILL.md": "..."}, runtime=_runtime()
+                files={"SKILL.md": _VALID_SKILL_MD}, runtime=_runtime()
             )
 
         assert result.success is False

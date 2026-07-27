@@ -6,7 +6,7 @@
 
 **Version**: 3.5
 **Date**: 2026-07-27
-**Application**: LIA v1.25.27
+**Application**: LIA v1.25.28
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 438 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 160+ ADRs, ~16,159 pytest-collected tests across 854 files, native observability, 6-level HITL |
+| Production reliability | 160+ ADRs, ~16,293 pytest-collected tests across 854 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -71,7 +71,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~16,159 (collected by pytest across 854 test files) + 3,473 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~16,293 (collected by pytest across 854 test files) + 3,473 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 400+ |
 | ADRs (Architecture Decision Records) | 160+ |
@@ -555,6 +555,8 @@ Each memory is a structured document with:
 
 **Injection**: the `memory_injection.py` middleware searches for semantically close memories, builds the injectable psychological profile, and activates the `DANGER_DIRECTIVE` if necessary. Injected into the Response Node's system prompt.
 
+**Which turns feed memory.** A message that triggers an action counts as much as a conversation: resuming a draft injects no message, so the original request is still the user's last utterance when extraction runs. Conversely, messages **fabricated by the system** — the scaffolding injected on a HITL refusal — are flagged in their metadata and excluded both as target and as context: never recognised by their text, since they exist in six languages. Finally, the heuristic that discards acknowledgements only applies to what the user actually typed — applied to a person's name, it made the memories of contacts whose surname resembles "fine" or "cool" disappear. Every decision is counted per subsystem and per outcome (`post_response_extraction_scheduled_total`), where only debug logs existed.
+
 ### 11.4. Hybrid search BM25 + semantic
 
 Combination with configurable alpha (default 0.6 semantic / 0.4 BM25). 10% boost when both signals are strong (> 0.5). Graceful fallback to semantic only if BM25 fails. Performance: 40-90 ms with cache.
@@ -995,6 +997,8 @@ A library of built-in skills demonstrates the contract: `interactive-map`, `weat
 
 The skills surface is a **gallery**: cards open a detail sheet with the localized description, the declared **output channels** (the loader finally reads the `outputs:` frontmatter field the generator had always validated — parity is CI-pinned), a bundled `assets/preview.png` served by a dedicated endpoint (name-pattern traversal guard, size cap, undifferentiated 404 for admin-disabled skills), and a provenance warning on every non-system skill. Installation accepts a second source besides file upload: an https URL, hardened as described in §19.3, feeding the exact same import pipeline (`skill_url_imports_total{outcome}` counts every path).
 
+**Editing a skill.** The write engine already existed — re-importing one's own skill is an atomic upsert (ADR-118) — but three locks made it unreachable: the manifest was unreadable (activation strips the frontmatter), a replacement erased the thumbnail chat cannot carry, and the generator's prompt ordered a rename on conflict. A modification is now a **full regeneration** under the same name, preceded by reading the current package. Confirmation lives **in the tool**, not in HITL: a skill shipping a `scripts/` directory runs inside an isolated-thread ReAct sub-agent whose drafts never reach the main graph. It rests on a content-derived token — a plain flag would be a convention the model may skip, whereas a digest can only have been received, and it binds the agreement to the exact package that will be written (ADR-165).
+
 ### 23.8. Conversation history, search and rich chat rendering
 
 Five cross-cutting capabilities share the same product philosophy: **instant feedback, zero server cost when unnecessary**.
@@ -1146,10 +1150,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 160+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~16,159 tests across 854 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 160+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~16,293 tests across 854 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 160+ ADRs, and the changelog (v1.0 to v1.25.27). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 160+ ADRs, and the changelog (v1.0 to v1.25.28). All metrics, versions, and patterns cited are verifiable in the codebase.*

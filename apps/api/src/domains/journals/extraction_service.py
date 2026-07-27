@@ -41,6 +41,10 @@ from src.domains.journals.constants import (
 from src.domains.journals.models import JournalEntryMood, JournalEntrySource
 from src.domains.journals.prompt_builders import build_introspection_prompt
 from src.domains.journals.schemas import ConsolidationParseResult, ExtractedJournalEntry
+from src.domains.shared.extraction_targets import (
+    find_last_user_message,
+    is_synthetic_message,
+)
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
 from src.infrastructure.observability.logging import get_logger
@@ -327,6 +331,9 @@ def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
 
     for msg in messages:
         if isinstance(msg, HumanMessage):
+            # System-fabricated HITL scaffolding is not conversation.
+            if is_synthetic_message(msg):
+                continue
             prefix = "USER"
         elif isinstance(msg, AIMessage):
             # Skip proactive notifications (interest/heartbeat) — not meaningful for journals
@@ -706,15 +713,7 @@ async def extract_journal_entry_background(
             return 0
 
         # Find last HumanMessage + context (same pattern as memory_extractor)
-        last_human_message: HumanMessage | None = None
-        last_human_index = -1
-
-        for i in range(len(messages) - 1, -1, -1):
-            msg = messages[i]
-            if isinstance(msg, HumanMessage):
-                last_human_message = msg
-                last_human_index = i
-                break
+        last_human_message, last_human_index = find_last_user_message(messages)
 
         if not last_human_message:
             logger.debug("journal_extraction_skipped_no_human_message", user_id=user_id)
