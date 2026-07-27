@@ -1956,6 +1956,8 @@
           "reindexing": "Reindexing...",
           "reindexSuccess": "System space reindexed successfully ({{count}} chunks)",
           "reindexError": "Failed to reindex system space",
+          "reindexUpToDate": "System space already up to date — nothing to reindex",
+          "reindexInProgress": "A reindexation is already running — try again in a moment",
           "noSpaces": "No system spaces configured",
           "chunks": "{{count}} chunks",
           "lastIndexed": "Last indexed: {{date}}"
@@ -3375,7 +3377,7 @@
         },
         "ragSpaces": {
           "title": "📚 RAG Knowledge Spaces",
-          "description": "Create personal knowledge spaces and upload your own documents (PDF, TXT, MD, DOCX). Documents are automatically processed (text extraction, chunking, OpenAI embedding). Active spaces enrich assistant responses via hybrid search combining semantic similarity (pgvector cosine) and BM25 keyword matching. Full cost transparency with per-document and per-query embedding tracking. Admin reindexation endpoint for embedding model changes."
+          "description": "Create personal knowledge spaces and upload your own documents (PDF, TXT, MD, DOCX). Documents are automatically processed (text extraction, chunking, Gemini embedding). Active spaces enrich assistant responses via hybrid search combining semantic similarity (pgvector cosine) and BM25 keyword matching. Full cost transparency with per-document and per-query embedding tracking. The built-in system corpus that lets LIA answer about itself is rebuilt by a single process at a time — the space row is claimed with FOR UPDATE SKIP LOCKED — and every start checks it against both the source files and what is actually stored, so a drifted corpus is repaired rather than served. Embeddings are computed before anything is deleted: a provider rejection costs nothing and the previous corpus keeps answering."
         },
         "subAgents": {
           "title": "Sub-Agents",
@@ -3424,6 +3426,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_26": {
+          "title": "v1.25.26 — 🧠 What LIA knows about itself",
+          "date": "July 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🧠 Answers about LIA are complete again</b> — the built-in help LIA reads from had ended up holding three copies of every answer, so out of the five passages it consults, only two were actually different. It now holds exactly one copy of each, and if that ever drifts again the next restart repairs it on its own.",
+            "i2": "<b>📚 Help updates reach you</b> — refreshing the built-in help could fail silently at startup, leaving the version LIA quotes behind the product. Those failures are now visible and retried, and while one is being fixed the previous help keeps serving instead of disappearing.",
+            "i3": "<b>🔄 The admin reindex button tells the truth</b> — it announced a rebuild even when the help was already current, and even when another rebuild was already running. It now says which of the three actually happened."
+          }
+        },
         "v1_25_25": {
           "title": "v1.25.25 — 🩺 What was failing silently",
           "date": "July 2026",
@@ -5609,7 +5621,7 @@
           },
           "q8": {
             "question": "Can I ask the assistant about its own features?",
-            "answer": "Yes! LIA has a <strong>built-in knowledge base</strong> that lets it answer questions about itself directly in conversation:<br><br><strong>🧠 How it works:</strong><br>• LIA automatically detects when you ask about the app (\"<em>What can you do?</em>\", \"<em>How do I connect my calendar?</em>\")<br>• It searches its FAQ knowledge base (200+ Q&A across 24 sections) using the same hybrid search as user spaces<br>• An <strong>App Identity Prompt</strong> describing all capabilities is injected into the response<br><br><strong>⚡ Zero overhead:</strong><br>This only activates when you ask about the app. Normal queries (emails, calendar, etc.) are not affected at all.<br><br><strong>🔧 Admin features:</strong><br>Administrators can manage system knowledge spaces in <strong>Settings > Administration > RAG Spaces</strong>:<br>• View staleness status (content hash comparison)<br>• Trigger manual reindexation<br>• System spaces are automatically indexed at app startup"
+            "answer": "Yes! LIA has a <strong>built-in knowledge base</strong> that lets it answer questions about itself directly in conversation:<br><br><strong>🧠 How it works:</strong><br>• LIA automatically detects when you ask about the app (\"<em>What can you do?</em>\", \"<em>How do I connect my calendar?</em>\")<br>• It searches its FAQ knowledge base (200+ Q&A across 24 sections) using the same hybrid search as user spaces<br>• An <strong>App Identity Prompt</strong> describing all capabilities is injected into the response<br><br><strong>⚡ Zero overhead:</strong><br>This only activates when you ask about the app. Normal queries (emails, calendar, etc.) are not affected at all.<br><br><strong>🔧 Admin features:</strong><br>Administrators can manage system knowledge spaces in <strong>Settings > Administration > RAG Spaces</strong>:<br>• View staleness status (content hash comparison)<br>• Trigger a manual rebuild — the button reports which of three things happened: rebuilt, already up to date, or a rebuild already in progress<br>• The corpus is checked at every start against both the source files and what is actually stored, so a corpus that has drifted is repaired rather than served<br>• If a rebuild cannot run, the previous version keeps answering and the failure is reported instead of passing unnoticed"
           },
           "q9": {
             "question": "Can LIA search my documents on its own? (v1.25.13)",

@@ -36,6 +36,7 @@ References:
 import asyncio
 import hashlib
 import json
+import os
 import re
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -47,6 +48,7 @@ import numpy as np
 from src.core.constants import TOOL_EMBEDDINGS_CACHE_FILENAME
 from src.domains.agents.registry.catalogue import ToolManifest
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.observability.metrics_agents import tool_embeddings_cache_total
 
 logger = get_logger(__name__)
 
@@ -69,8 +71,28 @@ DEFAULT_CALIBRATED_PRIMARY_MIN = 0.15  # Min probability for primary tool
 DEFAULT_HYBRID_ALPHA = 0.6  # Description weight (keywords = 1 - alpha)
 DEFAULT_HYBRID_MODE = "first_line"  # "first_line", "full", "truncate"
 
-# Disk cache for tool embeddings (avoids re-computing on every restart)
-TOOL_EMBEDDINGS_CACHE_DIR = Path(__file__).resolve().parents[4] / "data"
+# Application root (apps/api, /app in the image): the anchor for a relative
+# cache directory, so the resolved location never depends on the process working
+# directory.
+_APP_ROOT = Path(__file__).resolve().parents[4]
+
+
+def resolve_tool_embeddings_cache_dir() -> Path:
+    """Resolve the directory holding the tool-embeddings disk cache.
+
+    An absolute setting is honoured verbatim; a relative one is anchored on the
+    application root rather than the working directory, which is what makes the
+    cache land in the same place whether the process was started from
+    ``apps/api`` (pytest, dev server) or from ``/app`` (image).
+
+    Returns:
+        Absolute path to the cache directory. Not created here — the writer
+        creates it, the reader treats its absence as a cache miss.
+    """
+    from src.core.config import settings
+
+    configured = Path(settings.tool_embeddings_cache_dir)
+    return configured if configured.is_absolute() else _APP_ROOT / configured
 
 
 # =============================================================================
@@ -287,6 +309,14 @@ class SemanticToolSelector:
     ) -> None:
         """Persist embeddings to disk alongside their content hash.
 
+        Written to a private temporary sibling and renamed into place. Every
+        uvicorn worker writes this same path at boot, and the document is tens of
+        megabytes: a plain ``write_text`` lets a concurrent reader observe a
+        half-written file, whose only recovery is to re-embed the whole
+        catalogue. ``os.replace`` is atomic, so a reader sees either the previous
+        file or the complete new one — never a prefix of it. The temporary name
+        carries the pid so two workers cannot corrupt each other's staging file.
+
         Args:
             cache_path: Path to write the JSON cache file.
             content_hash: Hash of the texts that produced these embeddings.
@@ -296,10 +326,16 @@ class SemanticToolSelector:
             "content_hash": content_hash,
             "embeddings": all_embeddings,
         }
+        tmp_path = cache_path.with_name(f"{cache_path.name}.{os.getpid()}.tmp")
         try:
             cache_path.parent.mkdir(parents=True, exist_ok=True)
-            cache_path.write_text(json.dumps(data), encoding="utf-8")
+            tmp_path.write_text(json.dumps(data), encoding="utf-8")
+            os.replace(tmp_path, cache_path)
         except Exception as e:
+            # A staging file left behind would be dead weight on the volume, and
+            # its size is that of the cache itself.
+            with suppress(OSError):
+                tmp_path.unlink(missing_ok=True)
             logger.warning(
                 "tool_embedding_cache_save_failed",
                 error=str(e),
@@ -425,7 +461,7 @@ class SemanticToolSelector:
             )
 
         # Compute or load embeddings (differential cache)
-        cache_path = TOOL_EMBEDDINGS_CACHE_DIR / TOOL_EMBEDDINGS_CACHE_FILENAME
+        cache_path = resolve_tool_embeddings_cache_dir() / TOOL_EMBEDDINGS_CACHE_FILENAME
 
         content_hash = self._compute_content_hash(
             all_texts, text_metadata, self._embedding_model_name
@@ -439,6 +475,7 @@ class SemanticToolSelector:
 
             if cached_embeddings is not None:
                 all_embeddings = cached_embeddings
+                tool_embeddings_cache_total.labels(result="hit").inc()
                 logger.info(
                     "semantic_tool_selector_cache_hit",
                     cache_path=str(cache_path),
@@ -446,6 +483,7 @@ class SemanticToolSelector:
                 )
             else:
                 # Cache miss or stale — call Gemini API
+                tool_embeddings_cache_total.labels(result="miss").inc()
                 logger.info(
                     "semantic_tool_selector_cache_miss",
                     cache_path=str(cache_path),

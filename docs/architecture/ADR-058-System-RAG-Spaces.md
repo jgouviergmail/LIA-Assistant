@@ -3,6 +3,11 @@
 **Status**: Accepted
 **Date**: 2026-03-19
 **Deciders**: Engineering Team
+**Amended by**: [ADR-162](ADR-162-System-Knowledge-Indexation-Single-Writer.md) — the
+startup indexation described here ran in every uvicorn worker at once. Since
+2026-07-27 it is single-writer (`FOR UPDATE SKIP LOCKED` on the space row),
+embeds before deleting anything, and judges staleness on the stored corpus rather
+than on the content hash alone.
 
 ## Context
 

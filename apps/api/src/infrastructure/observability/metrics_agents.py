@@ -1370,3 +1370,16 @@ semantic_expansion_total = Counter(
     "(referenced entity provides a semantic type required by the selected domains)",
     ["evidence_entity", "added_domain"],  # evidence_entity: Contact, CalendarEvent, Place
 )
+
+# ============================================================================
+# TOOL EMBEDDINGS DISK CACHE
+# ============================================================================
+
+tool_embeddings_cache_total = Counter(
+    "tool_embeddings_cache_total",
+    "Startup lookups of the tool-embeddings disk cache. A sustained absence of "
+    "'hit' means every worker re-embeds the whole tool catalogue on every boot: "
+    "production ran 27 boots with 108 misses and zero hits before the cache was "
+    "given a volume, and nothing but a log grep could have shown it",
+    ["result"],  # hit | miss
+)

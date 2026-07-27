@@ -123,7 +123,12 @@ async def reindex_system_space(
     user: User = Depends(get_current_superuser_session),
     db: AsyncSession = Depends(get_db),
 ) -> SystemSpaceReindexResponse:
-    """Trigger reindexation of a system space (FAQ knowledge base)."""
+    """Trigger reindexation of a system space (FAQ knowledge base).
+
+    Raises:
+        BaseAPIException: 409 when another worker holds the reindex claim, 500
+            when the indexation itself failed.
+    """
     from src.domains.rag_spaces.system_indexer import SystemSpaceIndexer
 
     indexer = SystemSpaceIndexer(db)
@@ -137,13 +142,27 @@ async def reindex_system_space(
             space_name=space_name,
         )
 
+    # A declined claim is not "already up to date": the indexation did NOT run,
+    # and answering 200 with chunks_created=0 would tell an admin the knowledge
+    # base is current when it may be stale. The caller should simply retry once
+    # the holder commits (ADR-162).
+    if result.get("reason") == "claimed_by_another_worker":
+        raise BaseAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A reindexation of '{space_name}' is already in progress",
+            log_event="system_space_reindex_claim_declined",
+            space_name=space_name,
+        )
+
+    reindexed = result["status"] == "success"
     return SystemSpaceReindexResponse(
         message=(
             f"System space '{space_name}' reindexed successfully"
-            if result["status"] == "success"
+            if reindexed
             else f"System space '{space_name}' is already up to date"
         ),
         space_name=space_name,
+        status="success" if reindexed else "skipped",
         chunks_created=result["chunks_created"],
         content_hash=result["content_hash"],
     )

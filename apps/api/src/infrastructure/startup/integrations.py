@@ -169,25 +169,59 @@ async def sync_currency_rates_at_startup() -> None:
 async def index_system_rag_spaces() -> None:
     """Auto-index system RAG spaces (FAQ knowledge base) if enabled.
 
-    Idempotent: skips if content hash matches (no embedding cost on restart).
-    """
-    if getattr(settings, "rag_spaces_system_enabled", False):
-        try:
-            from src.domains.rag_spaces.system_indexer import SystemSpaceIndexer
-            from src.infrastructure.database.session import get_db_context as _sys_db_ctx
+    Idempotent: skips when the content hash matches and the stored corpus is
+    intact. Only one worker indexes — the space row is claimed with
+    ``FOR UPDATE SKIP LOCKED`` — so the others log a skip and cost nothing.
 
-            async with _sys_db_ctx() as sys_db:
-                indexer = SystemSpaceIndexer(sys_db)
-                result = await indexer.index_faq_space()
-            if result["status"] == "success":
-                logger.info(
-                    "system_rag_startup_indexed",
-                    chunks_created=result["chunks_created"],
-                )
-            elif result["status"] == "skipped":
-                logger.info("system_rag_startup_skipped")
-            else:
-                logger.warning("system_rag_startup_error", error=result.get("error"))
-        except Exception as exc:
-            # Non-blocking: system FAQ is optional, don't prevent app startup
-            logger.warning("system_rag_startup_failed", error=str(exc))
+    The indexer's failure is caught *inside* the session context on purpose. Left
+    to propagate, it exited ``get_db_context``, which logged
+    ``database_session_error`` at ERROR with a full traceback: 69 quota rejections
+    over 14 days were filed under ``src.infrastructure.database.session``, sending
+    anyone triaging them into the database layer for a failure that never involved
+    it. One ERROR from the domain plus one WARNING here is the whole story.
+    """
+    if not getattr(settings, "rag_spaces_system_enabled", False):
+        return
+
+    from src.domains.rag_spaces.system_indexer import SystemSpaceIndexer
+    from src.infrastructure.database.session import get_db_context as _sys_db_ctx
+
+    try:
+        result: dict = {}
+        failure: Exception | None = None
+
+        async with _sys_db_ctx() as sys_db:
+            try:
+                result = await SystemSpaceIndexer(sys_db).index_faq_space()
+            except Exception as exc:
+                # The previous corpus keeps serving — nothing is deleted before
+                # the new vectors exist. Rolling back leaves the session clean so
+                # the context manager's commit on exit is a no-op and it never
+                # sees an exception.
+                await sys_db.rollback()
+                failure = exc
+
+        if failure is not None:
+            logger.warning(
+                "system_rag_startup_failed",
+                error=str(failure),
+                error_type=type(failure).__name__,
+            )
+        elif result["status"] == "success":
+            logger.info(
+                "system_rag_startup_indexed",
+                chunks_created=result["chunks_created"],
+            )
+        elif result["status"] == "skipped":
+            logger.info("system_rag_startup_skipped", reason=result.get("reason"))
+        else:
+            logger.warning("system_rag_startup_error", error=result.get("error"))
+
+    except Exception as exc:
+        # The session itself could not be opened or closed. Still non-blocking:
+        # the system FAQ is optional and must never hold up a boot.
+        logger.warning(
+            "system_rag_startup_failed",
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )

@@ -314,6 +314,7 @@ from src.core.constants import (
     TOKEN_THRESHOLD_SAFE_DEFAULT,
     TOKEN_THRESHOLD_WARNING_DEFAULT,
     TOOL_APPROVAL_CLEANUP_DAYS_DEFAULT,
+    TOOL_EMBEDDINGS_CACHE_DIR_DEFAULT,
     TOOL_RETRY_BACKOFF_FACTOR_DEFAULT,
     TOOL_RETRY_MAX_ATTEMPTS_DEFAULT,
     V3_DISPLAY_ENABLED,
@@ -2137,6 +2138,18 @@ class AgentsSettings(BaseSettings):
         description=(
             "Enable hybrid scoring (description + keywords). "
             "Set to False for keywords-only legacy mode."
+        ),
+    )
+    tool_embeddings_cache_dir: str = Field(
+        default=TOOL_EMBEDDINGS_CACHE_DIR_DEFAULT,
+        min_length=1,
+        description=(
+            "Directory holding the tool-embeddings disk cache. A relative value "
+            "resolves against the API application root (apps/api, /app in the "
+            "image), never against the working directory. MUST resolve to a "
+            "mounted volume in production: a cache in the container's writable "
+            "layer is destroyed by every `--force-recreate`, and each uvicorn "
+            "worker then re-embeds the entire tool catalogue at boot."
         ),
     )
 

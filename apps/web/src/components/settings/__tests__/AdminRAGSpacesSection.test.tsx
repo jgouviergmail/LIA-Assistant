@@ -25,7 +25,9 @@ const { useApiMutation } = vi.hoisted(() => ({ useApiMutation: vi.fn() }));
 vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation }));
 const { useAppConfig } = vi.hoisted(() => ({ useAppConfig: vi.fn() }));
 vi.mock('@/hooks/useAppConfig', () => ({ useAppConfig }));
-const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+const { toast } = vi.hoisted(() => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
 vi.mock('sonner', () => ({ toast }));
 
 import AdminRAGSpacesSection from '../AdminRAGSpacesSection';
@@ -87,12 +89,17 @@ let triggerReindex: ReturnType<typeof mutateSpy>;
 function stubTransport(
   spaces: SystemSpace[],
   stale: Record<string, SystemStaleness> = {},
-  opts: { reindexStatus?: number } = {}
+  opts: { reindexStatus?: number; reindexBody?: Record<string, unknown> } = {}
 ) {
   fetchMock = vi.fn((url: string, init?: RequestInit) => {
     if (url.includes('/reindex/status')) return Promise.resolve(json(idleStatus()));
     if (init?.method === 'POST' && /system-spaces\/[^/]+\/reindex$/.test(url)) {
-      return Promise.resolve(json({ chunks_created: 128 }, opts.reindexStatus ?? 200));
+      return Promise.resolve(
+        json(
+          opts.reindexBody ?? { chunks_created: 128, status: 'success' },
+          opts.reindexStatus ?? 200
+        )
+      );
     }
     const stalenessMatch = url.match(/system-spaces\/([^/]+)\/staleness/);
     if (stalenessMatch) {
@@ -186,6 +193,28 @@ describe('AdminRAGSpacesSection — per-space reindex', () => {
     await screen.findByText('handbook');
     await user.click(screen.getByRole('button', { name: `${SYS}.reindexButton` }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith(`${SYS}.reindexError`));
+  });
+
+  // A corpus that was already current is not a rebuild. Announcing
+  // "reindexed (0 chunks)" told an admin work had happened when none had —
+  // the backend now says which of the two it was (ADR-162).
+  it('does not claim a rebuild when the corpus was already current', async () => {
+    stubTransport([space()], {}, { reindexBody: { chunks_created: 0, status: 'skipped' } });
+    const { user } = render();
+    await screen.findByText('handbook');
+    await user.click(screen.getByRole('button', { name: `${SYS}.reindexButton` }));
+    await waitFor(() => expect(toast.info).toHaveBeenCalledWith(`${SYS}.reindexUpToDate`));
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  // 409 = another worker holds the reindex claim, so nothing ran. The generic
+  // failure message would be true but useless; this one says to retry.
+  it('distinguishes a concurrent reindex from a failure', async () => {
+    stubTransport([space()], {}, { reindexStatus: 409 });
+    const { user } = render();
+    await screen.findByText('handbook');
+    await user.click(screen.getByRole('button', { name: `${SYS}.reindexButton` }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(`${SYS}.reindexInProgress`));
   });
 });
 

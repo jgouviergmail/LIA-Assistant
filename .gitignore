@@ -203,8 +203,11 @@ apps/api/models/
 # RAG Spaces uploaded documents (user data, never commit)
 apps/api/data/rag_uploads/
 
-# Tool embeddings disk cache (regenerated at startup if stale)
+# Tool embeddings disk cache (regenerated at startup if stale).
+# The bare filename is the pre-v1.25.26 location, kept so an existing dev
+# checkout does not suddenly start tracking a 15 MB artefact.
 apps/api/data/tool_embeddings_cache.json
+apps/api/data/tool_cache/
 
 # ============================================
 # BUILD & TEMPORARY

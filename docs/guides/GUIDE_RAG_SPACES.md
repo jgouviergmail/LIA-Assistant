@@ -231,8 +231,8 @@ docs/knowledge/*.md  →  SystemSpaceIndexer  →  pgvector chunks (rag_chunks)
 ```
 
 1. **Source files**: Knowledge articles are authored as Markdown files in `docs/knowledge/`. Each file covers a specific topic (e.g., feature overview, how-to guide, FAQ entry).
-2. **SystemSpaceIndexer**: At startup (or on-demand via admin endpoint), the indexer reads all knowledge files, chunks them using the same `RecursiveCharacterTextSplitter` as user documents, embeds them via `TrackedOpenAIEmbeddings`, and persists the resulting `RAGChunk` records linked to the system space.
-3. **Hash-based idempotency**: Each file's content hash is stored. On subsequent runs, only changed or new files are re-indexed, making the process safe to run on every application startup.
+2. **SystemSpaceIndexer**: At startup (or on-demand via the admin endpoint), the indexer parses every `## ` heading into a Q/A chunk, embeds the batch through `get_rag_embeddings()` (Gemini, `RAG_SPACES_EMBEDDING_MODEL`), and persists the resulting `RAGChunk` records linked to the system space.
+3. **Whole-corpus idempotency**: **one** SHA-256 over all knowledge files is stored on the space, and the corpus is rebuilt as a unit — there is no per-file incremental path. Skipping requires that hash to match **and** the stored corpus to be intact (one chunk per parsed entry, exactly one document): a matching hash over the wrong number of rows is a repair, not a no-op. See [ADR-162](../architecture/ADR-162-System-Knowledge-Indexation-Single-Writer.md).
 
 ### Query Detection and Routing
 
@@ -257,16 +257,29 @@ Three dedicated admin endpoints manage system spaces:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/rag-spaces/admin/system/list` | List all system spaces with document counts and indexation status |
-| `POST` | `/rag-spaces/admin/system/reindex` | Trigger re-indexation of all `docs/knowledge/*.md` files |
-| `GET` | `/rag-spaces/admin/system/staleness` | Check if any knowledge files have changed since last indexation (hash comparison) |
+| `GET` | `/rag-spaces/admin/system-spaces` | List all system spaces with document counts and indexation status |
+| `POST` | `/rag-spaces/admin/system-spaces/{space_name}/reindex` | Rebuild the corpus from `docs/knowledge/*.md` |
+| `GET` | `/rag-spaces/admin/system-spaces/{space_name}/staleness` | Compare the stored hash with the current files |
+
+The reindex endpoint answers three distinguishable outcomes, because a caller
+acting on them needs to tell them apart:
+
+| Outcome | Response |
+|---------|----------|
+| Corpus rebuilt | `200`, `status: "success"`, `chunks_created > 0` |
+| Already current | `200`, `status: "skipped"`, `chunks_created: 0` |
+| Another worker holds the claim | `409` — nothing ran, retry once it commits |
+
+Before v1.25.26 the last two were indistinguishable from a success: the admin UI
+composes its message from `chunks_created`, so a corpus that needed no work
+reported "reindexed (0 chunks)".
 
 ### Admin UI
 
 System space management is available in the frontend at **Settings > Administration > RAG Spaces**. The admin section includes:
 
 - **System Spaces panel**: Read-only list of system spaces with document count, last indexed timestamp, and staleness indicator
-- **Reindex button**: Triggers `POST /rag-spaces/admin/system/reindex` with progress feedback
+- **Reindex button**: Triggers `POST /rag-spaces/admin/system-spaces/{space_name}/reindex`, with a distinct message per outcome (rebuilt / already current / a reindexation is already running)
 - **Staleness badge**: Visual indicator (green/amber) showing whether knowledge files are up-to-date or require re-indexation
 
 This panel is displayed alongside the existing user-space reindex controls in the `AdminRAGSpacesSection` component.
@@ -275,9 +288,11 @@ This panel is displayed alongside the existing user-space reindex controls in th
 
 System spaces are automatically indexed during application startup via the `lifespan` event handler:
 
-- **Idempotent**: Uses content hashes to skip unchanged files — safe to run on every boot
-- **Non-blocking**: Runs as a background task after the application is ready to serve requests
-- **Resilient**: Failures are logged but do not prevent the application from starting
+- **Single-writer**: every uvicorn worker runs this step, so the space row is claimed with `FOR UPDATE SKIP LOCKED` — exactly one worker indexes and the others return `skipped` immediately rather than queueing behind its embedding call. Without that claim all four workers passed the staleness read and each rebuilt the corpus, whose interleaved inserts accumulated (measured in production 2026-07-27: 807 chunks for 269 distinct contents).
+- **Embed before destroying**: every vector is obtained before the first destructive statement, so a provider rejection deletes nothing, holds no lock on `rag_chunks` across a network call, and leaves the previous corpus serving.
+- **Idempotent**: skips when the stored hash matches **and** the corpus is intact — see the pipeline note above.
+- **Resilient**: failures are logged and never prevent the application from starting. A transient `429`/`5xx` is retried in place, bounded by both `RAG_SPACES_SYSTEM_INDEX_EMBED_MAX_ATTEMPTS` and `RAG_SPACES_SYSTEM_INDEX_EMBED_RETRY_BUDGET_SECONDS` (the retry runs under the claim, so its cost is capped); anything left is retried by the next boot and surfaced by the `SystemKnowledgeIndexationFailing` alert.
+- **Observable**: `rag_system_indexation_total{space_name,status}` plus the `system_indexer_*` structured logs. Runbook: [SystemKnowledgeIndexationFailing](../runbooks/alerts/SystemKnowledgeIndexationFailing.md).
 
 ### Seed Script
 

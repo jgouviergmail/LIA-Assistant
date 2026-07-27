@@ -4,9 +4,9 @@
 >
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
-**Version** : 3.4
+**Version** : 3.5
 **Date** : 2026-07-27
-**Application** : LIA v1.25.25
+**Application** : LIA v1.25.26
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 438 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 150+ ADRs, ~16 057 tests collectés par pytest sur 849 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 160+ ADRs, ~16 146 tests collectés par pytest sur 853 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -71,10 +71,10 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~16 057 (collectés par pytest sur 849 fichiers de test) + 3 471 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | ~16 146 (collectés par pytest sur 853 fichiers de test) + 3 473 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures réutilisables | 170+ |
-| Documents de documentation | 280+ |
-| ADRs (Architecture Decision Records) | 150+ |
+| Documents de documentation | 400+ |
+| ADRs (Architecture Decision Records) | 160+ |
 | Métriques Prometheus | 438 définitions |
 | Dashboards Grafana | 25 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -720,7 +720,7 @@ Note : l'injection RAG se fait dans le nœud de réponse, pas dans le planificat
 
 ### 17.2. System RAG Spaces (ADR-058)
 
-FAQ intégrée (200+ Q/A, 24 sections) indexée depuis `docs/knowledge/`. Détection `is_app_help_query` par QueryAnalyzer, Rule 0 override dans RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). SHA-256 staleness detection, auto-indexation au démarrage.
+FAQ intégrée (200+ Q/A, 24 sections) indexée depuis `docs/knowledge/`. Détection `is_app_help_query` par QueryAnalyzer, Rule 0 override dans RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). La péremption se juge sur un SHA-256 des fichiers source **et** sur le corpus stocké lui-même (un chunk par entrée parsée, exactement un document) : une empreinte concordante sur un nombre de lignes erroné est une réparation, pas un no-op. L'auto-indexation tourne dans chaque worker uvicorn, donc la ligne de l'espace est revendiquée par `FOR UPDATE SKIP LOCKED` — un seul écrivain, les autres passent sans attendre — et chaque vecteur est calculé **avant** la première instruction destructrice : un refus du fournisseur ne supprime rien et le corpus précédent continue de servir (ADR-162).
 
 ---
 
@@ -1070,7 +1070,7 @@ Six manifests localisés (`/manifest-{lng}.json` — `lang`, `start_url`, trois 
 
 ## 24. Architecture des décisions (ADR)
 
-150+ ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+160+ ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1160,10 +1160,10 @@ Le contexte psyché est injecté dans **tous** les points de génération utilis
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 150+ ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~16 057 tests sur 849 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 160+ ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~16 146 tests sur 853 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (380+ documents), des 150+ ADRs, et du changelog (v1.0 à v1.25.25). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 160+ ADRs, et du changelog (v1.0 à v1.25.26). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

@@ -29,6 +29,11 @@ def indexer(mock_db):
                 idx.service = AsyncMock()
                 idx.doc_repo = AsyncMock()
                 idx.chunk_repo = AsyncMock()
+                # "Up to date" now means matching hash AND an intact corpus, so
+                # the counts must agree with what ``knowledge_dir`` parses to
+                # (3 Q/A entries, stored under a single system document).
+                idx.chunk_repo.count_for_space = AsyncMock(return_value=3)
+                idx.doc_repo.count_for_space = AsyncMock(return_value=1)
                 return idx
 
 

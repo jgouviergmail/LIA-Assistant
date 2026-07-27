@@ -1,0 +1,1 @@
+"""Startup lifespan step tests."""

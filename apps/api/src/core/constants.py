@@ -2318,6 +2318,12 @@ SEMANTIC_TOOL_SELECTOR_MAX_TOOLS_DEFAULT = 8
 V3_TOOL_SELECTOR_HYBRID_ALPHA_DEFAULT = 0.6
 V3_TOOL_SELECTOR_HYBRID_MODE_DEFAULT = "first_line"
 TOOL_EMBEDDINGS_CACHE_FILENAME = "tool_embeddings_cache.json"
+# Relative to the API application root (apps/api), never to the working
+# directory. In production this resolves to /app/data/tool_cache, which
+# docker-compose.prod.yml mounts as a named volume: a cache living in the
+# container's writable layer is destroyed by every `--force-recreate`, and all
+# uvicorn workers then re-embed the whole tool catalogue at the next boot.
+TOOL_EMBEDDINGS_CACHE_DIR_DEFAULT = "data/tool_cache"
 SEMANTIC_DOMAIN_HARD_THRESHOLD_DEFAULT = 0.75
 SEMANTIC_DOMAIN_SOFT_THRESHOLD_DEFAULT = 0.65
 SEMANTIC_DOMAIN_MAX_DOMAINS_DEFAULT = 3  # Aligned from .env.prod (was 5)
@@ -3766,6 +3772,24 @@ RAG_SPACES_SYSTEM_FAQ_NAME_DEFAULT = "lia-faq"
 RAG_SPACES_SYSTEM_FAQ_DESCRIPTION_DEFAULT = "LIA FAQ - Application help and usage guide"
 RAG_SPACES_SYSTEM_KNOWLEDGE_DIR_DEFAULT = "docs/knowledge"
 RAG_SPACES_SYSTEM_EMBEDDING_USER_ID = "system"  # For embedding cost tracking
+# Bounded retry for the startup FAQ indexation. The Gemini SDK never retries on
+# its own (`google-genai` builds its client with no retry options, which selects
+# the "never retry" stop strategy), so a single transient 429/5xx used to cost a
+# whole staleness cycle: the failure is swallowed and nothing re-runs until the
+# next boot. Only this startup path retries — a user waiting on a chat reply must
+# not be made to wait out a quota window.
+RAG_SPACES_SYSTEM_INDEX_EMBED_MAX_ATTEMPTS_DEFAULT = 3
+# Total budget across all attempts. Caps how long the exclusive claim on the
+# space row is held, since the retry happens while that row is locked.
+RAG_SPACES_SYSTEM_INDEX_EMBED_RETRY_BUDGET_SECONDS_DEFAULT = 45.0
+# HTTP statuses worth a retry: quota exhaustion, request timeout, and the 5xx
+# family. Classified on the status code carried by the SDK exception, never by
+# matching text in its message.
+RAG_SPACES_SYSTEM_INDEX_EMBED_RETRYABLE_STATUS = frozenset({408, 429, 500, 502, 503, 504})
+# Base of the exponential backoff between attempts. Not an env var on purpose:
+# the two settings above already bound the behaviour end to end, and a third
+# knob would only let an operator build a combination neither of them allows.
+RAG_SPACES_SYSTEM_INDEX_EMBED_RETRY_BASE_SECONDS = 2.0
 
 # RAG Drive Sync
 RAG_DRIVE_MAX_SOURCES_PER_SPACE_DEFAULT = 5

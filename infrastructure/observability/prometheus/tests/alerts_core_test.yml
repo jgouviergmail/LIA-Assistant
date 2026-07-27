@@ -341,3 +341,39 @@ tests:
               summary: "Scrape target node is down"
               description: "The node exporter has been unreachable for 10 minutes. Resource and probe alerts relying on it are blind while it is down."
               runbook: "docs/runbooks/alerts/ContainerDown.md"
+
+  # ===== SystemKnowledgeIndexationFailing: repeated indexation failures =====
+  # Two failures in six hours must fire. The counter is the aggregate across
+  # uvicorn workers (multiprocess mode), and only the worker holding the claim
+  # can fail, so one bad boot contributes one increment.
+  - interval: 1h
+    input_series:
+      - series: 'rag_system_indexation_total{space_name="lia-faq",status="error"}'
+        values: '0 1 2 2 2 2 2'
+    alert_rule_test:
+      - eval_time: 6h
+        alertname: SystemKnowledgeIndexationFailing
+        exp_alerts:
+          - exp_labels:
+              space_name: lia-faq
+              severity: warning
+              component: rag
+              tier: core
+            exp_annotations:
+              summary: "System knowledge base is no longer being updated"
+              description: "2 indexation failures for space 'lia-faq' in the last 6 hours. The previous corpus is still served, so answers are stale rather than absent — check the embedding provider quota first (docs/knowledge/*.md changes will not reach users until this clears)."
+              runbook: "docs/runbooks/alerts/SystemKnowledgeIndexationFailing.md"
+
+  # ===== SystemKnowledgeIndexationFailing: a single failure self-heals =====
+  # One transient rejection is retried in place and then by the next boot; paging
+  # on it would make every provider blip a notification.
+  - interval: 1h
+    input_series:
+      - series: 'rag_system_indexation_total{space_name="lia-faq",status="error"}'
+        values: '0 0 0 1 1 1 1'
+      - series: 'rag_system_indexation_total{space_name="lia-faq",status="success"}'
+        values: '0 1 2 2 3 4 5'
+    alert_rule_test:
+      - eval_time: 6h
+        alertname: SystemKnowledgeIndexationFailing
+        exp_alerts: []

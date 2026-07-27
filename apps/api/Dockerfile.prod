@@ -175,7 +175,7 @@ RUN mkdir -p /app/docs/knowledge
 # happens once, at volume creation. `data/skills/users` is gitignored, so it is
 # absent from the build context and must be created explicitly.
 # Enforced by tests/unit/test_volume_mount_ownership_guard.py.
-RUN mkdir -p /app/data/attachments /app/data/skills/users \
+RUN mkdir -p /app/data/attachments /app/data/skills/users /app/data/tool_cache \
     && chown -R appuser:appuser /app/data
 
 # Install Claude Code CLI for DevOps remote server management

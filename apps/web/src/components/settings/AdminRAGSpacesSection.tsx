@@ -20,6 +20,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { useTranslation } from '@/i18n/client';
+import { ApiError } from '@/lib/api-client';
 
 import type { BaseSettingsProps } from '@/types/settings';
 
@@ -151,18 +152,33 @@ export default function AdminRAGSpacesSection({ lng, collapsible = true }: BaseS
     setSystemReindexing(prev => ({ ...prev, [spaceName]: true }));
     try {
       const { default: apiClient } = await import('@/lib/api-client');
-      const result = await apiClient.post<{ chunks_created: number }>(
+      const result = await apiClient.post<{ chunks_created: number; status: string }>(
         SYSTEM_REINDEX_ENDPOINT(spaceName)
       );
-      toast.success(
-        t('settings.admin.ragSpaces.systemSpaces.reindexSuccess', {
-          count: result.chunks_created,
-        })
-      );
+      // A corpus that was already current is not a rebuild: announcing
+      // "reindexed (0 chunks)" told an admin work had happened when none had.
+      if (result.status === 'skipped') {
+        toast.info(t('settings.admin.ragSpaces.systemSpaces.reindexUpToDate'));
+      } else {
+        toast.success(
+          t('settings.admin.ragSpaces.systemSpaces.reindexSuccess', {
+            count: result.chunks_created,
+          })
+        );
+      }
       // Refresh system spaces and staleness
       await fetchSystemSpaces();
-    } catch {
-      toast.error(t('settings.admin.ragSpaces.systemSpaces.reindexError'));
+    } catch (error) {
+      // 409: another worker holds the reindex claim, so nothing ran — telling
+      // the admin it failed is truthful, telling them it succeeded is not.
+      const conflict = error instanceof ApiError && error.status === 409;
+      toast.error(
+        t(
+          conflict
+            ? 'settings.admin.ragSpaces.systemSpaces.reindexInProgress'
+            : 'settings.admin.ragSpaces.systemSpaces.reindexError'
+        )
+      );
     } finally {
       setSystemReindexing(prev => ({ ...prev, [spaceName]: false }));
     }

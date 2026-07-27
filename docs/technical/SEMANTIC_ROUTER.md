@@ -72,9 +72,14 @@ from src.domains.agents.services.tool_selector import (
     initialize_tool_selector,
 )
 
-# At startup: initialize with tool manifests
-# Embeddings are cached on disk (tool_embeddings_cache.json) and
-# reloaded if content hash matches, avoiding API calls on restart.
+# At startup: initialize with tool manifests.
+# Embeddings are cached on disk and reloaded when the content hash matches,
+# avoiding API calls on restart. The cache directory is settings-driven
+# (TOOL_EMBEDDINGS_CACHE_DIR, relative to the application root) and MUST resolve
+# to a mounted volume in production: it used to live in the container's writable
+# layer, which `docker compose up --force-recreate` discards — measured 108 cache
+# misses for ZERO hits across 27 boots, each of the four workers re-embedding the
+# whole catalogue every deploy (ADR-162).
 selector = await initialize_tool_selector(registry.list_tool_manifests())
 
 # Select tools for query

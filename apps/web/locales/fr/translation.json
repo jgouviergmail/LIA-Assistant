@@ -2125,6 +2125,8 @@
           "reindexing": "Réindexation en cours...",
           "reindexSuccess": "Espace système réindexé avec succès ({{count}} fragments)",
           "reindexError": "Échec de la réindexation de l'espace système",
+          "reindexUpToDate": "Espace système déjà à jour — rien à réindexer",
+          "reindexInProgress": "Une réindexation est déjà en cours — réessayez dans un instant",
           "noSpaces": "Aucun espace système configuré",
           "chunks": "{{count}} fragments",
           "lastIndexed": "Dernière indexation : {{date}}"
@@ -3380,7 +3382,7 @@
         },
         "ragSpaces": {
           "title": "📚 Espaces de connaissances RAG",
-          "description": "Créez des espaces de connaissances personnels et importez vos propres documents (PDF, TXT, MD, DOCX). Les documents sont automatiquement traités (extraction texte, découpage, embedding Gemini). Les espaces actifs enrichissent les réponses de l'assistant via recherche hybride combinant similarité sémantique (pgvector cosine) et correspondance par mots-clés BM25. Transparence totale des coûts avec suivi par document et par requête. Endpoint admin de ré-indexation en cas de changement de modèle d'embedding."
+          "description": "Créez des espaces de connaissances personnels et importez vos propres documents (PDF, TXT, MD, DOCX). Les documents sont automatiquement traités (extraction texte, découpage, embedding Gemini). Les espaces actifs enrichissent les réponses de l'assistant via recherche hybride combinant similarité sémantique (pgvector cosine) et correspondance par mots-clés BM25. Transparence totale des coûts avec suivi par document et par requête. Le corpus système qui permet à LIA de répondre sur elle-même est reconstruit par un seul processus à la fois — la ligne de l'espace est revendiquée par FOR UPDATE SKIP LOCKED — et chaque démarrage le confronte aux fichiers source *et* à ce qui est réellement stocké : un corpus qui a dérivé est réparé plutôt que servi. Les embeddings sont calculés avant toute suppression : un refus du fournisseur ne coûte rien et le corpus précédent continue de répondre."
         },
         "subAgents": {
           "title": "Sous-agents",
@@ -3429,6 +3431,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_25_26": {
+          "title": "v1.25.26 — 🧠 Ce que LIA sait d'elle-même",
+          "date": "Juillet 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🧠 Les réponses sur LIA sont à nouveau complètes</b> — l'aide intégrée que LIA consulte contenait trois copies de chaque réponse : sur les cinq passages qu'elle lit, deux seulement étaient réellement différents. Il n'en reste qu'une copie de chacune, et si l'écart revenait, le démarrage suivant le répare de lui-même.",
+            "i2": "<b>📚 Les mises à jour de l'aide vous parviennent</b> — l'actualisation de l'aide intégrée pouvait échouer en silence au démarrage, laissant la version que LIA cite en retard sur le produit. Ces échecs sont désormais visibles et réessayés, et pendant la réparation l'aide précédente continue de servir au lieu de disparaître.",
+            "i3": "<b>🔄 Le bouton de réindexation de l'administration dit la vérité</b> — il annonçait une reconstruction même quand l'aide était déjà à jour, et même quand une autre reconstruction était déjà en cours. Il indique maintenant laquelle des trois situations s'est réellement produite."
+          }
+        },
         "v1_25_25": {
           "title": "v1.25.25 — 🩺 Ce qui échouait sans le dire",
           "date": "Juillet 2026",
@@ -5614,7 +5626,7 @@
           },
           "q8": {
             "question": "Puis-je poser des questions à l'assistant sur ses propres fonctionnalités ?",
-            "answer": "Oui ! LIA dispose d'une <strong>base de connaissances intégrée</strong> qui lui permet de répondre aux questions sur elle-même directement en conversation :<br><br><strong>🧠 Comment ça fonctionne :</strong><br>• LIA détecte automatiquement quand vous posez une question sur l'application (« <em>Que peux-tu faire ?</em> », « <em>Comment connecter mon calendrier ?</em> »)<br>• Elle interroge sa base de connaissances FAQ (200+ Q&R réparties dans 24 sections) en utilisant la même recherche hybride que les espaces utilisateur<br>• Un <strong>Prompt d'identité de l'application</strong> décrivant toutes les fonctionnalités est injecté dans la réponse<br><br><strong>⚡ Aucune surcharge :</strong><br>Cela ne s'active que lorsque vous posez une question sur l'application. Les requêtes normales (e-mails, calendrier, etc.) ne sont absolument pas affectées.<br><br><strong>🔧 Fonctionnalités administrateur :</strong><br>Les administrateurs peuvent gérer les espaces de connaissances système dans <strong>Paramètres > Administration > Espaces RAG</strong> :<br>• Voir le statut d'obsolescence (comparaison de hash de contenu)<br>• Déclencher une réindexation manuelle<br>• Les espaces système sont automatiquement indexés au démarrage de l'application"
+            "answer": "Oui ! LIA dispose d'une <strong>base de connaissances intégrée</strong> qui lui permet de répondre aux questions sur elle-même directement en conversation :<br><br><strong>🧠 Comment ça fonctionne :</strong><br>• LIA détecte automatiquement quand vous posez une question sur l'application (« <em>Que peux-tu faire ?</em> », « <em>Comment connecter mon calendrier ?</em> »)<br>• Elle interroge sa base de connaissances FAQ (200+ Q&R réparties dans 24 sections) en utilisant la même recherche hybride que les espaces utilisateur<br>• Un <strong>Prompt d'identité de l'application</strong> décrivant toutes les fonctionnalités est injecté dans la réponse<br><br><strong>⚡ Aucune surcharge :</strong><br>Cela ne s'active que lorsque vous posez une question sur l'application. Les requêtes normales (e-mails, calendrier, etc.) ne sont absolument pas affectées.<br><br><strong>🔧 Fonctionnalités administrateur :</strong><br>Les administrateurs gèrent les espaces de connaissances système dans <strong>Réglages > Administration > Espaces RAG</strong> :<br>• Consulter l'état de péremption (comparaison d'empreinte du contenu)<br>• Déclencher une reconstruction manuelle — le bouton indique laquelle des trois situations s'est produite : reconstruit, déjà à jour, ou reconstruction déjà en cours<br>• Le corpus est vérifié à chaque démarrage contre les fichiers source *et* contre ce qui est réellement stocké : un corpus qui a dérivé est réparé plutôt que servi<br>• Si une reconstruction ne peut pas aboutir, la version précédente continue de répondre et l'échec est signalé au lieu de passer inaperçu"
           },
           "q9": {
             "question": "LIA peut-elle chercher seule dans mes documents ? (v1.25.13)",

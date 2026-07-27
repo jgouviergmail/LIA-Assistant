@@ -169,6 +169,32 @@ groups:
           description: "{{ $value | humanize }} req/s are crossing the API with no rate limit applied because the limiter cannot reach Redis (threshold: <<<ALERT_CORE_RATE_LIMIT_DEGRADED_RPS>>> req/s over 5 minutes — fail-open is deliberate, but the API is running without a global ceiling until Redis recovers)."
           runbook: "docs/runbooks/alerts/GlobalRateLimitDegraded.md"
 
+  # ===== SYSTEM KNOWLEDGE — the FAQ the assistant answers about itself from =====
+  - name: core_system_knowledge
+    interval: 60s
+    rules:
+      # Earned its place in the core tier: this indexation failed on 69 boots
+      # across 14 days (a shared Gemini quota exhausted by the boot itself) and
+      # nothing said so. The only trace was a WARNING that was swallowed, plus a
+      # misfiled database_session_error. The assistant kept answering questions
+      # about itself from a knowledge base that no longer matched the product.
+      #
+      # Two failures in six hours, not one: a single transient rejection now
+      # self-heals on the next boot, and the corpus that keeps serving in the
+      # meantime is the previous one, intact — not an empty space.
+      - alert: SystemKnowledgeIndexationFailing
+        expr: |
+          sum by (space_name) (increase(rag_system_indexation_total{status="error"}[6h])) >= 2
+        for: 15m
+        labels:
+          severity: warning
+          component: rag
+          tier: core
+        annotations:
+          summary: "System knowledge base is no longer being updated"
+          description: "{{ $value | humanize }} indexation failures for space '{{ $labels.space_name }}' in the last 6 hours. The previous corpus is still served, so answers are stale rather than absent — check the embedding provider quota first (docs/knowledge/*.md changes will not reach users until this clears)."
+          runbook: "docs/runbooks/alerts/SystemKnowledgeIndexationFailing.md"
+
   # ===== BACKUP & PUBLIC PATH — blackbox probes =====
   - name: core_backup_tunnel
     interval: 60s

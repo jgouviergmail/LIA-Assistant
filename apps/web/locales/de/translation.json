@@ -1775,6 +1775,8 @@
           "reindexing": "Neuindexierung läuft...",
           "reindexSuccess": "System-Wissensraum erfolgreich neu indexiert ({{count}} Fragmente)",
           "reindexError": "Neuindexierung des System-Wissensraums fehlgeschlagen",
+          "reindexUpToDate": "System-Wissensraum ist bereits aktuell – keine Neuindexierung nötig",
+          "reindexInProgress": "Eine Neuindexierung läuft bereits – bitte kurz warten",
           "noSpaces": "Keine System-Wissensräume konfiguriert",
           "chunks": "{{count}} Fragmente",
           "lastIndexed": "Zuletzt indexiert: {{date}}"
@@ -3366,7 +3368,7 @@
         },
         "ragSpaces": {
           "title": "📚 RAG-Wissensräume",
-          "description": "Erstelle persönliche Wissensräume und lade deine eigenen Dokumente hoch (PDF, TXT, MD, DOCX). Dokumente werden automatisch verarbeitet (Textextraktion, Chunking, OpenAI-Embedding). Aktive Räume reichern die Antworten des Assistenten über hybride Suche an — semantische Ähnlichkeit (pgvector Cosine) und BM25-Stichwortabgleich. Volle Kostentransparenz mit Tracking pro Dokument und pro Anfrage. Admin-Reindexierung bei Änderung des Embedding-Modells."
+          "description": "Erstellen Sie persönliche Wissensräume und laden Sie eigene Dokumente hoch (PDF, TXT, MD, DOCX). Dokumente werden automatisch verarbeitet (Textextraktion, Chunking, Gemini-Embedding). Aktive Räume bereichern die Antworten des Assistenten über eine Hybridsuche aus semantischer Ähnlichkeit (pgvector Cosinus) und BM25-Stichwortabgleich. Vollständige Kostentransparenz mit Embedding-Tracking pro Dokument und pro Anfrage. Der integrierte Systemkorpus, mit dem LIA über sich selbst Auskunft gibt, wird immer nur von einem Prozess neu aufgebaut — die Zeile des Raums wird mit FOR UPDATE SKIP LOCKED beansprucht — und jeder Start prüft ihn gegen die Quelldateien *und* den tatsächlich gespeicherten Inhalt: ein abgedrifteter Korpus wird repariert, nicht ausgeliefert. Embeddings entstehen, bevor etwas gelöscht wird: eine Ablehnung des Anbieters kostet nichts, und der vorherige Korpus antwortet weiter."
         },
         "subAgents": {
           "title": "Sub-Agenten",
@@ -3415,6 +3417,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_25_26": {
+          "title": "v1.25.26 — 🧠 Was LIA über sich selbst weiß",
+          "date": "Juli 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🧠 Antworten über LIA sind wieder vollständig</b> — die integrierte Hilfe, aus der LIA liest, enthielt drei Kopien jeder Antwort: von den fünf Passagen, die sie heranzieht, waren nur zwei wirklich unterschiedlich. Jetzt ist von jeder genau eine vorhanden, und sollte das je wieder auseinanderlaufen, reparieren es der nächste Start von selbst.",
+            "i2": "<b>📚 Hilfe-Aktualisierungen erreichen Sie</b> — die Auffrischung der integrierten Hilfe konnte beim Start stillschweigend fehlschlagen, sodass die von LIA zitierte Fassung hinter dem Produkt zurückblieb. Solche Fehlschläge sind nun sichtbar und werden erneut versucht, und während der Behebung dient weiterhin die vorherige Hilfe statt zu verschwinden.",
+            "i3": "<b>🔄 Die Neuindexierung im Admin-Bereich sagt die Wahrheit</b> — sie meldete einen Neuaufbau selbst dann, wenn die Hilfe bereits aktuell war, und auch dann, wenn schon ein Neuaufbau lief. Jetzt nennt sie, welcher der drei Fälle tatsächlich eingetreten ist."
+          }
+        },
         "v1_25_25": {
           "title": "v1.25.25 — 🩺 Was still fehlschlug",
           "date": "Juli 2026",
@@ -5600,7 +5612,7 @@
           },
           "q8": {
             "question": "Kann ich den Assistenten nach seinen eigenen Funktionen fragen?",
-            "answer": "Ja! LIA verfügt über eine <strong>integrierte Wissensdatenbank</strong>, mit der sie Fragen über sich selbst direkt im Gespräch beantworten kann:<br><br><strong>🧠 So funktioniert es:</strong><br>• LIA erkennt automatisch, wenn Sie nach der App fragen (\"<em>Was kannst du?</em>\", \"<em>Wie verbinde ich meinen Kalender?</em>\")<br>• Sie durchsucht ihre FAQ-Wissensdatenbank (200+ Fragen und Antworten in 24 Abschnitten) mit derselben hybriden Suche wie bei Benutzerräumen<br>• Ein <strong>App-Identitätsprompt</strong>, der alle Funktionen beschreibt, wird in die Antwort eingefügt<br><br><strong>⚡ Kein Overhead:</strong><br>Dies wird nur aktiviert, wenn Sie nach der App fragen. Normale Anfragen (E-Mails, Kalender usw.) werden überhaupt nicht beeinflusst.<br><br><strong>🔧 Admin-Funktionen:</strong><br>Administratoren können System-Wissensräume unter <strong>Einstellungen > Administration > RAG-Räume</strong> verwalten:<br>• Aktualitätsstatus anzeigen (Vergleich des Inhalts-Hash)<br>• Manuelle Neuindexierung auslösen<br>• Systemräume werden beim App-Start automatisch indexiert"
+            "answer": "Ja! LIA verfügt über eine <strong>integrierte Wissensdatenbank</strong>, mit der sie Fragen über sich selbst direkt im Gespräch beantworten kann:<br><br><strong>🧠 So funktioniert es:</strong><br>• LIA erkennt automatisch, wenn Sie nach der App fragen (\"<em>Was kannst du?</em>\", \"<em>Wie verbinde ich meinen Kalender?</em>\")<br>• Sie durchsucht ihre FAQ-Wissensdatenbank (200+ Fragen und Antworten in 24 Abschnitten) mit derselben hybriden Suche wie bei Benutzerräumen<br>• Ein <strong>App-Identitätsprompt</strong>, der alle Funktionen beschreibt, wird in die Antwort eingefügt<br><br><strong>⚡ Kein Overhead:</strong><br>Dies wird nur aktiviert, wenn Sie nach der App fragen. Normale Anfragen (E-Mails, Kalender usw.) werden überhaupt nicht beeinflusst.<br><br><strong>🔧 Admin-Funktionen:</strong><br>Administratoren verwalten die System-Wissensräume unter <strong>Einstellungen > Administration > RAG-Räume</strong>:<br>• Aktualitätsstatus einsehen (Vergleich der Inhalts-Signatur)<br>• Einen manuellen Neuaufbau auslösen — die Schaltfläche nennt, welcher der drei Fälle eingetreten ist: neu aufgebaut, bereits aktuell, oder ein Neuaufbau läuft schon<br>• Der Korpus wird bei jedem Start gegen die Quelldateien *und* gegen den tatsächlich gespeicherten Inhalt geprüft: ein abgedrifteter Korpus wird repariert, nicht ausgeliefert<br>• Scheitert ein Neuaufbau, antwortet weiterhin die vorherige Fassung, und der Fehlschlag wird gemeldet statt unbemerkt zu bleiben"
           },
           "q9": {
             "question": "Kann LIA selbstständig in meinen Dokumenten suchen? (v1.25.13)",

@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 3.4
+**Version**: 3.5
 **Date**: 2026-07-27
-**Application**: LIA v1.25.25
+**Application**: LIA v1.25.26
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 438 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 150+ ADRs, ~16,057 pytest-collected tests across 849 files, native observability, 6-level HITL |
+| Production reliability | 160+ ADRs, ~16,146 pytest-collected tests across 853 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -71,10 +71,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~16,057 (collected by pytest across 849 test files) + 3,471 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~16,146 (collected by pytest across 853 test files) + 3,473 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
-| Documentation documents | 280+ |
-| ADRs (Architecture Decision Records) | 150+ |
+| Documentation documents | 400+ |
+| ADRs (Architecture Decision Records) | 160+ |
 | Prometheus metrics | 438 definitions |
 | Grafana dashboards | 25 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -721,7 +721,7 @@ Note: RAG injection is done in the response node, not in the planner. The planne
 
 ### 17.2. System RAG Spaces (ADR-058)
 
-Built-in FAQ (200+ Q/A, 24 sections) indexed from `docs/knowledge/`. `is_app_help_query` detection by QueryAnalyzer, Rule 0 override in RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). SHA-256 staleness detection, auto-indexation at startup.
+Built-in FAQ (200+ Q/A, 24 sections) indexed from `docs/knowledge/`. `is_app_help_query` detection by QueryAnalyzer, Rule 0 override in RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). Staleness is judged on a SHA-256 over the source files **and** on the stored corpus itself (one chunk per parsed entry, exactly one document): a matching hash over the wrong number of rows is a repair, not a no-op. Auto-indexation runs in every uvicorn worker, so the space row is claimed with `FOR UPDATE SKIP LOCKED` — one writer, the others skip without queueing — and every vector is computed **before** the first destructive statement, so a provider rejection deletes nothing and the previous corpus keeps serving (ADR-162).
 
 ---
 
@@ -1063,7 +1063,7 @@ Six localized manifests (`/manifest-{lng}.json` — localized `lang`, `start_url
 
 ## 24. Architecture Decision Records (ADR)
 
-150+ ADRs in MADR format document the major architectural decisions. Some representative examples:
+160+ ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1146,10 +1146,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 150+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~16,057 tests across 849 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 160+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~16,146 tests across 853 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (380+ documents), 150+ ADRs, and the changelog (v1.0 to v1.25.25). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 160+ ADRs, and the changelog (v1.0 to v1.25.26). All metrics, versions, and patterns cited are verifiable in the codebase.*

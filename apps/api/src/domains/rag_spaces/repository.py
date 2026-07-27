@@ -122,6 +122,40 @@ class RAGSpaceRepository(BaseRepository[RAGSpace]):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def claim_system_space_for_reindex(self, space_id: UUID) -> RAGSpace | None:
+        """Take the exclusive right to re-index a system space, or decline.
+
+        ``FOR UPDATE SKIP LOCKED`` on the space row makes the re-indexation
+        single-writer without a distributed lock, and without any waiting: the
+        first caller holds the row until it commits, every concurrent caller gets
+        None immediately and returns "skipped". Production ran four uvicorn
+        workers that each executed the whole startup indexation because the
+        staleness check was a read with no claim — 269 chunks were embedded and
+        inserted four times, and the surviving rows piled up (measured
+        2026-07-27: 807 chunks for 269 distinct contents).
+
+        ``populate_existing`` is what makes this correct rather than merely
+        exclusive: the caller has already read this row, so without it SQLAlchemy
+        would hand back the identity-mapped instance and its *stale*
+        ``content_hash``, and a loser of the race would re-index over the
+        winner's fresh work.
+
+        Args:
+            space_id: System space to claim.
+
+        Returns:
+            The locked space with freshly loaded columns, or None when another
+            transaction holds it.
+        """
+        stmt = (
+            select(RAGSpace)
+            .where(RAGSpace.id == space_id, RAGSpace.is_system.is_(True))
+            .with_for_update(skip_locked=True)
+            .execution_options(populate_existing=True)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     # ========================================================================
     # Generational continuity (AC-001)
     # ========================================================================

@@ -42,6 +42,8 @@ from src.core.constants import (
     RAG_SPACES_RETRIEVAL_LIMIT_DEFAULT,
     RAG_SPACES_RETRIEVAL_MIN_SCORE_DEFAULT,
     RAG_SPACES_STORAGE_PATH_DEFAULT,
+    RAG_SPACES_SYSTEM_INDEX_EMBED_MAX_ATTEMPTS_DEFAULT,
+    RAG_SPACES_SYSTEM_INDEX_EMBED_RETRY_BUDGET_SECONDS_DEFAULT,
     RAG_SPACES_SYSTEM_KNOWLEDGE_DIR_DEFAULT,
 )
 
@@ -99,6 +101,28 @@ class RAGSpacesSettings(BaseSettings):
             "TTL of the reindex distributed lock (F001). Renewed after each "
             "document, so a live reindex keeps it; a crash frees it within this "
             "window. Must exceed the slowest single-document re-embed."
+        ),
+    )
+
+    rag_spaces_system_index_embed_max_attempts: int = Field(
+        default=RAG_SPACES_SYSTEM_INDEX_EMBED_MAX_ATTEMPTS_DEFAULT,
+        ge=1,
+        le=10,
+        description=(
+            "Attempts (including the first) for each embedding batch of the "
+            "startup FAQ indexation. The Gemini SDK never retries by itself, so "
+            "without this a single transient 429/5xx leaves the knowledge base "
+            "stale until the next boot. 1 disables retrying."
+        ),
+    )
+    rag_spaces_system_index_embed_retry_budget_seconds: float = Field(
+        default=RAG_SPACES_SYSTEM_INDEX_EMBED_RETRY_BUDGET_SECONDS_DEFAULT,
+        ge=0.0,
+        le=600.0,
+        description=(
+            "Total wall-clock budget for retrying the startup FAQ embedding, "
+            "across all batches and attempts. Also caps how long the exclusive "
+            "claim on the space row is held, since retries happen under it."
         ),
     )
 

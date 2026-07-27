@@ -169,6 +169,11 @@ services:
       - ./data/skills/system:/app/data/skills/system:ro
       # User-imported skills (persisted across deploys)
       - skills_data:/app/data/skills/users
+      # Tool-embeddings disk cache. MUST be a volume: in the container's
+      # writable layer it is destroyed by `up -d --force-recreate`, so every
+      # deploy made all four uvicorn workers re-embed the whole tool catalogue
+      # at boot (measured: 4 x 713 embeddings, 0 cache hit in 27 boots).
+      - tool_cache_data:/app/data/tool_cache
       # DevOps Claude CLI: Docker socket for container management + auth + workspace
       - /var/run/docker.sock:/var/run/docker.sock
       - ~/.claude:/home/appuser/.claude
@@ -662,6 +667,7 @@ volumes:
   promtail_positions:
   attachments_data:  # Persistent storage for file attachments (images, PDF)
   skills_data:  # Persistent storage for user-imported skills
+  tool_cache_data:  # Tool-embeddings disk cache (must survive --force-recreate)
   portainer_data:
 
 networks:

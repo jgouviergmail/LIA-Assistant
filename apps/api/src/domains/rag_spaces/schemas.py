@@ -8,6 +8,7 @@ Created: 2026-03-14
 """
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -222,6 +223,14 @@ class SystemSpaceReindexResponse(BaseModel):
 
     message: str
     space_name: str
+    status: Literal["success", "skipped"] = Field(
+        description=(
+            "Whether the corpus was rebuilt or was already current. Machine "
+            "readable on purpose: a caller cannot tell the two apart from "
+            "chunks_created alone without assuming a rebuild always writes at "
+            "least one chunk, and the admin UI used to report both as a success."
+        )
+    )
     chunks_created: int = Field(description="Number of chunks created during indexation")
     content_hash: str = Field(description="SHA-256 hash of indexed content")
 
