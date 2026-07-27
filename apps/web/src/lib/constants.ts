@@ -161,6 +161,29 @@ export const JOURNAL_CONSOLIDATION_TIMEOUT_MS = (() => {
  */
 export const SERVER_ACTION_TIMEOUT = 10000;
 
+/**
+ * How long a chat SSE stream may stay completely silent before the client
+ * declares it dead.
+ *
+ * `reader.read()` on a fetch body has no timeout of its own: when a mobile OS
+ * freezes a backgrounded tab, the promise neither resolves nor rejects. The
+ * reducer then stays in `status: 'streaming'` forever, which keeps `isTyping`
+ * true — and the visibility handler that would call `checkAndResumeActiveRun()`
+ * returns early on exactly that flag. Measured in production on 2026-07-27:
+ * four runs finished server-side while the phone still showed
+ * "Génération de la réponse…", with zero `/runs/active` calls.
+ *
+ * The server emits a keepalive every `SSE_HEARTBEAT_INTERVAL` seconds (15s in
+ * production), so this budget is six missed heartbeats — long enough never to
+ * fire on a merely slow turn, short enough that a frozen tab unblocks as soon
+ * as its timers resume. Override via `NEXT_PUBLIC_CHAT_SSE_STALL_TIMEOUT_MS`.
+ */
+export const CHAT_SSE_STALL_TIMEOUT_MS = (() => {
+  const raw = process.env.NEXT_PUBLIC_CHAT_SSE_STALL_TIMEOUT_MS;
+  const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 90_000;
+})();
+
 // ============================================================================
 // INTERACTIVE WIDGETS (skill frames, MCP apps)
 // ============================================================================

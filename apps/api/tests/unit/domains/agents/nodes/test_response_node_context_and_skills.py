@@ -228,6 +228,66 @@ async def test_activate_skills_script_skill_runs_react_runner():
 
 
 @pytest.mark.asyncio
+async def test_activate_skills_detected_skill_survives_a_native_execution_plan():
+    """The skill still runs when the planner produced the domain's own steps.
+
+    This is the load-bearing half of the ADR-160 cumulation: since 2026-07-27 a
+    script-only skill no longer emits an empty plan, it yields to the LLM
+    planner — so the plan carries native steps and NO ``skill_name`` in its
+    metadata. Nothing would run the skill at all if step 3 stopped reading
+    ``query_intelligence.detected_skill_name`` whenever a plan is present.
+
+    Without this test the cumulation rests on a code reading: a future guard
+    like "skip skill activation when an execution plan ran" would silently
+    restore the exact defect ADR-160 fixed — the user asks for an image, gets
+    the image, and loses the skill (or vice versa) with no failing test.
+    """
+    state = {
+        "query_intelligence": {"detected_skill_name": "my_skill", "route_to": "planner"},
+        # A native LLM plan: real steps, and no skill_name in metadata.
+        "execution_plan": SimpleNamespace(metadata={"smart_planner": True}, steps=[Mock()]),
+    }
+    skill_data = {
+        "scripts": ["run.py"],
+        "references": [],
+        "source_path": "/skills/my_skill/SKILL.md",
+    }
+    run_result = SimpleNamespace(
+        iteration_count=1,
+        final_message="Skill answer",
+        duration_ms=42,
+        accumulated_registry={},
+    )
+    runner_instance = Mock(run=AsyncMock(return_value=run_result))
+    with (
+        patch(f"{_RESP}.settings.skills_enabled", True),
+        patch("src.domains.skills.cache.SkillsCache.get_always_loaded", Mock(return_value=[])),
+        patch(
+            "src.domains.skills.cache.SkillsCache.get_by_name_for_user",
+            Mock(return_value=skill_data),
+        ),
+        patch("src.domains.skills.cache.SkillsCache.get_by_name", Mock(return_value=skill_data)),
+        patch("src.domains.skills.tools.skills_tools", []),
+        patch(
+            "src.domains.agents.tools.react_runner.ReactSubAgentRunner",
+            Mock(return_value=runner_instance),
+        ),
+    ):
+        res = await _activate_response_skills(
+            state,
+            {"configurable": {}},
+            "r",
+            last_user_message="cree une image realiste d'un chat",
+            conversation_history="",
+            current_turn_registry=None,
+            react_result=None,
+        )
+
+    assert res.activated_skill_name == "my_skill"
+    assert res.skill_react_response == "Skill answer"
+
+
+@pytest.mark.asyncio
 async def test_activate_skills_runner_error_falls_back_to_passive_l2():
     """If the ReAct runner raises, activation degrades gracefully to passive L2 injection."""
     state = {"query_intelligence": {"detected_skill_name": "my_skill"}}

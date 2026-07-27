@@ -61,6 +61,8 @@ A skill package (.zip) can contain:
 
 These resources are loaded on demand (L3 tier) to optimize token usage.
 
+A skill can also bundle **assets/preview.png**, the thumbnail its detail panel shows. The skills that ship with LIA all have one: a sketch of what the skill produces — a month grid, a QR code, weather cards — rather than a generic icon. A skill without that file simply shows a placeholder.
+
 ## How isolated is a skill script, exactly?
 Each run gets its **own throwaway container**, destroyed as soon as the script ends: no Docker socket, no network access, a read-only filesystem apart from a small temporary space, an unprivileged identity and no capabilities. It cannot read your files, your credentials or anything else on the machine — it receives its JSON input on stdin and writes its result to stdout, and that is the whole of its world.
 

@@ -25,6 +25,7 @@ from src.core.constants import (
     IMAGE_GENERATION_RATE_LIMIT_CALLS_DEFAULT,
     IMAGE_GENERATION_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
     IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT,
+    MAX_IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT,
 )
 
 
@@ -90,12 +91,26 @@ class ImageGenerationSettings(BaseSettings):
         ge=10.0,
         le=600.0,
         description=(
-            "Wall-clock timeout (seconds) applied by the parallel executor "
-            "to a single image-generation tool step. Default 90s. Provider "
-            "HTTP calls (gpt-image-1 …) are noticeably slower than a regular "
-            "API call; this floor protects against the generic tool default "
-            "(30s) being undercut by a planner step. Raise if you generate "
-            "many or large images per call; lower to fail-fast on slow "
-            "provider regions."
+            "Wall-clock FLOOR (seconds) applied by the parallel executor to a "
+            "single image-generation tool step. Default 180s. Measured on "
+            "gpt-image-2: quality=medium 1024x1536 takes ~47s, quality=high "
+            "1024x1536 takes ~138s — the previous 90s default killed every "
+            "high-quality render. This floor also protects against the generic "
+            "30s tool default being undercut by a planner step. Lower it only "
+            "to fail-fast on slow provider regions."
+        ),
+    )
+
+    max_image_generation_tool_timeout_seconds: float = Field(
+        default=MAX_IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT,
+        ge=10.0,
+        le=900.0,
+        description=(
+            "Wall-clock CEILING (seconds) for an image-generation tool step. "
+            "Dedicated to the image family, like browser and sub-agent tools "
+            "already have: the generic MAX_TOOL_TIMEOUT_SECONDS (120s) sat "
+            "BELOW the measured 138s of a high-quality render, so no value of "
+            "the floor above could ever make it succeed. Caps whatever timeout "
+            "the planner requests."
         ),
     )

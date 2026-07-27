@@ -86,7 +86,22 @@ skill_detection_suppressed_total = Counter(
         "primary domain is an MCP domain). A rising rate flags analyzer-LLM "
         "incoherence; each suppression is also logged with the pair."
     ),
-    ["reason"],  # mcp_domain
+    ["reason"],  # mcp_domain | sentinel_name | unknown_skill
+)
+
+skill_detection_retained_total = Counter(
+    "skill_detection_retained_total",
+    (
+        "Skill detections that survived every filter and steered the turn. "
+        "The counterpart of skill_detection_suppressed_total: a skill firing "
+        "on a domain it has no business with (e.g. skill-generator on "
+        "image_generation, production 2026-07-27) shows up here and nowhere "
+        "else. `skill_name` is the system-skill name, or `_user` for every "
+        "user-imported one: those names are user-controlled free text, so "
+        "labelling by them would grow the series count with each import. The "
+        "paired `skill_detection_retained` log keeps the exact name."
+    ),
+    ["skill_name", "primary_domain"],
 )
 
 skill_url_imports_total = Counter(

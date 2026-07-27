@@ -1255,9 +1255,18 @@ BROWSER_TOOL_TIMEOUT_SECONDS = 300.0  # 5 minutes - default floor for browser_ta
 MAX_BROWSER_TOOL_TIMEOUT_SECONDS = 600.0  # 10 minutes - hard ceiling for browser_task_tool steps
 
 # Image generation tool (generate_image / edit_image) — provider HTTP calls
-# (gpt-image-1, etc.) take noticeably longer than a regular API call. Dedicated
-# floor so the planner does not undercut it via the generic 30s default.
-IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT = 90.0
+# take far longer than a regular API call, and scale with quality/size.
+# Measured against gpt-image-2 in production on 2026-07-27:
+#   quality=medium size=1024x1536 →  47.2 s
+#   quality=high   size=1024x1536 → 138.3 s
+# The previous policy (90 s floor under the GENERIC 120 s ceiling) made
+# `quality=high` impossible at any setting: the measurement exceeds the ceiling
+# itself, so raising IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS could not help. Hence
+# a dedicated ceiling, like browser / sub-agent / MCP-ReAct already have.
+# Floor covers the measured high-quality latency with ~30% headroom; the
+# ceiling leaves room for provider-side latency spikes.
+IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT = 180.0
+MAX_IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT = 300.0
 
 # DevOps `claude_server_task_tool` runs a Claude CLI investigation over SSH on
 # a remote server. The wall-clock at the parallel-executor level is shorter
@@ -3818,6 +3827,18 @@ RAG_DRIVE_REGULAR_FILE_MAP: dict[str, tuple[str, str]] = {
 # Paths
 SKILLS_SYSTEM_PATH_DEFAULT = "data/skills/system"
 SKILLS_USERS_PATH_DEFAULT = "data/skills/users"
+
+# Script-only skills (scripts, no deterministic plan_template) used to bypass
+# the LLM planner with an EMPTY plan, so the ReactSubAgentRunner could run the
+# script without the "spurious" domain tool calls an LLM planner derives from
+# primary_domain. Production 2026-07-27 showed the cost of that trade: an image
+# request matched `skill-generator`, the empty plan dropped `generate_image`
+# (semantic score 1.0, already selected by the router), and the sub-agent was
+# left with the four skill tools alone — no image, four attempts out of six.
+# Cumulating instead lets the LLM planner emit the domain's native steps while
+# `response_node` still activates the detected skill from query_intelligence:
+# both run. Set to False to restore the historical empty-plan bypass.
+SKILL_SCRIPT_ONLY_CUMULATES_NATIVE_PLAN_DEFAULT = True
 
 # Validation limits (per agentskills.io spec)
 SKILLS_NAME_MAX_LENGTH = 64

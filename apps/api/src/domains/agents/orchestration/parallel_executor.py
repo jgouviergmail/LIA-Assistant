@@ -1622,15 +1622,16 @@ _SUB_AGENT_TOOL_NAME = "delegate_to_sub_agent_tool"
 _HIGH_LATENCY_TOOL_NAMES: frozenset[str] = _IMAGE_TOOL_NAMES | frozenset(
     {_SUB_AGENT_TOOL_NAME, _DEVOPS_TOOL_NAME, _BROWSER_TOOL_NAME}
 )
-# Inline defaults — kept here (not in core/constants.py) because they are an
-# implementation detail of the parallel executor's timeout policy, not a
-# domain-level config. Sub-agent and browser timeouts ARE in
-# `core/constants.py` because operators tune them via `.env`; image and
-# devops have never needed that level of tunability.
-# NOTE: per-family timeout defaults migrated to Settings — image-generation
-# (settings.image_generation_tool_timeout_seconds) and devops-Claude
-# (settings.devops_claude_tool_timeout_seconds) are read directly inside
-# _compute_step_timeout below.
+# Every per-family timeout now lives in Settings and is read inside
+# _compute_step_timeout below, so all of them are `.env`-tunable:
+#   - sub-agent : subagent_tool_timeout_seconds / subagent_tool_max_timeout_seconds
+#   - browser   : browser_tool_timeout_seconds / max_browser_tool_timeout_seconds
+#   - MCP ReAct : mcp_react_step_timeout_seconds / mcp_react_step_max_timeout_seconds
+#   - image     : image_generation_tool_timeout_seconds /
+#                 max_image_generation_tool_timeout_seconds  (ADR-160)
+#   - devops    : devops_claude_tool_timeout_seconds, generic ceiling
+# The image family got its own ceiling on 2026-07-27: a measured 138.3 s render
+# sat above the generic 120 s cap, so no floor value could have rescued it.
 
 
 def _compute_step_timeout(
@@ -1647,8 +1648,10 @@ def _compute_step_timeout(
     - ``browser_task_tool``: dedicated higher floor / ceiling
       (`BROWSER_TOOL_TIMEOUT_SECONDS` / `MAX_BROWSER_TOOL_TIMEOUT_SECONDS`)
       because the nested ReAct loop legitimately takes minutes.
-    - Image tools (``generate_image``, ``edit_image``): 90 s floor,
-      `MAX_TOOL_TIMEOUT_SECONDS` ceiling.
+    - Image tools (``generate_image``, ``edit_image``): dedicated floor /
+      ceiling pair (`image_generation_tool_timeout_seconds` /
+      `max_image_generation_tool_timeout_seconds`) — a high-quality render
+      measured 138.3 s, above the generic 120 s ceiling that used to apply.
     - ``claude_server_task_tool``: 120 s floor, `MAX_TOOL_TIMEOUT_SECONDS`
       ceiling.
     - MCP iterative task tools (``{server}_task``, ADR-062): dedicated
@@ -1712,6 +1715,11 @@ def _compute_step_timeout(
         max_timeout: float = cfg.max_browser_tool_timeout_seconds
     elif step_tool_name == _SUB_AGENT_TOOL_NAME:
         max_timeout = sub_agent_ceiling
+    elif step_tool_name in _IMAGE_TOOL_NAMES:
+        # Dedicated ceiling: the generic 120 s sat BELOW the 138.3 s measured
+        # for gpt-image-2 at quality=high, so raising the floor alone could
+        # never make a high-quality render succeed (audit 2026-07-27).
+        max_timeout = cfg.max_image_generation_tool_timeout_seconds
     elif is_mcp_react_task:
         max_timeout = float(cfg.mcp_react_step_max_timeout_seconds)
     else:

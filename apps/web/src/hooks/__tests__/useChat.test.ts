@@ -437,6 +437,67 @@ describe('useChat — error paths', () => {
     expect(result.current.messages[1].content).toBe('errors.chat.usage_limit_exceeded');
   });
 
+  it('onError: a stalled stream leaves typing AND tries to reattach to the live run', async () => {
+    // A frozen mobile tab kills the socket without ever delivering `done`.
+    // The server-side run carries on (production 2026-07-27: four runs logged
+    // `sse_stream_completed` while the phone still showed "Génération de la
+    // réponse…"), so the answer is still reachable — but only if the client
+    // both leaves `streaming` (otherwise `isTyping` blocks the visibility
+    // handler that would resume) and asks `/runs/active` who to rejoin.
+    const { ChatStreamError } =
+      await vi.importActual<typeof import('@/lib/api/chat')>('@/lib/api/chat');
+    h.fetchActiveRun.mockResolvedValueOnce({ active: true, stream_id: 'stream-stalled' });
+    scriptReattach([token('la suite')], [done()]);
+    h.streamChat.mockImplementation(async (_req: unknown, _onChunk: OnChunk, onError: OnError) => {
+      onError(
+        new ChatStreamError(
+          'StreamStalledError',
+          'errors.chat.stream_stalled',
+          'The connection went silent.'
+        )
+      );
+    });
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.sendMessage('test');
+    });
+
+    expect(result.current.isTyping).toBe(false);
+    expect(h.fetchActiveRun).toHaveBeenCalled();
+    expect(h.reattachStream).toHaveBeenCalledWith(
+      'stream-stalled',
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
+    );
+  });
+
+  it('onError: a stalled stream with nothing to rejoin still surfaces the message', async () => {
+    const { ChatStreamError } =
+      await vi.importActual<typeof import('@/lib/api/chat')>('@/lib/api/chat');
+    h.fetchActiveRun.mockResolvedValueOnce({ active: false });
+    h.streamChat.mockImplementation(async (_req: unknown, _onChunk: OnChunk, onError: OnError) => {
+      onError(
+        new ChatStreamError(
+          'StreamStalledError',
+          'errors.chat.stream_stalled',
+          'The connection went silent.'
+        )
+      );
+    });
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.sendMessage('test');
+    });
+
+    expect(result.current.isTyping).toBe(false);
+    expect(h.reattachStream).not.toHaveBeenCalled();
+    expect(result.current.messages.at(-1)?.content).toBe('errors.chat.stream_stalled');
+  });
+
   it('error chunk: renders the backend-localized error and leaves the error state', async () => {
     scriptStream([
       { type: 'error', content: 'Limite atteinte.', metadata: null } as unknown as ChatStreamChunk,

@@ -19,6 +19,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    SKILL_SCRIPT_ONLY_CUMULATES_NATIVE_PLAN_DEFAULT,
     SKILLS_MAX_PER_USER_DEFAULT,
     SKILLS_SCRIPT_DROP_PRIVILEGES,
     SKILLS_SCRIPT_MAX_CPU_SECONDS,
@@ -72,6 +73,18 @@ class SkillsSettings(BaseSettings):
     skills_users_path: str = Field(
         default=SKILLS_USERS_PATH_DEFAULT,
         description="Path to user-imported skills directory. Writable, per-user subdirectories.",
+    )
+
+    skill_script_only_cumulates_native_plan: bool = Field(
+        default=SKILL_SCRIPT_ONLY_CUMULATES_NATIVE_PLAN_DEFAULT,
+        description=(
+            "When True, a script-only skill (scripts, no deterministic "
+            "plan_template) no longer bypasses the LLM planner with an empty "
+            "plan: the planner emits the detected domain's native steps AND "
+            "response_node still activates the skill, so both run. Set to "
+            "False to restore the historical empty-plan bypass if the native "
+            "steps are noise for your deployment."
+        ),
     )
 
     # ========================================================================

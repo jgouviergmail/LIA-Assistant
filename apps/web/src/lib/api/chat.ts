@@ -5,6 +5,7 @@
 
 import { ChatStreamChunk, ChatRequest } from '@/types/chat';
 import { logger } from '@/lib/logger';
+import { CHAT_SSE_STALL_TIMEOUT_MS } from '@/lib/constants';
 
 // `??`, not `||`: empty string = same-origin relative URLs (see api-config.ts).
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
@@ -337,6 +338,45 @@ export class ChatSSEClient {
    * Parses `data:` frames into ChatStreamChunk, ignores heartbeats/retry
    * hints, and surfaces the `: replay-end` transport comment (Lot 2).
    */
+  /**
+   * One `reader.read()`, bounded by the stall budget.
+   *
+   * A frozen tab leaves the read promise pending forever — neither resolved
+   * nor rejected — so the UI would stay in `streaming` with no way back. On
+   * expiry the reader is cancelled (releasing the connection) and a typed
+   * error is raised, which `handleStreamError` forwards to the caller.
+   *
+   * @param reader Active body reader for the SSE response.
+   * @returns The read result, when it arrives in time.
+   * @throws ChatStreamError `StreamStalledError` once the budget elapses.
+   */
+  private async readWithStallGuard(
+    reader: ReadableStreamDefaultReader<Uint8Array>
+  ): Promise<ReadableStreamReadResult<Uint8Array>> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const stalled = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        reject(
+          new ChatStreamError(
+            'StreamStalledError',
+            'errors.chat.stream_stalled',
+            'The connection went silent. Reload to pick the answer back up.'
+          )
+        );
+      }, CHAT_SSE_STALL_TIMEOUT_MS);
+    });
+
+    try {
+      return await Promise.race([reader.read(), stalled]);
+    } catch (error) {
+      // Release the socket: the pending read would otherwise keep it open.
+      await reader.cancel().catch(() => undefined);
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   private async readSseStream(
     response: Response,
     onChunk: (chunk: ChatStreamChunk) => void,
@@ -349,7 +389,7 @@ export class ChatSSEClient {
     let buffer = '';
 
     while (true) {
-      const { done, value } = await reader.read();
+      const { done, value } = await this.readWithStallGuard(reader);
 
       if (done) {
         logger.debug('chat_sse_stream_completed', { component: 'ChatSSEClient' });

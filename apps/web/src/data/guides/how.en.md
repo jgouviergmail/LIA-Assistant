@@ -6,7 +6,7 @@
 
 **Version**: 3.4
 **Date**: 2026-07-27
-**Application**: LIA v1.25.24
+**Application**: LIA v1.25.25
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 438 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 140+ ADRs, ~15,954 pytest-collected tests across 842 files, native observability, 6-level HITL |
+| Production reliability | 150+ ADRs, ~16,057 pytest-collected tests across 849 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -71,10 +71,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~15,954 (collected by pytest across 842 test files) + 3,460 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~16,057 (collected by pytest across 849 test files) + 3,471 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 280+ |
-| ADRs (Architecture Decision Records) | 120+ |
+| ADRs (Architecture Decision Records) | 150+ |
 | Prometheus metrics | 438 definitions |
 | Grafana dashboards | 25 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -330,6 +330,7 @@ Classic SSE streaming has a structural flaw: generation lives *inside* the HTTP 
 
 - **Disconnection ≠ cancellation** — closing the page stops the subscription, never the generation. The user message is archived *before* execution starts, the answer finishes server-side and waits in the conversation.
 - **Live resume** — on return (page mount, tab visibility), the frontend detects the active run, replays every chunk already emitted (without pacing) then switches to the live tail; the boundary is an SSE transport comment (`: replay-end`), so the chunk contract stays untouched. During replay, side effects (toasts, audio) are suppressed while the reducer rebuilds the in-progress bubble.
+- **Client-side silence detection** — resuming still assumes the client knows it must resume. A tab frozen by the operating system receives neither end nor error: the read stays pending, the interface believes it is still receiving, and the guard meant to protect a live stream blocks precisely the resume. A silence budget calibrated on the server's heartbeat rhythm settles it: past that, the dead connection is dropped, the state returns to idle and the reattachment above takes over. Browser timers freeze with the tab, so the deadline fires on wake-up — exactly when it is useful.
 - **One run per conversation** — a Redis lock (`SET NX EX` + producer heartbeat + zombie-safe conditional Lua release) makes a concurrent send answer HTTP 409, which the frontend turns into a silent reattachment.
 - **Cross-worker cancellation** — the send button morphs into a stop button; the cancel signal travels through Redis and is polled producer-side (~1 s), even when the producer lives in a different worker than the HTTP request. The partial answer is kept and badged "interrupted"; tokens already consumed stay billed — billing is honored on every exit path, kills included.
 - **Voice only if someone is listening** — subscriber presence (a Redis counter with a periodically re-armed TTL) gates voice synthesis: no TTS for a run nobody is listening to, and a listener joining mid-run gets voice for the remainder.
@@ -980,6 +981,8 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 
 **Defence in depth**: iframe sandbox `allow-scripts allow-popups` (never `allow-same-origin`), strict CSP auto-injected into `frame.html` for user-imported skills (`connect-src 'none'`, `frame-src 'none'`), `SKILLS_FRAME_MAX_HTML_BYTES = 200 KB` limit, minimal `postMessage` bridge without `tools/call` or `resources/read`.
 
+**Gallery previews.** A skill's detail panel serves `assets/preview.png` and falls back to an icon when the file is missing — a fallback indistinguishable from a merely empty thumbnail. System-skill previews are therefore **generated**: a versioned script holds one drawing per skill, in pure geometry with no font dependency, which makes the output identical across machines. A guard fails when a skill has no drawing, or when the shipped image no longer matches what its generator produces.
+
 **Runtime conventions**: `_lang` and `_tz` auto-injected into `parameters` (POSIX locales aren't installed in the container, so scripts rely on inline translation tables rather than `strftime`+`setlocale`). Theme and locale synced live via `postMessage` + `MutationObserver` on `<html class>` and `<html lang>`. Iframe auto-resize via `getBoundingClientRect().bottom` (iframe-resizer pattern). Client-side interactivity uses `addEventListener` only (no inline `onclick` under CSP) and `crypto.getRandomValues` for randomness.
 
 **Primacy effect**: `skills_context` is injected as a dedicated 2nd system message prefixed with `"SKILL INSTRUCTIONS CONTRACT (PRIORITY: HIGHEST)"`, ensuring an active skill's `references/*.md` dominate over the generic `<ResponseGuidelines>`.
@@ -1060,7 +1063,7 @@ Six localized manifests (`/manifest-{lng}.json` — localized `lang`, `start_url
 
 ## 24. Architecture Decision Records (ADR)
 
-140+ ADRs in MADR format document the major architectural decisions. Some representative examples:
+150+ ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1143,10 +1146,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 140+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~15,954 tests across 842 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 150+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~16,057 tests across 849 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (380+ documents), 140+ ADRs, and the changelog (v1.0 to v1.25.24). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (380+ documents), 150+ ADRs, and the changelog (v1.0 to v1.25.25). All metrics, versions, and patterns cited are verifiable in the codebase.*

@@ -281,6 +281,7 @@ Nothing is lost. Since v1.22.0, generation continues **in the background** on th
 **📡 Live resume**
 - If you return while the answer is still being written, it **resumes live automatically** — the in-progress bubble rebuilds itself and keeps streaming
 - This also works with several tabs open
+- If your phone suspended the tab and the connection died without saying so, LIA recognises the silence and reconnects on its own: you no longer sit on "Generating the response…" in front of an answer that is already finished and saved
 
 **⏹️ Stopping an in-progress answer**
 - While LIA is writing, the send button becomes a **Stop** button

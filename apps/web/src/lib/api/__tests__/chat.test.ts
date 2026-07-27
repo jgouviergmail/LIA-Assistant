@@ -29,6 +29,7 @@ import {
   fetchActiveRun,
   fetchPendingHitl,
 } from '../chat';
+import { CHAT_SSE_STALL_TIMEOUT_MS } from '@/lib/constants';
 
 const fetchMock = vi.fn();
 
@@ -399,6 +400,151 @@ describe('ChatSSEClient — reattaching to a background run', () => {
     const { errors } = await reattach(new Response(null, { status: 401 }));
 
     expect(errorShape(errors[0])).toMatchObject({ name: 'AuthenticationError' });
+  });
+});
+
+describe('ChatSSEClient — stalled stream watchdog', () => {
+  /**
+   * A response whose body never yields and never closes: exactly what a mobile
+   * browser leaves behind when the OS freezes a backgrounded tab. `read()`
+   * neither resolves nor rejects, so without a watchdog the client sits in
+   * `status: 'streaming'` forever — `isTyping` stays true, and the visibility
+   * handler that would have called `checkAndResumeActiveRun()` returns early on
+   * that very flag. Production 2026-07-27: four runs completed server-side
+   * (`sse_stream_completed`) while the phone still displayed "Génération de la
+   * réponse…", and not one `/runs/active` call was ever made.
+   */
+  function silentResponse(): Response {
+    const stream = new ReadableStream({
+      start() {
+        /* deliberately silent: no enqueue, no close, no error */
+      },
+    });
+    return new Response(stream, { status: 200 });
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('gives up on a silent stream instead of hanging forever', async () => {
+    const client = new ChatSSEClient();
+    const errors: Error[] = [];
+    let done = false;
+    fetchMock.mockResolvedValue(silentResponse());
+
+    const streaming = client.streamChat(
+      REQUEST,
+      () => {},
+      e => errors.push(e),
+      () => {
+        done = true;
+      }
+    );
+
+    await vi.advanceTimersByTimeAsync(CHAT_SSE_STALL_TIMEOUT_MS + 1_000);
+    await streaming;
+
+    expect(errors).toHaveLength(1);
+    expect(errorShape(errors[0])).toMatchObject({
+      name: 'StreamStalledError',
+      i18nKey: 'errors.chat.stream_stalled',
+    });
+    expect(done).toBe(false);
+  });
+
+  it('does not fire while the server keeps sending heartbeats', async () => {
+    const encoder = new TextEncoder();
+    let controllerRef: ReadableStreamDefaultController<Uint8Array> | null = null;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controllerRef = controller;
+      },
+    });
+    fetchMock.mockResolvedValue(new Response(stream, { status: 200 }));
+
+    const client = new ChatSSEClient();
+    const errors: Error[] = [];
+    const chunks: ChatStreamChunk[] = [];
+    const streaming = client.streamChat(
+      REQUEST,
+      c => chunks.push(c),
+      e => errors.push(e),
+      () => {}
+    );
+
+    // Three quiet-but-alive periods, each just under the stall budget.
+    for (let i = 0; i < 3; i++) {
+      await vi.advanceTimersByTimeAsync(CHAT_SSE_STALL_TIMEOUT_MS - 1_000);
+      controllerRef!.enqueue(encoder.encode(': keepalive\n\n'));
+      await vi.advanceTimersByTimeAsync(0);
+    }
+    expect(errors).toHaveLength(0);
+
+    controllerRef!.enqueue(encoder.encode('data: {"type":"done"}\n\n'));
+    controllerRef!.close();
+    await vi.advanceTimersByTimeAsync(0);
+    await streaming;
+
+    expect(errors).toHaveLength(0);
+    expect(chunks.map(c => c.type)).toContain('done');
+  });
+
+  it('still reports the stall when releasing the socket fails', async () => {
+    // `cancel()` rejects on a connection already torn down by the OS — the
+    // very situation the watchdog exists for. Releasing is best-effort; it
+    // must not replace the stall error with a cancellation failure.
+    const stream = new ReadableStream({
+      start() {
+        /* silent */
+      },
+      cancel() {
+        throw new Error('socket already gone');
+      },
+    });
+    fetchMock.mockResolvedValue(new Response(stream, { status: 200 }));
+
+    const client = new ChatSSEClient();
+    const errors: Error[] = [];
+    const streaming = client.streamChat(
+      REQUEST,
+      () => {},
+      e => errors.push(e),
+      () => {}
+    );
+
+    await vi.advanceTimersByTimeAsync(CHAT_SSE_STALL_TIMEOUT_MS + 1_000);
+    await streaming;
+
+    expect(errors).toHaveLength(1);
+    expect(errorShape(errors[0])).toMatchObject({ name: 'StreamStalledError' });
+  });
+
+  it('stops the watchdog once the stream ends normally', async () => {
+    fetchMock.mockResolvedValue(sseResponse(['data: {"type":"done"}\n\n']));
+    const client = new ChatSSEClient();
+    const errors: Error[] = [];
+    let done = false;
+
+    await client.streamChat(
+      REQUEST,
+      () => {},
+      e => errors.push(e),
+      () => {
+        done = true;
+      }
+    );
+
+    // A leaked timer would abort the *next* run; nothing may remain pending.
+    await vi.advanceTimersByTimeAsync(CHAT_SSE_STALL_TIMEOUT_MS * 3);
+
+    expect(done).toBe(true);
+    expect(errors).toHaveLength(0);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
 

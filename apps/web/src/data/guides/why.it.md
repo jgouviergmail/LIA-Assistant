@@ -4,7 +4,7 @@
 
 **Versione** : 3.9
 **Data** : 2026-07-27
-**Applicazione** : LIA v1.25.24
+**Applicazione** : LIA v1.25.25
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -328,6 +328,8 @@ LIA dispone di una base di conoscenza integrata sulle proprie funzionalità, che
 La grande maggioranza dei progetti di IA agentica non arriva mai in produzione. Costi fuori controllo, comportamento non deterministico, assenza di tracce di audit, coordinamento difettoso tra agenti. LIA ha risolto questi problemi — e gira in produzione 24/7 su un Raspberry Pi. E i tuoi dati sopravvivono agli incidenti: il database viene salvato automaticamente ogni notte, e la procedura di ripristino non è teorica — è testata.
 
 Una funzionalità che nessuno trova non esiste. Per questo la raggiungibilità dell'interfaccia è trattata come la disponibilità del server: misurata, non supposta. Ogni controllo dell'intestazione viene confrontato con la finestra del browser, larghezza per larghezza e **in tutte e sei le lingue** — tedesco e italiano portano le etichette più lunghe e cedono per primi. E ciò che il layout mobile può abbandonare è scritto, con la sua motivazione: un'azione non sparisce mai senza che un sostituto ne prenda il posto.
+
+Una funzionalità che fallisce in silenzio non esiste altrettanto. Una generazione interrotta poco prima della fine, un'importazione bloccata da una cartella diventata non scrivibile, una connessione che muore senza annunciare nulla: tre cause slegate, un solo sintomo — non succede niente. È il segnale peggiore, perché non indica nessuno. Ogni difetto di questo tipo viene quindi chiuso con un controllo che abbiamo prima fatto fallire di proposito: si rompe ciò che protegge, si verifica che diventi rosso, e solo allora lo si conserva.
 
 ### 8.2. Uno stack di osservabilità professionale
 

@@ -6,7 +6,7 @@
 
 **Version**: 3.4
 **Datum**: 2026-07-27
-**Application**: LIA v1.25.24
+**Application**: LIA v1.25.25
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 438 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 140+ ADRs, ~15.954 von pytest gesammelte Tests in 842 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 150+ ADRs, ~16.057 von pytest gesammelte Tests in 849 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -71,10 +71,10 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~15.954 von pytest gesammelt (von pytest über 842 Testdateien gesammelt) + 3.460 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | ~16.057 von pytest gesammelt (von pytest über 849 Testdateien gesammelt) + 3.471 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 280+ |
-| ADRs (Architecture Decision Records) | 120+ |
+| ADRs (Architecture Decision Records) | 150+ |
 | Prometheus-Metriken | 438 Definitionen |
 | Grafana-Dashboards | 25 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -330,6 +330,7 @@ Klassisches SSE-Streaming hat einen strukturellen Makel: Die Generierung lebt *i
 
 - **Verbindungsabbruch ≠ Abbruch** — die Seite zu schließen beendet das Abonnement, nie die Generierung. Die Benutzernachricht wird *vor* Ausführungsbeginn archiviert, die Antwort wird serverseitig fertiggestellt und wartet in der Konversation.
 - **Live-Wiederaufnahme** — bei der Rückkehr (Seiten-Mount, Tab-Sichtbarkeit) erkennt das Frontend den aktiven Run, spielt alle bereits emittierten Chunks ab (ohne Pacing) und wechselt dann auf den Live-Strom; die Grenze ist ein SSE-Transportkommentar (`: replay-end`), der Chunk-Vertrag bleibt unberührt. Während des Replays werden Seiteneffekte (Toasts, Audio) unterdrückt, während der Reducer die laufende Antwortblase rekonstruiert.
+- **Stille-Erkennung auf Client-Seite** — die Wiederaufnahme setzt weiterhin voraus, dass der Client weiß, dass er wieder aufnehmen muss. Ein vom Betriebssystem eingefrorener Tab erhält weder Ende noch Fehler: Der Lesevorgang bleibt hängen, die Oberfläche glaubt weiter zu empfangen, und der Schutz für einen lebenden Stream blockiert genau die Wiederaufnahme. Ein am Herzschlag-Rhythmus des Servers ausgerichtetes Stille-Budget entscheidet: Danach wird die tote Verbindung verworfen, der Zustand kehrt in den Ruhezustand zurück und das oben beschriebene Wiederanklinken übernimmt. Browser-Timer frieren mit dem Tab ein, die Frist läuft also beim Aufwachen ab — genau dann, wenn sie nützt.
 - **Ein Run pro Konversation** — ein Redis-Lock (`SET NX EX` + Producer-Heartbeat + zombie-sichere konditionale Lua-Freigabe) lässt einen konkurrierenden Sendeversuch mit HTTP 409 antworten, den das Frontend in ein stilles Wiederanhängen verwandelt.
 - **Worker-übergreifender Abbruch** — der Sende-Button verwandelt sich in einen Stop-Button; das Abbruchsignal läuft über Redis und wird producerseitig gepollt (~1 s), auch wenn der Producer in einem anderen Worker lebt als die HTTP-Anfrage. Die Teilantwort bleibt erhalten und wird als „unterbrochen“ markiert; bereits verbrauchte Tokens bleiben abgerechnet — die Abrechnung wird auf jedem Ausstiegspfad eingehalten, Kills eingeschlossen.
 - **Stimme nur, wenn jemand zuhört** — die Subscriber-Präsenz (ein Redis-Zähler mit periodisch neu gespannter TTL) steuert die Sprachsynthese: kein TTS für einen Run, dem niemand zuhört, und ein Zuhörer, der mittendrin dazustößt, bekommt die Stimme für den Rest.
@@ -982,6 +983,8 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 
 **Mehrschichtige Sicherheit**: iframe sandbox `allow-scripts allow-popups` (niemals `allow-same-origin`), strikte CSP automatisch injiziert in `frame.html` für benutzerimportierte Skills (`connect-src 'none'`, `frame-src 'none'`), Limit `SKILLS_FRAME_MAX_HTML_BYTES = 200 KB`, minimalistische `postMessage`-Bridge ohne `tools/call` oder `resources/read`.
 
+**Galerie-Vorschauen.** Die Detailansicht einer Fähigkeit liefert `assets/preview.png` aus und fällt auf ein Symbol zurück, wenn die Datei fehlt — ein Rückfall, der von einem schlicht leeren Vorschaubild nicht zu unterscheiden ist. Die Vorschauen der System-Fähigkeiten werden deshalb **generiert**: Ein versioniertes Skript hält eine Zeichnung je Fähigkeit vor, in reiner Geometrie ohne Schriftart-Abhängigkeit, wodurch die Ausgabe auf allen Maschinen identisch ist. Eine Prüfung schlägt fehl, wenn einer Fähigkeit die Zeichnung fehlt oder das ausgelieferte Bild nicht mehr dem entspricht, was ihr Generator erzeugt.
+
 **Runtime-Konventionen**: `_lang` und `_tz` werden automatisch in `parameters` injiziert (da POSIX-Locales im Container nicht installiert sind, nutzen die Skripte Inline-Übersetzungstabellen statt `strftime`+`setlocale`). Theme und Locale werden live über `postMessage` + `MutationObserver` auf `<html class>` und `<html lang>` synchronisiert. Iframe-Auto-Resize via `getBoundingClientRect().bottom` (iframe-resizer-Pattern). Client-seitige Interaktivität ausschließlich über `addEventListener` (kein Inline-`onclick` unter CSP) und `crypto.getRandomValues` für Zufallswerte.
 
 **Primacy-Effekt**: `skills_context` wird als dedizierte zweite System-Message mit dem Präfix `"SKILL INSTRUCTIONS CONTRACT (PRIORITY: HIGHEST)"` injiziert, was sicherstellt, dass die `references/*.md` eines aktiven Skills Vorrang vor den generischen `<ResponseGuidelines>` haben.
@@ -1062,7 +1065,7 @@ Sechs lokalisierte Manifeste (`/manifest-{lng}.json` — lokalisiertes `lang`, `
 
 ## 24. Architekturentscheidungen (ADR)
 
-140+ ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+150+ ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1116,10 +1119,10 @@ Die Psyche Engine verleiht dem Assistenten einen dynamischen psychologischen Zus
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 140+ ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~15.954 Tests in 842 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 150+ ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~16.057 Tests in 849 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (380+ Dokumente), der 140+ ADRs und des Changelogs (v1.0 bis v1.25.24). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (380+ Dokumente), der 150+ ADRs und des Changelogs (v1.0 bis v1.25.25). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

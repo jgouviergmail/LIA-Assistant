@@ -657,6 +657,27 @@ export const useChat = ({
               return;
             }
 
+            // The stall watchdog fired: the socket went silent (a frozen
+            // mobile tab, typically) but the run itself carries on
+            // server-side. Leave `streaming` FIRST — `isTyping` is what makes
+            // the visibility handler skip its own resume — then ask
+            // /runs/active who to rejoin. Falling through also renders the
+            // localized message, so a run that really is gone says so instead
+            // of leaving an empty bubble.
+            if (error instanceof ChatStreamError && error.name === 'StreamStalledError') {
+              logger.warn(
+                'chat_sse_stalled_attempting_resume',
+                withContext({ component: 'useChat' })
+              );
+              flushTokenBatching();
+              dispatch({
+                type: 'SSE_ERROR',
+                payload: { error: resolveStreamErrorMessage(error) },
+              });
+              void checkAndResumeActiveRun();
+              return;
+            }
+
             logger.error(
               'chat_sse_error',
               error,
@@ -717,6 +738,7 @@ export const useChat = ({
       t,
       resolveStreamErrorMessage,
       resumeActiveRun,
+      checkAndResumeActiveRun,
       stopPlayback,
       handleVoiceChunk,
       warmupAudio,

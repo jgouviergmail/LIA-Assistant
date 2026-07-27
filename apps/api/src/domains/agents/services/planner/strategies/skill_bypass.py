@@ -26,6 +26,7 @@ If no match → falls through to the LLM planner.
 
 from typing import TYPE_CHECKING, Any
 
+from src.core.config import get_settings
 from src.domains.agents.orchestration.plan_schemas import ExecutionStep, StepType
 from src.domains.agents.services.planner.planning_result import PlanningResult
 from src.infrastructure.observability.logging import get_logger
@@ -149,6 +150,28 @@ class SkillBypassStrategy:
                     plan=None,
                     success=False,
                     error=f"Skill '{skill_name}' is not active for user",
+                )
+
+            # Cumulate rather than bypass: yielding to the LLM planner keeps the
+            # domain's native steps (the router already scored and selected
+            # them), and `response_node` step 3 activates the detected skill
+            # from `query_intelligence` regardless of the plan — so the skill
+            # still runs. The empty plan below is the historical alternative,
+            # which silently dropped the native tools.
+            if get_settings().skill_script_only_cumulates_native_plan:
+                logger.info(
+                    "skill_bypass_yielded_for_native_plan",
+                    skill_name=skill_name,
+                    domains=intelligence.domains,
+                    msg="LLM planner keeps the domain steps; the skill still runs downstream",
+                )
+                return PlanningResult(
+                    plan=None,
+                    success=False,
+                    error=(
+                        f"Skill '{skill_name}' is script-only: cumulating with the "
+                        f"LLM planner so the domain's native steps survive"
+                    ),
                 )
             # ExecutionPlan requires either steps or a documented empty reason.
             # Build directly (skipping build_plan_from_steps) so metadata is

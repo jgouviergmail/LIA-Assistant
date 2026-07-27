@@ -6,7 +6,7 @@
 
 **Versione**: 3.4
 **Data**: 2026-07-27
-**Applicazione**: LIA v1.25.24
+**Applicazione**: LIA v1.25.25
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,7 +53,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 438 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 140+ ADR, ~15.954 test raccolti da pytest in 842 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 150+ ADR, ~16.057 test raccolti da pytest in 849 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -71,10 +71,10 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~15.954 (raccolti da pytest su 842 file di test) + 3.460 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~16.057 (raccolti da pytest su 849 file di test) + 3.471 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 280+ |
-| ADR (Architecture Decision Record) | 120+ |
+| ADR (Architecture Decision Record) | 150+ |
 | Metriche Prometheus | 438 definizioni |
 | Dashboard Grafana | 25 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -330,6 +330,7 @@ Lo streaming SSE classico ha un difetto strutturale: la generazione vive *dentro
 
 - **Disconnessione ≠ annullamento** — chiudere la pagina interrompe la sottoscrizione, mai la generazione. Il messaggio dell'utente viene archiviato *prima* dell'avvio dell'esecuzione, la risposta termina lato server e attende nella conversazione.
 - **Ripresa live** — al ritorno (mount della pagina, visibilità della scheda), il frontend rileva il run attivo, riproduce tutti i chunk già emessi (senza pacing) e poi passa al flusso live; il confine è un commento di trasporto SSE (`: replay-end`), il contratto dei chunk resta intatto. Durante il replay, gli effetti collaterali (toast, audio) vengono soppressi mentre il reducer ricostruisce la bolla in corso.
+- **Rilevamento del silenzio lato client** — la ripresa presuppone ancora che il client sappia di dover riprendere. Una scheda congelata dal sistema operativo non riceve né fine né errore: la lettura resta sospesa, l'interfaccia crede di ricevere ancora, e la protezione pensata per un flusso vivo blocca proprio la ripresa. Un budget di silenzio calibrato sul ritmo dei battiti del server decide: oltre quel limite la connessione morta viene abbandonata, lo stato torna a riposo e il riaggancio descritto sopra subentra. I timer del browser si congelano con la scheda, quindi la scadenza scatta al risveglio — esattamente quando serve.
 - **Un solo run per conversazione** — un lock Redis (`SET NX EX` + heartbeat del produttore + rilascio condizionale Lua a prova di zombie) fa rispondere HTTP 409 a un invio concorrente, che il frontend trasforma in un riaggancio silenzioso.
 - **Annullamento cross-worker** — il pulsante di invio si trasforma in pulsante di stop; il segnale di annullamento viaggia via Redis e viene sondato lato produttore (~1 s), anche quando il produttore vive in un worker diverso da quello della richiesta HTTP. La risposta parziale viene conservata e contrassegnata come «interrotta»; i token già consumati restano fatturati — la fatturazione è onorata su ogni percorso di uscita, kill compresi.
 - **Voce solo se qualcuno ascolta** — la presenza dei sottoscrittori (un contatore Redis con TTL riarmato periodicamente) condiziona la sintesi vocale: nessun TTS per un run che nessuno ascolta, e un ascoltatore che si aggiunge a metà strada ottiene la voce per il resto.
@@ -983,6 +984,8 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 
 **Difesa in profondità**: iframe sandbox `allow-scripts allow-popups` (mai `allow-same-origin`), CSP strict auto-iniettata in `frame.html` per gli skill importati dall'utente (`connect-src 'none'`, `frame-src 'none'`), limite `SKILLS_FRAME_MAX_HTML_BYTES = 200 KB`, bridge `postMessage` minimale senza `tools/call` né `resources/read`.
 
+**Anteprime della galleria.** La scheda di una competenza serve `assets/preview.png` e ripiega su un'icona quando il file manca — un ripiego indistinguibile da una miniatura semplicemente vuota. Le anteprime delle competenze di sistema sono perciò **generate**: uno script versionato tiene un disegno per competenza, in geometria pura e senza dipendenze da font, il che rende l'output identico su ogni macchina. Un controllo fallisce se una competenza non ha disegno, o se l'immagine distribuita non corrisponde più a quanto produce il suo generatore.
+
 **Convenzioni runtime**: `_lang` e `_tz` auto-iniettati nei `parameters` (le locale POSIX non sono installate nel container, quindi gli script si affidano a tabelle di traduzione inline invece di `strftime`+`setlocale`). Tema e lingua sincronizzati in live via `postMessage` + `MutationObserver` su `<html class>` e `<html lang>`. Auto-resize iframe tramite `getBoundingClientRect().bottom` (pattern iframe-resizer). Interattività client-side solo via `addEventListener` (niente `onclick` inline sotto CSP) e `crypto.getRandomValues` per il casuale.
 
 **Primacy effect**: `skills_context` è iniettato come 2° messaggio di sistema dedicato con prefisso `"SKILL INSTRUCTIONS CONTRACT (PRIORITY: HIGHEST)"`, garantendo che i `references/*.md` di uno skill attivo prevalgano sulle `<ResponseGuidelines>` generiche.
@@ -1063,7 +1066,7 @@ Sei manifest localizzati (`/manifest-{lng}.json` — `lang` localizzato, `start_
 
 ## 24. Architettura delle decisioni (ADR)
 
-140+ ADR in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+150+ ADR in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1117,10 +1120,10 @@ Il Psyche Engine dota l'assistente di uno stato psicologico dinamico che evolve 
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 140+ ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~15.954 test in 842 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 150+ ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~16.057 test in 849 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (380+ documenti), dei 140+ ADR e del changelog (da v1.0 a v1.25.24). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (380+ documenti), dei 150+ ADR e del changelog (da v1.0 a v1.25.25). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

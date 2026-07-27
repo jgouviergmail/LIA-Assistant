@@ -163,6 +163,16 @@ Delivered 2026-07-09 (same ADR). Everything below is flag-gated by the same
   `SSEHandlerContext.isReplay = true` (reducer state rebuilds; toasts and
   voice playback suppressed until `: replay-end`). A 409 on send triggers
   the same resume (toast `chat.resume.in_progress`).
+- **Stall watchdog** (ADR-161): auto-resume assumes the client knows it must
+  resume. A tab frozen by the OS gets neither `done` nor a rejection — the
+  body read stays pending, `status` sticks on `streaming`, and the
+  `isTyping` guard in `handleVisibilityChange` then skips the very resume
+  above. `ChatSSEClient.readWithStallGuard` bounds each read by
+  `CHAT_SSE_STALL_TIMEOUT_MS` (90 s = six missed `SSE_HEARTBEAT_INTERVAL`
+  beats), cancels the reader to release the socket and raises a typed
+  `StreamStalledError`; `useChat` leaves `streaming` **before** calling
+  `checkAndResumeActiveRun()`. Browser timers freeze with the tab, so the
+  deadline fires on wake-up — exactly when it is useful.
 - **Listener-gated voice**: subscribers INCR/DECR
   `chat:listeners:{stream_id}` around their read AND re-arm the counter TTL
   every ~TTL/3 while attached (without the periodic touch, a subscriber

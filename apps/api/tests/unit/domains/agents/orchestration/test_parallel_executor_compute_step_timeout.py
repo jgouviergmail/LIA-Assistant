@@ -89,21 +89,47 @@ class TestComputeStepTimeoutBrowser:
 
 @pytest.mark.unit
 class TestComputeStepTimeoutImage:
-    """Image tools (generate_image, edit_image): 90s floor, generic ceiling."""
+    """Image tools get a dedicated floor AND a dedicated ceiling.
+
+    Measured against gpt-image-2 in production on 2026-07-27:
+
+    ==========================  =========
+    Parameters                  Latency
+    ==========================  =========
+    ``medium`` ``1024x1536``      47.2 s
+    ``high`` ``1024x1536``       138.3 s
+    ==========================  =========
+
+    The old policy was a 90 s floor under the *generic* 120 s ceiling, so
+    ``quality=high`` could not succeed at any setting — 138.3 s exceeds the
+    ceiling itself, which is why raising ``IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS``
+    in ``.env`` would not have helped. Production 2026-07-27 05:18: the step was
+    killed at exactly 90 s, no image, and the replanner's ``retry_same`` is not
+    wired, so the failure was final.
+    """
 
     @pytest.mark.parametrize("tool_name", ["generate_image", "edit_image"])
-    def test_defaults_to_image_floor(self, tool_name: str):
-        assert _compute_step_timeout(tool_name, None) == 90.0
+    def test_default_floor_covers_the_measured_high_quality_latency(self, tool_name: str):
+        """The floor must sit above 138.3 s, or `high` fails by construction."""
+        assert _compute_step_timeout(tool_name, None) > 138.3
 
     @pytest.mark.parametrize("tool_name", ["generate_image", "edit_image"])
     def test_planner_request_below_floor_is_raised(self, tool_name: str):
-        """Planner asked 30s → bumped to 90s image floor."""
-        assert _compute_step_timeout(tool_name, 30.0) == 90.0
+        """A planner asking for 30 s must not undercut the family floor."""
+        floor = _compute_step_timeout(tool_name, None)
+        assert _compute_step_timeout(tool_name, 30.0) == floor
 
     @pytest.mark.parametrize("tool_name", ["generate_image", "edit_image"])
-    def test_ceiling_is_generic_max_tool_timeout(self, tool_name: str):
-        """Image tools cap at the generic 120s, not at the browser 600s."""
-        assert _compute_step_timeout(tool_name, 9999.0) == MAX_TOOL_TIMEOUT_SECONDS
+    def test_ceiling_is_dedicated_not_the_generic_one(self, tool_name: str):
+        """Image tools no longer cap at the generic 120 s — below the measurement."""
+        ceiling = _compute_step_timeout(tool_name, 9999.0)
+        assert ceiling > MAX_TOOL_TIMEOUT_SECONDS
+        assert ceiling == get_settings().max_image_generation_tool_timeout_seconds
+
+    @pytest.mark.parametrize("tool_name", ["generate_image", "edit_image"])
+    def test_floor_stays_under_the_ceiling(self, tool_name: str):
+        """A floor above its own ceiling would silently clamp back down."""
+        assert _compute_step_timeout(tool_name, None) <= _compute_step_timeout(tool_name, 9999.0)
 
 
 @pytest.mark.unit

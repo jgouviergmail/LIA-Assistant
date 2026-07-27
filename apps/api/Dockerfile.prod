@@ -167,8 +167,16 @@ COPY --chown=appuser:appuser . .
 # See: docs/architecture/ADR-058-System-RAG-Spaces.md
 RUN mkdir -p /app/docs/knowledge
 
-# Create data directories for volumes (owned by appuser before USER switch)
-RUN mkdir -p /app/data/attachments && chown -R appuser:appuser /app/data
+# Create data directories for volumes (owned by appuser before USER switch).
+# EVERY named-volume destination from docker-compose.prod.yml must be listed
+# here: Docker seeds a new volume's ownership from the image only when the
+# mount point already exists, otherwise it fabricates it as root:root and the
+# appuser runtime can never write there — permanently, since that seeding only
+# happens once, at volume creation. `data/skills/users` is gitignored, so it is
+# absent from the build context and must be created explicitly.
+# Enforced by tests/unit/test_volume_mount_ownership_guard.py.
+RUN mkdir -p /app/data/attachments /app/data/skills/users \
+    && chown -R appuser:appuser /app/data
 
 # Install Claude Code CLI for DevOps remote server management
 # Auth is persisted via Docker volume (~/.claude/)

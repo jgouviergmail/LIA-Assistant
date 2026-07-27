@@ -4,7 +4,7 @@
 
 **Version**: 3.9
 **Date**: 2026-07-27
-**Application**: LIA v1.25.24
+**Application**: LIA v1.25.25
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -328,6 +328,8 @@ LIA has a built-in knowledge base about its own capabilities, allowing it to ans
 The vast majority of agentic AI projects never reach production. Uncontrolled costs, non-deterministic behavior, missing audit trails, failing agent coordination. LIA has solved these problems — and runs in production 24/7 on a Raspberry Pi. And your data survives incidents: the database is backed up automatically every night, and the restore procedure is not theoretical — it is tested.
 
 A feature nobody can find does not exist. That is why the interface's reachability is treated like server uptime: measured, not assumed. Every header control is compared against the browser viewport, width by width and **in all six languages** — German and Italian carry the longest labels and break first. And what the mobile layout is allowed to drop is written down, with its reason: an action never disappears without a substitute taking its place.
+
+A feature that fails silently does not exist either. A generation cut off just before the end, an import blocked by a directory that became unwritable, a connection that dies announcing nothing: three unrelated causes, one symptom — nothing happens. That is the worst possible signal, because it points at no one. Every defect of that kind is therefore closed with a guard we first made fail on purpose: break what it protects, check that it goes red, and only then keep it.
 
 ### 8.2. A professional observability stack
 

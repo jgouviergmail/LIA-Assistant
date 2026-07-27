@@ -187,6 +187,44 @@ The planner has an "early insufficient content detection" feature that short-cir
 
 **Solution**: `_has_potential_skill_match()` in `planner_node_v3.py` returns `True` whenever `intelligence.detected_skill_name` is set, regardless of whether the skill is deterministic. Downstream, `SkillBypassStrategy` handles deterministic skills and the LLM planner handles the rest.
 
+### 7. Script-only skills cumulate with the native plan (ADR-160)
+
+A **script-only** skill — scripts, no `deterministic` `plan_template` — used to
+emit an **empty plan**, short-circuiting the LLM planner so the
+`ReactSubAgentRunner` could execute the script without the "spurious" domain
+tool calls a planner derives from `primary_domain`.
+
+That trade cost the user the feature they asked for. Production 2026-07-27: an
+image request matched `skill-generator`, the empty plan dropped `generate_image`
+— already selected by the router with a **semantic score of 1.0** — and the
+sub-agent was left with the four skill tools alone. No image, four attempts out
+of six.
+
+Since ADR-160, the strategy yields to the LLM planner instead
+(`skill_bypass_yielded_for_native_plan`). The skill is **not** lost: step 3 of
+`response_node` activates `query_intelligence.detected_skill_name`
+independently of the plan, so the native steps AND the skill both run. Set
+`SKILL_SCRIPT_ONLY_CUMULATES_NATIVE_PLAN=false` to restore the historical
+empty-plan bypass.
+
+Deterministic skills are unaffected — their template already declares its steps.
+
+### 8. Detection hygiene (ADR-160)
+
+`effective_skill_name` filters the analyzer's `skill_name` before it reaches the
+router, which grants it absolute priority:
+
+1. **Sentinel text** — the prompt says "leave it null" in prose and the
+   structured output is not strict, so the model writes the string `null`
+   (truthy). Normalised away at the parsing boundary by a `field_validator` on
+   `QueryAnalysisOutput`.
+2. **Existence** — the name must resolve through
+   `SkillsCache.get_by_name_for_user`. Fail-open when the cache is not loaded.
+3. **MCP-domain coherence** — the original guard (2026-07-21).
+
+Kept detections are counted by `skill_detection_retained_total{skill_name,
+primary_domain}`, the counterpart of `skill_detection_suppressed_total{reason}`.
+
 ## Backend Files
 
 | File | Purpose |
@@ -424,6 +462,35 @@ See [ADR-097](../architecture/ADR-097-Concurrency-GDPR-Sandbox-Wave4-Audit.md) f
 ## Override Semantics
 
 Per agentskills.io, the cache resolves a user skill over an admin skill with the same name (`get_by_name_for_user`, last-one-wins) — this remains for pre-existing data. **New imports can no longer create such shadows**: since ADR-118 the import pipeline rejects a user import whose name collides with a system skill or with another user's skill (the DB `skills.name` column is globally unique, so a shadow import used to silently rewrite the other row's display metadata).
+
+## Gallery Previews
+
+The detail modal serves `assets/preview.png` through
+`GET /skills/{name}/preview`, and falls back to a faint icon on 404. That
+fallback is indistinguishable from a working-but-empty thumbnail — which is how
+all fourteen system skills shipped with no preview at all until a user reported
+"empty thumbnails" on 2026-07-27.
+
+System-skill previews are **generated, not hand-drawn**:
+
+```bash
+python scripts/generate_skill_previews.py          # write all previews
+python scripts/generate_skill_previews.py --check  # verify without writing
+```
+
+Each drawing shows a schematic fragment of the **artifact the skill produces**
+— a month grid, a QR pattern, forecast cards — using the slate/indigo palette
+the skills' own `scripts/*.py` already render with. Geometry only, no font
+dependency, so output is byte-identical across machines; the skill name is
+deliberately absent since the modal displays it directly above.
+
+Adding a system skill therefore means adding its drawing to `DRAWINGS` in that
+script. `tests/unit/domains/skills/test_skill_preview_assets_guard.py` fails the
+build otherwise, and also fails when a committed PNG drifts from what the
+generator produces.
+
+User-imported skills may bundle their own `assets/preview.png`; nothing is
+generated for them.
 
 ## Skill Archetypes
 
