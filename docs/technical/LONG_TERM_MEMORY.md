@@ -159,7 +159,7 @@ class MemorySchema(BaseModel):
 | Contenu | Category | Weight | Trigger | Nuance |
 |---------|----------|--------|---------|--------|
 | "Déteste les réunions longues" | preference | -5 | réunion | Sujet irritant, éviter de proposer des meetings longs |
-| "Son père Jacky est décédé en 2020" | sensitivity | -9 | père, famille | Sujet très sensible, aborder avec grande délicatesse |
+| "Son père Robert est décédé en 2020" | sensitivity | -9 | père, famille | Sujet très sensible, aborder avec grande délicatesse |
 | "Passionné de voile" | preference | +7 | voile, bateau | Source de joie, peut être utilisé pour créer du lien |
 | "Travaille chez Google depuis 5 ans" | personal | 0 | travail, Google | Information factuelle |
 
@@ -228,6 +228,39 @@ Le prompt principal inclut 7 règles obligatoires :
 7. **Categorize** — preference | personal | relationship | event | pattern | sensitivity
 
 Format JSON avec actions `create`, `update` (UUID existant), `delete` (UUID existant).
+
+#### Doctrine d'admission (ADR-166)
+
+Le prompt liste ce qui ne doit **jamais** devenir un souvenir. Trois classes ont
+ete ajoutees le 2026-07-27, chacune sur un cas observe en production :
+
+| Classe exclue | Cas reel |
+|---|---|
+| **Le sujet de l'echange** | une question sur les trous noirs ne dit rien de l'utilisateur |
+| **Les faits propres a un tiers** | « X est un homme » stocke en `relationship`, sans lien avec l'utilisateur |
+| **Un enonce vrai de presque tout le monde** | « j'aime bien quand il fait beau » ne personnalise rien |
+
+La clause fourre-tout du 4e critere (« *…or useful informations* ») est fermee :
+elle readmettait tout ce que les trois autres excluaient. Un **creneau
+recurrent** (le cours de tennis du lundi) est desormais explicitement un
+`pattern` a retenir, par opposition au rendez-vous ponctuel qui reste de la
+logistique transitoire.
+
+Ces regles sont verrouillees par
+`tests/unit/domains/agents/prompts/test_extraction_prompt_doctrine.py` et
+mesurables via `apps/api/scripts/measure_extraction_selectivity.py --battery memory`.
+
+#### Plafond de suppressions (ADR-166)
+
+Les actions `delete` ne portent **aucun champ de confiance** et ne sont validees
+que sur la validite de l'UUID et la propriete. Au-dela de
+`EXTRACTION_MAX_DELETES_PER_RUN` (2 par defaut), **toutes** les suppressions du
+lot sont ecartees et comptees sous
+`extraction_action_rejected_total{kind="memory", reason="delete_cap"}` ; les
+creations et mises a jour du meme lot sont conservees. Le garde est partage avec
+l'extracteur de centres d'interet
+(`src/domains/agents/utils/extraction_guards.py`) : c'est la que 19 suppressions
+en un seul tour ont ete observees.
 
 ### 5. API Router
 

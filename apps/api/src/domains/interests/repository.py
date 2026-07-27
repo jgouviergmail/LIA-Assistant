@@ -250,6 +250,30 @@ class InterestRepository:
             limit=limit,
         )
 
+    async def get_for_dedup(
+        self,
+        user_id: UUID,
+        limit: int,
+    ) -> list[UserInterest]:
+        """Get the interests deduplication must compare a new topic against.
+
+        Every status, deliberately — NOT ``get_active_for_user``. A BLOCKED row
+        that dedup cannot see is a subject the user rejected and the extractor
+        re-creates under a neighbouring label (observed in production 25 minutes
+        after the block, 2026-07-27); a DORMANT row that dedup cannot see is
+        duplicated instead of being revived by ``consolidate_on_mention``.
+
+        Args:
+            user_id: Owner of the interests.
+            limit: Scan window — ``settings.interest_dedup_scan_limit``, larger
+                than the prompt window on purpose (rows are ordered newest
+                first, so a short window drops the oldest, strongest ones).
+
+        Returns:
+            Interests of every status, most recent first.
+        """
+        return await self.get_all_for_user(user_id=user_id, status=None, limit=limit)
+
     async def delete(self, interest: UserInterest) -> None:
         """Delete an interest."""
         await self.db.delete(interest)
@@ -838,24 +862,42 @@ class InterestNotificationRepository:
         )
         return (result.scalar() or 0) > 0
 
-    async def update_feedback(
+    async def update_feedback_by_run_id(
         self,
-        notification_id: UUID,
+        run_id: str,
+        user_id: UUID,
         feedback: str,
     ) -> bool:
-        """
-        Update user feedback on a notification.
+        """Record the user's verdict on the notification identified by ``run_id``.
+
+        Replaces an unused ``update_feedback(notification_id, feedback)`` that
+        had no caller and no ownership filter: the audit column stayed NULL on
+        every one of the 989 production rows, so anyone reading that table —
+        including a dashboard — concluded the user never gave feedback, while
+        the interest itself was correctly updated by ``apply_feedback``.
+
+        ``run_id`` is the join the archived chat card already carries in its
+        metadata (verified in production: 166/166 archived cards have one), so
+        the verdict lands on the exact notification the user was looking at
+        rather than on a guessed "most recent" row.
 
         Args:
-            notification_id: Notification UUID
-            feedback: Feedback value
+            run_id: Unique run identifier of the notification.
+            user_id: Owner — scopes the write, so a forged run_id from another
+                tenant updates nothing.
+            feedback: One of ``thumbs_up``, ``thumbs_down``, ``block``.
 
         Returns:
-            True if updated
+            True when a row was updated.
         """
         result = await self.db.execute(
             update(InterestNotification)
-            .where(InterestNotification.id == notification_id)
+            .where(
+                and_(
+                    InterestNotification.run_id == run_id,
+                    InterestNotification.user_id == user_id,
+                )
+            )
             .values(user_feedback=feedback)
         )
         return result.rowcount > 0  # type: ignore[attr-defined, no-any-return]

@@ -171,6 +171,14 @@ Privacy: the persisted coordinates are encrypted (Fernet), non-historized (overw
 | GET | `/api/v1/heartbeat/history` | Paginated notification history |
 | PATCH | `/api/v1/heartbeat/notifications/{id}/feedback` | Submit thumbs_up/thumbs_down |
 
+> **Frontend wiring (v1.25.29).** Until then the endpoint had no caller: only
+> `proactive_interest` cards rendered feedback buttons, so 914 production
+> notifications carried `feedback_enabled: true` with no way to answer them.
+> `ProactiveFeedbackButtons` now serves both contracts — two verdicts here (the
+> heartbeat schema has no `block`), three for interests — and the route marks the
+> archived message via `mark_proactive_feedback_submitted`, so the buttons stay
+> hidden across reloads and devices.
+
 ## Database
 
 ### User columns (added)

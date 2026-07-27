@@ -4,7 +4,7 @@
 
 **Version**: 3.9
 **Date**: 2026-07-27
-**Application**: LIA v1.25.28
+**Application**: LIA v1.25.29
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -153,7 +153,7 @@ LIA doesn't just respond — it anticipates:
 
 - **Proactive notifications**: LIA cross-references your context sources (calendar, weather, tasks, emails, interests) and notifies you when something is genuinely useful — with a built-in anti-spam system (daily quota, time window, cooldown)
 - **Conversational initiative**: during an exchange, LIA proactively checks related information — if weather forecasts rain on Saturday, it checks your calendar to flag potential outdoor activities
-- **Interests**: LIA progressively detects topics you're passionate about and sends you varied content — themes rotate (never the same subject twice in a row) and every notification includes clickable links to its sources
+- **Interests**: LIA keeps what you actually care about, not what you asked once — asking a question is a task, not a taste, and it takes a stated passion, a practice, real prior knowledge or genuine digging for a subject to count. Themes rotate (never the same subject twice in a row), every notification includes clickable links to its sources, and a subject you refuse does not come back: the block is compared against every new subject, including under another name
 - **Sub-agents**: for complex tasks, LIA delegates to ephemeral specialized agents working in parallel
 
 ### 3.7. Autonomous web browsing

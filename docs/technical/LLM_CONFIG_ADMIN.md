@@ -75,6 +75,20 @@ La **forme** d'un `reasoning_effort` dépend du `reasoning_widget` du modèle : 
 2. **Write path** (`LLMConfigService.update_config`) — `reasoning_effort` est validé (`validate_reasoning_effort`) contre le **modèle effectif** (`update.model`, ou `LLM_DEFAULTS[llm_type].model` si `update.model` est `null`) ; une combinaison invalide est rejetée en `422` avec un `ctx` structuré (`domains/llm_config/reasoning_validation.py`).
 3. **Merge runtime** (`merge_config` → `_reconcile_reasoning_effort`) — filet de sécurité ultime : si la config effective (défauts + override) porte un `reasoning_effort` dont la forme/valeur ne matche pas le `reasoning_widget` du modèle effectif (ligne d'override périmée après un changement de modèle non géré côté UI, seed obsolète, édition manuelle, bug antérieur), il est **droppé** (→ défaut intrinsèque du modèle) et un warning structuré `llm_config_reasoning_effort_dropped` est loggé. `get_llm()` ne plante donc jamais sur ce motif, quelle que soit l'origine de l'incohérence.
 
+### Héritage du défaut au changement de modèle (v1.25.29)
+
+Une quatrième situation manquait à la liste ci-dessus : l'override change le **modèle** sans fournir de `reasoning_effort`. Le merge y répondait par un abandon **inconditionnel** du défaut code — ce qui a produit un défaut mesuré le 2026-07-27 : les trois extracteurs de fond (mémoire, centres d'intérêt, journaux) tournaient **sans aucun bloc de raisonnement**.
+
+La chaîne complète du défaut, chaque maillon étant individuellement raisonnable :
+
+1. l'UI n'envoie que les champs qui **diffèrent des défauts** (sémantique d'override) — choisir `low` alors que `low` *est* le défaut du type n'envoie donc rien ;
+2. l'écriture est un remplacement intégral (`model_dump(exclude_unset=False)`) — le champ absent devient `NULL` en base ;
+3. le cache ne retient que les champs **non nuls** — la clé disparaît du dictionnaire d'override ;
+4. `merge_config` lisait « modèle changé, aucun effort fourni » comme « aucun raisonnement », au lieu de « garder le défaut ».
+
+Un réglage incapable d'exprimer sa propre valeur par défaut est un réglage cassé. L'héritage exige désormais une **preuve** de compatibilité (`_is_inheritable_reasoning_effort`) : le défaut n'est conservé que si le modèle effectif est connu du catalogue **et** que sa valeur convient à son `reasoning_widget`. Un modèle inconnu (tag Ollama découvert dynamiquement, catalogue non chargé) retombe sur l'abandon — la propriété de sûreté que l'abandon inconditionnel protégeait est préservée.
+
+
 Prédicat partagé : `reasoning_effort_matches_widget(caps, value)` (jumeau non-levant de `validate_reasoning_effort`), réutilisé par les couches 1 et 3 — une seule source de vérité pour « cette valeur est-elle valide pour ce modèle ? ».
 
 ### Résolution Clé API

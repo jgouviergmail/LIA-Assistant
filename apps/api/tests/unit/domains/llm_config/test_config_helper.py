@@ -192,6 +192,115 @@ class TestEffectiveConfigReasoningReconciliation:
         assert config.reasoning_effort.enabled is False
 
 
+@pytest.mark.unit
+class TestReasoningEffortInheritanceOnModelChange:
+    """What happens to the code default's ``reasoning_effort`` when a DB
+    override changes the model without providing one.
+
+    Measured defect, 2026-07-27: the three background extractors (memory,
+    interests, journal) ran with NO reasoning block. The admin picks
+    ``low``; the admin UI only sends fields that differ from the type's
+    default (override semantics) and ``low`` IS the default, so the column
+    stored NULL; the cache drops NULL fields; and this merge then read
+    "model changed, no reasoning provided" as "no reasoning at all" instead
+    of "keep the default". A knob that cannot express its own default value
+    is a broken knob.
+
+    Inheritance now requires proof of compatibility — never optimism.
+    """
+
+    _TYPE = "browser_agent"
+    _DEFAULT = LLM_DEFAULTS["browser_agent"]
+
+    def setup_method(self) -> None:
+        LLMConfigOverrideCache.reset()
+
+    @staticmethod
+    def _caps(model: str, widget: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            model_id=model,
+            reasoning_widget=widget,
+            reasoning_enum_values=["off", "low", "high"],
+            reasoning_budget_range={"min": 0, "max": 32768},
+        )
+
+    def test_a_compatible_default_survives_a_model_change(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The regression this lot fixes: same widget on both sides, so the
+        # admin's implicit "keep the default" must reach the runtime.
+        new_model = "another-toggle-model"
+        monkeypatch.setattr(
+            ModelCapabilitiesCache,
+            "_cache",
+            {new_model: self._caps(new_model, "toggle_budget")},
+        )
+        LLMConfigOverrideCache._overrides = {self._TYPE: {"model": new_model, "temperature": 0.1}}
+
+        config = get_llm_config_for_agent(MagicMock(), self._TYPE)
+
+        assert config.model == new_model
+        assert config.reasoning_effort == self._DEFAULT.reasoning_effort
+        assert config.temperature == 0.1
+
+    def test_an_incompatible_default_is_still_dropped(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # browser_agent's default is toggle-shaped; an enum-widget model cannot
+        # take it, and carrying it over would crash the typed builder.
+        new_model = "an-enum-model"
+        monkeypatch.setattr(
+            ModelCapabilitiesCache, "_cache", {new_model: self._caps(new_model, "enum")}
+        )
+        LLMConfigOverrideCache._overrides = {self._TYPE: {"model": new_model}}
+
+        config = get_llm_config_for_agent(MagicMock(), self._TYPE)
+
+        assert config.model == new_model
+        assert config.reasoning_effort is None
+
+    def test_an_unverifiable_model_drops_the_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Unknown model (dynamic Ollama tag, catalogue not loaded): compatibility
+        # cannot be proven, so the safe branch wins — this is the property the
+        # old unconditional drop protected, and it must not be lost.
+        monkeypatch.setattr(ModelCapabilitiesCache, "_cache", {})
+        LLMConfigOverrideCache._overrides = {self._TYPE: {"model": "some-unknown-tag"}}
+
+        config = get_llm_config_for_agent(MagicMock(), self._TYPE)
+
+        assert config.reasoning_effort is None
+
+    def test_an_explicit_override_still_wins(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        new_model = "another-toggle-model"
+        monkeypatch.setattr(
+            ModelCapabilitiesCache,
+            "_cache",
+            {new_model: self._caps(new_model, "toggle_budget")},
+        )
+        LLMConfigOverrideCache._overrides = {
+            self._TYPE: {"model": new_model, "reasoning_effort": {"enabled": True, "budget": 4096}}
+        }
+
+        config = get_llm_config_for_agent(MagicMock(), self._TYPE)
+
+        assert isinstance(config.reasoning_effort, ReasoningEffortToggleBudget)
+        assert config.reasoning_effort.budget == 4096
+
+    def test_no_model_change_keeps_the_default_untouched(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            ModelCapabilitiesCache,
+            "_cache",
+            {self._DEFAULT.model: self._caps(self._DEFAULT.model, "toggle_budget")},
+        )
+        LLMConfigOverrideCache._overrides = {self._TYPE: {"temperature": 0.3}}
+
+        config = get_llm_config_for_agent(MagicMock(), self._TYPE)
+
+        assert config.reasoning_effort == self._DEFAULT.reasoning_effort
+
+
 class TestGetProviderApiKey:
     """Tests for the core facade over the provider API-key cache (ADR-126)."""
 

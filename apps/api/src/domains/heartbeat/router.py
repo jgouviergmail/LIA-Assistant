@@ -260,6 +260,17 @@ async def submit_heartbeat_feedback(
     if not updated:
         raise_notification_not_found(notification_id)
 
+    # Hide the buttons on the archived card across reloads and devices, exactly
+    # as the interest route does — otherwise the same notification can be rated
+    # again on every page load.
+    from src.domains.conversations.repository import ConversationRepository
+
+    messages_updated = await ConversationRepository(db).mark_proactive_feedback_submitted(
+        user_id=user.id,
+        target_id=notification_id,
+        feedback_value=data.feedback,
+    )
+
     await db.commit()
 
     logger.info(
@@ -267,6 +278,7 @@ async def submit_heartbeat_feedback(
         user_id=str(user.id),
         notification_id=str(notification_id),
         feedback=data.feedback,
+        messages_updated=messages_updated,
     )
 
     return {"message": "Feedback submitted successfully"}

@@ -131,7 +131,7 @@ CASES: tuple[PreviewCase, ...] = (
         {
             "message_id": "m456",
             "to": "greg@example.com",
-            "cc": "heidi@example.com",
+            "cc": "clara@example.com",
             "subject": "Fwd: Contrat",
             "body": "Pour info.",
             "attachments": [
@@ -690,7 +690,7 @@ EXPECTED: dict[str, str] = {
     "email_labels_zh": "<br/>**收件人**: alice@example.com<br/><br/>**抄送**: bob@example.com<br/><br/>**密送**: carol@example.com<br/><br/>**主题**: Projet LIA — point d'étape<br/><br/>**内容**:<br/>Bonjour Alice,<br/>voici le point d'étape.",
     "email_reply_fr": "<br/>**Destinataire**: erin@example.com<br/><br/>**Objet**: Re: Devis<br/><br/>**Message**:<br/>Merci, c'est validé.",
     "email_reply_with_cc_fr": "<br/>**Destinataire**: erin@example.com<br/><br/>**Cc**: frank@example.com<br/><br/>**Objet**: Re: Devis<br/><br/>**Message**:<br/>Merci, c'est validé.",
-    "email_forward_attachments_fr": "<br/>**Destinataire**: greg@example.com<br/><br/>**Cc**: heidi@example.com<br/><br/>**Objet**: Fwd: Contrat<br/><br/>**Message**:<br/>Pour info.<br/><br/>**Pièces jointes**: contrat.pdf, annexe.docx, ?",
+    "email_forward_attachments_fr": "<br/>**Destinataire**: greg@example.com<br/><br/>**Cc**: clara@example.com<br/><br/>**Objet**: Fwd: Contrat<br/><br/>**Message**:<br/>Pour info.<br/><br/>**Pièces jointes**: contrat.pdf, annexe.docx, ?",
     "email_forward_no_attachments_en": "<br/>**To**: ivan@example.com<br/><br/>**Subject**: Fwd: Report<br/><br/>**Message**:<br/>FYI.",
     "email_forward_none_body_fr": "<br/>**Destinataire**: judy@example.com<br/><br/>**Objet**: Fwd: Photos<br/><br/>**Message**:<br/>",
     "email_forward_bcc_no_cc_fr": "<br/>**Destinataire**: greg@example.com<br/><br/>**Cci**: mallory@example.com<br/><br/>**Objet**: Fwd: Contrat<br/><br/>**Message**:<br/>Pour info.",

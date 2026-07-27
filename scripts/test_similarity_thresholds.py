@@ -54,9 +54,9 @@ class TC:
 # =============================================================================
 MEMORY_TESTS = [
     # --- MATCH: query should retrieve this memory ---
-    TC("Wife name", "ma femme", "Mon epouse s'appelle Hua Gouvier, mariee depuis 2018.", "match"),
-    TC("Wife name v2", "parle-moi de Hua", "Mon epouse s'appelle Hua Gouvier, elle est d'origine vietnamienne.", "match"),
-    TC("Email", "mon adresse email", "L'adresse email de l'utilisateur est jean.gouvier@gmail.com", "match"),
+    TC("Wife name", "ma femme", "Mon epouse s'appelle Léa Lemoine, mariee depuis 2018.", "match"),
+    TC("Wife name v2", "parle-moi de Hua", "Mon epouse s'appelle Léa Lemoine, elle est d'origine vietnamienne.", "match"),
+    TC("Email", "mon adresse email", "L'adresse email de l'utilisateur est jean.dupond@example.com", "match"),
     TC("Home", "ou j'habite", "L'utilisateur habite a Lyon, 3eme arrondissement, quartier Part-Dieu.", "match"),
     TC("Birthday", "mon anniversaire", "L'utilisateur est ne le 15 mars 1985 a Villeurbanne.", "match"),
     TC("Music pref", "ma musique preferee", "L'utilisateur aime le jazz et Debussy. Il ecoute souvent Miles Davis.", "match"),

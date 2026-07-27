@@ -1503,6 +1503,17 @@ MEMORY_RELATIONSHIP_MIN_SCORE = 0.3  # Lower threshold for relationship matching
 MEMORY_CATEGORY_RELATIONSHIP = "relationship"
 
 # ============================================================================
+# BACKGROUND EXTRACTION SAFETY (shared by memory + interests)
+# ============================================================================
+# Maximum destructive actions a single background extraction may apply.
+# Deletions carry no confidence field and are validated only for UUID validity
+# and ownership. Measured 2026-07-27 on 45 replayed production windows: one
+# ordinary turn made the interest extractor propose 19 deletions — the user's
+# entire profile. Beyond this cap the deletions of the batch are dropped as a
+# generation failure; see domains/agents/utils/extraction_guards.py.
+EXTRACTION_MAX_DELETES_PER_RUN_DEFAULT = 2
+
+# ============================================================================
 # HYBRID MEMORY SEARCH (BM25 + Semantic)
 # ============================================================================
 # Combines keyword-based (BM25) and semantic (pgvector) search for improved recall.
@@ -1910,9 +1921,16 @@ HEARTBEAT_INACTIVE_SKIP_DAYS_DEFAULT = 7
 # Used by extraction_service.py to cache LLM analysis between debug and background
 INTEREST_ANALYSIS_CACHE_TTL = 60
 
-# Minimum confidence threshold for interest extraction
-# Interests below this threshold are filtered out during extraction
-INTEREST_EXTRACTION_MIN_CONFIDENCE = 0.6
+# Minimum confidence threshold for interest extraction.
+# Creations below it are dropped at parse time (update/delete carry no
+# confidence and are gated elsewhere). Raised 0.6 -> 0.75 on 2026-07-27: the
+# reworked prompt anchors its scale on the ground it can name (0.95 stated
+# passion / own practice, 0.85 prior knowledge, 0.75 deep dive) and instructs
+# "below 0.75, do not create". Measured over 8 battery runs and 90 replayed
+# production windows, every emitted creation scored 0.75, 0.85 or 0.95 —
+# never in between — so the floor makes the written rule enforceable without
+# dropping anything the model actually produces.
+INTEREST_EXTRACTION_MIN_CONFIDENCE_DEFAULT = 0.75
 
 # Proactive notification settings (externalized from hardcoded values)
 # Whether feedback buttons (thumbs up/down/block) are enabled on proactive messages
@@ -2373,8 +2391,18 @@ INTEREST_DECAY_RATE_PER_DAY_DEFAULT = 0.005  # Aligned from .env.prod (was 0.01)
 INTEREST_CONTENT_MAX_LENGTH_DEFAULT = 500
 INTEREST_CONTENT_LOOKBACK_DAYS_DEFAULT = 7  # Aligned from .env.prod (was 30)
 INTEREST_DEDUP_SEARCH_LIMIT_DEFAULT = 20
+# Deduplication scan window, deliberately larger than the prompt window above.
+# The prompt list is capped by its token budget; the dedup list is not, and a
+# short one silently re-creates the interests that fall out of it (rows are
+# ordered by creation date, so the oldest — hence strongest — drop first).
+# Measured 2026-07-27 in production: 19 active interests against a window of 20.
+INTEREST_DEDUP_SCAN_LIMIT_DEFAULT = 200
 INTEREST_DEDUP_SIMILARITY_THRESHOLD_DEFAULT = (
-    0.89  # Calibrated for Gemini embedding-001 (2026-04-09 v2)
+    0.89  # Calibrated for Gemini embedding-001 (2026-04-09 v2).
+    # Re-measured 2026-07-27 on 16 real production pairs: 0.83 and 0.89 tie at
+    # 2 errors, but 0.83's errors are ABUSIVE merges (android~ios 0.857,
+    # Caen~Strasbourg 0.890 — destructive, irreversible) where 0.89's are
+    # missed merges (a duplicate, recoverable). Keep 0.89.
 )
 INTEREST_CONTENT_SIMILARITY_THRESHOLD_DEFAULT = (
     0.90  # Calibrated for Gemini embedding-001 (2026-04-09)

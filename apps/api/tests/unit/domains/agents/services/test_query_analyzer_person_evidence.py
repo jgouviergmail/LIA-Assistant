@@ -101,7 +101,7 @@ async def test_e1_memory_mappings_trigger_gate_without_analyzer_refs():
     """Resolved identity mappings alone must open the expansion gate.
 
     This is the exact shape of the historical failing turn: the resolver
-    resolved {"mon frère": "Alexandre Gouvier"} but the analyzer returned no
+    resolved {"mon frère": "Marc Lemoine"} but the analyzer returned no
     person-typed reference — expansion was skipped and the plan geocoded the
     person name.
     """
@@ -109,8 +109,8 @@ async def test_e1_memory_mappings_trigger_gate_without_analyzer_refs():
         facts=None,
         resolved=ResolvedReferences(
             original_query=QUERY,
-            enriched_query=QUERY.replace("mon frère", "Alexandre Gouvier"),
-            mappings={"mon frère": "Alexandre Gouvier"},
+            enriched_query=QUERY.replace("mon frère", "Marc Lemoine"),
+            mappings={"mon frère": "Marc Lemoine"},
         ),
         references=["mon frère"],
     )

@@ -478,21 +478,32 @@ par le LLM — zero URL hallucinee) sous forme de bloc markdown
 
 Les embeddings OpenAI text-embedding-3-small (1536 dimensions) sont utilises a **trois niveaux** :
 
-#### 1. Deduplication des interets (`_find_similar_interest`)
+#### 1. Deduplication des interets (`find_similar_interest`)
 
-Lors de l'extraction d'un nouvel interet, le systeme verifie s'il existe deja un interet similaire :
+**Fichier** : `apps/api/src/domains/interests/services/action_applier.py`
 
-```python
-# extraction_service.py
-topic_embedding = embeddings.embed_query(topic)
-for interest in existing_interests:
-    if interest.embedding:
-        similarity = cosine_similarity(topic_embedding, interest.embedding)
-        if similarity >= INTEREST_DEDUP_SIMILARITY_THRESHOLD:  # 0.89
-            return True, interest  # Consolidation
-```
+Lors de l'extraction d'un nouvel interet, le systeme cherche un interet
+semantiquement equivalent parmi les candidats retournes par
+`InterestRepository.get_for_dedup` — **tous statuts confondus**, et non les seuls
+actifs (ADR-166). Un interet bloque invisible de la deduplication est un sujet
+que l'utilisateur a rejete et que l'extracteur recree sous un libelle voisin :
+observe en production le 2026-07-21, 25 minutes apres le blocage, avec une
+similarite de 0,9821 entre les deux libelles.
 
-**Fallback** : Si un interet existant n'a pas d'embedding, le systeme utilise une comparaison de chaines (`topic.lower() in ...`).
+| Statut du candidat trouve | Action appliquee |
+|---|---|
+| `blocked` | **rien** — compte sous `extraction_action_rejected_total{reason="blocked_interest"}` |
+| `dormant` | `consolidate_on_mention` (qui le reactive) |
+| `active` | `consolidate_on_mention` |
+| aucun candidat | creation |
+
+**Fallback** : si un cote n'a pas d'embedding, comparaison de chaines dans les
+deux sens (ADR-131 : le doublon « Anthropic »/« anthropic » etait passe la).
+
+**Seuil** : 0,89, re-mesure le 2026-07-27 sur 16 couples reels de production.
+0,83 et 0,89 sont a egalite (2 erreurs), mais 0,83 produit **2 fusions abusives**
+(android~ios 0,857 ; Caen~Strasbourg 0,890) — destructif et irreversible — la ou
+0,89 produit 2 fusions ratees, qui restent rattrapables. Le seuil reste a 0,89.
 
 #### 2. Deduplication du contenu (`_is_duplicate`)
 
@@ -881,71 +892,80 @@ def calculate_effective_weight(interest: UserInterest, decay_rate_per_day: float
 ### 5.1 Interest Extraction Prompt
 
 **Fichier** : `apps/api/src/domains/agents/prompts/v1/interest_extraction_prompt.txt`
+**Doctrine d'admission** : ADR-166 — verrouillee par
+`tests/unit/domains/agents/prompts/test_extraction_prompt_doctrine.py`.
 
-#### Structure du Prompt
+#### La question posee
 
-```
-Tu es un analyste comportemental qui identifie les VRAIS centres d'interet d'un utilisateur.
+Le prompt ne demande pas *de quoi parle ce message* mais *l'utilisateur a-t-il
+revele une relation DURABLE a ce sujet*. Un sujet peut etre demande, cherche,
+construit, cite — et ne rien dire de l'utilisateur. **Demander est une tache,
+pas un gout.**
 
-##TACHE
-Extraire 0 a 2 centres d'interet PERTINENTS de cette conversation.
-Tu formules les topics dans la langue {user_language}.
+#### Fondements admissibles (champ `signal`, un seul)
 
-## REGLES STRICTES
+| Fondement | Ce qu'il exige | Confiance |
+|---|---|---|
+| `stated_passion` | l'utilisateur dit qu'il aime / suit / est passionne | 0.95 |
+| `own_practice` | il rapporte le PRATIQUER lui-meme (suit tous les jours, joue, prepare) | 0.95 |
+| `prior_knowledge` | le sujet est deja le sien : vocabulaire, opinion defendue, comparaison de praticien | 0.85 |
+| `deep_dive` | dans CET echange il a creuse le MEME sujet au moins deux fois | 0.75 |
 
-### 1. EXCLURE les actions quotidiennes:
-- Email, calendrier, meteo, navigation, rappels, taches
-- Questions pratiques (horaires, adresses, conversions)
-- Demandes administratives ou transactionnelles
+Le champ `evidence` doit citer les mots de l'utilisateur qui portent ce
+fondement. Sans fondement nommable et citable, aucune creation. En dessous de
+`INTEREST_EXTRACTION_MIN_CONFIDENCE` (0.75 par defaut, reglable) la creation est
+rejetee au parsing.
 
-### 2. NIVEAU D'ABSTRACTION CORRECT:
-Extraire des CATEGORIES, pas des produits specifiques.
-- MAUVAIS: "iPhone 18 Pro Max" -> BON: "iPhone, iOS, smartphones Apple"
-- MAUVAIS: "Tesla Model Y" -> BON: "vehicules electriques, Tesla"
+> `signal` et `evidence` sont produits par le modele et **ignores par le
+> parseur** (`extra="ignore"` de Pydantic v2) : ils servent aujourd'hui d'echafaudage
+> de raisonnement. Les rendre opposables cote code est un lot ulterieur.
 
-### 3. SIGNES D'INTERET AUTHENTIQUE:
-- Enthousiasme ou curiosite exprimee
-- Demande d'information sur un sujet specifique
-- Mentions repetees du meme theme
-- Opinions personnelles partagees
-- Connaissance prealable demontree
+#### Classes JAMAIS retenues (reconnaitre la classe, pas l'exemple)
 
-### 4. SI INTERET SIMILAIRE EXISTE:
-- NE PAS dupliquer, retourner liste vide
-- Le systeme consolidera automatiquement
+1. **Le sujet d'une demande** — « explique X », « c'est quoi X », « fais-moi un X ».
+2. **Une remarque sur l'assistant** — sa reponse, son ton, son interface, ses donnees.
+3. **Le gout d'un tiers.**
+4. **Quelque chose essaye une fois, en passant.**
+5. **Les actions utilitaires et quotidiennes** — mail, agenda, meteo, rappels, trajets.
+6. **Ce que l'assistant a lui-meme introduit.**
 
-### 5. CONFIANCE MINIMALE:
-- Ne jamais extraire avec confiance < 0.6
-```
+#### Regles structurelles
 
-#### Format de Sortie
+- **Une creation au maximum par echange** (la prod creait « Indonesie » ET
+  « culture javanaise » sur une seule fenetre).
+- `update` exige un fondement lui aussi : sans cela, durcir `create` deplace
+  simplement le bruit vers `update`, qui consolide de la meme facon.
+- Le declencheur doit etre le DERNIER message utilisateur ; les tours precedents
+  ne servent qu'a desambiguiser.
 
-```json
-[
-  {
-    "topic": "description courte (max 50 caracteres)",
-    "category": "technology|science|culture|...",
-    "confidence": 0.0-1.0
-  }
-]
-```
+#### Mesure
 
-#### Exemples du Prompt
+`apps/api/scripts/measure_extraction_selectivity.py` rejoue une batterie de
+conversations issues de la production (negatifs = interets que l'utilisateur a
+reellement bloques ; positifs = interets vivants depuis des mois) et rapporte
+bruit / rappel / volume / tokens. Une seconde batterie *held-out* porte les
+memes classes sur des sujets absents des prompts.
 
-Les exemples utilisent le format `USER:` pour correspondre au format reel de la conversation :
-
-```
-USER: J'adore l'astronomie, j'ai passe des heures hier soir a observer Jupiter
-Sortie: [{"topic": "astronomie, observation des planetes", "category": "science", "confidence": 0.95}]
-
-USER: Quelle heure est-il a Tokyo ?
-Sortie: [] (question pratique, pas d'interet authentique)
-
-USER: Recherche des information sur le langage Python
-Sortie: [{"topic": "developpement Python", "category": "technology", "confidence": 0.95}]
+```bash
+docker exec lia-api-dev python scripts/measure_extraction_selectivity.py --reps 6
+docker exec lia-api-dev python scripts/measure_extraction_selectivity.py   --set holdout --interest-prompt /tmp/candidat.txt
 ```
 
----
+Mesure du 2026-07-27 (configuration prod, deepseek-v4-flash) :
+
+| | bruit sur negatifs | rappel sur positifs |
+|---|---|---|
+| Prompt precedent | 0,50 | 0,75 |
+| Prompt actuel | **0,00** | **1,00** |
+| Prompt actuel, batterie held-out | **0,00** | **1,00** |
+
+Mesure reproduite sur deux modeles (`deepseek-v4-flash` de production et
+`gpt-5.2`) : la doctrine ne depend pas d'un fournisseur. Le harnais sert aussi a
+distinguer une regression de prompt d'une derive de modele — voir ADR-166.
+
+Sur 45 fenetres reelles de production, le prompt precedent ecrivait sur 16
+d'entre elles (18 creations, 19 suppressions, 1 mise a jour) ; le prompt actuel
+sur 4 (2 creations, 2 mises a jour, aucune suppression).
 
 ## 6. API Endpoints
 
@@ -1100,12 +1120,19 @@ INTEREST_DEDUP_SIMILARITY_THRESHOLD=0.89
 ```python
 # Interest Learning System
 INTEREST_EXTRACTION_QUERY_TRUNCATION_LENGTH = 500
-INTEREST_DEDUP_SEARCH_LIMIT = 20
+INTEREST_DEDUP_SEARCH_LIMIT_DEFAULT = 20          # liste montree AU PROMPT (budget tokens)
+INTEREST_DEDUP_SCAN_LIMIT_DEFAULT = 200           # fenetre de DEDUPLICATION (tous statuts)
 INTEREST_ACTIVE_LIST_LIMIT = 50
-INTEREST_EXTRACTION_MIN_CONFIDENCE = 0.6
+INTEREST_EXTRACTION_MIN_CONFIDENCE_DEFAULT = 0.75 # plancher de creation (reglable)
+EXTRACTION_MAX_DELETES_PER_RUN_DEFAULT = 2        # partage avec la memoire
 INTEREST_ANALYSIS_CACHE_TTL = 300  # 5 minutes
 REDIS_KEY_INTEREST_ANALYSIS_PREFIX = "interest:analysis:"
 ```
+
+> Les trois premieres valeurs marquees `_DEFAULT` sont exposees en `Settings`
+> (`interest_dedup_search_limit`, `interest_dedup_scan_limit`,
+> `interest_extraction_min_confidence`, `extraction_max_deletes_per_run`) et
+> surchargeables par `.env`.
 
 ---
 

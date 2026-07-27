@@ -959,7 +959,7 @@ async def test_reply_email_quoted_body_survives_mime_encoding(gmail_client):
         "payload": {
             "headers": [
                 {"name": "Subject", "value": "Réunion budget"},
-                {"name": "From", "value": "Jérôme Gouvier <jerome@example.com>"},
+                {"name": "From", "value": "Paul Lemoine <jerome@example.com>"},
                 {"name": "Date", "value": "Thu, 2 Jul 2026 10:00:00 +0200"},
                 {"name": "Message-ID", "value": "<orig-1@mail.example.com>"},
             ],
@@ -997,7 +997,7 @@ async def test_reply_email_quoted_body_survives_mime_encoding(gmail_client):
 
     assert "Merci, c'est noté — à très bientôt !" in decoded_body
     assert "> Voici l'échéance prévue : début août." in decoded_body
-    assert "Jérôme Gouvier" in decoded_body  # quoted attribution line
+    assert "Paul Lemoine" in decoded_body  # quoted attribution line
     assert captured["threadId"] == "thread-1"
     # Subject is RFC 2047-encoded (non-ASCII) — decode before asserting
     from email.header import decode_header

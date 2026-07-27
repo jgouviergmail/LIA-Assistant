@@ -8,11 +8,16 @@ LIA learns your interests **automatically** by analyzing your conversations:
 • Detection of topics you're passionate about
 • Filtering of practical requests (weather, emails...)
 
-**✨ What is detected:**
-• Expressed enthusiasm or curiosity
-• Information requests on a topic
-• Repeated mentions of a theme
-• Personal opinions shared
+**✨ What is detected — one named ground is required, quoted from your own words:**
+• You say you like, follow or are into the subject
+• You report practising it yourself
+• You show you already know it (vocabulary, an opinion you defend)
+• You dig into the same subject several times in one exchange
+
+**🚪 What is never an interest:**
+The subject of a request ("*what is photosynthesis*"), a remark about LIA itself,
+someone else's taste, something tried once, a daily action (mail, calendar,
+weather), or anything LIA brought up on its own initiative.
 
 **📂 10 categories:**
 Technology, Science, Culture, Sports, Finance, Travel, Nature, Health, Entertainment, Other
@@ -59,7 +64,7 @@ Settings → "*Interests*" section
 
 **📋 Interest list:**
 • View all your interests with their weight
-• **Block**: no more notifications on this topic
+• **Block**: no more notifications on this topic, and the subject can no longer be re-created under another name
 • **Delete**: permanently remove
 • **Add manually**: create an interest
 
@@ -114,6 +119,8 @@ When you receive a notification, give your opinion:
 **🚫 "Never suggest again":**
 • Permanently blocks this topic
 • No more notifications on this theme
+• The subject stays visible to deduplication, so it cannot come back under a
+  neighbouring name, be renamed into place, or be deleted to free the slot
 • Reversible in settings
 
 **💡 Where to find the buttons:**
@@ -142,3 +149,41 @@ LIA uses several anti-duplicate mechanisms:
 
 **📊 Result:**
 You will never receive the same content twice, nor topics too similar in a row.
+
+## I blocked a topic and it came back — is that fixed?
+Yes, and it was a real defect: blocking marked the topic as rejected, but the
+learning loop only ever looked at your **active** interests. A blocked topic was
+invisible to it, and the next conversation on the subject re-created it under a
+slightly different name — one production case came back **twenty-five minutes**
+after being blocked.
+
+**🚫 What blocking means now:**
+• The topic is compared against every new subject, blocked ones included
+• It can no longer be re-created under a neighbouring name
+• It can no longer be renamed back into place, nor deleted to free the slot
+• The refusal is counted, so a topic LIA keeps rediscovering is visible
+
+**↩️ Still reversible:**
+Unblocking from Settings restores the topic exactly as before — blocking is
+definitive, not irreversible.
+
+## Why does LIA create fewer new interests than before?
+Because a subject you merely asked about is not a taste. Asking "*what is
+photosynthesis*" used to create a lasting interest, and the proactive engine then
+came back to you about it for weeks.
+
+**🎯 What it takes now:**
+A creation requires one of four grounds, and LIA must quote your own words for it:
+• You say you like or follow the subject
+• You report practising it yourself
+• You show you already know it
+• You dig into the same subject several times in one exchange
+
+**🛡️ A safety cap on removals:**
+An ordinary sentence used to be enough for LIA to propose deleting nineteen
+interests — your entire list. A single exchange can now remove at most a couple
+of subjects; beyond that the whole batch is refused and recorded.
+
+**📊 Measured:**
+On real conversations, half of the exchanges that should have produced nothing
+were creating an interest. None do now, and the genuine ones are still caught.

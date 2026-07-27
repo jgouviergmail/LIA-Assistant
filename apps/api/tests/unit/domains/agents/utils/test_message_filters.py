@@ -933,9 +933,9 @@ class TestFilterForLlmContext:
             SystemMessage(
                 content="<Personality>...</Personality>\n<Workflow>1. PLAN ...</Workflow>"
             ),
-            SystemMessage(content='<MemoryContext>\n- "mon frangin" = Alexandre\n</MemoryContext>'),
+            SystemMessage(content='<MemoryContext>\n- "mon frangin" = Marc\n</MemoryContext>'),
             HumanMessage(content="quelle est l'adresse de mon frangin ?"),
-            AIMessage(content="Il habite au 36 Boulevard Léon Gambetta, Mulhouse."),
+            AIMessage(content="Il habite au 12 Rue des Lilas, Montpellier."),
         ]
 
         with patch("src.domains.agents.utils.message_filters.logger"):

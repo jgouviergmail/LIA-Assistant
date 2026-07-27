@@ -21,15 +21,23 @@ import type { Message } from '@/types/chat';
 const { useAuth } = vi.hoisted(() => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth }));
 
-const { mutate } = vi.hoisted(() => ({ mutate: vi.fn(async () => {}) }));
-vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation: () => ({ mutate }) }));
+const { mutate, apiMutationOptions } = vi.hoisted(() => ({
+  mutate: vi.fn(async () => {}),
+  apiMutationOptions: vi.fn(),
+}));
+vi.mock('@/hooks/useApiMutation', () => ({
+  useApiMutation: (options: unknown) => {
+    apiMutationOptions(options);
+    return { mutate };
+  },
+}));
 
 const { toast } = vi.hoisted(() => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 vi.mock('sonner', () => ({ toast }));
 
-import { ChatMessage, type ChatMessageProps } from '../ChatMessage';
+import { ChatMessage, proactiveFeedbackProps, type ChatMessageProps } from '../ChatMessage';
 
 function renderMessage(message: Message, isUser = false) {
   return renderWithProviders(<ChatMessage message={message} isUser={isUser} />);
@@ -214,6 +222,152 @@ describe('ChatMessage — proactive interest feedback', () => {
     const { user } = renderMessage(proactive());
     await user.click(screen.getByRole('button', { name: 'interests.feedback.block' }));
     expect(toast.info).toHaveBeenCalledWith('interests.feedback.blocked');
+  });
+});
+
+describe('ChatMessage — proactive interest feedback, audit trail', () => {
+  it('carries the notification run_id so the verdict lands on the right row', async () => {
+    // The audit column stayed NULL on 989 production rows because nothing tied
+    // a verdict to a notification. The card knows its run_id — it must send it.
+    const { user } = renderMessage(
+      makeMessage({
+        content: 'Un article sur les fusées',
+        metadata: {
+          type: 'proactive_interest',
+          target_id: 'int-7',
+          run_id: 'interest_int-7_ab12cd34',
+          feedback_enabled: true,
+        },
+      })
+    );
+
+    await user.click(screen.getByRole('button', { name: 'interests.feedback.like' }));
+
+    await waitFor(() =>
+      expect(mutate).toHaveBeenCalledWith('/interests/int-7/feedback', {
+        feedback: 'thumbs_up',
+        run_id: 'interest_int-7_ab12cd34',
+      })
+    );
+  });
+});
+
+describe('ChatMessage — proactive heartbeat feedback', () => {
+  // 914 heartbeat notifications carried `feedback_enabled: true` and had a
+  // working endpoint, but no component ever rendered buttons for them.
+  const heartbeat = (over: Record<string, unknown> = {}) =>
+    makeMessage({
+      content: 'Il pleuvra cet après-midi',
+      metadata: {
+        type: 'proactive_heartbeat',
+        target_id: 'hb-42',
+        feedback_enabled: true,
+        ...over,
+      },
+    });
+
+  it('offers the two verdicts its contract accepts', () => {
+    renderMessage(heartbeat());
+    expect(screen.getByRole('button', { name: 'heartbeat.feedback.like' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'heartbeat.feedback.dislike' })).toBeInTheDocument();
+  });
+
+  it('never offers "block" — the heartbeat contract has no such verdict', () => {
+    renderMessage(heartbeat());
+    expect(
+      screen.queryByRole('button', { name: 'interests.feedback.block' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'heartbeat.feedback.block' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('patches the heartbeat notification endpoint, not the interest one', async () => {
+    const { user } = renderMessage(heartbeat());
+
+    await user.click(screen.getByRole('button', { name: 'heartbeat.feedback.like' }));
+
+    await waitFor(() =>
+      expect(mutate).toHaveBeenCalledWith('/heartbeat/notifications/hb-42/feedback', {
+        feedback: 'thumbs_up',
+      })
+    );
+    expect(apiMutationOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'PATCH' })
+    );
+  });
+
+  it('acknowledges the verdict and closes the row for good', async () => {
+    const { user } = renderMessage(heartbeat());
+
+    await user.click(screen.getByRole('button', { name: 'heartbeat.feedback.dislike' }));
+
+    expect(toast.info).toHaveBeenCalledWith('heartbeat.feedback.disliked');
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'heartbeat.feedback.dislike' })
+      ).not.toBeInTheDocument()
+    );
+    expect(mutate).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays hidden once a verdict was recorded server-side', () => {
+    renderMessage(heartbeat({ feedback_submitted: true }));
+    expect(
+      screen.queryByRole('button', { name: 'heartbeat.feedback.like' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('stays hidden when the notification does not accept feedback', () => {
+    renderMessage(heartbeat({ feedback_enabled: false }));
+    expect(
+      screen.queryByRole('button', { name: 'heartbeat.feedback.like' })
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe('proactiveFeedbackProps — which contract a bubble routes to', () => {
+  const base = { target_id: 'x-1', feedback_enabled: true };
+
+  it.each([
+    ['proactive_interest', 'interest'],
+    ['proactive_heartbeat', 'heartbeat'],
+  ])('routes %s to the %s contract', (type, kind) => {
+    expect(proactiveFeedbackProps({ ...base, type }, false)).toEqual({
+      kind,
+      targetId: 'x-1',
+      runId: undefined,
+    });
+  });
+
+  it('keeps the run_id when the card carries one', () => {
+    expect(
+      proactiveFeedbackProps({ ...base, type: 'proactive_interest', run_id: 'r-9' }, false)
+    ).toEqual({ kind: 'interest', targetId: 'x-1', runId: 'r-9' });
+  });
+
+  it.each([
+    ['an ordinary assistant message', {}],
+    ['an unknown proactive kind', { ...base, type: 'proactive_phone_call' }],
+    ['a card without a target', { type: 'proactive_interest', feedback_enabled: true }],
+    ['an empty target', { ...base, type: 'proactive_interest', target_id: '' }],
+    ['a card that refuses feedback', { ...base, type: 'proactive_interest', feedback_enabled: false }],
+  ])('offers nothing for %s', (_label, metadata) => {
+    expect(proactiveFeedbackProps(metadata as Record<string, unknown>, false)).toBeNull();
+  });
+
+  it('offers nothing once the verdict is in, whatever the metadata says', () => {
+    expect(proactiveFeedbackProps({ ...base, type: 'proactive_interest' }, true)).toBeNull();
+  });
+
+  it('offers nothing without metadata at all', () => {
+    expect(proactiveFeedbackProps(undefined, false)).toBeNull();
+  });
+
+  it('ignores a non-string run_id instead of forwarding garbage', () => {
+    expect(
+      proactiveFeedbackProps({ ...base, type: 'proactive_interest', run_id: 42 }, false)
+    ).toEqual({ kind: 'interest', targetId: 'x-1', runId: undefined });
   });
 });
 

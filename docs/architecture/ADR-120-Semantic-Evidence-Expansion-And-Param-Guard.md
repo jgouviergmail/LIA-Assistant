@@ -10,7 +10,7 @@ In pipeline mode, "comment aller chez mon frère en voiture demain pour 18h ?"
 intermittently produced a route to an arbitrary location. Root cause traced
 end-to-end on a failing turn:
 
-1. The memory resolver **did** resolve `{"mon frère" → "Alexandre Gouvier"}`,
+1. The memory resolver **did** resolve `{"mon frère" → "Marc Lemoine"}`,
    but the semantic-expansion trigger `has_person_reference` was computed
    **only from the analyzer LLM's typed references** — an intermittent signal
    the LLM sometimes omits. The expansion-service docstring even documented
@@ -20,7 +20,7 @@ end-to-end on a failing turn:
    from the semantic-dependencies section of both the planner and the ReAct
    system prompts (all keyed on the same domain list). ReAct only recovered
    because it binds all tools and iterates.
-3. The plan called `get_route(destination="Alexandre Gouvier")`; the Places
+3. The plan called `get_route(destination="Marc Lemoine")`; the Places
    lookup found nothing and the raw person name was **passed through** to the
    Routes API, which geocoded it arbitrarily — and the wrong route was cached
    (300 s).
@@ -43,7 +43,7 @@ Three complementary mechanisms, one per failure link:
    refs (historical signal). Evidence sources are logged and surfaced in the
    debug panel (`person_evidence_sources`). Known limit: E1/E2 cover
    *relational* references only ("mon frère") — direct names ("chez Alexandre
-   Gouvier") still depend on E3 and are backstopped by (3).
+   Lemoine") still depend on E3 and are backstopped by (3).
 
 2. **Evidence-driven expansion (C2, under flag, ships dark).**
    `expand_domains_evidence_driven` generalizes person→contact: for every

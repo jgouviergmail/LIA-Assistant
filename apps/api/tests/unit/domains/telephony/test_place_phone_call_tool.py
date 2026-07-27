@@ -87,7 +87,7 @@ def test_normalize_phone_without_country_code_keeps_national(
 
 @pytest.mark.unit
 def test_strip_trailing_annotations() -> None:
-    assert _strip_trailing_annotations("Hua Gouvier (my wife)") == "Hua Gouvier"
+    assert _strip_trailing_annotations("Léa Lemoine (my wife)") == "Léa Lemoine"
     assert _strip_trailing_annotations("X (a) (b)") == "X"
     assert _strip_trailing_annotations("(only annotation)") == ""
     assert _strip_trailing_annotations("Jean Dupont") == "Jean Dupont"
@@ -120,7 +120,7 @@ def test_extract_candidates_unwraps_person_wrapper() -> None:
         "results": [
             {
                 "person": {
-                    "names": [{"displayName": "Jérôme Gouvier"}],
+                    "names": [{"displayName": "Paul Lemoine"}],
                     "phoneNumbers": [{"value": "06 82 51 16 39", "canonicalForm": "+33682511639"}],
                 }
             }
@@ -128,8 +128,8 @@ def test_extract_candidates_unwraps_person_wrapper() -> None:
         "totalItems": 1,
     }
     candidates, first_name = _extract_candidates(payload)
-    assert first_name == "Jérôme Gouvier"
-    assert candidates == [("Jérôme Gouvier", "+33682511639")]
+    assert first_name == "Paul Lemoine"
+    assert candidates == [("Paul Lemoine", "+33682511639")]
 
 
 @pytest.mark.unit
@@ -144,20 +144,20 @@ def test_extract_candidates_tolerates_unwrapped_person() -> None:
 async def test_resolve_callee_retries_with_stripped_annotation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """LLM-annotated names ('Hua Gouvier (my wife)') fall back to the clean name."""
+    """LLM-annotated names ('Léa Lemoine (my wife)') fall back to the clean name."""
     queries: list[str] = []
 
     async def _search(_user_id, query, max_results=5):
         queries.append(query)
-        if query == "Hua Gouvier":
-            return [("Hua Gouvier", "+33612345678")], "Hua Gouvier"
+        if query == "Léa Lemoine":
+            return [("Léa Lemoine", "+33612345678")], "Léa Lemoine"
         return [], None
 
     monkeypatch.setattr(tmod, "_search_contacts_with_phones", _search)
-    resolution = await _resolve_callee(uuid4(), "Hua Gouvier (my wife)")
+    resolution = await _resolve_callee(uuid4(), "Léa Lemoine (my wife)")
     assert resolution.kind == "resolved"
     assert resolution.phone == "+33612345678"
-    assert queries == ["Hua Gouvier (my wife)", "Hua Gouvier"]
+    assert queries == ["Léa Lemoine (my wife)", "Léa Lemoine"]
 
 
 @pytest.mark.unit

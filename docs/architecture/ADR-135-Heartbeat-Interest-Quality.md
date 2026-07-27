@@ -23,7 +23,7 @@ A fourth channel (memories fetched by a **fixed embedding query**, surfacing the
 
 - **Extended decision schema** (`interest_topic` + `Literal` source labels) on deepseek-v4-flash: **8/8 valid**, topic copied exactly from the injected sample, zero inventions → the structured-output risk was retired before implementation.
 - **Content-window variant**: exposing recent *contents* unlocked pivots (2 notifies / 4 runs vs 0 / 7 without) **but** the pivot landed on "1664" — a motif absent from a 5-item window. Hence: **10 items / 7 days** and a rule that operates on topics/products/activities, not sources.
-- **Enrichment chain**: Perplexity on the real A24 interest returned "The Backrooms (Kane Parsons), the studio's highest-grossing film" + 8 citations; the message LLM with a FACTS block produced a concrete notification **2/2**, preserving the contextual weave ("Vendredi soir, 24°C à Joinville-le-Pont — et si tu lançais *The Backrooms*…").
+- **Enrichment chain**: Perplexity on the real A24 interest returned "The Backrooms (Kane Parsons), the studio's highest-grossing film" + 8 citations; the message LLM with a FACTS block produced a concrete notification **2/2**, preserving the contextual weave ("Vendredi soir, 24°C à Montpellier — et si tu lançais *The Backrooms*…").
 - **Query-site census**: 19 `InterestNotification` query sites across 7 files + the runner's today-count → the eligibility/selection boundary table below.
 
 ## Decision

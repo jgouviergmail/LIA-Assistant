@@ -66,6 +66,7 @@ from src.core.constants import (
     DEFAULT_TOOL_TIMEOUT_SECONDS,
     EMAILS_AGENT_PROMPT_VERSION_DEFAULT,
     EXECUTION_TRACE_PERSIST_MAX_STEPS_DEFAULT,
+    EXTRACTION_MAX_DELETES_PER_RUN_DEFAULT,
     FALLBACK_MODELS_DEFAULT,
     FOR_EACH_APPROVAL_THRESHOLD,
     FOR_EACH_MAX_DEFAULT,
@@ -138,12 +139,14 @@ from src.core.constants import (
     INTEREST_CONTENT_MAX_LENGTH_DEFAULT,
     INTEREST_CONTENT_SIMILARITY_THRESHOLD_DEFAULT,
     INTEREST_DECAY_RATE_PER_DAY_DEFAULT,
+    INTEREST_DEDUP_SCAN_LIMIT_DEFAULT,
     INTEREST_DEDUP_SEARCH_LIMIT_DEFAULT,
     INTEREST_DEDUP_SIMILARITY_THRESHOLD_DEFAULT,
     INTEREST_DELETION_THRESHOLD_DAYS_DEFAULT,
     INTEREST_DORMANT_THRESHOLD_DAYS_DEFAULT,
     INTEREST_EMBEDDING_DIMENSIONS_DEFAULT,
     INTEREST_EMBEDDING_MODEL_DEFAULT,
+    INTEREST_EXTRACTION_MIN_CONFIDENCE_DEFAULT,
     INTEREST_GLOBAL_COOLDOWN_HOURS_DEFAULT,
     INTEREST_INTRA_SUBJECT_RARITY_GAMMA_DEFAULT,
     INTEREST_MERGE_SIMILARITY_THRESHOLD_DEFAULT,
@@ -1694,6 +1697,18 @@ class AgentsSettings(BaseSettings):
             "Default 0.4."
         ),
     )
+    extraction_max_deletes_per_run: int = Field(
+        default=EXTRACTION_MAX_DELETES_PER_RUN_DEFAULT,
+        ge=0,
+        le=20,
+        description=(
+            "Maximum deletions a single background extraction (memory or interests) "
+            "may apply. Above it the batch's deletions are dropped as a generation "
+            "failure and counted under extraction_action_rejected_total. 0 forbids "
+            "deletion entirely. Deletions have no confidence floor, so this is the "
+            "only thing standing between a runaway generation and the user's data."
+        ),
+    )
     memory_extraction_llm_model: str = Field(
         default=MEMORY_EXTRACTION_LLM_MODEL_DEFAULT,
         description=(
@@ -2748,7 +2763,33 @@ class AgentsSettings(BaseSettings):
         default=INTEREST_DEDUP_SEARCH_LIMIT_DEFAULT,
         ge=5,
         le=100,
-        description="Maximum embeddings to check for similarity during deduplication.",
+        description=(
+            "How many existing interests are listed IN THE PROMPT so the model can "
+            "update or delete them. Bounded by the prompt token budget — not by "
+            "deduplication needs (see interest_dedup_scan_limit)."
+        ),
+    )
+    interest_extraction_min_confidence: float = Field(
+        default=INTEREST_EXTRACTION_MIN_CONFIDENCE_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Minimum self-reported confidence for a CREATE action to be stored. "
+            "The extraction prompt anchors its scale on the ground it can name "
+            "(0.95 stated passion or own practice, 0.85 prior knowledge, 0.75 deep "
+            "dive); this floor makes that rule enforceable. Update and delete carry "
+            "no confidence and are gated elsewhere."
+        ),
+    )
+    interest_dedup_scan_limit: int = Field(
+        default=INTEREST_DEDUP_SCAN_LIMIT_DEFAULT,
+        ge=20,
+        le=1000,
+        description=(
+            "How many existing interests the deduplication compares a new topic "
+            "against, all statuses included. Larger than the prompt window on "
+            "purpose: an interest outside this window is silently re-created."
+        ),
     )
 
     # Embedding

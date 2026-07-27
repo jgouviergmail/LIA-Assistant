@@ -1,6 +1,6 @@
 """Placeholder-contact guard — fabricated emails are rejected before the LLM.
 
-Prod 2026-07-17: the planner filled ``attendees=['jerome.gouvier@example.com']``
+Prod 2026-07-17: the planner filled ``attendees=['jane.doe@example.com']``
 for a real contact instead of resolving or omitting. RFC 2606 reserved domains
 in a non-free-text MUTATION parameter are always an hallucination: the
 deterministic pre-LLM check rejects the plan with replanning feedback. Reads
@@ -46,12 +46,12 @@ def test_detects_placeholder_email_in_mutation_list_param() -> None:
             {
                 "summary": "Petit-déjeuner",
                 "start_datetime": "2026-07-18T09:30:00",
-                "attendees": ["jerome.gouvier@example.com"],
+                "attendees": ["jane.doe@example.com"],
             },
         )
     )
     findings = detect_placeholder_contacts(plan)
-    assert findings == ["step_1.attendees='jerome.gouvier@example.com'"]
+    assert findings == ["step_1.attendees='jane.doe@example.com'"]
 
 
 @pytest.mark.parametrize(
@@ -111,11 +111,11 @@ async def test_validate_rejects_placeholder_deterministically() -> None:
         _step(
             "create_event_tool",
             {
-                "summary": "Petit-déjeuner avec Jérôme Gouvier",
+                "summary": "Petit-déjeuner avec Paul Lemoine",
                 "start_datetime": "2026-07-18T09:30:00",
                 "end_datetime": "2026-07-18T10:30:00",
                 "timezone": "Europe/Paris",
-                "attendees": ["jerome.gouvier@example.com"],
+                "attendees": ["jane.doe@example.com"],
             },
         )
     )

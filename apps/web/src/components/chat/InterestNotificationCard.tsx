@@ -58,6 +58,8 @@ type FeedbackType = 'thumbs_up' | 'thumbs_down' | 'block';
 
 interface FeedbackPayload {
   feedback: FeedbackType;
+  /** Ties the verdict to the exact notification in the audit trail. */
+  run_id?: string;
 }
 
 // ============================================================================
@@ -249,7 +251,10 @@ export const InterestNotificationCard = memo(function InterestNotificationCard({
       if (isSubmitting || submittedFeedback) return;
 
       try {
-        await mutate(`/interests/${metadata.target_id}/feedback`, { feedback });
+        await mutate(`/interests/${metadata.target_id}/feedback`, {
+          feedback,
+          ...(metadata.run_id ? { run_id: metadata.run_id } : {}),
+        });
         setSubmittedFeedback(feedback);
 
         // Show appropriate toast based on feedback type
@@ -269,7 +274,7 @@ export const InterestNotificationCard = memo(function InterestNotificationCard({
         // No need to do anything here
       }
     },
-    [mutate, metadata.target_id, isSubmitting, submittedFeedback, t]
+    [mutate, metadata.target_id, metadata.run_id, isSubmitting, submittedFeedback, t]
   );
 
   return (

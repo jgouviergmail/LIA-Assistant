@@ -192,7 +192,7 @@
     {
       "tool": "resolve_reference",
       "domain": "event",
-      "query_preview": "modifie le premier rdv, mets la localisation à Joinville Le Pont",
+      "query_preview": "modifie le premier rdv, mets la localisation à Montpellier",
       "timestamp": "2026-04-07T21:56:21.872954+00:00",
       "was_new": false
     },

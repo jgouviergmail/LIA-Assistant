@@ -3239,7 +3239,7 @@
         },
         "interests": {
           "title": "✨ 智能兴趣学习",
-          "description": "通过 LLM 对话分析自动学习您的兴趣。兴趣通过批量 LLM 聚类归入主题，通知选择采用两级稀有度抽取（主题冷却 + 优先服务最少被推送的主题）——单一爱好绝不会垄断。内容来自 Perplexity、Brave、Wikipedia 或 AI 反思，并以确定性方式附加可点击的来源链接。贝叶斯加权与时间衰减，夜间合并近似重复项。完全控制：反馈、屏蔽、可配置的时间窗口和频率。"
+          "description": "兴趣从对话中习得，但询问一个话题是任务，不是喜好：创建需要四个具名依据之一 — 明确表达的热情、亲身实践、既有知识，或在同一次交流中反复深入同一主题 — 并且模型必须引用支撑它的原话。有六类内容永远不算兴趣，包括请求的对象以及任何由 LIA 自己提出的内容。去重会读取所有状态，因此被屏蔽的主题无法以相近的名称回来；对破坏性操作的上限则防止一次回答清空整份档案。兴趣通过批量 LLM 聚类归入主题，选择采用两级稀有度抽取（主题冷却 + 优先服务最少出现的主题）— 一种爱好永远不会独占。内容来自 Perplexity、Brave、维基百科或 AI 思考，并附可点击的来源。贝叶斯加权配合时间衰减，夜间合并近似重复项。"
         },
         "summarization": {
           "title": "📝 自动摘要",
@@ -3412,6 +3412,19 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_25_29": {
+          "title": "v1.25.29 — 🎯 屏蔽一个主题终于意味着它不会再回来",
+          "date": "2026年7月",
+          "count": "6",
+          "items": {
+            "i1": "<b>🚫 屏蔽兴趣终于生效</b> — 您屏蔽了一个主题，LIA 却在二十五分钟后用一个几乎相同的名称重新创建了它。这本是您最强的拒绝信号，却被悄悄绕过。被屏蔽的主题现在对整个学习环节都不可见：既不能被重新创建，也不能被改名回来，更不能被删除让位。",
+            "i2": "<b>🎯 大幅减少您从未要求过的兴趣</b> — 仅仅提到的话题会变成长期兴趣，主动引擎便会就您只查过一次的内容再次找您。在真实对话上测量：本不该产生任何结果的对话中有一半会创建兴趣；如今一个也没有，同时真正的兴趣依然被捕捉。",
+            "i3": "<b>🛡️ 您的兴趣档案不再受失控回答的影响</b> — 一句平常的话就足以让 LIA 提议删除十九个兴趣，也就是您的整份清单。删除操作没有经过任何置信度检查。一次交流现在最多只能移除少数几个；超出则整批被拒绝并记录。",
+            "i4": "<b>👍 主动通知终于可以接收您的反馈</b> — LIA 主动发送的卡片完全没有点赞按钮，只有兴趣卡片才有。您现在可以告诉它这次问候是否有用，它会随之调整。",
+            "i5": "<b>🗂️ 您的评价现在出现在通知历史中</b> — 您给出的反馈确实作用于主题，却没有在 LIA 发送记录中留下痕迹。每个评价现在都会附加到它所来自的那条通知上。",
+            "i6": "<b>⚙️ 管理员：您选择的推理强度不再被抹除</b> — 选择恰好等于默认值的强度不会保存任何内容，三项后台分析在完全没有推理的情况下运行。只要与所选模型兼容，您的选择现在会被保留。"
+          }
+        },
         "v1_25_28": {
           "title": "v1.25.28 — 🧠 那些从未进入记忆的内容",
           "date": "2026年7月",
@@ -5374,7 +5387,7 @@
       "interests": {
         "title": "兴趣",
         "description": "关于您最喜欢的话题的个性化主动建议",
-        "count": "6",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "LIA如何学习我的兴趣？",
@@ -5386,7 +5399,7 @@
           },
           "q3": {
             "question": "如何管理我的兴趣？",
-            "answer": "在<strong>设置</strong>中管理您的兴趣：<br><br><strong>⚙️ 访问：</strong><br>设置 → \"<em>兴趣</em>\"部分<br><br><strong>🎚️ 全局设置：</strong><br>• <strong>启用/禁用</strong>主动建议<br>• <strong>时间窗口</strong>：设置通知时间（默认9点-22点）<br>• <strong>频率</strong>：每天最小/最大通知数（1-5）<br><br><strong>📋 兴趣列表：</strong><br>• 查看所有兴趣及其权重<br>• <strong>屏蔽</strong>：不再接收该话题的通知<br>• <strong>删除</strong>：永久移除<br>• <strong>手动添加</strong>：创建兴趣<br><br><strong>🏷️ 按类别筛选：</strong><br>按类型浏览（科技、科学、文化...）"
+            "answer": "在<strong>设置</strong>中管理您的兴趣：<br><br><strong>⚙️ 访问：</strong><br>设置 → \"<em>兴趣</em>\"部分<br><br><strong>🎚️ 全局设置：</strong><br>• <strong>启用/禁用</strong>主动建议<br>• <strong>时间窗口</strong>：设置通知时间（默认9点-22点）<br>• <strong>频率</strong>：每天最小/最大通知数（1-5）<br><br><strong>📋 兴趣列表：</strong><br>• 查看所有兴趣及其权重<br>• <strong>屏蔽</strong>：不再接收该话题的通知，且该主题不能再以别的名称被重新创建<br>• <strong>删除</strong>：永久移除<br>• <strong>手动添加</strong>：创建兴趣<br><br><strong>🏷️ 按类别筛选：</strong><br>按类型浏览（科技、科学、文化...）"
           },
           "q4": {
             "question": "权重系统如何工作？",
@@ -5399,6 +5412,14 @@
           "q6": {
             "question": "如何避免重复内容？",
             "answer": "LIA使用多种防重复机制：<br><br><strong>🔄 重复保护：</strong><br><br><strong>1. 兴趣去重：</strong><br>• 通过语义嵌入向量的语义相似度<br>• 90%阈值：两个相似话题 → 合并<br>• \"<em>Python</em>\"和\"<em>Python编程</em>\" = 同一兴趣<br><br><strong>2. 内容去重：</strong><br>• 内容的SHA256哈希（精确比较）<br>• 语义相似度（90%阈值）<br>• 与过去7天进行检查<br><br><strong>3. 冷却时间：</strong><br>• <strong>全局</strong>：两次通知之间至少1小时<br>• <strong>每个兴趣</strong>：再次讨论同一兴趣前12小时<br>• <strong>每个主题</strong>：重访同一主题前36小时<br>• <strong>每日配额</strong>：每天最多N次通知<br><br><strong>📊 结果：</strong><br>您永远不会两次收到相同的内容，也不会连续收到太相似的话题。"
+          },
+          "q7": {
+            "question": "我屏蔽了一个主题，它又回来了 — 修复了吗？(v1.25.29)",
+            "answer": "是的，而且这是一个真实的缺陷：屏蔽确实把主题标记为已拒绝，但学习环节只查看您的<strong>活跃</strong>兴趣。被屏蔽的主题因此对它不可见，下一次相关对话就会用一个略微不同的名称重新创建它 — 生产环境中有一例在屏蔽后<strong>二十五分钟</strong>就回来了。<br><br><strong>🚫 现在屏蔽意味着什么：</strong><br>• 该主题会与每个新话题比对，包括被屏蔽的<br>• 不能再以相近的名称被重新创建<br>• 不能被改名回来，也不能被删除以腾出位置<br>• 拒绝会被计数，因此 LIA 反复重新发现的主题会显现出来<br><br><strong>↩️ 依然可逆：</strong>在设置中解除屏蔽会将主题完全恢复原状 — 屏蔽是决定性的，而非不可撤销的。"
+          },
+          "q8": {
+            "question": "为什么 LIA 创建的新兴趣比以前少了？(v1.25.29)",
+            "answer": "因为您只是问过的话题并不是一种喜好。问一句<em>什么是光合作用</em>会创建一个长期兴趣，主动引擎随后会为此找您好几周。<br><br><strong>🎯 现在需要什么：</strong>创建需要四个依据之一，并且 LIA 必须引用您自己的原话作为支撑：<br>• 您说自己喜欢或长期关注该主题<br>• 您表示自己亲身实践它<br>• 您表现出已经了解它（专业词汇、您为之辩护的观点）<br>• 您在同一次交流中多次深入同一主题<br><br><strong>🚪 永远不算兴趣：</strong>请求的对象、关于 LIA 本身的评论、他人的喜好、只尝试过一次的事物、日常操作（邮件、日程、天气），以及任何由 LIA 自己提出的内容。<br><br><strong>📊 实测：</strong>在真实对话中，本不该产生任何结果的对话有一半会创建兴趣。如今一个也没有，同时真正的兴趣依然被捕捉。"
           }
         }
       },
@@ -5425,7 +5446,7 @@
           },
           "q5": {
             "question": "如何对通知提供反馈？",
-            "answer": "您的反馈帮助LIA改进：<br><br><strong>👍👎 反馈按钮：</strong><br>• 每条通知显示<strong>点赞/点踩</strong>按钮<br>• 您的反馈被记录以改进未来决策<br><br><strong>📜 历史记录：</strong><br>• 在专用部分查看您最近的主动通知<br>• 每条记录显示使用的数据源和优先级<br><br><strong>⚙️ 调整：</strong><br>• 如果收到太多通知，请减少每日最大数<br>• 如果通知不相关，请禁用不需要的源（断开对应连接器）"
+            "answer": "您的反馈帮助LIA改进：<br><br><strong>👍👎 反馈按钮：</strong><br>• 每条通知显示<strong>点赞/点踩</strong>按钮<br>• 您的反馈被记录以改进未来决策<br>• 一旦您完成评价，该通知的按钮就会消失 — 在所有设备上，重新加载后同样如此<br><br><strong>📜 历史记录：</strong><br>• 在专用部分查看您最近的主动通知<br>• 每条记录显示使用的数据源和优先级<br><br><strong>⚙️ 调整：</strong><br>• 如果收到太多通知，请减少每日最大数<br>• 如果通知不相关，请禁用不需要的源（断开对应连接器）"
           },
           "q6": {
             "question": "主动通知是否受使用限制影响？",
@@ -6556,6 +6577,14 @@
       "no_stored": "尚未存储位置。将在您下次聊天消息时捕获。",
       "clear_button": "立即清除",
       "geoloc_required_hint": "还需在上面的地理定位部分启用浏览器地理位置 — 否则将永远不会捕获任何位置。"
+    },
+    "feedback": {
+      "like": "有用的通知",
+      "dislike": "不太有用",
+      "liked": "感谢您的反馈！",
+      "disliked": "已记录，我会调整。",
+      "error": "发送反馈时出错",
+      "helpful": "这条通知对您有用吗？"
     }
   },
   "notifications": {
@@ -6791,7 +6820,7 @@
       },
       "interests": {
         "title": "兴趣追踪",
-        "description": "关注您热爱的话题（科技、体育、金融、健康...）。LIA自动搜索相关内容并以通知形式推送——主题轮换保持多样性，每条通知都附带来源链接。"
+        "description": "关注你真正在意的主题 — 只是问过一次的话题永远不会变成兴趣。LIA 自动搜索相关内容并以通知推送，主题轮换以保持多样性，每条通知都附上来源链接，被你屏蔽的主题不会再回来。"
       },
       "telephony": {
         "title": "LIA 可以替你打电话",
@@ -6972,7 +7001,7 @@
       },
       "bayesian": {
         "title": "贝叶斯学习",
-        "description": "高置信度的规划模式绕过语义验证。系统随使用不断改进。"
+        "description": "高置信度的规划模式会跳过语义校验。兴趣采用带时间衰减的贝叶斯权重 — 但没有具名并被引用的依据就无法进入，而且去重也会读取被屏蔽的条目：被拒绝的主题无法回来。"
       },
       "hybrid_search": {
         "title": "混合搜索",
@@ -7606,9 +7635,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p>"
       },
       "observability": {
-        "title": "419个Prometheus指标、25个Grafana仪表板和Langfuse追踪",
-        "excerpt": "LIA提供企业级可观测性：419指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 419个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>25个Grafana仪表板</h2><p>LIA提供25个编号01至25的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p>"
+        "title": "446个Prometheus指标、25个Grafana仪表板和Langfuse追踪",
+        "excerpt": "LIA提供企业级可观测性：446指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 446个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>25个Grafana仪表板</h2><p>LIA提供25个编号01至25的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：78个提示作为代码管理",
@@ -7658,7 +7687,7 @@
       "embedding-calibration": {
         "title": "嵌入向量校准：8个阈值调优以实现语义精度",
         "excerpt": "LIA 在迁移到 Gemini embedding-001 后重新校准了8个相似度阈值，使用真实测试数据集和 F1 指标。",
-        "body": "<h2>为什么要重新校准？</h2><p>每个嵌入模型对语义的编码方式不同。当 LIA 迁移到 <strong>Gemini embedding-001</strong> 时，需要系统性的重新校准。</p><h2>8个阈值，5个子系统</h2><p>LIA 在5个子系统中使用相似度搜索：</p><ul><li><strong>记忆</strong> — 搜索（0.65）和相关性清理（0.72）</li><li><strong>日志</strong> — 上下文（0.63）和去重（0.87）</li><li><strong>兴趣</strong> — 去重（0.89）和内容匹配（0.90）</li><li><strong>RAG 空间</strong> — 文档检索（0.55）</li><li><strong>查询引擎</strong> — 查询相似度（0.93）</li></ul><h2>校准方法</h2><p>每个阈值都使用<strong>真实测试数据集</strong>进行校准，计算 <strong>Precision</strong>、<strong>Recall</strong> 和 <strong>F1-score</strong> 指标。</p><h2>具体结果</h2><p>改善显著：</p><ul><li>记忆：F1 = 0.519，平均每次查询1.8个结果</li><li>日志上下文：F1 = 0.638</li><li>日志去重：F1 = 0.889，Precision = 1.0</li><li>兴趣去重：Precision = 1.0</li></ul><h2>成本影响</h2><p>更好校准的阈值意味着<strong>更少浪费的 token</strong>。校准减少了噪声，同时提升响应质量和成本效率。</p><h2>轻量级向量</h2><p>所有嵌入使用 <strong>384维</strong>向量，在语义精度和存储/搜索性能之间取得最佳平衡。</p>"
+        "body": "<h2>为什么要重新校准？</h2><p>每个嵌入模型对语义的编码方式不同。当 LIA 迁移到 <strong>Gemini embedding-001</strong> 时，需要系统性的重新校准。</p><h2>8个阈值，5个子系统</h2><p>LIA 在5个子系统中使用相似度搜索：</p><ul><li><strong>记忆</strong> — 搜索（0.65）和相关性清理（0.72）</li><li><strong>日志</strong> — 上下文（0.63）和去重（0.87）</li><li><strong>兴趣</strong> — 去重（0.89）和内容匹配（0.90）</li><li><strong>RAG 空间</strong> — 文档检索（0.55）</li><li><strong>查询引擎</strong> — 查询相似度（0.93）</li></ul><h2>校准方法</h2><p>每个阈值都使用<strong>真实测试数据集</strong>进行校准，计算 <strong>Precision</strong>、<strong>Recall</strong> 和 <strong>F1-score</strong> 指标。</p><h2>具体结果</h2><p>改善显著：</p><ul><li>记忆：F1 = 0.519，平均每次查询1.8个结果</li><li>日志上下文：F1 = 0.638</li><li>日志去重：F1 = 0.889，Precision = 1.0</li><li>兴趣去重：Precision = 1.0</li></ul><h2>阈值应按其错误的代价来选择</h2><p>2026 年 7 月，兴趣去重阈值在 <strong>16 组真实生产样本</strong>上被重新测量 — 一边是观察到的重复项，另一边是合理并存的不同主题。两个候选值在<strong>错误数量上打成平手</strong>：0.83 与 0.89。因此计数毫无意义；真正区分它们的是错误的<em>性质</em>。在 0.83 时，两个错误是<strong>错误合并</strong> — <em>android</em> 在 0.857 处被 <em>ios</em> 吸收，两段城市历史在 0.890 处合并 — 这会不可逆地摧毁一个独立的兴趣。在 0.89 时，两个错误是<strong>漏合并</strong>：一个可见且可纠正的重复项。阈值保持在 0.89，其推理如今写在常量里，而不是留在某个人的记忆中。</p><p>第二个教训：两个群体是<strong>重叠</strong>的。没有任何阈值能完美分开它们，因为标签相似度存在固有上限。承认这一点，才让真正的修复在别处被找到 — 在于去重被允许看到什么。</p><h2>成本影响</h2><p>更好校准的阈值意味着<strong>更少浪费的 token</strong>。校准减少了噪声，同时提升响应质量和成本效率。</p><h2>轻量级向量</h2><p>所有嵌入使用 <strong>384维</strong>向量，在语义精度和存储/搜索性能之间取得最佳平衡。</p>"
       },
       "llm-config-governance": {
         "title": "LLM 治理：通过单一仪表板管理 24 个 AI 模型",

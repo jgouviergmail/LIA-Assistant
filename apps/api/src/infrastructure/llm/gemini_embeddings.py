@@ -10,7 +10,7 @@ Wraps langchain_google_genai.GoogleGenerativeAIEmbeddings to:
 The task_type parameter is the key to good discrimination: it tells Gemini
 to encode queries and documents in asymmetric but aligned spaces, so that
 short queries like "ma femme" match relevant documents like
-"Mon épouse s'appelle Hua Gouvier" with high scores, while unrelated
+"Mon épouse s'appelle Léa Lemoine" with high scores, while unrelated
 documents score low. This is equivalent to E5's "query:"/"passage:" prefixes.
 
 Phase: v1.15.0 — Gemini embedding migration for multilingual retrieval

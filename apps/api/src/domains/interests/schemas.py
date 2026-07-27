@@ -90,6 +90,17 @@ class InterestFeedbackRequest(BaseModel):
     feedback: Literal["thumbs_up", "thumbs_down", "block"] = Field(
         description="Feedback type: thumbs_up (positive), thumbs_down (negative), block (never notify)"
     )
+    run_id: str | None = Field(
+        default=None,
+        max_length=100,
+        description=(
+            "Run identifier of the notification card the verdict came from, as "
+            "carried in its archived metadata. When present the audit trail "
+            "records the verdict on that exact notification; when absent (older "
+            "cards, or feedback given from the settings list) only the interest "
+            "itself is updated — the audit is never attributed by guesswork."
+        ),
+    )
 
 
 class InterestListResponse(BaseModel):

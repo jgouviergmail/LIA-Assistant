@@ -364,7 +364,7 @@ async def react_setup_node(
 
     # Build memory context message.
     # Memory resolution happens pre-routing (QueryAnalyzer) and produces:
-    # - resolved_references: {"mon frère": "Alexandre Gouvier"}
+    # - resolved_references: {"mon frère": "Marc Lemoine"}
     # - injected_memories: relevant memory facts
     # Without a search_memories tool, this is the only way the ReAct agent
     # can access memory. The agent still decides autonomously what to DO

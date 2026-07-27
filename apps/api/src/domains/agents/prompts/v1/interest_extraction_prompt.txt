@@ -13,14 +13,14 @@ user's business afterwards. ASKING IS A TASK, NOT A TASTE.
 Emit `signal` with exactly one of these four, and `evidence` with the user's exact words.
 
 - "stated_passion" — the user says they like / love / follow / are into it.
-  *"J'adore le cinéma A24, leur esthétique me fascine"*
-  → `{{"action":"create","topic":"Cinéma A24","category":"entertainment","confidence":0.95,"signal":"stated_passion","evidence":"J'adore le cinéma A24"}}`
+  *"J'adore le cinéma d'animation japonais, leur sens du détail me fascine"*
+  → `{{"action":"create","topic":"Cinéma d'animation japonais","category":"entertainment","confidence":0.95,"signal":"stated_passion","evidence":"J'adore le cinéma d'animation japonais"}}`
 
 - "own_practice" — the user reports DOING it themselves: follows it daily, plays it,
   collects it, reads about it, is preparing for it. A practical request in the same
   sentence does NOT cancel the practice.
-  *"Je suis le cours du bitcoin tous les matins depuis deux ans, donne-moi les actus"*
-  → `{{"action":"create","topic":"Bitcoin et cryptomonnaies","category":"finance","confidence":0.95,"signal":"own_practice","evidence":"Je suis le cours du bitcoin tous les matins depuis deux ans"}}`
+  *"Je suis le cours du cacao tous les matins depuis deux ans, donne-moi les actus"*
+  → `{{"action":"create","topic":"Marchés des matières premières","category":"finance","confidence":0.95,"signal":"own_practice","evidence":"Je suis le cours du cacao tous les matins depuis deux ans"}}`
 
 - "prior_knowledge" — the subject is already theirs: domain vocabulary, a defended
   opinion, a comparison only a practitioner would make.
@@ -29,8 +29,8 @@ Emit `signal` with exactly one of these four, and `evidence` with the user's exa
 
 - "deep_dive" — within THIS exchange the user pushed the SAME subject further at least
   twice, each turn digging deeper. One question is never a dive.
-  *"Quelles îles en Indonésie ?" … "Quelle saison éviter à Java ?" … "Des lectures sur la culture javanaise ?"*
-  → `{{"action":"create","topic":"Voyage et culture en Indonésie","category":"travel","confidence":0.75,"signal":"deep_dive","evidence":"Des lectures sur la culture javanaise"}}`
+  *"Quelles régions au Pérou ?" … "Quelle saison éviter à Cusco ?" … "Des lectures sur la culture quechua ?"*
+  → `{{"action":"create","topic":"Voyage et culture au Pérou","category":"travel","confidence":0.75,"signal":"deep_dive","evidence":"Des lectures sur la culture quechua"}}`
 
 ## NEVER an interest — recognise the CLASS, not the example
 A. THE SUBJECT OF A REQUEST — "explique X", "c'est quoi X", "cherche X", "qui était X",
@@ -54,11 +54,11 @@ Do not weaken a ground you can quote. Do not manufacture one you cannot.
 Name the subject the way the user would come back to it, one level above the instance:
 "iPhone 18 Pro" → "smartphones Apple, iOS". Never invent a broader theme the user never
 touched. ONE exchange yields at most ONE subject — never split it into a subject and its
-facet ("Indonésie" and "culture javanaise" are the same subject).
+facet ("Pérou" and "culture quechua" are the same subject).
 
 ## EXISTING INTERESTS
 Create only when the subject is genuinely NEW. A neighbouring theme is not the same
-subject ("cinéma A24" is not covered by "sorties de films science-fiction"): when the
+subject ("cinéma d'animation japonais" is not covered by "sorties de films"): when the
 subject is truly the same, emit `update` if this exchange refines it, otherwise nothing.
 A NEW ground on an already-tracked subject is a reason to `update` it — that strengthens
 it — not a reason to stay silent. `update` needs a ground too: a passing mention of a

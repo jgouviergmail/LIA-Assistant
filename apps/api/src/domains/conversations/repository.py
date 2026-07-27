@@ -811,16 +811,18 @@ class ConversationRepository(BaseRepository[Conversation]):
                 error=str(e),
             )
 
-    async def mark_interest_feedback_submitted(
+    async def mark_proactive_feedback_submitted(
         self,
         user_id: UUID,
-        interest_id: UUID,
+        target_id: UUID,
         feedback_value: str,
     ) -> int:
-        """Persist interest feedback state on all related proactive messages.
+        """Persist proactive feedback state on all related messages.
 
         Updates ``message_metadata`` JSONB on every ConversationMessage whose
-        metadata references ``target_id == interest_id``. The update adds two
+        metadata references this ``target_id`` — an interest for a
+        ``proactive_interest`` card, a heartbeat notification for a
+        ``proactive_heartbeat`` one. The update adds two
         keys: ``feedback_submitted=true`` and ``feedback_value=<value>``.
 
         Scoped by ``user_id`` via conversation join to prevent cross-tenant
@@ -828,7 +830,8 @@ class ConversationRepository(BaseRepository[Conversation]):
 
         Args:
             user_id: Owner of the messages (security filter).
-            interest_id: UUID referenced as ``target_id`` in message metadata.
+            target_id: Identifier referenced as ``target_id`` in message metadata
+                (interest id, heartbeat notification id, ...).
             feedback_value: One of "thumbs_up", "thumbs_down", "block".
 
         Returns:
@@ -848,8 +851,7 @@ class ConversationRepository(BaseRepository[Conversation]):
                 update(ConversationMessage)
                 .where(
                     ConversationMessage.conversation_id.in_(conv_ids_subq),
-                    ConversationMessage.message_metadata[FIELD_TARGET_ID].astext
-                    == str(interest_id),
+                    ConversationMessage.message_metadata[FIELD_TARGET_ID].astext == str(target_id),
                 )
                 .values(
                     message_metadata=func.jsonb_set(
@@ -872,7 +874,7 @@ class ConversationRepository(BaseRepository[Conversation]):
             logger.debug(
                 "interest_feedback_marked_on_messages",
                 user_id=str(user_id),
-                interest_id=str(interest_id),
+                target_id=str(target_id),
                 feedback_value=feedback_value,
                 messages_updated=count,
             )
@@ -881,9 +883,9 @@ class ConversationRepository(BaseRepository[Conversation]):
 
         except (SQLAlchemyError, IntegrityError, OperationalError) as e:
             logger.error(
-                "mark_interest_feedback_submitted_failed",
+                "mark_proactive_feedback_submitted_failed",
                 user_id=str(user_id),
-                interest_id=str(interest_id),
+                target_id=str(target_id),
                 error=str(e),
             )
             raise

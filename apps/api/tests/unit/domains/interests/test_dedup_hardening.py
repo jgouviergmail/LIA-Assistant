@@ -46,5 +46,5 @@ class TestFindDuplicatePairs:
 
     def test_distinct_topics_without_embeddings_untouched(self) -> None:
         a = FakeInterest("Bitcoin", None, positive=5)
-        b = FakeInterest("Indonésie", None, positive=2)
+        b = FakeInterest("Patagonie", None, positive=2)
         assert find_duplicate_pairs([a, b], threshold=0.95) == []

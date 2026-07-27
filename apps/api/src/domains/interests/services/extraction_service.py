@@ -50,7 +50,6 @@ from src.core.config import settings
 from src.core.constants import (
     INTEREST_ACTIVE_LIST_LIMIT,
     INTEREST_ANALYSIS_CACHE_TTL,
-    INTEREST_EXTRACTION_MIN_CONFIDENCE,
     INTEREST_EXTRACTION_QUERY_TRUNCATION_LENGTH,
     REDIS_KEY_INTEREST_ANALYSIS_PREFIX,
 )
@@ -58,9 +57,12 @@ from src.core.i18n_types import get_language_name
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.prompts import load_prompt
 from src.domains.agents.utils.json_parser import extract_json_from_llm_response
-from src.domains.interests.models import UserInterest
 from src.domains.interests.repository import InterestRepository
 from src.domains.interests.schemas import ExtractedInterest
+from src.domains.interests.services.action_applier import (
+    apply_interest_actions,
+    find_similar_interest,
+)
 from src.domains.shared.extraction_targets import (
     find_last_user_message,
     is_synthetic_message,
@@ -521,7 +523,7 @@ def _parse_extraction_result(result_text: str) -> list[ExtractedInterest]:
                 # Filter by minimum confidence (only for create actions)
                 if action == "create":
                     confidence = item.get("confidence", 0)
-                    if confidence < INTEREST_EXTRACTION_MIN_CONFIDENCE:
+                    if confidence < settings.interest_extraction_min_confidence:
                         logger.debug(
                             "interest_extraction_low_confidence",
                             topic=item.get("topic", "")[:50],
@@ -548,83 +550,6 @@ def _parse_extraction_result(result_text: str) -> list[ExtractedInterest]:
     if not result.success or not isinstance(result.data, list):
         return []
     return _parse_items(result.data)
-
-
-async def _find_similar_interest(
-    repo: InterestRepository,
-    user_id: UUID,
-    topic: str,
-    existing_interests: list[UserInterest],
-) -> tuple[bool, UserInterest | None]:
-    """
-    Find if a similar interest already exists using semantic similarity.
-
-    Uses embedding-based cosine similarity when embeddings are available,
-    with fallback to string matching for interests without embeddings.
-
-    Args:
-        repo: InterestRepository instance
-        user_id: User UUID
-        topic: Topic to check
-        existing_interests: List of existing UserInterest objects
-
-    Returns:
-        Tuple of (is_similar, matching_interest or None)
-    """
-    # Generate embedding for the new topic
-    from src.domains.interests.helpers import generate_interest_embedding
-
-    topic_embedding = await generate_interest_embedding(topic)
-
-    best_match: UserInterest | None = None
-    best_similarity: float = 0.0
-
-    for interest in existing_interests:
-        # Try embedding-based similarity first
-        if topic_embedding and interest.embedding:
-            from src.infrastructure.llm.local_embeddings import cosine_similarity
-
-            similarity = cosine_similarity(topic_embedding, interest.embedding)
-
-            if similarity >= settings.interest_dedup_similarity_threshold:
-                logger.debug(
-                    "interest_similarity_embedding_match",
-                    new_topic=topic[:50],
-                    existing_topic=interest.topic[:50],
-                    similarity=round(similarity, 3),
-                    threshold=settings.interest_dedup_similarity_threshold,
-                )
-                # Track best match in case multiple are above threshold
-                if similarity > best_similarity:
-                    best_similarity = similarity
-                    best_match = interest
-
-        # Fallback: string matching when either side lacks an embedding.
-        # Embedding generation is best-effort and may return None — that
-        # failure mode must not disable dedup entirely (ADR-131: the
-        # "Anthropic"/"anthropic" prod duplicate slipped through here).
-        elif topic_embedding is None or not interest.embedding:
-            if interest.topic.lower() in topic.lower() or topic.lower() in interest.topic.lower():
-                logger.debug(
-                    "interest_similarity_string_match",
-                    new_topic=topic[:50],
-                    existing_topic=interest.topic[:50],
-                )
-                return True, interest
-
-    if best_match:
-        # INFO-level log for production monitoring of deduplication decisions
-        logger.info(
-            "interest_dedup_match_found",
-            new_topic=topic[:50],
-            matched_topic=best_match.topic[:50],
-            similarity=round(best_similarity, 4),
-            threshold=settings.interest_dedup_similarity_threshold,
-            matched_interest_id=str(best_match.id),
-        )
-        return True, best_match
-
-    return False, None
 
 
 # ============================================================================
@@ -920,147 +845,23 @@ async def extract_interests_background(
 
         # Process each extracted interest action (create/update/delete)
         user_uuid = UUID(user_id)
-        stored_count = 0
 
         async with get_db_context() as db:
             repo = InterestRepository(db)
 
-            # Retrieve existing interests for deduplication (create actions)
-            existing_interests = await repo.get_active_for_user(
-                user_uuid, limit=settings.interest_dedup_search_limit
+            # Deduplication candidates: EVERY status (blocked and dormant rows
+            # included), otherwise a rejected subject is silently re-created —
+            # see services/action_applier for the production timeline.
+            existing_interests = await repo.get_for_dedup(
+                user_uuid, limit=settings.interest_dedup_scan_limit
             )
-            known_interest_ids = {str(i.id) for i in existing_interests}
+            stored_count = await apply_interest_actions(
+                repo,
+                user_id=user_id,
+                actions=analysis.extracted_interests,
+                existing_interests=existing_interests,
+            )
 
-            for extracted in analysis.extracted_interests:
-                try:
-                    # ── DELETE action ──
-                    if extracted.action == "delete" and extracted.interest_id:
-                        if extracted.interest_id not in known_interest_ids:
-                            logger.warning(
-                                "interest_extraction_unknown_id",
-                                user_id=user_id,
-                                action="delete",
-                                interest_id=extracted.interest_id,
-                            )
-                            continue
-                        interest = await repo.get_by_id(UUID(extracted.interest_id))
-                        if interest and str(interest.user_id) == user_id:
-                            await repo.delete(interest)
-                            logger.info(
-                                "interest_deleted_by_extraction",
-                                user_id=user_id,
-                                interest_id=extracted.interest_id,
-                                topic=interest.topic[:50],
-                            )
-                            stored_count += 1
-                        continue
-
-                    # ── UPDATE action ──
-                    if extracted.action == "update" and extracted.interest_id:
-                        if extracted.interest_id not in known_interest_ids:
-                            logger.warning(
-                                "interest_extraction_unknown_id",
-                                user_id=user_id,
-                                action="update",
-                                interest_id=extracted.interest_id,
-                            )
-                            continue
-                        interest = await repo.get_by_id(UUID(extracted.interest_id))
-                        if interest and str(interest.user_id) == user_id:
-                            if extracted.topic and extracted.topic != interest.topic:
-                                # Rename collision guard (ADR-131): renaming onto
-                                # an existing topic would create a duplicate —
-                                # consolidate the existing target instead.
-                                collision = await repo.get_by_user_and_topic_ci(
-                                    user_uuid, extracted.topic
-                                )
-                                if collision and collision.id != interest.id:
-                                    await repo.consolidate_on_mention(collision)
-                                    logger.info(
-                                        "interest_rename_collision_consolidated",
-                                        user_id=user_id,
-                                        interest_id=str(collision.id),
-                                        topic=collision.topic[:50],
-                                    )
-                                    stored_count += 1
-                                    continue
-                                interest.topic = extracted.topic
-                                # Subject is derived from the topic: relabel on
-                                # the next stale scan (ADR-131).
-                                interest.subject = None
-                                # Re-embed with updated topic
-                                from src.domains.interests.helpers import (
-                                    generate_interest_embedding,
-                                )
-
-                                interest.embedding = await generate_interest_embedding(
-                                    extracted.topic
-                                )
-                            if extracted.category:
-                                interest.category = extracted.category.value
-                            await repo.consolidate_on_mention(interest)
-                            logger.info(
-                                "interest_updated_by_extraction",
-                                user_id=user_id,
-                                interest_id=extracted.interest_id,
-                                topic=interest.topic[:50],
-                            )
-                            stored_count += 1
-                        continue
-
-                    # ── CREATE action (default, backward-compatible) ──
-                    if not extracted.topic or not extracted.category:
-                        continue
-
-                    # Check for similar existing interest (dedup)
-                    is_similar, existing = await _find_similar_interest(
-                        repo, user_uuid, extracted.topic, existing_interests
-                    )
-
-                    if is_similar and existing:
-                        # Consolidate: increment positive signals
-                        await repo.consolidate_on_mention(existing)
-                        logger.info(
-                            "interest_consolidated",
-                            user_id=user_id,
-                            interest_id=str(existing.id),
-                            topic=existing.topic[:50],
-                            positive_signals=existing.positive_signals,
-                        )
-                        stored_count += 1
-                    else:
-                        # Compute embedding for the topic (for deduplication)
-                        from src.domains.interests.helpers import generate_interest_embedding
-
-                        topic_embedding = await generate_interest_embedding(extracted.topic)
-
-                        # Create new interest
-                        new_interest = await repo.create(
-                            user_id=user_uuid,
-                            topic=extracted.topic,
-                            category=extracted.category.value,
-                            embedding=topic_embedding,
-                        )
-                        logger.info(
-                            "interest_created",
-                            user_id=user_id,
-                            interest_id=str(new_interest.id),
-                            topic=extracted.topic[:50],
-                            category=extracted.category.value,
-                            confidence=extracted.confidence,
-                        )
-                        stored_count += 1
-
-                except Exception as e:
-                    logger.warning(
-                        "interest_storage_failed",
-                        user_id=user_id,
-                        topic=extracted.topic[:50] if extracted.topic else "",
-                        error=str(e),
-                    )
-                    continue
-
-            # Commit all changes
             await db.commit()
 
             logger.info(
@@ -1195,8 +996,10 @@ async def analyze_interests_for_debug(
         async with get_db_context() as db:
             repo = InterestRepository(db)
 
-            existing_interests = await repo.get_active_for_user(
-                user_uuid, limit=settings.interest_dedup_search_limit
+            # Same candidate set as the background path, so the panel cannot
+            # show a dedup decision the runtime would not take.
+            existing_interests = await repo.get_for_dedup(
+                user_uuid, limit=settings.interest_dedup_scan_limit
             )
 
             # Format existing interests for debug output
@@ -1251,8 +1054,8 @@ async def analyze_interests_for_debug(
                 if not extracted.topic:
                     continue
 
-                is_similar, existing = await _find_similar_interest(
-                    repo, user_uuid, extracted.topic, existing_interests
+                is_similar, existing = await find_similar_interest(
+                    extracted.topic, existing_interests
                 )
 
                 if is_similar and existing:

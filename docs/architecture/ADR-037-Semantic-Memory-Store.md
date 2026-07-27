@@ -236,7 +236,7 @@ async def build_psychological_profile(
 ## PROFIL PSYCHOLOGIQUE ACTIF
 
 ### ZONES SENSIBLES (Attention requise)
-- 🔴 Son père Jacky est décédé en 2020 → Sujet très sensible
+- 🔴 Son père Robert est décédé en 2020 → Sujet très sensible
 
 ### RELATIONS CONNUES
 - 💚 Ami Paul depuis 10 ans → Source de joie

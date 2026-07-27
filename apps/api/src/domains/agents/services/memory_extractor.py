@@ -41,6 +41,7 @@ from src.core.constants import (
 )
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.prompts import load_prompt
+from src.domains.agents.utils.extraction_guards import enforce_delete_cap
 from src.domains.agents.utils.json_parser import extract_json_from_llm_response
 from src.domains.memories.schemas import ExtractedMemory
 from src.domains.shared.extraction_targets import (
@@ -621,7 +622,13 @@ async def extract_memories_background(
                 original_count=len(actions),
                 valid_count=len(valid_actions),
             )
-        actions = valid_actions
+        # Destructive-action cap: deletions carry no confidence field and are
+        # applied on sight. Same guard as the interest extractor.
+        actions = enforce_delete_cap(
+            valid_actions,
+            kind="memory",
+            cap=settings.extraction_max_deletes_per_run,
+        )
 
         # ================================================================
         # Apply actions via MemoryService

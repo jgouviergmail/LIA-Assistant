@@ -126,8 +126,8 @@ from src.domains.agents.semantic.param_guard import (
     collect_resolved_person_names,
 )
 
-names = collect_resolved_person_names({"mon frère": "Alexandre Gouvier"})
-violation = check_semantic_params("get_route_tool", {"destination": "Alexandre Gouvier"}, names)
+names = collect_resolved_person_names({"mon frère": "Marc Lemoine"})
+violation = check_semantic_params("get_route_tool", {"destination": "Marc Lemoine"}, names)
 # violation.llm_message() → recoverable error guiding the LLM to fetch the
 # contact's address first. Wired in the parallel executor (pipeline) and
 # react_execute_tools_node (ReAct); fail-open by design.

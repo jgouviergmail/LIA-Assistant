@@ -251,7 +251,7 @@ class TestForYouInSynthesis:
             id=uuid4(),
             display_name="Jo",
             first_name="Jo",
-            full_name="Jo Gouvier",
+            full_name="Jo Lemoine",
             email="jo@example.com",
             journals_enabled=True,
         )

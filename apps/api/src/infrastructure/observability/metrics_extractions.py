@@ -31,3 +31,15 @@ post_response_extraction_scheduled_total = Counter(
     # authoritative per-kind vocabulary lives next to the emission sites in
     # domains/agents/nodes/post_response_extractions.py.
 )
+
+extraction_action_rejected_total = Counter(
+    "extraction_action_rejected_total",
+    "Actions an extraction proposed and the pipeline refused to apply. A "
+    "sustained 'delete_cap' share means a prompt is asking to destroy user "
+    "data; 'blocked_interest' means the proactive engine keeps rediscovering "
+    "a subject the user rejected.",
+    ["kind", "reason"],
+    # kind:   interests | memory
+    # reason: delete_cap        — more deletions than one turn can justify
+    #         blocked_interest  — the subject matches an interest the user blocked
+)

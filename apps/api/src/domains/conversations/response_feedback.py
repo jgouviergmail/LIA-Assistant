@@ -5,7 +5,7 @@ notifications had the full 👍/👎 loop. This module closes that gap:
 
 - the verdict (and the optional 👎 comment) is persisted on the message row
   via a server-side atomic ``jsonb_set`` UPDATE scoped by owner — the exact
-  ``mark_interest_feedback_submitted`` pattern (never an in-place mutation);
+  ``mark_proactive_feedback_submitted`` pattern (never an in-place mutation);
 - on the FIRST verdict only, the evidence/contradiction counters of the
   journal entries injected into that turn are incremented
   (``FIELD_INJECTED_JOURNAL_IDS``, IDs archived with the message). Counters

@@ -50,7 +50,7 @@ def batch_embed(
 # =============================================================================
 MEMORY_BANK = [
     # -- Family --
-    "Mon frere s'appelle Alexandre Gouvier, il habite a Nantes avec sa compagne Julie.",
+    "Mon frere s'appelle Marc Lemoine, il habite a Nantes avec sa compagne Julie.",
     "Ma soeur Camille est veterinaire a Montpellier, elle a deux enfants.",
     "Mon epouse Hua est d'origine vietnamienne, on s'est maries en 2018 a Lyon.",
     "Mes parents vivent a Toulouse dans le quartier des Carmes depuis 2010.",

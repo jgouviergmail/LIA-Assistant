@@ -83,8 +83,8 @@ JSON array only. No markdown, no comments. Use ONLY UUIDs from EXISTING MEMORIES
    Message: *"En fait j'ai changé, je suis chez Meta maintenant."*
    → `[{{"action":"update","memory_id":"abc-123","content":"Je travaille chez Meta","emotional_weight":0}}]`
 
-4. Message: *"Ma bière préférée c'est la 1664."*
-   → `[{{"action":"create","content":"Ma bière préférée est la 1664","category":"preference","emotional_weight":2,"trigger_topic":"bière boisson préférée","usage_nuance":"Utiliser pour les suggestions de boissons, bars, restaurants","importance":0.5}}]`
+4. Message: *"Mon thé préféré, c'est le lapsang souchong."*
+   → `[{{"action":"create","content":"Mon thé préféré est le lapsang souchong","category":"preference","emotional_weight":2,"trigger_topic":"thé boisson préférée","usage_nuance":"Utiliser pour les suggestions de boissons, salons de thé, cadeaux","importance":0.5}}]`
 
 ### Near misses — the errors that actually happen (all → `[]`)
 
@@ -94,7 +94,7 @@ JSON array only. No markdown, no comments. Use ONLY UUIDs from EXISTING MEMORIES
    True of almost everyone: personalizes nothing (fails Unique and Actionable).
 7. *"Au fait, le fondateur de cette startup est un homme, pas une femme."* → `[]`
    A correction about a stranger, with no link to the user's life.
-8. *"OpenAI a bien rattrapé son retard sur les autres."* → `[]`
+8. *"Les voitures électriques ont enfin rattrapé leur retard d'autonomie."* → `[]`
    A claim about the state of the world, false in a few months (fails Stable).
 
 ## HEALTH CONTEXT RULES

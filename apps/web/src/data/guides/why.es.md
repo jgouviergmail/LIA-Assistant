@@ -4,7 +4,7 @@
 
 **Versión** : 3.9
 **Fecha** : 2026-07-27
-**Aplicación** : LIA v1.25.28
+**Aplicación** : LIA v1.25.29
 **Licencia** : AGPL-3.0 (Open Source)
 
 ---
@@ -153,7 +153,7 @@ LIA no se limita a responder — anticipa:
 
 - **Notificaciones proactivas**: LIA cruza tus fuentes de contexto (calendario, tiempo, tareas, correos, intereses) y te avisa cuando es genuinamente útil — con un sistema anti-spam integrado (cuota diaria, ventana horaria, cooldown)
 - **Iniciativa conversacional**: durante un intercambio, LIA verifica proactivamente información relacionada — si el tiempo anuncia lluvia el sábado, consulta tu calendario para señalar posibles actividades al aire libre
-- **Centros de interés**: LIA detecta progresivamente los temas que te apasionan y te envía contenido variado — los temas se alternan (nunca el mismo tema dos veces seguidas) y cada notificación incluye enlaces clicables a sus fuentes
+- **Centros de interés**: LIA retiene lo que de verdad te importa, no lo que preguntaste una vez — hacer una pregunta es una tarea, no un gusto, y hace falta una pasión declarada, una práctica, un conocimiento real o una profundización auténtica para que un tema cuente. Los temas se alternan (nunca el mismo tema dos veces seguidas), cada notificación incluye enlaces clicables a sus fuentes, y un tema que rechazas no vuelve: el bloqueo se compara con cada tema nuevo, incluso bajo otro nombre
 - **Subagentes**: para tareas complejas, LIA delega en agentes efímeros especializados que trabajan en paralelo
 
 ### 3.7. Navegación web autónoma

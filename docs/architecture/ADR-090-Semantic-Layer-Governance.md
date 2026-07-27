@@ -110,7 +110,7 @@ candidate — not to rediscover the bridges. Both are gated by
 
 Field bug (2026-07-02): "comment aller chez mon frère ?" — memory resolution
 gave the brother's name and city, semantic expansion correctly added the
-contact domain, but the ReAct LLM routed to "Mulhouse, France" (city centre)
+contact domain, but the ReAct LLM routed to "Montpellier, France" (city centre)
 without ever calling `get_contacts_tool` for the exact address. Root cause:
 memory context provides a "good enough" approximation and the ReAct prompt had
 neither the semantic links (the planner had them) nor a precision directive.

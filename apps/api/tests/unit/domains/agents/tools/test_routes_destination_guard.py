@@ -21,7 +21,7 @@ from src.domains.agents.tools.routes_tools import (
 from src.domains.agents.tools.runtime_helpers import ResolvedLocation
 
 ORIGIN = ResolvedLocation(lat=45.75, lon=4.85, source="browser")
-PERSON = "Alexandre Gouvier"
+PERSON = "Marc Lemoine"
 
 
 def _httpx_client_returning(payload: dict) -> MagicMock:

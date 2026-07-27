@@ -22,7 +22,7 @@ import pytest
 
 from src.domains.agents.formatters.agent_results import format_agent_results_for_prompt
 
-_SYNTHESIS = "Ton frangin Alexandre habite au 36 Boulevard Léon Gambetta, 68100 Mulhouse."
+_SYNTHESIS = "Ton frangin Marc habite au 12 Rue des Lilas, 34000 Montpellier."
 
 
 @pytest.mark.unit

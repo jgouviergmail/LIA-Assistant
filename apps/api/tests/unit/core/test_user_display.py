@@ -7,10 +7,10 @@ class TestResolveUserDisplayName:
     """Fallback chain: full_name first word → email local part → fallback."""
 
     def test_full_name_first_word(self):
-        assert resolve_user_display_name("Jérôme Gouvier", "j@example.com") == "Jérôme"
+        assert resolve_user_display_name("Paul Lemoine", "p@example.com") == "Paul"
 
     def test_single_word_full_name(self):
-        assert resolve_user_display_name("Jérôme", None) == "Jérôme"
+        assert resolve_user_display_name("Paul", None) == "Paul"
 
     def test_whitespace_full_name_falls_back_to_email(self):
         assert resolve_user_display_name("   ", "user@example.com") == "user"

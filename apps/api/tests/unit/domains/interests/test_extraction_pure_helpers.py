@@ -24,10 +24,8 @@ from typing import Any
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
-from src.core.constants import (
-    INTEREST_EXTRACTION_MIN_CONFIDENCE,
-    INTEREST_EXTRACTION_QUERY_TRUNCATION_LENGTH,
-)
+from src.core.config import settings
+from src.core.constants import INTEREST_EXTRACTION_QUERY_TRUNCATION_LENGTH
 from src.domains.interests.models import InterestCategory
 from src.domains.interests.schemas import ExtractedInterest
 from src.domains.interests.services.extraction_service import (
@@ -307,7 +305,7 @@ class TestParseExtractionResult:
     def test_the_confidence_floor_is_inclusive(self) -> None:
         # `< MIN` is the rejection test, so exactly MIN passes.
         at_floor = _parse_extraction_result(
-            json.dumps([create_item(INTEREST_EXTRACTION_MIN_CONFIDENCE)])
+            json.dumps([create_item(settings.interest_extraction_min_confidence)])
         )
 
         assert len(at_floor) == 1
@@ -315,7 +313,7 @@ class TestParseExtractionResult:
     def test_an_interest_just_under_the_floor_is_dropped(self) -> None:
         # Dropped silently and for good: nothing retries this extraction.
         under = _parse_extraction_result(
-            json.dumps([create_item(INTEREST_EXTRACTION_MIN_CONFIDENCE - 0.01)])
+            json.dumps([create_item(settings.interest_extraction_min_confidence - 0.01)])
         )
 
         assert under == []

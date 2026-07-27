@@ -15,7 +15,7 @@ LIA uses embedding vectors for semantic search across four domains: memories, jo
 2. **v1.13.4**: `text-embedding-3-small` (OpenAI API, 1536 dims) — eliminated RAM overhead but introduced **language bias**: unrelated same-language texts scored 0.25–0.35 cosine similarity, while relevant matches scored only 0.29–0.48. No usable discrimination gap.
 3. **v1.13.6**: Memory storage migrated from LangGraph AsyncPostgresStore (multi-vector per field) to custom PostgreSQL table (single concatenated vector). This further degraded search quality by diluting keyword signals.
 
-The combination of model change + architecture change broke memory reference resolution ("ma femme" no longer resolved to "Hua Gouvier") and caused excessive false-positive injection of irrelevant memories.
+The combination of model change + architecture change broke memory reference resolution ("ma femme" no longer resolved to "Léa Lemoine") and caused excessive false-positive injection of irrelevant memories.
 
 ## Decision
 

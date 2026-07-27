@@ -451,8 +451,8 @@ class TestIntegration:
         # (direct 'name' field instead of nested 'displayName.text')
         places_data = """[
             {
-                'name': 'Grand Hotel Mulhouse',
-                'address': '4 Avenue de la République, 68100 Mulhouse',
+                'name': 'Grand Hotel Montpellier',
+                'address': '4 Avenue de la République, 34000 Montpellier',
                 'rating': 4.2,
                 'reviewCount': 1547,
                 'types': ['lodging', 'establishment'],
@@ -460,7 +460,7 @@ class TestIntegration:
             },
             {
                 'name': 'Hotel Bristol',
-                'address': '18 Avenue de Colmar, 68100 Mulhouse',
+                'address': '18 Avenue des Tilleuls, 34000 Montpellier',
                 'rating': 4.0,
                 'reviewCount': 892,
                 'types': ['lodging', 'establishment'],
@@ -491,7 +491,7 @@ class TestIntegration:
         assert compression_ratio > 0.2  # At least 20% compression
 
         # Key information should be preserved (hotel names via 'name' field)
-        assert "Grand Hotel Mulhouse" in result["content_instruction"]
+        assert "Grand Hotel Montpellier" in result["content_instruction"]
         assert "Hotel Bristol" in result["content_instruction"]
 
     def test_email_with_contacts_data(self) -> None:

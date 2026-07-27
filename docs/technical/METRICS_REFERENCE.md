@@ -5,7 +5,7 @@
 > Version: 1.7
 > Date: 2026-07-17
 > Architecture: Prometheus + Grafana (25 dashboards, 595 panels)
-> Total métriques: **419 métriques instrumentées** (relevé code 2026-07-17) + recording rules Prometheus
+> Total métriques: **446 métriques instrumentées** (relevé code 2026-07-27) + recording rules Prometheus
 > Source de vérité : `src/infrastructure/observability/metrics_*.py` — ce catalogue détaille les familles principales (~120 métriques), voir « Couverture du catalogue »
 > Compliance: OpenTelemetry conventions, Google SRE best practices
 
@@ -123,7 +123,7 @@ api:slo:availability:ratio_5m           # SLO availability 5min
 
 ## Couverture du catalogue
 
-> Relevé du 2026-07-17 : **419 métriques** définies dans le code, ~120 détaillées dans ce
+> Relevé du 2026-07-27 : **446 métriques** définies dans le code, ~120 détaillées dans ce
 > document. Les familles suivantes ne sont **pas encore détaillées ici** — leur source de
 > vérité est leur module de définition :
 
@@ -136,6 +136,7 @@ api:slo:availability:ratio_5m           # SLO availability 5min
 | Channels/Telegram (`channel_*`) | `metrics_channels.py` |
 | Compaction (`compaction_*`) | `metrics_compaction.py` |
 | Errors (`errors_*`, taxonomie) | `metrics_errors.py` |
+| Extractions de fond (`post_response_extraction_scheduled_total`, `extraction_action_rejected_total`) | `metrics_extractions.py` |
 | Health metrics (`health_*`) | `metrics_health_metrics.py` |
 | Heartbeat (`heartbeat_*`) | `metrics_heartbeat.py` |
 | Journals (`journal_*`) | `metrics_journals.py` |

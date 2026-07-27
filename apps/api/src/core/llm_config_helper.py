@@ -84,16 +84,27 @@ def merge_config(defaults: LLMAgentConfig, overrides: dict[str, Any]) -> LLMAgen
 
     Special handling for ``reasoning_effort``: its shape depends on the
     target model's ``reasoning_widget``. When the override changes the
-    ``model`` (and the default's ``reasoning_effort`` was set for the OLD
-    model), inheriting the default's ``reasoning_effort`` would carry the
-    wrong shape into the new model — e.g. a Qwen default
-    ``ReasoningEffortToggleBudget`` propagated onto a DeepSeek override
-    would crash the typed builder. Drop ``reasoning_effort`` in that case
-    unless the override explicitly provides a value. As a final safety net,
-    :func:`_reconcile_reasoning_effort` then drops any ``reasoning_effort``
-    that still doesn't match the effective model's ``reasoning_widget`` (so a
-    stale DB override / seed / manual edit degrades to the model default
-    instead of crashing the typed reasoning builder at LLM-instantiation time).
+    ``model`` without providing a ``reasoning_effort``, the default's value
+    may or may not fit the new model — e.g. a Qwen default
+    ``ReasoningEffortToggleBudget`` propagated onto a DeepSeek override would
+    crash the typed builder. It is therefore inherited only when it is
+    PROVABLY compatible with the new model (:func:`_is_inheritable_reasoning_effort`),
+    and dropped otherwise.
+
+    That "provably" matters: this branch used to drop the value
+    unconditionally, which silently erased an effort the admin had chosen.
+    Measured 2026-07-27 — the three background extractors (memory, interests,
+    journal) ran with no reasoning block at all, because the admin UI omits a
+    field equal to the type's default (override semantics) and the column then
+    stored NULL, which this function turned into "no reasoning" instead of
+    "the default's low". A knob that cannot express its own default value is
+    a broken knob.
+
+    As a final safety net, :func:`_reconcile_reasoning_effort` still drops any
+    ``reasoning_effort`` that does not match the effective model's
+    ``reasoning_widget`` (so a stale DB override / seed / manual edit degrades
+    to the model default instead of crashing the typed reasoning builder at
+    LLM-instantiation time).
     """
     merged = defaults.model_dump()
     override_changes_model = (
@@ -102,13 +113,51 @@ def merge_config(defaults: LLMAgentConfig, overrides: dict[str, Any]) -> LLMAgen
         and overrides["model"] != defaults.model
     )
     override_provides_reasoning = "reasoning_effort" in overrides
-    if override_changes_model and not override_provides_reasoning:
-        merged["reasoning_effort"] = None
 
     for key, value in overrides.items():
         if value is not None and key in merged:
             merged[key] = value
+
+    if (
+        override_changes_model
+        and not override_provides_reasoning
+        and not _is_inheritable_reasoning_effort(defaults.reasoning_effort, merged.get("model"))
+    ):
+        merged["reasoning_effort"] = None
+
     return _reconcile_reasoning_effort(LLMAgentConfig(**merged))
+
+
+def _is_inheritable_reasoning_effort(
+    value: Any,
+    model: str | None,
+) -> bool:
+    """Whether a default's ``reasoning_effort`` survives a model change.
+
+    Inheritance requires proof, not optimism: an unknown model (a dynamically
+    discovered Ollama tag, a catalogue that has not loaded yet) cannot be
+    checked, so the value is dropped rather than risk the typed reasoning
+    builder. A known model whose widget accepts the value keeps it.
+
+    Args:
+        value: The default's ``reasoning_effort`` (typed, may be ``None``).
+        model: The effective model id after the override.
+
+    Returns:
+        True when the value can be carried over to ``model``.
+    """
+    if value is None or model is None:
+        return False
+
+    from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
+
+    caps = ModelCapabilitiesCache.get(model)
+    if caps is None:
+        return False
+
+    from src.domains.llm_config.reasoning_validation import reasoning_effort_matches_widget
+
+    return reasoning_effort_matches_widget(caps, value)
 
 
 def _reconcile_reasoning_effort(cfg: LLMAgentConfig) -> LLMAgentConfig:

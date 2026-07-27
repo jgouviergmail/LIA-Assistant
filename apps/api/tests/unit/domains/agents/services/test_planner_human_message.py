@@ -2,7 +2,7 @@
 
 Closes the prod failure of 2026-07-17 (twice observed): the enriched query
 carried the agreed facts ("... tomorrow at 9am at the restaurant with Jérôme
-Gouvier") in the middle of the system context and the planner substituted
+Lemoine") in the middle of the system context and the planner substituted
 defaults (next-hour slot, generic title). Facts now travel in the human
 message with the authority + language constraints attached.
 """
@@ -39,8 +39,7 @@ def _intelligence(enriched: str | None) -> QueryIntelligence:
 
 def test_facts_ride_in_human_message_with_authority_and_language() -> None:
     enriched = (
-        "Create the calendar appointment for tomorrow at 9am at the restaurant "
-        "with Jérôme Gouvier"
+        "Create the calendar appointment for tomorrow at 9am at the restaurant " "with Paul Lemoine"
     )
     content = build_planner_human_message(_intelligence(enriched))
     assert content.startswith("Query: crée le rdv")

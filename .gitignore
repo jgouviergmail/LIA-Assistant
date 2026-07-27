@@ -304,4 +304,3 @@ apps/api/tests/.infra_denylist
 
 # Local media deliverables (social-network demo captures) — generated on demand, never committed
 exports/
-apps/api/scripts/measure_extraction_selectivity.py

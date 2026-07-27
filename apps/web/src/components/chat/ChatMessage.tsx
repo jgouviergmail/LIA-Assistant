@@ -3,15 +3,12 @@ import { createPortal } from 'react-dom';
 import { Message, MessageAttachmentMeta, type GeneratedImage } from '@/types/chat';
 import {
   AlertCircle,
-  Ban,
   Check,
   Copy,
   Download,
   FileText,
   Globe,
   RotateCcw,
-  ThumbsDown,
-  ThumbsUp,
   User,
   X,
 } from 'lucide-react';
@@ -20,12 +17,14 @@ import { cn, proxyGoogleImageUrl } from '@/lib/utils';
 import { classifyImageExpiry } from '@/lib/image-expiry';
 import { MarkdownContent } from './MarkdownContent';
 import { isInterestNotificationMetadata } from './InterestNotificationCard';
+import {
+  ProactiveFeedbackButtons,
+  type ProactiveFeedbackKind,
+} from './ProactiveFeedbackButtons';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { getIntlLocale, Language } from '@/i18n/settings';
-import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { useApiMutation } from '@/hooks/useApiMutation';
 import {
   ResponseFeedbackButtons,
   type ResponseFeedbackButtonsProps,
@@ -62,8 +61,6 @@ export interface ChatMessageProps {
   onRetry?: (prompt: string) => void;
 }
 
-type FeedbackType = 'thumbs_up' | 'thumbs_down' | 'block';
-
 /** Window (ms) within which a proactive notification counts as "just arrived". */
 const PROACTIVE_FRESH_WINDOW_MS = 10_000;
 
@@ -82,111 +79,31 @@ export function isFreshProactive(
 }
 
 /**
- * Feedback buttons for proactive interest notifications.
- * Only shown for messages with feedback_enabled and no prior feedback.
+ * Which proactive feedback row a bubble deserves, or null.
+ *
+ * Pure — extracted from the render hotspot so the routing between the two
+ * backend contracts (interest vs heartbeat) is unit-testable. Heartbeat
+ * notifications used to fall through here with no buttons at all despite
+ * carrying `feedback_enabled: true`.
  */
-function InterestFeedbackButtons({
-  targetId,
-  onFeedbackSubmitted,
-}: {
-  targetId: string;
-  onFeedbackSubmitted: () => void;
-}) {
-  const { t } = useTranslation();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export function proactiveFeedbackProps(
+  metadata: Record<string, unknown> | undefined,
+  alreadySubmitted: boolean
+): { kind: ProactiveFeedbackKind; targetId: string; runId?: string } | null {
+  if (alreadySubmitted || !metadata || !metadata.feedback_enabled) return null;
+  const targetId = metadata.target_id;
+  if (typeof targetId !== 'string' || targetId.length === 0) return null;
 
-  const { mutate } = useApiMutation<{ feedback: FeedbackType }, void>({
-    method: 'POST',
-    componentName: 'ChatMessage',
-    onError: () => {
-      toast.error(t('interests.feedback.error'));
-    },
-  });
+  const kind: ProactiveFeedbackKind | null =
+    metadata.type === 'proactive_interest'
+      ? 'interest'
+      : metadata.type === 'proactive_heartbeat'
+        ? 'heartbeat'
+        : null;
+  if (kind === null) return null;
 
-  const handleFeedback = useCallback(
-    async (feedback: FeedbackType) => {
-      if (isSubmitting) return;
-      setIsSubmitting(true);
-
-      // Optimistic UX: hide buttons + show toast immediately. The verdict is
-      // one-way — the parent drops this row as soon as `onFeedbackSubmitted`
-      // fires, so a failed POST surfaces its own error toast (see `onError`)
-      // but never brings the buttons back; `isSubmitting` only guards the
-      // double click that can still happen before that unmount.
-      onFeedbackSubmitted();
-      switch (feedback) {
-        case 'thumbs_up':
-          toast.success(t('interests.feedback.liked'));
-          break;
-        case 'thumbs_down':
-          toast.info(t('interests.feedback.disliked'));
-          break;
-        case 'block':
-          toast.info(t('interests.feedback.blocked'));
-          break;
-      }
-
-      try {
-        await mutate(`/interests/${targetId}/feedback`, { feedback });
-      } catch {
-        // Error handled by onError callback (toast.error + setIsSubmitting(false))
-      }
-    },
-    [mutate, targetId, isSubmitting, t, onFeedbackSubmitted]
-  );
-
-  return (
-    <div className="flex items-center gap-1 mt-2">
-      <span className="text-xs text-muted-foreground mr-2">
-        {t('interests.notification.helpful')}
-      </span>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 hover:bg-green-100 hover:text-green-600 dark:hover:bg-green-900/30"
-            onClick={() => handleFeedback('thumbs_up')}
-            disabled={isSubmitting}
-            aria-label={t('interests.feedback.like')}
-          >
-            <ThumbsUp className="h-4 w-4" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{t('interests.feedback.like')}</TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 hover:bg-orange-100 hover:text-orange-600 dark:hover:bg-orange-900/30"
-            onClick={() => handleFeedback('thumbs_down')}
-            disabled={isSubmitting}
-            aria-label={t('interests.feedback.dislike')}
-          >
-            <ThumbsDown className="h-4 w-4" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{t('interests.feedback.dislike')}</TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30"
-            onClick={() => handleFeedback('block')}
-            disabled={isSubmitting}
-            aria-label={t('interests.feedback.block')}
-          >
-            <Ban className="h-4 w-4" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{t('interests.feedback.block')}</TooltipContent>
-      </Tooltip>
-    </div>
-  );
+  const runId = typeof metadata.run_id === 'string' ? metadata.run_id : undefined;
+  return { kind, targetId, runId };
 }
 
 /**
@@ -681,8 +598,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
     !isUser &&
     typeof message.metadata?.type === 'string' &&
     (message.metadata.type as string).startsWith('proactive_');
-  const showFeedbackButtons =
-    isProactiveInterest && Boolean(message.metadata?.feedback_enabled) && !feedbackSubmitted;
+  const feedbackRow = proactiveFeedbackProps(message.metadata, feedbackSubmitted);
   // F4: the avatar wobbles once when a proactive notification lands live — never
   // on history rows. Captured in a mount effect (not in render) so the "now"
   // read stays pure; a history-loaded row is already stale at mount.
@@ -859,10 +775,10 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
                 searchHighlight={props.searchHighlight}
               />
             </div>
-            {/* Feedback buttons for proactive interest notifications */}
-            {showFeedbackButtons && (
-              <InterestFeedbackButtons
-                targetId={String(message.metadata?.target_id ?? '')}
+            {/* Feedback row for proactive notifications (interest + heartbeat) */}
+            {feedbackRow && (
+              <ProactiveFeedbackButtons
+                {...feedbackRow}
                 onFeedbackSubmitted={() => setFeedbackSubmitted(true)}
               />
             )}

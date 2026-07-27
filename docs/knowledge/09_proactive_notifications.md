@@ -95,8 +95,10 @@ Proactive suggestions (weather alerts, upcoming event reminders, etc.) are prote
 Your feedback helps LIA improve:
 
 **👍👎 Feedback buttons:**
-• Each notification displays **thumbs up / thumbs down** buttons
+• Each notification card in the chat displays **thumbs up / thumbs down** buttons
 • Your feedback is recorded to improve future decisions
+• Once you have voted, the buttons disappear for that notification — on every
+  device, and after a reload: a notification is rated once
 
 **📜 History:**
 • View your recent proactive notifications in the dedicated section

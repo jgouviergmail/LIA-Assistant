@@ -4,7 +4,7 @@
 
 **Version** : 3.9
 **Datum** : 2026-07-27
-**Anwendung** : LIA v1.25.28
+**Anwendung** : LIA v1.25.29
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -153,7 +153,7 @@ LIA beschränkt sich nicht aufs Antworten — LIA antizipiert:
 
 - **Proaktive Benachrichtigungen**: LIA verknüpft Ihre Kontextquellen (Kalender, Wetter, Aufgaben, E-Mails, Interessen) und benachrichtigt Sie, wenn es wirklich nützlich ist — mit einem integrierten Anti-Spam-System (Tageskontingent, Zeitfenster, Cooldown)
 - **Konversationelle Initiative**: Während eines Austauschs prüft LIA proaktiv verwandte Informationen — wenn das Wetter für Samstag Regen vorhersagt, schaut LIA in Ihren Kalender, um auf mögliche Outdoor-Aktivitäten hinzuweisen
-- **Interessengebiete**: LIA erkennt schrittweise Themen, die Sie begeistern, und sendet Ihnen abwechslungsreiche Inhalte — die Themen wechseln sich ab (nie zweimal hintereinander dasselbe Thema) und jede Benachrichtigung enthält klickbare Links zu ihren Quellen
+- **Interessengebiete**: LIA behält, was Ihnen wirklich am Herzen liegt, nicht das, wonach Sie einmal gefragt haben — eine Frage zu stellen ist eine Aufgabe, keine Vorliebe, und es braucht erklärte Begeisterung, eigene Praxis, echtes Vorwissen oder tatsächliches Vertiefen, damit ein Thema zählt. Die Themen wechseln sich ab (nie zweimal hintereinander dasselbe Thema), jede Benachrichtigung enthält klickbare Links zu ihren Quellen, und ein Thema, das Sie ablehnen, kommt nicht zurück: Die Blockade wird mit jedem neuen Thema abgeglichen, auch unter anderem Namen
 - **Unteragenten**: Für komplexe Aufgaben delegiert LIA an spezialisierte, kurzlebige Agenten, die parallel arbeiten
 
 ### 3.7. Autonomes Web-Browsing

@@ -1,4 +1,4 @@
-"""Unit tests for ConversationRepository.mark_interest_feedback_submitted.
+"""Unit tests for ConversationRepository.mark_proactive_feedback_submitted.
 
 Validates that interest feedback submission is persisted on every proactive
 message that references the interest via ``message_metadata.target_id``, and
@@ -71,14 +71,14 @@ async def conversations(async_session: AsyncSession, two_users):
 
 
 class TestMarkInterestFeedbackSubmitted:
-    """Test ConversationRepository.mark_interest_feedback_submitted."""
+    """Test ConversationRepository.mark_proactive_feedback_submitted."""
 
     @pytest.mark.asyncio
     async def test_marks_single_message(
         self, async_session: AsyncSession, two_users, conversations
     ):
         """GIVEN one proactive message referencing an interest,
-        WHEN mark_interest_feedback_submitted is called for that user,
+        WHEN mark_proactive_feedback_submitted is called for that user,
         THEN message_metadata is updated with feedback_submitted=true + value."""
         user_a, _ = two_users
         conv_a, _ = conversations
@@ -98,9 +98,9 @@ class TestMarkInterestFeedbackSubmitted:
         await async_session.refresh(msg)
 
         repo = ConversationRepository(async_session)
-        count = await repo.mark_interest_feedback_submitted(
+        count = await repo.mark_proactive_feedback_submitted(
             user_id=user_a.id,
-            interest_id=interest_id,
+            target_id=interest_id,
             feedback_value="thumbs_up",
         )
         await async_session.commit()
@@ -123,7 +123,7 @@ class TestMarkInterestFeedbackSubmitted:
         self, async_session: AsyncSession, two_users, conversations
     ):
         """GIVEN two users each with a proactive message for the SAME interest_id,
-        WHEN mark_interest_feedback_submitted is called for user A,
+        WHEN mark_proactive_feedback_submitted is called for user A,
         THEN only user A's message is updated — user B's remains untouched."""
         user_a, user_b = two_users
         conv_a, conv_b = conversations
@@ -147,9 +147,9 @@ class TestMarkInterestFeedbackSubmitted:
         await async_session.refresh(msg_b)
 
         repo = ConversationRepository(async_session)
-        count = await repo.mark_interest_feedback_submitted(
+        count = await repo.mark_proactive_feedback_submitted(
             user_id=user_a.id,
-            interest_id=interest_id,
+            target_id=interest_id,
             feedback_value="block",
         )
         await async_session.commit()
@@ -168,7 +168,7 @@ class TestMarkInterestFeedbackSubmitted:
         self, async_session: AsyncSession, two_users, conversations
     ):
         """GIVEN a message with NULL message_metadata (legacy),
-        WHEN mark_interest_feedback_submitted targets it via a matching interest_id,
+        WHEN mark_proactive_feedback_submitted targets it via a matching interest_id,
         THEN no crash occurs AND 0 rows are affected (NULL metadata has no target_id)."""
         user_a, _ = two_users
         conv_a, _ = conversations
@@ -184,9 +184,9 @@ class TestMarkInterestFeedbackSubmitted:
         await async_session.commit()
 
         repo = ConversationRepository(async_session)
-        count = await repo.mark_interest_feedback_submitted(
+        count = await repo.mark_proactive_feedback_submitted(
             user_id=user_a.id,
-            interest_id=interest_id,
+            target_id=interest_id,
             feedback_value="thumbs_up",
         )
         await async_session.commit()
@@ -199,7 +199,7 @@ class TestMarkInterestFeedbackSubmitted:
         self, async_session: AsyncSession, two_users, conversations
     ):
         """GIVEN several proactive messages sharing the same interest_id,
-        WHEN mark_interest_feedback_submitted is called,
+        WHEN mark_proactive_feedback_submitted is called,
         THEN all matching messages are updated (count == N)."""
         user_a, _ = two_users
         conv_a, _ = conversations
@@ -218,9 +218,9 @@ class TestMarkInterestFeedbackSubmitted:
         await async_session.commit()
 
         repo = ConversationRepository(async_session)
-        count = await repo.mark_interest_feedback_submitted(
+        count = await repo.mark_proactive_feedback_submitted(
             user_id=user_a.id,
-            interest_id=interest_id,
+            target_id=interest_id,
             feedback_value="thumbs_down",
         )
         await async_session.commit()
@@ -232,14 +232,14 @@ class TestMarkInterestFeedbackSubmitted:
         self, async_session: AsyncSession, two_users, conversations
     ):
         """GIVEN no messages referencing the interest_id,
-        WHEN mark_interest_feedback_submitted is called,
+        WHEN mark_proactive_feedback_submitted is called,
         THEN 0 rows are affected (no error)."""
         user_a, _ = two_users
 
         repo = ConversationRepository(async_session)
-        count = await repo.mark_interest_feedback_submitted(
+        count = await repo.mark_proactive_feedback_submitted(
             user_id=user_a.id,
-            interest_id=uuid4(),
+            target_id=uuid4(),
             feedback_value="thumbs_up",
         )
         await async_session.commit()

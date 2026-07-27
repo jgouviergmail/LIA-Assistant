@@ -35,7 +35,10 @@ from src.core.i18n_api_messages import APIMessages
 from src.core.session_dependencies import get_current_active_session
 from src.domains.interests.helpers import generate_interest_embedding
 from src.domains.interests.models import InterestCategory, InterestStatus, UserInterest
-from src.domains.interests.repository import InterestRepository
+from src.domains.interests.repository import (
+    InterestNotificationRepository,
+    InterestRepository,
+)
 from src.domains.interests.schemas import (
     InterestCategoriesResponse,
     InterestCategoryResponse,
@@ -678,12 +681,23 @@ async def submit_feedback(
         # Apply feedback on the interest entity
         await repo.apply_feedback(interest, data.feedback)
 
+        # Record the verdict in the notification audit trail. Only when the card
+        # told us WHICH notification it came from: attributing it to a guessed
+        # row would be worse than leaving it null.
+        audit_updated = False
+        if data.run_id:
+            audit_updated = await InterestNotificationRepository(db).update_feedback_by_run_id(
+                run_id=data.run_id,
+                user_id=user.id,
+                feedback=data.feedback,
+            )
+
         # Persist feedback state on all associated proactive messages so that
         # the frontend feedback buttons stay hidden across reloads and devices.
         conv_repo = ConversationRepository(db)
-        messages_updated = await conv_repo.mark_interest_feedback_submitted(
+        messages_updated = await conv_repo.mark_proactive_feedback_submitted(
             user_id=user.id,
-            interest_id=interest_id,
+            target_id=interest_id,
             feedback_value=data.feedback,
         )
 
@@ -704,6 +718,7 @@ async def submit_feedback(
             feedback=data.feedback,
             new_status=interest.status,
             messages_updated=messages_updated,
+            audit_updated=audit_updated,
         )
 
         return {"message": APIMessages.feedback_submitted_successfully()}

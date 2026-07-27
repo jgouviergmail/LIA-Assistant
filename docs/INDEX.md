@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 40 |
-| ADRs | 165 (ADR-165 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 164 fichiers) |
+| ADRs | 166 (ADR-166 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 165 fichiers) |
 | Fiches knowledge (RAG système) | 24 |
 
 ---
@@ -297,16 +297,17 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-165 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-166 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 
-> **Cette table n'est pas exhaustive** : elle saute de ADR-165 à ADR-126 — les
+> **Cette table n'est pas exhaustive** : elle saute de ADR-166 à ADR-126 — les
 > ADR-127 à ADR-150 n'y ont jamais été reportées. La liste complète et à jour
 > est [ADR_INDEX.md](./architecture/ADR_INDEX.md), qui fait foi.
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-166 | **Demander est une tâche, pas un goût** : la règle n°1 du prompt d'intérêts déclarait qu'une demande d'information *est* un centre d'intérêt — **7 des 10 intérêts de juillet bloqués par l'utilisateur**. Une création exige désormais un **fondement nommé** parmi quatre et la citation des mots qui le portent ; la déduplication voit **tous les statuts** (un intérêt bloqué était recréé 25 min plus tard à 0,9821 de similarité) ; un **plafond de suppressions** écarte les lots qui en proposent dix-neuf | 2026-07 |
 | ADR-165 | Modifier une skill, c'est la **régénérer entièrement** : le moteur d'écriture existait déjà (upsert d'ADR-118) mais le manifeste était illisible, un remplacement perdait la vignette que le chat ne peut pas transporter, et le prompt ordonnait de renommer. Confirmation **en deux temps dans l'outil** — le HITL est inopérant dans le sous-agent isolé où tourne le générateur | 2026-07 |
 | ADR-164 | Quels tours alimentent mémoire, intérêts et journaux : rien ne mesurait ces décisions, et quatre défauts ont vécu dans l'angle mort — les canaux n'alimentaient **jamais** les journaux, un flux HITL n'extrayait **rien**, un message fabriqué devenait la cible, et un contact nommé Fine ou Bien perdait ses souvenirs | 2026-07 |
 | ADR-163 | Un seul worker calcule les embeddings d'outils — sur un volume neuf les quatre workers ont embarqué les mêmes 713 textes en même temps, le fournisseur a répondu un 429 de capacité et **deux workers sont morts** au démarrage : revendication exclusive par `O_CREAT \| O_EXCL`, péremption découplée du délai d'attente, délai dérivé du budget de santé du conteneur | 2026-07 |

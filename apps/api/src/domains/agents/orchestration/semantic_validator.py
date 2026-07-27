@@ -84,7 +84,7 @@ logger = get_logger(__name__)
 
 # Emails on RFC 2606 reserved domains (example.com/org/net, .invalid, .test) are
 # ALWAYS fabricated — no real mailbox can live there. Observed in prod
-# (2026-07-17): the planner filled attendees=['jerome.gouvier@example.com'] for
+# (2026-07-17): the planner filled attendees=['jane.doe@example.com'] for
 # a real contact instead of resolving or omitting. The reserved TLDs are only
 # matched as the FINAL label (dot required) so real domains like test.com or
 # invalid-prefixed names never false-positive.
@@ -1254,7 +1254,7 @@ class PlanSemanticValidator:
         # PLACEHOLDER CONTACT VALIDATION: Pre-LLM detection of fabricated emails
         # =====================================================================
         # The planner must NEVER invent contact details. Observed in prod
-        # (2026-07-17): attendees=['jerome.gouvier@example.com'] fabricated for
+        # (2026-07-17): attendees=['jane.doe@example.com'] fabricated for
         # a real contact. RFC 2606 reserved domains in a non-free-text mutation
         # parameter are always an hallucination → deterministic REJECT with
         # replanning feedback (resolve via contacts step or omit).

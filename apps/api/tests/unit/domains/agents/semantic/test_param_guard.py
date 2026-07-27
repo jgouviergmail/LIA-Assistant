@@ -21,8 +21,8 @@ from src.domains.agents.semantic.param_guard import (
     strip_placeholder_arguments,
 )
 
-PERSON = "Alexandre Gouvier"
-NAMES = frozenset({"alexandre gouvier"})
+PERSON = "Marc Lemoine"
+NAMES = frozenset({"marc lemoine"})
 
 
 def _manifest(
@@ -51,8 +51,8 @@ def _registry_with(manifest: SimpleNamespace) -> MagicMock:
 
 class TestCollectResolvedPersonNames:
     def test_normalizes_case_and_whitespace(self):
-        names = collect_resolved_person_names({"mon frère": "  Alexandre   GOUVIER "})
-        assert names == {"alexandre gouvier"}
+        names = collect_resolved_person_names({"mon frère": "  Marc   LEMOINE "})
+        assert names == {"marc lemoine"}
 
     def test_empty_inputs(self):
         assert collect_resolved_person_names(None) == frozenset()
@@ -89,9 +89,7 @@ class TestCheckSemanticParams:
             "src.domains.agents.registry.get_global_registry",
             return_value=_registry_with(manifest),
         ):
-            violation = check_semantic_params(
-                "send_email_tool", {"to": "  alexandre   gouvier "}, NAMES
-            )
+            violation = check_semantic_params("send_email_tool", {"to": "  marc   lemoine "}, NAMES)
         assert violation is not None
         assert violation.semantic_type == "email_address"
 
@@ -163,7 +161,7 @@ class TestConfigPlumbing:
         enriched = config_with_person_names(config, state)
 
         assert enriched["configurable"]["langgraph_user_id"] == "u1"
-        assert enriched["configurable"][FIELD_RESOLVED_PERSON_NAMES] == ["alexandre gouvier"]
+        assert enriched["configurable"][FIELD_RESOLVED_PERSON_NAMES] == ["marc lemoine"]
         assert person_names_from_config(enriched) == NAMES
 
     def test_returns_same_config_when_nothing_to_guard(self):

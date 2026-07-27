@@ -79,7 +79,7 @@ def _normalize_phone(value: str) -> str:
 def _strip_trailing_annotations(contact: str) -> str:
     """Drop trailing parenthetical annotations an LLM may append to a name.
 
-    ``"Hua Gouvier (my wife)"`` -> ``"Hua Gouvier"``. Only TRAILING groups are
+    ``"Léa Lemoine (my wife)"`` -> ``"Léa Lemoine"``. Only TRAILING groups are
     stripped, and only as a retry fallback — contacts legitimately named with a
     parenthetical (e.g. ``"Jean Dupont (plombier)"``) still match exact-first.
     """
@@ -187,7 +187,7 @@ async def _resolve_callee(user_id: UUID, contact: str) -> _CalleeResolution:
     candidates, first_match_name = await _search_contacts_with_phones(user_id, contact)
     if first_match_name is None:
         # Exact-first, sanitized retry: planners occasionally annotate the name
-        # ("Hua Gouvier (my wife)") which the providers' exact search rejects.
+        # ("Léa Lemoine (my wife)") which the providers' exact search rejects.
         cleaned = _strip_trailing_annotations(contact)
         if cleaned and cleaned != contact:
             candidates, first_match_name = await _search_contacts_with_phones(user_id, cleaned)
