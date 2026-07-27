@@ -378,7 +378,13 @@ class Harness:
         harness = self
 
         class FakeConversationOrchestrator:
-            async def setup_conversation(self, user_id, session_id, run_id, db):
+            # `language` mirrors the production signature: the conversation's
+            # default title is user-facing, so the nominal chat path forwards
+            # the user's locale here. A fake that omitted it made the whole
+            # stream raise and every characterization assert on an EMPTY chunk
+            # list — which reads as "nothing streamed", not as "wrong call".
+            async def setup_conversation(self, user_id, session_id, run_id, db, language=None):
+                harness.setup_conversation_language = language
                 return SimpleNamespace(
                     conversation_id=CONVERSATION_ID,
                     tracking_context=harness.tracker,
@@ -518,6 +524,11 @@ async def test_char_simple_message_sequence():
 
     assert _types(chunks) == ["router_decision", "token", "token", "token", "done"]
     assert chunks[0].metadata["intention"] == "conversation"
+    # The nominal path forwards the user's locale to the conversation factory:
+    # the default title it may have to generate is user-facing. Asserted here
+    # rather than only on the orchestrator, because this is the ONE test that
+    # exercises the real call site.
+    assert harness.setup_conversation_language == "fr"
 
     done = chunks[-1]
     # Structural contract of the done chunk (values from the fake DTO).
