@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 40 |
-| ADRs | 162 (ADR-162 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 161 fichiers) |
+| ADRs | 163 (ADR-163 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 162 fichiers) |
 | Fiches knowledge (RAG système) | 24 |
 
 ---
@@ -297,16 +297,17 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-162 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-163 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 
-> **Cette table n'est pas exhaustive** : elle saute de ADR-162 à ADR-126 — les
+> **Cette table n'est pas exhaustive** : elle saute de ADR-163 à ADR-126 — les
 > ADR-127 à ADR-150 n'y ont jamais été reportées. La liste complète et à jour
 > est [ADR_INDEX.md](./architecture/ADR_INDEX.md), qui fait foi.
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-163 | Un seul worker calcule les embeddings d'outils — sur un volume neuf les quatre workers ont embarqué les mêmes 713 textes en même temps, le fournisseur a répondu un 429 de capacité et **deux workers sont morts** au démarrage : revendication exclusive par `O_CREAT \| O_EXCL`, péremption découplée du délai d'attente, délai dérivé du budget de santé du conteneur | 2026-07 |
 | ADR-162 | Un seul écrivain pour l'indexation de la connaissance système, et un cache qui survit au déploiement — quatre workers réembarquaient 3 928 contenus par démarrage (108 `cache_miss` pour **zéro** `cache_hit` sur 27 boots), le 429 tombait à +18 s sur 11 boots sur 11, et l'entrelacement laissait **807 chunks pour 269 contenus distincts** : `FOR UPDATE SKIP LOCKED`, embeddings avant destruction, corpus compté et non seulement haché | 2026-07 |
 | ADR-161 | Chien de garde sur un flux SSE muet — un onglet mobile gelé laissait `reader.read()` sans réponse ni rejet, `isTyping` restait vrai, et le garde du gestionnaire de visibilité verrouillait la reprise ADR-117 : budget de silence (6 battements), erreur typée et rattachement automatique | 2026-07 |
 | ADR-160 | Hygiène de la détection de skill et cumul avec le plan natif — six demandes d'image sans image : `skill_name` valant la *chaîne* `"null"` dans 84 à 100 % des analyses, noms de skills inexistants acceptés, plan vide jetant `generate_image` élu à 1.0, et `quality=high` (138,3 s mesuré) impossible sous un plafond générique de 120 s | 2026-07 |

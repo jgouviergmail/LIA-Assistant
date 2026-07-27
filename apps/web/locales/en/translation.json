@@ -3426,6 +3426,14 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_27": {
+          "title": "v1.25.27 — 🔁 Coming back whole after an update",
+          "date": "July 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🔁 LIA comes back at full capacity after an update</b> — right after an update the server rebuilds part of its internal index, and it was doing that work four times over at once. The provider refused, and two of the four processes serving you failed to start: for about a minute LIA answered on half its capacity, which showed up as slowness under load. That work is now done once, by one process, while the others simply wait for its result."
+          }
+        },
         "v1_25_26": {
           "title": "v1.25.26 — 🧠 What LIA knows about itself",
           "date": "July 2026",

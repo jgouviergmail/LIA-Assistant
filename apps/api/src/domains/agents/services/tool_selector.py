@@ -35,20 +35,16 @@ References:
 
 import asyncio
 import hashlib
-import json
-import os
 import re
 from contextlib import suppress
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-from src.core.constants import TOOL_EMBEDDINGS_CACHE_FILENAME
 from src.domains.agents.registry.catalogue import ToolManifest
+from src.domains.agents.services import tool_embeddings_cache as embeddings_cache
 from src.infrastructure.observability.logging import get_logger
-from src.infrastructure.observability.metrics_agents import tool_embeddings_cache_total
 
 logger = get_logger(__name__)
 
@@ -70,29 +66,6 @@ DEFAULT_CALIBRATED_PRIMARY_MIN = 0.15  # Min probability for primary tool
 # Hybrid scoring configuration (CORRECTION 7)
 DEFAULT_HYBRID_ALPHA = 0.6  # Description weight (keywords = 1 - alpha)
 DEFAULT_HYBRID_MODE = "first_line"  # "first_line", "full", "truncate"
-
-# Application root (apps/api, /app in the image): the anchor for a relative
-# cache directory, so the resolved location never depends on the process working
-# directory.
-_APP_ROOT = Path(__file__).resolve().parents[4]
-
-
-def resolve_tool_embeddings_cache_dir() -> Path:
-    """Resolve the directory holding the tool-embeddings disk cache.
-
-    An absolute setting is honoured verbatim; a relative one is anchored on the
-    application root rather than the working directory, which is what makes the
-    cache land in the same place whether the process was started from
-    ``apps/api`` (pytest, dev server) or from ``/app`` (image).
-
-    Returns:
-        Absolute path to the cache directory. Not created here — the writer
-        creates it, the reader treats its absence as a cache miss.
-    """
-    from src.core.config import settings
-
-    configured = Path(settings.tool_embeddings_cache_dir)
-    return configured if configured.is_absolute() else _APP_ROOT / configured
 
 
 # =============================================================================
@@ -266,83 +239,6 @@ class SemanticToolSelector:
             hasher.update(f"{tool_name}|{text_type}|{text}".encode())
         return hasher.hexdigest()
 
-    @staticmethod
-    def _load_embedding_cache(
-        cache_path: Path,
-        expected_hash: str,
-        expected_count: int,
-    ) -> list[list[float]] | None:
-        """Load cached embeddings from disk if the content hash matches.
-
-        Args:
-            cache_path: Path to the JSON cache file.
-            expected_hash: Hash of current tool texts — must match the cached hash.
-            expected_count: Expected number of embedding vectors (must match to
-                prevent index-out-of-bounds from a truncated or corrupt file).
-
-        Returns:
-            List of embedding vectors if valid, None if cache is missing/stale/corrupt.
-        """
-        if not cache_path.exists():
-            return None
-        try:
-            data: dict[str, Any] = json.loads(cache_path.read_text(encoding="utf-8"))
-            if data.get("content_hash") != expected_hash:
-                return None
-            embeddings: list[list[float]] = data.get("embeddings", [])
-            if len(embeddings) != expected_count:
-                logger.warning(
-                    "tool_embedding_cache_count_mismatch",
-                    cached=len(embeddings),
-                    expected=expected_count,
-                )
-                return None
-            return embeddings
-        except Exception:
-            return None
-
-    @staticmethod
-    def _save_embedding_cache(
-        cache_path: Path,
-        content_hash: str,
-        all_embeddings: list[list[float]],
-    ) -> None:
-        """Persist embeddings to disk alongside their content hash.
-
-        Written to a private temporary sibling and renamed into place. Every
-        uvicorn worker writes this same path at boot, and the document is tens of
-        megabytes: a plain ``write_text`` lets a concurrent reader observe a
-        half-written file, whose only recovery is to re-embed the whole
-        catalogue. ``os.replace`` is atomic, so a reader sees either the previous
-        file or the complete new one — never a prefix of it. The temporary name
-        carries the pid so two workers cannot corrupt each other's staging file.
-
-        Args:
-            cache_path: Path to write the JSON cache file.
-            content_hash: Hash of the texts that produced these embeddings.
-            all_embeddings: Embedding vectors in the same order as text_metadata.
-        """
-        data = {
-            "content_hash": content_hash,
-            "embeddings": all_embeddings,
-        }
-        tmp_path = cache_path.with_name(f"{cache_path.name}.{os.getpid()}.tmp")
-        try:
-            cache_path.parent.mkdir(parents=True, exist_ok=True)
-            tmp_path.write_text(json.dumps(data), encoding="utf-8")
-            os.replace(tmp_path, cache_path)
-        except Exception as e:
-            # A staging file left behind would be dead weight on the volume, and
-            # its size is that of the cache itself.
-            with suppress(OSError):
-                tmp_path.unlink(missing_ok=True)
-            logger.warning(
-                "tool_embedding_cache_save_failed",
-                error=str(e),
-                error_type=type(e).__name__,
-                cache_path=str(cache_path),
-            )
-
     async def initialize(
         self,
         tool_manifests: list[ToolManifest],
@@ -460,37 +356,44 @@ class SemanticToolSelector:
                 keywords_preview=kws[:5],
             )
 
-        # Compute or load embeddings (differential cache)
-        cache_path = resolve_tool_embeddings_cache_dir() / TOOL_EMBEDDINGS_CACHE_FILENAME
+        # Compute or load embeddings (differential cache).
+        cache_path = embeddings_cache.resolve_cache_path()
 
         content_hash = self._compute_content_hash(
             all_texts, text_metadata, self._embedding_model_name
         )
 
         try:
-            # Try loading from disk cache first
-            cached_embeddings = self._load_embedding_cache(
+            # Either the cache, or the exclusive right to compute it. Without that
+            # claim every worker missed together and embedded the same catalogue at
+            # once, which the provider answered with a capacity 429 and which
+            # killed two workers in production (ADR-163).
+            cached_embeddings, claim = await embeddings_cache.load_or_claim(
                 cache_path, content_hash, expected_count=len(all_texts)
             )
 
             if cached_embeddings is not None:
                 all_embeddings = cached_embeddings
-                tool_embeddings_cache_total.labels(result="hit").inc()
                 logger.info(
                     "semantic_tool_selector_cache_hit",
                     cache_path=str(cache_path),
                     total_embeddings=len(all_embeddings),
                 )
             else:
-                # Cache miss or stale — call Gemini API
-                tool_embeddings_cache_total.labels(result="miss").inc()
                 logger.info(
                     "semantic_tool_selector_cache_miss",
                     cache_path=str(cache_path),
                     total_texts=len(all_texts),
+                    claimed=claim is not None,
                 )
-                all_embeddings = await self._embeddings.aembed_documents(all_texts)
-                self._save_embedding_cache(cache_path, content_hash, all_embeddings)
+                try:
+                    all_embeddings = await self._embeddings.aembed_documents(all_texts)
+                    embeddings_cache.save(cache_path, content_hash, all_embeddings)
+                finally:
+                    # Released even when the call raised: that is what turns four
+                    # simultaneous attempts into a relay of single attempts.
+                    if claim is not None:
+                        embeddings_cache.release(claim)
 
             # Distribute embeddings by type
             for i, (tool_name, text_type) in enumerate(text_metadata):

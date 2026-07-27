@@ -5,6 +5,12 @@
 **Décideurs**: Équipe LIA
 **Amende**: ADR-058 (System RAG Spaces), ADR-089 (métriques multi-worker)
 **Complète**: ADR-119 (socle d'alerting minimal)
+**Amendé par**: [ADR-163](ADR-163-Tool-Embeddings-Cache-Claim.md) — donner un volume
+au cache d'embeddings d'outils ne suffisait pas. Le premier démarrage sur ce volume
+neuf a fait manquer le cache aux quatre workers **en même temps**, et le §4 de cet
+ADR laissait cette rafale sans coordination : le fournisseur a répondu un 429 de
+capacité et deux workers sont morts au démarrage. Depuis le 2026-07-27, un seul
+worker calcule, revendication par fichier.
 
 ## Contexte
 

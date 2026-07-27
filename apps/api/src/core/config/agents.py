@@ -314,6 +314,7 @@ from src.core.constants import (
     TOKEN_THRESHOLD_SAFE_DEFAULT,
     TOKEN_THRESHOLD_WARNING_DEFAULT,
     TOOL_APPROVAL_CLEANUP_DAYS_DEFAULT,
+    TOOL_EMBEDDINGS_CACHE_CLAIM_TIMEOUT_SECONDS_DEFAULT,
     TOOL_EMBEDDINGS_CACHE_DIR_DEFAULT,
     TOOL_RETRY_BACKOFF_FACTOR_DEFAULT,
     TOOL_RETRY_MAX_ATTEMPTS_DEFAULT,
@@ -2150,6 +2151,22 @@ class AgentsSettings(BaseSettings):
             "mounted volume in production: a cache in the container's writable "
             "layer is destroyed by every `--force-recreate`, and each uvicorn "
             "worker then re-embeds the entire tool catalogue at boot."
+        ),
+    )
+    tool_embeddings_cache_claim_timeout_seconds: float = Field(
+        default=TOOL_EMBEDDINGS_CACHE_CLAIM_TIMEOUT_SECONDS_DEFAULT,
+        ge=0.0,
+        le=600.0,
+        description=(
+            "How long a worker waits for a peer already computing the tool "
+            "embeddings before computing them itself. 0 disables waiting (every "
+            "worker computes, the pre-v1.25.27 behaviour). Must exceed the slowest "
+            "full catalogue embedding (~14 s for 713 texts) and stay well under "
+            "the container health budget: waiters block inside the lifespan, so "
+            "boot time + this value must remain below start_period + retries x "
+            "interval, or a crashed holder turns into an unhealthy container. A "
+            "claim is presumed abandoned at max(this, 30 s), never at this value "
+            "alone: a short timeout must not make a live claim look stale."
         ),
     )
 

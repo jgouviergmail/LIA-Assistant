@@ -80,6 +80,12 @@ from src.domains.agents.services.tool_selector import (
 # layer, which `docker compose up --force-recreate` discards — measured 108 cache
 # misses for ZERO hits across 27 boots, each of the four workers re-embedding the
 # whole catalogue every deploy (ADR-162).
+#
+# On a miss, ONE worker computes: it takes an exclusive claim on the cache
+# (os.open with O_CREAT | O_EXCL) and the others wait for its result rather than
+# duplicating it. Without that claim the first boot on the fresh volume had all
+# four workers embed the same 713 texts at once, the provider answered a capacity
+# 429, and two workers died at startup (ADR-163).
 selector = await initialize_tool_selector(registry.list_tool_manifests())
 
 # Select tools for query

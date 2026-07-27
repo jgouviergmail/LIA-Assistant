@@ -3417,6 +3417,14 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_25_27": {
+          "title": "v1.25.27 — 🔁 Volver completa tras una actualización",
+          "date": "Julio 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🔁 LIA vuelve a plena capacidad tras una actualización</b> — justo después de una actualización el servidor reconstruye parte de su índice interno, y hacía ese trabajo cuatro veces a la vez. El proveedor lo rechazó, y dos de los cuatro procesos que te responden no lograron arrancar: durante alrededor de un minuto LIA respondía con la mitad de su capacidad, lo que se notaba como lentitud bajo carga. Ese trabajo ahora lo hace un solo proceso, y los demás simplemente esperan su resultado."
+          }
+        },
         "v1_25_26": {
           "title": "v1.25.26 — 🧠 Lo que LIA sabe de sí misma",
           "date": "Julio 2026",

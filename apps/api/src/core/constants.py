@@ -2324,6 +2324,22 @@ TOOL_EMBEDDINGS_CACHE_FILENAME = "tool_embeddings_cache.json"
 # container's writable layer is destroyed by every `--force-recreate`, and all
 # uvicorn workers then re-embed the whole tool catalogue at the next boot.
 TOOL_EMBEDDINGS_CACHE_DIR_DEFAULT = "data/tool_cache"
+# How long a worker waits for a peer that is already computing the tool
+# embeddings, before computing them itself.
+#
+# The value is derived from the container's health budget, not chosen by feel. If
+# the holder is SIGKILLed mid-computation its claim is still fresh, so waiters
+# block for the full timeout inside the lifespan — before uvicorn serves anything.
+# docker-compose.prod.yml allows start_period 60 s + retries 3 x interval 30 s =
+# 150 s before the API is marked unhealthy, and a normal boot already takes ~90 s
+# on the Pi (measured 2026-07-27: container start to workers ready). That leaves
+# ~60 s of waiting budget; 40 s keeps a 20 s margin while still granting a
+# legitimate holder ~3x the 14 s a full 713-text catalogue actually takes.
+#
+# The asymmetry justifies erring short: a timeout that is too brief degrades to
+# the pre-v1.25.27 behaviour (everyone computes, no crash), whereas one that is
+# too long invents a new alarming state — an unhealthy container on boot.
+TOOL_EMBEDDINGS_CACHE_CLAIM_TIMEOUT_SECONDS_DEFAULT = 40.0
 SEMANTIC_DOMAIN_HARD_THRESHOLD_DEFAULT = 0.75
 SEMANTIC_DOMAIN_SOFT_THRESHOLD_DEFAULT = 0.65
 SEMANTIC_DOMAIN_MAX_DOMAINS_DEFAULT = 3  # Aligned from .env.prod (was 5)
