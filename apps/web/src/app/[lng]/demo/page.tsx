@@ -2,14 +2,16 @@ import { type Metadata } from 'next';
 import { initI18next, validateLanguage } from '@/i18n';
 import { languages, fallbackLng, LOCALE_MAP } from '@/i18n/settings';
 import type { Language } from '@/i18n/settings';
-import { ChatMockup } from '@/components/landing/ChatMockup';
+import { InteractiveChatMockup } from '@/components/landing/InteractiveChatMockup';
 
 /**
  * Standalone URL for the hero conversation animation, made to be shared on
  * social networks and embedded in publications: no header, no footer, no auth
- * redirect — just the four-act animated mockup on the hero's ambient
- * background. Localized like every route; reuses existing copy only (the
- * mockup aria text doubles as the page description).
+ * redirect — the four-act mockup on the hero's ambient background, made
+ * INTERACTIVE here (UX P12): scene pastilles, pause/replay, progress and a
+ * closing CTA. The auto loop is preserved until the visitor interacts.
+ * Localized like every route (the mockup aria text doubles as the page
+ * description).
  */
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
@@ -62,7 +64,7 @@ export async function generateMetadata({ params }: DemoPageProps): Promise<Metad
 
 export default async function DemoPage({ params }: DemoPageProps) {
   const { lng: lngParam } = await params;
-  validateLanguage(lngParam);
+  const lng = validateLanguage(lngParam);
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
@@ -74,7 +76,7 @@ export default async function DemoPage({ params }: DemoPageProps) {
       </div>
 
       <div className="w-full max-w-md">
-        <ChatMockup />
+        <InteractiveChatMockup lng={lng} />
       </div>
     </main>
   );

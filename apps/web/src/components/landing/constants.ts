@@ -21,16 +21,16 @@
  *   Reconciles with 446 at v1.25.29: -2 (hybrid memory search removed, ADR-168),
  *   +1 prompt_injection_patterns_total, +2 ReAct loop-guard counters (ADR-170).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Both re-measured at v1.25.32: backend 16,535 collected across 873 files,
- *   frontend 3,769 across 303 files = 20,304. Rounded down to the thousand, as
- *   at v1.25.31 (20,075 → 20,000), so the displayed figure is unchanged while
- *   the measurement moved. Re-measure every release: the value carried the
- *   backend count alone until v1.25.9, while its comment already claimed both.
+ *   Re-measured at v1.25.33: backend 16,535 unchanged, frontend 3,818 (+49,
+ *   composer paste/button-truth, share menu, interactive mockup) = 20,353.
+ *   Rounded down to the thousand as at v1.25.31/32, so the displayed figure
+ *   is unchanged while the measurement moved. Re-measure every release: the
+ *   value carried the backend count alone until v1.25.9.
  * - adrs: docs/architecture/ ADR files (171 files, numbered up to ADR-172 —
  *   ADR-008 has no separate file, so 172 numbers map to 171 files).
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   180 headings at v1.25.32, no Unreleased pending.
+ *   181 headings at v1.25.33, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -48,7 +48,7 @@ export const LANDING_STATS = {
   uiLanguages: 6,
   tests: 20000,
   adrs: 171,
-  releases: 180,
+  releases: 181,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

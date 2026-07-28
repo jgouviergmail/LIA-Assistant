@@ -1170,7 +1170,7 @@
       step-breathe 2s ease-in-out 0.35s infinite;
   }
   /* Standalone utilities for the same visuals outside .markdown-content
-     (landing ChatMockup steps). */
+     (landing mockup steps — InteractiveChatMockup). */
   .animate-step-in {
     animation: step-in 0.35s ease-out both;
   }

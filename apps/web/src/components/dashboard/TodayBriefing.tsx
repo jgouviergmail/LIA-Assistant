@@ -14,8 +14,10 @@ import { StarterChecklistCard } from './StarterChecklistCard';
 import { InstallHint } from '@/components/pwa/InstallHint';
 import { QuickAccessCompact } from './QuickAccessCompact';
 import { RefreshAllButton } from './RefreshAllButton';
+import { CustomizeBriefingButton } from './CustomizeBriefingButton';
 import { BriefingSetupHint } from './BriefingSetupHint';
 import { unconfiguredCards } from '@/lib/briefing-setup';
+import { settingsSectionHref } from '@/lib/settings-sections';
 import { AgendaCard } from './cards/AgendaCard';
 import { BirthdaysCard } from './cards/BirthdaysCard';
 import { DocumentsCard } from './cards/DocumentsCard';
@@ -179,10 +181,14 @@ export function TodayBriefing() {
             <Sunrise className="h-5 w-5 text-primary shrink-0" aria-hidden="true" />
             {t('dashboard.briefing.section_title')}
           </h2>
-          <RefreshAllButton
-            onClick={() => refetchSection('all')}
-            isRefreshing={refreshingSections.has('all')}
-          />
+          <div className="flex items-center gap-1">
+            {/* UX P10: the grid is customizable (UXR Lot 5) — say it HERE. */}
+            <CustomizeBriefingButton lng={lng} />
+            <RefreshAllButton
+              onClick={() => refetchSection('all')}
+              isRefreshing={refreshingSections.has('all')}
+            />
+          </div>
         </div>
 
         {/* Synthesis: placed UNDER section title, ABOVE the cards grid.
@@ -209,7 +215,8 @@ export function TodayBriefing() {
             sections={visibleOrderedSections(preferences, cards)}
             refreshingSections={refreshingSections}
             refetchSection={refetchSection}
-            settingsHref={`/${lng}/dashboard/settings`}
+            // UX P10: land on the briefing-grid section, not the bare page.
+            settingsHref={settingsSectionHref(lng, 'briefing-grid')}
             lng={lng}
           />
         ) : cardsLoading ? (

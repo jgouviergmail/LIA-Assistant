@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
+import { prefersReducedMotion } from '@/lib/utils/motion';
 import { AnimatedEmoji } from '@/components/ui/animated-emoji';
 import { getMoodColor } from '@/lib/psyche-colors';
 import type { PsycheStateSummary } from '@/types/psyche';
@@ -144,12 +145,7 @@ export function AssistantAvatar({
     }
     const glyph = EMOTION_PARTICLES[activeEmotion];
     if (!glyph || emotionIntensity < PARTICLE_INTENSITY_THRESHOLD) return;
-    if (
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    ) {
-      return;
-    }
+    if (prefersReducedMotion()) return;
     setBurstGlyph(glyph);
   }, [activeEmotion, emotionIntensity, animateEmoji]);
 

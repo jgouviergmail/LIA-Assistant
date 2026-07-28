@@ -23,7 +23,7 @@ import { BACKSTAGE_COSTS, SCENARIO_FOOTERS } from './scenarios';
  * The four acts of the hero animation. Each act exposes a chat renderer
  * (the conversation rows revealed so far) and a backstage renderer (the
  * glass-pane figure shown while LIA works). Both derive everything from
- * `reached(kind)` — the timeline engine lives in ChatMockup.tsx.
+ * `reached(kind)` — the timeline engine lives in useMockupTimeline.ts.
  *
  * Act structure (why these four): one sentence fanning out to parallel
  * agents held by the approval gate, a self-connecting initiative, a real

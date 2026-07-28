@@ -14,9 +14,10 @@
  * `useFileUpload`'s return, `VoiceModeStore`) — no partial shapes, no casts.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor, fireEvent, act } from '@/__tests__/test-utils';
+import { CHAT_INPUT_MAX_HEIGHT_PX } from '@/lib/constants';
 import type {
   UseVoiceInputOptions,
   UseVoiceInputReturn,
@@ -395,7 +396,9 @@ describe('ChatInput — generation in flight', () => {
   it('keeps the send button when no stop handler is wired', () => {
     renderWithProviders(<ChatInput onSendMessage={vi.fn()} isGenerating />);
     expect(screen.queryByRole('button', { name: 'chat.input.stop' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'chat.voice.hold_to_speak' })).toBeInTheDocument();
+    // Voice is unsupported in this file's default mock, so the fallback is a
+    // plain (empty, disabled) send button — never a push-to-talk invitation.
+    expect(screen.getByRole('button', { name: 'chat.input.send' })).toBeInTheDocument();
   });
 });
 
@@ -428,7 +431,7 @@ describe('ChatInput — attachments', () => {
   const REJECTIONS: Array<{ label: string; result: UploadResult; key: string }> = [
     {
       label: 'file_too_large',
-      result: { error: 'file_too_large' },
+      result: { error: 'file_too_large', maxMB: 10 },
       key: 'chat.attachments.file_too_large',
     },
     {
@@ -438,7 +441,7 @@ describe('ChatInput — attachments', () => {
     },
     {
       label: 'max_attachments',
-      result: { error: 'max_attachments' },
+      result: { error: 'max_attachments', max: 5 },
       key: 'chat.attachments.max_attachments',
     },
     {
@@ -585,10 +588,14 @@ describe('ChatInput — push-to-talk', () => {
     await waitFor(() => expect(voice.startRecording).not.toHaveBeenCalled());
   });
 
-  it('does not arm the microphone when the device does not support it', async () => {
+  it('never invites to speak when the device does not support it (UX P2)', async () => {
     voice.isSupported = false;
     renderWithProviders(<ChatInput onSendMessage={vi.fn()} />);
-    fireEvent.mouseDown(screen.getByRole('button', { name: 'chat.voice.hold_to_speak' }));
+    // The button must read as what it is: a send button with nothing to send.
+    expect(screen.queryByRole('button', { name: 'chat.voice.hold_to_speak' })).toBeNull();
+    const button = screen.getByRole('button', { name: 'chat.input.send' });
+    expect(button).toBeDisabled();
+    fireEvent.mouseDown(button);
     await waitFor(() => expect(voice.startRecording).not.toHaveBeenCalled());
   });
 
@@ -690,5 +697,220 @@ describe('ChatInput — voice errors', () => {
       voice.options?.onError?.(new Error(message));
     });
     expect(toast.error).toHaveBeenCalledWith(key);
+  });
+});
+
+/** Mirrors the global setup mock, flipping only the reduced-motion query. */
+function mockReducedMotion(matches: boolean): void {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(prefers-reduced-motion: reduce)' ? matches : false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
+
+describe('ChatInput — send/push-to-talk button truth (UX P2)', () => {
+  afterEach(() => mockReducedMotion(false));
+
+  it('shows the microphone icon while the draft is empty and push-to-talk is offered', () => {
+    voice.isSupported = true;
+    const { container } = renderWithProviders(<ChatInput onSendMessage={vi.fn()} />);
+    const button = screen.getByRole('button', { name: 'chat.voice.hold_to_speak' });
+    expect(button).toBeEnabled();
+    expect(container.querySelector('svg.lucide-mic')).toBeInTheDocument();
+    expect(container.querySelector('svg.lucide-send')).toBeNull();
+  });
+
+  it('the visible desktop label matches the offered action', () => {
+    voice.isSupported = true;
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} />);
+    const button = screen.getByRole('button', { name: 'chat.voice.hold_to_speak' });
+    expect(button.textContent).toContain('chat.voice.hold_to_speak');
+    expect(button.textContent).not.toContain('chat.input.send');
+  });
+
+  it('swaps to the send icon as soon as text is present', async () => {
+    voice.isSupported = true;
+    const { container, user } = renderWithProviders(<ChatInput onSendMessage={vi.fn()} />);
+    await user.type(screen.getByRole('textbox'), 'hello');
+    expect(container.querySelector('svg.lucide-send')).toBeInTheDocument();
+    expect(container.querySelector('svg.lucide-mic')).toBeNull();
+  });
+
+  it('shows a plain disabled send button when voice input is unavailable', () => {
+    voice.isSupported = false;
+    const { container } = renderWithProviders(<ChatInput onSendMessage={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'chat.input.send' })).toBeDisabled();
+    expect(container.querySelector('svg.lucide-send')).toBeInTheDocument();
+    expect(container.querySelector('svg.lucide-mic')).toBeNull();
+  });
+
+  it('shows a plain disabled send button while hands-free voice mode owns the mic', () => {
+    voice.isSupported = true;
+    voiceMode.isEnabled = true;
+    const { container } = renderWithProviders(<ChatInput onSendMessage={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'chat.input.send' })).toBeDisabled();
+    expect(container.querySelector('svg.lucide-send')).toBeInTheDocument();
+  });
+
+  it('keeps the send icon through the takeoff animation, then yields to the mic', async () => {
+    voice.isSupported = true;
+    const { container, user } = renderWithProviders(<ChatInput onSendMessage={vi.fn()} />);
+    await user.type(screen.getByRole('textbox'), 'hello{Enter}');
+
+    // The input emptied, but the takeoff must finish on the SEND icon…
+    expect(container.querySelector('svg.lucide-send')).toBeInTheDocument();
+    expect(container.querySelector('svg.lucide-mic')).toBeNull();
+    // …then the fallback timer releases it (jsdom never fires animationend —
+    // the timer is the guaranteed path; SEND_TAKEOFF_RELEASE_MS = 700 ms).
+    await waitFor(
+      () => expect(container.querySelector('svg.lucide-mic')).toBeInTheDocument(),
+      { timeout: 2000 }
+    );
+    expect(container.querySelector('svg.lucide-send')).toBeNull();
+  });
+
+  it('skips the takeoff entirely under reduced motion', async () => {
+    mockReducedMotion(true);
+    voice.isSupported = true;
+    const { container, user } = renderWithProviders(<ChatInput onSendMessage={vi.fn()} />);
+    await user.type(screen.getByRole('textbox'), 'hello{Enter}');
+    // No animation to wait for: the mic returns immediately.
+    expect(container.querySelector('svg.lucide-mic')).toBeInTheDocument();
+    expect(container.querySelector('svg.lucide-send')).toBeNull();
+  });
+});
+
+describe('ChatInput — paste (UX P1)', () => {
+  const pastedPng = () => new File(['x'], 'shot.png', { type: 'image/png' });
+
+  /** Minimal clipboard shape the handler reads: files + text/plain. */
+  function clipboard(files: File[], text = '') {
+    return { clipboardData: { files, getData: vi.fn(() => text) } };
+  }
+
+  it('uploads a pasted screenshot and swallows the empty text insertion', async () => {
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} attachmentsEnabled />);
+    const proceeded = fireEvent.paste(screen.getByRole('textbox'), clipboard([pastedPng()]));
+
+    await waitFor(() => expect(upload.uploadFile).toHaveBeenCalledTimes(1));
+    expect(uploadedNames()).toEqual(['shot.png']);
+    // preventDefault fired: nothing to insert, nothing must be inserted.
+    expect(proceeded).toBe(false);
+  });
+
+  it('lets a plain text paste flow through natively', () => {
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} attachmentsEnabled />);
+    const proceeded = fireEvent.paste(screen.getByRole('textbox'), clipboard([], 'du texte'));
+    expect(upload.uploadFile).not.toHaveBeenCalled();
+    expect(proceeded).toBe(true);
+  });
+
+  it('uploads the files of a mixed paste AND lets the text land', async () => {
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} attachmentsEnabled />);
+    const proceeded = fireEvent.paste(
+      screen.getByRole('textbox'),
+      clipboard([pastedPng()], 'contexte copié avec la capture')
+    );
+    await waitFor(() => expect(upload.uploadFile).toHaveBeenCalledTimes(1));
+    expect(proceeded).toBe(true);
+  });
+
+  it('keeps only images and PDFs from the clipboard files', async () => {
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} attachmentsEnabled />);
+    const pdfFile = new File(['x'], 'doc.pdf', { type: 'application/pdf' });
+    const binary = new File(['x'], 'setup.exe', { type: 'application/x-msdownload' });
+    fireEvent.paste(screen.getByRole('textbox'), clipboard([pdfFile, binary]));
+
+    await waitFor(() => expect(upload.uploadFile).toHaveBeenCalledTimes(1));
+    expect(uploadedNames()).toEqual(['doc.pdf']);
+  });
+
+  it('ignores pasted files while attachments are disabled', async () => {
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} />);
+    const proceeded = fireEvent.paste(screen.getByRole('textbox'), clipboard([pastedPng()]));
+    await waitFor(() => expect(upload.uploadFile).not.toHaveBeenCalled());
+    expect(proceeded).toBe(true);
+  });
+
+  it('ignores pasted files while the composer is disabled', async () => {
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} attachmentsEnabled disabled />);
+    fireEvent.paste(screen.getByRole('textbox'), clipboard([pastedPng()]));
+    await waitFor(() => expect(upload.uploadFile).not.toHaveBeenCalled());
+  });
+});
+
+describe('ChatInput — drop overlay (UX P13)', () => {
+  function dropZone(container: HTMLElement): Element {
+    const zone = container.querySelector('[role="presentation"]');
+    if (!zone) throw new Error('drop zone not found');
+    return zone;
+  }
+
+  it('surfaces the drop overlay while a drag hovers the composer, and clears it', () => {
+    const { container } = renderWithProviders(
+      <ChatInput onSendMessage={vi.fn()} attachmentsEnabled />
+    );
+    const zone = dropZone(container);
+    fireEvent.dragEnter(zone);
+    expect(screen.getByText('chat.attachments.drop_here')).toBeInTheDocument();
+    fireEvent.dragLeave(zone);
+    expect(screen.queryByText('chat.attachments.drop_here')).toBeNull();
+  });
+
+  it('clears the overlay once the files are dropped', async () => {
+    const { container } = renderWithProviders(
+      <ChatInput onSendMessage={vi.fn()} attachmentsEnabled />
+    );
+    const zone = dropZone(container);
+    fireEvent.dragEnter(zone);
+    fireEvent.drop(zone, {
+      dataTransfer: { files: [new File(['x'], 'photo.png', { type: 'image/png' })] },
+    });
+    await waitFor(() => expect(upload.uploadFile).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText('chat.attachments.drop_here')).toBeNull();
+  });
+
+  it('never appears while attachments are disabled', () => {
+    const { container } = renderWithProviders(<ChatInput onSendMessage={vi.fn()} />);
+    fireEvent.dragEnter(dropZone(container));
+    expect(screen.queryByText('chat.attachments.drop_here')).toBeNull();
+  });
+});
+
+describe('ChatInput — auto-resize scrollbar discipline (UX P2)', () => {
+  function setScrollHeight(el: Element, value: number): void {
+    Object.defineProperty(el, 'scrollHeight', { value, configurable: true });
+  }
+
+  it('starts with the vertical scrollbar suppressed', () => {
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} />);
+    expect(screen.getByRole('textbox').className).toContain('overflow-y-hidden');
+  });
+
+  it('keeps the scrollbar hidden while growing under the height cap', async () => {
+    const { user } = renderWithProviders(<ChatInput onSendMessage={vi.fn()} />);
+    const box = screen.getByRole('textbox');
+    setScrollHeight(box, CHAT_INPUT_MAX_HEIGHT_PX - 80);
+    await user.type(box, 'hello');
+    expect(box.style.height).toBe(`${CHAT_INPUT_MAX_HEIGHT_PX - 80}px`);
+    expect(box.style.overflowY).toBe('hidden');
+  });
+
+  it('hands over to the scrollbar exactly at the height cap', async () => {
+    const { user } = renderWithProviders(<ChatInput onSendMessage={vi.fn()} />);
+    const box = screen.getByRole('textbox');
+    setScrollHeight(box, CHAT_INPUT_MAX_HEIGHT_PX + 100);
+    await user.type(box, 'hello');
+    expect(box.style.height).toBe(`${CHAT_INPUT_MAX_HEIGHT_PX}px`);
+    expect(box.style.overflowY).toBe('auto');
   });
 });

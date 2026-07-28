@@ -5,7 +5,7 @@
  * celebrated live transition).
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 import type { ChecklistState } from '../StarterChecklistCard';
@@ -169,5 +169,56 @@ describe('StarterChecklistCard', () => {
       expect(mutate).toHaveBeenCalledWith('/auth/me/onboarding-checklist', { celebrated: true })
     );
     expect(screen.queryByText('dashboard.checklist.celebration')).not.toBeInTheDocument();
+  });
+});
+
+/** Mirrors the global setup mock, flipping only the reduced-motion query. */
+function mockReducedMotion(matches: boolean): void {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(prefers-reduced-motion: reduce)' ? matches : false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
+
+describe('StarterChecklistCard — celebration sparkle (UX P18)', () => {
+  afterEach(() => mockReducedMotion(false));
+
+  /** Renders incomplete, then flips every probe to done and rerenders. */
+  function liveTransitionToComplete() {
+    const view = render(<StarterChecklistCard />);
+    Object.assign(probes, {
+      connectors: [{}],
+      personalityId: 'cynic',
+      bindings: [{}],
+      heartbeatEnabled: true,
+      spaces: [{}],
+      actions: [{}],
+    });
+    auth.user = { id: 'u1', voice_enabled: true, onboarding_checklist: null };
+    view.rerender(<StarterChecklistCard />);
+    return view;
+  }
+
+  it('bursts a small one-shot sparkle around the live celebration', () => {
+    liveTransitionToComplete();
+    expect(screen.getByText('dashboard.checklist.celebration')).toBeInTheDocument();
+    const particles = document.querySelectorAll('.animate-particle-up');
+    expect(particles).toHaveLength(6);
+  });
+
+  it('stays sparkle-free under prefers-reduced-motion', () => {
+    mockReducedMotion(true);
+    liveTransitionToComplete();
+    expect(screen.getByText('dashboard.checklist.celebration')).toBeInTheDocument();
+    expect(document.querySelector('.animate-particle-up')).toBeNull();
   });
 });

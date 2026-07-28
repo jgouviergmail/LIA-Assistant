@@ -2,7 +2,7 @@ export { AuthRedirect } from './AuthRedirect';
 export { FadeInOnScroll } from './FadeInOnScroll';
 export { AnimatedCounter } from './AnimatedCounter';
 export { ConstellationBackground } from './ConstellationBackground';
-export { ChatMockup } from './ChatMockup';
+export { InteractiveChatMockup } from './InteractiveChatMockup';
 export { HeroSection } from './HeroSection';
 export { LandingHeader } from './LandingHeader';
 export { UseCasesSection } from './UseCasesSection';

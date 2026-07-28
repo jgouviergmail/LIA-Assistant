@@ -34,6 +34,8 @@ Beyond the TTL, two refresh options:
 - **Per-card refresh** — On desktop, hover any card → click the circular arrow icon top-right. On mobile (where there is no hover), the arrow icon is always visible directly on the card. Only that source is re-fetched and the synthesis is regenerated.
 - **Refresh all** — Top-right button above the grid → bypasses every cache and regenerates the whole briefing.
 
+Right beside "Refresh all", a **Customize** button (icon-only on mobile) deep-links straight to the settings section where you choose **which cards appear and in what order** — no digging through the settings page. When every card is hidden, the message replacing the grid links to that same section.
+
 ## Why doesn't the page wait for the AI?
 
 The cards arrive **first** (≈ 1 s on warm cache). The greeting and synthesis arrive **second**, in parallel, when the LLM finishes (typically 1-3 s extra). The page is never blocked by the LLM:

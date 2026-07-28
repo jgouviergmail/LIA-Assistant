@@ -178,6 +178,8 @@
       "skeleton_loading": "Preparando tu briefing…",
       "refresh_all": "Actualizar todo",
       "refresh_all_tooltip": "Forzar la actualización de todas las tarjetas y regenerar el saludo y la síntesis",
+      "customize": "Personalizar",
+      "customize_tooltip": "Elegir qué tarjetas se muestran y en qué orden",
       "refresh_section": "Actualizar {{section}}",
       "refreshing": "Actualizando…",
       "updated_just_now": "ahora mismo",
@@ -615,7 +617,8 @@
       "file_too_large": "Archivo demasiado grande (máx. {{max}}MB)",
       "type_not_allowed": "Tipo de archivo no permitido",
       "max_attachments": "Máximo {{max}} archivos adjuntos",
-      "remove": "Eliminar"
+      "remove": "Eliminar",
+      "drop_here": "Suelta aquí tus imágenes o PDF"
     },
     "status": {
       "typing": "Escribiendo...",
@@ -634,6 +637,10 @@
       "retry": "Reintentar",
       "copy": "Copiar mensaje",
       "copied": "Copiado al portapapeles",
+      "more_actions": "Más acciones",
+      "share": "Compartir",
+      "download_md": "Descargar como Markdown",
+      "share_error": "No se pudo compartir",
       "stt_unit_seconds": "s",
       "tts_unit_chars": "car.",
       "interrupted": "interrumpida",
@@ -3404,7 +3411,7 @@
         },
         "attachments": {
           "title": "📎 Fotos y Archivos Adjuntos",
-          "description": "Carga de fotos y documentos PDF mediante botón 📎 o arrastrar y soltar, con compresión automática del lado del cliente. Análisis visual mediante LLM vision configurable (gpt-4.1-mini por defecto). Extracción de texto PDF vía PyMuPDF. Miniaturas inline en los mensajes, lightbox accesible. Aislamiento estricto por usuario, limpieza automática (reset de conversación + TTL 24h). Arquitectura « Reference + Late Resolution » para checkpoints ligeros."
+          "description": "Carga de fotos y documentos PDF mediante botón 📎, arrastrar y soltar (zona de soltar visible) o pegado directo con Ctrl+V desde el portapapeles, con compresión automática del lado del cliente. Análisis visual mediante LLM vision configurable (gpt-4.1-mini por defecto). Extracción de texto PDF vía PyMuPDF. Miniaturas inline en los mensajes, lightbox accesible. Aislamiento estricto por usuario, limpieza automática (reset de conversación + TTL 24h). Arquitectura « Reference + Late Resolution » para checkpoints ligeros."
         },
         "skills": {
           "title": "Skills (con mapas y mini-apps interactivas)",
@@ -3461,6 +3468,20 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_25_33": {
+          "title": "v1.25.33 — 📋 Pegar, compartir, controlar la demo",
+          "date": "Julio 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>📋 Pega una captura de pantalla directamente en el chat</b> — Ctrl+V (Cmd+V en Mac) con una imagen o PDF en el portapapeles: el archivo se adjunta exactamente igual que con el clip, mismos límites, misma vista previa. Si pegas texto junto con un archivo, llegan los dos.",
+            "i2": "<b>📤 Comparte o exporta una respuesta</b> — un menú «…» al pie de cada respuesta: envíala a tus aplicaciones (Mensajes, Mail, Notas…) cuando tu dispositivo ofrezca la hoja de compartir, o descárgala como archivo Markdown con fecha, acentos incluidos.",
+            "i3": "<b>🎙️ El botón de enviar por fin dice lo que hace</b> — campo vacío: aparece un micrófono cuando «mantener para hablar» está disponible; con texto: el icono de enviar; voz no disponible: un botón claramente desactivado. Se acabó el botón que invitaba a hablar sin poder.",
+            "i4": "<b>🎯 Una zona de soltar de verdad</b> — arrastra una imagen o PDF hacia la conversación: aparece una zona clara «Suelta aquí tus imágenes o PDF» en lugar de un fino anillo alrededor del campo.",
+            "i5": "<b>🧩 «Personalizar» junto a «Actualizar todo»</b> — elige las tarjetas de tu panel y su orden sin rebuscar en los ajustes: el botón lleva directo a la sección correcta.",
+            "i6": "<b>🎬 La demo se puede controlar</b> — en la página de inicio pública y /demo: elige la escena (Ella orquesta, Ella anticipa, Ella llama, Ella se amplía), pausa, repite. Sin interacción, el ciclo continúa como antes.",
+            "i7": "<b>✨ Una pequeña celebración</b> — completar la lista de inicio hace brillar su marca — una sola vez, y nunca si tu sistema pide reducir las animaciones."
+          }
+        },
         "v1_25_32": {
           "title": "v1.25.32 — 🔍 Encontrar un ajuste por su nombre",
           "date": "Julio 2026",
@@ -5022,7 +5043,7 @@
           },
           "q8": {
             "question": "¿Cómo adjuntar fotos o documentos a mis mensajes?",
-            "answer": "Dos formas de adjuntar archivos:<br><br><strong>📎 Botón de clip:</strong><br>Haz clic en el botón <strong>📎</strong> a la izquierda del área de entrada para explorar tus archivos.<br><br><strong>🖱️ Arrastrar y soltar:</strong><br>Arrastra archivos directamente desde tu explorador de archivos al área de entrada. Aparece un contorno visual para confirmar la zona de destino.<br><br><strong>📁 Formatos aceptados:</strong><br>• <strong>Fotos</strong> (JPEG, PNG, GIF, WebP, HEIC) — comprimidas automáticamente<br>• <strong>Documentos PDF</strong> — el texto se extrae automáticamente<br><br>Las miniaturas se muestran en la conversación. Haz clic en una miniatura para ampliarla. LIA puede analizar el contenido visual de las imágenes y el texto de los PDF para responder a tus preguntas.<br><br><strong>💡 Límites</strong>: máximo 5 archivos adjuntos por mensaje, 10 MB por imagen, 20 MB por documento."
+            "answer": "Tres formas de adjuntar archivos:<br><br><strong>📎 Botón de clip:</strong><br>Haz clic en el botón <strong>📎</strong> a la izquierda del área de entrada para explorar tus archivos.<br><br><strong>🖱️ Arrastrar y soltar:</strong><br>Arrastra archivos directamente desde tu explorador de archivos al área de entrada. Aparece una zona clara: «Suelta aquí tus imágenes o PDF».<br><br><strong>📋 Pegar desde el portapapeles:</strong><br>Ctrl+V (Cmd+V en Mac) con una captura, imagen o PDF en el portapapeles: el archivo se adjunta por el mismo circuito que el clip (mismos límites, misma vista previa). Si pegas texto junto con un archivo, llegan los dos.<br><br><strong>📁 Formatos aceptados:</strong><br>• <strong>Fotos</strong> (JPEG, PNG, GIF, WebP, HEIC) — comprimidas automáticamente<br>• <strong>Documentos PDF</strong> — el texto se extrae automáticamente<br><br>Las miniaturas se muestran en la conversación. Haz clic en una miniatura para ampliarla. LIA puede analizar el contenido visual de las imágenes y el texto de los PDF para responder a tus preguntas.<br><br><strong>💡 Límites</strong>: máximo 5 archivos adjuntos por mensaje, 10 MB por imagen, 20 MB por documento."
           },
           "q9": {
             "question": "¿Qué es el comando /resume?",
@@ -5034,7 +5055,7 @@
           },
           "q11": {
             "question": "¿Cómo copio un mensaje o código, y las fórmulas matemáticas se muestran correctamente?",
-            "answer": "Desde la v1.16.9, el chat tiene varios retoques útiles:<br><br><strong>📋 Botón de copia en mensajes y código</strong><br>• Pasa el cursor sobre una respuesta de LIA o un bloque de código → aparece un botón «Copiar»<br>• El texto se copia tal cual al portapapeles, con confirmación visual<br><br><strong>🎨 Coloreado sintáctico del código</strong><br>• Los bloques de código ```python, ```typescript, ```json, ```bash, ```sql... se colorean automáticamente (25 lenguajes soportados)<br>• Tema claro u oscuro según tus preferencias de visualización<br><br><strong>🧮 Fórmulas matemáticas (LaTeX)</strong><br>• Las fórmulas se renderizan con su notación matemática propia<br>• En línea: <code>$E = mc^2$</code><br>• Bloque centrado: <code>$$a^2 + b^2 = c^2$$</code><br><br><strong>📅 Fechas relativas</strong><br>• Mensajes de hoy: solo la hora (14:30)<br>• Mensajes de ayer: «Ayer 14:30»<br>• Esta semana: nombre del día + hora (Lunes 14:30)<br>• Más allá: fecha completa"
+            "answer": "Desde la v1.16.9, el chat tiene varios retoques útiles:<br><br><strong>📋 Botón de copia en mensajes y código</strong><br>• Pasa el cursor sobre una respuesta de LIA o un bloque de código → aparece un botón «Copiar»<br>• El texto se copia tal cual al portapapeles, con confirmación visual<br><br><strong>📤 Compartir o exportar una respuesta</strong><br>• Un menú «…» junto al botón de copiar, al pie de cada respuesta<br>• <strong>Compartir</strong> entrega el texto a la hoja de compartir de tu dispositivo (Mensajes, Mail, Notas…) — solo se ofrece cuando el navegador dispone de una<br>• <strong>Descargar como Markdown</strong> en todas partes: un archivo con fecha, acentos preservados<br><br><strong>🎨 Coloreado sintáctico del código</strong><br>• Los bloques de código ```python, ```typescript, ```json, ```bash, ```sql... se colorean automáticamente (25 lenguajes soportados)<br>• Tema claro u oscuro según tus preferencias de visualización<br><br><strong>🧮 Fórmulas matemáticas (LaTeX)</strong><br>• Las fórmulas se renderizan con su notación matemática propia<br>• En línea: <code>$E = mc^2$</code><br>• Bloque centrado: <code>$$a^2 + b^2 = c^2$$</code><br><br><strong>📅 Fechas relativas</strong><br>• Mensajes de hoy: solo la hora (14:30)<br>• Mensajes de ayer: «Ayer 14:30»<br>• Esta semana: nombre del día + hora (Lunes 14:30)<br>• Más allá: fecha completa"
           },
           "q12": {
             "question": "¿Puedo buscar en mi historial de conversación?",
@@ -5157,7 +5178,7 @@
           },
           "q17": {
             "question": "¿Puedo personalizar las tarjetas del dashboard? (v1.25.16)",
-            "answer": "<p>Sí — Ajustes → « Mi dashboard ». Oculta cualquiera de las 9 tarjetas del briefing o reordénalas (botones ↑/↓ o arrastrar y soltar). Una tarjeta oculta <strong>ya ni siquiera se consulta</strong>: menos llamadas API, dashboard más rápido. Una lista de inicio en el dashboard muestra además lo que tu instancia sabe hacer hasta que la cierres.</p>"
+            "answer": "<p>Sí — el camino más corto: el botón <strong>«Personalizar»</strong> junto a «Actualizar todo», justo encima de la cuadrícula, lleva directo a la sección correcta. O por Ajustes → « Mi dashboard ». Oculta cualquiera de las 9 tarjetas del briefing o reordénalas (botones ↑/↓ o arrastrar y soltar). Una tarjeta oculta <strong>ya ni siquiera se consulta</strong>: menos llamadas API, dashboard más rápido. Una lista de inicio en el dashboard muestra además lo que tu instancia sabe hacer hasta que la cierres.</p>"
           },
           "q18": {
             "question": "¿Qué es la sección « Compromisos abiertos »? (v1.25.16)",
@@ -6796,6 +6817,10 @@
     },
     "chat_mockup": {
       "aria": "Demo animada: cuatro escenas reales — LIA orquesta varios agentes en paralelo y espera tu aprobación, cruza el tiempo con tu agenda por iniciativa propia, hace una llamada telefónica real para reservar y crea una mini-app en el chat. Mientras trabaja, se muestra la orquestación entre bastidores.",
+      "demo_scenes_aria": "Escenas de la demo",
+      "demo_pause": "Pausar la demo",
+      "demo_play": "Reproducir la demo",
+      "demo_replay": "Repetir esta escena",
       "online": "En línea",
       "mood": "Cínica",
       "input_placeholder": "Escribe tu mensaje…",
@@ -6843,7 +6868,7 @@
       "s2_event_day": "📆 Jueves",
       "s2_event_time": "🕖 7:00 – 8:00",
       "s2_event_dur": "⏱ 1 h",
-      "s3_chip": "Ella llama por ti",
+      "s3_chip": "Ella llama",
       "s3_user": "Llama a Chez Gino y reserva una mesa para 4 el viernes por la noche",
       "s3_hitl": "Llamo a Chez Gino para reservar 4 cubiertos el viernes hacia las 20:00 — ¿puedo?",
       "s3_approve": "Adelante",
@@ -6963,7 +6988,7 @@
       },
       "attachments": {
         "title": "Fotos y archivos adjuntos",
-        "description": "Adjunta fotos y documentos PDF a tus mensajes con el botón 📎 o arrastrando y soltando. LIA analiza el contenido visual, extrae el texto y razona sobre los documentos."
+        "description": "Adjunta fotos y documentos PDF a tus mensajes con el botón 📎, arrastrando y soltando o pegando directamente una captura (Ctrl+V). LIA analiza el contenido visual, extrae el texto y razona sobre los documentos."
       },
       "languages": {
         "title": "Multilingüe",

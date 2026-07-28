@@ -178,6 +178,8 @@
       "skeleton_loading": "Briefing wird vorbereitet…",
       "refresh_all": "Alles aktualisieren",
       "refresh_all_tooltip": "Alle Karten erzwingen, Begrüßung und Zusammenfassung neu generieren",
+      "customize": "Anpassen",
+      "customize_tooltip": "Auswählen, welche Karten in welcher Reihenfolge erscheinen",
       "refresh_section": "{{section}} aktualisieren",
       "refreshing": "Aktualisierung…",
       "updated_just_now": "gerade eben",
@@ -615,7 +617,8 @@
       "file_too_large": "Datei zu groß (max. {{max}}MB)",
       "type_not_allowed": "Dateityp nicht erlaubt",
       "max_attachments": "Maximal {{max}} Anhänge",
-      "remove": "Entfernen"
+      "remove": "Entfernen",
+      "drop_here": "Bilder oder PDFs hier ablegen"
     },
     "status": {
       "typing": "Schreibt...",
@@ -634,6 +637,10 @@
       "retry": "Erneut versuchen",
       "copy": "Nachricht kopieren",
       "copied": "In die Zwischenablage kopiert",
+      "more_actions": "Weitere Aktionen",
+      "share": "Teilen",
+      "download_md": "Als Markdown herunterladen",
+      "share_error": "Teilen fehlgeschlagen",
       "stt_unit_seconds": "s",
       "tts_unit_chars": "Z.",
       "interrupted": "unterbrochen",
@@ -3404,7 +3411,7 @@
         },
         "attachments": {
           "title": "📎 Fotos & Dateianhänge",
-          "description": "Upload von Fotos und PDF-Dokumenten per 📎-Button oder Drag & Drop, mit automatischer clientseitiger Komprimierung. Visuelle Analyse durch konfigurierbares Vision-LLM (gpt-4.1-mini standardmäßig). PDF-Textextraktion via PyMuPDF. Inline-Miniaturansichten in Nachrichten, zugängliche Lightbox. Strikte Benutzerisolation, automatische Bereinigung (Konversations-Reset + TTL 24h). « Reference + Late Resolution »-Architektur für leichtgewichtige Checkpoints."
+          "description": "Upload von Fotos und PDF-Dokumenten per 📎-Button, Drag & Drop (sichtbare Ablagezone) oder direktem Einfügen per Strg+V aus der Zwischenablage, mit automatischer clientseitiger Komprimierung. Visuelle Analyse durch konfigurierbares Vision-LLM (gpt-4.1-mini standardmäßig). PDF-Textextraktion via PyMuPDF. Inline-Miniaturansichten in Nachrichten, zugängliche Lightbox. Strikte Benutzerisolation, automatische Bereinigung (Konversations-Reset + TTL 24h). « Reference + Late Resolution »-Architektur für leichtgewichtige Checkpoints."
         },
         "skills": {
           "title": "Skills (mit interaktiven Karten und Mini-Apps)",
@@ -3461,6 +3468,20 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_25_33": {
+          "title": "v1.25.33 — 📋 Einfügen, teilen, die Demo steuern",
+          "date": "Juli 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>📋 Screenshot direkt in den Chat einfügen</b> — Strg+V (Cmd+V auf dem Mac) mit einem Bild oder PDF in der Zwischenablage: die Datei wird genau wie über die Büroklammer angehängt, gleiche Limits, gleiche Vorschau. Text zusammen mit einer Datei einfügen — beides kommt an.",
+            "i2": "<b>📤 Eine Antwort teilen oder exportieren</b> — ein „…\"-Menü unter jeder Antwort: an Ihre Apps senden (Nachrichten, Mail, Notizen …), wenn Ihr Gerät ein Teilen-Menü anbietet, oder als datierte Markdown-Datei herunterladen, Umlaute bleiben erhalten.",
+            "i3": "<b>🎙️ Der Senden-Button sagt endlich, was er tut</b> — leeres Feld: ein Mikrofon erscheint, wenn „zum Sprechen halten\" verfügbar ist; mit Text: das Senden-Symbol; Sprache nicht verfügbar: ein klar deaktivierter Button. Schluss mit dem Button, der zum Sprechen einlud, ohne es zu können.",
+            "i4": "<b>🎯 Eine echte Ablagezone</b> — ziehen Sie ein Bild oder PDF in die Unterhaltung: eine deutliche Zone „Bilder oder PDFs hier ablegen\" erscheint statt eines dünnen Rings um das Feld.",
+            "i5": "<b>🧩 „Anpassen\" neben „Alle aktualisieren\"</b> — wählen Sie die Karten Ihres Dashboards und deren Reihenfolge, ohne in den Einstellungen zu suchen: der Button führt direkt zum richtigen Abschnitt.",
+            "i6": "<b>🎬 Die Demo lässt sich steuern</b> — auf der öffentlichen Startseite und /demo: Szene wählen (Sie orchestriert, Sie denkt voraus, Sie ruft an, Sie erweitert sich), pausieren, wiederholen. Ohne Interaktion läuft die Schleife wie bisher weiter.",
+            "i7": "<b>✨ Eine kleine Feier</b> — das Abschließen der Starter-Checkliste lässt ihren Haken funkeln — einmal, und nie, wenn Ihr System reduzierte Bewegung verlangt."
+          }
+        },
         "v1_25_32": {
           "title": "v1.25.32 — 🔍 Eine Einstellung über ihren Namen finden",
           "date": "Juli 2026",
@@ -5022,7 +5043,7 @@
           },
           "q8": {
             "question": "Wie hänge ich Fotos oder Dokumente an meine Nachrichten an?",
-            "answer": "Zwei Möglichkeiten, Dateien anzuhängen:<br><br><strong>📎 Büroklammer-Button:</strong><br>Klicken Sie auf den <strong>📎</strong>-Button links neben dem Eingabefeld, um Ihre Dateien zu durchsuchen.<br><br><strong>🖱️ Drag & Drop:</strong><br>Ziehen Sie Dateien direkt aus Ihrem Datei-Explorer in das Eingabefeld. Ein visueller Rahmen bestätigt den Ablagebereich.<br><br><strong>📁 Akzeptierte Formate:</strong><br>• <strong>Fotos</strong> (JPEG, PNG, GIF, WebP, HEIC) — automatisch komprimiert<br>• <strong>PDF-Dokumente</strong> — Text wird automatisch extrahiert<br><br>Miniaturbilder werden in der Konversation angezeigt. Klicken Sie auf ein Miniaturbild, um es zu vergrößern. LIA kann den visuellen Inhalt von Bildern und den Text von PDFs analysieren, um Ihre Fragen zu beantworten.<br><br><strong>💡 Limits</strong>: maximal 5 Anhänge pro Nachricht, 10 MB pro Bild, 20 MB pro Dokument."
+            "answer": "Drei Möglichkeiten, Dateien anzuhängen:<br><br><strong>📎 Büroklammer-Button:</strong><br>Klicken Sie auf den <strong>📎</strong>-Button links neben dem Eingabefeld, um Ihre Dateien zu durchsuchen.<br><br><strong>🖱️ Drag & Drop:</strong><br>Ziehen Sie Dateien direkt aus Ihrem Datei-Explorer in das Eingabefeld. Eine deutliche Ablagezone erscheint: „Bilder oder PDFs hier ablegen\".<br><br><strong>📋 Aus der Zwischenablage einfügen:</strong><br>Strg+V (Cmd+V auf dem Mac) mit einem Screenshot, Bild oder PDF in der Zwischenablage: die Datei wird über denselben Weg wie die Büroklammer angehängt (gleiche Limits, gleiche Vorschau). Text zusammen mit einer Datei einfügen — beides kommt an.<br><br><strong>📁 Akzeptierte Formate:</strong><br>• <strong>Fotos</strong> (JPEG, PNG, GIF, WebP, HEIC) — automatisch komprimiert<br>• <strong>PDF-Dokumente</strong> — Text wird automatisch extrahiert<br><br>Miniaturbilder werden in der Konversation angezeigt. Klicken Sie auf ein Miniaturbild, um es zu vergrößern. LIA kann den visuellen Inhalt von Bildern und den Text von PDFs analysieren, um Ihre Fragen zu beantworten.<br><br><strong>💡 Limits</strong>: maximal 5 Anhänge pro Nachricht, 10 MB pro Bild, 20 MB pro Dokument."
           },
           "q9": {
             "question": "Was ist der Befehl /resume?",
@@ -5034,7 +5055,7 @@
           },
           "q11": {
             "question": "Wie kopiere ich eine Nachricht oder Code, und werden mathematische Formeln korrekt dargestellt?",
-            "answer": "Seit v1.16.9 bietet der Chat mehrere nützliche Verfeinerungen:<br><br><strong>📋 Kopieren-Schaltfläche auf Nachrichten und Code</strong><br>• Fahren Sie mit der Maus über eine LIA-Antwort oder einen Code-Block → eine „Kopieren\"-Schaltfläche erscheint<br>• Text wird unverändert in die Zwischenablage kopiert, mit visueller Bestätigung<br><br><strong>🎨 Syntax-Hervorhebung auf Code</strong><br>• Code-Blöcke ```python, ```typescript, ```json, ```bash, ```sql... werden automatisch eingefärbt (25 Sprachen unterstützt)<br>• Helles oder dunkles Theme je nach Ihren Anzeigeeinstellungen<br><br><strong>🧮 Mathematische Formeln (LaTeX)</strong><br>• Formeln werden in korrekter mathematischer Notation dargestellt<br>• Inline: <code>$E = mc^2$</code><br>• Zentrierter Block: <code>$$a^2 + b^2 = c^2$$</code><br><br><strong>📅 Relative Daten</strong><br>• Heutige Nachrichten: nur Uhrzeit (14:30)<br>• Gestern: „Gestern 14:30\"<br>• Diese Woche: Wochentag + Uhrzeit (Montag 14:30)<br>• Darüber hinaus: vollständiges Datum"
+            "answer": "Seit v1.16.9 bietet der Chat mehrere nützliche Verfeinerungen:<br><br><strong>📋 Kopieren-Schaltfläche auf Nachrichten und Code</strong><br>• Fahren Sie mit der Maus über eine LIA-Antwort oder einen Code-Block → eine „Kopieren\"-Schaltfläche erscheint<br>• Text wird unverändert in die Zwischenablage kopiert, mit visueller Bestätigung<br><br><strong>📤 Eine Antwort teilen oder exportieren</strong><br>• Ein „…\"-Menü neben der Kopieren-Schaltfläche, unter jeder Antwort<br>• <strong>Teilen</strong> übergibt den Text an das Teilen-Menü Ihres Geräts (Nachrichten, Mail, Notizen …) — nur angeboten, wenn der Browser eines bereitstellt<br>• <strong>Als Markdown herunterladen</strong> überall: eine datierte Datei, Umlaute bleiben erhalten<br><br><strong>🎨 Syntax-Hervorhebung auf Code</strong><br>• Code-Blöcke ```python, ```typescript, ```json, ```bash, ```sql... werden automatisch eingefärbt (25 Sprachen unterstützt)<br>• Helles oder dunkles Theme je nach Ihren Anzeigeeinstellungen<br><br><strong>🧮 Mathematische Formeln (LaTeX)</strong><br>• Formeln werden in korrekter mathematischer Notation dargestellt<br>• Inline: <code>$E = mc^2$</code><br>• Zentrierter Block: <code>$$a^2 + b^2 = c^2$$</code><br><br><strong>📅 Relative Daten</strong><br>• Heutige Nachrichten: nur Uhrzeit (14:30)<br>• Gestern: „Gestern 14:30\"<br>• Diese Woche: Wochentag + Uhrzeit (Montag 14:30)<br>• Darüber hinaus: vollständiges Datum"
           },
           "q12": {
             "question": "Kann ich meinen Gesprächsverlauf durchsuchen?",
@@ -5157,7 +5178,7 @@
           },
           "q17": {
             "question": "Kann ich die Dashboard-Karten anpassen? (v1.25.16)",
-            "answer": "<p>Ja — Einstellungen → « Mein Dashboard ». Blenden Sie beliebige der 9 Briefing-Karten aus oder ordnen Sie sie neu (↑/↓-Buttons oder Drag-and-drop). Eine ausgeblendete Karte wird <strong>gar nicht mehr abgerufen</strong>: weniger API-Aufrufe, schnelleres Dashboard. Eine Start-Checkliste auf dem Dashboard zeigt außerdem, was Ihre Instanz kann, bis Sie sie schließen.</p>"
+            "answer": "<p>Ja — der kürzeste Weg: der Button <strong>„Anpassen\"</strong> neben „Alle aktualisieren\", direkt über dem Raster, führt geradewegs zum richtigen Abschnitt. Oder über Einstellungen → « Mein Dashboard ». Blenden Sie beliebige der 9 Briefing-Karten aus oder ordnen Sie sie neu (↑/↓-Buttons oder Drag-and-drop). Eine ausgeblendete Karte wird <strong>gar nicht mehr abgerufen</strong>: weniger API-Aufrufe, schnelleres Dashboard. Eine Start-Checkliste auf dem Dashboard zeigt außerdem, was Ihre Instanz kann, bis Sie sie schließen.</p>"
           },
           "q18": {
             "question": "Was ist der Bereich « Offene Zusagen »? (v1.25.16)",
@@ -6796,6 +6817,10 @@
     },
     "chat_mockup": {
       "aria": "Animierte Demo: vier echte Szenen — LIA orchestriert mehrere Agenten parallel und wartet auf deine Freigabe, verknüpft Wetter und Kalender aus eigener Initiative, führt einen echten Anruf zum Reservieren und baut eine Mini-App direkt im Chat. Während sie arbeitet, zeigt sich die Orchestrierung hinter den Kulissen.",
+      "demo_scenes_aria": "Demo-Szenen",
+      "demo_pause": "Demo pausieren",
+      "demo_play": "Demo abspielen",
+      "demo_replay": "Diese Szene erneut abspielen",
       "online": "Online",
       "mood": "Zynisch",
       "input_placeholder": "Schreib deine Nachricht…",
@@ -6843,7 +6868,7 @@
       "s2_event_day": "📆 Donnerstag",
       "s2_event_time": "🕖 7:00 – 8:00",
       "s2_event_dur": "⏱ 1 Std.",
-      "s3_chip": "Sie ruft für dich an",
+      "s3_chip": "Sie ruft an",
       "s3_user": "Ruf bei Gino an und reserviere einen Tisch für 4 am Freitagabend",
       "s3_hitl": "Ich rufe bei Gino an und reserviere 4 Plätze für Freitag gegen 20 Uhr — darf ich?",
       "s3_approve": "Mach",
@@ -6963,7 +6988,7 @@
       },
       "attachments": {
         "title": "Fotos & Dateianhänge",
-        "description": "Hänge Fotos und PDF-Dokumente an deine Nachrichten an — per 📎-Button oder Drag & Drop. LIA analysiert den visuellen Inhalt, extrahiert den Text und denkt über die Dokumente nach."
+        "description": "Hänge Fotos und PDF-Dokumente an deine Nachrichten an — per 📎-Button, Drag & Drop oder direktem Einfügen eines Screenshots (Strg+V). LIA analysiert den visuellen Inhalt, extrahiert den Text und denkt über die Dokumente nach."
       },
       "languages": {
         "title": "Mehrsprachig",

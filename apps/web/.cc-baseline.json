@@ -10,7 +10,7 @@
     },
     "src/components/chat/ChatInput.tsx": {
       "count": 1,
-      "max": 36
+      "max": 29
     },
     "src/components/chat/ChatMessage.tsx": {
       "count": 1,

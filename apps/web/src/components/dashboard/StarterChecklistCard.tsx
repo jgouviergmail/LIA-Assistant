@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { prefersReducedMotion } from '@/lib/utils/motion';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { useChannelBindings } from '@/hooks/useChannelBindings';
@@ -63,6 +64,50 @@ export interface ChecklistState {
 /** Once dismissed or celebrated, the card never renders again. */
 export function shouldRenderChecklist(state: ChecklistState | null | undefined): boolean {
   return !state?.dismissed_at && !state?.celebrated_at;
+}
+
+/**
+ * Horizontal spread of the celebration sparkle (UX P18) — six particles
+ * fanning out around the party-popper icon, reusing the avatar's
+ * `animate-particle-up` keyframe (invisible at rest, already covered by the
+ * reduced-motion kill-switch in globals.css).
+ */
+const CELEBRATION_PARTICLE_OFFSETS_PX = [-21, -14, -7, 7, 14, 21] as const;
+
+/**
+ * The one-shot celebration line (UX P18), extracted from ChecklistBody (CC
+ * discipline). Fires exactly once per lifetime by construction — `celebrating`
+ * renders once, then `celebrated_at` keeps the card away forever. The motion
+ * preference is captured once at mount: a one-shot cosmetic must never
+ * re-render on a media-query flip.
+ */
+function CelebrationLine({ t }: { t: (key: string) => string }) {
+  const [reducedMotion] = useState(prefersReducedMotion);
+  return (
+    <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+      <span className="relative inline-flex" aria-hidden="true">
+        <PartyPopper className="h-4 w-4 text-primary" />
+        {!reducedMotion && (
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            {CELEBRATION_PARTICLE_OFFSETS_PX.map((offset, i) => (
+              <span
+                key={offset}
+                className="animate-particle-up absolute text-[10px] leading-none"
+                style={{
+                  ['--particle-x' as string]: `${offset}px`,
+                  animationDelay: `${i * 90}ms`,
+                  animationDuration: '0.8s',
+                }}
+              >
+                ✨
+              </span>
+            ))}
+          </span>
+        )}
+      </span>
+      {t('dashboard.checklist.celebration')}
+    </p>
+  );
 }
 
 /**
@@ -204,10 +249,7 @@ function ChecklistBody({
         </button>
       </div>
       {celebrating ? (
-        <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-          <PartyPopper className="h-4 w-4 text-primary" aria-hidden />
-          {t('dashboard.checklist.celebration')}
-        </p>
+        <CelebrationLine t={t} />
       ) : (
         <ul className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1" role="list">
           {items.map(id => (

@@ -6,6 +6,8 @@
  * restrictions that prevent the native `<a download>` attribute from working.
  */
 
+import { sanitiseFilename } from './filename';
+
 /** Map MIME subtypes to file extensions for edge cases. */
 const MIME_EXTENSION_MAP: Record<string, string> = {
   jpeg: 'jpg',
@@ -21,20 +23,6 @@ const MIME_EXTENSION_MAP: Record<string, string> = {
 function extensionFromMime(mimeType: string): string {
   const subtype = mimeType.split('/')[1] || 'png';
   return MIME_EXTENSION_MAP[subtype] ?? subtype;
-}
-
-/**
- * Sanitise a string for use as a filename.
- *
- * Keeps ASCII alphanumerics, hyphens, underscores, and Unicode letters
- * (accented characters common in French, German, etc.).
- * Collapses consecutive underscores and trims leading/trailing ones.
- */
-function sanitiseFilename(raw: string): string {
-  return raw
-    .replace(/[^\p{L}\p{N}_-]/gu, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_|_$/g, '');
 }
 
 /**

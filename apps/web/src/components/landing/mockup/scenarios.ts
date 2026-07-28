@@ -1,5 +1,5 @@
 /**
- * Timeline data for the animated hero conversation (landing ChatMockup).
+ * Timeline data for the animated hero conversation (InteractiveChatMockup).
  *
  * Four acts, each proving several real product strengths at once:
  *  1. orchestrate — one sentence fans out to parallel agents, memory resolves

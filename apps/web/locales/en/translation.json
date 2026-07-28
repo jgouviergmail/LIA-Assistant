@@ -186,6 +186,8 @@
       "skeleton_loading": "Preparing your briefing…",
       "refresh_all": "Refresh all",
       "refresh_all_tooltip": "Force-refresh every card and regenerate the greeting + synthesis",
+      "customize": "Customize",
+      "customize_tooltip": "Choose which cards appear and in what order",
       "refresh_section": "Refresh {{section}}",
       "refreshing": "Updating…",
       "updated_just_now": "just now",
@@ -636,7 +638,8 @@
       "file_too_large": "File too large (max {{max}}MB)",
       "type_not_allowed": "File type not allowed",
       "max_attachments": "Maximum {{max}} attachments",
-      "remove": "Remove"
+      "remove": "Remove",
+      "drop_here": "Drop your images or PDFs here"
     },
     "status": {
       "typing": "Typing...",
@@ -655,6 +658,10 @@
       "retry": "Retry",
       "copy": "Copy message",
       "copied": "Copied to clipboard",
+      "more_actions": "More actions",
+      "share": "Share",
+      "download_md": "Download as Markdown",
+      "share_error": "Sharing failed",
       "stt_unit_seconds": "s",
       "tts_unit_chars": "chars",
       "interrupted": "interrupted",
@@ -3413,7 +3420,7 @@
         },
         "attachments": {
           "title": "📎 Photos & File Attachments",
-          "description": "Photo and PDF document upload via 📎 button or drag & drop, with automatic client-side compression. Visual analysis via configurable vision LLM (gpt-4.1-mini by default). PDF text extraction via PyMuPDF. Inline thumbnails in messages, accessible lightbox. Strict per-user isolation, automatic cleanup (conversation reset + 24h TTL). \"Reference + Late Resolution\" architecture for lightweight checkpoints."
+          "description": "Photo and PDF document upload via 📎 button, drag & drop (visible landing zone) or direct Ctrl+V paste from the clipboard, with automatic client-side compression. Visual analysis via configurable vision LLM (gpt-4.1-mini by default). PDF text extraction via PyMuPDF. Inline thumbnails in messages, accessible lightbox. Strict per-user isolation, automatic cleanup (conversation reset + 24h TTL). \"Reference + Late Resolution\" architecture for lightweight checkpoints."
         },
         "skills": {
           "title": "Skills (with interactive maps & mini-apps)",
@@ -3470,6 +3477,20 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_33": {
+          "title": "v1.25.33 — 📋 Paste, share, drive the demo",
+          "date": "July 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>📋 Paste a screenshot straight into the chat</b> — Ctrl+V (Cmd+V on Mac) with an image or PDF in the clipboard: the file is attached exactly as through the paperclip, same limits, same preview. Paste text along with a file and both arrive.",
+            "i2": "<b>📤 Share or export an answer</b> — a \"…\" menu at the bottom of every answer: send it to your apps (Messages, Mail, Notes…) when your device offers a share sheet, or download it as a dated Markdown file, accents preserved.",
+            "i3": "<b>🎙️ The send button finally says what it does</b> — empty field: a microphone shows when \"hold to speak\" is available; some text: the send icon; voice unavailable: a clearly disabled button. No more button inviting you to speak when it can't.",
+            "i4": "<b>🎯 A real drop zone</b> — drag an image or PDF towards the conversation: a clear \"Drop your images or PDFs here\" zone appears instead of a thin ring around the field.",
+            "i5": "<b>🧩 \"Customize\" next to \"Refresh all\"</b> — pick your dashboard cards and their order without digging through the settings: the button leads straight to the right section.",
+            "i6": "<b>🎬 The demo is now yours to drive</b> — on the public home page and /demo: pick the scene (She orchestrates, She anticipates, She calls, She extends herself), pause, replay. Without interaction, the loop keeps cycling as before.",
+            "i7": "<b>✨ A small celebration</b> — completing the starter checklist makes its check sparkle — once, and never if your system asks for reduced motion."
+          }
+        },
         "v1_25_32": {
           "title": "v1.25.32 — 🔍 Find a setting by its name",
           "date": "July 2026",
@@ -5031,7 +5052,7 @@
           },
           "q8": {
             "question": "How do I attach photos or documents to my messages?",
-            "answer": "Two ways to attach files:<br><br><strong>📎 Paperclip button:</strong><br>Click the <strong>📎</strong> button to the left of the input area to browse your files.<br><br><strong>🖱️ Drag and drop:</strong><br>Drag files directly from your file explorer into the input area. A visual outline appears to confirm the drop zone.<br><br><strong>📁 Accepted formats:</strong><br>• <strong>Photos</strong> (JPEG, PNG, GIF, WebP, HEIC) — automatically compressed<br>• <strong>PDF documents</strong> — text is automatically extracted<br><br>Thumbnails are displayed in the conversation. Click a thumbnail to enlarge it. LIA can analyze the visual content of images and the text of PDFs to answer your questions.<br><br><strong>💡 Limits</strong>: maximum 5 attachments per message, 10 MB per image, 20 MB per document."
+            "answer": "Three ways to attach files:<br><br><strong>📎 Paperclip button:</strong><br>Click the <strong>📎</strong> button to the left of the input area to browse your files.<br><br><strong>🖱️ Drag and drop:</strong><br>Drag files directly from your file explorer into the input area. A clear landing zone appears: \"Drop your images or PDFs here\".<br><br><strong>📋 Paste from the clipboard:</strong><br>Ctrl+V (Cmd+V on Mac) with a screenshot, an image or a PDF in the clipboard: the file is attached through the same pipeline as the paperclip (same limits, same preview). Paste text together with a file and both arrive.<br><br><strong>📁 Accepted formats:</strong><br>• <strong>Photos</strong> (JPEG, PNG, GIF, WebP, HEIC) — automatically compressed<br>• <strong>PDF documents</strong> — text is automatically extracted<br><br>Thumbnails are displayed in the conversation. Click a thumbnail to enlarge it. LIA can analyze the visual content of images and the text of PDFs to answer your questions.<br><br><strong>💡 Limits</strong>: maximum 5 attachments per message, 10 MB per image, 20 MB per document."
           },
           "q9": {
             "question": "What is the /resume command?",
@@ -5043,7 +5064,7 @@
           },
           "q11": {
             "question": "How do I copy a message, code, and are math formulas rendered correctly?",
-            "answer": "Since v1.16.9, the chat has several useful finishing touches:<br><br><strong>📋 Copy button on messages and code</strong><br>• Hover over a LIA reply or a code block → a \"Copy\" button appears<br>• Text is copied as-is to your clipboard, with visual confirmation<br><br><strong>🎨 Syntax highlighting on code</strong><br>• Code blocks ```python, ```typescript, ```json, ```bash, ```sql... are auto-colored (25 languages)<br>• Light or dark theme based on your display preferences<br><br><strong>🧮 Math formulas (LaTeX)</strong><br>• Formulas are rendered with proper mathematical notation<br>• Inline: <code>$E = mc^2$</code><br>• Centered block: <code>$$a^2 + b^2 = c^2$$</code><br><br><strong>📅 Relative dates</strong><br>• Today's messages: time only (14:30)<br>• Yesterday's: \"Yesterday 14:30\"<br>• This week: weekday + time (Monday 14:30)<br>• Beyond: full date"
+            "answer": "Since v1.16.9, the chat has several useful finishing touches:<br><br><strong>📋 Copy button on messages and code</strong><br>• Hover over a LIA reply or a code block → a \"Copy\" button appears<br>• Text is copied as-is to your clipboard, with visual confirmation<br><br><strong>📤 Share or export an answer</strong><br>• A \"…\" menu next to the copy button, at the bottom of every answer<br>• <strong>Share</strong> hands the text to your device's share sheet (Messages, Mail, Notes…) — offered only when the browser provides one<br>• <strong>Download as Markdown</strong> everywhere: a dated file, accents preserved<br><br><strong>🎨 Syntax highlighting on code</strong><br>• Code blocks ```python, ```typescript, ```json, ```bash, ```sql... are auto-colored (25 languages)<br>• Light or dark theme based on your display preferences<br><br><strong>🧮 Math formulas (LaTeX)</strong><br>• Formulas are rendered with proper mathematical notation<br>• Inline: <code>$E = mc^2$</code><br>• Centered block: <code>$$a^2 + b^2 = c^2$$</code><br><br><strong>📅 Relative dates</strong><br>• Today's messages: time only (14:30)<br>• Yesterday's: \"Yesterday 14:30\"<br>• This week: weekday + time (Monday 14:30)<br>• Beyond: full date"
           },
           "q12": {
             "question": "Can I search through my conversation history?",
@@ -5166,7 +5187,7 @@
           },
           "q17": {
             "question": "Can I customize the dashboard cards? (v1.25.16)",
-            "answer": "<p>Yes — Settings → « My dashboard ». Hide any of the 9 briefing cards or reorder them (↑/↓ buttons, or drag-and-drop). A hidden card is <strong>not even fetched</strong> anymore: fewer API calls, faster dashboard. A starter checklist on the dashboard also shows what your instance can do (connectors, voice, channels…) until you dismiss it.</p>"
+            "answer": "<p>Yes — the shortest path: the <strong>\"Customize\"</strong> button next to \"Refresh all\", right above the grid, leads straight to the right section. Or go through Settings → « My dashboard ». Hide any of the 9 briefing cards or reorder them (↑/↓ buttons, or drag-and-drop). A hidden card is <strong>not even fetched</strong> anymore: fewer API calls, faster dashboard. A starter checklist on the dashboard also shows what your instance can do (connectors, voice, channels…) until you dismiss it.</p>"
           },
           "q18": {
             "question": "What is the « Open loops » section? (v1.25.16)",
@@ -6876,6 +6897,10 @@
     },
     "chat_mockup": {
       "aria": "Animated demo: four real scenes — LIA orchestrates several agents in parallel and waits for your approval, crosses the weather with your agenda on her own initiative, places a real phone call to book a table, and builds a mini-app right in the chat. The orchestration backstage shows while she works.",
+      "demo_scenes_aria": "Demo scenes",
+      "demo_pause": "Pause the demo",
+      "demo_play": "Play the demo",
+      "demo_replay": "Replay this scene",
       "online": "Online",
       "mood": "Cynical",
       "input_placeholder": "Type your message…",
@@ -6923,7 +6948,7 @@
       "s2_event_day": "📆 Thursday",
       "s2_event_time": "🕖 7:00 – 8:00 am",
       "s2_event_dur": "⏱ 1 h",
-      "s3_chip": "She calls for you",
+      "s3_chip": "She calls",
       "s3_user": "Call Gino's and book a table for 4 on Friday night",
       "s3_hitl": "I'll call Gino's to book 4 seats Friday around 8 pm — may I?",
       "s3_approve": "Go ahead",
@@ -7043,7 +7068,7 @@
       },
       "attachments": {
         "title": "Photos & file attachments",
-        "description": "Attach photos and PDF documents to your messages via the 📎 button or by drag and drop. LIA analyzes visual content, extracts text and reasons about documents."
+        "description": "Attach photos and PDF documents to your messages via the 📎 button, by drag and drop, or by pasting a screenshot directly (Ctrl+V). LIA analyzes visual content, extracts text and reasons about documents."
       },
       "languages": {
         "title": "Multilingual",

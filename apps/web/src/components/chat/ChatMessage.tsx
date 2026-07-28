@@ -30,6 +30,7 @@ import {
   ResponseFeedbackButtons,
   type ResponseFeedbackButtonsProps,
 } from './ResponseFeedbackButtons';
+import { ShareResponseMenu } from './ShareResponseMenu';
 import { toast } from 'sonner';
 import { formatFileSize } from '@/lib/utils/image-compress';
 import { API_ENDPOINTS } from '@/lib/api-config';
@@ -242,6 +243,12 @@ function AssistantActionRow({
         </TooltipTrigger>
         <TooltipContent>{t('chat.message.copy')}</TooltipContent>
       </Tooltip>
+      {/* UX P4: share/export menu — same chip family as Copy. Text-less
+          bubbles (image-only answers) have nothing to share or export:
+          `navigator.share({ text: '' })` rejects and the .md would be empty. */}
+      {message.content.trim().length > 0 && (
+        <ShareResponseMenu content={message.content} timestamp={message.timestamp} />
+      )}
       {/* W3: a failed turn used to be a dead end — the user had to find their
           question and retype it. Labelled, not icon-only: this one re-runs a
           request that may cost tokens, so it must read as a deliberate act. */}

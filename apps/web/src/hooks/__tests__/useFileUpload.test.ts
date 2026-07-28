@@ -135,7 +135,18 @@ describe('useFileUpload — validation', () => {
       outcome = await result.current.uploadFile(png('big.png', 2 * MB));
     });
 
-    expect(outcome).toEqual({ error: 'file_too_large' });
+    expect(outcome).toEqual({ error: 'file_too_large', maxMB: 1 });
+  });
+
+  it('names the DOCUMENT limit when a document is too large (not the image one)', async () => {
+    const { result } = renderHook(() => useFileUpload({ maxDocSizeMB: 2 }));
+
+    let outcome!: UploadOutcome;
+    await act(async () => {
+      outcome = await result.current.uploadFile(pdf(3 * MB));
+    });
+
+    expect(outcome).toEqual({ error: 'file_too_large', maxMB: 2 });
   });
 
   it('applies the document limit to documents, not the image one', async () => {
@@ -160,7 +171,10 @@ describe('useFileUpload — validation', () => {
     });
 
     const settled = await Promise.all(outcomes.slice(3));
-    expect(settled).toEqual([{ error: 'max_attachments' }, { error: 'max_attachments' }]);
+    expect(settled).toEqual([
+      { error: 'max_attachments', max: 3 },
+      { error: 'max_attachments', max: 3 },
+    ]);
     await waitFor(() => expect(result.current.attachments).toHaveLength(3));
   });
 });

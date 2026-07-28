@@ -178,6 +178,8 @@
       "skeleton_loading": "Preparazione del tuo briefing…",
       "refresh_all": "Aggiorna tutto",
       "refresh_all_tooltip": "Forza l'aggiornamento di tutte le card e rigenera il saluto e la sintesi",
+      "customize": "Personalizza",
+      "customize_tooltip": "Scegli quali card mostrare e in quale ordine",
       "refresh_section": "Aggiorna {{section}}",
       "refreshing": "Aggiornamento…",
       "updated_just_now": "adesso",
@@ -615,7 +617,8 @@
       "file_too_large": "File troppo grande (max {{max}}MB)",
       "type_not_allowed": "Tipo di file non consentito",
       "max_attachments": "Massimo {{max}} allegati",
-      "remove": "Rimuovi"
+      "remove": "Rimuovi",
+      "drop_here": "Trascina qui le tue immagini o PDF"
     },
     "status": {
       "typing": "Sta scrivendo...",
@@ -634,6 +637,10 @@
       "retry": "Riprova",
       "copy": "Copia messaggio",
       "copied": "Copiato negli appunti",
+      "more_actions": "Altre azioni",
+      "share": "Condividi",
+      "download_md": "Scarica come Markdown",
+      "share_error": "Condivisione non riuscita",
       "stt_unit_seconds": "s",
       "tts_unit_chars": "car.",
       "interrupted": "interrotta",
@@ -3406,7 +3413,7 @@
         },
         "attachments": {
           "title": "📎 Foto e Allegati",
-          "description": "Caricamento di foto e documenti PDF tramite pulsante 📎 o trascinamento, con compressione automatica lato client. Analisi visiva tramite LLM vision configurabile (gpt-4.1-mini di default). Estrazione testo PDF via PyMuPDF. Miniature inline nei messaggi, lightbox accessibile. Isolamento rigoroso per utente, pulizia automatica (reset conversazione + TTL 24h). Architettura « Reference + Late Resolution » per checkpoint leggeri."
+          "description": "Caricamento di foto e documenti PDF tramite pulsante 📎, trascinamento (zona di rilascio visibile) o incollaggio diretto con Ctrl+V dagli appunti, con compressione automatica lato client. Analisi visiva tramite LLM vision configurabile (gpt-4.1-mini di default). Estrazione testo PDF via PyMuPDF. Miniature inline nei messaggi, lightbox accessibile. Isolamento rigoroso per utente, pulizia automatica (reset conversazione + TTL 24h). Architettura « Reference + Late Resolution » per checkpoint leggeri."
         },
         "skills": {
           "title": "Skills (con mappe e mini-app interattive)",
@@ -3463,6 +3470,20 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_25_33": {
+          "title": "v1.25.33 — 📋 Incollare, condividere, guidare la demo",
+          "date": "Luglio 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>📋 Incolla uno screenshot direttamente nella chat</b> — Ctrl+V (Cmd+V su Mac) con un'immagine o un PDF negli appunti: il file viene allegato esattamente come con la graffetta, stessi limiti, stessa anteprima. Se incolli testo insieme a un file, arrivano entrambi.",
+            "i2": "<b>📤 Condividi o esporta una risposta</b> — un menu «…» in fondo a ogni risposta: inviala alle tue app (Messaggi, Mail, Note…) quando il dispositivo offre il foglio di condivisione, oppure scaricala come file Markdown datato, accenti preservati.",
+            "i3": "<b>🎙️ Il pulsante di invio dice finalmente ciò che fa</b> — campo vuoto: appare un microfono quando «tieni premuto per parlare» è disponibile; con del testo: l'icona di invio; voce non disponibile: un pulsante chiaramente disattivato. Basta con il pulsante che invitava a parlare senza poterlo fare.",
+            "i4": "<b>🎯 Una vera zona di rilascio</b> — trascina un'immagine o un PDF verso la conversazione: appare una zona chiara «Trascina qui le tue immagini o PDF» invece di un sottile anello attorno al campo.",
+            "i5": "<b>🧩 «Personalizza» accanto ad «Aggiorna tutto»</b> — scegli le card della tua dashboard e il loro ordine senza frugare nelle impostazioni: il pulsante porta dritto alla sezione giusta.",
+            "i6": "<b>🎬 La demo si guida</b> — sulla home page pubblica e su /demo: scegli la scena (Lei orchestra, Lei anticipa, Lei chiama, Lei si estende), metti in pausa, ripeti. Senza interazione, il ciclo continua come prima.",
+            "i7": "<b>✨ Una piccola celebrazione</b> — completare la lista di partenza fa brillare la sua spunta — una sola volta, e mai se il sistema chiede di ridurre le animazioni."
+          }
+        },
         "v1_25_32": {
           "title": "v1.25.32 — 🔍 Trovare un'impostazione dal suo nome",
           "date": "Luglio 2026",
@@ -5024,7 +5045,7 @@
           },
           "q8": {
             "question": "Come allegare foto o documenti ai miei messaggi?",
-            "answer": "Due modi per allegare file:<br><br><strong>📎 Pulsante graffetta:</strong><br>Clicca sul pulsante <strong>📎</strong> a sinistra dell'area di inserimento per sfogliare i tuoi file.<br><br><strong>🖱️ Trascinamento:</strong><br>Trascina i file direttamente dal tuo esploratore file nell'area di inserimento. Un contorno visivo appare per confermare la zona di rilascio.<br><br><strong>📁 Formati accettati:</strong><br>• <strong>Foto</strong> (JPEG, PNG, GIF, WebP, HEIC) — compresse automaticamente<br>• <strong>Documenti PDF</strong> — il testo viene estratto automaticamente<br><br>Le miniature vengono visualizzate nella conversazione. Clicca su una miniatura per ingrandirla. LIA può analizzare il contenuto visivo delle immagini e il testo dei PDF per rispondere alle tue domande.<br><br><strong>💡 Limiti</strong>: massimo 5 allegati per messaggio, 10 MB per immagine, 20 MB per documento."
+            "answer": "Tre modi per allegare file:<br><br><strong>📎 Pulsante graffetta:</strong><br>Clicca sul pulsante <strong>📎</strong> a sinistra dell'area di inserimento per sfogliare i tuoi file.<br><br><strong>🖱️ Trascinamento:</strong><br>Trascina i file direttamente dal tuo esploratore file nell'area di inserimento. Appare una zona chiara: «Trascina qui le tue immagini o PDF».<br><br><strong>📋 Incolla dagli appunti:</strong><br>Ctrl+V (Cmd+V su Mac) con uno screenshot, un'immagine o un PDF negli appunti: il file viene allegato attraverso lo stesso circuito della graffetta (stessi limiti, stessa anteprima). Se incolli testo insieme a un file, arrivano entrambi.<br><br><strong>📁 Formati accettati:</strong><br>• <strong>Foto</strong> (JPEG, PNG, GIF, WebP, HEIC) — compresse automaticamente<br>• <strong>Documenti PDF</strong> — il testo viene estratto automaticamente<br><br>Le miniature vengono visualizzate nella conversazione. Clicca su una miniatura per ingrandirla. LIA può analizzare il contenuto visivo delle immagini e il testo dei PDF per rispondere alle tue domande.<br><br><strong>💡 Limiti</strong>: massimo 5 allegati per messaggio, 10 MB per immagine, 20 MB per documento."
           },
           "q9": {
             "question": "Cos'è il comando /resume?",
@@ -5036,7 +5057,7 @@
           },
           "q11": {
             "question": "Come copio un messaggio o del codice, e le formule matematiche vengono visualizzate correttamente?",
-            "answer": "Dalla v1.16.9, la chat ha diverse rifiniture utili:<br><br><strong>📋 Pulsante Copia su messaggi e codice</strong><br>• Passa il cursore su una risposta di LIA o un blocco di codice → appare un pulsante «Copia»<br>• Il testo viene copiato così com'è negli appunti, con conferma visiva<br><br><strong>🎨 Colorazione sintattica del codice</strong><br>• I blocchi di codice ```python, ```typescript, ```json, ```bash, ```sql... sono colorati automaticamente (25 linguaggi supportati)<br>• Tema chiaro o scuro secondo le tue preferenze di visualizzazione<br><br><strong>🧮 Formule matematiche (LaTeX)</strong><br>• Le formule vengono rese con la loro notazione matematica propria<br>• In linea: <code>$E = mc^2$</code><br>• Blocco centrato: <code>$$a^2 + b^2 = c^2$$</code><br><br><strong>📅 Date relative</strong><br>• Messaggi di oggi: solo l'ora (14:30)<br>• Messaggi di ieri: «Ieri 14:30»<br>• Questa settimana: nome del giorno + ora (Lunedì 14:30)<br>• Oltre: data completa"
+            "answer": "Dalla v1.16.9, la chat ha diverse rifiniture utili:<br><br><strong>📋 Pulsante Copia su messaggi e codice</strong><br>• Passa il cursore su una risposta di LIA o un blocco di codice → appare un pulsante «Copia»<br>• Il testo viene copiato così com'è negli appunti, con conferma visiva<br><br><strong>📤 Condividere o esportare una risposta</strong><br>• Un menu «…» accanto al pulsante di copia, in fondo a ogni risposta<br>• <strong>Condividi</strong> passa il testo al foglio di condivisione del dispositivo (Messaggi, Mail, Note…) — offerto solo quando il browser ne fornisce uno<br>• <strong>Scarica come Markdown</strong> ovunque: un file datato, accenti preservati<br><br><strong>🎨 Colorazione sintattica del codice</strong><br>• I blocchi di codice ```python, ```typescript, ```json, ```bash, ```sql... sono colorati automaticamente (25 linguaggi supportati)<br>• Tema chiaro o scuro secondo le tue preferenze di visualizzazione<br><br><strong>🧮 Formule matematiche (LaTeX)</strong><br>• Le formule vengono rese con la loro notazione matematica propria<br>• In linea: <code>$E = mc^2$</code><br>• Blocco centrato: <code>$$a^2 + b^2 = c^2$$</code><br><br><strong>📅 Date relative</strong><br>• Messaggi di oggi: solo l'ora (14:30)<br>• Messaggi di ieri: «Ieri 14:30»<br>• Questa settimana: nome del giorno + ora (Lunedì 14:30)<br>• Oltre: data completa"
           },
           "q12": {
             "question": "Posso cercare nella mia cronologia della conversazione?",
@@ -5159,7 +5180,7 @@
           },
           "q17": {
             "question": "Posso personalizzare le schede della dashboard? (v1.25.16)",
-            "answer": "<p>Sì — Impostazioni → « La mia dashboard ». Nascondi una qualsiasi delle 9 schede del briefing o riordinale (pulsanti ↑/↓ o trascinamento). Una scheda nascosta <strong>non viene nemmeno più recuperata</strong>: meno chiamate API, dashboard più veloce. Una checklist di avvio sulla dashboard mostra inoltre cosa sa fare la tua istanza finché non la chiudi.</p>"
+            "answer": "<p>Sì — la via più breve: il pulsante <strong>«Personalizza»</strong> accanto ad «Aggiorna tutto», proprio sopra la griglia, porta dritto alla sezione giusta. Oppure da Impostazioni → « La mia dashboard ». Nascondi una qualsiasi delle 9 schede del briefing o riordinale (pulsanti ↑/↓ o trascinamento). Una scheda nascosta <strong>non viene nemmeno più recuperata</strong>: meno chiamate API, dashboard più veloce. Una checklist di avvio sulla dashboard mostra inoltre cosa sa fare la tua istanza finché non la chiudi.</p>"
           },
           "q18": {
             "question": "Cos'è la sezione « Impegni aperti »? (v1.25.16)",
@@ -6798,6 +6819,10 @@
     },
     "chat_mockup": {
       "aria": "Demo animata: quattro scene reali — LIA orchestra più agenti in parallelo e attende la tua approvazione, incrocia meteo e agenda di propria iniziativa, fa una vera telefonata per prenotare e crea una mini-app direttamente in chat. Mentre lavora, si vede l'orchestrazione dietro le quinte.",
+      "demo_scenes_aria": "Scene della demo",
+      "demo_pause": "Metti in pausa la demo",
+      "demo_play": "Riproduci la demo",
+      "demo_replay": "Ripeti questa scena",
       "online": "Online",
       "mood": "Cinica",
       "input_placeholder": "Scrivi il tuo messaggio…",
@@ -6845,7 +6870,7 @@
       "s2_event_day": "📆 Giovedì",
       "s2_event_time": "🕖 7:00 – 8:00",
       "s2_event_dur": "⏱ 1 h",
-      "s3_chip": "Lei chiama per te",
+      "s3_chip": "Lei chiama",
       "s3_user": "Chiama Da Gino e prenota un tavolo per 4 venerdì sera",
       "s3_hitl": "Chiamo Da Gino per prenotare 4 coperti venerdì verso le 20:00 — posso?",
       "s3_approve": "Vai",
@@ -6965,7 +6990,7 @@
       },
       "attachments": {
         "title": "Foto e allegati",
-        "description": "Allega foto e documenti PDF ai tuoi messaggi tramite il pulsante 📎 o trascinandoli. LIA analizza il contenuto visivo, estrae il testo e ragiona sui documenti."
+        "description": "Allega foto e documenti PDF ai tuoi messaggi tramite il pulsante 📎, trascinandoli o incollando direttamente uno screenshot (Ctrl+V). LIA analizza il contenuto visivo, estrae il testo e ragiona sui documenti."
       },
       "languages": {
         "title": "Multilingue",

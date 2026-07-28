@@ -110,6 +110,23 @@ export const RESPONSE_FEEDBACK_COMMENT_MAX_LENGTH = 500;
 export const CHAT_INPUT_MAX_LENGTH = 10_000;
 
 /**
+ * Height cap of the auto-resizing chat textarea, in pixels (UX P2). Below the
+ * cap the composer grows and the vertical scrollbar stays suppressed; at the
+ * cap the height freezes and the scrollbar takes over. One constant for the
+ * three coupled sites (auto-resize clamp, overflow toggle, `maxHeight` style).
+ */
+export const CHAT_INPUT_MAX_HEIGHT_PX = 200;
+
+/**
+ * Fallback release of the send-button takeoff state (UX P2), in ms. The
+ * nominal release is the icon's `animationend` (keyframe `send-takeoff`,
+ * 500 ms in `globals.css`); this timer covers every environment where the
+ * keyframe never runs (hidden tab, motion preference flipped mid-flight) so
+ * the send icon can never stay stuck in place of the microphone.
+ */
+export const SEND_TAKEOFF_RELEASE_MS = 700;
+
+/**
  * localStorage key prefix of the per-user chat input draft (UXR Lot 2, A7).
  * Full key: `${CHAT_DRAFT_STORAGE_KEY_PREFIX}${userId}` — purged on logout.
  */

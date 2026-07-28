@@ -118,7 +118,7 @@ export function useFileUpload(options?: UseFileUploadOptions) {
     async (file: File) => {
       // H2: Use ref for concurrent-safe count check
       if (attachmentCountRef.current >= opts.maxAttachments) {
-        return { error: 'max_attachments' as const };
+        return { error: 'max_attachments' as const, max: opts.maxAttachments };
       }
 
       const isImage = isImageFile(file);
@@ -135,10 +135,12 @@ export function useFileUpload(options?: UseFileUploadOptions) {
         }
       }
 
-      // Validate size
-      const maxBytes = (isImage ? opts.maxImageSizeMB : opts.maxDocSizeMB) * 1024 * 1024;
-      if (file.size > maxBytes) {
-        return { error: 'file_too_large' as const };
+      // Validate size — the rejection names the limit that actually applied
+      // (images and documents have different caps; the toast must not claim
+      // the image cap for an oversized PDF).
+      const maxMB = isImage ? opts.maxImageSizeMB : opts.maxDocSizeMB;
+      if (file.size > maxMB * 1024 * 1024) {
+        return { error: 'file_too_large' as const, maxMB };
       }
 
       const tempId = crypto.randomUUID();

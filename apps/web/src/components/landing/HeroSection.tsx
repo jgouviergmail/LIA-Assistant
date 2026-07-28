@@ -6,7 +6,7 @@ import { ChevronDown, ShieldCheck } from 'lucide-react';
 import { GithubIcon } from '@/components/icons/GithubIcon';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
-import { ChatMockup } from './ChatMockup';
+import { InteractiveChatMockup } from './InteractiveChatMockup';
 import { LANDING_STATS } from './constants';
 import { APP_VERSION, LAST_UPDATED } from '@/lib/version';
 
@@ -133,9 +133,12 @@ export async function HeroSection({ lng }: HeroSectionProps) {
           </div>
 
           {/* Live conversation column — min-w-0: the mockup's animated
-              content must never dictate the track width (layout jumps) */}
+              content must never dictate the track width (layout jumps).
+              Interactive since the hero transplant (UX P12 follow-up): scene
+              pastilles + pause/replay; the CTA stays off — the hero's own
+              primary CTA sits right beside. */}
           <div className="w-full min-w-0">
-            <ChatMockup />
+            <InteractiveChatMockup lng={lng} withCta={false} />
           </div>
         </div>
       </div>

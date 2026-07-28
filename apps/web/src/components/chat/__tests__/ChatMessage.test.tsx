@@ -88,6 +88,30 @@ describe('ChatMessage — copy to clipboard', () => {
   });
 });
 
+describe('ChatMessage — share/export menu (UX P4)', () => {
+  it('offers the actions menu next to Copy on assistant bubbles', () => {
+    renderMessage(makeMessage({ content: 'Réponse à partager' }));
+    const copy = screen.getByRole('button', { name: 'chat.message.copy' });
+    const menu = screen.getByRole('button', { name: 'chat.message.more_actions' });
+    expect(copy.closest('div')!.contains(menu)).toBe(true);
+  });
+
+  it('is not offered on the bubble the user wrote', () => {
+    renderMessage(makeMessage({ role: 'user' }), true);
+    expect(screen.queryByRole('button', { name: 'chat.message.more_actions' })).toBeNull();
+  });
+
+  it('is not offered on a system notice', () => {
+    renderMessage(makeMessage({ role: 'system', content: 'Session expired' }));
+    expect(screen.queryByRole('button', { name: 'chat.message.more_actions' })).toBeNull();
+  });
+
+  it('is not offered when the bubble has no text to share (image-only answer)', () => {
+    renderMessage(makeMessage({ content: '   ' }));
+    expect(screen.queryByRole('button', { name: 'chat.message.more_actions' })).toBeNull();
+  });
+});
+
 describe('ChatMessage — assistant badges', () => {
   it('names the skill that produced the answer', () => {
     renderMessage(makeMessage({ skillName: 'weather-report' }));

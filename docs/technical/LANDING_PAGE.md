@@ -70,7 +70,7 @@ Tout vit dans `apps/web/src/components/landing/`, la couche editoriale dans `lan
 
 | Composant | Type | Notes |
 |-----------|------|-------|
-| `HeroSection` + `ChatMockup` (+ `mockup/`) | Server + Client | Hero anime « coulisses en verre », 4 actes (orchestration HITL, initiative meteo, telephonie, skill hydratation). Voir `mockup/scenarios.ts` (cadence : lisibilite d'abord — vitre 7-8,5 s, notes ≥ 4,5 s). Chevron → `#features`. |
+| `HeroSection` + `InteractiveChatMockup` (+ `mockup/`) | Server + Client | Hero anime « coulisses en verre », 4 actes (orchestration HITL, initiative meteo, telephonie, skill hydratation), **interactif depuis UX P12** : pastilles de scene, pause/relecture, progression — boucle auto conservee sans interaction ; le CTA du composant est masque dans le hero (`withCta={false}`, le hero a le sien). Voir `mockup/scenarios.ts` (cadence : lisibilite d'abord — vitre 7-8,5 s, notes ≥ 4,5 s). Chevron → `#features`. |
 | `UseCasesSection` | Server | 6 requetes reelles (la 6e : telephonie) ; vedettes en tete ET en pied (`example1`, `example6`). |
 | `TechSection` | Server | « Sous le capot » + **bande des chiffres d'ingenierie** (ex-ProofSection, re-cibles vers l'audience dev : agents, tools, providers, langues, tests, ADRs, releases). |
 | `ArchitectureDiagram` | Client | Deux modes d'execution (inchange). |
@@ -112,7 +112,9 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
 
 ## 4. Animations et interactions
 
-- **Hero (ChatMockup)** : voir `mockup/` — moteur timeline, vitre coulisses, reduced-motion = acte 1 statique.
+- **Hero (InteractiveChatMockup)** : voir `mockup/` — moteur timeline (`useMockupTimeline.ts`, pause/reprise/
+  selection de scene), cadre partage (`MockupStage.tsx`), vitre coulisses ; reduced-motion = frames de resolution
+  statiques (les pastilles changent d'acte, pause/relecture masques — rien n'anime).
 - **Vignettes de chapitres (ScrollStage)** : reutilisent les keyframes du mockup (`chip-pop`, `wire-draw`, `fan-draw`)
   avec `animation-delay` par element ; gating CSS `.scroll-stage:not(.staged) { animation-play-state: paused }` —
   la pause gele aussi le delai, la choregraphie demarre donc a la revelation. One-shot (unobserve).
@@ -133,7 +135,7 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
 | **Contrat i18n editorial** | idem | Cle referencee absente/vide dans une des 6 locales ; resurrection des cles purgees (audience, rex, en-tetes features, extras proof) ; disparition des cles `how_it_works` requises par le HowTo JsonLd. |
 | **A11y clavier** | `editorial/__tests__/interactive.test.tsx` | Regression du pattern disclosure (bouton natif, aria-expanded, DOM replie) et du pattern tabs (roles, fleches, bouclage, roving tabindex). |
 | **Parite i18n globale** | `scripts/i18n/validate_translations.py` (hook pre-commit) | Toute divergence de cles entre les 6 locales. |
-| **Contrat hero** | `landing/__tests__/ChatMockup.test.tsx` + `mockup/__tests__/scenarios.test.ts` | Timelines mal formees, cles du mockup manquantes, regression reduced-motion. |
+| **Contrat hero** | `landing/__tests__/InteractiveChatMockup.test.tsx` + `mockup/__tests__/scenarios.test.ts` | Timelines mal formees, cles du mockup manquantes, regression reduced-motion, controles (selection de scene, pause/relecture, gel manuel en fin d'acte), CTA duplique dans le hero. |
 | **Routes publiques** | `src/lib/__tests__/api-client.public-routes.test.ts` | Ejection des visiteurs anonymes vers /login. |
 | **Overflow mobile** | `e2e/smoke/landing-mobile-overflow.spec.ts` | Le retour du debordement horizontal : a 375 px, aucun element en flux ne depasse le bord droit — statiquement, **a chaque battement du cycle d'animation du hero** (horloge Playwright, ~79 s virtuelles : l'oscillation 381↔448 px de 2026-07 etait invisible en capture statique) et apres scroll de chaque section ; passe reflow 320 px (WCAG 1.4.10). |
 | **Contenu FAQ groupee** | `src/lib/__tests__/faq-answer-groups.test.ts` | La perte d'un mot lors du regroupement visuel de la reponse « Que puis-je demander ? » : egalite mot-a-mot prouvee sur les 6 locales reelles + repli tel-quel (zh a une q4 differente). |
@@ -171,7 +173,7 @@ completude scanne `app/[lng]` : **toute nouvelle page publique doit etre ajoutee
 
 ### `/demo` — l'animation du hero en URL partageable
 
-`app/[lng]/demo/page.tsx` rend le `ChatMockup` seul (fond ambiant du hero, ni header, ni footer, ni `AuthRedirect`) —
+`app/[lng]/demo/page.tsx` rend `InteractiveChatMockup` avec son CTA (fond ambiant du hero, ni header, ni footer, ni `AuthRedirect`) —
 concu pour etre poste sur les reseaux sociaux et integre dans des publications. Metadonnees dediees (hreflang ×6,
 canonical, OG) **sans nouvelle cle i18n** : le titre reutilise `landing.meta.title`, la description reutilise
 `landing.chat_mockup.aria`. Un partage social affiche la carte OG statique ; pour l'animation dans le fil, generer un
@@ -218,7 +220,7 @@ puis-je demander ? » (~10 k chars) est regroupee **visuellement** en sous-accor
 apps/web/src/components/landing/
   index.ts                       # Barrel exports
   HeroSection.tsx                # Hero (chevron → #features)
-  ChatMockup.tsx  mockup/        # Demo 4 actes + coulisses (scenarios, AppFrame, actes, backstage)
+  InteractiveChatMockup.tsx  mockup/  # Demo 4 actes + coulisses + controles (scenarios, moteur, stage, actes)
   editorial/
     chapters-data.ts             # Source de verite + contrat REQUIRED_FEATURE_KEYS
     EditorialChapters.tsx        # Les 5 chapitres

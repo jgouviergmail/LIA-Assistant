@@ -140,13 +140,16 @@ For complex tasks, break down into multiple requests.
 Before approving an email or modification, carefully review the preview.
 
 ## How do I attach photos or documents to my messages?
-Two ways to attach files:
+Three ways to attach files:
 
 **📎 Paperclip button:**
 Click the **📎** button to the left of the input area to browse your files.
 
 **🖱️ Drag and drop:**
-Drag files directly from your file explorer into the input area. A visual outline appears to confirm the drop zone.
+Drag files directly from your file explorer into the input area. A clear landing zone appears over the composer — "Drop your images or PDFs here".
+
+**📋 Paste from the clipboard:**
+Press **Ctrl+V** (Cmd+V on Mac) with a screenshot, an image or a PDF in the clipboard: the file is attached through the exact same pipeline as the paperclip (same limits, same preview). Pasting text together with a file keeps both — the text lands in the input while the file uploads.
 
 **📁 Accepted formats:**
 • **Photos** (JPEG, PNG, GIF, WebP, HEIC) — automatically compressed
@@ -219,6 +222,11 @@ Since v1.16.9, the chat has several useful finishing touches:
 **📋 Copy button on messages and code**
 - Hover over a LIA reply or a code block → a "Copy" button appears
 - Text is copied as-is to your clipboard, with visual confirmation
+
+**📤 Share or export an answer**
+- A "…" menu sits next to the Copy button at the bottom of every answer
+- **Share** hands the raw text to your device's share sheet (Messages, Mail, Notes…) — offered only where the browser actually provides one; dismissing the sheet is not an error
+- **Download as Markdown** works everywhere: a dated `.md` file (`lia-YYYY-MM-DD-HH-mm.md`), accents preserved
 
 **🎨 Syntax highlighting on code**
 - Code blocks ```python, ```typescript, ```json, ```bash, ```sql... are auto-colored (25 languages)

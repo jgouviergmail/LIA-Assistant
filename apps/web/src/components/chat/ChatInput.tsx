@@ -3,6 +3,7 @@ import {
   useRef,
   useCallback,
   useEffect,
+  ClipboardEvent,
   KeyboardEvent,
   FormEvent,
   DragEvent,
@@ -10,14 +11,20 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { Send, Mic, Paperclip, Square } from 'lucide-react';
+import { Send, Mic, Paperclip, Square, ImageUp } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoiceModeStore } from '@/stores/voiceModeStore';
 import { useFileUpload } from '@/hooks/useFileUpload';
-import { CHAT_INPUT_MAX_LENGTH, VOICE_PTT_TOUCH_PADDING_PX } from '@/lib/constants';
+import {
+  CHAT_INPUT_MAX_HEIGHT_PX,
+  CHAT_INPUT_MAX_LENGTH,
+  SEND_TAKEOFF_RELEASE_MS,
+  VOICE_PTT_TOUCH_PADDING_PX,
+} from '@/lib/constants';
+import { prefersReducedMotion } from '@/lib/utils/motion';
 import AttachmentPreview from '@/components/chat/AttachmentPreview';
 import { SlashCommandMenu, useSlashMenu } from '@/components/chat/SlashCommandMenu';
 import type { SlashCommand } from '@/lib/slash-commands';
@@ -103,6 +110,83 @@ function initialDraft(initialMessage: string | undefined): string {
 
 /** Stable empty history (a per-render `?? []` would defeat memoization). */
 const EMPTY_SENT_HISTORY: readonly string[] = [];
+
+/**
+ * The composer accepts what the upload pipeline accepts: images and PDFs.
+ * Single filter for the two OS entry points (drop and clipboard paste).
+ */
+function acceptedFiles(list: ArrayLike<File>): File[] {
+  return Array.from(list).filter(
+    file => file.type.startsWith('image/') || file.type === 'application/pdf'
+  );
+}
+
+/**
+ * Pure (CC discipline): could a press START push-to-talk right now? Mirrors
+ * the `handlePressStart` guard — the button must LOOK like what a press
+ * would DO (UX P2), so offering and starting share one predicate shape.
+ */
+function isPttOffered(args: {
+  hasMessage: boolean;
+  isProcessing: boolean;
+  voiceSupported: boolean;
+  voiceModeEnabled: boolean;
+  disabled: boolean;
+  apiAvailable: boolean;
+}): boolean {
+  return (
+    !args.hasMessage &&
+    !args.isProcessing &&
+    args.voiceSupported &&
+    !args.voiceModeEnabled &&
+    !args.disabled &&
+    args.apiAvailable
+  );
+}
+
+/**
+ * Pure (CC discipline): the single state-true label of the send/PTT button —
+ * used for BOTH the aria-label and the visible desktop text, so the two can
+ * never diverge again (the pre-P2 bug was exactly that divergence).
+ */
+function composerButtonLabel(
+  t: (key: string) => string,
+  args: { isRecording: boolean; isProcessing: boolean; showSendMode: boolean }
+): string {
+  if (args.isRecording) return t('chat.voice.recording');
+  if (args.isProcessing) return t('chat.voice.processing');
+  return t(args.showSendMode ? 'chat.input.send' : 'chat.voice.hold_to_speak');
+}
+
+/**
+ * Icon truth of the send/PTT button (UX P2), extracted from the render
+ * hotspot (CC discipline): mic whenever the press would talk, send whenever
+ * the press would send — `animating` keeps the send icon mounted through its
+ * takeoff.
+ */
+function ComposerButtonIcon({
+  showMic,
+  dimmed,
+  animating,
+  onTakeoffEnd,
+}: {
+  showMic: boolean;
+  dimmed: boolean;
+  animating: boolean;
+  onTakeoffEnd: () => void;
+}) {
+  if (showMic) return <Mic className="h-4 w-4" />;
+  return (
+    <Send
+      onAnimationEnd={onTakeoffEnd}
+      className={cn(
+        'h-4 w-4 transition-opacity',
+        dimmed && 'opacity-30',
+        animating && 'animate-send-takeoff'
+      )}
+    />
+  );
+}
 
 /**
  * Controlled prefill (UXR Lot 4, A2) — module-level hook so every branch
@@ -234,7 +318,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // (Sherpa) transcriptions.
   const [pendingSttMeta, setPendingSttMeta] = useState<SendSttMeta | null>(null);
   // One-shot takeoff animation on the send icon (micro-interactions batch I3).
+  // While true, the send icon stays mounted even though the emptied input
+  // would otherwise swap it for the mic (UX P2).
   const [justSent, setJustSent] = useState(false);
+
+  // Fallback release of the takeoff state: `onAnimationEnd` is the nominal
+  // path, but if the keyframe never runs (hidden tab, motion preference
+  // flipped mid-flight) the send icon must not stay stuck in mic territory.
+  useEffect(() => {
+    if (!justSent) return;
+    const timer = window.setTimeout(() => setJustSent(false), SEND_TAKEOFF_RELEASE_MS);
+    return () => window.clearTimeout(timer);
+  }, [justSent]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     attachments,
@@ -249,12 +344,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // Check if voice mode (active listening) is enabled - disable push-to-talk when active
   const voiceModeEnabled = useVoiceModeStore(s => s.isEnabled);
 
-  // Auto-resize the textarea
+  // Auto-resize the textarea. The vertical scrollbar exists only once the
+  // height cap freezes growth (UX P2) — below it, the box grows and any
+  // transient overflow (fractional DPI rounding, pre-resize keystroke) must
+  // not flash a scrollbar.
   const handleInput = useCallback(() => {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+      textarea.style.height = `${Math.min(textarea.scrollHeight, CHAT_INPUT_MAX_HEIGHT_PX)}px`;
+      textarea.style.overflowY =
+        textarea.scrollHeight > CHAT_INPUT_MAX_HEIGHT_PX ? 'auto' : 'hidden';
     }
   }, []);
 
@@ -399,7 +499,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         readyMeta,
         pendingSttMeta ?? undefined
       );
-      setJustSent(true);
+      // Under reduced motion the takeoff keyframe is dead (`animation: none`),
+      // so `onAnimationEnd` would never fire and the send icon would stay
+      // stuck in place of the mic — never arm it there.
+      if (!prefersReducedMotion()) setJustSent(true);
       setMessage('');
       setPendingSttMeta(null);
       onMessageChange?.('');
@@ -407,12 +510,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       // Reset textarea height and remove focus (reset iOS zoom)
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
+        textareaRef.current.style.overflowY = 'hidden';
         textareaRef.current.blur();
       }
     }
   };
 
-  // Shared upload handler with error toasts
+  // Shared upload handler with error toasts. The size/count rejections carry
+  // the limit that actually applied (image and document caps differ), so the
+  // toast never claims a wrong number.
   const processFiles = useCallback(
     async (files: File[]) => {
       for (const file of files) {
@@ -420,13 +526,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         if (result && 'error' in result) {
           switch (result.error) {
             case 'file_too_large':
-              toast.error(t('chat.attachments.file_too_large', { max: 10 }));
+              toast.error(t('chat.attachments.file_too_large', { max: result.maxMB }));
               break;
             case 'type_not_allowed':
               toast.error(t('chat.attachments.type_not_allowed'));
               break;
             case 'max_attachments':
-              toast.error(t('chat.attachments.max_attachments', { max: 5 }));
+              toast.error(t('chat.attachments.max_attachments', { max: result.max }));
               break;
             case 'upload_failed':
               toast.error(t('chat.attachments.upload_error'));
@@ -436,6 +542,23 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       }
     },
     [uploadFile, t]
+  );
+
+  // UX P1: a screenshot (or copied file) in the clipboard goes through the
+  // exact same pipeline as picking or dropping it. preventDefault ONLY when
+  // the clipboard carries no text: a mixed paste keeps its native text
+  // insertion while the files upload alongside.
+  const handlePaste = useCallback(
+    (e: ClipboardEvent<HTMLTextAreaElement>) => {
+      if (!attachmentsEnabled || disabled || !apiAvailable) return;
+      const files = acceptedFiles(e.clipboardData?.files ?? []);
+      if (files.length === 0) return;
+      if (e.clipboardData.getData('text/plain').length === 0) {
+        e.preventDefault();
+      }
+      void processFiles(files);
+    },
+    [attachmentsEnabled, disabled, apiAvailable, processFiles]
   );
 
   // File selection handler (input[type=file])
@@ -484,9 +607,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       dragCounterRef.current = 0;
       if (!attachmentsEnabled || disabled || !apiAvailable) return;
 
-      const files = Array.from(e.dataTransfer.files).filter(
-        f => f.type.startsWith('image/') || f.type === 'application/pdf'
-      );
+      const files = acceptedFiles(e.dataTransfer.files);
       if (files.length > 0) {
         await processFiles(files);
       }
@@ -580,11 +701,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     [isRecording, handlePressEnd]
   );
 
-  // Determine button state and appearance
+  // Determine button state and appearance (UX P2 — the button is visually
+  // TRUE). Push-to-talk is offered only when a press could actually start it;
+  // in every other situation the button is a send button — disabled while
+  // there is nothing to send, never a false invitation to speak.
   const hasMessage = message.trim().length > 0;
   const isButtonDisabled = disabled || !apiAvailable || isProcessing;
-  // Show send mode (not push-to-talk) when: has message, processing, or voice mode active
-  const showSendMode = hasMessage || isProcessing || voiceModeEnabled;
+  const showSendMode = !isPttOffered({
+    hasMessage,
+    isProcessing,
+    voiceSupported,
+    voiceModeEnabled,
+    disabled,
+    apiAvailable,
+  });
+  const buttonLabel = composerButtonLabel(t, { isRecording, isProcessing, showSendMode });
 
   return (
     // role="presentation": drag-and-drop is a pointer-only convenience — the
@@ -602,6 +733,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
+      {/* Drop overlay (UX P13): a visible landing zone instead of a bare
+          ring. Non-interactive by construction (pointer-events-none, so it
+          never steals dragleave/drop from the container) and aria-hidden —
+          the labelled paperclip stays the universal path to attachments. */}
+      {isDragOver && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-primary/5"
+        >
+          <div className="flex items-center gap-2 rounded-lg border-2 border-dashed border-primary/60 bg-background/95 px-4 py-3 text-sm font-medium text-foreground shadow-lg">
+            <ImageUp className="h-5 w-5 text-primary" aria-hidden="true" />
+            {t('chat.attachments.drop_here')}
+          </div>
+        </div>
+      )}
       <div className="max-w-4xl mx-auto">
         {/* Attachment preview strip */}
         {attachmentsEnabled && (
@@ -651,6 +797,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 handleInput();
               }}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               maxLength={CHAT_INPUT_MAX_LENGTH}
               placeholder={getPlaceholder()}
               aria-label={getPlaceholder()}
@@ -664,10 +811,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               // below it — the wrapper grew to 54 px while every control
               // stayed 48 px, and the field sat 6 px above the paperclip and
               // the send button (measured). Nothing else aligned them.
-              className="block w-full resize-none rounded-lg border border-input bg-background px-4 py-3 text-base mobile:text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-transparent mobile:placeholder:text-muted-foreground"
+              className="block w-full resize-none overflow-y-hidden rounded-lg border border-input bg-background px-4 py-3 text-base mobile:text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-transparent mobile:placeholder:text-muted-foreground"
               rows={1}
               disabled={disabled || !apiAvailable}
-              style={{ minHeight: '48px', maxHeight: '200px' }}
+              style={{ minHeight: '48px', maxHeight: `${CHAT_INPUT_MAX_HEIGHT_PX}px` }}
               autoCapitalize="sentences"
               autoCorrect="on"
               spellCheck
@@ -711,40 +858,20 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 onTouchCancel={handlePressEnd}
                 onTouchMove={isRecording ? handleTouchMove : undefined}
                 onContextMenu={e => e.preventDefault()}
-                aria-label={
-                  isRecording
-                    ? t('chat.voice.recording')
-                    : isProcessing
-                      ? t('chat.voice.processing')
-                      : showSendMode
-                        ? t('chat.input.send')
-                        : t('chat.voice.hold_to_speak')
-                }
+                aria-label={buttonLabel}
               >
                 <span className="relative inline-flex items-center justify-center">
-                  {isRecording ? (
-                    <Mic className="h-4 w-4" />
-                  ) : (
-                    <Send
-                      onAnimationEnd={() => setJustSent(false)}
-                      className={cn(
-                        'h-4 w-4 transition-opacity',
-                        (disabled || isProcessing) && 'opacity-30',
-                        justSent && 'animate-send-takeoff'
-                      )}
-                    />
-                  )}
+                  <ComposerButtonIcon
+                    showMic={isRecording || !(showSendMode || justSent)}
+                    dimmed={disabled || isProcessing}
+                    animating={justSent}
+                    onTakeoffEnd={() => setJustSent(false)}
+                  />
                   {(disabled || isProcessing) && !isRecording && (
                     <LoadingSpinner className="absolute inset-0 m-auto text-primary-foreground" />
                   )}
                 </span>
-                <span className="hidden sm:inline">
-                  {isRecording
-                    ? t('chat.voice.recording')
-                    : isProcessing
-                      ? t('chat.voice.processing')
-                      : t('chat.input.send')}
-                </span>
+                <span className="hidden sm:inline">{buttonLabel}</span>
               </Button>
             </>
           )}
