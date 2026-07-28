@@ -21,15 +21,16 @@
  *   Reconciles with 446 at v1.25.29: -2 (hybrid memory search removed, ADR-168),
  *   +1 prompt_injection_patterns_total, +2 ReAct loop-guard counters (ADR-170).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Measured 2026-07-28 (v1.25.30): backend pytest 16,535 collected (873 files)
- *   + frontend vitest 3,491 (296 files) = 20,026. Re-measure both suites every
+ *   Backend re-measured at v1.25.30 (pytest 16,535 collected, 873 files);
+ *   frontend re-measured at v1.25.31 (vitest 3,540, 300 files) = 20,075. The
+ *   frontend-only release still requires re-measuring both. Re-measure every
  *   release: the value carried the backend count alone until v1.25.9, while its
  *   comment already claimed both.
- * - adrs: docs/architecture/ ADR files (169 files, numbered up to ADR-170 —
- *   ADR-008 has no separate file, so 170 numbers map to 169 files).
+ * - adrs: docs/architecture/ ADR files (170 files, numbered up to ADR-171 —
+ *   ADR-008 has no separate file, so 171 numbers map to 170 files).
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   178 headings, no Unreleased pending.
+ *   179 headings, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -46,8 +47,8 @@ export const LANDING_STATS = {
   metrics: 447,
   uiLanguages: 6,
   tests: 20000,
-  adrs: 169,
-  releases: 178,
+  adrs: 170,
+  releases: 179,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

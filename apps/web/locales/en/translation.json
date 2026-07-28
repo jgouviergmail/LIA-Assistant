@@ -143,7 +143,7 @@
     },
     "actions": {
       "open_chat": "Open Chat",
-      "connect": "Connect",
+      "services": "Services",
       "settings": "Settings",
       "view_details": "View details",
       "toggle_avatar": "Switch LIA's avatar"
@@ -3426,6 +3426,21 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_31": {
+          "title": "v1.25.31 — 📌 Headers finally stay in place",
+          "date": "July 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>📌 The top bar no longer scrolls away</b> — the header of the dashboard and of the legal pages was meant to stay pinned while you scroll. It never did: it drifted off with the page, on every screen, since the very beginning. It now stays where it belongs, so navigation is one click away wherever you are on a page.",
+            "i2": "<b>🧭 Settings tabs stay with you</b> — the settings page stacks about thirty sections. Once a few screens down, nothing told you which tab you were in, and switching meant scrolling all the way back up. The tabs now follow you down the page.",
+            "i3": "<b>🍔 The logo menu no longer makes the header vanish</b> — on a phone, opening the menu from the middle of a page pushed the top bar off-screen, and you had to scroll back to the very top before it would work again.",
+            "i4": "<b>📱 Denser settings on a phone</b> — sections give back some padding on small screens only, so you scroll noticeably less. Nothing is hidden or shortened: every description stays whole, and the desktop layout is untouched.",
+            "i5": "<b>⚡ Help and Settings in one compact bar</b> — the two large cards above your briefing became a single bar, freeing roughly 85 px on a phone for the content that matters. Both destinations keep their label and their description, and they are real links now: middle-click or open them in a new tab.",
+            "i6": "<b>👍 Feedback in the same place on every message</b> — the thumbs of proactive notifications and of interest notifications sat inside the bubble, under a full sentence. They now sit next to the copy button, exactly like on an ordinary answer. Once you have voted, your choice stays visible instead of disappearing — shown as chosen, and locked, because that verdict is final.",
+            "i7": "<b>♿ Settings read correctly to a screen reader</b> — each section announced its title twice, and the group headings were not headings at all. The page structure is now what it looks like, which makes it navigable by headings.",
+            "i8": "<b>📖 A section of the technical guide is reachable again</b> — the “Psyche Engine” chapter was missing from the guide's table of contents, in all six languages, since the day it was written."
+          }
+        },
         "v1_25_30": {
           "title": "v1.25.30 — 🛡️ An email can no longer give LIA orders",
           "date": "July 2026",
@@ -5474,7 +5489,7 @@
           },
           "q5": {
             "question": "How do I give feedback on a notification?",
-            "answer": "Your feedback helps LIA improve:<br><br><strong>👍👎 Feedback buttons:</strong><br>• Each notification displays <strong>thumbs up / thumbs down</strong> buttons<br>• Your feedback is recorded to improve future decisions<br>• Once you have voted, the buttons disappear for that notification — on every device, and after a reload<br><br><strong>📜 History:</strong><br>• View your recent proactive notifications in the dedicated section<br>• Each entry shows the sources used and priority level<br><br><strong>⚙️ Adjustment:</strong><br>• If you receive too many notifications, reduce the daily maximum<br>• If notifications aren't relevant, disable unwanted sources (disconnect the corresponding connector)"
+            "answer": "Your feedback helps LIA improve:<br><br><strong>👍👎 Feedback buttons:</strong><br>• Each notification displays <strong>thumbs up / thumbs down</strong> buttons<br>• Your feedback is recorded to improve future decisions<br>• The buttons sit next to the copy button, just like on an ordinary answer<br>• Once you have voted, your choice stays on screen — shown as chosen and locked, because that verdict is final; it follows you on every device and after a reload<br><br><strong>📜 History:</strong><br>• View your recent proactive notifications in the dedicated section<br>• Each entry shows the sources used and priority level<br><br><strong>⚙️ Adjustment:</strong><br>• If you receive too many notifications, reduce the daily maximum<br>• If notifications aren't relevant, disable unwanted sources (disconnect the corresponding connector)"
           },
           "q6": {
             "question": "Are proactive notifications affected by usage limits?",
@@ -6419,8 +6434,7 @@
       "dislike": "Not useful",
       "liked": "Thanks for your feedback!",
       "disliked": "Noted, I'll adjust.",
-      "error": "Error sending feedback",
-      "helpful": "Was this notification useful?"
+      "error": "Error sending feedback"
     }
   },
   "notifications": {

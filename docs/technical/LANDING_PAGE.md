@@ -202,7 +202,9 @@ puis-je demander ? » (~10 k chars) est regroupee **visuellement** en sous-accor
   en silence**, pas de scrollbar). Regle : `min-w-0` sur les items des grilles 2-colonnes (hero, `ChapterSection`),
   `min-w-0` sur tout element `truncate` en contexte flex (input du mockup, pilules requete, chips backstage/vignettes),
   `flex-wrap` sur les rangees a effectif variable (badges hero, points des carrousels). Garde executable : le spec
-  overflow du §5.
+  overflow du §5. **La meme classe a mordu hors landing en v1.25.31** : les onglets des reglages, en grille de
+  colonnes egales, poussaient leur libelle hors de leur propre bouton faute de `min-w-0` — coupe au bord de
+  l'ecran, invisible. La regle vaut donc pour toute grille a colonnes egales, pas seulement pour la landing.
 - Chapitres : colonne unique mobile (texte puis visuel), 2 colonnes des `lg:` ; frise DayTimeline verticale mobile
   (ligne + puces), horizontale des `md:` ; rail chapitres `xl:` uniquement ; onglets wrap.
 - Theming : classes semantiques OKLCH du design system, variantes `dark:` ponctuelles (bulles, vignettes).

@@ -1,7 +1,17 @@
 'use client';
 
 /**
- * ProactiveFeedbackButtons — 👍/👎/🚫 under a proactive notification bubble.
+ * ProactiveFeedbackButtons — 👍/👎/🚫 for a proactive notification.
+ *
+ * Rendered as in-flow chips of the bubble's action row, right after the copy
+ * chip — the same place, and the same shape, as the thumbs on an ordinary
+ * assistant answer (`ResponseFeedbackButtons`). They used to sit INSIDE the
+ * bubble under the text, introduced by a full sentence ("Was this useful?"),
+ * which made the same gesture look like two different features depending on
+ * which kind of message you were reading. The row already says what it is.
+ *
+ * The two sets never appear together: `responseFeedbackProps` returns null for
+ * proactive bubbles.
  *
  * Extracted from `ChatMessage` (render hotspot under a shrink-only complexity
  * ratchet) and generalised to both kinds of proactive push:
@@ -15,9 +25,13 @@
  *   component ever rendered them — 914 production notifications with no way to
  *   answer them (measured 2026-07-27).
  *
- * The verdict is one-way in the UI: the parent unmounts the row on
- * `onFeedbackSubmitted`, and the server hides it across reloads by marking the
- * archived message metadata (`mark_proactive_feedback_submitted`).
+ * Once a verdict is given the chips STAY, with the chosen one pressed and all
+ * of them disabled — the same read as a voted assistant answer. Disabled and
+ * not merely unchanged: a proactive verdict is final server-side (a "block"
+ * really blocks the subject), so an enabled chip would promise a reversibility
+ * the product does not offer. The state survives reloads and devices because
+ * the backend persists it as `feedback_value`
+ * (`mark_proactive_feedback_submitted`).
  */
 
 import { useCallback, useState } from 'react';
@@ -25,7 +39,6 @@ import { Ban, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
-import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useApiMutation } from '@/hooks/useApiMutation';
 
@@ -39,8 +52,10 @@ export interface ProactiveFeedbackButtonsProps {
   targetId: string;
   /** Notification run id, when the card carries one (interest only). */
   runId?: string;
-  /** Called once, optimistically, as soon as a verdict is chosen. */
-  onFeedbackSubmitted: () => void;
+  /** Called once, optimistically, with the verdict the user chose. */
+  onFeedbackSubmitted: (verdict: ProactiveFeedbackVerdict) => void;
+  /** Verdict already recorded — chips then show it pressed and disabled. */
+  submittedVerdict?: ProactiveFeedbackVerdict;
 }
 
 interface KindContract {
@@ -50,9 +65,6 @@ interface KindContract {
   method: 'POST' | 'PATCH';
   /** i18n namespace holding `like` / `dislike` / `block` / `error` + toasts. */
   ns: string;
-  /** Label introducing the row — kept per kind so a heartbeat card never
-   *  borrows a string from the interests namespace. */
-  promptKey: string;
 }
 
 const CONTRACTS: Record<ProactiveFeedbackKind, KindContract> = {
@@ -61,14 +73,12 @@ const CONTRACTS: Record<ProactiveFeedbackKind, KindContract> = {
     path: id => `/interests/${id}/feedback`,
     method: 'POST',
     ns: 'interests.feedback',
-    promptKey: 'interests.notification.helpful',
   },
   heartbeat: {
     verdicts: ['thumbs_up', 'thumbs_down'],
     path: id => `/heartbeat/notifications/${id}/feedback`,
     method: 'PATCH',
     ns: 'heartbeat.feedback',
-    promptKey: 'heartbeat.feedback.helpful',
   },
 };
 
@@ -82,6 +92,7 @@ const VERDICT_UI = {
     toastKey: 'liked',
     toastKind: 'success',
     className: 'hover:bg-green-100 hover:text-green-600 dark:hover:bg-green-900/30',
+    activeClassName: 'text-green-600 dark:text-green-400',
   },
   thumbs_down: {
     Icon: ThumbsDown,
@@ -89,6 +100,7 @@ const VERDICT_UI = {
     toastKey: 'disliked',
     toastKind: 'info',
     className: 'hover:bg-orange-100 hover:text-orange-600 dark:hover:bg-orange-900/30',
+    activeClassName: 'text-orange-600 dark:text-orange-400',
   },
   block: {
     Icon: Ban,
@@ -96,6 +108,7 @@ const VERDICT_UI = {
     toastKey: 'blocked',
     toastKind: 'info',
     className: 'hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30',
+    activeClassName: 'text-red-600 dark:text-red-400',
   },
 } as const;
 
@@ -104,6 +117,7 @@ export function ProactiveFeedbackButtons({
   targetId,
   runId,
   onFeedbackSubmitted,
+  submittedVerdict,
 }: ProactiveFeedbackButtonsProps) {
   const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -117,13 +131,13 @@ export function ProactiveFeedbackButtons({
 
   const handleFeedback = useCallback(
     async (verdict: ProactiveFeedbackVerdict) => {
-      if (isSubmitting) return;
+      if (isSubmitting || submittedVerdict) return;
       setIsSubmitting(true);
 
-      // Optimistic: the parent drops this row immediately, so a failed request
-      // surfaces its own error toast but never brings the buttons back;
-      // `isSubmitting` only guards the double click before that unmount.
-      onFeedbackSubmitted();
+      // Optimistic: the parent locks the row on this verdict immediately, so a
+      // failed request surfaces its own error toast without reopening the vote;
+      // `isSubmitting` only guards the double click before that lock lands.
+      onFeedbackSubmitted(verdict);
       const { toastKey, toastKind } = VERDICT_UI[verdict];
       toast[toastKind](t(`${contract.ns}.${toastKey}`));
 
@@ -136,35 +150,40 @@ export function ProactiveFeedbackButtons({
         // Handled by onError.
       }
     },
-    [isSubmitting, onFeedbackSubmitted, t, contract, mutate, targetId, kind, runId]
+    [isSubmitting, submittedVerdict, onFeedbackSubmitted, t, contract, mutate, targetId, kind, runId]
   );
 
+  // Fragment, not a container: the chips are in-flow siblings of the copy chip,
+  // and the action row owns the spacing — exactly like ResponseFeedbackButtons.
+  // The tooltips stay: "block" is the one verdict whose icon does not say what
+  // it does, and it is irreversible for the user's interests.
   return (
-    <div className="flex items-center gap-1 mt-2">
-      <span className="text-xs text-muted-foreground mr-2">
-        {t(contract.promptKey)}
-      </span>
+    <>
       {contract.verdicts.map(verdict => {
-        const { Icon, labelKey, className } = VERDICT_UI[verdict];
+        const { Icon, labelKey, className, activeClassName } = VERDICT_UI[verdict];
         const label = t(`${contract.ns}.${labelKey}`);
+        const decided = submittedVerdict !== undefined;
+        const chosen = submittedVerdict === verdict;
         return (
           <Tooltip key={verdict}>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`h-7 w-7 ${className}`}
+              <button
+                type="button"
                 onClick={() => handleFeedback(verdict)}
-                disabled={isSubmitting}
+                disabled={isSubmitting || decided}
                 aria-label={label}
+                aria-pressed={decided ? chosen : undefined}
+                className={`rounded-md border border-border/30 bg-background/80 p-1.5 transition-colors ${
+                  chosen ? activeClassName : 'text-muted-foreground'
+                } ${decided ? 'disabled:opacity-100' : `hover:bg-background ${className}`}`}
               >
-                <Icon className="h-4 w-4" aria-hidden />
-              </Button>
+                <Icon className="h-3.5 w-3.5" aria-hidden />
+              </button>
             </TooltipTrigger>
             <TooltipContent>{label}</TooltipContent>
           </Tooltip>
         );
       })}
-    </div>
+    </>
   );
 }

@@ -135,7 +135,7 @@
     },
     "actions": {
       "open_chat": "Chat öffnen",
-      "connect": "Verbinden",
+      "services": "Dienste",
       "settings": "Einstellungen",
       "view_details": "Details anzeigen",
       "toggle_avatar": "LIA-Avatar wechseln"
@@ -3417,6 +3417,21 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_25_31": {
+          "title": "v1.25.31 — 📌 Kopfzeilen bleiben endlich stehen",
+          "date": "Juli 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>📌 Die obere Leiste scrollt nicht mehr weg</b> — die Kopfzeile des Dashboards und der Rechtsseiten sollte beim Scrollen stehen bleiben. Sie tat es nie: Sie wanderte mit der Seite davon, auf jedem Bildschirm, von Anfang an. Jetzt bleibt sie, wo sie hingehört, und die Navigation ist überall auf einer Seite einen Klick entfernt.",
+            "i2": "<b>🧭 Die Einstellungs-Tabs bleiben bei Ihnen</b> — die Einstellungsseite stapelt rund dreißig Abschnitte. Nach einigen Bildschirmen war nicht mehr erkennbar, in welchem Tab Sie sich befanden, und ein Wechsel hieß, ganz nach oben zurückzuscrollen. Die Tabs wandern jetzt mit.",
+            "i3": "<b>🍔 Das Logo-Menü lässt die Kopfzeile nicht mehr verschwinden</b> — auf dem Telefon schob das Öffnen aus der Seitenmitte die obere Leiste aus dem Bild, und erst ganz oben funktionierte sie wieder.",
+            "i4": "<b>📱 Kompaktere Einstellungen auf dem Telefon</b> — die Abschnitte geben nur auf kleinen Bildschirmen etwas Innenabstand zurück, Sie scrollen spürbar weniger. Nichts wird versteckt oder gekürzt: Alle Beschreibungen bleiben vollständig, und die Darstellung am großen Bildschirm bleibt unverändert.",
+            "i5": "<b>⚡ Hilfe und Einstellungen in einer kompakten Leiste</b> — aus den zwei großen Karten über Ihrem Briefing wurde eine einzige Leiste, die auf dem Telefon rund 85 px an den Inhalt zurückgibt. Beide Ziele behalten Bezeichnung und Beschreibung und sind jetzt echte Links: mittlere Maustaste oder in neuem Tab öffnen.",
+            "i6": "<b>👍 Bewertungen überall an derselben Stelle</b> — die Daumen proaktiver Benachrichtigungen und der Interessens-Benachrichtigungen saßen in der Blase, unter einem ganzen Satz. Sie stehen jetzt neben der Kopieren-Schaltfläche, genau wie bei einer gewöhnlichen Antwort. Nach Ihrer Bewertung bleibt Ihre Wahl sichtbar, statt zu verschwinden — als gewählt angezeigt und gesperrt, denn dieses Urteil ist endgültig.",
+            "i7": "<b>♿ Die Einstellungen werden vom Screenreader korrekt vorgelesen</b> — jeder Abschnitt nannte seinen Titel zweimal, und die Gruppenbezeichnungen waren gar keine Überschriften. Die Seitenstruktur entspricht endlich dem, was sie zeigt, und ist damit über Überschriften navigierbar.",
+            "i8": "<b>📖 Ein Abschnitt des technischen Leitfadens ist wieder erreichbar</b> — das Kapitel „Psyche Engine“ fehlte im Inhaltsverzeichnis des Leitfadens, in allen sechs Sprachen, seit dem Tag seiner Entstehung."
+          }
+        },
         "v1_25_30": {
           "title": "v1.25.30 — 🛡️ Eine E-Mail kann LIA keine Befehle mehr erteilen",
           "date": "Juli 2026",
@@ -5465,7 +5480,7 @@
           },
           "q5": {
             "question": "Wie gebe ich Feedback zu einer Benachrichtigung?",
-            "answer": "Ihr Feedback hilft LIA, sich zu verbessern:<br><br><strong>👍👎 Feedback-Buttons:</strong><br>• Jede Benachrichtigung zeigt <strong>Daumen hoch / Daumen runter</strong> Buttons<br>• Ihr Feedback wird aufgezeichnet, um zukünftige Entscheidungen zu verbessern<br>• Nach Ihrer Bewertung verschwinden die Schaltflächen für diese Benachrichtigung — auf allen Geräten und nach einem Neuladen<br><br><strong>📜 Verlauf:</strong><br>• Sehen Sie Ihre letzten proaktiven Benachrichtigungen im dedizierten Bereich<br>• Jeder Eintrag zeigt die verwendeten Quellen und die Prioritätsstufe<br><br><strong>⚙️ Anpassung:</strong><br>• Wenn Sie zu viele Benachrichtigungen erhalten, reduzieren Sie das Tagesmaximum<br>• Wenn Benachrichtigungen nicht relevant sind, deaktivieren Sie unerwünschte Quellen (entsprechenden Connector trennen)"
+            "answer": "Ihr Feedback hilft LIA, sich zu verbessern:<br><br><strong>👍👎 Feedback-Buttons:</strong><br>• Jede Benachrichtigung zeigt <strong>Daumen hoch / Daumen runter</strong> Buttons<br>• Ihr Feedback wird aufgezeichnet, um zukünftige Entscheidungen zu verbessern<br>• Die Schaltflächen stehen neben der Kopieren-Schaltfläche, genau wie bei einer gewöhnlichen Antwort<br>• Nach Ihrer Bewertung bleibt Ihre Wahl sichtbar — als gewählt markiert und gesperrt, denn dieses Urteil ist endgültig; sie folgt Ihnen auf allen Geräten und nach einem Neuladen<br><br><strong>📜 Verlauf:</strong><br>• Sehen Sie Ihre letzten proaktiven Benachrichtigungen im dedizierten Bereich<br>• Jeder Eintrag zeigt die verwendeten Quellen und die Prioritätsstufe<br><br><strong>⚙️ Anpassung:</strong><br>• Wenn Sie zu viele Benachrichtigungen erhalten, reduzieren Sie das Tagesmaximum<br>• Wenn Benachrichtigungen nicht relevant sind, deaktivieren Sie unerwünschte Quellen (entsprechenden Connector trennen)"
           },
           "q6": {
             "question": "Sind proaktive Benachrichtigungen von Nutzungslimits betroffen?",
@@ -6606,8 +6621,7 @@
       "dislike": "Wenig nützlich",
       "liked": "Danke für Ihr Feedback!",
       "disliked": "Notiert, ich passe mich an.",
-      "error": "Fehler beim Senden des Feedbacks",
-      "helpful": "War diese Benachrichtigung nützlich?"
+      "error": "Fehler beim Senden des Feedbacks"
     }
   },
   "notifications": {

@@ -1,5 +1,6 @@
 /**
- * SettingsGroupLabel — the label text and optional leading icon.
+ * SettingsGroupLabel — the label text, the optional leading icon, and the
+ * heading level that makes the settings page navigable by structure.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -19,5 +20,22 @@ describe('SettingsGroupLabel', () => {
       <SettingsGroupLabel label="Preferences" icon={Star} />
     );
     expect(container.querySelector('svg')).not.toBeNull();
+  });
+
+  it('is a level-2 heading — the page goes h1 (title) → h2 (group) → h3 (section)', () => {
+    renderWithProviders(<SettingsGroupLabel label="Preferences" />);
+    expect(screen.getByRole('heading', { level: 2, name: 'Preferences' })).toBeInTheDocument();
+  });
+
+  it('hides its decorations from assistive technology', () => {
+    const { container } = renderWithProviders(
+      <SettingsGroupLabel label="Preferences" icon={Star} />
+    );
+    // Neither the icon nor the divider rule carries information the label lacks.
+    expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByRole('heading', { level: 2 }).nextElementSibling).toHaveAttribute(
+      'aria-hidden',
+      'true'
+    );
   });
 });

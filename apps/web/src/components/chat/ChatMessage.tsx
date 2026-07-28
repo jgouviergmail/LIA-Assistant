@@ -20,6 +20,7 @@ import { isInterestNotificationMetadata } from './InterestNotificationCard';
 import {
   ProactiveFeedbackButtons,
   type ProactiveFeedbackKind,
+  type ProactiveFeedbackVerdict,
 } from './ProactiveFeedbackButtons';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
@@ -78,6 +79,16 @@ export function isFreshProactive(
   return Math.abs(nowMs - timestampMs) < windowMs;
 }
 
+/** A verdict the backend already recorded for this notification, if any. */
+function recordedVerdict(
+  metadata: Record<string, unknown> | undefined
+): ProactiveFeedbackVerdict | undefined {
+  const value = metadata?.feedback_value;
+  return value === 'thumbs_up' || value === 'thumbs_down' || value === 'block'
+    ? value
+    : undefined;
+}
+
 /**
  * Which proactive feedback row a bubble deserves, or null.
  *
@@ -85,12 +96,26 @@ export function isFreshProactive(
  * backend contracts (interest vs heartbeat) is unit-testable. Heartbeat
  * notifications used to fall through here with no buttons at all despite
  * carrying `feedback_enabled: true`.
+ *
+ * A verdict already given does NOT remove the row any more: it comes back as
+ * `submittedVerdict`, so the chosen thumb stays visible and pressed — the same
+ * read as on an ordinary assistant answer. Disabled, though: unlike a response
+ * verdict, a proactive one is final server-side (a "block" really blocks the
+ * subject), so an enabled-looking chip would promise a reversibility the
+ * product does not offer. The backend persists it as `feedback_value`, so the
+ * state survives reloads and devices.
  */
 export function proactiveFeedbackProps(
   metadata: Record<string, unknown> | undefined,
-  alreadySubmitted: boolean
-): { kind: ProactiveFeedbackKind; targetId: string; runId?: string } | null {
-  if (alreadySubmitted || !metadata || !metadata.feedback_enabled) return null;
+  /** Verdict chosen during THIS session, before the metadata catches up. */
+  justSubmitted?: ProactiveFeedbackVerdict
+): {
+  kind: ProactiveFeedbackKind;
+  targetId: string;
+  runId?: string;
+  submittedVerdict?: ProactiveFeedbackVerdict;
+} | null {
+  if (!metadata || !metadata.feedback_enabled) return null;
   const targetId = metadata.target_id;
   if (typeof targetId !== 'string' || targetId.length === 0) return null;
 
@@ -103,7 +128,9 @@ export function proactiveFeedbackProps(
   if (kind === null) return null;
 
   const runId = typeof metadata.run_id === 'string' ? metadata.run_id : undefined;
-  return { kind, targetId, runId };
+  // The live choice wins over the persisted one: the metadata this render sees
+  // is still the pre-vote payload right after a click.
+  return { kind, targetId, runId, submittedVerdict: justSubmitted ?? recordedVerdict(metadata) };
 }
 
 /**
@@ -179,6 +206,7 @@ function AssistantActionRow({
   copied,
   onCopy,
   feedbackProps,
+  proactiveFeedback,
   trace,
   message,
   onRetry,
@@ -186,6 +214,9 @@ function AssistantActionRow({
   copied: boolean;
   onCopy: () => void;
   feedbackProps: ResponseFeedbackButtonsProps | null;
+  /** Proactive notification verdicts — mutually exclusive with `feedbackProps`
+   *  (`responseFeedbackProps` returns null for proactive bubbles). */
+  proactiveFeedback: React.ReactNode;
   trace?: ExecutionTrace;
   /** The bubble being decorated — read for its pinned retry prompt. */
   message: Message;
@@ -227,6 +258,7 @@ function AssistantActionRow({
         </button>
       )}
       {feedbackProps && <ResponseFeedbackButtons {...feedbackProps} />}
+      {proactiveFeedback}
       <ExecutionTraceDisclosure trace={trace} />
     </div>
   );
@@ -558,12 +590,14 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
   const locale = getIntlLocale(i18n.language as Language);
   const showTokens = user?.tokens_display_enabled ?? false;
 
-  // Track if feedback has been submitted for proactive interest messages.
-  // Initial value read from message metadata (persisted backend-side by POST
-  // /interests/{id}/feedback) so buttons stay hidden across reloads & devices.
-  const [feedbackSubmitted, setFeedbackSubmitted] = useState(
-    Boolean(message.metadata?.feedback_submitted)
-  );
+  // Verdict chosen during this session on a proactive notification. The
+  // persisted one is read from the metadata inside `proactiveFeedbackProps`;
+  // this only covers the window between the click and the metadata catching
+  // up, and must carry the ACTUAL verdict — a boolean would show a thumbs-up
+  // to someone who pressed thumbs-down.
+  const [justSubmittedVerdict, setJustSubmittedVerdict] = useState<
+    ProactiveFeedbackVerdict | undefined
+  >(undefined);
 
   // Copy-to-clipboard UI state for assistant messages. The confirmation reset
   // timer is tracked so an unmount mid-confirmation never fires a stale
@@ -598,7 +632,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
     !isUser &&
     typeof message.metadata?.type === 'string' &&
     (message.metadata.type as string).startsWith('proactive_');
-  const feedbackRow = proactiveFeedbackProps(message.metadata, feedbackSubmitted);
+  const feedbackRow = proactiveFeedbackProps(message.metadata, justSubmittedVerdict);
   // F4: the avatar wobbles once when a proactive notification lands live — never
   // on history rows. Captured in a mount effect (not in render) so the "now"
   // read stays pure; a history-loaded row is already stale at mount.
@@ -775,13 +809,6 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
                 searchHighlight={props.searchHighlight}
               />
             </div>
-            {/* Feedback row for proactive notifications (interest + heartbeat) */}
-            {feedbackRow && (
-              <ProactiveFeedbackButtons
-                {...feedbackRow}
-                onFeedbackSubmitted={() => setFeedbackSubmitted(true)}
-              />
-            )}
             {/* AI-generated images — inside bubble after text content */}
             {message.generatedImages && message.generatedImages.length > 0 && (
               <GeneratedImageCards images={message.generatedImages} />
@@ -795,6 +822,14 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
                 copied={copied}
                 onCopy={handleCopyMessage}
                 feedbackProps={feedbackProps}
+                proactiveFeedback={
+                  feedbackRow ? (
+                    <ProactiveFeedbackButtons
+                      {...feedbackRow}
+                      onFeedbackSubmitted={setJustSubmittedVerdict}
+                    />
+                  ) : null
+                }
                 trace={message.executionTrace}
                 message={message}
                 onRetry={onRetry}

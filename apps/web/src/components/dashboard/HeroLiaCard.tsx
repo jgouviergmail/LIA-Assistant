@@ -108,7 +108,7 @@ export function HeroLiaCard({ greeting = null, isLoadingGreeting = false }: Hero
             className="w-full"
           >
             <Plug className="h-5 w-5" />
-            {t('dashboard.actions.connect')}
+            {t('dashboard.actions.services')}
           </Button>
           <Button
             onClick={() => router.push(`/${lng}/dashboard/chat`)}

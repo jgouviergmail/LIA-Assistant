@@ -143,7 +143,7 @@
     },
     "actions": {
       "open_chat": "Ouvrir le Chat",
-      "connect": "Connecter",
+      "services": "Services",
       "settings": "Paramètres",
       "view_details": "Voir les détails",
       "toggle_avatar": "Changer l'avatar de LIA"
@@ -3431,6 +3431,21 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_25_31": {
+          "title": "v1.25.31 — 📌 Les en-têtes restent enfin en place",
+          "date": "Juillet 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>📌 La barre du haut ne s'en va plus en défilant</b> — l'en-tête du tableau de bord et des pages légales était censé rester accroché pendant le défilement. Il ne l'a jamais fait : il partait avec la page, sur tous les écrans, depuis l'origine. Il reste désormais à sa place, et la navigation est à un clic où que vous soyez dans une page.",
+            "i2": "<b>🧭 Les onglets des réglages vous suivent</b> — la page des réglages empile une trentaine de sections. Passé quelques écrans, plus rien n'indiquait dans quel onglet vous étiez, et en changer imposait de tout remonter. Les onglets descendent maintenant avec vous.",
+            "i3": "<b>🍔 Le menu du logo ne fait plus disparaître l'en-tête</b> — sur téléphone, l'ouvrir depuis le milieu d'une page chassait la barre du haut hors de l'écran, et il fallait remonter tout en haut pour qu'elle refonctionne.",
+            "i4": "<b>📱 Des réglages plus denses sur téléphone</b> — les sections rendent un peu de marge sur les petits écrans uniquement : vous faites sensiblement moins défiler. Rien n'est masqué ni raccourci — les descriptions restent entières, et l'affichage sur grand écran est inchangé.",
+            "i5": "<b>⚡ Aide et Réglages tiennent en une barre</b> — les deux grandes cartes au-dessus de votre briefing sont devenues une seule barre, ce qui rend environ 85 px au contenu sur téléphone. Les deux destinations gardent leur libellé et leur description, et ce sont maintenant de vrais liens : clic milieu ou ouverture dans un nouvel onglet.",
+            "i6": "<b>👍 Les avis au même endroit sur tous les messages</b> — les pouces des notifications proactives et des notifications de centres d'intérêt étaient dans la bulle, sous une phrase entière. Ils sont désormais à côté du bouton copier, exactement comme sur une réponse ordinaire. Une fois votre avis donné, votre choix reste affiché au lieu de disparaître — montré comme choisi, et verrouillé, car ce verdict est définitif.",
+            "i7": "<b>♿ Les réglages se lisent correctement au lecteur d'écran</b> — chaque section annonçait son titre deux fois, et les intitulés de groupe n'étaient pas des titres. La structure de la page correspond enfin à ce qu'elle donne à voir, ce qui la rend navigable par titres.",
+            "i8": "<b>📖 Une section du guide technique est de nouveau atteignable</b> — le chapitre « Psyche Engine » manquait au sommaire du guide, dans les six langues, depuis le jour où il a été écrit."
+          }
+        },
         "v1_25_30": {
           "title": "v1.25.30 — 🛡️ Un e-mail ne peut plus donner d'ordres à LIA",
           "date": "Juillet 2026",
@@ -5479,7 +5494,7 @@
           },
           "q5": {
             "question": "Comment donner un retour sur une notification ?",
-            "answer": "Votre feedback aide LIA à s'améliorer :<br><br><strong>👍👎 Boutons de feedback :</strong><br>• Chaque notification affiche des boutons <strong>pouce haut / pouce bas</strong><br>• Votre retour est enregistré pour améliorer les futures décisions<br>• Une fois votre vote donné, les boutons disparaissent pour cette notification — sur tous vos appareils, et après un rechargement<br><br><strong>📜 Historique :</strong><br>• Consultez vos dernières notifications proactives dans la section dédiée<br>• Chaque entrée indique les sources utilisées et la priorité<br><br><strong>⚙️ Ajustement :</strong><br>• Si vous recevez trop de notifications, réduisez le maximum par jour<br>• Si les notifications ne sont pas pertinentes, désactivez les sources non souhaitées (déconnectez le connecteur correspondant)"
+            "answer": "Votre feedback aide LIA à s'améliorer :<br><br><strong>👍👎 Boutons de feedback :</strong><br>• Chaque notification affiche des boutons <strong>pouce haut / pouce bas</strong><br>• Votre retour est enregistré pour améliorer les futures décisions<br>• Les boutons se trouvent à côté du bouton copier, comme sur une réponse ordinaire<br>• Une fois votre vote donné, votre choix reste affiché — marqué comme choisi et verrouillé, car ce verdict est définitif ; il vous suit sur tous vos appareils et après un rechargement<br><br><strong>📜 Historique :</strong><br>• Consultez vos dernières notifications proactives dans la section dédiée<br>• Chaque entrée indique les sources utilisées et la priorité<br><br><strong>⚙️ Ajustement :</strong><br>• Si vous recevez trop de notifications, réduisez le maximum par jour<br>• Si les notifications ne sont pas pertinentes, désactivez les sources non souhaitées (déconnectez le connecteur correspondant)"
           },
           "q6": {
             "question": "Les notifications proactives sont-elles affectées par les limites d'utilisation ?",
@@ -6345,8 +6360,7 @@
       "dislike": "Peu utile",
       "liked": "Merci pour votre retour !",
       "disliked": "C'est noté, je m'ajuste.",
-      "error": "Erreur lors de l'envoi du retour",
-      "helpful": "Cette notification vous a-t-elle été utile ?"
+      "error": "Erreur lors de l'envoi du retour"
     }
   },
   "notifications": {

@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 4.0
+**Version** : 4.1
 **Datum** : 2026-07-28
-**Anwendung** : LIA v1.25.30
+**Anwendung** : LIA v1.25.31
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -336,6 +336,8 @@ Die große Mehrheit agentischer KI-Projekte erreicht nie die Produktion. Unkontr
 Eine Funktion, die niemand findet, existiert nicht. Deshalb wird die Erreichbarkeit der Oberfläche behandelt wie die Verfügbarkeit des Servers: gemessen, nicht vermutet. Jedes Bedienelement der Kopfzeile wird mit dem Ansichtsfenster verglichen, Breite für Breite und **in allen sechs Sprachen** — Deutsch und Italienisch tragen die längsten Beschriftungen und brechen zuerst. Und was das mobile Layout weglassen darf, steht geschrieben, mit Begründung: Eine Aktion verschwindet nie, ohne dass ein Ersatz an ihre Stelle tritt.
 
 Eine Funktion, die still fehlschlägt, existiert ebenso wenig. Eine kurz vor dem Ende abgebrochene Erzeugung, ein Import, den ein unbeschreibbar gewordenes Verzeichnis blockiert, eine Verbindung, die stirbt, ohne etwas anzukündigen: drei zusammenhanglose Ursachen, ein Symptom — es passiert nichts. Das ist das schlechteste Signal überhaupt, denn es zeigt auf niemanden. Jeder Fehler dieser Art wird deshalb mit einer Prüfung geschlossen, die wir zuerst absichtlich zum Scheitern gebracht haben: kaputt machen, was sie schützt, kontrollieren, dass sie rot wird, und sie erst dann behalten.
+
+Es gibt etwas Heimtückischeres als eine Garde, die man nie zum Scheitern gebracht hat: eine Garde, die das falsche Signal beobachtet. Drei Kopfzeilen der Oberfläche erklärten sich beim Scrollen für fixiert, und keine einzige war es — auf jedem Bildschirm, von Anfang an. Niemandem war es aufgefallen, weil keine Prüfung je eine Position *während* eines Scrollvorgangs maß: Alle betrachteten eine ruhende Seite, also genau den Zustand, in dem der Fehler nicht existiert. Die Ursache zu beheben war deshalb nur die halbe Arbeit; die fehlende Messung musste ergänzt und anschließend die alte Einstellung wiederhergestellt werden, um zu bestätigen, dass sie tatsächlich rot wurde.
 
 ### 8.2. Ein professioneller Observability-Stack
 

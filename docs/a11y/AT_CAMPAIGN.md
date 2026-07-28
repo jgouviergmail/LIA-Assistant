@@ -25,7 +25,11 @@ gesture support. That is what this campaign covers.
   2. Dashboard (landmark navigation, briefing card headings order).
   3. Chat: send a message, follow the streamed answer, open/close an image
      lightbox, use a voice overlay session.
-  4. Settings: change a preference, hear the confirmation toast.
+  4. Settings: change a preference, hear the confirmation toast. Navigate the
+     page BY HEADINGS (h1 title -> h2 group -> h3 section): each section must
+     announce its title once and only once, and the group labels must be
+     reachable as headings (both were broken until v1.25.31). Scroll a few
+     screens down and confirm the tab bar is still announced and reachable.
   5. Spaces: create a space, upload a document, follow upload progress.
   6. Admin (superuser): tab to Administration, edit a pricing row.
 

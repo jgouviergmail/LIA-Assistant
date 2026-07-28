@@ -135,7 +135,7 @@
     },
     "actions": {
       "open_chat": "Abrir Chat",
-      "connect": "Conectar",
+      "services": "Servicios",
       "settings": "Configuración",
       "view_details": "Ver detalles",
       "toggle_avatar": "Cambiar el avatar de LIA"
@@ -3417,6 +3417,21 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_25_31": {
+          "title": "v1.25.31 — 📌 Las cabeceras por fin se quedan en su sitio",
+          "date": "Julio 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>📌 La barra superior ya no se va al desplazarte</b> — la cabecera del panel y de las páginas legales debía quedarse fija al desplazar. Nunca lo hizo: se iba con la página, en todas las pantallas, desde el principio. Ahora se queda donde corresponde, y la navegación está a un clic estés donde estés.",
+            "i2": "<b>🧭 Las pestañas de ajustes te acompañan</b> — la página de ajustes apila unas treinta secciones. Tras unas pantallas, nada indicaba en qué pestaña estabas, y cambiar obligaba a subir del todo. Ahora las pestañas bajan contigo.",
+            "i3": "<b>🍔 El menú del logotipo ya no hace desaparecer la cabecera</b> — en el móvil, abrirlo desde la mitad de la página empujaba la barra superior fuera de la pantalla, y había que volver arriba del todo para que funcionara.",
+            "i4": "<b>📱 Ajustes más densos en el móvil</b> — las secciones ceden algo de margen solo en pantallas pequeñas: te desplazas bastante menos. No se oculta ni se acorta nada: las descripciones siguen completas y la vista de escritorio no cambia.",
+            "i5": "<b>⚡ Ayuda y Ajustes en una sola barra compacta</b> — las dos tarjetas grandes sobre tu resumen se han convertido en una barra, devolviendo unos 85 px al contenido en el móvil. Ambos destinos conservan su etiqueta y su descripción, y ahora son enlaces de verdad: clic central o abrir en una pestaña nueva.",
+            "i6": "<b>👍 Las valoraciones en el mismo sitio en todos los mensajes</b> — los pulgares de las notificaciones proactivas y de las de intereses estaban dentro de la burbuja, bajo una frase entera. Ahora están junto al botón de copiar, igual que en una respuesta normal. Una vez valorado, tu elección sigue visible en lugar de desaparecer: se muestra como elegida y queda bloqueada, porque ese veredicto es definitivo.",
+            "i7": "<b>♿ Los ajustes se leen bien con lector de pantalla</b> — cada sección anunciaba su título dos veces, y los rótulos de grupo no eran encabezados. La estructura de la página por fin coincide con lo que muestra, lo que permite navegarla por encabezados.",
+            "i8": "<b>📖 Una sección de la guía técnica vuelve a ser accesible</b> — el capítulo «Psyche Engine» faltaba en el índice de la guía, en los seis idiomas, desde el día en que se escribió."
+          }
+        },
         "v1_25_30": {
           "title": "v1.25.30 — 🛡️ Un correo ya no puede dar órdenes a LIA",
           "date": "Julio 2026",
@@ -5465,7 +5480,7 @@
           },
           "q5": {
             "question": "¿Cómo doy retroalimentación sobre una notificación?",
-            "answer": "Su retroalimentación ayuda a LIA a mejorar:<br><br><strong>👍👎 Botones de retroalimentación:</strong><br>• Cada notificación muestra botones de <strong>pulgar arriba / pulgar abajo</strong><br>• Su retroalimentación se registra para mejorar decisiones futuras<br>• Una vez emitida tu valoración, los botones desaparecen para esa notificación — en todos tus dispositivos y tras recargar<br><br><strong>📜 Historial:</strong><br>• Consulte sus notificaciones proactivas recientes en la sección dedicada<br>• Cada entrada indica las fuentes utilizadas y el nivel de prioridad<br><br><strong>⚙️ Ajuste:</strong><br>• Si recibe demasiadas notificaciones, reduzca el máximo diario<br>• Si las notificaciones no son relevantes, desactive las fuentes no deseadas (desconecte el conector correspondiente)"
+            "answer": "Su retroalimentación ayuda a LIA a mejorar:<br><br><strong>👍👎 Botones de retroalimentación:</strong><br>• Cada notificación muestra botones de <strong>pulgar arriba / pulgar abajo</strong><br>• Su retroalimentación se registra para mejorar decisiones futuras<br>• Los botones están junto al botón de copiar, igual que en una respuesta normal<br>• Una vez emitido tu voto, tu elección sigue visible: marcada como elegida y bloqueada, porque ese veredicto es definitivo; te acompaña en todos tus dispositivos y tras recargar<br><br><strong>📜 Historial:</strong><br>• Consulte sus notificaciones proactivas recientes en la sección dedicada<br>• Cada entrada indica las fuentes utilizadas y el nivel de prioridad<br><br><strong>⚙️ Ajuste:</strong><br>• Si recibe demasiadas notificaciones, reduzca el máximo diario<br>• Si las notificaciones no son relevantes, desactive las fuentes no deseadas (desconecte el conector correspondiente)"
           },
           "q6": {
             "question": "¿Las notificaciones proactivas se ven afectadas?",
@@ -6606,8 +6621,7 @@
       "dislike": "Poco útil",
       "liked": "¡Gracias por tu opinión!",
       "disliked": "Anotado, me ajustaré.",
-      "error": "Error al enviar la opinión",
-      "helpful": "¿Te ha resultado útil esta notificación?"
+      "error": "Error al enviar la opinión"
     }
   },
   "notifications": {

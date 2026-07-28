@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 4.0
+**Version**: 4.1
 **Date**: 2026-07-28
-**Application**: LIA v1.25.30
+**Application**: LIA v1.25.31
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -336,6 +336,8 @@ The vast majority of agentic AI projects never reach production. Uncontrolled co
 A feature nobody can find does not exist. That is why the interface's reachability is treated like server uptime: measured, not assumed. Every header control is compared against the browser viewport, width by width and **in all six languages** — German and Italian carry the longest labels and break first. And what the mobile layout is allowed to drop is written down, with its reason: an action never disappears without a substitute taking its place.
 
 A feature that fails silently does not exist either. A generation cut off just before the end, an import blocked by a directory that became unwritable, a connection that dies announcing nothing: three unrelated causes, one symptom — nothing happens. That is the worst possible signal, because it points at no one. Every defect of that kind is therefore closed with a guard we first made fail on purpose: break what it protects, check that it goes red, and only then keep it.
+
+There is something more insidious than a guard nobody ever made fail: a guard that watches the wrong signal. Three of the interface's headers declared themselves pinned while scrolling, and not one of them was — on every screen, since the very beginning. Nothing had caught it, because no check ever measured a position *during* a scroll: they all observed a page at rest, precisely the state in which the defect does not exist. Fixing the cause was therefore only half the work; the missing measurement had to be added, and the old setting restored afterwards to confirm that it really did go red.
 
 ### 8.2. A professional observability stack
 

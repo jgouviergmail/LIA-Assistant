@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versione** : 4.0
+**Versione** : 4.1
 **Data** : 2026-07-28
-**Applicazione** : LIA v1.25.30
+**Applicazione** : LIA v1.25.31
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -336,6 +336,8 @@ La grande maggioranza dei progetti di IA agentica non arriva mai in produzione. 
 Una funzionalità che nessuno trova non esiste. Per questo la raggiungibilità dell'interfaccia è trattata come la disponibilità del server: misurata, non supposta. Ogni controllo dell'intestazione viene confrontato con la finestra del browser, larghezza per larghezza e **in tutte e sei le lingue** — tedesco e italiano portano le etichette più lunghe e cedono per primi. E ciò che il layout mobile può abbandonare è scritto, con la sua motivazione: un'azione non sparisce mai senza che un sostituto ne prenda il posto.
 
 Una funzionalità che fallisce in silenzio non esiste altrettanto. Una generazione interrotta poco prima della fine, un'importazione bloccata da una cartella diventata non scrivibile, una connessione che muore senza annunciare nulla: tre cause slegate, un solo sintomo — non succede niente. È il segnale peggiore, perché non indica nessuno. Ogni difetto di questo tipo viene quindi chiuso con un controllo che abbiamo prima fatto fallire di proposito: si rompe ciò che protegge, si verifica che diventi rosso, e solo allora lo si conserva.
+
+C'è qualcosa di più insidioso di una guardia che non si è mai fatta fallire: una guardia che osserva il segnale sbagliato. Tre intestazioni dell'interfaccia si dichiaravano fisse durante lo scorrimento, e nessuna lo era — su ogni schermo, fin dall'inizio. Nulla l'aveva colto, perché nessuna verifica misurava mai una posizione *durante* uno scorrimento: tutte osservavano una pagina a riposo, esattamente lo stato in cui il difetto non esiste. Correggere la causa era dunque solo metà del lavoro; è servito aggiungere la misura mancante e poi ripristinare la vecchia impostazione per confermare che diventasse davvero rossa.
 
 ### 8.2. Uno stack di osservabilità professionale
 

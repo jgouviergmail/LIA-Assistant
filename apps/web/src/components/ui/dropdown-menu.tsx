@@ -5,7 +5,37 @@ import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronRight, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const DropdownMenu = DropdownMenuPrimitive.Root;
+/**
+ * Non-modal by default — so the sticky header survives an open menu.
+ *
+ * Radix's modal mode locks the page scroll by putting `overflow: hidden` on
+ * BOTH axes of `body` (via `react-remove-scroll`, marked `data-scroll-locked`).
+ * That turns `body` back into a scrollport, and every `position: sticky`
+ * descendant re-anchors to it: measured at 390 px on the settings page scrolled
+ * to 900 px, opening the logo menu moved the header from `top: 0` to
+ * `top: -900` — it vanished, and only scrolling back to the very top brought it
+ * (and the menu) back. See ADR-171 for why `body` must never become a
+ * scrollport.
+ *
+ * `modal={false}` is also the right semantics here: these are NAVIGATION menus
+ * in the header (logo, language, personality), not dialogs. They still close on
+ * outside click and on Escape, and keep their keyboard navigation; the page
+ * simply stays scrollable behind them.
+ *
+ * Neutralising the lock in CSS was measured and rejected: forcing
+ * `overflow: clip` on `body[data-scroll-locked]` did restore the header, but it
+ * also let the page scroll behind the menu — and it would have weakened the
+ * lock for real dialogs, which legitimately need it.
+ *
+ * A caller can still pass `modal` explicitly to override this.
+ */
+const DropdownMenu = ({
+  modal = false,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Root>) => (
+  <DropdownMenuPrimitive.Root modal={modal} {...props} />
+);
+DropdownMenu.displayName = 'DropdownMenu';
 
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 

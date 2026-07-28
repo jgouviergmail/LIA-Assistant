@@ -89,4 +89,51 @@ test.describe('mobile navigation', () => {
       await expect(homeLink, `${width}px: home link`).toBeVisible({ visible: !expectMenu });
     }
   });
+
+  /**
+   * Opening the menu must not take the sticky header with it.
+   *
+   * Radix's MODAL mode locks the page scroll by putting `overflow: hidden` on
+   * both axes of `body` (`react-remove-scroll`, `data-scroll-locked`). That
+   * turns `body` back into a scrollport and every `position: sticky`
+   * descendant re-anchors to it: measured here, the header jumped from
+   * `top: 0` to `top: -900` the instant the menu opened, so the user had to
+   * scroll all the way back up before the logo would work again. The menus are
+   * therefore non-modal (see `ui/dropdown-menu.tsx`), and this pins it —
+   * nothing in a component test can see it, and the header LOOKS fine until
+   * the page is scrolled.
+   */
+  test('the header survives opening the menu mid-page', async ({ page, authenticate, mockApi }) => {
+    await authenticate({ language: 'fr' });
+    await mockApi(ROUTES);
+    await page.setViewportSize(PHONE);
+    await page.goto('/fr/dashboard/settings');
+
+    const trigger = page.getByRole('button', { name: 'Menu' });
+    await expect(trigger).toBeVisible({ timeout: 30_000 });
+
+    await page.evaluate(() => window.scrollTo(0, 900));
+    await page.evaluate(
+      () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    );
+    const scrolled = await page.evaluate(() => Math.round(window.scrollY));
+    expect(scrolled, 'the page must really be scrolled for this to prove anything').toBeGreaterThan(
+      400
+    );
+
+    await trigger.click();
+    await expect(page.getByRole('menu')).toBeVisible();
+
+    const headerTop = await page.evaluate(() =>
+      Math.round(document.querySelector('header')!.getBoundingClientRect().top)
+    );
+    expect(
+      headerTop,
+      `header drifted to ${headerTop} while the menu was open (scrollY=${scrolled})`
+    ).toBeLessThan(140);
+    expect(headerTop).toBeGreaterThanOrEqual(0);
+
+    // And the menu is still usable from there.
+    await expect(page.getByRole('menuitem')).toHaveCount(4);
+  });
 });

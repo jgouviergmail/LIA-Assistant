@@ -58,6 +58,13 @@ des journaux (ADR-135) pourtant conçus pour encaisser ce signal.
   (Entrée envoie, Échap ferme). Exclusions : notifications proactives (boutons
   dédiés conservés), messages système, stream actif, message sans id archivé.
   **Jamais de re-génération automatique** — l'utilisateur décide.
+- **Alignement v1.25.31** : les boutons dédiés des notifications proactives ont
+  rejoint la même ligne d'actions, à la même place et dans la même forme, et
+  affichent eux aussi le verdict enregistré via `aria-pressed`. Une différence
+  demeure, et elle est voulue : un verdict de réponse **se change à volonté**
+  (souveraineté, ci-dessus), tandis qu'un verdict proactif est définitif côté
+  serveur — ses pastilles sont donc désactivées une fois le choix fait, pour ne
+  pas promettre une réversibilité qui n'existe pas.
 
 ## Preuves
 

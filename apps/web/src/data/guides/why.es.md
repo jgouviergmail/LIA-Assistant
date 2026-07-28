@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versión** : 4.0
+**Versión** : 4.1
 **Fecha** : 2026-07-28
-**Aplicación** : LIA v1.25.30
+**Aplicación** : LIA v1.25.31
 **Licencia** : AGPL-3.0 (Open Source)
 
 ---
@@ -336,6 +336,8 @@ La gran mayoría de los proyectos de IA agéntica nunca llegan a producción. Co
 Una funcionalidad que nadie encuentra no existe. Por eso la accesibilidad de la interfaz se trata como la disponibilidad del servidor: medida, no supuesta. Cada control de la cabecera se compara con la ventana del navegador, ancho por ancho y **en los seis idiomas** — el alemán y el italiano llevan las etiquetas más largas y ceden primero. Y lo que la maquetación móvil puede abandonar está escrito, con su razón: una acción nunca desaparece sin que un sustituto ocupe su lugar.
 
 Una funcionalidad que falla en silencio tampoco existe. Una generación cortada justo antes del final, una importación bloqueada por un directorio que dejó de ser escribible, una conexión que muere sin anunciar nada: tres causas sin relación, un solo síntoma — no pasa nada. Es la peor señal posible, porque no señala a nadie. Por eso cada defecto de este tipo se cierra con una comprobación que antes hemos hecho fallar a propósito: se rompe lo que protege, se verifica que se pone en rojo, y solo entonces se conserva.
+
+Hay algo más insidioso que una guarda que nunca se ha hecho fallar: una guarda que observa la señal equivocada. Tres cabeceras de la interfaz se declaraban fijas durante el desplazamiento, y ninguna lo era — en todas las pantallas, desde el principio. Nada lo había detectado, porque ninguna comprobación medía una posición *durante* un desplazamiento: todas observaban una página en reposo, justo el estado en el que el defecto no existe. Corregir la causa era, por tanto, solo la mitad del trabajo; hubo que añadir la medición que faltaba y después restablecer el ajuste anterior para confirmar que efectivamente se ponía en rojo.
 
 ### 8.2. Una stack de observabilidad profesional
 

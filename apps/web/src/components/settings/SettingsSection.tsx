@@ -6,6 +6,17 @@ import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+/**
+ * Offset kept above a section when a deep link scrolls to it.
+ *
+ * `scrollIntoView({ block: 'start' })` lands the element at the very top of the
+ * viewport — underneath the sticky dashboard header (64 px, `h-16`) and the
+ * sticky settings tab bar (~53 px: an `h-9` list plus `py-2` and a border).
+ * 128 px clears both with a little air. Before ADR-171 nothing was actually
+ * sticky, so this went unnoticed.
+ */
+const SCROLL_MARGIN = 'scroll-mt-32';
+
 export interface SettingsSectionProps {
   /**
    * Unique value for accordion state management.
@@ -102,54 +113,75 @@ export function SettingsSection({
   // Non-collapsible mode: render simple Card
   if (!collapsible) {
     return (
-      <Card id={`settings-section-${value}`} className={cn('overflow-hidden', className)}>
-        <CardHeader className="px-6 py-6 flex-row items-center gap-4 space-y-0">
+      <Card
+        id={`settings-section-${value}`}
+        className={cn('overflow-hidden', SCROLL_MARGIN, className)}
+      >
+        <CardHeader className="flex-row items-center gap-3 space-y-0 px-4 py-4 sm:gap-4 sm:px-6 sm:py-6">
           {Icon && (
-            <div className="rounded-lg bg-primary/10 p-2.5">
-              <Icon className="h-6 w-6 text-primary" />
+            <div className="flex rounded-lg bg-primary/10 p-2 sm:p-2.5">
+              <Icon className="h-5 w-5 text-primary sm:h-6 sm:w-6" />
             </div>
           )}
           <div className="flex-1">
-            <h3 className="text-lg font-semibold leading-none tracking-tight">{title}</h3>
+            <h3 className="text-base font-semibold leading-none tracking-tight sm:text-lg">
+              {title}
+            </h3>
             {description && <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>}
           </div>
         </CardHeader>
-        <CardContent className={cn('px-6 pb-6 pt-0', contentClassName)}>{children}</CardContent>
+        <CardContent className={cn('px-4 pb-4 pt-0 sm:px-6 sm:pb-6', contentClassName)}>
+          {children}
+        </CardContent>
       </Card>
     );
   }
 
   // Collapsible mode: render AccordionItem. The stable id lets deep-links
   // (settings?section=<value>) scroll to the section after expanding it.
+  //
+  // Everything inside the trigger is a <span>: a <button> takes phrasing
+  // content only, so the CardHeader/div/h3/p it used to hold were invalid
+  // markup — and the <h3> in particular duplicated every section in the
+  // screen-reader heading outline, since Radix's Header already wraps the
+  // trigger in one.
   return (
-    <AccordionItem id={`settings-section-${value}`} value={value} className="border-none">
+    <AccordionItem
+      id={`settings-section-${value}`}
+      value={value}
+      className={cn('border-none', SCROLL_MARGIN)}
+    >
       <Card className={cn('overflow-hidden', className)}>
         <AccordionPrimitive.Header className="flex">
           <AccordionPrimitive.Trigger
             className={cn(
-              'flex flex-1 items-center w-full px-6 py-6 hover:bg-accent/50 transition-colors',
+              'flex w-full flex-1 items-center px-4 py-4 transition-colors hover:bg-accent/50 sm:px-6 sm:py-6',
               '[&[data-state=open]]:bg-accent/30',
-              '[&[data-state=open]>div>svg.chevron]:rotate-180'
+              // The chevron is a DIRECT child of the trigger. The former
+              // `>div>svg.chevron` could never match, so it never rotated.
+              '[&[data-state=open]>svg.chevron]:rotate-180'
             )}
           >
-            <CardHeader className="p-0 flex-row items-center gap-4 space-y-0 flex-1">
+            <span className="flex flex-1 items-center gap-3 sm:gap-4">
               {Icon && (
-                <div className="rounded-lg bg-primary/10 p-2.5">
-                  <Icon className="h-6 w-6 text-primary" />
-                </div>
+                <span className="flex rounded-lg bg-primary/10 p-2 sm:p-2.5">
+                  <Icon className="h-5 w-5 text-primary sm:h-6 sm:w-6" />
+                </span>
               )}
-              <div className="flex-1 text-left">
-                <h3 className="text-lg font-semibold leading-none tracking-tight">{title}</h3>
+              <span className="block flex-1 text-left">
+                <span className="block text-base font-semibold leading-none tracking-tight sm:text-lg">
+                  {title}
+                </span>
                 {description && (
-                  <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
+                  <span className="mt-1.5 block text-sm text-muted-foreground">{description}</span>
                 )}
-              </div>
-            </CardHeader>
-            <ChevronDown className="chevron h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200 ml-3" />
+              </span>
+            </span>
+            <ChevronDown className="chevron ml-3 h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200" />
           </AccordionPrimitive.Trigger>
         </AccordionPrimitive.Header>
-        <AccordionContent className="px-6 pb-6">
-          <CardContent className={cn('p-0 pt-4', contentClassName)}>{children}</CardContent>
+        <AccordionContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+          <CardContent className={cn('p-0 pt-3 sm:pt-4', contentClassName)}>{children}</CardContent>
         </AccordionContent>
       </Card>
     </AccordionItem>

@@ -3477,6 +3477,15 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ---
 
+### ADR-171: `position: sticky` était inopérant dans toute l'application
+
+**Statut**: ✅ IMPLEMENTED (2026-07-28)
+**Fichier**: `docs/architecture/ADR-171-Sticky-Positioning-Repair.md`
+
+**Décision**: Le socle CSS déclarait `html, body { overflow-x: hidden }`. La spécification CSS Overflow impose qu'un seul axe non-`visible` fasse **calculer l'autre à `auto`** : `body` obtenait donc `overflow-y: auto` et devenait un **conteneur de défilement** — jamais défilé, puisque sa hauteur suit son contenu et que le défilement de page appartient au viewport. Tout descendant `position: sticky` s'ancrait sur ce scrollport immobile et ne collait jamais. **Mesuré dans Chrome, sur un élément réel** : le header de `/privacy` (`position: sticky; top: 0` confirmé par `getComputedStyle`) suit le document au pixel près — `top` vaut `−400` à `scrollY=400`, `−1200` à `1200`, `−2000` à `2000`. **Falsifié dans les deux sens** : `body` passé à `clip` ou à `visible` rétablit `overflow-y: visible`, le header se fixe à `0` et une barre `top: 64px` à `64`. Trois surfaces réclamaient ce comportement sans jamais l'obtenir (`dashboard/layout.tsx`, `privacy`, `terms`) ; le défaut est resté invisible faute de garde mesurant une position **pendant** un défilement, et la landing l'avait contourné sans le diagnostiquer via `position: fixed`. **Retenu** : `body { overflow-x: clip }` — `clip` clippe sans établir de scrollport ; `html` conserve `hidden`, propagé au viewport. Le repo employait déjà `clip` pour cette raison exacte sur les bulles de conversation. **Neutralité mesurée, pas supposée** : `scrollWidth − clientWidth` vaut **0 avant comme après** (y compris avec un enfant de 3 000 px injecté), donc les gardes de reflow gardent le même verdict ; les éléments `position: fixed` gardent un rectangle identique ; les `sticky` à défilement **interne** (bouton « revenir en bas » du chat, entête de l'overlay d'onboarding) ne sont pas concernés. **Dégradation gracieuse** : un moteur ignorant `clip` retombe sur `visible` et le clipping reste assuré par `html`. **Alternatives écartées** : positionner les barres en `fixed` comme la landing (contourne le symptôme, laisse trois headers cassés, impose de recalculer largeur et réservation d'espace à chaque redimensionnement) ; retirer `overflow-x` de `body` (fonctionne, mesuré, mais perd un filet de sécurité sans contrepartie) ; ne rien faire (la page Réglages ne peut pas offrir d'onglets persistants, et trois surfaces continuent de mentir sur leur propre comportement).
+
+---
+
 ---
 ---
 ## ADRs Archivés

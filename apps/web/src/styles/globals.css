@@ -425,12 +425,22 @@
     border-color: var(--color-border);
   }
 
-  html,
-  body {
+  /* Horizontal clipping WITHOUT a scroll container on `body` (ADR-171).
+     `overflow-x: hidden` forces the other axis to compute to `auto`, so `body`
+     became a scrollport — one that is never scrolled, since its height follows
+     its content and the page scroll belongs to the viewport. Every descendant
+     `position: sticky` anchored on that immobile scrollport and never stuck:
+     measured in Chrome, the /privacy header sat at top=-400 for scrollY=400.
+     `clip` clips the same overflow without establishing a scrollport, so
+     `overflow-y` stays `visible` and sticky resolves against the viewport
+     again. `html` keeps `hidden`: it is propagated to the viewport, so a
+     browser that ignores `clip` still clips the page. */
+  html {
     overflow-x: hidden;
   }
 
   body {
+    overflow-x: clip;
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);

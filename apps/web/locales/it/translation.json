@@ -135,7 +135,7 @@
     },
     "actions": {
       "open_chat": "Apri Chat",
-      "connect": "Connetti",
+      "services": "Servizi",
       "settings": "Impostazioni",
       "view_details": "Visualizza dettagli",
       "toggle_avatar": "Cambia l'avatar di LIA"
@@ -3419,6 +3419,21 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_25_31": {
+          "title": "v1.25.31 — 📌 Le intestazioni restano finalmente al loro posto",
+          "date": "Luglio 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>📌 La barra in alto non scorre più via</b> — l'intestazione della dashboard e delle pagine legali doveva restare fissa durante lo scorrimento. Non lo ha mai fatto: se ne andava con la pagina, su ogni schermo, fin dall'inizio. Ora resta al suo posto, e la navigazione è a un clic ovunque ti trovi nella pagina.",
+            "i2": "<b>🧭 Le schede delle impostazioni ti seguono</b> — la pagina impostazioni impila una trentina di sezioni. Dopo qualche schermata non si capiva più in quale scheda fossi, e cambiarla imponeva di risalire tutto. Ora le schede scendono con te.",
+            "i3": "<b>🍔 Il menu del logo non fa più sparire l'intestazione</b> — su telefono, aprirlo da metà pagina spingeva la barra in alto fuori dallo schermo, e bisognava risalire in cima perché tornasse a funzionare.",
+            "i4": "<b>📱 Impostazioni più dense su telefono</b> — le sezioni restituiscono un po' di margine solo sugli schermi piccoli: scorri sensibilmente meno. Nulla viene nascosto o accorciato: le descrizioni restano intere e la vista su schermo grande non cambia.",
+            "i5": "<b>⚡ Aiuto e Impostazioni in una sola barra compatta</b> — le due grandi schede sopra il tuo briefing sono diventate un'unica barra, restituendo circa 85 px al contenuto su telefono. Entrambe le destinazioni mantengono etichetta e descrizione, e ora sono veri collegamenti: clic centrale o apertura in una nuova scheda.",
+            "i6": "<b>👍 I giudizi nello stesso posto su ogni messaggio</b> — i pollici delle notifiche proattive e di quelle sugli interessi stavano dentro la bolla, sotto una frase intera. Ora sono accanto al pulsante copia, esattamente come su una risposta ordinaria. Dopo il tuo giudizio la scelta resta visibile invece di sparire: mostrata come scelta e bloccata, perché quel verdetto è definitivo.",
+            "i7": "<b>♿ Le impostazioni si leggono correttamente con lo screen reader</b> — ogni sezione annunciava il titolo due volte, e le etichette di gruppo non erano titoli. La struttura della pagina corrisponde finalmente a ciò che mostra, il che la rende navigabile per titoli.",
+            "i8": "<b>📖 Una sezione della guida tecnica è di nuovo raggiungibile</b> — il capitolo «Psyche Engine» mancava nell'indice della guida, in tutte e sei le lingue, dal giorno in cui è stato scritto."
+          }
+        },
         "v1_25_30": {
           "title": "v1.25.30 — 🛡️ Un'e-mail non può più dare ordini a LIA",
           "date": "Luglio 2026",
@@ -5467,7 +5482,7 @@
           },
           "q5": {
             "question": "Come do un feedback su una notifica?",
-            "answer": "Il tuo feedback aiuta LIA a migliorare:<br><br><strong>👍👎 Pulsanti di feedback:</strong><br>• Ogni notifica mostra pulsanti <strong>pollice su / pollice giù</strong><br>• Il tuo feedback viene registrato per migliorare le decisioni future<br>• Dopo il tuo voto i pulsanti scompaiono per quella notifica — su tutti i dispositivi e dopo un ricaricamento<br><br><strong>📜 Cronologia:</strong><br>• Consulta le tue notifiche proattive recenti nella sezione dedicata<br>• Ogni voce indica le fonti utilizzate e il livello di priorità<br><br><strong>⚙️ Regolazione:</strong><br>• Se ricevi troppe notifiche, riduci il massimo giornaliero<br>• Se le notifiche non sono pertinenti, disattiva le fonti indesiderate (disconnetti il connettore corrispondente)"
+            "answer": "Il tuo feedback aiuta LIA a migliorare:<br><br><strong>👍👎 Pulsanti di feedback:</strong><br>• Ogni notifica mostra pulsanti <strong>pollice su / pollice giù</strong><br>• Il tuo feedback viene registrato per migliorare le decisioni future<br>• I pulsanti si trovano accanto al pulsante copia, esattamente come su una risposta ordinaria<br>• Dopo il tuo voto la scelta resta visibile: contrassegnata come scelta e bloccata, perché quel verdetto è definitivo; ti segue su tutti i dispositivi e dopo un ricaricamento<br><br><strong>📜 Cronologia:</strong><br>• Consulta le tue notifiche proattive recenti nella sezione dedicata<br>• Ogni voce indica le fonti utilizzate e il livello di priorità<br><br><strong>⚙️ Regolazione:</strong><br>• Se ricevi troppe notifiche, riduci il massimo giornaliero<br>• Se le notifiche non sono pertinenti, disattiva le fonti indesiderate (disconnetti il connettore corrispondente)"
           },
           "q6": {
             "question": "Le notifiche proattive sono influenzate dai limiti?",
@@ -6608,8 +6623,7 @@
       "dislike": "Poco utile",
       "liked": "Grazie per il tuo riscontro!",
       "disliked": "Annotato, mi adeguo.",
-      "error": "Errore durante l'invio del riscontro",
-      "helpful": "Questa notifica ti è stata utile?"
+      "error": "Errore durante l'invio del riscontro"
     }
   },
   "notifications": {

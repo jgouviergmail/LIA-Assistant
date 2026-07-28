@@ -168,7 +168,7 @@ export function TodayBriefing() {
       <InstallHint />
 
       {/* Quick Access — placed ABOVE the cards grid as requested */}
-      <QuickAccessCompact />
+      <QuickAccessCompact lng={lng} />
 
       <section className="space-y-4" aria-labelledby="briefing-section-heading">
         <div className="flex items-center justify-between">

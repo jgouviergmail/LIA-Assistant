@@ -4,7 +4,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
+
+// `renderWithProviders` supplies the TooltipProvider the thumb chips need —
+// the real tree always has one (the copy chip next to them is tooltipped too).
+import { renderWithProviders as render } from '@/__tests__/test-utils';
 
 import { ResponseFeedbackButtons } from '../ResponseFeedbackButtons';
 

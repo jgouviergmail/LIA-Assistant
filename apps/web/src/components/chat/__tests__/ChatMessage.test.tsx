@@ -180,11 +180,17 @@ describe('ChatMessage — proactive interest feedback', () => {
     expect(screen.getByRole('button', { name: 'interests.feedback.block' })).toBeInTheDocument();
   });
 
-  it('hides them again once a verdict was already recorded server-side', () => {
-    renderMessage(proactive({ feedback_submitted: true }));
-    expect(
-      screen.queryByRole('button', { name: 'interests.feedback.like' })
-    ).not.toBeInTheDocument();
+  it('shows a recorded verdict pressed and disabled, like a voted answer', () => {
+    renderMessage(proactive({ feedback_submitted: true, feedback_value: 'thumbs_down' }));
+
+    const down = screen.getByRole('button', { name: 'interests.feedback.dislike' });
+    const up = screen.getByRole('button', { name: 'interests.feedback.like' });
+    expect(down).toHaveAttribute('aria-pressed', 'true');
+    expect(up).toHaveAttribute('aria-pressed', 'false');
+    // Final server-side: no chip may re-open the vote.
+    expect(down).toBeDisabled();
+    expect(up).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'interests.feedback.block' })).toBeDisabled();
   });
 
   it('hides them when the notification does not accept feedback', () => {
@@ -206,15 +212,16 @@ describe('ChatMessage — proactive interest feedback', () => {
     );
   });
 
-  it('acknowledges the verdict and closes the row for good (no double vote)', async () => {
+  it('acknowledges the verdict and accepts no second vote', async () => {
     const { user } = renderMessage(proactive());
-    await user.click(screen.getByRole('button', { name: 'interests.feedback.like' }));
+    const like = screen.getByRole('button', { name: 'interests.feedback.like' });
+
+    await user.click(like);
+
     expect(toast.success).toHaveBeenCalledWith('interests.feedback.liked');
-    await waitFor(() =>
-      expect(
-        screen.queryByRole('button', { name: 'interests.feedback.like' })
-      ).not.toBeInTheDocument()
-    );
+    await waitFor(() => expect(like).toBeDisabled());
+    // A second click on any chip must not reach the endpoint.
+    await user.click(screen.getByRole('button', { name: 'interests.feedback.block' }));
     expect(mutate).toHaveBeenCalledTimes(1);
   });
 
@@ -272,6 +279,45 @@ describe('ChatMessage — proactive heartbeat feedback', () => {
     expect(screen.getByRole('button', { name: 'heartbeat.feedback.dislike' })).toBeInTheDocument();
   });
 
+  it('puts the verdicts in the action row next to Copy, not under the text', () => {
+    // The same gesture must look the same everywhere: an ordinary answer shows
+    // its thumbs as chips of the action row, and a proactive notification used
+    // to show them inside the bubble, introduced by a full sentence.
+    renderMessage(heartbeat());
+
+    const copy = screen.getByRole('button', { name: 'chat.message.copy' });
+    const like = screen.getByRole('button', { name: 'heartbeat.feedback.like' });
+    const row = copy.closest('div');
+
+    expect(row, 'the copy chip must sit in a row').not.toBeNull();
+    expect(row!.contains(like), 'the thumbs belong to the copy chip row').toBe(true);
+  });
+
+  it('introduces the verdicts with no sentence of its own', () => {
+    renderMessage(heartbeat());
+    // The former "Was this notification useful?" line, now removed with its key.
+    expect(screen.queryByText(/heartbeat\.feedback\.helpful/)).not.toBeInTheDocument();
+  });
+
+  it('treats an INTEREST notification exactly the same way', () => {
+    // Homogeneity is the point: the two kinds of proactive push must not look
+    // like two features. Same slot (the copy chip's row), same absence of an
+    // introductory sentence — only the set of verdicts differs.
+    renderMessage(
+      makeMessage({
+        content: 'Un article sur les fusées',
+        metadata: { type: 'proactive_interest', target_id: 'int-7', feedback_enabled: true },
+      })
+    );
+
+    const copy = screen.getByRole('button', { name: 'chat.message.copy' });
+    const like = screen.getByRole('button', { name: 'interests.feedback.like' });
+    expect(copy.closest('div')!.contains(like)).toBe(true);
+    expect(screen.queryByText(/interests\.notification\.helpful/)).not.toBeInTheDocument();
+    // The interest contract keeps its third verdict.
+    expect(screen.getByRole('button', { name: 'interests.feedback.block' })).toBeInTheDocument();
+  });
+
   it('never offers "block" — the heartbeat contract has no such verdict', () => {
     renderMessage(heartbeat());
     expect(
@@ -297,25 +343,34 @@ describe('ChatMessage — proactive heartbeat feedback', () => {
     );
   });
 
-  it('acknowledges the verdict and closes the row for good', async () => {
+  it('acknowledges the verdict and locks the row on THAT verdict', async () => {
     const { user } = renderMessage(heartbeat());
 
     await user.click(screen.getByRole('button', { name: 'heartbeat.feedback.dislike' }));
 
     expect(toast.info).toHaveBeenCalledWith('heartbeat.feedback.disliked');
+    // The chosen thumb — not another one — is the one shown as pressed.
     await waitFor(() =>
-      expect(
-        screen.queryByRole('button', { name: 'heartbeat.feedback.dislike' })
-      ).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'heartbeat.feedback.dislike' })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      )
     );
+    expect(screen.getByRole('button', { name: 'heartbeat.feedback.like' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
+    expect(screen.getByRole('button', { name: 'heartbeat.feedback.dislike' })).toBeDisabled();
     expect(mutate).toHaveBeenCalledTimes(1);
   });
 
-  it('stays hidden once a verdict was recorded server-side', () => {
-    renderMessage(heartbeat({ feedback_submitted: true }));
-    expect(
-      screen.queryByRole('button', { name: 'heartbeat.feedback.like' })
-    ).not.toBeInTheDocument();
+  it('shows a recorded verdict pressed and disabled', () => {
+    renderMessage(heartbeat({ feedback_submitted: true, feedback_value: 'thumbs_up' }));
+
+    const up = screen.getByRole('button', { name: 'heartbeat.feedback.like' });
+    expect(up).toHaveAttribute('aria-pressed', 'true');
+    expect(up).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'heartbeat.feedback.dislike' })).toBeDisabled();
   });
 
   it('stays hidden when the notification does not accept feedback', () => {
@@ -333,17 +388,18 @@ describe('proactiveFeedbackProps — which contract a bubble routes to', () => {
     ['proactive_interest', 'interest'],
     ['proactive_heartbeat', 'heartbeat'],
   ])('routes %s to the %s contract', (type, kind) => {
-    expect(proactiveFeedbackProps({ ...base, type }, false)).toEqual({
+    expect(proactiveFeedbackProps({ ...base, type })).toEqual({
       kind,
       targetId: 'x-1',
       runId: undefined,
+      submittedVerdict: undefined,
     });
   });
 
   it('keeps the run_id when the card carries one', () => {
     expect(
-      proactiveFeedbackProps({ ...base, type: 'proactive_interest', run_id: 'r-9' }, false)
-    ).toEqual({ kind: 'interest', targetId: 'x-1', runId: 'r-9' });
+      proactiveFeedbackProps({ ...base, type: 'proactive_interest', run_id: 'r-9' })
+    ).toEqual({ kind: 'interest', targetId: 'x-1', runId: 'r-9', submittedVerdict: undefined });
   });
 
   it.each([
@@ -353,21 +409,44 @@ describe('proactiveFeedbackProps — which contract a bubble routes to', () => {
     ['an empty target', { ...base, type: 'proactive_interest', target_id: '' }],
     ['a card that refuses feedback', { ...base, type: 'proactive_interest', feedback_enabled: false }],
   ])('offers nothing for %s', (_label, metadata) => {
-    expect(proactiveFeedbackProps(metadata as Record<string, unknown>, false)).toBeNull();
+    expect(proactiveFeedbackProps(metadata as Record<string, unknown>)).toBeNull();
   });
 
-  it('offers nothing once the verdict is in, whatever the metadata says', () => {
-    expect(proactiveFeedbackProps({ ...base, type: 'proactive_interest' }, true)).toBeNull();
+  it('reports the verdict of this session over the persisted one', () => {
+    // Right after a click the metadata is still the pre-vote payload.
+    expect(
+      proactiveFeedbackProps(
+        { ...base, type: 'proactive_interest', feedback_value: 'thumbs_up' },
+        'block'
+      )
+    ).toMatchObject({ submittedVerdict: 'block' });
+  });
+
+  it('reads the persisted verdict when this session has not voted', () => {
+    expect(
+      proactiveFeedbackProps({ ...base, type: 'proactive_interest', feedback_value: 'thumbs_down' })
+    ).toMatchObject({ submittedVerdict: 'thumbs_down' });
+  });
+
+  it('ignores a verdict value it does not know', () => {
+    expect(
+      proactiveFeedbackProps({ ...base, type: 'proactive_interest', feedback_value: 'shrug' })
+    ).toMatchObject({ submittedVerdict: undefined });
   });
 
   it('offers nothing without metadata at all', () => {
-    expect(proactiveFeedbackProps(undefined, false)).toBeNull();
+    expect(proactiveFeedbackProps(undefined)).toBeNull();
   });
 
   it('ignores a non-string run_id instead of forwarding garbage', () => {
     expect(
-      proactiveFeedbackProps({ ...base, type: 'proactive_interest', run_id: 42 }, false)
-    ).toEqual({ kind: 'interest', targetId: 'x-1', runId: undefined });
+      proactiveFeedbackProps({ ...base, type: 'proactive_interest', run_id: 42 })
+    ).toEqual({
+      kind: 'interest',
+      targetId: 'x-1',
+      runId: undefined,
+      submittedVerdict: undefined,
+    });
   });
 });
 

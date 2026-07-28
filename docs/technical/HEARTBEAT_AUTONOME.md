@@ -176,8 +176,17 @@ Privacy: the persisted coordinates are encrypted (Fernet), non-historized (overw
 > notifications carried `feedback_enabled: true` with no way to answer them.
 > `ProactiveFeedbackButtons` now serves both contracts — two verdicts here (the
 > heartbeat schema has no `block`), three for interests — and the route marks the
-> archived message via `mark_proactive_feedback_submitted`, so the buttons stay
-> hidden across reloads and devices.
+> archived message via `mark_proactive_feedback_submitted`.
+>
+> **Presentation (v1.25.31).** The chips are in-flow siblings of the copy chip
+> in the bubble's action row, like the thumbs of an ordinary answer — they used
+> to sit inside the bubble under an introductory sentence, which made the same
+> gesture look like two features. A recorded verdict no longer removes them:
+> `mark_proactive_feedback_submitted` persists `feedback_value` alongside
+> `feedback_submitted`, and the frontend reads it to show the chosen chip
+> **pressed and disabled**. Disabled rather than merely unchanged: a proactive
+> verdict is final server-side (a `block` really blocks the subject), unlike a
+> response verdict which the user may change at will (ADR-138).
 
 ## Database
 

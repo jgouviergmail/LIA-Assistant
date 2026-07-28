@@ -14,12 +14,12 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | Métrique | Valeur |
 |----------|--------|
-| Documents totaux | 320+ |
+| Documents totaux | 400+ |
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 40 |
-| ADRs | 166 (ADR-166 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 165 fichiers) |
-| Fiches knowledge (RAG système) | 24 |
+| ADRs | 171 (ADR-171 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 170 fichiers) |
+| Fiches knowledge (RAG système) | 25 |
 
 ---
 
@@ -43,7 +43,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
 | [TELEPHONY.md](./technical/TELEPHONY.md) | Téléphonie agentique (appels sortants, ADR-127) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (151) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (171) |
 
 ### Pour les Product Managers
 
@@ -297,7 +297,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-166 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-171 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 

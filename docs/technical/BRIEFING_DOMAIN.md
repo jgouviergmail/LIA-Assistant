@@ -258,7 +258,13 @@ apps/web/src/
 │   │                          invisible there — fixed in v1.18.1).
 │   ├── BriefingSkeleton.tsx   Initial load skeleton (CardsGridSkeleton, SynthesisSkeleton)
 │   ├── BriefingError.tsx      Page-level fallback (full payload error)
-│   ├── QuickAccessCompact.tsx Help + Settings, 2 compact cards (above the dashboard grid)
+│   ├── QuickAccessCompact.tsx Help + Settings as ONE compact bar above the dashboard
+│   │                          grid: two links (icon, label, subline, chevron), stacked
+│   │                          below `sm` and side by side above it. Stacking below `sm`
+│   │                          is measured, not stylistic — two segments leave 54-78 px
+│   │                          of text width at 320 px, which truncates "Einstellungen"
+│   │                          (92 px). ~208 px → ~120 px on a phone, ~104 px → ~60 px
+│   │                          on desktop, with no label or subline dropped.
 │   ├── UsageStatistics.tsx    Stats block — title typography matches "Mon dashboard"
 │   │                          (BarChart3 icon prefix), each StatCard shows the cycle
 │   │                          dates AND the lifetime "since DD/MM/YYYY" anchor below

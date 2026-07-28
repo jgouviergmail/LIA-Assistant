@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLanguageParam } from '@/hooks/useLanguageParam';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Accordion } from '@/components/ui/accordion';
 import {
   Settings,
@@ -66,6 +66,7 @@ import { BriefingGridSettings } from '@/components/settings/BriefingGridSettings
 import { OpenLoopsSection } from '@/components/settings/OpenLoopsSection';
 import { CardsDisplaySettings } from '@/components/settings/CardsDisplaySettings';
 import { SettingsGroupLabel } from '@/components/settings/SettingsGroupLabel';
+import { SettingsTabsBar } from '@/components/settings/SettingsTabsBar';
 import { SecuritySettings } from '@/components/settings/SecuritySettings';
 import { DeviceSessionsSettings } from '@/components/settings/DeviceSessionsSettings';
 import { AccountExportSettings } from '@/components/settings/AccountExportSettings';
@@ -234,6 +235,28 @@ export default function SettingsPage({ params }: SettingsPageProps) {
 
   if (!user) return null;
 
+  // The tab bar is sticky, so a tab can now be switched from anywhere down the
+  // page — which would otherwise drop the reader into the MIDDLE of the new
+  // tab's content. Land them at the top of it instead. Instant, not smooth:
+  // `behavior: 'smooth'` in JS ignores `prefers-reduced-motion`.
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    window.scrollTo({ top: 0 });
+  };
+
+  // Declared once, consumed by both layouts (superusers get the third tab).
+  const preferencesTab = {
+    value: 'preferences',
+    label: t('settings.tabs.preferences'),
+    icon: Settings,
+  };
+  const featuresTab = { value: 'features', label: t('settings.tabs.features'), icon: Puzzle };
+  const administrationTab = {
+    value: 'administration',
+    label: t('settings.tabs.administration'),
+    icon: Shield,
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -244,21 +267,8 @@ export default function SettingsPage({ params }: SettingsPageProps) {
 
       {/* Tabs Navigation */}
       {user.is_superuser ? (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="preferences" className="gap-2">
-              <Settings className="h-4 w-4" />
-              <span>{t('settings.tabs.preferences')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="features" className="gap-2">
-              <Puzzle className="h-4 w-4" />
-              <span>{t('settings.tabs.features')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="administration" className="gap-2">
-              <Shield className="h-4 w-4" />
-              <span>{t('settings.tabs.administration')}</span>
-            </TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+          <SettingsTabsBar tabs={[preferencesTab, featuresTab, administrationTab]} />
 
           {/* PREFERENCES Tab */}
           <TabsContent value="preferences">
@@ -434,17 +444,8 @@ export default function SettingsPage({ params }: SettingsPageProps) {
         </Tabs>
       ) : (
         /* NON-ADMIN: Two-tab layout (Preferences + Features) */
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="preferences" className="gap-2">
-              <Settings className="h-4 w-4" />
-              <span>{t('settings.tabs.preferences')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="features" className="gap-2">
-              <Puzzle className="h-4 w-4" />
-              <span>{t('settings.tabs.features')}</span>
-            </TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+          <SettingsTabsBar tabs={[preferencesTab, featuresTab]} />
 
           {/* PREFERENCES Tab */}
           <TabsContent value="preferences">
