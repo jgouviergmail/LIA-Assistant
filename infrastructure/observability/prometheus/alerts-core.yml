@@ -81,10 +81,18 @@ groups:
           description: "{{ $value | humanize }}% of {{ $labels.mountpoint }} is used (threshold: 90%). Prometheus TSDB, PostgreSQL and backups share this disk."
           runbook: "docs/runbooks/alerts/DiskSpaceCritical.md"
 
+      # working_set, NOT usage. `container_memory_usage_bytes` is RSS + page
+      # cache, and the kernel reclaims page cache instead of OOM-killing — so on
+      # a container doing heavy file I/O it sits near its limit indefinitely
+      # without ever being at risk. Prometheus is the worst case: its TSDB mmaps
+      # up to `--storage.tsdb.retention.size` (2 GB in prod) against a 512 MB
+      # cgroup, so its cache fills the limit by design. `working_set` is
+      # `usage - inactive_file`, which IS what the kernel uses for the OOM
+      # decision — the quantity this alert claims to predict.
       - alert: ContainerMemoryNearLimit
         expr: |
           (
-            container_memory_usage_bytes{name=~"lia.*"}
+            container_memory_working_set_bytes{name=~"lia.*"}
             / container_spec_memory_limit_bytes{name=~"lia.*"} > 0
           ) * 100 > 95
         for: 10m
@@ -94,8 +102,8 @@ groups:
           tier: core
         annotations:
           summary: "Container {{ $labels.name }} near its memory limit"
-          description: "{{ $labels.name }} uses {{ $value | humanize }}% of its compose memory limit for 10 minutes (threshold: 95%). The kernel will OOM-kill it at 100%."
-          runbook: "docs/runbooks/alerts/HighMemoryUsage.md"
+          description: "{{ $labels.name }} holds {{ $value | humanize }}% of its compose memory limit as working set for 10 minutes (threshold: 95%). Working set excludes reclaimable page cache, so this is the figure the kernel uses to OOM-kill at 100%."
+          runbook: "docs/runbooks/alerts/ContainerMemoryNearLimit.md"
 
       - alert: ContainerRestartLoop
         expr: |

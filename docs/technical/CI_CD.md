@@ -31,7 +31,7 @@ Trois exceptions seulement, chacune motivee par ecrit dans le dictionnaire
 
 | Etape CI-only | Raison | Equivalent local |
 |---|---|---|
-| `promtool` (binaire natif) | promtool n'est pas installe sur une machine de dev | `task test:alerts` — **meme version v2.53.2**, via conteneur |
+| `promtool` (binaire natif) | promtool n'est pas installe sur une machine de dev | `task test:alerts` — **meme version v3.0.0**, via conteneur |
 | Replay des migrations (bash, dans le conteneur) | le wrapper bash ne tourne pas sur l'hote Windows | `task db:migrate:replay-check` (portage Python, F048) |
 | Suite unitaire sur Python 3.13 (F041) | son objet **est** l'interpreteur different | aucun — maintenir un second interpreteur local n'a pas de sens |
 
@@ -335,9 +335,15 @@ deliberee (un booleen dans le script), pas un effet de bord.
 
 Validation deterministe et sans serveur : JSON/YAML valides, cles de dashboard
 requises, uids uniques, requetes de panels non vides, crochets PromQL
-equilibres. Les deux etapes promtool utilisent la **meme version v2.53.2** que
+equilibres. Les deux etapes promtool utilisent la **meme version v3.0.0** que
 `task test:alerts` sur les **memes fichiers** — binaire natif ici, conteneur en
 local. Le mecanisme differe, l'artefact verifie non.
+
+> **Le pin promtool doit suivre l'image Prometheus** de `docker-compose.{dev,prod}.yml`.
+> Le moteur PromQL a change entre les majeures : mesure du 2026-07-28, memes regles,
+> memes donnees, `SUCCESS` sur 2.53.2 et `FAILED` sur 3.0.0. Valider sur un autre
+> moteur que celui de la production n'est pas valider — une regle pouvait franchir
+> la CI et se comporter autrement sur le Raspberry Pi.
 
 #### Python 3.13 Compatibility (F041)
 

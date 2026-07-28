@@ -68,11 +68,14 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
-        // Global floor — re-measured 2026-07-26 on the release snapshot
-        // (274 files / 2,819 tests): statements 65.75 / branches 59.47 /
-        // functions 59.76 / lines 66.34. Left at 64/58/58/65: the doctrine
-        // wants >= 2 points of margin before a raise, and the smallest here is
-        // 1.34 (lines). Raise on the next coverage wave, not on this one.
+        // Global floor — re-measured 2026-07-28 (296 files / 3,491 tests):
+        // statements 66.40 / branches 60.13 / functions 60.52 / lines 66.96.
+        // Previous measurement 2026-07-26 was 65.75 / 59.47 / 59.76 / 66.34;
+        // the +0.6/+0.8 comes mechanically from ADR-168, which took 13
+        // uncovered lines of the memory-debug panel out of the denominator.
+        // Left at 64/58/58/65. The doctrine wants >= 2 points of margin AFTER
+        // a raise: statements would leave 1.40, lines 0.96. Still not this
+        // wave — raise when statements >= 67 and lines >= 68.
         // Raised twice in one pass: first for the API-error-contract wave
         // (api-error, api-server, settings server actions, the i18n middleware,
         // the connector hooks — was 62/56/56/62), then for the localized wind

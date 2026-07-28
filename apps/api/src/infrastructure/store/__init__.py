@@ -1,13 +1,14 @@
 """
 Store infrastructure module.
 
-Provides abstractions for semantic storage used across the application:
-- Long-term memory for user psychological profiles
-- Future RAG document storage
-- Tool context persistence
+Hosts the BM25 lexical index used by RAG Spaces retrieval (hybrid semantic +
+lexical search over user documents).
 
-All storage uses LangGraph's AsyncPostgresStore with semantic search capabilities.
-Includes hybrid search (BM25 + semantic) for improved recall.
+Historical note: this package also exposed a LangGraph-store-based semantic
+memory layer (`semantic_store.py`, including a `search_hybrid` combining BM25
+and pgvector). Long-term memory moved to a dedicated PostgreSQL/pgvector model
+in v1.14.0 (`domains/memories/`), and that module was left behind with no
+caller. It was removed in ADR-168 along with its four orphan settings.
 """
 
 from .bm25_index import (
@@ -15,22 +16,8 @@ from .bm25_index import (
     get_bm25_manager,
     tokenize_text,
 )
-from .semantic_store import (
-    EmotionalState,
-    MemoryNamespace,
-    StoreNamespace,
-    compute_emotional_state,
-    search_hybrid,
-    search_semantic,
-)
 
 __all__ = [
-    "StoreNamespace",
-    "MemoryNamespace",
-    "search_semantic",
-    "search_hybrid",
-    "compute_emotional_state",
-    "EmotionalState",
     "BM25IndexManager",
     "get_bm25_manager",
     "tokenize_text",

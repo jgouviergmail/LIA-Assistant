@@ -4,8 +4,8 @@
 > Every default value in this guide is the **production-proven configuration** actually running in production; you can adopt them as-is with confidence.
 
 **Version**: 4.0
-**Last Updated**: 2026-07-27
-**Compatibility**: LIA v1.25.29
+**Last Updated**: 2026-07-28
+**Compatibility**: LIA v1.25.30
 
 ## Table of Contents
 
@@ -833,7 +833,6 @@ Every subsystem below ships with working defaults; the values shown are the **pr
 | `RATE_LIMIT_ENABLED` | Per-user API rate limiting | `true` |
 | `VOICE_STT_ENABLED` / `ELEVENLABS_STT_ENABLED` | Local Whisper STT / ElevenLabs Scribe STT | `true` |
 | `LANGFUSE_ENABLED` | Langfuse LLM tracing | **`false`** (dev-only tool) |
-| `MEMORY_HYBRID_ENABLED` | BM25+semantic hybrid for memory search | `false` |
 | `PLAN_PATTERN_TRAINING_ENABLED` | Plan pattern learning | `false` |
 | `ENABLE_FALLBACK_MIDDLEWARE` | LLM fallback model chain | `false` |
 | `BROWSER_SCREENSHOT_ENABLED` | Browser session screenshots | `false` |

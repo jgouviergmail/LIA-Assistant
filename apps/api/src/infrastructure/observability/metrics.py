@@ -288,20 +288,11 @@ background_job_errors_total = Counter(
 )
 
 # ============================================================================
-# HYBRID MEMORY SEARCH METRICS
+# BM25 LEXICAL INDEX METRICS
 # ============================================================================
-
-hybrid_search_total = Counter(
-    "memory_hybrid_search_total",
-    "Total hybrid search operations",
-    ["status"],  # success, error, fallback
-)
-
-hybrid_search_duration_seconds = Histogram(
-    "memory_hybrid_search_duration_seconds",
-    "Hybrid search latency",
-    buckets=[0.01, 0.05, 0.1, 0.2, 0.5, 1.0],
-)
+# The memory hybrid-search counters that used to sit here were removed with
+# their only emitter (ADR-168). What remains is the BM25 index cache, still
+# exercised by RAG Spaces retrieval.
 
 bm25_cache_hits_total = Counter(
     "memory_bm25_cache_hits_total",
@@ -410,3 +401,21 @@ def metrics_endpoint() -> Response:
         content=metrics_data,
         media_type="text/plain; version=0.0.4; charset=utf-8",
     )
+
+
+# ============================================================================
+# PROMPT-INJECTION SURVEILLANCE (registry content trust)
+# ============================================================================
+# Lives here rather than in metrics_agents.py: this is a cross-cutting content
+# boundary (both execution modes, every connector), and metrics_agents.py is at
+# its frozen size cap — a logical file never grows.
+
+prompt_injection_patterns_total = Counter(
+    "prompt_injection_patterns_total",
+    "Injection-shaped patterns detected in third-party content on its way to "
+    "the LLM. Detection only: the content is never rewritten, it is marked. A "
+    "sustained non-zero rate on one surface means a source is being used to "
+    "steer the assistant",
+    # surface: pipeline | react — family: see content_wrapper._INJECTION_PATTERNS
+    ["surface", "family"],
+)

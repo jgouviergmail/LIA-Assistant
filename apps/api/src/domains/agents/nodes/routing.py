@@ -808,7 +808,18 @@ def route_from_react_call_model(
 
     Enforces two safety limits:
     1. Max iterations — prevents infinite loops
-    2. Hard timeout — prevents slow tool calls from accumulating
+    2. Compute budget — prevents slow tool calls from accumulating
+
+    The budget counts the loop's own COMPUTE time, not wall clock (ADR-170).
+    Wall clock was wrong for a graph that can be interrupted: ``interrupt()``
+    raises, so the node never returns and never refreshes any timestamp, and
+    ``Command(resume=…)`` re-enters at that node — the router, which is where the
+    turn-start reset lives, does not replay. An approval the user took longer than
+    ``react_agent_timeout_seconds`` to grant therefore ended the resumed turn at
+    the very next routing: the final AIMessage still carried ``tool_calls`` and no
+    content, so ``react_agent_result.final_message`` came back empty, the response
+    node's ReAct bypass did not trigger, and the turn was silently re-synthesised
+    by a second LLM call. Measured: 2.01 s of wall clock for 0.0102 s of compute.
 
     Args:
         state: Current graph state with messages and react_iteration.
@@ -816,7 +827,6 @@ def route_from_react_call_model(
     Returns:
         Next node name.
     """
-    import time
 
     from langchain_core.messages import AIMessage
 
@@ -839,22 +849,32 @@ def route_from_react_call_model(
         ).inc()
         return NODE_REACT_FINALIZE
 
-    # Safety limit 2: hard timeout
-    start_time = state.get("react_start_time")
-    if start_time is not None:
-        elapsed = time.time() - start_time
-        if elapsed > settings.react_agent_timeout_seconds:
-            logger.warning(
-                "react_timeout_reached",
-                elapsed_seconds=round(elapsed, 1),
-                timeout_seconds=settings.react_agent_timeout_seconds,
-                iteration=iteration,
-            )
-            langgraph_conditional_edges_total.labels(
-                edge_name="route_from_react_call_model",
-                decision=NODE_REACT_FINALIZE,
-            ).inc()
-            return NODE_REACT_FINALIZE
+    # Safety limit 2: compute budget (see docstring — never wall clock).
+    # Nothing charged yet means no model call has completed in this turn, so
+    # there is no budget to enforce — same short-circuit the wall-clock version
+    # had when react_start_time was unset.
+    compute_elapsed = float(state.get("react_elapsed_seconds") or 0.0)
+    if compute_elapsed > 0.0 and compute_elapsed > settings.react_agent_timeout_seconds:
+        # wall − compute: dominated by the HITL approval wait when the turn was
+        # interrupted, graph overhead otherwise. It used to be charged to the
+        # loop budget; surfacing it turns the old defect into a signal. Shared
+        # helper — react_finalize logs the same quantity, and two copies of this
+        # arithmetic would drift.
+        from src.domains.agents.nodes.react_nodes import _uncharged_wall_seconds
+
+        uncharged = _uncharged_wall_seconds(state, compute_elapsed)
+        logger.warning(
+            "react_compute_budget_exhausted",
+            compute_seconds=round(compute_elapsed, 1),
+            timeout_seconds=settings.react_agent_timeout_seconds,
+            uncharged_wall_seconds=uncharged,
+            iteration=iteration,
+        )
+        langgraph_conditional_edges_total.labels(
+            edge_name="route_from_react_call_model",
+            decision=NODE_REACT_FINALIZE,
+        ).inc()
+        return NODE_REACT_FINALIZE
 
     # Continue loop if LLM produced tool_calls
     if isinstance(last_message, AIMessage) and last_message.tool_calls:

@@ -125,7 +125,7 @@ class ReactToolWrapper(BaseTool):
             # Priority: structured_data > registry payload extraction > message only
             data_for_llm = self._extract_data_for_llm(result)
             if data_for_llm:
-                return f"{result.message}\n\nData:\n{data_for_llm}"
+                return f"{result.message}\n\nData:\n{self._mark_untrusted(result, data_for_llm)}"
             return result.message
 
         # Dict result (ToolResponse.model_dump() format)
@@ -136,6 +136,56 @@ class ReactToolWrapper(BaseTool):
 
         # String passthrough
         return str(result)
+
+    @staticmethod
+    def _mark_untrusted(result: Any, data_for_llm: str) -> str:
+        """Wrap the Data block when it carries third-party free text.
+
+        Scope is the registry-payload path: when a tool sets ``structured_data``
+        explicitly it takes priority in :meth:`_extract_data_for_llm`, and that
+        shape is authored by the tool itself (server name, iteration count…),
+        not by a third party. The raw third-party payloads only ever reach the
+        model through ``registry_updates``, which carries a typed provenance.
+
+        Unlike the pipeline surface, this block is a JSON dump with no
+        per-item lines to prefix, so the whole block is wrapped with the
+        canonical ``<external_content>`` markers already used by the browser and
+        web-fetch tools.
+
+        Args:
+            result: The tool output being serialised.
+            data_for_llm: The JSON data block extracted from it.
+
+        Returns:
+            The block, wrapped and annotated when untrusted; unchanged otherwise.
+        """
+        registry_updates = getattr(result, "registry_updates", None) or {}
+        if not registry_updates:
+            return data_for_llm
+
+        from src.domains.agents.data_registry.trust import is_external
+
+        external_types = {
+            str(getattr(item_type, "value", item_type))
+            for item in registry_updates.values()
+            if (item_type := getattr(item, "type", None)) is not None and is_external(item_type)
+        }
+        if not external_types:
+            return data_for_llm
+
+        from src.domains.agents.utils.content_wrapper import (
+            injection_notice,
+            wrap_external_content,
+        )
+
+        notice = injection_notice(
+            data_for_llm, item_type=",".join(sorted(external_types)), surface="react"
+        )
+        return wrap_external_content(
+            f"{data_for_llm}{notice}",
+            source_url=",".join(sorted(external_types)),
+            source_type="registry_payload",
+        )
 
     @staticmethod
     def _extract_data_for_llm(result: Any) -> str:

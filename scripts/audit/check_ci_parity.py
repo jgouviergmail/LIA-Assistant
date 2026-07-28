@@ -52,11 +52,14 @@ INFRASTRUCTURE_PATTERNS: tuple[tuple[str, str], ...] = (
 # Genuine CI-only steps. Each needs a reason: this is the list a reviewer reads
 # to know what a local run does NOT cover.
 CI_ONLY: dict[str, str] = {
-    "VER=2.53.2": (
+    "VER=3.0.0": (
         "promtool binary install. The local equivalent is `task test:alerts`, which "
-        "runs the SAME pinned version (v2.53.2) on the same files through a container "
+        "runs the SAME pinned version (v3.0.0) on the same files through a container "
         "because promtool is not installed on a dev machine. Mechanism differs, "
-        "checked artifact does not."
+        "checked artifact does not. The pin MUST track the Prometheus image in "
+        "docker-compose.{dev,prod}.yml: the PromQL engine changed between majors, "
+        "and the same rules on the same data returned SUCCESS on 2.53.2 and FAILED "
+        "on 3.0.0 — validating on a different engine than production is not validation."
     ),
     "promtool check rules": (
         "see above — native binary here, container in `task test:alerts`."

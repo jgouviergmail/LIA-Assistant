@@ -2092,8 +2092,10 @@ Règles :
    mesurée : 52,3 %) → 58 % (2026-07-24, réel 62,5 % sur le sous-ensemble gated
    fast-unit) → 59 % (2026-07-24, réel 62,79 % — 13 016 tests) → 60 %
    (2026-07-25, réel 63,16 % — 13 422 tests) → 61 % (2026-07-25, réel 63,67 %
-   — 13 737 tests) → **62 % (2026-07-26, réel 64,13 % — 14 058 tests dans le sous-ensemble gated)**. Palier
-   suivant 65 % dès que le réel dépasse ~67 %.
+   — 13 737 tests) → **62 % (2026-07-26, réel 64,13 % — 14 058 tests dans le sous-ensemble gated)**.
+   Re-mesuré le 2026-07-28 : **réel 64,98 %** (14 688 tests dans le sous-ensemble
+   gated) — le plancher reste à 62 %, le passer à 63 % ne laisserait que 1,98 pt
+   de marge. Palier suivant 65 % dès que le réel dépasse ~67 %.
 
    La marge volontairement conservée (~4 pts) couvre l'écart entre la mesure
    locale (Windows) et le runner CI (Linux) : quelques branches dépendent de la

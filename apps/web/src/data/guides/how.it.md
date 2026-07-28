@@ -4,9 +4,9 @@
 >
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
-**Versione**: 3.5
-**Data**: 2026-07-27
-**Applicazione**: LIA v1.25.29
+**Versione**: 3.6
+**Data**: 2026-07-28
+**Applicazione**: LIA v1.25.30
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -38,6 +38,7 @@
 23. [Pattern di ingegneria trasversali](#23-pattern-di-ingegneria-trasversali)
 24. [Architettura delle decisioni (ADR)](#24-architettura-delle-decisioni-adr)
 25. [Potenziale di evoluzione ed estensibilità](#25-potenziale-di-evoluzione-ed-estensibilità)
+26. [Psyche Engine: Intelligenza emotiva dinamica](#26-psyche-engine-intelligenza-emotiva-dinamica)
 
 ---
 
@@ -52,8 +53,8 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Auto-hosting ARM64 | Docker multi-arch, embeddings semantici (multilingue), Playwright chromium cross-platform |
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
-| Trasparenza totale | 438 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 160+ ADR, ~16.388 test raccolti da pytest in 866 file, osservabilità nativa, HITL a 6 livelli |
+| Trasparenza totale | 447 metriche Prometheus, debug panel integrato, tracciamento token per token |
+| Affidabilità in produzione | 160+ ADR, ~16.388 test raccolti da pytest in 873 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -71,11 +72,11 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~16.388 (raccolti da pytest su 866 file di test) + 3.491 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~16.388 (raccolti da pytest su 873 file di test) + 3.491 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 400+ |
 | ADR (Architecture Decision Record) | 160+ |
-| Metriche Prometheus | 438 definizioni |
+| Metriche Prometheus | 447 definizioni |
 | Dashboard Grafana | 25 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -526,6 +527,14 @@ Quando il numero di token supera una soglia dinamica (rapporto della context win
 
 State completo sottoposto a checkpoint dopo ogni nodo. P95 save < 50 ms, P95 load < 100 ms, dimensione media ~15 KB/conversazione. Checkpointer e store si appoggiano ciascuno a un pool di connessioni PostgreSQL dedicato per worker (dimensioni regolabili via ambiente): le conversazioni concorrenti non si serializzano più su un'unica connessione, e una connessione caduta viene rilevata al checkout e sostituita automaticamente (ADR-111).
 
+### 10.5. I blocchi di sistema di un turno ReAct sono stato (ADR-169/170)
+
+`get_windowed_messages(include_system=True)` **porta tutti i `SystemMessage` in testa**, senza limite di finestra. Impilare i blocchi di sistema del turno nella cronologia equivaleva quindi a rispedire tutte le copie passate a ogni chiamata: `react_agent_prompt.txt` pesa **840 token**, cioè 2.520 token duplicati dopo tre turni — a ogni chiamata LLM di ogni iterazione. Poiché il prefisso cresceva a ogni turno, nessuna cache di prefisso del fornitore poteva mai colpire, e Anthropic rifiutava la sequenza già dal secondo turno: un `SystemMessage` non può stare in mezzo a una cronologia.
+
+I blocchi vivono ora in una chiave di stato dedicata e vengono ricomposti in testa a ogni chiamata — il prefisso torna stabile. Lo schema di stato passa a **1.4**, con una migrazione additiva e idempotente. Il windowing scarta i `SystemMessage` ereditati dalla cronologia **tranne il riassunto di compattazione**: una prima versione della correzione ristabiliva la contiguità distruggendo quel riassunto, ed è la revisione di quella correzione ad aver prodotto la soluzione giusta.
+
+**La scadenza del ciclo si misura sul calcolo, non sull'orologio da parete.** `interrupt()` solleva: il nodo non ritorna mai, nessun aggiornamento di stato viene persistito, nessun timestamp viene rinfrescato, e la ripresa rientra nel nodo interrotto senza rigiocare il router in cui viveva l'azzeramento — **2,01 s di orologio per 0,0102 s di calcolo**, misurati su un grafo reale. Superato il budget, il turno ripreso veniva troncato alla decisione di routing successiva e la risposta ri-sintetizzata da una seconda chiamata LLM, perdendo il lavoro multi-passo. Una guardia di assenza di progresso completa il quadro: alla quarta chiamata identica di uno strumento il modello è invitato a cambiare approccio, alla quinta il turno si conclude. L'impronta è un HMAC ancorato alla chiave dell'applicazione — sopravvive a una ripresa su un altro worker — e solo l'impronta e un contatore raggiungono il checkpoint, mai il nome dello strumento né i suoi argomenti.
+
 ---
 
 ## 11. Sistema di memoria e profilo psicologico
@@ -557,9 +566,11 @@ Ogni ricordo è un documento strutturato con:
 
 **Quali turni alimentano la memoria.** Un messaggio che avvia un'azione conta quanto una conversazione: la ripresa di una bozza non inietta alcun messaggio, cosicché la richiesta originale resta l'ultima parola dell'utente al momento dell'estrazione. Al contrario, i messaggi **fabbricati dal sistema** — l'impalcatura iniettata in caso di rifiuto HITL — sono marcati nei loro metadati ed esclusi sia come bersaglio sia come contesto: mai riconosciuti dal loro testo, poiché esistono in sei lingue. Infine, l'euristica che scarta gli assensi si applica solo a ciò che l'utente ha realmente digitato — applicata a un nome di persona, faceva sparire i ricordi dei contatti il cui cognome somiglia a «bene» o «cool». Ogni decisione è conteggiata per sottosistema e per esito (`post_response_extraction_scheduled_total`), dove esistevano solo log di debug.
 
-### 11.4. Ricerca ibrida BM25 + semantica
+### 11.4. Ricerca in memoria a doppio vettore
 
-Combinazione con alpha configurabile (default 0.6 semantica / 0.4 BM25). Boost del 10% quando entrambi i segnali sono forti (> 0.5). Fallback grazioso verso semantica sola se BM25 fallisce. Performance: 40-90 ms con cache.
+Ogni ricordo porta **due embedding**: uno sul suo contenuto, uno sulle parole chiave che lo attivano. La query viene confrontata con entrambi e vince la corrispondenza migliore (`LEAST(dist_content, dist_keyword)`, con ripiego sul contenuto quando il vettore delle parole chiave è nullo).
+
+Un motore **ibrido BM25 + pgvector** è vissuto qui fino alla v1.14.0, quando la memoria a lungo termine è migrata sul proprio modello PostgreSQL. Il percorso di ricerca ha seguito; quello ibrido no. Al 2026-07-27 non aveva **alcun chiamante**, 21 % di copertura, 100 righe su 127 mai raggiunte — e il pannello di debug annunciava comunque l'opzione all'utente. Modulo, impostazioni, metriche e visualizzazione sono stati rimossi insieme ([ADR-168](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-168-Removal-Of-Dead-Hybrid-Memory-Search.md)). La ricerca ibrida resta ben viva, ma dove è realmente usata: RAG Spaces (sezione 17).
 
 ### 11.5. Diari di bordo stratificati (Journals)
 
@@ -767,7 +778,7 @@ Design **fail-open**: i fallimenti dell'infrastruttura non bloccano gli utenti.
 | CSRF | SameSite=Lax |
 | SQL Injection | SQLAlchemy ORM (query parametrizzate) |
 | SSRF | Risoluzione DNS + blocklist IP (Web Fetch, MCP, Browser); l'installazione di skill da URL riusa lo stesso validatore con termini più severi: solo https, redirect rifiutati, tetto di dimensione in streaming, deadline TOTALE di trasferimento, rate limit per utente Il browser va oltre: **ogni richiesta emessa da una pagina** — redirect, sotto-risorsa, iframe, XHR — risolve la propria destinazione dietro una cache di verdetti limitata, e un errore interrompe invece di lasciar passare. |
-| Prompt Injection | Marker di sicurezza `<external_content>` |
+| Prompt Injection | Provenienza portata dal dato: 24 tipi classificati (fail-closed, assert all'avvio), marcatura sulle tre superfici che raggiungono l'LLM, 7 famiglie di pattern rilevate in 6 lingue senza mai riscrivere il contenuto (ADR-167); marker `<external_content>` mantenuti lato strumenti |
 | Rate Limiting / spoofing IP | Redis sliding window distribuito (Lua atomico); catena proxy affidabile — porte API vincolate a loopback (cloudflared = unico ingresso), uvicorn `--proxy-headers`, `request.client.host` validato come unica fonte di IP (niente più bucket globale condiviso, XFF grezzo mai letto) Un tetto globale precede ogni rotta come vero middleware ASGI sullo stesso limitatore condiviso, così un singolo client non può consumare l'intera API; le sonde restano esenti per non strozzare mai la supervisione. |
 | Supply Chain | SHA-pinned GitHub Actions, Dependabot settimanale |
 
@@ -785,6 +796,16 @@ Tre superfici eseguono qualcosa per conto dell'utente, e ciascuna è trattata co
 
 **Il corpo di una richiesta è limitato prima di essere letto.** Il tetto agisce prima dell'handler, sulla lunghezza dichiarata quando c'è e sui byte contati quando non c'è, così il picco di memoria lo fissiamo noi e non il chiamante — sui webhook ciò avviene prima dell'autenticazione. La sua coerenza con i limiti di upload per endpoint è verificata all'avvio: una contraddizione impedisce il boot invece di manifestarsi come un rifiuto remoto che nessun log spiega.
 
+### 19.6. La provenienza del contenuto è portata dal dato (ADR-167)
+
+**Un testo che LIA legge non è un testo che LIA esegue.** Il corpo di un'e-mail, la descrizione di un invito scritta dal suo organizzatore, una pagina web, il riassunto editoriale di un luogo, il risultato di un server MCP: tutti finiscono nel prompt, e chiunque può depositarvi un'istruzione.
+
+La marcatura strumento per strumento è stata invalidata dalla ricerca esaustiva dei suoi chiamanti. **Dimentica**: `perplexity_tools`, `brave_tools`, `mcp_react_tools` ed `emails_tools` non erano coperti — quest'ultimo annunciando nel proprio docstring di restituire *«FULL email content (body, headers, attachments)»*. **E non copre la superficie giusta**: il contenuto raggiunge il modello attraverso due percorsi, nessuno dei quali è uno strumento, tra cui `generate_data_for_filtering`, che costruisce il blocco `{data_for_filtering}` del prompt di risposta a **ogni** turno che produce dati, in **entrambe** le modalità di esecuzione.
+
+La provenienza è dunque una proprietà del **dato**: i 24 tipi del registro sono classificati una volta, un tipo sconosciuto o nullo vale *esterno* (fail-closed), e un assert di completezza all'avvio rifiuta il boot su un tipo non classificato — stessa dottrina di ADR-085. Quindici tipi su ventiquattro sono redatti da terzi.
+
+**Rilevare, mai sanificare.** Sette famiglie di pattern sono riconosciute nelle sei lingue — ruolo usurpato, dirottamento di istruzione, cambio di persona, esfiltrazione, uno strumento LIA nominato dentro testo di terzi, Unicode invisibile, una direttiva nascosta in un commento HTML — e il contenuto parte verso il modello **immutato**, accompagnato da una nota che nomina la famiglia. Sanificare significherebbe riscrivere un'e-mail che l'utente può voler leggere così com'è, in cambio di una garanzia che l'aggiramento successivo smentirebbe. Il rilevamento è limitato ai primi 20 000 caratteri e **non registra mai il testo**: è per costruzione controllato dall'attaccante e contiene abitualmente i dati dell'utente.
+
 ---
 
 ## 20. Osservabilità e monitoring
@@ -793,7 +814,7 @@ Tre superfici eseguono qualcosa per conto dell'utente, e ciascuna è trattata co
 
 | Tecnologia | Ruolo |
 |------------|-------|
-| Prometheus | 438 metriche custom (RED pattern) |
+| Prometheus | 447 metriche custom (RED pattern) |
 | Grafana | 25 dashboard production-ready |
 | Loki | Log strutturati JSON aggregati |
 | Tempo | Trace distribuite cross-service (OTLP gRPC) |
@@ -1124,10 +1145,10 @@ Il Psyche Engine dota l'assistente di uno stato psicologico dinamico che evolve 
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 160+ ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~16.388 test in 866 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 160+ ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~16.388 test in 873 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 160+ ADR e del changelog (da v1.0 a v1.25.29). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 160+ ADR e del changelog (da v1.0 a v1.25.30). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

@@ -335,6 +335,12 @@ async def router_node_v3(
         "react_hitl_map": {},
         "react_iteration": 0,
         "react_start_time": None,
+        # Same reason as the keys above: the previous turn's value must not leak
+        # into this one. Blocks are rebuilt by react_setup, the compute budget
+        # restarts at zero, and the loop guard forgets what the last turn called.
+        "react_system_blocks": [],
+        "react_elapsed_seconds": 0.0,
+        "react_call_digests": {},
         # Store intelligence for planner (as serializable dict for LangGraph checkpointing)
         # Also store the object for in-memory access by streaming service
         STATE_KEY_QUERY_INTELLIGENCE: intelligence.to_serializable_dict(),

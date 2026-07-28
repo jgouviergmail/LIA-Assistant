@@ -19,7 +19,7 @@ Created: 2025-11-20
 import re
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
@@ -198,9 +198,6 @@ from src.core.constants import (
     MEMORY_EXTRACTION_MESSAGE_MAX_CHARS_DEFAULT,
     MEMORY_EXTRACTION_PRESENCE_PENALTY_DEFAULT,
     MEMORY_EXTRACTION_TOP_P_DEFAULT,
-    MEMORY_HYBRID_ALPHA_DEFAULT,
-    MEMORY_HYBRID_BOOST_THRESHOLD_DEFAULT,
-    MEMORY_HYBRID_MIN_SCORE_DEFAULT,
     MEMORY_MAX_RESULTS_DEFAULT,
     MEMORY_MIN_AGE_FOR_CLEANUP_DAYS_DEFAULT,
     MEMORY_MIN_SEARCH_SCORE_DEFAULT,
@@ -254,6 +251,8 @@ from src.core.constants import (
     REACT_AGENT_MAX_TOOLS_DEFAULT,
     REACT_AGENT_TIMEOUT_SECONDS_DEFAULT,
     REACT_MCP_EXPAND_ITERATIVE_ENABLED_DEFAULT,
+    REACT_REPEATED_CALL_BLOCK_THRESHOLD_DEFAULT,
+    REACT_REPEATED_CALL_TERMINAL_THRESHOLD_DEFAULT,
     RECENT_ENTITIES_MAX_TURN_AGE_DEFAULT,
     REGISTRY_MAX_ITEMS_DEFAULT,
     RESPONSE_CONTEXT_PREFETCH_AT_ROUTER_ENABLED_DEFAULT,
@@ -481,6 +480,54 @@ class AgentsSettings(BaseSettings):
         le=600,
         description="Hard timeout for entire ReAct execution (seconds).",
     )
+    react_repeated_call_block_threshold: int = Field(
+        default=REACT_REPEATED_CALL_BLOCK_THRESHOLD_DEFAULT,
+        ge=2,
+        le=20,
+        description=(
+            "Nth identical tool call (same name AND arguments) refused within a turn. "
+            "The model gets a recoverable error telling it to change method or conclude."
+        ),
+    )
+    react_repeated_call_terminal_threshold: int = Field(
+        default=REACT_REPEATED_CALL_TERMINAL_THRESHOLD_DEFAULT,
+        ge=3,
+        le=25,
+        description=(
+            "Nth identical tool call that ends the turn. Must stay above "
+            "react_repeated_call_block_threshold so the model gets a chance to adapt first."
+        ),
+    )
+
+    @field_validator("react_repeated_call_terminal_threshold", mode="after")
+    @classmethod
+    def terminal_threshold_above_block(cls, v: int, info: ValidationInfo) -> int:
+        """Refuse a configuration where the loop guard cannot warn before it cuts.
+
+        ``register_call`` tests the terminal threshold first, so a terminal value
+        at or below the block value is safe (the loop still stops) but silently
+        removes the recoverable step that lets the model change method. Failing
+        at boot is better than losing that step without a trace.
+
+        Args:
+            v: The terminal threshold being validated.
+            info: Validation context carrying the already-validated fields.
+
+        Returns:
+            The validated value.
+
+        Raises:
+            ValueError: If the terminal threshold is not strictly above the block one.
+        """
+        block = info.data.get("react_repeated_call_block_threshold")
+        if block is not None and v <= block:
+            raise ValueError(
+                f"react_repeated_call_terminal_threshold ({v}) must be strictly above "
+                f"react_repeated_call_block_threshold ({block}): otherwise the turn is "
+                "cut without the model ever receiving the recoverable 'change method' error."
+            )
+        return v
+
     react_agent_max_tools: int = Field(
         default=REACT_AGENT_MAX_TOOLS_DEFAULT,
         ge=5,
@@ -1063,42 +1110,9 @@ class AgentsSettings(BaseSettings):
     )
 
     # ========================================================================
-    # Hybrid Memory Search (BM25 + Semantic) - 2026-01
+    # BM25 Lexical Index (RAG Spaces retrieval)
     # ========================================================================
-    # Combines keyword-based (BM25) and semantic (pgvector) search for improved recall.
-    # Reference: infrastructure/store/bm25_index.py, infrastructure/store/semantic_store.py
-    memory_hybrid_enabled: bool = Field(
-        default=False,
-        description=(
-            "Enable hybrid BM25+semantic search for memories. "
-            "When disabled, falls back to semantic-only search."
-        ),
-    )
-    memory_hybrid_alpha: float = Field(
-        default=MEMORY_HYBRID_ALPHA_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description=(
-            "Weight for semantic score in hybrid search (0.0-1.0). "
-            "Formula: final_score = alpha * semantic + (1-alpha) * bm25. "
-            "Higher = more semantic, Lower = more keyword matching."
-        ),
-    )
-    memory_hybrid_min_score: float = Field(
-        default=MEMORY_HYBRID_MIN_SCORE_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description=("Minimum combined score for inclusion in hybrid search results."),
-    )
-    memory_hybrid_boost_threshold: float = Field(
-        default=MEMORY_HYBRID_BOOST_THRESHOLD_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description=(
-            "Threshold for 'both high' bonus. "
-            "If both semantic and BM25 scores exceed this, apply 10% boost."
-        ),
-    )
+    # Reference: infrastructure/store/bm25_index.py
     memory_bm25_cache_max_users: int = Field(
         default=MEMORY_BM25_CACHE_MAX_USERS_DEFAULT,
         ge=10,

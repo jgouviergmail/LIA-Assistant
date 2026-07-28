@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versione** : 3.9
-**Data** : 2026-07-27
-**Applicazione** : LIA v1.25.29
+**Versione** : 4.0
+**Data** : 2026-07-28
+**Applicazione** : LIA v1.25.30
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -222,6 +222,8 @@ Quando usi ChatGPT, le tue conversazioni vivono sui server di OpenAI. Con Gemini
 
 Con LIA, **tutto rimane nel tuo PostgreSQL**: conversazioni, memoria, profilo psicologico, documenti, preferenze. Puoi esportare, fare backup, migrare o eliminare tutti i tuoi dati in qualsiasi momento — inclusa un'esportazione completa in un clic dalle impostazioni: Markdown leggibile, JSON strutturato e i tuoi file, con il materiale segreto inesportabile per costruzione. E ogni dispositivo collegato al tuo account è visibile e revocabile con un clic. Il GDPR non è un vincolo — è una conseguenza naturale dell'architettura. I dati sensibili sono cifrati, le sessioni isolate, e il filtraggio automatico delle informazioni personalmente identificabili (PII) è integrato.
 
+La protezione vale anche per ciò che **entra**. Ogni giorno LIA legge testi che non avete scritto voi: il corpo di un'e-mail, la descrizione di un invito redatta dal suo organizzatore, una pagina web, la scheda di un luogo. Chiunque può infilarvi un'istruzione destinata all'assistente. Ogni dato porta ora la propria provenienza, e ciò che viene dall'esterno arriva etichettato come **materiale da analizzare, mai come ordine da eseguire** — con i tentativi di manipolazione individuati e nominati, nelle sei lingue. Il vostro contenuto non viene però mai riscritto: un'e-mail resta ciò che il suo autore ha scritto. Riscrivere darebbe l'illusione di una garanzia che l'aggiramento successivo smentirebbe; nominare ciò che si vede è più onesto, e più utile.
+
 ### 5.2. Basta anche un Raspberry Pi
 
 LIA gira in produzione su un **Raspberry Pi 5** — un computer a scheda singola da 80 euro. 20+ agenti specializzati, uno stack di osservabilità completo, un sistema di memoria psicologica, il tutto su un micro-server ARM. Le immagini Docker multi-architettura (amd64/arm64) permettono il deployment su qualsiasi hardware: NAS Synology, VPS a pochi euro al mese, server aziendale, o cluster Kubernetes.
@@ -272,6 +274,8 @@ Questa trasparenza si estende alla qualità del sistema stesso. L'audit tecnico 
 Lo stesso principio vale per le protezioni stesse. Una sicurezza annunciata ma non verificabile è trattata come assente: ogni controllo è sostenuto da un test che fallisce se il controllo scompare e, quando si scrive una correzione, si ripristina il comportamento precedente il tempo necessario per verificare che il test lo rilevi. Un test che non può fallire non dimostra nulla.
 
 Nemmeno un test che non viene mai eseguito — ed è la scoperta più scomoda di questo progetto. Dieci file di test si erano disattivati da soli non appena mancava una chiave di provider, e nulla lo segnalava più: un test saltato conta come verde, la copertura misura le righe raggiunte e non le asserzioni eseguite, e una revisione vede un file di test e ne conclude che la superficie è protetta. Duecentodiciannove test non erano mai stati eseguiti nemmeno una volta; riaccendendoli sono emersi quattro difetti ben reali — tra cui una voce che spezzava in due tutti i numeri, e un promemoria perso definitivamente quando la quota si esauriva nel minuto sbagliato. L'assenza di un segnale rosso non è una prova di salute: a volte è soltanto l'assenza di misurazione. Una guardia di integrazione continua impedisce ora che un modulo di test si spenga in silenzio.
+
+Lo stesso principio vale per ciò che viene **annunciato**. Un pannello mostrava un interruttore «ricerca ibrida» per la memoria; il motore corrispondente non esisteva più da diverse versioni, e l'interruttore non comandava nulla. Il codice morto e la visualizzazione sono stati rimossi insieme, e il funzionamento reale scritto al loro posto. Una capacità annunciata ma assente non è un'imprecisione di documentazione: è una promessa fatta a un utente che non ha modo di verificarla. Mostrare un'impostazione che non comanda nulla è peggio che non mostrare nulla.
 
 ## 7. Profondità emotiva
 

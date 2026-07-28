@@ -277,7 +277,6 @@ async def fetch_response_context(
                 "settings": {
                     "max_results": settings.memory_max_results,
                     "min_score": settings.memory_min_search_score,
-                    "hybrid_enabled": getattr(settings, "memory_hybrid_enabled", False),
                 },
                 "memories": memory_debug_details or [],
             }

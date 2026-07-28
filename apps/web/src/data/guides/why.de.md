@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 3.9
-**Datum** : 2026-07-27
-**Anwendung** : LIA v1.25.29
+**Version** : 4.0
+**Datum** : 2026-07-28
+**Anwendung** : LIA v1.25.30
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -222,6 +222,8 @@ Wenn Sie ChatGPT nutzen, leben Ihre Gespräche auf den Servern von OpenAI. Mit G
 
 Mit LIA **bleibt alles in Ihrem PostgreSQL**: Gespräche, Gedächtnis, psychologisches Profil, Dokumente, Einstellungen. Sie können jederzeit alle Ihre Daten exportieren, sichern, migrieren oder löschen — auch per Ein-Klick-Komplettexport aus den Einstellungen: lesbares Markdown, strukturiertes JSON und Ihre Dateien, mit konstruktionsbedingt nicht exportierbarem Geheimmaterial. Und jedes mit Ihrem Konto verbundene Gerät ist sichtbar und mit einem Klick widerrufbar. Die DSGVO ist keine Einschränkung — sie ist eine natürliche Konsequenz der Architektur. Sensible Daten werden verschlüsselt, Sitzungen isoliert, und die automatische Filterung personenbezogener Daten (PII) ist integriert.
 
+Der Schutz gilt auch für das, was **hereinkommt**. LIA liest täglich Texte, die Sie nicht geschrieben haben: den Text einer E-Mail, die von ihrem Organisator verfasste Beschreibung einer Einladung, eine Webseite, einen Ortseintrag. Jeder kann darin eine Anweisung an die Assistentin unterbringen. Jede Information trägt nun ihre Herkunft, und was von außen kommt, trifft als **zu analysierendes Material ein, nie als zu befolgender Befehl** — mit Manipulationsversuchen, die in den sechs Sprachen erkannt und benannt werden. Ihr Inhalt wird dafür nie umgeschrieben: Eine E-Mail bleibt das, was ihr Autor geschrieben hat. Umschreiben würde die Illusion einer Garantie erzeugen, die die nächste Umgehung widerlegt; zu benennen, was man sieht, ist ehrlicher und nützlicher.
+
 ### 5.2. Sogar ein Raspberry Pi reicht
 
 LIA läuft produktiv auf einem **Raspberry Pi 5** — einem Einplatinencomputer für 80 Euro. 20+ spezialisierte Agenten, ein vollständiger Observability-Stack, ein psychologisches Gedächtnissystem — alles auf einem ARM-Mikroserver. Die Multi-Architektur-Docker-Images (amd64/arm64) ermöglichen den Einsatz auf beliebiger Hardware: Synology NAS, VPS für wenige Euro im Monat, Unternehmensserver oder Kubernetes-Cluster.
@@ -272,6 +274,8 @@ Diese Transparenz erstreckt sich auf die Qualität des Systems selbst. Das volls
 Dasselbe Prinzip gilt für die Schutzmaßnahmen selbst. Sicherheit, die angekündigt, aber nicht überprüfbar ist, wird als nicht vorhanden behandelt: Jede Maßnahme wird von einem Test gestützt, der fehlschlägt, sobald sie verschwindet, und wenn eine Korrektur geschrieben wird, stellt man das alte Verhalten so lange wieder her, bis feststeht, dass der Test es erkennt. Ein Test, der nicht scheitern kann, beweist nichts.
 
 Ein Test, der nie läuft, ebenso wenig — und das ist die unbequemste Entdeckung dieses Projekts. Zehn Testdateien hatten sich selbst abgeschaltet, sobald ein Provider-Schlüssel fehlte, und nichts meldete es mehr: ein übersprungener Test zählt als grün, Coverage misst erreichte Zeilen statt ausgeführter Zusicherungen, und eine Review sieht eine Testdatei und schließt daraus, die Fläche sei geschützt. Zweihundertneunzehn Tests waren kein einziges Mal gelaufen; beim Wiedereinschalten kamen vier echte Defekte zum Vorschein — darunter eine Stimme, die jede Zahl in zwei Teile zerschnitt, und eine Erinnerung, die endgültig verloren ging, wenn das Nutzungsbudget in der falschen Minute aufgebraucht war. Das Fehlen eines roten Signals ist kein Gesundheitsnachweis: manchmal ist es nur das Fehlen der Messung. Eine CI-Wache verhindert nun, dass ein Testmodul stillschweigend verstummt.
+
+Dasselbe Prinzip gilt für das, was **angekündigt** wird. Eine Oberfläche zeigte einen Schalter „hybride Suche" für das Gedächtnis; die zugehörige Maschinerie existierte seit mehreren Versionen nicht mehr, und der Schalter steuerte nichts. Toter Code und Anzeige wurden gemeinsam entfernt und das tatsächliche Verhalten an ihre Stelle geschrieben. Eine angekündigte, aber abwesende Fähigkeit ist keine Ungenauigkeit der Dokumentation: Sie ist ein Versprechen an einen Nutzer, der es nicht überprüfen kann. Eine Einstellung anzuzeigen, die nichts steuert, ist schlimmer, als nichts anzuzeigen.
 
 ## 7. Emotionale Tiefe
 

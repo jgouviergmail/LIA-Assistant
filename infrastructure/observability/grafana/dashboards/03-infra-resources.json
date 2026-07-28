@@ -453,6 +453,11 @@
               "expr": "container_memory_usage_bytes{name=~\"$container\"}",
               "legendFormat": "{{name}}",
               "refId": "A"
+            },
+            {
+              "expr": "container_memory_working_set_bytes{name=~\"$container\"}",
+              "legendFormat": "{{name}} (working set)",
+              "refId": "B"
             }
           ],
           "fieldConfig": {
@@ -475,7 +480,8 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Deux séries par conteneur. **usage** = RSS + page cache : l'empreinte réelle, utile pour le dimensionnement de l'hôte. **working set** = usage − inactive_file : la grandeur que le noyau utilise pour décider de l'OOM, et sur laquelle porte l'alerte ContainerMemoryNearLimit. Un écart important entre les deux est normal sur un conteneur qui fait beaucoup d'E/S fichier (Prometheus mappe son TSDB en mémoire)."
         },
         {
           "id": 12,

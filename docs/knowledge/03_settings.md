@@ -335,8 +335,8 @@ Every day, LIA merges near-identical memories that accumulate over conversations
 **🌱 Memories age gracefully (v1.16.6):**
 Medium-importance preferences stop cluttering memory after a few weeks, while important information (family, identity, milestones) is preserved long-term. Memories never activated past a grace period are penalized in the retention score.
 
-**🔍 Hybrid search:**
-LIA uses **hybrid search** combining keywords (BM25) and meaning (semantic) to retrieve your relevant memories with optimal accuracy.
+**🔍 Dual semantic search:**
+Each memory is indexed twice — once on its content, once on the keywords that trigger it. Your question is compared to both, and the better match wins, so a memory is found whether you phrase it the way it was recorded or not.
 
 **📊 Usage:**
 These memories personalize LIA's responses. For example, LIA will say "Hello Mary" to your sister without you specifying.

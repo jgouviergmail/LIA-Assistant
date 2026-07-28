@@ -3625,6 +3625,8 @@ class HybridMemorySearch:
 | Latency | 5ms | 45ms | 50ms |
 | Memory | 10MB/user | 50MB/user | 60MB/user |
 
+> ⚠️ **Historique** : ce chemin hybride pour la mémoire a été supprimé (ADR-168) — il n'avait plus d'appelant depuis la migration v1.14.0 vers PostgreSQL/pgvector. Les mémoires utilisent une recherche sémantique multi-vecteurs ; le BM25 vivant est celui des RAG Spaces.
+>
 > Voir [HYBRID_SEARCH.md](./technical/HYBRID_SEARCH.md) pour la documentation complète.
 
 ---

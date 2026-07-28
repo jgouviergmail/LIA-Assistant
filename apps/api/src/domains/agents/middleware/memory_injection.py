@@ -33,6 +33,7 @@ Phase: v1.14.0 — Migrated from LangGraph store to PostgreSQL custom
 
 from __future__ import annotations
 
+from functools import lru_cache
 from uuid import UUID
 
 from src.core.config import settings
@@ -45,45 +46,38 @@ from src.infrastructure.observability.logging import get_logger
 logger = get_logger(__name__)
 
 
-# Template for the psychological profile injection (base, always present)
-PSYCHOLOGICAL_PROFILE_TEMPLATE = """
-## PROFIL PSYCHOLOGIQUE DE L'UTILISATEUR
-
-⚠️ **IMPORTANT**: Les informations ci-dessous sont des souvenirs de L'UTILISATEUR, pas les tiens.
-Quand tu lis "Je me suis marié en 2008", cela signifie que L'UTILISATEUR s'est marié en 2008.
-Tu dois répondre en disant "Tu t'es marié en 2008" ou "Vous vous êtes marié en 2008".
-
-{profile_sections}
-
----
-{behavioral_directive}
-"""
-
-# Behavioral directives (DANGER vs NEUTRAL/COMFORT emotional state) are
-# versioned prompt files: memory_danger_directive.txt / memory_normal_directive.txt.
-# The danger directive's header is a SENTINEL matched literally by
+# The profile wrapper and its section headers are prompt TEXT: they are injected
+# verbatim into the system prompt, so they live in versioned files under
+# prompts/v1/ like every other prompt fragment — never inline in Python.
+#
+# Behavioral directives (DANGER vs NEUTRAL/COMFORT emotional state) are two
+# further files: memory_danger_directive.txt / memory_normal_directive.txt. The
+# danger directive's header is a SENTINEL matched literally by
 # response_system_prompt_base.txt ("DIRECTIVE DE SÉCURITÉ ÉMOTIONNELLE") —
 # a dedicated test keeps the two files in sync.
 
-# Section templates by category with priority ordering
-SECTION_TEMPLATES = {
-    "sensitivity": ("### ZONES SENSIBLES (Attention requise)", "alert-triangle"),
-    "relationship": ("### RELATIONS CONNUES", "users"),
-    "preference": ("### PRÉFÉRENCES & GOÛTS", "heart"),
-    "personal": ("### INFORMATIONS PERSONNELLES", "user"),
-    "pattern": ("### PATTERNS COMPORTEMENTAUX", "repeat"),
-    "event": ("### ÉVÉNEMENTS SIGNIFICATIFS", "calendar"),
-}
 
-# Priority order for sections (sensitivities first for safety)
-CATEGORY_PRIORITY = [
-    "sensitivity",
-    "relationship",
-    "preference",
-    "personal",
-    "pattern",
-    "event",
-]
+@lru_cache(maxsize=1)
+def _load_section_headers() -> tuple[tuple[str, str], ...]:
+    """Load the profile section headers, in injection order.
+
+    The file is the single source of truth for BOTH the labels and their
+    order. They used to live in two parallel Python structures
+    (``SECTION_TEMPLATES`` + ``CATEGORY_PRIORITY``) that could drift apart, and
+    an unused icon column that only survived because nothing read it.
+
+    Returns:
+        ``(category, header)`` pairs, sensitivities first.
+    """
+    raw = load_prompt("memory_profile_section_headers")
+    pairs: list[tuple[str, str]] = []
+    for line in raw.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "|" not in stripped:
+            continue
+        category, header = stripped.split("|", 1)
+        pairs.append((category.strip(), header.strip()))
+    return tuple(pairs)
 
 
 def _get_emotional_label(emotional_weight: int) -> str:
@@ -239,11 +233,8 @@ async def build_psychological_profile(
             # Build sections in priority order
             sections = []
 
-            for category in CATEGORY_PRIORITY:
-                if category in by_category and by_category[category]:
-                    header, _icon = SECTION_TEMPLATES.get(
-                        category, (f"### {category.upper()}", "info")
-                    )
+            for category, header in _load_section_headers():
+                if by_category.get(category):
                     items_text = "\n".join(by_category[category])
                     sections.append(f"{header}\n{items_text}")
 
@@ -256,7 +247,7 @@ async def build_psychological_profile(
             else:
                 behavioral_directive = load_prompt("memory_normal_directive")
 
-            profile_text = PSYCHOLOGICAL_PROFILE_TEMPLATE.format(
+            profile_text = load_prompt("memory_profile_template").format(
                 profile_sections="\n\n".join(sections),
                 behavioral_directive=behavioral_directive,
             )

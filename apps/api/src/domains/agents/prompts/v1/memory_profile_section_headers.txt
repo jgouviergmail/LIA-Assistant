@@ -1,0 +1,15 @@
+# Section headers of the psychological profile, in INJECTION ORDER.
+# One `category|header` per line; blank lines and #-comments are ignored.
+#
+# The order IS the priority: sensitivities first so a painful topic is the first
+# thing the model reads about the user. This file is the single source of truth
+# for both the labels and their order — they used to live in two parallel Python
+# structures (SECTION_TEMPLATES + CATEGORY_PRIORITY) that could drift apart.
+#
+# Completeness against MemoryCategory is asserted by a unit test.
+sensitivity|### ZONES SENSIBLES (Attention requise)
+relationship|### RELATIONS CONNUES
+preference|### PRÉFÉRENCES & GOÛTS
+personal|### INFORMATIONS PERSONNELLES
+pattern|### PATTERNS COMPORTEMENTAUX
+event|### ÉVÉNEMENTS SIGNIFICATIFS

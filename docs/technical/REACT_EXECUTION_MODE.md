@@ -3,6 +3,7 @@
 | Version | Date | ADR |
 |---------|------|-----|
 | 1.0 | 2026-04-09 | [ADR-070](../architecture/ADR-070-ReAct-Execution-Mode.md) |
+| 1.1 | 2026-07-28 | [ADR-169](../architecture/ADR-169-React-System-Blocks-Are-State.md), [ADR-170](../architecture/ADR-170-React-Compute-Budget-And-Loop-Guard.md) |
 
 ## Table of Contents
 
@@ -110,14 +111,28 @@ Prepares tools, system prompt, and context for the ReAct loop:
 - Builds system prompt from `react_agent_prompt.txt`
 - Injects memory context (resolved references + memory facts)
 - Injects active skills catalogue (L1, filtered by `active_skills_ctx`)
-- Sets `react_start_time` for timeout enforcement
+- Sets `react_start_time` (kept for observability; the deadline itself runs on compute — see below)
 - Stores tool names and HITL map in state (JSON-serializable)
+- **Publishes the turn's system blocks to `react_system_blocks`, not to `messages`** (ADR-169)
+
+> **Why the blocks are state and not messages.** `get_windowed_messages(include_system=True)`
+> hoists every `SystemMessage` to the front with no window limit, so appending them to the
+> history meant every past copy was re-sent on every call: `react_agent_prompt.txt` is
+> **840 tokens**, so 3 turns cost 2 520 tokens of duplicated prompt *per LLM call of every
+> iteration*, the provider prefix cache could never hit (the prefix grew each turn), and
+> Anthropic rejected the sequence from the second turn — a `SystemMessage` cannot sit in
+> the middle of a history. The blocks now live in their own state key and are recomposed
+> leading at each call. The state schema is **1.4**; the 1.3 → 1.4 migration is additive
+> and idempotent.
 
 ### react_call_model
 
 Calls the ReAct LLM with bound tools:
 - Recreates LLM and tool bindings each iteration (~1-2ms)
-- Applies message windowing (preserves current turn, windows history)
+- Recomposes `react_system_blocks` as leading `SystemMessage`s (stable prefix)
+- Applies message windowing (preserves current turn, windows history; legacy `SystemMessage`s
+  in the history are dropped, except the compaction summary)
+- Accumulates the node's own wall time into `react_elapsed_seconds` (the compute budget)
 - Returns AIMessage with or without `tool_calls`
 
 ### react_execute_tools
@@ -125,8 +140,36 @@ Calls the ReAct LLM with bound tools:
 Executes tools from the last AIMessage:
 - HITL: tools flagged `hitl_required` trigger `interrupt()` for pre-execution approval; draft-preparing mutation tools (`requires_confirmation`) instead hand off to the shared draft-confirmation flow (see [HITL in ReAct](#hitl-in-react))
 - Idempotence: on re-execution after interrupt resume, already-resolved tool calls are skipped
+- **No-progress guard** (ADR-170): after the idempotence skip, each executed call is digested and counted
 - ToolRuntime injection via `_build_tool_runtime()` (same pattern as pipeline)
 - Registry items accumulated across iterations via `current_turn_registry` merge
+
+### Compute budget and no-progress guard (ADR-170)
+
+`react_agent_timeout_seconds` (default 120 s) is compared against **compute time**, not wall
+clock. The reason is structural: `interrupt()` raises, so the node never returns, no state
+update is persisted and no timestamp is refreshed; the resume re-enters the interrupted node,
+and the router — where the reset lived — does not replay. Verified on a real LangGraph graph:
+*router re-ran on resume?* **no**, *start_time refreshed?* **no**, **2.01 s of wall clock for
+0.0102 s of compute**. The consequence was concrete: any approval taking longer than the budget
+cut the resumed turn at the next routing decision, leaving the last `AIMessage` carrying tool
+calls and no content, so the answer was re-synthesised by a second LLM call and the multi-step
+work was lost.
+
+`react_tool_executions_before_interrupt_total` and the `uncharged_wall_seconds` field keep the
+gap between wall clock and compute **visible** rather than merely unbilled.
+
+The no-progress guard tracks up to 64 call digests per turn:
+
+| Setting | Default | Effect |
+|---------|---------|--------|
+| `REACT_REPEATED_CALL_BLOCK_THRESHOLD` | 4 | Nth identical call is refused; the model is told to change approach |
+| `REACT_REPEATED_CALL_TERMINAL_THRESHOLD` | 5 | Nth identical call ends the turn |
+
+The digest is an HMAC keyed on the application secret, so it survives an HITL resume on another
+worker, and **only the digest and a counter are stored** — neither the tool name nor its
+arguments reach the PostgreSQL checkpoint. A validator refuses a terminal threshold at or below
+the block threshold.
 
 ### react_finalize
 

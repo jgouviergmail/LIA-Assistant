@@ -9,7 +9,7 @@
  * - Similarity score per memory (bar + value)
  * - Category and emotional weight
  * - Aggregated emotional state
- * - Settings used (min_score, max_results, hybrid_enabled)
+ * - Settings used (min_score, max_results)
  */
 
 import React from 'react';
@@ -178,17 +178,6 @@ export const MemoryInjectionSection = React.memo(function MemoryInjectionSection
             <span>
               <strong>max_results:</strong>{' '}
               <span className="font-mono">{data.settings.max_results}</span>
-            </span>
-            <span>
-              <strong>hybrid:</strong>{' '}
-              <span
-                className={cn(
-                  'font-mono',
-                  data.settings.hybrid_enabled ? 'text-green-400' : 'text-red-400'
-                )}
-              >
-                {data.settings.hybrid_enabled ? 'ON' : 'OFF'}
-              </span>
             </span>
           </div>
 

@@ -27,6 +27,18 @@ from src.domains.agents.context.recent_entities import (
 
 pytestmark = [pytest.mark.unit]
 
+
+def _item_lines(block: str) -> list[str]:
+    """Item lines only.
+
+    Since ADR-167 the block opens with a provenance legend when it carries
+    third-party content, and that legend is prose. These assertions are about
+    how many ENTITIES were serialised, so they count item lines — the same
+    oracle as before, expressed on the right unit.
+    """
+    return [line for line in block.splitlines() if line.startswith("[")]
+
+
 LANG = "fr"
 
 
@@ -120,14 +132,14 @@ class TestBuildContext:
         results = _results(4, ["event_a", "event_ghost"])
         out = build_recent_entities_context(registry, results, 5, LANG)
         assert "Présent" in out
-        assert len(out.splitlines()) == 1
+        assert len(_item_lines(out)) == 1
 
     def test_total_is_capped_by_settings(self):
         cap = settings.tool_context_max_items
         ids = [f"event_{i}" for i in range(cap + 5)]
         registry = {i: _item(f"Evenement {i}") for i in ids}
         out = build_recent_entities_context(registry, _results(4, ids), 5, LANG)
-        assert len(out.splitlines()) == cap
+        assert len(_item_lines(out)) == cap
 
     def test_most_recent_turn_comes_first(self):
         registry = {"old": _item("Ancien"), "new": _item("Recent")}

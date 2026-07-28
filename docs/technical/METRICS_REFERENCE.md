@@ -2345,7 +2345,7 @@ sum(rate(voice_websocket_tickets_validated_total[5m]))
 **Instrumentation:**
 
 ```python
-# apps/api/src/infrastructure/store/semantic_store.py
+# apps/api/src/infrastructure/store/semantic_store.py (supprimé — ADR-168)
 hybrid_search_total.labels(status="success").inc()
 ```
 

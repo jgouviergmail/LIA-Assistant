@@ -168,7 +168,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [INTERESTS.md](./technical/INTERESTS.md) | Système apprentissage centres d'intérêt | ✅ |
 | [SCHEDULED_ACTIONS.md](./technical/SCHEDULED_ACTIONS.md) | Actions planifiées récurrentes | ✅ |
 | [SUB_AGENTS.md](./technical/SUB_AGENTS.md) | Sub-agents éphémères — délégation via `delegate_to_sub_agent_tool` (ADR-083, F6 legacy supprimé) | ✅ |
-| [HYBRID_SEARCH.md](./technical/HYBRID_SEARCH.md) | Recherche hybride BM25 + sémantique | ✅ |
+| [HYBRID_SEARCH.md](./technical/HYBRID_SEARCH.md) | Recherche hybride BM25 + sémantique (**historique** — supprimé en ADR-168 ; le BM25 vivant est celui des RAG Spaces) | 🗄️ |
 | [JOURNALS.md](./technical/JOURNALS.md) | Personal Journals — carnets de bord introspectifs, injection sémantique | ✅ |
 | [USAGE_LIMITS.md](./technical/USAGE_LIMITS.md) | Per-user usage limits — tokens, messages, cost quotas with 5-layer enforcement | ✅ |
 | [PSYCHE_ENGINE.md](./technical/PSYCHE_ENGINE.md) | Psyche Engine — complete functional & technical documentation with scenarios | ✅ |
@@ -413,7 +413,8 @@ Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inlin
 | [DatabaseDown.md](./runbooks/alerts/DatabaseDown.md) | Base de données indisponible |
 | [ContainerDown.md](./runbooks/alerts/ContainerDown.md) | Container Docker down |
 | [HighCPUUsage.md](./runbooks/alerts/HighCPUUsage.md) | Utilisation CPU élevée |
-| [HighMemoryUsage.md](./runbooks/alerts/HighMemoryUsage.md) | Utilisation mémoire élevée |
+| [HighMemoryUsage.md](./runbooks/alerts/HighMemoryUsage.md) | Utilisation mémoire élevée (niveau **hôte**) |
+| [ContainerMemoryNearLimit.md](./runbooks/alerts/ContainerMemoryNearLimit.md) | Conteneur proche de sa limite Compose — `working_set`, pas `usage` (ADR-119) |
 | [DiskSpaceCritical.md](./runbooks/alerts/DiskSpaceCritical.md) | Espace disque critique |
 | [BackupFailed.md](./runbooks/alerts/BackupFailed.md) | Échec backup PostgreSQL (sidecar ADR-109) |
 | [SystemKnowledgeIndexationFailing.md](./runbooks/alerts/SystemKnowledgeIndexationFailing.md) | La FAQ système n'est plus mise à jour (ADR-162) |

@@ -361,6 +361,13 @@ def generate_data_for_filtering(
 
     Format: [item_id] Name | email addresses: x@y.com | phone numbers: +33...
 
+    Items whose registry type can carry third-party free text (an email body, an
+    invitation description authored by its organiser, a fetched page…) are
+    prefixed with ``REGISTRY_EXTERNAL_ITEM_MARKER`` and the block opens with one
+    legend line. Line ORDER is preserved: the response prompt reads ``[item_id]``
+    back out of this block to build ``<relevant_ids>``, and reordering would also
+    hand the model a different relevance signal for free.
+
     Args:
         data_registry: Registry dict with items
         user_language: Language code for labels
@@ -371,9 +378,16 @@ def generate_data_for_filtering(
     if not data_registry:
         return ""
 
+    from src.core.constants import (
+        REGISTRY_EXTERNAL_ITEM_MARKER,
+        REGISTRY_EXTERNAL_LEGEND,
+    )
+    from src.domains.agents.data_registry.trust import is_external
     from src.domains.agents.display.llm_serializer import payload_to_text
+    from src.domains.agents.utils.content_wrapper import injection_notice
 
     lines: list[str] = []
+    has_external = False
 
     for item_id, item in data_registry.items():
         try:
@@ -395,6 +409,12 @@ def generate_data_for_filtering(
             # Use generic serializer for full data details
             text_summary = payload_to_text(payload) if payload else ""
             if text_summary:
+                if is_external(item_type):
+                    has_external = True
+                    notice = injection_notice(
+                        text_summary, item_type=str(item_type), surface="pipeline"
+                    )
+                    text_summary = f"{REGISTRY_EXTERNAL_ITEM_MARKER} {text_summary}{notice}"
                 lines.append(f"[{item_id}] {text_summary}")
             else:
                 # Fallback for empty payloads
@@ -409,5 +429,8 @@ def generate_data_for_filtering(
                 error_type=type(e).__name__,
             )
             continue
+
+    if has_external:
+        lines.insert(0, REGISTRY_EXTERNAL_LEGEND)
 
     return "\n".join(lines)

@@ -40,7 +40,8 @@ def run_failfast_validations() -> None:
     completeness, Draft Display Registry exhaustivity (ADR-085), Draft
     Preview Renderer exhaustivity (ADR-085 pattern), the evidence-driven
     expansion entity types (ADR-085 pattern), the HITL classifier few-shot
-    coverage (ADR-085 pattern) and the PostgreSQL connection budget (F004).
+    coverage (ADR-085 pattern), the registry content-trust classification
+    (ADR-085 pattern) and the PostgreSQL connection budget (F004).
 
     Raises:
         RuntimeError: If any validation fails (the app must not boot).
@@ -107,6 +108,19 @@ def run_failfast_validations() -> None:
     except AssertionError as exc:
         logger.error("hitl_classifier_examples_incomplete", error=str(exc), exc_info=True)
         raise RuntimeError(f"HITL classifier examples incomplete: {exc}") from exc
+
+    # Validate registry content-trust classification (ADR-085 pattern: fail-fast
+    # if a RegistryItemType has been added without declaring whether its payload
+    # can carry third-party free text — it would reach the LLM unmarked).
+    try:
+        from src.domains.agents.data_registry.trust import (
+            assert_trust_registry_completeness,
+        )
+
+        assert_trust_registry_completeness()
+    except AssertionError as exc:
+        logger.error("registry_trust_classification_incomplete", error=str(exc), exc_info=True)
+        raise RuntimeError(f"Registry trust classification incomplete: {exc}") from exc
 
     # Enforce the PostgreSQL connection budget (F004): fail-fast in production,
     # warn in development. The shipped prod profile fits (168 ≤ 195 usable), so an

@@ -276,7 +276,7 @@ Endpoints :
 
 ### 6. Namespace Helper
 
-**Fichier** : `apps/api/src/infrastructure/store/semantic_store.py`
+**Fichier** : `apps/api/src/infrastructure/store/semantic_store.py` — *supprimé en ADR-168 ; la recherche vit désormais dans `domains/memories/repository.py::search_by_relevance`*
 
 ```python
 class MemoryNamespace:
@@ -617,6 +617,8 @@ MEMORY_HYBRID_MIN_SCORE=0.5
 MEMORY_BM25_CACHE_MAX_USERS=100
 ```
 
+> ⚠️ **Historique** : ce chemin hybride pour la mémoire a été supprimé (ADR-168) — il n'avait plus d'appelant depuis la migration v1.14.0 vers PostgreSQL/pgvector. Les mémoires utilisent une recherche sémantique multi-vecteurs ; le BM25 vivant est celui des RAG Spaces.
+>
 > Documentation complète : `docs/technical/HYBRID_SEARCH.md`
 
 ---

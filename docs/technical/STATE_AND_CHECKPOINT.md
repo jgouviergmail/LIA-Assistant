@@ -1318,7 +1318,7 @@ result = await graph.ainvoke(
 
 ### Schema Versioning
 
-**Current Version**: `"1.3"` (see `CURRENT_SCHEMA_VERSION` in `models.py` — the constant is the source of truth)
+**Current Version**: `"1.4"` (see `CURRENT_SCHEMA_VERSION` in `models.py` — the constant is the source of truth)
 
 **Field**: `state["_schema_version"]`
 
@@ -1330,6 +1330,7 @@ result = await graph.ainvoke(
 | `1.1` | Compaction fields (`compaction_summary`, `compaction_count`) |
 | `1.2` | ReAct execution-mode fields (ADR-070) |
 | `1.3` | Replay-safe HITL keys (ADR-092: `for_each_hitl_ctx`, `for_each_cancelled`, `cancellation_reason`, `draft_edit_iteration`, `draft_clarification_question`) + `user_display_name` |
+| `1.4` | ReAct system blocks moved out of `messages` (ADR-169: `react_system_blocks`) + compute budget and no-progress guard (ADR-170: `react_elapsed_seconds`, `react_call_digests`) |
 
 > **Wired since F7 (2026-07)**: `OrchestrationService.load_or_create_state` runs
 > `needs_migration()` / `migrate_state_to_current()` on every checkpoint load —
@@ -1353,7 +1354,7 @@ def get_state_schema_version(state: MessagesState) -> str:
 #### **needs_migration**
 
 ```python
-CURRENT_SCHEMA_VERSION = "1.3"  # ADR-092: replay-safe HITL keys + sender identity
+CURRENT_SCHEMA_VERSION = "1.4"  # ADR-169/170: ReAct system blocks, compute budget, loop guard
 
 def needs_migration(state: MessagesState) -> bool:
     """Check if state needs migration."""

@@ -369,7 +369,14 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 256M  # Was 512M — actual usage ~98M
+          # Back to 512M. It was cut to 256M in v1.13.1 on a ~98M snapshot, and
+          # the workload has since grown past it: Prometheus memory tracks the
+          # ACTIVE SERIES count, and this deployment carries 86 recording rules
+          # plus 15 alerts re-evaluated every 30s. Measured reference: ~100M for
+          # ~21k head series on the dev stack with no traffic at all.
+          # Cost of the headroom: 256M of ceiling on a 16GB host (ADR-033) whose
+          # reservations total ~3.3G — 1.6%.
+          memory: 512M
         reservations:
           cpus: '0.1'
           memory: 128M

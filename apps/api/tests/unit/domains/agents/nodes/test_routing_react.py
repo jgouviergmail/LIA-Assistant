@@ -6,6 +6,7 @@ Phase: ADR-070 — ReAct Execution Mode
 
 from __future__ import annotations
 
+import time
 from unittest.mock import patch
 
 import pytest
@@ -65,47 +66,62 @@ class TestRouteFromReactCallModel:
         assert route_from_react_call_model(state) == NODE_REACT_FINALIZE
 
     @patch("src.core.config.settings")
-    def test_timeout_routes_to_finalize(self, mock_settings: object) -> None:
-        """Timeout exceeded → force finalize regardless of tool_calls."""
-        import time
-
+    def test_compute_budget_exhausted_routes_to_finalize(self, mock_settings: object) -> None:
+        """Budget spent on actual compute → finalize."""
         mock_settings.react_agent_max_iterations = 15
         mock_settings.react_agent_timeout_seconds = 120
         ai_msg = AIMessage(
             content="",
-            tool_calls=[{"id": "tc_1", "name": "search", "args": {}}],
+            tool_calls=[{"id": "tc_1", "name": "search_contacts", "args": {}}],
         )
-        # Simulate start_time 200 seconds ago (> 120s timeout)
         state: dict = {
             "messages": [ai_msg],
-            "react_iteration": 2,
-            "react_start_time": time.time() - 200,
+            "react_iteration": 3,
+            "react_elapsed_seconds": 200.0,
         }
         assert route_from_react_call_model(state) == NODE_REACT_FINALIZE
 
     @patch("src.core.config.settings")
-    def test_within_timeout_continues(self, mock_settings: object) -> None:
-        """Within timeout → normal routing (continue if tool_calls)."""
-        import time
-
+    def test_within_compute_budget_continues(self, mock_settings: object) -> None:
+        """Within budget → normal routing (continue if tool_calls)."""
         mock_settings.react_agent_max_iterations = 15
         mock_settings.react_agent_timeout_seconds = 120
         ai_msg = AIMessage(
             content="",
-            tool_calls=[{"id": "tc_1", "name": "search", "args": {}}],
+            tool_calls=[{"id": "tc_1", "name": "search_contacts", "args": {}}],
         )
-        # Simulate start_time 10 seconds ago (< 120s timeout)
         state: dict = {
             "messages": [ai_msg],
-            "react_iteration": 2,
-            "react_start_time": time.time() - 10,
+            "react_iteration": 1,
+            "react_elapsed_seconds": 10.0,
         }
         assert route_from_react_call_model(state) == NODE_REACT_EXECUTE_TOOLS
 
+    @patch("src.core.config.settings")
+    def test_human_approval_time_is_not_charged_to_the_loop(self, mock_settings: object) -> None:
+        """The regression this budget exists for (ADR-170).
 
-@pytest.mark.unit
-class TestRouteFromReactExecuteTools:
-    """Tests for route_from_react_execute_tools routing function."""
+        ``interrupt()`` raises, so the node never returns and no timestamp is
+        refreshed; ``Command(resume=…)`` re-enters at that node, and the router
+        — where the turn-start reset lives — does not replay. With a wall clock,
+        an approval slower than the timeout ended the resumed turn on the very
+        next routing. Measured on a real graph: 2.01 s wall for 0.0102 s compute.
+        """
+        mock_settings.react_agent_max_iterations = 15
+        mock_settings.react_agent_timeout_seconds = 120
+        ai_msg = AIMessage(
+            content="",
+            tool_calls=[{"id": "tc_1", "name": "search_contacts", "args": {}}],
+        )
+        state: dict = {
+            "messages": [ai_msg],
+            "react_iteration": 2,
+            # Three hours of wall clock: the user went to lunch mid-approval.
+            "react_start_time": time.time() - 10_800,
+            # Ten seconds of actual compute.
+            "react_elapsed_seconds": 10.0,
+        }
+        assert route_from_react_call_model(state) == NODE_REACT_EXECUTE_TOOLS
 
     def test_pending_draft_routes_to_hitl_dispatch(self) -> None:
         """A prepared draft → hand off to the shared HITL dispatch node."""

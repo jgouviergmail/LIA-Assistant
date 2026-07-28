@@ -245,3 +245,18 @@ Nothing that belongs to you. Signing out does not just close the session: it cle
 • No access token was ever stored in the browser (BFF architecture), so there is none to remove
 
 The same cleanup runs if another account signs in through the same tab without a sign-out first — after a session expires, for instance.
+
+## Can an email or a web page give LIA orders?
+No. A text LIA reads is never a text LIA runs.
+
+**📨 The problem:**
+Every day LIA reads content you did not write: an email body, an invitation description authored by its organiser, a web page, a place listing, an external server's result. Anyone can slip in a sentence like "ignore previous instructions".
+
+**🏷️ The protection:**
+Every piece of data carries its **provenance**. The 24 data types LIA handles are classified once and for all: produced by LIA itself, or written by a third party. An unknown type is treated as external for safety, and the application refuses to start if a type has not been classified. What comes from outside reaches the model tagged as **material to analyse, never as an order to follow**.
+
+**🔎 The detection:**
+Seven families of trap are recognised across the app's six languages: fake system message, instruction hijack, identity switch, requests to send your data elsewhere, the name of a LIA tool slipped into foreign text, invisible characters, a directive hidden in an HTML comment.
+
+**✋ What LIA does not do:**
+It **never** rewrites your content. An email stays exactly what its author wrote; only a note is added beside it. Cleaning the text would give the illusion of a guarantee that the next bypass would deny — and would alter a message you may have wanted to read as-is.

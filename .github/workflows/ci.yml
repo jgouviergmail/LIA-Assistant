@@ -624,16 +624,22 @@ jobs:
         run: task lint:observability
 
       # NOTE: the two promtool steps below are deliberately NOT `task test:alerts`.
-      # They run the same promtool version (v2.53.2) on the same files with the
-      # same arguments, but through the native binary rather than the container
-      # the local task uses — promtool is not installed on a dev machine, and
+      # They run the same promtool version (v3.0.0 — the version docker-compose
+      # actually runs, see below) on the same files with the same arguments, but
+      # through the native binary rather than the container the local task uses — promtool is not installed on a dev machine, and
       # pulling an image on every CI run to avoid a 3-second download would be
       # the wrong trade. The MECHANISM differs, the checked artifact does not;
       # scripts/audit/check_ci_parity.py records this as a known divergence
       # rather than pretending the two are identical.
       - name: Install promtool
+        # Pinned to the version docker-compose runs, not an older promtool: the
+        # PromQL engine differs between majors, so validating on 2.53.2 while
+        # production evaluates on 3.0.0 lets a rule pass CI and behave
+        # differently in prod. Measured here: the SystemKnowledgeIndexationFailing
+        # unit test passed on 2.53.2 and failed on 3.0.0, same rule, same data
+        # (`increase()` extrapolation changed). Bump this with the image.
         run: |
-          VER=2.53.2
+          VER=3.0.0
           curl -fsSL -o promtool.tar.gz \
             "https://github.com/prometheus/prometheus/releases/download/v${VER}/prometheus-${VER}.linux-amd64.tar.gz"
           tar xzf promtool.tar.gz

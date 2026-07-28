@@ -57,6 +57,9 @@ import {
   Bot,
   Monitor,
   ImageIcon,
+  UserCheck,
+  Filter,
+  HeartHandshake,
   History,
   Sunrise,
   PhoneCall,
@@ -111,6 +114,7 @@ const sections = [
  * releases. `__tests__/changelog-wiring.test.ts` now fails on any drift in either direction.
  */
 export const changelogVersionKeys = [
+  'v1_25_30',
   'v1_25_29',
   'v1_25_28',
   'v1_25_27',
@@ -253,6 +257,9 @@ const featureIcons = {
   memory: Brain,
   interests: Sparkles,
   security: Lock,
+  hitl: UserCheck,
+  semanticLeakDefense: Filter,
+  healthMetrics: HeartHandshake,
   llm: Cpu,
   i18n: Languages,
   observability: Activity,
@@ -293,6 +300,13 @@ const featureKeys = [
   'memory',
   'interests',
   'security',
+  // Three cards shipped complete in the six locales and were never listed here,
+  // so they rendered nowhere: `hitl` (rewritten at v1.25.7 for a surface nobody
+  // could see), `semanticLeakDefense` (v1.20.6) and `healthMetrics` (v1.17.1).
+  // Same never-wired class as the FAQ sections repaired on 2026-07-13.
+  'hitl',
+  'semanticLeakDefense',
+  'healthMetrics',
   'llm',
   'i18n',
   'observability',

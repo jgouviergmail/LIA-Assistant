@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 3.5
-**Date**: 2026-07-27
-**Application**: LIA v1.25.29
+**Version**: 3.6
+**Date**: 2026-07-28
+**Application**: LIA v1.25.30
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -38,6 +38,7 @@
 23. [Cross-cutting engineering patterns](#23-cross-cutting-engineering-patterns)
 24. [Architecture Decision Records (ADR)](#24-architecture-decision-records-adr)
 25. [Evolution potential and extensibility](#25-evolution-potential-and-extensibility)
+26. [Psyche Engine: Dynamic Emotional Intelligence](#26-psyche-engine-dynamic-emotional-intelligence)
 
 ---
 
@@ -52,8 +53,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 438 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 160+ ADRs, ~16,388 pytest-collected tests across 866 files, native observability, 6-level HITL |
+| Full transparency | 447 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 160+ ADRs, ~16,535 pytest-collected tests across 873 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -71,11 +72,11 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~16,388 (collected by pytest across 866 test files) + 3,491 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~16,535 (collected by pytest across 873 test files) + 3,491 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 400+ |
 | ADRs (Architecture Decision Records) | 160+ |
-| Prometheus metrics | 438 definitions |
+| Prometheus metrics | 447 definitions |
 | Grafana dashboards | 25 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -526,6 +527,14 @@ When the token count exceeds a dynamic threshold (ratio of the response model's 
 
 Full state checkpointed after each node. P95 save < 50 ms, P95 load < 100 ms, average size ~15 KB/conversation. Checkpointer and store each run on a dedicated PostgreSQL connection pool per worker (sizes tunable via environment): concurrent conversations no longer serialize on a single connection, and a connection dropped while idle is detected at checkout and replaced automatically (ADR-111).
 
+### 10.5. A ReAct turn's system blocks are state (ADR-169/170)
+
+`get_windowed_messages(include_system=True)` **hoists every `SystemMessage` to the front**, with no window limit. Stacking the turn's system blocks into the history therefore re-sent every past copy on every call: `react_agent_prompt.txt` weighs **840 tokens**, so three turns meant 2,520 duplicated tokens — per LLM call of every iteration. Since the prefix grew each turn, no provider prefix cache could ever hit, and Anthropic rejected the sequence from the second turn: a `SystemMessage` cannot sit in the middle of a history.
+
+The blocks now live in a dedicated state key and are recomposed leading at each call — the prefix is stable again. The state schema moves to **1.4**, with an additive, idempotent migration. Windowing drops legacy `SystemMessage`s from the history **except the compaction summary**: a first version of the fix restored contiguity by destroying that summary, and reviewing that fix is what produced the right solution.
+
+**The loop's deadline is measured on compute, not on wall clock.** `interrupt()` raises: the node never returns, no state update is persisted, no timestamp is refreshed, and the resume re-enters the interrupted node without replaying the router where the reset lived — **2.01 s of wall clock for 0.0102 s of compute**, measured on a real graph. Past the budget, the resumed turn was cut at the next routing decision and the answer re-synthesised by a second LLM call, the multi-step work lost. A no-progress guard completes the set: on the fourth identical tool call the model is asked to change approach, on the fifth the turn concludes. The digest is an HMAC keyed on the application secret — it survives a resume on another worker — and only the digest and a counter reach the checkpoint, never the tool name or its arguments.
+
 ---
 
 ## 11. Memory system and psychological profile
@@ -557,9 +566,11 @@ Each memory is a structured document with:
 
 **Which turns feed memory.** A message that triggers an action counts as much as a conversation: resuming a draft injects no message, so the original request is still the user's last utterance when extraction runs. Conversely, messages **fabricated by the system** — the scaffolding injected on a HITL refusal — are flagged in their metadata and excluded both as target and as context: never recognised by their text, since they exist in six languages. Finally, the heuristic that discards acknowledgements only applies to what the user actually typed — applied to a person's name, it made the memories of contacts whose surname resembles "fine" or "cool" disappear. Every decision is counted per subsystem and per outcome (`post_response_extraction_scheduled_total`), where only debug logs existed.
 
-### 11.4. Hybrid search BM25 + semantic
+### 11.4. Dual-vector memory search
 
-Combination with configurable alpha (default 0.6 semantic / 0.4 BM25). 10% boost when both signals are strong (> 0.5). Graceful fallback to semantic only if BM25 fails. Performance: 40-90 ms with cache.
+Every memory carries **two embeddings**: one over its content, one over the keywords that trigger it. The query is compared to both and the better match wins (`LEAST(dist_content, dist_keyword)`, falling back to content when the keyword vector is null).
+
+A **BM25 + pgvector hybrid** engine lived here until v1.14.0, when long-term memory migrated to its own PostgreSQL model. The search path followed; the hybrid path did not. As of 2026-07-27 it had **no caller at all**, 21 % coverage, 100 of 127 lines never reached — and the debug panel was still advertising the option to the user. Module, settings, metrics and display were removed together ([ADR-168](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-168-Removal-Of-Dead-Hybrid-Memory-Search.md)). Hybrid search is still very much alive, but where it is actually used: RAG Spaces (section 17).
 
 ### 11.5. Stratified journals
 
@@ -767,7 +778,7 @@ Autonomous ReAct agent (headless Playwright Chromium). Redis-backed session pool
 | CSRF | SameSite=Lax |
 | SQL Injection | SQLAlchemy ORM (parameterized queries) |
 | SSRF | DNS resolution + IP blocklist (Web Fetch, MCP, Browser); skill install-from-URL reuses the same validator with stricter terms: https only, redirects refused, streamed size cap, TOTAL transfer deadline, per-user rate limit The browser goes further: **every request a page makes** — redirect, sub-resource, iframe, XHR — resolves its own destination behind a bounded verdict cache, and a failure aborts instead of forwarding. |
-| Prompt Injection | `<external_content>` safety markers |
+| Prompt Injection | Provenance carried by the data: 24 classified types (fail-closed, boot-time assert), marking on the three surfaces that reach the LLM, 7 pattern families detected across 6 languages without ever rewriting the content (ADR-167); `<external_content>` markers kept on the tool side |
 | Rate Limiting / IP spoofing | Distributed Redis sliding window (atomic Lua); trusted proxy chain — API ports loopback-bound (cloudflared = single entry), uvicorn `--proxy-headers`, `request.client.host` validated as the single IP source (no more shared global bucket, raw XFF never read) A global ceiling sits in front of every route as real ASGI middleware on that same shared limiter, so one client cannot consume the whole API; probes stay exempt so supervision is never throttled. |
 | Supply Chain | SHA-pinned GitHub Actions, Dependabot weekly |
 
@@ -785,6 +796,16 @@ Three surfaces execute something on the user's behalf, and each is treated as ho
 
 **Request bodies are bounded before they are read.** The ceiling is enforced ahead of the handler, on the declared length when there is one and on the counted bytes when there is not, so peak memory is set by us rather than by the caller — on webhooks that happens before authentication. Its consistency with the per-endpoint upload limits is asserted at startup: a contradiction refuses to boot instead of surfacing as a remote-only rejection that no log explains.
 
+### 19.6. Content provenance is carried by the data (ADR-167)
+
+**A text LIA reads is not a text LIA runs.** An email body, an invitation description authored by its organiser, a web page, a place's editorial summary, an MCP server's result: they all land in the prompt, and anyone can drop an instruction inside them.
+
+Per-tool marking was invalidated by an exhaustive search of its callers. **It forgets**: `perplexity_tools`, `brave_tools`, `mcp_react_tools` and `emails_tools` were not covered — the last one announcing in its own docstring that it returns *"FULL email content (body, headers, attachments)"*. **And it is not the right surface**: content reaches the model through two paths, neither of which is a tool, one of them `generate_data_for_filtering`, which builds the response prompt's `{data_for_filtering}` block on **every** turn that produces data, in **both** execution modes.
+
+Provenance is therefore a property of the **data**: the registry's 24 types are classified once, an unknown or null type resolves to *external* (fail-closed), and a boot-time completeness assert refuses to start on an unclassified type — the same doctrine as ADR-085. Fifteen of the twenty-four types are third-party authored.
+
+**Detect, never sanitise.** Seven pattern families are recognised across the six languages — role override, instruction hijack, persona switch, exfiltration, a LIA tool named inside third-party text, invisible Unicode, a directive hidden in an HTML comment — and the content reaches the model **unchanged**, with a note naming the family. Sanitising would rewrite an email the user may want to read as-is, in exchange for a guarantee the next bypass would deny. Detection is bounded to the first 20,000 characters and **never logs the text**: it is attacker-controlled by construction and routinely holds the user's own data.
+
 ---
 
 ## 20. Observability and monitoring
@@ -793,7 +814,7 @@ Three surfaces execute something on the user's behalf, and each is treated as ho
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 438 custom metrics (RED pattern) |
+| Prometheus | 447 custom metrics (RED pattern) |
 | Grafana | 25 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -1150,10 +1171,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 160+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~16,388 tests across 866 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 160+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~16,535 tests across 873 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 160+ ADRs, and the changelog (v1.0 to v1.25.29). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 160+ ADRs, and the changelog (v1.0 to v1.25.30). All metrics, versions, and patterns cited are verifiable in the codebase.*

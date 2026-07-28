@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 3.9
-**Date**: 2026-07-27
-**Application**: LIA v1.25.29
+**Version**: 4.0
+**Date**: 2026-07-28
+**Application**: LIA v1.25.30
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -222,6 +222,8 @@ When you use ChatGPT, your conversations live on OpenAI's servers. With Gemini, 
 
 With LIA, **everything stays in your PostgreSQL**: conversations, memory, psychological profile, documents, preferences. You can export, back up, migrate or delete all your data at any time — including a one-click complete export from the settings: readable Markdown, structured JSON and your files, with secret material unexportable by construction. And every device connected to your account is visible and revocable in one click. GDPR is not a constraint — it's a natural consequence of the architecture. Sensitive data is encrypted, sessions are isolated, and automatic personally identifiable information (PII) filtering is built in.
 
+The protection covers what comes **in**, too. Every day LIA reads text you did not write: an email body, an invitation description authored by its organiser, a web page, a place listing. Anyone can slip an instruction meant for the assistant inside them. Every piece of data now carries its provenance, and what comes from outside arrives labelled as **material to analyse, never as an order to follow** — with manipulation attempts spotted and named, across the six languages. Your content is never rewritten for that: an email stays what its author wrote. Rewriting would give the illusion of a guarantee that the next bypass would deny; naming what we see is more honest, and more useful.
+
 ### 5.2. Even a Raspberry Pi is enough
 
 LIA runs in production on a **Raspberry Pi 5** — a single-board computer costing around $80. 20+ specialized agents, a full observability stack, a psychological memory system, all on a tiny ARM server. Multi-architecture Docker images (amd64/arm64) enable deployment on any hardware: Synology NAS, VPS for a few dollars a month, enterprise server, or Kubernetes cluster.
@@ -272,6 +274,8 @@ This transparency extends to the system's own quality. The complete technical au
 The same principle applies to the protections themselves. Security that is announced but unverifiable is treated as absent: every control is backed by a test that fails if the control disappears, and when a fix is written the old behaviour is restored long enough to confirm the test catches it. A test that cannot fail proves nothing.
 
 Nor does a test that never runs — and that is the least comfortable discovery this project has made. Ten test files had switched themselves off whenever a provider key was missing, and nothing reported it any more: a skipped test counts as green, coverage measures lines reached rather than assertions executed, and a review sees a test file and concludes the surface is protected. Two hundred and nineteen tests had never run once; switching them back on surfaced four genuine defects — among them a voice that split every number in two, and a reminder lost for good when the usage budget ran out in the wrong minute. The absence of a red signal is not proof of health: sometimes it is only the absence of measurement. A continuous-integration guard now refuses to let a test module go quiet.
+
+The same principle applies to what is **advertised**. A panel showed a "hybrid search" switch for memory; the matching engine had not existed for several versions, and the switch commanded nothing. The dead code and the display were removed together, and the real behaviour written in their place. A capability advertised but absent is not a documentation imprecision: it is a promise made to a user who has no way of checking it. Showing a setting that controls nothing is worse than showing nothing.
 
 ## 7. Emotional depth
 

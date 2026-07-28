@@ -46,17 +46,26 @@ from src.domains.agents.services.hitl.protocols import HitlInteractionType
 from src.domains.agents.services.react_tool_selector import ReactToolSelector
 from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
 from src.domains.agents.tools.tool_resolution import resolve_tool_instance
+from src.domains.agents.utils.loop_guard import (
+    compute_call_digest,
+    register_call,
+    repeated_call_message,
+)
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.metrics_agents import (
     agent_node_duration_seconds,
+    semantic_param_guard_blocks_total,
+)
+from src.infrastructure.observability.metrics_react import (
     react_agent_duration_seconds,
     react_agent_executions_total,
     react_agent_hitl_interrupts_total,
     react_agent_iterations,
     react_agent_tools_called_total,
-    semantic_param_guard_blocks_total,
+    react_repeated_calls_total,
+    react_tool_executions_before_interrupt_total,
 )
 from src.infrastructure.observability.tracing import trace_node
 
@@ -135,8 +144,16 @@ def _window_messages_for_react(
     1. Split messages at the last HumanMessage (= current turn boundary)
     2. Window the history (previous turns) via get_windowed_messages()
        → keeps SystemMessages + last N conversational turns (no ToolMessages)
-    3. Append ALL current turn messages (HumanMessage + ReAct loop: AIMessage
+    3. Drop every history SystemMessage that is not a compaction summary
+    4. Append ALL current turn messages (HumanMessage + ReAct loop: AIMessage
        with tool_calls + ToolMessages) — the agent needs its full reasoning chain
+
+    Step 3 exists for checkpoints written before ADR-169, when the turn's system
+    blocks were appended to ``messages``. The windowing hoists every past copy to
+    the front, so an old thread would still carry N stale copies of the ReAct
+    prompt. Only the compaction summary is a SystemMessage the history genuinely
+    needs — it IS the conversation's compressed memory. Everything else the model
+    must see this turn is recomposed from ``react_system_blocks``.
 
     Args:
         messages: Full state messages (accumulated across turns + ReAct loop).
@@ -145,7 +162,9 @@ def _window_messages_for_react(
         Windowed message list.
     """
     from langchain_core.messages import HumanMessage as HM
+    from langchain_core.messages import SystemMessage as SM
 
+    from src.core.constants import COMPACTION_SUMMARY_MARKER
     from src.domains.agents.utils.message_windowing import get_windowed_messages
 
     # Find the last HumanMessage — everything after it is the current ReAct loop
@@ -166,6 +185,14 @@ def _window_messages_for_react(
     windowed_history = get_windowed_messages(
         history, window_size=settings.react_agent_history_window_turns
     )
+
+    # Legacy-checkpoint hygiene (see docstring): keep only the compaction
+    # summary among history SystemMessages.
+    windowed_history = [
+        message
+        for message in windowed_history
+        if not isinstance(message, SM) or str(message.content).startswith(COMPACTION_SUMMARY_MARKER)
+    ]
 
     windowed = _neutralize_widget_sentinels(windowed_history) + current_turn
 
@@ -250,6 +277,50 @@ def _build_system_prompt(state: MessagesState) -> str:
         user_language=get_language_name(user_lang),
         semantic_dependencies=semantic_deps,
     )
+
+
+def _loop_compute_seconds(state: MessagesState) -> float:
+    """Return the loop's own compute time for this turn.
+
+    The wall clock cannot be used for latency either: ``interrupt()`` raises, so
+    a node that waits on a HITL approval never returns and never charges
+    anything, while ``time.time()`` keeps running. Reporting the difference as
+    ReAct latency turns a user's thinking time into a performance regression on
+    the dashboards (ADR-170).
+
+    Args:
+        state: Current graph state.
+
+    Returns:
+        Seconds of compute charged by the loop's nodes.
+    """
+    return float(state.get("react_elapsed_seconds") or 0.0)
+
+
+def _uncharged_wall_seconds(state: MessagesState, compute_s: float) -> float | None:
+    """Return the wall time this turn did NOT charge to any node.
+
+    ``wall - compute``. Two things live in there, and the name deliberately
+    claims neither: the HITL approval wait when the turn was interrupted, and
+    the graph's own overhead (checkpoint writes, node scheduling, routing)
+    otherwise. A turn with no interrupt at all still reports ~0.5 s — measured
+    in the dev container — so calling this field "hitl_wait" would have made an
+    operator read graph overhead as user hesitation.
+
+    It is the quantity the loop budget used to be charged for (ADR-170);
+    surfacing it turns the old defect into a signal.
+
+    Args:
+        state: Current graph state.
+        compute_s: Compute seconds already computed for this turn.
+
+    Returns:
+        Rounded seconds, or None when the turn carries no start stamp.
+    """
+    start_time = state.get("react_start_time")
+    if start_time is None:
+        return None
+    return round(max(0.0, (time.time() - start_time) - compute_s), 2)
 
 
 def _record_react_metrics(iteration: int, duration_s: float, status: str) -> None:
@@ -369,7 +440,7 @@ async def react_setup_node(
     # Without a search_memories tool, this is the only way the ReAct agent
     # can access memory. The agent still decides autonomously what to DO
     # with this context (search contacts, get route, etc.).
-    messages_to_add: list[SystemMessage] = [SystemMessage(content=system_prompt)]
+    system_blocks: list[str] = [system_prompt]
 
     context_parts: list[str] = []
     resolved_refs = state.get("resolved_references") or (
@@ -384,10 +455,8 @@ async def react_setup_node(
         context_parts.append(f"User memory facts:\n{injected_memories}")
 
     if context_parts:
-        messages_to_add.append(
-            SystemMessage(
-                content="<MemoryContext>\n" + "\n\n".join(context_parts) + "\n</MemoryContext>"
-            )
+        system_blocks.append(
+            "<MemoryContext>\n" + "\n\n".join(context_parts) + "\n</MemoryContext>"
         )
 
     # User-model portrait — ambient diffusion (ADR-079, commit 3).
@@ -407,7 +476,7 @@ async def react_setup_node(
                     user_id=react_user_id, format="brief", flow="react"
                 )
                 if user_model_block:
-                    messages_to_add.append(SystemMessage(content=user_model_block))
+                    system_blocks.append(user_model_block)
         except Exception as exc:  # pragma: no cover — best-effort
             logger.warning("react_user_model_block_failed", error=str(exc))
 
@@ -447,7 +516,7 @@ async def react_setup_node(
                         truncate_to_budget=False,
                     )
                 if directives_block:
-                    messages_to_add.append(SystemMessage(content=directives_block))
+                    system_blocks.append(directives_block)
         except Exception as exc:  # pragma: no cover — best-effort
             logger.warning("react_journal_directives_failed", error=str(exc))
 
@@ -465,9 +534,7 @@ async def react_setup_node(
         active = active_skills_ctx.get()
         skills_catalog = build_skills_catalog(user_id=skill_user_id, active_skills=active)
         if skills_catalog:
-            messages_to_add.append(
-                SystemMessage(content=f"<AvailableSkills>\n{skills_catalog}\n</AvailableSkills>")
-            )
+            system_blocks.append(f"<AvailableSkills>\n{skills_catalog}\n</AvailableSkills>")
 
     duration_ms = int((time.monotonic() - start_time) * 1000)
     logger.info(
@@ -485,7 +552,13 @@ async def react_setup_node(
         "react_hitl_map": hitl_map,
         "react_iteration": 0,
         "react_start_time": time.time(),
-        "messages": messages_to_add,
+        # The turn's system blocks are STATE, not messages (ADR-169). Appending
+        # them to `messages` persisted one copy per turn: the windowing hoisted
+        # every past copy to the front, so the payload carried the ReAct prompt
+        # N times (840 tok each) and the cacheable prefix changed on every turn.
+        # On Anthropic it was worse than costly — hoisted-old + appended-new are
+        # NON-CONSECUTIVE system messages, which the provider rejects outright.
+        "react_system_blocks": system_blocks,
         # New turn starts with an EMPTY per-turn registry. Without this purge,
         # the value restored from the previous turn's checkpoint leaks into
         # react_execute_tools' intra-turn accumulation and the response node
@@ -522,6 +595,7 @@ async def react_call_model_node(
     Returns:
         State update with the AIMessage (with or without tool_calls).
     """
+    node_started = time.perf_counter()
     tool_names = state.get("react_tool_names", [])
     hitl_map = state.get("react_hitl_map", {})
     iteration = state.get("react_iteration", 0)
@@ -542,7 +616,17 @@ async def react_call_model_node(
     #
     # Strategy: keep SystemMessages + recent conversational history + ALL ReAct
     # loop messages from the current turn (the agent needs its own reasoning chain).
-    messages = _window_messages_for_react(state["messages"])
+    #
+    # The turn's system blocks are recomposed HERE, as a leading block, instead of
+    # living in `messages` (ADR-169). Leading and contiguous means: one merged
+    # system block for the provider, a prefix whose bytes do not change from one
+    # turn to the next (so prompt caching can actually hit), and no second,
+    # non-consecutive system block for Anthropic to reject.
+    windowed = _window_messages_for_react(state["messages"])
+    system_blocks = state.get("react_system_blocks") or []
+    messages: list[BaseMessage] = [
+        SystemMessage(content=block) for block in system_blocks
+    ] + windowed
 
     # Stream the model's reasoning live (thinking models) to the progress UI via
     # the custom channel, while returning the SAME aggregated AIMessage as
@@ -592,6 +676,12 @@ async def react_call_model_node(
     return {
         "messages": [response],
         "react_iteration": iteration + 1,
+        # ADR-170: charge this node's COMPUTE time, never wall clock. A node
+        # that gets interrupted never returns, so the seconds a user spends
+        # deciding on an approval are structurally excluded — which is the whole
+        # point: they used to count against the loop's timeout.
+        "react_elapsed_seconds": (state.get("react_elapsed_seconds") or 0.0)
+        + (time.perf_counter() - node_started),
     }
 
 
@@ -608,8 +698,16 @@ async def react_execute_tools_node(
 ) -> dict[str, Any]:
     """Execute tools from the last AIMessage, with HITL for mutations.
 
-    Uses the idempotence pattern: on re-execution after interrupt resume,
-    tool_calls that already have a ToolMessage in state are skipped.
+    Idempotence, and its documented limit: a tool_call is skipped when a
+    ToolMessage for it already exists **in state**. That covers previous node
+    executions, NOT the current one — an interrupted node never returns, so the
+    ToolMessages it produced before the interrupt are never persisted, and every
+    call preceding the interrupt is replayed on resume (double quota, double
+    latency, and an approval decided on data that may have changed since). The
+    replay is counted by ``react_tool_executions_before_interrupt_total`` so the
+    real blast radius
+    can be measured before the node is restructured; it is bounded by the single
+    tool allowed to interrupt here (see ``test_hitl_required_consistency``).
 
     HITL: Mutation tools (hitl_required=True) trigger interrupt() which pauses
     the graph and waits for user approval. On resume, previously-matched
@@ -662,8 +760,29 @@ async def react_execute_tools_node(
     new_messages: list[ToolMessage] = []
     collected_registry: dict[str, Any] = {}
     pending_drafts: list[dict[str, Any]] = []
+    call_digests: dict[str, int] = dict(state.get("react_call_digests") or {})
+    no_progress = False
 
-    for tool_call in last_message.tool_calls:
+    # Index of the first call that will interrupt. Every call BEFORE it runs in
+    # an execution that cannot return, so its result is discarded and the call
+    # runs again on resume.
+    #
+    # What the counter measures, precisely: executions that sit before an
+    # interrupt — NOT redundant executions. Nothing in state distinguishes the
+    # first pass from the resume (the interrupted pass persisted nothing), so
+    # one interrupt yields TWO samples for one wasted execution. Read it as
+    # `samples − distinct calls = redundant executions`. Naming it "replayed"
+    # would have overstated the waste by a factor of two.
+    first_hitl_index = next(
+        (
+            index
+            for index, call in enumerate(last_message.tool_calls)
+            if hitl_map.get(call["name"], False)
+        ),
+        len(last_message.tool_calls),
+    )
+
+    for call_index, tool_call in enumerate(last_message.tool_calls):
         tc_id: str = tool_call["id"]
         tc_name: str = tool_call["name"]
         tc_args: dict[str, Any] = tool_call.get("args", {})
@@ -672,10 +791,47 @@ async def react_execute_tools_node(
         if tc_id in existing_tool_msg_ids:
             continue
 
+        # This execution sits before an interrupt, so it cannot be persisted
+        # (see the node docstring). Measured, not yet prevented.
+        if call_index < first_hitl_index:
+            react_tool_executions_before_interrupt_total.labels(tool_name=tc_name).inc()
+
         # Parity with the parallel executor: a textual "no value" ("null",
         # "none", ...) on an optional typed parameter means "not provided".
         # Deterministic, so re-executing after an interrupt is stable.
         tc_args = strip_placeholder_arguments(tc_name, tc_args)
+
+        # NO-PROGRESS GUARD (ADR-170) — placed AFTER the idempotence skip on
+        # purpose: that is what makes it replay-safe. An interrupted execution
+        # never returns, so its increments are discarded with the rest of its
+        # partial work; on resume, only the calls that still lack a ToolMessage
+        # are counted, exactly once. Counting before the skip would charge a
+        # resumed turn twice and could block a legitimate call.
+        call_digests, verdict = register_call(
+            call_digests,
+            compute_call_digest(tc_name, tc_args, settings.secret_key),
+            block_threshold=settings.react_repeated_call_block_threshold,
+            terminal_threshold=settings.react_repeated_call_terminal_threshold,
+        )
+        if verdict != "allow":
+            # No PII: the arguments are the user's own data, only the tool name
+            # and the verdict are recorded.
+            logger.warning(
+                "react_repeated_call_blocked",
+                tool_name=tc_name,
+                verdict=verdict,
+                iteration=state.get("react_iteration", 0),
+            )
+            react_repeated_calls_total.labels(tool_name=tc_name, verdict=verdict).inc()
+            new_messages.append(
+                ToolMessage(
+                    content=repeated_call_message(verdict),
+                    tool_call_id=tc_id,
+                    name=tc_name,
+                )
+            )
+            no_progress = no_progress or verdict == "terminal"
+            continue
 
         # Semantic guard BEFORE the HITL interrupt: never ask the user to
         # approve a call that would be blocked anyway. Deterministic across
@@ -819,7 +975,12 @@ async def react_execute_tools_node(
         pending_drafts=len(pending_drafts),
     )
 
-    result: dict[str, Any] = {"messages": new_messages}
+    result: dict[str, Any] = {"messages": new_messages, "react_call_digests": call_digests}
+    if no_progress:
+        # Terminal repetition: hand the loop its own iteration ceiling so the
+        # NEXT routing finalises. Cutting the edge here instead would skip
+        # react_finalize, and the response node reads its result contract.
+        result["react_iteration"] = settings.react_agent_max_iterations
     if collected_registry:
         result["registry"] = collected_registry
         # Merge with existing current_turn_registry from previous iterations.
@@ -846,9 +1007,7 @@ async def react_execute_tools_node(
         # The draft handoff short-circuits the loop before react_finalize, so emit
         # the ReAct completion metrics here to keep the dashboards accurate.
         iteration = state.get("react_iteration", 0)
-        start_time = state.get("react_start_time")
-        duration_s = time.time() - start_time if start_time else 0.0
-        _record_react_metrics(iteration, duration_s, "draft")
+        _record_react_metrics(iteration, _loop_compute_seconds(state), "draft")
         # Minimal metadata for debug/observability. final_message is intentionally
         # empty so response_node uses the draft execution result (not a passthrough,
         # which is guarded by `if react_result.get("final_message")`).
@@ -892,7 +1051,6 @@ async def react_finalize_node(
         State update with react_agent_result metadata.
     """
     iteration = state.get("react_iteration", 0)
-    start_time = state.get("react_start_time")
 
     # The last message should be the final AIMessage (no tool_calls)
     last_message = state["messages"][-1] if state.get("messages") else None
@@ -901,15 +1059,20 @@ async def react_finalize_node(
         # Normalize str (most providers) and list[dict] blocks (Gemini 3.x) to text.
         final_content = coerce_content_to_text(last_message.content)
 
-    # Prometheus metrics (shared helper — also used by the draft handoff path)
-    duration_s = time.time() - start_time if start_time else 0.0
-    _record_react_metrics(iteration, duration_s, "success" if final_content else "empty")
+    # Prometheus metrics (shared helper — also used by the draft handoff path).
+    # COMPUTE time, not wall clock: a turn that waited on a HITL approval would
+    # otherwise report the user's thinking time as ReAct latency and skew the
+    # dashboards (ADR-170).
+    compute_s = _loop_compute_seconds(state)
+    _record_react_metrics(iteration, compute_s, "success" if final_content else "empty")
 
     logger.info(
         "react_finalize_complete",
         total_iterations=iteration,
         has_final_content=bool(final_content),
-        duration_seconds=round(duration_s, 2),
+        compute_seconds=round(compute_s, 2),
+        # wall - compute: HITL wait on an interrupted turn, graph overhead otherwise.
+        uncharged_wall_seconds=_uncharged_wall_seconds(state, compute_s),
     )
 
     return {

@@ -444,7 +444,18 @@ class MessagesState(TypedDict):
     # react_iteration: reuses existing field from line 304 (Semantic Agent Phase 2)
     react_tool_names: list[str]  # Tool names selected for this ReAct session
     react_hitl_map: dict[str, bool]  # tool_name → hitl_required
-    react_start_time: float | None  # Epoch timestamp for timeout enforcement
+    react_start_time: float | None  # Wall clock, kept for the HITL-wait metric only
+    # ADR-169: the turn's system blocks live here, NOT in `messages`. Appending
+    # them to the message list persisted one copy per turn, which the windowing
+    # then hoisted to the front of every payload.
+    react_system_blocks: list[str]
+    # ADR-170: cumulative COMPUTE time of the ReAct loop. The wall clock cannot
+    # be used: an interrupted node never returns, so a HITL approval that takes
+    # longer than the timeout would end the turn on the very next routing.
+    react_elapsed_seconds: float
+    # ADR-170: HMAC digest → count of identical tool requests within the turn.
+    # Only the digest is stored: never the tool name, never the arguments.
+    react_call_digests: dict[str, int]
 
 
 class AgentMessagesState(TypedDict):
@@ -629,6 +640,9 @@ def create_initial_state(
         react_tool_names=[],
         react_hitl_map={},
         react_start_time=None,
+        react_system_blocks=[],
+        react_elapsed_seconds=0.0,
+        react_call_digests={},
     )
 
 
@@ -754,7 +768,7 @@ def validate_state_consistency(state: MessagesState) -> list[str]:
 # SCHEMA MIGRATION FUNCTIONS (LangGraph v1.0 Best Practice)
 # ============================================================================
 
-CURRENT_SCHEMA_VERSION = "1.3"  # ADR-092: replay-safe HITL keys + sender identity
+CURRENT_SCHEMA_VERSION = "1.4"  # ADR-169/170: ReAct system blocks, compute budget, loop guard
 
 
 def get_state_schema_version(state: MessagesState) -> str:
@@ -870,6 +884,21 @@ def migrate_state_to_current(state: MessagesState) -> MessagesState:
             state["user_display_name"] = None
         state["_schema_version"] = "1.3"
         current_version = "1.3"
+
+    # Migration: 1.3 → 1.4 (ReAct system blocks + compute budget + loop guard)
+    # Additive and fail-open: a turn resumed from an older checkpoint restarts
+    # with a fresh compute budget and an empty digest table rather than being
+    # cut short by state it never had.
+    if current_version == "1.3":
+        logger.info("migrating_state_1.3_to_1.4")
+        if "react_system_blocks" not in state:
+            state["react_system_blocks"] = []
+        if "react_elapsed_seconds" not in state:
+            state["react_elapsed_seconds"] = 0.0
+        if "react_call_digests" not in state:
+            state["react_call_digests"] = {}
+        state["_schema_version"] = "1.4"
+        current_version = "1.4"
 
     # Verify final version
     if current_version != CURRENT_SCHEMA_VERSION:

@@ -127,8 +127,8 @@ Alternative path when `execution_mode == "react"`: the router routes to `react_s
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **react_setup**: Selects all available tools, builds system prompt, injects memory + skills catalogue
-- **react_call_model**: Calls LLM with bound tools, applies message windowing
+- **react_setup**: Selects all available tools, builds system prompt, injects memory + skills catalogue — published to the dedicated `react_system_blocks` state key rather than appended to the message history (ADR-169: appending re-sent every past copy on every call, destroyed the provider prefix cache and made Anthropic reject the sequence from the second turn)
+- **react_call_model**: Recomposes the system blocks as a stable leading prefix, calls the LLM with bound tools, applies message windowing, and charges its own duration to the loop's **compute** budget (ADR-170: the deadline used to run on wall clock, so human approval time was billed to the loop and cut the resumed turn)
 - **react_execute_tools**: Executes tools. Two HITL paths: `interrupt()` pre-approval for tools flagged `hitl_required` (idempotence pattern), and — for mutation tools that prepare a **draft** (`requires_confirmation`, e.g. create/update/delete event·email·contact·task·file·label) — a hand-off to the shared `hitl_dispatch → draft_critique` flow via `pending_draft_critique` instead of looping back to the model. This gives ReAct the same confirm/edit/cancel-then-execute guarantee as pipeline mode (the agent no longer reports an action as done before it is confirmed and executed).
 - **react_finalize**: Records metrics, sets `react_agent_result`; routes to `response_node` — optionally via `initiative` on the nominal path (see note below)
 

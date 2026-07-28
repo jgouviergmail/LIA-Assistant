@@ -22,7 +22,7 @@ Your capabilities include:
 Key features:
 - Human-in-the-Loop approval for all data-modifying actions
 - 10+ customizable AI personalities
-- Long-term memory with hybrid search (BM25 + semantic)
+- Long-term memory with multi-vector semantic search (content + keyword embeddings)
 - 6 languages: English, French, Spanish, German, Italian, Chinese
 - Cost transparency with per-message token tracking
 

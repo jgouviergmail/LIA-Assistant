@@ -3235,7 +3235,7 @@
         },
         "memory": {
           "title": "💾 短期/长期双重记忆",
-          "description": "短期：滑动消息窗口，自动总结对话上下文。该摘要具有韧性 — 每个分块和全局都有超时、指数退避重试、若 LLM 失败则触发显式截断回退；执行期间会显示一个可见的 toast,输入框在此过程中被锁定,并且聊天标题栏的胶囊持续显示 token/阈值的比率。长期：提取关于您的信息（偏好、关系、习惯）使用语义嵌入向量存储。混合 BM25 + 语义搜索实现最佳召回：同时使用精确关键词和语义来检索您的相关记忆。 即使一次交流触发了某项操作，它同样会被计入：请求发送一条消息、并在其中提到关于自己的长期事实，与普通对话一样会写入记忆。反过来，系统为自身生成的消息则被排除在外 — LIA 记住的内容来自您，而非它自己的指令。"
+          "description": "短期：滑动消息窗口，自动总结对话上下文。该摘要具有韧性 — 每个分块和全局都有超时、指数退避重试、若 LLM 失败则触发显式截断回退；执行期间会显示一个可见的 toast,输入框在此过程中被锁定,并且聊天标题栏的胶囊持续显示 token/阈值的比率。长期：提取关于您的信息（偏好、关系、习惯）使用语义嵌入向量存储。双向量语义检索实现最佳召回：记忆的内容与其触发关键词分别与您的问题比对，取两者中更贴近的一路。 即使一次交流触发了某项操作，它同样会被计入：请求发送一条消息、并在其中提到关于自己的长期事实，与普通对话一样会写入记忆。反过来，系统为自身生成的消息则被排除在外 — LIA 记住的内容来自您，而非它自己的指令。"
         },
         "interests": {
           "title": "✨ 智能兴趣学习",
@@ -3263,7 +3263,7 @@
         },
         "security": {
           "title": "🔐 多层安全",
-          "description": "从登录到数据的纵深防御。<b>强身份验证</b>（ADR-143）：WebAuthn 通行密钥（Face ID、指纹，抗钓鱼）、TOTP 双因素与一次性备用码，敏感操作需二次验证。<b>我的设备</b>（ADR-144）：每个活动会话均可查看并撤销，元数据刻意受限（浏览器/系统族、截断的 IP），陌生设备登录会触发提醒。<b>干净的退出</b>：退出登录会撤销该设备的通知令牌，并清除已保存的位置与地理位置授权——在共用设备上，没有任何东西会跟随下一个账户。底层还包括：带 PKCE 的 OAuth 2.0、令牌刷新的分布式锁、日志与链路的 PII 过滤、按精确路径生效的全局请求上限、用户间隔离、Fernet 加密。<b>隔离执行</b>：技能在一次性容器中运行——无套接字、无网络——且提供界面的容器不持有任何密钥。<b>完整的 GDPR 导出</b>（ADR-145）：Markdown + JSON + 文件，密钥材料在设计上不可导出。每日三级备份，恢复流程经过验证（ADR-109）。"
+          "description": "从登录到数据的纵深防御。<b>强身份验证</b>（ADR-143）：WebAuthn 通行密钥（Face ID、指纹，抗钓鱼）、TOTP 双因素与一次性备用码，敏感操作需二次验证。<b>我的设备</b>（ADR-144）：每个活动会话均可查看并撤销，元数据刻意受限（浏览器/系统族、截断的 IP），陌生设备登录会触发提醒。<b>干净的退出</b>：退出登录会撤销该设备的通知令牌，并清除已保存的位置与地理位置授权——在共用设备上，没有任何东西会跟随下一个账户。底层还包括：带 PKCE 的 OAuth 2.0、令牌刷新的分布式锁、日志与链路的 PII 过滤、按精确路径生效的全局请求上限、用户间隔离、Fernet 加密。<b>隔离执行</b>：技能在一次性容器中运行——无套接字、无网络——且提供界面的容器不持有任何密钥。<b>完整的 GDPR 导出</b>（ADR-145）：Markdown + JSON + 文件，密钥材料在设计上不可导出。每日三级备份，恢复流程经过验证（ADR-109）。 <b>内容来源</b>（ADR-167）：任何由第三方撰写的文本 —— 邮件、邀请、网页、地点简介、MCP 服务器 —— 抵达模型时都标注为待分析的数据，而绝非指令；24 种数据类型一次性完成分类，未知类型一律视为外部，遇到未分类的类型则拒绝启动。七类注入模式在六种语言中被识别，且从不改写内容。"
         },
         "resilience": {
           "title": "🛡️ 性能与 Token 优化",
@@ -3347,7 +3347,7 @@
         },
         "dataRegistry": {
           "title": "🗂️ 数据注册表与富渲染",
-          "description": "用于对话中丰富展示的统一结构化数据系统。15+注册类型（联系人、邮件、事件、任务、文件、地点、路线、天气、MCP应用...）。不可变项目，带元数据、TTL和确定性ID。通过SSE在LLM回答前发送，实现即时卡片渲染。HTML模板引擎支持多域、层级结构和相关结果的自动关联（如：事件+路线分组显示）。"
+          "description": "用于对话中丰富展示的统一结构化数据系统。24 种注册类型（联系人、邮件、事件、任务、文件、地点、路线、天气、MCP应用...）。不可变项目，带元数据、TTL和确定性ID。通过SSE在LLM回答前发送，实现即时卡片渲染。HTML模板引擎支持多域、层级结构和相关结果的自动关联（如：事件+路线分组显示）。 每种类型都带有来源标识：由 LIA 自身生成的内容，或由第三方撰写并向模型标明的内容（ADR-167）。"
         },
         "qualityAssurance": {
           "title": "🎯 LLM-as-Judge 质量保证",
@@ -3391,7 +3391,7 @@
         },
         "reactMode": {
           "title": "⚡ ReAct执行模式",
-          "description": "Pipeline的替代模式，助手逐步推理：调用工具、分析结果，然后自主决定下一步操作。父LangGraph图中的4个自定义节点，原生HITL支持。Pipeline模式（默认）通过智能规划和并行执行消耗4至8倍更少的token。每轮对话都从干净的数据注册表开始（轮次之间严格隔离），代理还会收到跨领域语义类型地图和精确性规则：通过查询工具获取精确值（如联系人的地址），而不是使用记忆中的近似值。"
+          "description": "Pipeline的替代模式，助手逐步推理：调用工具、分析结果，然后自主决定下一步操作。父LangGraph图中的4个自定义节点，原生HITL支持。Pipeline模式（默认）通过智能规划和并行执行消耗4至8倍更少的token。每轮对话都从干净的数据注册表开始（轮次之间严格隔离），代理还会收到跨领域语义类型地图和精确性规则：通过查询工具获取精确值（如联系人的地址），而不是使用记忆中的近似值。 两道护栏约束着这个循环（ADR-169/170）：其时限以<em>计算</em>时间计量，等待你审批不再消耗它 —— 此前稍长的确认会切断该回合并迫使回答重做；同一工具被完全相同地重复调用时，第四次会被拒绝，第五次则结束该回合。本回合的系统指令存放于状态而非历史记录中：前缀重新保持稳定，供应商缓存得以命中，账单也不再随回合数增长。"
         },
         "proactiveInitiative": {
           "title": "🎯 主动倡议",
@@ -3412,6 +3412,20 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_25_30": {
+          "title": "v1.25.30 — 🛡️ 一封邮件再也无法给 LIA 下命令",
+          "date": "2026 年 7 月",
+          "count": "7",
+          "items": {
+            "i1": "<b>🛡️ 他人撰写的内容现在会被标注出来</b> —— 邮件正文、由组织者撰写的邀请说明、网页、地点简介：LIA 每天都在读这些文本，而任何人都能在其中夹带写给它的指令。每一条数据如今都带着自己的来源，助手因此知道那是待分析的素材，而绝非要执行的命令。未知的数据类型默认按外部处理。",
+            "i2": "<b>🔎 操纵企图会被识别并命名</b> —— 在应用的六种语言中识别七类陷阱：伪造的系统消息、「忽略先前的指令」、身份切换、要求把你的数据发往别处、不可见字符、隐藏的 HTML 注释。你的内容永远不会被改写：邮件仍然是作者写下的原文，旁边只多一条提示。",
+            "i3": "<b>⏱️ 你用来确认的时间不再算在助手头上</b> —— 在自主模式下，审批请求等待你的时候，智能体的计时器仍在走。思考超过两分钟，进行中的工作就会被切断，回答从头重做，已完成的步骤全部丢失。现在计数只衡量真正的计算时间。",
+            "i4": "<b>🔁 自主助手不再原地打转</b> —— 此前没有任何机制阻止它用完全相同的参数无限次调用同一个工具。第四次相同调用时，系统会要求它更换思路；第五次则干净地结束该回合，而不是在循环中消耗你的额度。",
+            "i5": "<b>💸 自主模式更省钱，也兼容更多模型</b> —— 它的内部指令过去在每个回合都完整重发一次，而且是在每个回合的每一步都重发。现在只发送一次，账单因此减轻，也解除了那些从第二轮对话起就拒绝请求的供应商的限制。",
+            "i6": "<b>🧹 一项设置宣传了一个已不存在的功能</b> —— 技术面板为记忆显示着「混合搜索」开关，而那套引擎在数个版本之前就已消失。该显示与死代码均已移除。混合搜索依然真实存在，只是在它真正生效的地方：你的知识空间，作用于你的文档。至于你的记忆，则由双重语义检索找回 —— 一路针对内容，一路针对关键词。",
+            "i7": "<b>⚙️ 管理员：内存告警不再狼来了</b> —— 它把磁盘缓存也计算在内，而系统本就会自行回收，因此在一个完全健康的服务上持续鸣响。现在它衡量的是真正决定强制终止的那个量，指标服务的上限也已提高，并配有一份诊断指南。一条触发的告警终于开始有意义。"
+          }
+        },
         "v1_25_29": {
           "title": "v1.25.29 — 🎯 屏蔽一个主题终于意味着它不会再回来",
           "date": "2026年7月",
@@ -5033,7 +5047,7 @@
           },
           "q9": {
             "question": "长期记忆如何工作？",
-            "answer": "LIA通过其<strong>智能记忆</strong>了解您：<br><br><strong>🧠 LIA记住什么：</strong><br>• <strong>偏好</strong>：「他喜欢简洁的邮件」、「她喜欢黑咖啡」<br>• <strong>个人信息</strong>：「他的生日是3月15日」<br>• <strong>关系</strong>：「小红是他的姐姐」、「小明是他的同事」<br>• <strong>重要事件</strong>：「他最近换了工作」<br>• <strong>习惯</strong>：「她周二晚上运动」<br>• <strong>敏感领域</strong>：需要谨慎对待的话题<br><br><strong>🔄 自动提取：</strong><br>LIA分析您的对话并在后台自动提取相关信息。<br><br><strong>🔍 混合搜索：</strong><br>LIA使用<strong>混合搜索</strong>结合关键词（BM25）和语义来以最佳精度检索您的相关记忆。<br><br><strong>📊 使用：</strong><br>这些记忆个性化LIA的回复。例如，LIA会对您的姐姐说「你好小红」而无需您指定。<br><br><strong>🛡️ 完全控制：</strong><br>在<strong>设置 > 记忆</strong>中查看、编辑、固定或删除您的记忆。"
+            "answer": "LIA通过其<strong>智能记忆</strong>了解您：<br><br><strong>🧠 LIA记住什么：</strong><br>• <strong>偏好</strong>：「他喜欢简洁的邮件」、「她喜欢黑咖啡」<br>• <strong>个人信息</strong>：「他的生日是3月15日」<br>• <strong>关系</strong>：「小红是他的姐姐」、「小明是他的同事」<br>• <strong>重要事件</strong>：「他最近换了工作」<br>• <strong>习惯</strong>：「她周二晚上运动」<br>• <strong>敏感领域</strong>：需要谨慎对待的话题<br><br><strong>🔄 自动提取：</strong><br>LIA分析您的对话并在后台自动提取相关信息。<br><br><strong>🔍 双重语义检索：</strong><br>每条记忆都会被索引两次 —— 一次针对其内容，一次针对触发它的关键词。你的问题会与两者分别比对，取更贴近的一路：无论你是否用当初记录时的说法来表达，记忆都能被找回。<br><br><strong>📊 使用：</strong><br>这些记忆个性化LIA的回复。例如，LIA会对您的姐姐说「你好小红」而无需您指定。<br><br><strong>🛡️ 完全控制：</strong><br>在<strong>设置 > 记忆</strong>中查看、编辑、固定或删除您的记忆。"
           },
           "q10": {
             "question": "如何管理我的记忆？",
@@ -5707,7 +5721,7 @@
       "privacy": {
         "title": "安全和隐私",
         "description": "保护您的数据",
-        "count": "12",
+        "count": "13",
         "questions": {
           "q1": {
             "question": "我的对话是私密的吗？",
@@ -5756,6 +5770,10 @@
           "q12": {
             "question": "退出登录后，设备上还会留下什么？",
             "answer": "不会留下与您有关的内容。退出登录不只是结束会话，还会清理浏览器和设备为您保存的数据。<br><br><strong>🔔 通知：</strong><br>• 该设备的推送注册会在会话关闭前<strong>被撤销</strong><br>• 在共用的电脑或手机上，下一位使用者不会看到您的任何通知<br><br><strong>📍 位置：</strong><br>• 最近一次的位置会被清除<br>• 地理位置授权同样会被清除——下一个账户需要自行授权，不会继承您的许可<br><br><strong>💬 内容：</strong><br>• 正在编辑的消息草稿会被删除<br>• 浏览器端从未存储过访问令牌（BFF 架构），因此没有需要清除的令牌<br><br>如果另一个账户在同一标签页中未先退出便直接登录——例如会话过期之后——也会触发同样的清理。"
+          },
+          "q13": {
+            "question": "一封邮件或一个网页能给 LIA 下命令吗？",
+            "answer": "不能。LIA 读到的文本，永远不等于 LIA 要执行的文本。<br><br><strong>📨 问题所在：</strong><br>LIA 每天都在读你并没有写下的内容：邮件正文、由组织者撰写的邀请说明、网页、地点简介、外部服务器的返回结果。任何人都能在其中夹带一句「忽略先前的指令」。<br><br><strong>🏷️ 防护方式：</strong><br>每一条数据都带着自己的<strong>来源</strong>。LIA 处理的 24 种数据类型已一次性完成分类：由 LIA 自身产生，或由第三方撰写。未知类型出于安全一律按外部处理，若存在未分类的类型，应用会拒绝启动。来自外部的内容抵达模型时，标注为<strong>待分析的素材，而绝非要执行的命令</strong>。<br><br><strong>🔎 检测能力：</strong><br>应用的六种语言中都能识别七类陷阱：伪造的系统消息、指令劫持、身份切换、要求把你的数据发往别处、在他人文本中夹带 LIA 工具的名称、不可见字符、藏在 HTML 注释里的指令。<br><br><strong>✋ LIA 不会做的事：</strong><br>它<strong>绝不</strong>改写你的内容。邮件仍然是作者写下的原文，旁边只会多一条提示。清洗文本只会制造一种保证的错觉，而下一次绕过就会推翻它 —— 同时还会改动一封你或许想原样阅读的消息。"
           }
         }
       },
@@ -6967,7 +6985,7 @@
     "security": {
       "title": "安全与隐私",
       "subtitle": "天生强大。隐私至上。",
-      "intro": "LIA从第一天起就采用隐私设计理念。与集中式云助手不同，您的凭据永远不会通过前端传输：后端前端架构完全隔离您的令牌。自动PII过滤防止个人身份数据到达LLM提供商。 你的账户本身也被锁定：通行密钥、第二因素以及敏感操作的身份确认，每个已连接设备均可查看并撤销。 而为你运行的一切都运行在密封盒中：技能代码在一次性容器中执行，未经你同意不会有任何操作触碰你的服务器。",
+      "intro": "LIA从第一天起就采用隐私设计理念。与集中式云助手不同，您的凭据永远不会通过前端传输：后端前端架构完全隔离您的令牌。自动PII过滤防止个人身份数据到达LLM提供商。 你的账户本身也被锁定：通行密钥、第二因素以及敏感操作的身份确认，每个已连接设备均可查看并撤销。 而为你运行的一切都运行在密封盒中：技能代码在一次性容器中执行，未经你同意不会有任何操作触碰你的服务器。 而且，LIA 读到的东西并不等于它要执行的东西：由他人撰写的邮件、网页或邀请，抵达时都标注为待分析的素材，而绝非指令 —— 操纵企图会被指明，你的内容也绝不会被改写。",
       "privacy_link": "阅读我们的隐私政策",
       "data_control": {
         "title": "数据控制",
@@ -6989,7 +7007,7 @@
     "tech": {
       "title": "技术底层",
       "subtitle": "为性能和可扩展性设计的架构",
-      "intro": "不是聊天机器人，而是一套编排系统。每个请求都经过语义路由、规划器和并行执行的智能体——端到端全程可观测，从Token到欧元，关键信号异常时自动邮件告警。\n\n界面背后：贝叶斯计划学习、BM25+语义嵌入混合记忆、以PostgreSQL做检查点的LangGraph状态机。全部可自托管——小到一台树莓派。\n\n它所断言的，都是它读到的：每个回答都锚定在真实获取的数据上，而非对早先措辞的记忆；从未获取到的信息会被明确说明，而不是被补全。\n\n被执行的东西与执行它的东西相互隔离：技能代码运行在仅为一次调用而创建的容器中——无套接字、无网络、只读——如果这个沙箱无法建立，就什么都不会运行。",
+      "intro": "不是聊天机器人，而是一套编排系统。每个请求都经过语义路由、规划器和并行执行的智能体——端到端全程可观测，从Token到欧元，关键信号异常时自动邮件告警。\n\n界面背后：贝叶斯计划学习、双向量语义记忆、面向文档的 BM25+语义嵌入混合检索、以PostgreSQL做检查点的LangGraph状态机。全部可自托管——小到一台树莓派。\n\n它所断言的，都是它读到的：每个回答都锚定在真实获取的数据上，而非对早先措辞的记忆；从未获取到的信息会被明确说明，而不是被补全。\n\n被执行的东西与执行它的东西相互隔离：技能代码运行在仅为一次调用而创建的容器中——无套接字、无网络、只读——如果这个沙箱无法建立，就什么都不会运行。",
       "deep_dive_link": "完整技术深度解析",
       "langgraph": {
         "title": "LangGraph",
@@ -7005,7 +7023,7 @@
       },
       "hybrid_search": {
         "title": "混合搜索",
-        "description": "BM25 + 多语言语义嵌入。精准快速的上下文记忆，支持多语言。"
+        "description": "在你的知识空间上运行 BM25 + 多语言语义嵌入：精确词与语义在同一代索引上融合。至于你的记忆，则由双重语义检索找回。"
       },
       "realtime": {
         "title": "实时流式传输",
@@ -7164,7 +7182,7 @@
         "b2_d": "每天早上：摘要、天气、日程、生日、分好类的邮件——在你开口之前。",
         "b3_t": "她有情绪。你看得见。",
         "b3_d": "她的表情随对话而变，气氛轻松时幽默就会冒出来。从教授到毒舌：14 种人格。",
-        "how": "BM25 + 向量的混合记忆 · 内省日志 · 每日简报 · Psyche 引擎（14 种心情、22 种情绪）。",
+        "how": "双向量语义记忆 · 内省日志 · 每日简报 · Psyche 引擎（14 种心情、22 种情绪）。",
         "catalog_hint": "6 项能力详情",
         "s_chip": "早间简报",
         "s_greet": "早上好。三个连着的会议、Sarah 的生日，还有 5 封邮件——其中恰好只有一封值得你看。我们要假装惊讶吗？",
@@ -7627,7 +7645,7 @@
       "security-architecture": {
         "title": "纵深防御：LIA的5项安全原则",
         "excerpt": "纵深防御、最小权限、速率限制、加密和验证保护您的数据。",
-        "body": "<h2>5项基本原则</h2><p>LIA的安全性基于五项应用于应用每一层的原则：</p><ul><li><strong>纵深防御</strong> — 多层控制（认证、速率限制、验证、加密）</li><li><strong>最小权限</strong> — 默认最小权限</li><li><strong>安全失败</strong> — 出错时拒绝而非允许</li><li><strong>不信任输入</strong> — Pydantic验证 + 系统化清洗</li><li><strong>默认安全</strong> — HTTPS、HttpOnly/SameSite cookies、严格CORS</li></ul><h2>哈希与加密</h2><p>密码使用<strong>bcrypt</strong>（带自动盐值）进行哈希。敏感数据（OAuth令牌、连接器凭据、PII、MCP服务器凭据）使用<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）加密，确保机密性和完整性。加密密钥与数据分开管理。</p><h2>JWT与会话管理</h2><p>JWT令牌使用HS256算法，配合Redis中的JTI（JWT ID）黑名单系统。一次性令牌（邮件验证、密码重置）在首次使用后即失效。此机制防止任何敏感令牌的重复使用。</p><h2>强身份验证与设备控制</h2><p>登录不止于密码。<strong>WebAuthn 通行密钥</strong>让您通过 Face ID、指纹或设备密码进行身份验证 — 设计上抗钓鱼，配有一次性服务器质询和基于签名计数器的克隆检测。<strong>TOTP 第二因素</strong>为密码登录添加 6 位数验证步骤，辅以十个以哈希存储的一次性备用码。敏感操作 — 管理凭据、导出数据、注销其他设备 — 都经过 <strong>step-up 重新验证</strong>：一个 5 分钟的确认窗口，采用类型化的 API 契约，绝不静默重定向。<strong>我的设备</strong>列出每个在线会话及刻意限定的元数据（浏览器和系统类别、截断的 IP），可即时注销任意会话 — 被注销的会话几秒内即失去实时流 — 并在账户从无法识别的设备登录时推送提醒。</p><h2>可配置速率限制</h2><p>速率限制在两个层面运作：</p><ul><li><strong>HTTP</strong> — 通过上游nginx</li><li><strong>工具</strong> — 按用户、按工具的滑动窗口，阈值由配置驱动，覆盖每一个付费外部 API（图像生成、网页搜索、浏览器、DevOps CLI）</li><li><strong>外部连接器</strong> — 跨实例共享的分布式 Redis 滑动窗口（Google、Apple、API 密钥提供商）</li></ul><p>API限制严格：每次请求最多10个项目，每个领域有默认值（默认10，最大50）。</p><h2>渲染与网络加固</h2><p>聊天会渲染 LLM 的输出——它可能转发第三方 HTML（邮件正文、抓取的页面、工具结果）——并通过严格的净化边界（<code>rehype-sanitize</code> 配合经审计的 schema）：<code>&lt;script&gt;</code>、<code>&lt;iframe&gt;</code>、<code>&lt;form&gt;</code> 及事件处理器会被移除，而合法的卡片、按钮和公式得以保留。交互式 MCP/Skill 应用从不经过 markdown——它们只在沙箱化的 iframe 小组件中挂载。在网络层面，生产环境 API 位于 Cloudflare 之后作为唯一入口，容器端口绑定 loopback，uvicorn 仅信任反向代理的请求头：因此 <code>request.client.host</code> 承载真实的访客 IP，「按 IP」的速率限制按访客生效，而非作用于单一共享的内部地址。</p><h2>提示注入防护</h2><p>外部内容（邮件、网页、文档）在注入提示之前封装在可配置的<code>UNTRUSTED</code>标签中。这种显式封装通过清楚地分隔用户数据和系统指令，防止恶意内容劫持助手的行为。</p><h2>资源所有权验证</h2><p>每次资源访问都通过<code>check_resource_ownership()</code>进行检查，带有<code>hide_existence</code>参数：公共资源返回403（拒绝访问），私有资源返回404（资源不存在），以避免向攻击者透露其存在。</p><h2>每用户使用配额</h2><p>LIA 允许管理员设置<strong>每用户配额</strong>，包括令牌、消息和成本。执行使用<strong>5层纵深防御</strong>架构。基础设施故障时系统<strong>fail-open</strong>。管理员可即时封禁/解封任何用户。</p><h2>软件供应链</h2><p>每个版本都基于锁定的依赖图构建：通用 lockfile 锁定实际安装的约 200 个包，每个包在构建时通过 SHA256 指纹校验——同一版本始终产出相同且经完整性校验的镜像。所有依赖（包括传递依赖）都会持续比对已知漏洞数据库进行审计，随每个版本发布的软件物料清单（SBOM）现已覆盖前后端两侧，准确列出生产环境中运行的内容。扫描器不再只是报告问题：它们会让构建失败。</p><h2>防护要经过验证，而不是宣称</h2><p>最隐蔽的风险不是缺少防护，而是宣称存在却毫无作用的防护。告警可能位于监控从未加载的文件中；加固步骤可能以一条无论成败都会打印的成功消息收尾；为健康探针设置的豁免，如果写成前缀匹配而非精确匹配，就会为任何会输入 <code>/health</code> 的人打开一扇门。这三种情况下，测试都是绿色的，文档都在断言，而防护并不存在。</p><p>答案只有一条规则：每一项防护都由一个可执行的守卫支撑，一旦防护消失，守卫就会失败。告警规则文件必须是其模板的精确渲染，每条告警都必须指向真实存在的处置指南并拥有自己的测试用例。没有书面理由，任何容器都不会获得全部密钥。每个对外发布的端口都绑定到本地回环。而在编写修复时，我们会先恢复旧行为，确认测试确实变红——无法失败的测试什么也证明不了。</p>"
+        "body": "<h2>5项基本原则</h2><p>LIA的安全性基于五项应用于应用每一层的原则：</p><ul><li><strong>纵深防御</strong> — 多层控制（认证、速率限制、验证、加密）</li><li><strong>最小权限</strong> — 默认最小权限</li><li><strong>安全失败</strong> — 出错时拒绝而非允许</li><li><strong>不信任输入</strong> — Pydantic验证 + 系统化清洗</li><li><strong>默认安全</strong> — HTTPS、HttpOnly/SameSite cookies、严格CORS</li></ul><h2>哈希与加密</h2><p>密码使用<strong>bcrypt</strong>（带自动盐值）进行哈希。敏感数据（OAuth令牌、连接器凭据、PII、MCP服务器凭据）使用<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）加密，确保机密性和完整性。加密密钥与数据分开管理。</p><h2>JWT与会话管理</h2><p>JWT令牌使用HS256算法，配合Redis中的JTI（JWT ID）黑名单系统。一次性令牌（邮件验证、密码重置）在首次使用后即失效。此机制防止任何敏感令牌的重复使用。</p><h2>强身份验证与设备控制</h2><p>登录不止于密码。<strong>WebAuthn 通行密钥</strong>让您通过 Face ID、指纹或设备密码进行身份验证 — 设计上抗钓鱼，配有一次性服务器质询和基于签名计数器的克隆检测。<strong>TOTP 第二因素</strong>为密码登录添加 6 位数验证步骤，辅以十个以哈希存储的一次性备用码。敏感操作 — 管理凭据、导出数据、注销其他设备 — 都经过 <strong>step-up 重新验证</strong>：一个 5 分钟的确认窗口，采用类型化的 API 契约，绝不静默重定向。<strong>我的设备</strong>列出每个在线会话及刻意限定的元数据（浏览器和系统类别、截断的 IP），可即时注销任意会话 — 被注销的会话几秒内即失去实时流 — 并在账户从无法识别的设备登录时推送提醒。</p><h2>可配置速率限制</h2><p>速率限制在两个层面运作：</p><ul><li><strong>HTTP</strong> — 通过上游nginx</li><li><strong>工具</strong> — 按用户、按工具的滑动窗口，阈值由配置驱动，覆盖每一个付费外部 API（图像生成、网页搜索、浏览器、DevOps CLI）</li><li><strong>外部连接器</strong> — 跨实例共享的分布式 Redis 滑动窗口（Google、Apple、API 密钥提供商）</li></ul><p>API限制严格：每次请求最多10个项目，每个领域有默认值（默认10，最大50）。</p><h2>渲染与网络加固</h2><p>聊天会渲染 LLM 的输出——它可能转发第三方 HTML（邮件正文、抓取的页面、工具结果）——并通过严格的净化边界（<code>rehype-sanitize</code> 配合经审计的 schema）：<code>&lt;script&gt;</code>、<code>&lt;iframe&gt;</code>、<code>&lt;form&gt;</code> 及事件处理器会被移除，而合法的卡片、按钮和公式得以保留。交互式 MCP/Skill 应用从不经过 markdown——它们只在沙箱化的 iframe 小组件中挂载。在网络层面，生产环境 API 位于 Cloudflare 之后作为唯一入口，容器端口绑定 loopback，uvicorn 仅信任反向代理的请求头：因此 <code>request.client.host</code> 承载真实的访客 IP，「按 IP」的速率限制按访客生效，而非作用于单一共享的内部地址。</p><h2>提示注入防护</h2><p>来源是<strong>数据</strong>的属性，而不是取回它的那个工具的属性。逐工具地封装内容会漏掉一半 —— 对调用方的穷尽式搜索发现邮件工具未被覆盖，而恰恰是它的 docstring 承诺返回完整正文 —— 而且它盯错了面：内容通过两条路径抵达模型，两条都不是工具。注册表的 <strong>24 种数据类型</strong>一次性分类为内部或第三方撰写，未知类型一律判定为<em>外部</em>，遇到未分类的类型应用会拒绝启动。凡来自第三方的内容，抵达模型时都标注为待分析的数据，而绝非指令。</p><p><strong>七类注入模式</strong>在六种语言中被识别 —— 伪造的系统角色、「忽略先前的指令」、身份切换、要求把你的数据发往别处、在他人文本中点名 LIA 的工具、不可见 Unicode、藏在 HTML 注释里的指令。内容仍**原封不动**发往模型，只附上一条指明所属类别的提示：净化意味着改写一封你可能想原样阅读的邮件，换来的却是下一次绕过就会推翻的保证。扫描范围有界，可疑文本从不进入日志 —— 它按其性质由攻击者掌控，且通常包含你自己的数据。</p><h2>资源所有权验证</h2><p>每次资源访问都通过<code>check_resource_ownership()</code>进行检查，带有<code>hide_existence</code>参数：公共资源返回403（拒绝访问），私有资源返回404（资源不存在），以避免向攻击者透露其存在。</p><h2>每用户使用配额</h2><p>LIA 允许管理员设置<strong>每用户配额</strong>，包括令牌、消息和成本。执行使用<strong>5层纵深防御</strong>架构。基础设施故障时系统<strong>fail-open</strong>。管理员可即时封禁/解封任何用户。</p><h2>软件供应链</h2><p>每个版本都基于锁定的依赖图构建：通用 lockfile 锁定实际安装的约 200 个包，每个包在构建时通过 SHA256 指纹校验——同一版本始终产出相同且经完整性校验的镜像。所有依赖（包括传递依赖）都会持续比对已知漏洞数据库进行审计，随每个版本发布的软件物料清单（SBOM）现已覆盖前后端两侧，准确列出生产环境中运行的内容。扫描器不再只是报告问题：它们会让构建失败。</p><h2>防护要经过验证，而不是宣称</h2><p>最隐蔽的风险不是缺少防护，而是宣称存在却毫无作用的防护。告警可能位于监控从未加载的文件中；加固步骤可能以一条无论成败都会打印的成功消息收尾；为健康探针设置的豁免，如果写成前缀匹配而非精确匹配，就会为任何会输入 <code>/health</code> 的人打开一扇门。这三种情况下，测试都是绿色的，文档都在断言，而防护并不存在。</p><p>答案只有一条规则：每一项防护都由一个可执行的守卫支撑，一旦防护消失，守卫就会失败。告警规则文件必须是其模板的精确渲染，每条告警都必须指向真实存在的处置指南并拥有自己的测试用例。没有书面理由，任何容器都不会获得全部密钥。每个对外发布的端口都绑定到本地回环。而在编写修复时，我们会先恢复旧行为，确认测试确实变红——无法失败的测试什么也证明不了。</p>"
       },
       "privacy-by-design": {
         "title": "隐私设计：GDPR、加密和数据控制",
@@ -7635,9 +7653,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p>"
       },
       "observability": {
-        "title": "446个Prometheus指标、25个Grafana仪表板和Langfuse追踪",
-        "excerpt": "LIA提供企业级可观测性：446指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 446个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>25个Grafana仪表板</h2><p>LIA提供25个编号01至25的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p>"
+        "title": "447个Prometheus指标、25个Grafana仪表板和Langfuse追踪",
+        "excerpt": "LIA提供企业级可观测性：447指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 447个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>25个Grafana仪表板</h2><p>LIA提供25个编号01至25的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：78个提示作为代码管理",
@@ -7657,7 +7675,7 @@
       "react-execution-mode": {
         "title": "Pipeline vs ReAct：当结构化工程超越放任自流",
         "excerpt": "LIA 提供两种执行模式：精心编排的 Pipeline 比 ReAct 少消耗 4 到 8 倍 token，以及用于简单场景的迭代式 ReAct 模式。",
-        "body": "<h2>两种哲学，同一目标</h2><p>在 AI 代理生态系统中，<strong>ReAct</strong>（Reasoning + Acting）已成为事实标准。其原则：让 LLM 在每次迭代中决定调用哪个工具，无需预定义计划。因其简单性而引人入胜，这是当今大多数框架的方法。LIA 也提供该模式 — 但通过其 <strong>Pipeline 模式</strong>走得更远：这是深度工程的成果，以根本性更高的效率实现相同的灵活性。</p><h2>Pipeline：规划、验证、执行</h2><p>Pipeline 模式遵循 <strong>8 节点</strong> LangGraph 图：</p><ol><li><strong>Router</strong> — 对请求分类</li><li><strong>Planner</strong> — 生成结构化 ExecutionPlan</li><li><strong>Semantic Validator</strong> — 执行前验证计划一致性</li><li><strong>Approval Gate</strong> — 必要时人工验证 (HITL)</li><li><strong>Task Orchestrator</strong> — 并行执行步骤</li><li><strong>Response</strong> — 最终综合</li></ol><p>此模式<strong>只规划一次</strong>然后执行。结果：Pipeline 消耗的 token <strong>比 ReAct 少 4 到 8 倍</strong>。</p><h2>效率：数字说明一切</h2><p>以取消会议并发邮件为例。ReAct 模式下，LLM 反复迭代，每次都重新注入全部上下文。Pipeline 模式下，规划器生成<strong>一个计划</strong>，编排器<strong>并行</strong>执行。更少调用，更少 token，相同结果。</p><h2>控制与可观测性</h2><p>Pipeline 提供 ReAct 无法匹敌的<strong>完整可追溯性</strong>。每个步骤都有名称、类型和单独度量。</p><h2>可靠性与保护</h2><p>Pipeline 集成了 ReAct 所缺少的验证层：<strong>Semantic Validator</strong>、<strong>幻觉防御</strong>和 <strong>6 个 HITL 确认级别</strong>。</p><h2>可扩展架构</h2><p>Pipeline 的<strong>通用模块化设计</strong>是核心优势。添加新代理只需注册工具。Skills 系统进一步推动可扩展性。</p><h2>ReAct：当简单性优先</h2><p>ReAct 对于<strong>简单交互</strong>仍然相关。LIA 通过原生 <code>interrupt()</code> 实现 HITL，可配置超时，以及 5 个 Prometheus 指标。</p><h2>选择权在用户</h2><p>偏好按<strong>用户级别</strong>持久化，可从仪表板一键切换。我们的信念：Pipeline 虽然设计更复杂，但证明了严谨编排在大多数场景中超越放任自流。</p>"
+        "body": "<h2>两种哲学，同一目标</h2><p>在 AI 代理生态系统中，<strong>ReAct</strong>（Reasoning + Acting）已成为事实标准。其原则：让 LLM 在每次迭代中决定调用哪个工具，无需预定义计划。因其简单性而引人入胜，这是当今大多数框架的方法。LIA 也提供该模式 — 但通过其 <strong>Pipeline 模式</strong>走得更远：这是深度工程的成果，以根本性更高的效率实现相同的灵活性。</p><h2>Pipeline：规划、验证、执行</h2><p>Pipeline 模式遵循 <strong>8 节点</strong> LangGraph 图：</p><ol><li><strong>Router</strong> — 对请求分类</li><li><strong>Planner</strong> — 生成结构化 ExecutionPlan</li><li><strong>Semantic Validator</strong> — 执行前验证计划一致性</li><li><strong>Approval Gate</strong> — 必要时人工验证 (HITL)</li><li><strong>Task Orchestrator</strong> — 并行执行步骤</li><li><strong>Response</strong> — 最终综合</li></ol><p>此模式<strong>只规划一次</strong>然后执行。结果：Pipeline 消耗的 token <strong>比 ReAct 少 4 到 8 倍</strong>。</p><h2>效率：数字说明一切</h2><p>以取消会议并发邮件为例。ReAct 模式下，LLM 反复迭代，每次都重新注入全部上下文。Pipeline 模式下，规划器生成<strong>一个计划</strong>，编排器<strong>并行</strong>执行。更少调用，更少 token，相同结果。</p><h2>控制与可观测性</h2><p>Pipeline 提供 ReAct 无法匹敌的<strong>完整可追溯性</strong>。每个步骤都有名称、类型和单独度量。</p><h2>可靠性与保护</h2><p>Pipeline 集成了 ReAct 所缺少的验证层：<strong>Semantic Validator</strong>、<strong>幻觉防御</strong>和 <strong>6 个 HITL 确认级别</strong>。如今有两道护栏约束着循环本身：它的时限以<strong>计算时间</strong>衡量，因此你用于决定是否批准的那几分钟不再消耗预算 —— 此前，稍长一些的确认会切断该回合并迫使回答从头重做，已完成的步骤全部丢失；而以完全相同参数重复调用的工具，第四次会被拒绝，第五次则结束该回合，因为不断重复自己的智能体并没有在推进。</p><h2>可扩展架构</h2><p>Pipeline 的<strong>通用模块化设计</strong>是核心优势。添加新代理只需注册工具。Skills 系统进一步推动可扩展性。</p><h2>ReAct：当简单性优先</h2><p>ReAct 对于<strong>简单交互</strong>仍然相关。LIA 通过原生 <code>interrupt()</code> 实现 HITL，可配置超时，以及 5 个 Prometheus 指标。</p><h2>选择权在用户</h2><p>偏好按<strong>用户级别</strong>持久化，可从仪表板一键切换。我们的信念：Pipeline 虽然设计更复杂，但证明了严谨编排在大多数场景中超越放任自流。</p>"
       },
       "mcp-react-agent": {
         "title": "MCP ReAct：由迭代代理驱动的 MCP 服务器",

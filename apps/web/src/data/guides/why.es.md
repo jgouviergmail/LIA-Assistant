@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versión** : 3.9
-**Fecha** : 2026-07-27
-**Aplicación** : LIA v1.25.29
+**Versión** : 4.0
+**Fecha** : 2026-07-28
+**Aplicación** : LIA v1.25.30
 **Licencia** : AGPL-3.0 (Open Source)
 
 ---
@@ -222,6 +222,8 @@ Cuando usas ChatGPT, tus conversaciones viven en los servidores de OpenAI. Con G
 
 Con LIA, **todo se queda en tu PostgreSQL**: conversaciones, memoria, perfil psicológico, documentos, preferencias. Puedes exportar, hacer copias de seguridad, migrar o eliminar la totalidad de tus datos en cualquier momento — incluida una exportación completa en un clic desde los ajustes: Markdown legible, JSON estructurado y tus archivos, con el material secreto inexportable por construcción. Y cada dispositivo conectado a tu cuenta es visible y revocable con un clic. El RGPD no es una restricción — es una consecuencia natural de la arquitectura. Los datos sensibles están cifrados, las sesiones aisladas, y el filtrado automático de información personal identificable (PII) está integrado.
 
+La protección vale también para lo que **entra**. LIA lee cada día textos que usted no ha escrito: el cuerpo de un correo, la descripción de una invitación redactada por su organizador, una página web, la ficha de un lugar. Cualquiera puede deslizar allí una consigna dirigida a la asistente. Cada dato lleva ahora su procedencia, y lo que viene de fuera llega etiquetado como **material a analizar, nunca como una orden que seguir** — con los intentos de manipulación detectados y nombrados, en los seis idiomas. Su contenido no se reescribe por ello: un correo sigue siendo lo que su autor escribió. Reescribir daría la ilusión de una garantía que el siguiente rodeo desmentiría; nombrar lo que se ve es más honesto, y más útil.
+
 ### 5.2. Incluso una Raspberry Pi es suficiente
 
 LIA funciona en producción sobre una **Raspberry Pi 5** — un ordenador de placa única de 80 euros. 20+ agentes especializados, una stack de observabilidad completa, un sistema de memoria psicológica, todo sobre un micro-servidor ARM. Las imágenes Docker multi-arquitectura (amd64/arm64) permiten el despliegue en cualquier hardware: NAS Synology, VPS a pocos euros al mes, servidor empresarial o cluster Kubernetes.
@@ -272,6 +274,8 @@ Esta transparencia se extiende a la calidad del propio sistema. La auditoría t�
 El mismo principio se aplica a las propias protecciones. Una seguridad anunciada pero no verificable se trata como inexistente: cada control se apoya en una prueba que falla si el control desaparece y, cuando se escribe una corrección, se restaura el comportamiento anterior el tiempo necesario para comprobar que la prueba lo detecta. Una prueba que no puede fallar no demuestra nada.
 
 Tampoco una prueba que nunca se ejecuta — y ese es el descubrimiento más incómodo de este proyecto. Diez archivos de pruebas se habían desactivado a sí mismos en cuanto faltaba una clave de proveedor, y ya nada lo señalaba: una prueba omitida cuenta como verde, la cobertura mide líneas alcanzadas y no aserciones ejecutadas, y una revisión ve un archivo de pruebas y concluye que la superficie está protegida. Doscientas diecinueve pruebas no se habían ejecutado ni una sola vez; al volver a encenderlas aparecieron cuatro defectos bien reales — entre ellos una voz que partía en dos todos los números, y un recordatorio perdido definitivamente cuando la cuota se agotaba en el minuto equivocado. La ausencia de señal roja no es una prueba de salud: a veces es solo la ausencia de medición. Una guarda de integración continua impide ahora que un módulo de pruebas se apague en silencio.
+
+El mismo principio se aplica a lo que se **anuncia**. Un panel mostraba un interruptor «búsqueda híbrida» para la memoria; el motor correspondiente ya no existía desde varias versiones, y el interruptor no mandaba nada. El código muerto y la visualización se retiraron juntos, y el funcionamiento real se escribió en su lugar. Una capacidad anunciada pero ausente no es una imprecisión de documentación: es una promesa hecha a un usuario que no tiene forma de verificarla. Mostrar un ajuste que no controla nada es peor que no mostrar nada.
 
 ## 7. Profundidad emocional
 

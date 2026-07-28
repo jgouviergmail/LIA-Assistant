@@ -241,15 +241,21 @@ tasks:
       - npx playwright test
 
   test:alerts:
-    # promtool is not installed locally; the CI job pins v2.53.2 and so does
-    # this, through the image, so a rule that passes here passes there.
+    # promtool is not installed locally; this uses the image, and the CI job
+    # installs the same version, so a rule that passes here passes there.
+    # The version is pinned to the one docker-compose runs (v3.0.0), NOT an
+    # older promtool: the PromQL engine differs between majors and a rule
+    # validated on 2.53.2 could behave differently in production. Measured on
+    # this very repository — the SystemKnowledgeIndexationFailing unit test
+    # passed on 2.53.2 and failed on 3.0.0 for the same rule and the same data,
+    # because `increase()` extrapolation changed. Bump this with the image.
     desc: promtool validation of the live Prometheus rules + alert unit tests (F025)
     cmds:
       - cmd: docker run --rm -v "{{.ROOT_DIR}}/infrastructure/observability/prometheus:/cfg"
-          --entrypoint promtool prom/prometheus:v2.53.2
+          --entrypoint promtool prom/prometheus:v3.0.0
           check rules /cfg/recording_rules.yml /cfg/alerts-core.yml
       - cmd: docker run --rm -v "{{.ROOT_DIR}}/infrastructure/observability/prometheus:/cfg"
-          --entrypoint promtool prom/prometheus:v2.53.2
+          --entrypoint promtool prom/prometheus:v3.0.0
           test rules /cfg/tests/alerts_core_test.yml
 
   lint:i18n:

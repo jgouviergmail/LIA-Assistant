@@ -33,7 +33,7 @@ Un quatrième écart n'a été révélé que par la conversion : ce `Taskfile.ym
 
 | Étape | Raison | Équivalent local |
 |---|---|---|
-| `promtool` (binaire natif) | non installé sur une machine de dev | `task test:alerts` — **même version v2.53.2**, via conteneur |
+| `promtool` (binaire natif) | non installé sur une machine de dev | `task test:alerts` — **même version v3.0.0**, via conteneur |
 | Replay des migrations (bash, in-container) | le wrapper bash ne tourne pas sur l'hôte Windows | `task db:migrate:replay-check` (portage Python, F048) |
 | Suite unitaire sur Python 3.13 (F041) | son objet **est** l'interpréteur différent | aucun, assumé |
 

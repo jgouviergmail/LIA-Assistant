@@ -1,9 +1,9 @@
 # Unit tests for the 14-alert core (ADR-119). Run in CI (F025, job
 # "observability") and locally with the SAME promtool version the CI installs
-# (Prometheus v2.53.2) so results never diverge across environments:
+# (Prometheus v3.0.0) so results never diverge across environments:
 #   docker run --rm --entrypoint promtool \
 #     -v "$(pwd)/infrastructure/observability/prometheus:/cfg" \
-#     prom/prometheus:v2.53.2 test rules /cfg/tests/alerts_core_test.yml
+#     prom/prometheus:v3.0.0 test rules /cfg/tests/alerts_core_test.yml
 #
 # Tests run against the live alerts-core.yml, so expected
 # values below must match thresholds/production.env (ALERT_CORE_* block).
@@ -118,10 +118,10 @@ tests:
         alertname: DiskSpaceCritical
         exp_alerts: []
 
-  # ===== ContainerMemoryNearLimit: 97% of compose limit =====
+  # ===== ContainerMemoryNearLimit: 97% of compose limit, as WORKING SET =====
   - interval: 1m
     input_series:
-      - series: 'container_memory_usage_bytes{name="lia-api-prod"}'
+      - series: 'container_memory_working_set_bytes{name="lia-api-prod"}'
         values: '97x12'
       - series: 'container_spec_memory_limit_bytes{name="lia-api-prod"}'
         values: '100x12'
@@ -136,8 +136,25 @@ tests:
               tier: core
             exp_annotations:
               summary: "Container lia-api-prod near its memory limit"
-              description: "lia-api-prod uses 97% of its compose memory limit for 10 minutes (threshold: 95%). The kernel will OOM-kill it at 100%."
-              runbook: "docs/runbooks/alerts/HighMemoryUsage.md"
+              description: "lia-api-prod holds 97% of its compose memory limit as working set for 10 minutes (threshold: 95%). Working set excludes reclaimable page cache, so this is the figure the kernel uses to OOM-kill at 100%."
+              runbook: "docs/runbooks/alerts/ContainerMemoryNearLimit.md"
+
+  # ===== ContainerMemoryNearLimit: page cache alone must NOT fire =====
+  # The regression this rule exists for: a container at 99% of its limit whose
+  # working set is 40% (Prometheus mmapping its TSDB) is not at risk, and the
+  # alert must stay silent. With `container_memory_usage_bytes` it fired here.
+  - interval: 1m
+    input_series:
+      - series: 'container_memory_working_set_bytes{name="lia-prometheus-prod"}'
+        values: '40x12'
+      - series: 'container_memory_usage_bytes{name="lia-prometheus-prod"}'
+        values: '99x12'
+      - series: 'container_spec_memory_limit_bytes{name="lia-prometheus-prod"}'
+        values: '100x12'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: ContainerMemoryNearLimit
+        exp_alerts: []
 
   # ===== ContainerRestartLoop: 3 restarts within 30m =====
   - interval: 1m
@@ -346,10 +363,21 @@ tests:
   # Two failures in six hours must fire. The counter is the aggregate across
   # uvicorn workers (multiprocess mode), and only the worker holding the claim
   # can fail, so one bad boot contributes one increment.
-  - interval: 1h
+  #
+  # Sampled at 30s — the production scrape interval — and NOT at 1h. This is the
+  # only rule in the core with a long range selector ([6h]), which makes it the
+  # only one where the test's sampling rate changes the answer: `increase()`
+  # extrapolates over the window, and a range selector is left-open, so with 1h
+  # samples the t=0 point falls out of `(0h, 6h]` at exactly eval_time and the
+  # expression returns 1.2 instead of 2 — the alert then cannot fire and the
+  # test fails against a rule that is perfectly correct. Measured on promtool:
+  # 1.2 with 1h samples, 2.0 with 30s samples, for the very same two failures.
+  - interval: 30s
     input_series:
+      # two failures inside the window: 0 for the first hour, 1 for the second,
+      # 2 for the remaining four (721 samples = 6h at 30s).
       - series: 'rag_system_indexation_total{space_name="lia-faq",status="error"}'
-        values: '0 1 2 2 2 2 2'
+        values: '0+0x120 1+0x120 2+0x480'
     alert_rule_test:
       - eval_time: 6h
         alertname: SystemKnowledgeIndexationFailing
@@ -367,12 +395,14 @@ tests:
   # ===== SystemKnowledgeIndexationFailing: a single failure self-heals =====
   # One transient rejection is retried in place and then by the next boot; paging
   # on it would make every provider blip a notification.
-  - interval: 1h
+  # Same 30s sampling as the firing case above: the pair must differ by the
+  # number of failures, not by an extrapolation artefact.
+  - interval: 30s
     input_series:
       - series: 'rag_system_indexation_total{space_name="lia-faq",status="error"}'
-        values: '0 0 0 1 1 1 1'
+        values: '0+0x240 1+0x480'
       - series: 'rag_system_indexation_total{space_name="lia-faq",status="success"}'
-        values: '0 1 2 2 3 4 5'
+        values: '0+0x120 1+0x120 2+0x480'
     alert_rule_test:
       - eval_time: 6h
         alertname: SystemKnowledgeIndexationFailing

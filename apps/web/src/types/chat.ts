@@ -897,7 +897,6 @@ export interface MemoryInjectionDebugItem {
 export interface MemoryInjectionSettings {
   max_results: number;
   min_score: number;
-  hybrid_enabled: boolean;
 }
 
 /**

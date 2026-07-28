@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 3.9
-**Date** : 2026-07-27
-**Application** : LIA v1.25.29
+**Version** : 4.0
+**Date** : 2026-07-28
+**Application** : LIA v1.25.30
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -222,6 +222,8 @@ Quand vous utilisez ChatGPT, vos conversations vivent sur les serveurs d'OpenAI.
 
 Avec LIA, **tout reste dans votre PostgreSQL** : conversations, mémoire, profil psychologique, documents, préférences. Vous pouvez exporter, sauvegarder, migrer ou supprimer la totalité de vos données à tout moment — y compris via un export complet en un clic depuis les réglages : Markdown lisible, JSON structuré et vos fichiers, avec le matériel secret inexportable par construction. Et chaque appareil connecté à votre compte est visible et révocable en un clic. Le RGPD n'est pas une contrainte — c'est une conséquence naturelle de l'architecture. Les données sensibles sont chiffrées, les sessions isolées, et le filtrage automatique des informations personnelles identifiables (PII) est intégré.
 
+La protection vaut aussi pour ce qui **entre**. LIA lit tous les jours des textes que vous n'avez pas écrits : le corps d'un e-mail, la description d'une invitation rédigée par son organisateur, une page web, la fiche d'un lieu. N'importe qui peut y glisser une consigne destinée à l'assistant. Chaque donnée porte désormais sa provenance, et ce qui vient de l'extérieur arrive étiqueté comme **matière à analyser, jamais comme ordre à suivre** — avec les tentatives de manipulation repérées et nommées, dans les six langues. Votre contenu n'est jamais réécrit pour autant : un e-mail reste ce que son auteur a écrit. Réécrire donnerait l'illusion d'une garantie que le contournement suivant démentirait ; nommer ce qu'on voit est plus honnête, et plus utile.
+
 ### 5.2. Même un Raspberry Pi suffit
 
 LIA tourne en production sur un **Raspberry Pi 5** — un ordinateur monocarte à 80 euros. 20+ agents spécialisés, une stack d'observabilité complète, un système de mémoire psychologique, le tout sur un micro-serveur ARM. Les images Docker multi-architecture (amd64/arm64) permettent le déploiement sur n'importe quel matériel : NAS Synology, VPS à quelques euros par mois, serveur d'entreprise, ou cluster Kubernetes.
@@ -272,6 +274,8 @@ Cette transparence s'étend à la qualité du système lui-même. L'audit techni
 Le même principe vaut pour les protections elles-mêmes. Une sécurité annoncée mais invérifiable est traitée comme absente : chaque contrôle est adossé à un test qui échoue si le contrôle disparaît, et lorsqu'un correctif est écrit, l'ancien comportement est rétabli le temps de vérifier que le test le détecte. Un test qui ne peut pas échouer ne prouve rien.
 
 Un test qui ne tourne pas non plus — et c'est la découverte la moins confortable de ce projet. Dix fichiers de tests s'étaient désactivés eux-mêmes dès qu'une clé de fournisseur manquait, et plus rien ne le signalait : un test sauté est compté vert, la couverture mesure les lignes atteintes et non les assertions exécutées, et une revue voit un fichier de tests et en conclut que la surface est protégée. Deux cent dix-neuf tests n'avaient jamais été exécutés une seule fois ; en les rallumant, quatre défauts bien réels sont apparus — dont une voix qui coupait tous les nombres en deux, et un rappel perdu définitivement quand le quota s'épuisait à la mauvaise minute. L'absence de signal rouge n'est pas une preuve de santé : c'est parfois seulement l'absence de mesure. Une garde d'intégration continue interdit désormais qu'un module de test puisse s'éteindre en silence.
+
+Le même principe s'applique à ce qui est **annoncé**. Une interface affichait un interrupteur « recherche hybride » pour la mémoire ; le moteur correspondant n'existait plus depuis plusieurs versions, et l'interrupteur ne commandait rien. Le code mort et l'affichage ont été retirés ensemble, et le fonctionnement réel écrit à leur place. Une capacité annoncée mais absente n'est pas une imprécision de documentation : c'est une promesse faite à un utilisateur qui n'a aucun moyen de la vérifier. Afficher un réglage qui ne commande rien est pire que de ne rien afficher.
 
 ## 7. Profondeur émotionnelle
 

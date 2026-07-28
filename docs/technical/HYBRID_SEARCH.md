@@ -1,5 +1,24 @@
 # Recherche Hybride BM25 + Sémantique
 
+> ⚠️ **Statut : historique (supprimé en v1.25.30, ADR-168).**
+>
+> Le chemin décrit ici — `infrastructure/store/semantic_store.py::search_hybrid`, **supprimé** (ce fichier n'existe plus) —
+> n'était **plus appelé par personne** depuis la migration de la mémoire long
+> terme vers PostgreSQL/pgvector (v1.14.0, `domains/memories/`). Il a été
+> supprimé avec ses quatre réglages `MEMORY_HYBRID_*`, dont le drapeau valait
+> déjà `false` dans les deux `.env`. La suppression n'a donc **aucun effet
+> runtime**.
+>
+> **Ce qui tourne aujourd'hui :**
+> - **mémoires** — recherche sémantique multi-vecteurs (embedding du contenu +
+>   embedding des mots-clés, `LEAST(dist_content, dist_keyword)`), voir
+>   `domains/memories/repository.py::search_by_relevance` ;
+> - **RAG Spaces** — recherche hybride sémantique + BM25 bien vivante, voir
+>   `domains/rag_spaces/retrieval.py` (c'est elle qui consomme
+>   `infrastructure/store/bm25_index.py`).
+>
+> Le corps ci-dessous est conservé comme trace de conception.
+
 > Système de recherche mémoire combinant BM25 (keyword matching) et embeddings sémantiques (pgvector)
 >
 > **Version**: 1.0
@@ -133,7 +152,7 @@ def tokenize_text(text: str) -> list[str]:
 
 ### 3. search_hybrid()
 
-**Fichier** : `apps/api/src/infrastructure/store/semantic_store.py`
+**Fichier** : `apps/api/src/infrastructure/store/semantic_store.py` — *supprimé en ADR-168, n'existe plus*
 
 ```python
 async def search_hybrid(
@@ -342,7 +361,7 @@ Combined: [0.83, 0.62, 0.51]
 ## Références
 
 - **BM25Index**: `apps/api/src/infrastructure/store/bm25_index.py`
-- **Semantic Store**: `apps/api/src/infrastructure/store/semantic_store.py`
+- **Semantic Store**: `apps/api/src/infrastructure/store/semantic_store.py` — *supprimé en ADR-168, n'existe plus*
 - **Memory Injection**: `apps/api/src/domains/agents/middleware/memory_injection.py`
 - **Configuration**: `apps/api/src/core/config/agents.py`
 - **Constants**: `apps/api/src/core/constants.py`

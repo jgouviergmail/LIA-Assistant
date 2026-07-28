@@ -156,6 +156,8 @@ PromptName = Literal[
     # response_system_prompt_base.txt — kept in sync by a dedicated test.
     "memory_danger_directive",
     "memory_normal_directive",
+    "memory_profile_template",
+    "memory_profile_section_headers",
     # Pipeline intelligence (analysis, planning, validation)
     "query_analyzer_prompt",
     "smart_planner_prompt",
