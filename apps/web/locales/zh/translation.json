@@ -7845,7 +7845,8 @@
       "cicd": "CI/CD 和质量",
       "patterns": "横切模式",
       "adr": "架构决策",
-      "extensibility": "可扩展性"
+      "extensibility": "可扩展性",
+      "psyche": "心理引擎"
     }
   },
   "healthMetrics": {

@@ -248,7 +248,13 @@ export const changelogVersionKeys = [
   'v1_1',
 ];
 
-const featureIcons = {
+/**
+ * Exported for `__tests__/feature-cards-wiring.test.ts`: a key listed in
+ * `featureKeys` without an entry here resolves to `undefined`, and rendering
+ * `<undefined />` crashes the whole FAQ page — a failure tsc cannot see through
+ * the `as keyof` cast below.
+ */
+export const featureIcons = {
   architecture: Network,
   queryAnalyzer: Compass,
   planning: ListChecks,
@@ -291,7 +297,12 @@ const featureIcons = {
   telephony: PhoneCall,
 };
 
-const featureKeys = [
+/**
+ * The "How LIA works" cards actually rendered, in display order. A card written
+ * and translated into the six locales but absent from this array renders
+ * nowhere — see `__tests__/feature-cards-wiring.test.ts`.
+ */
+export const featureKeys = [
   'architecture',
   'queryAnalyzer',
   'planning',

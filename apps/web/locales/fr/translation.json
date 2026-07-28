@@ -7856,7 +7856,8 @@
       "cicd": "CI/CD et qualité",
       "patterns": "Patterns transversaux",
       "adr": "Décisions d'architecture",
-      "extensibility": "Extensibilité"
+      "extensibility": "Extensibilité",
+      "psyche": "Psyche Engine"
     }
   },
   "healthMetrics": {

@@ -7930,7 +7930,8 @@
       "cicd": "CI/CD and quality",
       "patterns": "Cross-cutting patterns",
       "adr": "Architecture decisions",
-      "extensibility": "Extensibility"
+      "extensibility": "Extensibility",
+      "psyche": "Psyche Engine"
     }
   },
   "psyche": {

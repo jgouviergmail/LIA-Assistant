@@ -91,11 +91,24 @@
 
 ## 🔧 Diagnostic Steps
 
+> ⚠️ **Jamais d'identifiant réel dans un runbook.** Ce dépôt est public. L'hôte de
+> production, son adresse IP et le login SSH s'écrivent en **placeholders** —
+> `ssh -p <port> <user>@<prod-host>` — jamais la valeur réelle, même dans un
+> bloc de commande que vous venez d'exécuter. C'est le réflexe qui manque : on
+> copie-colle la ligne qui a marché. La garde
+> `apps/api/tests/unit/test_no_infra_info_guard.py` bloque le commit sur les
+> jetons de la denylist locale, mais elle n'est armée que sur une machine où
+> `apps/api/tests/.infra_denylist` est renseignée — elle ne remplace pas la
+> règle, elle la rattrape. Exemple correct : `PublicEndpointDown.md`.
+
 ### Quick Health Check (< 2 minutes)
 
 **Objectif**: Vérifier l'état général et identifier rapidement le composant défaillant.
 
 ```bash
+# Depuis le poste de dev, si l'inspection doit se faire sur l'hôte de production :
+ssh -p <port> <user>@<prod-host>
+
 # 1. Vérifier statut tous les containers
 docker-compose ps
 
