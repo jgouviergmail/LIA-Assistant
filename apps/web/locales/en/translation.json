@@ -6071,6 +6071,197 @@
       "info": "Administrators can manage users and global application settings."
     }
   },
+  "more": {
+    "meta": {
+      "title": "More — LIA’s small attentions",
+      "description": "The details that never get a big announcement — and change everything day to day."
+    },
+    "hero": {
+      "title": "Even more small attentions",
+      "subtitle": "The big features have their showcase. This is the rest: the details that never get a big announcement — and change everything day to day.",
+      "counter": "{{total}} small attentions on this page — and more with every release."
+    },
+    "controls": {
+      "pause_animations": "Pause the animations"
+    },
+    "sections": {
+      "s1": {
+        "title": "When you write",
+        "intro": "The composer knows you: it keeps, completes and accepts everything you give it."
+      },
+      "s2": {
+        "title": "When LIA replies",
+        "intro": "A response is not an ending: it can be explored, shared — and it hands you the next step."
+      },
+      "s3": {
+        "title": "When things go wrong",
+        "intro": "Hiccups happen. LIA names them, explains them and leaves you in control."
+      },
+      "s4": {
+        "title": "When you search",
+        "intro": "Settings, conversations, navigation: everything can be found with your own words."
+      },
+      "s5": {
+        "title": "Day to day",
+        "intro": "Organized mornings, guided first steps, a real place on your home screen."
+      },
+      "s6": {
+        "title": "Unseen but felt",
+        "intro": "What you never notice but would feel disappear: quiet reliability."
+      }
+    },
+    "cards": {
+      "draft_survives": {
+        "title": "Your draft survives anything",
+        "desc": "Reload or come back tomorrow: your typed text is still there, and ↑ recalls your last message."
+      },
+      "slash_commands": {
+        "title": "Type “/”, the rest follows",
+        "desc": "A filterable command menu, fully keyboard-driven."
+      },
+      "paste_screenshot": {
+        "title": "Paste it, it’s attached",
+        "desc": "A screenshot pasted into the composer becomes an attachment."
+      },
+      "drop_zone": {
+        "title": "Drop it anywhere",
+        "desc": "Drag a file onto the window: LIA takes it, cleanly."
+      },
+      "followup_chips": {
+        "title": "The next step, one click away",
+        "desc": "Clickable follow-up suggestions under the response — never forced."
+      },
+      "scroll_return": {
+        "title": "Back to the bottom, effortlessly",
+        "desc": "A floating button, with a badge when a new response has landed."
+      },
+      "bubble_actions": {
+        "title": "Every bubble has its gestures",
+        "desc": "Copy, approve, disapprove: right under the message, never far away."
+      },
+      "share_export": {
+        "title": "One response, many exits",
+        "desc": "Share or export any response in one gesture."
+      },
+      "backstage": {
+        "title": "The backstage, on demand",
+        "desc": "Unfold a response to see what LIA actually did for you."
+      },
+      "actionable_errors": {
+        "title": "The real cause, not apologies",
+        "desc": "When something fails, LIA tells you what — and often how to fix it."
+      },
+      "retry_turn": {
+        "title": "Just replay it",
+        "desc": "A failed turn restarts in one click, nothing to retype."
+      },
+      "quota_warning": {
+        "title": "Warned well before the wall",
+        "desc": "Your usage is announced before it ever blocks you — no surprises."
+      },
+      "image_expiry": {
+        "title": "Images that tell you upfront",
+        "desc": "Every generated image says how long it stays available."
+      },
+      "attachment_limits": {
+        "title": "A refusal that explains",
+        "desc": "A rejected attachment names the limit that applies — not a silent no."
+      },
+      "settings_search": {
+        "title": "Search with your words",
+        "desc": "Settings search understands everyday vocabulary, in your language."
+      },
+      "deep_links": {
+        "title": "Every setting has an address",
+        "desc": "A link lands on the right section, already open."
+      },
+      "history_search": {
+        "title": "Your whole history, findable",
+        "desc": "Search digs through all of your conversations."
+      },
+      "mobile_logo_nav": {
+        "title": "The logo becomes a compass",
+        "desc": "On the phone, one tap on the logo opens the whole navigation."
+      },
+      "briefing_custom": {
+        "title": "Your morning, your rules",
+        "desc": "Choose the briefing cards, their order, their presence."
+      },
+      "starter_checklist": {
+        "title": "Start well, then celebrate",
+        "desc": "A checklist guides your first steps — and ends in confetti."
+      },
+      "empty_starters": {
+        "title": "A blank page, never empty",
+        "desc": "A fresh chat offers three starters to get going."
+      },
+      "pwa": {
+        "title": "A real app, no app store",
+        "desc": "Installable, receives your shares, available offline."
+      },
+      "background_response": {
+        "title": "Leave — it keeps going",
+        "desc": "Close the tab: the response finishes and catches up with you when you return."
+      },
+      "widgets_travel": {
+        "title": "Your widgets travel",
+        "desc": "Maps, charts, mini-apps: they survive reloads and follow you across devices."
+      },
+      "cost_transparency": {
+        "title": "The cost, in plain sight",
+        "desc": "If you enable it, every response shows what it consumed."
+      },
+      "a11y_care": {
+        "title": "The care you don’t see",
+        "desc": "Motion preferences honored, contrast held, everything keyboard-reachable."
+      }
+    },
+    "scenes": {
+      "draft_survives": {
+        "typing": "Prep my day tomorrow"
+      },
+      "followup_chips": {
+        "chip1": "Yes, send it",
+        "chip2": "Show the detail"
+      },
+      "bubble_actions": {
+        "copied": "Copied"
+      },
+      "actionable_errors": {
+        "cause": "Calendar not connected",
+        "action": "Connect"
+      },
+      "quota_warning": {
+        "warned": "Approaching the limit"
+      },
+      "attachment_limits": {
+        "limit": "Over the document limit"
+      },
+      "settings_search": {
+        "query": "dark",
+        "row1": "Theme",
+        "row2": "Appearance"
+      },
+      "history_search": {
+        "query": "project"
+      },
+      "empty_starters": {
+        "s1": "☀️ Prep my day",
+        "s2": "✉️ Sum up my email",
+        "s3": "💡 Surprise me"
+      },
+      "background_response": {
+        "ready": "Response ready"
+      }
+    },
+    "craft": {
+      "title": "The care, in numbers",
+      "intro": "These attentions don’t hold by magic: they are guarded by tests, locale parity and steady releases.",
+      "tests": "automated tests",
+      "languages": "languages, strict parity",
+      "releases": "releases shipped"
+    }
+  },
   "healthMetrics": {
     "title": "Health data",
     "description": "iPhone ingestion + visualization of heart rate and steps",
@@ -6871,6 +7062,7 @@
       "philosophy": "Philosophy",
       "technical": "Technical",
       "faq": "FAQ",
+      "more": "More",
       "story": "Story"
     },
     "hero": {
@@ -7312,6 +7504,7 @@
       "how_it_works": "How it works",
       "blog": "Blog",
       "faq": "FAQ",
+      "more": "More",
       "technical": "Technical",
       "philosophy": "Philosophy",
       "terms": "Terms",
@@ -7538,6 +7731,7 @@
     "home": "Home",
     "blog": "Blog",
     "faq": "FAQ",
+    "more": "More",
     "technical": "Technical",
     "philosophy": "Philosophy",
     "privacy": "Privacy",

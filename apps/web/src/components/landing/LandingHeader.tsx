@@ -19,13 +19,14 @@ interface LandingHeaderProps {
 /** Anchor links to landing page sections */
 const SECTION_ANCHORS = [{ id: 'features', key: 'landing.nav.features' }] as const;
 
-/** Links to separate pages — order: Story, Philosophy, Technical, Blog, FAQ */
+/** Links to separate pages — order: Story, Philosophy, Technical, Blog, FAQ, More */
 const PAGE_LINKS = [
   { id: 'story', key: 'landing.nav.story', href: '/story' },
   { id: 'why', key: 'landing.nav.philosophy', href: '/why' },
   { id: 'how', key: 'landing.nav.technical', href: '/how' },
   { id: 'blog', key: 'landing.nav.blog', href: '/blog' },
   { id: 'faq', key: 'landing.nav.faq', href: '/faq' },
+  { id: 'more', key: 'landing.nav.more', href: '/more' },
 ] as const;
 
 export function LandingHeader({ lng }: LandingHeaderProps) {
@@ -108,14 +109,16 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
             <span>LIA</span>
           </Link>
 
-          {/* Desktop nav — compact: anchors + page links */}
+          {/* Desktop nav — compact: anchors + page links. px-2 (not 2.5): with
+              the 6th page link (More), the widest locale row (fr) exceeded a
+              880-900px viewport by 25px; the tighter padding buys ~36px. */}
           <div className="hidden mobile:flex items-center gap-0.5">
             {SECTION_ANCHORS.map(({ id, key }) => (
               <a
                 key={id}
                 href={buildAnchorHref(id)}
                 className={cn(
-                  'px-2.5 py-2 text-sm font-medium rounded-md transition-colors',
+                  'px-2 py-2 text-sm font-medium rounded-md transition-colors',
                   activeSection === id
                     ? 'text-primary bg-primary/10'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -124,12 +127,12 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
                 {t(key)}
               </a>
             ))}
-            <span className="w-px h-4 bg-border mx-1" aria-hidden="true" />
+            <span className="w-px h-4 bg-border mx-0.5" aria-hidden="true" />
             {PAGE_LINKS.map(({ id, key, href }) => (
               <Link
                 key={id}
                 href={buildLocalizedPath(href, lng as Language)}
-                className="px-2.5 py-2 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                className="px-2 py-2 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
               >
                 {t(key)}
               </Link>

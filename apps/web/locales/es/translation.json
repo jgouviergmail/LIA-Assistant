@@ -6062,6 +6062,197 @@
       "info": "Los administradores pueden gestionar usuarios y configuraciones globales de la aplicación."
     }
   },
+  "more": {
+    "meta": {
+      "title": "Más — las pequeñas atenciones de LIA",
+      "description": "Los detalles que nunca reciben un gran anuncio y que lo cambian todo en el día a día."
+    },
+    "hero": {
+      "title": "Aún más pequeñas atenciones",
+      "subtitle": "Las grandes funciones tienen su escaparate. Esto es el resto: los detalles que nunca reciben un gran anuncio y que lo cambian todo en el día a día.",
+      "counter": "{{total}} pequeñas atenciones en esta página — y más con cada versión."
+    },
+    "controls": {
+      "pause_animations": "Pausar las animaciones"
+    },
+    "sections": {
+      "s1": {
+        "title": "Cuando escribes",
+        "intro": "El cuadro de texto te conoce: guarda, completa y acepta todo lo que le das."
+      },
+      "s2": {
+        "title": "Cuando LIA responde",
+        "intro": "Una respuesta no es un final: se explora, se comparte y te tiende el siguiente paso."
+      },
+      "s3": {
+        "title": "Cuando algo sale mal",
+        "intro": "Los imprevistos ocurren. LIA los nombra, los explica y te deja el control."
+      },
+      "s4": {
+        "title": "Cuando buscas",
+        "intro": "Ajustes, conversaciones, navegación: todo se encuentra con tus propias palabras."
+      },
+      "s5": {
+        "title": "En el día a día",
+        "intro": "Mañanas organizadas, primeros pasos guiados, un lugar de verdad en tu pantalla de inicio."
+      },
+      "s6": {
+        "title": "Invisibles pero presentes",
+        "intro": "Lo que nunca notas pero echarías de menos: fiabilidad silenciosa."
+      }
+    },
+    "cards": {
+      "draft_survives": {
+        "title": "Tu borrador sobrevive a todo",
+        "desc": "Recarga o vuelve mañana: el texto escrito sigue ahí, y ↑ recupera tu último mensaje."
+      },
+      "slash_commands": {
+        "title": "Escribe «/», el resto llega",
+        "desc": "Un menú de comandos filtrable, manejable por completo con el teclado."
+      },
+      "paste_screenshot": {
+        "title": "Pega y queda adjunto",
+        "desc": "Una captura de pantalla pegada en el cuadro de texto se convierte en adjunto."
+      },
+      "drop_zone": {
+        "title": "Suéltalo donde quieras",
+        "desc": "Arrastra un archivo a la ventana: LIA lo recoge, limpiamente."
+      },
+      "followup_chips": {
+        "title": "El siguiente paso, a un clic",
+        "desc": "Bajo la respuesta, sugerencias de continuación clicables — nunca impuestas."
+      },
+      "scroll_return": {
+        "title": "Volver abajo, sin buscar",
+        "desc": "Un botón flotante, con distintivo cuando ha llegado una respuesta nueva."
+      },
+      "bubble_actions": {
+        "title": "Cada burbuja tiene sus gestos",
+        "desc": "Copiar, aprobar, desaprobar: justo bajo el mensaje, nunca lejos."
+      },
+      "share_export": {
+        "title": "Una respuesta, varias salidas",
+        "desc": "Comparte o exporta cualquier respuesta con un gesto."
+      },
+      "backstage": {
+        "title": "Los bastidores, a demanda",
+        "desc": "Despliega una respuesta para ver lo que LIA ha hecho realmente por ti."
+      },
+      "actionable_errors": {
+        "title": "La causa real, no excusas",
+        "desc": "Cuando algo falla, LIA te dice qué — y a menudo cómo resolverlo."
+      },
+      "retry_turn": {
+        "title": "Reintentar, sin más",
+        "desc": "Un turno fallido se relanza con un clic, sin volver a escribir nada."
+      },
+      "quota_warning": {
+        "title": "Avisado mucho antes del muro",
+        "desc": "Tu consumo se anuncia antes de bloquearte — sin sorpresas."
+      },
+      "image_expiry": {
+        "title": "Imágenes que avisan",
+        "desc": "Cada imagen generada indica hasta cuándo sigue disponible."
+      },
+      "attachment_limits": {
+        "title": "Un rechazo que explica",
+        "desc": "Un adjunto rechazado nombra el límite que se aplica — no un no mudo."
+      },
+      "settings_search": {
+        "title": "Busca con tus palabras",
+        "desc": "La búsqueda de ajustes entiende el vocabulario de todos los días, en tu idioma."
+      },
+      "deep_links": {
+        "title": "Cada ajuste tiene una dirección",
+        "desc": "Un enlace lleva directamente a la sección correcta, ya abierta."
+      },
+      "history_search": {
+        "title": "Toda tu historia, localizable",
+        "desc": "La búsqueda recorre la totalidad de tus conversaciones."
+      },
+      "mobile_logo_nav": {
+        "title": "El logo se vuelve brújula",
+        "desc": "En el teléfono, un toque en el logo abre toda la navegación."
+      },
+      "briefing_custom": {
+        "title": "Tu mañana, tus reglas",
+        "desc": "Elige las tarjetas del briefing, su orden, su presencia."
+      },
+      "starter_checklist": {
+        "title": "Empezar bien, luego celebrar",
+        "desc": "Una lista guía tus primeros pasos — y termina en confeti."
+      },
+      "empty_starters": {
+        "title": "Una página en blanco, nunca vacía",
+        "desc": "Un chat nuevo propone tres arranques para lanzarte."
+      },
+      "pwa": {
+        "title": "Una app de verdad, sin app store",
+        "desc": "Instalable, recibe lo que compartes, disponible sin conexión."
+      },
+      "background_response": {
+        "title": "Vete — ella sigue",
+        "desc": "Cierra la pestaña: la respuesta termina y te alcanza a tu regreso."
+      },
+      "widgets_travel": {
+        "title": "Tus widgets viajan",
+        "desc": "Mapas, gráficos, mini-apps: sobreviven a las recargas y te siguen de un dispositivo a otro."
+      },
+      "cost_transparency": {
+        "title": "El coste, a la vista",
+        "desc": "Si lo activas, cada respuesta muestra lo que ha consumido."
+      },
+      "a11y_care": {
+        "title": "El cuidado que no se ve",
+        "desc": "Preferencias de animación respetadas, contrastes mantenidos, todo accesible con el teclado."
+      }
+    },
+    "scenes": {
+      "draft_survives": {
+        "typing": "Prepara mi día de mañana"
+      },
+      "followup_chips": {
+        "chip1": "Sí, envíalo",
+        "chip2": "Muestra el detalle"
+      },
+      "bubble_actions": {
+        "copied": "Copiado"
+      },
+      "actionable_errors": {
+        "cause": "Calendario no conectado",
+        "action": "Conectar"
+      },
+      "quota_warning": {
+        "warned": "Límite cercano"
+      },
+      "attachment_limits": {
+        "limit": "Por encima del límite de documentos"
+      },
+      "settings_search": {
+        "query": "oscuro",
+        "row1": "Tema",
+        "row2": "Apariencia"
+      },
+      "history_search": {
+        "query": "proyecto"
+      },
+      "empty_starters": {
+        "s1": "☀️ Prepara mi día",
+        "s2": "✉️ Resume mis correos",
+        "s3": "💡 Sorpréndeme"
+      },
+      "background_response": {
+        "ready": "Respuesta lista"
+      }
+    },
+    "craft": {
+      "title": "El cuidado, en cifras",
+      "intro": "Estas atenciones no se sostienen por arte de magia: las guardan tests, idiomas en paridad y versiones regulares.",
+      "tests": "tests automatizados",
+      "languages": "idiomas, paridad estricta",
+      "releases": "versiones publicadas"
+    }
+  },
   "lars": {
     "contact": {
       "unknown": "Contacto desconocido",
@@ -6791,6 +6982,7 @@
       "philosophy": "Filosofía",
       "technical": "Técnica",
       "faq": "FAQ",
+      "more": "Más",
       "story": "Story"
     },
     "hero": {
@@ -7232,6 +7424,7 @@
       "how_it_works": "Cómo funciona",
       "blog": "Blog",
       "faq": "FAQ",
+      "more": "Más",
       "technical": "Técnico",
       "philosophy": "Filosofía",
       "terms": "Términos",
@@ -7458,6 +7651,7 @@
     "home": "Inicio",
     "blog": "Blog",
     "faq": "FAQ",
+    "more": "Más",
     "technical": "Técnico",
     "philosophy": "Filosofía",
     "privacy": "Privacidad",

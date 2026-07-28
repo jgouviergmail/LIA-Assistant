@@ -2,7 +2,7 @@
 
 > Architecture, composants, i18n, SEO et patterns de la vitrine publique de LIA.
 >
-> Derniere revision : durcissement responsive mobile (doctrine min-w-0 + garde overflow e2e sur le cycle d'animation), refonte de la FAQ publique (recherche, 6 sections, reponses groupees), page /demo partageable + export MP4, garde axe clair/sombre des pages publiques — au-dessus de la refonte editoriale « la page parle comme le produit » (hero anime 4 actes + recit en 5 chapitres, catalogues depliables, bande transparence, journees par profil).
+> Derniere revision : page publique `/more` « Encore + » (26 micro-attentions animees en 6 moments, pause WCAG 2.2.2, gardes de contenu/overflow/axe dediees, helper overflow partage) — au-dessus du durcissement responsive mobile (doctrine min-w-0 + garde overflow e2e sur le cycle d'animation), de la refonte de la FAQ publique (recherche, 6 sections, reponses groupees), de la page /demo partageable + export MP4, de la garde axe clair/sombre des pages publiques, et de la refonte editoriale « la page parle comme le produit » (hero anime 4 actes + recit en 5 chapitres, catalogues depliables, bande transparence, journees par profil).
 
 ---
 
@@ -30,7 +30,7 @@ differenciation, posee sur la confiance). Trois niveaux de lecture :
 1. **Le recit** (scroll) : chapitres 01-05, bande commodites, bande transparence, cas d'usage, journees par profil.
 2. **Le detail** (clic) : chaque chapitre porte un catalogue depliable contenant les fiches detaillees (l'ex-mur de
    fonctionnalites, re-parente — jamais supprime). Contenu conserve dans le DOM replie → SEO intact.
-3. **La profondeur** (liens) : /story, /why, /how, audit public, privacy, blog.
+3. **La profondeur** (liens) : /story, /why, /how, /more, audit public, privacy, blog.
 
 Principes non negociables :
 - **Zero perte d'information** : contrat executable `REQUIRED_FEATURE_KEYS` (voir §5).
@@ -105,7 +105,8 @@ AuthRedirect | LandingHeader (fixed) | ChapterRail (fixed, xl+)
 LandingFooter
 ```
 
-Skip-link (`sr-only`) → `#features`. Header : 1 ancre (Presentation → `#features`, scroll spy) + 5 pages.
+Skip-link (`sr-only`) → `#features`. Header : 1 ancre (Presentation → `#features`, scroll spy) + 6 pages
+(Story, Philosophie, Technique, Blog, FAQ, Encore +).
 Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel gauche/droite alterne sur desktop.
 
 ---
@@ -139,7 +140,9 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
 | **Routes publiques** | `src/lib/__tests__/api-client.public-routes.test.ts` | Ejection des visiteurs anonymes vers /login. |
 | **Overflow mobile** | `e2e/smoke/landing-mobile-overflow.spec.ts` | Le retour du debordement horizontal : a 375 px, aucun element en flux ne depasse le bord droit — statiquement, **a chaque battement du cycle d'animation du hero** (horloge Playwright, ~79 s virtuelles : l'oscillation 381↔448 px de 2026-07 etait invisible en capture statique) et apres scroll de chaque section ; passe reflow 320 px (WCAG 1.4.10). |
 | **Contenu FAQ groupee** | `src/lib/__tests__/faq-answer-groups.test.ts` | La perte d'un mot lors du regroupement visuel de la reponse « Que puis-je demander ? » : egalite mot-a-mot prouvee sur les 6 locales reelles + repli tel-quel (zh a une q4 differente). |
-| **Axe pages publiques** | `e2e/a11y/axe-public-pages.spec.ts` | Violations critical/serious (contraste inclus) sur `/faq` (reponse groupee ouverte) et `/demo`, en clair ET en sombre — le theme etant pilote par localStorage (`defaultTheme="light"`), emuler le scheme OS ne suffit pas. |
+| **Axe pages publiques** | `e2e/a11y/axe-public-pages.spec.ts` | Violations critical/serious (contraste inclus) sur `/faq` (reponse groupee ouverte), `/demo` et `/more` (scanne animee PUIS en pause via le bouton WCAG 2.2.2), en clair ET en sombre — le theme etant pilote par localStorage (`defaultTheme="light"`), emuler le scheme OS ne suffit pas. |
+| **Contrat /more** | `landing/more/__tests__/more-content-coverage.test.ts` + `scenes.test.tsx` | La perte silencieuse d'une attention : 26 cartes en 6 sections, disjointes des 36 fiches majeures (`REQUIRED_FEATURE_KEYS`), chacune avec icone + scene + cles i18n non vides ×6 locales ; apostrophe U+2019 en fr ; **aucun chiffre dans la copie des cartes** (regle anti-derive) ; registre de scenes = partition exacte des cartes. |
+| **Overflow mobile /more** | `e2e/smoke/more-overflow.spec.ts` | Le debordement horizontal pendant les cycles des 26 scenes : 375 px par battement d'horloge Playwright section par section, balayage statique des 6 locales, plancher reflow 320 px (helper partage `overflow-report.ts`). |
 
 ---
 
@@ -169,7 +172,19 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
 ## 8. Pages publiques et garde 401
 
 `PUBLIC_ROUTE_SEGMENTS` + test invariant `api-client.public-routes.test.ts` (voir historique v1.21.17). Le test de
-completude scanne `app/[lng]` : **toute nouvelle page publique doit etre ajoutee au tableau** (dernier ajout : `demo`).
+completude scanne `app/[lng]` : **toute nouvelle page publique doit etre ajoutee au tableau** (dernier ajout : `more`).
+
+### `/more` — « Encore + », les petites attentions UX
+
+`app/[lng]/more/page.tsx` (serveur : metadonnees ×6, BreadcrumbJsonLd, header/footer publics) rend
+`components/landing/more/MoreContent` : 26 micro-attentions animees en 6 sections « moments » (ecrire, repondre,
+imprevus, chercher, quotidien, invisibles), un cran sous les 36 fiches majeures — jamais en doublon (garde de
+disjonction). Chaque carte porte une scene decorative (`aria-hidden`) pilotee par `useLoopedTimeline` (timers purs,
+jamais `animationend` — jsdom ne le delivre pas), active uniquement dans le viewport ET hors pause : le bouton
+pause/lecture (`AnimationPauseToggle`, `aria-pressed`) est le mecanisme WCAG 2.2.2 de la page, et
+`prefers-reduced-motion` fige chaque scene sur sa derniere phase (frame de repos concue). Copie native ×6 locales
+sous `more.*` ; les chiffres de la bande « Le soin, en chiffres » proviennent exclusivement de `LANDING_STATS`
+(protocole de re-mesure par release) — la copie des cartes n'a **aucun** chiffre en dur.
 
 ### `/demo` — l'animation du hero en URL partageable
 

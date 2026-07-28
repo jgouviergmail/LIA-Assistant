@@ -61,5 +61,39 @@ for (const theme of THEMES) {
       const { blocking, summary } = await scanPage(page, testInfo, `/demo-${theme}`);
       expect(blocking, `axe violations on /demo (${theme}):\n${summary}`).toHaveLength(0);
     });
+
+    test(`more page scans clean, animating and paused (${theme})`, async ({ page }, testInfo) => {
+      await page.goto('/more');
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+      // Reveal every section so the FadeInOnScroll content is visible (an
+      // opacity-0 card would be scanned as invisible — vacuously clean).
+      const ids = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('section[id^="more-"]'), s => s.id).filter(Boolean)
+      );
+      for (const id of ids) {
+        await page.evaluate(sectionId => {
+          document.getElementById(sectionId)?.scrollIntoView();
+        }, id);
+        await page.waitForTimeout(200);
+      }
+
+      // Pass 1 — scenes running (contrast of every animated frame class mix
+      // is token-driven; the scan samples whatever frame is current).
+      const animated = await scanPage(page, testInfo, `/more-animating-${theme}`);
+      expect(
+        animated.blocking,
+        `axe on /more animating (${theme}):\n${animated.summary}`
+      ).toHaveLength(0);
+
+      // Pass 2 — the WCAG 2.2.2 pause mechanism itself, then the frozen page.
+      const toggle = page.getByTestId('more-pause-toggle');
+      await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+
+      const paused = await scanPage(page, testInfo, `/more-paused-${theme}`);
+      expect(paused.blocking, `axe on /more paused (${theme}):\n${paused.summary}`).toHaveLength(0);
+    });
   });
 }

@@ -28,6 +28,7 @@ export async function PublicFooter({ lng }: PublicFooterProps) {
     { href: buildLocalizedPath('/how', lang), label: t('public_footer.technical') },
     { href: buildLocalizedPath('/blog', lang), label: t('public_footer.blog') },
     { href: buildLocalizedPath('/faq', lang), label: t('public_footer.faq') },
+    { href: buildLocalizedPath('/more', lang), label: t('public_footer.more') },
   ];
 
   const legalLinks = [

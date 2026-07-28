@@ -165,6 +165,7 @@ const PUBLIC_ROUTE_SEGMENTS = [
   'story',
   'blog',
   'faq',
+  'more',
   'demo',
   'privacy',
   'terms',

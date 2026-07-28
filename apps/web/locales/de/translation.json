@@ -6062,6 +6062,197 @@
       "info": "Administratoren können Benutzer und globale Anwendungseinstellungen verwalten."
     }
   },
+  "more": {
+    "meta": {
+      "title": "Mehr — die kleinen Aufmerksamkeiten von LIA",
+      "description": "Die Details, die nie eine große Ankündigung bekommen — und den Alltag völlig verändern."
+    },
+    "hero": {
+      "title": "Noch mehr kleine Aufmerksamkeiten",
+      "subtitle": "Die großen Funktionen haben ihre Bühne. Hier ist der Rest: die Details, die nie eine große Ankündigung bekommen — und den Alltag völlig verändern.",
+      "counter": "{{total}} kleine Aufmerksamkeiten auf dieser Seite — und mit jeder Version kommen neue dazu."
+    },
+    "controls": {
+      "pause_animations": "Animationen pausieren"
+    },
+    "sections": {
+      "s1": {
+        "title": "Wenn du schreibst",
+        "intro": "Das Eingabefeld kennt dich: Es bewahrt, ergänzt und nimmt alles an, was du ihm gibst."
+      },
+      "s2": {
+        "title": "Wenn LIA antwortet",
+        "intro": "Eine Antwort ist kein Endpunkt: Sie lässt sich erkunden, teilen und reicht dir den nächsten Schritt."
+      },
+      "s3": {
+        "title": "Wenn etwas schiefgeht",
+        "intro": "Pannen passieren. LIA benennt sie, erklärt sie und lässt dir das Steuer."
+      },
+      "s4": {
+        "title": "Wenn du suchst",
+        "intro": "Einstellungen, Unterhaltungen, Navigation: Alles findet sich mit deinen eigenen Worten."
+      },
+      "s5": {
+        "title": "Im Alltag",
+        "intro": "Organisierte Morgen, begleitete erste Schritte, ein echter Platz auf deinem Startbildschirm."
+      },
+      "s6": {
+        "title": "Unsichtbar, aber spürbar",
+        "intro": "Was man nie bemerkt, aber vermissen würde: leise Verlässlichkeit."
+      }
+    },
+    "cards": {
+      "draft_survives": {
+        "title": "Dein Entwurf übersteht alles",
+        "desc": "Lade neu oder komm morgen wieder: Dein getippter Text ist noch da, und ↑ ruft deine letzte Nachricht zurück."
+      },
+      "slash_commands": {
+        "title": "Tippe „/“, der Rest folgt",
+        "desc": "Ein filterbares Befehlsmenü, vollständig per Tastatur bedienbar."
+      },
+      "paste_screenshot": {
+        "title": "Einfügen genügt",
+        "desc": "Ein ins Eingabefeld eingefügter Screenshot wird zum Anhang."
+      },
+      "drop_zone": {
+        "title": "Ablegen, wo du willst",
+        "desc": "Zieh eine Datei auf das Fenster: LIA nimmt sie sauber entgegen."
+      },
+      "followup_chips": {
+        "title": "Der nächste Schritt, ein Klick",
+        "desc": "Unter der Antwort: anklickbare Vorschläge für die Fortsetzung — nie aufgedrängt."
+      },
+      "scroll_return": {
+        "title": "Zurück nach unten, ohne Suchen",
+        "desc": "Ein schwebender Button, mit Badge, sobald eine neue Antwort da ist."
+      },
+      "bubble_actions": {
+        "title": "Jede Blase hat ihre Gesten",
+        "desc": "Kopieren, zustimmen, ablehnen: direkt unter der Nachricht, nie weit weg."
+      },
+      "share_export": {
+        "title": "Eine Antwort, viele Wege",
+        "desc": "Teile oder exportiere jede Antwort mit einem Handgriff."
+      },
+      "backstage": {
+        "title": "Der Blick hinter die Kulissen",
+        "desc": "Klapp eine Antwort auf und sieh, was LIA wirklich für dich getan hat."
+      },
+      "actionable_errors": {
+        "title": "Die echte Ursache, keine Ausreden",
+        "desc": "Wenn etwas fehlschlägt, sagt dir LIA was — und oft auch, wie du es behebst."
+      },
+      "retry_turn": {
+        "title": "Einfach noch einmal",
+        "desc": "Ein fehlgeschlagener Zug startet mit einem Klick neu, ohne neu zu tippen."
+      },
+      "quota_warning": {
+        "title": "Gewarnt, lange vor der Wand",
+        "desc": "Dein Verbrauch wird angekündigt, bevor er dich blockiert — keine Überraschungen."
+      },
+      "image_expiry": {
+        "title": "Bilder mit klarer Ansage",
+        "desc": "Jedes generierte Bild sagt dir, wie lange es verfügbar bleibt."
+      },
+      "attachment_limits": {
+        "title": "Eine Absage, die erklärt",
+        "desc": "Ein abgelehnter Anhang nennt die Grenze, die gilt — kein stummes Nein."
+      },
+      "settings_search": {
+        "title": "Suche mit deinen Worten",
+        "desc": "Die Einstellungssuche versteht Alltagssprache, in deiner Sprache."
+      },
+      "deep_links": {
+        "title": "Jede Einstellung hat eine Adresse",
+        "desc": "Ein Link führt direkt zum richtigen Abschnitt, bereits geöffnet."
+      },
+      "history_search": {
+        "title": "Deine ganze Geschichte, auffindbar",
+        "desc": "Die Suche durchforstet sämtliche deiner Unterhaltungen."
+      },
+      "mobile_logo_nav": {
+        "title": "Das Logo wird zum Kompass",
+        "desc": "Auf dem Telefon öffnet ein Tipp auf das Logo die gesamte Navigation."
+      },
+      "briefing_custom": {
+        "title": "Dein Morgen, deine Regeln",
+        "desc": "Wähle die Karten des Briefings, ihre Reihenfolge, ihre Anwesenheit."
+      },
+      "starter_checklist": {
+        "title": "Gut starten, dann feiern",
+        "desc": "Eine Checkliste begleitet deine ersten Schritte — und endet in Konfetti."
+      },
+      "empty_starters": {
+        "title": "Eine leere Seite, nie leer",
+        "desc": "Ein neuer Chat schlägt dir drei Einstiege vor."
+      },
+      "pwa": {
+        "title": "Eine echte App, ohne App Store",
+        "desc": "Installierbar, empfängt deine geteilten Inhalte, offline verfügbar."
+      },
+      "background_response": {
+        "title": "Geh ruhig — sie macht weiter",
+        "desc": "Schließ den Tab: Die Antwort wird fertig und holt dich bei deiner Rückkehr ab."
+      },
+      "widgets_travel": {
+        "title": "Deine Widgets reisen mit",
+        "desc": "Karten, Diagramme, Mini-Apps: Sie überstehen jedes Neuladen und folgen dir von Gerät zu Gerät."
+      },
+      "cost_transparency": {
+        "title": "Die Kosten, klar sichtbar",
+        "desc": "Wenn du es aktivierst, zeigt jede Antwort, was sie verbraucht hat."
+      },
+      "a11y_care": {
+        "title": "Die Sorgfalt, die man nicht sieht",
+        "desc": "Animationswünsche respektiert, Kontraste gehalten, alles per Tastatur erreichbar."
+      }
+    },
+    "scenes": {
+      "draft_survives": {
+        "typing": "Plane meinen morgigen Tag"
+      },
+      "followup_chips": {
+        "chip1": "Ja, abschicken",
+        "chip2": "Zeig Details"
+      },
+      "bubble_actions": {
+        "copied": "Kopiert"
+      },
+      "actionable_errors": {
+        "cause": "Kalender nicht verbunden",
+        "action": "Verbinden"
+      },
+      "quota_warning": {
+        "warned": "Limit naht"
+      },
+      "attachment_limits": {
+        "limit": "Über dem Dokumentenlimit"
+      },
+      "settings_search": {
+        "query": "dunkel",
+        "row1": "Design",
+        "row2": "Erscheinungsbild"
+      },
+      "history_search": {
+        "query": "Projekt"
+      },
+      "empty_starters": {
+        "s1": "☀️ Plane meinen Tag",
+        "s2": "✉️ Fasse meine E-Mails zusammen",
+        "s3": "💡 Überrasch mich"
+      },
+      "background_response": {
+        "ready": "Antwort fertig"
+      }
+    },
+    "craft": {
+      "title": "Die Sorgfalt, in Zahlen",
+      "intro": "Diese Aufmerksamkeiten halten nicht von Zauberhand: Tests, Sprachparität und regelmäßige Versionen bewachen sie.",
+      "tests": "automatisierte Tests",
+      "languages": "Sprachen, strikte Parität",
+      "releases": "ausgelieferte Versionen"
+    }
+  },
   "lars": {
     "contact": {
       "unknown": "Unbekannter Kontakt",
@@ -6791,6 +6982,7 @@
       "philosophy": "Philosophie",
       "technical": "Technik",
       "faq": "FAQ",
+      "more": "Mehr",
       "story": "Story"
     },
     "hero": {
@@ -7232,6 +7424,7 @@
       "how_it_works": "So funktioniert's",
       "blog": "Blog",
       "faq": "FAQ",
+      "more": "Mehr",
       "technical": "Technik",
       "philosophy": "Philosophie",
       "terms": "AGB",
@@ -7458,6 +7651,7 @@
     "home": "Startseite",
     "blog": "Blog",
     "faq": "FAQ",
+    "more": "Mehr",
     "technical": "Technik",
     "philosophy": "Philosophie",
     "privacy": "Datenschutz",

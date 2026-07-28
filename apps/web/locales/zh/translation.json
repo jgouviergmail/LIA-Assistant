@@ -6057,6 +6057,197 @@
       "info": "管理员可以管理用户和全局应用程序设置。"
     }
   },
+  "more": {
+    "meta": {
+      "title": "更多 — LIA 的小心思",
+      "description": "从不登上大字标题、却在日常中改变一切的细节。"
+    },
+    "hero": {
+      "title": "更多小心思",
+      "subtitle": "重要功能有它们的舞台。这里是其余的部分：从不登上大字标题、却在日常中改变一切的细节。",
+      "counter": "本页共有 {{total}} 个小心思——每个版本还会带来更多。"
+    },
+    "controls": {
+      "pause_animations": "暂停动画"
+    },
+    "sections": {
+      "s1": {
+        "title": "当你输入时",
+        "intro": "输入框懂你：它会保存、补全并接纳你交给它的一切。"
+      },
+      "s2": {
+        "title": "当 LIA 回复时",
+        "intro": "回复不是终点：它可以展开、分享，并把下一步递到你手上。"
+      },
+      "s3": {
+        "title": "当出现问题时",
+        "intro": "意外难免。LIA 会说明原因、给出解释，并把主动权留给你。"
+      },
+      "s4": {
+        "title": "当你查找时",
+        "intro": "设置、对话、导航：用你自己的话就能找到一切。"
+      },
+      "s5": {
+        "title": "在日常中",
+        "intro": "有条理的早晨、循序渐进的引导，以及主屏幕上真正的一席之地。"
+      },
+      "s6": {
+        "title": "看不见，却感受得到",
+        "intro": "平时不会注意、失去才会察觉的东西：安静的可靠。"
+      }
+    },
+    "cards": {
+      "draft_survives": {
+        "title": "草稿永不丢失",
+        "desc": "刷新页面或明天再来：输入的文字还在，按 ↑ 即可唤回上一条消息。"
+      },
+      "slash_commands": {
+        "title": "输入「/」，其余交给它",
+        "desc": "一个可筛选的命令菜单，完全可用键盘操作。"
+      },
+      "paste_screenshot": {
+        "title": "粘贴即附件",
+        "desc": "把截图粘贴到输入框，它就成为附件。"
+      },
+      "drop_zone": {
+        "title": "随处拖放",
+        "desc": "把文件拖到窗口上：LIA 会妥帖接住它。"
+      },
+      "followup_chips": {
+        "title": "下一步，一键即达",
+        "desc": "回复下方是可点击的后续建议——从不强加。"
+      },
+      "scroll_return": {
+        "title": "一键回到底部",
+        "desc": "一个悬浮按钮，有新回复时会亮起标记。"
+      },
+      "bubble_actions": {
+        "title": "每条气泡都有手势",
+        "desc": "复制、点赞、点踩：就在消息下方，触手可及。"
+      },
+      "share_export": {
+        "title": "一条回复，多种去处",
+        "desc": "一个动作即可分享或导出任意回复。"
+      },
+      "backstage": {
+        "title": "幕后，随时可看",
+        "desc": "展开一条回复，看看 LIA 真正为你做了什么。"
+      },
+      "actionable_errors": {
+        "title": "真实原因，而非道歉",
+        "desc": "出错时，LIA 告诉你是什么——而且常常告诉你怎么解决。"
+      },
+      "retry_turn": {
+        "title": "一键重试",
+        "desc": "失败的回合一键重来，无需重新输入。"
+      },
+      "quota_warning": {
+        "title": "远在触顶之前就提醒",
+        "desc": "用量在造成阻碍之前就会提前告知——没有意外。"
+      },
+      "image_expiry": {
+        "title": "图片自报有效期",
+        "desc": "每张生成的图片都会注明可用到什么时候。"
+      },
+      "attachment_limits": {
+        "title": "拒绝也讲清楚",
+        "desc": "附件被拒时会注明适用的限制——不是无声的拒绝。"
+      },
+      "settings_search": {
+        "title": "用你的话来搜索",
+        "desc": "设置搜索听得懂日常用语，而且用你的语言。"
+      },
+      "deep_links": {
+        "title": "每项设置都有地址",
+        "desc": "一个链接直达正确的设置区块，并已展开。"
+      },
+      "history_search": {
+        "title": "所有历史，皆可寻回",
+        "desc": "搜索会遍历你的全部对话。"
+      },
+      "mobile_logo_nav": {
+        "title": "logo 变成罗盘",
+        "desc": "在手机上，点一下 logo 即可打开全部导航。"
+      },
+      "briefing_custom": {
+        "title": "你的早晨，你做主",
+        "desc": "选择简报卡片、它们的顺序与去留。"
+      },
+      "starter_checklist": {
+        "title": "好好开始，然后庆祝",
+        "desc": "一份清单引导你的最初几步——最后以彩带收尾。"
+      },
+      "empty_starters": {
+        "title": "空白页，从不空洞",
+        "desc": "新对话会给出三个开场提示，助你起步。"
+      },
+      "pwa": {
+        "title": "真正的应用，无需应用商店",
+        "desc": "可安装、可接收系统分享、离线可用。"
+      },
+      "background_response": {
+        "title": "尽管离开——它继续",
+        "desc": "关掉标签页：回复会完成，并在你回来时找到你。"
+      },
+      "widgets_travel": {
+        "title": "widget 随你而行",
+        "desc": "地图、图表、迷你应用：它们经得起刷新，并跟随你跨设备同行。"
+      },
+      "cost_transparency": {
+        "title": "消耗，一目了然",
+        "desc": "开启后，每条回复都会显示它消耗了什么。"
+      },
+      "a11y_care": {
+        "title": "看不见的用心",
+        "desc": "尊重动画偏好、保持对比度、一切皆可用键盘抵达。"
+      }
+    },
+    "scenes": {
+      "draft_survives": {
+        "typing": "帮我安排明天的日程"
+      },
+      "followup_chips": {
+        "chip1": "好，发送吧",
+        "chip2": "展开细节"
+      },
+      "bubble_actions": {
+        "copied": "已复制"
+      },
+      "actionable_errors": {
+        "cause": "日历未连接",
+        "action": "去连接"
+      },
+      "quota_warning": {
+        "warned": "接近上限"
+      },
+      "attachment_limits": {
+        "limit": "超出文档限制"
+      },
+      "settings_search": {
+        "query": "深色",
+        "row1": "主题",
+        "row2": "外观"
+      },
+      "history_search": {
+        "query": "项目"
+      },
+      "empty_starters": {
+        "s1": "☀️ 安排我的一天",
+        "s2": "✉️ 总结我的邮件",
+        "s3": "💡 给我惊喜"
+      },
+      "background_response": {
+        "ready": "回复已就绪"
+      }
+    },
+    "craft": {
+      "title": "用心，用数字说话",
+      "intro": "这些小心思并非凭空维持：它们由测试、语言对等和持续的版本守护。",
+      "tests": "自动化测试",
+      "languages": "种语言，严格对等",
+      "releases": "个已发布版本"
+    }
+  },
   "lars": {
     "contact": {
       "unknown": "未知联系人",
@@ -6786,6 +6977,7 @@
       "philosophy": "理念",
       "technical": "技术",
       "faq": "常见问题",
+      "more": "更多",
       "story": "Story"
     },
     "hero": {
@@ -7227,6 +7419,7 @@
       "how_it_works": "工作原理",
       "blog": "博客",
       "faq": "常见问题",
+      "more": "更多",
       "technical": "技术",
       "philosophy": "理念",
       "terms": "使用条款",
@@ -7453,6 +7646,7 @@
     "home": "首页",
     "blog": "博客",
     "faq": "常见问题",
+    "more": "更多",
     "technical": "技术",
     "philosophy": "理念",
     "privacy": "隐私",
