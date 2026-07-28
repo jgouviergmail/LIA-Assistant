@@ -95,7 +95,10 @@ const SINGLE_TARGET_TEMPLATES: Record<
       '⚠️ Do you confirm deleting "{{target}}"? This action is irreversible.',
       'target',
     ],
-    generic: ['hitl.delete.generic', '⚠️ Do you confirm this deletion? This action is irreversible.'],
+    generic: [
+      'hitl.delete.generic',
+      '⚠️ Do you confirm this deletion? This action is irreversible.',
+    ],
   },
   create: {
     withTarget: ['hitl.create.with_target', 'Do you confirm creating "{{target}}"?', 'target'],

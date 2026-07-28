@@ -61,22 +61,55 @@ export function generateUUID(): string {
 }
 
 /**
- * Normalize text for search: lowercase and remove accents.
+ * Typographic characters folded to the form a keyboard produces.
+ *
+ * Stripping diacritics is not enough: the translations mix the curly apostrophe
+ * U+2019 with the ASCII one (measured 2026-07-28 across the six locales — 212
+ * curly in `fr`, 94 in `it`, 16 in `en`), and French typography inserts no-break
+ * spaces before double punctuation. A reader types `'` and a plain space, so
+ * `settings.security.auth.description` — "application d’authentification" —
+ * could not be found by searching "d'authentification".
+ *
+ * Every entry replaces ONE code point with ONE code point. That is a hard
+ * constraint, not a coincidence: `findNormalizedMatches` maps normalized offsets
+ * back to original ones by summing `normalizeSearchText(char).length`, so the
+ * three highlighters built on it stay exact only while folding preserves length.
+ * Ligature folding (`ß`→`ss`, `œ`→`oe`) is deliberately NOT done here for that
+ * reason — it would need its own evidence and its own mapping proof.
+ */
+const SEARCH_FOLDINGS: ReadonlyArray<readonly [RegExp, string]> = [
+  // Right/left single quotation mark, modifier letter apostrophe.
+  [/[‘’ʼ]/g, "'"],
+  // No-break space, narrow no-break space.
+  [/[  ]/g, ' '],
+];
+
+/**
+ * Normalize text for search: lowercase, strip accents, fold typography.
  * Useful for case-insensitive, accent-insensitive search.
  *
+ * The single matcher of the whole search stack — FAQ, search excerpts, markdown
+ * highlighting, chat history, slash commands and the settings search all go
+ * through it, so any change here must keep one code point per code point.
+ *
  * @param text - Text to normalize
- * @returns Normalized text (lowercase, no accents)
+ * @returns Normalized text (lowercase, no accents, keyboard-form punctuation)
  *
  * @example
  * normalizeSearchText('Café') // 'cafe'
  * normalizeSearchText('Gérard') // 'gerard'
  * normalizeSearchText('Ñoño') // 'nono'
+ * normalizeSearchText('d’authentification') // "d'authentification"
  */
 export function normalizeSearchText(text: string): string {
-  return text
+  const stripped = text
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, ''); // Remove diacritical marks
+  return SEARCH_FOLDINGS.reduce(
+    (folded, [pattern, replacement]) => folded.replace(pattern, replacement),
+    stripped
+  );
 }
 
 /**

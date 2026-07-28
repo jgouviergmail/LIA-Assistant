@@ -338,9 +338,7 @@ describe('ChatMessage — proactive heartbeat feedback', () => {
         feedback: 'thumbs_up',
       })
     );
-    expect(apiMutationOptions).toHaveBeenCalledWith(
-      expect.objectContaining({ method: 'PATCH' })
-    );
+    expect(apiMutationOptions).toHaveBeenCalledWith(expect.objectContaining({ method: 'PATCH' }));
   });
 
   it('acknowledges the verdict and locks the row on THAT verdict', async () => {
@@ -397,9 +395,12 @@ describe('proactiveFeedbackProps — which contract a bubble routes to', () => {
   });
 
   it('keeps the run_id when the card carries one', () => {
-    expect(
-      proactiveFeedbackProps({ ...base, type: 'proactive_interest', run_id: 'r-9' })
-    ).toEqual({ kind: 'interest', targetId: 'x-1', runId: 'r-9', submittedVerdict: undefined });
+    expect(proactiveFeedbackProps({ ...base, type: 'proactive_interest', run_id: 'r-9' })).toEqual({
+      kind: 'interest',
+      targetId: 'x-1',
+      runId: 'r-9',
+      submittedVerdict: undefined,
+    });
   });
 
   it.each([
@@ -407,7 +408,10 @@ describe('proactiveFeedbackProps — which contract a bubble routes to', () => {
     ['an unknown proactive kind', { ...base, type: 'proactive_phone_call' }],
     ['a card without a target', { type: 'proactive_interest', feedback_enabled: true }],
     ['an empty target', { ...base, type: 'proactive_interest', target_id: '' }],
-    ['a card that refuses feedback', { ...base, type: 'proactive_interest', feedback_enabled: false }],
+    [
+      'a card that refuses feedback',
+      { ...base, type: 'proactive_interest', feedback_enabled: false },
+    ],
   ])('offers nothing for %s', (_label, metadata) => {
     expect(proactiveFeedbackProps(metadata as Record<string, unknown>)).toBeNull();
   });
@@ -439,9 +443,7 @@ describe('proactiveFeedbackProps — which contract a bubble routes to', () => {
   });
 
   it('ignores a non-string run_id instead of forwarding garbage', () => {
-    expect(
-      proactiveFeedbackProps({ ...base, type: 'proactive_interest', run_id: 42 })
-    ).toEqual({
+    expect(proactiveFeedbackProps({ ...base, type: 'proactive_interest', run_id: 42 })).toEqual({
       kind: 'interest',
       targetId: 'x-1',
       runId: undefined,

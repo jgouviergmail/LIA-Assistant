@@ -96,7 +96,9 @@ describe('SecuritySettings — gating', () => {
 describe('SecuritySettings — list', () => {
   it('shows each passkey with label, synced badge and accessible actions', () => {
     usePasskeys.mockReturnValue(
-      passkeysHook({ passkeys: [passkey(), passkey({ id: 'pk-2', label: null, backed_up: false })] })
+      passkeysHook({
+        passkeys: [passkey(), passkey({ id: 'pk-2', label: null, backed_up: false })],
+      })
     );
     renderWithProviders(<SecuritySettings collapsible={false} />);
 

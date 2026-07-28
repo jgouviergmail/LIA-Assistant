@@ -240,9 +240,7 @@ export function SecuritySettings({ collapsible = true }: { collapsible?: boolean
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('settings.security.passkeys.add_title')}</DialogTitle>
-            <DialogDescription>
-              {t('settings.security.passkeys.add_description')}
-            </DialogDescription>
+            <DialogDescription>{t('settings.security.passkeys.add_description')}</DialogDescription>
           </DialogHeader>
           <Input
             label={t('settings.security.passkeys.label_input')}

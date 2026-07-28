@@ -61,7 +61,9 @@ const SESSION_COOKIE_NAME = 'lia_session';
 const DEFAULT_MAX_FILE_MB = 20;
 const parsedMaxFileMb = Number.parseInt(process.env.RAG_SPACES_MAX_FILE_SIZE_MB ?? '', 10);
 const MAX_FILE_BYTES =
-  (Number.isFinite(parsedMaxFileMb) && parsedMaxFileMb > 0 ? parsedMaxFileMb : DEFAULT_MAX_FILE_MB) *
+  (Number.isFinite(parsedMaxFileMb) && parsedMaxFileMb > 0
+    ? parsedMaxFileMb
+    : DEFAULT_MAX_FILE_MB) *
   1024 *
   1024;
 

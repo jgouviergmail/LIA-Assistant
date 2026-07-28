@@ -402,11 +402,38 @@ LIA automatically detects **commitments** in your conversations ("I must call th
 ## Can I link straight to a settings section?
 
 Yes. Adding `?section=<name>` to the settings URL opens the right tab, unfolds
-that section and scrolls to it. Seventeen sections are addressable this way, and
-the app uses those links itself — the getting-started checklist, the home cards
-and the in-call banner all point at their own section rather than at the top of
-the page.
+that section and scrolls to it. Thirty sections are addressable this way — every
+user-facing section of both tabs — and the app uses those links itself: the
+getting-started checklist, the home cards and the in-call banner all point at
+their own section rather than at the top of the page.
 
 An unknown or stale value simply leaves the page on its default tab; nothing
 breaks, and the parameter is cleaned from the URL so a reload does not replay
 the jump.
+
+## How do I find a setting quickly?
+
+The settings page stacks some thirty collapsed sections across several tabs. The
+**"Search a setting"** field, just below the tabs, saves you from walking
+through them.
+
+**What the search looks at:**
+- The **title** and **description** of every section
+- Translated **synonyms**: "dark" for Appearance, "2FA" or "TOTP" for Strong
+  authentication, "GDPR" for the data export, "cron" for Scheduled actions
+- Case, accents and apostrophes are ignored — "theme" finds "Thème"
+
+**When you pick a result:**
+LIA switches to the right tab, unfolds the section and brings the cursor to it.
+Everything works from the keyboard — arrows to walk the list, Enter to open,
+Escape to dismiss and then clear — and the number of matches is announced to
+screen readers.
+
+**When a section is not there:**
+Some sections only render when the feature is active on your account or once
+they have data — recent calls, strong authentication, the data export. Rather
+than leaving you in front of a page that did not move, LIA tells you the section
+is not showing here.
+
+The Administration tab is not covered by this search; a superuser is told so
+below the results.

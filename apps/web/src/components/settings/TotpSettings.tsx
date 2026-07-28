@@ -137,9 +137,7 @@ export function TotpSettings() {
               </Badge>
             )}
           </h3>
-          <p className="text-sm text-muted-foreground">
-            {t('settings.security.totp.description')}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('settings.security.totp.description')}</p>
           {active && (
             <p className="text-xs text-muted-foreground">
               {t('settings.security.totp.codes_remaining', {
@@ -172,13 +170,14 @@ export function TotpSettings() {
       </div>
 
       {/* Enrollment dialog: QR + manual secret + confirmation code */}
-      <Dialog open={enrollment !== null} onOpenChange={open => !busy && !open && setEnrollment(null)}>
+      <Dialog
+        open={enrollment !== null}
+        onOpenChange={open => !busy && !open && setEnrollment(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('settings.security.totp.enroll_title')}</DialogTitle>
-            <DialogDescription>
-              {t('settings.security.totp.enroll_description')}
-            </DialogDescription>
+            <DialogDescription>{t('settings.security.totp.enroll_description')}</DialogDescription>
           </DialogHeader>
           {enrollment && (
             <div className="space-y-4">
@@ -227,9 +226,7 @@ export function TotpSettings() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('settings.security.totp.backup_title')}</DialogTitle>
-            <DialogDescription>
-              {t('settings.security.totp.backup_description')}
-            </DialogDescription>
+            <DialogDescription>{t('settings.security.totp.backup_description')}</DialogDescription>
           </DialogHeader>
           <ul className="grid grid-cols-2 gap-2 font-mono text-sm">
             {(backupCodes ?? []).map(code => (

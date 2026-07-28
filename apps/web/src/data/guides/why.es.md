@@ -4,7 +4,7 @@
 
 **Versión** : 4.1
 **Fecha** : 2026-07-28
-**Aplicación** : LIA v1.25.31
+**Aplicación** : LIA v1.25.32
 **Licencia** : AGPL-3.0 (Open Source)
 
 ---
@@ -44,7 +44,7 @@ Una vez terminada esa fase, **todo lo del día a día se gestiona desde una inte
 
 ### 2.2. Lo que cada usuario puede configurar
 
-Cada usuario dispone de su propio espacio de configuración, organizado en dos pestañas:
+Cada usuario dispone de su propio espacio de configuración, organizado en dos pestañas. Un campo de búsqueda evita tener que recorrerlas: escribe el nombre de un ajuste — o una palabra cercana en tu idioma — y LIA abre la sección correcta, esté en la pestaña que esté.
 
 **Preferencias personales:**
 

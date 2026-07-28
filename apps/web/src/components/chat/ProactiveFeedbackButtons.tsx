@@ -150,7 +150,17 @@ export function ProactiveFeedbackButtons({
         // Handled by onError.
       }
     },
-    [isSubmitting, submittedVerdict, onFeedbackSubmitted, t, contract, mutate, targetId, kind, runId]
+    [
+      isSubmitting,
+      submittedVerdict,
+      onFeedbackSubmitted,
+      t,
+      contract,
+      mutate,
+      targetId,
+      kind,
+      runId,
+    ]
   );
 
   // Fragment, not a container: the chips are in-flow siblings of the copy chip,

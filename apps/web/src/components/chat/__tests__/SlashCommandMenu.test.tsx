@@ -43,9 +43,21 @@ vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 import { ChatInput } from '../ChatInput';
 
 const COMMANDS: SlashCommand[] = [
-  { id: 'resume', kind: 'conversational', label: 'resume', description: 'compact', insertText: '/resume' },
+  {
+    id: 'resume',
+    kind: 'conversational',
+    label: 'resume',
+    description: 'compact',
+    insertText: '/resume',
+  },
   { id: 'briefing', kind: 'local', label: 'briefing', description: 'open' },
-  { id: 'agenda', kind: 'conversational', label: 'agenda', description: 'ask', insertText: 'Mon agenda ?' },
+  {
+    id: 'agenda',
+    kind: 'conversational',
+    label: 'agenda',
+    description: 'ask',
+    insertText: 'Mon agenda ?',
+  },
 ];
 
 const onSendMessage = vi.fn();

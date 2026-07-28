@@ -2,9 +2,9 @@
 
 > Field report — a complete system, from design to production.
 
-**Version**: 1.0
+**Version**: 1.1
 **Date**: 2026-07-28
-**Application**: LIA v1.25.31
+**Application**: LIA v1.25.32
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Lines of code (excluding tests) — 31 functional domains | **420,000** |
-| Automated tests, run on every commit and release | **10,000+** |
-| Documented architecture decisions (ADR) | **120+** |
-| Versions shipped at a steady pace | **120+** |
+| Lines of code (excluding tests) — 34 functional domains | **465,000** |
+| Automated tests, run on every commit and release | **20,000+** |
+| Documented architecture decisions (ADR) | **170+** |
+| Versions shipped at a steady pace | **180** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -50,7 +50,7 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 120+ documented:
+Three structural decisions, among the 170+ documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 
@@ -62,7 +62,7 @@ Three structural decisions, among the 120+ documented:
 
 A system flown on instruments:
 
-- **Observability**: some twenty dashboards — application health, service commitments, AI costs, agent behavior, infrastructure. Nearly 400 metrics; centralized structured logs with personal-data filtering; end-to-end distributed tracing. More than 30 written operating procedures — diagnosis, remediation, restoration.
+- **Observability**: twenty-five dashboards — application health, service commitments, AI costs, agent behavior, infrastructure. More than 440 metrics; centralized structured logs with personal-data filtering; end-to-end distributed tracing. Some forty written operating procedures — diagnosis, remediation, restoration.
 - **Delivery**: containerized deployment, automated schema migrations, images published for two hardware architectures (amd64/arm64).
 - **Costs**: frugal infrastructure by choice — about €150 of hardware, zero licenses, open-source building blocks sized to actual needs.
 - **Compliance**: security reviewed endpoint by endpoint; personal data encrypted; account lifecycle aligned with the GDPR.

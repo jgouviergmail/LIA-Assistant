@@ -42,11 +42,7 @@ describe('SettingsTabsBar', () => {
   it('renders one tab per descriptor, in order', () => {
     renderBar();
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map(tab => tab.textContent)).toEqual([
-      'Preferences',
-      'Features',
-      'Administration',
-    ]);
+    expect(tabs.map(tab => tab.textContent)).toEqual(['Preferences', 'Features', 'Administration']);
   });
 
   it('marks the active tab as selected and shows its panel', () => {

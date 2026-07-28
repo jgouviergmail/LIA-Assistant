@@ -13,7 +13,11 @@
  * (no disclosure) instead of throwing.
  */
 
-import type { ExecutionTrace, ExecutionTraceStep, TraceStepCategory } from '@/types/execution-trace';
+import type {
+  ExecutionTrace,
+  ExecutionTraceStep,
+  TraceStepCategory,
+} from '@/types/execution-trace';
 import { MAX_TRACE_STEPS } from '@/types/execution-trace';
 
 /** Metadata key written by the backend (`FIELD_EXECUTION_TRACE`). */

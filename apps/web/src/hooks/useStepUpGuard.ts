@@ -20,7 +20,7 @@ interface PendingChallenge {
 export function useStepUpGuard() {
   const [challenge, setChallenge] = useState<PendingChallenge | null>(null);
 
-  const guard = useCallback(async <T,>(action: () => Promise<T>): Promise<T> => {
+  const guard = useCallback(async <T>(action: () => Promise<T>): Promise<T> => {
     try {
       return await action();
     } catch (error) {

@@ -240,10 +240,7 @@ describe('AuthProvider — signing in', () => {
     });
 
     // The login must proceed with a null token — never block on push plumbing.
-    expect(post).toHaveBeenCalledWith(
-      '/auth/login',
-      expect.objectContaining({ fcm_token: null })
-    );
+    expect(post).toHaveBeenCalledWith('/auth/login', expect.objectContaining({ fcm_token: null }));
   });
 
   it('defaults to a short session', async () => {

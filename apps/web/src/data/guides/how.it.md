@@ -6,7 +6,7 @@
 
 **Versione**: 3.6
 **Data**: 2026-07-28
-**Applicazione**: LIA v1.25.31
+**Applicazione**: LIA v1.25.32
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 447 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 160+ ADR, ~16.535 test raccolti da pytest in 873 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 170+ ADR, ~16.535 test raccolti da pytest in 873 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -1087,11 +1087,21 @@ LIA accetta ingestioni di eventi esterni (misurazioni iPhone Apple Health, paylo
 
 Sei manifest localizzati (`/manifest-{lng}.json` — `lang` localizzato, `start_url`, tre scorciatoie, voci icona `any`/`maskable` separate; la parità strutturale dei 6 file è fissata da test) sono collegati per pagina via `generateMetadata`, con vere icone PNG e una `apple-touch-icon` (iOS ignora silenziosamente le icone SVG). Lo **share target** dell'OS (`GET /{lng}/share`) compone titolo/testo/url condivisi in una bozza di chat limitata che usa il binario `?draft=` esistente — mai auto-inviata. Un suggerimento di installazione discreto appare dalla terza visita (mai in display-mode standalone, rifiutabile per sempre); Chromium riceve un vero prompt di installazione via `beforeinstallprompt`, iOS l'istruzione Condividi → Aggiungi alla Home.
 
+### 23.14. Indice di navigazione: una tabella, due guardie rivolte in versi opposti
+
+La pagina delle impostazioni impila una trentina di sezioni chiuse su più schede. Raggiungerle richiede una tabella che associ un token di URL a una scheda e a un valore di fisarmonica. Una tabella del genere non scade mai rumorosamente: un giorno smette semplicemente di descrivere la pagina.
+
+Due guardie la tengono, e guardano in direzioni opposte. La prima va dalla tabella al codice: ogni voce deve indicare un file esistente, dichiararvi il valore che rivendica e vivere nella scheda che annuncia — con la scheda letta dalla pagina anziché dichiarata una seconda volta. La seconda va dal codice alla tabella: **ogni** componente reso dentro un pannello di schede deve essere indicizzato, strutturale, oppure escluso in modo esplicito con una ragione scritta. Non esiste una quarta via d'uscita, così una sezione aggiunta domani impone una decisione nel momento in cui viene aggiunta, invece di sparire in silenzio.
+
+L'indice di ricerca costruito sopra è esaustivo **per tipo**: i suoi metadati formano un `Record` indicizzato sull'unione dei token, quindi aggiungere una destinazione senza dire come si chiama non compila. La corrispondenza si appoggia al normalizzatore condiviso da tutte le superfici di ricerca del prodotto: maiuscole, segni diacritici, apostrofi tipografici e spazi unificatori vengono ripiegati sulla forma che produce una tastiera. Quel ripiegamento obbedisce a un vincolo duro — un punto di codice per un punto di codice — senza il quale gli evidenziatori che ricostruiscono le posizioni originali si spostano di altrettanto.
+
+Resta che una destinazione può legittimamente non esistere: diverse sezioni si rendono solo se la funzione è attiva o se il dato c'è, e il pannello della scheda inattiva non è montato, quindi nulla può osservarlo in anticipo. La scelta è conservare quelle destinazioni nell'indice ed enunciare l'osservazione all'arrivo, anziché scambiare un vicolo cieco visibile con un falso negativo invisibile.
+
 ---
 
 ## 24. Architettura delle decisioni (ADR)
 
-160+ ADR in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+170+ ADR in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1145,10 +1155,10 @@ Il Psyche Engine dota l'assistente di uno stato psicologico dinamico che evolve 
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 160+ ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~16.535 test in 873 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 170+ ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~16.535 test in 873 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 160+ ADR e del changelog (da v1.0 a v1.25.31). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 170+ ADR e del changelog (da v1.0 a v1.25.32). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

@@ -84,9 +84,7 @@ function recordedVerdict(
   metadata: Record<string, unknown> | undefined
 ): ProactiveFeedbackVerdict | undefined {
   const value = metadata?.feedback_value;
-  return value === 'thumbs_up' || value === 'thumbs_down' || value === 'block'
-    ? value
-    : undefined;
+  return value === 'thumbs_up' || value === 'thumbs_down' || value === 'block' ? value : undefined;
 }
 
 /**

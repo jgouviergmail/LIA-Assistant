@@ -6,7 +6,7 @@
 
 **Version**: 3.6
 **Datum**: 2026-07-28
-**Application**: LIA v1.25.31
+**Application**: LIA v1.25.32
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 447 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 160+ ADRs, ~16.535 von pytest gesammelte Tests in 873 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 170+ ADRs, ~16.535 von pytest gesammelte Tests in 873 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -1086,11 +1086,21 @@ LIA akzeptiert externe Event-Ingestionen (iPhone-Apple-Health-Messwerte, Drittan
 
 Sechs lokalisierte Manifeste (`/manifest-{lng}.json` — lokalisiertes `lang`, `start_url`, drei Shortcuts, getrennte `any`/`maskable`-Icon-Einträge; die strukturelle Parität der 6 Dateien ist test-gepinnt) werden pro Seite via `generateMetadata` verlinkt, mit echten PNG-Icons und einem `apple-touch-icon` (iOS ignoriert SVG-Touch-Icons stillschweigend). Das **Share-Target** des OS (`GET /{lng}/share`) komponiert geteilte Titel/Text/URL in einen begrenzten Chat-Entwurf über die bestehende `?draft=`-Schiene — nie automatisch gesendet. Ein dezenter Installationshinweis erscheint ab dem dritten Besuch (nie im Standalone-Display-Mode, dauerhaft ablehnbar); Chromium erhält einen echten Install-Prompt via `beforeinstallprompt`, iOS die Anleitung Teilen → Zum Home-Bildschirm.
 
+### 23.14. Navigationsindex: eine Tabelle, zwei entgegengesetzt blickende Wächter
+
+Die Einstellungsseite stapelt rund dreißig eingeklappte Bereiche über mehrere Tabs. Sie zu erreichen verlangt eine Tabelle, die ein URL-Token einem Tab und einem Akkordeon-Wert zuordnet. Eine solche Tabelle verfällt nie lautstark: Sie hört eines Tages einfach auf, die Seite zu beschreiben.
+
+Zwei Wächter halten sie, und sie blicken in entgegengesetzte Richtungen. Der erste läuft von der Tabelle zum Code: Jeder Eintrag muss eine existierende Datei benennen, dort den beanspruchten Wert deklarieren und in dem angekündigten Tab liegen — wobei der Tab aus der Seite gelesen und nicht ein zweites Mal deklariert wird. Der zweite läuft vom Code zur Tabelle: **jede** in einem Tab-Panel gerenderte Komponente muss indexiert, strukturell oder mit schriftlicher Begründung ausdrücklich ausgenommen sein. Ein vierter Ausgang existiert nicht, sodass ein morgen hinzugefügter Bereich eine Entscheidung genau dann erzwingt, wenn er hinzugefügt wird, statt still zu verschwinden.
+
+Der darauf aufgebaute Suchindex ist **typseitig** vollständig: Seine Metadaten sind ein `Record`, dessen Schlüssel die Vereinigung der Token bilden — eine Destination hinzuzufügen, ohne zu sagen, wie sie heißt, kompiliert nicht. Der Abgleich stützt sich auf den Normalisierer, den alle Suchoberflächen des Produkts teilen: Groß- und Kleinschreibung, Diakritika, typografische Apostrophe und geschützte Leerzeichen werden auf die Form gefaltet, die eine Tastatur erzeugt. Diese Faltung gehorcht einer harten Bedingung — ein Codepunkt für einen Codepunkt, sonst verschieben sich die Highlighter, die Offsets auf den Originaltext zurückrechnen, um genau denselben Betrag.
+
+Eine Destination kann dennoch berechtigterweise fehlen: Mehrere Bereiche rendern nur, wenn die Funktion aktiv oder die Daten vorhanden sind, und das inaktive Tab-Panel ist nicht eingehängt — nichts kann es im Voraus beobachten. Die Entscheidung lautet, diese Destinationen im Index zu behalten und bei der Ankunft die Beobachtung auszusprechen, statt eine sichtbare Sackgasse gegen einen unsichtbaren falschen Negativbefund zu tauschen.
+
 ---
 
 ## 24. Architekturentscheidungen (ADR)
 
-160+ ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+170+ ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1144,10 +1154,10 @@ Die Psyche Engine verleiht dem Assistenten einen dynamischen psychologischen Zus
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 160+ ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~16.535 Tests in 873 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 170+ ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~16.535 Tests in 873 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 160+ ADRs und des Changelogs (v1.0 bis v1.25.31). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 170+ ADRs und des Changelogs (v1.0 bis v1.25.32). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

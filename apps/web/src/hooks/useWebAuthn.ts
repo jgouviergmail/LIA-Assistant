@@ -81,7 +81,9 @@ export function useWebAuthn() {
       const request = parseRequestOptions(options);
       const credential = (await navigator.credentials.get({
         ...request,
-        ...(opts?.conditional ? { mediation: 'conditional' as CredentialMediationRequirement } : {}),
+        ...(opts?.conditional
+          ? { mediation: 'conditional' as CredentialMediationRequirement }
+          : {}),
         ...(opts?.signal ? { signal: opts.signal } : {}),
       })) as PublicKeyCredential | null;
       if (!credential) {

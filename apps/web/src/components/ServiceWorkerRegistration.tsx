@@ -14,11 +14,9 @@ export function ServiceWorkerRegistration() {
   useEffect(() => {
     if (process.env.NODE_ENV !== 'production') return;
     if (!('serviceWorker' in navigator)) return;
-    navigator.serviceWorker
-      .register('/firebase-messaging-sw.js', { scope: '/' })
-      .catch(() => {
-        // Offline shell is progressive enhancement — never break the app.
-      });
+    navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' }).catch(() => {
+      // Offline shell is progressive enhancement — never break the app.
+    });
   }, []);
 
   return null;

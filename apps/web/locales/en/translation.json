@@ -2835,6 +2835,50 @@
           "unreachable": "Unreachable"
         }
       }
+    },
+    "search": {
+      "label": "Search a setting",
+      "placeholder": "Search a setting…",
+      "clear": "Clear the search",
+      "results_label": "Matching settings",
+      "results_count_one": "{{count}} setting found",
+      "results_count_other": "{{count}} settings found",
+      "no_results": "No setting matches \"{{query}}\"",
+      "no_results_hint": "Try another word, or browse the tabs below.",
+      "admin_not_indexed": "The Administration tab is not covered by this search.",
+      "unavailable": "\"{{section}}\" is not showing here — it may not be available on your account.",
+      "keywords": {
+        "language": "locale, translation, interface language, idiom",
+        "timezone": "UTC, GMT, clock, hour, offset, region, time",
+        "theme": "theme, dark mode, light mode, night mode, colors, colours, contrast, appearance",
+        "font": "typeface, lettering, text size, readability, typography",
+        "display-mode": "cards, rendering, answer format, layout, markdown, plain text",
+        "briefing-grid": "home, homepage, dashboard, widgets, cards, briefing, section order",
+        "open-loops": "pending, follow-up, unfinished, commitments, promises, loose ends",
+        "notifications": "push, alerts, banners, mobile, reminders, FCM",
+        "channels": "whatsapp, telegram, sms, email, messaging, integrations",
+        "security-auth": "2FA, MFA, TOTP, passkey, password, security, login, authenticator, two-factor",
+        "security-devices": "sessions, logout, sign out, revoke, browsers, devices, security",
+        "security-export": "GDPR, archive, download, portability, backup, personal data, privacy",
+        "voice-mode": "microphone, speech, dictation, STT, TTS, wake word, audio, talk",
+        "image-generation": "images, pictures, drawing, illustration, generation, art",
+        "connectors": "google, gmail, calendar, contacts, apple, microsoft, outlook, integrations, accounts, oauth",
+        "telephony-calls": "phone, telephone, calls, call history, dial",
+        "admin-mcp-servers": "MCP, model context protocol, application servers, built-in tools",
+        "mcp-servers": "MCP, model context protocol, my servers, tools, extensions",
+        "debug-panel": "developer, diagnostics, traces, technical, troubleshooting",
+        "personality": "tone, style, character, behaviour, behavior, persona, voice",
+        "psyche": "emotions, mood, feelings, affect, emotional",
+        "memories": "memory, remember, forget, facts, recollection",
+        "interests": "topics, tastes, subjects, curiosity, preferences",
+        "heartbeat": "proactive, spontaneous, initiative, check-in, autonomous messages",
+        "scheduled-actions": "cron, schedule, recurring, automation, timer, planned",
+        "journals": "diary, logbook, portrait, reflections, notes",
+        "health-metrics": "heart rate, steps, sleep, iPhone, Apple Health, fitness, activity",
+        "skills": "skills, capabilities, abilities, plugins, extensions",
+        "rag-spaces": "documents, RAG, knowledge base, files, upload, indexing, library",
+        "user-consumption-export": "CSV, usage, tokens, cost, billing, statistics, export"
+      }
     }
   },
   "spaces": {
@@ -3301,7 +3345,7 @@
         },
         "i18n": {
           "title": "🌍 Complete Internationalization",
-          "description": "6 supported languages (FR, EN, ES, DE, IT, ZH) with: interface translation (i18next), localized dates (relative and absolute formats), agent responses in user language, gettext translations for backend, and automatic browser language detection."
+          "description": "Six languages end to end (FR, EN, ES, DE, IT, ZH): interface (i18next), localized dates in relative and absolute formats, agent responses in the user's language, gettext translations server-side, automatic browser language detection. Key parity across the six files is checked on every commit — a missing translation blocks the release instead of printing a raw key on screen. Search goes beyond literal translation: every setting carries synonyms written language by language — \"dark\" reaches Appearance, \"GDPR\" the data export — and the engine ignores case, accents and typographic apostrophes, so \"theme\" finds \"Thème\" and an ordinary keyboard reaches text typeset with a curly apostrophe."
         },
         "observability": {
           "title": "📊 Production-Ready Observability",
@@ -3426,6 +3470,20 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_25_32": {
+          "title": "v1.25.32 — 🔍 Find a setting by its name",
+          "date": "July 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>🔍 A search field in settings</b> — the page stacks some thirty collapsed sections across several tabs. Type the name of a setting: the search takes you straight there, switches tab if needed, opens the right section and places the cursor on it.",
+            "i2": "<b>🗂️ Thirteen more settings become findable</b> — Language, Appearance, Timezone, Font, Display mode, Strong authentication, My devices, Export my data, Image generation and a few others could only be reached by scrolling. They now have their own address and show up in the search.",
+            "i3": "<b>🌍 The search understands your words, in all six languages</b> — every setting carries a translated list of synonyms: \"dark\" finds Appearance, \"2FA\" and \"TOTP\" find Strong authentication, \"GDPR\" finds the data export, \"cron\" finds Scheduled actions.",
+            "i4": "<b>✍️ Accents and apostrophes no longer block a search</b> — typing \"theme\" finds \"Thème\", and \"d'authentification\" finally reaches the section whose text carried a typographic apostrophe. The fix also benefits the search in this FAQ.",
+            "i5": "<b>⌨️ Everything works from the keyboard</b> — arrows walk the results, Enter opens, Escape dismisses then clears. The number of matches is announced to screen readers, and the cursor lands on the section you picked.",
+            "i6": "<b>💬 A missing setting says so</b> — some sections only appear when the feature is active on your account. Rather than leaving you in front of a page that did not move, LIA tells you the section is not showing here.",
+            "i7": "<b>📊 The figures on the \"Directing an AI that codes\" page were out of date</b> — it claimed half the real number of tests and a third of the documented architecture decisions. They have been measured again."
+          }
+        },
         "v1_25_31": {
           "title": "v1.25.31 — 📌 Headers finally stay in place",
           "date": "July 2026",
@@ -5040,7 +5098,7 @@
       "settings": {
         "title": "Settings",
         "description": "Account configuration and preferences",
-        "count": "18",
+        "count": "19",
         "questions": {
           "q1": {
             "question": "How do I change my timezone?",
@@ -5113,6 +5171,10 @@
           "q18": {
             "question": "What is the « Open loops » section? (v1.25.16)",
             "answer": "<p>LIA automatically detects <strong>commitments</strong> in your conversations (« I must call the plumber back », « waiting for Marc's reply »). Settings → « Open loops » lists them by direction (you owe / you are waiting), with three one-tap actions: <strong>Done</strong>, <strong>Relaunch in chat</strong> (pre-fills a follow-up message) or <strong>No longer relevant</strong>. Nothing is created manually — the ledger's value is being automatic.</p>"
+          },
+          "q19": {
+            "question": "How do I find a setting quickly?",
+            "answer": "<p>The settings page stacks some thirty collapsed sections across several tabs. The <strong>\"Search a setting\"</strong> field, below the tabs, saves you from walking through them.</p><strong>What the search understands:</strong><br>• The <strong>title</strong> and <strong>description</strong> of every section<br>• Translated <strong>synonyms</strong>: \"dark\" for Appearance, \"2FA\" or \"TOTP\" for Strong authentication, \"GDPR\" for your data export, \"cron\" for Scheduled actions<br>• Accents and apostrophes are ignored — \"theme\" finds \"Thème\"<br><br><strong>When you pick a result:</strong><br>LIA switches to the right tab, opens the section and brings the cursor to it. Everything works from the keyboard — arrows to walk, Enter to open, Escape to dismiss — and the number of matches is announced to screen readers.<br><br>Some sections only exist when the feature is active on your account: LIA then tells you so, rather than leaving you in front of a page that did not move."
           }
         }
       },
@@ -7001,7 +7063,7 @@
       },
       "themes": {
         "title": "Customizable",
-        "description": "5 color themes, dark/light mode, 9 font families. Adapt LIA to your style."
+        "description": "5 colour themes, dark/light mode, 9 typefaces. A search field finds any setting by its name — or by a synonym, in your language. Make LIA look like you."
       },
       "skills": {
         "title": "Skills with maps & mini-apps",
@@ -7130,7 +7192,7 @@
       },
       "stack": {
         "title": "Modern stack",
-        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. Strict TypeScript on the frontend, async Python on the backend. Installable PWA: 6 localized manifests, OS share into chat, offline page and smart asset caching — API responses are never cached."
+        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. Strict TypeScript on the frontend, async Python on the backend. Installable PWA: 6 localized manifests, OS share into chat, offline page and smart asset caching — API responses are never cached. Settings are searchable from the keyboard, in all six languages, ignoring case, accents and typographic apostrophes."
       },
       "telephony": {
         "title": "Agentic telephony",
@@ -7769,7 +7831,7 @@
       "multilingual": {
         "title": "6 Languages, a Complete i18n Architecture",
         "excerpt": "LIA speaks French, English, German, Spanish, Italian, and Chinese. Internationalization covers the UI, AI responses, and documentation.",
-        "body": "<h2>6 natively supported languages</h2><p>LIA is fully available in <strong>French, English, German, Spanish, Italian, and Chinese</strong>. Internationalization isn't limited to the interface: it covers assistant responses, notifications, FAQ, and documentation.</p><h2>Frontend i18n architecture</h2><p>The frontend uses <strong>react-i18next</strong> with per-language JSON files and language choice persistence via a <code>NEXT_LOCALE</code> cookie (1-year TTL). Next.js routing uses a dynamic <code>[lng]</code> segment to serve each language at its dedicated URL. Language flags are displayed as Unicode emojis. The locale mapping associates each short code with its full variant (fr-FR, en-US, de-DE, es-ES, it-IT, zh-CN). Pages are statically pre-generated for each language at build time.</p><h2>Hreflang and multilingual SEO</h2><p>Each public page declares <code>hreflang</code> alternates for all 6 languages, with an <code>x-default</code> value pointing to French. The XML sitemap includes multilingual alternates for each URL.</p><h2>Multilingual AI responses</h2><p>The assistant responds in the user's configured language. Supported languages are configurable on the backend via the <code>SUPPORTED_LANGUAGES</code> environment variable. System prompts are written in English to maximize LLM reasoning quality, but an explicit language instruction guides response generation in the target language. Three prompts are specifically adapted per language: <code>journal_introspection_personality_addon</code>, <code>memory_extraction_personality_addon</code> and <code>broadcast_translation_prompt</code>.</p><h2>Multilingual voice recognition</h2><p>The Whisper model used for voice transcription natively supports 99+ languages in offline mode, allowing you to speak to LIA in virtually any language without additional configuration or cloud service dependency.</p>"
+        "body": "<h2>6 natively supported languages</h2><p>LIA is fully available in <strong>French, English, German, Spanish, Italian, and Chinese</strong>. Internationalization isn't limited to the interface: it covers assistant responses, notifications, FAQ, and documentation.</p><h2>Frontend i18n architecture</h2><p>The frontend uses <strong>react-i18next</strong> with per-language JSON files and language choice persistence via a <code>NEXT_LOCALE</code> cookie (1-year TTL). Next.js routing uses a dynamic <code>[lng]</code> segment to serve each language at its dedicated URL. Language flags are displayed as Unicode emojis. The locale mapping associates each short code with its full variant (fr-FR, en-US, de-DE, es-ES, it-IT, zh-CN). Pages are statically pre-generated for each language at build time.</p><h2>Hreflang and multilingual SEO</h2><p>Each public page declares <code>hreflang</code> alternates for all 6 languages, with an <code>x-default</code> value pointing to French. The XML sitemap includes multilingual alternates for each URL.</p><h2>Multilingual AI responses</h2><p>The assistant responds in the user's configured language. Supported languages are configurable on the backend via the <code>SUPPORTED_LANGUAGES</code> environment variable. System prompts are written in English to maximize LLM reasoning quality, but an explicit language instruction guides response generation in the target language. Three prompts are specifically adapted per language: <code>journal_introspection_personality_addon</code>, <code>memory_extraction_personality_addon</code> and <code>broadcast_translation_prompt</code>.</p><h2>Multilingual voice recognition</h2><p>The Whisper model used for voice transcription natively supports 99+ languages in offline mode, allowing you to speak to LIA in virtually any language without additional configuration or cloud service dependency.</p><h2>Searching in your own language</h2><p>Translating an interface is not enough to make it navigable: you still have to find a setting using the words you actually use. On top of its translated title and description, every settings section therefore carries a list of <strong>synonyms written language by language</strong> — \"dark\" reaches Appearance, \"GDPR\" the data export, \"cron\" the scheduled actions. Matching goes through a normalizer shared by every search surface of the product: case, diacritics, typographic apostrophes and no-break spaces are folded to the form a keyboard produces, so \"theme\" finds \"Thème\". That folding obeys a strict constraint — one code point for one code point — without which the highlighters that map offsets back to the original text would drift by exactly as much.</p>"
       },
       "react-execution-mode": {
         "title": "Pipeline vs ReAct: When Structured Engineering Outperforms the Laissez-Faire",

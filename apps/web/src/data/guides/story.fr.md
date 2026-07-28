@@ -2,9 +2,9 @@
 
 > Retour d'expérience — un système complet, de la conception à la production.
 
-**Version** : 1.0
+**Version** : 1.1
 **Date** : 2026-07-28
-**Application** : LIA v1.25.31
+**Application** : LIA v1.25.32
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Indicateur | Valeur |
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
-| Lignes de code (hors tests) — 31 domaines fonctionnels | **420 000** |
-| Tests automatisés, exécutés à chaque commit et livraison | **10 000+** |
-| Décisions d'architecture documentées (ADR) | **120+** |
-| Versions livrées à rythme régulier | **120+** |
+| Lignes de code (hors tests) — 34 domaines fonctionnels | **465 000** |
+| Tests automatisés, exécutés à chaque commit et livraison | **20 000+** |
+| Décisions d'architecture documentées (ADR) | **170+** |
+| Versions livrées à rythme régulier | **180** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -50,7 +50,7 @@ Une IA qui code produit du volume ; elle ne produit de la qualité que sous cont
 
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 120+ documentées :
+Trois décisions structurantes, parmi les 170+ documentées :
 
 **Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'hébergement est intégralement maîtrisé ; les données personnelles sont chiffrées et restent sur l'infrastructure.
 
@@ -62,7 +62,7 @@ Trois décisions structurantes, parmi les 120+ documentées :
 
 Un système qu'on pilote aux instruments :
 
-- **Observabilité** : une vingtaine de tableaux de bord — santé applicative, engagements de service, coûts d'IA, comportement des agents, infrastructure. Près de 400 métriques ; journaux structurés centralisés avec filtrage des données personnelles ; traçage distribué de bout en bout. Plus de 30 procédures d'exploitation écrites — diagnostic, remédiation, restauration.
+- **Observabilité** : vingt-cinq tableaux de bord — santé applicative, engagements de service, coûts d'IA, comportement des agents, infrastructure. Plus de 440 métriques ; journaux structurés centralisés avec filtrage des données personnelles ; traçage distribué de bout en bout. Une quarantaine de procédures d'exploitation écrites — diagnostic, remédiation, restauration.
 - **Livraison** : déploiement conteneurisé, migrations de schéma automatisées, images publiées pour deux architectures matérielles (amd64/arm64).
 - **Coûts** : infrastructure frugale par choix — environ 150 € de matériel, zéro licence, briques open-source dimensionnées au besoin réel.
 - **Conformité** : sécurité revue point d'accès par point d'accès ; chiffrement des données personnelles ; cycle de vie des comptes aligné sur le RGPD.

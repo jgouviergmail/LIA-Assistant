@@ -2821,6 +2821,50 @@
           "unreachable": "无法接通"
         }
       }
+    },
+    "search": {
+      "label": "搜索设置",
+      "placeholder": "搜索设置…",
+      "clear": "清除搜索",
+      "results_label": "匹配的设置",
+      "results_count_one": "找到 {{count}} 项设置",
+      "no_results": "没有设置与“{{query}}”匹配",
+      "no_results_hint": "换个词试试，或浏览下方的标签页。",
+      "admin_not_indexed": "此搜索不包含“管理”标签页。",
+      "unavailable": "“{{section}}”未显示在此页面，该设置可能在您的账户中不可用。",
+      "keywords": {
+        "language": "语言, 区域设置, 翻译, 界面语言",
+        "timezone": "时区, UTC, GMT, 时钟, 时间, 偏移, 地区",
+        "theme": "主题, 深色模式, 浅色模式, 夜间模式, 颜色, 对比度, 外观",
+        "font": "字体, 排版, 文字大小, 可读性",
+        "display-mode": "显示模式, 卡片, 渲染, 回复格式, 布局, markdown, 纯文本",
+        "briefing-grid": "首页, 主页, 仪表板, 小组件, 卡片, 简报, 板块顺序",
+        "open-loops": "待办, 跟进, 承诺, 未完成, 遗留事项",
+        "notifications": "推送, 提醒, 通知, 手机, FCM",
+        "channels": "WhatsApp, Telegram, 短信, 邮件, 消息渠道, 集成",
+        "security-auth": "2FA, MFA, TOTP, 通行密钥, 密码, 安全, 登录, 身份验证, 双因素",
+        "security-devices": "会话, 登出, 注销, 撤销, 浏览器, 设备, 安全",
+        "security-export": "GDPR, 数据导出, 归档, 下载, 可携带性, 备份, 个人数据, 隐私",
+        "voice-mode": "麦克风, 语音, 听写, STT, TTS, 唤醒词, 音频, 说话",
+        "image-generation": "图像, 图片, 绘画, 插图, 生成, 艺术",
+        "connectors": "Google, Gmail, 日历, 联系人, Apple, Microsoft, Outlook, 集成, 账户, OAuth",
+        "telephony-calls": "电话, 通话, 通话记录, 拨号",
+        "admin-mcp-servers": "MCP, 模型上下文协议, 应用服务器, 内置工具",
+        "mcp-servers": "MCP, 模型上下文协议, 我的服务器, 工具, 扩展",
+        "debug-panel": "开发者, 诊断, 调试, 技术, 故障排查",
+        "personality": "语气, 风格, 性格, 行为, 人设, 声音",
+        "psyche": "情绪, 心情, 感受, 情感",
+        "memories": "记忆, 长期记忆, 记住, 遗忘, 事实",
+        "interests": "兴趣, 话题, 爱好, 主题, 偏好",
+        "heartbeat": "主动, 自发, 主动联系, 自主消息, 心跳",
+        "scheduled-actions": "定时任务, cron, 计划, 重复, 自动化, 定时器",
+        "journals": "日记, 日志, 画像, 反思, 笔记",
+        "health-metrics": "健康, 心率, 步数, 睡眠, iPhone, Apple 健康, 运动",
+        "skills": "技能, 能力, 插件, 扩展",
+        "rag-spaces": "文档, RAG, 知识库, 文件, 上传, 索引, 资料库",
+        "user-consumption-export": "CSV, 用量, 消耗, 令牌, 成本, 账单, 统计, 导出"
+      },
+      "results_count_other": "找到 {{count}} 项设置"
     }
   },
   "spaces": {
@@ -3287,7 +3331,7 @@
         },
         "i18n": {
           "title": "🌍 完整国际化",
-          "description": "支持 6 种语言（中文、英文、法文、德文、西班牙文、意大利文）：界面翻译（i18next）、本地化日期（相对和绝对格式）、用户语言的智能体回复、后端 gettext 翻译，以及自动浏览器语言检测。"
+          "description": "六种语言全链路覆盖（中文、英文、法文、德文、西班牙文、意大利文）：界面（i18next）、相对与绝对格式的本地化日期、以用户语言给出的智能体回复、服务端 gettext 翻译，以及浏览器语言自动识别。六个语言文件的键位一致性在每次提交时校验——缺失的翻译会阻断发布，而不是在界面上显示原始键名。搜索不止于字面翻译：每项设置都带有逐语言撰写的同义词——「深色模式」可找到外观，「GDPR」可找到数据导出——并且引擎忽略大小写、重音符与排印撇号，因此输入「theme」也能找到「Thème」。"
         },
         "observability": {
           "title": "📊 生产级可观测性",
@@ -3412,6 +3456,20 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_25_32": {
+          "title": "v1.25.32 — 🔍 按名称查找设置",
+          "date": "2026 年 7 月",
+          "count": "7",
+          "items": {
+            "i1": "<b>🔍 设置页新增搜索框</b> —— 该页在多个标签页中堆叠了约三十个折叠区块。输入设置名称：搜索会直接带你过去，必要时切换标签页，展开正确的区块，并把光标放在上面。",
+            "i2": "<b>🗂️ 另外十三项设置变得可查找</b> —— 语言、外观、时区、字体、显示模式、强身份验证、我的设备、导出我的数据、图像生成等此前只能靠滚动页面才能找到。它们现在拥有独立地址，并会出现在搜索结果中。",
+            "i3": "<b>🌍 搜索听得懂你的用词，覆盖六种语言</b> —— 每项设置都带有翻译过的同义词表：「深色模式」找到外观，「2FA」和「TOTP」找到强身份验证，「GDPR」找到数据导出，「cron」找到计划任务。",
+            "i4": "<b>✍️ 重音符与撇号不再阻断搜索</b> —— 输入「theme」能找到「Thème」，「d'authentification」也终于能找到那个文本中带排印撇号的区块。此修复同样惠及本 FAQ 的搜索。",
+            "i5": "<b>⌨️ 全程可用键盘操作</b> —— 方向键浏览结果，回车打开，Esc 先关闭再清空。结果数量会向屏幕阅读器播报，光标会落在你选择的区块上。",
+            "i6": "<b>💬 设置不存在时会明确告知</b> —— 某些区块只有在你的账户启用了相应功能时才会出现。LIA 不会让你面对一个毫无变化的页面，而是告诉你该区块未在此显示。",
+            "i7": "<b>📊 「指挥一个会编程的 AI」页面的数字已过时</b> —— 它声称的测试数量只有实际的一半，已记录的架构决策也只有三分之一。这些数字已重新测量。"
+          }
+        },
         "v1_25_31": {
           "title": "v1.25.31 — 📌 页面顶栏终于不再跑掉",
           "date": "2026 年 7 月",
@@ -5026,7 +5084,7 @@
       "settings": {
         "title": "设置",
         "description": "账户配置和偏好设置",
-        "count": "18",
+        "count": "19",
         "questions": {
           "q1": {
             "question": "如何更改时区？",
@@ -5099,6 +5157,10 @@
           "q18": {
             "question": "「未完成的承诺」是什么？(v1.25.16)",
             "answer": "<p>LIA 会自动从对话中识别<strong>承诺</strong>。设置 →「未完成的承诺」按方向列出（您欠对方 / 您在等待），提供三个一键操作：<strong>完成</strong>、<strong>在聊天中跟进</strong>（预填跟进消息）或<strong>不再相关</strong>。没有手动创建 — 这个清单的价值就在于自动。</p>"
+          },
+          "q19": {
+            "question": "如何快速找到某项设置？",
+            "answer": "<p>设置页在多个标签页中堆叠了约三十个折叠区块。标签页下方的<strong>「搜索设置」</strong>输入框让你无需逐个翻找。</p><strong>搜索能理解什么：</strong><br>• 每个区块的<strong>标题</strong>与<strong>描述</strong><br>• 逐语言翻译的<strong>同义词</strong>：「深色模式」对应外观，「2FA」或「TOTP」对应强身份验证，「GDPR」对应数据导出，「cron」对应计划任务<br>• 忽略重音符与撇号——输入「theme」也能找到「Thème」<br><br><strong>选中结果之后：</strong><br>LIA 会切换到正确的标签页，展开该区块并把光标移到上面。全程支持键盘操作——方向键浏览、回车打开、Esc 关闭——结果数量还会向屏幕阅读器播报。<br><br>某些区块只有在你的账户启用了对应功能时才存在：遇到这种情况，LIA 会明确告知，而不是让你面对一个毫无变化的页面。"
           }
         }
       },
@@ -6916,7 +6978,7 @@
       },
       "themes": {
         "title": "可定制",
-        "description": "5种配色主题、深色/浅色模式、9种字体。按您的风格定制LIA。"
+        "description": "5 种配色主题、深色/浅色模式、9 种字体。搜索框可按名称找到任意设置——用你自己的语言输入同义词也行。让 LIA 贴合你的风格。"
       },
       "skills": {
         "title": "带地图和迷你应用的 Skills",
@@ -7045,7 +7107,7 @@
       },
       "stack": {
         "title": "现代技术栈",
-        "description": "FastAPI、Next.js、React、TailwindCSS、PostgreSQL、Redis。前端严格 TypeScript，后端异步 Python。可安装 PWA：6 种本地化清单、系统分享到聊天、离线页面和智能资源缓存 — API 响应绝不缓存。"
+        "description": "FastAPI、Next.js、React、TailwindCSS、PostgreSQL、Redis。前端严格 TypeScript，后端异步 Python。可安装 PWA：6 种本地化清单、系统分享到聊天、离线页面和智能资源缓存 — API 响应绝不缓存。设置支持键盘搜索，覆盖六种语言，并忽略大小写、重音符与排印撇号。"
       },
       "telephony": {
         "title": "智能体电话",
@@ -7684,7 +7746,7 @@
       "multilingual": {
         "title": "6种语言，完整的i18n架构",
         "excerpt": "LIA支持法语、英语、德语、西班牙语、意大利语和中文，具有完整的国际化。",
-        "body": "<h2>原生支持6种语言</h2><p>LIA完全支持<strong>法语、英语、德语、西班牙语、意大利语和中文</strong>。国际化不仅限于界面：还涵盖助手回复、通知、FAQ和文档。</p><h2>前端i18n架构</h2><p>前端使用<strong>react-i18next</strong>，每种语言一个JSON文件，语言选择通过<code>NEXT_LOCALE</code> cookie持久化（TTL 1年）。Next.js路由使用动态段<code>[lng]</code>为每种语言提供专属URL。语言标志显示为Unicode表情符号。区域映射将每个短代码关联到其完整变体（fr-FR、en-US、de-DE、es-ES、it-IT、zh-CN）。页面在构建时为每种语言静态预生成。</p><h2>Hreflang与多语言SEO</h2><p>每个公共页面为6种语言声明<code>hreflang</code>替代标签，<code>x-default</code>值指向法语。XML站点地图包含每个URL的多语言替代链接。</p><h2>多语言AI响应</h2><p>助手以用户配置的语言回复。后端通过<code>SUPPORTED_LANGUAGES</code>环境变量配置支持的语言。系统提示以英文编写以最大化LLM推理质量，但明确的语言指令引导以目标语言生成响应。三个提示专门按语言适配：<code>journal_introspection_personality_addon</code>、<code>memory_extraction_personality_addon</code>和<code>broadcast_translation_prompt</code>。</p><h2>多语言语音识别</h2><p>用于语音转录的Whisper模型原生支持99+种语言的离线模式，使您几乎可以用世界上任何语言与LIA交谈，无需额外配置或依赖云服务。</p>"
+        "body": "<h2>原生支持6种语言</h2><p>LIA完全支持<strong>法语、英语、德语、西班牙语、意大利语和中文</strong>。国际化不仅限于界面：还涵盖助手回复、通知、FAQ和文档。</p><h2>前端i18n架构</h2><p>前端使用<strong>react-i18next</strong>，每种语言一个JSON文件，语言选择通过<code>NEXT_LOCALE</code> cookie持久化（TTL 1年）。Next.js路由使用动态段<code>[lng]</code>为每种语言提供专属URL。语言标志显示为Unicode表情符号。区域映射将每个短代码关联到其完整变体（fr-FR、en-US、de-DE、es-ES、it-IT、zh-CN）。页面在构建时为每种语言静态预生成。</p><h2>Hreflang与多语言SEO</h2><p>每个公共页面为6种语言声明<code>hreflang</code>替代标签，<code>x-default</code>值指向法语。XML站点地图包含每个URL的多语言替代链接。</p><h2>多语言AI响应</h2><p>助手以用户配置的语言回复。后端通过<code>SUPPORTED_LANGUAGES</code>环境变量配置支持的语言。系统提示以英文编写以最大化LLM推理质量，但明确的语言指令引导以目标语言生成响应。三个提示专门按语言适配：<code>journal_introspection_personality_addon</code>、<code>memory_extraction_personality_addon</code>和<code>broadcast_translation_prompt</code>。</p><h2>多语言语音识别</h2><p>用于语音转录的Whisper模型原生支持99+种语言的离线模式，使您几乎可以用世界上任何语言与LIA交谈，无需额外配置或依赖云服务。</p><h2>用自己的语言搜索</h2><p>把界面翻译出来，并不足以让它变得可导航：你还得能用自己实际使用的词找到某项设置。因此每个设置区块除了翻译后的标题与描述之外，还带有一份<strong>逐语言撰写的同义词表</strong>——「深色模式」可达外观，「GDPR」可达数据导出，「cron」可达计划任务。匹配经由产品所有搜索界面共用的规范化器：大小写、变音符号、排印撇号与不换行空格都会折叠为键盘所产生的形式，因此输入「theme」也能找到「Thème」。该折叠遵守一条严格约束——一个码位对应一个码位——否则那些把偏移量还原到原文的高亮器就会同等程度地错位。</p>"
       },
       "react-execution-mode": {
         "title": "Pipeline vs ReAct：当结构化工程超越放任自流",

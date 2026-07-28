@@ -2,9 +2,9 @@
 
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
-**Version**: 1.0
+**Version**: 1.1
 **Datum**: 2026-07-28
-**Anwendung**: LIA v1.25.31
+**Anwendung**: LIA v1.25.32
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Indikator | Wert |
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
-| Codezeilen (ohne Tests) — 31 Fachdomänen | **420.000** |
-| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **10.000+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **120+** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **120+** |
+| Codezeilen (ohne Tests) — 34 Fachdomänen | **465.000** |
+| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **20.000+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **170+** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **180** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -50,7 +50,7 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 120+ dokumentierten:
+Drei strukturelle Entscheidungen, unter den 170+ dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Das Hosting ist vollständig kontrolliert; personenbezogene Daten sind verschlüsselt und bleiben auf der Infrastruktur.
 
@@ -62,7 +62,7 @@ Drei strukturelle Entscheidungen, unter den 120+ dokumentierten:
 
 Ein System, das nach Instrumenten geflogen wird:
 
-- **Observability**: rund zwanzig Dashboards — Anwendungsgesundheit, Service-Verpflichtungen, KI-Kosten, Agentenverhalten, Infrastruktur. Fast 400 Metriken; zentralisierte strukturierte Logs mit Filterung personenbezogener Daten; durchgängiges verteiltes Tracing. Mehr als 30 schriftliche Betriebsprozeduren — Diagnose, Behebung, Wiederherstellung.
+- **Observability**: fünfundzwanzig Dashboards — Anwendungsgesundheit, Service-Verpflichtungen, KI-Kosten, Agentenverhalten, Infrastruktur. Mehr als 440 Metriken; zentralisierte strukturierte Logs mit Filterung personenbezogener Daten; durchgängiges verteiltes Tracing. Rund vierzig schriftliche Betriebsprozeduren — Diagnose, Behebung, Wiederherstellung.
 - **Lieferung**: containerisiertes Deployment, automatisierte Schemamigrationen, Images für zwei Hardwarearchitekturen (amd64/arm64) veröffentlicht.
 - **Kosten**: bewusst frugale Infrastruktur — etwa 150 € Hardware, null Lizenzen, Open-Source-Bausteine, dimensioniert nach dem realen Bedarf.
 - **Compliance**: Sicherheit Endpunkt für Endpunkt überprüft; personenbezogene Daten verschlüsselt; Konto-Lebenszyklus an der DSGVO ausgerichtet.

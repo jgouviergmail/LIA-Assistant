@@ -47,10 +47,7 @@ export function reorderTo(
 }
 
 /** Immutable visibility toggle. */
-export function toggleHidden(
-  hidden: BriefingSection[],
-  name: BriefingSection
-): BriefingSection[] {
+export function toggleHidden(hidden: BriefingSection[], name: BriefingSection): BriefingSection[] {
   return hidden.includes(name) ? hidden.filter(n => n !== name) : [...hidden, name];
 }
 

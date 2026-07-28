@@ -98,7 +98,9 @@ describe('NotificationPrompt — enrolment outcomes', () => {
 
     await clickEnable(user);
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('notifications.permission_denied'));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('notifications.permission_denied')
+    );
     expect(api.post).not.toHaveBeenCalled();
   });
 

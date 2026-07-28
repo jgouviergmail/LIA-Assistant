@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.25.31</strong> — <strong>Three headers declared themselves sticky and none of them was.</strong> The stylesheet set <code>overflow-x: hidden</code> on <code>body</code>, which forces the other axis to compute to <code>auto</code>: <code>body</code> became a scroll container that is never scrolled, and every <code>position: sticky</code> descendant anchored to it. Measured in Chrome on a real element, the header sat at <strong>top −400 for scrollY 400</strong> — it had been scrolling away since the beginning, on the dashboard and on the legal pages alike. Repairing it (<code>clip</code> clips without creating a scrollport) made the settings tab bar persistent — and immediately exposed a second defect: opening any header menu put <code>overflow: hidden</code> back on both axes, so the header jumped off-screen again until the page was scrolled to the very top. The menus are non-modal now. Alongside: the dashboard's two large access cards became one <strong>62 px</strong> bar (from 104 px, and 208 px → 123 px on a phone), settings sections lost 8 px of padding on mobile only, each section stopped emitting <strong>two</strong> headings instead of one, and the feedback thumbs of proactive notifications joined the copy chip's row — the same gesture, the same place, on every kind of message. <strong>16,535 backend</strong> + <strong>3,540 frontend</strong> tests, every ratchet held. — 28 July 2026.
+  <strong>Version 1.25.32</strong> — <strong>The table that made settings addressable knew 17 of the 30 sections.</strong> The settings page stacks its sections as collapsed accordions; a deep-link table let other surfaces target one by URL, and the tab bar had just become genuinely sticky. What was still missing is the reader who knows the setting's <em>name</em> and nothing else. Building that search field exposed the table: the page renders <strong>43</strong> sections (30 user-facing, 13 administration) and the table declared <strong>17</strong> — the thirteen missing ones being exactly what a search box attracts, Language, Appearance, Timezone, Font, Strong authentication, My devices, Export my data among them. An index built on the declared seventeen would have returned <strong>nothing</strong> for "theme", "language" or "password". Two guards existed to hold that table and <strong>neither looked in this direction</strong>: one derived the component name from the file name, so <code>theme-selector.tsx</code> produced a needle that matched nothing and the entry was skipped — the test passed <strong>vacuously</strong>. Three further defects came out of measurement rather than reading: <strong>212 curly apostrophes</strong> in French made "application d'authentification" unreachable from a keyboard, a result line failed AA contrast at <strong>3.51:1</strong>, and the sticky bar grew from 117 to <strong>161 px</strong> without its scroll margin following. <strong>16,535 backend</strong> + <strong>3,769 frontend</strong> tests, every ratchet held. — 28 July 2026.
 
 </p>
 
@@ -425,7 +425,7 @@ ExecutionStep(
 - **Hybrid search**: Semantic similarity (pgvector cosine) + BM25 keyword matching with configurable alpha fusion
 - **Response enrichment**: RAG context automatically injected into assistant responses when active spaces exist
 - **Full cost transparency**: Embedding costs tracked per document and per query, visible in chat bubbles and dashboard
-- **System knowledge spaces**: Built-in FAQ knowledge base (119+ Q/A across 17 sections) indexed from Markdown files (`docs/knowledge/`). `is_app_help_query` detection by QueryAnalyzer, RoutingDecider Rule 0 override, App Identity Prompt injection with lazy loading (zero overhead on normal queries). Auto-indexed at startup with SHA-256 hash-based staleness. Admin UI for reindex and staleness monitoring. [ADR-058](./docs/architecture/ADR-058-System-RAG-Spaces.md)
+- **System knowledge spaces**: Built-in FAQ knowledge base (230+ Q/A across 22 sections) indexed from Markdown files (`docs/knowledge/`, 25 documents). `is_app_help_query` detection by QueryAnalyzer, RoutingDecider Rule 0 override, App Identity Prompt injection with lazy loading (zero overhead on normal queries). Auto-indexed at startup with SHA-256 hash-based staleness. Admin UI for reindex and staleness monitoring. [ADR-058](./docs/architecture/ADR-058-System-RAG-Spaces.md)
 - **Admin reindexation**: Full reindex when embedding model changes, with Redis mutual exclusion and automatic dimension ALTER. System spaces have independent reindex via admin API
 - **Observability**: 17 Prometheus metrics (14 user + 3 system), dedicated Grafana dashboard
 - **Feature flags**: `RAG_SPACES_ENABLED=true` (user spaces), `RAG_SPACES_SYSTEM_ENABLED=true` (system FAQ spaces)
@@ -894,12 +894,12 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md)   | Complete development workflow                             |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent                                 |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md)   | How to create a new tool                                  |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~16,159 backend tests across 854 files) |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~16,535 backend tests across 873 files) |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md)           | LangGraph and log debugging                               |
 
 ### Architecture Decision Records (ADR)
 
-155 ADRs (ADR-001 through ADR-155) documenting major architectural decisions:
+171 ADRs (ADR-001 through ADR-172) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

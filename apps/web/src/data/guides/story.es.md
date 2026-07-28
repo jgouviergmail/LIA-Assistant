@@ -2,9 +2,9 @@
 
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
-**Versión**: 1.0
+**Versión**: 1.1
 **Fecha**: 2026-07-28
-**Aplicación**: LIA v1.25.31
+**Aplicación**: LIA v1.25.32
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Indicador | Valor |
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
-| Líneas de código (sin tests) — 31 dominios funcionales | **420.000** |
-| Tests automatizados, ejecutados en cada commit y entrega | **10.000+** |
-| Decisiones de arquitectura documentadas (ADR) | **120+** |
-| Versiones entregadas a ritmo regular | **120+** |
+| Líneas de código (sin tests) — 34 dominios funcionales | **465.000** |
+| Tests automatizados, ejecutados en cada commit y entrega | **20.000+** |
+| Decisiones de arquitectura documentadas (ADR) | **170+** |
+| Versiones entregadas a ritmo regular | **180** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -50,7 +50,7 @@ Una IA que programa produce volumen; solo produce calidad bajo restricción. Cua
 
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 120+ documentadas:
+Tres decisiones estructurantes, entre las 170+ documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El alojamiento está íntegramente controlado; los datos personales están cifrados y permanecen en la infraestructura.
 
@@ -62,7 +62,7 @@ Tres decisiones estructurantes, entre las 120+ documentadas:
 
 Un sistema que se pilota con instrumentos:
 
-- **Observabilidad**: una veintena de paneles — salud aplicativa, compromisos de servicio, costes de IA, comportamiento de los agentes, infraestructura. Cerca de 400 métricas; logs estructurados centralizados con filtrado de datos personales; trazado distribuido de extremo a extremo. Más de 30 procedimientos de explotación escritos — diagnóstico, remediación, restauración.
+- **Observabilidad**: veinticinco paneles — salud aplicativa, compromisos de servicio, costes de IA, comportamiento de los agentes, infraestructura. Más de 440 métricas; logs estructurados centralizados con filtrado de datos personales; trazado distribuido de extremo a extremo. Unos cuarenta procedimientos de explotación escritos — diagnóstico, remediación, restauración.
 - **Entrega**: despliegue contenerizado, migraciones de esquema automatizadas, imágenes publicadas para dos arquitecturas de hardware (amd64/arm64).
 - **Costes**: infraestructura frugal por elección — unos 150 € de hardware, cero licencias, bloques open source dimensionados a la necesidad real.
 - **Conformidad**: seguridad revisada punto de acceso por punto de acceso; cifrado de los datos personales; ciclo de vida de las cuentas alineado con el RGPD.

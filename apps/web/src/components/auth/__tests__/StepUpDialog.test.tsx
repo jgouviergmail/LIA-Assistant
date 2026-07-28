@@ -41,9 +41,7 @@ describe('StepUpDialog', () => {
 
     expect(await screen.findByLabelText('auth.stepUp.password_label')).toBeInTheDocument();
     expect(screen.getByLabelText('auth.stepUp.totp_label')).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'auth.stepUp.passkey_button' })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'auth.stepUp.passkey_button' })).toBeInTheDocument();
   });
 
   it('verifies with the password and reports success', async () => {

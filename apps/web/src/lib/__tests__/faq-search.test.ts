@@ -92,10 +92,12 @@ describe('highlightText', () => {
     const source = '<p>Le <strong>chiffrement</strong> est actif</p>';
     const output = highlightText(source, 'chiffrement');
 
-    expect(output).toBe(`<p>Le <strong>${MARK_OPEN}chiffrement</strong> est actif</p>`.replace(
-      `${MARK_OPEN}chiffrement`,
-      `${MARK_OPEN}chiffrement</mark>`
-    ));
+    expect(output).toBe(
+      `<p>Le <strong>${MARK_OPEN}chiffrement</strong> est actif</p>`.replace(
+        `${MARK_OPEN}chiffrement`,
+        `${MARK_OPEN}chiffrement</mark>`
+      )
+    );
     expect((output.match(/<mark/g) ?? []).length).toBe((output.match(/<\/mark>/g) ?? []).length);
   });
 
@@ -139,13 +141,16 @@ describe('highlightText agrees with the canonical matcher', () => {
     ['ÉÉÉ', 'ee'],
   ];
 
-  it.each(corpus)('selects the same characters as findNormalizedMatches in %j / %j', (text, query) => {
-    const expected = findNormalizedMatches(text, normalizeSearchText(query)).map(range =>
-      text.slice(range.start, range.end)
-    );
+  it.each(corpus)(
+    'selects the same characters as findNormalizedMatches in %j / %j',
+    (text, query) => {
+      const expected = findNormalizedMatches(text, normalizeSearchText(query)).map(range =>
+        text.slice(range.start, range.end)
+      );
 
-    expect(highlighted(highlightText(text, query))).toEqual(expected);
-  });
+      expect(highlighted(highlightText(text, query))).toEqual(expected);
+    }
+  );
 
   it('reconstructs the original text when the marks are removed', () => {
     for (const [text, query] of corpus) {

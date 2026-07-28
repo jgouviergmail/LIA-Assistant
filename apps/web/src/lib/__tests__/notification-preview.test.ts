@@ -73,7 +73,9 @@ describe('toPlainPreview', () => {
   });
 
   it('keeps prose that follows a truncated block', () => {
-    expect(toPlainPreview('<div class="x"><style>a{b:c}</style>Texte<script>var z=1')).toBe('Texte');
+    expect(toPlainPreview('<div class="x"><style>a{b:c}</style>Texte<script>var z=1')).toBe(
+      'Texte'
+    );
   });
 
   it('does not let a self-closing script swallow the document', () => {

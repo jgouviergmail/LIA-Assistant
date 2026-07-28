@@ -195,18 +195,30 @@ test.describe('settings tab bar', () => {
 
     const geometry = await page.evaluate(() => {
       const target = document.getElementById('settings-section-voice-mode');
+      // The sticky CONTAINER, not the tab list inside it. The bar now carries a
+      // second row — the settings search — under the tabs, so the tab list's
+      // bottom edge is no longer the bottom of the sticky chrome: measuring it
+      // would report success while the section sat under the search field.
+      const bar = document.querySelector('[data-testid="settings-sticky-bar"]');
       const tablist = document.querySelector('[role="tablist"]');
-      if (!target || !tablist) return null;
+      if (!target || !bar || !tablist) return null;
       return {
         sectionTop: Math.round(target.getBoundingClientRect().top),
-        barBottom: Math.round(tablist.getBoundingClientRect().bottom),
+        barBottom: Math.round(bar.getBoundingClientRect().bottom),
+        tablistBottom: Math.round(tablist.getBoundingClientRect().bottom),
       };
     });
 
     expect(geometry).not.toBeNull();
+    // Falsification of the measurement itself: if these two were equal, the
+    // assertion below would be the old, weaker one without anybody noticing.
+    expect(
+      geometry!.barBottom,
+      'the sticky bar must extend below the tab list — otherwise the search row is missing and this test is measuring the wrong thing'
+    ).toBeGreaterThan(geometry!.tablistBottom);
     expect(
       geometry!.sectionTop,
-      `section top (${geometry!.sectionTop}) must clear the sticky bar (${geometry!.barBottom})`
+      `section top (${geometry!.sectionTop}) must clear the whole sticky bar (${geometry!.barBottom}), tab list ends at ${geometry!.tablistBottom}`
     ).toBeGreaterThanOrEqual(geometry!.barBottom);
   });
 });

@@ -4,7 +4,7 @@
 
 **Version** : 4.1
 **Datum** : 2026-07-28
-**Anwendung** : LIA v1.25.31
+**Anwendung** : LIA v1.25.32
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -44,7 +44,7 @@ Sobald diese Installationsphase abgeschlossen ist, **lässt sich der gesamte All
 
 ### 2.2. Was jeder Benutzer konfigurieren kann
 
-Jeder Benutzer verfügt über seinen eigenen Einstellungsbereich, der in zwei Registerkarten gegliedert ist:
+Jeder Benutzer verfügt über seinen eigenen Einstellungsbereich, der in zwei Registerkarten gegliedert ist. Ein Suchfeld erspart das Durchgehen: Geben Sie den Namen einer Einstellung ein — oder ein Wort, das ihm in Ihrer Sprache nahekommt — und LIA öffnet den richtigen Bereich, in welchem Tab er auch liegt.
 
 **Persönliche Einstellungen:**
 

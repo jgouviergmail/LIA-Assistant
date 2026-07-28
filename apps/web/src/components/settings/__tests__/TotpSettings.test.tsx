@@ -65,13 +65,8 @@ describe('TotpSettings — inactive state', () => {
     expect(await screen.findByAltText('settings.security.totp.qr_alt')).toBeInTheDocument();
     expect(screen.getByText('BASE32SECRET')).toBeInTheDocument();
 
-    await user.type(
-      screen.getByLabelText('settings.security.totp.enroll_code_label'),
-      '123456'
-    );
-    await user.click(
-      screen.getByRole('button', { name: 'settings.security.totp.enroll_confirm' })
-    );
+    await user.type(screen.getByLabelText('settings.security.totp.enroll_code_label'), '123456');
+    await user.click(screen.getByRole('button', { name: 'settings.security.totp.enroll_confirm' }));
 
     await waitFor(() => expect(hook.confirm).toHaveBeenCalledWith('123456'));
     // Backup codes revealed once.
@@ -91,9 +86,7 @@ describe('TotpSettings — inactive state', () => {
       await screen.findByLabelText('settings.security.totp.enroll_code_label'),
       '000000'
     );
-    await user.click(
-      screen.getByRole('button', { name: 'settings.security.totp.enroll_confirm' })
-    );
+    await user.click(screen.getByRole('button', { name: 'settings.security.totp.enroll_confirm' }));
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('settings.security.totp.enroll_error')
@@ -143,9 +136,7 @@ describe('TotpSettings — active state', () => {
     const user = userEvent.setup();
     renderWithProviders(<TotpSettings />);
 
-    await user.click(
-      screen.getByRole('button', { name: 'settings.security.totp.regenerate' })
-    );
+    await user.click(screen.getByRole('button', { name: 'settings.security.totp.regenerate' }));
     // The alert-dialog action carries the same label as the trigger.
     const actions = await screen.findAllByRole('button', {
       name: 'settings.security.totp.regenerate',

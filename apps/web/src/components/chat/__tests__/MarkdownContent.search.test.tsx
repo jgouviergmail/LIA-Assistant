@@ -55,7 +55,9 @@ describe('MarkdownContent — search highlight', () => {
   });
 
   it('renders without any mark when the prop is absent or empty', () => {
-    const { container } = render(<MarkdownContent content="Pizza margherita" searchHighlight=" " />);
+    const { container } = render(
+      <MarkdownContent content="Pizza margherita" searchHighlight=" " />
+    );
     expect(container.querySelector('mark')).toBeNull();
 
     const { container: c2 } = render(<MarkdownContent content="Pizza margherita" />);

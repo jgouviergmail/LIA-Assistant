@@ -2813,6 +2813,50 @@
           "unreachable": "Nicht erreichbar"
         }
       }
+    },
+    "search": {
+      "label": "Einstellung suchen",
+      "placeholder": "Einstellung suchen…",
+      "clear": "Suche löschen",
+      "results_label": "Passende Einstellungen",
+      "results_count_one": "{{count}} Einstellung gefunden",
+      "results_count_other": "{{count}} Einstellungen gefunden",
+      "no_results": "Keine Einstellung passt zu „{{query}}“",
+      "no_results_hint": "Versuchen Sie ein anderes Wort oder sehen Sie die Tabs unten durch.",
+      "admin_not_indexed": "Der Tab „Administration“ wird von dieser Suche nicht erfasst.",
+      "unavailable": "„{{section}}“ wird hier nicht angezeigt – möglicherweise ist dieser Bereich für Ihr Konto nicht verfügbar.",
+      "keywords": {
+        "language": "Gebietsschema, Übersetzung, Oberflächensprache, Sprache",
+        "timezone": "UTC, GMT, Uhr, Uhrzeit, Zeitverschiebung, Region, Zeitzone",
+        "theme": "Design, Theme, Dunkelmodus, Hellmodus, Nachtmodus, Farben, Kontrast, Erscheinungsbild",
+        "font": "Schriftart, Typografie, Textgröße, Textgrosse, Lesbarkeit, Schrift",
+        "display-mode": "Karten, Darstellung, Antwortformat, Layout, Markdown, Klartext",
+        "briefing-grid": "Startseite, Übersicht, Dashboard, Widgets, Karten, Briefing, Reihenfolge",
+        "open-loops": "offen, ausstehend, Nachfassen, Zusagen, Versprechen, schliessen, schließen",
+        "notifications": "Push, Benachrichtigungen, Hinweise, mobil, Erinnerungen, FCM",
+        "channels": "WhatsApp, Telegram, SMS, E-Mail, Messaging, Integrationen",
+        "security-auth": "2FA, MFA, TOTP, Passkey, Passwort, Sicherheit, Anmeldung, Authentifizierung, Zwei-Faktor",
+        "security-devices": "Sitzungen, Abmelden, Widerrufen, Browser, Geräte, Sicherheit",
+        "security-export": "DSGVO, GDPR, Archiv, Download, Datenübertragbarkeit, Sicherung, personenbezogene Daten, Datenschutz",
+        "voice-mode": "Mikrofon, Sprache, Diktat, STT, TTS, Aktivierungswort, Audio, sprechen",
+        "image-generation": "Bilder, Fotos, Zeichnung, Illustration, Generierung, Kunst",
+        "connectors": "Google, Gmail, Kalender, Kontakte, Apple, Microsoft, Outlook, Integrationen, Konten, OAuth",
+        "telephony-calls": "Telefon, Anrufe, Anrufverlauf, wählen",
+        "admin-mcp-servers": "MCP, Model Context Protocol, Anwendungsserver, integrierte Werkzeuge",
+        "mcp-servers": "MCP, Model Context Protocol, meine Server, Werkzeuge, Erweiterungen",
+        "debug-panel": "Entwickler, Diagnose, Traces, technisch, Fehlersuche",
+        "personality": "Ton, Stil, Charakter, Verhalten, Persona, Stimme",
+        "psyche": "Emotionen, Stimmung, Gefühle, Affekt, emotional",
+        "memories": "Gedächtnis, Erinnerungen, erinnern, vergessen, Fakten",
+        "interests": "Themen, Vorlieben, Geschmack, Neugier, Präferenzen",
+        "heartbeat": "proaktiv, spontan, Initiative, Kontaktaufnahme, autonome Nachrichten",
+        "scheduled-actions": "Cron, Zeitplan, wiederkehrend, Automatisierung, Timer, geplant",
+        "journals": "Tagebuch, Logbuch, Porträt, Reflexionen, Notizen",
+        "health-metrics": "Herzfrequenz, Schritte, Schlaf, iPhone, Apple Health, Fitness, Aktivität",
+        "skills": "Fähigkeiten, Kompetenzen, Skills, Plugins, Erweiterungen",
+        "rag-spaces": "Dokumente, RAG, Wissensdatenbank, Dateien, Upload, Indexierung, Bibliothek",
+        "user-consumption-export": "CSV, Verbrauch, Tokens, Kosten, Abrechnung, Statistiken, Export"
+      }
     }
   },
   "spaces": {
@@ -3292,7 +3336,7 @@
         },
         "i18n": {
           "title": "🌍 Vollständige Internationalisierung",
-          "description": "6 unterstützte Sprachen (FR, EN, ES, DE, IT, ZH) mit: Interface-Übersetzung (i18next), lokalisierten Datumsangaben (relative und absolute Formate), Agenten-Antworten in Benutzersprache, gettext-Übersetzungen für Backend und automatischer Browser-Spracherkennung."
+          "description": "Sechs Sprachen durchgängig (FR, EN, ES, DE, IT, ZH): Oberfläche (i18next), lokalisierte Datumsangaben in relativen und absoluten Formaten, Agenten-Antworten in der Sprache der Nutzerin, gettext-Übersetzungen serverseitig, automatische Erkennung der Browsersprache. Die Schlüsselparität über die sechs Dateien wird bei jedem Commit geprüft — eine fehlende Übersetzung blockiert die Auslieferung, statt einen rohen Schlüssel anzuzeigen. Die Suche geht über die wörtliche Übersetzung hinaus: Jede Einstellung führt sprachweise verfasste Synonyme — „Dunkelmodus“ erreicht das Erscheinungsbild, „DSGVO“ den Datenexport — und die Engine ignoriert Groß- und Kleinschreibung, Akzente sowie typografische Apostrophe, sodass „theme“ auch „Thème“ findet."
         },
         "observability": {
           "title": "📊 Production-Ready Observability",
@@ -3417,6 +3461,20 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_25_32": {
+          "title": "v1.25.32 — 🔍 Eine Einstellung über ihren Namen finden",
+          "date": "Juli 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>🔍 Ein Suchfeld in den Einstellungen</b> — die Seite stapelt rund dreißig eingeklappte Bereiche über mehrere Tabs. Geben Sie den Namen einer Einstellung ein: Die Suche bringt Sie direkt dorthin, wechselt bei Bedarf den Tab, klappt den richtigen Bereich auf und setzt den Cursor darauf.",
+            "i2": "<b>🗂️ Dreizehn weitere Einstellungen werden auffindbar</b> — Sprache, Erscheinungsbild, Zeitzone, Schriftart, Anzeigemodus, Starke Authentifizierung, Meine Geräte, Meine Daten exportieren, Bildgenerierung und einige weitere waren nur durch Scrollen erreichbar. Sie haben nun eine eigene Adresse und erscheinen in der Suche.",
+            "i3": "<b>🌍 Die Suche versteht Ihre Wörter, in allen sechs Sprachen</b> — jede Einstellung führt eine übersetzte Synonymliste: „Dunkelmodus“ findet das Erscheinungsbild, „2FA“ und „TOTP“ finden die starke Authentifizierung, „DSGVO“ findet den Datenexport, „Cron“ findet die geplanten Aktionen.",
+            "i4": "<b>✍️ Akzente und Apostrophe blockieren keine Suche mehr</b> — „theme“ findet „Thème“, und „d'authentification“ erreicht endlich den Bereich, dessen Text ein typografisches Apostroph trug. Die Korrektur kommt auch der Suche in dieser FAQ zugute.",
+            "i5": "<b>⌨️ Alles ist über die Tastatur bedienbar</b> — Pfeiltasten durchlaufen die Treffer, Enter öffnet, Escape schließt und löscht anschließend. Die Trefferzahl wird Screenreadern angesagt, und der Cursor landet auf dem gewählten Bereich.",
+            "i6": "<b>💬 Eine fehlende Einstellung sagt es Ihnen</b> — manche Bereiche erscheinen nur, wenn die Funktion für Ihr Konto aktiv ist. Statt Sie vor einer unveränderten Seite stehen zu lassen, teilt LIA Ihnen mit, dass der Bereich hier nicht angezeigt wird.",
+            "i7": "<b>📊 Die Zahlen auf der Seite „Eine programmierende KI führen“ waren veraltet</b> — sie nannte halb so viele Tests wie tatsächlich vorhanden und ein Drittel der dokumentierten Architekturentscheidungen. Sie wurden neu gemessen."
+          }
+        },
         "v1_25_31": {
           "title": "v1.25.31 — 📌 Kopfzeilen bleiben endlich stehen",
           "date": "Juli 2026",
@@ -5031,7 +5089,7 @@
       "settings": {
         "title": "Einstellungen",
         "description": "Kontokonfiguration und Einstellungen",
-        "count": "18",
+        "count": "19",
         "questions": {
           "q1": {
             "question": "Wie ändere ich meine Zeitzone?",
@@ -5104,6 +5162,10 @@
           "q18": {
             "question": "Was ist der Bereich « Offene Zusagen »? (v1.25.16)",
             "answer": "<p>LIA erkennt automatisch <strong>Zusagen</strong> in Ihren Konversationen. Einstellungen → « Offene Zusagen » listet sie nach Richtung (Sie schulden / Sie warten), mit drei Ein-Tipp-Aktionen: <strong>Erledigt</strong>, <strong>Im Chat nachfassen</strong> (füllt eine Nachfass-Nachricht vor) oder <strong>Nicht mehr relevant</strong>. Nichts wird manuell angelegt — der Wert des Registers ist seine Automatik.</p>"
+          },
+          "q19": {
+            "question": "Wie finde ich eine Einstellung schnell?",
+            "answer": "<p>Die Einstellungsseite stapelt rund dreißig eingeklappte Bereiche über mehrere Tabs. Das Feld <strong>„Einstellung suchen“</strong> unter den Tabs erspart es Ihnen, sie einzeln durchzugehen.</p><strong>Was die Suche versteht:</strong><br>• <strong>Titel</strong> und <strong>Beschreibung</strong> jedes Bereichs<br>• Übersetzte <strong>Synonyme</strong>: „Dunkelmodus“ für das Erscheinungsbild, „2FA“ oder „TOTP“ für die starke Authentifizierung, „DSGVO“ für den Datenexport, „Cron“ für geplante Aktionen<br>• Akzente und Apostrophe werden ignoriert — „theme“ findet „Thème“<br><br><strong>Wenn Sie ein Ergebnis wählen:</strong><br>LIA wechselt zum richtigen Tab, klappt den Bereich auf und setzt den Cursor darauf. Alles ist über die Tastatur bedienbar — Pfeiltasten zum Durchlaufen, Enter zum Öffnen, Escape zum Schließen — und die Trefferzahl wird Screenreadern angesagt.<br><br>Manche Bereiche existieren nur, wenn die Funktion für Ihr Konto aktiv ist: LIA sagt es Ihnen dann, statt Sie vor einer unveränderten Seite stehen zu lassen."
           }
         }
       },
@@ -6921,7 +6983,7 @@
       },
       "themes": {
         "title": "Anpassbar",
-        "description": "5 Farbthemen, Dark/Light-Modus, 9 Schriftfamilien. Pass LIA an deinen Stil an."
+        "description": "5 Farbthemen, Dunkel-/Hellmodus, 9 Schriftarten. Ein Suchfeld findet jede Einstellung über ihren Namen — oder über ein Synonym, in deiner Sprache. Passe LIA deinem Stil an."
       },
       "skills": {
         "title": "Skills mit Karten & Mini-Apps",
@@ -7050,7 +7112,7 @@
       },
       "stack": {
         "title": "Moderner Stack",
-        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. Striktes TypeScript im Frontend, async Python im Backend. Installierbare PWA: 6 lokalisierte Manifeste, System-Teilen in den Chat, Offline-Seite und intelligentes Asset-Caching — API-Antworten werden nie gecacht."
+        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. Striktes TypeScript im Frontend, async Python im Backend. Installierbare PWA: 6 lokalisierte Manifeste, System-Teilen in den Chat, Offline-Seite und intelligentes Asset-Caching — API-Antworten werden nie gecacht. Einstellungen lassen sich per Tastatur durchsuchen, in allen sechs Sprachen, ohne Rücksicht auf Groß- und Kleinschreibung, Akzente und typografische Apostrophe."
       },
       "telephony": {
         "title": "Agentische Telefonie",
@@ -7689,7 +7751,7 @@
       "multilingual": {
         "title": "6 Sprachen, eine vollständige i18n-Architektur",
         "excerpt": "LIA spricht Französisch, Englisch, Deutsch, Spanisch, Italienisch und Chinesisch mit vollständiger Internationalisierung.",
-        "body": "<h2>6 nativ unterstützte Sprachen</h2><p>LIA ist vollständig verfügbar in <strong>Französisch, Englisch, Deutsch, Spanisch, Italienisch und Chinesisch</strong>. Die Internationalisierung beschränkt sich nicht auf die Oberfläche: Sie umfasst die Antworten des Assistenten, Benachrichtigungen, FAQ und Dokumentation.</p><h2>Frontend-i18n-Architektur</h2><p>Das Frontend verwendet <strong>react-i18next</strong> mit JSON-Dateien pro Sprache und Persistierung der Auswahl über ein Cookie <code>NEXT_LOCALE</code> (TTL 1 Jahr). Das Next.js-Routing verwendet ein dynamisches Segment <code>[lng]</code>, um jede Sprache unter ihrer eigenen URL bereitzustellen. Die Sprachflaggen werden als Unicode-Emojis angezeigt. Das Locale-Mapping ordnet jeden Kurzcode seiner vollständigen Variante zu (fr-FR, en-US, de-DE, es-ES, it-IT, zh-CN). Die Seiten werden beim Build statisch für jede Sprache vorgeniert.</p><h2>Hreflang und mehrsprachige SEO</h2><p>Jede öffentliche Seite deklariert <code>hreflang</code>-Alternativen für alle 6 Sprachen mit einem <code>x-default</code>-Wert, der auf Französisch verweist. Die XML-Sitemap enthält mehrsprachige Alternates für jede URL.</p><h2>Mehrsprachige KI-Antworten</h2><p>Der Assistent antwortet in der vom Benutzer konfigurierten Sprache. Die unterstützten Sprachen sind backend-seitig über die Umgebungsvariable <code>SUPPORTED_LANGUAGES</code> konfigurierbar. Die System-Prompts sind auf Englisch verfasst, um die Reasoning-Qualität des LLM zu maximieren, aber eine explizite Sprachanweisung steuert die Generierung der Antworten in der Zielsprache. Drei Prompts sind sprachspezifisch angepasst: <code>journal_introspection_personality_addon</code>, <code>memory_extraction_personality_addon</code> und <code>broadcast_translation_prompt</code>.</p><h2>Mehrsprachige Spracherkennung</h2><p>Das für die Sprachtranskription verwendete Whisper-Modell unterstützt nativ 99+ Sprachen im Offline-Modus und ermöglicht es, mit LIA in praktisch jeder Sprache der Welt zu sprechen, ohne zusätzliche Konfiguration oder Abhängigkeit von einem Cloud-Dienst.</p>"
+        "body": "<h2>6 nativ unterstützte Sprachen</h2><p>LIA ist vollständig verfügbar in <strong>Französisch, Englisch, Deutsch, Spanisch, Italienisch und Chinesisch</strong>. Die Internationalisierung beschränkt sich nicht auf die Oberfläche: Sie umfasst die Antworten des Assistenten, Benachrichtigungen, FAQ und Dokumentation.</p><h2>Frontend-i18n-Architektur</h2><p>Das Frontend verwendet <strong>react-i18next</strong> mit JSON-Dateien pro Sprache und Persistierung der Auswahl über ein Cookie <code>NEXT_LOCALE</code> (TTL 1 Jahr). Das Next.js-Routing verwendet ein dynamisches Segment <code>[lng]</code>, um jede Sprache unter ihrer eigenen URL bereitzustellen. Die Sprachflaggen werden als Unicode-Emojis angezeigt. Das Locale-Mapping ordnet jeden Kurzcode seiner vollständigen Variante zu (fr-FR, en-US, de-DE, es-ES, it-IT, zh-CN). Die Seiten werden beim Build statisch für jede Sprache vorgeniert.</p><h2>Hreflang und mehrsprachige SEO</h2><p>Jede öffentliche Seite deklariert <code>hreflang</code>-Alternativen für alle 6 Sprachen mit einem <code>x-default</code>-Wert, der auf Französisch verweist. Die XML-Sitemap enthält mehrsprachige Alternates für jede URL.</p><h2>Mehrsprachige KI-Antworten</h2><p>Der Assistent antwortet in der vom Benutzer konfigurierten Sprache. Die unterstützten Sprachen sind backend-seitig über die Umgebungsvariable <code>SUPPORTED_LANGUAGES</code> konfigurierbar. Die System-Prompts sind auf Englisch verfasst, um die Reasoning-Qualität des LLM zu maximieren, aber eine explizite Sprachanweisung steuert die Generierung der Antworten in der Zielsprache. Drei Prompts sind sprachspezifisch angepasst: <code>journal_introspection_personality_addon</code>, <code>memory_extraction_personality_addon</code> und <code>broadcast_translation_prompt</code>.</p><h2>Mehrsprachige Spracherkennung</h2><p>Das für die Sprachtranskription verwendete Whisper-Modell unterstützt nativ 99+ Sprachen im Offline-Modus und ermöglicht es, mit LIA in praktisch jeder Sprache der Welt zu sprechen, ohne zusätzliche Konfiguration oder Abhängigkeit von einem Cloud-Dienst.</p><h2>In der eigenen Sprache suchen</h2><p>Eine Oberfläche zu übersetzen genügt nicht, um sie navigierbar zu machen: Man muss eine Einstellung auch mit den Wörtern finden, die man tatsächlich benutzt. Zusätzlich zu übersetztem Titel und übersetzter Beschreibung führt daher jeder Einstellungsbereich eine <strong>sprachweise verfasste Synonymliste</strong> — „Dunkelmodus“ erreicht das Erscheinungsbild, „DSGVO“ den Datenexport, „Cron“ die geplanten Aktionen. Der Abgleich läuft über einen Normalisierer, den alle Suchoberflächen des Produkts teilen: Groß- und Kleinschreibung, Diakritika, typografische Apostrophe und geschützte Leerzeichen werden auf die Form gefaltet, die eine Tastatur erzeugt, sodass „theme“ auch „Thème“ findet. Diese Faltung gehorcht einer strikten Bedingung — ein Codepunkt für einen Codepunkt — ohne die sich die Highlighter, die Offsets auf den Originaltext zurückrechnen, um genau denselben Betrag verschieben würden.</p>"
       },
       "react-execution-mode": {
         "title": "Pipeline vs. ReAct: Wenn strukturierte Ingenieurskunst den Laissez-faire-Ansatz übertrifft",

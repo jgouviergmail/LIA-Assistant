@@ -181,9 +181,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // when permission is 'granted'; every failure just means "notify".
     let fcmToken: string | null = null;
     try {
-      const { getNotificationPermission, requestNotificationPermission } = await import(
-        '@/lib/firebase'
-      );
+      const { getNotificationPermission, requestNotificationPermission } =
+        await import('@/lib/firebase');
       if (getNotificationPermission() === 'granted') {
         fcmToken = await requestNotificationPermission();
       }

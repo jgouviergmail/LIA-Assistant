@@ -98,9 +98,7 @@ describe('DeviceSessionsSettings — list', () => {
   });
 
   it('offers no revoke button on the current session', () => {
-    useSessions.mockReturnValue(
-      sessionsHook({ sessions: [session({ id: 's1', current: true })] })
-    );
+    useSessions.mockReturnValue(sessionsHook({ sessions: [session({ id: 's1', current: true })] }));
     renderWithProviders(<DeviceSessionsSettings collapsible={false} />);
     expect(
       screen.queryByRole('button', { name: 'settings.security.devices.revoke_aria' })
@@ -117,9 +115,7 @@ describe('DeviceSessionsSettings — revocation', () => {
     const user = userEvent.setup();
     renderWithProviders(<DeviceSessionsSettings collapsible={false} />);
 
-    await user.click(
-      screen.getByRole('button', { name: 'settings.security.devices.revoke_aria' })
-    );
+    await user.click(screen.getByRole('button', { name: 'settings.security.devices.revoke_aria' }));
     await user.click(
       screen.getByRole('button', { name: 'settings.security.devices.revoke_confirm' })
     );
@@ -156,9 +152,7 @@ describe('DeviceSessionsSettings — revocation', () => {
   });
 
   it('disables revoke-others with a single session', () => {
-    useSessions.mockReturnValue(
-      sessionsHook({ sessions: [session({ id: 's1', current: true })] })
-    );
+    useSessions.mockReturnValue(sessionsHook({ sessions: [session({ id: 's1', current: true })] }));
     renderWithProviders(<DeviceSessionsSettings collapsible={false} />);
     expect(
       screen.getByRole('button', { name: 'settings.security.devices.revoke_others' })

@@ -4,7 +4,7 @@
 
 **Version**: 4.1
 **Date**: 2026-07-28
-**Application**: LIA v1.25.31
+**Application**: LIA v1.25.32
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -44,7 +44,7 @@ Once this installation phase is complete, **day-to-day management is handled ent
 
 ### 2.2. What each user can configure
 
-Every user has their own settings space, organized in two tabs:
+Every user has their own settings space, organized in two tabs. A search field saves you from walking through them: type the name of a setting — or a word close to it in your own language — and LIA opens the right section, whichever tab it lives in.
 
 **Personal preferences:**
 

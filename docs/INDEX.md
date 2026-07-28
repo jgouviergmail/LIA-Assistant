@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 40 |
-| ADRs | 171 (ADR-171 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 170 fichiers) |
+| ADRs | 172 (ADR-172 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 171 fichiers) |
 | Fiches knowledge (RAG système) | 25 |
 
 ---
@@ -297,7 +297,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-171 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-172 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 

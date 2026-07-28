@@ -107,6 +107,18 @@ describe('SettingsSection — collapsible', () => {
     expect(container.querySelectorAll('button div, button p, button h3')).toHaveLength(0);
   });
 
+  it('exposes the trigger as a disclosure button carrying aria-expanded', () => {
+    const { container } = renderCollapsible();
+    // Relied upon by the settings page: when a search result is picked, focus
+    // moves to `#settings-section-<value> button[aria-expanded]`. Radix sets the
+    // attribute, so nothing in this repo would fail if it stopped — hence this
+    // pin. A generic "first button" fallback exists, but it would silently land
+    // on the wrong control the day a section grows one inside its header.
+    const trigger = container.querySelector('[id^="settings-section-"] button[aria-expanded]');
+    expect(trigger).not.toBeNull();
+    expect(trigger).toHaveAccessibleName(/Collapsible section/);
+  });
+
   it('keeps the chevron a DIRECT child of the trigger (rotation selector)', () => {
     renderCollapsible();
     const trigger = screen.getByRole('button', { name: /Collapsible section/ });

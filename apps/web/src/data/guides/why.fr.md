@@ -4,7 +4,7 @@
 
 **Version** : 4.1
 **Date** : 2026-07-28
-**Application** : LIA v1.25.31
+**Application** : LIA v1.25.32
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -44,7 +44,7 @@ Une fois cette phase d'installation terminée, **tout le quotidien se gère depu
 
 ### 2.2. Ce que chaque utilisateur peut configurer
 
-Chaque utilisateur dispose de son propre espace de paramétrage, organisé en deux onglets :
+Chaque utilisateur dispose de son propre espace de paramétrage, organisé en deux onglets. Un champ de recherche évite d'avoir à les parcourir : tapez le nom d'un réglage — ou un mot qui s'en approche dans votre langue — et LIA ouvre la bonne section, quel que soit l'onglet où elle se trouve.
 
 **Préférences personnelles :**
 

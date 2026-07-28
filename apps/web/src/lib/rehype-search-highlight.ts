@@ -67,7 +67,11 @@ function isText(n: HastNode): n is TextNode {
 function isSkippable(el: ElementNode): boolean {
   if (SKIP_TAGS.has(el.tagName)) return true;
   const cn = el.properties?.className;
-  const classes = Array.isArray(cn) ? cn.map(String) : typeof cn === 'string' ? cn.split(/\s+/) : [];
+  const classes = Array.isArray(cn)
+    ? cn.map(String)
+    : typeof cn === 'string'
+      ? cn.split(/\s+/)
+      : [];
   return SKIP_CLASSES.some(m => classes.some(c => c === m || c.startsWith('katex')));
 }
 

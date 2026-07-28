@@ -10,11 +10,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
 import { useChatHistorySearch } from '../useChatHistorySearch';
-import type {
-  ConversationMessage,
-  ConversationPage,
-  MessageSearchPage,
-} from '../useConversation';
+import type { ConversationMessage, ConversationPage, MessageSearchPage } from '../useConversation';
 import { SEARCH_DEBOUNCE_MS } from '@/lib/constants';
 import type { Message } from '@/types/chat';
 

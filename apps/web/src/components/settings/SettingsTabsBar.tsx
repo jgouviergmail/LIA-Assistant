@@ -38,11 +38,26 @@ export interface SettingsTabDescriptor {
 
 export interface SettingsTabsBarProps {
   tabs: readonly SettingsTabDescriptor[];
+  /**
+   * Rendered under the tab row, inside the sticky wrapper — the settings search.
+   *
+   * Whatever goes here must have a CONSTANT height. `SettingsSection`'s
+   * `scroll-mt` is a single value calibrated against the total height of the
+   * sticky chrome (dashboard header + this bar), so a row that grew or vanished
+   * would make deep-linked sections land underneath it. The search field
+   * satisfies that by keeping its results in an absolutely positioned popup.
+   */
+  children?: React.ReactNode;
 }
 
-export function SettingsTabsBar({ tabs }: SettingsTabsBarProps) {
+export function SettingsTabsBar({ tabs, children }: SettingsTabsBarProps) {
   return (
     <div
+      // The e2e measures THIS element, not the `tablist` inside it: with a
+      // second row below the tabs, the tab list's own bottom edge stops being
+      // the bottom of the sticky chrome, and an assertion against it would pass
+      // while a section landed under the search field.
+      data-testid="settings-sticky-bar"
       className={cn(
         'sticky top-16 z-30 border-b border-border/40 py-2',
         // Opaque enough to stay readable over the cards scrolling beneath it.
@@ -73,6 +88,7 @@ export function SettingsTabsBar({ tabs }: SettingsTabsBarProps) {
           </TabsTrigger>
         ))}
       </TabsList>
+      {children}
     </div>
   );
 }

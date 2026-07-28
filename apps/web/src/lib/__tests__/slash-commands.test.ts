@@ -5,14 +5,16 @@
 
 import { describe, it, expect } from 'vitest';
 
-import {
-  filterSlashCommands,
-  isSlashTrigger,
-  type SlashCommand,
-} from '../slash-commands';
+import { filterSlashCommands, isSlashTrigger, type SlashCommand } from '../slash-commands';
 
 const COMMANDS: SlashCommand[] = [
-  { id: 'resume', kind: 'conversational', label: 'resume', description: 'd', insertText: '/resume' },
+  {
+    id: 'resume',
+    kind: 'conversational',
+    label: 'resume',
+    description: 'd',
+    insertText: '/resume',
+  },
   { id: 'briefing', kind: 'local', label: 'briefing', description: 'd' },
   { id: 'search', kind: 'local', label: 'recherche', description: 'd' },
   { id: 'skill:quiz', kind: 'conversational', label: 'quiz', description: 'd', insertText: 'x' },

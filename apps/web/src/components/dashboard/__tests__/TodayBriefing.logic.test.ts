@@ -25,9 +25,10 @@ function bundle(over: Partial<Record<BriefingSection, CardSection>> = {}): Cards
   // The bundle's per-section generics are irrelevant to the ordering rule
   // under test — a status-only stand-in per section is the honest minimum.
   return {
-    ...(Object.fromEntries(
-      BRIEFING_SECTION_NAMES.map(name => [name, section()])
-    ) as Record<BriefingSection, CardSection>),
+    ...(Object.fromEntries(BRIEFING_SECTION_NAMES.map(name => [name, section()])) as Record<
+      BriefingSection,
+      CardSection
+    >),
     ...over,
   } as CardsBundle;
 }

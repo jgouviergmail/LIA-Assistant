@@ -10,12 +10,36 @@ import { cn } from '@/lib/utils';
  * Offset kept above a section when a deep link scrolls to it.
  *
  * `scrollIntoView({ block: 'start' })` lands the element at the very top of the
- * viewport — underneath the sticky dashboard header (64 px, `h-16`) and the
- * sticky settings tab bar (~53 px: an `h-9` list plus `py-2` and a border).
- * 128 px clears both with a little air. Before ADR-171 nothing was actually
- * sticky, so this went unnoticed.
+ * viewport — underneath the whole sticky chrome. Before ADR-171 nothing was
+ * actually sticky, so this went unnoticed.
+ *
+ * The budget, in the order the pixels stack:
+ *
+ *   dashboard header  `h-16`                        64
+ *   tab bar  `py-2` top                              8
+ *            `TabsList h-9`                         36
+ *            search row `mt-2`                       8
+ *            search input `h-9`                     36
+ *            `py-2` bottom                           8
+ *            `border-b`                              1
+ *   ------------------------------------------------
+ *   bottom of the sticky chrome                    161
+ *   `scroll-mt-44` (11rem)                         176  → 15 px of air
+ *
+ * Measured in the browser rather than trusted from the arithmetic (2026-07-28,
+ * Chromium, `/fr/dashboard/settings?section=voice-mode`): the sticky bar spans
+ * y 64 → 161 for a height of 97, `scroll-margin-top` resolves to 176 px, and the
+ * deep-linked section lands at exactly 176 — 15 px clear of the bar.
+ *
+ * It was `scroll-mt-32` (128) against a 117 px chrome until the search field
+ * joined the bar. Whatever that bar contains must keep a CONSTANT height, since
+ * one number here serves every section.
+ *
+ * `e2e/smoke/settings-sticky-tabs.spec.ts` holds it, against the sticky
+ * CONTAINER — deliberately not against the tab list, whose bottom edge stopped
+ * being the bottom of the chrome the day this second row appeared.
  */
-const SCROLL_MARGIN = 'scroll-mt-32';
+const SCROLL_MARGIN = 'scroll-mt-44';
 
 export interface SettingsSectionProps {
   /**

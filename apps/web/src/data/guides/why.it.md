@@ -4,7 +4,7 @@
 
 **Versione** : 4.1
 **Data** : 2026-07-28
-**Applicazione** : LIA v1.25.31
+**Applicazione** : LIA v1.25.32
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -44,7 +44,7 @@ Una volta terminata questa fase, **tutto il quotidiano si gestisce da un'interfa
 
 ### 2.2. Cosa può configurare ogni utente
 
-Ogni utente ha il proprio spazio di configurazione, organizzato in due schede:
+Ogni utente ha il proprio spazio di configurazione, organizzato in due schede. Un campo di ricerca evita di doverle scorrere: digita il nome di un'impostazione — o una parola che le si avvicina nella tua lingua — e LIA apre la sezione giusta, in qualunque scheda si trovi.
 
 **Preferenze personali:**
 

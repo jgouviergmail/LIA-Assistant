@@ -16,13 +16,28 @@ import { describe, it, expect } from 'vitest';
 import {
   SETTINGS_SECTIONS,
   isSettingsSectionToken,
-  resolveSettingsSection,
   settingsSectionHref,
   type SettingsSectionToken,
 } from '../settings-sections';
+import { exportedComponentOf, settingsPageBlocks, SRC } from './helpers/settings-page-source';
 
-const SRC = join(process.cwd(), 'src');
 const ENTRIES = Object.entries(SETTINGS_SECTIONS);
+
+/**
+ * Sections whose component picks its accordion value at RUNTIME.
+ *
+ * `ConsumptionExportSection` serves the user and the admin export from one
+ * file and selects `'user-consumption-export'` / `'admin-consumption-export'`
+ * from its `mode` prop, so the source never contains the `value="…"` prop form
+ * the strict check looks for. Enumerated rather than auto-detected: a
+ * `value={…}`-shaped fallback would relax the guard for every future section
+ * that happens to interpolate, which is exactly how a guard stops guarding.
+ *
+ * Shrink-only in spirit — an entry leaves this set when its component declares
+ * a literal value, never the reverse without a written reason.
+ */
+const COMPUTED_VALUE_TOKENS: ReadonlySet<string> = new Set(['user-consumption-export']);
+
 /** `Object.keys` widens to `string`; the repo idiom is to narrow it back
  *  (cf. `TodayBriefing`, `AdminConnectorsSection`). */
 const TOKENS = Object.keys(SETTINGS_SECTIONS) as SettingsSectionToken[];
@@ -34,10 +49,36 @@ describe('SETTINGS_SECTIONS — the table matches the components', () => {
 
   it.each(ENTRIES)('%s declares the accordion value it claims', (token, target) => {
     const source = readFileSync(join(SRC, target.declaredIn), 'utf8');
+    if (COMPUTED_VALUE_TOKENS.has(token)) {
+      // Relaxed to a quoted literal, and ONLY for the enumerated tokens above:
+      // a blanket fallback would silently weaken the check for every future
+      // section. A rename still breaks it, which is what the guard is for.
+      expect(
+        source.includes(`'${target.accordionValue}'`) ||
+          source.includes(`"${target.accordionValue}"`),
+        `${token}: ${target.declaredIn} never mentions the literal '${target.accordionValue}'`
+      ).toBe(true);
+      return;
+    }
     expect(
       source.includes(`value="${target.accordionValue}"`),
       `${token}: ${target.declaredIn} does not declare value="${target.accordionValue}"`
     ).toBe(true);
+  });
+
+  it('keeps the computed-value escape hatch honest', () => {
+    // The escape hatch may only name tokens that really do compute their value.
+    // Left unchecked it would rot into a place to park any entry that fails the
+    // strict form.
+    for (const token of COMPUTED_VALUE_TOKENS) {
+      const target = SETTINGS_SECTIONS[token as SettingsSectionToken];
+      expect(target, `${token} is allowlisted but not declared`).toBeDefined();
+      const source = readFileSync(join(SRC, target.declaredIn), 'utf8');
+      expect(
+        source.includes(`value="${target.accordionValue}"`),
+        `${token} is allowlisted as computed, but ${target.declaredIn} declares value="${target.accordionValue}" literally — drop it from the allowlist`
+      ).toBe(false);
+    }
   });
 
   it('uses only real tabs', () => {
@@ -70,67 +111,37 @@ describe('SETTINGS_SECTIONS — the table matches the components', () => {
    * still match. Read from the page rather than declared twice.
    */
   it('places every section in the tab the table claims', () => {
-    const page = readFileSync(join(SRC, 'app/[lng]/dashboard/settings/page.tsx'), 'utf8');
-
     // The page renders TWO layouts (superuser gets a third tab), so a component
-    // legitimately appears in several blocks — of the SAME tab.
-    const blocks: Array<{ tab: string; body: string }> = [];
-    const opener = /<TabsContent value="(preferences|features|administration)">/g;
-    const starts = [...page.matchAll(opener)];
-    starts.forEach((match, index) => {
-      const from = match.index + match[0].length;
-      const to = index + 1 < starts.length ? starts[index + 1].index : page.length;
-      blocks.push({ tab: match[1], body: page.slice(from, to) });
-    });
+    // legitimately appears in several blocks — of the SAME tab. Each block is
+    // sliced to its own closing tag by the shared reader, so the `</Tabs>` +
+    // second `<Tabs>` preamble sitting between two panels is never attributed
+    // to the preceding one.
+    const blocks = settingsPageBlocks();
     expect(
       blocks.length,
       'no TabsContent block found — the scan would pass vacuously'
     ).toBeGreaterThanOrEqual(4);
 
     for (const [token, target] of ENTRIES) {
-      const component =
-        target.declaredIn
-          .split('/')
-          .pop()
-          ?.replace(/\.tsx?$/, '') ?? '';
-      const tabsRenderingIt = new Set(
-        blocks.filter(block => block.body.includes(`<${component} `)).map(block => block.tab)
-      );
-      // A capability-gated section may not be rendered at all (telephony off):
-      // only assert when the page does render it.
-      if (tabsRenderingIt.size === 0) continue;
+      const component = exportedComponentOf(target.declaredIn);
+      const tabsRenderingIt = [
+        ...new Set(
+          blocks.filter(block => block.body.includes(`<${component} `)).map(block => block.tab)
+        ),
+      ];
+      // No early `continue` on an empty set. The page renders every section
+      // UNCONDITIONALLY in its JSX — a capability-gated one returns null at
+      // RUNTIME, which source scanning cannot observe. An empty set therefore
+      // means the component is absent from the page entirely, which is the
+      // defect this test exists to catch; skipping it is how a table entry
+      // could point at a section nobody renders.
       expect(
-        [...tabsRenderingIt],
-        `${token}: declared in the "${target.tab}" tab but rendered in ${[...tabsRenderingIt].join(', ')}`
+        tabsRenderingIt,
+        tabsRenderingIt.length === 0
+          ? `${token}: the page renders no <${component}> at all — the table points at a section that is not on the page`
+          : `${token}: declared in the "${target.tab}" tab but rendered in ${tabsRenderingIt.join(', ')}`
       ).toEqual([target.tab]);
     }
-  });
-});
-
-describe('resolveSettingsSection', () => {
-  it('resolves every declared token', () => {
-    for (const [token, target] of ENTRIES) {
-      expect(resolveSettingsSection(token)).toEqual(target);
-    }
-  });
-
-  it('returns null for an absent parameter', () => {
-    expect(resolveSettingsSection(null)).toBeNull();
-    expect(resolveSettingsSection('')).toBeNull();
-  });
-
-  it('returns null for an unknown token rather than guessing', () => {
-    // A stale bookmark must land on the default tab, not throw and not open a
-    // section the user did not ask for.
-    expect(resolveSettingsSection('does-not-exist')).toBeNull();
-  });
-
-  it('does not resolve a prototype key', () => {
-    // `Record` lookups are attacker-visible through the URL; `constructor`
-    // and `__proto__` must not resolve to anything.
-    expect(resolveSettingsSection('constructor')).toBeNull();
-    expect(resolveSettingsSection('__proto__')).toBeNull();
-    expect(resolveSettingsSection('toString')).toBeNull();
   });
 });
 
@@ -141,12 +152,17 @@ describe('settingsSectionHref', () => {
     );
   });
 
-  it('produces a link that resolves back to the same target', () => {
-    // Round trip: every href the app can build must be understood by the page.
+  it('produces a link the page understands, back to the same target', () => {
+    // Round trip: every href the app can build must survive the URL and resolve
+    // to the section it was built from. The page narrows the raw parameter with
+    // `isSettingsSectionToken` and indexes the table itself — this mirrors that
+    // exact pair rather than a helper nothing calls.
     for (const token of TOKENS) {
       const href = settingsSectionHref('en', token);
       const parsed = new URL(href, 'https://example.test').searchParams.get('section');
-      expect(resolveSettingsSection(parsed)).toEqual(SETTINGS_SECTIONS[token]);
+      expect(parsed).not.toBeNull();
+      expect(isSettingsSectionToken(parsed as string)).toBe(true);
+      expect(SETTINGS_SECTIONS[parsed as SettingsSectionToken]).toEqual(SETTINGS_SECTIONS[token]);
     }
   });
 });

@@ -90,6 +90,8 @@ describe('FAQ section count wiring', () => {
       }
     }
 
-    expect(drifted, `sections must stay aligned across locales: ${drifted.join(' | ')}`).toEqual([]);
+    expect(drifted, `sections must stay aligned across locales: ${drifted.join(' | ')}`).toEqual(
+      []
+    );
   });
 });

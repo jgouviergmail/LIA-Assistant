@@ -2815,6 +2815,50 @@
           "unreachable": "Irraggiungibile"
         }
       }
+    },
+    "search": {
+      "label": "Cerca un'impostazione",
+      "placeholder": "Cerca un'impostazione…",
+      "clear": "Cancella la ricerca",
+      "results_label": "Impostazioni corrispondenti",
+      "results_count_one": "{{count}} impostazione trovata",
+      "results_count_other": "{{count}} impostazioni trovate",
+      "no_results": "Nessuna impostazione corrisponde a «{{query}}»",
+      "no_results_hint": "Prova con un'altra parola oppure sfoglia le schede qui sotto.",
+      "admin_not_indexed": "La scheda Amministrazione non è coperta da questa ricerca.",
+      "unavailable": "«{{section}}» non compare qui: forse questa sezione non è disponibile sul tuo account.",
+      "keywords": {
+        "language": "locale, traduzione, lingua dell'interfaccia, idioma",
+        "timezone": "UTC, GMT, orologio, ora, fuso, scarto, regione",
+        "theme": "tema, modalità scura, modalità chiara, modalità notte, colori, contrasto, aspetto",
+        "font": "carattere, tipografia, dimensione del testo, leggibilità, font",
+        "display-mode": "schede, resa, formato delle risposte, layout, markdown, testo semplice",
+        "briefing-grid": "home, pagina iniziale, cruscotto, widget, schede, briefing, ordine delle sezioni",
+        "open-loops": "in sospeso, follow-up, impegni, promesse, incompiuto, questioni aperte",
+        "notifications": "push, avvisi, notifiche, mobile, promemoria, FCM",
+        "channels": "whatsapp, telegram, sms, email, messaggistica, integrazioni",
+        "security-auth": "2FA, MFA, TOTP, passkey, password, sicurezza, accesso, autenticazione, due fattori",
+        "security-devices": "sessioni, disconnessione, revoca, browser, dispositivi, sicurezza",
+        "security-export": "GDPR, RGPD, archivio, download, portabilità, backup, dati personali, privacy",
+        "voice-mode": "microfono, voce, dettatura, STT, TTS, parola di attivazione, audio, parlare",
+        "image-generation": "immagini, foto, disegno, illustrazione, generazione, arte",
+        "connectors": "google, gmail, calendario, contatti, apple, microsoft, outlook, integrazioni, account, oauth",
+        "telephony-calls": "telefono, chiamate, cronologia chiamate, comporre",
+        "admin-mcp-servers": "MCP, model context protocol, server dell'applicazione, strumenti integrati",
+        "mcp-servers": "MCP, model context protocol, i miei server, strumenti, estensioni",
+        "debug-panel": "sviluppatore, diagnostica, tracce, tecnico, risoluzione dei problemi",
+        "personality": "tono, stile, carattere, comportamento, persona, voce",
+        "psyche": "emozioni, umore, sentimenti, affettività, emotivo",
+        "memories": "memoria, ricordi, ricordare, dimenticare, fatti",
+        "interests": "argomenti, gusti, temi, curiosità, preferenze",
+        "heartbeat": "proattivo, spontaneo, iniziativa, contatto, messaggi autonomi",
+        "scheduled-actions": "cron, pianificazione, ricorrente, automazione, timer, programmato",
+        "journals": "diario, giornale di bordo, ritratto, riflessioni, note",
+        "health-metrics": "frequenza cardiaca, passi, sonno, iPhone, Apple Salute, forma fisica, attività",
+        "skills": "competenze, capacità, abilità, plugin, estensioni",
+        "rag-spaces": "documenti, RAG, base di conoscenza, file, caricamento, indicizzazione, biblioteca",
+        "user-consumption-export": "CSV, consumo, token, costo, fatturazione, statistiche, esportazione"
+      }
     }
   },
   "spaces": {
@@ -3294,7 +3338,7 @@
         },
         "i18n": {
           "title": "🌍 Internazionalizzazione Completa",
-          "description": "6 lingue supportate (FR, EN, ES, DE, IT, ZH) con: traduzione interfaccia (i18next), date localizzate (formati relativi e assoluti), risposte agenti nella lingua utente, traduzioni gettext per backend e rilevamento automatico lingua browser."
+          "description": "Sei lingue da capo a fondo (FR, EN, ES, DE, IT, ZH): interfaccia (i18next), date localizzate in formati relativi e assoluti, risposte degli agenti nella lingua dell'utente, traduzioni gettext lato server, rilevamento automatico della lingua del browser. La parità delle chiavi tra i sei file è verificata a ogni commit — una traduzione mancante blocca il rilascio invece di mostrare una chiave grezza. La ricerca va oltre la traduzione letterale: ogni impostazione porta sinonimi redatti lingua per lingua — «modalità scura» raggiunge l'aspetto, «GDPR» l'esportazione dei dati — e il motore ignora maiuscole, accenti e apostrofi tipografici, così «theme» trova «Thème»."
         },
         "observability": {
           "title": "📊 Osservabilità Production-Ready",
@@ -3419,6 +3463,20 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_25_32": {
+          "title": "v1.25.32 — 🔍 Trovare un'impostazione dal suo nome",
+          "date": "Luglio 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>🔍 Un campo di ricerca nelle impostazioni</b> — la pagina impila una trentina di sezioni chiuse su più schede. Digita il nome di un'impostazione: la ricerca ti porta direttamente lì, cambia scheda se serve, apre la sezione giusta e vi posiziona il cursore.",
+            "i2": "<b>🗂️ Tredici impostazioni in più diventano trovabili</b> — Lingua, Aspetto, Fuso orario, Carattere, Modalità di visualizzazione, Autenticazione forte, I miei dispositivi, Esporta i miei dati, Generazione di immagini e alcune altre erano raggiungibili solo scorrendo. Ora hanno un proprio indirizzo e compaiono nella ricerca.",
+            "i3": "<b>🌍 La ricerca capisce le tue parole, in tutte e sei le lingue</b> — ogni impostazione porta un elenco di sinonimi tradotti: «modalità scura» trova l'aspetto, «2FA» e «TOTP» trovano l'autenticazione forte, «GDPR» trova l'esportazione dei dati, «cron» trova le azioni pianificate.",
+            "i4": "<b>✍️ Accenti e apostrofi non bloccano più una ricerca</b> — digitare «theme» trova «Thème», e «d'authentification» raggiunge finalmente la sezione il cui testo portava un apostrofo tipografico. La correzione giova anche alla ricerca in queste FAQ.",
+            "i5": "<b>⌨️ Tutto si comanda da tastiera</b> — le frecce scorrono i risultati, Invio apre, Esc chiude e poi cancella. Il numero di risultati viene annunciato agli screen reader, e il cursore arriva sulla sezione scelta.",
+            "i6": "<b>💬 Un'impostazione assente te lo dice</b> — alcune sezioni compaiono solo se la funzione è attiva sul tuo account. Invece di lasciarti davanti a una pagina che non si è mossa, LIA ti segnala che la sezione non compare qui.",
+            "i7": "<b>📊 I numeri della pagina «Dirigere un'IA che programma» erano superati</b> — annunciava metà dei test reali e un terzo delle decisioni di architettura documentate. Sono stati rimisurati."
+          }
+        },
         "v1_25_31": {
           "title": "v1.25.31 — 📌 Le intestazioni restano finalmente al loro posto",
           "date": "Luglio 2026",
@@ -5033,7 +5091,7 @@
       "settings": {
         "title": "Impostazioni",
         "description": "Configurazione dell'account e preferenze",
-        "count": "18",
+        "count": "19",
         "questions": {
           "q1": {
             "question": "Come cambio il mio fuso orario?",
@@ -5106,6 +5164,10 @@
           "q18": {
             "question": "Cos'è la sezione « Impegni aperti »? (v1.25.16)",
             "answer": "<p>LIA rileva automaticamente gli <strong>impegni</strong> nelle tue conversazioni. Impostazioni → « Impegni aperti » li elenca per direzione (devi / aspetti), con tre azioni a un tocco: <strong>Fatto</strong>, <strong>Rilancia in chat</strong> (riempie un messaggio di sollecito) o <strong>Non più rilevante</strong>. Nulla si crea a mano — il valore del registro è essere automatico.</p>"
+          },
+          "q19": {
+            "question": "Come trovo rapidamente un'impostazione?",
+            "answer": "<p>La pagina delle impostazioni impila una trentina di sezioni chiuse su più schede. Il campo <strong>«Cerca un'impostazione»</strong>, sotto le schede, evita di scorrerle una a una.</p><strong>Che cosa capisce la ricerca:</strong><br>• Il <strong>titolo</strong> e la <strong>descrizione</strong> di ogni sezione<br>• <strong>Sinonimi</strong> tradotti: «modalità scura» per l'aspetto, «2FA» o «TOTP» per l'autenticazione forte, «GDPR» per l'esportazione dei dati, «cron» per le azioni pianificate<br>• Accenti e apostrofi vengono ignorati — «theme» trova «Thème»<br><br><strong>Quando scegli un risultato:</strong><br>LIA passa alla scheda giusta, apre la sezione e vi porta il cursore. Tutto è utilizzabile da tastiera — frecce per scorrere, Invio per aprire, Esc per chiudere — e il numero di risultati viene annunciato agli screen reader.<br><br>Alcune sezioni esistono solo se la funzione è attiva sul tuo account: in tal caso LIA te lo dice, invece di lasciarti davanti a una pagina immutata."
           }
         }
       },
@@ -6923,7 +6985,7 @@
       },
       "themes": {
         "title": "Personalizzabile",
-        "description": "5 temi colore, modalità scura/chiara, 9 famiglie di font. Adatta LIA al tuo stile."
+        "description": "5 temi di colore, modalità scura/chiara, 9 caratteri. Un campo di ricerca trova qualsiasi impostazione dal suo nome — o da un sinonimo, nella tua lingua. Adatta LIA alla tua immagine."
       },
       "skills": {
         "title": "Skills con mappe e mini-app",
@@ -7052,7 +7114,7 @@
       },
       "stack": {
         "title": "Stack moderno",
-        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. TypeScript rigoroso sul frontend, Python async sul backend. PWA installabile: 6 manifest localizzati, condivisione di sistema verso la chat, pagina offline e cache intelligente degli asset — le risposte API non vengono mai memorizzate nella cache."
+        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. TypeScript rigoroso sul frontend, Python async sul backend. PWA installabile: 6 manifest localizzati, condivisione di sistema verso la chat, pagina offline e cache intelligente degli asset — le risposte API non vengono mai memorizzate nella cache. Le impostazioni si cercano da tastiera, in tutte e sei le lingue, ignorando maiuscole, accenti e apostrofi tipografici."
       },
       "telephony": {
         "title": "Telefonia agentica",
@@ -7691,7 +7753,7 @@
       "multilingual": {
         "title": "6 lingue, un'architettura i18n completa",
         "excerpt": "LIA parla francese, inglese, tedesco, spagnolo, italiano e cinese con internazionalizzazione completa.",
-        "body": "<h2>6 lingue supportate nativamente</h2><p>LIA è interamente disponibile in <strong>francese, inglese, tedesco, spagnolo, italiano e cinese</strong>. L'internazionalizzazione non si limita all'interfaccia: copre le risposte dell'assistente, le notifiche, la FAQ e la documentazione.</p><h2>Architettura i18n frontend</h2><p>Il frontend utilizza <strong>react-i18next</strong> con file JSON per lingua e persistenza della scelta tramite un cookie <code>NEXT_LOCALE</code> (TTL 1 anno). Il routing Next.js utilizza un segmento dinamico <code>[lng]</code> per servire ogni lingua al proprio URL dedicato. Le bandiere delle lingue vengono visualizzate come emoji Unicode. Il mapping dei locale associa ogni codice breve alla sua variante completa (fr-FR, en-US, de-DE, es-ES, it-IT, zh-CN). Le pagine vengono pre-generate staticamente per ogni lingua al momento della build.</p><h2>Hreflang e SEO multilingue</h2><p>Ogni pagina pubblica dichiara tag <code>hreflang</code> alternativi per le 6 lingue, con un valore <code>x-default</code> che punta al francese. La sitemap XML include le alternative multilingue per ogni URL.</p><h2>Risposte IA multilingue</h2><p>L'assistente risponde nella lingua configurata dall'utente. Le lingue supportate sono configurabili lato backend tramite la variabile d'ambiente <code>SUPPORTED_LANGUAGES</code>. I prompt di sistema sono redatti in inglese per massimizzare la qualità del ragionamento del LLM, ma un'istruzione di lingua esplicita guida la generazione delle risposte nella lingua target. Tre prompt sono specificamente adattati per lingua: <code>journal_introspection_personality_addon</code>, <code>memory_extraction_personality_addon</code> e <code>broadcast_translation_prompt</code>.</p><h2>Riconoscimento vocale multilingue</h2><p>Il modello Whisper utilizzato per la trascrizione vocale supporta nativamente 99+ lingue in modalità offline, permettendo di parlare a LIA in praticamente tutte le lingue del mondo senza configurazione aggiuntiva né dipendenza da un servizio cloud.</p>"
+        "body": "<h2>6 lingue supportate nativamente</h2><p>LIA è interamente disponibile in <strong>francese, inglese, tedesco, spagnolo, italiano e cinese</strong>. L'internazionalizzazione non si limita all'interfaccia: copre le risposte dell'assistente, le notifiche, la FAQ e la documentazione.</p><h2>Architettura i18n frontend</h2><p>Il frontend utilizza <strong>react-i18next</strong> con file JSON per lingua e persistenza della scelta tramite un cookie <code>NEXT_LOCALE</code> (TTL 1 anno). Il routing Next.js utilizza un segmento dinamico <code>[lng]</code> per servire ogni lingua al proprio URL dedicato. Le bandiere delle lingue vengono visualizzate come emoji Unicode. Il mapping dei locale associa ogni codice breve alla sua variante completa (fr-FR, en-US, de-DE, es-ES, it-IT, zh-CN). Le pagine vengono pre-generate staticamente per ogni lingua al momento della build.</p><h2>Hreflang e SEO multilingue</h2><p>Ogni pagina pubblica dichiara tag <code>hreflang</code> alternativi per le 6 lingue, con un valore <code>x-default</code> che punta al francese. La sitemap XML include le alternative multilingue per ogni URL.</p><h2>Risposte IA multilingue</h2><p>L'assistente risponde nella lingua configurata dall'utente. Le lingue supportate sono configurabili lato backend tramite la variabile d'ambiente <code>SUPPORTED_LANGUAGES</code>. I prompt di sistema sono redatti in inglese per massimizzare la qualità del ragionamento del LLM, ma un'istruzione di lingua esplicita guida la generazione delle risposte nella lingua target. Tre prompt sono specificamente adattati per lingua: <code>journal_introspection_personality_addon</code>, <code>memory_extraction_personality_addon</code> e <code>broadcast_translation_prompt</code>.</p><h2>Riconoscimento vocale multilingue</h2><p>Il modello Whisper utilizzato per la trascrizione vocale supporta nativamente 99+ lingue in modalità offline, permettendo di parlare a LIA in praticamente tutte le lingue del mondo senza configurazione aggiuntiva né dipendenza da un servizio cloud.</p><h2>Cercare nella propria lingua</h2><p>Tradurre un'interfaccia non basta a renderla navigabile: bisogna anche poter trovare un'impostazione con le parole che si usano davvero. Perciò ogni sezione delle impostazioni porta, oltre al titolo e alla descrizione tradotti, un elenco di <strong>sinonimi redatto lingua per lingua</strong>: «modalità scura» raggiunge l'aspetto, «GDPR» l'esportazione dei dati, «cron» le azioni pianificate. La corrispondenza passa da un normalizzatore condiviso da tutte le superfici di ricerca del prodotto: maiuscole, segni diacritici, apostrofi tipografici e spazi unificatori vengono ripiegati sulla forma che produce una tastiera, così «theme» trova «Thème». Quel ripiegamento obbedisce a un vincolo stretto — un punto di codice per un punto di codice — senza il quale gli evidenziatori che ricostruiscono le posizioni nel testo originale si sposterebbero di altrettanto.</p>"
       },
       "react-execution-mode": {
         "title": "Pipeline vs ReAct: quando l'ingegneria strutturata supera il laissez-faire",

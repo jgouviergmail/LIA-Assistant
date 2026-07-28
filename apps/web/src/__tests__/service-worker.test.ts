@@ -14,10 +14,7 @@ import { describe, it, expect } from 'vitest';
 
 import pkg from '../../package.json';
 
-const swSource = readFileSync(
-  join(process.cwd(), 'public', 'firebase-messaging-sw.js'),
-  'utf-8'
-);
+const swSource = readFileSync(join(process.cwd(), 'public', 'firebase-messaging-sw.js'), 'utf-8');
 const offlineSource = readFileSync(join(process.cwd(), 'public', 'offline.html'), 'utf-8');
 
 describe('unified service worker', () => {

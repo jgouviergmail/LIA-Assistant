@@ -92,7 +92,10 @@ describe('ContextUsagePill', () => {
 
     it('renders the totals block when totals are provided', () => {
       render(
-        <ContextUsagePill usage={{ tokens: 5_000, threshold: 20_000, ratio: 0.25 }} totals={totals} />
+        <ContextUsagePill
+          usage={{ tokens: 5_000, threshold: 20_000, ratio: 0.25 }}
+          totals={totals}
+        />
       );
       fireEvent.click(screen.getByTestId('context-usage-pill'));
 

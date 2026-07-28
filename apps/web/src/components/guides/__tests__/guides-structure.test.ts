@@ -56,14 +56,17 @@ const tocNumbers = (text: string): string[] => [...text.matchAll(/^(\d+)\. \[/gm
 
 /** The `**Version**` stamp, whatever the locale calls it (Versión, Versione, 版本). */
 const docVersion = (text: string): string | null =>
-  text.match(/^\*\*(?:Version|Versione|Versión|版本)\*\*\s*[:：]\s*([0-9][0-9.]*)\s*$/m)?.[1] ?? null;
+  text.match(/^\*\*(?:Version|Versione|Versión|版本)\*\*\s*[:：]\s*([0-9][0-9.]*)\s*$/m)?.[1] ??
+  null;
 
 /** The header date line, whatever the locale calls it (Datum, Fecha, Data, 日期). */
 const headerDate = (text: string): string | null =>
   text
     .split('\n')
     .slice(0, 14)
-    .map(line => line.match(/^\*\*(?:Date|Datum|Fecha|Data|日期)\*\*\s*[:：]\s*(\d{4}-\d{2}-\d{2})\s*$/))
+    .map(line =>
+      line.match(/^\*\*(?:Date|Datum|Fecha|Data|日期)\*\*\s*[:：]\s*(\d{4}-\d{2}-\d{2})\s*$/)
+    )
     .find(Boolean)?.[1] ?? null;
 
 describe.each(FAMILIES)('$name guide', ({ name, sections, hasMarkdownToc }) => {
@@ -72,15 +75,18 @@ describe.each(FAMILIES)('$name guide', ({ name, sections, hasMarkdownToc }) => {
     // `id={undefined}`, unreachable from the sidebar.
     const mismatched = LANGS.map(lang => ({ lang, count: sectionNumbers(read(name, lang)).length }))
       .filter(({ count }) => count !== sections.length)
-      .map(({ lang, count }) => `${name}.${lang}: ${count} sections for ${sections.length} nav entries`);
+      .map(
+        ({ lang, count }) => `${name}.${lang}: ${count} sections for ${sections.length} nav entries`
+      );
 
     expect(mismatched).toEqual([]);
   });
 
   it('numbers its sections contiguously from 1', () => {
     const expected = sections.map((_, i) => String(i + 1));
-    const broken = LANGS.filter(lang => sectionNumbers(read(name, lang)).join(',') !== expected.join(','))
-      .map(lang => `${name}.${lang}: ${sectionNumbers(read(name, lang)).join(',')}`);
+    const broken = LANGS.filter(
+      lang => sectionNumbers(read(name, lang)).join(',') !== expected.join(',')
+    ).map(lang => `${name}.${lang}: ${sectionNumbers(read(name, lang)).join(',')}`);
 
     expect(broken).toEqual([]);
   });
@@ -111,7 +117,10 @@ describe.each(FAMILIES)('$name guide', ({ name, sections, hasMarkdownToc }) => {
       const expected = sections.map((_, i) => String(i + 1)).join(',');
       const broken = found
         .filter(({ toc }) => toc.join(',') !== expected)
-        .map(({ lang, toc }) => `${name}.${lang}: ToC lists ${toc.length}, document has ${sections.length}`);
+        .map(
+          ({ lang, toc }) =>
+            `${name}.${lang}: ToC lists ${toc.length}, document has ${sections.length}`
+        );
 
       expect(broken).toEqual([]);
     }
@@ -147,8 +156,9 @@ describe('guide release stamps', () => {
     expect(missing, `no header date in: ${missing.join(', ')}`).toEqual([]);
 
     const distinct = [...new Set(dates.map(([, d]) => d))];
-    expect(distinct, `header dates diverge: ${dates.map(([f, d]) => `${f}=${d}`).join(' ')}`).toHaveLength(
-      1
-    );
+    expect(
+      distinct,
+      `header dates diverge: ${dates.map(([f, d]) => `${f}=${d}`).join(' ')}`
+    ).toHaveLength(1);
   });
 });

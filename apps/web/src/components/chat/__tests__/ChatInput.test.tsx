@@ -172,11 +172,7 @@ describe('ChatInput — sent-history walk (UXR Lot 2 A7, extended QA 2026-07-23)
   it('recalls the last sent message on ArrowUp in an empty input', () => {
     const onMessageChange = vi.fn();
     renderWithProviders(
-      <ChatInput
-        onSendMessage={vi.fn()}
-        onMessageChange={onMessageChange}
-        sentHistory={HISTORY}
-      />
+      <ChatInput onSendMessage={vi.fn()} onMessageChange={onMessageChange} sentHistory={HISTORY} />
     );
     const box = screen.getByRole('textbox');
     fireEvent.keyDown(box, { key: 'ArrowUp' });

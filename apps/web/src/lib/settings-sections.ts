@@ -40,6 +40,16 @@ export interface SettingsSectionTarget {
  * Tokens are part of the app's URL surface: renaming one breaks existing links
  * (the checklist, the briefing cards, anything a user bookmarked). Add rather
  * than rename.
+ *
+ * ORDER IS PAGE ORDER, and it is load-bearing: the settings search uses it to
+ * break score ties, so two equally-scored results are listed in the order the
+ * reader would meet them by scrolling. Keep a new entry next to the component
+ * it describes in `settings/page.tsx`.
+ *
+ * The table covers every USER-facing section of both tabs (30). The thirteen
+ * `administration`-tab sections are deliberately absent, and that absence is
+ * enumerated — not implied — in the shrink-only allowlist of
+ * `__tests__/settings-sections-coverage.test.ts`.
  */
 // `satisfies`, not an annotation: `Readonly<Record<string, …>>` would erode
 // `keyof typeof` to plain `string`, and `SettingsSectionToken` — the type four
@@ -48,7 +58,85 @@ export interface SettingsSectionTarget {
 // keeping the literal keys. Verified: with the annotation,
 // `const t: SettingsSectionToken = 'does-not-exist'` compiled cleanly.
 export const SETTINGS_SECTIONS = {
-  // ---- Preferences tab
+  // ---- Preferences tab / Personalization
+  language: {
+    tab: 'preferences',
+    accordionValue: 'language',
+    declaredIn: 'components/settings/LanguageSettings.tsx',
+  },
+  timezone: {
+    tab: 'preferences',
+    accordionValue: 'timezone',
+    declaredIn: 'components/settings/TimezoneSelector.tsx',
+  },
+  theme: {
+    tab: 'preferences',
+    accordionValue: 'theme',
+    declaredIn: 'components/theme-selector.tsx',
+  },
+  font: {
+    tab: 'preferences',
+    accordionValue: 'font',
+    declaredIn: 'components/settings/FontSettings.tsx',
+  },
+  'display-mode': {
+    tab: 'preferences',
+    accordionValue: 'display-mode',
+    declaredIn: 'components/settings/CardsDisplaySettings.tsx',
+  },
+  'briefing-grid': {
+    tab: 'preferences',
+    accordionValue: 'briefing-grid',
+    declaredIn: 'components/settings/BriefingGridSettings.tsx',
+  },
+  'open-loops': {
+    tab: 'preferences',
+    accordionValue: 'open-loops',
+    declaredIn: 'components/settings/OpenLoopsSection.tsx',
+  },
+
+  // ---- Preferences tab / Notifications & Communication
+  notifications: {
+    tab: 'preferences',
+    accordionValue: 'notifications',
+    declaredIn: 'components/settings/NotificationSettings.tsx',
+  },
+  channels: {
+    tab: 'preferences',
+    accordionValue: 'channels',
+    declaredIn: 'components/settings/ChannelSettings.tsx',
+  },
+
+  // ---- Preferences tab / Security
+  'security-auth': {
+    tab: 'preferences',
+    accordionValue: 'security-auth',
+    declaredIn: 'components/settings/SecuritySettings.tsx',
+  },
+  'security-devices': {
+    tab: 'preferences',
+    accordionValue: 'security-devices',
+    declaredIn: 'components/settings/DeviceSessionsSettings.tsx',
+  },
+  'security-export': {
+    tab: 'preferences',
+    accordionValue: 'security-export',
+    declaredIn: 'components/settings/AccountExportSettings.tsx',
+  },
+
+  // ---- Preferences tab / Voice & Media
+  'voice-mode': {
+    tab: 'preferences',
+    accordionValue: 'voice-mode',
+    declaredIn: 'components/settings/VoiceModeSettings.tsx',
+  },
+  'image-generation': {
+    tab: 'preferences',
+    accordionValue: 'image-generation',
+    declaredIn: 'components/settings/ImageGenerationSettings.tsx',
+  },
+
+  // ---- Preferences tab / Connections & Integrations
   connectors: {
     tab: 'preferences',
     accordionValue: 'connectors',
@@ -62,30 +150,22 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'telephony-calls',
     declaredIn: 'components/settings/TelephonyCallsSection.tsx',
   },
-  channels: {
+  'admin-mcp-servers': {
     tab: 'preferences',
-    accordionValue: 'channels',
-    declaredIn: 'components/settings/ChannelSettings.tsx',
-  },
-  notifications: {
-    tab: 'preferences',
-    accordionValue: 'notifications',
-    declaredIn: 'components/settings/NotificationSettings.tsx',
-  },
-  'voice-mode': {
-    tab: 'preferences',
-    accordionValue: 'voice-mode',
-    declaredIn: 'components/settings/VoiceModeSettings.tsx',
-  },
-  'briefing-grid': {
-    tab: 'preferences',
-    accordionValue: 'briefing-grid',
-    declaredIn: 'components/settings/BriefingGridSettings.tsx',
+    accordionValue: 'admin-mcp-servers',
+    declaredIn: 'components/settings/AdminMCPServersSettings.tsx',
   },
   'mcp-servers': {
     tab: 'preferences',
     accordionValue: 'mcp-servers',
     declaredIn: 'components/settings/MCPServersSettings.tsx',
+  },
+  // Rendered by the NON-superuser layout only: a superuser gets the richer
+  // `debug-settings` section in the administration tab instead.
+  'debug-panel': {
+    tab: 'preferences',
+    accordionValue: 'debug-panel',
+    declaredIn: 'components/settings/UserDebugSettings.tsx',
   },
 
   // ---- Features tab
@@ -139,6 +219,15 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'rag-spaces',
     declaredIn: 'components/spaces/SpacesSettingsSection.tsx',
   },
+  // The component serves both the user and the admin export from one file and
+  // therefore picks its accordion value at runtime (`mode`), which is why the
+  // sibling test checks this one against a quoted literal instead of the
+  // `value="…"` prop form.
+  'user-consumption-export': {
+    tab: 'features',
+    accordionValue: 'user-consumption-export',
+    declaredIn: 'components/settings/ConsumptionExportSection.tsx',
+  },
 } satisfies Readonly<Record<string, SettingsSectionTarget>>;
 
 export type SettingsSectionToken = keyof typeof SETTINGS_SECTIONS;
@@ -161,21 +250,6 @@ export function isSettingsSectionToken(token: string): token is SettingsSectionT
   // keys — `?section=constructor` returns `Object.prototype.constructor`, a
   // truthy value whose `.tab` is undefined.
   return Object.hasOwn(SETTINGS_SECTIONS, token);
-}
-
-/**
- * Resolve a raw `?section=` value.
- *
- * Args:
- *   token: The query-string value, or `null` when absent.
- *
- * Returns:
- *   The target, or `null` for an absent or unknown token — an unknown token
- *   must leave the page on its default tab rather than throw or guess.
- */
-export function resolveSettingsSection(token: string | null): SettingsSectionTarget | null {
-  if (!token || !isSettingsSectionToken(token)) return null;
-  return SETTINGS_SECTIONS[token];
 }
 
 /**

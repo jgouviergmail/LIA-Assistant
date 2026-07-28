@@ -20,9 +20,7 @@ import type { Language } from '@/i18n/settings';
 const LANGS = ['en', 'fr', 'de', 'es', 'it', 'zh'] as const;
 
 function manifest(lng: string): Record<string, unknown> {
-  return JSON.parse(
-    readFileSync(join(process.cwd(), 'public', `manifest-${lng}.json`), 'utf-8')
-  );
+  return JSON.parse(readFileSync(join(process.cwd(), 'public', `manifest-${lng}.json`), 'utf-8'));
 }
 
 describe('localized PWA manifests', () => {

@@ -2840,6 +2840,50 @@
           "unreachable": "Injoignable"
         }
       }
+    },
+    "search": {
+      "label": "Rechercher un réglage",
+      "placeholder": "Rechercher un réglage…",
+      "clear": "Effacer la recherche",
+      "results_label": "Réglages correspondants",
+      "results_count_one": "{{count}} réglage trouvé",
+      "results_count_other": "{{count}} réglages trouvés",
+      "no_results": "Aucun réglage ne correspond à « {{query}} »",
+      "no_results_hint": "Essayez un autre mot, ou parcourez les onglets ci-dessous.",
+      "admin_not_indexed": "L'onglet Administration n'est pas couvert par cette recherche.",
+      "unavailable": "« {{section}} » ne s’affiche pas ici — cette section n’est peut-être pas disponible sur votre compte.",
+      "keywords": {
+        "language": "locale, traduction, langue de l'interface, idiome",
+        "timezone": "UTC, GMT, horloge, heure, décalage, région, fuseau",
+        "theme": "thème, mode sombre, mode clair, nuit, couleurs, contraste, apparence",
+        "font": "police, typographie, taille du texte, lisibilité, caractères",
+        "display-mode": "cartes, rendu, format des réponses, mise en page, markdown, texte brut",
+        "briefing-grid": "accueil, page d'accueil, tableau de bord, widgets, cartes, briefing, ordre des sections",
+        "open-loops": "en attente, suivi, engagements, promesses, non terminé, relances",
+        "notifications": "push, alertes, bannières, mobile, rappels, FCM",
+        "channels": "whatsapp, telegram, sms, email, messagerie, intégrations",
+        "security-auth": "2FA, MFA, TOTP, passkey, mot de passe, sécurité, connexion, authentification, double facteur",
+        "security-devices": "sessions, déconnexion, révoquer, navigateurs, appareils, sécurité",
+        "security-export": "RGPD, archive, téléchargement, portabilité, sauvegarde, données personnelles, confidentialité",
+        "voice-mode": "micro, microphone, parole, dictée, STT, TTS, mot d'activation, audio, vocal",
+        "image-generation": "images, photos, dessin, illustration, génération, art",
+        "connectors": "google, gmail, agenda, calendrier, contacts, apple, microsoft, outlook, intégrations, comptes, oauth",
+        "telephony-calls": "téléphone, appels, historique des appels, composer",
+        "admin-mcp-servers": "MCP, model context protocol, serveurs de l'application, outils intégrés",
+        "mcp-servers": "MCP, model context protocol, mes serveurs, outils, extensions",
+        "debug-panel": "développeur, diagnostic, traces, technique, dépannage",
+        "personality": "ton, style, caractère, comportement, persona, voix",
+        "psyche": "émotions, humeur, sentiments, affect, émotionnel",
+        "memories": "mémoire, souvenirs, se souvenir, oublier, faits",
+        "interests": "sujets, goûts, thèmes, curiosité, préférences",
+        "heartbeat": "proactif, spontané, initiative, prise de contact, messages autonomes",
+        "scheduled-actions": "cron, planification, récurrent, automatisation, minuterie, programmé",
+        "journals": "journal intime, carnet, portrait, réflexions, notes",
+        "health-metrics": "fréquence cardiaque, pas, sommeil, iPhone, Apple Santé, forme, activité",
+        "skills": "compétences, capacités, aptitudes, plugins, extensions",
+        "rag-spaces": "documents, RAG, base de connaissances, fichiers, téléversement, indexation, bibliothèque",
+        "user-consumption-export": "CSV, consommation, tokens, coût, facturation, statistiques, export"
+      }
     }
   },
   "spaces": {
@@ -3306,7 +3350,7 @@
         },
         "i18n": {
           "title": "🌍 Internationalisation Complète",
-          "description": "6 langues supportées (FR, EN, ES, DE, IT, ZH) avec : traduction d'interface (i18next), dates localisées (formats relatifs et absolus), réponses des agents dans la langue utilisateur, traductions gettext pour le backend, et détection automatique de la langue du navigateur."
+          "description": "6 langues de bout en bout (FR, EN, ES, DE, IT, ZH) : interface (i18next), dates localisées en formats relatifs et absolus, réponses des agents dans la langue de l'utilisateur, traductions gettext côté serveur, détection automatique de la langue du navigateur. La parité des clés entre les six fichiers est vérifiée à chaque commit — une traduction manquante bloque la livraison au lieu d'afficher une clé brute à l'écran. La recherche va au-delà de la traduction littérale : chaque réglage porte des synonymes rédigés langue par langue — « sombre » atteint l'apparence, « DSGVO » l'export des données — et le moteur ignore la casse, les accents et les apostrophes typographiques, de sorte que « theme » trouve « Thème » et qu'un clavier ordinaire atteint un texte composé avec une apostrophe courbe."
         },
         "observability": {
           "title": "📊 Observabilité Production-Ready",
@@ -3431,6 +3475,20 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_25_32": {
+          "title": "v1.25.32 — 🔍 Trouver un réglage par son nom",
+          "date": "Juillet 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>🔍 Un champ de recherche dans les réglages</b> — la page empile une trentaine de sections repliées sur plusieurs onglets. Tapez le nom d'un réglage : la recherche vous y emmène directement, change d'onglet si nécessaire, déplie la bonne section et y pose le curseur.",
+            "i2": "<b>🗂️ Treize réglages deviennent trouvables</b> — Langue, Apparence, Fuseau horaire, Police, Mode d'affichage, Authentification forte, Mes appareils, Exporter mes données, Génération d'images et quelques autres n'étaient atteignables qu'en faisant défiler la page à la main. Ils ont désormais leur propre adresse et remontent dans la recherche.",
+            "i3": "<b>🌍 La recherche comprend vos mots, dans les six langues</b> — chaque réglage porte une liste de synonymes traduits : « sombre » trouve l'apparence, « 2FA » et « TOTP » trouvent l'authentification forte, « RGPD » trouve l'export de vos données, « cron » trouve les actions planifiées.",
+            "i4": "<b>✍️ Les accents et les apostrophes ne bloquent plus une recherche</b> — taper « theme » trouve « Thème », et « d'authentification » trouve enfin la section dont le texte portait une apostrophe typographique. La correction profite aussi à la recherche de cette FAQ.",
+            "i5": "<b>⌨️ Tout se fait au clavier</b> — les flèches parcourent les résultats, Entrée ouvre, Échap referme puis efface. Le nombre de résultats est annoncé aux lecteurs d'écran, et le curseur arrive sur la section choisie.",
+            "i6": "<b>💬 Un réglage absent vous le dit</b> — certaines sections n'apparaissent que si la fonction est active sur votre compte. Plutôt que de vous laisser devant une page qui n'a pas bougé, LIA vous indique que la section ne s'affiche pas ici.",
+            "i7": "<b>📊 Les chiffres de la page « Diriger une IA qui code » étaient périmés</b> — elle annonçait moitié moins de tests que la réalité et un tiers des décisions d'architecture documentées. Ils sont de nouveau mesurés."
+          }
+        },
         "v1_25_31": {
           "title": "v1.25.31 — 📌 Les en-têtes restent enfin en place",
           "date": "Juillet 2026",
@@ -5045,7 +5103,7 @@
       "settings": {
         "title": "Paramètres",
         "description": "Configuration de votre compte et préférences",
-        "count": "18",
+        "count": "19",
         "questions": {
           "q1": {
             "question": "Comment changer mon fuseau horaire ?",
@@ -5118,6 +5176,10 @@
           "q18": {
             "question": "Qu'est-ce que la section « Boucles ouvertes » ? (v1.25.16)",
             "answer": "<p>LIA détecte automatiquement les <strong>engagements</strong> dans vos conversations (« je dois rappeler le plombier », « j'attends la réponse de Marc »). Réglages → « Boucles ouvertes » les liste par direction (vous devez / vous attendez), avec trois actions en un appui : <strong>Fait</strong>, <strong>Relancer dans le chat</strong> (prérempli un message de relance) ou <strong>Plus d'actualité</strong>. Rien ne se crée à la main — la valeur du registre est d'être automatique.</p>"
+          },
+          "q19": {
+            "question": "Comment retrouver un réglage rapidement ?",
+            "answer": "<p>La page des réglages empile une trentaine de sections repliées sur plusieurs onglets. Le champ <strong>« Rechercher un réglage »</strong>, sous les onglets, évite de les parcourir une à une.</p><strong>Ce que la recherche comprend :</strong><br>• Le <strong>titre</strong> et la <strong>description</strong> de chaque section<br>• Des <strong>synonymes</strong> traduits : « sombre » pour l'apparence, « 2FA » ou « TOTP » pour l'authentification forte, « RGPD » pour l'export de vos données, « cron » pour les actions planifiées<br>• Les accents et les apostrophes sont ignorés — « theme » trouve « Thème »<br><br><strong>Quand vous choisissez un résultat :</strong><br>LIA bascule sur le bon onglet, déplie la section et y amène le curseur. Tout est utilisable au clavier — flèches pour parcourir, Entrée pour ouvrir, Échap pour refermer — et le nombre de résultats est annoncé aux lecteurs d'écran.<br><br>Certaines sections n'existent que si la fonction est active sur votre compte : dans ce cas, LIA vous le dit plutôt que de vous laisser devant une page inchangée."
           }
         }
       },
@@ -6927,7 +6989,7 @@
       },
       "themes": {
         "title": "Personnalisable",
-        "description": "5 thèmes de couleurs, mode sombre/clair, 9 polices de caractères. Adapte LIA à ton image."
+        "description": "5 thèmes de couleurs, mode sombre/clair, 9 polices de caractères. Un champ de recherche retrouve n'importe quel réglage par son nom — ou par un synonyme, dans ta langue. Adapte LIA à ton image."
       },
       "skills": {
         "title": "Skills avec cartes et mini-apps",
@@ -7056,7 +7118,7 @@
       },
       "stack": {
         "title": "Stack moderne",
-        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. TypeScript strict côté frontend, Python async côté backend. PWA installable : 6 manifests localisés, partage système vers le chat, page hors-ligne et cache intelligent des assets — les réponses API ne sont jamais mises en cache."
+        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. TypeScript strict côté frontend, Python async côté backend. PWA installable : 6 manifests localisés, partage système vers le chat, page hors-ligne et cache intelligent des assets — les réponses API ne sont jamais mises en cache. Les réglages se cherchent au clavier, dans les six langues, casse, accents et apostrophes typographiques ignorés."
       },
       "telephony": {
         "title": "Téléphonie agentique",
@@ -7695,7 +7757,7 @@
       "multilingual": {
         "title": "6 langues, une architecture i18n complète",
         "excerpt": "LIA parle français, anglais, allemand, espagnol, italien et chinois. L'internationalisation couvre l'interface, les réponses IA et la documentation.",
-        "body": "<h2>6 langues nativement supportées</h2><p>LIA est entièrement disponible en <strong>français, anglais, allemand, espagnol, italien et chinois</strong>. L'internationalisation ne se limite pas à l'interface : elle couvre les réponses de l'assistant, les notifications, la FAQ et la documentation.</p><h2>Architecture i18n frontend</h2><p>Le frontend utilise <strong>react-i18next</strong> avec des fichiers JSON par langue et persistance du choix via un cookie <code>NEXT_LOCALE</code> (TTL 1 an). Le routing Next.js utilise un segment dynamique <code>[lng]</code> pour servir chaque langue à son URL dédiée. Les drapeaux de langue sont affichés comme emojis Unicode. Le mapping de locale associe chaque code court à sa variante complète (fr-FR, en-US, de-DE, es-ES, it-IT, zh-CN). Les pages sont pré-générées statiquement pour chaque langue au build.</p><h2>Hreflang et SEO multilingue</h2><p>Chaque page publique déclare des balises <code>hreflang</code> alternatives pour les 6 langues, avec une valeur <code>x-default</code> pointant vers le français. Le sitemap XML inclut les alternates multilingues pour chaque URL.</p><h2>Réponses IA multilingues</h2><p>L'assistant répond dans la langue configurée par l'utilisateur. Les langues supportées sont configurables côté backend via la variable d'environnement <code>SUPPORTED_LANGUAGES</code>. Les prompts système sont rédigés en anglais pour maximiser la qualité du raisonnement du LLM, mais une instruction de langue explicite guide la génération de réponses dans la langue cible. Trois prompts sont spécifiquement adaptés par langue : <code>journal_introspection_personality_addon</code>, <code>memory_extraction_personality_addon</code> et <code>broadcast_translation_prompt</code>.</p><h2>Reconnaissance vocale multilingue</h2><p>Le modèle Whisper utilisé pour la transcription vocale supporte nativement 99+ langues en mode offline, permettant de parler à LIA dans pratiquement toutes les langues du monde sans configuration supplémentaire ni dépendance à un service cloud.</p>"
+        "body": "<h2>6 langues nativement supportées</h2><p>LIA est entièrement disponible en <strong>français, anglais, allemand, espagnol, italien et chinois</strong>. L'internationalisation ne se limite pas à l'interface : elle couvre les réponses de l'assistant, les notifications, la FAQ et la documentation.</p><h2>Architecture i18n frontend</h2><p>Le frontend utilise <strong>react-i18next</strong> avec des fichiers JSON par langue et persistance du choix via un cookie <code>NEXT_LOCALE</code> (TTL 1 an). Le routing Next.js utilise un segment dynamique <code>[lng]</code> pour servir chaque langue à son URL dédiée. Les drapeaux de langue sont affichés comme emojis Unicode. Le mapping de locale associe chaque code court à sa variante complète (fr-FR, en-US, de-DE, es-ES, it-IT, zh-CN). Les pages sont pré-générées statiquement pour chaque langue au build.</p><h2>Hreflang et SEO multilingue</h2><p>Chaque page publique déclare des balises <code>hreflang</code> alternatives pour les 6 langues, avec une valeur <code>x-default</code> pointant vers le français. Le sitemap XML inclut les alternates multilingues pour chaque URL.</p><h2>Réponses IA multilingues</h2><p>L'assistant répond dans la langue configurée par l'utilisateur. Les langues supportées sont configurables côté backend via la variable d'environnement <code>SUPPORTED_LANGUAGES</code>. Les prompts système sont rédigés en anglais pour maximiser la qualité du raisonnement du LLM, mais une instruction de langue explicite guide la génération de réponses dans la langue cible. Trois prompts sont spécifiquement adaptés par langue : <code>journal_introspection_personality_addon</code>, <code>memory_extraction_personality_addon</code> et <code>broadcast_translation_prompt</code>.</p><h2>Reconnaissance vocale multilingue</h2><p>Le modèle Whisper utilisé pour la transcription vocale supporte nativement 99+ langues en mode offline, permettant de parler à LIA dans pratiquement toutes les langues du monde sans configuration supplémentaire ni dépendance à un service cloud.</p><h2>Rechercher dans sa propre langue</h2><p>Traduire une interface ne suffit pas à la rendre navigable : encore faut-il retrouver un réglage avec les mots que l'on emploie. Chaque section des réglages porte donc, en plus de son titre et de sa description traduits, une liste de <strong>synonymes rédigée langue par langue</strong> — « sombre » atteint l'apparence, « DSGVO » l'export des données, « cron » les actions planifiées. Le rapprochement passe par un normaliseur commun à toutes les surfaces de recherche du produit : casse, diacritiques, apostrophes typographiques et espaces insécables sont repliés vers la forme que produit un clavier, de sorte que « theme » trouve « Thème ». Ce repli obéit à une contrainte stricte — un point de code pour un point de code — sans quoi les surligneurs qui reconstituent les positions dans le texte d'origine se décaleraient d'autant.</p>"
       },
       "react-execution-mode": {
         "title": "Pipeline vs ReAct : quand l'ingénierie structurée surpasse le laisser-faire",

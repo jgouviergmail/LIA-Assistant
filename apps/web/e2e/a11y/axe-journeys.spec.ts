@@ -181,6 +181,24 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
     expect(blocking, `axe violations on /dashboard/settings:\n${summary}`).toHaveLength(0);
   });
 
+  test('settings search results scan clean', async ({ page, authenticate, mockApi }, testInfo) => {
+    // The listbox exists only while a query is typed, so the scan above never
+    // sees it: an unlabelled listbox, an option without a name or a `mark` with
+    // insufficient contrast would all pass unnoticed.
+    await authenticate();
+    await mockApi([]);
+    await page.goto('/en/dashboard/settings');
+    await expect(page.getByRole('main')).toBeVisible();
+
+    const search = page.getByRole('combobox', { name: 'Search a setting' });
+    await expect(search).toBeVisible({ timeout: 20_000 });
+    await search.fill('memory');
+    await expect(page.getByRole('listbox')).toBeVisible({ timeout: 10_000 });
+
+    const { blocking, summary } = await scanPage(page, testInfo, '/dashboard/settings#search');
+    expect(blocking, `axe violations on the settings search popup:\n${summary}`).toHaveLength(0);
+  });
+
   test('spaces page scans clean', async ({ page, authenticate, mockApi }, testInfo) => {
     await authenticate();
     await mockApi(spacesData);

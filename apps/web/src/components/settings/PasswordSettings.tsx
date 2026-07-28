@@ -103,9 +103,7 @@ export function PasswordSettings() {
       <AlertDialog open={confirmOpen} onOpenChange={open => !busy && setConfirmOpen(open)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t('settings.security.password.disable_title')}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{t('settings.security.password.disable_title')}</AlertDialogTitle>
             <AlertDialogDescription>
               {t('settings.security.password.disable_description')}
             </AlertDialogDescription>

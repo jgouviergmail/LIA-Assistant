@@ -51,18 +51,14 @@ describe('BriefingGridSettings', () => {
   it('persists a visibility toggle through the hook', () => {
     renderSettings();
     fireEvent.click(screen.getAllByRole('switch')[0]);
-    expect(save).toHaveBeenCalledWith(
-      expect.objectContaining({ hidden: ['mails', 'weather'] })
-    );
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ hidden: ['mails', 'weather'] }));
   });
 
   it('persists a keyboard move through the hook', () => {
     renderSettings();
     // The i18n stub echoes keys without interpolation — every down button
     // shares the same accessible name; index 0 is the weather row.
-    fireEvent.click(
-      screen.getAllByRole('button', { name: 'settings.briefing_grid.move_down' })[0]
-    );
+    fireEvent.click(screen.getAllByRole('button', { name: 'settings.briefing_grid.move_down' })[0]);
     expect(save).toHaveBeenCalledWith(
       expect.objectContaining({ order: ['agenda', 'weather', 'mails'] })
     );

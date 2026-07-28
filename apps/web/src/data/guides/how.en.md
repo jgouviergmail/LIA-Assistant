@@ -6,7 +6,7 @@
 
 **Version**: 3.6
 **Date**: 2026-07-28
-**Application**: LIA v1.25.31
+**Application**: LIA v1.25.32
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 447 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 160+ ADRs, ~16,535 pytest-collected tests across 873 files, native observability, 6-level HITL |
+| Production reliability | 170+ ADRs, ~16,535 pytest-collected tests across 873 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -1084,11 +1084,21 @@ LIA accepts external event ingestions (iPhone Apple Health samples, third-party 
 
 Six localized manifests (`/manifest-{lng}.json` — localized `lang`, `start_url`, three shortcuts, separate `any`/`maskable` icon entries; structural parity across the 6 files is test-pinned) are linked per page via `generateMetadata`, with real PNG icons and an `apple-touch-icon` (iOS silently ignores SVG touch icons). The OS **share target** (`GET /{lng}/share`) composes shared title/text/url into a clamped chat draft riding the existing `?draft=` rail — never auto-sent. A discreet install hint appears from the third visit (never in standalone display-mode, dismissible forever); Chromium gets a real install prompt via `beforeinstallprompt`, iOS the Share → Add to Home Screen instruction.
 
+### 23.14. Navigation index: one table, two guards facing opposite ways
+
+The settings page stacks some thirty collapsed sections across several tabs. Reaching them calls for a table mapping a URL token to a tab and an accordion value. A table of that kind never rots loudly: one day it simply stops describing the page.
+
+Two guards hold it, and they look in opposite directions. The first runs from the table to the code: every entry must name a file that exists, declare there the value it claims, and live in the tab it announces — the tab being read from the page rather than declared a second time. The second runs from the code to the table: **every** component rendered inside a tab panel must be indexed, structural, or explicitly set aside with a written reason. There is no fourth outcome, so a section added tomorrow forces a decision at the moment it is added instead of vanishing quietly.
+
+The search index built on top is exhaustive **by type**: its metadata is a `Record` keyed by the union of tokens, so adding a destination without saying what it is called does not compile. Matching relies on the normalizer every search surface of the product shares — case, diacritics, typographic apostrophes and no-break spaces are folded to the form a keyboard produces. That folding obeys a hard constraint: one code point for one code point, otherwise the highlighters that map offsets back to the original text drift by exactly as much.
+
+A destination may still legitimately not exist: several sections only render when the feature is active or the data is there, and the inactive tab panel is not mounted — nothing can observe it ahead of time. The choice is to keep those destinations in the index and state the observation on arrival, rather than trade a visible dead end for an invisible false negative.
+
 ---
 
 ## 24. Architecture Decision Records (ADR)
 
-160+ ADRs in MADR format document the major architectural decisions. Some representative examples:
+170+ ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1171,10 +1181,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 160+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~16,535 tests across 873 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 170+ ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~16,535 tests across 873 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 160+ ADRs, and the changelog (v1.0 to v1.25.31). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 170+ ADRs, and the changelog (v1.0 to v1.25.32). All metrics, versions, and patterns cited are verifiable in the codebase.*

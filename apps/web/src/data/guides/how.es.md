@@ -6,7 +6,7 @@
 
 **Versión**: 3.6
 **Fecha**: 2026-07-28
-**Aplicación**: LIA v1.25.31
+**Aplicación**: LIA v1.25.32
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 447 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 160+ ADRs, ~16.535 tests recogidos por pytest en 873 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 170+ ADRs, ~16.535 tests recogidos por pytest en 873 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -1087,11 +1087,21 @@ LIA acepta ingestas de eventos externos (mediciones iPhone Apple Health, payload
 
 Seis manifiestos localizados (`/manifest-{lng}.json` — `lang`, `start_url`, tres atajos, entradas de iconos `any`/`maskable` separadas; la paridad estructural de los 6 archivos está fijada por test) se enlazan por página vía `generateMetadata`, con iconos PNG reales y un `apple-touch-icon` (iOS ignora silenciosamente los iconos SVG). El **share target** del SO (`GET /{lng}/share`) compone título/texto/url compartidos en un borrador de chat acotado que usa el raíl `?draft=` existente — nunca auto-enviado. Una sugerencia de instalación discreta aparece a partir de la tercera visita (nunca en display-mode standalone, descartable para siempre); Chromium recibe un prompt de instalación real vía `beforeinstallprompt`, iOS la instrucción Compartir → Añadir a pantalla de inicio.
 
+### 23.14. Índice de navegación: una tabla, dos guardas en sentidos opuestos
+
+La página de ajustes apila una treintena de secciones plegadas en varias pestañas. Alcanzarlas exige una tabla que asocie un token de URL a una pestaña y a un valor de acordeón. Una tabla así nunca caduca ruidosamente: un día, sencillamente, deja de describir la página.
+
+Dos guardas la sostienen, y miran en direcciones opuestas. La primera va de la tabla al código: cada entrada debe designar un archivo que exista, declarar allí el valor que reivindica y vivir en la pestaña que anuncia — leyéndose la pestaña desde la página en lugar de declararse una segunda vez. La segunda va del código a la tabla: **todo** componente renderizado dentro de un panel de pestañas debe estar indexado, ser estructural, o quedar apartado explícitamente con una razón escrita. No existe una cuarta salida, de modo que una sección añadida mañana obliga a decidir en el momento en que se añade, en vez de desaparecer en silencio.
+
+El índice de búsqueda construido encima es exhaustivo **por el tipo**: sus metadatos forman un `Record` indexado por la unión de los tokens, así que añadir un destino sin decir cómo se llama no compila. La coincidencia se apoya en el normalizador que comparten todas las superficies de búsqueda del producto: mayúsculas, diacríticos, apóstrofos tipográficos y espacios duros se pliegan a la forma que produce un teclado. Ese plegado obedece a una restricción dura — un punto de código por un punto de código — sin la cual los resaltadores que reconstruyen las posiciones originales se desplazan otro tanto.
+
+Con todo, un destino puede legítimamente no existir: varias secciones solo se renderizan si la función está activa o si el dato existe, y el panel de la pestaña inactiva no está montado, por lo que nada puede observarlo de antemano. La opción elegida es conservar esos destinos en el índice y enunciar la observación al llegar, en lugar de cambiar un callejón sin salida visible por un falso negativo invisible.
+
 ---
 
 ## 24. Arquitectura de decisiones (ADR)
 
-160+ ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+170+ ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1145,10 +1155,10 @@ El Psyche Engine dota al asistente de un estado psicológico dinámico que evolu
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 160+ ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~16.535 tests en 873 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 170+ ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~16.535 tests en 873 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (400+ documentos), de los 160+ ADRs y del changelog (v1.0 a v1.25.31). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (400+ documentos), de los 170+ ADRs y del changelog (v1.0 a v1.25.32). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

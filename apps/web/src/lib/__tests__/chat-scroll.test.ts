@@ -68,7 +68,6 @@ describe('decideFollow — the reading invariant', () => {
   });
 });
 
-
 describe('scrollUiReducer — away flag + badge', () => {
   const away = (n = 0): ScrollUiState => ({ away: true, newWhileAway: n });
 
@@ -81,23 +80,21 @@ describe('scrollUiReducer — away flag + badge', () => {
 
     // Same state again → SAME reference (no re-render per scroll event).
     expect(scrollUiReducer(s1, { type: 'distance', distance: 9999 })).toBe(s1);
-    expect(
-      scrollUiReducer(SCROLL_UI_INITIAL, { type: 'distance', distance: 10 })
-    ).toBe(SCROLL_UI_INITIAL);
+    expect(scrollUiReducer(SCROLL_UI_INITIAL, { type: 'distance', distance: 10 })).toBe(
+      SCROLL_UI_INITIAL
+    );
   });
 
   it('counts new responses only while away', () => {
     expect(scrollUiReducer(away(0), { type: 'new-assistant-message' })).toEqual(away(1));
     expect(scrollUiReducer(away(1), { type: 'new-assistant-message' })).toEqual(away(2));
-    expect(
-      scrollUiReducer(SCROLL_UI_INITIAL, { type: 'new-assistant-message' })
-    ).toBe(SCROLL_UI_INITIAL);
+    expect(scrollUiReducer(SCROLL_UI_INITIAL, { type: 'new-assistant-message' })).toBe(
+      SCROLL_UI_INITIAL
+    );
   });
 
   it('clears the badge when the reader reaches the bottom by scrolling', () => {
-    expect(scrollUiReducer(away(3), { type: 'distance', distance: 0 })).toEqual(
-      SCROLL_UI_INITIAL
-    );
+    expect(scrollUiReducer(away(3), { type: 'distance', distance: 0 })).toEqual(SCROLL_UI_INITIAL);
   });
 
   it('clears everything on an explicit jump (button click / own send)', () => {

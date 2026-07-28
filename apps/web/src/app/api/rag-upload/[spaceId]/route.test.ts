@@ -42,7 +42,16 @@ const VALID_UUID = '3f1e8c9a-1b2c-4d5e-8f90-a1b2c3d4e5f6';
 
 /** A fake `ClientRequest` that replays a canned upstream response. */
 function fakeUpstream(status: number, body: string) {
-  return (_options: unknown, callback: (res: EventEmitter & { statusCode: number; headers: Record<string, string>; destroy: () => void }) => void) => {
+  return (
+    _options: unknown,
+    callback: (
+      res: EventEmitter & {
+        statusCode: number;
+        headers: Record<string, string>;
+        destroy: () => void;
+      }
+    ) => void
+  ) => {
     const req = Object.assign(new EventEmitter(), {
       setTimeout: vi.fn(),
       write: vi.fn(),

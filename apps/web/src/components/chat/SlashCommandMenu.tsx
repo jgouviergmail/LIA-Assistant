@@ -15,11 +15,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { CornerDownLeft, TerminalSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import {
-  filterSlashCommands,
-  isSlashTrigger,
-  type SlashCommand,
-} from '@/lib/slash-commands';
+import { filterSlashCommands, isSlashTrigger, type SlashCommand } from '@/lib/slash-commands';
 
 export interface UseSlashMenuArgs {
   message: string;

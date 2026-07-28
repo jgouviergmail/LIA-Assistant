@@ -12,6 +12,8 @@
  * appended as conversational commands namespaced `skill:<name>`.
  */
 
+import { normalizeSearchText } from '@/lib/utils';
+
 export type SlashCommandKind = 'local' | 'conversational';
 
 export interface SlashCommand {
@@ -35,23 +37,24 @@ export function isSlashTrigger(value: string): boolean {
   return /^\/[\p{L}\p{N}:-]*$/u.test(value);
 }
 
-/** Diacritic/case-insensitive normalization for matching. */
-function normalize(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase();
-}
-
-/** Commands whose id or label contains the typed query (sans slash). */
+/**
+ * Commands whose id or label contains the typed query (sans slash).
+ *
+ * Normalization is delegated to `normalizeSearchText`, the single accent- and
+ * case-insensitive matcher the whole search stack shares (FAQ, search excerpt,
+ * highlight, settings search). This module used to carry a private copy that
+ * stripped diacritics BEFORE lowercasing instead of after — equivalent on every
+ * script the app ships, but a duplicate is a divergence waiting to happen.
+ */
 export function filterSlashCommands(
   commands: readonly SlashCommand[],
   value: string
 ): SlashCommand[] {
-  const query = normalize(value.replace(/^\//, ''));
+  const query = normalizeSearchText(value.replace(/^\//, ''));
   if (!query) return [...commands];
   return commands.filter(
     command =>
-      normalize(command.id).includes(query) || normalize(command.label).includes(query)
+      normalizeSearchText(command.id).includes(query) ||
+      normalizeSearchText(command.label).includes(query)
   );
 }

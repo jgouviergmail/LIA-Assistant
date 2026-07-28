@@ -72,18 +72,62 @@ import { DeviceSessionsSettings } from '@/components/settings/DeviceSessionsSett
 import { AccountExportSettings } from '@/components/settings/AccountExportSettings';
 import ConsumptionExportSection from '@/components/settings/ConsumptionExportSection';
 import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
+import { useAppConfig } from '@/hooks/useAppConfig';
 import { useTranslation } from '@/i18n/client';
 import { FeatureErrorBoundary } from '@/components/errors';
+import { SettingsSearch } from '@/components/settings/SettingsSearch';
 import { CatalogueInvalidationProvider } from '@/lib/catalogue-invalidation-context';
+import { SETTINGS_SEARCH_META, type SettingsSearchAvailability } from '@/lib/settings-search';
 import {
   SETTINGS_SECTIONS,
-  resolveSettingsSection,
-  type SettingsSectionTarget,
+  isSettingsSectionToken,
+  type SettingsSectionToken,
+  type SettingsTab,
 } from '@/lib/settings-sections';
 
 interface SettingsPageProps {
   params: Promise<{ lng: string }>;
 }
+
+/**
+ * A section the page has been asked to reveal.
+ *
+ * The token rather than the target: the tab, the accordion value AND the
+ * translated title are all derivable from it, and the title is what an honest
+ * "this section is not available" message needs.
+ */
+interface PendingSection {
+  token: SettingsSectionToken;
+  /**
+   * Move focus onto the section's trigger.
+   *
+   * True only for a pick the reader just made in the search field. A deep link,
+   * an OAuth return or the portrait shortcut must NOT steal focus: the reader
+   * did not ask for it at that moment, and focus arriving asynchronously after
+   * a page load is disorienting.
+   */
+  focus: boolean;
+}
+
+/**
+ * First look after asking for a section, then how often, then for how long.
+ *
+ * The first delay is the accordion's opening animation — scrolling before the
+ * item has height lands short. Everything after it exists because a section can
+ * be absent for two very different reasons: it is gated off for this account
+ * (`security-auth` without MFA, `telephony-calls` with no call), or its own
+ * request has simply not answered yet (`heartbeat` and `briefing-grid` render
+ * null while loading).
+ *
+ * Nothing distinguishes the two from here, which is why five seconds is a
+ * courtesy and not a verdict: the message the reader eventually gets states the
+ * OBSERVATION ("it is not showing here") and offers the gate as the likely
+ * cause. Asserting unavailability outright would be a confident lie the day a
+ * connection is slow.
+ */
+const SECTION_FIRST_LOOK_MS = 150;
+const SECTION_POLL_MS = 120;
+const SECTION_DEADLINE_MS = 5000;
 
 export default function SettingsPage({ params }: SettingsPageProps) {
   const { user } = useAuth();
@@ -91,6 +135,11 @@ export default function SettingsPage({ params }: SettingsPageProps) {
   const lng = useLanguageParam(params);
   const { t } = useTranslation(lng);
   const { userAccessAvailable } = useDebugPanelEnabled();
+  // The one instance flag a settings section actually reads before rendering
+  // (`OpenLoopsSection`). The other `/config` flags are NOT consulted here: the
+  // sections they name render regardless, and filtering the search on them
+  // would hide something that is on the page.
+  const { config } = useAppConfig();
 
   // Track expanded sections for each accordion (by tab for superusers)
   const [appearanceSections, setAppearanceSections] = React.useState<string[]>([]);
@@ -109,7 +158,21 @@ export default function SettingsPage({ params }: SettingsPageProps) {
   // tab, expands its accordion item and scrolls to it — previously only
   // `connectors` and `journals` were understood, while the getting-started
   // checklist pointed six of its seven items at the bare settings page.
-  const [pendingSection, setPendingSection] = React.useState<SettingsSectionTarget | null>(null);
+  const [pendingSection, setPendingSection] = React.useState<PendingSection | null>(null);
+
+  // Stable identity: `SettingsSearch` memoizes its whole index on this object,
+  // and a fresh one per render would rebuild thirty entries every keystroke.
+  const availability = React.useMemo<SettingsSearchAvailability>(
+    () => ({
+      isSuperuser: !!user?.is_superuser,
+      // Mirrors `OpenLoopsSection` exactly, loading state included: while
+      // `/config` is in flight the section is genuinely absent, and the index
+      // rebuilds by itself when the answer lands.
+      openLoopsEnabled: !!config?.features?.open_loops_enabled,
+      debugUserAccess: userAccessAvailable,
+    }),
+    [user?.is_superuser, config?.features?.open_loops_enabled, userAccessAvailable]
+  );
 
   // Track if OAuth callback toast has been shown (prevents duplicate toasts)
   const oauthToastShownRef = React.useRef(false);
@@ -125,9 +188,10 @@ export default function SettingsPage({ params }: SettingsPageProps) {
     // through SETTINGS_SECTIONS; an unknown token simply resolves to null and
     // leaves the page on its default tab. The param is cleaned either way so a
     // reload does not replay the navigation.
-    const target = resolveSettingsSection(section);
-    if (target) {
-      setPendingSection(target);
+    if (section && isSettingsSectionToken(section)) {
+      // No focus move: the reader arrived from a link, they did not ask for the
+      // caret to jump the moment the page settled.
+      setPendingSection({ token: section, focus: false });
     }
     if (section) {
       const url = new URL(window.location.href);
@@ -196,42 +260,82 @@ export default function SettingsPage({ params }: SettingsPageProps) {
   // `?section=` deep link, so it goes through the same state.
   React.useEffect(() => {
     if (!shouldExpandConnectors) return;
-    setPendingSection(SETTINGS_SECTIONS.connectors);
+    setPendingSection({ token: 'connectors', focus: false });
     setShouldExpandConnectors(false);
   }, [shouldExpandConnectors]);
 
   // W2: honour a pending section target — activate its tab, expand its
-  // accordion item, scroll to it. Which accordion holds it depends on the tab
-  // AND on the layout: superusers get three tabs (preferences / features /
-  // administration), everyone else two, and the non-superuser preferences tab
-  // uses its own `allSections` state.
+  // accordion item, scroll to it, and (search only) put the caret on it. Which
+  // accordion holds it depends on the tab AND on the layout: superusers get
+  // three tabs (preferences / features / administration), everyone else two,
+  // and the non-superuser preferences tab uses its own `allSections` state.
+  //
+  // A section can also fail to appear at all — eight of the thirty render
+  // nothing under their own conditions. Rather than leaving the reader in front
+  // of a page that did not move, the effect waits for it and then says so.
   React.useEffect(() => {
     if (!pendingSection) return;
-    const { tab, accordionValue } = pendingSection;
+    const { token, focus } = pendingSection;
+    const { tab, accordionValue } = SETTINGS_SECTIONS[token];
     setActiveTab(tab);
 
     const expand = (prev: string[]) =>
       prev.includes(accordionValue) ? prev : [...prev, accordionValue];
-    if (tab === 'features') {
-      setFeaturesSections(expand);
-    } else if (tab === 'administration') {
-      setConnectorSections(expand);
-    } else if (user?.is_superuser) {
-      setAppearanceSections(expand);
-    } else {
-      setAllSections(expand);
-    }
+    // A table keyed by `SettingsTab`, not an if/else chain. The chain used to
+    // end in an `else` that swallowed anything unrecognised, and `tsc` now
+    // proves the `administration` arm unreachable — the table has no
+    // administration entry today. A `Record` keeps the mapping COMPLETE by
+    // type: a fourth tab, or the phase-2 admin tokens, fail to compile instead
+    // of silently expanding the wrong accordion.
+    const expandIn: Record<SettingsTab, React.Dispatch<React.SetStateAction<string[]>>> = {
+      // The non-superuser layout keeps the whole Preferences tab in one state.
+      preferences: user?.is_superuser ? setAppearanceSections : setAllSections,
+      features: setFeaturesSections,
+      administration: setConnectorSections,
+    };
+    expandIn[tab](expand);
 
-    // The accordion animates open; scrolling before it has height would land
-    // short. The id is derived from the same `value` (SettingsSection).
-    const timer = window.setTimeout(() => {
-      document
-        .getElementById(`settings-section-${accordionValue}`)
-        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      setPendingSection(null);
-    }, 150);
+    const startedAt = Date.now();
+    let timer = 0;
+
+    const reveal = (node: HTMLElement) => {
+      // `behavior: 'smooth'` in JS ignores `prefers-reduced-motion` — the same
+      // trap `handleTabChange` documents a few lines below. Honour it here too.
+      const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      node.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+      if (!focus) return;
+      // The Radix accordion trigger — a disclosure button carrying
+      // `aria-expanded`, pinned by `SettingsSection`'s own test. `preventScroll`
+      // so focusing does not cancel the smooth scroll just started.
+      const trigger =
+        node.querySelector<HTMLElement>('button[aria-expanded]') ??
+        node.querySelector<HTMLElement>('button');
+      trigger?.focus({ preventScroll: true });
+    };
+
+    const settle = () => {
+      const node = document.getElementById(`settings-section-${accordionValue}`);
+      if (node) {
+        reveal(node);
+        setPendingSection(null);
+        return;
+      }
+      if (Date.now() - startedAt >= SECTION_DEADLINE_MS) {
+        // Named, not vague: the reader asked for a specific section and it is
+        // not on their page. Saying nothing would leave a dead end that looks
+        // like a broken link.
+        toast.info(
+          t('settings.search.unavailable', { section: t(SETTINGS_SEARCH_META[token].titleKey) })
+        );
+        setPendingSection(null);
+        return;
+      }
+      timer = window.setTimeout(settle, SECTION_POLL_MS);
+    };
+
+    timer = window.setTimeout(settle, SECTION_FIRST_LOOK_MS);
     return () => window.clearTimeout(timer);
-  }, [pendingSection, user?.is_superuser]);
+  }, [pendingSection, user?.is_superuser, t]);
 
   if (!user) return null;
 
@@ -257,6 +361,17 @@ export default function SettingsPage({ params }: SettingsPageProps) {
     icon: Shield,
   };
 
+  // Declared once, mounted by both layouts inside the sticky bar. Picking a
+  // result is the ONE path that moves focus: the reader just acted, so landing
+  // the caret on the section they asked for is what a keyboard user expects.
+  const searchField = (
+    <SettingsSearch
+      lng={lng}
+      availability={availability}
+      onSelect={result => setPendingSection({ token: result.token, focus: true })}
+    />
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -268,7 +383,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
       {/* Tabs Navigation */}
       {user.is_superuser ? (
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <SettingsTabsBar tabs={[preferencesTab, featuresTab, administrationTab]} />
+          <SettingsTabsBar tabs={[preferencesTab, featuresTab, administrationTab]}>
+            {searchField}
+          </SettingsTabsBar>
 
           {/* PREFERENCES Tab */}
           <TabsContent value="preferences">
@@ -354,7 +471,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               {/* QW-10: "What LIA understands about you" — jumps to the
                   portrait inside Journals (renders only with a portrait). */}
               <FeatureErrorBoundary feature="journals">
-                <PortraitShortcut onOpen={() => setPendingSection(SETTINGS_SECTIONS.journals)} />
+                <PortraitShortcut
+                  onOpen={() => setPendingSection({ token: 'journals', focus: false })}
+                />
               </FeatureErrorBoundary>
               <PersonalitySettings lng={lng} />
               <FeatureErrorBoundary feature="psyche">
@@ -445,7 +564,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
       ) : (
         /* NON-ADMIN: Two-tab layout (Preferences + Features) */
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <SettingsTabsBar tabs={[preferencesTab, featuresTab]} />
+          <SettingsTabsBar tabs={[preferencesTab, featuresTab]}>{searchField}</SettingsTabsBar>
 
           {/* PREFERENCES Tab */}
           <TabsContent value="preferences">
@@ -532,7 +651,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               {/* QW-10: "What LIA understands about you" — jumps to the
                   portrait inside Journals (renders only with a portrait). */}
               <FeatureErrorBoundary feature="journals">
-                <PortraitShortcut onOpen={() => setPendingSection(SETTINGS_SECTIONS.journals)} />
+                <PortraitShortcut
+                  onOpen={() => setPendingSection({ token: 'journals', focus: false })}
+                />
               </FeatureErrorBoundary>
               <PersonalitySettings lng={lng} />
               <FeatureErrorBoundary feature="psyche">

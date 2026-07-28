@@ -23,6 +23,7 @@
  * would be visible rather than fatal.
  */
 
+import { createInstance } from 'i18next';
 import { describe, it, expect } from 'vitest';
 
 // Suffixed on purpose: a bare `it` import would shadow vitest's own `it`.
@@ -100,6 +101,22 @@ const PINNED: ReadonlyArray<{ key: string; placeholders?: readonly string[] }> =
   { key: 'chat.message.retry' },
   // A2 — the logo-as-menu trigger; an unnamed button is a dead end.
   { key: 'common.menu' },
+  // Settings quick search. The chrome only — the thirty section titles,
+  // descriptions and keyword lists are checked exhaustively from the table
+  // itself in `lib/__tests__/settings-search.test.ts`, which cannot fall behind
+  // the way a hand-maintained list can. Pinned here for the placeholders: a
+  // count, a query and a section name that silently vanishing would leave
+  // "{{query}}" on screen.
+  { key: 'settings.search.label' },
+  { key: 'settings.search.placeholder' },
+  { key: 'settings.search.clear' },
+  { key: 'settings.search.results_label' },
+  { key: 'settings.search.results_count_one', placeholders: ['count'] },
+  { key: 'settings.search.results_count_other', placeholders: ['count'] },
+  { key: 'settings.search.no_results', placeholders: ['query'] },
+  { key: 'settings.search.no_results_hint' },
+  { key: 'settings.search.admin_not_indexed' },
+  { key: 'settings.search.unavailable', placeholders: ['section'] },
 ];
 
 /** Resolve a dotted path, or undefined. */
@@ -135,4 +152,58 @@ describe('i18n key placement', () => {
     const keys = PINNED.map(entry => entry.key);
     expect(new Set(keys).size).toBe(keys.length);
   });
+});
+
+/**
+ * Plural keys, checked through a REAL i18next.
+ *
+ * The checks above prove `…_one` and `…_other` exist and carry `{{count}}`.
+ * They do not prove that `t('…', { count })` REACHES them: the plural suffix is
+ * chosen by i18next from `Intl.PluralRules`, so a locale whose category is not
+ * on file resolves to nothing and the UI prints the bare key. Every component
+ * test in this repo runs against a stub that echoes keys, so nothing else in
+ * the suite would notice.
+ *
+ * Counts 1 and 5 are enough for the six locales we ship — measured with
+ * `Intl.PluralRules`, categories for 0…30 are only `one` and `other` (`zh` uses
+ * `other` alone, and its `_one` duplicate exists so key parity passes).
+ */
+describe('plural keys resolve through i18next, not just through the file', () => {
+  /** Base keys derived from the pinned `_one` variants. */
+  const PLURAL_BASES = PINNED.map(entry => entry.key)
+    .filter(key => key.endsWith('_one'))
+    .map(key => key.slice(0, -'_one'.length));
+
+  it('has plural keys to check at all', () => {
+    // Without this the suite below would pass vacuously the day the pinned list
+    // loses its plural entries.
+    expect(PLURAL_BASES.length).toBeGreaterThan(0);
+  });
+
+  for (const [locale, dictionary] of Object.entries(LOCALES)) {
+    for (const count of [1, 5]) {
+      it(`${locale}: every pinned plural resolves for count=${count}`, async () => {
+        const instance = createInstance();
+        await instance.init({
+          lng: locale,
+          fallbackLng: false,
+          resources: { [locale]: { translation: dictionary as Record<string, unknown> } },
+          interpolation: { escapeValue: false },
+        });
+
+        for (const base of PLURAL_BASES) {
+          const value = String(instance.t(base, { count }));
+          // Resolution: i18next returns the key itself when no plural form
+          // matches the category `Intl.PluralRules` selected.
+          expect(value, `${locale}: ${base} did not resolve for count=${count}`).not.toBe(base);
+          // Interpolation: NOT "the number appears" — a `_one` form legitimately
+          // reads "one card is not configured" without printing a digit. What
+          // must never survive is an unsubstituted placeholder.
+          expect(value, `${locale}: ${base} left {{count}} unsubstituted`).not.toContain(
+            '{{count}}'
+          );
+        }
+      });
+    }
+  }
 });

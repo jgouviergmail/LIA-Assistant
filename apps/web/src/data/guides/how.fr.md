@@ -6,7 +6,7 @@
 
 **Version** : 3.6
 **Date** : 2026-07-28
-**Application** : LIA v1.25.31
+**Application** : LIA v1.25.32
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 447 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 160+ ADRs, ~16 535 tests collectés par pytest sur 873 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 170+ ADRs, ~16 535 tests collectés par pytest sur 873 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -1091,11 +1091,21 @@ LIA accepte les ingestions d'événements externes (mesures iPhone Apple Health,
 
 Six manifests localisés (`/manifest-{lng}.json` — `lang`, `start_url`, trois raccourcis, entrées d'icônes `any`/`maskable` séparées ; la parité structurelle des 6 fichiers est verrouillée par test) sont liés par page via `generateMetadata`, avec de vraies icônes PNG et une `apple-touch-icon` (iOS ignore silencieusement les icônes SVG). Le **share target** de l'OS (`GET /{lng}/share`) compose titre/texte/url partagés en un brouillon de chat plafonné empruntant le rail `?draft=` existant — jamais auto-envoyé. Une suggestion d'installation discrète apparaît à partir de la troisième visite (jamais en display-mode standalone, refusable pour toujours) ; Chromium reçoit un vrai prompt d'installation via `beforeinstallprompt`, iOS l'instruction Partager → Sur l'écran d'accueil.
 
+### 23.14. Index de navigation : une table, deux gardes en sens opposés
+
+La page des réglages empile une trentaine de sections repliées sur plusieurs onglets. Les atteindre suppose une table qui associe un jeton d'URL à un onglet et à une valeur d'accordéon. Une table de ce genre ne se périme jamais bruyamment : elle se contente, un jour, de ne plus décrire la page.
+
+Deux gardes la tiennent, et elles regardent dans des directions opposées. La première va de la table vers le code : chaque entrée doit désigner un fichier qui existe, y déclarer la valeur qu'elle revendique, et vivre dans l'onglet annoncé — l'onglet étant lu depuis la page plutôt que déclaré une seconde fois. La seconde va du code vers la table : **tout** composant rendu dans un panneau d'onglets doit être indexé, structurel, ou explicitement écarté avec une raison écrite. Il n'existe pas de quatrième issue, si bien qu'une section ajoutée demain impose une décision au moment où elle est ajoutée, au lieu de disparaître en silence.
+
+L'index de recherche bâti par-dessus est exhaustif **par le type** : ses métadonnées forment un `Record` indexé par l'union des jetons, donc ajouter une destination sans dire comment on la nomme ne compile pas. Le rapprochement s'appuie sur le normaliseur que partagent toutes les surfaces de recherche du produit — casse, diacritiques, apostrophes typographiques et espaces insécables sont repliés vers la forme que produit un clavier. Ce repli obéit à une contrainte dure : un point de code pour un point de code, sans quoi les surligneurs qui reconstituent les positions d'origine se décalent d'autant.
+
+Reste qu'une destination peut légitimement ne pas exister : plusieurs sections ne se rendent que si la fonctionnalité est active ou si la donnée existe, et le panneau d'onglet inactif n'est pas monté — rien ne peut donc l'observer à l'avance. Le parti retenu est de garder ces destinations dans l'index et d'énoncer l'observation à l'arrivée, plutôt que d'échanger un cul-de-sac visible contre un faux négatif invisible.
+
 ---
 
 ## 24. Architecture des décisions (ADR)
 
-160+ ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+170+ ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1185,10 +1195,10 @@ Le contexte psyché est injecté dans **tous** les points de génération utilis
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 160+ ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~16 535 tests sur 873 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 170+ ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~16 535 tests sur 873 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 160+ ADRs, et du changelog (v1.0 à v1.25.31). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 170+ ADRs, et du changelog (v1.0 à v1.25.32). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

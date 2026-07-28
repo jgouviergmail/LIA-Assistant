@@ -63,6 +63,24 @@ Two consequences, both deliberate:
    weekly on Chromium/Firefox/WebKit. The manual NVDA/VoiceOver campaign is
    `docs/a11y/AT_CAMPAIGN.md`.
 
+### The blind spot of layer 2: surfaces that only exist while open
+
+An axe scan sees the DOM it is given. A popup, a menu or a listbox that renders
+only while the reader is interacting is **absent** from a scan that just loads
+the page — so the forbidden-pattern list above is enforced on it by nobody.
+
+Measured instance: the settings search results carried
+`text-muted-foreground/80` on their description line, an alpha-diluted token the
+list above forbids outright. It scored **3.51:1** against the popover
+background at 12 px, under the 4.5:1 floor — and the existing
+`settings page scans clean` journey never saw it, because the field was empty
+when the scan ran. The fix was the plain token; the lasting fix is a second
+journey that **types a query first**, then scans.
+
+Rule: when a change introduces a surface that appears only on interaction, the
+a11y journey covering that page gets a sibling that drives the interaction
+before scanning. A scan of the closed state is not a scan of the component.
+
 ## Changing the palette
 
 Edit `apps/web/src/styles/globals.css`, run

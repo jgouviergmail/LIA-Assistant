@@ -53,10 +53,9 @@ describe('splitAnswerGroups', () => {
   it.each(GROUPED_LOCALES)('preserves every word of the %s q4 answer', locale => {
     const source = q4Answer(locale);
     const parsed = splitAnswerGroups(source)!;
-    const reassembled = [
-      parsed.intro,
-      ...parsed.groups.flatMap(g => [g.heading, ...g.items]),
-    ].join(' ');
+    const reassembled = [parsed.intro, ...parsed.groups.flatMap(g => [g.heading, ...g.items])].join(
+      ' '
+    );
     expect(readableText(reassembled)).toBe(readableText(source));
   });
 

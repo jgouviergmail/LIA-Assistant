@@ -43,7 +43,12 @@ const cardProps = { isRefreshing: false, onRefresh: vi.fn(), staggerIndex: 0 };
 
 const fullData: TasksData = {
   items: [
-    { title: 'Payer la facture EDF', due_date_iso: '2026-07-20', days_until_due: -2, overdue: true },
+    {
+      title: 'Payer la facture EDF',
+      due_date_iso: '2026-07-20',
+      days_until_due: -2,
+      overdue: true,
+    },
     { title: 'Préparer le dossier', due_date_iso: '2026-07-22', days_until_due: 0, overdue: false },
     { title: 'Relancer Paul', due_date_iso: null, days_until_due: null, overdue: false },
   ],
