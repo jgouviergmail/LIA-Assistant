@@ -48,6 +48,7 @@ import {
   Newspaper,
   RefreshCw,
   Layers,
+  LayoutTemplate,
   FolderOpen,
   BadgeCheck,
   Paperclip,
@@ -114,6 +115,7 @@ const sections = [
  * releases. `__tests__/changelog-wiring.test.ts` now fails on any drift in either direction.
  */
 export const changelogVersionKeys = [
+  'v1_26_1',
   'v1_26_0',
   'v1_25_33',
   'v1_25_32',
@@ -279,6 +281,7 @@ export const featureIcons = {
   mcp: Plug,
   mcpApps: Smartphone,
   excalidraw: Palette,
+  richResponses: LayoutTemplate,
   multichannel: Radio,
   heartbeatAutonome: HeartPulse,
   webFetch: Globe2,
@@ -351,6 +354,7 @@ export const featureKeys = [
   'proactiveInitiative',
   'todayBriefing',
   'telephony',
+  'richResponses',
 ];
 
 export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FAQContentProps) {

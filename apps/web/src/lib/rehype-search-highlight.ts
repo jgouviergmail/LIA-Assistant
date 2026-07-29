@@ -54,7 +54,16 @@ export const SEARCH_MARK_CLASS = 'lia-search-mark';
 const SKIP_TAGS = new Set(['code', 'pre', 'script', 'style', 'mark']);
 
 /** Classes marking generated math markup that a `<mark>` would corrupt. */
-const SKIP_CLASSES = ['math-inline', 'math-display', 'language-math', 'katex'];
+const SKIP_CLASSES = [
+  'math-inline',
+  'math-display',
+  'language-math',
+  'katex',
+  // Material Symbols icons: the text is a font LIGATURE name ("event",
+  // "mail"), not prose — a <mark> inserted mid-text breaks the ligature and
+  // displays the raw word highlighted (ADR-177).
+  'material-symbols-outlined',
+];
 
 function isElement(n: HastNode): n is ElementNode {
   return n.type === 'element' && typeof (n as ElementNode).tagName === 'string';

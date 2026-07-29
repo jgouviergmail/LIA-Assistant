@@ -1199,7 +1199,7 @@
       "display_mode": {
         "title": "Display Mode",
         "description": "Choose the response rendering format",
-        "info": "HTML Cards mode displays structured visual cards. Rich HTML mode produces beautifully formatted responses. Markdown mode shows plain text.",
+        "info": "HTML Cards mode displays structured visual cards. Rich HTML mode lays out answers with rich components (callouts, badges, collapsible sections, tables, columns, key figures, highlighted code). Markdown mode shows plain text.",
         "modes": {
           "cards": {
             "label": "HTML Cards",
@@ -1208,7 +1208,7 @@
           },
           "html": {
             "label": "Rich HTML",
-            "description": "Responses with rich formatting: headings, lists, callouts, tables, and polished typography",
+            "description": "Laid-out answers: headings, callouts, badges, collapsible sections, tables, columns, key figures and highlighted code",
             "selected": "Rich HTML mode enabled"
           },
           "markdown": {
@@ -3420,6 +3420,10 @@
           "title": "⚡ Streaming & Real-Time",
           "description": "SSE (Server-Sent Events) streaming responses with typed events: tokens, tool states, HITL requests, execution metadata. The frontend displays each execution step in real time (routing, planning, validation, tool calls) with accumulated progress, then streams the response token by token. A stream that goes quiet no longer freezes the interface. When a phone suspends the tab, the connection dies without announcing anything — no end, no error — and nothing told that state apart from a merely slow answer. Past a silence budget calibrated on the server's heartbeat rhythm, the client drops the dead connection and reattaches to the turn still running in the background, which replays whatever was produced meanwhile."
         },
+        "richResponses": {
+          "title": "🎨 Rich Answers & Display Modes",
+          "description": "Three rendering modes to choose from: HTML Cards (visual cards per domain), Rich HTML or Markdown. Rich-HTML mode lays out its answers with seven design-system components — titled callouts, icon badges, collapsible sections, key-value lists, columns, numbered steps, stat tiles — under a restraint rule (2-3 per answer). Highlighted code with a copy button, LaTeX formulas, zebra tables. Every tag crosses a strict sanitization boundary, and copying an answer always yields clean text (dual-flavor clipboard)."
+        },
         "llm": {
           "title": "🤖 Multi-Provider LLM & Pattern Learning",
           "description": "Support for OpenAI (GPT-5.4, o3), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity, and local Ollama. Bayesian learning of planning patterns (≥90% confidence → LLM bypass). Average 89% token savings. Configurable profiles per task with real-time cost tracking."
@@ -3575,6 +3579,17 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_26_1": {
+          "title": "v1.26.1 — 🎨 Answers with real page design",
+          "date": "July 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🧩 Rich HTML mode gains real components</b> — colored callouts with titles, badges with icons, collapsible sections, key-value lists, side-by-side columns, numbered steps and key-figure tiles. LIA uses them sparingly, when they genuinely help reading. Display mode \"Rich HTML\", under Settings > Personalization.",
+            "i2": "<b>🌈 Code comes out highlighted</b> — in Rich HTML mode, code blocks now get syntax highlighting and a copy button, just like in the other modes.",
+            "i3": "<b>📋 Copying an answer gives clean text</b> — copying, sharing or exporting a Rich-HTML answer now produces readable, structured text (and a rich rendering where pasting supports it), never raw HTML code again.",
+            "i4": "<b>🔍 Polish</b> — history search no longer breaks icon rendering; phantom line breaks in HTML answers are gone; inline code is clearly visible again in light theme."
+          }
+        },
         "v1_26_0": {
           "title": "v1.26.0 — 🎯 From reading to acting",
           "date": "July 2026",
@@ -6261,11 +6276,11 @@
       },
       "bubble_actions": {
         "title": "Every bubble has its gestures",
-        "desc": "Copy, approve, disapprove: right under the message, never far away."
+        "desc": "Copy, approve, disapprove: right under the message, never far away. And copying always gives clean text, never code."
       },
       "share_export": {
         "title": "One response, many exits",
-        "desc": "Share or export any response in one gesture."
+        "desc": "Share or export any response in one gesture — always as readable text, even the designed answers."
       },
       "backstage": {
         "title": "The backstage, on demand",
@@ -7393,7 +7408,7 @@
       },
       "rich_responses": {
         "title": "Rich visual responses",
-        "description": "Choose your display mode: interactive HTML cards, rich HTML rendering or plain Markdown. Emails, events, contacts, weather, routes — everything adapts to your preferences. Syntax-highlighted code blocks, math formulas (LaTeX) and a copy button on every message to grab the content in one click."
+        "description": "Choose your display mode: interactive HTML cards, rich HTML or plain Markdown. In rich mode, LIA lays out its answers — callouts, badges, collapsible sections, key-value lists, columns, numbered steps, key figures — with restraint. Syntax-highlighted code, math formulas (LaTeX), and copying a message always gives you clean text, never raw HTML."
       },
       "multichannel": {
         "title": "Web, Telegram & push",

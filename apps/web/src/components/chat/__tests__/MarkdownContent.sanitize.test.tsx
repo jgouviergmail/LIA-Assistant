@@ -59,6 +59,15 @@ describe('MarkdownContent — XSS vectors stripped', () => {
     expect(container.querySelector('form')).toBeNull();
   });
 
+  it('drops event handlers on newly allowed tags (ADR-177)', () => {
+    const { container } = render(
+      <MarkdownContent content={'<mark onmouseover="alert(1)">x</mark>'} />
+    );
+    const mark = container.querySelector('mark');
+    expect(mark).not.toBeNull();
+    expect(mark?.getAttribute('onmouseover')).toBeNull();
+  });
+
   it('strips legacy inline <style> blocks without leaking CSS as text', () => {
     // Messages predating the externalized .lia-response CSS carry this block.
     const { container } = render(
@@ -136,6 +145,21 @@ describe('MarkdownContent — legitimate markup survives', () => {
       <MarkdownContent content={'<a href="tel:+33612345678">tel</a>'} />
     );
     expect(container.querySelector('a')?.getAttribute('href')).toMatch(/^tel:/);
+  });
+
+  it.each([
+    ['mark', '<p>avant <mark>décisif</mark> après</p>', 'mark'],
+    [
+      'caption',
+      '<table><caption>Comparatif</caption><tbody><tr><td>x</td></tr></tbody></table>',
+      'caption',
+    ],
+    ['abbr', '<p><abbr title="Application Programming Interface">API</abbr></p>', 'abbr[title]'],
+    ['time', '<p><time datetime="2026-08-12">12 août</time></p>', 'time[datetime]'],
+    ['figure', '<figure><figcaption>Légende</figcaption></figure>', 'figure > figcaption'],
+  ])('keeps inert enrichment tag <%s> (ADR-177)', (_tag, content, selector) => {
+    const { container } = render(<MarkdownContent content={content} />);
+    expect(container.querySelector(selector)).not.toBeNull();
   });
 
   it('keeps inline style attributes used by cards', () => {

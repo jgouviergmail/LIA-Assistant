@@ -2170,7 +2170,7 @@
       "display_mode": {
         "title": "Modo de visualización",
         "description": "Elegir el formato de renderizado de las respuestas",
-        "info": "El modo Tarjetas HTML muestra fichas visuales estructuradas. El modo HTML enriquecido produce respuestas con formato cuidado. El modo Markdown muestra texto plano.",
+        "info": "El modo Tarjetas HTML muestra fichas visuales estructuradas. El modo HTML enriquecido compone las respuestas con componentes ricos (avisos, insignias, secciones desplegables, tablas, columnas, cifras clave, código resaltado). El modo Markdown muestra texto plano.",
         "modes": {
           "cards": {
             "label": "Tarjetas HTML",
@@ -2179,7 +2179,7 @@
           },
           "html": {
             "label": "HTML enriquecido",
-            "description": "Respuestas con formato enriquecido: títulos, listas, callouts, tablas y tipografía cuidada",
+            "description": "Respuestas compuestas: títulos, avisos, insignias, secciones desplegables, tablas, columnas, cifras clave y código resaltado",
             "selected": "Modo HTML enriquecido activado"
           },
           "markdown": {
@@ -3411,6 +3411,10 @@
           "title": "⚡ Streaming & Tiempo Real",
           "description": "Respuestas en streaming SSE (Server-Sent Events) con eventos tipados: tokens, estados de herramientas, solicitudes HITL, metadatos de ejecución. El frontend muestra cada paso de ejecución en tiempo real (enrutamiento, planificación, validación, llamadas de herramientas) con progreso acumulativo, y luego transmite la respuesta token a token. Un flujo que se queda en silencio ya no inmoviliza la interfaz. Cuando un teléfono suspende la pestaña, la conexión muere sin anunciar nada — ni fin, ni error — y nada distinguía ese estado de una respuesta simplemente larga. Superado un presupuesto de silencio calibrado según el ritmo de los latidos del servidor, el cliente abandona la conexión muerta y se reengancha al turno que sigue vivo en segundo plano, que reproduce lo generado mientras tanto."
         },
+        "richResponses": {
+          "title": "🎨 Respuestas Ricas y Modos de Visualización",
+          "description": "Tres modos de renderizado a elegir: Tarjetas HTML (fichas visuales por dominio), HTML enriquecido o Markdown. El modo HTML enriquecido compone sus respuestas con siete componentes del design system — avisos con título, insignias con iconos, secciones desplegables, listas clave-valor, columnas, pasos numerados, fichas de cifras — bajo una regla de sobriedad (2-3 por respuesta). Código resaltado con botón de copiar, fórmulas LaTeX, tablas cebradas. Cada etiqueta cruza una frontera de sanitización estricta, y copiar una respuesta produce siempre texto limpio (portapapeles de doble formato)."
+        },
         "llm": {
           "title": "🤖 Multi-Proveedores LLM & Pattern Learning",
           "description": "Soporte OpenAI (GPT-5.4, o3), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity y Ollama local (7 proveedores). Aprendizaje bayesiano de patrones de planificación (≥90% confianza → bypass LLM). Ahorro promedio del 89% de tokens. Perfiles configurables por tarea con seguimiento en tiempo real de costos."
@@ -3566,6 +3570,17 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_26_1": {
+          "title": "v1.26.1 — 🎨 Respuestas con verdadera composición",
+          "date": "Julio 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🧩 El modo HTML enriquecido gana componentes reales</b> — avisos de color con título, insignias con iconos, secciones desplegables, listas clave-valor, columnas lado a lado, pasos numerados y fichas de cifras clave. LIA los usa con sobriedad, cuando realmente ayudan a la lectura. Modo de visualización «HTML enriquecido», en Ajustes > Personalización.",
+            "i2": "<b>🌈 El código aparece coloreado</b> — en modo HTML enriquecido, los bloques de código ahora tienen resaltado de sintaxis y botón de copiar, como en los demás modos.",
+            "i3": "<b>📋 Copiar una respuesta da texto limpio</b> — copiar, compartir o exportar una respuesta en HTML enriquecido produce ahora texto legible y estructurado (y un renderizado rico donde el pegado lo permite), nunca más código HTML en bruto.",
+            "i4": "<b>🔍 Acabados</b> — la búsqueda en el historial ya no rompe los iconos; los saltos de línea fantasma en las respuestas HTML desaparecieron; el código inline vuelve a verse bien en tema claro."
+          }
+        },
         "v1_26_0": {
           "title": "v1.26.0 — 🎯 De la lectura a la acción",
           "date": "Julio 2026",
@@ -6252,11 +6267,11 @@
       },
       "bubble_actions": {
         "title": "Cada burbuja tiene sus gestos",
-        "desc": "Copiar, aprobar, desaprobar: justo bajo el mensaje, nunca lejos."
+        "desc": "Copiar, aprobar, desaprobar: justo bajo el mensaje, nunca lejos. Y copiar da siempre texto limpio, nunca código."
       },
       "share_export": {
         "title": "Una respuesta, varias salidas",
-        "desc": "Comparte o exporta cualquier respuesta con un gesto."
+        "desc": "Comparte o exporta cualquier respuesta con un gesto — siempre como texto legible, incluso las respuestas compuestas."
       },
       "backstage": {
         "title": "Los bastidores, a demanda",
@@ -7313,7 +7328,7 @@
       },
       "rich_responses": {
         "title": "Respuestas visuales enriquecidas",
-        "description": "Elige tu modo de visualización: tarjetas HTML interactivas, renderizado HTML enriquecido o Markdown simple. Correos, eventos, contactos, tiempo, rutas — todo se adapta a tus preferencias. Código con coloreado automático, fórmulas matemáticas (LaTeX) y un botón de copia en cada mensaje para recuperar el contenido con un solo clic."
+        "description": "Elige tu modo de visualización: tarjetas HTML interactivas, HTML enriquecido o Markdown simple. En modo enriquecido, LIA compone sus respuestas — avisos, insignias, secciones desplegables, listas clave-valor, columnas, pasos numerados, cifras clave — con sobriedad. Código coloreado automáticamente, fórmulas matemáticas (LaTeX), y copiar un mensaje da siempre texto limpio, nunca HTML en bruto."
       },
       "multichannel": {
         "title": "Web, Telegram y push",

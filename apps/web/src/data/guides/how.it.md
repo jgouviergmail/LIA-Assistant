@@ -6,7 +6,7 @@
 
 **Versione**: 3.6
 **Data**: 2026-07-29
-**Applicazione**: LIA v1.26.0
+**Applicazione**: LIA v1.26.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -1025,13 +1025,15 @@ La superficie delle skill è una **galleria**: le schede aprono un dettaglio con
 
 ### 23.8. Cronologia conversazioni, ricerca e rendering ricco della chat
 
-Cinque capacità trasversali condividono la stessa filosofia di prodotto: **feedback immediato, zero costo server quando non necessario**.
+Sei capacità trasversali condividono la stessa filosofia di prodotto: **feedback immediato, zero costo server quando non necessario**.
 
 - **Invariante di lettura e maturità del campo** — una risposta in streaming non strappa più il lettore risalito nel filo: la decisione di follow misura la geometria dal vivo al momento di decidere (compensata della crescita), un tick di invio esplicito sostituisce le euristiche a diff di dati (due di esse hanno prodotto falsi positivi contro il motore reale), e un pulsante fluttuante con badge delle risposte fuori schermo riporta il lettore. Il campo porta una bozza persistente per utente (con debounce, eliminata al logout), uno scorrimento ↑/↓ degli ultimi 10 invii, comandi slash `/` (combobox WAI-ARIA sulla textarea nativa, filtro localizzato insensibile agli accenti) e una riga di azioni in-flow sotto ogni risposta (copia, feedback, trace di esecuzione).
 - **Ricerca nella cronologia conversazioni** — query parameter `?search=` su `GET /conversations/me/messages`. Il filtraggio usa PostgreSQL `ILIKE` (case-insensitive, accent-sensitive — contratto bloccato da test). Il frontend usa un `useMemo` su `messages` per filtrare istantaneamente i messaggi caricati; l'endpoint backend resta una capacità latente per una futura UI di ricerca profonda.
 - **Paginazione scroll-up** — stesso endpoint, cursore keyset `?before=<created_at>` che restituisce `has_more` e `next_cursor`. La UI della chat collega un `IntersectionObserver` a una sentinella di 1 px sopra il primo messaggio; le pagine più vecchie vengono anteposte con deduplica per id, e un `wasPrependRef` condiviso fa saltare il `useEffect` di auto-scroll-in-fondo per quel ciclo, così la vista rimane ancorata esattamente dove il lettore stava leggendo. L'indice composito esistente `(conversation_id, created_at DESC)` trasforma ogni pagina in un seek index-only, indipendentemente dalla lunghezza della conversazione. I limiti di pagina (default 50, tetto massimo 200) sono regolabili tramite le variabili d'ambiente `CONVERSATION_HISTORY_DEFAULT_LIMIT` / `CONVERSATION_HISTORY_MAX_LIMIT`.
 - **Rendering LaTeX** — Le formule matematiche e scientifiche che LIA scrive (`$inline$` / `$$block$$`) vengono renderizzate con KaTeX in `MarkdownContent.tsx`. Poiché l'assistente emette l'intera risposta in HTML, un plugin `rehypeMathInText` rileva i delimitatori `$`/`$$` a livello hast — dopo che `rehypeRaw` ha espanso l'HTML — e li converte nei marcatori che `rehype-katex` renderizza; `remark-math`, limitato al markdown, non vede mai le formule incorporate nell'HTML. Ordine: `rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`; i passaggi math leggono solo testo già sanitizzato ed emettono span a classe fissa, senza nuova superficie d'attacco.
 - **Evidenziazione sintassi** — `react-syntax-highlighter` (PrismAsyncLight) lazy-loaded. 25 linguaggi registrati on-demand via `SyntaxHighlighter.registerLanguage(...)` per mantenere leggero il bundle iniziale (linguaggi caricati al primo code block). Tema automatico `one-dark` / `one-light` pilotato da `next-themes`.
+
+- **Modalità HTML arricchito: un vocabolario di componenti** — quando l'utente sceglie la modalità di visualizzazione HTML arricchito, la direttiva di prompt espone sette componenti stilizzati dal design system (riquadri con titolo, chip con icone, sezioni `details` native, liste chiave-valore, colonne responsive, passi numerati, riquadri di cifre) più gli accenti inline `mark`/`kbd`/`abbr`, sotto una regola di sobrietà esplicita — la prosa guida, i componenti supportano. L'arricchimento è puramente dichiarativo (prompt + CSS + allowlist di sanificazione: sei tag inerti aggiunti, ordine dei plugin invariato) e un guard CI fallisce se la direttiva annuncia una classe che il foglio di stile non copre. Copia, condivisione ed export `.md` appiattiscono l'HTML in testo leggibile (appunti a doppio formato `text/html` + `text/plain`), specchio client della semantica `html_to_text` del backend; le legature delle icone sono escluse dall'evidenziazione di ricerca.
 
 ### 23.9. Persistenza del feedback proattivo
 
@@ -1161,4 +1163,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 170+ ADR e del changelog (da v1.0 a v1.26.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 170+ ADR e del changelog (da v1.0 a v1.26.1). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

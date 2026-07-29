@@ -66,7 +66,7 @@ graph LR
 | **Anti-Hallucination** | Directives strictes contre invention de données |
 | **Message Windowing** | 20 derniers turns conversationnels (contexte riche) |
 | **Context Prefetch (ADR-091)** | Les injections de contexte utilisateur (embedding du message, profil mémoire, RAG user/system, journal, portrait, psyché) vivent dans `services/response_context.py` et sont **préchargées depuis l'initiative node** en parallèle de son évaluation LLM (pipeline ET ReAct). Le response node fait un `pop_response_context(run_id)` ; sur tout miss (tour conversation, initiative désactivée/skippée, timeout), il exécute le **même** `fetch_response_context()` inline — zéro delta de comportement. Kill-switch `RESPONSE_CONTEXT_PREFETCH_ENABLED`. |
-| **Mode HTML sans `<style>`** | En mode d'affichage HTML enrichi, le LLM n'émet plus de bloc `<style>` inline (~550 tokens/réponse) : les règles `.lia-response` sont dans `lia-components.css` et la directive `html_response_directive.txt` interdit tout style inline. |
+| **Mode HTML sans `<style>` + composants (ADR-177)** | En mode HTML enrichi, le LLM n'émet ni bloc `<style>` ni style inline : les règles `.lia-response` vivent dans `lia-components.css`. Depuis ADR-177 la directive expose un vocabulaire de composants (callouts ×4 avec titre, chips, `details` dépliables, listes clé-valeur `dl.lia-kv`, colonnes `lia-columns`, étapes `lia-steps`, tuiles `lia-stats`, code `language-*` → coloration Prism + bouton copier, `mark`/`kbd`/`abbr`) avec une règle de sobriété (2-3 composants max). Sync directive↔CSS verrouillée par `test_html_directive_css_sync.py`. |
 | **Multilingual** | Support 6 langues avec personnalisation temporelle |
 | **Display Modes** | Format de sortie piloté par `user_display_mode` : `cards` (défaut, Markdown + cartes HTML), `markdown` (Markdown pur), `html` (HTML enrichi `lia-response`) |
 | **History Style Neutralization** | En mode `html`, le style des réponses assistant de l'historique est neutralisé pour que la directive HTML reste la seule autorité de mise en forme (voir section Message Windowing) |
@@ -1064,6 +1064,22 @@ chemin planner inchangés (zéro régression) ; sans effet au tour 1 (pas d'hist
 
 Constantes : `CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER`,
 `CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER` (`src/core/constants.py`).
+
+**Vocabulaire de composants du mode `html` (ADR-177)** — la directive
+`html_response_directive.txt` documente, au-delà des éléments de base
+(titres, listes, tables avec `<caption>`, blockquotes, code `language-*` →
+`CodeBlock` Prism + bouton copier), sept composants stylés par
+`lia-components.css` : callouts ×4 avec `.lia-callout__title`, chips
+`.lia-chip` (variantes couleur + icônes Material Symbols),
+`details.lia-collapsible`, `dl.lia-kv` (clé-valeur), `div.lia-columns`
+(colonnes responsives), `ol.lia-steps` (compteurs stylés), `div.lia-stats`
+(tuiles de chiffres) — plus les accents inline `mark`/`kbd`/`abbr` autorisés
+par le schéma de sanitisation frontend. Une règle de sobriété (2-3 composants
+max par réponse) évite l'effet dashboard. La synchronisation directive↔CSS est
+verrouillée par le garde `test_html_directive_css_sync.py`
+(`tests/unit/domains/agents/prompts/`) ; le budget de la directive est plafonné
+à 96 lignes par le même garde. Voir
+`docs/architecture/ADR-177-Rich-HTML-Response-Components.md`.
 
 ---
 

@@ -54,6 +54,30 @@ describe('MarkdownContent — search highlight', () => {
     expect(container.querySelector('code mark')).toBeNull();
   });
 
+  it('never injects a mark inside a Material Symbols icon span (ADR-177)', () => {
+    // The icon text is a font LIGATURE name ("event", "mail") — a <mark> in
+    // the middle breaks the ligature and shows the raw word highlighted.
+    const { container } = render(
+      <MarkdownContent
+        content={
+          '<div class="lia-response">' +
+          '<p><span class="material-symbols-outlined">event</span> Prochain event du mois</p>' +
+          '</div>'
+        }
+        searchHighlight="event"
+      />
+    );
+
+    const icon = container.querySelector('.material-symbols-outlined');
+    expect(icon).not.toBeNull();
+    expect(icon?.querySelector('mark')).toBeNull();
+    expect(icon?.textContent).toBe('event');
+
+    // Control: the same word in prose IS highlighted.
+    const marks = Array.from(container.querySelectorAll('mark.lia-search-mark'));
+    expect(marks.some(m => m.textContent?.toLowerCase() === 'event')).toBe(true);
+  });
+
   it('renders without any mark when the prop is absent or empty', () => {
     const { container } = render(
       <MarkdownContent content="Pizza margherita" searchHighlight=" " />

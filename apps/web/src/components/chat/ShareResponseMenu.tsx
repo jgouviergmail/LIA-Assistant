@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { messageToPlainText } from '@/lib/message-clipboard';
 import { downloadMarkdown } from '@/lib/utils/download-markdown';
 
 /** Two-digit zero-pad for the filename date components. */
@@ -23,7 +24,11 @@ function exportBaseName(timestamp: Date): string {
 }
 
 export interface ShareResponseMenuProps {
-  /** Raw markdown of the assistant response. */
+  /**
+   * Raw assistant response content — markdown, or a `lia-response` HTML
+   * document in `html` display mode. HTML is flattened to readable text
+   * before sharing/exporting (ADR-177); markdown passes through verbatim.
+   */
   content: string;
   /** When the response landed — stamps the export filename (local time). */
   timestamp: Date;
@@ -43,7 +48,7 @@ export function ShareResponseMenu({ content, timestamp }: ShareResponseMenuProps
 
   const handleShare = useCallback(async () => {
     try {
-      await navigator.share({ title: 'LIA', text: content });
+      await navigator.share({ title: 'LIA', text: messageToPlainText(content) });
     } catch (err) {
       // A dismissed share sheet reports AbortError — a non-event, not a failure.
       if (err instanceof DOMException && err.name === 'AbortError') return;
@@ -69,7 +74,9 @@ export function ShareResponseMenu({ content, timestamp }: ShareResponseMenuProps
             {t('chat.message.share')}
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onSelect={() => downloadMarkdown(content, exportBaseName(timestamp))}>
+        <DropdownMenuItem
+          onSelect={() => downloadMarkdown(messageToPlainText(content), exportBaseName(timestamp))}
+        >
           <Download className="text-muted-foreground" />
           {t('chat.message.download_md')}
         </DropdownMenuItem>

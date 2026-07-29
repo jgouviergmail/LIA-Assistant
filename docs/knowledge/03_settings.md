@@ -109,7 +109,7 @@ LIA offers **3 display modes** for assistant responses:
 
 **🎨 Available modes:**
 • **HTML Cards** (default) — Structured visual cards for data (contacts, events, emails, weather, etc.) displayed alongside the conversational response
-• **Rich HTML** — Beautifully formatted responses with headings, lists, callouts, tables, and polished typography. No data cards — the text itself is styled
+• **Rich HTML** — Laid-out responses built from real design-system components: colored callouts with titles, badges with icons, collapsible sections, key-value lists, side-by-side columns, numbered steps, key-figure tiles, zebra tables with captions, and syntax-highlighted code blocks with a copy button. LIA uses components sparingly (2-3 per answer at most) — prose leads, components support. No data cards — the text itself is designed
 • **Markdown** — Plain text with standard Markdown formatting. Simplest output
 
 **⚙️ To change:**
@@ -119,8 +119,9 @@ LIA offers **3 display modes** for assistant responses:
 
 **💡 Tips:**
 • HTML Cards mode is best when you frequently query contacts, calendars, or emails
-• Rich HTML mode is ideal if you prefer polished text without visual cards
+• Rich HTML mode is ideal if you prefer designed, magazine-like answers without visual cards
 • Markdown mode is useful for copy-pasting responses into other tools
+• In every mode, copying a message always gives you clean readable text — Rich-HTML answers are flattened automatically (and paste as rich text where the target supports it)
 
 ## Which languages are supported for voice transcription?
 LIA's voice mode supports **99+ languages** thanks to Whisper:

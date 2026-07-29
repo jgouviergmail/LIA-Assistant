@@ -68,14 +68,14 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
-        // Global floor — re-measured 2026-07-28 (296 files / 3,491 tests):
-        // statements 66.40 / branches 60.13 / functions 60.52 / lines 66.96.
-        // Previous measurement 2026-07-26 was 65.75 / 59.47 / 59.76 / 66.34;
-        // the +0.6/+0.8 comes mechanically from ADR-168, which took 13
-        // uncovered lines of the memory-debug panel out of the denominator.
-        // Left at 64/58/58/65. The doctrine wants >= 2 points of margin AFTER
-        // a raise: statements would leave 1.40, lines 0.96. Still not this
-        // wave — raise when statements >= 67 and lines >= 68.
+        // Global floor — re-measured 2026-07-29 (329 files / 4,072 tests):
+        // statements 67.60 / branches 61.82 / functions 62.46 / lines 68.16.
+        // Raised to 65/59/60/66 for the ADR-177 rich-HTML wave (sanitize
+        // vocabulary, rich-components rendering, html-plain-text flattener,
+        // message-clipboard dual-flavor, search-highlight ligature guard) —
+        // floor(measured - 2) per the doctrine, >= 1.8 points of margin held.
+        // Previous lock 2026-07-28 (296 files / 3,491 tests): 66.40 / 60.13 /
+        // 60.52 / 66.96, floors at 64/58/58/65.
         // Raised twice in one pass: first for the API-error-contract wave
         // (api-error, api-server, settings server actions, the i18n middleware,
         // the connector hooks — was 62/56/56/62), then for the localized wind
@@ -92,10 +92,10 @@ export default defineConfig({
         // other lanes: App Router pages (hermetic E2E) and the WASM/Web-Audio
         // modules `sherpaKws` / `audio-queue`, which jsdom cannot simulate
         // without the test degenerating into a test of its own mocks.
-        statements: 64,
-        branches: 58,
-        functions: 58,
-        lines: 65,
+        statements: 65,
+        branches: 59,
+        functions: 60,
+        lines: 66,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {
           statements: 100,

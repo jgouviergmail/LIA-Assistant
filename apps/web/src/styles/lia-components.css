@@ -7122,7 +7122,9 @@ a:focus-visible {
    per reply). They now live here once and for all; the HTML directive prompt
    forbids <style> blocks. Older messages that still carry the inline block
    render identically (same rules). Keep in sync with
-   apps/api/src/domains/agents/prompts/v1/html_response_directive.txt.
+   apps/api/src/domains/agents/prompts/v1/html_response_directive.txt —
+   every class the directive advertises must be styled here (ADR-177), guarded
+   by apps/api/tests/unit/domains/agents/prompts/test_html_directive_css_sync.py.
    ============================================================================= */
 
 .lia-response {
@@ -7133,6 +7135,12 @@ a:focus-visible {
   line-height: 1.7;
   color: var(--lia-text, #1e293b);
   max-width: 100%;
+}
+.lia-response > :first-child {
+  margin-top: 0;
+}
+.lia-response > :last-child {
+  margin-bottom: 0;
 }
 .lia-response h2 {
   font-size: 1.3em;
@@ -7148,6 +7156,12 @@ a:focus-visible {
 }
 .lia-response p {
   margin: 0.6em 0;
+  /* Pretty-printed HTML carries source newlines inside <p>; the markdown
+     pipeline's `whitespace-pre-wrap` utility would render them as hard
+     breaks. Inside .lia-response whitespace is insignificant — <br> is the
+     only intentional line break (the HTML directive says so). Wins over the
+     utility: this stylesheet is imported outside Tailwind's @layer. */
+  white-space: normal;
 }
 .lia-response ul,
 .lia-response ol {
@@ -7161,14 +7175,20 @@ a:focus-visible {
   color: var(--lia-text, #1e293b);
 }
 .lia-response code {
-  background: var(--lia-surface, #f1f5f9);
+  /* --lia-surface is white in light mode — invisible chip on a white bubble
+     (measured 2026-07-29). --lia-surface-active keeps contrast in both themes. */
+  background: var(--lia-surface-active, #f3f4f6);
   padding: 0.15em 0.4em;
   border-radius: 4px;
   font-size: 0.9em;
 }
-.lia-response pre {
-  background: var(--lia-surface, #1e293b);
-  color: var(--lia-text, #e2e8f0);
+/* Scoped :has(> code): the language-* path renders CodeBlock (root <div>)
+   inside the <pre>, which styles itself — only the legacy plain pre>code
+   block keeps this box. No :has() support → double box, the prior state. */
+.lia-response pre:has(> code) {
+  background: var(--lia-surface, #ffffff);
+  border: 1px solid var(--lia-border, #e2e8f0);
+  color: var(--lia-text, #1e293b);
   padding: 1em;
   border-radius: 8px;
   overflow-x: auto;
@@ -7202,8 +7222,19 @@ a:focus-visible {
   padding: 0.5em 1em;
   border-bottom: 1px solid var(--lia-border, #e2e8f0);
 }
-.lia-response tr:hover td {
+.lia-response tbody tr:nth-child(even) td {
   background: var(--lia-surface-hover, rgba(0, 0, 0, 0.02));
+}
+.lia-response tr:hover td {
+  background: var(--lia-surface-active, rgba(0, 0, 0, 0.04));
+}
+.lia-response caption {
+  caption-side: top;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.85em;
+  color: var(--lia-text-secondary, #6b7280);
+  padding: 0.4em 0.2em;
 }
 .lia-response hr {
   border: none;
@@ -7222,6 +7253,10 @@ a:focus-visible {
   border-radius: 8px;
   margin: 0.8em 0;
 }
+.lia-response .lia-callout .lia-callout__title {
+  font-weight: 600;
+  margin: 0 0 0.3em;
+}
 .lia-response .lia-callout-info {
   background: var(--lia-info-subtle, #eff6ff);
   border-left: 4px solid var(--lia-info, #3b82f6);
@@ -7237,4 +7272,179 @@ a:focus-visible {
 .lia-response .lia-callout-error {
   background: var(--lia-danger-subtle, #fef2f2);
   border-left: 4px solid var(--lia-danger, #ef4444);
+}
+
+/* =============================================================================
+   LIA Response - Rich component vocabulary (ADR-177)
+   =============================================================================
+   Components the HTML response directive advertises to the LLM. Everything is
+   token-driven (light + dark via the .dark token overrides above) and degrades
+   gracefully under partial streaming (no child-count-dependent selectors).
+   Keep in sync with html_response_directive.txt; guarded by
+   apps/api/tests/unit/domains/agents/prompts/test_html_directive_css_sync.py.
+   ============================================================================= */
+
+/* Inline semantics */
+.lia-response mark:not([class]) {
+  /* :not([class]) keeps the search-highlight <mark class="lia-search-mark">
+     (own fixed style) out of this rule. */
+  background: color-mix(in srgb, var(--lia-warning) 25%, transparent);
+  color: inherit;
+  padding: 0.05em 0.25em;
+  border-radius: 3px;
+}
+.lia-response kbd {
+  font-family: var(--lia-font-mono);
+  font-size: 0.85em;
+  padding: 0.1em 0.4em;
+  border: 1px solid var(--lia-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--lia-surface);
+}
+.lia-response abbr[title] {
+  text-decoration: underline dotted;
+  cursor: help;
+}
+.lia-response .material-symbols-outlined {
+  font-size: 1.1em;
+  vertical-align: -0.15em;
+}
+
+/* Collapsible (details/summary) */
+.lia-response .lia-collapsible {
+  border: 1px solid var(--lia-border);
+  border-radius: var(--lia-radius-md);
+  margin: 0.8em 0;
+  background: var(--lia-surface);
+  overflow: hidden;
+}
+.lia-response .lia-collapsible summary {
+  cursor: pointer;
+  padding: 0.6em 1em;
+  font-weight: 500;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+.lia-response .lia-collapsible summary::-webkit-details-marker {
+  display: none;
+}
+.lia-response .lia-collapsible summary::before {
+  content: '';
+  width: 0.45em;
+  height: 0.45em;
+  border-right: 2px solid var(--lia-text-secondary);
+  border-bottom: 2px solid var(--lia-text-secondary);
+  transform: rotate(-45deg);
+  transition: transform var(--lia-transition-fast);
+  flex: none;
+}
+.lia-response .lia-collapsible[open] > summary::before {
+  transform: rotate(45deg);
+}
+.lia-response .lia-collapsible summary:focus-visible {
+  outline: 2px solid var(--lia-border-focus);
+  outline-offset: -2px;
+}
+.lia-response .lia-collapsible > :not(summary) {
+  margin: 0.6em 1em;
+}
+
+/* Key-value list */
+.lia-response .lia-kv {
+  display: grid;
+  grid-template-columns: minmax(6em, max-content) 1fr;
+  gap: 0.35em 1.25em;
+  margin: 0.8em 0;
+}
+.lia-response .lia-kv dt {
+  color: var(--lia-text-secondary);
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}
+.lia-response .lia-kv dd {
+  margin: 0;
+  min-width: 0;
+}
+@media (max-width: 479px) {
+  .lia-response .lia-kv {
+    grid-template-columns: 1fr;
+    gap: 0.1em;
+  }
+  .lia-response .lia-kv dd {
+    margin-bottom: 0.5em;
+  }
+}
+
+/* Responsive columns (stack below min(240px, 100%)) */
+.lia-response .lia-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: var(--lia-space-lg);
+  margin: 0.8em 0;
+  align-items: start;
+}
+.lia-response .lia-columns > div {
+  min-width: 0;
+}
+
+/* Numbered steps */
+.lia-response ol.lia-steps {
+  list-style: none;
+  counter-reset: lia-step;
+  padding-left: 0;
+  margin: 0.8em 0;
+}
+.lia-response .lia-steps li {
+  counter-increment: lia-step;
+  position: relative;
+  padding-left: 2.4em;
+  margin: 0.7em 0;
+}
+.lia-response .lia-steps li::before {
+  content: counter(lia-step);
+  position: absolute;
+  left: 0;
+  top: 0.05em;
+  width: 1.6em;
+  height: 1.6em;
+  border-radius: 50%;
+  background: var(--lia-primary-subtle);
+  color: var(--lia-primary);
+  font-weight: 600;
+  font-size: 0.85em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Stat tiles */
+.lia-response .lia-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr));
+  gap: var(--lia-space-sm);
+  margin: 0.8em 0;
+}
+.lia-response .lia-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15em;
+  padding: 0.8em 0.6em;
+  border: 1px solid var(--lia-border);
+  border-radius: var(--lia-radius-md);
+  background: var(--lia-surface);
+  text-align: center;
+}
+.lia-response .lia-stat__value {
+  font-size: 1.35em;
+  font-weight: 700;
+  color: var(--lia-primary);
+  line-height: 1.1;
+}
+.lia-response .lia-stat__label {
+  font-size: 0.8em;
+  color: var(--lia-text-secondary);
 }

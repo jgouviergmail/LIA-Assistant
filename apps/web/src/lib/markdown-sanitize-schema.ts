@@ -43,6 +43,9 @@ function withFreeClassName(tag: string, extra: string[] = []): AttrEntry[] {
  * response directive):
  *
  * - `button` tag (card action buttons, `type` + `data-action`)
+ * - inert enrichment tags (ADR-177): `mark`, `caption`, `abbr`, `time`,
+ *   `figure`, `figcaption` — the rich-HTML component vocabulary; none is
+ *   scriptable, attributes stay governed by the global allow-list
  * - `className` everywhere, INCLUDING the constrained tags above: `.lia-*`
  *   cards/callouts, KaTeX math spans (sanitize runs BEFORE rehypeMathInText +
  *   rehype-katex, so the math nodes must survive), Material-Symbols icon spans,
@@ -63,7 +66,19 @@ function withFreeClassName(tag: string, extra: string[] = []): AttrEntry[] {
  */
 export const markdownSanitizeSchema: Options = {
   ...defaultSchema,
-  tagNames: [...(defaultSchema.tagNames ?? []), 'button'],
+  tagNames: [
+    ...(defaultSchema.tagNames ?? []),
+    'button',
+    // ADR-177: inert enrichment tags for the rich-HTML response vocabulary.
+    // None is scriptable and none carries a dangerous attribute (`title` and
+    // `dateTime` are already in the defaultSchema '*' attribute list).
+    'mark',
+    'caption',
+    'abbr',
+    'time',
+    'figure',
+    'figcaption',
+  ],
   strip: ['script', 'style'],
   attributes: {
     ...defaultSchema.attributes,

@@ -741,17 +741,42 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
               );
             },
 
-            // Unordered lists - balanced spacing between items
-            ul: ({ children }) => (
-              <ul className="list-disc list-outside pl-5 mb-2 space-y-1.5 last:mb-0">{children}</ul>
-            ),
+            // Unordered lists - balanced spacing between items.
+            // LIA component classes (e.g. future lia-* list variants) are
+            // preserved verbatim — same contract as the `p`/`a` overrides.
+            ul: ({ className, children }) => {
+              const isLiaComponent = className?.startsWith('lia-');
+              return (
+                <ul
+                  className={
+                    isLiaComponent
+                      ? className
+                      : cn('list-disc list-outside pl-5 mb-2 space-y-1.5 last:mb-0', className)
+                  }
+                >
+                  {children}
+                </ul>
+              );
+            },
 
-            // Ordered lists - generous spacing (numbered items often contain rich content)
-            ol: ({ children }) => (
-              <ol className="list-decimal list-outside pl-5 mb-2 space-y-3 last:mb-0">
-                {children}
-              </ol>
-            ),
+            // Ordered lists - generous spacing (numbered items often contain
+            // rich content). `lia-steps` (ADR-177 styled counters) must keep
+            // its class: the stylesheet resets list-style and draws numbered
+            // bullets itself, so the default decimal classes would fight it.
+            ol: ({ className, children }) => {
+              const isLiaComponent = className?.startsWith('lia-');
+              return (
+                <ol
+                  className={
+                    isLiaComponent
+                      ? className
+                      : cn('list-decimal list-outside pl-5 mb-2 space-y-3 last:mb-0', className)
+                  }
+                >
+                  {children}
+                </ol>
+              );
+            },
 
             // List items - normal leading for readability
             li: ({ children }) => <li className="pl-1 leading-normal">{children}</li>,

@@ -15,6 +15,7 @@ import {
 import { formatNumber, formatEuro } from '@/lib/format';
 import { cn, proxyGoogleImageUrl } from '@/lib/utils';
 import { classifyImageExpiry } from '@/lib/image-expiry';
+import { copyMessageToClipboard } from '@/lib/message-clipboard';
 import { MarkdownContent } from './MarkdownContent';
 import { isInterestNotificationMetadata } from './InterestNotificationCard';
 import { CallDebrief } from '@/components/telephony/CallDebrief';
@@ -627,7 +628,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
 
   const handleCopyMessage = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(message.content);
+      // ADR-177: HTML-mode messages are flattened (dual-flavor write) so the
+      // paste is readable text, not raw <div class="lia-response"> markup.
+      await copyMessageToClipboard(message.content);
       setCopied(true);
       toast.success(t('chat.message.copied'));
       if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current);

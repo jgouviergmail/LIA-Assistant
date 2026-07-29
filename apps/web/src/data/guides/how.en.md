@@ -6,7 +6,7 @@
 
 **Version**: 3.6
 **Date**: 2026-07-29
-**Application**: LIA v1.26.0
+**Application**: LIA v1.26.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -1022,13 +1022,15 @@ The skills surface is a **gallery**: cards open a detail sheet with the localize
 
 ### 23.8. Conversation history, search and rich chat rendering
 
-Five cross-cutting capabilities share the same product philosophy: **instant feedback, zero server cost when unnecessary**.
+Six cross-cutting capabilities share the same product philosophy: **instant feedback, zero server cost when unnecessary**.
 
 - **Reading invariant & input maturity** — a streaming answer never yanks a reader who scrolled up: the follow decision measures live geometry at decision time (growth-compensated), an explicit own-send tick replaces data-diff heuristics (two of them false-fired against the real engine), and a floating button with an off-screen-responses badge brings the reader back. The input carries a per-user persistent draft (debounced, purged at logout), an ↑/↓ walk over the last 10 sends, `/` slash commands (WAI-ARIA combobox on the native textarea, diacritic-insensitive localized filtering) and an in-flow action row under every answer (copy, feedback, execution trace).
 - **Conversation history search** — `?search=` query param on `GET /conversations/me/messages`. Filtering uses PostgreSQL `ILIKE` (case-insensitive, accent-sensitive — contract locked by test). The frontend uses a `useMemo` over `messages` to filter loaded messages instantly; the backend endpoint remains a latent capability for a future deep-search UI.
 - **Scroll-up pagination** — same endpoint, `?before=<created_at>` keyset cursor returning `has_more` and `next_cursor`. The chat UI binds an `IntersectionObserver` on a 1-px sentinel above the first message; older pages prepend with id-based dedup, and a shared `wasPrependRef` makes the auto-scroll-to-bottom `useEffect` skip itself for that cycle so the viewport stays anchored exactly where the reader was. The existing composite index `(conversation_id, created_at DESC)` makes each page an index-only seek regardless of conversation length. Page bounds (default 50, hard cap 200) are env-tunable via `CONVERSATION_HISTORY_DEFAULT_LIMIT` / `CONVERSATION_HISTORY_MAX_LIMIT`.
 - **LaTeX rendering** — The mathematical and scientific formulas LIA writes (`$inline$` / `$$block$$`) render via KaTeX in `MarkdownContent.tsx`. Since the assistant emits its whole answer as HTML, a `rehypeMathInText` plugin detects the `$`/`$$` delimiters at the hast level — after `rehypeRaw` has expanded the HTML — and turns them into the markers `rehype-katex` renders; `remark-math`, confined to markdown, never sees math buried in HTML. Order: `rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`; the math steps read only already-sanitised text and emit fixed-class spans, so no new attack surface.
 - **Syntax highlighting** — `react-syntax-highlighter` (PrismAsyncLight) lazy-loaded. 25 languages registered on-demand via `SyntaxHighlighter.registerLanguage(...)` to keep the initial bundle small (languages fetched at first code block). Theme auto-switches `one-dark` / `one-light` driven by `next-themes`.
+
+- **Rich-HTML mode: a component vocabulary** — when the user picks the rich-HTML display mode, the prompt directive exposes seven design-system-styled components (titled callouts, icon chips, native `details` collapsibles, key-value lists, responsive columns, numbered steps, stat tiles) plus the inline accents `mark`/`kbd`/`abbr`, under an explicit restraint rule — prose leads, components support. The enrichment is purely declarative (prompt + CSS + sanitize allowlist: six inert tags added, plugin order unchanged) and a CI guard fails if the directive ever advertises a class the stylesheet does not cover. Copy, share and `.md` export flatten the HTML to readable text (dual-flavor clipboard `text/html` + `text/plain`), a client-side mirror of the backend's `html_to_text` semantics; icon ligatures are excluded from search highlighting.
 
 ### 23.9. Proactive feedback persistence
 
@@ -1187,4 +1189,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 170+ ADRs, and the changelog (v1.0 to v1.26.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 170+ ADRs, and the changelog (v1.0 to v1.26.1). All metrics, versions, and patterns cited are verifiable in the codebase.*

@@ -2170,7 +2170,7 @@
       "display_mode": {
         "title": "Anzeigemodus",
         "description": "Wählen Sie das Darstellungsformat der Antworten",
-        "info": "Der HTML-Karten-Modus zeigt strukturierte visuelle Karten an. Der Rich-HTML-Modus erzeugt schön formatierte Antworten. Der Markdown-Modus zeigt reinen Text.",
+        "info": "Der HTML-Karten-Modus zeigt strukturierte visuelle Karten an. Der Rich-HTML-Modus gestaltet Antworten mit reichhaltigen Komponenten (Hinweisboxen, Badges, ausklappbaren Bereichen, Tabellen, Spalten, Kennzahlen, hervorgehobenem Code). Der Markdown-Modus zeigt reinen Text.",
         "modes": {
           "cards": {
             "label": "HTML-Karten",
@@ -2179,7 +2179,7 @@
           },
           "html": {
             "label": "Rich-HTML",
-            "description": "Antworten mit reichhaltiger Formatierung: Überschriften, Listen, Callouts, Tabellen und gepflegte Typografie",
+            "description": "Gestaltete Antworten: Überschriften, Hinweisboxen, Badges, ausklappbare Bereiche, Tabellen, Spalten, Kennzahlen und hervorgehobener Code",
             "selected": "Rich-HTML-Modus aktiviert"
           },
           "markdown": {
@@ -3411,6 +3411,10 @@
           "title": "⚡ Streaming & Echtzeit",
           "description": "SSE (Server-Sent Events) Streaming-Antworten mit typisierten Events: Tokens, Tool-Status, HITL-Anfragen, Ausführungsmetadaten. Das Frontend zeigt jeden Ausführungsschritt in Echtzeit an (Routing, Planung, Validierung, Tool-Aufrufe) mit kumulativer Fortschrittsanzeige und streamt dann die Antwort Token für Token. Ein verstummter Stream legt die Oberfläche nicht mehr lahm. Legt ein Telefon den Tab schlafen, stirbt die Verbindung ohne Ankündigung — kein Ende, kein Fehler — und nichts unterschied diesen Zustand von einer schlicht langen Antwort. Nach einem Stille-Budget, das am Herzschlag-Rhythmus des Servers ausgerichtet ist, verwirft der Client die tote Verbindung und klinkt sich in den im Hintergrund weiterlaufenden Durchgang ein, der das inzwischen Erzeugte nachspielt."
         },
+        "richResponses": {
+          "title": "🎨 Reichhaltige Antworten & Anzeigemodi",
+          "description": "Drei Darstellungsmodi zur Wahl: HTML-Karten (visuelle Karten je Domäne), Rich-HTML oder Markdown. Der Rich-HTML-Modus gestaltet seine Antworten mit sieben Design-System-Komponenten — Hinweisboxen mit Titel, Badges mit Symbolen, ausklappbare Bereiche, Schlüssel-Wert-Listen, Spalten, nummerierte Schritte, Kennzahlen-Kacheln — unter einer Sparsamkeitsregel (2-3 pro Antwort). Farbiger Code mit Kopierschaltfläche, LaTeX-Formeln, Zebra-Tabellen. Jedes Tag passiert eine strikte Sanitisierungsgrenze, und Kopieren liefert immer sauberen Text (Zwischenablage mit zwei Formaten)."
+        },
         "llm": {
           "title": "🤖 Multi-Provider LLM & Pattern Learning",
           "description": "Unterstützung für OpenAI (GPT-5.4, o3), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity und lokales Ollama. Bayessches Lernen von Planungsmustern (≥90% Konfidenz → LLM-Bypass). Durchschnittliche Token-Einsparung von 89%. Konfigurierbare Profile pro Aufgabe mit Echtzeit-Kostenverfolgung."
@@ -3566,6 +3570,17 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_26_1": {
+          "title": "v1.26.1 — 🎨 Antworten mit echtem Layout",
+          "date": "Juli 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🧩 Der Rich-HTML-Modus erhält echte Komponenten</b> — farbige Hinweisboxen mit Titel, Badges mit Symbolen, ausklappbare Bereiche, Schlüssel-Wert-Listen, Spalten nebeneinander, nummerierte Schritte und Kennzahlen-Kacheln. LIA setzt sie sparsam ein, wenn sie das Lesen wirklich erleichtern. Anzeigemodus „Rich-HTML“ unter Einstellungen > Personalisierung.",
+            "i2": "<b>🌈 Code wird farbig dargestellt</b> — im Rich-HTML-Modus erhalten Codeblöcke jetzt Syntaxhervorhebung und eine Kopierschaltfläche, wie in den anderen Modi.",
+            "i3": "<b>📋 Kopieren liefert sauberen Text</b> — das Kopieren, Teilen oder Exportieren einer Rich-HTML-Antwort erzeugt jetzt lesbaren, strukturierten Text (und eine reiche Darstellung, wo das Einfügen es erlaubt), nie mehr rohen HTML-Code.",
+            "i4": "<b>🔍 Feinschliff</b> — die Verlaufssuche zerstört die Symbole nicht mehr; überflüssige Zeilenumbrüche in HTML-Antworten sind verschwunden; Inline-Code ist im hellen Design wieder gut sichtbar."
+          }
+        },
         "v1_26_0": {
           "title": "v1.26.0 — 🎯 Vom Lesen zum Handeln",
           "date": "Juli 2026",
@@ -6252,11 +6267,11 @@
       },
       "bubble_actions": {
         "title": "Jede Blase hat ihre Gesten",
-        "desc": "Kopieren, zustimmen, ablehnen: direkt unter der Nachricht, nie weit weg."
+        "desc": "Kopieren, zustimmen, ablehnen: direkt unter der Nachricht, nie weit weg. Und Kopieren liefert immer sauberen Text, nie Code."
       },
       "share_export": {
         "title": "Eine Antwort, viele Wege",
-        "desc": "Teile oder exportiere jede Antwort mit einem Handgriff."
+        "desc": "Teile oder exportiere jede Antwort mit einem Handgriff — immer als lesbarer Text, auch die gestalteten Antworten."
       },
       "backstage": {
         "title": "Der Blick hinter die Kulissen",
@@ -7313,7 +7328,7 @@
       },
       "rich_responses": {
         "title": "Reichhaltige visuelle Antworten",
-        "description": "Wählen Sie Ihren Anzeigemodus: interaktive HTML-Karten, Rich-HTML-Rendering oder einfaches Markdown. E-Mails, Termine, Kontakte, Wetter, Routen — alles passt sich Ihren Vorlieben an. Automatisch farbiger Code, mathematische Formeln (LaTeX) und eine Kopier-Schaltfläche auf jeder Nachricht, um den Inhalt mit einem Klick zu übernehmen."
+        "description": "Wählen Sie Ihren Anzeigemodus: interaktive HTML-Karten, Rich-HTML oder einfaches Markdown. Im Rich-Modus gestaltet LIA ihre Antworten — Hinweisboxen, Badges, ausklappbare Bereiche, Schlüssel-Wert-Listen, Spalten, nummerierte Schritte, Kennzahlen — mit Zurückhaltung. Automatisch farbiger Code, mathematische Formeln (LaTeX), und Kopieren liefert immer sauberen Text, nie rohes HTML."
       },
       "multichannel": {
         "title": "Web, Telegram & Push",

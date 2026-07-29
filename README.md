@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.26.0</strong> — <strong>LIA stops just showing you your day and starts letting you act on it.</strong> Every briefing card grew immediate actions — summarize a document, draft a reply to an unread mail, mark a task done, reschedule — each either running straight through the normal pipeline (external writes keep their approval step) or pre-filling the composer when the words should be yours. Select any passage of an answer and a toolbar floats above it (a bottom sheet on mobile): explain, rephrase, translate, turn it into a task or a reminder, save it to memory, or ask about it. Routines gained <strong>conditions</strong> — run only when a task is overdue, a matching mail arrives, the weather turns, a document lands in Drive, or an event approaches — with an optional <em>propose-first</em> mode that notifies instead of acting. A new <strong>personal CRM</strong> gathers what LIA already knows about each person — open commitments, recent calls, remembered facts — into one 360° view, reached from the dashboard's Quick Access (which now survives a briefing outage, because navigation is not content). Call debriefs became richer (result, commitments, tasks, reminders, a one-tap follow-up draft), the dashboard tells the honest truth about freshness (updated <em>X</em> ago, served from cache, last attempt, one-click retry), connectors read connected-or-not at a glance, and Knowledge sits in the nav with a discreet, centered header pill that shifts rather than overlaps. Installed as a PWA, LIA offers home-screen shortcuts (next priority, quick add, push-to-talk, compact briefing), and admins can define their own <code>/</code> chat shortcuts. Two invisible-feature bugs were caught in review and fixed: a dashboard line that showed raw translation keys instead of card names, and the sole entry point to the CRM vanishing whenever the briefing failed. <strong>16,581 backend</strong> + <strong>4,034 frontend</strong> tests, all six languages. — 29 July 2026.
+  <strong>Version 1.26.1</strong> — <strong>Rich HTML mode stops being bold text and becomes page design.</strong> The rich-HTML display mode now speaks a real visual language: <strong>seven design-system components</strong> — callouts with titles, badges with icons, collapsible sections, key-value lists, responsive columns, numbered steps, stat tiles — plus inline accents (<code>mark</code>, <code>kbd</code>, <code>abbr</code>) and <strong>syntax-highlighted code blocks</strong> with a copy button, all under an explicit restraint rule (2-3 components max per answer: prose leads, components support). The enrichment is purely declarative — prompt + CSS + sanitize allowlist, no new code path — and a CI guard fails the build if the directive ever advertises a class the stylesheet does not cover. Copying an HTML answer now pastes clean, readable text (dual-flavor clipboard: rich <code>text/html</code> for mail composers, flattened <code>text/plain</code> for editors; share sheet and <code>.md</code> export flattened the same way). Along the way, four real defects fell: search highlighting no longer breaks Material Symbols icon ligatures, pretty-printed paragraphs lost their phantom line breaks, inline code is visible in light theme again, and list overrides stopped dropping design-system classes. <strong>16,584 backend</strong> + <strong>4,072 frontend</strong> tests, all six languages. — 29 July 2026.
 
 </p>
 
@@ -115,7 +115,7 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **32** functional domains | **420,000** lines of code (excl. tests) | **17,300+** automated tests | **147** ADRs                                                           |
+| **32** functional domains | **420,000** lines of code (excl. tests) | **20,600+** automated tests | **177** ADRs                                                           |
 | **156** versions shipped  | **6 languages**, parity enforced in CI  | **425** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
@@ -894,12 +894,12 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md)   | Complete development workflow                             |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent                                 |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md)   | How to create a new tool                                  |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~16,535 backend tests across 873 files) |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~16,584 backend tests across 881 files) |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md)           | LangGraph and log debugging                               |
 
 ### Architecture Decision Records (ADR)
 
-171 ADRs (ADR-001 through ADR-172) documenting major architectural decisions:
+176 ADR files (ADR-001 through ADR-177) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

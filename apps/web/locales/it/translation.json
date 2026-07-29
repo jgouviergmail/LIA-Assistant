@@ -2172,7 +2172,7 @@
       "display_mode": {
         "title": "Modalità di visualizzazione",
         "description": "Scegliere il formato di rendering delle risposte",
-        "info": "La modalità Schede HTML mostra schede visive strutturate. La modalità HTML arricchito produce risposte con formattazione curata. La modalità Markdown mostra testo semplice.",
+        "info": "La modalità Schede HTML mostra schede visive strutturate. La modalità HTML arricchito impagina le risposte con componenti ricchi (riquadri, badge, sezioni espandibili, tabelle, colonne, cifre chiave, codice evidenziato). La modalità Markdown mostra testo semplice.",
         "modes": {
           "cards": {
             "label": "Schede HTML",
@@ -2181,7 +2181,7 @@
           },
           "html": {
             "label": "HTML arricchito",
-            "description": "Risposte con formattazione ricca: titoli, elenchi, callout, tabelle e tipografia curata",
+            "description": "Risposte impaginate: titoli, riquadri, badge, sezioni espandibili, tabelle, colonne, cifre chiave e codice evidenziato",
             "selected": "Modalità HTML arricchito attivata"
           },
           "markdown": {
@@ -3413,6 +3413,10 @@
           "title": "⚡ Streaming & Tempo Reale",
           "description": "Risposte in streaming SSE (Server-Sent Events) con eventi tipizzati: token, stati degli strumenti, richieste HITL, metadati di esecuzione. Il frontend mostra ogni passaggio di esecuzione in tempo reale (routing, pianificazione, validazione, chiamate strumenti) con progresso cumulativo, poi trasmette la risposta token per token. Un flusso che ammutolisce non blocca più l'interfaccia. Quando un telefono sospende la scheda, la connessione muore senza annunciare nulla — né fine, né errore — e nulla distingueva quello stato da una risposta semplicemente lunga. Superato un budget di silenzio calibrato sul ritmo dei battiti del server, il client abbandona la connessione morta e si riaggancia al turno rimasto vivo in background, che riproduce quanto è stato prodotto nel frattempo."
         },
+        "richResponses": {
+          "title": "🎨 Risposte Ricche e Modalità di Visualizzazione",
+          "description": "Tre modalità di resa tra cui scegliere: Schede HTML (schede visive per dominio), HTML arricchito o Markdown. La modalità HTML arricchito impagina le sue risposte con sette componenti del design system — riquadri con titolo, badge con icone, sezioni espandibili, liste chiave-valore, colonne, passi numerati, riquadri di cifre — sotto una regola di sobrietà (2-3 per risposta). Codice evidenziato con pulsante copia, formule LaTeX, tabelle zebrate. Ogni tag attraversa una frontiera di sanificazione rigorosa, e copiare una risposta produce sempre testo pulito (appunti a doppio formato)."
+        },
         "llm": {
           "title": "🤖 Multi-Provider LLM & Pattern Learning",
           "description": "Supporto OpenAI (GPT-5.4, o3), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity e Ollama locale (7 provider). Apprendimento bayesiano dei pattern di pianificazione (≥90% confidenza → bypass LLM). Risparmio medio dell'89% dei token. Profili configurabili per attività con tracciamento costi in tempo reale."
@@ -3568,6 +3572,17 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_26_1": {
+          "title": "v1.26.1 — 🎨 Risposte con una vera impaginazione",
+          "date": "Luglio 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🧩 La modalità HTML arricchito guadagna componenti reali</b> — riquadri colorati con titolo, badge con icone, sezioni espandibili, liste chiave-valore, colonne affiancate, passi numerati e riquadri di cifre chiave. LIA li usa con sobrietà, quando aiutano davvero la lettura. Modalità di visualizzazione «HTML arricchito», in Impostazioni > Personalizzazione.",
+            "i2": "<b>🌈 Il codice appare colorato</b> — in modalità HTML arricchito, i blocchi di codice ora hanno l'evidenziazione della sintassi e un pulsante copia, come nelle altre modalità.",
+            "i3": "<b>📋 Copiare una risposta dà testo pulito</b> — copiare, condividere o esportare una risposta in HTML arricchito produce ora testo leggibile e strutturato (e una resa ricca dove l'incollaggio lo consente), mai più codice HTML grezzo.",
+            "i4": "<b>🔍 Rifiniture</b> — la ricerca nella cronologia non rompe più le icone; gli a-capo fantasma nelle risposte HTML sono spariti; il codice inline è di nuovo ben visibile nel tema chiaro."
+          }
+        },
         "v1_26_0": {
           "title": "v1.26.0 — 🎯 Dalla lettura all'azione",
           "date": "Luglio 2026",
@@ -6254,11 +6269,11 @@
       },
       "bubble_actions": {
         "title": "Ogni bolla ha i suoi gesti",
-        "desc": "Copiare, approvare, disapprovare: subito sotto il messaggio, mai lontano."
+        "desc": "Copiare, approvare, disapprovare: subito sotto il messaggio, mai lontano. E copiare dà sempre testo pulito, mai codice."
       },
       "share_export": {
         "title": "Una risposta, più uscite",
-        "desc": "Condividi o esporta qualsiasi risposta con un gesto."
+        "desc": "Condividi o esporta qualsiasi risposta con un gesto — sempre come testo leggibile, anche le risposte impaginate."
       },
       "backstage": {
         "title": "Il dietro le quinte, su richiesta",
@@ -7315,7 +7330,7 @@
       },
       "rich_responses": {
         "title": "Risposte visive arricchite",
-        "description": "Scegli la tua modalità di visualizzazione: card HTML interattive, rendering HTML arricchito o Markdown semplice. Email, eventi, contatti, meteo, percorsi — tutto si adatta alle tue preferenze. Codice colorato automaticamente, formule matematiche (LaTeX) e un pulsante Copia su ogni messaggio per recuperare il contenuto con un solo clic."
+        "description": "Scegli la tua modalità di visualizzazione: card HTML interattive, HTML arricchito o Markdown semplice. In modalità arricchita, LIA impagina le sue risposte — riquadri, badge, sezioni espandibili, liste chiave-valore, colonne, passi numerati, cifre chiave — con sobrietà. Codice colorato automaticamente, formule matematiche (LaTeX), e copiare un messaggio dà sempre testo pulito, mai HTML grezzo."
       },
       "multichannel": {
         "title": "Web, Telegram e push",
