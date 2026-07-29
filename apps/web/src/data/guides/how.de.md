@@ -6,7 +6,7 @@
 
 **Version**: 3.6
 **Datum**: 2026-07-29
-**Application**: LIA v1.26.1
+**Application**: LIA v1.26.2
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -77,7 +77,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Dokumentationsdokumente | 400+ |
 | ADRs (Architecture Decision Records) | 160+ |
 | Prometheus-Metriken | 447 Definitionen |
-| Grafana-Dashboards | 25 |
+| Grafana-Dashboards | 26 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
 
 ---
@@ -815,7 +815,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 | Technologie | Rolle |
 |-------------|------|
 | Prometheus | 447 benutzerdefinierte Metriken (RED Pattern) |
-| Grafana | 25 produktionsreife Dashboards |
+| Grafana | 26 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
 | Langfuse | LLM-spezifisches Tracing (Prompt-Versionen, Token-Nutzung) |
@@ -1050,7 +1050,9 @@ Die vollständige Anwendung auf Wetter (`gettext.gettext(text, language)` expliz
 
 ### 23.11. Observability-Architektur
 
-Observability ruht auf drei Säulen: **defensive Emission** auf dem kritischen Pfad, vorverdrahtete **Grafana-Dashboards** (25 Dashboards / 595 Panels, die App, Infra und jedes Business-Subsystem abdecken) und **DB-gestützte Gauges**, die durch einen periodischen Updater gepflegt werden.
+Observability ruht auf drei Säulen: **defensive Emission** auf dem kritischen Pfad, vorverdrahtete **Grafana-Dashboards** (26 Dashboards / 637 Panels, die App, Infra und jedes Business-Subsystem abdecken) und **DB-gestützte Gauges**, die durch einen periodischen Updater gepflegt werden.
+
+Ein 26. Dashboard macht aus dieser Telemetrie ein Produkt-Cockpit (ADR-178): Ergebnisse werden E1 validiert (explizite Bestätigung des Nutzers) oder E2 (eine über ein volles Verhaltensfenster unkorrigiert gebliebene Aktion), die exakte deduplizierte Zählung lebt in PostgreSQL — veränderliche Zustände lassen sich nie aus Prometheus-Zählern ableiten — und Grafana liest sie über eine Nur-Lese-Rolle, die auf Aggregat-Views mit fixiertem Statement-Timeout beschränkt ist.
 
 Die Prometheus-Instrumentierung ist systematisch in `try/except Exception: pass` mit Lazy-Imports (`from ... import foo` innerhalb des try) gekapselt, damit kein Metrik-Problem je auf den Ausführungspfad propagiert. Drei dedizierte Postgres-Indizes (`ix_conversations_updated_at` für DAU/WAU, `ix_conversations_created_at` für das Conversations-Histogramm, `ix_connectors_status` für die Aktivierungsrate) bringen die Updater-Queries auf einer bevölkerten DB von ~500 ms auf <50 ms.
 
@@ -1162,4 +1164,4 @@ Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lern
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 170+ ADRs und des Changelogs (v1.0 bis v1.26.1). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 170+ ADRs und des Changelogs (v1.0 bis v1.26.2). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

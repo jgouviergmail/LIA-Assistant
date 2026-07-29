@@ -1,0 +1,1759 @@
+{
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "type": "dashboards",
+      "tags": [
+        "lia"
+      ],
+      "asDropdown": true,
+      "title": "LIA technical dashboards",
+      "includeVars": false,
+      "keepTime": true,
+      "icon": "external link",
+      "targetBlank": false,
+      "url": ""
+    }
+  ],
+  "panels": [
+    {
+      "type": "row",
+      "id": 100,
+      "title": "00 · Executive Scorecard",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 1,
+      "title": "Users with useful outcome (7d)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "NS-01 North Star: distinct users with >=1 validated E1/E2 outcome over 7 days. DB-backed gauge (exact dedup by result_id computed in SQL). Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(product_users_with_useful_outcome{window=\"7d\",evidence=\"any\"})",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "n/a",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Value penetration",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "NS-02: NS-01 users / eligible engaged users. DB-backed gauge. Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(product_value_penetration_ratio{window=\"7d\",device_class=\"all\"})",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "n/a",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Useful results per user (median)",
+      "type": "stat",
+      "datasource": {
+        "type": "postgres",
+        "uid": "postgres-product-readonly"
+      },
+      "description": "NS-03: daily median of validated outcomes per useful user — exact SQL over the read-only product_depth_daily view (a median is not derivable from bounded Prometheus series). n/a until product_outcomes has data.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT day AS time, median_results AS value FROM product_depth_daily WHERE $__timeFilter(day) ORDER BY day",
+          "rawQuery": true,
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "n/a",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Activation at 7 days",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "ACT-02: signup cohort reaching a first E1/E2 outcome within 7 days. DB-backed gauge. Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(product_activation_rate{window=\"7d\",path=\"all\",device_class=\"all\"})",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "n/a",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "First-pass useful rate",
+      "type": "text",
+      "datasource": null,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**OUT-04** — E1/E2 outcomes achieved on the first pass / produced outcomes.\n\n`first_pass` is a `product_outcomes` DB field (not a Prometheus label). Awaiting the PostgreSQL product datasource (Phase 3, ADR-178). "
+      }
+    },
+    {
+      "id": 6,
+      "title": "E2E technical success (1h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "OUT-03 technical proxy (E3): successful agent executions / all executions. Live today from agent_success_rate_total; the final-outcome variant (E1/E2) arrives with product_outcomes (Phase 2). n/a = no execution in the window.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(agent_success_rate_total{outcome=\"success\"}[1h])) / sum(rate(agent_success_rate_total[1h]))",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "n/a",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Useful retention D7",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "RET-02: activated users producing a new useful outcome at J+7. DB-backed gauge. Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 5
+      },
+      "targets": [
+        {
+          "expr": "sum(product_retention_rate{period=\"D7\",segment=\"all\"})",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "n/a",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Cost per useful outcome (7d)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "COST-05: mean EUR cost per validated outcome (histogram avg). EUR only — sourced from message_token_summary. Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 5
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(product_outcome_cost_eur_sum[7d])) / sum(increase(product_outcome_cost_eur_count[7d]))",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "noValue": "n/a",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Time to useful outcome (p50, 7d)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "OUT-16: median seconds from request to validated outcome. Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 5
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(product_outcome_duration_seconds_bucket[7d])))",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "n/a",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Mobile vs desktop gap (7d)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "UX-02: penetration ratio difference, mobile minus desktop (device_class derived from bounded session os_family, ADR-144). Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 5
+      },
+      "targets": [
+        {
+          "expr": "sum(product_value_penetration_ratio{window=\"7d\",device_class=\"mobile\"}) - sum(product_value_penetration_ratio{window=\"7d\",device_class=\"desktop\"})",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "n/a",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Negative feedback rate (7d)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "SAT-02: thumbs_down / rated responses (7d). Live. Denominator is rated responses only — the result_presented denominator arrives Phase 2. n/a = nothing rated in the window.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 5
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(response_feedback_total{verdict=\"thumbs_down\"}[7d])) / sum(increase(response_feedback_total[7d]))",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "n/a",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "Product aggregates freshness",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "DQ-04: seconds since the last successful product aggregate refresh (SLA 2h — critical alert in Phase 5). Label refresh_job (never 'job', reserved by the Prometheus scrape). Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 5
+      },
+      "targets": [
+        {
+          "expr": "time() - max(product_metrics_last_refresh_timestamp_seconds)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "n/a",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "type": "row",
+      "id": 101,
+      "title": "01 · North Star & Value",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      }
+    },
+    {
+      "id": 13,
+      "title": "North Star trend (E1/E2)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "NS-01/NS-05 over time: users with useful outcome (7d rolling window), split by evidence level. Charts the DB-backed gauge; the exact per-ISO-week cohort view arrives with the PostgreSQL datasource (Phase 3). Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "targets": [
+        {
+          "expr": "sum by (evidence) (product_users_with_useful_outcome{window=\"7d\",evidence=~\"E1|E2\"})",
+          "legendFormat": "{{evidence}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "title": "Validated outcomes by domain (30d)",
+      "type": "barchart",
+      "datasource": "$datasource",
+      "description": "OUT-20: E1/E2 outcome volume by bounded domain (DOMAIN_REGISTRY vocabulary). Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 10
+      },
+      "targets": [
+        {
+          "expr": "sum by (domain) (increase(product_outcomes_total{evidence=~\"E1|E2\"}[30d]))",
+          "legendFormat": "{{domain}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "auto",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "title": "Validated outcomes by result type (30d)",
+      "type": "barchart",
+      "datasource": "$datasource",
+      "description": "NS-04: E1/E2 outcome volume by result_type (answer/action/preparation/artifact/automation_run/proactive_item/project_progress). Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 10
+      },
+      "targets": [
+        {
+          "expr": "sum by (result_type) (increase(product_outcomes_total{evidence=~\"E1|E2\"}[30d]))",
+          "legendFormat": "{{result_type}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "auto",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "id": 102,
+      "title": "02 · Activation Funnel",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      }
+    },
+    {
+      "id": 16,
+      "title": "Funnel — signup to second useful week (7d)",
+      "type": "bargauge",
+      "datasource": "$datasource",
+      "description": "FUN-01..11: users currently at each funnel stage. DB-backed gauge per stage. Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 19
+      },
+      "targets": [
+        {
+          "expr": "sum by (stage) (product_funnel_users{window=\"7d\",device_class=\"all\"})",
+          "legendFormat": "{{stage}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "n/a",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 17,
+      "title": "Activation by path (7d)",
+      "type": "barchart",
+      "datasource": "$datasource",
+      "description": "ACT-07..11: activation rate by path (connector / demo / no-source). Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 19
+      },
+      "targets": [
+        {
+          "expr": "sum by (path) (product_activation_rate{window=\"7d\",device_class=\"all\"})",
+          "legendFormat": "{{path}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "auto",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 18,
+      "title": "Inter-step times (FUN-12)",
+      "type": "text",
+      "datasource": null,
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 19
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**FUN-12** — P50/P95 between consecutive funnel steps.\n\nRequires per-user step timestamps (PostgreSQL). Awaiting the PostgreSQL product datasource (Phase 3, ADR-178). "
+      }
+    },
+    {
+      "type": "row",
+      "id": 103,
+      "title": "03 · Agentic Quality",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
+      "panels": [
+        {
+          "id": 19,
+          "title": "Agent execution outcomes (1h rate)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "OUT technical quality (E3): agent executions by outcome (success/failure/partial_success/user_abandoned). E1/E2 result quality arrives Phase 2.",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 28
+          },
+          "targets": [
+            {
+              "expr": "sum by (outcome) (rate(agent_success_rate_total[1h]))",
+              "legendFormat": "{{outcome}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 20,
+          "title": "Turns per conversation (1h)",
+          "type": "heatmap",
+          "datasource": "$datasource",
+          "description": "OUT-14: distribution of user-agent turns per conversation (conversation_turns_total histogram). Deep-dive: dashboard 09.",
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 28
+          },
+          "targets": [
+            {
+              "expr": "sum by (le) (increase(conversation_turns_total_bucket[1h]))",
+              "legendFormat": "{{le}}",
+              "refId": "A",
+              "format": "heatmap"
+            }
+          ],
+          "options": {
+            "calculate": false,
+            "yAxis": {
+              "unit": "short"
+            }
+          }
+        },
+        {
+          "id": 21,
+          "title": "Pipeline vs ReAct p95 (1h)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "OUT-21 (Partiel): pipeline per-stage p95 vs ReAct total p95 — NOT the same unit of work (stage vs whole run); per-request-type normalization requires product_outcomes (Phase 2). Deep-dive: dashboards 15 & 20.",
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 28
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(langgraph_stage_duration_seconds_bucket{execution_mode=\"pipeline\"}[1h])))",
+              "legendFormat": "pipeline stage p95",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(react_agent_duration_seconds_bucket[1h])))",
+              "legendFormat": "react total p95",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 104,
+      "title": "04 · HITL & Drafts",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 28
+      },
+      "panels": [
+        {
+          "id": 22,
+          "title": "HITL decisions (1h)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "HITL-01..05: resolutions by action + approval rate recording rule. Deep-dive: dashboard 08.",
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 29
+          },
+          "targets": [
+            {
+              "expr": "sum by (action) (increase(hitl_resolutions_total[1h]))",
+              "legendFormat": "{{action}}",
+              "refId": "A"
+            },
+            {
+              "expr": "business:hitl:approval_rate:1h",
+              "legendFormat": "approval rate (1h)",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 23,
+          "title": "HITL latency (1h windows)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "HITL-06/08: user decision wait p50/p95 and post-approval resumption p95. Rare family — 1h windows per rendering conventions.",
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 29
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum by (le) (rate(hitl_wait_duration_seconds_bucket[1h])))",
+              "legendFormat": "wait p50",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(hitl_wait_duration_seconds_bucket[1h])))",
+              "legendFormat": "wait p95",
+              "refId": "B"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(hitl_resumption_duration_seconds_bucket[1h])))",
+              "legendFormat": "resumption p95",
+              "refId": "C"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 24,
+          "title": "Clarifications by reason (1d)",
+          "type": "barchart",
+          "datasource": "$datasource",
+          "description": "HITL-10: clarification requests by reason. Empty = zero events in the window (healthy).",
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 29
+          },
+          "targets": [
+            {
+              "expr": "sum by (reason) (increase(hitl_clarification_requests_total[1d]))",
+              "legendFormat": "{{reason}}",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "auto",
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 25,
+          "title": "Drafts lifecycle (1d)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "HITL-15..17: drafts created vs executed by type + lifecycle p50 (creation to final action). Median edit iterations per draft = Phase 2 (DB — not derivable from the global counter). Deep-dive: dashboard 14.",
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 29
+          },
+          "targets": [
+            {
+              "expr": "sum by (draft_type) (increase(registry_drafts_created_total[1d]))",
+              "legendFormat": "created {{draft_type}}",
+              "refId": "A"
+            },
+            {
+              "expr": "sum by (draft_type) (increase(registry_drafts_executed_total[1d]))",
+              "legendFormat": "executed {{draft_type}}",
+              "refId": "B"
+            },
+            {
+              "expr": "histogram_quantile(0.50, sum by (le) (rate(registry_draft_lifecycle_duration_seconds_bucket[1h])))",
+              "legendFormat": "lifecycle p50 (s)",
+              "refId": "C"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 105,
+      "title": "05 · Engagement & Retention",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 29
+      },
+      "panels": [
+        {
+          "id": 26,
+          "title": "DAU / WAU (conversational)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "ENG-01/02 caveat: DB-backed gauges counting DISTINCT users on Conversation.updated_at (24h/7d) — conversational activity only, NOT the full engaged-user definition (routines, proactivity, projects — Phase 2). Deep-dive: dashboards 09 & 17.",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 30
+          },
+          "targets": [
+            {
+              "expr": "user_active_daily_gauge",
+              "legendFormat": "DAU",
+              "refId": "A"
+            },
+            {
+              "expr": "user_active_weekly_gauge",
+              "legendFormat": "WAU",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 27,
+          "title": "Weekly activation cohorts",
+          "type": "table",
+          "datasource": {
+            "type": "postgres",
+            "uid": "postgres-product-readonly"
+          },
+          "description": "RET-01..03: signup cohorts (ISO weeks, UTC) × weeks with a validated outcome — exact deduplicated SQL over the read-only cohort views. Empty until product_outcomes has data.",
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 30
+          },
+          "targets": [
+            {
+              "rawSql": "SELECT s.cohort_week, s.registered, a.active_week, a.users FROM product_signup_cohorts_weekly s LEFT JOIN product_activation_cohorts_weekly a ON a.cohort_week = s.cohort_week WHERE $__timeFilter(s.cohort_week) ORDER BY s.cohort_week DESC, a.active_week",
+              "rawQuery": true,
+              "format": "table",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {},
+          "transformations": []
+        },
+        {
+          "id": 28,
+          "title": "Useful retention by period",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "RET-04/07: D1/D7/D30 useful-retention gauges. Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 30
+          },
+          "targets": [
+            {
+              "expr": "sum by (period) (product_retention_rate{period=~\"D1|D7|D30\",segment=\"all\"})",
+              "legendFormat": "{{period}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 106,
+      "title": "06 · Connectors",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
+      "panels": [
+        {
+          "id": 29,
+          "title": "Connector funnel (1d)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "CON-01/02/05: OAuth connector initiations vs successful activations (1d), plus per-type adoption gauges (0-1, right-hand flat series). The exact 'users with >=1 active connector / eligible' coverage is a cross-type DISTINCT (PostgreSQL, Phase 3). Deep-dive: dashboard 10.",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 31
+          },
+          "targets": [
+            {
+              "expr": "sum(increase(oauth_initiate_total{flow_type=\"connector\"}[1d]))",
+              "legendFormat": "initiations (1d)",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(increase(oauth_connector_activation_total{status=\"success\"}[1d]))",
+              "legendFormat": "activations (1d)",
+              "refId": "B"
+            },
+            {
+              "expr": "connector_activation_rate",
+              "legendFormat": "adoption {{connector_type}} (0-1)",
+              "refId": "C"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 30,
+          "title": "Connector API success ratio (1h)",
+          "type": "table",
+          "datasource": "$datasource",
+          "description": "CON-08: successful connector API requests / all requests, by connector type. Deep-dive: dashboard 10.",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 31
+          },
+          "targets": [
+            {
+              "expr": "sum by (connector_type) (rate(connector_api_requests_total{status=\"success\"}[1h])) / sum by (connector_type) (rate(connector_api_requests_total[1h]))",
+              "legendFormat": "{{connector_type}}",
+              "refId": "A",
+              "instant": true,
+              "format": "table"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "options": {},
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 107,
+      "title": "07 · Routines & Proactivity",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "panels": [
+        {
+          "id": 31,
+          "title": "Routines — creation & activation",
+          "type": "text",
+          "datasource": null,
+          "gridPos": {
+            "h": 6,
+            "w": 8,
+            "x": 0,
+            "y": 32
+          },
+          "options": {
+            "mode": "markdown",
+            "content": "**AUT-01..05** — created vs activated routines, first useful output delay.\n\nSource: `scheduled_actions` aggregates (PostgreSQL). Awaiting the PostgreSQL product datasource (Phase 3, ADR-178). "
+          }
+        },
+        {
+          "id": 32,
+          "title": "Routines — reliability & punctuality",
+          "type": "text",
+          "datasource": null,
+          "gridPos": {
+            "h": 6,
+            "w": 8,
+            "x": 8,
+            "y": 32
+          },
+          "options": {
+            "mode": "markdown",
+            "content": "**AUT-06..14** — on-time runs, technical success, consecutive_failures distribution (DB column — no Prometheus series, corrected classification), auto-disable.\n\nAwaiting the PostgreSQL product datasource (Phase 3, ADR-178). "
+          }
+        },
+        {
+          "id": 33,
+          "title": "Routines — usefulness & survival",
+          "type": "text",
+          "datasource": null,
+          "gridPos": {
+            "h": 6,
+            "w": 8,
+            "x": 16,
+            "y": 32
+          },
+          "options": {
+            "mode": "markdown",
+            "content": "**AUT-09/17/18** — useful outputs (E1/E2), 4/12-week survival, cost per useful run.\n\nRequires product_outcomes × scheduled_actions join. Awaiting the PostgreSQL product datasource (Phase 3, ADR-178). "
+          }
+        },
+        {
+          "id": 34,
+          "title": "Proactive tasks (1d)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "PRO-01/02: proactive tasks processed by type; failures aggregated. Deep-dive: dashboard 13.",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 38
+          },
+          "targets": [
+            {
+              "expr": "sum by (task_type) (increase(proactive_task_processed_total[1d]))",
+              "legendFormat": "processed {{task_type}}",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(increase(proactive_task_failed_total[1d]))",
+              "legendFormat": "failed (all)",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 35,
+          "title": "Proactive feedback (1d)",
+          "type": "barchart",
+          "datasource": "$datasource",
+          "description": "PRO-07/08: user feedback on proactive notifications (thumbs_up/thumbs_down/block). Empty = zero events (healthy).",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 38
+          },
+          "targets": [
+            {
+              "expr": "sum by (feedback_type) (increase(proactive_feedback_total[1d]))",
+              "legendFormat": "{{feedback_type}}",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "auto",
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 108,
+      "title": "08 · Search, Mobile & Perceived Performance",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "panels": [
+        {
+          "id": 36,
+          "title": "Search value",
+          "type": "text",
+          "datasource": null,
+          "gridPos": {
+            "h": 6,
+            "w": 8,
+            "x": 0,
+            "y": 33
+          },
+          "options": {
+            "mode": "markdown",
+            "content": "**SEA-01..10** — searches, zero-result rate, reformulation, search-to-chat transfers.\n\nAwaiting client telemetry (Phase 4, ADR-178 — dedicated spec). "
+          }
+        },
+        {
+          "id": 37,
+          "title": "Mobile vs desktop penetration",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "UX-01/02: value penetration by device_class (derived from bounded session os_family, ADR-144 — tablet not distinguished). Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+          "gridPos": {
+            "h": 6,
+            "w": 8,
+            "x": 8,
+            "y": 33
+          },
+          "targets": [
+            {
+              "expr": "sum by (device_class) (product_value_penetration_ratio{window=\"7d\",device_class=~\"mobile|desktop\"})",
+              "legendFormat": "{{device_class}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 38,
+          "title": "Automated UX QA",
+          "type": "text",
+          "datasource": null,
+          "gridPos": {
+            "h": 6,
+            "w": 8,
+            "x": 16,
+            "y": 33
+          },
+          "options": {
+            "mode": "markdown",
+            "content": "**UX-11..17** — touch targets, responsive regressions, theme parity, keyboard journeys.\n\nOut of v1 scope: no QA export mechanism exists (no Pushgateway, no publication pipeline) — revisit with a specified mechanism (ADR-178 correction #10)."
+          }
+        },
+        {
+          "id": 39,
+          "title": "Web Vitals p75",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "PERF-17: LCP/INP p75 by device class. Awaiting client telemetry (Phase 4, ADR-178 — dedicated spec). ",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 39
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.75, sum by (le, metric) (rate(product_web_vital_seconds_bucket[1d])))",
+              "legendFormat": "{{metric}} p75",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 40,
+          "title": "Perceived performance (1h)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "PERF-01/09: SSE time-to-first-token p50/p95 and streaming errors (1d). Deep-dive: dashboards 07 & 15 (stage latency).",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 39
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum by (le) (rate(sse_time_to_first_token_seconds_bucket[1h])))",
+              "legendFormat": "TTFT p50",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(sse_time_to_first_token_seconds_bucket[1h])))",
+              "legendFormat": "TTFT p95",
+              "refId": "B"
+            },
+            {
+              "expr": "sum(increase(sse_streaming_errors_total[1d]))",
+              "legendFormat": "streaming errors (1d)",
+              "refId": "C"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 109,
+      "title": "09 · Cost & Efficiency",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      },
+      "panels": [
+        {
+          "id": 41,
+          "title": "Cost (EUR, DB-backed)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "COST-01: LLM cost 24h/7d from restart-safe DB-backed gauges (EUR, message_token_summary source) + proactive cost. Cost per useful outcome arrives Phase 2 (product_outcome_cost_eur). USD conversation metrics stay on dashboards 05/09 — never mixed (EUR-only contract). ",
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 34
+          },
+          "targets": [
+            {
+              "expr": "llm_cost_last_24h",
+              "legendFormat": "LLM cost 24h (EUR)",
+              "refId": "A"
+            },
+            {
+              "expr": "llm_cost_last_7d",
+              "legendFormat": "LLM cost 7d (EUR)",
+              "refId": "B"
+            },
+            {
+              "expr": "sum(increase(proactive_cost_eur_total[1d]))",
+              "legendFormat": "proactive cost 1d (EUR)",
+              "refId": "C"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyEUR",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 110,
+      "title": "10 · Data Quality",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      }
+    },
+    {
+      "id": 42,
+      "title": "Product data quality checks",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "DQ-01..12: per-check quality ratios (dedup, orphans, missing dimensions, backend/aggregate reconciliation <1%). Freshness is on the scorecard (row 00). Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
+      "targets": [
+        {
+          "expr": "sum by (check) (product_data_quality_ratio)",
+          "legendFormat": "{{check}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    }
+  ],
+  "refresh": "5m",
+  "schemaVersion": 38,
+  "tags": [
+    "lia",
+    "product",
+    "value",
+    "growth",
+    "outcomes"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0
+      }
+    ]
+  },
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "26 - Product Value, Activation & Retention",
+  "uid": "26-product-value",
+  "version": 1
+}

@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.26.1</strong> — <strong>Rich HTML mode stops being bold text and becomes page design.</strong> The rich-HTML display mode now speaks a real visual language: <strong>seven design-system components</strong> — callouts with titles, badges with icons, collapsible sections, key-value lists, responsive columns, numbered steps, stat tiles — plus inline accents (<code>mark</code>, <code>kbd</code>, <code>abbr</code>) and <strong>syntax-highlighted code blocks</strong> with a copy button, all under an explicit restraint rule (2-3 components max per answer: prose leads, components support). The enrichment is purely declarative — prompt + CSS + sanitize allowlist, no new code path — and a CI guard fails the build if the directive ever advertises a class the stylesheet does not cover. Copying an HTML answer now pastes clean, readable text (dual-flavor clipboard: rich <code>text/html</code> for mail composers, flattened <code>text/plain</code> for editors; share sheet and <code>.md</code> export flattened the same way). Along the way, four real defects fell: search highlighting no longer breaks Material Symbols icon ligatures, pretty-printed paragraphs lost their phantom line breaks, inline code is visible in light theme again, and list overrides stopped dropping design-system classes. <strong>16,584 backend</strong> + <strong>4,072 frontend</strong> tests, all six languages. — 29 July 2026.
+  <strong>Version 1.26.2</strong> — <strong>LIA now measures its own usefulness — at home, with no third-party analytics.</strong> Observability answered "is the system healthy?"; nothing answered "how many people get a genuinely useful result?". A <strong>26th Grafana dashboard</strong> (42 panels) closes that gap on a normative value model: an outcome only counts once <strong>validated E1</strong> (explicit 👍) or <strong>E2</strong> (an action left uncorrected through a full behavioral window) — technical success alone is excluded from the North Star. The truth lives in PostgreSQL (mutable states are never derived from Prometheus counters); DB-backed gauges transport it; Grafana reads exact aggregates through a <strong>read-only role</strong> confined to four views (base tables denied, pinned statement timeout). An optional, strictly bounded <strong>client telemetry</strong> completes the funnel — anonymous public-page events with no identifier ever, LCP/CLS Web Vitals, PWA install signals, settings-search outcomes — inert unless the operator enables it. Call debriefs now list the <strong>facts a call produced</strong> (opening hours, availability, the answer you waited for), not just its actions, and an empty debrief is truly absent again (reliable retention purge). <strong>16,626 backend</strong> + <strong>4,083 frontend</strong> tests, all six languages. — 29 July 2026.
 
 </p>
 
@@ -79,7 +79,7 @@
 | **Unpredictable LLM costs**     | Real-time token tracking, budget alerts, 93% optimization                                    |
 | **Uncontrolled hallucinations** | Human-in-the-Loop (HITL) with 6 approval levels                                              |
 | **Fragmented integrations**     | Unified multi-domain orchestration (20+ agents + MCP + sub-agents)                           |
-| **Limited observability**       | 425 Prometheus metrics, 25 Grafana dashboards, email alerting with runbooks, GeoIP analytics |
+| **Limited observability**       | 450+ Prometheus metrics, 26 Grafana dashboards (including a product-value cockpit), email alerting with runbooks, GeoIP analytics |
 | **Inconsistent performance**    | Gemini embedding-001 with asymmetric task types, semantic routing with hybrid scoring        |
 
 ### Primary Use Cases
@@ -326,7 +326,7 @@ ExecutionStep(
 ### Enterprise Observability
 
 - **Prometheus**: 425 custom metrics (agents, LLM, infrastructure)
-- **Grafana**: 22 production-ready dashboards
+- **Grafana**: 26 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
 - **Tempo**: Distributed cross-service tracing
@@ -846,7 +846,7 @@ apps/api/src/
 | Technology | Role                 |
 | ---------- | -------------------- |
 | Prometheus | 447 metrics          |
-| Grafana    | 25 dashboards        |
+| Grafana    | 26 dashboards        |
 | Loki       | Aggregated logs      |
 | Tempo      | Distributed tracing  |
 | Langfuse   | LLM observability    |

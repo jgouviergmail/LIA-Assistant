@@ -75,6 +75,11 @@ if getattr(settings, "open_loops_enabled", False):
 
     api_router.include_router(open_loops_router)
 
+if getattr(settings, "product_analytics_enabled", False):
+    from src.domains.product.router import router as product_router
+
+    api_router.include_router(product_router)  # Client telemetry ingestion (ADR-178 Phase 4)
+
 if getattr(settings, "mcp_enabled", False):
     from src.domains.user_mcp.admin_router import router as admin_mcp_router
 

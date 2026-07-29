@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 4.4** | 2026-07-17 | 25 dashboards, 595 panels
+> **Version 4.5** | 2026-07-29 | 26 dashboards, 637 panels
 
 ---
 
@@ -31,13 +31,14 @@ Les **25 dashboards Grafana** fournissent une observabilite complete pour :
 4. **Securite et OAuth** : Connecteurs Google, MCP, flux OAuth
 5. **Incident response** : Logs + traces correles, recherche par run_id/user_id
 6. **Analytics utilisateur** : Engagement, geolocalisation, patterns d'utilisation
+7. **Vue produit** : Valeur utilisateur (North Star E1/E2), activation, retention, cout par resultat utile (dashboard 26, ADR-178)
 
 ### Chiffres cles
 
 | Indicateur | Valeur |
 |------------|--------|
-| Dashboards | 25 |
-| Panels total | 595 |
+| Dashboards | 26 |
+| Panels total | 637 |
 | Recording rules | 86 |
 | Schema version | 38 (Grafana 11.3) |
 | graphTooltip | 1 (shared crosshair) sur tous les dashboards |
@@ -116,6 +117,7 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 | 23 | Journals & User Model | `23-journals-user-model` | lia, journals, user-model | 16 | Extraction, actions sur entrees, consolidation par niveaux, portrait utilisateur |
 | 24 | Telephony | `24-telephony` | lia, telephony, calls | 9 | Appels sortants par statut, duree, reapers de recuperation (T1), webhooks ignores |
 | 25 | Today Briefing | `25-briefing` | lia, briefing | 8 | Duree de build par etat de cache, statuts par section, invocations LLM, refresh |
+| 26 | Product Value, Activation & Retention | `26-product-value` | lia, product, value, growth, outcomes | 42 | Cockpit produit (ADR-178) : North Star E1/E2, funnel d'activation, qualite agentique, retention, couts EUR, qualite des donnees — v0 avec panels LIVE/PRE-WIRED/TEXT |
 
 ---
 
@@ -233,6 +235,14 @@ Appels sortants agentiques : appels par statut terminal, duree des appels (plafo
 
 Page d'accueil Today Briefing (BRIEFING_DOMAIN) : duree de build par etat de cache (cold = LLM-bound, warm = quasi instantane), statuts de build par section (agenda, mails, meteo...), volume par section, invocations LLM (greeting / synthese) par issue, refreshes utilisateur.
 
+### 26 - Product Value, Activation & Retention (42 panels)
+
+Cockpit produit (ADR-178, spec `docs/superpowers/specs/2026-07-29-product-dashboard-program.md`). Repond a « combien d'utilisateurs obtiennent un resultat utile, a quel cout, reviennent-ils ? » sans dupliquer les dashboards techniques (liens de drill-down). 11 rows : scorecard executive (12 stats), North Star E1/E2, funnel d'activation, qualite agentique, HITL et brouillons, engagement/retention, connecteurs, routines/proactivite, recherche/mobile/performance percue, couts EUR, qualite des donnees. Trois etats de panel : **LIVE Prometheus** (series existantes : succes technique E3, feedback negatif, HITL, DAU/WAU avec caveat conversationnel, connecteurs, proactivite, TTFT, couts EUR DB-backed), **PRE-WIRED** (requetes posees sur les series `product_*` du pipeline outcomes — compteur + gauges DB-backed alimentees par le rollup horaire, `PRODUCT_ANALYTICS_ENABLED`), **LIVE PostgreSQL** (panels 3 et 27 : mediane de profondeur et cohortes hebdomadaires en SQL exact sur les vues en lecture seule). La North Star n'est jamais calculee depuis les compteurs Prometheus (etats E1/E2 mutables) : les gauges transportent des agregats SQL exacts.
+
+La telemetrie client (Phase 4) alimente les familles `product_client_events_total` (funnel anonyme borne : landing, inscription, demo, PWA), `product_search_total` (recherche des reglages) et `product_web_vital_seconds`/`_ratio` (LCP/CLS) via `POST /api/v1/product/events` — endpoint a auth optionnelle, rate-limite par IP, schema borne par enums, emetteur frontend inerte sans `NEXT_PUBLIC_PRODUCT_TELEMETRY`.
+
+**Datasources** : Prometheus + `postgres-product-readonly` (role `grafana_product_reader`, SELECT sur les 4 vues produit uniquement, `statement_timeout` 10s — cree par `task db:create-grafana-reader`). Alertes produit : `alerts-product.yml` prepare mais NON monte (baseline 4 semaines requise, ADR-119).
+
 ---
 
 ## Variables et Datasources
@@ -243,7 +253,7 @@ Tous les dashboards declarent au minimum :
 
 | Variable | Type | Description | Dashboards |
 |----------|------|-------------|------------|
-| `$datasource` | Datasource (Prometheus) | Source de metriques principale | Tous (01-25) |
+| `$datasource` | Datasource (Prometheus) | Source de metriques principale | Tous (01-26) |
 | `$datasource_loki` | Datasource (Loki) | Source de logs | 05, 06, 07, 17 |
 | `$datasource_tempo` | Datasource (Tempo) | Source de traces | 06 |
 
@@ -368,6 +378,7 @@ infrastructure/observability/grafana/dashboards/
   23-journals-user-model.json
   24-telephony.json
   25-briefing.json
+  26-product-value.json
 ```
 
 ### Ajouter un panel
@@ -461,7 +472,7 @@ docker compose restart grafana
 
 ---
 
-**Version** : 4.4
-**Date** : 2026-07-17
+**Version** : 4.5
+**Date** : 2026-07-29
 **Auteur** : Equipe LIA
-**Statut** : Production (25 dashboards, 595 panels)
+**Statut** : Production (26 dashboards, 637 panels)

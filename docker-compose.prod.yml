@@ -227,6 +227,8 @@ services:
         - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
         - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
         - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME:-Lia}
+        - NEXT_PUBLIC_PRODUCT_TELEMETRY=${NEXT_PUBLIC_PRODUCT_TELEMETRY:-false}
+        - NEXT_PUBLIC_WEB_VITALS_SAMPLE_RATE=${NEXT_PUBLIC_WEB_VITALS_SAMPLE_RATE:-1}
         # Firebase Cloud Messaging (FCM) - Push Notifications
         - NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
         - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
@@ -462,6 +464,10 @@ services:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       - GF_SERVER_ROOT_URL=${GF_SERVER_ROOT_URL:-http://localhost:3001}
+      # Product read-only datasource (ADR-178) — interpolated by the
+      # datasource provisioning YAML (postgres-product-readonly).
+      - GRAFANA_PRODUCT_DB_PASSWORD=${GRAFANA_PRODUCT_DB_PASSWORD:-}
+      - POSTGRES_DB=${POSTGRES_DB}
     ports:
       - "127.0.0.1:3001:3000"  # Loopback-only (audit A3): reach via SSH tunnel or cloudflared ingress
     volumes:

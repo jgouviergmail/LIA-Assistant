@@ -31,6 +31,7 @@ from pydantic import ValidationError
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n_telephony import get_return_phrases
+from src.core.i18n_types import get_language_name
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.telephony.models import PhoneCallOutcome, PhoneCallStatus
 from src.domains.telephony.prompts.loader import load_telephony_prompt
@@ -175,6 +176,31 @@ def _derive_outcome(
     return PhoneCallOutcome.PARTIAL
 
 
+# Deterministic English weekday — `%A` depends on the C locale (a documented
+# trap). The model reasons in English on the ISO date, then writes its output in
+# the user's language.
+_EN_WEEKDAYS: Final = (
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+)
+
+
+def _current_datetime_line(user_timezone: str) -> str:
+    """A 'now' the synthesis resolves relative dates against ('this weekend')."""
+    now = datetime.now(ZoneInfo(user_timezone))
+    return (
+        f"CURRENT DATE AND TIME: {now.strftime('%Y-%m-%d %H:%M')} "
+        f"({_EN_WEEKDAYS[now.weekday()]}), timezone {user_timezone}. Resolve every "
+        "relative reference (today, this weekend, tomorrow) to an ABSOLUTE "
+        "weekday + date against this."
+    )
+
+
 def _render_context(
     *,
     objective: str,
@@ -183,10 +209,14 @@ def _render_context(
     transcript: str,
     structured: StructuredCallData,
     language: str,
+    user_timezone: str,
 ) -> str:
     """Build the CONTEXT block (data as a HumanMessage — avoids .format brace traps)."""
+    language_name = get_language_name(language)
     parts = [
-        f"LANGUAGE: {language}",
+        f"LANGUAGE: {language_name} ({language}). Write EVERYTHING you output "
+        f"ENTIRELY in {language_name}.",
+        _current_datetime_line(user_timezone),
         f"OBJECTIVE: {objective}",
         f"CALLEE: {callee_display}",
         f"SUMMARY: {transcript_summary or '(none provided)'}",
@@ -211,6 +241,7 @@ async def synthesize_return(
     objective: str,
     callee_display: str,
     user_language: str,
+    user_timezone: str,
 ) -> tuple[ReturnProposal, _SynthUsage | None]:
     """Single tool-less LLM call → factual ``summary`` + first-person ``proposal_text``.
 
@@ -231,6 +262,7 @@ async def synthesize_return(
         transcript=transcript,
         structured=structured_data,
         language=user_language,
+        user_timezone=user_timezone,
     )
     llm = get_llm(_LLM_TYPE)
     structured_llm = llm.with_structured_output(ReturnProposal, include_raw=True)
@@ -363,6 +395,7 @@ async def _synthesize_with_fallback(
     objective: str,
     callee_display: str,
     language: str,
+    user_timezone: str,
     fallback_phrase: str,
 ) -> tuple[ReturnProposal, _SynthUsage | None]:
     """Run the synthesis; a failure degrades to the plain-summary proposal.
@@ -378,6 +411,7 @@ async def _synthesize_with_fallback(
             objective=objective,
             callee_display=callee_display,
             user_language=language,
+            user_timezone=user_timezone,
         )
     except Exception as exc:  # noqa: BLE001 — synthesis must not lose the call
         logger.warning("telephony_synthesis_failed", call_id=str(call_id), error=str(exc))
@@ -430,6 +464,7 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
 
         user = await db.get(User, call.user_id)
         language = user.language if user else settings.default_language
+        user_timezone = _user_display_timezone(user)
         phrases = get_return_phrases(language)
 
         proposal, usage = await _synthesize_with_fallback(
@@ -440,6 +475,7 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
             objective=call.objective,
             callee_display=call.callee_display,
             language=language,
+            user_timezone=user_timezone,
             fallback_phrase=phrases["fallback"],
         )
 
@@ -450,7 +486,7 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
             structured=structured,
             status=status,
             language=language,
-            user_timezone=_user_display_timezone(user),
+            user_timezone=user_timezone,
         )
 
         # T01: an all-empty debrief (synthesis fallback, or a call with nothing

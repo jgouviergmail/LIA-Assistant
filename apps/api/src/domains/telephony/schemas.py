@@ -56,6 +56,17 @@ class ReturnProposal(BaseModel):
     proposal_text: str = Field(
         ..., description="First-person report + optional next step for the user."
     )
+    key_points: list[str] = Field(
+        default_factory=list,
+        description=(
+            "The concrete FINDINGS or answers obtained on the call, relative to "
+            "the objective, one short factual point each. This is what an "
+            "INFORMATION-gathering call produces (e.g. availability, opening "
+            "hours, someone's plans) — populate it whenever the call returned "
+            "facts worth structuring, even when nothing is actionable. Empty "
+            "only when the call connected but yielded no usable information."
+        ),
+    )
     commitments: list[str] = Field(
         default_factory=list,
         description=(
@@ -96,6 +107,7 @@ class ReturnProposal(BaseModel):
         """The persistable debrief (JSONB) — only the T01 fields, no text dupes."""
         return self.model_dump(
             include={
+                "key_points",
                 "commitments",
                 "follow_up_tasks",
                 "follow_up_reminders",

@@ -1,0 +1,100 @@
+# Product analytics alerts (ADR-178, dashboard 26) — PREPARED, NOT ACTIVE.
+#
+# ACTIVATION REQUIRES (do not skip):
+#   1. >= 4 weeks of production baseline on the product_* series (spec §8:
+#      startup thresholds must be recalibrated against measured variance).
+#   2. Add "alerts-product.yml" to rule_files in prometheus.yml.
+#   3. Mount this file in BOTH compose files (dev + prod), next to
+#      alerts-core.yml.
+# ADR-119 hygiene: every alert carries owner + runbook + dashboard; windows
+# and `for:` clauses are the anti-noise guards. No alert fires on a metric
+# whose data quality is red (the freshness alert gates the others in triage).
+
+groups:
+  - name: product_freshness
+    rules:
+      - alert: ProductAggregatesStale
+        # DQ-04 / spec §8 "Critique": aggregates without a successful refresh
+        # for 2h — the rollup job is down or failing; every product number on
+        # dashboard 26 is suspect until this clears.
+        expr: (time() - max(product_metrics_last_refresh_timestamp_seconds)) > 7200
+        for: 15m
+        labels:
+          severity: critical
+          domain: product
+          owner: product
+        annotations:
+          summary: "Product aggregates have not refreshed for over 2 hours"
+          description: >
+            The product rollup job (SCHEDULER_JOB_PRODUCT_ROLLUP) has not
+            stamped a successful refresh in 2h (SLA). Check the API scheduler
+            logs (product_rollup_failed / product_rollup_completed) and
+            PostgreSQL availability. Dashboard: 26-product-value (row 00).
+          runbook: docs/technical/GRAFANA_DASHBOARDS.md#26---product-value-activation--retention-42-panels
+
+  - name: product_value
+    rules:
+      - alert: ProductNorthStarDrop
+        # Spec §8 "Élevée": North Star -20% vs the comparable value one week
+        # ago. STARTUP THRESHOLD — recalibrate after the 4-week baseline.
+        expr: |
+          (
+            sum(product_users_with_useful_outcome{window="7d",evidence="any"})
+            < 0.8 * sum(product_users_with_useful_outcome{window="7d",evidence="any"} offset 1w)
+          )
+          and
+          (sum(product_users_with_useful_outcome{window="7d",evidence="any"} offset 1w) > 0)
+        for: 6h
+        labels:
+          severity: high
+          domain: product
+          owner: product
+        annotations:
+          summary: "Weekly users with useful outcome dropped >20% week-over-week"
+          description: >
+            NS-01 fell more than 20% vs last week. Drill down: funnel (row 02),
+            agentic quality (row 03) and incident dashboards 01/02.
+          runbook: docs/superpowers/specs/2026-07-29-product-dashboard-program.md
+
+      - alert: ProductE2ESuccessDrop
+        # Spec §8 "Critique": technical E3 success -25% over 24h vs previous day.
+        expr: |
+          (
+            sum(increase(agent_success_rate_total{outcome="success"}[24h]))
+            < 0.75 * sum(increase(agent_success_rate_total{outcome="success"}[24h] offset 1d))
+          )
+          and
+          (sum(increase(agent_success_rate_total{outcome="success"}[24h] offset 1d)) > 20)
+        for: 2h
+        labels:
+          severity: critical
+          domain: product
+          owner: product
+        annotations:
+          summary: "E2E technical success volume dropped >25% day-over-day"
+          description: >
+            Successful agent executions fell >25% vs the previous day (with a
+            minimum-volume guard). Drill down by domain/mode: dashboards 07/09.
+          runbook: docs/technical/GRAFANA_DASHBOARDS.md
+
+      - alert: ProductNegativeFeedbackSpike
+        # Spec §8 "Moyenne": negative feedback ratio +5 points vs previous week.
+        expr: |
+          (
+            sum(increase(response_feedback_total{verdict="thumbs_down"}[7d]))
+              / sum(increase(response_feedback_total[7d]))
+            - sum(increase(response_feedback_total{verdict="thumbs_down"}[7d] offset 1w))
+              / sum(increase(response_feedback_total[7d] offset 1w))
+          ) > 0.05
+          and (sum(increase(response_feedback_total[7d])) > 20)
+        for: 12h
+        labels:
+          severity: warning
+          domain: product
+          owner: product
+        annotations:
+          summary: "Negative feedback ratio rose >5 points week-over-week"
+          description: >
+            SAT-02 degraded by more than 5 percentage points (with a
+            minimum-volume guard). Analyze by domain and recent releases.
+          runbook: docs/technical/GRAFANA_DASHBOARDS.md

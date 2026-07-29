@@ -22,7 +22,6 @@ from src.core.config import settings
 from src.core.constants import (
     DEFAULT_USER_DISPLAY_TIMEZONE,
     RESPONSE_FEEDBACK_JOURNAL_IDS_MAX,
-    USAGE_LIMIT_EXCEEDED_ERROR_CODE,
 )
 from src.core.field_names import (
     FIELD_ERROR_TYPE,
@@ -501,6 +500,7 @@ class AgentService(
         stt_cost_usd: float | None = None,
         stt_cost_eur: float | None = None,
         hitl_decision: dict[str, Any] | None = None,
+        client_user_agent: str | None = None,
     ) -> AsyncGenerator[ChatStreamChunk, None]:
         """
         Stream chat response with SSE chunks and conversation persistence.
@@ -543,51 +543,18 @@ class AgentService(
             ... ):
             >>>     print(chunk.type, chunk.content)
         """
-        # === USAGE LIMIT CHECK (Layer 1: Service pre-check for scheduled actions) ===
-        if getattr(settings, "usage_limits_enabled", False):
-            from src.domains.usage_limits.service import UsageLimitService
-            from src.infrastructure.observability.metrics_usage_limits import (
-                usage_limit_enforcement_total,
-            )
+        # === PRE-STREAM GATES (extracted to stream_gates.py) ===
+        # Usage-limit pre-check (Layer 1) + best-effort location capture.
+        from src.domains.agents.api.stream_gates import (
+            capture_location_fire_and_forget,
+            usage_limit_error_chunk,
+        )
 
-            _limit_check = await UsageLimitService.check_user_allowed(user_id)
-            if not _limit_check.allowed:
-                usage_limit_enforcement_total.labels(
-                    layer="service", limit_type=_limit_check.exceeded_limit or "unknown"
-                ).inc()
-                yield ChatStreamChunk(
-                    type="error",
-                    content=_limit_check.blocked_reason or "Usage limit exceeded",
-                    metadata={
-                        "error_code": USAGE_LIMIT_EXCEEDED_ERROR_CODE,
-                        "limit": _limit_check.exceeded_limit,
-                    },
-                )
-                return
-        # === END USAGE LIMIT CHECK ===
-
-        # === LAST-KNOWN LOCATION CAPTURE (Phase 3) ===
-        # Fire-and-forget: persist the browser geolocation for proactive
-        # weather alerts when the user has opted in. Opt-in and throttle
-        # are enforced inside the service. Failures are swallowed to
-        # never break the chat UX. Uses safe_fire_and_forget to keep a
-        # strong reference (avoids GC while the task runs).
-        if browser_context is not None and browser_context.geolocation is not None:
-            from src.domains.users.user_location_service import (
-                update_user_location_fire_and_forget,
-            )
-            from src.infrastructure.async_utils import safe_fire_and_forget
-
-            safe_fire_and_forget(
-                update_user_location_fire_and_forget(
-                    user_id,
-                    browser_context.geolocation.lat,
-                    browser_context.geolocation.lon,
-                    browser_context.geolocation.accuracy,
-                ),
-                name="last_known_location_update",
-            )
-        # === END LAST-KNOWN LOCATION CAPTURE ===
+        limit_chunk = await usage_limit_error_chunk(user_id)
+        if limit_chunk is not None:
+            yield limit_chunk
+            return
+        capture_location_fire_and_forget(user_id, browser_context)
 
         # === PHASE 3.3 - Service Architecture (Migration Complete Day 7) ===
         # Uses: OrchestrationService, StreamingService, ConversationOrchestrator
@@ -616,6 +583,7 @@ class AgentService(
             stt_cost_usd=stt_cost_usd,
             stt_cost_eur=stt_cost_eur,
             hitl_decision=hitl_decision,
+            client_user_agent=client_user_agent,
         ):
             yield chunk
 
@@ -646,6 +614,7 @@ class AgentService(
         stt_cost_usd: float | None = None,
         stt_cost_eur: float | None = None,
         hitl_decision: dict[str, Any] | None = None,
+        client_user_agent: str | None = None,
     ) -> AsyncGenerator[ChatStreamChunk, None]:
         """
         Stream agent response using service-oriented architecture (Phase 3.3).
@@ -679,6 +648,9 @@ class AgentService(
                 producer path). Falls back to original_run_id, then to a fresh id.
             archive_user_message: When False, skips the archive-first user-row
                 persistence (scheduled-action retries — attempt 1 archived it).
+            client_user_agent: Raw request User-Agent, reduced to a bounded
+                device class for product analytics (ADR-178/ADR-144) — never
+                stored raw.
         """
         # CRITICAL: Reuse original_run_id for HITL token aggregation.
         # ADR-117: an externally-supplied run_id (detached producer) wins so
@@ -690,6 +662,9 @@ class AgentService(
         first_token_time = None
         intention_label = "unknown"
         token_count = 0
+        # Populated on the archive path; read unconditionally by the product
+        # analytics seam (ADR-178), so it must exist on every path.
+        assistant_metadata: dict[str, Any] = {}
 
         logger.info(
             "new_service_architecture_starting",
@@ -1191,7 +1166,7 @@ class AgentService(
                                 )
                         elif response_content.strip():
                             # Regular response: Archive the assistant response
-                            assistant_metadata: dict[str, Any] = {
+                            assistant_metadata = {
                                 FIELD_RUN_ID: run_id,
                                 "intention": intention_label,
                             }
@@ -1399,6 +1374,25 @@ class AgentService(
                             error=str(ps_err),
                             error_type=type(ps_err).__name__,
                         )
+
+                # === Product analytics (ADR-178): record the produced outcome ===
+                # Fire-and-forget, off the SSE hot path. The helper no-ops when
+                # nothing was archived (no result presented), is flag-guarded,
+                # never raises, and is NOT registered under run_id tasks so the
+                # done chunk never waits on telemetry.
+                from src.domains.product.service import schedule_outcome_recording
+
+                schedule_outcome_recording(
+                    archived_message_id=archived_assistant_msg_id,
+                    user_id=user_id,
+                    run_id=run_id,
+                    session_id=session_id,
+                    intention=assistant_metadata.get("intention"),
+                    execution_mode=user_execution_mode,
+                    user_language=user_language,
+                    user_agent=client_user_agent,
+                    duration_seconds=duration,
+                )
 
                 # === PHASE 3.3 DAY 3: Retrieve aggregated tokens AFTER tracker exit ===
                 # Pattern from LEGACY (lines 1520-1543): Create temp tracker to query DB

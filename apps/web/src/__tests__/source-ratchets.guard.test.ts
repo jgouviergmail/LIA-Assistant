@@ -83,6 +83,9 @@ const ALLOWED: Record<string, string> = {
     'FormData upload (the client forces application/json) and a zip blob download',
   'hooks/useAPIHealth.ts':
     'availability probe: a 401 here means "API unreachable", it must not eject the user to /login',
+  'lib/product-telemetry.ts':
+    'fire-and-forget telemetry (ADR-178): keepalive/sendBeacon on pagehide, anonymous allowed, ' +
+    'failures swallowed — apiClient auth-eject and error surfaces must never trigger',
 };
 
 describe('ratchet — data calls go through apiClient', () => {

@@ -715,6 +715,7 @@ async def stream_chat(
                         hitl_decision=(
                             request.hitl_decision.model_dump() if request.hitl_decision else None
                         ),
+                        client_user_agent=http_request.headers.get("user-agent"),
                     )
                     if settings.background_runs_enabled:
                         # ADR-117: detached execution — the run survives client
@@ -838,6 +839,7 @@ async def stream_chat(
                     stt_audio_duration_seconds=request.stt_audio_duration_seconds,
                     stt_cost_usd=request.stt_cost_usd,
                     stt_cost_eur=request.stt_cost_eur,
+                    client_user_agent=http_request.headers.get("user-agent"),
                 )
                 if settings.background_runs_enabled:
                     # ADR-117: detached execution — the run survives client

@@ -119,7 +119,12 @@ class PhoneCall(BaseModel):
     # cleared by the retention reaper, survives a missed notification.
     # SQL comment mirrors the migration EXACTLY (replay check compares them).
     debrief: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB,
+        # none_as_null=True: an empty debrief persists as SQL NULL, not the JSONB
+        # 'null' literal — otherwise `debrief IS NOT NULL` is TRUE on an absent
+        # debrief (measured on prod 2026-07-29) and the retention reaper's purge
+        # (debrief=None) leaves a lie behind. The DDL is unchanged (still JSONB
+        # nullable), so the migration/replay-check is unaffected.
+        JSONB(none_as_null=True),
         nullable=True,
         comment=(
             "T01 structured debrief (commitments, follow_up_tasks, "

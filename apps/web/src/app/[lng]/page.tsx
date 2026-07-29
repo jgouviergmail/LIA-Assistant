@@ -4,6 +4,7 @@ import { languages, fallbackLng, LOCALE_MAP } from '@/i18n/settings';
 import type { Language } from '@/i18n/settings';
 import { SoftwareApplicationJsonLd, HowToJsonLd } from '@/components/seo/JsonLd';
 import { AuthRedirect } from '@/components/landing/AuthRedirect';
+import { TrackView } from '@/components/telemetry/TelemetryBootstrap';
 import { LandingHeader } from '@/components/landing/LandingHeader';
 import { HeroSection } from '@/components/landing/HeroSection';
 import { EditorialChapters } from '@/components/landing/editorial/EditorialChapters';
@@ -108,6 +109,9 @@ export default async function HomePage({ params }: HomePageProps) {
 
       {/* Redirect authenticated users to dashboard */}
       <AuthRedirect lng={lng} />
+
+      {/* Product funnel (ADR-178 Phase 4, anonymous allowed) — inert unless enabled */}
+      <TrackView event="landing_view" />
 
       <div className="landing-page">
         {/* Skip to content */}

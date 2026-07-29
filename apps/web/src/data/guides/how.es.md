@@ -6,7 +6,7 @@
 
 **Versión**: 3.6
 **Fecha**: 2026-07-29
-**Aplicación**: LIA v1.26.1
+**Aplicación**: LIA v1.26.2
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -77,7 +77,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Documentos de documentación | 400+ |
 | ADRs (Architecture Decision Records) | 160+ |
 | Métricas Prometheus | 447 definiciones |
-| Dashboards Grafana | 25 |
+| Dashboards Grafana | 26 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
 
 ---
@@ -815,7 +815,7 @@ La procedencia es por tanto una propiedad del **dato**: los 24 tipos del registr
 | Tecnología | Rol |
 |-------------|------|
 | Prometheus | 447 métricas custom (RED pattern) |
-| Grafana | 25 dashboards production-ready |
+| Grafana | 26 dashboards production-ready |
 | Loki | Logs estructurados JSON agregados |
 | Tempo | Trazas distribuidas cross-service (OTLP gRPC) |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |
@@ -1051,7 +1051,9 @@ La aplicación completa al tiempo (`gettext.gettext(text, language)` propagado e
 
 ### 23.11. Arquitectura de observabilidad
 
-La observabilidad descansa en tres pilares: **emisión defensiva** en la ruta crítica, **dashboards Grafana** pre-cableados (25 dashboards / 595 paneles cubriendo aplicación, infra y cada subsistema de negocio), y **gauges DB-backed** mantenidos por un updater periódico.
+La observabilidad descansa en tres pilares: **emisión defensiva** en la ruta crítica, **dashboards Grafana** pre-cableados (26 dashboards / 637 paneles cubriendo aplicación, infra y cada subsistema de negocio), y **gauges DB-backed** mantenidos por un updater periódico.
+
+Un 26.º dashboard convierte esta telemetría en un cockpit de producto (ADR-178): los resultados se validan E1 (confirmación explícita del usuario) o E2 (una acción sin corregir durante una ventana conductual completa), el conteo exacto y deduplicado vive en PostgreSQL — los estados mutables nunca se derivan de contadores Prometheus — y Grafana lo lee mediante un rol de solo lectura restringido a vistas agregadas con un statement timeout fijado.
 
 La instrumentación Prometheus se envuelve sistemáticamente en `try/except Exception: pass` con imports lazy (`from ... import foo` dentro del try) para que ningún problema de métrica propague en la cadena de ejecución. Tres índices Postgres dedicados (`ix_conversations_updated_at` para DAU/WAU, `ix_conversations_created_at` para el histograma de conversaciones, `ix_connectors_status` para la tasa de activación) reducen las queries del updater de ~500 ms a <50 ms en una BD poblada.
 
@@ -1163,4 +1165,4 @@ La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesia
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (400+ documentos), de los 170+ ADRs y del changelog (v1.0 a v1.26.1). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (400+ documentos), de los 170+ ADRs y del changelog (v1.0 a v1.26.2). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

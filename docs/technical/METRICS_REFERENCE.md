@@ -143,6 +143,7 @@ api:slo:availability:ratio_5m           # SLO availability 5min
 | Langfuse (`langfuse_*`) | `metrics_langfuse.py` |
 | Lifetime gauges DB-backed | `lifetime_metrics.py` |
 | OAuth (`oauth_*`) | `metrics_oauth.py` |
+| Produit (`product_*` — outcomes E1/E2/E3, gauges DB-backed North Star/funnel/rétention, télémétrie client Web Vitals/recherche, ADR-178) | `metrics_product.py` |
 | Redis (`redis_*`) | `metrics_redis.py` |
 | Registry/checkpoints (`registry_*`) | `metrics_registry.py` |
 | Sub-agents (`subagent_*`) | `metrics_subagent.py` |

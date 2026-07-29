@@ -14,7 +14,15 @@
  * Renders nothing for an empty/null debrief — absence, not noise.
  */
 
-import { CalendarPlus, Handshake, HelpCircle, ListPlus, PenLine, Send } from 'lucide-react';
+import {
+  CalendarPlus,
+  ClipboardList,
+  Handshake,
+  HelpCircle,
+  ListPlus,
+  PenLine,
+  Send,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 
@@ -32,6 +40,7 @@ export interface CallDebriefProps {
 
 function hasContent(debrief: PhoneCallDebrief): boolean {
   return Boolean(
+    debrief.key_points?.length ||
     debrief.commitments?.length ||
     debrief.follow_up_tasks?.length ||
     debrief.follow_up_reminders?.length ||
@@ -100,6 +109,11 @@ export function CallDebrief({ debrief, lng = 'fr', actionable = false }: CallDeb
 
   return (
     <div className="mt-2 space-y-3 rounded-lg border border-border/40 bg-muted/20 p-3">
+      <DebriefList
+        icon={ClipboardList}
+        titleKey="settings.telephony.debrief.key_points"
+        items={debrief.key_points}
+      />
       <DebriefList
         icon={Handshake}
         titleKey="settings.telephony.debrief.commitments"

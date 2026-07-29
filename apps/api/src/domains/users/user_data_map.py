@@ -135,6 +135,11 @@ TABLE_RULES: dict[str, TableRule] = {
     "reminders": _PURGED_FULL,
     "scheduled_actions": _PURGED_FULL,
     "open_loops": _PURGED_FULL,
+    # Product analytics (ADR-178): outcome truth + lifecycle events. No FK
+    # CASCADE (plain user_id columns) — purged explicitly by the deletion
+    # service, exported in full (bounded telemetry, no free text).
+    "product_outcomes": _PURGED_FULL,
+    "product_events": _PURGED_FULL,
     "phone_calls": TableRule(
         data_class=TableDataClass.USER_PURGED,
         export=ExportPolicy.FULL,

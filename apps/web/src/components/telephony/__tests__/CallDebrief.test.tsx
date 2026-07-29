@@ -32,6 +32,7 @@ vi.mock('react-i18next', () => ({
 import { CallDebrief } from '../CallDebrief';
 
 const FULL: PhoneCallDebrief = {
+  key_points: ['La table du mardi est disponible.'],
   commitments: ['Marie confirme mardi 19h.'],
   follow_up_tasks: ['Réserver la table en terrasse.'],
   follow_up_reminders: ['Rappeler mardi 18h pour confirmer.'],
@@ -53,10 +54,24 @@ describe('CallDebrief', () => {
 
   it('renders every populated section', () => {
     renderWithProviders(<CallDebrief debrief={FULL} lng="fr" />);
+    expect(screen.getByText('La table du mardi est disponible.')).toBeInTheDocument();
     expect(screen.getByText('Marie confirme mardi 19h.')).toBeInTheDocument();
     expect(screen.getByText('Réserver la table en terrasse.')).toBeInTheDocument();
     expect(screen.getByText('Le supplément terrasse n’est pas confirmé.')).toBeInTheDocument();
     expect(screen.getByText('Bonjour Marie, je confirme mardi 19h.')).toBeInTheDocument();
+  });
+
+  it('renders an information-call debrief that is key-points only', () => {
+    // The prod 2026-07-29 case: no commitments/tasks/reminders/draft, only the
+    // structured findings — this must render, not fall back to nothing.
+    renderWithProviders(
+      <CallDebrief
+        debrief={{ key_points: ['Samedi : rien de prévu', 'Dimanche : amis vers midi ou 16h'] }}
+        lng="fr"
+      />
+    );
+    expect(screen.getByText('Samedi : rien de prévu')).toBeInTheDocument();
+    expect(screen.getByText('Dimanche : amis vers midi ou 16h')).toBeInTheDocument();
   });
 
   it('carries ZERO action chips in the informational posture (chat)', () => {

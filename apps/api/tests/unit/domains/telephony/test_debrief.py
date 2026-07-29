@@ -3,7 +3,8 @@
 What must hold:
 - ``ReturnProposal`` still validates with ONLY the two historical fields (a
   provider/model returning the v1 shape must not lose the whole return);
-- ``debrief_dict`` carries exactly the five T01 fields, ``exclude_none``;
+- ``debrief_dict`` carries exactly the six T01 fields (incl. ``key_points`` —
+  the structured findings of an information call), ``exclude_none``;
 - ``process_completed_call`` persists the debrief and ships it in the
   notification metadata — and an all-empty debrief persists as None
   (absence, not noise), which is also the synthesis-fallback path.
@@ -31,16 +32,18 @@ class TestReturnProposalSchema:
         assert proposal.follow_up_draft is None
         assert proposal.uncertainties == []
 
-    def test_debrief_dict_carries_the_five_fields_exclude_none(self) -> None:
+    def test_debrief_dict_carries_the_six_fields_exclude_none(self) -> None:
         proposal = ReturnProposal(
             summary="s",
             proposal_text="p",
+            key_points=["Samedi : rien de prévu", "Dimanche : amis vers midi ou 16h"],
             commitments=["Marie confirme mardi 19h."],
             follow_up_tasks=["Réserver la table."],
             uncertainties=["Le supplément terrasse n'est pas confirmé."],
         )
         debrief = proposal.debrief_dict()
         assert debrief == {
+            "key_points": ["Samedi : rien de prévu", "Dimanche : amis vers midi ou 16h"],
             "commitments": ["Marie confirme mardi 19h."],
             "follow_up_tasks": ["Réserver la table."],
             "follow_up_reminders": [],
@@ -49,6 +52,21 @@ class TestReturnProposalSchema:
         # Text fields never leak into the persisted debrief.
         assert "summary" not in debrief
         assert "proposal_text" not in debrief
+
+    def test_key_points_only_is_a_non_empty_debrief(self) -> None:
+        # The information-call case (prod 2026-07-29): no commitments/tasks, but
+        # structured findings — the debrief is NOT empty and must persist.
+        proposal = ReturnProposal(
+            summary="s",
+            proposal_text="p",
+            key_points=["Samedi : rien de prévu", "Dimanche : amis vers midi ou 16h"],
+        )
+        debrief = proposal.debrief_dict()
+        assert any(debrief.values())
+        assert debrief["key_points"] == [
+            "Samedi : rien de prévu",
+            "Dimanche : amis vers midi ou 16h",
+        ]
 
 
 def _payload() -> dict:

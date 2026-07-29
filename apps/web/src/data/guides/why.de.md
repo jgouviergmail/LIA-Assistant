@@ -4,7 +4,7 @@
 
 **Version** : 4.1
 **Datum** : 2026-07-29
-**Anwendung** : LIA v1.26.1
+**Anwendung** : LIA v1.26.2
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -270,6 +270,8 @@ Transparenz ist kein technisches Gadget. Sie verändert die Beziehung zu Ihrem A
 ---
 
 Diese Transparenz erstreckt sich auf die Qualität des Systems selbst. Das vollständige technische Audit — Bewertungen, Methode, Stärken und was noch zu verbessern bleibt — ist im Repository veröffentlicht, mit dem Protokoll, um es erneut durchzuführen, und den Befehlen, um die Messungen zu überprüfen: [vollständiger Audit-Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). Sie müssen den Zahlen auf dieser Seite nicht glauben; Sie können sie überprüfen.
+
+Dieselbe Ehrlichkeit gilt für den Nutzen selbst: LIA misst, ob sie wirklich hilft — ein Ergebnis zählt erst, wenn Sie es validiert haben, explizit oder indem eine Aktion unkorrigiert blieb — und diese Messung lebt in derselben lokalen Datenbank wie Ihre Daten, ohne je eine Analytics-Plattform von Dritten einzubeziehen.
 
 Dasselbe Prinzip gilt für die Schutzmaßnahmen selbst. Sicherheit, die angekündigt, aber nicht überprüfbar ist, wird als nicht vorhanden behandelt: Jede Maßnahme wird von einem Test gestützt, der fehlschlägt, sobald sie verschwindet, und wenn eine Korrektur geschrieben wird, stellt man das alte Verhalten so lange wieder her, bis feststeht, dass der Test es erkennt. Ein Test, der nicht scheitern kann, beweist nichts.
 

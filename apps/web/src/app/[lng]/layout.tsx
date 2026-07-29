@@ -11,6 +11,7 @@ import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import { AuthProvider } from '@/lib/auth';
 import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration';
+import { TelemetryBootstrap } from '@/components/telemetry/TelemetryBootstrap';
 import { QueryProvider } from '@/lib/query-client';
 import { LoggingProvider } from '@/lib/logging-context';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -133,6 +134,7 @@ export default async function LanguageLayout({ children, params }: LayoutProps) 
                     <LoggingProvider>
                       <TooltipProvider delayDuration={300}>
                         <ServiceWorkerRegistration />
+                        <TelemetryBootstrap />
                         {children}
                         <Toaster />
                       </TooltipProvider>

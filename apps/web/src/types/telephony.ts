@@ -24,11 +24,13 @@ export type PhoneCallOutcome = 'objective_met' | 'partial' | 'declined' | 'unrea
 export const ACTIVE_CALL_STATUSES: readonly PhoneCallStatus[] = ['dialing', 'in_progress'];
 
 /**
- * T01 structured debrief — OUR synthesis output (commitments, follow-ups,
- * draft, uncertainties). Every list may be empty; the whole object is null
- * for pre-T01 calls, empty outcomes, and once the retention reaper purges.
+ * T01 structured debrief — OUR synthesis output (key points, commitments,
+ * follow-ups, draft, uncertainties). Every list may be empty; the whole object
+ * is null for pre-T01 calls, empty outcomes, and once the retention reaper
+ * purges. `key_points` carries the structured FINDINGS of an information call.
  */
 export interface PhoneCallDebrief {
+  key_points?: string[];
   commitments?: string[];
   follow_up_tasks?: string[];
   follow_up_reminders?: string[];
@@ -41,6 +43,7 @@ export function isPhoneCallDebrief(value: unknown): value is PhoneCallDebrief {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Record<string, unknown>;
   const listKeys = [
+    'key_points',
     'commitments',
     'follow_up_tasks',
     'follow_up_reminders',

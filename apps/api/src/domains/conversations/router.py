@@ -284,6 +284,18 @@ async def submit_response_feedback(
 
         track_response_feedback(data.verdict)
 
+    # Product analytics E1 path (ADR-178): upgrade/reject the run's outcome.
+    # Flag-guarded and best-effort inside the service; run_id comes from the
+    # judged assistant message's own metadata (absent on legacy rows).
+    with suppress(Exception):
+        from src.domains.product.service import record_response_feedback
+
+        await record_response_feedback(
+            user_id=current_user.id,
+            run_id=(metadata.get("run_id") if isinstance(metadata, dict) else None),
+            verdict=data.verdict,
+        )
+
     # Counters and flags only at INFO — the comment is content (PII rule).
     logger.info(
         "response_feedback_submitted",

@@ -3,6 +3,7 @@ import { initI18next, validateLanguage } from '@/i18n';
 import { languages, fallbackLng, LOCALE_MAP } from '@/i18n/settings';
 import type { Language } from '@/i18n/settings';
 import { InteractiveChatMockup } from '@/components/landing/InteractiveChatMockup';
+import { TrackView } from '@/components/telemetry/TelemetryBootstrap';
 
 /**
  * Standalone URL for the hero conversation animation, made to be shared on
@@ -68,6 +69,8 @@ export default async function DemoPage({ params }: DemoPageProps) {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+      {/* Product funnel (ADR-178 Phase 4, anonymous allowed) — inert unless enabled */}
+      <TrackView event="demo_started" />
       {/* Same ambient background as the landing hero */}
       <div className="absolute inset-0 -z-10" aria-hidden="true">
         <div className="absolute -top-32 -left-32 w-[36rem] h-[36rem] rounded-full bg-primary/15 blur-3xl" />

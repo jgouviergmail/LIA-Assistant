@@ -42,6 +42,30 @@ datasources:
           url: "$${__value.raw}"
     version: 1
 
+  # Product analytics — PostgreSQL en lecture seule (ADR-178, dashboard 26).
+  # Le rôle grafana_product_reader n'a de SELECT que sur les vues produit
+  # (jamais les tables de base) et porte un statement_timeout — créé par
+  # `task db:create-grafana-reader`. Les variables sont interpolées depuis
+  # l'environnement du conteneur Grafana (compose dev + prod).
+  - name: Product PostgreSQL
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    uid: postgres-product-readonly
+    user: grafana_product_reader
+    secureJsonData:
+      password: $GRAFANA_PRODUCT_DB_PASSWORD
+    jsonData:
+      database: $POSTGRES_DB
+      sslmode: disable
+      postgresVersion: 1600
+      timescaledb: false
+      maxOpenConns: 5
+      maxIdleConns: 2
+      connMaxLifetime: 300
+    editable: false
+    version: 1
+
   # Tempo - Traces distribuées
   - name: Tempo
     type: tempo

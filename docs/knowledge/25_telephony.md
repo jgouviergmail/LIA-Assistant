@@ -10,6 +10,8 @@ LIA can place a **real outbound phone call** for you, pursue the goal you set, a
 
 During the call, LIA introduces itself as an assistant calling on your behalf, holds a natural conversation toward your objective, then hangs up and writes you a summary — with a one-tap follow-up action when relevant (for example, creating the event that was just agreed).
 
+The debrief that follows a call also lists the **concrete findings** the call produced — opening hours, availability, the answer you were waiting for — even when there is nothing to act on afterwards: what the call learned, not just what it did.
+
 **💡 Good to know:** LIA only places **outgoing** calls — it never answers your incoming calls.
 
 ## How does a call work, step by step?

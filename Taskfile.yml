@@ -218,8 +218,11 @@ tasks:
     # `process.env.NEXT_PUBLIC_API_URL || ''` and the empty branch stops being
     # exercised. Blanking it reproduces the CI environment exactly (empty and
     # absent are equivalent to the code, and to the coverage counter).
+    # Same leak class for NEXT_PUBLIC_PRODUCT_TELEMETRY (ADR-178): a developer
+    # .env with the flag on would flip the telemetry "inert by default" tests.
     env:
       NEXT_PUBLIC_API_URL: ""
+      NEXT_PUBLIC_PRODUCT_TELEMETRY: ""
     cmds:
       - pnpm test:coverage
 
@@ -483,6 +486,7 @@ tasks:
     # that behaves differently under `task` than under `pnpm` is a trap.
     env:
       NEXT_PUBLIC_API_URL: ""
+      NEXT_PUBLIC_PRODUCT_TELEMETRY: ""
     cmds:
       - pnpm test
 
@@ -592,22 +596,27 @@ tasks:
     cmds:
       - docker compose -f docker-compose.dev.yml exec -T api python -m scripts.data.create_admin {{.CLI_ARGS}}
 
+  db:create-grafana-reader:
+    desc: Create/refresh the read-only Grafana product role (ADR-178 — GRANT on product views only)
+    cmds:
+      - docker compose -f docker-compose.dev.yml exec -T -e GRAFANA_PRODUCT_DB_PASSWORD api python -m scripts.data.create_grafana_reader
+
   db:seed:sql:
     desc: Apply SQL seed files (personalities, pricing, etc.)
     cmds:
-      - cmd: bash -c 'for f in infrastructure/database/seeds/*.sql; do echo "Applying $f..."; cat "$f" | docker exec -i lia-postgres-dev psql -U lia_admin -d lia; done'
+      - cmd: bash -c 'for f in infrastructure/database/seeds/*.sql; do echo "Applying $f..."; cat "$f" | docker exec -i lia-postgres-dev psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"; done'
         platforms: [windows, linux, darwin]
 
   db:seed:sql:personalities:
     desc: Apply personalities seed only
     cmds:
-      - cmd: bash -c 'cat infrastructure/database/seeds/personalities_seed.sql | docker exec -i lia-postgres-dev psql -U lia_admin -d lia'
+      - cmd: bash -c 'cat infrastructure/database/seeds/personalities_seed.sql | docker exec -i lia-postgres-dev psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
         platforms: [windows, linux, darwin]
 
   db:seed:sql:pricing:
     desc: Apply LLM pricing seed only
     cmds:
-      - cmd: bash -c 'cat infrastructure/database/seeds/llm_pricing_seed.sql | docker exec -i lia-postgres-dev psql -U lia_admin -d lia'
+      - cmd: bash -c 'cat infrastructure/database/seeds/llm_pricing_seed.sql | docker exec -i lia-postgres-dev psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
         platforms: [windows, linux, darwin]
 
   db:seed:system-rag:

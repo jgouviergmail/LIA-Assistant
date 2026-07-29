@@ -52,6 +52,7 @@ from .mfa import MFASettings
 from .notifications import NotificationSettings
 from .observability import ObservabilitySettings
 from .open_loops import OpenLoopsSettings
+from .product import ProductSettings
 from .psyche import PsycheSettings
 from .rag_spaces import RAGSpacesSettings
 from .relations import RelationsSettings
@@ -119,6 +120,7 @@ class Settings(
     TelephonySettings,
     MFASettings,
     AccountExportSettings,
+    ProductSettings,
     BaseSettings,
 ):
     """

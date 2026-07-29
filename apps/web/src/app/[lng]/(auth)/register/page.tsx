@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { RegisterForm } from '@/components/auth/register-form';
+import { TrackView } from '@/components/telemetry/TelemetryBootstrap';
 import { OAuthButtons } from '@/components/auth/oauth-buttons';
 import { initI18next } from '@/i18n';
 
@@ -25,6 +26,8 @@ export default async function RegisterPage({ params }: RegisterPageProps) {
 
   return (
     <div>
+      {/* Product funnel (ADR-178 Phase 4, anonymous allowed) — inert unless enabled */}
+      <TrackView event="signup_started" />
       <div className="text-center mb-8 space-y-3">
         <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text tracking-tight">
           {t('auth.register_page.title')}

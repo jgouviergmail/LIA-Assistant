@@ -121,6 +121,7 @@ async def test_synthesize_return_uses_typed_output_and_context(monkeypatch) -> N
         objective="ask availability",
         callee_display="Marie",
         user_language="fr",
+        user_timezone="Europe/Paris",
     )
 
     assert proposal == ReturnProposal(summary="S", proposal_text="P")
@@ -131,7 +132,14 @@ async def test_synthesize_return_uses_typed_output_and_context(monkeypatch) -> N
     human = captured["messages"][1].content
     assert "OBJECTIVE: ask availability" in human
     assert "CALLEE: Marie" in human
-    assert "LANGUAGE: fr" in human
+    # Language reaches the model by NAME (not a bare code) + a hard directive, so
+    # a flash model stops defaulting to English (measured on prod 2026-07-29).
+    assert "LANGUAGE: French (fr)" in human
+    assert "Write EVERYTHING you output" in human
+    # The user's "now" + timezone are injected so relative dates ("this weekend")
+    # resolve to absolute ones.
+    assert "CURRENT DATE AND TIME:" in human
+    assert "Europe/Paris" in human
     assert "mardi 19h" in human
     # Cost + deferred decision reach the synthesis LLM so the summary can never
     # silently drop them (pizza cheese +3€ use case).

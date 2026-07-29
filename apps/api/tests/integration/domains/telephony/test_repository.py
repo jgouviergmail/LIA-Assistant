@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import update
+from sqlalchemy import text, update
 from sqlalchemy.exc import IntegrityError
 
 from src.domains.telephony.models import (
@@ -252,6 +252,12 @@ async def test_purge_expired_clears_content_only(async_session, test_user):
     assert call.summary is None
     assert call.structured_data == {}
     assert call.callee_display == "Marie"  # the row itself survives (audit)
+    # D (none_as_null=True): an emptied debrief is SQL NULL, not the JSONB 'null'
+    # literal — otherwise `debrief IS NOT NULL` would lie about an absent debrief.
+    is_sql_null = await async_session.scalar(
+        text("SELECT debrief IS NULL FROM phone_calls WHERE id = :id"), {"id": call.id}
+    )
+    assert is_sql_null is True
 
 
 @pytest.mark.integration

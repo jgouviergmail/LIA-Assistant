@@ -78,7 +78,13 @@ flowchart TD
 One row per placed call. `status` (dialing → in_progress → completed/no_answer/
 voicemail/failed/cancelled), `outcome` (objective_met/partial/declined/
 unreachable), `call_seconds` (factual, never money — D-9), `summary` +
-`structured_data` (purged after `expires_at`). Return-outbox columns (T1):
+`structured_data` (purged after `expires_at`). `debrief` (ADR-174, JSONB
+nullable with `none_as_null=True` — an EMPTY debrief must persist as SQL NULL,
+not the JSONB `'null'` literal, or `IS NOT NULL` lies and the retention purge
+leaves a ghost): commitments, follow-up tasks/reminders, message draft, points
+to verify, and `key_points` — the factual findings the call produced (opening
+hours, availability, an answer), populated even when nothing is actionable;
+same retention as `summary`. Return-outbox columns (T1):
 `notification_status` (pending/delivered/failed), `notification_payload`
 (minimal `{content, title}` to re-dispatch without re-synthesizing),
 `notification_attempts`. Three partial indexes: one-active-call-per-user (F12,

@@ -122,6 +122,9 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         by_user("open_loops"),
         by_user("phone_calls"),
         by_user("account_export_jobs"),
+        # Product analytics (ADR-178): plain user_id columns, no CASCADE.
+        by_user("product_outcomes"),
+        by_user("product_events"),
         # Authentication material (security program D1): passkeys must die
         # with the account — a surviving credential could otherwise still
         # complete a discoverable-credential login ceremony lookup.

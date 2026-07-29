@@ -474,6 +474,14 @@ SCHEDULER_JOB_SCHEDULED_ACTION_EXECUTOR = "scheduled_action_executor"
 # Boot-time skills disk→DB sync — gated by a distributed lock so only one
 # worker performs the O(users×skills) write per deploy, not every worker (F018).
 SCHEDULER_JOB_SKILLS_DB_SYNC = "skills_db_sync"
+# Product analytics hourly rollup (ADR-178): cost backfill, E2 upgrades,
+# retention purge, DB-backed gauge refresh.
+SCHEDULER_JOB_PRODUCT_ROLLUP = "product_analytics_rollup"
+
+# Product analytics defaults (ADR-178) — env-overridable via ProductSettings
+PRODUCT_OUTCOMES_RETENTION_DAYS_DEFAULT = 180
+PRODUCT_E2_VALIDATION_WINDOW_HOURS_DEFAULT = 24
+PRODUCT_ROLLUP_INTERVAL_MINUTES_DEFAULT = 60
 
 # Scheduled Actions Configuration
 SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS = 60

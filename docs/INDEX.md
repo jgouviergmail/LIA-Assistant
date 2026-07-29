@@ -43,7 +43,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
 | [TELEPHONY.md](./technical/TELEPHONY.md) | Téléphonie agentique (appels sortants, ADR-127) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (171) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (178) |
 
 ### Pour les Product Managers
 
@@ -225,7 +225,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 |----------|-------------|--------|
 | [OBSERVABILITY_AGENTS.md](./technical/OBSERVABILITY_AGENTS.md) | Stack Prometheus/Grafana/Loki/Tempo | ✅ |
 | [METRICS_REFERENCE.md](./technical/METRICS_REFERENCE.md) | 500+ métriques documentées | ✅ |
-| [GRAFANA_DASHBOARDS.md](./technical/GRAFANA_DASHBOARDS.md) | 25 dashboards Grafana | ✅ |
+| [GRAFANA_DASHBOARDS.md](./technical/GRAFANA_DASHBOARDS.md) | 26 dashboards Grafana | ✅ |
 | [README_OBSERVABILITY.md](./readme/README_OBSERVABILITY.md) | Guide observabilité quickstart | ✅ |
 | [README_GRAFANA_LANGFUSE.md](./readme/README_GRAFANA_LANGFUSE.md) | Intégration Grafana + Langfuse | ✅ |
 | [README_ALERTING.md](./readme/README_ALERTING.md) | Chaîne d'alerte (ADR-119) : Alertmanager e-mail, validation, troubleshooting | ✅ |
@@ -297,7 +297,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-172 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-178 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 
@@ -535,7 +535,7 @@ Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inlin
 | Technologie | Usage |
 |-------------|-------|
 | Prometheus | 500+ métriques |
-| Grafana | 25 dashboards |
+| Grafana | 26 dashboards |
 | Loki | Logs agrégés |
 | Tempo | Traces distribuées |
 | Langfuse | LLM observability |

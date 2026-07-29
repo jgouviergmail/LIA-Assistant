@@ -38,6 +38,7 @@ from src.core.constants import (
     SCHEDULER_JOB_MEMORY_CLEANUP,
     SCHEDULER_JOB_MEMORY_CONSOLIDATION,
     SCHEDULER_JOB_OAUTH_HEALTH,
+    SCHEDULER_JOB_PRODUCT_ROLLUP,
     SCHEDULER_JOB_PSYCHE_DREAM_CYCLE,
     SCHEDULER_JOB_RAG_JOB_REAPER,
     SCHEDULER_JOB_REMINDER_NOTIFICATION,
@@ -247,6 +248,27 @@ async def init_scheduler(scheduler: "AsyncIOScheduler") -> SchedulerLeaderElecto
             logger.info(
                 "account_export_executor_job_scheduled",
                 interval_seconds=ACCOUNT_EXPORT_EXECUTOR_INTERVAL_SECONDS,
+            )
+
+        # Product analytics rollup (ADR-178) — cost backfill, E2 upgrades,
+        # retention purge, DB-backed gauge refresh. Leader-elected like every
+        # job here; guarded by the product feature flag.
+        if getattr(settings, "product_analytics_enabled", False):
+            from src.infrastructure.scheduler.product_rollup import run_product_rollup
+
+            scheduler.add_job(
+                run_product_rollup,
+                trigger="interval",
+                minutes=settings.product_rollup_interval_minutes,
+                id=SCHEDULER_JOB_PRODUCT_ROLLUP,
+                name="Product analytics rollup (ADR-178)",
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=300,
+            )
+            logger.info(
+                "product_rollup_job_scheduled",
+                interval_minutes=settings.product_rollup_interval_minutes,
             )
         logger.info(
             "scheduled_action_executor_job_scheduled",

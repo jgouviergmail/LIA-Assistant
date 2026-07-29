@@ -42,6 +42,7 @@ import {
   type SettingsSearchResult,
 } from '@/lib/settings-search';
 import { cn, findNormalizedMatches, normalizeSearchText } from '@/lib/utils';
+import { trackSettingsSearch } from '@/lib/product-telemetry';
 
 export interface SettingsSearchProps {
   lng: Language;
@@ -134,6 +135,16 @@ export function SettingsSearch({ lng, availability, onSelect }: SettingsSearchPr
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, []);
 
+  // Product telemetry (ADR-178 Phase 4): ONE outcome per settled query —
+  // debounced so keystrokes never spam; inert unless telemetry is enabled.
+  useEffect(() => {
+    if (!isSearching) return undefined;
+    const timer = window.setTimeout(() => {
+      trackSettingsSearch(results.length === 0 ? 'zero_results' : 'results');
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [isSearching, query, results.length]);
+
   const reset = useCallback(() => {
     setQuery('');
     setOpen(false);
@@ -142,6 +153,7 @@ export function SettingsSearch({ lng, availability, onSelect }: SettingsSearchPr
 
   const choose = useCallback(
     (result: SettingsSearchResult) => {
+      trackSettingsSearch('result_used');
       // Cleared before handing over: the page moves focus to the section, and a
       // stale query would reopen this popup the next time the field is focused.
       reset();
