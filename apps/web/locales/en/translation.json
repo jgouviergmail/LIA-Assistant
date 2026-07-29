@@ -6223,6 +6223,18 @@
       }
     },
     "cards": {
+      "selection_actions": {
+        "title": "Select, then act",
+        "desc": "Highlight a passage of a reply to explain, rephrase, translate, or turn it into a task."
+      },
+      "card_actions": {
+        "title": "Act straight from a card",
+        "desc": "Summarize, reply, mark done, reschedule — right on the briefing card."
+      },
+      "honest_freshness": {
+        "title": "Fresh, or honestly stale",
+        "desc": "Each card says when it was updated, dims when it ages, and offers a one-tap retry."
+      },
       "draft_survives": {
         "title": "Your draft survives anything",
         "desc": "Reload or come back tomorrow: your typed text is still there, and ↑ recalls your last message."
@@ -6329,6 +6341,17 @@
       }
     },
     "scenes": {
+      "selection_actions": {
+        "action": "Translate"
+      },
+      "card_actions": {
+        "chip1": "Summarize",
+        "chip2": "Done"
+      },
+      "honest_freshness": {
+        "fresh": "Up to date",
+        "retry": "Retry"
+      },
       "draft_survives": {
         "typing": "Prep my day tomorrow"
       },
@@ -7439,6 +7462,10 @@
       "browser_control": {
         "title": "Browser Control",
         "description": "Navigate websites autonomously: search products, fill forms, extract data from dynamic pages powered by JavaScript. Follow the navigation in real time with progressive screenshots displayed directly in the conversation."
+      },
+      "personal_crm": {
+        "title": "Personal CRM",
+        "description": "LIA gathers what it already knows about each person — open commitments, recent calls, remembered facts — into one unified view, so you can prepare for a conversation at a glance. Reached from the dashboard's Quick Access."
       },
       "self_knowledge": {
         "title": "App Self-Knowledge",

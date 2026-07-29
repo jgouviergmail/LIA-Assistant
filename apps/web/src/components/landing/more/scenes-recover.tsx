@@ -13,6 +13,7 @@ import {
   Clock,
   FileWarning,
   Image as ImageIcon,
+  RefreshCw,
   RotateCcw,
   RotateCw,
 } from 'lucide-react';
@@ -213,9 +214,68 @@ function AttachmentLimitsScene({ active, labels }: SceneProps) {
   );
 }
 
+type FreshPhase = 'fresh' | 'stale' | 'retry' | 'refreshed';
+const FRESH_STEPS: readonly TimelineStep<FreshPhase>[] = [
+  { at: 0, state: 'fresh' },
+  { at: 1000, state: 'stale' },
+  { at: 2000, state: 'retry' },
+  { at: 2800, state: 'refreshed' },
+];
+
+function HonestFreshnessScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(FRESH_STEPS, { active });
+  const stale = phase === 'stale' || phase === 'retry';
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="w-full max-w-[210px] space-y-2 rounded-lg border border-border bg-background p-2.5 shadow-sm">
+        <div className="flex items-center justify-between gap-2">
+          <SkeletonLine w="w-1/3" />
+          <span
+            className={cn(
+              'flex items-center gap-1 text-[9px] font-medium transition-colors duration-300',
+              stale ? 'text-warning' : 'text-muted-foreground'
+            )}
+          >
+            <Clock className="h-2.5 w-2.5" />
+            {labels.fresh}
+          </span>
+        </div>
+        <SkeletonLine
+          w="w-full"
+          className={cn('transition-opacity duration-300', stale && 'opacity-30')}
+        />
+        <SkeletonLine
+          w="w-4/5"
+          className={cn('transition-opacity duration-300', stale && 'opacity-30')}
+        />
+        <span
+          className={cn(
+            'flex w-fit items-center gap-1 rounded-md border px-2 py-1 text-[9px] transition-all duration-300',
+            stale ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0',
+            phase === 'retry'
+              ? 'border-primary/60 text-primary ring-2 ring-primary/30'
+              : 'border-border text-muted-foreground'
+          )}
+        >
+          <RefreshCw className={cn('h-2.5 w-2.5', phase === 'retry' && active && 'animate-spin')} />
+          {labels.retry}
+        </span>
+      </div>
+      <Cursor
+        className={cn(
+          phase === 'retry'
+            ? 'left-[24%] bottom-[26%] opacity-100'
+            : 'left-[60%] bottom-[12%] opacity-0'
+        )}
+      />
+    </div>
+  );
+}
+
 export const RECOVER_SCENES: Readonly<Record<string, SceneComponent>> = {
   actionable_errors: ActionableErrorsScene,
   retry_turn: RetryTurnScene,
+  honest_freshness: HonestFreshnessScene,
   quota_warning: QuotaWarningScene,
   image_expiry: ImageExpiryScene,
   attachment_limits: AttachmentLimitsScene,

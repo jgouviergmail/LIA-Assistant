@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 26 cards in
+ * Single source of truth for the "/more" small-attentions page: 29 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (26 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (29 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -36,12 +36,15 @@ import {
   Paperclip,
   PenLine,
   Radio,
+  RefreshCw,
   RotateCcw,
   Share2,
   SlashSquare,
   Sparkles,
+  TextSelect,
   TextSearch,
   ThumbsUp,
+  Zap,
 } from 'lucide-react';
 
 export interface MoreSectionConfig {
@@ -70,7 +73,14 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
     key: 's2',
     num: '02',
     tinted: true,
-    cards: ['followup_chips', 'scroll_return', 'bubble_actions', 'share_export', 'backstage'],
+    cards: [
+      'followup_chips',
+      'scroll_return',
+      'bubble_actions',
+      'selection_actions',
+      'share_export',
+      'backstage',
+    ],
   },
   {
     id: 'recover',
@@ -80,6 +90,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
     cards: [
       'actionable_errors',
       'retry_turn',
+      'honest_freshness',
       'quota_warning',
       'image_expiry',
       'attachment_limits',
@@ -97,7 +108,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
     key: 's5',
     num: '05',
     tinted: false,
-    cards: ['briefing_custom', 'starter_checklist', 'empty_starters', 'pwa'],
+    cards: ['briefing_custom', 'card_actions', 'starter_checklist', 'empty_starters', 'pwa'],
   },
   {
     id: 'unseen',
@@ -120,10 +131,12 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   followup_chips: MessageSquarePlus,
   scroll_return: ArrowDownCircle,
   bubble_actions: ThumbsUp,
+  selection_actions: TextSelect,
   share_export: Share2,
   backstage: Drama,
   actionable_errors: AlertTriangle,
   retry_turn: RotateCcw,
+  honest_freshness: RefreshCw,
   quota_warning: Gauge,
   image_expiry: Clock,
   attachment_limits: Paperclip,
@@ -132,6 +145,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   history_search: History,
   mobile_logo_nav: Menu,
   briefing_custom: LayoutGrid,
+  card_actions: Zap,
   starter_checklist: ListChecks,
   empty_starters: Sparkles,
   pwa: MonitorSmartphone,
@@ -154,10 +168,12 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   followup_chips: ['chip1', 'chip2'],
   scroll_return: [],
   bubble_actions: ['copied'],
+  selection_actions: ['action'],
   share_export: [],
   backstage: [],
   actionable_errors: ['cause', 'action'],
   retry_turn: [],
+  honest_freshness: ['fresh', 'retry'],
   quota_warning: ['warned'],
   image_expiry: [],
   attachment_limits: ['limit'],
@@ -166,6 +182,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   history_search: ['query'],
   mobile_logo_nav: [],
   briefing_custom: [],
+  card_actions: ['chip1', 'chip2'],
   starter_checklist: [],
   empty_starters: ['s1', 's2', 's3'],
   pwa: [],

@@ -50,6 +50,7 @@ import {
   Star,
   Sunrise,
   Terminal,
+  Users,
 } from 'lucide-react';
 
 export type ChapterId = 'act' | 'know' | 'anticipate' | 'control' | 'grow';
@@ -99,7 +100,15 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     num: '02',
     mood: '🙂',
     benefits: 3,
-    catalog: ['memory', 'briefing', 'personalities', 'psyche', 'journals', 'self_knowledge'],
+    catalog: [
+      'memory',
+      'personal_crm',
+      'briefing',
+      'personalities',
+      'psyche',
+      'journals',
+      'self_knowledge',
+    ],
     tinted: true,
   },
   {
@@ -178,6 +187,7 @@ export const REQUIRED_FEATURE_KEYS: readonly string[] = [
   'languages',
   // personality & memory
   'memory',
+  'personal_crm',
   'personalities',
   'psyche',
   'self_knowledge',
@@ -223,6 +233,7 @@ export const FEATURE_ICONS: Record<string, LucideIcon> = {
   multichannel: MessageCircle,
   languages: Globe,
   memory: Brain,
+  personal_crm: Users,
   personalities: Smile,
   psyche: Heart,
   self_knowledge: HelpCircle,

@@ -6209,6 +6209,18 @@
       }
     },
     "cards": {
+      "selection_actions": {
+        "title": "选中即可操作",
+        "desc": "选中回复中的一段文字，即可解释、改写、翻译，或转为任务。"
+      },
+      "card_actions": {
+        "title": "在卡片上直接操作",
+        "desc": "总结、回复、完成、推迟——就在简报卡片上。"
+      },
+      "honest_freshness": {
+        "title": "新鲜，或如实地陈旧",
+        "desc": "每张卡片都会说明更新时间，过期时会变暗，并提供一键重试。"
+      },
       "draft_survives": {
         "title": "草稿永不丢失",
         "desc": "刷新页面或明天再来：输入的文字还在，按 ↑ 即可唤回上一条消息。"
@@ -6315,6 +6327,17 @@
       }
     },
     "scenes": {
+      "selection_actions": {
+        "action": "翻译"
+      },
+      "card_actions": {
+        "chip1": "总结",
+        "chip2": "完成"
+      },
+      "honest_freshness": {
+        "fresh": "最新",
+        "retry": "重试"
+      },
       "draft_survives": {
         "typing": "帮我安排明天的日程"
       },
@@ -7354,6 +7377,10 @@
       "browser_control": {
         "title": "浏览器控制",
         "description": "自主浏览网站：搜索产品、填写表单、从JavaScript动态页面提取数据。通过在对话中直接显示的渐进式截图，实时跟踪浏览进度。"
+      },
+      "personal_crm": {
+        "title": "个人 CRM",
+        "description": "LIA 把它已经掌握的关于每个人的信息——未了结的承诺、最近的通话、记住的事实——汇集成一个整体视图，让你一眼就能为一次交流做好准备。可从仪表盘的快速入口进入。"
       },
       "self_knowledge": {
         "title": "应用自知",

@@ -6214,6 +6214,18 @@
       }
     },
     "cards": {
+      "selection_actions": {
+        "title": "Markieren, dann handeln",
+        "desc": "Markiere eine Passage einer Antwort, um sie zu erklären, umzuformulieren, zu übersetzen oder in eine Aufgabe zu verwandeln."
+      },
+      "card_actions": {
+        "title": "Direkt von der Karte handeln",
+        "desc": "Zusammenfassen, antworten, erledigen, verschieben — direkt auf der Briefing-Karte."
+      },
+      "honest_freshness": {
+        "title": "Aktuell, oder ehrlich veraltet",
+        "desc": "Jede Karte sagt, wann sie aktualisiert wurde, verblasst mit dem Alter und bietet einen erneuten Versuch mit einer Geste."
+      },
       "draft_survives": {
         "title": "Dein Entwurf übersteht alles",
         "desc": "Lade neu oder komm morgen wieder: Dein getippter Text ist noch da, und ↑ ruft deine letzte Nachricht zurück."
@@ -6320,6 +6332,17 @@
       }
     },
     "scenes": {
+      "selection_actions": {
+        "action": "Übersetzen"
+      },
+      "card_actions": {
+        "chip1": "Zusammenfassen",
+        "chip2": "Erledigt"
+      },
+      "honest_freshness": {
+        "fresh": "Aktuell",
+        "retry": "Erneut"
+      },
       "draft_survives": {
         "typing": "Plane meinen morgigen Tag"
       },
@@ -7359,6 +7382,10 @@
       "browser_control": {
         "title": "Browser-Steuerung",
         "description": "Navigiert autonom auf Websites: Produkte suchen, Formulare ausfüllen, Daten aus dynamischen JavaScript-Seiten extrahieren. Verfolgen Sie die Navigation in Echtzeit mit progressiven Screenshots direkt im Chat."
+      },
+      "personal_crm": {
+        "title": "Persönliches CRM",
+        "description": "LIA fasst zusammen, was sie über jede Person bereits weiß — offene Zusagen, jüngste Anrufe, gemerkte Fakten — in einer Gesamtansicht, damit Sie sich auf ein Gespräch auf einen Blick vorbereiten können. Erreichbar über den Schnellzugriff des Dashboards."
       },
       "self_knowledge": {
         "title": "App-Selbstwissen",

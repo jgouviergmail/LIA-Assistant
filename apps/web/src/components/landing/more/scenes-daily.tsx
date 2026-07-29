@@ -6,7 +6,7 @@
 
 'use client';
 
-import { Check, CheckCircle2, Circle, EyeOff, Sparkles } from 'lucide-react';
+import { Check, CheckCircle2, Circle, EyeOff, FileText, Sparkles } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -199,8 +199,51 @@ function PwaScene({ active }: SceneProps) {
   );
 }
 
+type CardActPhase = 'card' | 'chips' | 'hover' | 'picked';
+const CARDACT_STEPS: readonly TimelineStep<CardActPhase>[] = [
+  { at: 0, state: 'card' },
+  { at: 800, state: 'chips' },
+  { at: 1800, state: 'hover' },
+  { at: 2700, state: 'picked' },
+];
+
+function CardActionsScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(CARDACT_STEPS, { active });
+  const chipsIn = phase !== 'card';
+  const picked = phase === 'picked';
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="w-full max-w-[210px] space-y-2 rounded-lg border border-border bg-background p-2.5 shadow-sm">
+        <div className="flex items-center gap-2">
+          <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
+          <SkeletonLine w="w-2/3" />
+        </div>
+        <div
+          className={cn(
+            'flex items-center gap-1.5 transition-all duration-300',
+            chipsIn ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+          )}
+        >
+          <MiniChip pressed={phase === 'hover' || picked}>
+            {picked && <Check className="h-2.5 w-2.5" />}
+            {labels.chip1}
+          </MiniChip>
+          <MiniChip>{labels.chip2}</MiniChip>
+        </div>
+      </div>
+      <Cursor
+        className={cn(
+          phase === 'hover' ? 'left-[32%] top-[64%] opacity-100' : 'left-[70%] top-[82%] opacity-0',
+          picked && 'opacity-0'
+        )}
+      />
+    </div>
+  );
+}
+
 export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   briefing_custom: BriefingCustomScene,
+  card_actions: CardActionsScene,
   starter_checklist: StarterChecklistScene,
   empty_starters: EmptyStartersScene,
   pwa: PwaScene,

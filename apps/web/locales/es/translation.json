@@ -6214,6 +6214,18 @@
       }
     },
     "cards": {
+      "selection_actions": {
+        "title": "Selecciona y actúa",
+        "desc": "Resalta un pasaje de una respuesta para explicarlo, reformularlo, traducirlo o convertirlo en tarea."
+      },
+      "card_actions": {
+        "title": "Actúa desde la tarjeta",
+        "desc": "Resumir, responder, completar, posponer — en la propia tarjeta del resumen."
+      },
+      "honest_freshness": {
+        "title": "Reciente, u honestamente antigua",
+        "desc": "Cada tarjeta dice cuándo se actualizó, se atenúa al envejecer y ofrece un reintento con un gesto."
+      },
       "draft_survives": {
         "title": "Tu borrador sobrevive a todo",
         "desc": "Recarga o vuelve mañana: el texto escrito sigue ahí, y ↑ recupera tu último mensaje."
@@ -6320,6 +6332,17 @@
       }
     },
     "scenes": {
+      "selection_actions": {
+        "action": "Traducir"
+      },
+      "card_actions": {
+        "chip1": "Resumir",
+        "chip2": "Hecho"
+      },
+      "honest_freshness": {
+        "fresh": "Al día",
+        "retry": "Reintentar"
+      },
       "draft_survives": {
         "typing": "Prepara mi día de mañana"
       },
@@ -7359,6 +7382,10 @@
       "browser_control": {
         "title": "Control del navegador",
         "description": "Navega por sitios web de forma autónoma: buscar productos, rellenar formularios, extraer datos de páginas dinámicas con JavaScript. Siga la navegación en tiempo real con capturas de pantalla progresivas mostradas directamente en la conversación."
+      },
+      "personal_crm": {
+        "title": "CRM personal",
+        "description": "LIA reúne lo que ya sabe de cada persona — compromisos abiertos, llamadas recientes, hechos memorizados — en una vista de conjunto, para que prepares una conversación de un vistazo. Accesible desde el acceso rápido del panel."
       },
       "self_knowledge": {
         "title": "Autoconocimiento",

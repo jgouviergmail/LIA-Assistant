@@ -6216,6 +6216,18 @@
       }
     },
     "cards": {
+      "selection_actions": {
+        "title": "Seleziona, poi agisci",
+        "desc": "Evidenzia un passaggio di una risposta per spiegarlo, riformularlo, tradurlo o trasformarlo in attività."
+      },
+      "card_actions": {
+        "title": "Agisci dalla carta",
+        "desc": "Riassumere, rispondere, completare, rimandare — direttamente sulla carta del briefing."
+      },
+      "honest_freshness": {
+        "title": "Aggiornata, o onestamente datata",
+        "desc": "Ogni carta dice quando è stata aggiornata, si attenua invecchiando e offre un nuovo tentativo con un gesto."
+      },
       "draft_survives": {
         "title": "La tua bozza sopravvive a tutto",
         "desc": "Ricarica o torna domani: il testo digitato è ancora lì, e ↑ richiama il tuo ultimo messaggio."
@@ -6322,6 +6334,17 @@
       }
     },
     "scenes": {
+      "selection_actions": {
+        "action": "Tradurre"
+      },
+      "card_actions": {
+        "chip1": "Riassumere",
+        "chip2": "Fatto"
+      },
+      "honest_freshness": {
+        "fresh": "Aggiornato",
+        "retry": "Riprova"
+      },
       "draft_survives": {
         "typing": "Prepara la mia giornata di domani"
       },
@@ -7361,6 +7384,10 @@
       "browser_control": {
         "title": "Controllo browser",
         "description": "Naviga sui siti web in modo autonomo: cercare prodotti, compilare moduli, estrarre dati da pagine dinamiche JavaScript. Segui la navigazione in tempo reale con screenshot progressivi mostrati direttamente nella conversazione."
+      },
+      "personal_crm": {
+        "title": "CRM personale",
+        "description": "LIA riunisce ciò che già sa di ogni persona — impegni aperti, chiamate recenti, fatti memorizzati — in una vista d'insieme, per prepararti a una conversazione a colpo d'occhio. Raggiungibile dall'accesso rapido della dashboard."
       },
       "self_knowledge": {
         "title": "Auto-conoscenza",

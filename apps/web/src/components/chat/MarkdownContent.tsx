@@ -494,6 +494,45 @@ function sanitizeMalformedTags(text: string): string {
   );
 }
 
+/** Block-level HTML open tag at the very start — marks an HTML response. */
+const HTML_BLOCK_START_RE =
+  /^<(?:div|section|article|header|main|aside|nav|figure|details|h[1-6]|p|ul|ol|table|blockquote)\b/i;
+
+/**
+ * De-indent the structural lines of an HTML response so CommonMark never
+ * mistakes a pretty-printed tag for an indented code block.
+ *
+ * Measured on prod (2026-07-29): the model intermittently pretty-prints its
+ * `<div class="lia-response">` card with 4-space-indented tag lines AND blank
+ * lines between blocks. A CommonMark HTML block (type 6) ends at the first
+ * blank line; the next 4-space-indented `<h2>` is then read as an INDENTED
+ * CODE block, so the rest of the card renders as raw `<h2>…` TEXT. Two
+ * consecutive replies proved the asymmetry: identical wrapper, column-0 tags
+ * rendered, 4-space-indented tags did not.
+ *
+ * Stripping the leading indentation of every structural line puts each block
+ * tag back at column 0, where it (re)starts an HTML block. Whitespace between
+ * block-level tags is insignificant, so this changes PARSING only, never the
+ * rendered card. Lines inside <pre>/<code> keep their indentation (there,
+ * leading whitespace is meaningful). Scoped to content that STARTS with a
+ * block-level HTML tag, so a Markdown answer's legitimate indented code block
+ * is never touched.
+ */
+function stripHtmlBlockIndent(text: string): string {
+  if (!HTML_BLOCK_START_RE.test(text.replace(/^[\s﻿]+/, ''))) return text;
+  let protectedDepth = 0;
+  return text
+    .split('\n')
+    .map(line => {
+      const out = protectedDepth === 0 ? line.replace(/^[ \t]+/, '') : line;
+      const opens = (line.match(/<(?:pre|code)\b/gi) ?? []).length;
+      const closes = (line.match(/<\/(?:pre|code)>/gi) ?? []).length;
+      protectedDepth = Math.max(0, protectedDepth + opens - closes);
+      return out;
+    })
+    .join('\n');
+}
+
 // Regions where `$` must be left untouched: fenced code blocks, inline code
 // (single/double backtick), and `$$…$$` display math. Escaping `$` inside a
 // code span would surface a literal backslash (markdown does not unescape
@@ -555,8 +594,17 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
       return base;
     }, [searchTerm]);
 
+    // Prod 2026-07-29: de-indent a pretty-printed HTML card BEFORE parsing, so
+    // a 4-space-indented block after a blank line is never read as a code block
+    // (which rendered the rest of the card as raw <h2>… text). No-op for
+    // Markdown answers (they don't start with a block-level HTML tag).
+    const dedentedContent = useMemo(() => stripHtmlBlockIndent(content), [content]);
+
     // Sanitize malformed HTML tags (e.g., <li📧> -> <li>📧)
-    const sanitizedContent = useMemo(() => sanitizeMalformedTags(content), [content]);
+    const sanitizedContent = useMemo(
+      () => sanitizeMalformedTags(dedentedContent),
+      [dedentedContent]
+    );
 
     // Canonicalize alternative math notations (```math/```latex fences, \[…\],
     // \(…\)) to `$`/`$$` at the string level. Dollar delimiters are then turned

@@ -6228,6 +6228,18 @@
       }
     },
     "cards": {
+      "selection_actions": {
+        "title": "Sélectionne, puis agis",
+        "desc": "Surligne un passage d’une réponse pour l’expliquer, le reformuler, le traduire ou en faire une tâche."
+      },
+      "card_actions": {
+        "title": "Agis depuis la carte",
+        "desc": "Résumer, répondre, terminer, reporter — directement sur la carte du briefing."
+      },
+      "honest_freshness": {
+        "title": "À jour, ou franchement daté",
+        "desc": "Chaque carte dit quand elle a été mise à jour, s’estompe en vieillissant, et propose un réessai en un geste."
+      },
       "draft_survives": {
         "title": "Votre brouillon survit à tout",
         "desc": "Rechargez, revenez demain : le texte tapé est toujours là, et ↑ rappelle votre dernier message."
@@ -6334,6 +6346,17 @@
       }
     },
     "scenes": {
+      "selection_actions": {
+        "action": "Traduire"
+      },
+      "card_actions": {
+        "chip1": "Résumer",
+        "chip2": "Terminé"
+      },
+      "honest_freshness": {
+        "fresh": "À jour",
+        "retry": "Réessayer"
+      },
       "draft_survives": {
         "typing": "Prépare ma journée de demain"
       },
@@ -7365,6 +7388,10 @@
       "browser_control": {
         "title": "Contrôle navigateur",
         "description": "Navigue sur les sites web de façon autonome : recherche de produits, remplissage de formulaires, extraction de données depuis les pages dynamiques JavaScript. Suis la navigation en temps réel grâce aux captures d'écran progressives affichées dans la conversation."
+      },
+      "personal_crm": {
+        "title": "CRM personnel",
+        "description": "LIA rassemble ce qu'elle sait déjà de chaque personne — engagements ouverts, appels récents, faits mémorisés — en une vue d'ensemble, pour préparer un échange d'un coup d'œil. Accessible depuis l'accès rapide du tableau de bord."
       },
       "self_knowledge": {
         "title": "Auto-connaissance",

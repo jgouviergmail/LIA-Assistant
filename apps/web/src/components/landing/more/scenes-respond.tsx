@@ -14,9 +14,11 @@ import {
   Copy,
   Download,
   FileText,
+  Languages,
   Link2,
   Search,
   Share2,
+  TextSelect,
   ThumbsDown,
   ThumbsUp,
   Wrench,
@@ -261,10 +263,55 @@ function BackstageScene({ active }: SceneProps) {
   );
 }
 
+type SelectPhase = 'bubble' | 'selected' | 'bar' | 'picked';
+const SELECT_STEPS: readonly TimelineStep<SelectPhase>[] = [
+  { at: 0, state: 'bubble' },
+  { at: 800, state: 'selected' },
+  { at: 1700, state: 'bar' },
+  { at: 2700, state: 'picked' },
+];
+
+function SelectionActionsScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(SELECT_STEPS, { active });
+  const selected = phase !== 'bubble';
+  const barIn = phase === 'bar' || phase === 'picked';
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-2.5')}>
+      <MiniBubble side="assistant" className="w-3/4 space-y-1.5">
+        <SkeletonLine w="w-full" />
+        <div
+          className={cn(
+            'h-2 w-1/2 rounded-full transition-colors duration-300',
+            selected ? 'bg-primary/30' : 'bg-muted-foreground/15'
+          )}
+        />
+      </MiniBubble>
+      <div
+        className={cn(
+          'flex items-center gap-2 self-center rounded-lg border border-border bg-background px-2 py-1.5 shadow-sm transition-all duration-300',
+          barIn ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        )}
+      >
+        <TextSelect className="h-3 w-3 text-muted-foreground" />
+        <MiniChip pressed={phase === 'picked'}>{labels.action}</MiniChip>
+        <Languages className="h-3 w-3 text-muted-foreground" />
+      </div>
+      <Cursor
+        className={cn(
+          barIn && phase !== 'picked'
+            ? 'left-[43%] top-[64%] opacity-100'
+            : 'left-[68%] top-[38%] opacity-0'
+        )}
+      />
+    </div>
+  );
+}
+
 export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   followup_chips: FollowupChipsScene,
   scroll_return: ScrollReturnScene,
   bubble_actions: BubbleActionsScene,
+  selection_actions: SelectionActionsScene,
   share_export: ShareExportScene,
   backstage: BackstageScene,
 };
