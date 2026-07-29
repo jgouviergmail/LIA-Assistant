@@ -16,6 +16,7 @@ from uuid import UUID
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.exceptions import raise_structured_validation_error
 from src.core.security.utils import decrypt_data, encrypt_data
 from src.domains.llm_config.cache import LLMConfigOverrideCache
@@ -342,12 +343,30 @@ class LLMConfigService:
                     },
                 )
 
+        update_data = update.model_dump(exclude_unset=False)
+
+        # === Thinking × completion-budget coherence (systemic lock) ===
+        # Reasoning tokens are billed inside max_tokens. Validated on the
+        # EFFECTIVE config (pending override merged onto code defaults with the
+        # same merge_config the runtime uses), because the incident shape is
+        # precisely "set effort=high, leave max_tokens empty → inherit a
+        # pre-thinking default" (prod 2026-07-29, telephony_synthesis: 600-token
+        # cap fully consumed by reasoning, every call report degraded).
+        from src.domains.llm_config.reasoning_validation import (
+            validate_thinking_token_budget,
+        )
+
+        pending_overrides = {k: v for k, v in update_data.items() if v is not None}
+        validate_thinking_token_budget(
+            llm_type=llm_type,
+            effective=_merge_config(LLM_DEFAULTS[llm_type], pending_overrides),
+            floor=settings.llm_thinking_max_tokens_floor,
+        )
+
         result = await self.db.execute(
             select(LLMConfigOverride).where(LLMConfigOverride.llm_type == llm_type)
         )
         existing = result.scalar_one_or_none()
-
-        update_data = update.model_dump(exclude_unset=False)
 
         if existing:
             for field_name, value in update_data.items():

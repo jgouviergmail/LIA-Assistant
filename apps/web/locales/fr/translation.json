@@ -2331,6 +2331,7 @@
           "saved": "Configuration LLM sauvegardée",
           "reset": "Configuration réinitialisée aux valeurs par défaut",
           "error": "Erreur lors de la sauvegarde",
+          "thinkingBudgetBelowFloor": "Le raisonnement est activé, mais le max tokens effectif ({{maxTokens}}) est sous le plancher de sécurité de {{floor}}. Le raisonnement consomme le budget de réponse : les réponses ressortiraient tronquées ou vides. Augmentez le max tokens à au moins {{floor}}, ou désactivez le raisonnement. Remarque : laisser max tokens vide hérite de la valeur par défaut du code.",
           "resetButton": "Réinitialiser"
         }
       },
@@ -3585,6 +3586,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_26_4": {
+          "title": "v1.26.4 — 📞 Tes rapports d'appel, dans ta langue",
+          "date": "Juillet 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📞 Téléphonie · Rapport fiable</b> — le compte-rendu que LIA t'envoie après un appel arrive désormais toujours dans ta langue, avec le débrief structuré (points clés, engagements, questions ouvertes). Certaines configurations de modèle IA le dégradaient silencieusement en résumé technique anglais ; cette classe de panne est fermée.",
+            "i2": "<b>🛡️ Admin · Garde-fou de configuration</b> — enregistrer une configuration de modèle dont le mode raisonnement étoufferait le budget de réponse est désormais refusé avec un message explicite indiquant le plancher de tokens requis — au lieu d'échouer en silence à l'appel suivant."
+          }
+        },
         "v1_26_1": {
           "title": "v1.26.1 — 🎨 Des réponses mises en page",
           "date": "Juillet 2026",

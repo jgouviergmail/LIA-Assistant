@@ -10,47 +10,18 @@ from __future__ import annotations
 
 from contextlib import suppress
 from datetime import UTC, datetime
-from typing import Any
 from uuid import UUID, uuid4
 
 import structlog
-from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.outputs import LLMResult
 
 from src.core.config import get_settings
 from src.core.i18n_types import get_language_name
 from src.domains.agents.prompts import load_prompt
 from src.domains.heartbeat.schemas import HeartbeatContext, HeartbeatDecision
+from src.infrastructure.llm.token_capture import TokenCaptureHandler
 
 logger = structlog.get_logger(__name__)
-
-
-class _TokenCaptureHandler(BaseCallbackHandler):
-    """Callback that captures token usage from LLM calls.
-
-    Used to extract tokens from get_structured_output() which returns
-    only the Pydantic model, not the raw AIMessage with usage_metadata.
-    """
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.tokens_in: int = 0
-        self.tokens_out: int = 0
-        self.tokens_cache: int = 0
-
-    def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
-        """Extract token usage from the LLM response."""
-        for generation_list in response.generations:
-            for gen in generation_list:
-                msg = getattr(gen, "message", None)
-                if msg is None:
-                    continue
-                meta = getattr(msg, "usage_metadata", None)
-                if meta:
-                    self.tokens_in += meta.get("input_tokens", 0)
-                    self.tokens_out += meta.get("output_tokens", 0)
-                    self.tokens_cache += meta.get("cache_read_input_tokens", 0)
 
 
 def build_decision_user_prompt(context: HeartbeatContext) -> str:
@@ -128,7 +99,7 @@ async def get_heartbeat_decision(
     ]
 
     # Use callback to capture tokens (get_structured_output returns only the model)
-    token_capture = _TokenCaptureHandler()
+    token_capture = TokenCaptureHandler()
     runnable_config = RunnableConfig(callbacks=[token_capture])
 
     decision = await get_structured_output(

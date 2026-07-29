@@ -24,12 +24,12 @@ from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
 import structlog
-from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.core.config import settings
+from src.infrastructure.llm.token_capture import TokenCaptureHandler
 
 if TYPE_CHECKING:
     from src.domains.open_loops.repository import OpenLoopRepository
@@ -86,29 +86,6 @@ def pop_extraction_debug(run_id: str) -> dict[str, Any] | None:
     _evict_stale_debug_entries()
     entry = _extraction_debug_results.pop(run_id, None)
     return entry[1] if entry is not None else None
-
-
-class _TokenCaptureHandler(BaseCallbackHandler):
-    """Capture token usage from the structured-output call (billing, G-1).
-
-    Same minimal pattern as ``heartbeat/prompts._TokenCaptureHandler`` —
-    ``get_structured_output`` returns only the parsed model, so usage is
-    read from the LLM end-callback.
-    """
-
-    def __init__(self) -> None:
-        self.tokens_in = 0
-        self.tokens_out = 0
-        self.tokens_cache = 0
-
-    def on_llm_end(self, response: Any, **kwargs: Any) -> None:
-        """Accumulate usage from the provider response."""
-        usage = getattr(response, "llm_output", None) or {}
-        token_usage = usage.get("token_usage") or {}
-        self.tokens_in += int(token_usage.get("prompt_tokens", 0) or 0)
-        self.tokens_out += int(token_usage.get("completion_tokens", 0) or 0)
-        details = token_usage.get("prompt_tokens_details") or {}
-        self.tokens_cache += int(details.get("cached_tokens", 0) or 0)
 
 
 class OpenLoopItem(BaseModel):
@@ -292,7 +269,7 @@ async def _run_extraction(
 
         llm = get_llm("open_loop_extraction")
         config = get_llm_config_for_agent(settings, "open_loop_extraction")
-        token_capture = _TokenCaptureHandler()
+        token_capture = TokenCaptureHandler()
         extraction = await get_structured_output(
             llm=llm,
             messages=[

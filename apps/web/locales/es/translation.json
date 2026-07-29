@@ -1981,6 +1981,7 @@
           "saved": "Configuración LLM guardada",
           "reset": "Configuración restablecida a los valores predeterminados",
           "error": "Error al guardar la configuración",
+          "thinkingBudgetBelowFloor": "El razonamiento está activado, pero el máximo de tokens efectivo ({{maxTokens}}) está por debajo del umbral de seguridad de {{floor}}. El razonamiento consume el presupuesto de respuesta: las respuestas saldrían truncadas o vacías. Suba el máximo de tokens al menos a {{floor}}, o desactive el razonamiento. Nota: dejar el máximo de tokens vacío hereda el valor por defecto del código.",
           "resetButton": "Restablecer"
         }
       },
@@ -3571,6 +3572,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_26_4": {
+          "title": "v1.26.4 — 📞 Tus informes de llamada, en tu idioma",
+          "date": "Julio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📞 Telefonía · Informe fiable</b> — el informe que LIA te envía tras una llamada llega ahora siempre en tu idioma, con el resumen estructurado (puntos clave, compromisos, preguntas abiertas). Algunas configuraciones del modelo de IA lo degradaban en silencio a un resumen técnico en inglés; esa clase de fallo queda cerrada.",
+            "i2": "<b>🛡️ Admin · Barrera de configuración</b> — guardar una configuración de modelo cuyo modo de razonamiento agotaría el presupuesto de respuesta ahora se rechaza con un mensaje explícito que indica el mínimo de tokens requerido, en lugar de fallar en silencio en la siguiente llamada."
+          }
+        },
         "v1_26_1": {
           "title": "v1.26.1 — 🎨 Respuestas con verdadera composición",
           "date": "Julio 2026",

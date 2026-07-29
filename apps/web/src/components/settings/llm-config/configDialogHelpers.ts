@@ -314,3 +314,29 @@ export function samplingVisibility(
     showPresencePenalty: caps?.supports_presence_penalty ?? true,
   };
 }
+
+// --- Structured save errors --------------------------------------------------
+
+/** Pydantic-style structured detail carried by admin 422 responses
+ * (backend ``raise_structured_validation_error`` — type/loc/msg/input/ctx). */
+export interface StructuredErrorDetail {
+  type?: string;
+  msg?: string;
+  ctx?: Record<string, unknown>;
+}
+
+/** Extract the structured validation detail from a failed save, if any.
+ *
+ * The backend rejects invalid LLM configs with an explicit, machine-readable
+ * 422 body (reasoning matrix, thinking-budget floor). Swallowing it behind a
+ * generic "save failed" toast is how the 2026-07-29 prod misconfiguration
+ * (thinking enabled over a 600-token cap) stayed invisible — the caller must
+ * surface ``msg``/``ctx`` to the admin instead. */
+export function structuredErrorDetail(err: unknown): StructuredErrorDetail | null {
+  if (!err || typeof err !== 'object' || !('data' in err)) return null;
+  const data = (err as { data?: unknown }).data;
+  if (!data || typeof data !== 'object' || !('detail' in data)) return null;
+  const detail = (data as { detail?: unknown }).detail;
+  if (!detail || typeof detail !== 'object' || Array.isArray(detail)) return null;
+  return detail as StructuredErrorDetail;
+}

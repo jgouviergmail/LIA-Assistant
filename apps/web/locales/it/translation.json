@@ -1983,6 +1983,7 @@
           "saved": "Configurazione LLM salvata",
           "reset": "Configurazione ripristinata ai valori predefiniti",
           "error": "Errore durante il salvataggio della configurazione",
+          "thinkingBudgetBelowFloor": "Il ragionamento è attivo, ma il max token effettivo ({{maxTokens}}) è sotto la soglia di sicurezza di {{floor}}. Il ragionamento consuma il budget di risposta: le risposte risulterebbero troncate o vuote. Aumenta il max token ad almeno {{floor}}, oppure disattiva il ragionamento. Nota: lasciare il max token vuoto eredita il valore predefinito del codice.",
           "resetButton": "Ripristina"
         }
       },
@@ -3573,6 +3574,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_26_4": {
+          "title": "v1.26.4 — 📞 I tuoi resoconti di chiamata, nella tua lingua",
+          "date": "Luglio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📞 Telefonia · Resoconto affidabile</b> — il resoconto che LIA ti invia dopo una chiamata arriva ora sempre nella tua lingua, con il debrief strutturato (punti chiave, impegni, questioni aperte). Alcune configurazioni del modello IA lo degradavano in silenzio a un riepilogo tecnico in inglese; quella classe di guasto è chiusa.",
+            "i2": "<b>🛡️ Admin · Salvaguardia di configurazione</b> — salvare una configurazione di modello il cui ragionamento esaurirebbe il budget di risposta viene ora rifiutato con un messaggio esplicito che indica la soglia minima di token, invece di fallire in silenzio alla chiamata successiva."
+          }
+        },
         "v1_26_1": {
           "title": "v1.26.1 — 🎨 Risposte con una vera impaginazione",
           "date": "Luglio 2026",

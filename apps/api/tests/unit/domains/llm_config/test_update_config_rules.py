@@ -128,3 +128,111 @@ class TestUpdateConfigAnthropicTemperatureLock:
 
         assert update.temperature == 0.5  # off → no thinking → no lock
         assert update.top_p == 0.9
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+class TestUpdateConfigThinkingBudgetFloor:
+    """Thinking × completion-budget coherence on the admin write path.
+
+    Regression class (prod 2026-07-29): telephony_synthesis was switched to
+    deepseek-v4-flash at effort=high with max_tokens left empty — the effective
+    config inherited the pre-thinking default of 600 tokens, reasoning consumed
+    all of it, and every post-call report degraded to the raw vendor summary.
+    The validation runs on the EFFECTIVE (merged) config, before persistence.
+    """
+
+    @staticmethod
+    def _deepseek_caps() -> SimpleNamespace:
+        return SimpleNamespace(
+            model_id="deepseek-v4-flash",
+            effort_values=None,
+            reasoning_widget="enum",
+            reasoning_enum_values=["off", "high", "max"],
+            reasoning_budget_range=None,
+        )
+
+    async def test_heavy_thinking_inheriting_small_default_rejected(self) -> None:
+        """The exact incident shape: effort=high, max_tokens empty → inherited tiny cap."""
+        from src.core.config import settings
+        from src.domains.llm_config.constants import LLM_DEFAULTS
+
+        floor = settings.llm_thinking_max_tokens_floor
+        # Precondition, not an oracle: the scenario needs a type whose code
+        # default is below the floor (briefing = a short-output, non-thinking
+        # calibration). If this ever fails, pick another such type.
+        assert LLM_DEFAULTS["briefing"].max_tokens < floor
+
+        service, db = _make_service()
+        update = LLMTypeConfigUpdate(
+            provider="deepseek",
+            model="deepseek-v4-flash",
+            reasoning_effort=ReasoningEffortEnum(effort="high"),
+        )
+
+        with patch(_CAPS_GET, return_value=self._deepseek_caps()):
+            with pytest.raises(HTTPException) as exc:
+                await service.update_config("briefing", update, uuid4(), MagicMock())
+
+        assert exc.value.status_code == 422
+        detail = exc.value.detail
+        assert detail["type"] == "thinking_budget_below_floor"  # type: ignore[index]
+        assert detail["ctx"]["floor"] == floor  # type: ignore[index]
+        assert detail["ctx"]["effective_max_tokens"] == (  # type: ignore[index]
+            LLM_DEFAULTS["briefing"].max_tokens
+        )
+        db.execute.assert_not_called()  # raised before persistence
+
+    async def test_heavy_thinking_with_raised_max_tokens_accepted(self) -> None:
+        from src.core.config import settings
+
+        service, db = _make_service()
+        update = LLMTypeConfigUpdate(
+            provider="deepseek",
+            model="deepseek-v4-flash",
+            reasoning_effort=ReasoningEffortEnum(effort="high"),
+            max_tokens=settings.llm_thinking_max_tokens_floor,
+        )
+
+        with (
+            patch(_CAPS_GET, return_value=self._deepseek_caps()),
+            patch(_CACHE_RELOAD, new=AsyncMock()),
+        ):
+            await service.update_config("briefing", update, uuid4(), MagicMock())
+
+        db.commit.assert_awaited()
+
+    async def test_reasoning_off_keeps_small_budgets_legal(self) -> None:
+        service, db = _make_service()
+        update = LLMTypeConfigUpdate(
+            provider="deepseek",
+            model="deepseek-v4-flash",
+            reasoning_effort=ReasoningEffortEnum(effort="off"),
+            max_tokens=500,
+        )
+
+        with (
+            patch(_CAPS_GET, return_value=self._deepseek_caps()),
+            patch(_CACHE_RELOAD, new=AsyncMock()),
+        ):
+            await service.update_config("briefing", update, uuid4(), MagicMock())
+
+        db.commit.assert_awaited()
+
+    async def test_small_explicit_max_tokens_with_inherited_heavy_default_rejected(self) -> None:
+        """The mirror shape: shrink max_tokens on a type whose DEFAULT thinks."""
+        from src.domains.llm_config.constants import LLM_DEFAULTS
+
+        # Precondition: compaction's code default enables Qwen thinking.
+        default_reasoning = LLM_DEFAULTS["compaction"].reasoning_effort
+        assert getattr(default_reasoning, "enabled", False) is True
+
+        service, db = _make_service()
+        update = LLMTypeConfigUpdate(max_tokens=800)  # model/effort untouched → inherited
+
+        with pytest.raises(HTTPException) as exc:
+            await service.update_config("compaction", update, uuid4(), MagicMock())
+
+        assert exc.value.status_code == 422
+        assert exc.value.detail["type"] == "thinking_budget_below_floor"  # type: ignore[index]
+        db.execute.assert_not_called()

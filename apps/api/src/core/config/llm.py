@@ -297,6 +297,26 @@ class LLMSettings(BaseSettings):
     """LLM provider and configuration settings."""
 
     # ========================================================================
+    # CROSS-TYPE GUARDRAILS
+    # ========================================================================
+
+    llm_thinking_max_tokens_floor: int = Field(
+        default=4000,
+        gt=0,
+        description=(
+            "Minimum effective max_tokens required to save an LLM-type config "
+            "whose reasoning effort consumes the completion budget (DeepSeek V4 "
+            "high/max, Qwen thinking toggle, OpenAI medium+, Gemini budgets). "
+            "Reasoning tokens are billed inside the completion window: below "
+            "this floor the final answer is truncated or empty (measured "
+            "2026-07-29: telephony_synthesis on deepseek-v4-flash effort=high "
+            "burned its entire 600-token cap on reasoning and every post-call "
+            "return degraded to the raw English vendor summary). Enforced at "
+            "the admin save path and at boot on LLM_DEFAULTS."
+        ),
+    )
+
+    # ========================================================================
     # LLM PROVIDERS CONFIGURATION
     # ========================================================================
 

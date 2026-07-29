@@ -596,3 +596,135 @@ class TestReasoningEffortMatchesWidget:
             reasoning_effort_matches_widget(caps, ReasoningEffortToggleBudget(enabled=False))
             is False
         )
+
+
+# ============================================================================
+# validate_thinking_token_budget (thinking × completion-budget coherence)
+# ============================================================================
+#
+# Regression class (prod 2026-07-29): telephony_synthesis moved to
+# deepseek-v4-flash at effort=high while its effective max_tokens stayed at the
+# pre-thinking default of 600 — reasoning consumed the whole completion budget
+# and every post-call synthesis returned truncated/empty output. The floor is a
+# function argument here (the setting is the caller's concern), so tests use an
+# arbitrary explicit value.
+
+
+def _agent_config(**overrides: Any) -> Any:
+    """Minimal LLMAgentConfig for budget-floor tests."""
+    from src.core.llm_agent_config import LLMAgentConfig
+
+    base: dict[str, Any] = {
+        "provider": "deepseek",
+        "model": "deepseek-v4-flash",
+        "temperature": 0.4,
+        "top_p": 1.0,
+        "frequency_penalty": 0.0,
+        "presence_penalty": 0.0,
+        "max_tokens": 600,
+        "timeout_seconds": 20.0,
+    }
+    base.update(overrides)
+    return LLMAgentConfig(**base)
+
+
+@pytest.mark.unit
+class TestThinkingTokenBudgetFloor:
+    """Contract of validate_thinking_token_budget (shape-based heaviness)."""
+
+    def _assert_blocks(self, effective: Any, floor: int = 4000) -> dict[str, Any]:
+        from src.domains.llm_config.reasoning_validation import (
+            validate_thinking_token_budget,
+        )
+
+        with pytest.raises(HTTPException) as exc:
+            validate_thinking_token_budget(
+                llm_type="telephony_synthesis", effective=effective, floor=floor
+            )
+        assert exc.value.status_code == 422
+        detail = _detail(exc)
+        assert detail["type"] == "thinking_budget_below_floor"
+        assert detail["loc"] == ["body", "max_tokens"]
+        assert str(floor) in detail["msg"]  # explicit, actionable message
+        assert detail["ctx"]["floor"] == floor
+        assert detail["ctx"]["llm_type"] == "telephony_synthesis"
+        assert detail["ctx"]["effective_max_tokens"] == effective.max_tokens
+        return detail
+
+    def _assert_passes(self, effective: Any, floor: int = 4000) -> None:
+        from src.domains.llm_config.reasoning_validation import (
+            validate_thinking_token_budget,
+        )
+
+        validate_thinking_token_budget(
+            llm_type="telephony_synthesis", effective=effective, floor=floor
+        )  # must not raise
+
+    def test_no_reasoning_passes_any_budget(self) -> None:
+        self._assert_passes(_agent_config(reasoning_effort=None, max_tokens=100))
+
+    @pytest.mark.parametrize("effort", ["none", "off", "minimal", "low"])
+    def test_light_enum_efforts_exempt(self, effort: str) -> None:
+        """minimal/low reasoning is measured-negligible — small caps stay legal."""
+        self._assert_passes(
+            _agent_config(reasoning_effort=ReasoningEffortEnum(effort=effort), max_tokens=500)
+        )
+
+    @pytest.mark.parametrize("effort", ["medium", "high", "xhigh", "max"])
+    def test_heavy_enum_effort_blocked_below_floor(self, effort: str) -> None:
+        """The exact prod incident shape: heavy thinking + tiny effective cap."""
+        self._assert_blocks(
+            _agent_config(reasoning_effort=ReasoningEffortEnum(effort=effort), max_tokens=600)
+        )
+
+    def test_heavy_enum_effort_at_floor_passes(self) -> None:
+        self._assert_passes(
+            _agent_config(reasoning_effort=ReasoningEffortEnum(effort="high"), max_tokens=4000)
+        )
+
+    def test_floor_is_caller_driven(self) -> None:
+        """The floor is a parameter — the same config blocks or passes with it."""
+        cfg = _agent_config(reasoning_effort=ReasoningEffortEnum(effort="high"), max_tokens=600)
+        self._assert_blocks(cfg, floor=601)
+        self._assert_passes(cfg, floor=600)
+
+    def test_qwen_toggle_enabled_blocked_below_floor(self) -> None:
+        self._assert_blocks(
+            _agent_config(
+                provider="qwen",
+                model="qwen3.5-plus",
+                reasoning_effort=ReasoningEffortToggleBudget(enabled=True, budget=4096),
+                max_tokens=1000,
+            )
+        )
+
+    def test_qwen_toggle_disabled_passes(self) -> None:
+        self._assert_passes(
+            _agent_config(
+                provider="qwen",
+                model="qwen3.5-plus",
+                reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
+                max_tokens=1000,
+            )
+        )
+
+    def test_gemini_budget_dynamic_and_positive_blocked_below_floor(self) -> None:
+        for budget in (-1, 2048):
+            self._assert_blocks(
+                _agent_config(
+                    provider="gemini",
+                    model="gemini-2.5-flash",
+                    reasoning_effort=ReasoningEffortBudget(budget=budget),
+                    max_tokens=1000,
+                )
+            )
+
+    def test_gemini_budget_off_sentinel_passes(self) -> None:
+        self._assert_passes(
+            _agent_config(
+                provider="gemini",
+                model="gemini-2.5-flash",
+                reasoning_effort=ReasoningEffortBudget(budget=0),
+                max_tokens=1000,
+            )
+        )

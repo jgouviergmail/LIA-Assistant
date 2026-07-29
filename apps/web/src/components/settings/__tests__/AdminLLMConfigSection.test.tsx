@@ -451,3 +451,71 @@ describe('accessible names on dialog controls (audit F012)', () => {
     expect(document.activeElement).toBe(boost);
   });
 });
+
+// --- dialog save: structured 422 surfacing ------------------------------------
+//
+// Regression class (prod 2026-07-29): the backend rejects a thinking-enabled
+// config whose effective max_tokens sits below the safety floor with an
+// explicit structured 422 — but the old catch swallowed it behind a generic
+// "save failed" toast, leaving the admin blind to the actual constraint.
+
+describe('dialog save (structured 422 surfacing)', () => {
+  it('shows the localized explicit message for thinking_budget_below_floor', async () => {
+    const { toast } = await import('sonner');
+    updateConfig.mockRejectedValueOnce(
+      Object.assign(new Error('422'), {
+        data: {
+          detail: {
+            type: 'thinking_budget_below_floor',
+            msg: 'raw backend msg',
+            ctx: { floor: 4000, effective_max_tokens: 600 },
+          },
+        },
+      })
+    );
+    renderSection([typeConfig('router', 'Router')]);
+    await openDialog('Router');
+
+    fireEvent.click(screen.getByText('common.save'));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'settings.admin.llmConfig.config.thinkingBudgetBelowFloor'
+      )
+    );
+  });
+
+  it('surfaces other structured msgs as the description of the generic toast', async () => {
+    const { toast } = await import('sonner');
+    updateConfig.mockRejectedValueOnce(
+      Object.assign(new Error('422'), {
+        data: {
+          detail: { type: 'invalid_reasoning_effort', msg: 'explicit matrix message', ctx: {} },
+        },
+      })
+    );
+    renderSection([typeConfig('router', 'Router')]);
+    await openDialog('Router');
+
+    fireEvent.click(screen.getByText('common.save'));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('settings.admin.llmConfig.config.error', {
+        description: 'explicit matrix message',
+      })
+    );
+  });
+
+  it('keeps the generic toast for unstructured failures', async () => {
+    const { toast } = await import('sonner');
+    updateConfig.mockRejectedValueOnce(new Error('network down'));
+    renderSection([typeConfig('router', 'Router')]);
+    await openDialog('Router');
+
+    fireEvent.click(screen.getByText('common.save'));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('settings.admin.llmConfig.config.error')
+    );
+  });
+});

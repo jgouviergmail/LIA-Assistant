@@ -26,6 +26,7 @@ from zoneinfo import ZoneInfo
 
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
 from pydantic import ValidationError
 
 from src.core.config import settings
@@ -40,6 +41,8 @@ from src.domains.telephony.schemas import ReturnProposal, StructuredCallData
 from src.domains.users.models import User
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.llm.factory import get_llm
+from src.infrastructure.llm.structured_output import get_structured_output_with_retry
+from src.infrastructure.llm.token_capture import TokenCaptureHandler
 from src.infrastructure.observability.metrics_telephony import (
     telephony_call_duration_seconds,
     telephony_calls_total,
@@ -64,28 +67,19 @@ class _SynthUsage:
     model_name: str
 
 
-def _extract_usage(raw: Any) -> _SynthUsage | None:
-    """Extract billable token usage from the structured-output raw AIMessage.
+def _capture_to_usage(capture: TokenCaptureHandler) -> _SynthUsage | None:
+    """Convert the captured callback counters to the billable usage record.
 
     Mirrors the briefing pipeline: subtract cached from input to expose the
-    non-cached billable count. Returns None when the provider reports no usage.
+    non-cached billable count. Returns None when the provider reported no
+    usage at all.
     """
-    if raw is None:
+    if not capture.has_usage:
         return None
-    raw_usage = getattr(raw, "usage_metadata", None) or {}
-    if not raw_usage:
-        return None
-    raw_input = int(raw_usage.get("input_tokens", 0) or 0)
-    tokens_out = int(raw_usage.get("output_tokens", 0) or 0)
-    tokens_cache = int(
-        raw_usage.get("cache_read_input_tokens", 0)
-        or raw_usage.get("input_token_details", {}).get("cache_read", 0)
-        or 0
-    )
     return _SynthUsage(
-        tokens_in=max(raw_input - tokens_cache, 0),
-        tokens_out=tokens_out,
-        tokens_cache=tokens_cache,
+        tokens_in=max(capture.tokens_in - capture.tokens_cache, 0),
+        tokens_out=capture.tokens_out,
+        tokens_cache=capture.tokens_cache,
         model_name=get_llm_config_for_agent(settings, _LLM_TYPE).model,
     )
 
@@ -245,14 +239,22 @@ async def synthesize_return(
 ) -> tuple[ReturnProposal, _SynthUsage | None]:
     """Single tool-less LLM call → factual ``summary`` + first-person ``proposal_text``.
 
-    Uses the ``telephony_synthesis`` LLM type + versioned prompt with structured
-    output (no domain tools). ``include_raw`` surfaces the underlying AIMessage so
-    the caller can track token usage (G-1). The transcript is passed for context
-    but is never persisted by the caller (D-8).
+    Uses the ``telephony_synthesis`` LLM type + versioned prompt, routed through
+    the central structured-output chokepoint ``get_structured_output_with_retry``
+    (never a direct ``with_structured_output`` — AST-guarded): the chokepoint
+    carries the provider constraints a raw call silently bypasses, notably
+    DeepSeek V4 with thinking enabled, which rejects the forced ``tool_choice``
+    with a 400 and must be served via the JSON-mode fallback (prod incident
+    2026-07-29 — the fallback then delivered the raw English vendor summary).
+
+    Token usage is captured via :class:`TokenCaptureHandler` (the chokepoint
+    returns only the parsed model) so the caller can track spend (G-1); retried
+    attempts accumulate into the same counters — they are paid too. The
+    transcript is passed for context but is never persisted by the caller (D-8).
 
     Returns:
         The parsed proposal and the LLM token usage (``None`` when the provider
-        reports none, or when a non-``include_raw`` response is returned in tests).
+        reports none).
     """
     system = load_telephony_prompt("telephony_synthesis_prompt", "v1")
     context = _render_context(
@@ -265,21 +267,17 @@ async def synthesize_return(
         user_timezone=user_timezone,
     )
     llm = get_llm(_LLM_TYPE)
-    structured_llm = llm.with_structured_output(ReturnProposal, include_raw=True)
-    result = await structured_llm.ainvoke(
-        [SystemMessage(content=system), HumanMessage(content=context)]
+    provider = get_llm_config_for_agent(settings, _LLM_TYPE).provider
+    token_capture = TokenCaptureHandler()
+    proposal = await get_structured_output_with_retry(
+        llm=llm,
+        messages=[SystemMessage(content=system), HumanMessage(content=context)],
+        schema=ReturnProposal,
+        provider=provider,
+        node_name=_LLM_TYPE,
+        config=RunnableConfig(callbacks=[token_capture]),
     )
-
-    if isinstance(result, dict):  # include_raw shape: {"raw", "parsed", "parsing_error"}
-        parsed = result.get("parsed")
-        usage = _extract_usage(result.get("raw"))
-    else:  # defensive (tests / providers that ignore include_raw)
-        parsed, usage = result, None
-
-    proposal = (
-        parsed if isinstance(parsed, ReturnProposal) else ReturnProposal.model_validate(parsed)
-    )
-    return proposal, usage
+    return proposal, _capture_to_usage(token_capture)
 
 
 def build_appointment_suggestion(

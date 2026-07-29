@@ -91,25 +91,48 @@ def test_extract_call_seconds() -> None:
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.unit
-async def test_synthesize_return_uses_typed_output_and_context(monkeypatch) -> None:
+def _install_synthesis(
+    monkeypatch,
+    *,
+    usage: dict[str, int] | None = None,
+    usage_per_call: int = 1,
+) -> dict:
+    """Route ``synthesize_return`` onto a fake chokepoint helper.
+
+    The fake mimics the real contract: it returns ONLY the parsed model, and
+    token usage reaches the caller exclusively through the ``TokenCaptureHandler``
+    attached to the config callbacks (fed here ``usage_per_call`` times to model
+    retried attempts, which are paid too).
+    """
     captured: dict = {}
 
-    class _FakeStructured:
-        async def ainvoke(self, messages):
-            captured["messages"] = messages
-            return ReturnProposal(summary="S", proposal_text="P")
+    async def _fake_chokepoint(**kwargs):
+        captured.update(kwargs)
+        handlers = [
+            cb for cb in kwargs["config"]["callbacks"] if isinstance(cb, rs.TokenCaptureHandler)
+        ]
+        captured["capture_handlers"] = handlers
+        if usage is not None:
+            for handler in handlers:
+                for _ in range(usage_per_call):
+                    handler.tokens_in += usage.get("input", 0)
+                    handler.tokens_out += usage.get("output", 0)
+                    handler.tokens_cache += usage.get("cache", 0)
+        return ReturnProposal(summary="S", proposal_text="P")
 
-    class _FakeLLM:
-        def with_structured_output(self, model, **kwargs):
-            captured["model"] = model
-            captured["include_raw"] = kwargs.get("include_raw")
-            return _FakeStructured()
-
-    monkeypatch.setattr(rs, "get_llm", lambda _t: _FakeLLM())
+    monkeypatch.setattr(rs, "get_llm", lambda _t: object())
     monkeypatch.setattr(rs, "load_telephony_prompt", lambda _n, _v: "SYSTEM")
+    monkeypatch.setattr(
+        rs,
+        "get_llm_config_for_agent",
+        lambda _s, _t: SimpleNamespace(provider="deepseek", model="deepseek-v4-flash"),
+    )
+    monkeypatch.setattr(rs, "get_structured_output_with_retry", _fake_chokepoint)
+    return captured
 
-    proposal, usage = await rs.synthesize_return(
+
+async def _run_synthesis() -> tuple[ReturnProposal, rs._SynthUsage | None]:
+    return await rs.synthesize_return(
         transcript="raw transcript",
         transcript_summary="she agreed",
         structured_data=StructuredCallData(
@@ -124,10 +147,31 @@ async def test_synthesize_return_uses_typed_output_and_context(monkeypatch) -> N
         user_timezone="Europe/Paris",
     )
 
+
+@pytest.mark.unit
+async def test_synthesize_return_routes_through_chokepoint(monkeypatch) -> None:
+    """The synthesis MUST go through the central structured-output chokepoint.
+
+    A direct ``llm.with_structured_output`` bypasses the provider constraints the
+    chokepoint carries — measured in prod 2026-07-29: the admin override moved
+    ``telephony_synthesis`` to deepseek-v4-flash with thinking ON, the forced
+    ``tool_choice`` got a 400 on every call, and the user received the raw
+    English vendor summary with no debrief. Complements the repo-wide AST guard
+    (``test_no_direct_structured_output_guard``).
+    """
+    captured = _install_synthesis(monkeypatch)
+
+    proposal, usage = await _run_synthesis()
+
     assert proposal == ReturnProposal(summary="S", proposal_text="P")
-    assert usage is None  # the fake returns a plain proposal (no include_raw envelope)
-    assert captured["model"] is ReturnProposal
-    assert captured["include_raw"] is True  # needed to surface token usage (G-1)
+    assert usage is None  # the fake reported no token usage
+    assert captured["schema"] is ReturnProposal
+    # The REAL provider is forwarded — the chokepoint's provider-specific
+    # routing (deepseek V4 thinking → JSON mode) hinges on it.
+    assert captured["provider"] == "deepseek"
+    assert captured["node_name"] == "telephony_synthesis"
+    # Exactly one token-capture handler rides in the config (G-1).
+    assert len(captured["capture_handlers"]) == 1
     assert len(captured["messages"]) == 2  # system + human
     human = captured["messages"][1].content
     assert "OBJECTIVE: ask availability" in human
@@ -145,6 +189,39 @@ async def test_synthesize_return_uses_typed_output_and_context(monkeypatch) -> N
     # silently drop them (pizza cheese +3€ use case).
     assert "extra cheese +3€" in human
     assert "whether to add extra cheese for +3€" in human
+
+
+@pytest.mark.unit
+async def test_synthesize_return_tracks_usage_from_capture(monkeypatch) -> None:
+    """Token usage flows from the capture callback into the G-1 usage record.
+
+    ``tokens_in`` exposes the NON-cached billable count (cache subtracted),
+    mirroring the briefing pipeline.
+    """
+    _install_synthesis(monkeypatch, usage={"input": 400, "output": 90, "cache": 150})
+
+    _, usage = await _run_synthesis()
+
+    assert usage == rs._SynthUsage(
+        tokens_in=250,  # 400 raw input - 150 cached
+        tokens_out=90,
+        tokens_cache=150,
+        model_name="deepseek-v4-flash",
+    )
+
+
+@pytest.mark.unit
+async def test_synthesize_return_usage_accumulates_across_retries(monkeypatch) -> None:
+    """Retried attempts are paid — their tokens accumulate into the same record."""
+    _install_synthesis(
+        monkeypatch, usage={"input": 100, "output": 20, "cache": 0}, usage_per_call=2
+    )
+
+    _, usage = await _run_synthesis()
+
+    assert usage is not None
+    assert usage.tokens_in == 200
+    assert usage.tokens_out == 40
 
 
 # --------------------------------------------------------------------------- #

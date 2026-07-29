@@ -64,6 +64,7 @@ import {
   parseProviderConfig,
   resolveTtsProvider,
   samplingVisibility,
+  structuredErrorDetail,
   type SamplingVisibility,
   type TTSProviderConfig,
   type TtsProvider,
@@ -1153,7 +1154,9 @@ function LLMConfigDialog({
   metadata: {
     providers: Record<string, ModelCapabilities[]>;
   };
-  t: (key: string) => string;
+  // Interpolation options are needed by the structured-422 toast
+  // (thinkingBudgetBelowFloor carries {{floor}}/{{maxTokens}} from the ctx).
+  t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   const [form, setForm] = useState<LLMTypeConfigUpdate>({});
   // Parsed ``provider_config`` JSONB blob — only consumed when the LLM type's
@@ -1184,8 +1187,22 @@ function LLMConfigDialog({
       await onSave(config.llm_type, update);
       toast.success(t('settings.admin.llmConfig.config.saved'));
       handleClose();
-    } catch {
-      toast.error(t('settings.admin.llmConfig.config.error'));
+    } catch (err) {
+      const detail = structuredErrorDetail(err);
+      if (detail?.type === 'thinking_budget_below_floor') {
+        toast.error(
+          t('settings.admin.llmConfig.config.thinkingBudgetBelowFloor', {
+            maxTokens: String(detail.ctx?.effective_max_tokens ?? '?'),
+            floor: String(detail.ctx?.floor ?? '?'),
+          })
+        );
+      } else if (detail?.msg) {
+        // Other structured 422s (reasoning matrix): surface the backend's
+        // explicit message instead of a generic failure line.
+        toast.error(t('settings.admin.llmConfig.config.error'), { description: detail.msg });
+      } else {
+        toast.error(t('settings.admin.llmConfig.config.error'));
+      }
     }
   };
 

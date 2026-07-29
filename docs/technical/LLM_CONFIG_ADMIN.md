@@ -91,6 +91,26 @@ Un réglage incapable d'exprimer sa propre valeur par défaut est un réglage ca
 
 Prédicat partagé : `reasoning_effort_matches_widget(caps, value)` (jumeau non-levant de `validate_reasoning_effort`), réutilisé par les couches 1 et 3 — une seule source de vérité pour « cette valeur est-elle valide pour ce modèle ? ».
 
+### Plancher « thinking × budget » (ADR-179, v1.26.4)
+
+Les tokens de raisonnement sont facturés **dans la fenêtre de complétion**
+(`max_tokens`) : un raisonnement substantiel au-dessus d'un petit budget rend
+la réponse tronquée ou vide (incident prod 2026-07-29 : `telephony_synthesis`
+basculé sur deepseek-v4-flash effort `high` au-dessus d'un défaut de 600
+tokens — chaque synthèse échouait). `validate_thinking_token_budget`
+(`domains/llm_config/reasoning_validation.py`) rejette en `422`
+(`thinking_budget_below_floor`) toute sauvegarde dont le raisonnement
+**consomme le budget** (enum hors `none/off/minimal/low`, `toggle_budget`
+activé, `budget_int` non nul — prédicat par forme, pas de matrice provider) et
+dont le `max_tokens` **effectif** (override fusionné sur les défauts via le
+même `merge_config` que le runtime — laisser le champ vide hérite du défaut)
+est sous `LLM_THINKING_MAX_TOKENS_FLOOR` (défaut 4000, `.env`). Appliqué au
+chemin d'écriture admin **et** au boot sur `LLM_DEFAULTS` (fail-fast). Côté
+UI, le toast de sauvegarde surface les `422` structurées : message localisé
+avec les chiffres interpolés pour ce type d'erreur, `msg` backend en
+description pour les autres (`structuredErrorDetail`,
+`components/settings/llm-config/configDialogHelpers.ts`).
+
 ### Résolution Clé API
 
 | Source | Rôle | Priorité |

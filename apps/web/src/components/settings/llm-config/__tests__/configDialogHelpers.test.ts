@@ -23,6 +23,7 @@ import {
   resolveTtsProvider,
   samplingVisibility,
   stableStringify,
+  structuredErrorDetail,
 } from '../configDialogHelpers';
 import type { LLMAgentConfig, LLMTypeConfig, ModelCapabilities } from '@/types/llm-config';
 
@@ -320,4 +321,50 @@ describe('sampling visibility', () => {
       showPresencePenalty: true,
     });
   });
+});
+
+// --- structuredErrorDetail ---------------------------------------------------
+
+describe('structuredErrorDetail', () => {
+  it('extracts the Pydantic-style detail from an ApiError-shaped failure', () => {
+    const detail = {
+      type: 'thinking_budget_below_floor',
+      msg: 'explicit backend message',
+      ctx: { floor: 4000, effective_max_tokens: 600 },
+    };
+    expect(structuredErrorDetail({ data: { detail } })).toEqual(detail);
+  });
+
+  it('returns null for every non-structured failure shape', () => {
+    expect(structuredErrorDetail(undefined)).toBeNull();
+    expect(structuredErrorDetail(new Error('network down'))).toBeNull();
+    expect(structuredErrorDetail({ data: 'Internal Server Error' })).toBeNull();
+    // FastAPI's plain-string detail (non-structured 4xx)
+    expect(structuredErrorDetail({ data: { detail: 'Not found' } })).toBeNull();
+    // FastAPI's native RequestValidationError shape is a LIST — not ours
+    expect(structuredErrorDetail({ data: { detail: [{ msg: 'field required' }] } })).toBeNull();
+  });
+});
+
+// --- thinkingBudgetBelowFloor toast copy — real locales ----------------------
+//
+// The explicit message the admin sees on a rejected save is interpolated with
+// {{floor}}/{{maxTokens}} from the backend ctx. Key parity alone does not
+// guarantee the placeholders survive translation — pin them in all 6 locales.
+
+describe('thinkingBudgetBelowFloor key resolves against real locales', () => {
+  it.each(['en', 'fr', 'de', 'es', 'it', 'zh'])(
+    '%s carries the key with both interpolation placeholders',
+    async (lng) => {
+      const bundle = (await import(`../../../../../locales/${lng}/translation.json`)).default as {
+        settings: {
+          admin: { llmConfig: { config: Record<string, string> } };
+        };
+      };
+      const msg = bundle.settings.admin.llmConfig.config.thinkingBudgetBelowFloor;
+      expect(typeof msg).toBe('string');
+      expect(msg).toContain('{{floor}}');
+      expect(msg).toContain('{{maxTokens}}');
+    }
+  );
 });

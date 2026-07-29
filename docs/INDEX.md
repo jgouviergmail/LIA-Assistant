@@ -43,7 +43,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
 | [TELEPHONY.md](./technical/TELEPHONY.md) | Téléphonie agentique (appels sortants, ADR-127) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (178) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (179) |
 
 ### Pour les Product Managers
 
@@ -297,7 +297,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-178 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-179 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 

@@ -983,7 +983,12 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         timeout_seconds=20.0,
     ),
     # Telephony return synthesis: a single tool-less call summarizing a finished
-    # call + proposing a follow-up. Low temperature (factual), short output.
+    # call + proposing a follow-up. Low temperature (factual). The budget must
+    # fit the FULL debrief-era output (ADR-174: summary + proposal_text + 6
+    # debrief fields) PLUS reasoning tokens when the admin routes the type to a
+    # thinking model — measured 2026-07-29 on deepseek-v4-flash effort=high: a
+    # 600-token cap was consumed entirely by reasoning (empty/truncated JSON on
+    # every call). Calibrated like heartbeat_decision (same shape of task).
     "telephony_synthesis": LLMAgentConfig(
         provider="openai",
         model="gpt-4.1-nano",
@@ -991,8 +996,8 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
-        max_tokens=600,
-        timeout_seconds=20.0,
+        max_tokens=5000,
+        timeout_seconds=60.0,
     ),
     "broadcast_translator": LLMAgentConfig(
         provider="openai",

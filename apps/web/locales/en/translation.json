@@ -2162,6 +2162,7 @@
           "saved": "LLM configuration saved",
           "reset": "Configuration reset to defaults",
           "error": "Failed to save configuration",
+          "thinkingBudgetBelowFloor": "Reasoning is enabled, but the effective max tokens ({{maxTokens}}) is below the safety floor of {{floor}}. Reasoning consumes the response budget, so replies would come back truncated or empty. Raise max tokens to at least {{floor}}, or turn reasoning off. Note: leaving max tokens empty inherits the code default.",
           "resetButton": "Reset"
         }
       },
@@ -3580,6 +3581,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_26_4": {
+          "title": "v1.26.4 — 📞 Your call reports, in your language",
+          "date": "July 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📞 Phone calls · Reliable report</b> — the report LIA sends you after a call now always arrives in your language, with the structured debrief (key points, commitments, open questions). Some AI model configurations silently degraded it to a raw English technical summary; that whole failure class is now closed.",
+            "i2": "<b>🛡️ Admin · Configuration guardrail</b> — saving an AI model configuration whose reasoning mode would starve the response budget is now rejected with an explicit message stating the required token floor — instead of failing silently on the next call."
+          }
+        },
         "v1_26_1": {
           "title": "v1.26.1 — 🎨 Answers with real page design",
           "date": "July 2026",

@@ -13,7 +13,7 @@ function enforces that contract on the write path.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from fastapi import HTTPException
 
@@ -24,6 +24,9 @@ from src.core.reasoning_types import (
     ReasoningEffortToggleBudget,
     ReasoningEffortValue,
 )
+
+if TYPE_CHECKING:
+    from src.core.llm_agent_config import LLMAgentConfig
 
 
 class _CapsLike(Protocol):
@@ -202,6 +205,101 @@ def validate_reasoning_effort(
     raise RuntimeError(f"Unknown reasoning_widget: {widget!r}")
 
 
+# LIA-scale enum efforts whose reasoning output is small enough to coexist with
+# a tight completion cap. Everything else that is ACTIVE (deepseek high/max —
+# the only non-off values its admin matrix exposes —, OpenAI medium+, any
+# enabled Qwen toggle, any non-off Gemini budget) produces reasoning tokens
+# that are billed INSIDE the completion window and can consume it entirely.
+_LIGHT_ENUM_EFFORTS = frozenset({"none", "off", "minimal", "low"})
+
+
+def _reasoning_consumes_completion_budget(value: ReasoningEffortValue) -> bool:
+    """True when ``value`` enables reasoning heavy enough to eat the completion cap.
+
+    Shape-based on purpose (no provider matrix to rot): the stored shapes are
+    already provider-discriminated by the model's ``reasoning_widget``.
+
+    - ``ReasoningEffortEnum``: heavy unless the effort is in
+      :data:`_LIGHT_ENUM_EFFORTS` (measured negligible on OpenAI
+      minimal/low; DeepSeek V4 never stores those — its matrix exposes only
+      off/high/max, and high/max map to substantial API-side thinking).
+    - ``ReasoningEffortBudget`` (Gemini): heavy unless the budget is the
+      documented off value (``0``); ``-1`` (dynamic) is heavy — the size is
+      unknown, so the safe reading is "can be large".
+    - ``ReasoningEffortToggleBudget`` (Qwen): heavy whenever enabled.
+    """
+    if value is None:
+        return False
+    if isinstance(value, ReasoningEffortEnum):
+        return value.effort not in _LIGHT_ENUM_EFFORTS
+    if isinstance(value, ReasoningEffortBudget):
+        return value.budget != 0
+    return value.enabled
+
+
+def validate_thinking_token_budget(
+    *,
+    llm_type: str,
+    effective: LLMAgentConfig,
+    floor: int,
+) -> None:
+    """Reject a config whose thinking mode would starve the completion budget.
+
+    Reasoning tokens are billed inside the completion window (``max_tokens``):
+    with substantial thinking enabled and a small cap, the model spends the
+    whole budget reasoning and the final answer comes out truncated or empty.
+    Measured in production 2026-07-29: ``telephony_synthesis`` moved to
+    ``deepseek-v4-flash`` at effort ``high`` while its effective ``max_tokens``
+    stayed at the pre-thinking default of 600 — every post-call synthesis
+    failed and the user received the raw English vendor summary. The admin UI
+    could not warn: nothing related the two fields. This validator is that
+    missing relation, evaluated on the EFFECTIVE config (override merged onto
+    code defaults — leaving ``max_tokens`` empty inherits the default, which
+    is exactly how the incident happened).
+
+    Args:
+        llm_type: The LLM type being saved (error context only).
+        effective: The effective config (defaults + pending override merged
+            with the same ``merge_config`` the runtime uses).
+        floor: Minimum acceptable ``max_tokens`` when thinking is heavy
+            (``settings.llm_thinking_max_tokens_floor``).
+
+    Raises:
+        StructuredValidationError: 422 with an explicit, actionable message
+            and a machine-readable ``ctx`` (``thinking_budget_below_floor``)
+            the frontend maps to a localized toast.
+    """
+    if not _reasoning_consumes_completion_budget(effective.reasoning_effort):
+        return
+    max_tokens = effective.max_tokens
+    if max_tokens is None or max_tokens >= floor:
+        return
+    raise_structured_validation_error(
+        error_type="thinking_budget_below_floor",
+        loc=["body", "max_tokens"],
+        msg=(
+            f"Reasoning is enabled for {llm_type} ({effective.provider}/"
+            f"{effective.model}) but the effective max_tokens is {max_tokens}, "
+            f"below the safe floor of {floor}. Reasoning tokens consume the "
+            "completion budget: with a cap this small the final answer is "
+            "truncated or empty (in production this silently degraded every "
+            "telephony call report to an unusable raw summary). Raise "
+            f"max_tokens to at least {floor}, or turn reasoning off. Note: "
+            "leaving max_tokens empty inherits the code default, which may be "
+            "calibrated for a non-thinking model."
+        ),
+        input_value=max_tokens,
+        ctx={
+            "llm_type": llm_type,
+            "provider": effective.provider,
+            "model": effective.model,
+            "effective_max_tokens": max_tokens,
+            "floor": floor,
+            "reasoning_effort": _serialize(effective.reasoning_effort),
+        },
+    )
+
+
 def _normalize_range(rng: Any) -> dict[str, Any]:
     """Accept either a dict (JSONB column) or a Pydantic ReasoningBudgetRange instance."""
     if rng is None:
@@ -256,4 +354,8 @@ def reasoning_effort_matches_widget(
         return False
 
 
-__all__ = ["validate_reasoning_effort", "reasoning_effort_matches_widget"]
+__all__ = [
+    "reasoning_effort_matches_widget",
+    "validate_reasoning_effort",
+    "validate_thinking_token_budget",
+]

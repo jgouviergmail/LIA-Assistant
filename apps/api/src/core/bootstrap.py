@@ -89,7 +89,10 @@ def validate_llm_defaults_against_matrix() -> None:
 
     from src.domains.llm.models import LLMModelKindEnum
     from src.domains.llm_config.constants import LLM_DEFAULTS, LLM_TYPES_REGISTRY
-    from src.domains.llm_config.reasoning_validation import validate_reasoning_effort
+    from src.domains.llm_config.reasoning_validation import (
+        validate_reasoning_effort,
+        validate_thinking_token_budget,
+    )
     from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
 
     if not ModelCapabilitiesCache.is_loaded():
@@ -115,6 +118,14 @@ def validate_llm_defaults_against_matrix() -> None:
             continue
         try:
             validate_reasoning_effort(caps, cfg.reasoning_effort)
+            # Thinking × completion-budget coherence: a default that enables
+            # substantial reasoning must also carry a max_tokens that survives
+            # it (same rule as the admin write path — prod 2026-07-29).
+            validate_thinking_token_budget(
+                llm_type=llm_type,
+                effective=cfg,
+                floor=settings.llm_thinking_max_tokens_floor,
+            )
         except HTTPException as e:
             detail = e.detail if isinstance(e.detail, dict) else {"msg": str(e.detail)}
             errors.append(f"  - {llm_type} (model={cfg.model}): {detail.get('msg', detail)}")

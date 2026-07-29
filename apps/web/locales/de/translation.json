@@ -1981,6 +1981,7 @@
           "saved": "LLM-Konfiguration gespeichert",
           "reset": "Konfiguration auf Standardwerte zurückgesetzt",
           "error": "Fehler beim Speichern der Konfiguration",
+          "thinkingBudgetBelowFloor": "Reasoning ist aktiviert, aber die effektiven Max-Tokens ({{maxTokens}}) liegen unter der Sicherheitsuntergrenze von {{floor}}. Das Reasoning verbraucht das Antwortbudget: Antworten kämen abgeschnitten oder leer zurück. Erhöhen Sie Max-Tokens auf mindestens {{floor}} oder deaktivieren Sie das Reasoning. Hinweis: Ein leeres Max-Tokens-Feld übernimmt den Code-Standardwert.",
           "resetButton": "Zurücksetzen"
         }
       },
@@ -3571,6 +3572,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_26_4": {
+          "title": "v1.26.4 — 📞 Deine Anrufberichte, in deiner Sprache",
+          "date": "Juli 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📞 Telefonie · Zuverlässiger Bericht</b> — der Bericht, den LIA dir nach einem Anruf schickt, kommt jetzt immer in deiner Sprache, mit dem strukturierten Debrief (Kernpunkte, Zusagen, offene Fragen). Bestimmte KI-Modell-Konfigurationen stuften ihn stillschweigend zu einer englischen Rohzusammenfassung herab; diese Fehlerklasse ist geschlossen.",
+            "i2": "<b>🛡️ Admin · Konfigurationsschutz</b> — eine Modellkonfiguration, deren Reasoning-Modus das Antwortbudget aufzehren würde, wird beim Speichern jetzt mit einer expliziten Meldung samt erforderlicher Token-Untergrenze abgelehnt — statt beim nächsten Anruf stumm zu scheitern."
+          }
+        },
         "v1_26_1": {
           "title": "v1.26.1 — 🎨 Antworten mit echtem Layout",
           "date": "Juli 2026",
