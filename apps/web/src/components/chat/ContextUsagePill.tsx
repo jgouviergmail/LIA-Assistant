@@ -143,7 +143,7 @@ export function ContextUsagePill({ usage, totals }: Props) {
         data-testid="context-usage-pill"
         aria-label={tooltip}
         onClick={() => setShowTooltip(s => !s)}
-        className={`flex items-center gap-1.5 rounded-full ${color.bg} ${color.border} border px-2 py-1 shadow-sm transition-colors`}
+        className={`flex items-center gap-1.5 rounded-full ${color.bg} ${color.border} border px-3 py-1.5 shadow-sm transition-colors`}
       >
         <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden>
           <circle

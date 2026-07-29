@@ -22,6 +22,7 @@ from pydantic_settings import BaseSettings
 from src.core.constants import (
     BRIEFING_AGENDA_LOOKAHEAD_HOURS_DEFAULT,
     BRIEFING_HEALTH_WINDOW_DAYS_DEFAULT,
+    BRIEFING_LAST_GOOD_TTL_SECONDS_DEFAULT,
     BRIEFING_MAX_AGENDA_ITEMS_DEFAULT,
     BRIEFING_MAX_BIRTHDAYS_HORIZON_DAYS_DEFAULT,
     BRIEFING_MAX_BIRTHDAYS_ITEMS_DEFAULT,
@@ -118,4 +119,14 @@ class BriefingSettings(BaseSettings):
         ge=1,
         le=20,
         description="Max recently-modified Drive files on the documents card.",
+    )
+    briefing_last_good_ttl_seconds: int = Field(
+        default=BRIEFING_LAST_GOOD_TTL_SECONDS_DEFAULT,
+        ge=0,
+        le=604800,
+        description=(
+            "How long (seconds) the last known-good payload of a section is "
+            "kept as a stale fallback shown alongside a connector error "
+            "(D-04). 0 disables the stale-while-error net."
+        ),
     )

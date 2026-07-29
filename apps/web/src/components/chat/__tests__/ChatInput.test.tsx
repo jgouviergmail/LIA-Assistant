@@ -771,10 +771,9 @@ describe('ChatInput — send/push-to-talk button truth (UX P2)', () => {
     expect(container.querySelector('svg.lucide-mic')).toBeNull();
     // …then the fallback timer releases it (jsdom never fires animationend —
     // the timer is the guaranteed path; SEND_TAKEOFF_RELEASE_MS = 700 ms).
-    await waitFor(
-      () => expect(container.querySelector('svg.lucide-mic')).toBeInTheDocument(),
-      { timeout: 2000 }
-    );
+    await waitFor(() => expect(container.querySelector('svg.lucide-mic')).toBeInTheDocument(), {
+      timeout: 2000,
+    });
     expect(container.querySelector('svg.lucide-send')).toBeNull();
   });
 
@@ -912,5 +911,47 @@ describe('ChatInput — auto-resize scrollbar discipline (UX P2)', () => {
     await user.type(box, 'hello');
     expect(box.style.height).toBe(`${CHAT_INPUT_MAX_HEIGHT_PX}px`);
     expect(box.style.overflowY).toBe('auto');
+  });
+});
+
+describe('voice spotlight (N-13 — the ?voice=1 PWA shortcut)', () => {
+  it('focuses the push-to-talk button when PTT is offered', () => {
+    voice.isSupported = true;
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} spotlightVoice />);
+
+    const button = screen.getByRole('button', { name: 'chat.voice.hold_to_speak' });
+    expect(button).toHaveFocus();
+  });
+
+  it('NEVER starts recording by itself — the hold gesture stays the user’s', () => {
+    voice.isSupported = true;
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} spotlightVoice />);
+    expect(voice.startRecording).not.toHaveBeenCalled();
+  });
+
+  it('is a silent no-op when voice input is not supported', () => {
+    voice.isSupported = false;
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} spotlightVoice />);
+
+    // The button stays a (disabled, unfocused) send button: no stolen focus.
+    const button = screen.getByRole('button', { name: 'chat.input.send' });
+    expect(button).not.toHaveFocus();
+  });
+
+  it('applies the one-shot spotlight class (a FINITE CSS animation — it dies on its own)', () => {
+    voice.isSupported = true;
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} spotlightVoice />);
+    const button = screen.getByRole('button', { name: 'chat.voice.hold_to_speak' });
+    // Applied imperatively (classList, not className), so React re-renders
+    // can never re-arm the pulse; extinction is the animation's own end.
+    expect(button.classList.contains('voice-ptt-spotlight')).toBe(true);
+  });
+
+  it('does not spotlight without the flag', () => {
+    voice.isSupported = true;
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} />);
+    const button = screen.getByRole('button', { name: 'chat.voice.hold_to_speak' });
+    expect(button).not.toHaveFocus();
+    expect(button.classList.contains('voice-ptt-spotlight')).toBe(false);
   });
 });

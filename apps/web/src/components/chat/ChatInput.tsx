@@ -101,11 +101,43 @@ export interface ChatInputProps {
   slashCommands?: readonly SlashCommand[];
   /** UXR Lot 8 (A4): local command handler (navigation, open search…). */
   onLocalCommand?: (commandId: string) => void;
+  /**
+   * N-13: the `?voice=1` PWA shortcut landed here — draw the eye (and the
+   * focus) to the push-to-talk button once, WITHOUT recording: PTT is a HOLD
+   * gesture and the mic permission must follow a real user press. No-op when
+   * PTT is not offered (text present, voice unsupported/disabled, blocked).
+   */
+  spotlightVoice?: boolean;
 }
 
 /** Initial textarea value (module-level: keeps the component's CC flat). */
 function initialDraft(initialMessage: string | undefined): string {
   return initialMessage ?? '';
+}
+
+/**
+ * N-13 one-shot voice spotlight (module-level hook — CC discipline). Waits
+ * until PTT is actually offered (voiceSupported can settle async after
+ * mount), then focuses the button and pulses it via a FINITE CSS animation —
+ * applied imperatively (an effect synchronizing the DOM, no state), it
+ * extinguishes by itself and the class stays inert afterwards. Consumed
+ * once — a later mode flip must not re-trigger it. Never records: the HOLD
+ * gesture stays the user's.
+ */
+function useVoiceSpotlight(
+  spotlightVoice: boolean | undefined,
+  pttOffered: boolean,
+  buttonRef: React.RefObject<HTMLButtonElement | null>
+): void {
+  const consumedRef = useRef(false);
+  useEffect(() => {
+    if (!spotlightVoice || consumedRef.current || !pttOffered) return;
+    const button = buttonRef.current;
+    if (!button) return;
+    consumedRef.current = true;
+    button.focus();
+    button.classList.add('voice-ptt-spotlight');
+  }, [spotlightVoice, pttOffered, buttonRef]);
 }
 
 /** Stable empty history (a per-render `?? []` would defeat memoization). */
@@ -309,6 +341,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   prefill,
   slashCommands,
   onLocalCommand,
+  spotlightVoice,
 }) => {
   const { t } = useTranslation();
   const [message, setMessage] = useState(initialDraft(initialMessage));
@@ -717,6 +750,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   });
   const buttonLabel = composerButtonLabel(t, { isRecording, isProcessing, showSendMode });
 
+  // N-13: one-shot voice spotlight — logic lives in the module-level hook.
+  const composerButtonRef = useRef<HTMLButtonElement>(null);
+  useVoiceSpotlight(spotlightVoice, !showSendMode, composerButtonRef);
+
   return (
     // role="presentation": drag-and-drop is a pointer-only convenience — the
     // universal path to attachments is the labelled attach button + file
@@ -840,6 +877,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             <>
               {/* Send / Push-to-talk button */}
               <Button
+                ref={composerButtonRef}
                 type={showSendMode ? 'submit' : 'button'}
                 size="lg"
                 disabled={isButtonDisabled || (showSendMode && !hasMessage)}

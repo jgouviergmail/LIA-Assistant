@@ -1,8 +1,9 @@
 /**
- * QuickAccessCompact — the compact Help + Settings bar above the briefing.
+ * QuickAccessCompact — the compact Help + Relations + Settings bar above the
+ * briefing (Relations added by N-09: the CRM has no nav slot).
  *
  * What must hold, in order of consequence:
- *  1. both destinations are reachable, in a stable order, and land on the right
+ *  1. every destination is reachable, in a stable order, and lands on the right
  *     localized URL — this component's whole purpose is findability;
  *  2. they are LINKS, not buttons: middle-click, open-in-new-tab and the "link"
  *     role are what a navigation owes its user (the previous implementation
@@ -22,25 +23,31 @@ import { QuickAccessCompact } from '../QuickAccessCompact';
 /** The global i18n stub echoes keys, so labels ARE their keys here. */
 const HELP = 'dashboard.quick_access_compact.help';
 const HELP_SUB = 'dashboard.quick_access_compact.help_sub';
+const RELATIONS = 'dashboard.quick_access_compact.relations';
 const SETTINGS = 'dashboard.quick_access_compact.settings';
 const SETTINGS_SUB = 'dashboard.quick_access_compact.settings_sub';
 
 describe('QuickAccessCompact', () => {
-  it('offers exactly two destinations, help first', () => {
+  it('offers three destinations: help, relations, settings', () => {
     renderWithProviders(<QuickAccessCompact lng="fr" />);
 
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(2);
+    expect(links).toHaveLength(3);
     expect(links[0]).toHaveAccessibleName(new RegExp(HELP));
-    expect(links[1]).toHaveAccessibleName(new RegExp(SETTINGS));
+    expect(links[1]).toHaveAccessibleName(new RegExp(RELATIONS));
+    expect(links[2]).toHaveAccessibleName(new RegExp(SETTINGS));
   });
 
-  it('links to the localized FAQ and settings pages', () => {
+  it('links to the localized FAQ, relations and settings pages', () => {
     renderWithProviders(<QuickAccessCompact lng="fr" />);
 
     expect(screen.getByRole('link', { name: new RegExp(HELP) })).toHaveAttribute(
       'href',
       '/fr/dashboard/faq'
+    );
+    expect(screen.getByRole('link', { name: new RegExp(RELATIONS) })).toHaveAttribute(
+      'href',
+      '/fr/dashboard/relations'
     );
     expect(screen.getByRole('link', { name: new RegExp(SETTINGS) })).toHaveAttribute(
       'href',
@@ -88,13 +95,14 @@ describe('QuickAccessCompact', () => {
     expect(flowInsideAnchor).toHaveLength(0);
   });
 
-  it('renders both actions inside ONE bar, not two detached cards', () => {
+  it('renders all actions inside ONE bar, not detached cards', () => {
     const { container } = renderWithProviders(<QuickAccessCompact lng="fr" />);
 
     const links = Array.from(container.querySelectorAll('a'));
-    expect(links).toHaveLength(2);
+    expect(links).toHaveLength(3);
     // Same parent: that is what makes it a bar rather than a grid of cards.
     expect(links[0].parentElement).toBe(links[1].parentElement);
+    expect(links[1].parentElement).toBe(links[2].parentElement);
     // And that parent is the component root — no intermediate card wrapper.
     expect(links[0].parentElement).toBe(container.firstElementChild);
   });

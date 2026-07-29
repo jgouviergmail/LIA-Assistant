@@ -3,8 +3,8 @@
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
 **Versione**: 1.1
-**Data**: 2026-07-28
-**Applicazione**: LIA v1.25.33
+**Data**: 2026-07-29
+**Applicazione**: LIA v1.26.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---

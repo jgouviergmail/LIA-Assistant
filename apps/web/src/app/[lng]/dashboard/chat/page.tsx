@@ -28,6 +28,7 @@ import { sentHistoryOf } from '@/lib/sent-history';
 import { hitlAwaitsUser, visibleChatSurfaces } from '@/lib/chat-surfaces';
 import { visibleFollowups } from '@/components/chat/FollowupChips';
 import { ChatConditionalSurfaces } from '@/components/chat/ChatConditionalSurfaces';
+import { SelectionActions } from '@/components/chat/SelectionActions';
 import { ResetConversationConfirm } from '@/components/chat/ResetConversationConfirm';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -37,7 +38,13 @@ import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { useInputDraft } from '@/hooks/useInputDraft';
 import { useSkills } from '@/hooks/useSkills';
-import type { SlashCommand } from '@/lib/slash-commands';
+import {
+  buildStaticSlashCommands,
+  userShortcutCommands,
+  type SlashCommand,
+} from '@/lib/slash-commands';
+import { useChatShortcuts } from '@/hooks/useChatShortcuts';
+import { useAutoSendIntent } from '@/hooks/useAutoSendIntent';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UsageBanners } from '@/components/usage/UsageBanners';
 import { ActiveCallBanner } from '@/components/telephony/ActiveCallBanner';
@@ -62,14 +69,51 @@ function shortLang(language: string | undefined): string {
   return (language || 'fr').split('-')[0];
 }
 
+/**
+ * Strip the consumed deep-link params from the URL (module-level — keeps
+ * ChatPage under the CC cap). `?draft=` is also handed to the persisted draft
+ * BEFORE stripping, so a refresh right after arriving keeps the prefill; the
+ * one-shot `?voice=`/`?intent=` are read into state at mount, so removing them
+ * here only prevents a reload/back from replaying them.
+ */
+/** One-shot deep-link flags read at mount (module-level — CC discipline). */
+function readDeepLinkFlags(searchParams: ReadonlyURLSearchParams | null): {
+  spotlightVoice: boolean;
+  pendingIntent: string;
+} {
+  return {
+    spotlightVoice: searchParams?.get('voice') === '1',
+    pendingIntent: searchParams?.get('intent') ?? '',
+  };
+}
+
+function consumeDeepLinkParams(
+  searchParams: ReadonlyURLSearchParams | null,
+  saveDraft: (text: string) => void
+): void {
+  const draft = searchParams?.get('draft');
+  const voice = searchParams?.get('voice');
+  const intent = searchParams?.get('intent');
+  if (!draft && !voice && !intent) return;
+  if (draft?.trim()) saveDraft(draft);
+  const url = new URL(window.location.href);
+  url.searchParams.delete('draft');
+  url.searchParams.delete('voice');
+  url.searchParams.delete('intent');
+  window.history.replaceState({}, '', url.toString());
+}
+
 export default function ChatPage() {
   const { user, isLoading } = useAuth();
   const searchParams = useSearchParams();
   // Debug Panel: Check if enabled (runtime admin setting only)
   // Must be before useChat so we can pass visibility for viewport_width calculation
   const { isEnabled: debugPanelEnabled } = useDebugPanelEnabled();
+  // Auth resolved AND a user present — the single readiness signal reused by
+  // the app-config fetch and the QW-24 intent auto-send (one `&&`, not two).
+  const authReady = !!user && !isLoading;
   // App config: feature flags from backend /api/v1/config
-  const { config: appConfig } = useAppConfig(!!user && !isLoading);
+  const { config: appConfig } = useAppConfig(authReady);
 
   // Usage limits (per-user quotas)
   const {
@@ -89,14 +133,14 @@ export default function ChatPage() {
   // UXR Lot 2 (A7): the consumed deep link is handed to the persisted draft —
   // ChatInput never signals its initial value, so without this a refresh
   // right after arriving from a briefing intent would lose the prefill.
+  // N-13 `?voice=1` (PTT spotlight) + QW-24 `?intent=` (auto-send, ADR-173):
+  // read ONCE at mount, BEFORE the consumption effect strips them from the URL
+  // so a reload/back cannot replay them. Extracted to keep ChatPage's CC flat.
+  const [deepLinkFlags] = useState(() => readDeepLinkFlags(searchParams));
+  const { spotlightVoice, pendingIntent } = deepLinkFlags;
+
   useEffect(() => {
-    const draft = searchParams?.get('draft');
-    if (draft) {
-      if (draft.trim()) saveDraft(draft);
-      const url = new URL(window.location.href);
-      url.searchParams.delete('draft');
-      window.history.replaceState({}, '', url.toString());
-    }
+    consumeDeepLinkParams(searchParams, saveDraft);
     // Mount-only consumption of the deep link.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -419,89 +463,40 @@ export default function ChatPage() {
     [sendMessageFromPresent]
   );
 
+  // QW-24 (ADR-173): auto-send the captured `?intent=`. Quota-blocked
+  // sessions degrade to a persisted draft — saved, said out loud, never
+  // force-fed past the wall.
+  const intentFallbackToDraft = useCallback(
+    (text: string) => {
+      saveDraft(text);
+      toast.info(t('chat.intent_saved_as_draft'));
+    },
+    [saveDraft, t]
+  );
+  useAutoSendIntent({
+    intent: pendingIntent,
+    ready: authReady,
+    apiAvailable,
+    isTyping,
+    isUsageBlocked,
+    send: sendMessageFromPresent,
+    fallbackToDraft: intentFallbackToDraft,
+  });
+
   // UXR Lot 3 (A3): stable handler for the floating button's history-view
   // delegation (returnToPresent owns its own in-flight guard).
   const handleReturnToPresent = useCallback(() => {
     void returnToPresent();
   }, [returnToPresent]);
 
-  // UXR Lot 8 (A4): slash-command registry — static commands (core actions
-  // + everyday shortcuts, QA 2026-07-23) + the dialogue-flagged skills
-  // (ADR-118), all labels localized here.
+  // UXR Lot 8 (A4) + SLASH admin: slash-command registry — the static table
+  // (declared once in lib/slash-commands, QA 2026-07-23), the user's own
+  // shortcuts (server-persisted; statics win on a legacy id collision), then
+  // the dialogue-flagged skills (ADR-118). All labels localized here.
   const { skills } = useSkills();
+  const { shortcuts: userShortcuts } = useChatShortcuts();
   const slashCommands = useMemo<SlashCommand[]>(() => {
-    const statics: SlashCommand[] = [
-      {
-        id: 'resume',
-        kind: 'conversational',
-        label: t('chat.slash.resume_label'),
-        description: t('chat.slash.resume_description'),
-        insertText: '/resume',
-      },
-      {
-        id: 'briefing',
-        kind: 'local',
-        label: t('chat.slash.briefing_label'),
-        description: t('chat.slash.briefing_description'),
-      },
-      {
-        id: 'agenda',
-        kind: 'conversational',
-        label: t('chat.slash.agenda_label'),
-        description: t('chat.slash.agenda_description'),
-        insertText: t('chat.slash.agenda_intent'),
-      },
-      {
-        id: 'search',
-        kind: 'local',
-        label: t('chat.slash.search_label'),
-        description: t('chat.slash.search_description'),
-      },
-      // Everyday conversational shortcuts (QA feedback 2026-07-23): each
-      // prefills a localized intent — never auto-sent (A4 contract).
-      {
-        id: 'emails',
-        kind: 'conversational',
-        label: t('chat.slash.emails_label'),
-        description: t('chat.slash.emails_description'),
-        insertText: t('chat.slash.emails_intent'),
-      },
-      {
-        id: 'weather',
-        kind: 'conversational',
-        label: t('chat.slash.weather_label'),
-        description: t('chat.slash.weather_description'),
-        insertText: t('chat.slash.weather_intent'),
-      },
-      {
-        id: 'weather-weekend',
-        kind: 'conversational',
-        label: t('chat.slash.weather_weekend_label'),
-        description: t('chat.slash.weather_weekend_description'),
-        insertText: t('chat.slash.weather_weekend_intent'),
-      },
-      {
-        id: 'tasks',
-        kind: 'conversational',
-        label: t('chat.slash.tasks_label'),
-        description: t('chat.slash.tasks_description'),
-        insertText: t('chat.slash.tasks_intent'),
-      },
-      {
-        id: 'reminders',
-        kind: 'conversational',
-        label: t('chat.slash.reminders_label'),
-        description: t('chat.slash.reminders_description'),
-        insertText: t('chat.slash.reminders_intent'),
-      },
-      {
-        id: 'news',
-        kind: 'conversational',
-        label: t('chat.slash.news_label'),
-        description: t('chat.slash.news_description'),
-        insertText: t('chat.slash.news_intent'),
-      },
-    ];
+    const statics = buildStaticSlashCommands(t);
     const dialogueSkills = skills
       .filter(skill => skill.dialogue && skill.enabled_for_user)
       .map<SlashCommand>(skill => ({
@@ -511,8 +506,8 @@ export default function ChatPage() {
         description: skill.descriptions?.[lng] ?? skill.description,
         insertText: t('chat.slash.skill_intent', { name: skill.name }),
       }));
-    return [...statics, ...dialogueSkills];
-  }, [t, skills, lng]);
+    return [...statics, ...userShortcutCommands(userShortcuts), ...dialogueSkills];
+  }, [t, skills, lng, userShortcuts]);
   const handleLocalCommand = useCallback(
     (commandId: string) => {
       if (commandId === 'briefing') router.push('/dashboard');
@@ -776,13 +771,20 @@ export default function ChatPage() {
         >
           {/* Header - Enhanced with glassmorphism and shimmer effect */}
           <div className="relative border-b border-border/40 bg-card/95 backdrop-blur-sm px-4 py-4 sm:px-6 shadow-sm header-shimmer">
-            <div className="flex items-center justify-between">
+            {/* Three IN-FLOW columns with equal-weight (`flex-1`) sides and a
+                `shrink-0` middle: the middle (voice + spaces) is CENTRED when
+                the sides are balanced, and SHIFTS by itself — never overlaps —
+                when a side grows (the processing / listening status pill, the
+                search field). The former `absolute left-1/2` centring reserved
+                no width and overlapped the left group; equal flex sides give
+                the same visual centring while reflowing automatically. */}
+            <div className="flex items-center gap-2">
               {/* Left side: status pill + search, in that order. The status
                   only renders when it carries information (QW-12) — the
                   nominal "online" state is silent; offline and processing are
                   the exceptional states worth a pill, shown LEFT of the
-                  search field. `min-w-0 flex-1` keeps the flex layout stable
-                  when the pill renders nothing. */}
+                  search field. `min-w-0 flex-1` lets this side truncate first
+                  so the centred group keeps its place. */}
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 {!apiAvailable ? (
                   <div className="flex items-center gap-2 rounded-full bg-rose-100 dark:bg-rose-900 px-3 py-1.5 shadow-sm border border-rose-200 dark:border-rose-800 shrink-0">
@@ -836,17 +838,14 @@ export default function ChatPage() {
                 </div>
               </div>
 
-              {/* Center: Voice Mode Badge — single instance, always mounted to
-                  preserve KWS state — and, beside it, the active-spaces
-                  indicator.
-
-                  The indicator used to sit in the flow, which pushed it flush
-                  against the right-hand controls; and centring it on its own
-                  would have put it UNDER the voice badge, which is absolutely
-                  centred. Sharing one centred row makes the overlap impossible
-                  by construction: alone it is centred, together they sit side
-                  by side with a gap. */}
-              <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-2">
+              {/* Centre (in flow, shrink-0): Voice Mode Badge — single
+                  instance, always mounted to preserve KWS state — and, beside
+                  it, the active-spaces pill. `shrink-0` keeps them intact while
+                  the flex-1 sides absorb the width; equal sides keep them
+                  visually centred and let them SHIFT rather than overlap when a
+                  side grows. Discreet, homogeneous pill styling on the
+                  indicator. */}
+              <div className="flex shrink-0 items-center gap-2">
                 <VoiceModeBadge
                   onTranscription={(text, meta) =>
                     sendMessageFromPresent(text, undefined, undefined, meta)
@@ -856,9 +855,10 @@ export default function ChatPage() {
                 <ActiveSpacesIndicator />
               </div>
 
-              {/* Right side: Context-usage pill + Delete/New chat (the search
-                  field lives in the LEFT slot, after the status pill). */}
-              <div className="flex items-center gap-2">
+              {/* Right side: context-usage pill + Delete/New chat, in flow.
+                  `min-w-0 flex-1` mirrors the left side so the centre stays
+                  centred; `justify-end` keeps these pinned to the right edge. */}
+              <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
                 {/* Context-usage pill — shows tokens vs compaction threshold.
                     Hidden until the first turn completes (no data yet).
                     Desktop order on this side: [Pill] [Delete]. Conversation
@@ -947,6 +947,11 @@ export default function ChatPage() {
             <RegistryProvider value={registryWithHistory}>
               {/* Headless: celebrates relationship-stage milestones (I7) */}
               <PsycheMilestoneWatcher />
+              {/* C-02: act on a selected passage of an assistant answer —
+                  executes through the same send path as a typed message
+                  (ADR-173), or prefills when the action needs the user's
+                  own words. Renders nothing without a scoped selection. */}
+              <SelectionActions onExecute={sendMessageFromPresent} onPrefill={handleFollowupPick} />
               <ChatMessageList
                 messages={displayedMessages}
                 isTyping={isTyping && !searchQuery}
@@ -997,6 +1002,7 @@ export default function ChatPage() {
               prefill={chipPrefill}
               slashCommands={slashCommands}
               onLocalCommand={handleLocalCommand}
+              spotlightVoice={spotlightVoice}
               onSendMessage={sendMessageFromPresent}
               disabled={isTyping || isUsageBlocked}
               isConnected={isConnected}

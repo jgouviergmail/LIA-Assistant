@@ -142,6 +142,15 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'personalization',
     gate: { kind: 'runtime', reason: 'renders nothing until the briefing preferences load' },
   },
+  'chat-shortcuts': {
+    titleKey: 'settings.chat_shortcuts.title',
+    descriptionKey: 'settings.chat_shortcuts.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.chat-shortcuts`,
+    group: 'personalization',
+    // `always`, unlike briefing-grid: the SECTION shell renders regardless —
+    // only its body waits for the shortcuts to load.
+    gate: { kind: 'always' },
+  },
   'open-loops': {
     titleKey: 'settings.open_loops.title',
     descriptionKey: 'settings.open_loops.description',

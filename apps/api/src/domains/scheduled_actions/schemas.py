@@ -9,7 +9,62 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from src.domains.scheduled_actions.models import (
+    CONDITION_TYPE_CALENDAR_EVENT,
+    CONDITION_TYPE_MAIL_MATCH,
+    CONDITION_TYPES,
+    TriggerKind,
+)
 from src.domains.scheduled_actions.schedule_helpers import format_schedule_display
+
+# Weather-change kinds accepted by the condition (mirror of the briefing
+# ForecastAlertKind values — a wrong kind would silently never fire).
+WEATHER_CONDITION_KINDS: frozenset[str] = frozenset({"rain", "thunderstorm", "snow", "drizzle"})
+
+
+class ConditionConfig(BaseModel):
+    """Condition of a CONDITION-kind routine (N-07 phase 1).
+
+    Per-type params, all bounded:
+    - ``task_overdue``: no params — fires on a NEW overdue task;
+    - ``weather_change``: ``kinds`` ⊆ WEATHER_CONDITION_KINDS (default: all);
+    - ``mail_match``: ``query`` (2–120 chars) matched against today's unread
+      subjects/senders;
+    - ``document_added``: no params — fires on newly modified Drive files;
+    - ``calendar_event``: ``within_hours`` (1–48, default 4) and optional
+      ``query`` matched against event titles.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    type: str = Field(..., description="One of CONDITION_TYPES.")
+    kinds: list[str] | None = Field(
+        default=None, description="weather_change only: alert kinds to react to."
+    )
+    query: str | None = Field(
+        default=None,
+        min_length=2,
+        max_length=120,
+        description="mail_match (required) / calendar_event (optional) text filter.",
+    )
+    within_hours: int | None = Field(
+        default=None, ge=1, le=48, description="calendar_event only: look-ahead window."
+    )
+
+    @model_validator(mode="after")
+    def validate_per_type(self) -> "ConditionConfig":
+        """Refuse unknown types and per-type nonsense at the API boundary."""
+        if self.type not in CONDITION_TYPES:
+            raise ValueError(f"Unknown condition type: {self.type}")
+        if self.kinds is not None:
+            unknown = [k for k in self.kinds if k not in WEATHER_CONDITION_KINDS]
+            if unknown:
+                raise ValueError(f"Unknown weather kinds: {unknown}")
+        if self.type == CONDITION_TYPE_MAIL_MATCH and not (self.query and self.query.strip()):
+            raise ValueError("mail_match requires a query")
+        if self.within_hours is not None and self.type != CONDITION_TYPE_CALENDAR_EVENT:
+            raise ValueError("within_hours only applies to calendar_event")
+        return self
 
 
 class ScheduledActionCreate(BaseModel):
@@ -45,6 +100,19 @@ class ScheduledActionCreate(BaseModel):
         le=59,
         description="Minute of execution (0-59) in user timezone",
     )
+    # N-07 phase 1 — additive with time defaults, so the ADR-140 chat tool
+    # (which builds this schema without the new fields) keeps its behavior.
+    trigger_kind: TriggerKind = Field(
+        default=TriggerKind.TIME,
+        description="time = fire at every tick; condition = fire only when met.",
+    )
+    condition_config: ConditionConfig | None = Field(
+        default=None, description="Required when trigger_kind is condition."
+    )
+    requires_approval: bool = Field(
+        default=False,
+        description="True = propose via notification instead of executing.",
+    )
 
     @model_validator(mode="after")
     def validate_days(self) -> "ScheduledActionCreate":
@@ -54,6 +122,15 @@ class ScheduledActionCreate(BaseModel):
                 raise ValueError(f"Invalid day {d}: must be 1 (Mon) to 7 (Sun)")
         if len(self.days_of_week) != len(set(self.days_of_week)):
             raise ValueError("Duplicate days are not allowed")
+        return self
+
+    @model_validator(mode="after")
+    def validate_condition(self) -> "ScheduledActionCreate":
+        """A condition routine needs its condition; a time routine refuses one."""
+        if self.trigger_kind is TriggerKind.CONDITION and self.condition_config is None:
+            raise ValueError("condition_config is required when trigger_kind is condition")
+        if self.trigger_kind is TriggerKind.TIME and self.condition_config is not None:
+            raise ValueError("condition_config only applies to condition routines")
         return self
 
 
@@ -90,6 +167,15 @@ class ScheduledActionUpdate(BaseModel):
         le=59,
         description="Minute of execution (0-59) in user timezone",
     )
+    trigger_kind: TriggerKind | None = Field(
+        None, description="time = fire at every tick; condition = fire only when met."
+    )
+    condition_config: ConditionConfig | None = Field(
+        None, description="New condition (kind/config coherence enforced in the service)."
+    )
+    requires_approval: bool | None = Field(
+        None, description="True = propose via notification instead of executing."
+    )
 
     @model_validator(mode="after")
     def validate_days(self) -> "ScheduledActionUpdate":
@@ -114,6 +200,9 @@ class ScheduledActionResponse(BaseModel):
     trigger_hour: int
     trigger_minute: int
     user_timezone: str
+    trigger_kind: str
+    condition_config: dict | None
+    requires_approval: bool
     next_trigger_at: datetime
     is_enabled: bool
     status: str

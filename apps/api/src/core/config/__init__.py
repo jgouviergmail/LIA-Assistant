@@ -54,6 +54,7 @@ from .observability import ObservabilitySettings
 from .open_loops import OpenLoopsSettings
 from .psyche import PsycheSettings
 from .rag_spaces import RAGSpacesSettings
+from .relations import RelationsSettings
 from .scheduler import SchedulerSettings
 from .security import SecuritySettings
 from .skills import SkillsSettings
@@ -101,6 +102,7 @@ class Settings(
     AttachmentsSettings,
     BriefingSettings,
     RAGSpacesSettings,
+    RelationsSettings,
     SkillsSettings,
     BrowserSettings,
     JournalsSettings,

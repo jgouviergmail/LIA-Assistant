@@ -63,6 +63,7 @@ import { VoiceModeSettings } from '@/components/settings/VoiceModeSettings';
 import { ImageGenerationSettings } from '@/components/settings/ImageGenerationSettings';
 import { UserDebugSettings } from '@/components/settings/UserDebugSettings';
 import { BriefingGridSettings } from '@/components/settings/BriefingGridSettings';
+import { ChatShortcutsSettings } from '@/components/settings/ChatShortcutsSettings';
 import { OpenLoopsSection } from '@/components/settings/OpenLoopsSection';
 import { CardsDisplaySettings } from '@/components/settings/CardsDisplaySettings';
 import { SettingsGroupLabel } from '@/components/settings/SettingsGroupLabel';
@@ -403,6 +404,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <FontSettings lng={lng} />
               <CardsDisplaySettings lng={lng} />
               <BriefingGridSettings lng={lng} />
+              <ChatShortcutsSettings lng={lng} />
               <OpenLoopsSection lng={lng} />
 
               {/* Group: Notifications & Communication */}
@@ -582,6 +584,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <FontSettings lng={lng} />
               <CardsDisplaySettings lng={lng} />
               <BriefingGridSettings lng={lng} />
+              <ChatShortcutsSettings lng={lng} />
               <OpenLoopsSection lng={lng} />
 
               {/* Group: Notifications & Communication */}

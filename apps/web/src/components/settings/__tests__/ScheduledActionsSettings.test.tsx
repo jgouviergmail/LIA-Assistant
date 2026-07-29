@@ -39,6 +39,9 @@ function action(over: Partial<ScheduledAction> = {}): ScheduledAction {
     trigger_hour: 8,
     trigger_minute: 0,
     user_timezone: 'Europe/Paris',
+    trigger_kind: 'time',
+    condition_config: null,
+    requires_approval: false,
     next_trigger_at: '2026-07-20T06:00:00Z',
     is_enabled: true,
     status: 'active',
@@ -251,6 +254,10 @@ describe('ScheduledActionsSettings — creation', () => {
         days_of_week: [1],
         trigger_hour: 8,
         trigger_minute: 0,
+        // N-07: a default create is an unchanged "time" routine.
+        trigger_kind: 'time',
+        condition_config: null,
+        requires_approval: false,
       })
     );
     expect(toast.success).toHaveBeenCalledWith('scheduled_actions.create_success');

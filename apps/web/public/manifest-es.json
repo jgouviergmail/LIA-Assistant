@@ -63,8 +63,28 @@
       ]
     },
     {
-      "name": "Espacios de documentos",
-      "url": "/es/dashboard/settings",
+      "name": "Espacios de conocimiento",
+      "url": "/es/dashboard/spaces",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Hablar con LIA",
+      "url": "/es/dashboard/chat?voice=1",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Recordatorio rápido",
+      "url": "/es/dashboard/chat?draft=Recu%C3%A9rdame%20",
       "icons": [
         {
           "src": "/icon-192.png",

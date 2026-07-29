@@ -354,6 +354,61 @@ def compose_delivery_text(
     return f"{proposal_text}\n\n{suggestion}"
 
 
+async def _synthesize_with_fallback(
+    *,
+    call_id: UUID,
+    transcript: str,
+    transcript_summary: str,
+    structured: StructuredCallData,
+    objective: str,
+    callee_display: str,
+    language: str,
+    fallback_phrase: str,
+) -> tuple[ReturnProposal, _SynthUsage | None]:
+    """Run the synthesis; a failure degrades to the plain-summary proposal.
+
+    Extracted from ``process_completed_call`` (CC discipline). The fallback
+    proposal is intentionally debrief-empty — it persists as NULL downstream.
+    """
+    try:
+        return await synthesize_return(
+            transcript=transcript,
+            transcript_summary=transcript_summary,
+            structured_data=structured,
+            objective=objective,
+            callee_display=callee_display,
+            user_language=language,
+        )
+    except Exception as exc:  # noqa: BLE001 — synthesis must not lose the call
+        logger.warning("telephony_synthesis_failed", call_id=str(call_id), error=str(exc))
+        fallback = transcript_summary or fallback_phrase
+        return ReturnProposal(summary=transcript_summary or "", proposal_text=fallback), None
+
+
+async def _track_synthesis_usage(
+    usage: _SynthUsage | None, *, call_id: UUID, user_id: UUID
+) -> None:
+    """Best-effort proactive-token tracking (G-1) — never loses the delivery.
+
+    Extracted from ``process_completed_call`` (CC discipline).
+    """
+    if usage is None:
+        return
+    try:
+        await track_proactive_tokens(
+            user_id=user_id,
+            task_type=_TASK_TYPE,
+            target_id=str(call_id),
+            conversation_id=None,
+            tokens_in=usage.tokens_in,
+            tokens_out=usage.tokens_out,
+            tokens_cache=usage.tokens_cache,
+            model_name=usage.model_name,
+        )
+    except Exception as exc:  # noqa: BLE001 — tracking must not lose the delivery
+        logger.warning("telephony_token_tracking_failed", call_id=str(call_id), error=str(exc))
+
+
 async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None:
     """Reconcile a finished call, synthesize the return, persist + deliver it.
 
@@ -377,20 +432,16 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
         language = user.language if user else settings.default_language
         phrases = get_return_phrases(language)
 
-        usage: _SynthUsage | None = None
-        try:
-            proposal, usage = await synthesize_return(
-                transcript=transcript,
-                transcript_summary=transcript_summary,
-                structured_data=structured,
-                objective=call.objective,
-                callee_display=call.callee_display,
-                user_language=language,
-            )
-        except Exception as exc:  # noqa: BLE001 — synthesis must not lose the call
-            logger.warning("telephony_synthesis_failed", call_id=str(call_id), error=str(exc))
-            fallback = transcript_summary or phrases["fallback"]
-            proposal = ReturnProposal(summary=transcript_summary or "", proposal_text=fallback)
+        proposal, usage = await _synthesize_with_fallback(
+            call_id=call_id,
+            transcript=transcript,
+            transcript_summary=transcript_summary,
+            structured=structured,
+            objective=call.objective,
+            callee_display=call.callee_display,
+            language=language,
+            fallback_phrase=phrases["fallback"],
+        )
 
         # P14 — append the deterministic appointment suggestion BEFORE arming
         # the outbox record, so every delivery path (dispatch + reaper) carries it.
@@ -402,12 +453,18 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
             user_timezone=_user_display_timezone(user),
         )
 
+        # T01: an all-empty debrief (synthesis fallback, or a call with nothing
+        # actionable) persists as NULL — absence, not noise.
+        debrief = proposal.debrief_dict()
+        debrief_or_none = debrief if any(debrief.values()) else None
+
         claimed = await repo.mark_completed(
             call_id,
             status=status,
             call_seconds=call_seconds,
             summary=proposal.summary,
             structured_data=structured.model_dump(exclude_none=True),
+            debrief=debrief_or_none,
             outcome=_derive_outcome(structured, status),
             completed_at=datetime.now(UTC),
             # T1: arm the return as a PENDING outbox record in the same atomic
@@ -419,22 +476,7 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
             return  # lost the race — another worker already delivered
 
         # Track the synthesis LLM spend (G-1) — like briefing/heartbeat. Best-effort.
-        if usage is not None:
-            try:
-                await track_proactive_tokens(
-                    user_id=call.user_id,
-                    task_type=_TASK_TYPE,
-                    target_id=str(call_id),
-                    conversation_id=None,
-                    tokens_in=usage.tokens_in,
-                    tokens_out=usage.tokens_out,
-                    tokens_cache=usage.tokens_cache,
-                    model_name=usage.model_name,
-                )
-            except Exception as exc:  # noqa: BLE001 — tracking must not lose the delivery
-                logger.warning(
-                    "telephony_token_tracking_failed", call_id=str(call_id), error=str(exc)
-                )
+        await _track_synthesis_usage(usage, call_id=call_id, user_id=call.user_id)
 
         telephony_calls_total.labels(status=status.value).inc()
         if call_seconds is not None:
@@ -452,7 +494,13 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
                 content=delivery_text,
                 task_type="phone_call",
                 target_id=str(call_id),
-                metadata={"call_status": status.value},
+                # T01: the structured debrief rides in the metadata so the chat
+                # can render an actionable card (InterestNotificationCard
+                # pattern) — same PII surface as the content it accompanies.
+                metadata={
+                    "call_status": status.value,
+                    **({"debrief": debrief_or_none} if debrief_or_none else {}),
+                },
                 db=db,
                 title=phrases["title"],
             )

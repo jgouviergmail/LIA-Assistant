@@ -1,10 +1,11 @@
 'use client';
 
-import { Cake } from 'lucide-react';
+import { Cake, Gift } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
-import { chatDraftHref } from '@/lib/briefing-utils';
+import { CardItemActions } from './CardItemActions';
+import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
 import type { BirthdaysData, CardSection } from '@/types/briefing';
 
 interface BirthdaysCardProps {
@@ -36,6 +37,7 @@ export function BirthdaysCard({
         <BirthdaysContent
           data={data}
           onOpenChat={draft => router.push(chatDraftHref(lng, draft))}
+          onExecute={intent => router.push(chatIntentHref(lng, intent))}
         />
       )}
       staggerIndex={staggerIndex}
@@ -46,9 +48,11 @@ export function BirthdaysCard({
 function BirthdaysContent({
   data,
   onOpenChat,
+  onExecute,
 }: {
   data: BirthdaysData;
   onOpenChat: (draft: string) => void;
+  onExecute: (intent: string) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -58,13 +62,17 @@ function BirthdaysContent({
         const intent = t('dashboard.briefing.intents.birthday', {
           name: birthday.contact_name,
         });
+        const messageIntent = t('dashboard.briefing.intents_exec.birthday_message', {
+          name: birthday.contact_name,
+        });
         return (
-          <li key={index}>
+          // QW-24: action chip as a SIBLING (nested buttons are invalid HTML).
+          <li key={index} className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => onOpenChat(intent)}
               aria-label={intent}
-              className="w-full text-left flex items-baseline justify-between gap-2 text-sm rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="min-w-0 flex-1 text-left flex items-baseline justify-between gap-2 text-sm rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="text-foreground/90 truncate font-medium">
                 {birthday.contact_name}
@@ -82,6 +90,11 @@ function BirthdaysContent({
                     })}
               </span>
             </button>
+            <CardItemActions
+              actions={[
+                { icon: Gift, label: messageIntent, onSelect: () => onExecute(messageIntent) },
+              ]}
+            />
           </li>
         );
       })}

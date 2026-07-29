@@ -113,12 +113,15 @@ function createTimelineEngine(cb: EngineCallbacks): TimelineEngine {
       // Manual: play to the end of the act, then freeze on the resolution
       // frame — no fade, no advance. Resuming from there replays.
       timers.push(
-        setTimeout(() => {
-          clearTimers();
-          elapsed = scenario.holdMs;
-          paused = true;
-          cb.setPaused(true);
-        }, Math.max(0, scenario.holdMs - fromMs))
+        setTimeout(
+          () => {
+            clearTimers();
+            elapsed = scenario.holdMs;
+            paused = true;
+            cb.setPaused(true);
+          },
+          Math.max(0, scenario.holdMs - fromMs)
+        )
       );
     }
   };

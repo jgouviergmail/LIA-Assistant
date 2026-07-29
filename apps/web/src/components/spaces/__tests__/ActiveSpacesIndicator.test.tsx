@@ -1,75 +1,163 @@
 /**
- * Active RAG spaces indicator — its accessible name (S5b, revised).
+ * Active RAG spaces indicator — quick-toggle menu (R01, extends S5b).
  *
- * The plan said "hide it on mobile to reclaim room". Measurement said
- * otherwise: the chat header reachability suite passes at every width, so the
- * row is not saturated and removing the badge would cost information — which
- * spaces are feeding LIA's answers — for no gain.
+ * History: S5b gave the badge an explicit accessible name (below `sm` the
+ * visible text is the bare count, and `title` is hover-only). R01 turns the
+ * bare link into a menu of per-space switches so activation is two taps from
+ * the chat — and, crucially, renders the trigger whenever the user HAS
+ * spaces: the old `activeCount === 0 → null` rule hid the surface exactly
+ * when it was needed to activate the first space.
  *
- * What the measurement DID reveal is a real defect next door: below `sm` the
- * badge renders a bare count beside an icon, so the link's accessible name was
- * the string "2". The `title` that would have explained it is a hover
- * affordance, and touch has no hover. The name now lives on the link and is
- * identical at every width.
+ * What must hold:
+ *  - loading or zero EXISTING spaces → nothing;
+ *  - spaces exist (even zero active) → a named trigger with the count;
+ *  - each space is a menuitemcheckbox reflecting `is_active`, and toggling
+ *    calls the API without closing the menu (batch toggling);
+ *  - the management page stays one item away (the gesture the link provided).
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 
-const { useActiveSpaces } = vi.hoisted(() => ({ useActiveSpaces: vi.fn() }));
+const { useSpaces, toggleSpace } = vi.hoisted(() => ({
+  useSpaces: vi.fn(),
+  toggleSpace: vi.fn(),
+}));
 
 vi.mock('@/hooks/useSpaces', async importOriginal => {
   const actual = await importOriginal<typeof import('@/hooks/useSpaces')>();
-  return { ...actual, useActiveSpaces };
+  return { ...actual, useSpaces };
 });
 vi.mock('next/navigation', () => ({ usePathname: () => '/fr/dashboard/chat' }));
+vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 import { ActiveSpacesIndicator } from '../ActiveSpacesIndicator';
 
-describe('ActiveSpacesIndicator', () => {
+interface SpaceStub {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
+
+function hookValue(spaces: SpaceStub[], overrides: Record<string, unknown> = {}) {
+  return {
+    spaces,
+    activeCount: spaces.filter(s => s.is_active).length,
+    loading: false,
+    toggleSpace,
+    toggling: false,
+    ...overrides,
+  };
+}
+
+const TWO_SPACES: SpaceStub[] = [
+  { id: 's1', name: 'Droit', is_active: true },
+  { id: 's2', name: 'Cuisine', is_active: false },
+];
+
+beforeEach(() => {
+  toggleSpace.mockReset();
+  toggleSpace.mockResolvedValue({ is_active: true });
+});
+
+describe('ActiveSpacesIndicator — visibility', () => {
   it('says nothing while loading', () => {
-    useActiveSpaces.mockReturnValue({ activeCount: 3, loading: true });
+    useSpaces.mockReturnValue(hookValue(TWO_SPACES, { loading: true }));
     const { container } = renderWithProviders(<ActiveSpacesIndicator />);
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('says nothing when no space is active', () => {
-    useActiveSpaces.mockReturnValue({ activeCount: 0, loading: false });
+  it('says nothing when the user has no space at all', () => {
+    useSpaces.mockReturnValue(hookValue([]));
     const { container } = renderWithProviders(<ActiveSpacesIndicator />);
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('names the link explicitly rather than by its bare count', () => {
-    // The whole point: below `sm` the visible text is just "2".
-    useActiveSpaces.mockReturnValue({ activeCount: 2, loading: false });
+  it('renders when spaces exist even with zero active — the activation entry point', () => {
+    useSpaces.mockReturnValue(hookValue(TWO_SPACES.map(s => ({ ...s, is_active: false }))));
+    renderWithProviders(<ActiveSpacesIndicator />);
+    expect(screen.getByRole('button', { name: 'spaces.indicator_tooltip' })).toBeInTheDocument();
+  });
+});
+
+describe('ActiveSpacesIndicator — the trigger', () => {
+  it('names the trigger explicitly rather than by its bare count (S5b invariant)', () => {
+    useSpaces.mockReturnValue(hookValue(TWO_SPACES));
     renderWithProviders(<ActiveSpacesIndicator />);
 
-    const link = screen.getByRole('link');
-    const name = link.getAttribute('aria-label') ?? '';
+    const trigger = screen.getByRole('button');
+    const name = trigger.getAttribute('aria-label') ?? '';
     expect(name).toBe('spaces.indicator_tooltip');
-    expect(name).not.toBe('2');
+    expect(name).not.toBe('1');
   });
 
-  it('leads to the spaces page in the current locale', () => {
-    useActiveSpaces.mockReturnValue({ activeCount: 1, loading: false });
+  it('still shows the active count visually', () => {
+    useSpaces.mockReturnValue(hookValue(TWO_SPACES));
     renderWithProviders(<ActiveSpacesIndicator />);
-    // The locale prefix is the app's business (`buildLocalizedPath` may omit
-    // the default one); what this pins is the destination.
-    expect(screen.getByRole('link').getAttribute('href')).toContain('/dashboard/spaces');
+    expect(screen.getByText('1')).toBeInTheDocument();
   });
 
   it('keeps the decorative icon out of the accessible name', () => {
-    useActiveSpaces.mockReturnValue({ activeCount: 1, loading: false });
+    useSpaces.mockReturnValue(hookValue(TWO_SPACES));
     const { container } = renderWithProviders(<ActiveSpacesIndicator />);
-    const icon = container.querySelector('svg');
-    expect(icon).toHaveAttribute('aria-hidden', 'true');
+    expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+  });
+});
+
+describe('ActiveSpacesIndicator — the menu', () => {
+  it('lists every space as a checkbox reflecting its activation state', async () => {
+    useSpaces.mockReturnValue(hookValue(TWO_SPACES));
+    const { user } = renderWithProviders(<ActiveSpacesIndicator />);
+    await user.click(screen.getByRole('button'));
+
+    const active = await screen.findByRole('menuitemcheckbox', { name: 'Droit' });
+    const inactive = await screen.findByRole('menuitemcheckbox', { name: 'Cuisine' });
+    expect(active).toHaveAttribute('aria-checked', 'true');
+    expect(inactive).toHaveAttribute('aria-checked', 'false');
   });
 
-  it('still shows the count visually', () => {
-    // The information itself is preserved — this lot renames, it does not hide.
-    useActiveSpaces.mockReturnValue({ activeCount: 4, loading: false });
-    renderWithProviders(<ActiveSpacesIndicator />);
-    expect(screen.getByText('4')).toBeInTheDocument();
+  it('toggles a space through the API without closing the menu', async () => {
+    useSpaces.mockReturnValue(hookValue(TWO_SPACES));
+    const { user } = renderWithProviders(<ActiveSpacesIndicator />);
+    await user.click(screen.getByRole('button'));
+
+    await user.click(await screen.findByRole('menuitemcheckbox', { name: 'Cuisine' }));
+
+    expect(toggleSpace).toHaveBeenCalledWith('s2');
+    // Batch toggling: the other switch must still be reachable.
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Droit' })).toBeInTheDocument();
+  });
+
+  it('says a failed toggle out loud instead of rejecting unhandled', async () => {
+    // The reverted switch may be OFF-SCREEN (menu closed on outside tap):
+    // the failure must be spoken, not only visible in the list.
+    toggleSpace.mockRejectedValueOnce(new Error('boom'));
+    useSpaces.mockReturnValue(hookValue(TWO_SPACES));
+    const { user } = renderWithProviders(<ActiveSpacesIndicator />);
+    await user.click(screen.getByRole('button'));
+
+    await user.click(await screen.findByRole('menuitemcheckbox', { name: 'Cuisine' }));
+
+    const { toast } = await import('sonner');
+    expect(toast.error).toHaveBeenCalled();
+  });
+
+  it('disables the switches while a toggle is in flight', async () => {
+    useSpaces.mockReturnValue(hookValue(TWO_SPACES, { toggling: true }));
+    const { user } = renderWithProviders(<ActiveSpacesIndicator />);
+    await user.click(screen.getByRole('button'));
+
+    const item = await screen.findByRole('menuitemcheckbox', { name: 'Droit' });
+    expect(item).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('keeps the management page one item away', async () => {
+    useSpaces.mockReturnValue(hookValue(TWO_SPACES));
+    const { user } = renderWithProviders(<ActiveSpacesIndicator />);
+    await user.click(screen.getByRole('button'));
+
+    const manage = await screen.findByRole('menuitem', { name: /spaces.quick_manage/ });
+    expect(manage.getAttribute('href')).toContain('/dashboard/spaces');
   });
 });

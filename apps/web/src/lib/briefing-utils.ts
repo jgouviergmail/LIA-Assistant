@@ -45,6 +45,36 @@ export function computeTimeAgo(generatedAtIso: string, now: Date = new Date()): 
   return { kind: 'days', count: days };
 }
 
+/**
+ * Bare relative-age label ("il y a 5 min") for D-04's freshness lines.
+ *
+ * Distinct from the UpdatedAtBadge keys on purpose: those embed the verb
+ * ("mis à jour il y a…") while D-04 composes the age into larger sentences
+ * ("Données d'il y a 5 min", "dernière tentative il y a 2 h"). Units are
+ * abbreviations (min/h/j-equivalents), so no plural forms are needed.
+ *
+ * @param t - Translator (react-i18next `t`).
+ * @param iso - ISO 8601 UTC timestamp.
+ * @param now - Injectable clock for tests.
+ */
+export function timeAgoLabel(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  iso: string,
+  now: Date = new Date()
+): string {
+  const bucket = computeTimeAgo(iso, now);
+  switch (bucket.kind) {
+    case 'minutes':
+      return t('dashboard.briefing.ago_minutes', { n: bucket.count });
+    case 'hours':
+      return t('dashboard.briefing.ago_hours', { n: bucket.count });
+    case 'days':
+      return t('dashboard.briefing.ago_days', { n: bucket.count });
+    default:
+      return t('dashboard.briefing.ago_just_now');
+  }
+}
+
 // =============================================================================
 // Error code → i18n CTA key resolver
 // =============================================================================
@@ -69,6 +99,22 @@ export function computeTimeAgo(generatedAtIso: string, now: Date = new Date()): 
 export function chatDraftHref(lng: string, draft?: string): string {
   const base = `/${lng}/dashboard/chat`;
   return draft ? `${base}?draft=${encodeURIComponent(draft)}` : base;
+}
+
+/**
+ * Build the chat deep-link an IMMEDIATE action opens (QW-24, ADR-173).
+ *
+ * Unlike `?draft=` (prefill, the user presses Enter), `?intent=` is
+ * AUTO-SENT by the chat page once it is safe to do so — the click on a
+ * named action button IS the deliberate act. External writes stay behind
+ * the pipeline's tool-level HITL cards.
+ *
+ * @param lng - Current URL locale segment.
+ * @param intent - The full localized request to send.
+ * @returns Localized chat route with the encoded `intent`.
+ */
+export function chatIntentHref(lng: string, intent: string): string {
+  return `/${lng}/dashboard/chat?intent=${encodeURIComponent(intent)}`;
 }
 
 export function resolveErrorCtaKey(errorCode: string | null): string | null {

@@ -23,6 +23,37 @@ export type PhoneCallOutcome = 'objective_met' | 'partial' | 'declined' | 'unrea
 /** Statuses during which the call is still happening. */
 export const ACTIVE_CALL_STATUSES: readonly PhoneCallStatus[] = ['dialing', 'in_progress'];
 
+/**
+ * T01 structured debrief — OUR synthesis output (commitments, follow-ups,
+ * draft, uncertainties). Every list may be empty; the whole object is null
+ * for pre-T01 calls, empty outcomes, and once the retention reaper purges.
+ */
+export interface PhoneCallDebrief {
+  commitments?: string[];
+  follow_up_tasks?: string[];
+  follow_up_reminders?: string[];
+  follow_up_draft?: string | null;
+  uncertainties?: string[];
+}
+
+/** Runtime check — the debrief travels as untyped notification metadata. */
+export function isPhoneCallDebrief(value: unknown): value is PhoneCallDebrief {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Record<string, unknown>;
+  const listKeys = [
+    'commitments',
+    'follow_up_tasks',
+    'follow_up_reminders',
+    'uncertainties',
+  ] as const;
+  return listKeys.every(
+    key =>
+      candidate[key] === undefined ||
+      (Array.isArray(candidate[key]) &&
+        (candidate[key] as unknown[]).every(item => typeof item === 'string'))
+  );
+}
+
 /** One call, as `GET /telephony/calls` returns it (newest first). */
 export interface TelephonyCallSummary {
   id: string;
@@ -34,6 +65,8 @@ export interface TelephonyCallSummary {
   outcome: PhoneCallOutcome | null;
   /** Factual recap; null while in flight, and again once the transcript is purged. */
   summary: string | null;
+  /** T01 structured debrief; null before T01 and once purged. */
+  debrief: PhoneCallDebrief | null;
   call_seconds: number | null;
   created_at: string;
   completed_at: string | null;

@@ -11,6 +11,8 @@ export * from './types';
 
 // Components
 export { ConnectorIcon } from './ConnectorIcon';
+export { ConnectorGroupTrigger } from './ConnectorGroupTrigger';
+export type { ConnectorGroupState } from './ConnectorGroupTrigger';
 export { ConnectedConnectorCard } from './ConnectedConnectorCard';
 export { ErrorConnectorCard } from './ErrorConnectorCard';
 export { AvailableConnectorCard } from './AvailableConnectorCard';

@@ -63,8 +63,28 @@
       ]
     },
     {
-      "name": "文档空间",
-      "url": "/zh/dashboard/settings",
+      "name": "知识空间",
+      "url": "/zh/dashboard/spaces",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "与 LIA 对话",
+      "url": "/zh/dashboard/chat?voice=1",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "快速提醒",
+      "url": "/zh/dashboard/chat?draft=%E6%8F%90%E9%86%92%E6%88%91",
       "icons": [
         {
           "src": "/icon-192.png",

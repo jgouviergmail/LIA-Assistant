@@ -3,17 +3,19 @@
 /**
  * The way out of a page, on a phone (A2).
  *
- * Below `md` the header's `<nav>` is hidden and nothing replaced it: from the
- * chat, a phone user could reach the dashboard through the logo and NOTHING
- * else — settings and help were unreachable without typing a URL. The logo was
- * already the only interactive landmark up there, so it becomes the entry point
- * rather than adding a burger that would cost width the header does not have
- * (measured: the trailing controls already clip below 380 px).
+ * Below `lg` (raised from `md` by R01: five destinations clip in fr/de/es/it
+ * between 768 and 1024 px) the header's `<nav>` is hidden and nothing once
+ * replaced it: from the chat, a phone user could reach the dashboard through
+ * the logo and NOTHING else — settings and help were unreachable without
+ * typing a URL. The logo was already the only interactive landmark up there,
+ * so it becomes the entry point rather than adding a burger that would cost
+ * width the header does not have (measured: the trailing controls already
+ * clip below 380 px).
  *
  * The logo therefore has two forms, mounted exclusively:
- *  - a LINK on `md` and up, where the nav is visible — a menu would duplicate
+ *  - a LINK on `lg` and up, where the nav is visible — a menu would duplicate
  *    it and steal the plain "go home" gesture;
- *  - a BUTTON below `md`, opening this menu, whose first item is that same
+ *  - a BUTTON below `lg`, opening this menu, whose first item is that same
  *    "go home" destination so nothing is lost.
  *
  * Two elements rather than one element changing role: an element that is a link

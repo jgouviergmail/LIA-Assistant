@@ -41,6 +41,18 @@ router = APIRouter(prefix="/briefing", tags=["briefing"])
 ERROR_CODE_SECTION_HIDDEN = "section_hidden"
 
 
+def _reject_hidden_sections(current_user: User, sections: list[str]) -> None:
+    """400 when a refresh targets a user-hidden section (UXR B4, shared by
+    /refresh and /refresh-cards). Hidden means "never fetched", by design."""
+    hidden = set(sanitize_briefing_preferences(current_user.briefing_preferences).hidden)
+    blocked = sorted(hidden & set(sections))
+    if blocked:
+        raise_invalid_input(
+            f"{ERROR_CODE_SECTION_HIDDEN}: {', '.join(blocked)}",
+            sections=blocked,
+        )
+
+
 @router.get(
     "/cards",
     response_model=CardsResponse,
@@ -76,6 +88,26 @@ async def get_briefing_synthesis(
 
 
 @router.post(
+    "/refresh-cards",
+    response_model=CardsResponse,
+    summary="Force-refresh selected sections WITHOUT regenerating the LLM texts",
+)
+async def refresh_briefing_cards(
+    payload: RefreshRequest,
+    current_user: User = Depends(get_current_active_session),
+) -> CardsResponse:
+    """Cards-only force-refresh (D-04).
+
+    The per-card retry button calls this: before D-04 it went through
+    POST /refresh, so retrying ONE failed connector card silently paid two
+    LLM calls (greeting + synthesis). Same hidden-section guard as /refresh.
+    """
+    _reject_hidden_sections(current_user, list(payload.sections))
+    cards = await BriefingService(current_user).build_cards(force_refresh=set(payload.sections))
+    return CardsResponse(cards=cards)
+
+
+@router.post(
     "/refresh",
     response_model=BriefingResponse,
     summary="Force-refresh selected sections and regenerate greeting + synthesis",
@@ -92,13 +124,7 @@ async def refresh_today_briefing(
     Refreshing a user-hidden section is a 400 (stable code
     ``section_hidden``) — hidden means "never fetched", by design.
     """
-    hidden = set(sanitize_briefing_preferences(current_user.briefing_preferences).hidden)
-    blocked = sorted(hidden & set(payload.sections))
-    if blocked:
-        raise_invalid_input(
-            f"{ERROR_CODE_SECTION_HIDDEN}: {', '.join(blocked)}",
-            sections=blocked,
-        )
+    _reject_hidden_sections(current_user, list(payload.sections))
     return await BriefingService(current_user).build_today(force_refresh=set(payload.sections))
 
 

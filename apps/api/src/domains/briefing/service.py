@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 
 import structlog
 
+from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 
 # Moved to core/time_utils (P7) — kept under its historical private name.
@@ -85,11 +86,13 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-# Sentinel value to distinguish "freshly fetched live" vs. "cache hit" without
-# leaking that distinction into the wire payload.
+# Metric label values for the per-section origin counter. Since D-04 the
+# cache/live distinction IS exposed on the wire too (CardSection.from_cache):
+# "updated 2 h ago" without saying it came from a cache was freshness theater.
 _ORIGIN_LIVE = "live"
 _ORIGIN_CACHE = "cache"
 _ORIGIN_HIDDEN = "hidden"  # UXR Lot 5 (B4): user-hidden placeholder, zero IO
+_ORIGIN_STALE = "stale"  # D-04: last known-good served alongside an ERROR
 
 
 def _resolve_user_tz(user: User) -> ZoneInfo:
@@ -406,54 +409,16 @@ class BriefingService:
         if ttl > 0 and not force:
             cached = await self._read_cache(cache_key)
             if cached is not None:
+                # D-04: say so on the wire — the badge reads "cache", not
+                # a false "freshly fetched".
+                cached.from_cache = True
                 briefing_section_status_total.labels(
                     section=name, status=cached.status.value, origin=_ORIGIN_CACHE
                 ).inc()
                 return cached
 
-        # 2. Live fetch + status mapping.
-        now = datetime.now(UTC)
-        section: CardSection
-        try:
-            data = await fetcher()
-            section = CardSection(
-                status=CardStatus.OK if _has_content(data) else CardStatus.EMPTY,
-                data=data if _has_content(data) else None,
-                generated_at=now,
-            )
-        except ConnectorNotConfiguredError as exc:
-            section = CardSection(
-                status=CardStatus.NOT_CONFIGURED,
-                generated_at=now,
-                error_code=exc.error_code,
-            )
-        except ConnectorAccessError as exc:
-            section = CardSection(
-                status=CardStatus.ERROR,
-                generated_at=now,
-                error_code=exc.error_code,
-                error_message=exc.message,
-            )
-            logger.info(
-                "briefing_section_access_error",
-                section=name,
-                user_id=str(self.user.id),
-                error_code=exc.error_code,
-                source=exc.source,
-            )
-        except Exception as exc:  # safety net
-            logger.warning(
-                "briefing_section_failed",
-                section=name,
-                user_id=str(self.user.id),
-                error=str(exc),
-                error_type=type(exc).__name__,
-            )
-            section = CardSection(
-                status=CardStatus.ERROR,
-                generated_at=now,
-                error_code=ERROR_CODE_INTERNAL,
-            )
+        # 2. Live fetch + status mapping (extracted — CC discipline).
+        section = await self._fetch_and_map(name, fetcher)
 
         # 3. Persist on cacheable outcomes (skip ttl=0 and ERROR — errors should
         #    retry next request, not be sticky).
@@ -464,10 +429,79 @@ class BriefingService:
         ):
             await self._write_cache(cache_key, section, ttl)
 
+        # 3b. D-04 stale-while-error net. On OK-with-data, remember the payload
+        # under a long-TTL side key; on ERROR, serve that last known-good copy
+        # ALONGSIDE the error so the card shows dated data instead of a hole.
+        # NOT_CONFIGURED never reaches this branch — after a connector
+        # disconnect the section raises ConnectorNotConfiguredError, so a
+        # stale copy can never leak past a disconnect (no purge needed).
+        origin = _ORIGIN_LIVE
+        if section.status is CardStatus.OK and section.data is not None:
+            await self._write_last_good(name, section)
+        elif section.status is CardStatus.ERROR:
+            section = await self._attach_stale(name, section)
+            if section.data is not None:
+                origin = _ORIGIN_STALE
+
         briefing_section_status_total.labels(
-            section=name, status=section.status.value, origin=_ORIGIN_LIVE
+            section=name, status=section.status.value, origin=origin
         ).inc()
         return section
+
+    async def _fetch_and_map(
+        self,
+        name: str,
+        fetcher: Callable[[], Awaitable[Any]],
+    ) -> CardSection:
+        """Run the live fetch and map the outcome to a CardSection.
+
+        Extracted from ``_section`` (CC discipline). **Never raises** — the
+        exception taxonomy maps to statuses; ERROR sections carry
+        ``last_attempt_at`` (D-04 honest freshness).
+        """
+        now = datetime.now(UTC)
+        try:
+            data = await fetcher()
+            return CardSection(
+                status=CardStatus.OK if _has_content(data) else CardStatus.EMPTY,
+                data=data if _has_content(data) else None,
+                generated_at=now,
+            )
+        except ConnectorNotConfiguredError as exc:
+            return CardSection(
+                status=CardStatus.NOT_CONFIGURED,
+                generated_at=now,
+                error_code=exc.error_code,
+            )
+        except ConnectorAccessError as exc:
+            logger.info(
+                "briefing_section_access_error",
+                section=name,
+                user_id=str(self.user.id),
+                error_code=exc.error_code,
+                source=exc.source,
+            )
+            return CardSection(
+                status=CardStatus.ERROR,
+                generated_at=now,
+                error_code=exc.error_code,
+                error_message=exc.message,
+                last_attempt_at=now,
+            )
+        except Exception as exc:  # safety net
+            logger.warning(
+                "briefing_section_failed",
+                section=name,
+                user_id=str(self.user.id),
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+            return CardSection(
+                status=CardStatus.ERROR,
+                generated_at=now,
+                error_code=ERROR_CODE_INTERNAL,
+                last_attempt_at=now,
+            )
 
     # =========================================================================
     # Redis helpers (defensive — cache is best-effort)
@@ -549,6 +583,38 @@ class BriefingService:
                 error=str(exc),
                 error_type=type(exc).__name__,
             )
+
+    # =========================================================================
+    # D-04 stale-while-error net (last known-good side cache)
+    # =========================================================================
+
+    def _last_good_key(self, name: str) -> str:
+        return f"{BRIEFING_CACHE_PREFIX}:lastgood:{self.user.id}:{name}"
+
+    async def _write_last_good(self, name: str, section: CardSection) -> None:
+        """Remember an OK-with-data payload under the long-TTL side key.
+
+        Best-effort like every cache write. TTL 0 disables the net entirely.
+        """
+        ttl = settings.briefing_last_good_ttl_seconds
+        if ttl <= 0:
+            return
+        await self._write_cache(self._last_good_key(name), section, ttl)
+
+    async def _attach_stale(self, name: str, section: CardSection) -> CardSection:
+        """Fill an ERROR section with the last known-good payload, if any.
+
+        The error stays the STATUS (code, message, CTA all keep working); the
+        stale payload rides along with its own original timestamp so the card
+        can say "data from 09:12 — connector unreachable" instead of showing
+        a hole. A miss returns the section unchanged.
+        """
+        stale = await self._read_cache(self._last_good_key(name))
+        if stale is None or stale.data is None:
+            return section
+        section.data = stale.data
+        section.stale_generated_at = stale.generated_at
+        return section
 
     # =========================================================================
     # Cache state classification (for the duration histogram label)

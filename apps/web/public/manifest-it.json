@@ -63,8 +63,28 @@
       ]
     },
     {
-      "name": "Spazi documenti",
-      "url": "/it/dashboard/settings",
+      "name": "Spazi di conoscenza",
+      "url": "/it/dashboard/spaces",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Parla con LIA",
+      "url": "/it/dashboard/chat?voice=1",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Promemoria rapido",
+      "url": "/it/dashboard/chat?draft=Ricordami%20di%20",
       "icons": [
         {
           "src": "/icon-192.png",

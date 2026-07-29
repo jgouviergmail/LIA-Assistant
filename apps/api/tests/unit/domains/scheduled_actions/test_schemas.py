@@ -191,3 +191,81 @@ class TestScheduledActionUpdate:
         """Should reject duplicate days in update."""
         with pytest.raises(ValidationError):
             ScheduledActionUpdate(days_of_week=[1, 1])
+
+
+class TestConditionConfig:
+    """N-07: per-type validation at the API boundary."""
+
+    def test_accepts_each_known_type(self):
+        from src.domains.scheduled_actions.schemas import ConditionConfig
+
+        assert ConditionConfig(type="task_overdue").type == "task_overdue"
+        assert ConditionConfig(type="weather_change", kinds=["rain"]).kinds == ["rain"]
+        assert ConditionConfig(type="mail_match", query="facture").query == "facture"
+        assert ConditionConfig(type="document_added").type == "document_added"
+        assert ConditionConfig(type="calendar_event", within_hours=2).within_hours == 2
+
+    def test_rejects_unknown_type_and_kinds(self):
+        import pytest as _pytest
+
+        from src.domains.scheduled_actions.schemas import ConditionConfig
+
+        with _pytest.raises(ValueError):
+            ConditionConfig(type="moon_phase")
+        with _pytest.raises(ValueError):
+            ConditionConfig(type="weather_change", kinds=["lava"])
+
+    def test_mail_match_requires_query_and_within_hours_is_calendar_only(self):
+        import pytest as _pytest
+
+        from src.domains.scheduled_actions.schemas import ConditionConfig
+
+        with _pytest.raises(ValueError):
+            ConditionConfig(type="mail_match")
+        with _pytest.raises(ValueError):
+            ConditionConfig(type="task_overdue", within_hours=2)
+
+
+class TestCreateConditionCoherence:
+    """N-07: kind/config pairing enforced on create; time stays the default."""
+
+    def _base(self, **overrides):
+        data = {
+            "title": "Routine",
+            "action_prompt": "fais un point",
+            "days_of_week": [1],
+            "trigger_hour": 9,
+            "trigger_minute": 0,
+        }
+        data.update(overrides)
+        return data
+
+    def test_defaults_keep_the_historical_time_behavior(self):
+        from src.domains.scheduled_actions.models import TriggerKind
+        from src.domains.scheduled_actions.schemas import ScheduledActionCreate
+
+        created = ScheduledActionCreate(**self._base())
+        assert created.trigger_kind is TriggerKind.TIME
+        assert created.condition_config is None
+        assert created.requires_approval is False
+
+    def test_condition_kind_requires_a_config(self):
+        import pytest as _pytest
+
+        from src.domains.scheduled_actions.schemas import ScheduledActionCreate
+
+        with _pytest.raises(ValueError):
+            ScheduledActionCreate(**self._base(trigger_kind="condition"))
+
+    def test_time_kind_refuses_a_config(self):
+        import pytest as _pytest
+
+        from src.domains.scheduled_actions.schemas import (
+            ConditionConfig,
+            ScheduledActionCreate,
+        )
+
+        with _pytest.raises(ValueError):
+            ScheduledActionCreate(
+                **self._base(condition_config=ConditionConfig(type="task_overdue"))
+            )

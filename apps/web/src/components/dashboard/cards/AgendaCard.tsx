@@ -1,10 +1,11 @@
 'use client';
 
-import { Calendar, MapPin } from 'lucide-react';
+import { Calendar, MapPin, Navigation, NotebookPen } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
-import { chatDraftHref } from '@/lib/briefing-utils';
+import { CardItemActions, type CardItemAction } from './CardItemActions';
+import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
 import type { AgendaData, CardSection } from '@/types/briefing';
 
 interface AgendaCardProps {
@@ -29,7 +30,11 @@ export function AgendaCard({ section, isRefreshing, onRefresh, staggerIndex }: A
       emptyStateKey="dashboard.briefing.cards.agenda.empty"
       onErrorCta={() => router.push(`/${lng}/dashboard/settings?section=connectors`)}
       renderContent={data => (
-        <AgendaContent data={data} onOpenChat={draft => router.push(chatDraftHref(lng, draft))} />
+        <AgendaContent
+          data={data}
+          onOpenChat={draft => router.push(chatDraftHref(lng, draft))}
+          onExecute={intent => router.push(chatIntentHref(lng, intent))}
+        />
       )}
       staggerIndex={staggerIndex}
     />
@@ -39,9 +44,11 @@ export function AgendaCard({ section, isRefreshing, onRefresh, staggerIndex }: A
 function AgendaContent({
   data,
   onOpenChat,
+  onExecute,
 }: {
   data: AgendaData;
   onOpenChat: (draft: string) => void;
+  onExecute: (intent: string) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -52,13 +59,32 @@ function AgendaContent({
           title: event.title,
           time: event.start_local,
         });
+        const prepareIntent = t('dashboard.briefing.intents_exec.event_prepare', {
+          title: event.title,
+          time: event.start_local,
+        });
+        const actions: CardItemAction[] = [
+          { icon: NotebookPen, label: prepareIntent, onSelect: () => onExecute(prepareIntent) },
+        ];
+        // Route only makes sense when the event HAS a location.
+        if (event.location) {
+          const routeIntent = t('dashboard.briefing.intents_exec.event_route', {
+            location: event.location,
+          });
+          actions.push({
+            icon: Navigation,
+            label: routeIntent,
+            onSelect: () => onExecute(routeIntent),
+          });
+        }
         return (
-          <li key={index}>
+          // QW-24: action chips as SIBLINGS (nested buttons are invalid HTML).
+          <li key={index} className="flex items-start gap-1">
             <button
               type="button"
               onClick={() => onOpenChat(intent)}
               aria-label={intent}
-              className="w-full text-left flex items-start gap-2.5 rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="min-w-0 flex-1 text-left flex items-start gap-2.5 rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {/* Time column: start (bold) + end (smaller, dimmed) */}
               <span className="flex flex-col items-start tabular-nums shrink-0 leading-tight">
@@ -82,6 +108,7 @@ function AgendaContent({
                 )}
               </span>
             </button>
+            <CardItemActions actions={actions} />
           </li>
         );
       })}

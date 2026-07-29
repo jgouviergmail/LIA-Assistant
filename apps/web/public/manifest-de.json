@@ -63,8 +63,28 @@
       ]
     },
     {
-      "name": "Dokumentbereiche",
-      "url": "/de/dashboard/settings",
+      "name": "Wissensräume",
+      "url": "/de/dashboard/spaces",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Mit LIA sprechen",
+      "url": "/de/dashboard/chat?voice=1",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Schnelle Erinnerung",
+      "url": "/de/dashboard/chat?draft=Erinnere%20mich%20daran%2C%20",
       "icons": [
         {
           "src": "/icon-192.png",

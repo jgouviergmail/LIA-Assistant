@@ -30,6 +30,7 @@ def _complete(repo, call_id, **overrides):
         "call_seconds": Decimal("42"),
         "summary": "recap",
         "structured_data": {"agreed": True},
+        "debrief": {"commitments": ["Marie confirme mardi 19h."]},
         "outcome": PhoneCallOutcome.OBJECTIVE_MET,
         "completed_at": datetime.now(UTC),
         "notification_content": "She is free Tuesday.",

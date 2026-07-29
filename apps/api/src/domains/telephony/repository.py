@@ -70,6 +70,7 @@ class TelephonyRepository(BaseRepository[PhoneCall]):
         call_seconds: Decimal | None,
         summary: str,
         structured_data: dict[str, Any],
+        debrief: dict[str, Any] | None,
         outcome: PhoneCallOutcome | None,
         completed_at: datetime,
         notification_content: str,
@@ -100,6 +101,7 @@ class TelephonyRepository(BaseRepository[PhoneCall]):
                 call_seconds=call_seconds,
                 summary=summary,
                 structured_data=structured_data,
+                debrief=debrief,
                 outcome=outcome,
                 completed_at=completed_at,
                 notification_status=NotificationStatus.PENDING,
@@ -335,7 +337,7 @@ class TelephonyRepository(BaseRepository[PhoneCall]):
         return count
 
     async def purge_expired(self) -> int:
-        """Purge summary/structured_data past their retention TTL (D-8).
+        """Purge summary/structured_data/debrief past their retention TTL (D-8).
 
         The row is kept (audit) but the content fields are cleared. Returns the
         number of rows purged.
@@ -348,7 +350,7 @@ class TelephonyRepository(BaseRepository[PhoneCall]):
                 PhoneCall.expires_at < now,
                 PhoneCall.summary.is_not(None),
             )
-            .values(summary=None, structured_data={})
+            .values(summary=None, structured_data={}, debrief=None)
             .execution_options(synchronize_session=False)
         )
         result = await self.db.execute(stmt)

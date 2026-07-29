@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import apiClient from '@/lib/api-client';
 import { getApiErrorDetail } from '@/lib/api-error';
 import { logger } from '@/lib/logger';
-import { Plug, CheckCircle2, Key, Save, AlertTriangle } from 'lucide-react';
+import { Plug, Save } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useApiMutation } from '@/hooks/useApiMutation';
@@ -44,6 +44,7 @@ import {
   isConnectorTypeExists,
   ConnectorIcon,
   ConnectedConnectorCard,
+  ConnectorGroupTrigger,
   ErrorConnectorCard,
   AvailableConnectorCard,
   LocationSettings,
@@ -434,13 +435,12 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
           {connectedOAuthConnectors.length > 0 && (
             <AccordionItem value="connected-google" className="border rounded-lg px-3">
               <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
-                <span className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                  {t('settings.connectors.connected_google')}
-                  <span className="text-muted-foreground text-sm">
-                    ({connectedOAuthConnectors.length})
-                  </span>
-                </span>
+                <ConnectorGroupTrigger
+                  state="connected"
+                  label={t('settings.connectors.connected_google')}
+                  count={connectedOAuthConnectors.length}
+                  t={t}
+                />
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-2">
@@ -469,13 +469,12 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
           {connectedAppleConnectors.length > 0 && (
             <AccordionItem value="connected-apple" className="border rounded-lg px-3">
               <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
-                <span className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                  {t('settings.connectors.connected_apple')}
-                  <span className="text-muted-foreground text-sm">
-                    ({connectedAppleConnectors.length})
-                  </span>
-                </span>
+                <ConnectorGroupTrigger
+                  state="connected"
+                  label={t('settings.connectors.connected_apple')}
+                  count={connectedAppleConnectors.length}
+                  t={t}
+                />
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-2">
@@ -501,13 +500,12 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
           {connectedMicrosoftConnectors.length > 0 && (
             <AccordionItem value="connected-microsoft" className="border rounded-lg px-3">
               <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
-                <span className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                  {t('settings.connectors.connected_microsoft')}
-                  <span className="text-muted-foreground text-sm">
-                    ({connectedMicrosoftConnectors.length})
-                  </span>
-                </span>
+                <ConnectorGroupTrigger
+                  state="connected"
+                  label={t('settings.connectors.connected_microsoft')}
+                  count={connectedMicrosoftConnectors.length}
+                  t={t}
+                />
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-2">
@@ -533,13 +531,12 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
           {connectedApiKeyConnectors.length > 0 && (
             <AccordionItem value="connected-api-key" className="border rounded-lg px-3">
               <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
-                <span className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                  {t('settings.connectors.connected_api_key')}
-                  <span className="text-muted-foreground text-sm">
-                    ({connectedApiKeyConnectors.length})
-                  </span>
-                </span>
+                <ConnectorGroupTrigger
+                  state="connected"
+                  label={t('settings.connectors.connected_api_key')}
+                  count={connectedApiKeyConnectors.length}
+                  t={t}
+                />
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-2">
@@ -566,12 +563,13 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
           {/* Error Google Connectors - Need Reconnection */}
           {errorOAuthConnectors.length > 0 && (
             <AccordionItem value="error-google" className="border rounded-lg px-3">
-              <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3 text-destructive">
-                <span className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  {t('settings.connectors.health.critical_title')}
-                  <span className="text-sm">({errorOAuthConnectors.length})</span>
-                </span>
+              <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
+                <ConnectorGroupTrigger
+                  state="error"
+                  label={t('settings.connectors.health.critical_title')}
+                  count={errorOAuthConnectors.length}
+                  t={t}
+                />
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-2">
@@ -592,12 +590,13 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
           {/* Error Microsoft Connectors - Need Reconnection */}
           {errorMicrosoftConnectors.length > 0 && (
             <AccordionItem value="error-microsoft" className="border rounded-lg px-3">
-              <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3 text-destructive">
-                <span className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  {t('settings.connectors.health.critical_title')}
-                  <span className="text-sm">({errorMicrosoftConnectors.length})</span>
-                </span>
+              <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
+                <ConnectorGroupTrigger
+                  state="error"
+                  label={t('settings.connectors.health.critical_title')}
+                  count={errorMicrosoftConnectors.length}
+                  t={t}
+                />
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-2">
@@ -621,10 +620,12 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
           {hasUnconnectedGoogle && (
             <AccordionItem value="available-google" className="border rounded-lg px-3">
               <AccordionTrigger className="text-sm font-medium hover:no-underline py-3">
-                <span className="flex items-center gap-2 flex-1">
-                  {t('settings.connectors.available_google')}
-                  <span className="text-muted-foreground text-sm">({unconnectedGoogleCount})</span>
-                </span>
+                <ConnectorGroupTrigger
+                  state="available"
+                  label={t('settings.connectors.available_google')}
+                  count={unconnectedGoogleCount}
+                  t={t}
+                />
               </AccordionTrigger>
               <AccordionContent>
                 <div className="flex justify-end mb-3">
@@ -685,10 +686,12 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
           {hasUnconnectedApple && (
             <AccordionItem value="available-apple" className="border rounded-lg px-3">
               <AccordionTrigger className="text-sm font-medium hover:no-underline py-3">
-                <span className="flex items-center gap-2 flex-1">
-                  {t('settings.connectors.apple.title')}
-                  <span className="text-muted-foreground text-sm">({unconnectedAppleCount})</span>
-                </span>
+                <ConnectorGroupTrigger
+                  state="available"
+                  label={t('settings.connectors.apple.title')}
+                  count={unconnectedAppleCount}
+                  t={t}
+                />
               </AccordionTrigger>
               <AccordionContent>
                 <div className="flex justify-end mb-3">
@@ -760,12 +763,12 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
           {hasUnconnectedMicrosoft && (
             <AccordionItem value="available-microsoft" className="border rounded-lg px-3">
               <AccordionTrigger className="text-sm font-medium hover:no-underline py-3">
-                <span className="flex items-center gap-2 flex-1">
-                  {t('settings.connectors.microsoft.title')}
-                  <span className="text-muted-foreground text-sm">
-                    ({unconnectedMicrosoftCount})
-                  </span>
-                </span>
+                <ConnectorGroupTrigger
+                  state="available"
+                  label={t('settings.connectors.microsoft.title')}
+                  count={unconnectedMicrosoftCount}
+                  t={t}
+                />
               </AccordionTrigger>
               <AccordionContent>
                 <div className="flex justify-end mb-3">
@@ -824,13 +827,13 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
           {connectedHueConnectors.length > 0 && (
             <AccordionItem value="connected-hue" className="border rounded-lg px-3">
               <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
-                <span className="flex items-center gap-2">
-                  <span>💡</span>
-                  {t('settings.connectors.connected_hue')}
-                  <span className="text-muted-foreground text-sm">
-                    ({connectedHueConnectors.length})
-                  </span>
-                </span>
+                <ConnectorGroupTrigger
+                  state="connected"
+                  label={t('settings.connectors.connected_hue')}
+                  count={connectedHueConnectors.length}
+                  glyph="💡"
+                  t={t}
+                />
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-2">
@@ -856,11 +859,13 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
           {connectedHueConnectors.length === 0 && (
             <AccordionItem value="available-hue" className="border rounded-lg px-3">
               <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
-                <span className="flex items-center gap-2">
-                  <span>💡</span>
-                  {t('settings.connectors.available_hue')}
-                  <span className="text-muted-foreground text-sm">(1)</span>
-                </span>
+                <ConnectorGroupTrigger
+                  state="available"
+                  label={t('settings.connectors.available_hue')}
+                  count={1}
+                  glyph="💡"
+                  t={t}
+                />
               </AccordionTrigger>
               <AccordionContent>
                 {!showHuePairing ? (
@@ -888,13 +893,13 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
           {connectedTelephonyConnectors.length > 0 && (
             <AccordionItem value="connected-telephony" className="border rounded-lg px-3">
               <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
-                <span className="flex items-center gap-2">
-                  <span>📞</span>
-                  {t('settings.connectors.connected_telephony')}
-                  <span className="text-muted-foreground text-sm">
-                    ({connectedTelephonyConnectors.length})
-                  </span>
-                </span>
+                <ConnectorGroupTrigger
+                  state="connected"
+                  label={t('settings.connectors.connected_telephony')}
+                  count={connectedTelephonyConnectors.length}
+                  glyph="📞"
+                  t={t}
+                />
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-3">
@@ -925,11 +930,13 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
           {connectedTelephonyConnectors.length === 0 && (
             <AccordionItem value="available-telephony" className="border rounded-lg px-3">
               <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
-                <span className="flex items-center gap-2">
-                  <span>📞</span>
-                  {t('settings.connectors.available_telephony')}
-                  <span className="text-muted-foreground text-sm">(1)</span>
-                </span>
+                <ConnectorGroupTrigger
+                  state="available"
+                  label={t('settings.connectors.available_telephony')}
+                  count={1}
+                  glyph="📞"
+                  t={t}
+                />
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-3">
@@ -963,11 +970,12 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
           {/* Available External (API Key) Connectors */}
           <AccordionItem value="available-api-key" className="border rounded-lg px-3">
             <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
-              <span className="flex items-center gap-2">
-                <Key className="h-4 w-4" />
-                {t('settings.connectors.available_external')}
-                <span className="text-muted-foreground text-sm">({unconnectedApiKeyCount})</span>
-              </span>
+              <ConnectorGroupTrigger
+                state="available"
+                label={t('settings.connectors.available_external')}
+                count={unconnectedApiKeyCount}
+                t={t}
+              />
             </AccordionTrigger>
             <AccordionContent>
               <p className="text-sm text-muted-foreground mb-3">

@@ -42,7 +42,10 @@ describe('localized PWA manifests', () => {
     expect(icons.every(i => i.src.endsWith('.png'))).toBe(true);
 
     const shortcuts = m.shortcuts as { url: string; name: string }[];
-    expect(shortcuts).toHaveLength(3);
+    // 3 at UXR Lot 9; +2 with N-13 (push-to-talk `?voice=1`, quick reminder
+    // `?draft=`) — cross-locale destination parity is pinned separately by
+    // `lib/__tests__/manifest-parity.test.ts`.
+    expect(shortcuts).toHaveLength(5);
     expect(shortcuts[0].url).toBe(`/${lng}/dashboard/chat`);
     expect(shortcuts.every(s => s.name.length > 0)).toBe(true);
 

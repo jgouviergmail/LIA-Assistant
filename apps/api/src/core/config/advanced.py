@@ -24,6 +24,7 @@ from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     AGENT_STREAM_SLEEP_INTERVAL_DEFAULT,
+    CHAT_SHORTCUTS_MAX_COUNT_DEFAULT,
     CONVERSATION_HISTORY_DEFAULT_LIMIT_DEFAULT,
     CONVERSATION_HISTORY_MAX_LIMIT_DEFAULT,
     CURRENCY_API_TIMEOUT_SECONDS_DEFAULT,
@@ -115,6 +116,16 @@ class AdvancedSettings(BaseSettings):
         ge=1,
         le=1000,
         description="Hard cap on the ``limit`` query param (prevents pathological page sizes)",
+    )
+
+    # ========================================================================
+    # User-defined chat slash shortcuts (UX Actions program, SLASH admin)
+    # ========================================================================
+    chat_shortcuts_max_count: int = Field(
+        default=CHAT_SHORTCUTS_MAX_COUNT_DEFAULT,
+        ge=1,
+        le=200,
+        description="Maximum user-defined slash shortcuts per user",
     )
 
     # ========================================================================

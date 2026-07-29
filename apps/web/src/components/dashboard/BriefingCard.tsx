@@ -4,7 +4,7 @@ import { ReactNode, useEffect, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
-import { resolveErrorCtaKey } from '@/lib/briefing-utils';
+import { resolveErrorCtaKey, timeAgoLabel } from '@/lib/briefing-utils';
 import type { CardSection, SectionData } from '@/types/briefing';
 import { UpdatedAtBadge } from './UpdatedAtBadge';
 
@@ -34,6 +34,84 @@ const ICON_TONE: Record<CardTone, string> = {
   teal: 'text-teal-600 dark:text-teal-400',
   indigo: 'text-indigo-600 dark:text-indigo-400',
 };
+
+/**
+ * Freshness badge in the card header (D-04, extracted — CC discipline).
+ * On OK/empty it dates the live/cache fetch; on error it dates the STALE
+ * payload shown below (honesty: the timestamp belongs to the data, and an
+ * error with no stale data shows no timestamp).
+ */
+function CardFreshnessBadge<T extends SectionData>({
+  section,
+  isError,
+  justRefreshed,
+}: {
+  section: CardSection<T>;
+  isError: boolean;
+  justRefreshed: boolean;
+}) {
+  if (!isError) {
+    return (
+      <UpdatedAtBadge
+        generatedAt={section.generated_at}
+        showJustUpdated={justRefreshed}
+        fromCache={section.from_cache}
+        className="shrink-0"
+      />
+    );
+  }
+  if (!section.stale_generated_at) return null;
+  return <UpdatedAtBadge generatedAt={section.stale_generated_at} fromCache className="shrink-0" />;
+}
+
+/**
+ * Error body (D-04, extracted — CC discipline): the message, the honest
+ * freshness line (age of the shown stale data + last attempt), and the CTA.
+ * Layout compacts to a banner when stale data rides below it.
+ */
+function CardErrorBody<T extends SectionData>({
+  section,
+  ctaKey,
+  onErrorCta,
+}: {
+  section: CardSection<T>;
+  ctaKey: string | null;
+  onErrorCta?: () => void;
+}) {
+  const { t } = useTranslation();
+  const hasFreshnessLine =
+    section.last_attempt_at !== null ||
+    (section.data !== null && section.stale_generated_at !== null);
+  return (
+    <div className={cn('flex flex-col gap-2', section.data ? 'shrink-0' : 'flex-1 justify-center')}>
+      <p className="text-sm text-foreground/80 leading-snug">
+        {section.error_message || t('dashboard.briefing.errors.generic')}
+      </p>
+      {hasFreshnessLine && (
+        <p className="text-xs text-muted-foreground leading-snug" role="status">
+          {section.data &&
+            section.stale_generated_at &&
+            t('dashboard.briefing.stale_data_age', {
+              ago: timeAgoLabel(t, section.stale_generated_at),
+            }) + ' · '}
+          {section.last_attempt_at &&
+            t('dashboard.briefing.last_attempt_ago', {
+              ago: timeAgoLabel(t, section.last_attempt_at),
+            })}
+        </p>
+      )}
+      {ctaKey && onErrorCta && (
+        <button
+          type="button"
+          onClick={onErrorCta}
+          className="self-start text-xs font-medium text-primary hover:text-primary/90 underline underline-offset-2 transition-colors"
+        >
+          {t(ctaKey)}
+        </button>
+      )}
+    </div>
+  );
+}
 
 export interface BriefingCardProps<T extends SectionData> {
   titleKey: string;
@@ -160,13 +238,7 @@ export function BriefingCard<T extends SectionData>({
             <h3 className="text-sm font-semibold text-foreground tracking-tight truncate">
               {titleLabel}
             </h3>
-            {!isError && (
-              <UpdatedAtBadge
-                generatedAt={section.generated_at}
-                showJustUpdated={justRefreshed}
-                className="shrink-0"
-              />
-            )}
+            <CardFreshnessBadge section={section} isError={isError} justRefreshed={justRefreshed} />
           </div>
           <button
             type="button"
@@ -207,21 +279,12 @@ export function BriefingCard<T extends SectionData>({
             </div>
           )}
 
-          {isError && (
-            <div className="flex-1 flex flex-col gap-2 justify-center">
-              <p className="text-sm text-foreground/80 leading-snug">
-                {section.error_message || t('dashboard.briefing.errors.generic')}
-              </p>
-              {ctaKey && onErrorCta && (
-                <button
-                  type="button"
-                  onClick={onErrorCta}
-                  className="self-start text-xs font-medium text-primary hover:text-primary/90 underline underline-offset-2 transition-colors"
-                >
-                  {t(ctaKey)}
-                </button>
-              )}
-            </div>
+          {isError && <CardErrorBody section={section} ctaKey={ctaKey} onErrorCta={onErrorCta} />}
+
+          {/* D-04 stale-while-error: yesterday's data beats a hole — rendered
+              dimmed under the error banner, dated by the badge above. */}
+          {isError && section.data && (
+            <div className="mt-2 opacity-70">{renderContent(section.data)}</div>
           )}
         </div>
 

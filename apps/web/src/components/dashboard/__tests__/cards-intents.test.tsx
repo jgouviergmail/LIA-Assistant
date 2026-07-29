@@ -38,6 +38,9 @@ function section<T extends SectionData>(data: T): CardSection<T> {
     generated_at: '2026-07-22T08:00:00Z',
     error_code: null,
     error_message: null,
+    from_cache: false,
+    stale_generated_at: null,
+    last_attempt_at: null,
   };
 }
 

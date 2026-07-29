@@ -9,6 +9,8 @@ interface UpdatedAtBadgeProps {
   generatedAt: string;
   /** When true, show the transient "updated ✨" badge instead of the timestamp */
   showJustUpdated?: boolean;
+  /** D-04: when true, say the data came from the cache, not a live fetch. */
+  fromCache?: boolean;
   className?: string;
 }
 
@@ -24,6 +26,7 @@ const REFRESH_INTERVAL_MS = 30_000; // re-render the relative label every 30 s
 export function UpdatedAtBadge({
   generatedAt,
   showJustUpdated = false,
+  fromCache = false,
   className,
 }: UpdatedAtBadgeProps) {
   const { t } = useTranslation();
@@ -61,6 +64,9 @@ export function UpdatedAtBadge({
       className={`text-[10px] text-muted-foreground tabular-nums ${className ?? ''}`}
     >
       {label}
+      {/* D-04: "updated 2 h ago" without saying it came from a cache was
+          freshness theater — the suffix is part of the honest label. */}
+      {fromCache && ` · ${t('dashboard.briefing.from_cache_suffix')}`}
     </time>
   );
 }

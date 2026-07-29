@@ -20,7 +20,9 @@ import asyncio
 import json
 import time
 import uuid
+from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import quote
 
 import structlog
 
@@ -37,7 +39,7 @@ from src.core.constants import (
 from src.core.user_display import resolve_user_display_name
 
 # CRITICAL: Import model at module level to register with SQLAlchemy metadata
-from src.domains.scheduled_actions.models import ScheduledAction  # noqa: F401
+from src.domains.scheduled_actions.models import ScheduledAction, TriggerKind  # noqa: F401
 from src.infrastructure.observability.metrics import (
     background_job_duration_seconds,
     background_job_errors_total,
@@ -83,6 +85,43 @@ def _truncate(text: str, max_length: int | None = None) -> str:
     if len(text) <= max_length:
         return text
     return text[: max_length - 3] + "..."
+
+
+async def _send_approval_notification(
+    db: Any,
+    *,
+    user: Any,
+    action: "ScheduledAction",
+    user_language: str,
+) -> None:
+    """Propose-first notification (N-07): a markdown [Run it now](?intent=) link.
+
+    The absolute URL omits the locale segment on purpose (the connectors
+    router precedent): the frontend middleware resolves the user's locale.
+    Best-effort — a dispatch failure must not break the tick, the routine
+    simply proposes again at its next one.
+    """
+    from src.core.i18n_proactive import ProactiveMessages
+    from src.infrastructure.proactive.notification import NotificationDispatcher
+
+    intent_url = f"{settings.frontend_url}/dashboard/chat?intent={quote(action.action_prompt)}"
+    body = ProactiveMessages.routine_approval_body(action.title, intent_url, user_language)
+    try:
+        await NotificationDispatcher().dispatch(
+            user=user,
+            content=body,
+            task_type="scheduled_action",
+            target_id=str(action.id),
+            metadata={"approval_proposal": True},
+            db=db,
+            title=ProactiveMessages.notification_title("scheduled_action", user_language),
+        )
+    except Exception as exc:  # noqa: BLE001 — the next tick proposes again
+        logger.warning(
+            "scheduled_action_approval_dispatch_failed",
+            action_id=str(action.id),
+            error_type=type(exc).__name__,
+        )
 
 
 async def execute_single_action(
@@ -157,6 +196,73 @@ async def execute_single_action(
         user_display_name = resolve_user_display_name(user.full_name, user.email)
         user_display_mode = getattr(user, "response_display_mode", None) or "cards"
         session_id = f"{SCHEDULED_ACTIONS_SESSION_PREFIX}{action.id}"
+
+        # === N-07: condition gate + propose-first mode ===
+        # Both decide BEFORE the pipeline runs; a skipped tick re-arms via
+        # repo.reschedule (never counted as an execution).
+        prompt_to_run = action.action_prompt
+        new_condition_state: dict[str, Any] | None = None
+        if action.trigger_kind == TriggerKind.CONDITION.value:
+            from src.domains.users.models import User as UserModel
+            from src.infrastructure.scheduler.condition_evaluators import evaluate_condition
+
+            # The evaluators read through the briefing fetchers, which need the
+            # ORM User (not the UserProfile schema get_user_by_id returns).
+            orm_user = await db.get(UserModel, user_id)
+            if orm_user is None:  # defensive — the guards above loaded a profile
+                return ""
+            verdict = await evaluate_condition(orm_user, action.condition_config or {})
+            last_fingerprint = (action.condition_state or {}).get("last_fingerprint")
+            if not verdict.met or verdict.fingerprint == last_fingerprint:
+                next_trigger = compute_next_trigger_utc(
+                    days_of_week=action.days_of_week,
+                    hour=action.trigger_hour,
+                    minute=action.trigger_minute,
+                    user_timezone=action.user_timezone,
+                )
+                await repo.reschedule(action, next_trigger)
+                await db.commit()
+                logger.info(
+                    "scheduled_action_condition_skipped",
+                    action_id=str(action_id),
+                    user_id=str(user_id),
+                    reason="not_met" if not verdict.met else "same_fact_deduped",
+                )
+                return ""
+            # NEW-dict ledger (JSONB rule) — written with the outcome below.
+            new_condition_state = {
+                "last_fingerprint": verdict.fingerprint,
+                "last_fired_at": datetime.now(UTC).isoformat(),
+            }
+            if verdict.note:
+                # Factual context for the pipeline (raw item names — the
+                # agent phrases them in the user's language).
+                prompt_to_run = f"{action.action_prompt}\n\n[Trigger context] {verdict.note}"
+
+        if action.requires_approval:
+            # Propose-first: the run belongs to the CHAT (?intent= — ADR-173),
+            # so it flows through the normal pipeline + HITL when the user
+            # clicks. The tick only notifies and re-arms.
+            await _send_approval_notification(
+                db,
+                user=user,
+                action=action,
+                user_language=user_language,
+            )
+            next_trigger = compute_next_trigger_utc(
+                days_of_week=action.days_of_week,
+                hour=action.trigger_hour,
+                minute=action.trigger_minute,
+                user_timezone=action.user_timezone,
+            )
+            await repo.reschedule(action, next_trigger, condition_state=new_condition_state)
+            await db.commit()
+            logger.info(
+                "scheduled_action_approval_proposed",
+                action_id=str(action_id),
+                user_id=str(user_id),
+            )
+            return ""
 
         # === Guard: Check for pending HITL interrupt on user's conversation ===
         try:
@@ -233,7 +339,7 @@ async def execute_single_action(
                     # filter is documented as partial) reached the lock screen.
                     replacement: str | None = None
                     async for chunk in svc.stream_chat_response(
-                        user_message=action.action_prompt,
+                        user_message=prompt_to_run,
                         user_id=user_id,
                         session_id=_sid,
                         user_timezone=user_timezone,
@@ -264,14 +370,17 @@ async def execute_single_action(
                     timeout=settings.scheduled_actions_execution_timeout_seconds,
                 )
 
-                # Success — recalculate next trigger
+                # Success — recalculate next trigger (+ the N-07 dedup ledger,
+                # written only on a REAL run so a failed one retries the fact).
                 next_trigger = compute_next_trigger_utc(
                     days_of_week=action.days_of_week,
                     hour=action.trigger_hour,
                     minute=action.trigger_minute,
                     user_timezone=action.user_timezone,
                 )
-                await repo.mark_execution_success(action, next_trigger)
+                await repo.mark_execution_success(
+                    action, next_trigger, condition_state=new_condition_state
+                )
 
                 logger.info(
                     "scheduled_action_executed_success",

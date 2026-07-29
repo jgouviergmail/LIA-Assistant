@@ -1,25 +1,27 @@
 'use client';
 
 import Link from 'next/link';
-import { ChevronRight, HelpCircle, Settings } from 'lucide-react';
+import { ChevronRight, HelpCircle, Settings, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
 /**
- * Quick access to Help + Settings — a single compact bar above the briefing.
+ * Quick access to Help, Relations and Settings — a compact bar above the
+ * briefing.
  *
- * These are two SECONDARY destinations sitting right before the day's content.
- * As two large cards (56 px icon badges, decorative orbs, hover lift) they cost
- * ~208 px on a phone and ~104 px on a desktop to say "Help" and "Settings" —
- * space taken from the briefing, which is what the page exists for. One bar
- * says the same thing in ~120 px / ~60 px, with nothing removed.
+ * These are SECONDARY destinations sitting right before the day's content. As
+ * large cards they would cost the briefing its vertical space; one bar says the
+ * same thing compactly, with nothing removed. Relations (N-09 CRM) lives here
+ * because it has no nav slot (the header already clips at 5 destinations, R01)
+ * and no other always-visible home — Quick Access is the discoverable entry
+ * that overrides nothing.
  *
- * Layout is decided by MEASUREMENT, not by taste: "Einstellungen" is 92 px at
- * 14 px/600 in Inter, and two side-by-side segments leave 54-78 px of text
- * width at 320 px — German would be truncated. So the segments stack below
- * `sm` (two full-width rows, everything legible in all six locales) and sit
- * side by side above it, as one horizontal bar.
+ * Layout is decided by MEASUREMENT: the segments STACK below `sm` (full-width
+ * rows, every locale legible) and sit side by side above it. Three thirds at
+ * `sm` (640 px) leave ~200 px each — "Beziehungen"/"Relaciones" fit; the tight
+ * two-up-at-320 px case the old 2-tile math worried about never occurs because
+ * 320 px is below `sm`, where they stack.
  *
  * Links, not buttons: these are navigations. `<Link>` gives middle-click,
  * open-in-new-tab, the URL on hover and the "link" role — matching the rest of
@@ -49,6 +51,13 @@ export function QuickAccessCompact({ lng }: QuickAccessCompactProps) {
         tone="primary"
       />
       <QuickAccessAction
+        href={`/${lng}/dashboard/relations`}
+        icon={Users}
+        label={t('dashboard.quick_access_compact.relations')}
+        sublabel={t('dashboard.quick_access_compact.relations_sub')}
+        tone="success"
+      />
+      <QuickAccessAction
         href={`/${lng}/dashboard/settings`}
         icon={Settings}
         label={t('dashboard.quick_access_compact.settings')}
@@ -62,6 +71,7 @@ export function QuickAccessCompact({ lng }: QuickAccessCompactProps) {
 /** Per-tone classes. Kept as whole literals so Tailwind can see them. */
 const TONE_CLASSES = {
   primary: { badge: 'bg-primary/10 text-primary', hover: 'hover:bg-primary/5' },
+  success: { badge: 'bg-success/10 text-success', hover: 'hover:bg-success/5' },
   warning: { badge: 'bg-warning/10 text-warning', hover: 'hover:bg-warning/5' },
 } as const;
 

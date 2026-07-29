@@ -38,6 +38,7 @@ function call(overrides: Partial<TelephonyCallSummary> = {}): TelephonyCallSumma
     status: 'completed',
     outcome: 'objective_met',
     summary: 'Marie est libre mardi après 14h.',
+    debrief: null,
     call_seconds: 62,
     created_at: '2026-07-26T09:00:00Z',
     completed_at: '2026-07-26T09:01:02Z',

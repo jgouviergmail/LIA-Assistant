@@ -3,8 +3,8 @@
 > Retour d'expérience — un système complet, de la conception à la production.
 
 **Version** : 1.1
-**Date** : 2026-07-28
-**Application** : LIA v1.25.33
+**Date** : 2026-07-29
+**Application** : LIA v1.26.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---

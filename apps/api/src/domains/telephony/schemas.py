@@ -40,17 +40,70 @@ class StructuredCallData(BaseModel):
 
 
 class ReturnProposal(BaseModel):
-    """Structured output of the post-call return synthesis (P4.2).
+    """Structured output of the post-call return synthesis (P4.2, extended T01).
 
     ``summary`` is the factual record persisted on the ``PhoneCall`` row; the raw
     transcript is never stored (D-8). ``proposal_text`` is the first-person
     message delivered to the user via the notification dispatcher.
+
+    T01 (UX Actions program): the debrief fields below are OUR synthesis
+    LLM's output — NOT extracted from the vendor payload (that is
+    ``StructuredCallData``'s job). All additive with empty defaults, so a
+    model that returns only the two historical fields still validates.
     """
 
     summary: str = Field(..., description="Neutral factual recap of the call outcome.")
     proposal_text: str = Field(
         ..., description="First-person report + optional next step for the user."
     )
+    commitments: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Concrete commitments made ON the call, one short sentence each, "
+            "naming WHO committed (the callee or the assistant). Empty if none."
+        ),
+    )
+    follow_up_tasks: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Actionable follow-up TASKS for the user implied by the outcome, "
+            "one short imperative sentence each. Empty if none."
+        ),
+    )
+    follow_up_reminders: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Time-bound REMINDERS worth setting (with their absolute date/time "
+            "when known), one short sentence each. Empty if none."
+        ),
+    )
+    follow_up_draft: str | None = Field(
+        default=None,
+        description=(
+            "Short draft of a follow-up message (SMS/email) to the callee when "
+            "the outcome calls for one. None otherwise."
+        ),
+    )
+    uncertainties: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Points left UNCONFIRMED or to double-check (deferred options, "
+            "unverified costs, ambiguous dates), one short sentence each."
+        ),
+    )
+
+    def debrief_dict(self) -> dict[str, object]:
+        """The persistable debrief (JSONB) — only the T01 fields, no text dupes."""
+        return self.model_dump(
+            include={
+                "commitments",
+                "follow_up_tasks",
+                "follow_up_reminders",
+                "follow_up_draft",
+                "uncertainties",
+            },
+            exclude_none=True,
+        )
 
 
 class PhoneNumberInfo(BaseModel):
@@ -140,6 +193,13 @@ class TelephonyCallSummary(BaseModel):
         default=None, description="Semantic outcome, if completed."
     )
     summary: str | None = Field(default=None, description="Factual recap (null once purged).")
+    debrief: dict[str, object] | None = Field(
+        default=None,
+        description=(
+            "T01 structured debrief (commitments, follow-up tasks/reminders, "
+            "draft, uncertainties). Null before T01 calls and once purged."
+        ),
+    )
     call_seconds: float | None = Field(default=None, description="Call duration in seconds.")
     created_at: datetime = Field(..., description="When the call was created.")
     completed_at: datetime | None = Field(default=None, description="When the call ended.")

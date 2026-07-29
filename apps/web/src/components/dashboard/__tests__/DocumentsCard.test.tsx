@@ -36,6 +36,9 @@ function section(data: DocumentsData | null, status = 'ok'): CardSection<Documen
     generated_at: '2026-07-22T08:00:00Z',
     error_code: null,
     error_message: null,
+    from_cache: false,
+    stale_generated_at: null,
+    last_attempt_at: null,
   };
 }
 

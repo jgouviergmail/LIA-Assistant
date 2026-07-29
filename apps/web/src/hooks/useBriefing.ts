@@ -60,6 +60,7 @@ export interface UseBriefingResult {
 const ENDPOINT_CARDS = '/briefing/cards';
 const ENDPOINT_SYNTHESIS = '/briefing/synthesis';
 const ENDPOINT_REFRESH = '/briefing/refresh';
+const ENDPOINT_REFRESH_CARDS = '/briefing/refresh-cards';
 
 export function useBriefing(): UseBriefingResult {
   const cardsQuery = useApiQuery<CardsResponse>(ENDPOINT_CARDS, {
@@ -80,10 +81,16 @@ export function useBriefing(): UseBriefingResult {
       });
       try {
         const payload: RefreshRequest = { sections: [section] };
-        const fresh = await apiClient.post<BriefingResponse>(ENDPOINT_REFRESH, payload);
-        // Swap both queries with the refreshed payload.
-        cardsQuery.setData({ cards: fresh.cards });
-        synthesisQuery.setData({ greeting: fresh.greeting, synthesis: fresh.synthesis });
+        if (section === 'all') {
+          // Global refresh: the LLM texts summarize the cards, regenerate both.
+          const fresh = await apiClient.post<BriefingResponse>(ENDPOINT_REFRESH, payload);
+          cardsQuery.setData({ cards: fresh.cards });
+          synthesisQuery.setData({ greeting: fresh.greeting, synthesis: fresh.synthesis });
+        } else {
+          // D-04: a per-card retry must not pay two LLM calls — cards only.
+          const fresh = await apiClient.post<CardsResponse>(ENDPOINT_REFRESH_CARDS, payload);
+          cardsQuery.setData({ cards: fresh.cards });
+        }
       } finally {
         setRefreshing(prev => {
           const next = new Set(prev);

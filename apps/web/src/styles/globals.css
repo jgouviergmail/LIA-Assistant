@@ -1286,6 +1286,28 @@
     animation: send-takeoff 0.5s ease-in;
   }
 
+  /* --- Push-to-talk spotlight (ChatInput, one-shot after ?voice=1 — N-13).
+     Finite iterations: the glow extinguishes BY ITSELF, so no JS timer and no
+     state — the class is applied once, imperatively, and stays inert after
+     the run. Reduced motion drops the cue entirely (focus is the signal). --- */
+  @keyframes voice-ptt-spotlight {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+    }
+    50% {
+      box-shadow: 0 0 0 5px hsl(var(--primary) / 0.45);
+    }
+  }
+  .voice-ptt-spotlight {
+    animation: voice-ptt-spotlight 0.85s ease-in-out 3;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .voice-ptt-spotlight {
+      animation: none;
+    }
+  }
+
   /* --- Skill badge glimmer (ChatMessage ✦ badge) --- */
   @keyframes badge-glimmer {
     0% {

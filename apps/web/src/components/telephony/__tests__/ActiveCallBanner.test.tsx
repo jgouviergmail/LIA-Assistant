@@ -29,6 +29,7 @@ function call(overrides: Partial<TelephonyCallSummary> = {}): TelephonyCallSumma
     status: 'in_progress',
     outcome: null,
     summary: null,
+    debrief: null,
     call_seconds: null,
     created_at: '2026-07-26T09:00:00Z',
     completed_at: null,

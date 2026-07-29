@@ -76,7 +76,11 @@ export function InteractiveChatMockup({ lng, withCta = true }: InteractiveChatMo
               )}
               className="rounded-full border border-border/60 bg-background/60 p-1.5 text-muted-foreground transition-colors hover:text-foreground hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             >
-              {controls.paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+              {controls.paused ? (
+                <Play className="h-3.5 w-3.5" />
+              ) : (
+                <Pause className="h-3.5 w-3.5" />
+              )}
             </button>
             <button
               type="button"
@@ -93,7 +97,10 @@ export function InteractiveChatMockup({ lng, withCta = true }: InteractiveChatMo
       {/* Discreet per-scene progress line (decorative — the pressed pastille
           is the accessible position indicator). */}
       {!reducedMotion && (
-        <div aria-hidden="true" className="mx-auto h-0.5 w-40 overflow-hidden rounded-full bg-border/50">
+        <div
+          aria-hidden="true"
+          className="mx-auto h-0.5 w-40 overflow-hidden rounded-full bg-border/50"
+        >
           <div
             className="h-full rounded-full bg-primary/70 transition-[width] duration-300"
             style={{ width: `${Math.round(controls.progress * 100)}%` }}
@@ -102,11 +109,7 @@ export function InteractiveChatMockup({ lng, withCta = true }: InteractiveChatMo
       )}
 
       {/* The mockup itself — one decorative image, same as the landing hero. */}
-      <div
-        className="relative"
-        role="img"
-        aria-label={t('landing.chat_mockup.aria')}
-      >
+      <div className="relative" role="img" aria-label={t('landing.chat_mockup.aria')}>
         <div
           className="absolute -inset-6 rounded-[2rem] bg-gradient-to-br from-primary/25 via-violet-500/15 to-transparent blur-2xl"
           aria-hidden="true"

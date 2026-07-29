@@ -1,10 +1,11 @@
 'use client';
 
-import { Mail } from 'lucide-react';
+import { Mail, Reply, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
-import { chatDraftHref } from '@/lib/briefing-utils';
+import { CardItemActions } from './CardItemActions';
+import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
 import type { CardSection, MailsData } from '@/types/briefing';
 
 interface MailsCardProps {
@@ -29,7 +30,11 @@ export function MailsCard({ section, isRefreshing, onRefresh, staggerIndex }: Ma
       emptyStateKey="dashboard.briefing.cards.mails.empty"
       onErrorCta={() => router.push(`/${lng}/dashboard/settings?section=connectors`)}
       renderContent={data => (
-        <MailsContent data={data} onOpenChat={draft => router.push(chatDraftHref(lng, draft))} />
+        <MailsContent
+          data={data}
+          onOpenChat={draft => router.push(chatDraftHref(lng, draft))}
+          onExecute={intent => router.push(chatIntentHref(lng, intent))}
+        />
       )}
       staggerIndex={staggerIndex}
     />
@@ -39,9 +44,11 @@ export function MailsCard({ section, isRefreshing, onRefresh, staggerIndex }: Ma
 function MailsContent({
   data,
   onOpenChat,
+  onExecute,
 }: {
   data: MailsData;
   onOpenChat: (draft: string) => void;
+  onExecute: (intent: string) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -59,17 +66,28 @@ function MailsContent({
           // QW-9: each item opens the chat prefilled with a contextual intent
           // (never auto-sent). The intent text IS the accessible name — it
           // states exactly what the click does.
+          const sender = mail.sender_name || mail.sender_email || '—';
           const intent = t('dashboard.briefing.intents.mail', {
             subject: mail.subject,
-            sender: mail.sender_name || mail.sender_email || '—',
+            sender,
+          });
+          const summarizeIntent = t('dashboard.briefing.intents_exec.mail_summarize', {
+            subject: mail.subject,
+            sender,
+          });
+          const replyIntent = t('dashboard.briefing.intents_exec.mail_reply', {
+            subject: mail.subject,
+            sender,
           });
           return (
-            <li key={index}>
+            // QW-24: the action chips are SIBLINGS of the main button — a
+            // button inside a button is invalid HTML and unreachable by AT.
+            <li key={index} className="flex items-start gap-1">
               <button
                 type="button"
                 onClick={() => onOpenChat(intent)}
                 aria-label={intent}
-                className="w-full text-left flex flex-col gap-0.5 leading-tight rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="min-w-0 flex-1 text-left flex flex-col gap-0.5 leading-tight rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 tabular-nums">
                   {mail.received_local}
@@ -81,6 +99,16 @@ function MailsContent({
                   {mail.sender_email || mail.sender_name || '—'}
                 </span>
               </button>
+              <CardItemActions
+                actions={[
+                  {
+                    icon: Sparkles,
+                    label: summarizeIntent,
+                    onSelect: () => onExecute(summarizeIntent),
+                  },
+                  { icon: Reply, label: replyIntent, onSelect: () => onExecute(replyIntent) },
+                ]}
+              />
             </li>
           );
         })}

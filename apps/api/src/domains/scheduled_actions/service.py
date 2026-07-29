@@ -12,7 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import SCHEDULED_ACTIONS_MAX_PER_USER
 from src.core.exceptions import ResourceNotFoundError, ValidationError
-from src.domains.scheduled_actions.models import ScheduledAction, ScheduledActionStatus
+from src.domains.scheduled_actions.models import (
+    ScheduledAction,
+    ScheduledActionStatus,
+    TriggerKind,
+)
 from src.domains.scheduled_actions.repository import ScheduledActionRepository
 from src.domains.scheduled_actions.schedule_helpers import compute_next_trigger_utc
 from src.domains.scheduled_actions.schemas import ScheduledActionCreate, ScheduledActionUpdate
@@ -81,6 +85,14 @@ class ScheduledActionService:
                 "trigger_hour": data.trigger_hour,
                 "trigger_minute": data.trigger_minute,
                 "user_timezone": user_timezone,
+                # N-07: kind/condition/approval — schema-validated coherence.
+                "trigger_kind": data.trigger_kind.value,
+                "condition_config": (
+                    data.condition_config.model_dump(exclude_none=True)
+                    if data.condition_config
+                    else None
+                ),
+                "requires_approval": data.requires_approval,
                 "next_trigger_at": next_trigger_at,
                 "is_enabled": True,
                 "status": ScheduledActionStatus.ACTIVE.value,
@@ -124,6 +136,23 @@ class ScheduledActionService:
         # Sort days_of_week if provided
         if "days_of_week" in update_data:
             update_data["days_of_week"] = sorted(update_data["days_of_week"])
+
+        # N-07: kind/condition coherence against the RESULTING row (the update
+        # schema cannot see the stored half of the pair).
+        if "trigger_kind" in update_data:
+            update_data["trigger_kind"] = update_data["trigger_kind"].value
+        resulting_kind = update_data.get("trigger_kind", action.trigger_kind)
+        resulting_config = update_data.get("condition_config", action.condition_config)
+        if resulting_kind == TriggerKind.CONDITION.value and resulting_config is None:
+            raise ValidationError("condition_config is required when trigger_kind is condition")
+        if resulting_kind == TriggerKind.TIME.value and resulting_config is not None:
+            # Switching back to time drops the condition + its dedup ledger.
+            update_data["condition_config"] = None
+            update_data["condition_state"] = None
+        # A changed condition restarts its dedup ledger (a new fact space).
+        # (`model_dump(exclude_unset=True)` already serialized it to a dict.)
+        if update_data.get("condition_config") is not None:
+            update_data["condition_state"] = None
 
         # Apply updates
         action = await self.repository.update(action, update_data)

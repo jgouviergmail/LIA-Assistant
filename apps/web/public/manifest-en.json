@@ -63,8 +63,28 @@
       ]
     },
     {
-      "name": "Document spaces",
-      "url": "/en/dashboard/settings",
+      "name": "Knowledge spaces",
+      "url": "/en/dashboard/spaces",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Talk to LIA",
+      "url": "/en/dashboard/chat?voice=1",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Quick reminder",
+      "url": "/en/dashboard/chat?draft=Remind%20me%20to%20",
       "icons": [
         {
           "src": "/icon-192.png",

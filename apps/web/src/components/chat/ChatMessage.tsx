@@ -17,6 +17,8 @@ import { cn, proxyGoogleImageUrl } from '@/lib/utils';
 import { classifyImageExpiry } from '@/lib/image-expiry';
 import { MarkdownContent } from './MarkdownContent';
 import { isInterestNotificationMetadata } from './InterestNotificationCard';
+import { CallDebrief } from '@/components/telephony/CallDebrief';
+import { isPhoneCallDebrief } from '@/types/telephony';
 import {
   ProactiveFeedbackButtons,
   type ProactiveFeedbackKind,
@@ -191,6 +193,19 @@ export function retryPromptOf(message: Message): string | undefined {
   if (message.metadata?.type !== 'error') return undefined;
   const prompt = message.metadata?.retryPrompt;
   return typeof prompt === 'string' && prompt.length > 0 ? prompt : undefined;
+}
+
+/**
+ * T01 debrief block of a post-call proactive message — module-level so the
+ * type/shape checks stay OUT of the render hotspot (CC discipline). Renders
+ * nothing for any other message, malformed metadata included (a shape drift
+ * from the dispatcher must degrade to the plain text, never crash the chat).
+ */
+function PhoneCallDebriefBlock({ metadata }: { metadata?: Record<string, unknown> }) {
+  if (metadata?.type !== 'proactive_phone_call') return null;
+  const debrief = metadata.debrief;
+  if (!debrief || !isPhoneCallDebrief(debrief)) return null;
+  return <CallDebrief debrief={debrief} />;
 }
 
 /**
@@ -807,7 +822,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
             {message.browserScreenshot && (
               <BrowserScreenshotCard screenshot={message.browserScreenshot} />
             )}
-            <div key={markdownKey} className={phaseFadeClass}>
+            {/* C-02: the selection-actions scope — one marker per assistant
+                bubble, so a selection spanning TWO answers resolves to two
+                different scopes and is refused (quoting across answers would
+                stitch unrelated sentences). */}
+            <div key={markdownKey} className={phaseFadeClass} data-selection-scope="assistant">
               <MarkdownContent
                 content={message.content}
                 isUser={false}
@@ -818,6 +837,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
             {message.generatedImages && message.generatedImages.length > 0 && (
               <GeneratedImageCards images={message.generatedImages} />
             )}
+            {/* T01: structured debrief under a post-call report (renders
+                nothing for every other message — the block owns its checks). */}
+            <PhoneCallDebriefBlock metadata={message.metadata} />
             {/* Bubble action row (UXR Lot 1) — hidden while streaming: an
                 in-flow row at the growing edge would jitter on every token.
                 Hosts the execution-trace disclosure at its right edge (the

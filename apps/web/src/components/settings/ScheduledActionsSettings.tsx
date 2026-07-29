@@ -39,9 +39,12 @@ import { type Language, getIntlLocale } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import {
   useScheduledActions,
+  type ConditionConfig,
+  type ConditionType,
   type ScheduledAction,
   type ScheduledActionCreate,
   type ScheduledActionUpdate,
+  type TriggerKind,
 } from '@/hooks/useScheduledActions';
 import { toast } from 'sonner';
 
@@ -64,6 +67,11 @@ interface FormState {
   days_of_week: number[];
   trigger_hour: number;
   trigger_minute: number;
+  // N-07 (flattened for the form; assembled into ConditionConfig on save).
+  trigger_kind: TriggerKind;
+  condition_type: ConditionType;
+  condition_query: string;
+  requires_approval: boolean;
 }
 
 const EMPTY_FORM: FormState = {
@@ -72,7 +80,63 @@ const EMPTY_FORM: FormState = {
   days_of_week: [],
   trigger_hour: 8,
   trigger_minute: 0,
+  trigger_kind: 'time',
+  condition_type: 'task_overdue',
+  condition_query: '',
+  requires_approval: false,
 };
+
+/** N-07 condition types offered by the studio (mirror of the backend). */
+const CONDITION_TYPES: readonly ConditionType[] = [
+  'task_overdue',
+  'weather_change',
+  'mail_match',
+  'document_added',
+  'calendar_event',
+];
+
+/** Condition types whose studio form shows the text-filter field. */
+const QUERY_CONDITION_TYPES: readonly ConditionType[] = ['mail_match', 'calendar_event'];
+
+/** Assemble the API ConditionConfig from the flattened form (null for time). */
+function buildConditionConfig(form: FormState): ConditionConfig | null {
+  if (form.trigger_kind !== 'condition') return null;
+  const config: ConditionConfig = { type: form.condition_type };
+  const query = form.condition_query.trim();
+  if (query && QUERY_CONDITION_TYPES.includes(form.condition_type)) {
+    config.query = query;
+  }
+  return config;
+}
+
+/**
+ * Diff the form against the edited action into a minimal update payload
+ * (pure — keeps handleSave under the CC cap). Kind + condition travel
+ * together (the backend enforces coherence); a changed condition alone also
+ * ships.
+ */
+function buildUpdatePayload(
+  form: FormState,
+  editing: ScheduledAction,
+  conditionConfig: ConditionConfig | null
+): ScheduledActionUpdate {
+  const update: ScheduledActionUpdate = {};
+  if (form.title !== editing.title) update.title = form.title;
+  if (form.action_prompt !== editing.action_prompt) update.action_prompt = form.action_prompt;
+  if (JSON.stringify(form.days_of_week) !== JSON.stringify(editing.days_of_week))
+    update.days_of_week = form.days_of_week;
+  if (form.trigger_hour !== editing.trigger_hour) update.trigger_hour = form.trigger_hour;
+  if (form.trigger_minute !== editing.trigger_minute) update.trigger_minute = form.trigger_minute;
+  if (form.trigger_kind !== (editing.trigger_kind ?? 'time')) {
+    update.trigger_kind = form.trigger_kind;
+    update.condition_config = conditionConfig;
+  } else if (JSON.stringify(conditionConfig) !== JSON.stringify(editing.condition_config ?? null)) {
+    update.condition_config = conditionConfig;
+  }
+  if (form.requires_approval !== (editing.requires_approval ?? false))
+    update.requires_approval = form.requires_approval;
+  return update;
+}
 
 function getStatusBadgeVariant(
   action: ScheduledAction
@@ -165,30 +229,35 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
       days_of_week: [...action.days_of_week],
       trigger_hour: action.trigger_hour,
       trigger_minute: action.trigger_minute,
+      trigger_kind: action.trigger_kind ?? 'time',
+      condition_type: action.condition_config?.type ?? 'task_overdue',
+      condition_query: action.condition_config?.query ?? '',
+      requires_approval: action.requires_approval ?? false,
     });
     setEditingAction(action);
   };
 
+  // N-07: a mail_match condition without its filter cannot be saved.
+  const conditionInvalid =
+    form.trigger_kind === 'condition' &&
+    form.condition_type === 'mail_match' &&
+    !form.condition_query.trim();
+
   // Save (create or update)
   const handleSave = async () => {
-    if (!form.title.trim() || !form.action_prompt.trim() || form.days_of_week.length === 0) {
+    if (
+      !form.title.trim() ||
+      !form.action_prompt.trim() ||
+      form.days_of_week.length === 0 ||
+      conditionInvalid
+    ) {
       return;
     }
+    const conditionConfig = buildConditionConfig(form);
 
     try {
       if (editingAction) {
-        // Build update payload (only changed fields)
-        const update: ScheduledActionUpdate = {};
-        if (form.title !== editingAction.title) update.title = form.title;
-        if (form.action_prompt !== editingAction.action_prompt)
-          update.action_prompt = form.action_prompt;
-        if (JSON.stringify(form.days_of_week) !== JSON.stringify(editingAction.days_of_week))
-          update.days_of_week = form.days_of_week;
-        if (form.trigger_hour !== editingAction.trigger_hour)
-          update.trigger_hour = form.trigger_hour;
-        if (form.trigger_minute !== editingAction.trigger_minute)
-          update.trigger_minute = form.trigger_minute;
-
+        const update = buildUpdatePayload(form, editingAction, conditionConfig);
         if (Object.keys(update).length > 0) {
           await updateAction(editingAction.id, update);
           toast.success(t('scheduled_actions.edit_success'));
@@ -201,6 +270,9 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
           days_of_week: form.days_of_week,
           trigger_hour: form.trigger_hour,
           trigger_minute: form.trigger_minute,
+          trigger_kind: form.trigger_kind,
+          condition_config: conditionConfig,
+          requires_approval: form.requires_approval,
         };
         await createAction(data);
         toast.success(t('scheduled_actions.create_success'));
@@ -349,6 +421,88 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
                 </SelectContent>
               </Select>
             </div>
+            <p className="text-xs text-muted-foreground">
+              {form.trigger_kind === 'condition'
+                ? t('scheduled_actions.studio.time_hint_condition')
+                : t('scheduled_actions.studio.time_hint_time')}
+            </p>
+          </div>
+
+          {/* N-07 studio: trigger kind */}
+          <div className="space-y-2">
+            <Label htmlFor="sa-trigger-kind">{t('scheduled_actions.studio.trigger_kind')}</Label>
+            <Select
+              value={form.trigger_kind}
+              onValueChange={v => setForm(f => ({ ...f, trigger_kind: v as TriggerKind }))}
+            >
+              <SelectTrigger id="sa-trigger-kind">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="time">{t('scheduled_actions.studio.kind_time')}</SelectItem>
+                <SelectItem value="condition">
+                  {t('scheduled_actions.studio.kind_condition')}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* N-07 studio: condition config (condition kind only) */}
+          {form.trigger_kind === 'condition' && (
+            <div className="space-y-2 rounded-lg border border-border/40 p-3">
+              <Label htmlFor="sa-condition-type">
+                {t('scheduled_actions.studio.condition_type')}
+              </Label>
+              <Select
+                value={form.condition_type}
+                onValueChange={v => setForm(f => ({ ...f, condition_type: v as ConditionType }))}
+              >
+                <SelectTrigger id="sa-condition-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CONDITION_TYPES.map(type => (
+                    <SelectItem key={type} value={type}>
+                      {t(`scheduled_actions.studio.condition.${type}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {QUERY_CONDITION_TYPES.includes(form.condition_type) && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="sa-condition-query">
+                    {t(`scheduled_actions.studio.query_label.${form.condition_type}`)}
+                  </Label>
+                  <Input
+                    id="sa-condition-query"
+                    value={form.condition_query}
+                    maxLength={120}
+                    onChange={e => setForm(f => ({ ...f, condition_query: e.target.value }))}
+                    placeholder={t(`scheduled_actions.studio.query_ph.${form.condition_type}`)}
+                  />
+                  {conditionInvalid && (
+                    <p className="text-xs text-destructive" role="alert">
+                      {t('scheduled_actions.studio.query_required')}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* N-07 studio: propose-first mode */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <Label htmlFor="sa-approval">{t('scheduled_actions.studio.requires_approval')}</Label>
+              <p className="text-xs text-muted-foreground">
+                {t('scheduled_actions.studio.requires_approval_hint')}
+              </p>
+            </div>
+            <Switch
+              id="sa-approval"
+              checked={form.requires_approval}
+              onCheckedChange={v => setForm(f => ({ ...f, requires_approval: v }))}
+            />
           </div>
         </div>
 
@@ -362,6 +516,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
               !form.title.trim() ||
               !form.action_prompt.trim() ||
               form.days_of_week.length === 0 ||
+              conditionInvalid ||
               creating ||
               updating
             }

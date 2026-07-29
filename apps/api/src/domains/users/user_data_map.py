@@ -407,4 +407,5 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "admin_mcp_disabled_servers": _PREFERENCE,
     "briefing_preferences": _PREFERENCE,
     "onboarding_checklist": _PREFERENCE,
+    "chat_shortcuts": _PREFERENCE,
 }

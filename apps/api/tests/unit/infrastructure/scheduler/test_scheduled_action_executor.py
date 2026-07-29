@@ -85,6 +85,14 @@ def _executor_env(
     action.id = action_id
     action.action_prompt = "Summarize my unread emails"
     action.title = "Morning briefing"
+    # N-07: explicit defaults — a bare MagicMock would autovivify
+    # requires_approval as truthy and wrongly enter the propose-first branch,
+    # and trigger_kind as a non-"time" mock. These keep the historical
+    # time-routine path under test.
+    action.trigger_kind = "time"
+    action.condition_config = None
+    action.condition_state = None
+    action.requires_approval = False
 
     # Real UserProfile (not a MagicMock): a MagicMock would trivially carry any
     # attribute, masking the very bug this asserts — the profile schema silently

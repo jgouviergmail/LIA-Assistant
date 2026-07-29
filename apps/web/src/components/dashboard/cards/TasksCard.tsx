@@ -1,10 +1,11 @@
 'use client';
 
-import { ListTodo } from 'lucide-react';
+import { CalendarClock, Check, ListTodo } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
-import { chatDraftHref } from '@/lib/briefing-utils';
+import { CardItemActions } from './CardItemActions';
+import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
 import type { CardSection, TaskItem, TasksData } from '@/types/briefing';
 
 interface TasksCardProps {
@@ -36,7 +37,11 @@ export function TasksCard({ section, isRefreshing, onRefresh, staggerIndex }: Ta
       onRefresh={onRefresh}
       emptyStateKey="dashboard.briefing.cards.tasks.empty"
       renderContent={data => (
-        <TasksContent data={data} onOpenChat={draft => router.push(chatDraftHref(lng, draft))} />
+        <TasksContent
+          data={data}
+          onOpenChat={draft => router.push(chatDraftHref(lng, draft))}
+          onExecute={intent => router.push(chatIntentHref(lng, intent))}
+        />
       )}
       staggerIndex={staggerIndex}
     />
@@ -74,9 +79,11 @@ function DueBadge({ task }: { task: TaskItem }) {
 function TasksContent({
   data,
   onOpenChat,
+  onExecute,
 }: {
   data: TasksData;
   onOpenChat: (draft: string) => void;
+  onExecute: (intent: string) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -88,13 +95,22 @@ function TasksContent({
             : 'dashboard.briefing.intents.task_progress',
           { subject: task.title }
         );
+        const completeIntent = t('dashboard.briefing.intents_exec.task_complete', {
+          subject: task.title,
+        });
+        const postponeIntent = t('dashboard.briefing.intents_exec.task_postpone', {
+          subject: task.title,
+        });
         return (
-          <li key={index}>
+          // QW-24: action chips as SIBLINGS (nested buttons are invalid HTML).
+          // "Terminé" is an external write — the pipeline's task_update HITL
+          // draft still gates the actual provider call (ADR-173).
+          <li key={index} className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => onOpenChat(intent)}
               aria-label={intent}
-              className="w-full text-left flex items-baseline justify-between gap-2 text-sm rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="min-w-0 flex-1 text-left flex items-baseline justify-between gap-2 text-sm rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span
                 className={
@@ -107,6 +123,16 @@ function TasksContent({
               </span>
               <DueBadge task={task} />
             </button>
+            <CardItemActions
+              actions={[
+                { icon: Check, label: completeIntent, onSelect: () => onExecute(completeIntent) },
+                {
+                  icon: CalendarClock,
+                  label: postponeIntent,
+                  onSelect: () => onExecute(postponeIntent),
+                },
+              ]}
+            />
           </li>
         );
       })}

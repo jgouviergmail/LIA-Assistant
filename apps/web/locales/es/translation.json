@@ -170,8 +170,10 @@
     "quick_access_compact": {
       "help": "Ayuda",
       "settings": "Ajustes",
+      "relations": "Relaciones",
       "help_sub": "FAQ y soporte",
-      "settings_sub": "Conectores y preferencias"
+      "settings_sub": "Conectores y preferencias",
+      "relations_sub": "Tus contactos de un vistazo"
     },
     "briefing": {
       "section_title": "Mi panel",
@@ -280,6 +282,13 @@
       },
       "updated_hours_ago": "hace {{hours}} h",
       "updated_days_ago": "hace {{days}} d",
+      "from_cache_suffix": "caché",
+      "stale_data_age": "Datos actualizados {{ago}}",
+      "last_attempt_ago": "último intento {{ago}}",
+      "ago_just_now": "justo ahora",
+      "ago_minutes": "hace {{n}} min",
+      "ago_hours": "hace {{n}} h",
+      "ago_days": "hace {{n}} d",
       "intents": {
         "mail": "Resume el correo \"{{subject}}\" de {{sender}} y propón una respuesta",
         "birthday": "Prepara un mensaje de cumpleaños para {{name}}",
@@ -290,6 +299,18 @@
         "task_progress": "Ayúdame a avanzar con «{{subject}}»",
         "task_reschedule": "Replanifica la tarea «{{subject}}»",
         "document_summarize": "Resúmeme el documento «{{subject}}»"
+      },
+      "intents_exec": {
+        "mail_summarize": "Resume el correo «{{subject}}» de {{sender}}",
+        "mail_reply": "Prepara una respuesta al correo «{{subject}}» de {{sender}}",
+        "event_prepare": "Prepárame para «{{title}}» de las {{time}}",
+        "event_route": "Dame la ruta hacia «{{location}}»",
+        "task_complete": "Marca la tarea «{{subject}}» como completada",
+        "task_postpone": "Pospón la tarea «{{subject}}»",
+        "birthday_message": "Prepara un mensaje de cumpleaños para {{name}}",
+        "document_summarize": "Resume el documento «{{subject}}»",
+        "document_ask_draft": "Sobre el documento «{{subject}}»: ",
+        "document_ask_label": "Hacer una pregunta sobre «{{subject}}»"
       },
       "not_configured_intro_one": "Una tarjeta espera configuración:",
       "not_configured_intro_other": "{{count}} tarjetas esperan configuración:",
@@ -831,6 +852,29 @@
     "followups": {
       "aria": "Sugerencias de continuación"
     },
+    "intent_saved_as_draft": "Límite de uso alcanzado — tu solicitud se guardó como borrador.",
+    "selection": {
+      "aria": "Acciones sobre el pasaje seleccionado",
+      "close": "Cerrar las acciones de selección",
+      "actions": {
+        "explain": "Explicar",
+        "rephrase": "Reformular",
+        "translate": "Traducir",
+        "to_task": "A tarea",
+        "to_reminder": "A recordatorio",
+        "remember": "Memorizar",
+        "ask": "Preguntar"
+      },
+      "intents": {
+        "explain": "Explica este pasaje: «{{quote}}»",
+        "rephrase": "Reformula este pasaje de forma más sencilla: «{{quote}}»",
+        "translate": "Traduce este pasaje: «{{quote}}»",
+        "to_task": "Crea una tarea a partir de este pasaje: «{{quote}}»",
+        "to_reminder": "Crea un recordatorio a partir de este pasaje: «{{quote}}»",
+        "remember": "Recuerda esto: «{{quote}}»",
+        "ask": "Sobre este pasaje: «{{quote}}» — "
+      }
+    },
     "slash": {
       "aria": "Comandos disponibles",
       "kind_local": "acción",
@@ -1014,6 +1058,11 @@
       "my_connectors_description": "Conecta tus cuentas para permitir que LIA acceda a tus datos",
       "connected": "Conectados",
       "connected_google": "Conectores Google conectados",
+      "group_state": {
+        "connected": "Conectado",
+        "attention": "Acción requerida",
+        "available": "No conectado"
+      },
       "connected_api_key": "Conectores externos conectados",
       "connected_apple": "Conectores Apple conectados",
       "connected_microsoft": "Conectores Microsoft conectados",
@@ -2660,6 +2709,23 @@
       "title": "Lo que LIA entiende de ti",
       "subtitle": "Consulta el retrato vivo compilado desde tus diarios"
     },
+    "chat_shortcuts": {
+      "title": "Atajos del chat",
+      "description": "Tus propios /atajos: escribe / en el chat para insertar una petición preparada. El texto solo se inserta, nunca se envía solo.",
+      "empty": "Aún no hay ningún atajo personal.",
+      "count": "{{current}} / {{max}} atajos",
+      "limit_reached": "Límite de atajos alcanzado — elimina uno para añadir otro.",
+      "id_label": "Atajo (escrito después de la /)",
+      "id_placeholder": "p. ej. tiempo-casa",
+      "text_label": "Texto insertado",
+      "text_placeholder": "p. ej. ¿Qué tiempo hará en casa este fin de semana?",
+      "add": "Añadir atajo",
+      "added": "Atajo /{{id}} añadido.",
+      "remove": "Eliminar el atajo /{{id}}",
+      "error_invalid_id": "El atajo solo puede contener minúsculas, dígitos y guiones.",
+      "error_reserved": "Este nombre de atajo está reservado a un comando integrado.",
+      "error_duplicate": "Ya tienes un atajo con este nombre."
+    },
     "briefing_grid": {
       "title": "Mi panel",
       "description": "Elige qué tarjetas aparecen en el panel y en qué orden. Una tarjeta oculta no se recupera en absoluto.",
@@ -2800,6 +2866,17 @@
       }
     },
     "telephony": {
+      "debrief": {
+        "commitments": "Compromisos",
+        "tasks": "Tareas de seguimiento",
+        "reminders": "Recordatorios sugeridos",
+        "uncertainties": "Por verificar",
+        "draft": "Borrador de seguimiento",
+        "use_draft": "Usar este borrador en el chat",
+        "draft_prefill": "Envía este mensaje de seguimiento: {{draft}}",
+        "intent_task": "Crea una tarea: {{item}}",
+        "intent_reminder": "Crea un recordatorio: {{item}}"
+      },
       "calls": {
         "title": "Llamadas recientes",
         "description": "Llamadas que LIA hizo por ti",
@@ -2839,6 +2916,7 @@
         "font": "tipografía, fuente, tamaño del texto, legibilidad, letra",
         "display-mode": "tarjetas, representación, formato de respuestas, diseño, markdown, texto plano",
         "briefing-grid": "inicio, página de inicio, panel, widgets, tarjetas, briefing, orden de secciones",
+        "chat-shortcuts": "slash, atajo, comando, petición rápida, macro, /comando, plantilla de mensaje",
         "open-loops": "pendiente, seguimiento, compromisos, promesas, sin terminar, cabos sueltos",
         "notifications": "push, alertas, avisos, móvil, recordatorios, FCM",
         "channels": "whatsapp, telegram, sms, correo, mensajería, integraciones",
@@ -2865,6 +2943,25 @@
         "user-consumption-export": "CSV, consumo, tokens, coste, facturación, estadísticas, exportación"
       }
     }
+  },
+  "relations": {
+    "title": "Relaciones",
+    "subtitle": "Todo lo que LIA sabe de las personas con las que tratas — compromisos abiertos, llamadas y recuerdos, en un solo lugar.",
+    "empty": "Todavía no hay relaciones. A medida que LIA siga compromisos y haga llamadas, las personas implicadas aparecerán aquí.",
+    "detail_empty": "Aún no hay nada registrado para esta persona.",
+    "back": "Volver a la lista",
+    "open_loops_count_one": "{{count}} compromiso",
+    "open_loops_count_other": "{{count}} compromisos",
+    "calls_count_one": "{{count}} llamada",
+    "calls_count_other": "{{count}} llamadas",
+    "days_open_one": "abierto desde hace {{count}} día",
+    "days_open_other": "abierto desde hace {{count}} días",
+    "prepare_360": "Preparar un repaso 360°",
+    "prepare_intent": "Prepara un repaso 360° sobre {{name}}: interacciones recientes, compromisos abiertos y qué plantear a continuación.",
+    "identity_best_effort": "Estos elementos se emparejaron por el nombre — LIA puede haber agrupado a dos personas distintas o pasado por alto una grafía.",
+    "section_open_loops": "Compromisos abiertos",
+    "section_calls": "Llamadas recientes",
+    "section_memories": "Recuerdos"
   },
   "spaces": {
     "title": "Espacios de conocimiento",
@@ -2898,8 +2995,9 @@
     "back_to_spaces": "Volver a espacios",
     "doc_singular": "doc",
     "docs_plural": "docs",
-    "indicator": "{{count}} espacio(s) RAG activo(s)",
+    "indicator": "{{count}} conocimiento(s)",
     "indicator_tooltip": "{{count}} espacio(s) de conocimiento enriquecen las respuestas",
+    "quick_manage": "Gestionar espacios",
     "documents": {
       "upload_button": "Subir documento",
       "upload_hint": "Arrastre y suelte archivos aquí o haga clic para buscar",
@@ -3468,6 +3566,20 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_26_0": {
+          "title": "v1.26.0 — 🎯 De la lectura a la acción",
+          "date": "Julio 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>🎬 Actúa directamente desde las tarjetas del panel</b> — cada tarjeta ofrece ahora acciones inmediatas: resumir un documento, preparar una respuesta a un correo, marcar una tarea como hecha, posponer. La acción pasa por el chat como siempre, con la misma confirmación para todo lo que escribe hacia el exterior.",
+            "i2": "<b>✂️ Selecciona un pasaje de una respuesta</b> — aparece una pequeña barra de acciones (una hoja inferior en el móvil): explicar, reformular, traducir, convertir en tarea o recordatorio, memorizar, o hacer una pregunta al respecto.",
+            "i3": "<b>⏰ Rutinas que esperan el momento adecuado</b> — una rutina puede activarse por una condición (una tarea vencida, la llegada de un correo que coincide, un cambio de tiempo, un documento añadido, un evento que se acerca) en lugar de a una hora fija, con un modo « proponer primero » que te avisa en vez de actuar por su cuenta.",
+            "i4": "<b>👥 Un CRM personal</b> — consulta en un solo lugar todo lo que LIA ya sabe de una persona: compromisos abiertos, llamadas recientes, hechos memorizados. Accesible desde el acceso rápido del panel.",
+            "i5": "<b>📞 Un resumen de llamada más completo</b> — tras una llamada: resultado, compromisos adquiridos, tareas y recordatorios creados, puntos pendientes, y un borrador de seguimiento con un gesto.",
+            "i6": "<b>🕐 El panel dice la verdad sobre la actualidad</b> — « actualizado hace X », servido desde la caché, último intento cuando algo falla, y un reintento por tarjeta con un clic.",
+            "i7": "<b>📚 Conocimiento más accesible y atajos</b> — los Espacios de conocimiento se unen al menú, el indicador del chat queda centrado y discreto; instalada en la pantalla de inicio, LIA ofrece atajos (prioridad del día, añadir rápido, pulsar para hablar), y un administrador puede crear sus propios comandos « / »."
+          }
+        },
         "v1_25_33": {
           "title": "v1.25.33 — 📋 Pegar, compartir, controlar la demo",
           "date": "Julio 2026",
@@ -6937,6 +7049,32 @@
     "field_days": "Días de la semana",
     "field_time": "Hora de ejecución",
     "prompt_placeholder": "Ej: Busca el tiempo de hoy y dame un resumen",
+    "studio": {
+      "trigger_kind": "Disparador",
+      "kind_time": "A la hora fijada",
+      "kind_condition": "Cuando se cumple una condición",
+      "time_hint_time": "La rutina se ejecuta a esta hora los días elegidos.",
+      "time_hint_condition": "La condición se comprueba a esta hora los días elegidos; la rutina solo se ejecuta si se cumple.",
+      "condition_type": "Condición",
+      "condition": {
+        "task_overdue": "Una tarea está vencida",
+        "weather_change": "Cambio de tiempo",
+        "mail_match": "Un correo coincide",
+        "document_added": "Se añadió un documento",
+        "calendar_event": "Un evento se acerca"
+      },
+      "query_label": {
+        "mail_match": "Filtro (asunto o remitente)",
+        "calendar_event": "Filtro por título (opcional)"
+      },
+      "query_ph": {
+        "mail_match": "ej. factura",
+        "calendar_event": "ej. dentista"
+      },
+      "query_required": "Se requiere un filtro para esta condición.",
+      "requires_approval": "Pedirme permiso antes de ejecutar",
+      "requires_approval_hint": "LIA te avisa y solo actúa tras tu confirmación en el chat."
+    },
     "days": {
       "d1": "Lun",
       "d2": "Mar",
@@ -7144,7 +7282,7 @@
       },
       "reminders_scheduling": {
         "title": "Recordatorios y automatizaciones",
-        "description": "Programa recordatorios en lenguaje natural (\"Recuérdame mañana a las 9 llamar a María\"). Planifica acciones recurrentes automáticas (resumen de emails del lunes, clima matutino...). Un recordatorio que vence con tu cuota alcanzada vuelve a la cola: nunca se pierde."
+        "description": "Programa recordatorios en lenguaje natural (\"Recuérdame mañana a las 9 llamar a María\"). Planifica acciones recurrentes automáticas (resumen de emails del lunes, clima matutino...). Un recordatorio que vence con tu cuota alcanzada vuelve a la cola: nunca se pierde. Las rutinas ahora pueden esperar una condición — una tarea que vence, un correo que coincide, un cambio de tiempo, un documento añadido, un evento que se acerca — y proponer antes de actuar si lo prefieres."
       },
       "memory": {
         "title": "Memoria contextual",
@@ -7248,7 +7386,7 @@
       },
       "briefing": {
         "title": "Briefing del día",
-        "description": "Cada mañana, tu día de un vistazo: síntesis personalizada, clima, agenda, cumpleaños, recordatorios, salud, correos no leídos, tus compromisos seguidos, tareas atrasadas y documentos recién editados — antes incluso de que preguntes."
+        "description": "Cada mañana, tu día de un vistazo: síntesis personalizada, clima, agenda, cumpleaños, recordatorios, salud, correos no leídos, tus compromisos seguidos, tareas atrasadas y documentos recién editados — antes incluso de que preguntes. Cada tarjeta ahora actúa, no solo informa — resumir un documento, preparar una respuesta, completar o posponer una tarea ahí mismo — y dice con honestidad cómo de reciente es (actualizado hace X, desde la caché, reintento con un clic)."
       }
     },
     "use_cases": {

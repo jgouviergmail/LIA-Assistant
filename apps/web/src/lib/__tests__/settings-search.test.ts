@@ -80,7 +80,8 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // The type already forbids a missing entry; this catches the reverse, an
     // entry left behind by a token that was removed.
     expect(Object.keys(SETTINGS_SEARCH_META).sort()).toEqual([...TOKENS].sort());
-    expect(TOKENS).toHaveLength(30);
+    // 30 at ADR-172, +1 chat-shortcuts (UX Actions program, SLASH admin lot).
+    expect(TOKENS).toHaveLength(31);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

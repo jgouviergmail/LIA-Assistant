@@ -382,6 +382,22 @@ class CardSection(BaseModel):
         None, description="Stable error code for frontend CTA mapping (see constants.py)."
     )
     error_message: str | None = Field(None, description="Localized human-readable error message.")
+    # D-04 honest freshness — all additive with safe defaults, so payloads
+    # cached before this change still validate on read.
+    from_cache: bool = Field(
+        False,
+        description="True when this section was served from the Redis cache (not fetched live).",
+    )
+    stale_generated_at: datetime | None = Field(
+        None,
+        description=(
+            "ERROR + data only: when the STALE payload shown alongside the error "
+            "was originally generated (the last known-good fetch)."
+        ),
+    )
+    last_attempt_at: datetime | None = Field(
+        None, description="ERROR only: when the failed live fetch was attempted (UTC)."
+    )
 
 
 class LLMUsage(BaseModel):

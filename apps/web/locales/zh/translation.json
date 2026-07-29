@@ -170,8 +170,10 @@
     "quick_access_compact": {
       "help": "帮助",
       "settings": "设置",
+      "relations": "人际关系",
       "help_sub": "常见问题与支持",
-      "settings_sub": "连接器和首选项"
+      "settings_sub": "连接器和首选项",
+      "relations_sub": "一览您的联系人"
     },
     "briefing": {
       "section_title": "我的仪表盘",
@@ -280,6 +282,13 @@
       },
       "updated_hours_ago": "{{hours}} 小时前",
       "updated_days_ago": "{{days}} 天前",
+      "from_cache_suffix": "缓存",
+      "stale_data_age": "数据更新于{{ago}}",
+      "last_attempt_ago": "上次尝试{{ago}}",
+      "ago_just_now": "刚刚",
+      "ago_minutes": "{{n}} 分钟前",
+      "ago_hours": "{{n}} 小时前",
+      "ago_days": "{{n}} 天前",
       "intents": {
         "mail": "总结来自{{sender}}的邮件“{{subject}}”并起草回复",
         "birthday": "为{{name}}准备一条生日祝福",
@@ -290,6 +299,18 @@
         "task_progress": "帮我推进“{{subject}}”",
         "task_reschedule": "重新安排任务“{{subject}}”",
         "document_summarize": "帮我总结文档“{{subject}}”"
+      },
+      "intents_exec": {
+        "mail_summarize": "总结来自{{sender}}的邮件“{{subject}}”",
+        "mail_reply": "为来自{{sender}}的邮件“{{subject}}”准备回复",
+        "event_prepare": "帮我准备{{time}}的“{{title}}”",
+        "event_route": "给我去“{{location}}”的路线",
+        "task_complete": "将任务“{{subject}}”标记为已完成",
+        "task_postpone": "推迟任务“{{subject}}”",
+        "birthday_message": "为{{name}}准备一条生日祝福",
+        "document_summarize": "总结文档“{{subject}}”",
+        "document_ask_draft": "关于文档“{{subject}}”：",
+        "document_ask_label": "就“{{subject}}”提问"
       },
       "not_configured_intro_one": "{{count}} 张卡片待配置：",
       "not_configured_intro_other": "{{count}} 张卡片待配置：",
@@ -839,6 +860,29 @@
     "followups": {
       "aria": "后续建议"
     },
+    "intent_saved_as_draft": "已达到使用上限——您的请求已保存为草稿。",
+    "selection": {
+      "aria": "对所选段落的操作",
+      "close": "关闭选择操作",
+      "actions": {
+        "explain": "解释",
+        "rephrase": "改写",
+        "translate": "翻译",
+        "to_task": "转为任务",
+        "to_reminder": "转为提醒",
+        "remember": "记住",
+        "ask": "提问"
+      },
+      "intents": {
+        "explain": "解释这段内容：“{{quote}}”",
+        "rephrase": "用更简单的方式改写这段内容：“{{quote}}”",
+        "translate": "翻译这段内容：“{{quote}}”",
+        "to_task": "根据这段内容创建一个任务：“{{quote}}”",
+        "to_reminder": "根据这段内容创建一个提醒：“{{quote}}”",
+        "remember": "记住这一点：“{{quote}}”",
+        "ask": "关于这段内容：“{{quote}}”——"
+      }
+    },
     "slash": {
       "aria": "可用命令",
       "kind_local": "操作",
@@ -1022,6 +1066,11 @@
       "my_connectors_description": "连接您的账户以允许LIA访问您的数据",
       "connected": "已连接",
       "connected_google": "已连接的 Google 连接器",
+      "group_state": {
+        "connected": "已连接",
+        "attention": "需要操作",
+        "available": "未连接"
+      },
       "connected_api_key": "已连接的外部连接器",
       "connected_apple": "已连接的 Apple 连接器",
       "connected_microsoft": "已连接的 Microsoft 连接器",
@@ -2668,6 +2717,23 @@
       "title": "LIA 对您的理解",
       "subtitle": "查看根据您的日志编写的动态画像"
     },
+    "chat_shortcuts": {
+      "title": "聊天快捷指令",
+      "description": "您自己的 / 快捷指令：在聊天中输入 / 即可插入预先准备的请求。文本只会被插入，绝不会自动发送。",
+      "empty": "暂无个人快捷指令。",
+      "count": "{{current}} / {{max}} 个快捷指令",
+      "limit_reached": "已达到快捷指令上限——请删除一个后再添加。",
+      "id_label": "快捷指令（在 / 后输入）",
+      "id_placeholder": "例如 weather-home",
+      "text_label": "插入的文本",
+      "text_placeholder": "例如：这个周末家里的天气怎么样？",
+      "add": "添加快捷指令",
+      "added": "快捷指令 /{{id}} 已添加。",
+      "remove": "删除快捷指令 /{{id}}",
+      "error_invalid_id": "快捷指令只能包含小写字母、数字和连字符。",
+      "error_reserved": "该快捷指令名称已被内置命令保留。",
+      "error_duplicate": "您已有同名的快捷指令。"
+    },
     "briefing_grid": {
       "title": "我的仪表盘",
       "description": "选择在仪表盘上显示哪些卡片及其顺序。隐藏的卡片将完全不再获取数据。",
@@ -2808,6 +2874,17 @@
       }
     },
     "telephony": {
+      "debrief": {
+        "commitments": "承诺事项",
+        "tasks": "后续任务",
+        "reminders": "建议的提醒",
+        "uncertainties": "待核实",
+        "draft": "跟进草稿",
+        "use_draft": "在聊天中使用此草稿",
+        "draft_prefill": "发送这条跟进消息：{{draft}}",
+        "intent_task": "创建任务：{{item}}",
+        "intent_reminder": "创建提醒：{{item}}"
+      },
       "calls": {
         "title": "最近通话",
         "description": "LIA 为你拨打的电话",
@@ -2846,6 +2923,7 @@
         "font": "字体, 排版, 文字大小, 可读性",
         "display-mode": "显示模式, 卡片, 渲染, 回复格式, 布局, markdown, 纯文本",
         "briefing-grid": "首页, 主页, 仪表板, 小组件, 卡片, 简报, 板块顺序",
+        "chat-shortcuts": "斜杠, 快捷指令, 命令, 快速请求, 宏, /命令, 消息模板",
         "open-loops": "待办, 跟进, 承诺, 未完成, 遗留事项",
         "notifications": "推送, 提醒, 通知, 手机, FCM",
         "channels": "WhatsApp, Telegram, 短信, 邮件, 消息渠道, 集成",
@@ -2873,6 +2951,25 @@
       },
       "results_count_other": "找到 {{count}} 项设置"
     }
+  },
+  "relations": {
+    "title": "人际关系",
+    "subtitle": "LIA 掌握的、关于您所往来之人的一切——未了的承诺、通话与记忆，集中于一处。",
+    "empty": "暂无关系。随着 LIA 跟进承诺并拨打电话，相关的人会出现在这里。",
+    "detail_empty": "这个人暂时还没有任何记录。",
+    "back": "返回列表",
+    "open_loops_count_one": "{{count}} 项承诺",
+    "open_loops_count_other": "{{count}} 项承诺",
+    "calls_count_one": "{{count}} 次通话",
+    "calls_count_other": "{{count}} 次通话",
+    "days_open_one": "已未了 {{count}} 天",
+    "days_open_other": "已未了 {{count}} 天",
+    "prepare_360": "准备 360° 概览",
+    "prepare_intent": "为{{name}}准备一次 360° 概览：近期往来、未了的承诺，以及接下来需要提出的事项。",
+    "identity_best_effort": "这些条目是按姓名匹配的——LIA 可能把两个不同的人合并了，或漏掉了某种拼写。",
+    "section_open_loops": "未了的承诺",
+    "section_calls": "近期通话",
+    "section_memories": "记忆"
   },
   "spaces": {
     "title": "知识空间",
@@ -2906,8 +3003,9 @@
     "back_to_spaces": "返回空间",
     "doc_singular": "文档",
     "docs_plural": "文档",
-    "indicator": "{{count}}个RAG空间已激活",
+    "indicator": "{{count}}项知识",
     "indicator_tooltip": "{{count}}个知识空间正在丰富回答",
+    "quick_manage": "管理知识空间",
     "documents": {
       "upload_button": "上传文档",
       "upload_hint": "将文件拖放到此处，或点击浏览",
@@ -3463,6 +3561,20 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_26_0": {
+          "title": "v1.26.0 — 🎯 从阅读到行动",
+          "date": "2026年7月",
+          "count": "7",
+          "items": {
+            "i1": "<b>🎬 直接从仪表盘卡片上操作</b> — 每张卡片现在都提供即时操作：总结文档、准备邮件回复、把任务标记为完成、推迟。操作照常通过聊天进行，凡是向外部写入的都保留同样的批准步骤。",
+            "i2": "<b>✂️ 选中回复中的一段文字</b> — 会出现一个小操作栏（手机上是从底部弹出的面板）：解释、改写、翻译、转为任务或提醒、记住，或就此提问。",
+            "i3": "<b>⏰ 会等待合适时机的例程</b> — 例程可以按条件触发（某个任务逾期、收到匹配的邮件、天气转变、新增文档、临近的日程），而不必固定时间，并有“先提议”模式：先通知你，而不是自行执行。",
+            "i4": "<b>👥 个人 CRM</b> — 一处查看 LIA 已经掌握的关于某个人的一切：未了结的承诺、最近的通话、记住的事实。可从仪表盘的快速入口进入。",
+            "i5": "<b>📞 更完整的通话简报</b> — 通话之后：结果、做出的承诺、创建的任务和提醒、待办疑问，以及一键生成的跟进草稿。",
+            "i6": "<b>🕐 仪表盘如实说明数据的新鲜度</b> — “X 前更新”、来自缓存、出问题时的最后一次尝试，以及每张卡片一键重试。",
+            "i7": "<b>📚 知识更易触达，还有快捷方式</b> — 知识空间进入菜单，聊天指示器居中且低调；添加到主屏后，LIA 提供快捷方式（当天优先事项、快速添加、按住说话），管理员还能创建自己的“/”命令。"
+          }
+        },
         "v1_25_33": {
           "title": "v1.25.33 — 📋 粘贴、分享、操控演示",
           "date": "2026 年 7 月",
@@ -6932,6 +7044,32 @@
     "field_days": "星期几",
     "field_time": "执行时间",
     "prompt_placeholder": "例：查询今天的天气并给我一个摘要",
+    "studio": {
+      "trigger_kind": "触发方式",
+      "kind_time": "在设定的时间",
+      "kind_condition": "当满足某个条件时",
+      "time_hint_time": "例行任务在所选日期的该时间运行。",
+      "time_hint_condition": "在所选日期的该时间检查条件；仅当条件满足时才运行。",
+      "condition_type": "条件",
+      "condition": {
+        "task_overdue": "有任务逾期",
+        "weather_change": "天气变化",
+        "mail_match": "有邮件匹配",
+        "document_added": "新增了文档",
+        "calendar_event": "有即将到来的日程"
+      },
+      "query_label": {
+        "mail_match": "筛选（主题或发件人）",
+        "calendar_event": "标题筛选（可选）"
+      },
+      "query_ph": {
+        "mail_match": "例：发票",
+        "calendar_event": "例：牙医"
+      },
+      "query_required": "此条件需要一个筛选词。",
+      "requires_approval": "执行前先征求我同意",
+      "requires_approval_hint": "LIA 会通知您，并仅在您于聊天中确认后才执行。"
+    },
     "days": {
       "d1": "周一",
       "d2": "周二",
@@ -7139,7 +7277,7 @@
       },
       "reminders_scheduling": {
         "title": "提醒与自动化",
-        "description": "用自然语言设置提醒（\"提醒我明天9点给玛丽打电话\"）。规划定期自动操作（周一邮件摘要、早晨天气...）。在额度已达上限时到期的提醒会重新排队，绝不会丢失。"
+        "description": "用自然语言设置提醒（\"提醒我明天9点给玛丽打电话\"）。规划定期自动操作（周一邮件摘要、早晨天气...）。在额度已达上限时到期的提醒会重新排队，绝不会丢失。例程现在可以等待某个条件——任务逾期、收到匹配的邮件、天气转变、新增文档、临近的日程——并可在行动前先向你提议。"
       },
       "memory": {
         "title": "上下文记忆",
@@ -7243,7 +7381,7 @@
       },
       "briefing": {
         "title": "今日简报",
-        "description": "每天早晨，一眼看清你的一天：个性化综述、天气、日程、生日、提醒、健康、未读邮件、你在追踪的承诺、逾期任务和刚修改的文档——在你开口之前。"
+        "description": "每天早晨，一眼看清你的一天：个性化综述、天气、日程、生日、提醒、健康、未读邮件、你在追踪的承诺、逾期任务和刚修改的文档——在你开口之前。每张卡片现在都能行动，而不只是告知——就地总结文档、准备回复、完成或推迟任务——并如实说明它的新鲜度（X 前更新、来自缓存、一键重试）。"
       }
     },
     "use_cases": {

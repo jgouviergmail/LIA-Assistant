@@ -178,8 +178,10 @@
     "quick_access_compact": {
       "help": "Help",
       "settings": "Settings",
+      "relations": "Relationships",
       "help_sub": "FAQ and support",
-      "settings_sub": "Connectors and preferences"
+      "settings_sub": "Connectors and preferences",
+      "relations_sub": "Your contacts at a glance"
     },
     "briefing": {
       "section_title": "My dashboard",
@@ -288,6 +290,13 @@
       },
       "updated_hours_ago": "{{hours}} h ago",
       "updated_days_ago": "{{days}} d ago",
+      "from_cache_suffix": "cache",
+      "stale_data_age": "Data updated {{ago}}",
+      "last_attempt_ago": "last attempt {{ago}}",
+      "ago_just_now": "just now",
+      "ago_minutes": "{{n}} min ago",
+      "ago_hours": "{{n}} h ago",
+      "ago_days": "{{n}} d ago",
       "intents": {
         "mail": "Summarize the email \"{{subject}}\" from {{sender}} and draft a reply",
         "birthday": "Write a birthday message for {{name}}",
@@ -298,6 +307,18 @@
         "task_progress": "Help me make progress on “{{subject}}”",
         "task_reschedule": "Reschedule the task “{{subject}}”",
         "document_summarize": "Summarize the document “{{subject}}”"
+      },
+      "intents_exec": {
+        "mail_summarize": "Summarize the email “{{subject}}” from {{sender}}",
+        "mail_reply": "Draft a reply to the email “{{subject}}” from {{sender}}",
+        "event_prepare": "Prepare me for “{{title}}” at {{time}}",
+        "event_route": "Give me directions to “{{location}}”",
+        "task_complete": "Mark the task “{{subject}}” as done",
+        "task_postpone": "Postpone the task “{{subject}}”",
+        "birthday_message": "Write a birthday message for {{name}}",
+        "document_summarize": "Summarize the document “{{subject}}”",
+        "document_ask_draft": "About the document “{{subject}}”: ",
+        "document_ask_label": "Ask a question about “{{subject}}”"
       },
       "not_configured_intro_one": "One card is waiting to be set up:",
       "not_configured_intro_other": "{{count}} cards are waiting to be set up:",
@@ -853,6 +874,29 @@
     "followups": {
       "aria": "Suggested follow-ups"
     },
+    "intent_saved_as_draft": "Usage limit reached — your request was saved as a draft.",
+    "selection": {
+      "aria": "Actions on the selected passage",
+      "close": "Close selection actions",
+      "actions": {
+        "explain": "Explain",
+        "rephrase": "Rephrase",
+        "translate": "Translate",
+        "to_task": "To a task",
+        "to_reminder": "To a reminder",
+        "remember": "Remember",
+        "ask": "Ask about it"
+      },
+      "intents": {
+        "explain": "Explain this passage: “{{quote}}”",
+        "rephrase": "Rephrase this passage more simply: “{{quote}}”",
+        "translate": "Translate this passage: “{{quote}}”",
+        "to_task": "Create a task from this passage: “{{quote}}”",
+        "to_reminder": "Create a reminder from this passage: “{{quote}}”",
+        "remember": "Remember this: “{{quote}}”",
+        "ask": "About this passage: “{{quote}}” — "
+      }
+    },
     "slash": {
       "aria": "Available commands",
       "kind_local": "action",
@@ -1195,6 +1239,11 @@
       "my_connectors_description": "Connect your accounts to allow LIA to access your data",
       "connected": "Connected",
       "connected_google": "Connected Google Connectors",
+      "group_state": {
+        "connected": "Connected",
+        "attention": "Action required",
+        "available": "Not connected"
+      },
       "connected_api_key": "Connected External Connectors",
       "connected_apple": "Connected Apple Connectors",
       "connected_microsoft": "Connected Microsoft Connectors",
@@ -2682,6 +2731,23 @@
       "title": "What LIA understands about you",
       "subtitle": "Read the living portrait compiled from your journals"
     },
+    "chat_shortcuts": {
+      "title": "Chat shortcuts",
+      "description": "Your own /shortcuts: type / in the chat to insert a prepared request. The text is only inserted, never sent by itself.",
+      "empty": "No personal shortcut yet.",
+      "count": "{{current}} / {{max}} shortcuts",
+      "limit_reached": "Shortcut limit reached — remove one to add another.",
+      "id_label": "Shortcut (typed after the /)",
+      "id_placeholder": "e.g. weather-home",
+      "text_label": "Inserted text",
+      "text_placeholder": "e.g. What's the weather like at home this weekend?",
+      "add": "Add shortcut",
+      "added": "Shortcut /{{id}} added.",
+      "remove": "Remove the /{{id}} shortcut",
+      "error_invalid_id": "The shortcut must use lowercase letters, digits and hyphens only.",
+      "error_reserved": "This shortcut name is reserved by a built-in command.",
+      "error_duplicate": "You already have a shortcut with this name."
+    },
     "briefing_grid": {
       "title": "My dashboard",
       "description": "Choose which cards appear on the Today dashboard and in what order. A hidden card is not fetched at all.",
@@ -2822,6 +2888,17 @@
       }
     },
     "telephony": {
+      "debrief": {
+        "commitments": "Commitments",
+        "tasks": "Follow-up tasks",
+        "reminders": "Suggested reminders",
+        "uncertainties": "To double-check",
+        "draft": "Follow-up draft",
+        "use_draft": "Use this draft in the chat",
+        "draft_prefill": "Send this follow-up message: {{draft}}",
+        "intent_task": "Create a task: {{item}}",
+        "intent_reminder": "Create a reminder: {{item}}"
+      },
       "calls": {
         "title": "Recent calls",
         "description": "Outbound calls LIA placed for you",
@@ -2861,6 +2938,7 @@
         "font": "typeface, lettering, text size, readability, typography",
         "display-mode": "cards, rendering, answer format, layout, markdown, plain text",
         "briefing-grid": "home, homepage, dashboard, widgets, cards, briefing, section order",
+        "chat-shortcuts": "slash, shortcut, command, quick request, macro, /command, snippet",
         "open-loops": "pending, follow-up, unfinished, commitments, promises, loose ends",
         "notifications": "push, alerts, banners, mobile, reminders, FCM",
         "channels": "whatsapp, telegram, sms, email, messaging, integrations",
@@ -2887,6 +2965,25 @@
         "user-consumption-export": "CSV, usage, tokens, cost, billing, statistics, export"
       }
     }
+  },
+  "relations": {
+    "title": "Relationships",
+    "subtitle": "Everything LIA knows about the people you deal with — open commitments, calls and memories, in one place.",
+    "empty": "No relationship yet. As LIA tracks commitments and places calls, the people involved appear here.",
+    "detail_empty": "Nothing tracked for this person yet.",
+    "back": "Back to the list",
+    "open_loops_count_one": "{{count}} commitment",
+    "open_loops_count_other": "{{count}} commitments",
+    "calls_count_one": "{{count}} call",
+    "calls_count_other": "{{count}} calls",
+    "days_open_one": "open for {{count}} day",
+    "days_open_other": "open for {{count}} days",
+    "prepare_360": "Prepare a 360° point",
+    "prepare_intent": "Prepare a 360° point on {{name}}: recent interactions, open commitments and what to raise next.",
+    "identity_best_effort": "These items were matched by name — LIA may have grouped two different people, or missed a spelling.",
+    "section_open_loops": "Open commitments",
+    "section_calls": "Recent calls",
+    "section_memories": "Memories"
   },
   "spaces": {
     "title": "Knowledge Spaces",
@@ -2920,8 +3017,9 @@
     "back_to_spaces": "Back to Spaces",
     "doc_singular": "doc",
     "docs_plural": "docs",
-    "indicator": "{{count}} RAG space(s) active",
+    "indicator": "{{count}} knowledge base(s)",
     "indicator_tooltip": "{{count}} knowledge space(s) enriching responses",
+    "quick_manage": "Manage spaces",
     "documents": {
       "upload_button": "Upload Document",
       "upload_hint": "Drag & drop files here, or click to browse",
@@ -3477,6 +3575,20 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_26_0": {
+          "title": "v1.26.0 — 🎯 From reading to acting",
+          "date": "July 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>🎬 Act straight from your dashboard cards</b> — every card now offers immediate actions: summarize a document, draft a reply to a mail, mark a task done, reschedule. The action runs through the chat as usual, with the same approval step for anything that writes to the outside world.",
+            "i2": "<b>✂️ Select a passage of an answer</b> — a small action bar appears (a bottom sheet on mobile): explain, rephrase, translate, turn it into a task or a reminder, save it to memory, or ask a question about it.",
+            "i3": "<b>⏰ Routines that wait for the right moment</b> — a routine can trigger on a condition (a task is overdue, a matching mail arrives, the weather turns, a document is added, an event approaches) instead of a fixed time, with a « propose first » mode that notifies you rather than acting on its own.",
+            "i4": "<b>👥 A personal CRM</b> — see in one place everything LIA already knows about a person: open commitments, recent calls, remembered facts. Reachable from the dashboard's Quick Access.",
+            "i5": "<b>📞 A richer call debrief</b> — after a call: outcome, commitments made, tasks and reminders created, open questions, and a one-tap follow-up draft.",
+            "i6": "<b>🕐 The dashboard tells the truth about freshness</b> — « updated X ago », served from cache, last attempt when something goes wrong, and a one-click retry per card.",
+            "i7": "<b>📚 Knowledge made easier to reach, plus shortcuts</b> — Knowledge Spaces join the menu, the chat indicator is centered and discreet; installed on your home screen, LIA offers shortcuts (today's priority, quick add, push-to-talk), and an admin can create their own « / » commands."
+          }
+        },
         "v1_25_33": {
           "title": "v1.25.33 — 📋 Paste, share, drive the demo",
           "date": "July 2026",
@@ -7017,6 +7129,32 @@
     "field_days": "Days of the week",
     "field_time": "Execution time",
     "prompt_placeholder": "e.g. Search today's weather and give me a summary",
+    "studio": {
+      "trigger_kind": "Trigger",
+      "kind_time": "At the set time",
+      "kind_condition": "When a condition is met",
+      "time_hint_time": "The routine runs at this time on the chosen days.",
+      "time_hint_condition": "The condition is checked at this time on the chosen days; the routine runs only if it holds.",
+      "condition_type": "Condition",
+      "condition": {
+        "task_overdue": "A task is overdue",
+        "weather_change": "Weather change",
+        "mail_match": "An email matches",
+        "document_added": "A document was added",
+        "calendar_event": "An event is coming up"
+      },
+      "query_label": {
+        "mail_match": "Filter (subject or sender)",
+        "calendar_event": "Title filter (optional)"
+      },
+      "query_ph": {
+        "mail_match": "e.g. invoice",
+        "calendar_event": "e.g. dentist"
+      },
+      "query_required": "A filter is required for this condition.",
+      "requires_approval": "Ask me before running",
+      "requires_approval_hint": "LIA notifies you and only acts after you confirm in the chat."
+    },
     "days": {
       "d1": "Mon",
       "d2": "Tue",
@@ -7224,7 +7362,7 @@
       },
       "reminders_scheduling": {
         "title": "Reminders & automations",
-        "description": "Schedule reminders in natural language (\"Remind me tomorrow at 9am to call Marie\"). Plan recurring automatic actions (Monday email summary, morning weather...). A reminder that comes due while your quota is reached goes back into the queue — never lost."
+        "description": "Schedule reminders in natural language (\"Remind me tomorrow at 9am to call Marie\"). Plan recurring automatic actions (Monday email summary, morning weather...). A reminder that comes due while your quota is reached goes back into the queue — never lost. Routines can now wait for a condition — a task falls overdue, a matching mail arrives, the weather turns, a document is added, an event approaches — and optionally propose before acting."
       },
       "memory": {
         "title": "Contextual memory",
@@ -7328,7 +7466,7 @@
       },
       "briefing": {
         "title": "Today briefing",
-        "description": "Every morning, your day at a glance: personalized synthesis, weather, agenda, birthdays, reminders, health, unread emails, your tracked commitments, overdue tasks and freshly edited documents — before you even ask."
+        "description": "Every morning, your day at a glance: personalized synthesis, weather, agenda, birthdays, reminders, health, unread emails, your tracked commitments, overdue tasks and freshly edited documents — before you even ask. Each card now acts, not just informs — summarize a document, draft a reply, mark a task done or reschedule right there — and states honestly how fresh it is (updated X ago, from cache, one-click retry)."
       }
     },
     "use_cases": {

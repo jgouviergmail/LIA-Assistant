@@ -92,6 +92,18 @@ class ProactiveMessages:
         "zh-CN": "来源",
     }
 
+    # N-07 propose-first mode: the tick notifies instead of executing; the
+    # markdown link carries the routine's prompt as a chat ?intent= (ADR-173),
+    # so the actual run flows through the normal pipeline + HITL.
+    _ROUTINE_APPROVAL_BODIES: dict[str, str] = {
+        "fr": "Ta routine « {title} » est prête à s'exécuter. [Lancer maintenant]({intent_url})",
+        "en": "Your routine “{title}” is ready to run. [Run it now]({intent_url})",
+        "es": "Tu rutina «{title}» está lista para ejecutarse. [Ejecutarla ahora]({intent_url})",
+        "de": "Deine Routine „{title}“ ist bereit zur Ausführung. [Jetzt ausführen]({intent_url})",
+        "it": "La tua routine «{title}» è pronta per essere eseguita. [Eseguila ora]({intent_url})",
+        "zh-CN": "您的例行任务“{title}”已准备好执行。[立即执行]({intent_url})",
+    }
+
     @staticmethod
     def notification_title(task_type: str, language: str) -> str:
         """Localized push/chat title for a proactive task type.
@@ -115,6 +127,26 @@ class ProactiveMessages:
 
         task_titles = ProactiveMessages._TITLES.get(task_type, {})
         return task_titles.get(normalize_language(language), task_titles.get("en", "Notification"))
+
+    @staticmethod
+    def routine_approval_body(title: str, intent_url: str, language: str) -> str:
+        """Localized propose-first body for a routine awaiting approval (N-07).
+
+        Args:
+            title: The routine's user-facing title.
+            intent_url: Absolute chat deep link carrying the routine prompt
+                as ``?intent=`` (ADR-173).
+            language: Any locale spelling; normalized internally.
+
+        Returns:
+            The localized markdown body (English fallback).
+        """
+        from src.core.i18n import normalize_language
+
+        template = ProactiveMessages._ROUTINE_APPROVAL_BODIES.get(
+            normalize_language(language), ProactiveMessages._ROUTINE_APPROVAL_BODIES["en"]
+        )
+        return template.format(title=title, intent_url=intent_url)
 
     @staticmethod
     def sources_label(language: str) -> str:

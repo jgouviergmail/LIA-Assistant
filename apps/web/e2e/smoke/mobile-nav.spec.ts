@@ -37,9 +37,10 @@ test.describe('mobile navigation', () => {
     });
     await trigger.click();
 
-    // The four destinations of the desktop nav, none missing.
+    // The five destinations of the desktop nav (R01 added Knowledge spaces),
+    // none missing.
     const items = page.getByRole('menuitem');
-    await expect(items).toHaveCount(4);
+    await expect(items).toHaveCount(5);
 
     // And the journey actually completes.
     await page.getByRole('menuitem', { name: /Réglages/i }).click();
@@ -77,11 +78,14 @@ test.describe('mobile navigation', () => {
     const menuButton = page.getByRole('button', { name: 'Menu' });
     const homeLink = page.locator('header a').filter({ hasText: 'LIA' }).first();
 
+    // R01 moved the nav boundary from `md` (768) to `lg` (1024): five
+    // destinations clip in fr/de/es/it within the 768–1024 band.
     for (const { width, height, expectMenu } of [
       { width: 320, height: 640, expectMenu: true },
       { ...PHONE, expectMenu: true },
       { width: 767, height: 900, expectMenu: true },
-      { width: 768, height: 900, expectMenu: false },
+      { width: 1023, height: 900, expectMenu: true },
+      { width: 1024, height: 900, expectMenu: false },
       { ...DESKTOP, expectMenu: false },
     ]) {
       await page.setViewportSize({ width, height });
@@ -134,6 +138,6 @@ test.describe('mobile navigation', () => {
     expect(headerTop).toBeGreaterThanOrEqual(0);
 
     // And the menu is still usable from there.
-    await expect(page.getByRole('menuitem')).toHaveCount(4);
+    await expect(page.getByRole('menuitem')).toHaveCount(5);
   });
 });

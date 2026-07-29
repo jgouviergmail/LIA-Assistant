@@ -14,15 +14,19 @@
 import { describe, it, expect, vi } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { BRIEFING_SECTION_NAMES } from '@/types/briefing';
 
 const CONTENT: Record<string, string> = {
   'dashboard.briefing.not_configured_intro_one': 'Une carte attend une configuration :',
   'dashboard.briefing.not_configured_intro_other': '{{count}} cartes attendent une configuration :',
   'dashboard.briefing.not_configured_cta': 'Configurer la carte {{card}}',
-  'dashboard.briefing.sections.agenda.title': 'Agenda',
-  'dashboard.briefing.sections.mails.title': 'Mails',
-  'dashboard.briefing.sections.health.title': 'Santé',
-  'dashboard.briefing.sections.reminders.title': 'Rappels',
+  // Card titles live under `cards.<section>.title` — the same keys the card
+  // headers use. A prior `sections.<section>.title` path existed in no locale
+  // and rendered every name as the raw key (guarded below against real JSON).
+  'dashboard.briefing.cards.agenda.title': 'Agenda',
+  'dashboard.briefing.cards.mails.title': 'Mails',
+  'dashboard.briefing.cards.health.title': 'Santé',
+  'dashboard.briefing.cards.reminders.title': 'Rappels',
 };
 
 const { translate } = vi.hoisted(() => ({
@@ -138,4 +142,34 @@ describe('BriefingSetupHint', () => {
       expect(separator.getAttribute('aria-hidden')).toBe('true');
     }
   });
+});
+
+/**
+ * Guard against the mocked dictionary drifting away from the real contract.
+ *
+ * The tests above mock `react-i18next`, so a wrong key path (like the shipped
+ * `sections.<section>.title`, which existed in no locale) would still render
+ * because the mock happens to define that key. This suite reads the REAL locale
+ * JSON and pins the exact key the component builds — `cards.<section>.title` —
+ * for every briefing section, in every language. If the path drifts again, or a
+ * new section lacks a title, it fails here instead of shipping raw keys.
+ */
+describe('BriefingSetupHint — key path resolves against real locales', () => {
+  const LOCALES = ['en', 'fr', 'de', 'es', 'it', 'zh'] as const;
+  for (const lng of LOCALES) {
+    it(`every card title the hint can render exists in ${lng}`, async () => {
+      const bundle = (await import(`../../../../locales/${lng}/translation.json`)).default as Record<
+        string,
+        unknown
+      >;
+      const cards = ((bundle.dashboard as Record<string, Record<string, Record<string, unknown>>>)
+        ?.briefing?.cards ?? {}) as Record<string, { title?: unknown }>;
+      for (const section of BRIEFING_SECTION_NAMES) {
+        expect(
+          typeof cards[section]?.title === 'string' && (cards[section].title as string).length > 0,
+          `dashboard.briefing.cards.${section}.title missing in ${lng}`
+        ).toBe(true);
+      }
+    });
+  }
 });

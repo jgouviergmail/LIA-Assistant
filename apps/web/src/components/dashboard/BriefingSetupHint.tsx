@@ -45,7 +45,10 @@ export function BriefingSetupHint({ cards, lng }: BriefingSetupHintProps) {
       <Settings2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
       <span>{t('dashboard.briefing.not_configured_intro', { count: cards.length })}</span>
       {cards.map(({ section, target }, index) => {
-        const label = t(`dashboard.briefing.sections.${section}.title`);
+        // Card titles live under `cards.<section>.title` (the very keys the
+        // BriefingCard headers use). The old `sections.<section>.title` path
+        // does not exist in any locale, so every name rendered as the raw key.
+        const label = t(`dashboard.briefing.cards.${section}.title`);
         return (
           <span key={section} className="inline-flex items-center">
             {target ? (

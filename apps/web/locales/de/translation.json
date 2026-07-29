@@ -170,8 +170,10 @@
     "quick_access_compact": {
       "help": "Hilfe",
       "settings": "Einstellungen",
+      "relations": "Beziehungen",
       "help_sub": "FAQ und Support",
-      "settings_sub": "Connectoren und Einstellungen"
+      "settings_sub": "Connectoren und Einstellungen",
+      "relations_sub": "Ihre Kontakte auf einen Blick"
     },
     "briefing": {
       "section_title": "Mein Dashboard",
@@ -280,6 +282,13 @@
       },
       "updated_hours_ago": "vor {{hours}} Std",
       "updated_days_ago": "vor {{days}} T",
+      "from_cache_suffix": "Cache",
+      "stale_data_age": "Daten aktualisiert {{ago}}",
+      "last_attempt_ago": "letzter Versuch {{ago}}",
+      "ago_just_now": "gerade eben",
+      "ago_minutes": "vor {{n}} Min.",
+      "ago_hours": "vor {{n}} Std.",
+      "ago_days": "vor {{n}} T.",
       "intents": {
         "mail": "Fasse die E-Mail \"{{subject}}\" von {{sender}} zusammen und schlage eine Antwort vor",
         "birthday": "Bereite eine Geburtstagsnachricht für {{name}} vor",
@@ -290,6 +299,18 @@
         "task_progress": "Hilf mir, bei „{{subject}}“ voranzukommen",
         "task_reschedule": "Plane die Aufgabe „{{subject}}“ neu",
         "document_summarize": "Fasse das Dokument „{{subject}}“ zusammen"
+      },
+      "intents_exec": {
+        "mail_summarize": "Fasse die E-Mail „{{subject}}“ von {{sender}} zusammen",
+        "mail_reply": "Bereite eine Antwort auf die E-Mail „{{subject}}“ von {{sender}} vor",
+        "event_prepare": "Bereite mich auf „{{title}}“ um {{time}} vor",
+        "event_route": "Gib mir die Route zu „{{location}}“",
+        "task_complete": "Markiere die Aufgabe „{{subject}}“ als erledigt",
+        "task_postpone": "Verschiebe die Aufgabe „{{subject}}“",
+        "birthday_message": "Bereite eine Geburtstagsnachricht für {{name}} vor",
+        "document_summarize": "Fasse das Dokument „{{subject}}“ zusammen",
+        "document_ask_draft": "Zum Dokument „{{subject}}“: ",
+        "document_ask_label": "Eine Frage zu „{{subject}}“ stellen"
       },
       "not_configured_intro_one": "Eine Karte wartet auf die Einrichtung:",
       "not_configured_intro_other": "{{count}} Karten warten auf die Einrichtung:",
@@ -831,6 +852,29 @@
     "followups": {
       "aria": "Vorgeschlagene nächste Schritte"
     },
+    "intent_saved_as_draft": "Nutzungslimit erreicht — Ihre Anfrage wurde als Entwurf gespeichert.",
+    "selection": {
+      "aria": "Aktionen für die ausgewählte Passage",
+      "close": "Auswahlaktionen schließen",
+      "actions": {
+        "explain": "Erklären",
+        "rephrase": "Umformulieren",
+        "translate": "Übersetzen",
+        "to_task": "Als Aufgabe",
+        "to_reminder": "Als Erinnerung",
+        "remember": "Merken",
+        "ask": "Frage stellen"
+      },
+      "intents": {
+        "explain": "Erkläre diese Passage: „{{quote}}“",
+        "rephrase": "Formuliere diese Passage einfacher: „{{quote}}“",
+        "translate": "Übersetze diese Passage: „{{quote}}“",
+        "to_task": "Erstelle eine Aufgabe aus dieser Passage: „{{quote}}“",
+        "to_reminder": "Erstelle eine Erinnerung aus dieser Passage: „{{quote}}“",
+        "remember": "Merke dir das: „{{quote}}“",
+        "ask": "Zu dieser Passage: „{{quote}}“ — "
+      }
+    },
     "slash": {
       "aria": "Verfügbare Befehle",
       "kind_local": "Aktion",
@@ -1014,6 +1058,11 @@
       "my_connectors_description": "Verbinden Sie Ihre Konten, damit LIA KI auf Ihre Daten zugreifen kann",
       "connected": "Verbunden",
       "connected_google": "Verbundene Google-Konnektoren",
+      "group_state": {
+        "connected": "Verbunden",
+        "attention": "Aktion erforderlich",
+        "available": "Nicht verbunden"
+      },
       "connected_api_key": "Verbundene externe Konnektoren",
       "connected_apple": "Verbundene Apple-Konnektoren",
       "connected_microsoft": "Verbundene Microsoft-Konnektoren",
@@ -2660,6 +2709,23 @@
       "title": "Was LIA über Sie versteht",
       "subtitle": "Lesen Sie das lebendige Porträt aus Ihren Journalen"
     },
+    "chat_shortcuts": {
+      "title": "Chat-Kürzel",
+      "description": "Ihre eigenen /Kürzel: Tippen Sie / im Chat, um eine vorbereitete Anfrage einzufügen. Der Text wird nur eingefügt, nie von selbst gesendet.",
+      "empty": "Noch kein persönliches Kürzel.",
+      "count": "{{current}} / {{max}} Kürzel",
+      "limit_reached": "Kürzel-Limit erreicht — entfernen Sie eines, um ein weiteres hinzuzufügen.",
+      "id_label": "Kürzel (nach dem / getippt)",
+      "id_placeholder": "z. B. wetter-zuhause",
+      "text_label": "Eingefügter Text",
+      "text_placeholder": "z. B. Wie wird das Wetter zu Hause am Wochenende?",
+      "add": "Kürzel hinzufügen",
+      "added": "Kürzel /{{id}} hinzugefügt.",
+      "remove": "Kürzel /{{id}} entfernen",
+      "error_invalid_id": "Das Kürzel darf nur Kleinbuchstaben, Ziffern und Bindestriche enthalten.",
+      "error_reserved": "Dieser Kürzelname ist für einen integrierten Befehl reserviert.",
+      "error_duplicate": "Sie haben bereits ein Kürzel mit diesem Namen."
+    },
     "briefing_grid": {
       "title": "Mein Dashboard",
       "description": "Wählen Sie, welche Karten auf dem Dashboard erscheinen und in welcher Reihenfolge. Eine ausgeblendete Karte wird gar nicht mehr abgerufen.",
@@ -2800,6 +2866,17 @@
       }
     },
     "telephony": {
+      "debrief": {
+        "commitments": "Zusagen",
+        "tasks": "Folgeaufgaben",
+        "reminders": "Vorgeschlagene Erinnerungen",
+        "uncertainties": "Zu prüfen",
+        "draft": "Entwurf für die Nachverfolgung",
+        "use_draft": "Diesen Entwurf im Chat verwenden",
+        "draft_prefill": "Sende diese Nachverfolgungsnachricht: {{draft}}",
+        "intent_task": "Erstelle eine Aufgabe: {{item}}",
+        "intent_reminder": "Erstelle eine Erinnerung: {{item}}"
+      },
       "calls": {
         "title": "Letzte Anrufe",
         "description": "Anrufe, die LIA für Sie getätigt hat",
@@ -2839,6 +2916,7 @@
         "font": "Schriftart, Typografie, Textgröße, Textgrosse, Lesbarkeit, Schrift",
         "display-mode": "Karten, Darstellung, Antwortformat, Layout, Markdown, Klartext",
         "briefing-grid": "Startseite, Übersicht, Dashboard, Widgets, Karten, Briefing, Reihenfolge",
+        "chat-shortcuts": "Slash, Kürzel, Befehl, Schnellanfrage, Makro, /Befehl, Textbaustein",
         "open-loops": "offen, ausstehend, Nachfassen, Zusagen, Versprechen, schliessen, schließen",
         "notifications": "Push, Benachrichtigungen, Hinweise, mobil, Erinnerungen, FCM",
         "channels": "WhatsApp, Telegram, SMS, E-Mail, Messaging, Integrationen",
@@ -2865,6 +2943,25 @@
         "user-consumption-export": "CSV, Verbrauch, Tokens, Kosten, Abrechnung, Statistiken, Export"
       }
     }
+  },
+  "relations": {
+    "title": "Beziehungen",
+    "subtitle": "Alles, was LIA über die Menschen weiß, mit denen Sie zu tun haben — offene Zusagen, Anrufe und Erinnerungen an einem Ort.",
+    "empty": "Noch keine Beziehung. Sobald LIA Zusagen verfolgt und Anrufe tätigt, erscheinen die beteiligten Personen hier.",
+    "detail_empty": "Für diese Person ist noch nichts erfasst.",
+    "back": "Zurück zur Liste",
+    "open_loops_count_one": "{{count}} Zusage",
+    "open_loops_count_other": "{{count}} Zusagen",
+    "calls_count_one": "{{count}} Anruf",
+    "calls_count_other": "{{count}} Anrufe",
+    "days_open_one": "offen seit {{count}} Tag",
+    "days_open_other": "offen seit {{count}} Tagen",
+    "prepare_360": "360°-Überblick vorbereiten",
+    "prepare_intent": "Bereite einen 360°-Überblick zu {{name}} vor: jüngste Interaktionen, offene Zusagen und was als Nächstes anzusprechen ist.",
+    "identity_best_effort": "Diese Einträge wurden über den Namen zugeordnet — LIA könnte zwei verschiedene Personen zusammengefasst oder eine Schreibweise übersehen haben.",
+    "section_open_loops": "Offene Zusagen",
+    "section_calls": "Letzte Anrufe",
+    "section_memories": "Erinnerungen"
   },
   "spaces": {
     "title": "Wissensräume",
@@ -2898,8 +2995,9 @@
     "back_to_spaces": "Zurück zu den Räumen",
     "doc_singular": "Dok.",
     "docs_plural": "Dok.",
-    "indicator": "{{count}} RAG-Raum/-Räume aktiv",
+    "indicator": "{{count}} Wissensquelle(n)",
     "indicator_tooltip": "{{count}} Wissensraum/-räume bereichern die Antworten",
+    "quick_manage": "Räume verwalten",
     "documents": {
       "upload_button": "Dokument hochladen",
       "upload_hint": "Dateien hierher ziehen oder klicken zum Durchsuchen",
@@ -3468,6 +3566,20 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_26_0": {
+          "title": "v1.26.0 — 🎯 Vom Lesen zum Handeln",
+          "date": "Juli 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>🎬 Handeln Sie direkt über die Dashboard-Karten</b> — jede Karte bietet nun sofortige Aktionen: ein Dokument zusammenfassen, eine Antwort auf eine Mail vorbereiten, eine Aufgabe als erledigt markieren, verschieben. Die Aktion läuft wie gewohnt über den Chat, mit derselben Bestätigung für alles, was nach außen schreibt.",
+            "i2": "<b>✂️ Markieren Sie eine Passage einer Antwort</b> — eine kleine Aktionsleiste erscheint (auf dem Handy ein Blatt von unten): erklären, umformulieren, übersetzen, in eine Aufgabe oder Erinnerung umwandeln, merken oder eine Frage dazu stellen.",
+            "i3": "<b>⏰ Routinen, die auf den richtigen Moment warten</b> — eine Routine kann auf eine Bedingung reagieren (eine Aufgabe ist überfällig, eine passende Mail kommt an, das Wetter schlägt um, ein Dokument wird hinzugefügt, ein Termin naht) statt zu einer festen Uhrzeit, mit einem Modus „zuerst vorschlagen“, der Sie benachrichtigt, statt allein zu handeln.",
+            "i4": "<b>👥 Ein persönliches CRM</b> — sehen Sie an einem Ort alles, was LIA bereits über eine Person weiß: offene Zusagen, jüngste Anrufe, gemerkte Fakten. Erreichbar über den Schnellzugriff des Dashboards.",
+            "i5": "<b>📞 Ein ausführlicheres Anruf-Debriefing</b> — nach einem Anruf: Ergebnis, gemachte Zusagen, erstellte Aufgaben und Erinnerungen, offene Punkte und ein Folge-Entwurf mit einer Geste.",
+            "i6": "<b>🕐 Das Dashboard sagt die Wahrheit über die Aktualität</b> — „vor X aktualisiert“, aus dem Cache geliefert, letzter Versuch bei einem Problem und ein erneuter Versuch pro Karte mit einem Klick.",
+            "i7": "<b>📚 Wissen leichter erreichbar, plus Verknüpfungen</b> — Wissensräume kommen ins Menü, der Chat-Indikator ist zentriert und dezent; auf dem Startbildschirm installiert, bietet LIA Verknüpfungen (Priorität des Tages, Schnell-Eingabe, Push-to-Talk), und ein Administrator kann eigene „/“-Befehle anlegen."
+          }
+        },
         "v1_25_33": {
           "title": "v1.25.33 — 📋 Einfügen, teilen, die Demo steuern",
           "date": "Juli 2026",
@@ -6937,6 +7049,32 @@
     "field_days": "Wochentage",
     "field_time": "Ausführungszeit",
     "prompt_placeholder": "z.B. Suche das heutige Wetter und gib mir eine Zusammenfassung",
+    "studio": {
+      "trigger_kind": "Auslöser",
+      "kind_time": "Zur festgelegten Zeit",
+      "kind_condition": "Wenn eine Bedingung erfüllt ist",
+      "time_hint_time": "Die Routine läuft zu dieser Zeit an den gewählten Tagen.",
+      "time_hint_condition": "Die Bedingung wird zu dieser Zeit an den gewählten Tagen geprüft; die Routine läuft nur, wenn sie erfüllt ist.",
+      "condition_type": "Bedingung",
+      "condition": {
+        "task_overdue": "Eine Aufgabe ist überfällig",
+        "weather_change": "Wetterwechsel",
+        "mail_match": "Eine E-Mail passt",
+        "document_added": "Ein Dokument wurde hinzugefügt",
+        "calendar_event": "Ein Termin steht bevor"
+      },
+      "query_label": {
+        "mail_match": "Filter (Betreff oder Absender)",
+        "calendar_event": "Titelfilter (optional)"
+      },
+      "query_ph": {
+        "mail_match": "z.B. Rechnung",
+        "calendar_event": "z.B. Zahnarzt"
+      },
+      "query_required": "Für diese Bedingung ist ein Filter erforderlich.",
+      "requires_approval": "Vor dem Ausführen fragen",
+      "requires_approval_hint": "LIA benachrichtigt Sie und handelt erst nach Ihrer Bestätigung im Chat."
+    },
     "days": {
       "d1": "Mo",
       "d2": "Di",
@@ -7144,7 +7282,7 @@
       },
       "reminders_scheduling": {
         "title": "Erinnerungen & Automatisierungen",
-        "description": "Plane Erinnerungen in natürlicher Sprache (\"Erinnere mich morgen um 9 Uhr Marie anzurufen\"). Plane wiederkehrende automatische Aktionen (E-Mail-Zusammenfassung am Montag, Morgenwetter...). Eine Erinnerung, die fällig wird, während dein Kontingent erreicht ist, kehrt in die Warteschlange zurück — sie geht nie verloren."
+        "description": "Plane Erinnerungen in natürlicher Sprache (\"Erinnere mich morgen um 9 Uhr Marie anzurufen\"). Plane wiederkehrende automatische Aktionen (E-Mail-Zusammenfassung am Montag, Morgenwetter...). Eine Erinnerung, die fällig wird, während dein Kontingent erreicht ist, kehrt in die Warteschlange zurück — sie geht nie verloren. Routinen können jetzt auf eine Bedingung warten — eine Aufgabe wird überfällig, eine passende Mail kommt an, das Wetter schlägt um, ein Dokument wird hinzugefügt, ein Termin naht — und auf Wunsch vorschlagen, bevor sie handeln."
       },
       "memory": {
         "title": "Kontextuelles Gedächtnis",
@@ -7248,7 +7386,7 @@
       },
       "briefing": {
         "title": "Tagesbriefing",
-        "description": "Jeden Morgen dein Tag auf einen Blick: personalisierte Synthese, Wetter, Kalender, Geburtstage, Erinnerungen, Gesundheit, ungelesene Mails, deine verfolgten Verpflichtungen, überfällige Aufgaben und frisch bearbeitete Dokumente — bevor du überhaupt fragst."
+        "description": "Jeden Morgen dein Tag auf einen Blick: personalisierte Synthese, Wetter, Kalender, Geburtstage, Erinnerungen, Gesundheit, ungelesene Mails, deine verfolgten Verpflichtungen, überfällige Aufgaben und frisch bearbeitete Dokumente — bevor du überhaupt fragst. Jede Karte handelt jetzt, statt nur zu informieren — ein Dokument zusammenfassen, eine Antwort vorbereiten, eine Aufgabe erledigen oder verschieben, direkt dort — und sie sagt ehrlich, wie aktuell sie ist (vor X aktualisiert, aus dem Cache, erneuter Versuch mit einem Klick)."
       }
     },
     "use_cases": {

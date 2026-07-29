@@ -1432,6 +1432,13 @@ CONVERSATION_HISTORY_DEFAULT_LIMIT_DEFAULT = (
 )
 CONVERSATION_HISTORY_MAX_LIMIT_DEFAULT = 200  # Hard cap on the limit query param
 
+# User-defined chat slash shortcuts (UX Actions program, SLASH admin lot).
+# Shape limits are schema constants; the COUNT cap is a runtime setting
+# (chat_shortcuts_max_count) so operators can tune it without a release.
+CHAT_SHORTCUTS_MAX_COUNT_DEFAULT = 20  # Default cap on shortcuts per user
+CHAT_SHORTCUT_ID_MAX_LENGTH = 32  # Slug typed after the slash
+CHAT_SHORTCUT_TEXT_MAX_LENGTH = 500  # Inserted intent text
+
 # System settings cache keys
 REDIS_KEY_DEBUG_PANEL_ENABLED = "system:debug_panel_enabled"
 REDIS_KEY_DEBUG_PANEL_USER_ACCESS_ENABLED = "system:debug_panel_user_access_enabled"
@@ -2871,6 +2878,14 @@ BRIEFING_MAX_DOCUMENTS_ITEMS_DEFAULT = 5
 BRIEFING_MAX_REMINDERS_ITEMS_DEFAULT = 5
 BRIEFING_HEALTH_WINDOW_DAYS_DEFAULT = 14
 BRIEFING_WEATHER_DAILY_FORECAST_DAYS_DEFAULT = 5
+# D-04 stale-while-error: how long the last KNOWN-GOOD payload of a section is
+# kept as a fallback shown alongside a connector error. Long on purpose — it
+# only ever surfaces when the live fetch FAILS, clearly labeled as stale.
+BRIEFING_LAST_GOOD_TTL_SECONDS_DEFAULT = 172800  # 48 h
+
+# Relations (N-09) personal CRM — read-only aggregation caps.
+RELATIONS_MAX_ITEMS_DEFAULT = 30  # relationships listed on the overview
+RELATIONS_MAX_ITEMS_PER_SECTION_DEFAULT = 10  # loops/calls/memories per person
 
 # ============================================================================
 # MEMORY REFERENCE EXTRACTION (3-Phase Resolution Pipeline)

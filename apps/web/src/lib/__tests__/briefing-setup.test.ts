@@ -31,6 +31,9 @@ function bundle(notConfigured: readonly BriefingSection[]): CardsBundle {
       generated_at: '2026-07-26T08:00:00Z',
       error_code: notConfigured.includes(section) ? 'connector_not_configured' : null,
       error_message: null,
+      from_cache: false,
+      stale_generated_at: null,
+      last_attempt_at: null,
     },
   ]);
   return Object.fromEntries(entries) as unknown as CardsBundle;

@@ -114,6 +114,19 @@ class PhoneCall(BaseModel):
     call_seconds: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     structured_data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    # T01 structured debrief (commitments, follow-up tasks/reminders, draft,
+    # uncertainties) — OUR synthesis output, same D-8 retention as summary:
+    # cleared by the retention reaper, survives a missed notification.
+    # SQL comment mirrors the migration EXACTLY (replay check compares them).
+    debrief: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment=(
+            "T01 structured debrief (commitments, follow_up_tasks, "
+            "follow_up_reminders, follow_up_draft, uncertainties) — "
+            "cleared by the retention reaper like summary (D-8)."
+        ),
+    )
     outcome: Mapped[PhoneCallOutcome | None] = mapped_column(
         Enum(PhoneCallOutcome, native_enum=False, length=20), nullable=True
     )

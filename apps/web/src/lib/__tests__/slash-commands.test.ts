@@ -5,7 +5,15 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { filterSlashCommands, isSlashTrigger, type SlashCommand } from '../slash-commands';
+import {
+  buildStaticSlashCommands,
+  filterSlashCommands,
+  isSlashTrigger,
+  STATIC_SLASH_COMMAND_IDS,
+  STATIC_SLASH_COMMANDS,
+  userShortcutCommands,
+  type SlashCommand,
+} from '../slash-commands';
 
 const COMMANDS: SlashCommand[] = [
   {
@@ -47,5 +55,47 @@ describe('filterSlashCommands', () => {
 
   it('returns empty on no match (menu auto-closes, Enter sends normally)', () => {
     expect(filterSlashCommands(COMMANDS, '/zzz')).toEqual([]);
+  });
+});
+
+describe('static command table (SLASH admin lot)', () => {
+  it('localizes every entry and keeps /resume a literal insert', () => {
+    const t = (key: string) => `T(${key})`;
+    const commands = buildStaticSlashCommands(t);
+
+    expect(commands.map(c => c.id)).toEqual(STATIC_SLASH_COMMANDS.map(d => d.id));
+    const resume = commands.find(c => c.id === 'resume');
+    // The backend compaction node consumes the LITERAL token, never a translation.
+    expect(resume?.insertText).toBe('/resume');
+    const agenda = commands.find(c => c.id === 'agenda');
+    expect(agenda?.insertText).toBe('T(chat.slash.agenda_intent)');
+    // Local commands insert nothing — the page owns their handlers.
+    expect(commands.find(c => c.id === 'briefing')?.insertText).toBeUndefined();
+  });
+
+  it('exposes the exact reserved-id set the settings form refuses', () => {
+    expect(STATIC_SLASH_COMMAND_IDS).toEqual(new Set(STATIC_SLASH_COMMANDS.map(d => d.id)));
+    expect(STATIC_SLASH_COMMAND_IDS.has('resume')).toBe(true);
+  });
+});
+
+describe('userShortcutCommands', () => {
+  it('maps a shortcut to a prefilling conversational command', () => {
+    const [command] = userShortcutCommands([{ id: 'meteo-eze', text: 'Météo à Èze ?' }]);
+    expect(command).toEqual({
+      id: 'meteo-eze',
+      kind: 'conversational',
+      label: 'meteo-eze',
+      description: 'Météo à Èze ?',
+      insertText: 'Météo à Èze ?',
+    });
+  });
+
+  it('drops legacy shortcuts colliding with a static id — statics win', () => {
+    const commands = userShortcutCommands([
+      { id: 'weather', text: 'shadowing attempt' },
+      { id: 'mine', text: 'kept' },
+    ]);
+    expect(commands.map(c => c.id)).toEqual(['mine']);
   });
 });

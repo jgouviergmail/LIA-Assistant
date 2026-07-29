@@ -149,8 +149,18 @@ export function TodayBriefing() {
   const lng = (i18n.language || 'fr').split('-')[0];
 
   // Page-level error only when BOTH queries fail without any data — otherwise
-  // each section renders independently (errors handled per-card).
-  if (error && !cards && !text) return <BriefingError onRetry={refetchAll} />;
+  // each section renders independently (errors handled per-card). Quick Access
+  // stays: it is NAVIGATION, not briefing content, and it is the ONLY
+  // always-visible door to Relations (no nav slot — R01 header clips at 5), so
+  // a briefing outage must not strand that destination.
+  if (error && !cards && !text) {
+    return (
+      <div className="space-y-8 sm:space-y-10">
+        <QuickAccessCompact lng={lng} />
+        <BriefingError onRetry={refetchAll} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 sm:space-y-10">

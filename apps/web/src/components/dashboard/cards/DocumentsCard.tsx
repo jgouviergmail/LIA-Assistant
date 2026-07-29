@@ -1,10 +1,12 @@
 'use client';
 
-import { ExternalLink, FileText } from 'lucide-react';
+import { ExternalLink, FileText, MessageCircleQuestion, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
-import { chatDraftHref } from '@/lib/briefing-utils';
+import { CardItemActions, CARD_ITEM_ACTION_CLASS } from './CardItemActions';
+import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
+import { cn } from '@/lib/utils';
 import type { CardSection, DocumentsData } from '@/types/briefing';
 
 interface DocumentsCardProps {
@@ -43,6 +45,7 @@ export function DocumentsCard({
         <DocumentsContent
           data={data}
           onOpenChat={draft => router.push(chatDraftHref(lng, draft))}
+          onExecute={intent => router.push(chatIntentHref(lng, intent))}
         />
       )}
       staggerIndex={staggerIndex}
@@ -53,9 +56,11 @@ export function DocumentsCard({
 function DocumentsContent({
   data,
   onOpenChat,
+  onExecute,
 }: {
   data: DocumentsData;
   onOpenChat: (draft: string) => void;
+  onExecute: (intent: string) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -64,8 +69,18 @@ function DocumentsContent({
         const intent = t('dashboard.briefing.intents.document_summarize', {
           subject: doc.name,
         });
+        const summarizeIntent = t('dashboard.briefing.intents_exec.document_summarize', {
+          subject: doc.name,
+        });
+        // "Ask a question" needs the user's OWN words — it PREFILLS (draft
+        // semantics) instead of executing; the two coexist by design.
+        const askDraft = t('dashboard.briefing.intents_exec.document_ask_draft', {
+          subject: doc.name,
+        });
         return (
-          <li key={index} className="flex items-baseline gap-1.5">
+          // items-center: the icon actions share one vertical centre line with
+          // the single-line item text (baseline alignment left the icons off).
+          <li key={index} className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => onOpenChat(intent)}
@@ -77,19 +92,43 @@ function DocumentsContent({
                 {doc.modified_local}
               </span>
             </button>
-            {doc.web_view_link && (
-              <a
-                href={doc.web_view_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={t('dashboard.briefing.cards.documents.open_external', {
-                  subject: doc.name,
-                })}
-                className="shrink-0 p-1 rounded-md text-muted-foreground hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-              </a>
-            )}
+            <CardItemActions
+              actions={[
+                {
+                  icon: Sparkles,
+                  label: summarizeIntent,
+                  onSelect: () => onExecute(summarizeIntent),
+                },
+                {
+                  icon: MessageCircleQuestion,
+                  label: t('dashboard.briefing.intents_exec.document_ask_label', {
+                    subject: doc.name,
+                  }),
+                  onSelect: () => onOpenChat(askDraft),
+                },
+              ]}
+              // The Drive-open link rides in the SAME icon cluster (one gap,
+              // one centre line, same box) — its indigo hover keeps it
+              // distinct without breaking the alignment.
+              trailing={
+                doc.web_view_link ? (
+                  <a
+                    href={doc.web_view_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={t('dashboard.briefing.cards.documents.open_external', {
+                      subject: doc.name,
+                    })}
+                    className={cn(
+                      CARD_ITEM_ACTION_CLASS,
+                      'hover:text-indigo-600 dark:hover:text-indigo-300'
+                    )}
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                  </a>
+                ) : null
+              }
+            />
           </li>
         );
       })}

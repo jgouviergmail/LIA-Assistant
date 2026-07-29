@@ -19,9 +19,32 @@ import { CompanionPresence } from '@/components/companion/CompanionPresence';
 import { BroadcastProvider } from '@/lib/broadcast';
 import { BroadcastModal } from '@/components/broadcast';
 import { MobileNavMenu } from '@/components/dashboard/MobileNavMenu';
+import { DASHBOARD_DESTINATIONS, destinationPath } from '@/lib/dashboard-nav';
+import type { DashboardDestination } from '@/lib/dashboard-nav';
 import { useTranslation } from '@/i18n/client';
-import { LayoutDashboard, MessageSquare, Settings, HelpCircle, LogOut } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Library,
+  MessageSquare,
+  Settings,
+  HelpCircle,
+  LogOut,
+} from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+
+/**
+ * Icon per destination segment — presentation-only concern, so it lives with
+ * the renderer, not in the destinations table (which the mobile menu shares
+ * and renders without icons). Completeness is enforced by the type: a new
+ * segment fails to compile until it gets an icon.
+ */
+const DESTINATION_ICONS: Record<DashboardDestination['segment'], typeof LayoutDashboard> = {
+  '': LayoutDashboard,
+  chat: MessageSquare,
+  spaces: Library,
+  settings: Settings,
+  faq: HelpCircle,
+};
 interface DashboardLayoutProps {
   children: React.ReactNode;
   params: Promise<{ lng: string }>;
@@ -123,11 +146,14 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                 yields when the row is tight, so the trailing controls — the
                 logout button in particular — are never pushed off-screen. */}
             <div className="flex min-w-0 items-center gap-4 xl:gap-8">
-              {/* A2: below `md` the nav below is hidden, so the logo becomes
+              {/* A2: below `lg` the nav below is hidden, so the logo becomes
                   the way to every page instead of a dead "go home" link.
                   Two exclusive elements, never one changing role — a link at
-                  one width and a button at another cannot announce itself. */}
-              <div className="md:hidden">
+                  one width and a button at another cannot announce itself.
+                  R01 moved the boundary from `md` to `lg`: with five
+                  destinations the fr/de/es/it labels clip between 768 and
+                  1024 px (measured by dashboard-header-reachability). */}
+              <div className="lg:hidden">
                 <MobileNavMenu
                   buildHref={route => buildLocalizedPath(route, pathLng)}
                   translate={t}
@@ -137,49 +163,42 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
               </div>
               <Link
                 href={buildLocalizedPath('/dashboard', pathLng)}
-                className="hidden shrink-0 items-center gap-2 group md:flex"
+                className="hidden shrink-0 items-center gap-2 group lg:flex"
               >
                 <div className="flex h-10 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-md group-hover:shadow-lg transition-all">
                   <span className="text-sm font-bold text-primary-foreground">LIA</span>
                 </div>
               </Link>
-              <nav className="hidden min-w-0 md:flex items-center gap-1">
-                <Link href={buildLocalizedPath('/dashboard', pathLng)} className={navLinkClass('')}>
-                  <LayoutDashboard className="hidden h-4 w-4 xl:block" />
-                  <span>{t('navigation.dashboard')}</span>
-                </Link>
-                <Link
-                  href={buildLocalizedPath('/dashboard/chat', pathLng)}
-                  className={navLinkClass('chat')}
-                >
-                  <MessageSquare className="hidden h-4 w-4 xl:block" />
-                  <span>{t('navigation.chat')}</span>
-                </Link>
-                <Link
-                  href={buildLocalizedPath('/dashboard/settings', pathLng)}
-                  className={navLinkClass('settings')}
-                >
-                  <Settings className="hidden h-4 w-4 xl:block" />
-                  <span>{t('navigation.settings')}</span>
-                </Link>
-                <Link
-                  href={buildLocalizedPath('/dashboard/faq', pathLng)}
-                  className={navLinkClass('faq')}
-                >
-                  <HelpCircle className="hidden h-4 w-4 xl:block" />
-                  <span>{t('navigation.faq')}</span>
-                </Link>
+              {/* R01: rendered from DASHBOARD_DESTINATIONS — the same table the
+                  mobile menu maps, as dashboard-nav.ts always claimed. The
+                  hand-maintained copy here was the drift this kills. */}
+              <nav className="hidden min-w-0 lg:flex items-center gap-1">
+                {DASHBOARD_DESTINATIONS.map(({ segment, labelKey }) => {
+                  const Icon = DESTINATION_ICONS[segment];
+                  return (
+                    <Link
+                      key={segment || 'home'}
+                      href={buildLocalizedPath(destinationPath(segment), pathLng)}
+                      className={navLinkClass(segment)}
+                      aria-current={isActiveRoute(segment) ? 'page' : undefined}
+                    >
+                      <Icon className="hidden h-4 w-4 xl:block" />
+                      <span>{t(labelKey)}</span>
+                    </Link>
+                  );
+                })}
               </nav>
             </div>
 
-            {/* User Actions. `shrink-0` on the whole group: between 768 px and
-                1024 px the nav and the control labels show together, and the
-                row used to overflow — silently, because the root is
-                `overflow-x: hidden`. Pinned by the header-reachability spec. */}
-            <div className="flex shrink-0 items-center flex-1 md:flex-none">
-              {/* Icons container - evenly spaced on mobile, tighter until the
-                  labels come back at `lg`. */}
-              <div className="flex items-center flex-1 justify-evenly md:justify-end md:gap-1 xl:gap-3">
+            {/* User Actions. `shrink-0` on the whole group: when the nav and
+                the control labels show together the row used to overflow —
+                silently, because the root is `overflow-x: hidden`. Since R01
+                the nav needs `lg`, so the tight band moved to 1024–1280 px.
+                Pinned by the header-reachability spec. */}
+            <div className="flex shrink-0 items-center flex-1 lg:flex-none">
+              {/* Icons container - evenly spaced while the logo-menu layout is
+                  active (below `lg` since R01), tighter once the nav is back. */}
+              <div className="flex items-center flex-1 justify-evenly lg:justify-end lg:gap-1 xl:gap-3">
                 <ExecutionModeToggle lng={lng} />
                 <VoiceToggle lng={lng} />
                 {/* Token counters are observation, not action: they only earn

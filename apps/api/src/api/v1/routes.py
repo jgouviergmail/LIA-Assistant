@@ -28,6 +28,7 @@ from src.domains.llm_config.router import router as llm_config_router
 from src.domains.memories.router import router as memories_router
 from src.domains.notifications.router import router as notifications_router
 from src.domains.personalities.router import router as personalities_router
+from src.domains.relations.router import router as relations_router
 from src.domains.scheduled_actions.router import router as scheduled_actions_router
 from src.domains.system_settings.public_router import router as system_settings_public_router
 from src.domains.system_settings.router import router as system_settings_router
@@ -53,6 +54,7 @@ api_router.include_router(interests_router)
 api_router.include_router(notifications_router)
 api_router.include_router(scheduled_actions_router)
 api_router.include_router(briefing_router)  # Today dashboard
+api_router.include_router(relations_router)  # Personal CRM (N-09, read-only)
 api_router.include_router(checklist_router)  # Starter checklist state (UXR A10)
 if getattr(settings, "account_export_enabled", False):
     from src.domains.account_export.router import router as account_export_router

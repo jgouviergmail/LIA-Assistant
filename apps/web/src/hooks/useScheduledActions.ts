@@ -12,6 +12,28 @@ export const EXECUTING_REFRESH_INTERVAL_MS = 10_000;
  */
 export type ScheduledActionStatus = 'active' | 'executing' | 'error';
 
+/** N-07: how a routine decides to run at its cron tick. */
+export type TriggerKind = 'time' | 'condition';
+
+/** N-07 condition types — mirror of the backend CONDITION_TYPES. */
+export type ConditionType =
+  | 'task_overdue'
+  | 'weather_change'
+  | 'mail_match'
+  | 'document_added'
+  | 'calendar_event';
+
+/** N-07 condition of a CONDITION-kind routine. */
+export interface ConditionConfig {
+  type: ConditionType;
+  /** weather_change only (omitted = all kinds). */
+  kinds?: string[];
+  /** mail_match (required) / calendar_event (optional) text filter. */
+  query?: string;
+  /** calendar_event only: look-ahead window in hours. */
+  within_hours?: number;
+}
+
 /**
  * Scheduled action from the API.
  */
@@ -24,6 +46,9 @@ export interface ScheduledAction {
   trigger_hour: number;
   trigger_minute: number;
   user_timezone: string;
+  trigger_kind: TriggerKind;
+  condition_config: ConditionConfig | null;
+  requires_approval: boolean;
   next_trigger_at: string;
   is_enabled: boolean;
   status: ScheduledActionStatus;
@@ -45,6 +70,9 @@ export interface ScheduledActionCreate {
   days_of_week: number[];
   trigger_hour: number;
   trigger_minute: number;
+  trigger_kind?: TriggerKind;
+  condition_config?: ConditionConfig | null;
+  requires_approval?: boolean;
 }
 
 /**
@@ -56,6 +84,9 @@ export interface ScheduledActionUpdate {
   days_of_week?: number[];
   trigger_hour?: number;
   trigger_minute?: number;
+  trigger_kind?: TriggerKind;
+  condition_config?: ConditionConfig | null;
+  requires_approval?: boolean;
 }
 
 /**

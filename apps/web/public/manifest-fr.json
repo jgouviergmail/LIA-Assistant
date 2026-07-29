@@ -63,8 +63,28 @@
       ]
     },
     {
-      "name": "Espaces documentaires",
-      "url": "/fr/dashboard/settings",
+      "name": "Espaces de connaissances",
+      "url": "/fr/dashboard/spaces",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Parler à LIA",
+      "url": "/fr/dashboard/chat?voice=1",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Rappel rapide",
+      "url": "/fr/dashboard/chat?draft=Rappelle-moi%20de%20",
       "icons": [
         {
           "src": "/icon-192.png",

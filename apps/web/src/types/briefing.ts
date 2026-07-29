@@ -224,6 +224,15 @@ export interface CardSection<T extends SectionData = SectionData> {
   generated_at: string;
   error_code: string | null;
   error_message: string | null;
+  /** D-04: true when served from the Redis cache (not fetched live). */
+  from_cache: boolean;
+  /**
+   * D-04, ERROR + data only: when the STALE payload shown alongside the
+   * error was originally generated (ISO 8601 UTC).
+   */
+  stale_generated_at: string | null;
+  /** D-04, ERROR only: when the failed live fetch was attempted (ISO UTC). */
+  last_attempt_at: string | null;
 }
 
 export interface LLMUsage {

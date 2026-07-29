@@ -532,6 +532,19 @@ class User(BaseModel):
         ),
     )
 
+    # User-defined chat slash shortcuts (UX Actions program, SLASH admin):
+    # [{id, text}, ...]. NULL = none. Writes are full NEW-list replacements
+    # (JSONB new-dict rule); the tolerant reader is
+    # domains/chat/shortcuts.sanitize_chat_shortcuts.
+    chat_shortcuts: Mapped[list[dict[str, Any]] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment=(
+            "User-defined chat slash shortcuts: [{id, text}, ...] — "
+            "NULL = none (UX Actions program)."
+        ),
+    )
+
     # Per-user skill activation states (normalized in user_skill_states table)
     skill_states: Mapped[list["UserSkillState"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"

@@ -127,6 +127,26 @@ export const CHAT_INPUT_MAX_HEIGHT_PX = 200;
 export const SEND_TAKEOFF_RELEASE_MS = 700;
 
 /**
+ * Duration of the one-shot push-to-talk spotlight (N-13), in ms: how long the
+ * composer button pulses after a `?voice=1` PWA-shortcut landing. Purely a
+ * visual cue — recording NEVER starts without the user's own hold gesture.
+ */
+/**
+ * User-defined slash shortcut shape limits (SLASH admin lot) — MIRROR of the
+ * backend constants in apps/api/src/core/constants.py; the server remains
+ * the enforcing side, these only make the form refuse before the round-trip.
+ */
+export const CHAT_SHORTCUT_ID_MAX_LENGTH = 32;
+export const CHAT_SHORTCUT_TEXT_MAX_LENGTH = 500;
+
+/**
+ * Max characters of a selected passage quoted into a C-02 selection intent —
+ * beyond this the quote is ellipsized (a 4-page quote is prompt noise, and
+ * the model can re-read the answer it just wrote anyway).
+ */
+export const SELECTION_QUOTE_MAX_LENGTH = 600;
+
+/**
  * localStorage key prefix of the per-user chat input draft (UXR Lot 2, A7).
  * Full key: `${CHAT_DRAFT_STORAGE_KEY_PREFIX}${userId}` — purged on logout.
  */

@@ -58,7 +58,9 @@ function ForYouContent({
       {data.open_loops.length > 0 && (
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-            {/* UXR Lot 7 (B5): the heading opens the full ledger view. */}
+            {/* UXR Lot 7 (B5): the heading opens the full open-loops ledger.
+                (N-09 CRM has its own entry in Quick Access — the ledger link
+                stays as the signed-off B5 behavior.) */}
             <Link
               href={`/${lng}/dashboard/settings`}
               className="hover:text-primary hover:underline"

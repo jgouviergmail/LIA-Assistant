@@ -132,18 +132,47 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
 
         return len(recovered_ids)
 
+    async def reschedule(
+        self,
+        action: ScheduledAction,
+        next_trigger_at: datetime,
+        *,
+        condition_state: dict | None = None,
+    ) -> ScheduledAction:
+        """Re-arm an action WITHOUT counting an execution (N-07).
+
+        Used when a tick decides not to run the pipeline: condition not met,
+        same fact already fired (dedup), or propose-first mode (the run then
+        belongs to the chat, not to this scheduler). ``condition_state`` is a
+        full NEW-dict replacement when provided (JSONB rule).
+        """
+        action.status = ScheduledActionStatus.ACTIVE.value
+        action.next_trigger_at = next_trigger_at
+        if condition_state is not None:
+            action.condition_state = condition_state
+        await self.db.flush()
+        return action
+
     async def mark_execution_success(
         self,
         action: ScheduledAction,
         next_trigger_at: datetime,
+        *,
+        condition_state: dict | None = None,
     ) -> ScheduledAction:
-        """Mark an action as successfully executed and schedule next trigger."""
+        """Mark an action as successfully executed and schedule next trigger.
+
+        ``condition_state`` (N-07): the dedup ledger written IN the same flush
+        as the success — a full NEW-dict replacement (JSONB rule).
+        """
         action.status = ScheduledActionStatus.ACTIVE.value
         action.last_executed_at = now_utc()
         action.execution_count += 1
         action.consecutive_failures = 0
         action.last_error = None
         action.next_trigger_at = next_trigger_at
+        if condition_state is not None:
+            action.condition_state = condition_state
 
         await self.db.flush()
 

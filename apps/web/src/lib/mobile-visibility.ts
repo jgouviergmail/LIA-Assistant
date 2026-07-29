@@ -238,13 +238,15 @@ export const MOBILE_SURFACES: readonly MobileSurface[] = [
     location: 'app/[lng]/dashboard/layout',
     kind: 'action',
     tier: 'substituted',
-    minWidth: 768,
+    minWidth: 1024,
     substitute: 'The logo becomes a menu button (MobileNavMenu) listing the same destinations.',
     reason:
-      'The nav row cannot fit next to the header controls below 768 px. It was the one ' +
+      'The nav row cannot fit next to the header controls below 1024 px. It was the one ' +
       'unsubstituted amputation on this table — every section change detoured through the ' +
       'home page — until A2 turned the logo, already the only landmark up there, into the ' +
-      'entry point rather than adding a burger the row has no width for.',
+      'entry point rather than adding a burger the row has no width for. R01 raised the ' +
+      'boundary from 768 to 1024: with the fifth destination (Knowledge spaces) the ' +
+      'fr/de/es/it labels clip in the 768–1024 band (measured by the reachability spec).',
   },
 ] as const;
 

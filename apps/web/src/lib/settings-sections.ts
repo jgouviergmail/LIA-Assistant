@@ -89,6 +89,11 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'briefing-grid',
     declaredIn: 'components/settings/BriefingGridSettings.tsx',
   },
+  'chat-shortcuts': {
+    tab: 'preferences',
+    accordionValue: 'chat-shortcuts',
+    declaredIn: 'components/settings/ChatShortcutsSettings.tsx',
+  },
   'open-loops': {
     tab: 'preferences',
     accordionValue: 'open-loops',

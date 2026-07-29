@@ -16,6 +16,14 @@ Three tools:
 
 Deletion stays UI-only in v1 (toggle-off covers the need reversibly) —
 recorded in ADR-140.
+
+N-07 (ADR-175) boundary: this chat tool creates ``time`` routines only. The
+schema fields it omits (``trigger_kind``, ``condition_config``,
+``requires_approval``) are additive with time defaults, so a chat-created
+routine and a studio-created one are the SAME object — the studio is simply
+where condition triggers and propose-first mode are configured. Growing this
+tool's signature to author conditions in chat is deferred (the natural-language
+surface for "run X only when a task is overdue" is a whole design of its own).
 """
 
 from __future__ import annotations
