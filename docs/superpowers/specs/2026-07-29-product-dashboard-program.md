@@ -178,6 +178,25 @@ documented). Frontend emitter behind `NEXT_PUBLIC_PRODUCT_TELEMETRY`
 - Grafana env interpolation in datasource provisioning PROVEN live on 11.3
   (`database: $POSTGRES_DB` resolved; role query 200; base tables denied).
 
+## Dashboard v2 + prod hardening (2026-07-29, post-release v1.26.2)
+
+Prod audit found three real defects, all fixed:
+1. **Grants were never applied in prod** (role created before the views; the
+   runbook script could not run — `apps/api/scripts/` was missing from the
+   deploy transfer whitelist). Fixed live via direct SQL grants; whitelist now
+   copies `apps/api/scripts/` (prepare-prod.ps1).
+2. **The rollup starved**: interval-only job + API restarting more often than
+   the interval = zero ticks ever (4 boots, 0 runs measured). `next_run_time`
+   now pins the FIRST run ~2 min after boot (proven in-process: gauges exposed
+   by the server 2 min after recreate).
+3. **Stale placeholders**: panels said "Awaiting Phase 3/4" after those phases
+   shipped. v2: search + Web Vitals are LIVE Prometheus; first-pass proxy,
+   signup->first-value (ACT-03) and routines health are LIVE SQL over three
+   NEW views (migration d1e2f3a4b5c6: product_routines_snapshot,
+   product_time_to_first_value, product_quality_daily — grants via the
+   script, now 7 views); every waiting text states the true current reason
+   (pipeline live / telemetry flag off / run-linkage deferred).
+
 ## Status tracker
 
 | Item | State |

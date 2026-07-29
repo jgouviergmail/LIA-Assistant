@@ -482,6 +482,10 @@ SCHEDULER_JOB_PRODUCT_ROLLUP = "product_analytics_rollup"
 PRODUCT_OUTCOMES_RETENTION_DAYS_DEFAULT = 180
 PRODUCT_E2_VALIDATION_WINDOW_HOURS_DEFAULT = 24
 PRODUCT_ROLLUP_INTERVAL_MINUTES_DEFAULT = 60
+# First rollup shortly after boot: an interval-only job never runs when the API
+# restarts more often than the interval (measured in prod: 4 boots, 0 ticks —
+# every gauge stayed empty). Structural warm-up delay, not a tunable.
+PRODUCT_ROLLUP_INITIAL_DELAY_MINUTES = 2
 
 # Scheduled Actions Configuration
 SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS = 60

@@ -23,7 +23,7 @@
 
 ### Objectifs
 
-Les **25 dashboards Grafana** fournissent une observabilite complete pour :
+Les **26 dashboards Grafana** fournissent une observabilite complete pour :
 
 1. **Monitoring production** : Sante applicative, SLOs, performance HTTP, ressources infrastructure
 2. **Agent debugging** : Pipeline d'orchestration LangGraph, router, planner, outils, HITL
@@ -73,7 +73,7 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 
 | Datasource | UID | Type | Dashboards |
 |------------|-----|------|------------|
-| Prometheus | `prometheus` | Metriques + recording rules | Tous (01-25) |
+| Prometheus | `prometheus` | Metriques + recording rules | Tous (01-26) |
 | Loki | `loki` | Logs structures | 05, 06, 07, 17 |
 | Tempo | `tempo` | Traces distribuees | 06 |
 
@@ -83,7 +83,7 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 |---------|---------|
 | `infrastructure/observability/prometheus/prometheus.yml` | Configuration scrape Prometheus |
 | `infrastructure/observability/prometheus/recording_rules.yml` | 86 recording rules |
-| `infrastructure/observability/grafana/dashboards/*.json` | 25 fichiers JSON de dashboards |
+| `infrastructure/observability/grafana/dashboards/*.json` | 26 fichiers JSON de dashboards |
 | `infrastructure/observability/grafana/provisioning/` | Provisioning datasources et dashboards |
 
 ---
@@ -237,11 +237,11 @@ Page d'accueil Today Briefing (BRIEFING_DOMAIN) : duree de build par etat de cac
 
 ### 26 - Product Value, Activation & Retention (42 panels)
 
-Cockpit produit (ADR-178, spec `docs/superpowers/specs/2026-07-29-product-dashboard-program.md`). Repond a « combien d'utilisateurs obtiennent un resultat utile, a quel cout, reviennent-ils ? » sans dupliquer les dashboards techniques (liens de drill-down). 11 rows : scorecard executive (12 stats), North Star E1/E2, funnel d'activation, qualite agentique, HITL et brouillons, engagement/retention, connecteurs, routines/proactivite, recherche/mobile/performance percue, couts EUR, qualite des donnees. Trois etats de panel : **LIVE Prometheus** (series existantes : succes technique E3, feedback negatif, HITL, DAU/WAU avec caveat conversationnel, connecteurs, proactivite, TTFT, couts EUR DB-backed), **PRE-WIRED** (requetes posees sur les series `product_*` du pipeline outcomes — compteur + gauges DB-backed alimentees par le rollup horaire, `PRODUCT_ANALYTICS_ENABLED`), **LIVE PostgreSQL** (panels 3 et 27 : mediane de profondeur et cohortes hebdomadaires en SQL exact sur les vues en lecture seule). La North Star n'est jamais calculee depuis les compteurs Prometheus (etats E1/E2 mutables) : les gauges transportent des agregats SQL exacts.
+Cockpit produit (ADR-178, spec `docs/superpowers/specs/2026-07-29-product-dashboard-program.md`). Repond a « combien d'utilisateurs obtiennent un resultat utile, a quel cout, reviennent-ils ? » sans dupliquer les dashboards techniques (liens de drill-down). 11 rows : scorecard executive (12 stats), North Star E1/E2, funnel d'activation, qualite agentique, HITL et brouillons, engagement/retention, connecteurs, routines/proactivite, recherche/mobile/performance percue, couts EUR, qualite des donnees. Trois etats de panel : **LIVE Prometheus** (series existantes : succes technique E3, feedback negatif, HITL, DAU/WAU avec caveat conversationnel, connecteurs, proactivite, TTFT, couts EUR DB-backed), **PRE-WIRED** (requetes posees sur les series `product_*` du pipeline outcomes — compteur + gauges DB-backed alimentees par le rollup horaire, `PRODUCT_ANALYTICS_ENABLED`), **LIVE PostgreSQL** (panels 3/5/18/27/31/32 : mediane de profondeur, first-pass proxy, signup->premiere valeur (ACT-03), cohortes hebdomadaires et sante des routines en SQL exact sur les vues en lecture seule). La North Star n'est jamais calculee depuis les compteurs Prometheus (etats E1/E2 mutables) : les gauges transportent des agregats SQL exacts.
 
 La telemetrie client (Phase 4) alimente les familles `product_client_events_total` (funnel anonyme borne : landing, inscription, demo, PWA), `product_search_total` (recherche des reglages) et `product_web_vital_seconds`/`_ratio` (LCP/CLS) via `POST /api/v1/product/events` — endpoint a auth optionnelle, rate-limite par IP, schema borne par enums, emetteur frontend inerte sans `NEXT_PUBLIC_PRODUCT_TELEMETRY`.
 
-**Datasources** : Prometheus + `postgres-product-readonly` (role `grafana_product_reader`, SELECT sur les 4 vues produit uniquement, `statement_timeout` 10s — cree par `task db:create-grafana-reader`). Alertes produit : `alerts-product.yml` prepare mais NON monte (baseline 4 semaines requise, ADR-119).
+**Datasources** : Prometheus + `postgres-product-readonly` (role `grafana_product_reader`, SELECT sur les 7 vues produit uniquement, `statement_timeout` 10s — cree par `task db:create-grafana-reader`). Alertes produit : `alerts-product.yml` prepare mais NON monte (baseline 4 semaines requise, ADR-119).
 
 ---
 
@@ -451,7 +451,7 @@ docker compose restart grafana
 
 ### Code source
 
-**Dashboards** : `infrastructure/observability/grafana/dashboards/*.json` (25 fichiers)
+**Dashboards** : `infrastructure/observability/grafana/dashboards/*.json` (26 fichiers)
 
 **Metriques** :
 - `apps/api/src/infrastructure/observability/metrics_agents.py`

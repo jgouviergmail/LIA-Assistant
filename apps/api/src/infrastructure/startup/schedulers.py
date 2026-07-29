@@ -14,7 +14,7 @@ constants.
 """
 
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 import structlog
@@ -252,14 +252,20 @@ async def init_scheduler(scheduler: "AsyncIOScheduler") -> SchedulerLeaderElecto
 
         # Product analytics rollup (ADR-178) — cost backfill, E2 upgrades,
         # retention purge, DB-backed gauge refresh. Leader-elected like every
-        # job here; guarded by the product feature flag.
+        # job here; guarded by the product feature flag. next_run_time pins the
+        # FIRST run shortly after boot: an interval-only job starves when the
+        # API restarts more often than the interval (measured in prod — every
+        # gauge stayed empty across 4 boots).
         if getattr(settings, "product_analytics_enabled", False):
+            from src.core.constants import PRODUCT_ROLLUP_INITIAL_DELAY_MINUTES
             from src.infrastructure.scheduler.product_rollup import run_product_rollup
 
             scheduler.add_job(
                 run_product_rollup,
                 trigger="interval",
                 minutes=settings.product_rollup_interval_minutes,
+                next_run_time=datetime.now(UTC)
+                + timedelta(minutes=PRODUCT_ROLLUP_INITIAL_DELAY_MINUTES),
                 id=SCHEDULER_JOB_PRODUCT_ROLLUP,
                 name="Product analytics rollup (ADR-178)",
                 replace_existing=True,

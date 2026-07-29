@@ -31,7 +31,7 @@
  *   ADR-008 has no separate file, so 177 numbers map to 176 files).
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   184 headings at v1.26.2, no Unreleased pending.
+ *   185 headings at v1.26.3, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -49,7 +49,7 @@ export const LANDING_STATS = {
   uiLanguages: 6,
   tests: 20000,
   adrs: 177,
-  releases: 184,
+  releases: 185,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

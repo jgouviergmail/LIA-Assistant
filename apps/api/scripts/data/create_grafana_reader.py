@@ -40,6 +40,9 @@ PRODUCT_READ_VIEWS = (
     "product_depth_daily",
     "product_activation_cohorts_weekly",
     "product_signup_cohorts_weekly",
+    "product_routines_snapshot",
+    "product_time_to_first_value",
+    "product_quality_daily",
 )
 
 

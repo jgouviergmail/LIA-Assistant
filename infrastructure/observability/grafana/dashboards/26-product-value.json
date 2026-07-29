@@ -36,7 +36,7 @@
       "title": "Users with useful outcome (7d)",
       "type": "stat",
       "datasource": "$datasource",
-      "description": "NS-01 North Star: distinct users with >=1 validated E1/E2 outcome over 7 days. DB-backed gauge (exact dedup by result_id computed in SQL). Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "description": "NS-01 North Star: distinct users with >=1 validated E1/E2 outcome over 7 days. DB-backed gauge (exact dedup by result_id computed in SQL). n/a while no outcome is validated yet — the pipeline is live (ADR-178): gauges refresh with the rollup (first run minutes after boot, then hourly). ",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -81,7 +81,7 @@
       "title": "Value penetration",
       "type": "stat",
       "datasource": "$datasource",
-      "description": "NS-02: NS-01 users / eligible engaged users. DB-backed gauge. Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "description": "NS-02: NS-01 users / eligible engaged users. DB-backed gauge. n/a while no outcome is validated yet — the pipeline is live (ADR-178): gauges refresh with the rollup (first run minutes after boot, then hourly). ",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -176,7 +176,7 @@
       "title": "Activation at 7 days",
       "type": "stat",
       "datasource": "$datasource",
-      "description": "ACT-02: signup cohort reaching a first E1/E2 outcome within 7 days. DB-backed gauge. Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "description": "ACT-02: signup cohort reaching a first E1/E2 outcome within 7 days. DB-backed gauge. n/a while no outcome is validated yet — the pipeline is live (ADR-178): gauges refresh with the rollup (first run minutes after boot, then hourly). ",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -218,18 +218,51 @@
     },
     {
       "id": 5,
-      "title": "First-pass useful rate",
-      "type": "text",
-      "datasource": null,
+      "title": "First-pass rate (proxy)",
+      "type": "stat",
+      "datasource": {
+        "type": "postgres",
+        "uid": "postgres-product-readonly"
+      },
+      "description": "OUT-04 proxy: share of produced outcomes never corrected (1 - corrected/produced, latest day) — exact SQL over product_quality_daily. True retry-linked first_pass needs per-attempt lineage (documented deferral). n/a until outcomes accrue.",
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 16,
         "y": 1
       },
+      "targets": [
+        {
+          "rawSql": "SELECT day AS time, 1 - corrected::float / NULLIF(produced, 0) AS value FROM product_quality_daily WHERE $__timeFilter(day) ORDER BY day",
+          "rawQuery": true,
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "n/a",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
       "options": {
-        "mode": "markdown",
-        "content": "**OUT-04** — E1/E2 outcomes achieved on the first pass / produced outcomes.\n\n`first_pass` is a `product_outcomes` DB field (not a Prometheus label). Awaiting the PostgreSQL product datasource (Phase 3, ADR-178). "
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
@@ -282,7 +315,7 @@
       "title": "Useful retention D7",
       "type": "stat",
       "datasource": "$datasource",
-      "description": "RET-02: activated users producing a new useful outcome at J+7. DB-backed gauge. Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "description": "RET-02: activated users producing a new useful outcome at J+7. DB-backed gauge. n/a while no outcome is validated yet — the pipeline is live (ADR-178): gauges refresh with the rollup (first run minutes after boot, then hourly). ",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -327,7 +360,7 @@
       "title": "Cost per useful outcome (7d)",
       "type": "stat",
       "datasource": "$datasource",
-      "description": "COST-05: mean EUR cost per validated outcome (histogram avg). EUR only — sourced from message_token_summary. Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "description": "COST-05: mean EUR cost per validated outcome (histogram avg). EUR only — sourced from message_token_summary. n/a while no outcome is validated yet — the pipeline is live (ADR-178): gauges refresh with the rollup (first run minutes after boot, then hourly). ",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -372,7 +405,7 @@
       "title": "Time to useful outcome (p50, 7d)",
       "type": "stat",
       "datasource": "$datasource",
-      "description": "OUT-16: median seconds from request to validated outcome. Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "description": "OUT-16: median seconds from request to validated outcome. n/a while no outcome is validated yet — the pipeline is live (ADR-178): gauges refresh with the rollup (first run minutes after boot, then hourly). ",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -417,7 +450,7 @@
       "title": "Mobile vs desktop gap (7d)",
       "type": "stat",
       "datasource": "$datasource",
-      "description": "UX-02: penetration ratio difference, mobile minus desktop (device_class derived from bounded session os_family, ADR-144). Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "description": "UX-02: penetration ratio difference, mobile minus desktop (device_class derived from bounded session os_family, ADR-144). n/a while no outcome is validated yet — the pipeline is live (ADR-178): gauges refresh with the rollup (first run minutes after boot, then hourly). ",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -507,7 +540,7 @@
       "title": "Product aggregates freshness",
       "type": "stat",
       "datasource": "$datasource",
-      "description": "DQ-04: seconds since the last successful product aggregate refresh (SLA 2h — critical alert in Phase 5). Label refresh_job (never 'job', reserved by the Prometheus scrape). Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "description": "DQ-04: seconds since the last successful product aggregate refresh (SLA 2h — critical alert in Phase 5). Label refresh_job (never 'job', reserved by the Prometheus scrape). n/a while no outcome is validated yet — the pipeline is live (ADR-178): gauges refresh with the rollup (first run minutes after boot, then hourly). ",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -564,7 +597,7 @@
       "title": "North Star trend (E1/E2)",
       "type": "timeseries",
       "datasource": "$datasource",
-      "description": "NS-01/NS-05 over time: users with useful outcome (7d rolling window), split by evidence level. Charts the DB-backed gauge; the exact per-ISO-week cohort view arrives with the PostgreSQL datasource (Phase 3). Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "description": "NS-01/NS-05 over time: users with useful outcome (7d rolling window), split by evidence level. Charts the DB-backed gauge; the exact per-ISO-week cohort table reads the exact SQL views live. n/a while no outcome is validated yet — the pipeline is live (ADR-178): gauges refresh with the rollup (first run minutes after boot, then hourly). ",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -602,7 +635,7 @@
       "title": "Validated outcomes by domain (30d)",
       "type": "barchart",
       "datasource": "$datasource",
-      "description": "OUT-20: E1/E2 outcome volume by bounded domain (DOMAIN_REGISTRY vocabulary). Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "description": "OUT-20: E1/E2 outcome volume by bounded domain (DOMAIN_REGISTRY vocabulary). n/a while no outcome is validated yet — the pipeline is live (ADR-178): gauges refresh with the rollup (first run minutes after boot, then hourly). ",
       "gridPos": {
         "h": 8,
         "w": 6,
@@ -636,7 +669,7 @@
       "title": "Validated outcomes by result type (30d)",
       "type": "barchart",
       "datasource": "$datasource",
-      "description": "NS-04: E1/E2 outcome volume by result_type (answer/action/preparation/artifact/automation_run/proactive_item/project_progress). Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "description": "NS-04: E1/E2 outcome volume by result_type (answer/action/preparation/artifact/automation_run/proactive_item/project_progress). n/a while no outcome is validated yet — the pipeline is live (ADR-178): gauges refresh with the rollup (first run minutes after boot, then hourly). ",
       "gridPos": {
         "h": 8,
         "w": 6,
@@ -682,7 +715,7 @@
       "title": "Funnel — signup to second useful week (7d)",
       "type": "bargauge",
       "datasource": "$datasource",
-      "description": "FUN-01..11: users currently at each funnel stage. DB-backed gauge per stage. Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "description": "FUN-01..11: users currently at each funnel stage. DB-backed gauge per stage. n/a while no outcome is validated yet — the pipeline is live (ADR-178): gauges refresh with the rollup (first run minutes after boot, then hourly). ",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -728,7 +761,7 @@
       "title": "Activation by path (7d)",
       "type": "barchart",
       "datasource": "$datasource",
-      "description": "ACT-07..11: activation rate by path (connector / demo / no-source). Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "description": "ACT-07..11: activation rate by path (connector / demo / no-source). n/a while no outcome is validated yet — the pipeline is live (ADR-178): gauges refresh with the rollup (first run minutes after boot, then hourly). ",
       "gridPos": {
         "h": 8,
         "w": 6,
@@ -759,18 +792,44 @@
     },
     {
       "id": 18,
-      "title": "Inter-step times (FUN-12)",
-      "type": "text",
-      "datasource": null,
+      "title": "Signup → first value (ACT-03)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "postgres",
+        "uid": "postgres-product-readonly"
+      },
+      "description": "P50/P95 seconds from signup to the first validated outcome, per weekly signup cohort — exact SQL over product_time_to_first_value. Anonymous pre-signup steps are NOT linkable by design (no identifier stored), so full inter-step times stop at signup. n/a until cohorts validate.",
       "gridPos": {
         "h": 8,
         "w": 6,
         "x": 18,
         "y": 19
       },
+      "targets": [
+        {
+          "rawSql": "SELECT cohort_week AS time, p50_seconds AS \"p50\", p95_seconds AS \"p95\" FROM product_time_to_first_value WHERE $__timeFilter(cohort_week) ORDER BY cohort_week",
+          "rawQuery": true,
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
       "options": {
-        "mode": "markdown",
-        "content": "**FUN-12** — P50/P95 between consecutive funnel steps.\n\nRequires per-user step timestamps (PostgreSQL). Awaiting the PostgreSQL product datasource (Phase 3, ADR-178). "
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
@@ -1174,7 +1233,7 @@
           "title": "Useful retention by period",
           "type": "timeseries",
           "datasource": "$datasource",
-          "description": "RET-04/07: D1/D7/D30 useful-retention gauges. Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+          "description": "RET-04/07: D1/D7/D30 useful-retention gauges. n/a while no outcome is validated yet — the pipeline is live (ADR-178): gauges refresh with the rollup (first run minutes after boot, then hourly). ",
           "gridPos": {
             "h": 8,
             "w": 6,
@@ -1320,35 +1379,67 @@
       "panels": [
         {
           "id": 31,
-          "title": "Routines — creation & activation",
-          "type": "text",
-          "datasource": null,
+          "title": "Routines — creation & adoption",
+          "type": "table",
+          "datasource": {
+            "type": "postgres",
+            "uid": "postgres-product-readonly"
+          },
+          "description": "AUT-01/02/03: routines total vs enabled vs executed at least once, and distinct owners — exact SQL over product_routines_snapshot (scheduled_actions state). Deep-dive: dashboard 13.",
           "gridPos": {
             "h": 6,
             "w": 8,
             "x": 0,
             "y": 32
           },
-          "options": {
-            "mode": "markdown",
-            "content": "**AUT-01..05** — created vs activated routines, first useful output delay.\n\nSource: `scheduled_actions` aggregates (PostgreSQL). Awaiting the PostgreSQL product datasource (Phase 3, ADR-178). "
-          }
+          "targets": [
+            {
+              "rawSql": "SELECT total, enabled, executed_at_least_once, users_with_routines FROM product_routines_snapshot",
+              "rawQuery": true,
+              "format": "table",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {},
+          "transformations": []
         },
         {
           "id": 32,
-          "title": "Routines — reliability & punctuality",
-          "type": "text",
-          "datasource": null,
+          "title": "Routines — reliability",
+          "type": "table",
+          "datasource": {
+            "type": "postgres",
+            "uid": "postgres-product-readonly"
+          },
+          "description": "AUT-12/13/14: enabled routines currently failing, disabled ones that carry failures (auto-disable proxy — a manual disable after failures is indistinguishable, stated), and the worst consecutive-failure streak. Exact SQL over product_routines_snapshot.",
           "gridPos": {
             "h": 6,
             "w": 8,
             "x": 8,
             "y": 32
           },
-          "options": {
-            "mode": "markdown",
-            "content": "**AUT-06..14** — on-time runs, technical success, consecutive_failures distribution (DB column — no Prometheus series, corrected classification), auto-disable.\n\nAwaiting the PostgreSQL product datasource (Phase 3, ADR-178). "
-          }
+          "targets": [
+            {
+              "rawSql": "SELECT enabled_failing, disabled_with_failures, max_consecutive_failures FROM product_routines_snapshot",
+              "rawQuery": true,
+              "format": "table",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {},
+          "transformations": []
         },
         {
           "id": 33,
@@ -1363,7 +1454,7 @@
           },
           "options": {
             "mode": "markdown",
-            "content": "**AUT-09/17/18** — useful outputs (E1/E2), 4/12-week survival, cost per useful run.\n\nRequires product_outcomes × scheduled_actions join. Awaiting the PostgreSQL product datasource (Phase 3, ADR-178). "
+            "content": "**AUT-09/17/18** — useful outputs (E1/E2) per routine, 4/12-week survival, cost per useful run.\n\nDeferred: executions do not record their run_id, so outcomes cannot be joined back to a specific routine yet (scheduler-channel outcomes are only attributable in aggregate)."
           }
         },
         {
@@ -1459,18 +1550,40 @@
       "panels": [
         {
           "id": 36,
-          "title": "Search value",
-          "type": "text",
-          "datasource": null,
+          "title": "Settings search (SEA)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "SEA-01/02/04: settings-search outcomes — results, zero_results, result_used (1d increases). n/a until client telemetry is enabled (NEXT_PUBLIC_PRODUCT_TELEMETRY) and events accrue. ",
           "gridPos": {
             "h": 6,
             "w": 8,
             "x": 0,
             "y": 33
           },
+          "targets": [
+            {
+              "expr": "sum by (outcome) (increase(product_search_total[1d]))",
+              "legendFormat": "{{outcome}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
           "options": {
-            "mode": "markdown",
-            "content": "**SEA-01..10** — searches, zero-result rate, reformulation, search-to-chat transfers.\n\nAwaiting client telemetry (Phase 4, ADR-178 — dedicated spec). "
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
           }
         },
         {
@@ -1478,7 +1591,7 @@
           "title": "Mobile vs desktop penetration",
           "type": "timeseries",
           "datasource": "$datasource",
-          "description": "UX-01/02: value penetration by device_class (derived from bounded session os_family, ADR-144 — tablet not distinguished). Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+          "description": "UX-01/02: value penetration by device_class (derived from bounded session os_family, ADR-144 — tablet not distinguished). n/a while no outcome is validated yet — the pipeline is live (ADR-178): gauges refresh with the rollup (first run minutes after boot, then hourly). ",
           "gridPos": {
             "h": 6,
             "w": 8,
@@ -1529,10 +1642,10 @@
         },
         {
           "id": 39,
-          "title": "Web Vitals p75",
+          "title": "Web Vitals p75 (LCP + CLS)",
           "type": "timeseries",
           "datasource": "$datasource",
-          "description": "PERF-17: LCP/INP p75 by device class. Awaiting client telemetry (Phase 4, ADR-178 — dedicated spec). ",
+          "description": "PERF-17: LCP p75 (seconds) and CLS p75 (unitless ratio, right scale by magnitude) — INP deferred (documented). n/a until client telemetry is enabled (NEXT_PUBLIC_PRODUCT_TELEMETRY) and events accrue. ",
           "gridPos": {
             "h": 8,
             "w": 12,
@@ -1541,9 +1654,14 @@
           },
           "targets": [
             {
-              "expr": "histogram_quantile(0.75, sum by (le, metric) (rate(product_web_vital_seconds_bucket[1d])))",
-              "legendFormat": "{{metric}} p75",
+              "expr": "histogram_quantile(0.75, sum by (le) (rate(product_web_vital_seconds_bucket{metric=\"lcp\"}[1d])))",
+              "legendFormat": "LCP p75 (s)",
               "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.75, sum by (le) (rate(product_web_vital_ratio_bucket{metric=\"cls\"}[1d])))",
+              "legendFormat": "CLS p75",
+              "refId": "B"
             }
           ],
           "fieldConfig": {
@@ -1694,7 +1812,7 @@
       "title": "Product data quality checks",
       "type": "timeseries",
       "datasource": "$datasource",
-      "description": "DQ-01..12: per-check quality ratios (dedup, orphans, missing dimensions, backend/aggregate reconciliation <1%). Freshness is on the scorecard (row 00). Empty (n/a) until product_outcomes ships (Phase 2, ADR-178) — by design. ",
+      "description": "DQ-01..12: per-check quality ratios (dedup, orphans, missing dimensions, backend/aggregate reconciliation <1%). Freshness is on the scorecard (row 00). n/a while no outcome is validated yet — the pipeline is live (ADR-178): gauges refresh with the rollup (first run minutes after boot, then hourly). ",
       "gridPos": {
         "h": 8,
         "w": 24,

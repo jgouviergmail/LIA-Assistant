@@ -5104,6 +5104,15 @@
             "i3": "<b>🕵️ Respektvolle Produkt-Telemetrie</b> — eine optionale, vom Betreiber aktivierte Messung der öffentlichen Seiten und der Web-Performance: anonym, streng begrenzte Ereignisnamen, niemals Kennungen oder Inhalte. Standardmäßig aus.",
             "i4": "<b>🔧 Korrekturen</b> — ein leeres Anruf-Debriefing ist jetzt wirklich abwesend (die geplante Bereinigung bereinigt tatsächlich); die Seed-Befehle der Datenbank folgen den konfigurierten Zugangsdaten statt fest codierter Werte."
           }
+        },
+        "v1_26_3": {
+          "title": "v1.26.3 — 🔧 Das Produkt-Cockpit leuchtet wirklich auf",
+          "date": "Juli 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📊 Admin · Echte Zahlen, sofort</b> — die Gauges des Produkt-Dashboards berechnen ihre ersten Werte zwei Minuten nach dem Start (zuvor warteten sie eine volle Stunde, die bewegte Tage nie gewährten), und die Panels für Routinen, First-Pass und Zeit bis zum ersten Wert lesen exaktes SQL statt Platzhalter-Notizen.",
+            "i2": "<b>🔧 Admin · Zugriffsreparatur</b> — die Nur-Lese-Datenbankrolle hinter dem Produkt-Dashboard erhielt in der Produktion endlich ihre View-Berechtigungen (Panels zeigten „No data in response“), und das Deployment liefert nun das Wartungsskript mit, das sie konvergent hält."
+          }
         }
       }
     },

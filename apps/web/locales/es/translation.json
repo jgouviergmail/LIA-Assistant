@@ -5104,6 +5104,15 @@
             "i3": "<b>🕵️ Telemetría de producto respetuosa</b> — una medición opcional, activada por el operador, de las páginas públicas y del rendimiento web: anónima, nombres de eventos estrictamente acotados, nunca identificadores ni contenido. Desactivada por defecto.",
             "i4": "<b>🔧 Correcciones</b> — un debrief de llamada vacío ahora está realmente ausente (su purga programada purga de verdad); los comandos de seed de la base siguen las credenciales configuradas en lugar de valores fijos."
           }
+        },
+        "v1_26_3": {
+          "title": "v1.26.3 — 🔧 El cockpit de producto se enciende de verdad",
+          "date": "Julio 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📊 Admin · Números reales, de inmediato</b> — los gauges del dashboard de producto calculan sus primeros valores dos minutos después del arranque (antes esperaban una hora entera que los días movidos nunca concedían), y los paneles de rutinas, primer pase y tiempo hasta el primer valor leen SQL exacto en lugar de notas de espera.",
+            "i2": "<b>🔧 Admin · Reparación de acceso</b> — el rol de base de datos de solo lectura tras el dashboard de producto por fin recibió sus permisos sobre las vistas en producción (los paneles mostraban “No data in response”), y el despliegue ahora incluye el script de mantenimiento que los mantiene convergentes."
+          }
         }
       }
     },

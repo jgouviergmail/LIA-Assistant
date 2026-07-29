@@ -5113,6 +5113,15 @@
             "i3": "<b>🕵️ Respectful product telemetry</b> — an optional, operator-enabled measurement of the public pages and web performance: anonymous, strictly bounded event names, no identifier, no content, ever. Off by default.",
             "i4": "<b>🔧 Fixes</b> — an empty call debrief is now truly absent (its scheduled purge really purges); database seed commands follow the configured credentials instead of hardcoded ones."
           }
+        },
+        "v1_26_3": {
+          "title": "v1.26.3 — 🔧 The product cockpit lights up for real",
+          "date": "July 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📊 Admin · Real numbers, right away</b> — the product dashboard's gauges now compute their first values two minutes after startup (they previously waited a full hour that busy days never granted), and the routines, first-pass and time-to-first-value panels read exact SQL instead of placeholder notes.",
+            "i2": "<b>🔧 Admin · Access repair</b> — the read-only database role behind the product dashboard finally received its view permissions in production (panels showed “No data in response”), and the deployment now ships the maintenance script that keeps them converged."
+          }
         }
       }
     },

@@ -127,6 +127,16 @@ if (Test-Path $alembicDir) {
     Write-Host "  + apps/api/alembic/" -ForegroundColor DarkGray
 }
 
+# Copier les scripts operationnels (create_admin, create_grafana_reader — le
+# runbook prod du role Grafana lecture seule s'execute DANS le conteneur api :
+# sans cette copie, `python -m scripts.data.create_grafana_reader` echoue en
+# ModuleNotFoundError sur le Pi, constate au deploiement v1.26.2).
+$apiScriptsDir = Join-Path $SourceDir "apps\api\scripts"
+if (Test-Path $apiScriptsDir) {
+    Copy-Item $apiScriptsDir -Destination $apiDir -Recurse
+    Write-Host "  + apps/api/scripts/" -ForegroundColor DarkGray
+}
+
 # Copier le répertoire config (Firebase service account, etc.)
 $configDir = Join-Path $SourceDir "apps\api\config"
 if (Test-Path $configDir) {
