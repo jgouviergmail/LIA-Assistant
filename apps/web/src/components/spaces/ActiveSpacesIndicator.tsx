@@ -69,6 +69,7 @@ export function ActiveSpacesIndicator() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
+          data-testid="active-spaces-indicator"
           aria-label={t('spaces.indicator_tooltip', { count: activeCount })}
           // Homogeneous with the sibling header pills (offline / processing /
           // delete / context): same rounded-full px-3 py-1.5 text-[11px]

@@ -8,9 +8,13 @@
  *     `<textarea>` is an INLINE element, so its baseline added ~6 px under it:
  *     its wrapper grew to 54 px while all three controls stayed 48 px, and the
  *     field floated 6 px above them. `display: block` removes the baseline.
- *  2. the active-spaces indicator sat in the flow, flush against the trailing
- *     controls. It now shares the absolutely-centred row with the voice badge —
- *     which also makes an overlap between the two impossible.
+ *  2. the active-spaces indicator sat flush against the trailing controls. It
+ *     now rides in the header's centred MIDDLE group beside the voice badge
+ *     (v1.26.0: equal-weight flex sides keep that group centred and let it
+ *     shift rather than overlap — the former `absolute` centring reserved no
+ *     width and overlapped the search). Being siblings makes an overlap
+ *     between the two impossible. Targeted by the indicator's own testid, never
+ *     a `/dashboard/spaces` link (R01 put one in the nav too).
  *
  * Both are pinned by measurement, in a browser: a class name assertion would
  * pass while the pixels lied.
@@ -104,28 +108,28 @@ test.describe('composer alignment', () => {
     await page.goto('/fr/dashboard/chat');
     await expect(page.locator('form textarea').first()).toBeVisible({ timeout: 30_000 });
 
-    // Wait for it: the indicator appears only once `/rag-spaces` answers, and
-    // counting before that skipped the test while the element was on its way.
-    const indicator = page.locator('a[href*="/dashboard/spaces"]').first();
+    // The indicator is the header's OWN control (a dropdown trigger since R01),
+    // not any `/dashboard/spaces` link — the nav carries one too. Target it by
+    // its stable testid so the nav link can never stand in for it. It appears
+    // only once `/rag-spaces` answers.
+    const indicator = page.getByTestId('active-spaces-indicator');
     await expect(indicator, 'the indicator must render with an active space').toBeVisible({
       timeout: 20_000,
     });
 
     const geometry = await page.evaluate(() => {
-      const link = document.querySelector('a[href*="/dashboard/spaces"]');
-      const row = link?.closest('[class*="absolute"]');
-      if (!link || !row) return null;
-      const r = link.getBoundingClientRect();
+      const el = document.querySelector('[data-testid="active-spaces-indicator"]');
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
       return {
         centre: Math.round(r.left + r.width / 2),
         viewportCentre: Math.round(window.innerWidth / 2),
-        insideCentredRow: true,
       };
     });
 
-    expect(geometry, 'the indicator must live in the centred row').not.toBeNull();
-    // Beside the voice badge, so not exactly on the axis — but nowhere near the
-    // right edge where it used to be glued.
+    expect(geometry, 'the indicator must be laid out').not.toBeNull();
+    // Beside the voice badge in the centred group, so not exactly on the axis —
+    // but nowhere near the right edge where it used to be glued.
     expect(Math.abs(geometry!.centre - geometry!.viewportCentre)).toBeLessThan(220);
   });
 
@@ -138,9 +142,9 @@ test.describe('composer alignment', () => {
     await expect(page.locator('form textarea').first()).toBeVisible({ timeout: 30_000 });
 
     const overlap = await page.evaluate(() => {
-      const link = document.querySelector('a[href*="/dashboard/spaces"]');
-      const row = link?.parentElement;
-      const badge = row?.firstElementChild;
+      const link = document.querySelector('[data-testid="active-spaces-indicator"]');
+      // The voice badge is the sibling right before the indicator in the group.
+      const badge = link?.previousElementSibling;
       if (!link || !badge || badge === link) return 0;
       const a = link.getBoundingClientRect();
       const b = badge.getBoundingClientRect();
