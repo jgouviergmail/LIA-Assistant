@@ -341,6 +341,20 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
         noun_key="task",
         verb_past_key="executed",
     ),
+    # Peers (A3): sending a relayed message is the email-send class — the
+    # draft IS the confirmation, `execute_peer_message_draft` enqueues only
+    # once the user has approved.
+    DraftType.PEER_MESSAGE: DraftDisplayConfig(
+        emoji="🤝",  # 🤝
+        item_label_fields=("recipient_name",),
+        item_secondary_datetime_key=None,
+        detail_fields=(
+            DraftDisplayField("recipient_name", "👤", "recipient"),
+            DraftDisplayField("message", "💬", "message"),
+        ),
+        noun_key="peer_message",
+        verb_past_key="sent",
+    ),
     DraftType.SCHEDULED_ACTION: DraftDisplayConfig(
         emoji="⏰",  # ⏰
         item_label_fields=("title",),

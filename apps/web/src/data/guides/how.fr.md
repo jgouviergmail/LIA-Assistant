@@ -5,8 +5,8 @@
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
 **Version** : 3.6
-**Date** : 2026-07-29
-**Application** : LIA v1.26.4
+**Date** : 2026-07-30
+**Application** : LIA v1.27.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -153,7 +153,7 @@ apps/api/src/
 │   │   ├── registry/             # AgentRegistry, domain_taxonomy, catalogue
 │   │   ├── semantic/             # Semantic router, expansion service
 │   │   ├── middleware/           # Memory injection, personality injection
-│   │   ├── prompts/v1/           # 78 fichiers .txt de prompts versionnés
+│   │   ├── prompts/v1/           # 86 fichiers .txt de prompts versionnés
 │   │   ├── graphs/               # 15 builders d'agents (un par domaine)
 │   │   ├── context/              # Context store (Data Registry), decorators
 │   │   └── models.py             # MessagesState (TypedDict + custom reducer)
@@ -167,6 +167,7 @@ apps/api/src/
 │   ├── voice/                    # TTS Factory, STT Sherpa, Wake Word
 │   ├── skills/                   # Standard agentskills.io
 │   ├── sub_agents/               # Agents spécialisés persistants
+│   ├── peers/                    # Connexions entre utilisateurs (relais assistant-à-assistant)
 │   ├── usage_limits/             # Quotas par utilisateur (5-layer defence)
 │   └── ...                       # conversations, reminders, scheduled_actions, users, user_mcp
 │
@@ -970,7 +971,7 @@ Tous les tools retournent `ToolResponse` (succès) ou `ToolErrorModel` (échec) 
 
 ### 23.4. Système de Prompts
 
-78 fichiers `.txt` versionnés dans `src/domains/agents/prompts/v1/`, chargés via `load_prompt()` avec cache LRU (32 entrées). Versions configurables par variables d'environnement.
+86 fichiers `.txt` versionnés dans `src/domains/agents/prompts/v1/`, chargés via `load_prompt()` avec cache LRU (32 entrées). Versions configurables par variables d'environnement.
 
 ### 23.5. Activation Centralisée des Composants (ADR-061)
 
@@ -1205,4 +1206,4 @@ L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayé
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 170+ ADRs, et du changelog (v1.0 à v1.26.4). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 170+ ADRs, et du changelog (v1.0 à v1.27.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

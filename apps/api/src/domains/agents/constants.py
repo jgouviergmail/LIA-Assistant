@@ -67,6 +67,7 @@ AGENT_HUE = "hue_agent"  # Philips Hue smart lighting (Smart Home)
 AGENT_IMAGE = "image_generation_agent"  # AI image generation (evolution)
 AGENT_REMINDER = "reminder_agent"  # Internal reminders (no OAuth)
 AGENT_AUTOMATION = "automation_agent"  # Chat-piloted scheduled actions (ADR-140)
+AGENT_PEER = "peer_agent"  # User-to-user connections (peers program)
 AGENT_DOCUMENT = "document_agent"  # User RAG spaces as active capability (ADR-141)
 AGENT_HEALTH = "health_agent"  # Health Metrics — unified agent (v1.17.2)
 

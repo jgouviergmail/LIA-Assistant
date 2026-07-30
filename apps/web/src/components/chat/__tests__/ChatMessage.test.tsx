@@ -671,3 +671,40 @@ describe('ChatMessage — relative timestamp', () => {
     expect(screen.getByText(/^\d{2}:\d{2} \| .+/)).toBeInTheDocument();
   });
 });
+
+describe('ChatMessage — peer bubble (peers Lot 7)', () => {
+  const peerMessage = () =>
+    makeMessage({
+      content: 'Marie te fait dire bonjour',
+      metadata: {
+        type: 'proactive_peer_message',
+        target_id: 'm1',
+        sender_id: 'p1',
+        sender_name: 'Marie Dupont',
+      },
+    });
+
+  it('tints the bubble and offers the quick actions on a relayed message', () => {
+    renderAssistantWith(peerMessage(), { onPrefillComposer: vi.fn() });
+    const bubble = screen
+      .getByText('Marie te fait dire bonjour')
+      .closest('.message-bubble');
+    expect(bubble).toHaveClass('bg-primary/10');
+    expect(screen.getByRole('button', { name: /chat\.peer\.reply/ })).toBeInTheDocument();
+  });
+
+  it('wires the composer prefill through the actions row', async () => {
+    const onPrefillComposer = vi.fn();
+    const { user } = renderAssistantWith(peerMessage(), { onPrefillComposer });
+    await user.click(screen.getByRole('button', { name: /chat\.peer\.reply/ }));
+    expect(onPrefillComposer).toHaveBeenCalledWith('chat.peer.reply_prefill');
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it('keeps the default surface and no peer actions on a plain answer', () => {
+    renderMessage(makeMessage({ content: 'Réponse ordinaire' }));
+    const bubble = screen.getByText('Réponse ordinaire').closest('.message-bubble');
+    expect(bubble).not.toHaveClass('bg-primary/10');
+    expect(screen.queryByRole('button', { name: /chat\.peer\.reply/ })).toBeNull();
+  });
+});

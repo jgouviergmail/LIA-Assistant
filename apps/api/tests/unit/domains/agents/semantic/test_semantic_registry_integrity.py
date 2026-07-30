@@ -50,6 +50,12 @@ KNOWN_UNBRIDGED_RELATED_DOMAINS: frozenset[tuple[str, str]] = frozenset(
         # planner/ReAct prompts (CROSS-DOMAIN CHAINS blocks).
         ("event", "task"),
         ("email", "file"),
+        # Peers program (ADR-180): routing-level adjacency only — peer tool
+        # payloads expose peer-scoped names/slots, not contact/event resource
+        # ids. Annotating a bridge without a REAL payload pivot would violate
+        # the ADR-121 doctrine (never tag an output without verifying the
+        # actual payload); bridge when one exists.
+        ("peer", "event"),
     }
 )
 

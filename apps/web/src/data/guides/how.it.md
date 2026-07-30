@@ -5,8 +5,8 @@
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
 **Versione**: 3.6
-**Data**: 2026-07-29
-**Applicazione**: LIA v1.26.4
+**Data**: 2026-07-30
+**Applicazione**: LIA v1.27.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -153,7 +153,7 @@ apps/api/src/
 │   │   ├── registry/             # AgentRegistry, domain_taxonomy, catalogue
 │   │   ├── semantic/             # Semantic router, expansion service
 │   │   ├── middleware/           # Memory injection, personality injection
-│   │   ├── prompts/v1/           # 78 file .txt di prompt versionati
+│   │   ├── prompts/v1/           # 86 file .txt di prompt versionati
 │   │   ├── graphs/               # 15 builder di agenti (uno per dominio)
 │   │   ├── context/              # Context store (Data Registry), decorator
 │   │   └── models.py             # MessagesState (TypedDict + custom reducer)
@@ -167,6 +167,7 @@ apps/api/src/
 │   ├── voice/                    # TTS Factory, STT Sherpa, Wake Word
 │   ├── skills/                   # Standard agentskills.io
 │   ├── sub_agents/               # Agenti specializzati persistenti
+│   ├── peers/                    # Connessioni tra utenti (relay assistente-assistente)
 │   ├── usage_limits/             # Quote per utente (5-layer defence)
 │   └── ...                       # conversations, reminders, scheduled_actions, users, user_mcp
 │
@@ -970,7 +971,7 @@ Tutti i tool restituiscono `ToolResponse` (successo) o `ToolErrorModel` (fallime
 
 ### 23.4. Sistema di Prompt
 
-78 file `.txt` versionati in `src/domains/agents/prompts/v1/`, caricati tramite `load_prompt()` con cache LRU (32 voci). Versioni configurabili tramite variabili d'ambiente.
+86 file `.txt` versionati in `src/domains/agents/prompts/v1/`, caricati tramite `load_prompt()` con cache LRU (32 voci). Versioni configurabili tramite variabili d'ambiente.
 
 ### 23.5. Attivazione Centralizzata dei Componenti (ADR-061)
 
@@ -1165,4 +1166,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 170+ ADR e del changelog (da v1.0 a v1.26.4). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 170+ ADR e del changelog (da v1.0 a v1.27.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

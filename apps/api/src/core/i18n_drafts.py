@@ -462,6 +462,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "label_parent": "Label parent",
         "sublabels_to_delete": "Sous-labels à supprimer",
         "sublabels_included": "Sous-labels inclus",
+        "recipient": "Destinataire",
+        "message": "Message",
         "callee": "Correspondant",
         "objective": "Objectif",
         "title": "Titre",
@@ -498,6 +500,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "label_parent": "Parent label",
         "sublabels_to_delete": "Sub-labels to delete",
         "sublabels_included": "Sub-labels included",
+        "recipient": "Recipient",
+        "message": "Message",
         "callee": "Callee",
         "objective": "Objective",
         "title": "Title",
@@ -534,6 +538,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "label_parent": "Etiqueta padre",
         "sublabels_to_delete": "Subetiquetas a eliminar",
         "sublabels_included": "Subetiquetas incluidas",
+        "recipient": "Destinatario",
+        "message": "Mensaje",
         "callee": "Interlocutor",
         "objective": "Objetivo",
         "title": "Título",
@@ -570,6 +576,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "label_parent": "Übergeordnetes Label",
         "sublabels_to_delete": "Zu löschende Unterlabels",
         "sublabels_included": "Enthaltene Unterlabels",
+        "recipient": "Empfänger",
+        "message": "Nachricht",
         "callee": "Angerufener",
         "objective": "Ziel",
         "title": "Titel",
@@ -606,6 +614,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "label_parent": "Etichetta padre",
         "sublabels_to_delete": "Sottoetichette da eliminare",
         "sublabels_included": "Sottoetichette incluse",
+        "recipient": "Destinatario",
+        "message": "Messaggio",
         "callee": "Interlocutore",
         "objective": "Obiettivo",
         "title": "Titolo",
@@ -642,6 +652,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "label_parent": "父标签",
         "sublabels_to_delete": "要删除的子标签",
         "sublabels_included": "包含的子标签",
+        "recipient": "收件人",
+        "message": "消息",
         "callee": "通话对象",
         "objective": "目标",
         "title": "标题",
@@ -894,6 +906,7 @@ def get_draft_preview_labels(
 
 DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
     "fr": {
+        "peer_message": {"singular": "message", "plural": "messages", "gender": "m"},
         "reminder": {"singular": "rappel", "plural": "rappels", "gender": "m"},
         "email": {"singular": "email", "plural": "emails", "gender": "m"},
         "event": {"singular": "événement", "plural": "événements", "gender": "m"},
@@ -905,6 +918,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "automation": {"singular": "automatisation", "plural": "automatisations", "gender": "f"},
     },
     "en": {
+        "peer_message": {"singular": "message", "plural": "messages"},
         "reminder": {"singular": "reminder", "plural": "reminders"},
         "email": {"singular": "email", "plural": "emails"},
         "event": {"singular": "event", "plural": "events"},
@@ -916,6 +930,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "automation": {"singular": "automation", "plural": "automations"},
     },
     "es": {
+        "peer_message": {"singular": "mensaje", "plural": "mensajes", "gender": "m"},
         "reminder": {
             "singular": "recordatorio",
             "plural": "recordatorios",
@@ -931,6 +946,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "automation": {"singular": "automatización", "plural": "automatizaciones", "gender": "f"},
     },
     "de": {
+        "peer_message": {"singular": "Nachricht", "plural": "Nachrichten"},
         "reminder": {"singular": "Erinnerung", "plural": "Erinnerungen"},
         "email": {"singular": "E-Mail", "plural": "E-Mails"},
         "event": {"singular": "Termin", "plural": "Termine"},
@@ -942,6 +958,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "automation": {"singular": "Automatisierung", "plural": "Automatisierungen"},
     },
     "it": {
+        "peer_message": {"singular": "messaggio", "plural": "messaggi", "gender": "m"},
         # Italian: "promemoria", "email", "attività", "file" are invariant for number.
         "reminder": {"singular": "promemoria", "plural": "promemoria", "gender": "m"},
         "email": {"singular": "email", "plural": "email", "gender": "f"},
@@ -954,6 +971,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "automation": {"singular": "automazione", "plural": "automazioni", "gender": "f"},
     },
     "zh-CN": {
+        "peer_message": {"singular": "消息", "plural": "消息"},
         # Chinese has no grammatical number; both forms hold the same string.
         "reminder": {"singular": "提醒", "plural": "提醒"},
         "email": {"singular": "邮件", "plural": "邮件"},

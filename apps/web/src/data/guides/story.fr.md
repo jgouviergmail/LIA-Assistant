@@ -3,15 +3,15 @@
 > Retour d'expérience — un système complet, de la conception à la production.
 
 **Version** : 1.1
-**Date** : 2026-07-29
-**Application** : LIA v1.26.4
+**Date** : 2026-07-30
+**Application** : LIA v1.27.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
 
 ## 1. L'essentiel
 
-LIA est un assistant IA multi-agents complet — connecteurs métier, voix, mémoire, six langues — conçu, développé et exploité en production en continu, en projet personnel.
+LIA est un assistant IA multi-agents complet — connecteurs métier, voix, mémoire, connexions entre utilisateurs, six langues — conçu, développé et exploité en production en continu, en projet personnel.
 
 La quasi-totalité du code a été écrite par une IA, sous direction humaine : référentiel d'ingénierie écrit, contrôles automatiques bloquants, revue systématique, audits récurrents. Le résultat est mesuré : **8,3/10** à l'audit technique sur 24 périmètres. Le dépôt est open-source ; les conclusions de l'audit — points forts comme faiblesses — sont assumées et résumées dans ce document.
 
@@ -21,7 +21,7 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Lignes de code (hors tests) — 34 domaines fonctionnels | **465 000** |
 | Tests automatisés, exécutés à chaque commit et livraison | **20 000+** |
 | Décisions d'architecture documentées (ADR) | **170+** |
-| Versions livrées à rythme régulier | **180** |
+| Versions livrées à rythme régulier | **187** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 

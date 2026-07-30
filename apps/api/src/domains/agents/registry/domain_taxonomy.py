@@ -76,6 +76,12 @@ class DomainConfig:
 
 # Shared metadata fragments (size-ratchet friendly: one-line spreads below).
 _GOOGLE_OAUTH = {"provider": "google", "requires_oauth": True}
+_GOOGLE_API_KEY = {
+    "provider": "google",
+    "requires_oauth": False,
+    "requires_api_key": True,
+    "api_key_env": "GOOGLE_API_KEY",
+}
 
 # Domain Registry: Declarative configuration for all domains
 # To add a new domain: Add entry here + implement agent + register in AgentRegistry
@@ -159,12 +165,13 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         # One directed edge covers both directions: the initiative node also
         # resolves adjacency via reverse lookup (task→event).
         related_domains=["contact", "task"],
+        # requires_hitl: creating/modifying events needs approval;
+        # default_calendar: user-configured via preferences.
         metadata={
-            "provider": "google",
-            "requires_oauth": True,
+            **_GOOGLE_OAUTH,
             "api_version": "v3",
-            "requires_hitl": True,  # Creating/modifying events requires HITL approval
-            "default_calendar": None,  # User-configured via preferences
+            "requires_hitl": True,
+            "default_calendar": None,
         },
     ),
     # File domain: Cloud file management (Google Drive)
@@ -195,12 +202,13 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         # Adjacency provided by the event→task edge via the initiative
         # node's reverse lookup (task execution → event enrichment).
         related_domains=[],
+        # requires_hitl: creating/completing tasks needs approval;
+        # default_task_list: user-configured via preferences.
         metadata={
-            "provider": "google",
-            "requires_oauth": True,
+            **_GOOGLE_OAUTH,
             "api_version": "v1",
-            "requires_hitl": True,  # Creating/completing tasks requires HITL approval
-            "default_task_list": None,  # User-configured via preferences
+            "requires_hitl": True,
+            "default_task_list": None,
         },
     ),
     # Weather domain: Weather information
@@ -304,13 +312,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
             "event",
             "contact",
         ],  # Places often combined with weather or events
-        metadata={
-            "provider": "google",
-            "requires_oauth": False,
-            "requires_api_key": True,
-            "api_key_env": "GOOGLE_API_KEY",
-            "api_version": "v1",
-        },
+        metadata={**_GOOGLE_API_KEY, "api_version": "v1"},
     ),
     # Route domain: Directions and travel time (Google Routes)
     "route": DomainConfig(
@@ -329,13 +331,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
             "event",
             "contact",
         ],  # Routes often involves places, events, or contact addresses
-        metadata={
-            "provider": "google",
-            "requires_oauth": False,
-            "requires_api_key": True,
-            "api_key_env": "GOOGLE_API_KEY",
-            "api_version": "v2",
-        },
+        metadata={**_GOOGLE_API_KEY, "api_version": "v2"},
     ),
     # Wikipedia domain: Knowledge lookup
     "wikipedia": DomainConfig(
@@ -596,6 +592,15 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         metadata={"requires_admin": True, "uses_ssh": True},
     ),
 }
+
+# Program-delivered domains live in their own module (this file is frozen at
+# its size cap — program_manifests pattern). Import placed after the literal
+# on purpose: the sibling needs DomainConfig, already defined above.
+from src.domains.agents.registry.program_domain_configs import (  # noqa: E402
+    PROGRAM_DOMAIN_CONFIGS,
+)
+
+DOMAIN_REGISTRY.update(PROGRAM_DOMAIN_CONFIGS)
 
 
 def slugify_mcp_server_name(name: str) -> str:

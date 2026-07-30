@@ -74,7 +74,7 @@ export type SettingsGroupKey =
  */
 export type SettingsSectionGate =
   | { kind: 'always' }
-  | { kind: 'instanceFlag'; flag: 'openLoopsEnabled' }
+  | { kind: 'instanceFlag'; flag: 'openLoopsEnabled' | 'peersEnabled' }
   | { kind: 'userDebugPanel' }
   | { kind: 'runtime'; reason: string };
 
@@ -285,6 +285,13 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'identity_memory',
     gate: { kind: 'always' },
   },
+  'peer-connections': {
+    titleKey: 'settings.peers.title',
+    descriptionKey: 'settings.peers.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.peer-connections`,
+    group: 'identity_memory',
+    gate: { kind: 'instanceFlag', flag: 'peersEnabled' },
+  },
 
   // ---- Features / Automation & Tracking
   heartbeat: {
@@ -353,6 +360,8 @@ export interface SettingsSearchAvailability {
   isSuperuser: boolean;
   /** `/config` → `features.open_loops_enabled`. */
   openLoopsEnabled: boolean;
+  /** `/config` → `features.peers_enabled` (peers program). */
+  peersEnabled: boolean;
   /** `useDebugPanelEnabled()` → `userAccessAvailable`. */
   debugUserAccess: boolean;
 }

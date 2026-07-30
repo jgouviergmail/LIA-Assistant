@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.26.4</strong> — <strong>The call report finally speaks your language — and no configuration can silently starve it again.</strong> A production incident left every post-call phone report in English with no structured debrief: the telephony synthesis was the repository’s only code path bypassing the central structured-output chokepoint, so an admin override to a DeepSeek V4 thinking model hit a hard vendor 400 on every call — and its 600-token budget, calibrated before the debrief era, was then fully consumed by reasoning even on the fallback path. Both defects are fixed at the root and the whole class is closed (<a href="docs/architecture/ADR-179-Structured-Output-Chokepoint-And-Thinking-Budget-Floor.md">ADR-179</a>): the synthesis routes through the chokepoint (automatic JSON-mode under thinking), its budget is recalibrated (5,000 tokens / 60 s), a repo-wide AST guard fails CI on any future bypass, and a systemic lock (<code>LLM_THINKING_MAX_TOKENS_FLOOR</code>) rejects any config whose reasoning would starve the completion budget — with an explicit, localized message the admin actually sees. Proven at runtime on the exact incident configuration: real synthesis in French, populated debrief, tracked spend. <strong>16,651 backend</strong> + <strong>4,094 frontend</strong> tests, all six languages. One ADR (179). — 29 July 2026.
+  <strong>Version 1.27.0</strong> — <strong>LIA stops being a solitary assistant: two users of the same instance can now connect — and their assistants talk to each other.</strong> The Peer Connections program (<a href="docs/architecture/ADR-180-Peer-Connections.md">ADR-180</a>) ships opt-in discovery by exact full name (masked-email hint for homonyms, relationship badge in results), a full request/accept/decline/remove lifecycle driven from the chat or the settings, silent anti-harassment blocking (blocked, unknown and cooldown answer the byte-identical 404), and the heart of the design: <strong>assistant-to-assistant message relay</strong> — the recipient's own assistant delivers the message with its personality, memory and context, naming the sender, whose assistant confirms delivery; the LLM cost is billed to the sender, every send is HITL-confirmed, and indirect speech is rephrased into direct address. Each connection can open field-level <strong>read-only shares</strong> (calendar availability or details, task titles — nothing shared by default, every access re-validated and journaled). Three defects caught on first real use are fixed at the root (the semantic validator now treats the user's original wording as authoritative over its English pivot; peer plans no longer die on unrelated Google scopes; native form controls finally follow the dark theme via <code>color-scheme</code>), and the UI gains its frosted-glass signature — real blur under the chat header, dialogs, menus and toasts. <strong>16,796 backend</strong> + <strong>4,159 frontend</strong> tests, all six languages. One ADR (180). — 30 July 2026.
 
 </p>
 
@@ -115,7 +115,7 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **32** functional domains | **420,000** lines of code (excl. tests) | **20,600+** automated tests | **177** ADRs                                                           |
+| **33** functional domains | **420,000** lines of code (excl. tests) | **20,900+** automated tests | **180** ADRs                                                           |
 | **156** versions shipped  | **6 languages**, parity enforced in CI  | **425** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
@@ -484,6 +484,15 @@ ExecutionStep(
 - **`read_me` convention**: MCP servers exposing a `read_me` tool have their content auto-injected into the planner prompt
 - **Auto-generated descriptions**: LLM analysis of discovered tools for domain description optimized for routing
 - **App-only tools**: Tools with `visibility: ["app"]` filtered from the LLM catalogue (iframe only)
+
+### Peer Connections — Users of the Same Instance, Assistant to Assistant
+
+- **Opt-in discovery by exact full name** (accent/case-folded, never prefix search): a masked-email hint disambiguates homonyms, results carry the relationship status, and an empty profile name plainly means "unfindable"
+- **Connection lifecycle from chat or settings**: request with an optional context note, accept/decline in one click (chat quick-actions or the « Connexions » settings section), removal notifies BOTH users through their assistants
+- **Silent anti-harassment blocking**: blocking ends the connection without notifying the other side — blocked, unknown and cooldown targets answer the byte-identical 404 (no existence leak, ADR-180)
+- **Assistant-to-assistant relay**: "tell Marie…" produces an HITL-confirmed draft; the recipient's OWN assistant delivers it in its personality, memory and language, naming the sender — whose assistant then confirms delivery; indirect speech is rephrased into direct address; LLM delivery cost is billed to the sender; quotas cap relays per day and per pair
+- **Field-level read-only shares**: calendar (free/busy or titled slots) and task titles — nothing shared by default, both directions visible to each side, every access re-validated at read time and recorded in a retention-pruned access log
+- **GDPR-complete**: account export and purge cover both sides of every pair; message content is scrubbed after delivery
 
 ### Internationalization (i18n) — 6 Languages
 
@@ -894,7 +903,7 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md)   | Complete development workflow                             |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent                                 |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md)   | How to create a new tool                                  |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~16,584 backend tests across 881 files) |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~16,796 backend tests across 901 files) |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md)           | LangGraph and log debugging                               |
 
 ### Architecture Decision Records (ADR)

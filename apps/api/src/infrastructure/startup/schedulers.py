@@ -276,6 +276,32 @@ async def init_scheduler(scheduler: "AsyncIOScheduler") -> SchedulerLeaderElecto
                 "product_rollup_job_scheduled",
                 interval_minutes=settings.product_rollup_interval_minutes,
             )
+
+        # Peers relayed-message delivery sweep (peers program, Lot 4): the
+        # durable delivery guarantee — the post-confirmation kick only
+        # shortens the happy-path latency. Also recovers crash-stranded
+        # claims and expires stale pending requests (one job owns every
+        # peers time-based transition).
+        if getattr(settings, "peers_enabled", False):
+            from src.core.constants import SCHEDULER_JOB_PEERS_DELIVERY_SWEEP
+            from src.infrastructure.scheduler.peer_message_delivery import (
+                sweep_pending_deliveries,
+            )
+
+            scheduler.add_job(
+                sweep_pending_deliveries,
+                trigger="interval",
+                seconds=settings.peers_delivery_sweep_seconds,
+                id=SCHEDULER_JOB_PEERS_DELIVERY_SWEEP,
+                name="Peers relayed-message delivery sweep",
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=60,
+            )
+            logger.info(
+                "peers_delivery_sweep_job_scheduled",
+                interval_seconds=settings.peers_delivery_sweep_seconds,
+            )
         logger.info(
             "scheduled_action_executor_job_scheduled",
             interval_seconds=SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS,

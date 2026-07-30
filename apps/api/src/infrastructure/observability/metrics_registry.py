@@ -346,6 +346,19 @@ heartbeat_enrichment_total = Counter(
     ["outcome"],  # success | empty | error | disabled
 )
 
+# Peers program: connection-lifecycle chat events and relayed-message
+# delivery outcomes (spec §14.6 observability).
+peers_events_total = Counter(
+    "peers_events_total",
+    "Peer connection-lifecycle events dispatched to chats",
+    ["kind"],  # request_created | request_accepted | request_declined | connection_removed
+)
+peers_messages_total = Counter(
+    "peers_messages_total",
+    "Relayed peer-message delivery outcomes",
+    ["outcome"],  # delivered | retried | failed | cancelled
+)
+
 interest_selection_eligible_subjects = Histogram(
     "interest_selection_eligible_subjects",
     "Eligible (non-cooling) subjects at selection time (ADR-131)",

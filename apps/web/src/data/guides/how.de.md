@@ -5,8 +5,8 @@
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
 **Version**: 3.6
-**Datum**: 2026-07-29
-**Application**: LIA v1.26.4
+**Datum**: 2026-07-30
+**Application**: LIA v1.27.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -153,7 +153,7 @@ apps/api/src/
 │   │   ├── registry/             # AgentRegistry, domain_taxonomy, Catalogue
 │   │   ├── semantic/             # Semantic Router, Expansion Service
 │   │   ├── middleware/           # Memory Injection, Personality Injection
-│   │   ├── prompts/v1/           # 78 versionierte .txt-Prompt-Dateien
+│   │   ├── prompts/v1/           # 86 versionierte .txt-Prompt-Dateien
 │   │   ├── graphs/               # 15 Agent-Builder (einer pro Domäne)
 │   │   ├── context/              # Context Store (Data Registry), Decorators
 │   │   └── models.py             # MessagesState (TypedDict + Custom Reducer)
@@ -167,6 +167,7 @@ apps/api/src/
 │   ├── voice/                    # TTS Factory, STT Sherpa, Wake Word
 │   ├── skills/                   # Standard agentskills.io
 │   ├── sub_agents/               # Spezialisierte persistente Agenten
+│   ├── peers/                    # Verbindungen zwischen Nutzern (Assistent-zu-Assistent-Relais)
 │   ├── usage_limits/             # Kontingente pro Benutzer (5-Layer Defence)
 │   └── ...                       # conversations, reminders, scheduled_actions, users, user_mcp
 │
@@ -969,7 +970,7 @@ Alle Tools geben `ToolResponse` (Erfolg) oder `ToolErrorModel` (Fehler) mit eine
 
 ### 23.4. Prompt-System
 
-78 versionierte `.txt`-Dateien in `src/domains/agents/prompts/v1/`, geladen über `load_prompt()` mit LRU-Cache (32 Einträge). Versionen konfigurierbar über Umgebungsvariablen.
+86 versionierte `.txt`-Dateien in `src/domains/agents/prompts/v1/`, geladen über `load_prompt()` mit LRU-Cache (32 Einträge). Versionen konfigurierbar über Umgebungsvariablen.
 
 ### 23.5. Zentralisierte Komponentenaktivierung (ADR-061)
 
@@ -1164,4 +1165,4 @@ Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lern
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 170+ ADRs und des Changelogs (v1.0 bis v1.26.4). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 170+ ADRs und des Changelogs (v1.0 bis v1.27.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

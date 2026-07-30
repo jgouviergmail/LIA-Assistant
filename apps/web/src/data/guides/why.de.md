@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 4.1
-**Datum** : 2026-07-29
-**Anwendung** : LIA v1.26.4
+**Datum** : 2026-07-30
+**Anwendung** : LIA v1.27.0
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -183,6 +183,12 @@ LIA kann für Sie zum Hörer greifen. Bitten Sie sie, „die Werkstatt anzurufen
 Sie bleiben stets eingebunden: Vor dem Wählen sagt Ihnen LIA genau, **wen** sie anruft und **warum**, und wartet auf Ihr Einverständnis. Und diese Kontrolle endet nicht während des Anrufs: Der Assistent arbeitet unter einem strikten Mandat — bietet der Gesprächspartner einen Aufpreis, eine Option oder eine ungeplante Verpflichtung an (selbst eine kleine), akzeptiert er niemals in Ihrem Namen; er notiert Angebot und Preis, kündigt einen Rückruf an, und die Zusammenfassung legt Ihnen jeden Betrag und jeden offenen Punkt zur Entscheidung vor. Die Zusammenfassung landet asynchron im Chat, sodass Sie während des Anrufs anderes erledigen können.
 
 Und es bleibt konstruktionsbedingt privat. Während eines Anrufs kann LIA nur mitteilen, ob Sie zu einem bestimmten Zeitpunkt frei oder gebucht sind — nie die Titel, Gäste oder Orte in Ihrem Kalender. Nichts wird aufgezeichnet, das Gespräch wird nie gespeichert, und nur eine kurze Zusammenfassung bleibt erhalten, bevor sie abläuft. Anrufe laufen über Ihren eigenen ElevenLabs-Connector, abgerechnet über Ihr Konto, und die Funktion ist nur vorhanden, wenn Ihr Administrator sie aktiviert hat.
+
+### 3.11. Mit Ihren Menschen sprechen, von Assistent zu Assistent
+
+Auf derselben Instanz können sich zwei Nutzer verbinden — und ihre Assistenten sprechen miteinander. Sie sagen „frag Marie, ob sie am Dienstag frei ist“, bestätigen den genauen Wortlaut, und es ist Maries Assistent, der die Nachricht übermittelt, mit seiner eigenen Persönlichkeit, und Sie dabei nennt; Ihrer bestätigt Ihnen die Zustellung. Jede Verbindung kann außerdem gewählte Nur-Lese-Freigaben öffnen: Ihre Kalender-Verfügbarkeit, Ihre Aufgabentitel — nicht mehr, nichts standardmäßig.
+
+Der Schutz der Menschen steht über der Funktion: Die Auffindbarkeit ist freiwillig und nur über den exakten Namen möglich, das Blockieren ist lautlos (die andere Seite erfährt nie davon), und ein Unbekannter, eine Ablehnung oder eine Blockierung erhalten exakt dieselbe Antwort — auszuforschen, wer existiert, ist unmöglich. Jeder Zugriff auf eine Freigabe wird im Moment des Lesens neu geprüft und protokolliert, und der Inhalt übermittelter Nachrichten wird nach der Zustellung gelöscht.
 
 ---
 

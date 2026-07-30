@@ -3,15 +3,15 @@
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
 **Version**: 1.1
-**Datum**: 2026-07-29
-**Anwendung**: LIA v1.26.4
+**Datum**: 2026-07-30
+**Anwendung**: LIA v1.27.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
 
 ## 1. Das Wesentliche
 
-LIA ist ein vollständiger Multi-Agenten-KI-Assistent — Fachkonnektoren, Sprache, Gedächtnis, sechs Sprachen — der als persönliches Projekt entworfen, entwickelt und kontinuierlich in Produktion betrieben wird.
+LIA ist ein vollständiger Multi-Agenten-KI-Assistent — Fachkonnektoren, Sprache, Gedächtnis, Verbindungen zwischen Nutzern, sechs Sprachen — der als persönliches Projekt entworfen, entwickelt und kontinuierlich in Produktion betrieben wird.
 
 Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führung: ein schriftliches Engineering-Regelwerk, blockierende automatische Prüfungen, systematische Reviews, wiederkehrende Audits. Das Ergebnis ist gemessen: **8,3/10** im technischen Audit über 24 Bereiche. Das Repository ist Open Source; die Schlussfolgerungen des Audits — Stärken wie Schwächen — werden offen eingestanden und in diesem Dokument zusammengefasst.
 
@@ -21,7 +21,7 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Codezeilen (ohne Tests) — 34 Fachdomänen | **465.000** |
 | Automatisierte Tests, bei jedem Commit und Release ausgeführt | **20.000+** |
 | Dokumentierte Architekturentscheidungen (ADR) | **170+** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **180** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **187** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 

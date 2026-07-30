@@ -3,15 +3,15 @@
 > Field report — a complete system, from design to production.
 
 **Version**: 1.1
-**Date**: 2026-07-29
-**Application**: LIA v1.26.4
+**Date**: 2026-07-30
+**Application**: LIA v1.27.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
 
 ## 1. The essentials
 
-LIA is a complete multi-agent AI assistant — business connectors, voice, memory, six languages — designed, built and continuously operated in production, as a personal project.
+LIA is a complete multi-agent AI assistant — business connectors, voice, memory, user-to-user connections, six languages — designed, built and continuously operated in production, as a personal project.
 
 Nearly all of the code was written by an AI, under human direction: a written engineering rulebook, blocking automated checks, systematic review, recurring audits. The result is measured: **8.3/10** on a technical audit across 24 areas. The repository is open source; the audit's conclusions — strengths and weaknesses alike — are owned and summarized in this document.
 
@@ -21,7 +21,7 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Lines of code (excluding tests) — 34 functional domains | **465,000** |
 | Automated tests, run on every commit and release | **20,000+** |
 | Documented architecture decisions (ADR) | **170+** |
-| Versions shipped at a steady pace | **180** |
+| Versions shipped at a steady pace | **187** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 

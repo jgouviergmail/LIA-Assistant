@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Delete, delete, select, text, update
+from sqlalchemy import Delete, delete, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
@@ -81,6 +81,30 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
     conversation_messages = tables["conversation_messages"]
     conversation_ids_subq = select(conversations.c.id).where(conversations.c.user_id == user_id)
 
+    def by_either_side(table_name: str, col_a: str, col_b: str) -> tuple[str, Delete]:
+        """DELETE rows where the user sits on EITHER side (two-sided peers tables).
+
+        The users row is soft-deleted, so FK CASCADEs from users never fire —
+        every peers table must be purged explicitly (same trap as open_loops).
+        """
+        table = tables[table_name]
+        return table_name, delete(table).where(
+            or_(table.c[col_a] == user_id, table.c[col_b] == user_id)
+        )
+
+    # peer_domain_shares has no two-sided user columns: BOTH owners' shares on a
+    # connection involving the user die with that connection — delete them via
+    # the connection subquery for accurate counting (conversation_messages
+    # precedent; the FK CASCADE would cover them, but silently).
+    peer_connections = tables["peer_connections"]
+    peer_domain_shares = tables["peer_domain_shares"]
+    peer_connection_ids_subq = select(peer_connections.c.id).where(
+        or_(
+            peer_connections.c.user_a_id == user_id,
+            peer_connections.c.user_b_id == user_id,
+        )
+    )
+
     return [
         # Group 1 — Child tables (FK to other user-scoped tables)
         by_user("interest_notifications"),
@@ -92,6 +116,17 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
                 conversation_messages.c.conversation_id.in_(conversation_ids_subq)
             ),
         ),
+        # Peers (children of peer_connections first, then the pair rows).
+        (
+            "peer_domain_shares",
+            delete(peer_domain_shares).where(
+                peer_domain_shares.c.connection_id.in_(peer_connection_ids_subq)
+            ),
+        ),
+        by_either_side("peer_messages", "sender_id", "recipient_id"),
+        by_either_side("peer_access_log", "accessor_id", "owner_id"),
+        by_either_side("peer_blocks", "blocker_id", "blocked_id"),
+        by_either_side("peer_connections", "user_a_id", "user_b_id"),
         # Group 2 — Main tables (FK directly to users)
         by_user("conversations"),
         by_user("memories"),

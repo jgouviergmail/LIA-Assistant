@@ -13,6 +13,7 @@ from src.domains.account_export.builder import (
     _DECRYPTED_COLUMNS,
     _OWNER_COLUMN_OVERRIDES,
     _REDACTED_COLUMNS,
+    _TWO_SIDED,
     _VIA_PARENT,
     exportable_tables,
 )
@@ -36,6 +37,11 @@ class TestExportCoverage:
                 parent_name, fk_column, parent_owner = _VIA_PARENT[table_name]
                 parent = Base.metadata.tables[parent_name]
                 if fk_column not in table.c or parent_owner not in parent.c:
+                    unresolvable.append(table_name)
+                continue
+            if table_name in _TWO_SIDED:
+                side_a, side_b = _TWO_SIDED[table_name]
+                if side_a not in table.c or side_b not in table.c:
                     unresolvable.append(table_name)
                 continue
             owner = _OWNER_COLUMN_OVERRIDES.get(table_name, "user_id")

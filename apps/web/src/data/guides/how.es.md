@@ -5,8 +5,8 @@
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
 **Versión**: 3.6
-**Fecha**: 2026-07-29
-**Aplicación**: LIA v1.26.4
+**Fecha**: 2026-07-30
+**Aplicación**: LIA v1.27.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -153,7 +153,7 @@ apps/api/src/
 │   │   ├── registry/             # AgentRegistry, domain_taxonomy, catalogue
 │   │   ├── semantic/             # Semantic router, expansion service
 │   │   ├── middleware/           # Memory injection, personality injection
-│   │   ├── prompts/v1/           # 78 archivos .txt de prompts versionados
+│   │   ├── prompts/v1/           # 86 archivos .txt de prompts versionados
 │   │   ├── graphs/               # 15 builders de agentes (uno por dominio)
 │   │   ├── context/              # Context store (Data Registry), decorators
 │   │   └── models.py             # MessagesState (TypedDict + custom reducer)
@@ -167,6 +167,7 @@ apps/api/src/
 │   ├── voice/                    # TTS Factory, STT Sherpa, Wake Word
 │   ├── skills/                   # Estándar agentskills.io
 │   ├── sub_agents/               # Agentes especializados persistentes
+│   ├── peers/                    # Conexiones entre usuarios (relevo asistente a asistente)
 │   ├── usage_limits/             # Cuotas por usuario (5-layer defence)
 │   └── ...                       # conversations, reminders, scheduled_actions, users, user_mcp
 │
@@ -970,7 +971,7 @@ Todos los tools devuelven `ToolResponse` (éxito) o `ToolErrorModel` (fallo) con
 
 ### 23.4. Sistema de Prompts
 
-78 archivos `.txt` versionados en `src/domains/agents/prompts/v1/`, cargados vía `load_prompt()` con caché LRU (32 entradas). Versiones configurables por variables de entorno.
+86 archivos `.txt` versionados en `src/domains/agents/prompts/v1/`, cargados vía `load_prompt()` con caché LRU (32 entradas). Versiones configurables por variables de entorno.
 
 ### 23.5. Activación Centralizada de Componentes (ADR-061)
 
@@ -1165,4 +1166,4 @@ La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesia
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (400+ documentos), de los 170+ ADRs y del changelog (v1.0 a v1.26.4). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (400+ documentos), de los 170+ ADRs y del changelog (v1.0 a v1.27.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

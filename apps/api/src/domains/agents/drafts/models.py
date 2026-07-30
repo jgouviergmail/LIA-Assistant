@@ -67,6 +67,7 @@ class DraftType(str, Enum):
     PHONE_CALL = "phone_call"  # Outbound agentic phone-call draft (place_phone_call)
     SCHEDULED_ACTION = "scheduled_action"  # Recurring automation draft (ADR-140)
     DEVOPS_TASK = "devops_task"  # Remote server task via Claude CLI (FN-1)
+    PEER_MESSAGE = "peer_message"  # Relayed message to a connected user (peers, A3)
 
 
 class DraftStatus(str, Enum):

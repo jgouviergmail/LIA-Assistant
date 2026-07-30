@@ -64,6 +64,7 @@ import {
   History,
   Sunrise,
   PhoneCall,
+  Handshake,
 } from 'lucide-react';
 
 interface FAQContentProps {
@@ -87,6 +88,7 @@ const sections = [
   'settings',
   'connectors',
   'telephony',
+  'peers',
   'tool_examples_services',
   'tool_examples_external',
   'rappels',
@@ -115,6 +117,7 @@ const sections = [
  * releases. `__tests__/changelog-wiring.test.ts` now fails on any drift in either direction.
  */
 export const changelogVersionKeys = [
+  'v1_27_0',
   'v1_26_4',
   'v1_26_3',
   'v1_26_2',
@@ -305,6 +308,7 @@ export const featureIcons = {
   proactiveInitiative: Compass,
   todayBriefing: Sunrise,
   telephony: PhoneCall,
+  peers: Handshake,
 };
 
 /**
@@ -357,6 +361,7 @@ export const featureKeys = [
   'proactiveInitiative',
   'todayBriefing',
   'telephony',
+  'peers',
   'richResponses',
 ];
 

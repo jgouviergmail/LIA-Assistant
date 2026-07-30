@@ -917,6 +917,11 @@
       "dialing": "LIA está llamando a {{name}}…",
       "in_progress": "LIA está al teléfono con {{name}}",
       "details": "Detalles"
+    },
+    "peer": {
+      "reply": "Responder",
+      "block": "Bloquear",
+      "reply_prefill": "Responde a {{name}}: "
     }
   },
   "skill_apps": {
@@ -2299,6 +2304,101 @@
       "confirm_delete_all_description": "Esto eliminará permanentemente todos tus intereses activos y bloqueados. Esta acción no se puede deshacer.",
       "delete_all_confirm": "Eliminar todo"
     },
+    "peers": {
+      "title": "Conexiones",
+      "description": "Encuentra a otros usuarios de esta instancia, conéctate y comparte acceso de solo lectura con las personas que elijas.",
+      "discovery": {
+        "toggle_label": "Permitir que otros me encuentren",
+        "toggle_hint": "Desactivado por defecto. Al activarlo, los usuarios que busquen tu nombre completo exacto podrán enviarte una solicitud de conexión. Sin nombre completo en tu perfil, nadie puede encontrarte.",
+        "toggle_saved": "Preferencia de descubrimiento guardada",
+        "title": "Encontrar a alguien",
+        "search_label": "Nombre completo",
+        "search_placeholder": "p. ej. María García",
+        "search_button": "Buscar",
+        "exact_hint": "La búsqueda solo encuentra el nombre completo exacto (se ignoran acentos y mayúsculas).",
+        "no_results": "No se encontró a nadie con ese nombre exacto. Puede que esa persona no haya activado el descubrimiento.",
+        "context_label": "Nota opcional",
+        "context_placeholder": "Unas palabras para que sepa quién eres…",
+        "request_button": "Solicitar conexión",
+        "request_sent": "Solicitud de conexión enviada",
+        "status_connected": "Ya conectados",
+        "status_pending": "Solicitud pendiente"
+      },
+      "requests": {
+        "title": "Solicitudes pendientes",
+        "empty": "No hay solicitudes pendientes.",
+        "accept": "Aceptar",
+        "decline": "Rechazar",
+        "block": "Bloquear",
+        "outgoing_badge": "Esperando respuesta",
+        "accepted": "Conexión aceptada",
+        "declined": "Solicitud rechazada"
+      },
+      "connections": {
+        "title": "Mis conexiones",
+        "empty": "Aún no hay conexiones. Encuentra a alguien arriba para empezar.",
+        "remove": "Eliminar conexión",
+        "block": "Bloquear",
+        "removed": "Conexión eliminada — vuestros asistentes os lo comunicarán",
+        "remove_confirm_title": "¿Eliminar esta conexión?",
+        "remove_confirm_description": "Todos los compartidos cesan de inmediato y ambos seréis avisados por vuestros asistentes. Podréis reconectar más adelante con una nueva solicitud.",
+        "block_confirm_title": "¿Bloquear a este usuario?",
+        "block_confirm_description": "La conexión y todos los compartidos cesan de inmediato y en silencio. La persona no será avisada y ya no podrá encontrarte ni contactarte."
+      },
+      "shares": {
+        "my_title": "Lo que comparto",
+        "their_title": "Lo que comparte conmigo",
+        "their_empty": "Esta persona aún no comparte nada contigo.",
+        "saved": "Preferencia de compartición guardada",
+        "calendar_label": "Calendario",
+        "task_label": "Tareas (solo títulos)",
+        "calendar_level": {
+          "none": "No compartido",
+          "availability": "Solo disponibilidad (libre/ocupado)",
+          "details": "Disponibilidad y títulos de eventos"
+        },
+        "badge": {
+          "calendar_availability": "Calendario — disponibilidad",
+          "calendar_details": "Calendario — detalles",
+          "task_titles": "Tareas — títulos"
+        }
+      },
+      "blocks": {
+        "title": "Usuarios bloqueados",
+        "hint": "Los usuarios bloqueados no pueden encontrarte, contactarte ni ver nada sobre ti. Desbloquear no restaura nada — hará falta una nueva solicitud.",
+        "empty": "No has bloqueado a nadie.",
+        "unblock": "Desbloquear",
+        "unknown_user": "Cuenta eliminada",
+        "blocked": "Usuario bloqueado",
+        "unblocked": "Usuario desbloqueado"
+      },
+      "access_log": {
+        "title": "Quién consultó mis datos compartidos",
+        "hint": "Cada lectura de tus datos compartidos por el asistente de una conexión queda registrada aquí.",
+        "empty": "Nadie ha consultado tus datos compartidos recientemente."
+      },
+      "domains": {
+        "calendar": "consultó tu calendario",
+        "task": "consultó tus tareas"
+      },
+      "errors": {
+        "self_request": "No puedes conectarte contigo mismo.",
+        "context_too_long": "La nota es demasiado larga.",
+        "already_connected": "Ya estás conectado con esta persona.",
+        "not_pending": "Esta solicitud ya fue respondida.",
+        "not_connected": "Esta conexión ya no existe.",
+        "invalid_share_level": "Este nivel de compartición no está disponible para ese dominio.",
+        "self_block": "No puedes bloquearte a ti mismo.",
+        "conflict": "Cambio simultáneo detectado — inténtalo de nuevo.",
+        "generic": "La acción no pudo completarse. Inténtalo de nuevo."
+      },
+      "my_name": {
+        "label": "Tu nombre:",
+        "copy": "Copiar tu nombre",
+        "hint": "Los demás deben buscar este nombre exacto para encontrarte.",
+        "missing": "Añade tu nombre completo en tu perfil para que tus conocidos puedan encontrarte."
+      }
+    },
     "notifications": {
       "title": "Notificaciones push",
       "description": "Recibe recordatorios incluso cuando la app está cerrada",
@@ -2936,6 +3036,7 @@
         "psyche": "emociones, estado de ánimo, sentimientos, afecto, emocional",
         "memories": "memoria, recuerdos, recordar, olvidar, hechos",
         "interests": "temas, gustos, materias, curiosidad, preferencias",
+        "peer-connections": "contactos, amigos, familia, red, compartir calendario, disponibilidad, bloquear, descubrir usuarios, conectar, mi nombre, copiar mi nombre, solicitud de conexión, historial de accesos, transmitir mensaje, usuarios bloqueados",
         "heartbeat": "proactivo, espontáneo, iniciativa, contacto, mensajes autónomos",
         "scheduled-actions": "cron, programación, recurrente, automatización, temporizador, planificado",
         "journals": "diario, bitácora, retrato, reflexiones, notas",
@@ -3564,6 +3665,10 @@
         "todayBriefing": {
           "title": "🌅 Today Briefing",
           "description": "La página de inicio del panel es un briefing diario: saludo LLM personalizado + síntesis de 2-3 frases sobre una cuadrícula de 9 tarjetas (clima enriquecido, agenda, correos no leídos, cumpleaños, recordatorios, salud, «Para ti» — bucles abiertos + resumen de automatizaciones —, tareas pendientes/atrasadas, últimos documentos de Drive). Arquitectura pura: sin cadena LangGraph, asyncio.gather paralelo, caché Redis por sección con TTL adaptado (clima 1 h, agenda 10 min, correos 5 min…). Endpoints separados (/briefing/cards rápido + /briefing/synthesis LLM-bound) para renderizado progresivo. Tokens y coste en EUR de cada llamada LLM expuestos en la interfaz junto al marcador de tiempo y rastreados en las estadísticas de uso vía track_proactive_tokens (tokens en caché correctamente restados). Siete de esas nueve tarjetas no muestran nada hasta que su fuente está configurada: en lugar de huecos invisibles, una sola línea las nombra y enlaza cada una al ajuste que la activa — mientras que las tarjetas que ocultaste tú quedan, con razón, fuera del asunto."
+        },
+        "peers": {
+          "title": "🤝 Conexiones entre usuarios",
+          "description": "Dos usuarios de la misma instancia se conectan mediante una <b>única fila de par canónica</b> con transiciones condicionales claim-once (sin solicitudes duplicadas; las solicitudes cruzadas se auto-aceptan). La privacidad se impone por construcción: un objetivo bloqueado, desconocido o en cooldown responde un <b>404 idéntico byte a byte</b> — la existencia nunca es sondeable. El relevo de mensajes es un borrador confirmado (HITL) entregado por <b>el asistente del destinatario</b> (personalidad, perfil psicológico, psique, retrato — una sola llamada LLM, imputada al remitente). Las comparticiones son por campo y de solo lectura (calendario libre/ocupado o detalles, títulos de tareas), <b>revalidadas en el momento de la ejecución</b> y registradas en un historial de accesos con retención acotada. Todo el dominio está tras un flag de instancia, se exporta y purga limpiamente bajo RGPD, y expone métricas de ciclo de vida y entrega a Prometheus."
         }
       },
       "diagram_alt": "Diagrama de arquitectura de LIA"
@@ -3572,6 +3677,17 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_27_0": {
+          "title": "v1.27.0 — 🤝 Conéctate con las personas que conoces",
+          "date": "Julio de 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🤝 Conexiones entre usuarios</b> — dos usuarios de la misma instancia de LIA ya pueden conectarse: activa la visibilidad en los ajustes, comparte tu nombre exacto, acepta o rechaza solicitudes con un clic desde el chat o la nueva sección Conexiones. Nada se comparte por defecto.",
+            "i2": "<b>💬 Mensajes de asistente a asistente</b> — pide a LIA que le diga algo a una conexión: confirmas antes de que salga nada, y luego el asistente del destinatario entrega el mensaje con su personalidad y su idioma, nombrándote — y tu asistente te confirma la entrega.",
+            "i3": "<b>🗓 Comparticiones elegidas, de solo lectura</b> — por conexión puedes abrir tu disponibilidad de calendario (o sus detalles) y los títulos de tus tareas, en ambos sentidos y visibles para ambas partes; cada acceso queda registrado en un historial consultable y todo es revocable en cualquier momento.",
+            "i4": "<b>✨ Interfaz de cristal esmerilado</b> — los diálogos, menús, notificaciones y la cabecera del chat muestran ahora un efecto de vidrio real (el contenido se desliza bajo el desenfoque), y los controles nativos (desplegables, barras de scroll) por fin siguen el modo oscuro."
+          }
+        },
         "v1_26_4": {
           "title": "v1.26.4 — 📞 Tus informes de llamada, en tu idioma",
           "date": "Julio 2026",
@@ -5470,6 +5586,37 @@
           }
         }
       },
+      "peers": {
+        "title": "Conexiones entre usuarios",
+        "description": "Conéctate con otros usuarios de esta instancia de LIA, transmite mensajes de asistente a asistente y abre comparticiones elegidas de solo lectura.",
+        "count": "6",
+        "questions": {
+          "q1": {
+            "question": "¿Cómo me conecto con alguien?",
+            "answer": "Ambos activáis la <strong>visibilidad</strong> en Ajustes → Conexiones (desactivada por defecto), y uno busca el <strong>nombre completo exacto</strong> del otro — tu propio nombre buscable se muestra en la sección con un botón de copia. Envía una solicitud (con una nota opcional); la otra persona acepta o rechaza con un clic, desde la tarjeta del chat o los ajustes. Un fragmento de email enmascarado (j…@g….com) ayuda a distinguir homónimos. Conectarse no comparte nada más."
+          },
+          "q2": {
+            "question": "¿Cómo envío un mensaje a una conexión?",
+            "answer": "Díselo a LIA: <em>dile a Marie que llego tarde</em>. Una <strong>tarjeta de confirmación</strong> te muestra la redacción exacta antes de que salga nada. El mensaje lo entrega después <strong>el asistente del destinatario</strong>, con su personalidad y su idioma, nombrándote como remitente — y tu asistente te confirma la entrega en tu chat. Responder funciona igual: una respuesta es simplemente un nuevo mensaje transmitido. El pequeño coste de IA de la entrega se imputa al remitente, y cuotas diarias previenen abusos."
+          },
+          "q3": {
+            "question": "¿Qué puedo compartir y qué ve la otra persona?",
+            "answer": "Por conexión eliges comparticiones <strong>de solo lectura</strong>: el calendario como libre/ocupado o con los títulos de eventos, y los títulos de tareas. Nada se comparte por defecto. Ambos sentidos son visibles para ambas partes en la sección Conexiones, cada acceso se vuelve a comprobar en el momento de la lectura y queda registrado en un <strong>historial de accesos</strong> consultable. Puedes cambiar o revocar una compartición en cualquier momento."
+          },
+          "q4": {
+            "question": "¿Cómo bloqueo a alguien y qué nota esa persona?",
+            "answer": "Bloquea desde el chat (bajo un mensaje transmitido) o desde la sección Conexiones, con confirmación. El bloqueo <strong>termina la conexión en silencio</strong>: la otra persona no recibe aviso, ya no puede encontrarte en la búsqueda, y cualquier mensaje que intente transmitir no llega a ninguna parte, sin ruido. Desbloquear no restaura nada — habría que reconectarse explícitamente."
+          },
+          "q5": {
+            "question": "¿Puede alguien encontrarme sin mi consentimiento?",
+            "answer": "No. La visibilidad es <strong>opt-in y está desactivada por defecto</strong>. La búsqueda solo responde al <strong>nombre completo exacto</strong> (se toleran acentos y mayúsculas, pero no existe búsqueda parcial ni aproximada), y sin nombre completo en tu perfil eres ilocalizable. Un objetivo bloqueado, desconocido o rechazado recibe exactamente la misma respuesta neutra: nadie puede sondear si existes, rechazaste o bloqueaste."
+          },
+          "q6": {
+            "question": "¿Qué pasa si retiro una conexión o elimino mi cuenta?",
+            "answer": "Retirar una conexión termina todas las comparticiones de inmediato, y <strong>ambos</strong> asistentes informan a sus usuarios. El contenido de los mensajes transmitidos se borra tras la entrega — LIA no guarda un historial de mensajes consultable. Tu exportación RGPD incluye tus conexiones y comparticiones, y eliminar tu cuenta purga ambos lados de cada par."
+          }
+        }
+      },
       "tool_examples_services": {
         "title": "Ejemplos de Email, Calendario y Contactos",
         "description": "Cómo usar tus servicios conectados (Google, Apple iCloud o Microsoft 365): emails, contactos, calendario, Drive y tareas",
@@ -6375,6 +6522,14 @@
       "a11y_care": {
         "title": "El cuidado que no se ve",
         "desc": "Preferencias de animación respetadas, contrastes mantenidos, todo accesible con el teclado."
+      },
+      "peer_actions": {
+        "title": "Responder justo debajo del mensaje",
+        "desc": "Un mensaje transmitido por una conexión llega en su propia burbuja tintada — con Responder y Bloquear justo debajo. Responder prerrellena el redactor con el destinatario correcto; nada se envía nunca solo."
+      },
+      "frosted_glass": {
+        "title": "Un cristal de verdad",
+        "desc": "La cabecera del chat, los diálogos, menús y notificaciones son de cristal esmerilado — y el desenfoque es real: tus mensajes se deslizan de verdad bajo el vidrio al desplazarte, tanto en claro como en oscuro."
       }
     },
     "scenes": {
@@ -6424,6 +6579,9 @@
       },
       "background_response": {
         "ready": "Respuesta lista"
+      },
+      "peer_actions": {
+        "reply": "Responder"
       }
     },
     "craft": {
@@ -7460,6 +7618,10 @@
       "briefing": {
         "title": "Briefing del día",
         "description": "Cada mañana, tu día de un vistazo: síntesis personalizada, clima, agenda, cumpleaños, recordatorios, salud, correos no leídos, tus compromisos seguidos, tareas atrasadas y documentos recién editados — antes incluso de que preguntes. Cada tarjeta ahora actúa, no solo informa — resumir un documento, preparar una respuesta, completar o posponer una tarea ahí mismo — y dice con honestidad cómo de reciente es (actualizado hace X, desde la caché, reintento con un clic)."
+      },
+      "peers": {
+        "title": "Tu círculo, de asistente a asistente",
+        "description": "Conéctate con personas que conoces en la misma instancia de LIA — por nombre exacto, solo con consentimiento. Pide a LIA que les pase un mensaje: apruebas la redacción y SU asistente lo entrega con su propia voz y confirma al tuyo. Abre comparticiones de solo lectura por persona — disponibilidad del calendario, títulos de tareas — cada acceso verificado y registrado, revocable en cualquier momento. El bloqueo es silencioso por diseño."
       }
     },
     "use_cases": {

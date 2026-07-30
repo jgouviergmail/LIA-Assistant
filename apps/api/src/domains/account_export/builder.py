@@ -21,7 +21,7 @@ from typing import Any
 from uuid import UUID
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from src.core.config import settings
 from src.core.security.utils import decrypt_data
@@ -43,7 +43,15 @@ class ExportTooLargeError(Exception):
 
 
 # Owner column when it is not ``user_id``.
-_OWNER_COLUMN_OVERRIDES: dict[str, str] = {"skills": "owner_id"}
+_OWNER_COLUMN_OVERRIDES: dict[str, str] = {
+    "skills": "owner_id",
+    # Peers: deliberately ONE-sided scopes where the other side would leak.
+    # peer_blocks by blocker only — an archive must never reveal who blocked
+    # the requester (hide-existence, peers spec §12.2). Shares by owner only —
+    # incoming shares are the OTHER user's choices, not the requester's data.
+    "peer_blocks": "blocker_id",
+    "peer_domain_shares": "owner_user_id",
+}
 
 # Columns stripped from exported rows even on FULL tables: secrets, key
 # material, or server-internal bookkeeping. Asserted by the exclusion test.
@@ -64,6 +72,16 @@ _VIA_PARENT: dict[str, tuple[str, str, str]] = {
     "conversation_messages": ("conversations", "conversation_id", "user_id"),
     "rag_drive_sources": ("rag_spaces", "space_id", "user_id"),
     "rag_documents": ("rag_spaces", "space_id", "user_id"),
+}
+
+# Two-sided tables (peers program): a row belongs to the archive when the
+# requester sits on EITHER column — connections, relayed correspondence and
+# the cross-user read audit are genuinely shared records.
+_TWO_SIDED: dict[str, tuple[str, str]] = {
+    # table → (side_a_column, side_b_column)
+    "peer_connections": ("user_a_id", "user_b_id"),
+    "peer_messages": ("sender_id", "recipient_id"),
+    "peer_access_log": ("accessor_id", "owner_id"),
 }
 
 
@@ -119,6 +137,9 @@ async def _fetch_table_rows(table_name: str, user_id: UUID) -> list[dict[str, An
             parent = Base.metadata.tables[parent_name]
             subquery = select(parent.c.id).where(parent.c[parent_owner] == user_id)
             query = select(table).where(table.c[fk_column].in_(subquery))
+        elif table_name in _TWO_SIDED:
+            side_a, side_b = _TWO_SIDED[table_name]
+            query = select(table).where(or_(table.c[side_a] == user_id, table.c[side_b] == user_id))
         else:
             owner_column = _OWNER_COLUMN_OVERRIDES.get(table_name, "user_id")
             query = select(table).where(table.c[owner_column] == user_id)

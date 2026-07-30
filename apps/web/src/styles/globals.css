@@ -108,6 +108,12 @@
     --color-border: oklch(32% 0.005 250);
     --color-input: oklch(32% 0.005 250);
     --color-ring: oklch(68% 0.2 250);
+
+    /* Native form controls (select dropdown panels, scrollbars, date pickers)
+       follow the app theme — without this the browser renders them in the
+       LIGHT palette inside dark mode (barely readable select observed in the
+       peers section, 2026-07-30). */
+    color-scheme: dark;
   }
 
   /* ========================================
@@ -423,6 +429,11 @@
 @layer base {
   * {
     border-color: var(--color-border);
+  }
+
+  /* Base palette hint for native form controls; .dark overrides to dark. */
+  :root {
+    color-scheme: light;
   }
 
   /* Horizontal clipping WITHOUT a scroll container on `body` (ADR-171).
@@ -871,30 +882,6 @@
   .animate-gradient {
     background-size: 200% 200%;
     animation: gradient-shift 8s ease infinite;
-  }
-
-  /* Subtle shimmer effect for header - very subtle to not interfere with buttons */
-  @keyframes shimmer {
-    0% {
-      opacity: 0.3;
-    }
-    50% {
-      opacity: 0.5;
-    }
-    100% {
-      opacity: 0.3;
-    }
-  }
-
-  .header-shimmer::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(90deg, transparent 0%, var(--color-primary) 50%, transparent 100%);
-    opacity: 0.015;
-    animation: shimmer 6s ease-in-out infinite;
-    pointer-events: none;
-    z-index: -1;
   }
 
   /* ============================================

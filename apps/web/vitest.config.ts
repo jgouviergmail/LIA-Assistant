@@ -68,7 +68,16 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
-        // Global floor — re-measured 2026-07-29 (329 files / 4,072 tests):
+        // Global floor — re-measured 2026-07-30 (peers Lot 7: chat quick
+        // actions, tinted bubbles, own-name block, discovery status badge):
+        // statements 67.94 / branches 62.07 / functions 62.90 / lines 68.51.
+        // No integer step admits the 2-point margin — floors hold at 65/60/60/66.
+        // Previous re-measure 2026-07-29 late (339 files / 4,201 tests,
+        // peers program Lot 2: hook + 7 section components at 98.7/86.9/100/100):
+        // statements 67.85 / branches 62.01 / functions 62.79 / lines 68.42.
+        // Branches raised 59 → 60 (floor(measured - 2)); the other three stay —
+        // the 2-point margin doctrine does not admit another integer step yet.
+        // Previous re-measure same day (329 files / 4,072 tests):
         // statements 67.60 / branches 61.82 / functions 62.46 / lines 68.16.
         // Raised to 65/59/60/66 for the ADR-177 rich-HTML wave (sanitize
         // vocabulary, rich-components rendering, html-plain-text flattener,
@@ -93,7 +102,7 @@ export default defineConfig({
         // modules `sherpaKws` / `audio-queue`, which jsdom cannot simulate
         // without the test degenerating into a test of its own mocks.
         statements: 65,
-        branches: 59,
+        branches: 60,
         functions: 60,
         lines: 66,
         // Chat state machine — fully covered, keep it that way (2026-07).

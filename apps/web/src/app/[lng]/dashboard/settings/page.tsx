@@ -65,6 +65,7 @@ import { UserDebugSettings } from '@/components/settings/UserDebugSettings';
 import { BriefingGridSettings } from '@/components/settings/BriefingGridSettings';
 import { ChatShortcutsSettings } from '@/components/settings/ChatShortcutsSettings';
 import { OpenLoopsSection } from '@/components/settings/OpenLoopsSection';
+import { PeerConnectionsSettings } from '@/components/settings/PeerConnectionsSettings';
 import { CardsDisplaySettings } from '@/components/settings/CardsDisplaySettings';
 import { SettingsGroupLabel } from '@/components/settings/SettingsGroupLabel';
 import { SettingsTabsBar } from '@/components/settings/SettingsTabsBar';
@@ -170,9 +171,15 @@ export default function SettingsPage({ params }: SettingsPageProps) {
       // `/config` is in flight the section is genuinely absent, and the index
       // rebuilds by itself when the answer lands.
       openLoopsEnabled: !!config?.features?.open_loops_enabled,
+      peersEnabled: !!config?.features?.peers_enabled,
       debugUserAccess: userAccessAvailable,
     }),
-    [user?.is_superuser, config?.features?.open_loops_enabled, userAccessAvailable]
+    [
+      user?.is_superuser,
+      config?.features?.open_loops_enabled,
+      config?.features?.peers_enabled,
+      userAccessAvailable,
+    ]
   );
 
   // Track if OAuth callback toast has been shown (prevents duplicate toasts)
@@ -485,6 +492,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
                 <MemorySettings lng={lng} />
               </FeatureErrorBoundary>
               <InterestsSettings lng={lng} />
+              <FeatureErrorBoundary feature="peer-connections">
+                <PeerConnectionsSettings lng={lng} />
+              </FeatureErrorBoundary>
 
               {/* Group: Automation & Tracking */}
               <SettingsGroupLabel label={t('settings.groups.automation_tracking')} icon={Zap} />
@@ -666,6 +676,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
                 <MemorySettings lng={lng} />
               </FeatureErrorBoundary>
               <InterestsSettings lng={lng} />
+              <FeatureErrorBoundary feature="peer-connections">
+                <PeerConnectionsSettings lng={lng} />
+              </FeatureErrorBoundary>
 
               {/* Group: Automation & Tracking */}
               <SettingsGroupLabel label={t('settings.groups.automation_tracking')} icon={Zap} />

@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 4.1
-**Date**: 2026-07-29
-**Application**: LIA v1.26.4
+**Date**: 2026-07-30
+**Application**: LIA v1.27.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -183,6 +183,12 @@ LIA can pick up the phone for you. Ask it to "call the garage to check if the ca
 You are always in the loop: before dialing, LIA tells you exactly **who** it will call and **why**, and waits for your go-ahead. And that control doesn't stop during the call: the assistant operates under a strict mandate — if the person offers an extra, an option or any unplanned commitment (even a small one), it never accepts on your behalf; it notes the offer and its price, announces a call-back, and the summary hands you every cost and every open point so you decide. The summary lands in the chat asynchronously, so you can keep doing other things while the call happens.
 
 And it stays private by construction. During a call LIA can only tell whether you're free or busy at a given time — never the titles, guests or places on your calendar. Nothing is recorded, the conversation is never stored, and only a short summary is kept before it expires. Phone calls run through your own ElevenLabs connector, billed on your account, and the feature is there only if your administrator turned it on.
+
+### 3.11. Talking to your people, assistant to assistant
+
+On the same instance, two users can connect — and their assistants talk to each other. You say “ask Marie if she is free on Tuesday”, you approve the exact wording, and it is Marie’s assistant that delivers the message, in her assistant’s own personality, naming you; yours confirms delivery back to you. Each connection can also open chosen, read-only shares: your calendar availability, your task titles — nothing more, nothing by default.
+
+Protecting people comes before the feature: discovery is opt-in and exact-name only, blocking is silent (the other side never learns of it), and an unknown person, a decline or a block all receive exactly the same answer — probing who exists is impossible. Every access to a share is re-checked at the moment of the read and journaled, and relayed message content is erased once delivered.
 
 ---
 

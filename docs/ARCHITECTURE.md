@@ -87,7 +87,7 @@ Chaque domaine est un **bounded context** isolé avec :
 - Son service layer (business logic)
 - Ses schemas Pydantic (API contracts)
 
-**19 Domaines** :
+**20 Domaines** :
 1. **agents** - Orchestration multi-agents, 15 agents actifs, 56+ tools (cœur du système)
 2. **auth** - Authentification et autorisation
 3. **users** - Gestion utilisateurs
@@ -107,6 +107,7 @@ Chaque domaine est un **bounded context** isolé avec :
 17. **rag_spaces** - Espaces de connaissances RAG : user spaces (upload, embedding OpenAI, recherche hybride, injection Response Node) et system spaces (FAQ built-in, App Identity, lazy-loaded au démarrage)
 18. **sub_agents** - Sous-agents persistants spécialisés (F6) : délégation, templates, token guard-rails, pipeline simplifié
 19. **journals** - Carnets de bord personnels (Personal Journals) : extraction post-conversation, consolidation périodique, injection sémantique
+20. **peers** - Connexions entre utilisateurs de l'instance (ADR-180) : découverte opt-in par nom exact, cycle de vie demande/acceptation/blocage silencieux, relais de messages assistant-à-assistant (draft HITL, coût imputé à l'émetteur), partages lecture seule par connexion (calendrier, tâches) avec journal d'accès — moteur de livraison dans `infrastructure/scheduler/` (frontière F009)
 
 ### 2. Async-First
 

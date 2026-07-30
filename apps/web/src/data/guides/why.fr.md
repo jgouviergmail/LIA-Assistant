@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 4.1
-**Date** : 2026-07-29
-**Application** : LIA v1.26.4
+**Date** : 2026-07-30
+**Application** : LIA v1.27.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -183,6 +183,12 @@ LIA peut décrocher le téléphone pour vous. Demandez-lui d'« appeler le garag
 Vous gardez toujours la main : avant de composer, LIA vous indique précisément **qui** elle va appeler et **pourquoi**, et attend votre feu vert. Et pendant l'appel, ce contrôle ne s'arrête pas : l'assistant opère sous un mandat strict — si l'interlocuteur propose un supplément, une option ou un engagement imprévu (même minime), il n'accepte jamais à votre place ; il note l'offre et son prix, annonce qu'on rappellera, et le résumé vous restitue chaque coût et chaque point en suspens pour que vous décidiez. Le résumé arrive dans le chat de façon asynchrone, vous pouvez donc faire autre chose pendant l'appel.
 
 Et cela reste confidentiel par construction. Pendant un appel, LIA peut seulement indiquer si vous êtes libre ou occupé à un moment donné — jamais les titres, invités ou lieux de votre agenda. Rien n'est enregistré, la conversation n'est jamais conservée, et seul un résumé court est gardé avant d'expirer. Les appels passent par votre propre connecteur ElevenLabs, facturés sur votre compte, et la fonctionnalité n'est là que si votre administrateur l'a activée.
+
+### 3.11. Parler à vos proches, d’assistant à assistant
+
+Sur une même instance, deux utilisateurs peuvent se connecter — et leurs assistants se parlent. Vous dites « demande à Marie si elle est libre mardi », vous validez la formulation exacte, et c’est l’assistant de Marie qui lui transmet le message, avec sa personnalité à elle, en vous nommant ; le vôtre vous confirme la remise. Chaque connexion peut aussi ouvrir des partages choisis, en lecture seule : vos disponibilités de calendrier, les titres de vos tâches — rien de plus, rien par défaut.
+
+La protection des personnes prime sur la fonctionnalité : la découverte est volontaire et sur nom exact uniquement, le blocage est silencieux (l’autre ne l’apprend jamais), et un inconnu, un refus ou un blocage reçoivent exactement la même réponse — impossible de sonder qui existe. Chaque accès à un partage est re-vérifié à l’instant de la lecture et journalisé, et le contenu des messages relayés est effacé une fois remis.
 
 ---
 

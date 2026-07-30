@@ -45,6 +45,8 @@ export interface ChatMessageListProps {
    * since moved on.
    */
   onRetry?: (prompt: string) => void;
+  /** Peers Lot 7: composer prefill for the peer Reply quick-action. */
+  onPrefillComposer?: (text: string) => void;
   /**
    * Prefill the composer from an empty-chat starter (W8). Shares the
    * follow-up chips' rail: it fills the input, it never sends.
@@ -346,6 +348,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   onLoadOlder,
   searchHighlight,
   onRetry,
+  onPrefillComposer,
   onStarterPick,
   historyView = false,
   onReturnToPresent,
@@ -587,7 +590,8 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
 
             if (userMessageWrappers.length > 0) {
               const lastUserMessage = userMessageWrappers[userMessageWrappers.length - 1];
-              // scroll-mt-8 (32px) matches container's pt-8 for visual alignment
+              // scroll-mt-24 (96px) clears the sticky frosted header that now
+              // overlays the scrollport's top (2026-07-30) + breathing room
               lastUserMessage.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 
@@ -773,12 +777,14 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
           sentinelRef={topSentinelRef}
         />
         {messages.map(message => (
-          // scroll-mt-8 must match container's pt-8 for scrollIntoView alignment
+          // scroll-mt-24 clears the sticky frosted header overlaying the
+          // scrollport's top (2026-07-30): block:'start' targets would
+          // otherwise land hidden under the glass.
           <div
             key={message.id}
             data-message-role={message.role}
             data-message-id={message.id}
-            className="scroll-mt-8"
+            className="scroll-mt-24"
           >
             <ChatMessage
               message={message}
@@ -788,6 +794,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
               streamPhase={streamPhase}
               searchHighlight={searchHighlight}
               onRetry={message.id === lastErrorId ? onRetry : undefined}
+              onPrefillComposer={onPrefillComposer}
             />
           </div>
         ))}

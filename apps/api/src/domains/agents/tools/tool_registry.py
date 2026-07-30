@@ -373,6 +373,11 @@ def _import_tool_modules() -> None:
     if getattr(get_settings(), "devops_enabled", False):
         tool_modules.append(("src.domains.agents.tools.devops_tools", "devops_tools"))
 
+    # Peers: user-to-user connections (relay drafts + shared-domain reads)
+    if getattr(get_settings(), "peers_enabled", False):
+        tool_modules.append(("src.domains.agents.tools.peers_tools", "peers_tools"))
+        tool_modules.append(("src.domains.agents.tools.peers_read_tools", "peers_read_tools"))
+
     # Health Metrics tools (v1.17.2): only register when feature is enabled.
     # Seven tools owned by the unified ``health_agent``.
     # See docs/technical/HEALTH_METRICS.md.

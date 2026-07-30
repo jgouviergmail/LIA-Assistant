@@ -917,6 +917,11 @@
       "dialing": "LIA ruft {{name}} an…",
       "in_progress": "LIA telefoniert mit {{name}}",
       "details": "Details"
+    },
+    "peer": {
+      "reply": "Antworten",
+      "block": "Blockieren",
+      "reply_prefill": "Antworte {{name}}: "
     }
   },
   "skill_apps": {
@@ -2299,6 +2304,101 @@
       "confirm_delete_all_description": "Dadurch werden alle Ihre aktiven und blockierten Interessen dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
       "delete_all_confirm": "Alle löschen"
     },
+    "peers": {
+      "title": "Verbindungen",
+      "description": "Finden Sie andere Nutzer dieser Instanz, verbinden Sie sich und teilen Sie Lesezugriff mit den Personen Ihrer Wahl.",
+      "discovery": {
+        "toggle_label": "Andere dürfen mich finden",
+        "toggle_hint": "Standardmäßig deaktiviert. Wenn aktiviert, können Nutzer, die Ihren exakten vollständigen Namen suchen, Ihnen eine Verbindungsanfrage senden. Ohne vollständigen Namen im Profil sind Sie nicht auffindbar.",
+        "toggle_saved": "Sichtbarkeitseinstellung gespeichert",
+        "title": "Jemanden finden",
+        "search_label": "Vollständiger Name",
+        "search_placeholder": "z. B. Max Mustermann",
+        "search_button": "Suchen",
+        "exact_hint": "Die Suche findet nur den exakten vollständigen Namen (Akzente und Groß-/Kleinschreibung werden ignoriert).",
+        "no_results": "Niemand mit diesem exakten Namen gefunden. Die Person hat die Auffindbarkeit möglicherweise nicht aktiviert.",
+        "context_label": "Optionale Notiz",
+        "context_placeholder": "Ein paar Worte, damit die Person weiß, wer Sie sind …",
+        "request_button": "Verbindung anfragen",
+        "request_sent": "Verbindungsanfrage gesendet",
+        "status_connected": "Bereits verbunden",
+        "status_pending": "Anfrage ausstehend"
+      },
+      "requests": {
+        "title": "Ausstehende Anfragen",
+        "empty": "Keine ausstehenden Anfragen.",
+        "accept": "Annehmen",
+        "decline": "Ablehnen",
+        "block": "Blockieren",
+        "outgoing_badge": "Wartet auf Antwort",
+        "accepted": "Verbindung angenommen",
+        "declined": "Anfrage abgelehnt"
+      },
+      "connections": {
+        "title": "Meine Verbindungen",
+        "empty": "Noch keine Verbindungen. Finden Sie oben jemanden, um zu beginnen.",
+        "remove": "Verbindung entfernen",
+        "block": "Blockieren",
+        "removed": "Verbindung entfernt — beide Assistenten informieren euch",
+        "remove_confirm_title": "Diese Verbindung entfernen?",
+        "remove_confirm_description": "Alle Freigaben enden sofort und beide werden von ihren Assistenten benachrichtigt. Eine neue Anfrage kann die Verbindung später wiederherstellen.",
+        "block_confirm_title": "Diesen Nutzer blockieren?",
+        "block_confirm_description": "Die Verbindung und alle Freigaben enden sofort und ohne Benachrichtigung. Die Person kann Sie nicht mehr finden oder kontaktieren."
+      },
+      "shares": {
+        "my_title": "Was ich teile",
+        "their_title": "Was mit mir geteilt wird",
+        "their_empty": "Diese Person teilt noch nichts mit Ihnen.",
+        "saved": "Freigabeeinstellung gespeichert",
+        "calendar_label": "Kalender",
+        "task_label": "Aufgaben (nur Titel)",
+        "calendar_level": {
+          "none": "Nicht geteilt",
+          "availability": "Nur Verfügbarkeit (frei/belegt)",
+          "details": "Verfügbarkeit und Termintitel"
+        },
+        "badge": {
+          "calendar_availability": "Kalender — Verfügbarkeit",
+          "calendar_details": "Kalender — Details",
+          "task_titles": "Aufgaben — Titel"
+        }
+      },
+      "blocks": {
+        "title": "Blockierte Nutzer",
+        "hint": "Blockierte Nutzer können Sie weder finden noch kontaktieren noch etwas über Sie sehen. Entblocken stellt nichts wieder her — eine neue Anfrage ist nötig.",
+        "empty": "Sie haben niemanden blockiert.",
+        "unblock": "Entblocken",
+        "unknown_user": "Gelöschtes Konto",
+        "blocked": "Nutzer blockiert",
+        "unblocked": "Nutzer entblockt"
+      },
+      "access_log": {
+        "title": "Wer meine geteilten Daten gelesen hat",
+        "hint": "Jede Lesung Ihrer geteilten Daten durch den Assistenten einer Verbindung wird hier festgehalten.",
+        "empty": "Niemand hat Ihre geteilten Daten kürzlich gelesen."
+      },
+      "domains": {
+        "calendar": "hat Ihren Kalender gelesen",
+        "task": "hat Ihre Aufgaben gelesen"
+      },
+      "errors": {
+        "self_request": "Sie können sich nicht mit sich selbst verbinden.",
+        "context_too_long": "Die Notiz ist zu lang.",
+        "already_connected": "Sie sind mit dieser Person bereits verbunden.",
+        "not_pending": "Diese Anfrage wurde bereits beantwortet.",
+        "not_connected": "Diese Verbindung existiert nicht mehr.",
+        "invalid_share_level": "Diese Freigabestufe ist für diesen Bereich nicht verfügbar.",
+        "self_block": "Sie können sich nicht selbst blockieren.",
+        "conflict": "Gleichzeitige Änderung erkannt — bitte erneut versuchen.",
+        "generic": "Die Aktion konnte nicht abgeschlossen werden. Bitte erneut versuchen."
+      },
+      "my_name": {
+        "label": "Ihr Name:",
+        "copy": "Ihren Namen kopieren",
+        "hint": "Andere müssen genau diesen Namen suchen, um Sie zu finden.",
+        "missing": "Fügen Sie Ihren vollständigen Namen in Ihrem Profil hinzu, damit Bekannte Sie finden können."
+      }
+    },
     "notifications": {
       "title": "Push-Benachrichtigungen",
       "description": "Erinnerungen erhalten, auch wenn die App geschlossen ist",
@@ -2936,6 +3036,7 @@
         "psyche": "Emotionen, Stimmung, Gefühle, Affekt, emotional",
         "memories": "Gedächtnis, Erinnerungen, erinnern, vergessen, Fakten",
         "interests": "Themen, Vorlieben, Geschmack, Neugier, Präferenzen",
+        "peer-connections": "kontakte, freunde, familie, netzwerk, kalender teilen, verfügbarkeit, blockieren, nutzer finden, verbinden, mein Name, meinen Namen kopieren, Verbindungsanfrage, Zugriffsprotokoll, Nachricht weiterleiten, blockierte Nutzer",
         "heartbeat": "proaktiv, spontan, Initiative, Kontaktaufnahme, autonome Nachrichten",
         "scheduled-actions": "Cron, Zeitplan, wiederkehrend, Automatisierung, Timer, geplant",
         "journals": "Tagebuch, Logbuch, Porträt, Reflexionen, Notizen",
@@ -3564,6 +3665,10 @@
         "todayBriefing": {
           "title": "🌅 Today Briefing",
           "description": "Die Startseite des Dashboards ist ein Tagesbriefing: personalisierte LLM-Begrüßung + 2-3-Satz-Synthese über einem Raster aus 9 Karten (erweitertes Wetter, Kalender, ungelesene Mails, Geburtstage, Erinnerungen, Gesundheit, „Für dich“ — offene Schleifen + Automatisierungs-Digest —, offene/überfällige Aufgaben, neueste Drive-Dokumente). Reine Architektur: keine LangGraph-Kette, paralleler asyncio.gather, Redis-Cache pro Sektion mit angepasstem TTL (Wetter 1 h, Kalender 10 min, Mails 5 min…). Geteilte Endpoints (/briefing/cards schnell + /briefing/synthesis LLM-gebunden) für progressives Rendering. Tokens und EUR-Kosten jedes LLM-Aufrufs in der UI neben dem Zeitstempel sichtbar und in den Nutzungsstatistiken über track_proactive_tokens nachverfolgt (Cache-Tokens korrekt subtrahiert). Sieben dieser neun Karten zeigen nichts, solange ihre Quelle nicht eingerichtet ist: Statt unsichtbarer Lücken benennt eine einzige Zeile sie und verweist jede auf die Einstellung, die sie aktiviert — während selbst ausgeblendete Karten zu Recht unerwähnt bleiben."
+        },
+        "peers": {
+          "title": "🤝 Verbindungen zwischen Nutzern",
+          "description": "Zwei Nutzer derselben Instanz verbinden sich über eine <b>einzige kanonische Paar-Zeile</b> mit Claim-once-Übergängen (keine doppelten Anfragen, gekreuzte Anfragen akzeptieren sich automatisch). Der Datenschutz ist konstruktiv erzwungen: blockierte, unbekannte und Cooldown-Ziele antworten mit einem <b>byte-identischen 404</b> — Existenz ist nie ausforschbar. Die Nachrichtenweiterleitung ist ein HITL-bestätigter Entwurf, zugestellt vom <b>Assistenten des Empfängers</b> (Persönlichkeit, psychologisches Gedächtnisprofil, Psyche, Porträt — ein LLM-Aufruf, dem Absender berechnet). Freigaben sind feldgenau und nur lesend (Kalender frei/belegt oder Details, Aufgabentitel), werden <b>zur Ausführungszeit neu validiert</b> und in ein Zugriffsprotokoll mit begrenzter Aufbewahrung geschrieben. Die gesamte Domäne liegt hinter einem Instanz-Flag, exportiert und bereinigt sich DSGVO-konform und liefert Lebenszyklus- und Zustellmetriken an Prometheus."
         }
       },
       "diagram_alt": "LIA-Architekturdiagramm"
@@ -3572,6 +3677,17 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_27_0": {
+          "title": "v1.27.0 — 🤝 Verbinden Sie sich mit Menschen, die Sie kennen",
+          "date": "Juli 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🤝 Verbindungen zwischen Nutzern</b> — zwei Nutzer derselben LIA-Instanz können sich jetzt verbinden: Aktivieren Sie die Auffindbarkeit in den Einstellungen, teilen Sie Ihren exakten Namen, nehmen Sie Anfragen mit einem Klick im Chat oder im neuen Bereich Verbindungen an oder lehnen Sie sie ab. Standardmäßig wird nichts geteilt.",
+            "i2": "<b>💬 Nachrichten von Assistent zu Assistent</b> — bitten Sie LIA, einer Verbindung etwas auszurichten: Sie bestätigen, bevor etwas gesendet wird, dann übermittelt der Assistent des Empfängers die Nachricht mit seiner Persönlichkeit und Sprache und nennt Sie — und Ihr Assistent bestätigt Ihnen die Zustellung.",
+            "i3": "<b>🗓 Gewählte Freigaben, nur lesend</b> — pro Verbindung können Sie Ihre Kalender-Verfügbarkeit (oder Details) und Aufgabentitel öffnen, in beide Richtungen und für beide Seiten sichtbar; jeder Zugriff wird in einem einsehbaren Protokoll erfasst und ist jederzeit widerrufbar.",
+            "i4": "<b>✨ Milchglas-Oberfläche</b> — Dialoge, Menüs, Benachrichtigungen und die Chat-Kopfzeile zeigen jetzt einen echten Glaseffekt (der Inhalt gleitet unter der Unschärfe), und native Bedienelemente (Auswahllisten, Scrollleisten) folgen endlich dem Dunkelmodus."
+          }
+        },
         "v1_26_4": {
           "title": "v1.26.4 — 📞 Deine Anrufberichte, in deiner Sprache",
           "date": "Juli 2026",
@@ -5470,6 +5586,37 @@
           }
         }
       },
+      "peers": {
+        "title": "Verbindungen zwischen Nutzern",
+        "description": "Verbinden Sie sich mit anderen Nutzern dieser LIA-Instanz, leiten Sie Nachrichten von Assistent zu Assistent weiter und öffnen Sie gewählte Nur-Lese-Freigaben.",
+        "count": "6",
+        "questions": {
+          "q1": {
+            "question": "Wie verbinde ich mich mit jemandem?",
+            "answer": "Aktivieren Sie beide die <strong>Auffindbarkeit</strong> in Einstellungen → Verbindungen (standardmäßig aus), dann sucht einer den <strong>exakten vollständigen Namen</strong> des anderen — Ihr eigener suchbarer Name wird im Bereich mit einer Kopier-Schaltfläche angezeigt. Senden Sie eine Anfrage (mit optionaler Notiz); die andere Person nimmt mit einem Klick an oder lehnt ab, über die Chat-Karte oder die Einstellungen. Ein maskiertes E-Mail-Fragment (j…@g….com) hilft, Namensvettern zu unterscheiden. Durch das Verbinden wird nichts weiter geteilt."
+          },
+          "q2": {
+            "question": "Wie sende ich einer Verbindung eine Nachricht?",
+            "answer": "Sagen Sie es einfach LIA: <em>sag Marie, dass ich mich verspäte</em>. Eine <strong>Bestätigungskarte</strong> zeigt Ihnen den genauen Wortlaut, bevor etwas gesendet wird. Die Nachricht wird dann vom <strong>Assistenten des Empfängers</strong> übermittelt, mit dessen Persönlichkeit und Sprache, wobei Sie als Absender genannt werden — und Ihr Assistent bestätigt Ihnen die Zustellung im Chat. Antworten funktioniert genauso: Eine Antwort ist einfach eine neue weitergeleitete Nachricht. Die geringen KI-Kosten der Zustellung trägt der Absender, Tageskontingente verhindern Missbrauch."
+          },
+          "q3": {
+            "question": "Was kann ich teilen, und was sieht die andere Person?",
+            "answer": "Pro Verbindung wählen Sie <strong>Nur-Lese</strong>-Freigaben: den Kalender als frei/belegt oder mit Terminbezeichnungen, und Aufgabentitel. Standardmäßig wird nichts geteilt. Beide Richtungen sind für beide Seiten im Bereich Verbindungen sichtbar, jeder Zugriff wird im Moment des Lesens neu geprüft und in einem einsehbaren <strong>Zugriffsprotokoll</strong> erfasst. Sie können eine Freigabe jederzeit ändern oder widerrufen."
+          },
+          "q4": {
+            "question": "Wie blockiere ich jemanden, und was bemerkt die Person?",
+            "answer": "Blockieren Sie aus dem Chat (unter einer weitergeleiteten Nachricht) oder aus dem Bereich Verbindungen, mit Bestätigung. Das Blockieren <strong>beendet die Verbindung stillschweigend</strong>: Die andere Person wird nicht benachrichtigt, kann Sie in der Suche nicht mehr finden, und jede Nachricht, die sie weiterzuleiten versucht, verläuft geräuschlos im Nichts. Das Entblocken stellt nichts wieder her — Sie müssten sich ausdrücklich neu verbinden."
+          },
+          "q5": {
+            "question": "Kann mich jemand ohne meine Zustimmung finden?",
+            "answer": "Nein. Die Auffindbarkeit ist <strong>Opt-in und standardmäßig aus</strong>. Die Suche antwortet nur auf den <strong>exakten vollständigen Namen</strong> (Akzente und Groß-/Kleinschreibung werden toleriert, aber es gibt keine Teil- oder unscharfe Suche), und ohne vollständigen Namen im Profil sind Sie unauffindbar. Blockierte, unbekannte und abgelehnte Ziele erhalten exakt dieselbe neutrale Antwort — niemand kann ausloten, ob Sie existieren, abgelehnt oder blockiert haben."
+          },
+          "q6": {
+            "question": "Was passiert, wenn ich eine Verbindung entferne oder mein Konto lösche?",
+            "answer": "Das Entfernen einer Verbindung beendet sofort alle Freigaben, und <strong>beide</strong> Assistenten informieren ihre Nutzer. Der Inhalt weitergeleiteter Nachrichten wird nach der Zustellung gelöscht — LIA führt keinen durchsuchbaren Nachrichtenverlauf. Ihr DSGVO-Export enthält Ihre Verbindungen und Freigaben, und das Löschen Ihres Kontos bereinigt beide Seiten jedes Paares."
+          }
+        }
+      },
       "tool_examples_services": {
         "title": "E-Mail, Kalender & Kontakte Beispiele",
         "description": "So nutzen Sie Ihre verbundenen Dienste (Google, Apple iCloud oder Microsoft 365): E-Mails, Kontakte, Kalender, Drive und Tasks",
@@ -6375,6 +6522,14 @@
       "a11y_care": {
         "title": "Die Sorgfalt, die man nicht sieht",
         "desc": "Animationswünsche respektiert, Kontraste gehalten, alles per Tastatur erreichbar."
+      },
+      "peer_actions": {
+        "title": "Antworten direkt unter der Nachricht",
+        "desc": "Eine von einer Verbindung übermittelte Nachricht erscheint in ihrer eigenen getönten Blase — mit Antworten und Blockieren direkt darunter. Antworten füllt den Eingabebereich mit dem richtigen Empfänger vor; nichts sendet sich je von selbst."
+      },
+      "frosted_glass": {
+        "title": "Glas, durch das man wirklich sieht",
+        "desc": "Chat-Kopfzeile, Dialoge, Menüs und Benachrichtigungen sind aus Milchglas — und die Unschärfe ist echt: Ihre Nachrichten gleiten beim Scrollen tatsächlich unter der Scheibe hindurch, im hellen wie im dunklen Modus."
       }
     },
     "scenes": {
@@ -6424,6 +6579,9 @@
       },
       "background_response": {
         "ready": "Antwort fertig"
+      },
+      "peer_actions": {
+        "reply": "Antworten"
       }
     },
     "craft": {
@@ -7460,6 +7618,10 @@
       "briefing": {
         "title": "Tagesbriefing",
         "description": "Jeden Morgen dein Tag auf einen Blick: personalisierte Synthese, Wetter, Kalender, Geburtstage, Erinnerungen, Gesundheit, ungelesene Mails, deine verfolgten Verpflichtungen, überfällige Aufgaben und frisch bearbeitete Dokumente — bevor du überhaupt fragst. Jede Karte handelt jetzt, statt nur zu informieren — ein Dokument zusammenfassen, eine Antwort vorbereiten, eine Aufgabe erledigen oder verschieben, direkt dort — und sie sagt ehrlich, wie aktuell sie ist (vor X aktualisiert, aus dem Cache, erneuter Versuch mit einem Klick)."
+      },
+      "peers": {
+        "title": "Ihr Kreis, von Assistent zu Assistent",
+        "description": "Verbinden Sie sich mit Menschen, die Sie kennen, auf derselben LIA-Instanz — per exaktem Namen, nur auf freiwilliger Basis. Bitten Sie LIA, ihnen eine Nachricht zu übermitteln: Sie bestätigen den Wortlaut, dann stellt DEREN Assistent sie mit eigener Stimme zu und bestätigt es Ihrem. Öffnen Sie Nur-Lese-Freigaben pro Person — Kalender-Verfügbarkeit, Aufgabentitel — jeder Zugriff geprüft und protokolliert, jederzeit widerrufbar. Blockieren ist konstruktionsbedingt lautlos."
       }
     },
     "use_cases": {

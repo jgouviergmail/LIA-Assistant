@@ -27,7 +27,7 @@
  *   guards) = 20,745. Rounded down to the thousand, so the displayed figure
  *   is unchanged while the measurement moved. Re-measure every release: the
  *   value carried the backend count alone until v1.25.9.
- * - adrs: docs/architecture/ ADR files (178 files, numbered up to ADR-179 —
+ * - adrs: docs/architecture/ ADR files (179 files, numbered up to ADR-180 —
  *   ADR-008 has no separate file, so 178 numbers map to 177 files).
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
@@ -48,8 +48,8 @@ export const LANDING_STATS = {
   metrics: 447,
   uiLanguages: 6,
   tests: 20000,
-  adrs: 178,
-  releases: 186,
+  adrs: 179,
+  releases: 187,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

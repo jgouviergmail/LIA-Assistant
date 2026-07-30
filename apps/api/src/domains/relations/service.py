@@ -17,7 +17,6 @@ shared-session hazard.
 
 from __future__ import annotations
 
-import unicodedata
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -35,6 +34,7 @@ from src.domains.relations.schemas import (
     RelationsOverview,
     RelationSummary,
 )
+from src.domains.shared.text_normalization import fold_name
 from src.domains.telephony.repository import TelephonyRepository
 from src.infrastructure.database.session import get_db_context
 
@@ -47,13 +47,11 @@ logger = structlog.get_logger(__name__)
 def _normalize_name(name: str) -> str:
     """Accent- and case-fold a display name into a grouping key.
 
-    NFKD strips diacritics; casefold lowercases aggressively. Empty/whitespace
-    names fold to '' and are dropped by the caller.
+    Delegates to the shared folding chokepoint (``shared/text_normalization``,
+    hoisted for the peers discovery search) — behavior unchanged: empty or
+    whitespace-only names fold to '' and are dropped by the caller.
     """
-    stripped = "".join(
-        c for c in unicodedata.normalize("NFKD", name) if not unicodedata.combining(c)
-    )
-    return stripped.casefold().strip()
+    return fold_name(name)
 
 
 def _days_between(then: datetime, now: datetime) -> int:

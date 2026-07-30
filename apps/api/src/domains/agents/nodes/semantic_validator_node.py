@@ -214,30 +214,37 @@ async def semantic_validator_node(
     # Uses centralized helper for object/dict access
     english_query = get_qi_attr(state, "english_query", default=None)
 
+    # The user's ORIGINAL wording, always extracted: with the pivot active it
+    # rides along as the AUTHORITY for content/names/language (runtime defect
+    # 2026-07-30: validating against the English pivot alone flagged French
+    # content args, folded recipient names and a phantom reply id).
+    messages = state.get("messages", [])
+    if messages:
+        last_message = messages[-1]
+        original_query = (
+            coerce_content_to_text(last_message.content)
+            if hasattr(last_message, "content")
+            else str(last_message)
+        )
+    else:
+        logger.warning(
+            "semantic_validator_node_no_messages",
+            has_messages=False,
+        )
+        original_query = ""
+
+    original_request: str | None = None
     if english_query:
         user_request = english_query
+        original_request = original_query or None
         logger.debug(
             "semantic_validator_using_english_query",
             source="query_intelligence",
             english_query_preview=user_request[:100] if user_request else "",
+            has_original=bool(original_request),
         )
     else:
-        # Fallback: extract from messages (for backward compatibility)
-        messages = state.get("messages", [])
-        if not messages:
-            logger.warning(
-                "semantic_validator_node_no_messages",
-                has_messages=False,
-            )
-            user_request = ""
-        else:
-            # Get last user message content
-            last_message = messages[-1]
-            user_request = (
-                coerce_content_to_text(last_message.content)
-                if hasattr(last_message, "content")
-                else str(last_message)
-            )
+        user_request = original_query
         logger.debug(
             "semantic_validator_using_original_message",
             source="messages_fallback",
@@ -265,6 +272,7 @@ async def semantic_validator_node(
             user_language=user_language,
             config=config,
             query_intelligence=query_intelligence,
+            original_request=original_request,
         )
 
         logger.info(

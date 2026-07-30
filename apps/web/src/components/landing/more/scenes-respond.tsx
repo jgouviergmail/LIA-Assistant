@@ -14,10 +14,13 @@ import {
   Copy,
   Download,
   FileText,
+  Handshake,
   Languages,
   Link2,
+  Reply,
   Search,
   Share2,
+  ShieldOff,
   TextSelect,
   ThumbsDown,
   ThumbsUp,
@@ -307,6 +310,65 @@ function SelectionActionsScene({ active, labels }: SceneProps) {
   );
 }
 
+type PeerPhase = 'bubble' | 'actions' | 'reply' | 'prefilled';
+const PEER_STEPS: readonly TimelineStep<PeerPhase>[] = [
+  { at: 0, state: 'bubble' },
+  { at: 900, state: 'actions' },
+  { at: 1900, state: 'reply' },
+  { at: 2600, state: 'prefilled' },
+];
+
+/**
+ * A relayed peer message lands in its tinted bubble; Reply/Block quick
+ * actions appear beneath it, Reply is picked, and the composer prefills —
+ * nothing sends by itself.
+ */
+function PeerActionsScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(PEER_STEPS, { active });
+  const actionsIn = phase !== 'bubble';
+  const replyPicked = phase === 'reply' || phase === 'prefilled';
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-2')}>
+      <MiniBubble
+        side="assistant"
+        className="w-3/4 space-y-1.5 border-primary/25 bg-primary/10"
+      >
+        <span className="flex items-center gap-1.5">
+          <Handshake className="h-3 w-3 text-primary" />
+          <SkeletonLine w="w-10" className="h-1.5" />
+        </span>
+        <SkeletonLine w="w-full" />
+        <SkeletonLine w="w-2/3" />
+      </MiniBubble>
+      <span
+        className={cn(
+          'flex gap-1.5 self-start transition-all duration-300',
+          actionsIn ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        )}
+      >
+        <MiniChip pressed={replyPicked}>
+          <Reply className="h-3 w-3" />
+          {labels.reply}
+        </MiniChip>
+        <MiniChip>
+          <ShieldOff className="h-3 w-3" />
+        </MiniChip>
+      </span>
+      <span
+        className={cn(
+          'flex h-6 items-center gap-1.5 rounded-full border border-border bg-background px-2 transition-all duration-300',
+          phase === 'prefilled' ? 'opacity-100' : 'opacity-40'
+        )}
+      >
+        <SkeletonLine
+          w={phase === 'prefilled' ? 'w-24' : 'w-2'}
+          className="h-1.5 transition-all duration-500"
+        />
+      </span>
+    </div>
+  );
+}
+
 export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   followup_chips: FollowupChipsScene,
   scroll_return: ScrollReturnScene,
@@ -314,4 +376,5 @@ export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   selection_actions: SelectionActionsScene,
   share_export: ShareExportScene,
   backstage: BackstageScene,
+  peer_actions: PeerActionsScene,
 };

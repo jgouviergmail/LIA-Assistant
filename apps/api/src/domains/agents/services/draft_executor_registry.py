@@ -121,6 +121,11 @@ def ensure_executors_registered() -> None:
 
         register_executor(DraftType.DEVOPS_TASK.value, execute_devops_task_draft)
 
+        # Peers relayed messages (A3): the draft IS the confirmation gate
+        from src.domains.agents.tools.peers_tools import execute_peer_message_draft
+
+        register_executor(DraftType.PEER_MESSAGE.value, execute_peer_message_draft)
+
         logger.info(
             "draft_executors_initialized",
             registered_types=list(EXECUTOR_REGISTRY.keys()),

@@ -1,0 +1,250 @@
+/**
+ * usePeerConnections — the /peers surface hook (peers program, Lot 2).
+ *
+ * Wraps the Lot 1 REST surface: discovery opt-in + search, request lifecycle,
+ * connections with BOTH share directions, blocks and the transparency access
+ * log. After every state-changing success the affected queries are refetched
+ * (no manual cache surgery). Every verb resolves to a `PeerActionResult`
+ * carrying the backend's stable `peers_*` code WITH the outcome (never via
+ * state, which a caller reading right after `await` would see stale) — the
+ * components map codes to localized toasts (label-key doctrine).
+ */
+
+import { useCallback } from 'react';
+
+import { ApiError } from '@/lib/api-client';
+import { useApiMutation } from '@/hooks/useApiMutation';
+import { useApiQuery } from '@/hooks/useApiQuery';
+
+export interface DiscoveryMatch {
+  peer_id: string;
+  display_name: string;
+  email_hint: string;
+  /** Searcher's relationship to this match — 'none' also covers declined/removed history. */
+  relationship: 'none' | 'pending' | 'connected';
+}
+
+export interface ShareItem {
+  domain: 'calendar' | 'task';
+  level: 'availability' | 'details' | 'titles';
+}
+
+export interface ConnectionView {
+  id: string;
+  peer_id: string;
+  peer_display_name: string;
+  peer_email_hint: string;
+  status: 'pending' | 'accepted';
+  direction: 'incoming' | 'outgoing' | null;
+  requested_at: string;
+  responded_at: string | null;
+  context_message: string | null;
+  my_shares: ShareItem[];
+  their_shares: ShareItem[];
+}
+
+export interface BlockView {
+  blocked_id: string;
+  blocked_display_name: string | null;
+  created_at: string;
+}
+
+export interface AccessLogEntry {
+  accessor_display_name: string;
+  domain: string;
+  tool_name: string;
+  created_at: string;
+}
+
+interface DiscoveryState {
+  discovery_enabled: boolean;
+}
+
+/** Outcome of one state-changing verb — the error code travels WITH the
+ * result (never through state, which a caller reading right after `await`
+ * would see stale). */
+export interface PeerActionResult {
+  ok: boolean;
+  errorCode: string | null;
+}
+
+/** Outcome of a discovery search. `matches` is null on failure. */
+export interface PeerSearchResult {
+  matches: DiscoveryMatch[] | null;
+  errorCode: string | null;
+}
+
+/** Extract the stable `peers_*` code from an ApiError body, if any. */
+function extractErrorCode(err: unknown): string | null {
+  if (err instanceof ApiError && err.data && typeof err.data === 'object') {
+    const detail = (err.data as { detail?: unknown }).detail;
+    if (typeof detail === 'string') return detail;
+  }
+  return null;
+}
+
+/**
+ * Manage the peer-connections surface.
+ *
+ * @param enabled - Skip all queries when false (section gated off).
+ */
+export function usePeerConnections(enabled = true) {
+
+  const me = useApiQuery<DiscoveryState>('/peers/me', {
+    componentName: 'usePeerConnections',
+    enabled,
+  });
+  const requests = useApiQuery<ConnectionView[]>('/peers/requests', {
+    componentName: 'usePeerConnections',
+    enabled,
+  });
+  const connections = useApiQuery<ConnectionView[]>('/peers/connections', {
+    componentName: 'usePeerConnections',
+    enabled,
+  });
+  const blocks = useApiQuery<BlockView[]>('/peers/blocks', {
+    componentName: 'usePeerConnections',
+    enabled,
+  });
+  const accessLog = useApiQuery<AccessLogEntry[]>('/peers/access-log', {
+    componentName: 'usePeerConnections',
+    enabled,
+  });
+
+  const postMutation = useApiMutation({ method: 'POST', componentName: 'usePeerConnections' });
+  const putMutation = useApiMutation({ method: 'PUT', componentName: 'usePeerConnections' });
+  const deleteMutation = useApiMutation({ method: 'DELETE', componentName: 'usePeerConnections' });
+
+  const mutating = postMutation.loading || putMutation.loading || deleteMutation.loading;
+
+  // Stable locals: useCallback deps must be the values actually read (React
+  // Compiler preservation rule) — the container objects change every render,
+  // their mutate/refetch functions do not.
+  const { mutate: postMutate } = postMutation;
+  const { mutate: putMutate } = putMutation;
+  const { mutate: deleteMutate } = deleteMutation;
+  const { refetch: refetchMe } = me;
+  const { refetch: refetchRequests } = requests;
+  const { refetch: refetchConnections } = connections;
+  const { refetch: refetchBlocks } = blocks;
+  const { refetch: refetchAccessLog } = accessLog;
+
+  /** Run one mutation; on success refetch the given queries. */
+  const run = useCallback(
+    async (
+      mutate: (url: string, body?: unknown) => Promise<unknown>,
+      url: string,
+      body: unknown,
+      refetches: Array<() => void>
+    ): Promise<PeerActionResult> => {
+      try {
+        await mutate(url, body);
+        refetches.forEach(refetch => refetch());
+        return { ok: true, errorCode: null };
+      } catch (err) {
+        return { ok: false, errorCode: extractErrorCode(err) };
+      }
+    },
+    []
+  );
+
+  const setDiscovery = useCallback(
+    (value: boolean) =>
+      run(putMutate, '/peers/me', { discovery_enabled: value }, [refetchMe]),
+    [run, putMutate, refetchMe]
+  );
+
+  const search = useCallback(
+    async (fullName: string): Promise<PeerSearchResult> => {
+      try {
+        const result = await postMutate('/peers/discovery/search', {
+          full_name: fullName,
+        });
+        return { matches: result as DiscoveryMatch[], errorCode: null };
+      } catch (err) {
+        return { matches: null, errorCode: extractErrorCode(err) };
+      }
+    },
+    [postMutate]
+  );
+
+  const sendRequest = useCallback(
+    (peerId: string, contextMessage?: string) =>
+      run(
+        postMutate,
+        '/peers/requests',
+        { peer_id: peerId, context_message: contextMessage ?? null },
+        [refetchRequests, refetchConnections] // crossing requests may auto-accept
+      ),
+    [run, postMutate, refetchRequests, refetchConnections]
+  );
+
+  const respond = useCallback(
+    (connectionId: string, accept: boolean) =>
+      run(postMutate, `/peers/requests/${connectionId}/respond`, { accept }, [
+        refetchRequests,
+        refetchConnections,
+      ]),
+    [run, postMutate, refetchRequests, refetchConnections]
+  );
+
+  const removeConnection = useCallback(
+    (connectionId: string) =>
+      run(deleteMutate, `/peers/connections/${connectionId}`, undefined, [
+        refetchConnections,
+      ]),
+    [run, deleteMutate, refetchConnections]
+  );
+
+  const setShare = useCallback(
+    (connectionId: string, domain: string, level: string | null) =>
+      run(putMutate, `/peers/connections/${connectionId}/shares`, { domain, level }, [
+        refetchConnections,
+      ]),
+    [run, putMutate, refetchConnections]
+  );
+
+  const block = useCallback(
+    (peerId: string) =>
+      run(postMutate, '/peers/blocks', { peer_id: peerId }, [
+        refetchBlocks,
+        refetchRequests,
+        refetchConnections, // blocking severs any pair state
+      ]),
+    [run, postMutate, refetchBlocks, refetchRequests, refetchConnections]
+  );
+
+  const unblock = useCallback(
+    (peerId: string) =>
+      run(deleteMutate, `/peers/blocks/${peerId}`, undefined, [refetchBlocks]),
+    [run, deleteMutate, refetchBlocks]
+  );
+
+  const refetchAll = useCallback(() => {
+    refetchMe();
+    refetchRequests();
+    refetchConnections();
+    refetchBlocks();
+    refetchAccessLog();
+  }, [refetchMe, refetchRequests, refetchConnections, refetchBlocks, refetchAccessLog]);
+
+  return {
+    discoveryEnabled: me.data?.discovery_enabled ?? null,
+    requests: requests.data ?? [],
+    connections: connections.data ?? [],
+    blocks: blocks.data ?? [],
+    accessLog: accessLog.data ?? [],
+    loading:
+      me.loading || requests.loading || connections.loading || blocks.loading || accessLog.loading,
+    mutating,
+    setDiscovery,
+    search,
+    sendRequest,
+    respond,
+    removeConnection,
+    setShare,
+    block,
+    unblock,
+    refetchAll,
+  };
+}

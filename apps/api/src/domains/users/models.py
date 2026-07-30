@@ -137,6 +137,14 @@ class User(BaseModel):
         ),
     )
 
+    # Peer discovery opt-in (peer-connections program, Lot 1)
+    discovery_enabled: Mapped[bool] = mapped_column(
+        default=False,
+        nullable=False,
+        server_default="false",
+        comment="Opt-in: this user can be found by peer discovery search. Default off.",
+    )
+
     # Long-term memory preference
     memory_enabled: Mapped[bool] = mapped_column(
         default=True,

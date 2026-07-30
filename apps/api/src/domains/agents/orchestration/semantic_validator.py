@@ -1167,6 +1167,7 @@ class PlanSemanticValidator:
         user_language: str = settings.default_language,
         config: Any | None = None,
         query_intelligence: Any | None = None,
+        original_request: str | None = None,
     ) -> SemanticValidationResult:
         """
         Validate plan semantic coherence with user request.
@@ -1179,9 +1180,11 @@ class PlanSemanticValidator:
 
         Args:
             plan: ExecutionPlan to validate
-            user_request: Original user message
+            user_request: User message (English pivot when available)
             user_language: User language (fr, en, es)
             config: Optional RunnableConfig for LangGraph
+            original_request: The user's ORIGINAL message when user_request is
+                the English pivot — authoritative for content/names/language
 
         Returns:
             SemanticValidationResult with validation outcome
@@ -1390,7 +1393,9 @@ class PlanSemanticValidator:
         try:
             try:
                 result = await asyncio.wait_for(
-                    self._validate_with_llm(plan, user_request, user_language, config),
+                    self._validate_with_llm(
+                        plan, user_request, user_language, config, original_request
+                    ),
                     timeout=self._timeout_seconds,
                 )
             except StructuredOutputError as first_error:
@@ -1404,7 +1409,9 @@ class PlanSemanticValidator:
                     raw_output_length=len(getattr(first_error, "raw_output", None) or ""),
                 )
                 result = await asyncio.wait_for(
-                    self._validate_with_llm(plan, user_request, user_language, config),
+                    self._validate_with_llm(
+                        plan, user_request, user_language, config, original_request
+                    ),
                     timeout=self._timeout_seconds,
                 )
 
@@ -1511,6 +1518,7 @@ class PlanSemanticValidator:
         user_request: str,
         user_language: str,
         config: Any | None,
+        original_request: str | None = None,
     ) -> SemanticValidationResult:
         """
         Perform actual LLM-based validation.
@@ -1527,23 +1535,22 @@ class PlanSemanticValidator:
             SemanticValidationResult
         """
         # Build validation prompt
-        messages = self._build_validation_prompt(plan, user_request, user_language)
+        messages = self._build_validation_prompt(
+            plan, user_request, user_language, original_request=original_request
+        )
 
-        # DEBUG: Log config callbacks to verify TokenTrackingCallback is present
+        # DEBUG: verify TokenTrackingCallback presence. LangChain v1 callback
+        # managers expose `.handlers` (not directly iterable); raw lists pass
+        # through; anything else counts as none.
         if config:
             callbacks = (
                 config.get("callbacks", [])
                 if isinstance(config, dict)
                 else getattr(config, "callbacks", [])
             )
-            # Handle AsyncCallbackManager (LangChain v1.0) - not directly iterable
-            # Check if callbacks has a 'handlers' attribute (CallbackManager pattern)
-            if hasattr(callbacks, "handlers"):
-                callback_list = callbacks.handlers
-            elif isinstance(callbacks, list):
-                callback_list = callbacks
-            else:
-                callback_list = []
+            callback_list = getattr(
+                callbacks, "handlers", callbacks if isinstance(callbacks, list) else []
+            )
             callback_types = [type(cb).__name__ for cb in callback_list]
             logger.debug(
                 "semantic_validator_config_callbacks",
@@ -1555,7 +1562,6 @@ class PlanSemanticValidator:
         else:
             logger.warning(
                 "semantic_validator_no_config",
-                has_config=False,
                 msg="No config passed to semantic_validator - tokens may not be tracked",
             )
 
@@ -1635,6 +1641,7 @@ class PlanSemanticValidator:
         plan: ExecutionPlan,
         user_request: str,
         user_language: str,
+        original_request: str | None = None,
     ) -> list:
         """
         Build validation prompt for LLM.
@@ -1661,16 +1668,30 @@ class PlanSemanticValidator:
         """
         # Load versioned system prompt (cached via LRU)
         system_prompt = load_prompt(
-            "semantic_validator_prompt",
-            version=settings.semantic_validator_prompt_version,
+            "semantic_validator_prompt", version=settings.semantic_validator_prompt_version
         )
 
         # Build detailed plan representation for LLM
         plan_details = self._format_plan_for_validation(plan)
 
+        # Runtime defect 2026-07-30 (peers program): with only the English
+        # pivot on display, the validator flagged FRENCH content args, folded
+        # recipient names and a phantom "reply id". When the original differs,
+        # it is shown as the AUTHORITY for content, names and language.
+        original_block = request_label = ""
+        if original_request and original_request.strip() != user_request.strip():
+            request_label = " (English translation, for capability matching only)"
+            original_block = f"""
+
+## Original User Message (AUTHORITATIVE for content, names and language)
+"{original_request}"
+Content parameters (message, body, description…) must carry THIS intent and language — never flag a content parameter for differing from the English translation above.
+Rephrasing indirect speech into direct address ("ask him how he is" → message "how are you?") is expected and correct.
+Names resolved from the user's own data are matched accent- and case-insensitively: an accent difference is NOT an issue."""
+
         # Build human message with complete plan context
-        human_content = f"""## User Request
-"{user_request}"
+        human_content = f"""## User Request{request_label}
+"{user_request}"{original_block}
 
 ## Execution Plan
 {plan_details}

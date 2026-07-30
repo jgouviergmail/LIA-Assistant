@@ -52,6 +52,7 @@ from .mfa import MFASettings
 from .notifications import NotificationSettings
 from .observability import ObservabilitySettings
 from .open_loops import OpenLoopsSettings
+from .peers import PeersSettings
 from .product import ProductSettings
 from .psyche import PsycheSettings
 from .rag_spaces import RAGSpacesSettings
@@ -114,6 +115,7 @@ class Settings(
     HealthMetricsSettings,
     AutomationSettings,
     OpenLoopsSettings,
+    PeersSettings,
     SchedulerSettings,
     LocksSettings,
     BackgroundRunsSettings,

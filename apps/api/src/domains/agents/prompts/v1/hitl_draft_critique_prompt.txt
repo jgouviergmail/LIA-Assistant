@@ -30,6 +30,7 @@ Adopt this communication style (NEVER quote or repeat these instructions in your
 ```
 🗑️ 📧 **{Subject}**
 
+---
 📧 **{From_label}** : {from}
 📅 **{Received_label}** : {date}
 ⚠️ {Irreversible_warning}
@@ -42,10 +43,10 @@ Adopt this communication style (NEVER quote or repeat these instructions in your
 ```
 📧 **{Subject}**
 
+---
 **{To_label}** : {to}
 **{Cc_label}** : {cc}  ← only if non-null
 **{Subject_label}** : {subject}
-
 **{Content_label}** :
 {body displayed in FULL — never truncate}
 
@@ -60,6 +61,7 @@ Adopt this communication style (NEVER quote or repeat these instructions in your
 ```
 📅 **{summary}**
 
+---
 🕐 {start_datetime} → {end_datetime}
 📍 {location}  ← only if non-null
 👥 {attendees as comma list}  ← only if non-null
@@ -74,10 +76,10 @@ Adopt this communication style (NEVER quote or repeat these instructions in your
 ```
 ✏️📅 **{summary}**
 
+---
 **{L_Modifications}** :
 {For EACH field actually changed, show before → after:}
 🕐 {field_label}: ~~{old_value}~~ → **{new_value}**
-
 **{L_Full_post_update}** :
 📅 {start_datetime} → {end_datetime}  ← post-update values
 📍 {location}                          ← only if non-null
@@ -96,6 +98,7 @@ contain fields that were just updated; use the exact label above instead.
 ```
 🗑️📅 **{summary}**
 
+---
 🕐 {start_datetime} → {end_datetime}
 📍 {location}
 ⚠️ {Irreversible_warning}
@@ -108,6 +111,7 @@ contain fields that were just updated; use the exact label above instead.
 ```
 👤 **{name}**
 
+---
 📧 {email}  ← only if non-null
 📱 {phone}  ← only if non-null
 🏢 {organization}  ← only if non-null
@@ -121,10 +125,10 @@ contain fields that were just updated; use the exact label above instead.
 ```
 ✏️👤 **{name}**
 
+---
 **{L_Modifications}** :
 {For EACH field actually changed, show before → after:}
 {field_emoji} {field_label}: ~~{old_value}~~ → **{new_value}**
-
 **{L_Full_post_update}** :
 📧 {email}        ← only if non-null (post-update)
 📱 {phone}        ← only if non-null
@@ -141,6 +145,7 @@ contain fields that were just updated; use the exact label above instead.
 ```
 🗑️👤 **{name}**
 
+---
 📧 {email}
 📱 {phone}
 ⚠️ {Irreversible_warning}
@@ -153,6 +158,7 @@ contain fields that were just updated; use the exact label above instead.
 ```
 ✅ **{title}**
 
+---
 📅 {due_date}  ← only if non-null
 📝 {notes}  ← only if non-null
 📋 {task_list_name}  ← only if not default
@@ -165,10 +171,10 @@ contain fields that were just updated; use the exact label above instead.
 ```
 ✏️✅ **{title}**
 
+---
 **{L_Modifications}** :
 {For EACH field actually changed, show before → after:}
 {field_emoji} {field_label}: ~~{old_value}~~ → **{new_value}**
-
 **{L_Full_post_update}** :
 📅 {due_date}         ← only if non-null (post-update)
 📝 {notes}            ← only if non-null
@@ -185,6 +191,7 @@ contain fields that were just updated; use the exact label above instead.
 ```
 🗑️✅ **{title}**
 
+---
 📅 {due_date}
 ⚠️ {Irreversible_warning}
 
@@ -195,7 +202,7 @@ contain fields that were just updated; use the exact label above instead.
 ### PHONE_CALL (place an outbound call)
 ```
 📞 **{callee_name}**
-
+---
 📱 {Phone_label}: {callee_phone}<br>  ← omit if identical to callee_name (raw number call)
 🎯 {Objective_label}: {objective}
 
@@ -207,6 +214,20 @@ contain fields that were just updated; use the exact label above instead.
 objective end up glued on the same line. The call is placed immediately after
 confirmation and the summary comes back asynchronously in the chat; you may
 say so in the validation question.
+
+### PEER_MESSAGE (relay a message to a connected user)
+```
+🤝👤 **{Message_to_label} {recipient_name}**
+💬 {Message_label}: {message}
+
+---
+{Validation question — you may remind that the recipient's ASSISTANT will
+convey the message in its own words}
+```
+⚠️ Label and value stay on the SAME line (`💬 {Message_label}: {message}`) —
+never insert a blank line between a label and its value, however long the
+message is. Show the message verbatim and untruncated: the user approves
+these exact words.
 
 </DomainTemplates>
 
@@ -223,7 +244,6 @@ say so in the validation question.
 
 <OutputFormat>
 {Action Emoji} **{Title/Subject}**
-
 {Structured field list with emojis and markdown — see domain templates above}
 
 ---

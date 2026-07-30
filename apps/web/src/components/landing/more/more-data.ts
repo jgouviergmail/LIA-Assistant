@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 29 cards in
+ * Single source of truth for the "/more" small-attentions page: 31 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (29 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (31 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -26,12 +26,14 @@ import {
   Drama,
   FileUp,
   Gauge,
+  Handshake,
   History,
   LayoutGrid,
   Link2,
   ListChecks,
   Menu,
   MessageSquarePlus,
+  PanelTop,
   MonitorSmartphone,
   Paperclip,
   PenLine,
@@ -78,6 +80,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'scroll_return',
       'bubble_actions',
       'selection_actions',
+      'peer_actions',
       'share_export',
       'backstage',
     ],
@@ -115,7 +118,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
     key: 's6',
     num: '06',
     tinted: true,
-    cards: ['background_response', 'widgets_travel', 'cost_transparency', 'a11y_care'],
+    cards: ['background_response', 'widgets_travel', 'cost_transparency', 'a11y_care', 'frosted_glass'],
   },
 ] as const;
 
@@ -132,6 +135,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   scroll_return: ArrowDownCircle,
   bubble_actions: ThumbsUp,
   selection_actions: TextSelect,
+  peer_actions: Handshake,
   share_export: Share2,
   backstage: Drama,
   actionable_errors: AlertTriangle,
@@ -153,6 +157,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   widgets_travel: AppWindow,
   cost_transparency: Coins,
   a11y_care: Accessibility,
+  frosted_glass: PanelTop,
 };
 
 /**
@@ -169,6 +174,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   scroll_return: [],
   bubble_actions: ['copied'],
   selection_actions: ['action'],
+  peer_actions: ['reply'],
   share_export: [],
   backstage: [],
   actionable_errors: ['cause', 'action'],
@@ -190,4 +196,5 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   widgets_travel: [],
   cost_transparency: [],
   a11y_care: [],
+  frosted_glass: [],
 };

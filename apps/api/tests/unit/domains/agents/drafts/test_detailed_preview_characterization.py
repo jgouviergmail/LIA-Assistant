@@ -656,6 +656,21 @@ CASES: tuple[PreviewCase, ...] = (
         {"server": "staging"},
         language="en",
     ),
+    # Peers (A3): the relayed message is what the sender approves — full text.
+    PreviewCase(
+        "peer_message_full_fr",
+        DraftType.PEER_MESSAGE,
+        {
+            "recipient_name": "Marie Dupont",
+            "message": "Demande-lui comment il va",
+        },
+    ),
+    PreviewCase(
+        "peer_message_minimal_en",
+        DraftType.PEER_MESSAGE,
+        {"recipient_name": "Marie Dupont"},
+        language="en",
+    ),
     # Automation draft (ADR-140): title + pre-localized schedule + instruction.
     PreviewCase(
         "scheduled_action_full_fr",
@@ -746,6 +761,8 @@ EXPECTED: dict[str, str] = {
     "scheduled_action_full_fr": "<br/>**Titre**: Revue de presse IA<br/><br/>**Planification**: Lun, Mer à 08:00<br/><br/>**Instruction**: Fais-moi une revue de presse IA",
     "phone_call_minimal_en": "<br/>**Callee**: John Smith",
     "scheduled_action_minimal_en": "<br/>**Title**: Daily digest",
+    "peer_message_full_fr": "<br/>**Destinataire**: Marie Dupont<br/><br/>**Message**: Demande-lui comment il va",
+    "peer_message_minimal_en": "<br/>**Recipient**: Marie Dupont",
     "devops_task_full_fr": "<br/>**Serveur**: prod-rpi5<br/><br/>**Tâche**: Redémarre le conteneur lia-api-prod et vérifie les logs",
     "devops_task_minimal_en": "<br/>**Server**: staging",
     "devops_task_with_context_fr": "<br/>**Serveur**: prod-rpi5<br/><br/>**Tâche**: Vérifie les logs<br/><br/>**Consignes**: reste en lecture seule",

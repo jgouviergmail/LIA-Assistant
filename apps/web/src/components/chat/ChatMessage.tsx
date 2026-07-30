@@ -17,6 +17,7 @@ import { cn, proxyGoogleImageUrl } from '@/lib/utils';
 import { classifyImageExpiry } from '@/lib/image-expiry';
 import { copyMessageToClipboard } from '@/lib/message-clipboard';
 import { MarkdownContent } from './MarkdownContent';
+import { PeerMessageActions } from '@/components/chat/PeerMessageActions';
 import { isInterestNotificationMetadata } from './InterestNotificationCard';
 import { CallDebrief } from '@/components/telephony/CallDebrief';
 import { isPhoneCallDebrief } from '@/types/telephony';
@@ -64,6 +65,8 @@ export interface ChatMessageProps {
    * into a conversation that has moved on. Absent → no retry is offered.
    */
   onRetry?: (prompt: string) => void;
+  /** Peers Lot 7: composer prefill for the peer Reply quick-action. */
+  onPrefillComposer?: (text: string) => void;
 }
 
 /** Window (ms) within which a proactive notification counts as "just arrived". */
@@ -225,6 +228,7 @@ function AssistantActionRow({
   trace,
   message,
   onRetry,
+  onPrefillComposer,
 }: {
   copied: boolean;
   onCopy: () => void;
@@ -237,6 +241,8 @@ function AssistantActionRow({
   message: Message;
   /** W3: wired only on the latest error bubble (the list decides). */
   onRetry?: (prompt: string) => void;
+  /** Peers Lot 7: composer prefill for the Reply quick-action (never sends). */
+  onPrefillComposer?: (text: string) => void;
 }) {
   const { t } = useTranslation();
   const retryPrompt = retryPromptOf(message);
@@ -280,9 +286,27 @@ function AssistantActionRow({
       )}
       {feedbackProps && <ResponseFeedbackButtons {...feedbackProps} />}
       {proactiveFeedback}
+      {/* Peers Lot 7: reply/block on relayed messages, accept/decline on
+          incoming connection requests — self-gated on the metadata. */}
+      <PeerMessageActions metadata={message.metadata} onPrefillComposer={onPrefillComposer} />
       <ExecutionTraceDisclosure trace={trace} />
     </div>
   );
+}
+
+/**
+ * Assistant bubble surface classes (module-level — CC discipline).
+ *
+ * Peers program (Lot 7): peer notifications (`proactive_peer_*` metadata)
+ * carry a subtle distinct tint so relayed messages and connection events read
+ * at a glance among answers; every other bubble keeps the default card glass.
+ */
+function assistantBubbleSurface(metadata: Record<string, unknown> | undefined): string {
+  const isPeer =
+    typeof metadata?.type === 'string' && (metadata.type as string).startsWith('proactive_peer');
+  return isPeer
+    ? 'bg-primary/10 border-primary/25 hover:bg-primary/15'
+    : 'bg-card/70 border-border/20 hover:bg-card/80';
 }
 
 /**
@@ -811,7 +835,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
         {/* Message bubble - Full width on mobile, flex-1 on tablet/desktop */}
         <div className="group flex flex-col w-full mobile:flex-1 items-end">
           <div
-            className={`relative message-bubble message-bubble-assistant px-4 py-3 rounded-xl shadow-md bg-card/70 backdrop-blur-md text-foreground rounded-tr-none border border-border/20 hover:shadow-lg hover:border-primary/30 hover:bg-card/80 mobile:rounded-tr-xl transition-colors ${streamClass}`}
+            className={`relative message-bubble message-bubble-assistant px-4 py-3 rounded-xl shadow-md backdrop-blur-md text-foreground rounded-tr-none border hover:shadow-lg hover:border-primary/30 mobile:rounded-tr-xl transition-colors ${assistantBubbleSurface(message.metadata)} ${streamClass}`}
           >
             {/* Skill indicator — top of bubble, always visible when a skill is active */}
             {message.skillName && (
@@ -863,6 +887,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
                 trace={message.executionTrace}
                 message={message}
                 onRetry={onRetry}
+                onPrefillComposer={props.onPrefillComposer}
               />
             )}
           </div>

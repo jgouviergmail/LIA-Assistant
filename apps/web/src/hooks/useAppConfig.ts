@@ -35,6 +35,8 @@ export interface AppConfig {
     heartbeat_enabled?: boolean;
     skills_enabled?: boolean;
     open_loops_enabled?: boolean;
+    // Peers program — gates the « Connexions » settings section.
+    peers_enabled?: boolean;
   };
   api_version: string;
 }

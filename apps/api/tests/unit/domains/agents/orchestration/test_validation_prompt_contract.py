@@ -115,3 +115,43 @@ async def test_double_structured_output_error_falls_open(
     assert result.used_fallback is True
     assert result.is_valid is True  # documented fail-open
     assert result.fallback_reason == "validation_error:StructuredOutputError"
+
+
+def test_original_request_is_authoritative_when_pivot_differs() -> None:
+    """Runtime defect 2026-07-30 (peers program): the validator anchored on the
+    English pivot and flagged FRENCH content args ('tout va bien'), folded
+    names ('Jerome G' vs 'Jérôme G') and a phantom reply id. The original
+    user message must be shown as the AUTHORITY for content/names/language."""
+    messages = PlanSemanticValidator()._build_validation_prompt(
+        _plan(),
+        "Send a reply to Jérôme G saying that everything is fine",
+        "fr",
+        original_request="réponds à jerome g que tout va bien",
+    )
+    human = str(messages[1].content)
+    assert "réponds à jerome g que tout va bien" in human
+    assert "English translation" in human  # the pivot is labeled as such
+    assert "AUTHORITATIVE" in human  # the original wins for content
+    # The content-language rule travels with the block.
+    assert "never flag a content parameter" in human
+
+
+def test_no_original_block_when_absent_or_identical() -> None:
+    validator = PlanSemanticValidator()
+    for original in (None, "create the appointment tomorrow at 9am"):
+        messages = validator._build_validation_prompt(
+            _plan(), "create the appointment tomorrow at 9am", "fr", original_request=original
+        )
+        human = str(messages[1].content)
+        assert "AUTHORITATIVE" not in human
+        assert human.count("## User Request") == 1
+
+
+def test_system_prompt_covers_stateless_replies_and_peer_relays() -> None:
+    """The validator must never invent parameters (reply/thread ids) a tool
+    does not declare, and must know peer relays are draft-confirmed."""
+    messages = PlanSemanticValidator()._build_validation_prompt(_plan(), "req", "en")
+    # Whitespace-normalized: the prompt file wraps at ~80 columns.
+    system = " ".join(str(messages[0].content).split())
+    assert "does not declare" in system  # never invent required parameters
+    assert "relaying a message to a connected user" in system  # draft list

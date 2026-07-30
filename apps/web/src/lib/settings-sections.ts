@@ -194,6 +194,14 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'interests',
     declaredIn: 'components/settings/InterestsSettings.tsx',
   },
+  // Renders nothing when the instance flag `features.peers_enabled` is off
+  // (self-gating, OpenLoopsSection precedent) — a deep link then legitimately
+  // resolves to an absent section, like the other capability-gated entries.
+  'peer-connections': {
+    tab: 'features',
+    accordionValue: 'peer-connections',
+    declaredIn: 'components/settings/PeerConnectionsSettings.tsx',
+  },
   heartbeat: {
     tab: 'features',
     accordionValue: 'heartbeat',

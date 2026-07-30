@@ -34,3 +34,14 @@ def register_program_manifests(registry: AgentRegistry) -> None:
     registry.register_agent_manifest(DOCUMENT_AGENT_MANIFEST)
     registry.register_tool_manifest(search_user_documents_catalogue_manifest)
     registry.register_tool_manifest(get_person_overview_catalogue_manifest)
+
+    # Peers program: flag-gated like its router — a disabled instance must
+    # not advertise tools whose REST surface is absent.
+    from src.core.config import settings
+
+    if getattr(settings, "peers_enabled", False):
+        from src.domains.agents.peer.catalogue_registration import (
+            register_peer_manifests,
+        )
+
+        register_peer_manifests(registry)

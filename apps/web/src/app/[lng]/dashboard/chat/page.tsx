@@ -70,6 +70,26 @@ function shortLang(language: string | undefined): string {
 }
 
 /**
+ * Toast title + tint for a proactive push (module-level — CC discipline).
+ * Peer notifications (Lot 7) reuse their chat-bubble tint so they read as
+ * "peer" at a glance; interests title with their topic; the rest stays generic.
+ * NOTE: decision_reason is internal English LLM reasoning — NOT user-facing.
+ */
+function proactiveToastPresentation(metadata?: Record<string, unknown>): {
+  message: string;
+  className: string | undefined;
+} {
+  const isPeer =
+    typeof metadata?.type === 'string' && (metadata.type as string).startsWith('proactive_peer');
+  const peerName = (metadata?.sender_name ?? metadata?.peer_name) as string | undefined;
+  const topic = metadata?.interest_topic as string | undefined;
+  return {
+    message: isPeer ? `🤝 ${peerName || 'Info'}` : topic ? `💡 ${topic}` : '💡 Info',
+    className: isPeer ? '!bg-primary/10 !border-primary/25' : undefined,
+  };
+}
+
+/**
  * Strip the consumed deep-link params from the URL (module-level — keeps
  * ChatPage under the CC cap). `?draft=` is also handed to the persisted draft
  * BEFORE stripping, so a refresh right after arriving keeps the prefill; the
@@ -263,13 +283,12 @@ export default function ChatPage() {
   // Same pattern as reminders: append locally to avoid race conditions
   const handleProactiveNotification = useCallback(
     (content: string, targetId: string, metadata?: Record<string, unknown>) => {
-      // 1. Toast: use interest_topic for interest, generic label for heartbeat/other
-      // NOTE: decision_reason is internal English LLM reasoning — NOT user-facing
-      const topic = metadata?.interest_topic as string | undefined;
-      const toastMessage = topic ? `💡 ${topic}` : '💡 Info';
-      toast.info(toastMessage, {
+      // 1. Toast — title/tint derived module-level (peers vs interest vs generic)
+      const presentation = proactiveToastPresentation(metadata);
+      toast.info(presentation.message, {
         duration: 5000,
         description: toPlainPreview(content, NOTIFICATION_PREVIEW_MAX_LENGTH),
+        className: presentation.className,
       });
 
       // 2. Append proactive message locally with token data from metadata
@@ -769,97 +788,105 @@ export default function ChatPage() {
         <div
           className={`flex flex-col flex-1 bg-background rounded-xl border border-border/50 shadow-lg overflow-hidden ${showDebugPanel ? 'max-w-[calc(100%-420px)]' : ''}`}
         >
-          {/* Header - Enhanced with glassmorphism and shimmer effect */}
-          <div className="relative border-b border-border/40 bg-card/95 backdrop-blur-sm px-4 py-4 sm:px-6 shadow-sm header-shimmer">
-            {/* Three IN-FLOW columns with equal-weight (`flex-1`) sides and a
+          {/* Messages area. The header + search + banner block is STICKY INSIDE
+              this scroll container (2026-07-30): backdrop-blur only renders
+              what actually passes behind the surface, and this chat shell is a
+              fixed-height flex column — with the header as a sibling above the
+              scroll area, nothing ever slid beneath it and the frosted glass
+              stayed invisible. In here, bubbles genuinely scroll under it. */}
+          <div className="flex-1 overflow-y-auto chat-scrollbar">
+            <div className="sticky top-0 z-20">
+              {/* Frosted-glass header: translucent card + strong blur, no gradient. */}
+              <div className="relative border-b border-border/30 bg-card/60 backdrop-blur-xl px-4 py-4 sm:px-6 shadow-sm">
+                {/* Three IN-FLOW columns with equal-weight (`flex-1`) sides and a
                 `shrink-0` middle: the middle (voice + spaces) is CENTRED when
                 the sides are balanced, and SHIFTS by itself — never overlaps —
                 when a side grows (the processing / listening status pill, the
                 search field). The former `absolute left-1/2` centring reserved
                 no width and overlapped the left group; equal flex sides give
                 the same visual centring while reflowing automatically. */}
-            <div className="flex items-center gap-2">
-              {/* Left side: status pill + search, in that order. The status
+                <div className="flex items-center gap-2">
+                  {/* Left side: status pill + search, in that order. The status
                   only renders when it carries information (QW-12) — the
                   nominal "online" state is silent; offline and processing are
                   the exceptional states worth a pill, shown LEFT of the
                   search field. `min-w-0 flex-1` lets this side truncate first
                   so the centred group keeps its place. */}
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                {!apiAvailable ? (
-                  <div className="flex items-center gap-2 rounded-full bg-rose-100 dark:bg-rose-900 px-3 py-1.5 shadow-sm border border-rose-200 dark:border-rose-800 shrink-0">
-                    <WifiOff className="h-3.5 w-3.5 text-rose-600 dark:text-rose-300" />
-                    <span className="text-[11px] mobile:text-xs font-semibold text-rose-600 dark:text-rose-300">
-                      {t('chat.input.status.offline')}
-                    </span>
-                  </div>
-                ) : isTyping ? (
-                  <div className="flex items-center gap-2 rounded-full bg-amber-100 dark:bg-amber-900 px-3 py-1.5 shadow-sm border border-amber-200 dark:border-amber-800 shrink-0">
-                    <LoadingSpinner className="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" />
-                    <span className="text-[11px] mobile:text-xs font-semibold text-amber-600 dark:text-amber-300">
-                      {t('chat.input.status.processing')}
-                    </span>
-                  </div>
-                ) : null}
-                {/* Mobile search toggle (< 880px) — unfolds the input row in
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    {!apiAvailable ? (
+                      <div className="flex items-center gap-2 rounded-full bg-rose-100 dark:bg-rose-900 px-3 py-1.5 shadow-sm border border-rose-200 dark:border-rose-800 shrink-0">
+                        <WifiOff className="h-3.5 w-3.5 text-rose-700 dark:text-rose-300" />
+                        <span className="text-[11px] mobile:text-xs font-semibold text-rose-700 dark:text-rose-300">
+                          {t('chat.input.status.offline')}
+                        </span>
+                      </div>
+                    ) : isTyping ? (
+                      <div className="flex items-center gap-2 rounded-full bg-amber-100 dark:bg-amber-900 px-3 py-1.5 shadow-sm border border-amber-200 dark:border-amber-800 shrink-0">
+                        <LoadingSpinner className="h-3.5 w-3.5 text-amber-700 dark:text-amber-300" />
+                        <span className="text-[11px] mobile:text-xs font-semibold text-amber-700 dark:text-amber-300">
+                          {t('chat.input.status.processing')}
+                        </span>
+                      </div>
+                    ) : null}
+                    {/* Mobile search toggle (< 880px) — unfolds the input row in
                     the ChatSearchBar below the header (QW-2). */}
-                <button
-                  type="button"
-                  onClick={() => setMobileSearchOpen(open => !open)}
-                  aria-expanded={mobileSearchOpen}
-                  aria-label={t('chat.search.open_mobile')}
-                  className="mobile:hidden p-2 rounded-full hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <Search className="h-4 w-4 text-muted-foreground" aria-hidden />
-                </button>
-                {/* Search input (≥ 880px) — filters currently loaded messages
-                    by content; left-aligned in the header. */}
-                <div className="relative hidden mobile:flex items-center">
-                  <Search className="absolute left-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                  <input
-                    type="search"
-                    data-chat-search
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    placeholder={t('conversations.search_placeholder')}
-                    aria-label={t('conversations.search_placeholder')}
-                    className="h-8 w-48 pl-7 pr-7 text-xs rounded-full bg-background border border-border focus:outline-none focus:ring-1 focus:ring-ring"
-                  />
-                  {searchQuery && (
                     <button
                       type="button"
-                      onClick={() => setSearchQuery('')}
-                      aria-label={t('conversations.search_clear')}
-                      className="absolute right-1 p-0.5 rounded-full hover:bg-muted"
+                      onClick={() => setMobileSearchOpen(open => !open)}
+                      aria-expanded={mobileSearchOpen}
+                      aria-label={t('chat.search.open_mobile')}
+                      className="mobile:hidden p-2 rounded-full hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <X className="h-3 w-3 text-muted-foreground" />
+                      <Search className="h-4 w-4 text-muted-foreground" aria-hidden />
                     </button>
-                  )}
-                </div>
-              </div>
+                    {/* Search input (≥ 880px) — filters currently loaded messages
+                    by content; left-aligned in the header. */}
+                    <div className="relative hidden mobile:flex items-center">
+                      <Search className="absolute left-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                      <input
+                        type="search"
+                        data-chat-search
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        placeholder={t('conversations.search_placeholder')}
+                        aria-label={t('conversations.search_placeholder')}
+                        className="h-8 w-48 pl-7 pr-7 text-xs rounded-full bg-background border border-border focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchQuery('')}
+                          aria-label={t('conversations.search_clear')}
+                          className="absolute right-1 p-0.5 rounded-full hover:bg-muted"
+                        >
+                          <X className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
-              {/* Centre (in flow, shrink-0): Voice Mode Badge — single
+                  {/* Centre (in flow, shrink-0): Voice Mode Badge — single
                   instance, always mounted to preserve KWS state — and, beside
                   it, the active-spaces pill. `shrink-0` keeps them intact while
                   the flex-1 sides absorb the width; equal sides keep them
                   visually centred and let them SHIFT rather than overlap when a
                   side grows. Discreet, homogeneous pill styling on the
                   indicator. */}
-              <div className="flex shrink-0 items-center gap-2">
-                <VoiceModeBadge
-                  onTranscription={(text, meta) =>
-                    sendMessageFromPresent(text, undefined, undefined, meta)
-                  }
-                  disabled={!apiAvailable || isTyping || isUsageBlocked}
-                />
-                <ActiveSpacesIndicator />
-              </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <VoiceModeBadge
+                      onTranscription={(text, meta) =>
+                        sendMessageFromPresent(text, undefined, undefined, meta)
+                      }
+                      disabled={!apiAvailable || isTyping || isUsageBlocked}
+                    />
+                    <ActiveSpacesIndicator />
+                  </div>
 
-              {/* Right side: context-usage pill + Delete/New chat, in flow.
+                  {/* Right side: context-usage pill + Delete/New chat, in flow.
                   `min-w-0 flex-1` mirrors the left side so the centre stays
                   centred; `justify-end` keeps these pinned to the right edge. */}
-              <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-                {/* Context-usage pill — shows tokens vs compaction threshold.
+                  <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+                    {/* Context-usage pill — shows tokens vs compaction threshold.
                     Hidden until the first turn completes (no data yet).
                     Desktop order on this side: [Pill] [Delete]. Conversation
                     totals ride its tooltip (QW-12) — the dedicated banner
@@ -870,80 +897,79 @@ export default function ChatPage() {
                     spaces indicator and the destructive action. Its tooltip is
                     a hover affordance anyway — unavailable on touch — and the
                     same totals live on the dashboard usage tile. */}
-                {contextUsage && (
-                  <div className="hidden mobile:block">
-                    <ContextUsagePill
-                      usage={contextUsage}
-                      totals={
-                        user?.tokens_display_enabled &&
-                        (combinedTotals.tokensIn > 0 || combinedTotals.tokensOut > 0)
-                          ? { ...combinedTotals, userMessageCount }
-                          : null
-                      }
-                    />
-                  </div>
-                )}
-                {/* Delete/New chat button. Below `sm` the label steps aside —
+                    {contextUsage && (
+                      <div className="hidden mobile:block">
+                        <ContextUsagePill
+                          usage={contextUsage}
+                          totals={
+                            user?.tokens_display_enabled &&
+                            (combinedTotals.tokensIn > 0 || combinedTotals.tokensOut > 0)
+                              ? { ...combinedTotals, userMessageCount }
+                              : null
+                          }
+                        />
+                      </div>
+                    )}
+                    {/* Delete/New chat button. Below `sm` the label steps aside —
                     the row cannot carry it next to the spaces indicator — so
                     the accessible name is carried explicitly: a bare trash
                     icon names nothing. The ACTION itself never disappears; it
                     is destructive and the only way to start over. */}
-                <button
-                  onClick={() => setResetConfirmOpen(true)}
-                  disabled={isResetting || !apiAvailable}
-                  aria-label={t('chat.new_chat')}
-                  className="flex shrink-0 items-center gap-2 rounded-full bg-rose-100 dark:bg-rose-900 px-3 py-1.5 shadow-sm border border-rose-200 dark:border-rose-800 cursor-pointer transition-colors hover:bg-rose-200 dark:hover:bg-rose-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isResetting ? (
-                    <LoadingSpinner className="h-3.5 w-3.5 text-rose-600 dark:text-rose-300" />
-                  ) : (
-                    <Trash2 className="h-3.5 w-3.5 text-rose-600 dark:text-rose-300" />
-                  )}
-                  <span className="hidden sm:inline text-[11px] mobile:text-xs font-semibold text-rose-600 dark:text-rose-300">
-                    {t('chat.new_chat')}
-                  </span>
-                </button>
+                    <button
+                      onClick={() => setResetConfirmOpen(true)}
+                      disabled={isResetting || !apiAvailable}
+                      aria-label={t('chat.new_chat')}
+                      className="flex shrink-0 items-center gap-2 rounded-full bg-rose-100 dark:bg-rose-900 px-3 py-1.5 shadow-sm border border-rose-200 dark:border-rose-800 cursor-pointer transition-colors hover:bg-rose-200 dark:hover:bg-rose-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isResetting ? (
+                        <LoadingSpinner className="h-3.5 w-3.5 text-rose-700 dark:text-rose-300" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5 text-rose-700 dark:text-rose-300" />
+                      )}
+                      <span className="hidden sm:inline text-[11px] mobile:text-xs font-semibold text-rose-700 dark:text-rose-300">
+                        {t('chat.new_chat')}
+                      </span>
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* History search surface (QW-2): mobile input row, match counter,
+              {/* History search surface (QW-2): mobile input row, match counter,
               whole-history results panel, history-view banner. */}
-          <ChatSearchBar
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            loadedMatchCount={loadedMatchCount}
-            serverSearchAvailable={serverSearchAvailable}
-            panelOpen={panelOpen}
-            serverResults={serverResults}
-            serverHasMore={serverHasMore}
-            serverLoading={serverLoading}
-            serverError={serverError}
-            excerptTerm={highlightTerm || searchQuery}
-            historyView={historyView}
-            jumpDisabled={isTyping}
-            mobileOpen={mobileSearchOpen}
-            onCloseMobile={() => setMobileSearchOpen(false)}
-            onRunServerSearch={runServerSearch}
-            onLoadMoreServerResults={loadMoreServerResults}
-            onClosePanel={closePanel}
-            onJump={jumpToResult}
-            onReturnToPresent={returnToPresent}
-          />
+              <ChatSearchBar
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                loadedMatchCount={loadedMatchCount}
+                serverSearchAvailable={serverSearchAvailable}
+                panelOpen={panelOpen}
+                serverResults={serverResults}
+                serverHasMore={serverHasMore}
+                serverLoading={serverLoading}
+                serverError={serverError}
+                excerptTerm={highlightTerm || searchQuery}
+                historyView={historyView}
+                jumpDisabled={isTyping}
+                mobileOpen={mobileSearchOpen}
+                onCloseMobile={() => setMobileSearchOpen(false)}
+                onRunServerSearch={runServerSearch}
+                onLoadMoreServerResults={loadMoreServerResults}
+                onClosePanel={closePanel}
+                onJump={jumpToResult}
+                onReturnToPresent={returnToPresent}
+              />
 
-          {/* Quota surface: the wall, or the A5 warning that precedes it —
+              {/* Quota surface: the wall, or the A5 warning that precedes it —
               never both (UsageBanners owns that rule). */}
-          {/* A6: while LIA is on the phone, say so — the chat used to go
+              {/* A6: while LIA is on the phone, say so — the chat used to go
               completely silent between the confirmation and the recap. */}
-          <ActiveCallBanner lng={lng} conversationTick={messages.length} />
-          <UsageBanners
-            limits={usageLimits}
-            isBlocked={isUsageBlocked}
-            blockReason={usageBlockReason}
-          />
+              <ActiveCallBanner lng={lng} conversationTick={messages.length} />
+              <UsageBanners
+                limits={usageLimits}
+                isBlocked={isUsageBlocked}
+                blockReason={usageBlockReason}
+              />
+            </div>
 
-          {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto chat-scrollbar">
             <RegistryProvider value={registryWithHistory}>
               {/* Headless: celebrates relationship-stage milestones (I7) */}
               <PsycheMilestoneWatcher />
@@ -972,6 +998,7 @@ export default function ChatPage() {
                 onReturnToPresent={handleReturnToPresent}
                 ownSendTick={ownSendTick}
                 onRetry={handleRetry}
+                onPrefillComposer={handleFollowupPick}
                 // W8: an empty chat offers three ways in. Same rail as the
                 // follow-up chips — it prefills the composer, never sends.
                 onStarterPick={handleFollowupPick}

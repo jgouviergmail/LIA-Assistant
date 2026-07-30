@@ -80,6 +80,11 @@ if getattr(settings, "product_analytics_enabled", False):
 
     api_router.include_router(product_router)  # Client telemetry ingestion (ADR-178 Phase 4)
 
+if getattr(settings, "peers_enabled", False):
+    from src.domains.peers.router import router as peers_router
+
+    api_router.include_router(peers_router)  # User-to-user connections (peers program)
+
 if getattr(settings, "mcp_enabled", False):
     from src.domains.user_mcp.admin_router import router as admin_mcp_router
 
@@ -231,6 +236,8 @@ async def get_client_config() -> dict:
             "heartbeat_enabled": getattr(settings, "heartbeat_enabled", False),
             "skills_enabled": getattr(settings, "skills_enabled", False),
             "open_loops_enabled": getattr(settings, "open_loops_enabled", False),
+            # Peers program: gates the « Connexions » settings section.
+            "peers_enabled": getattr(settings, "peers_enabled", False),
         },
         "api_version": constants.API_VERSION,  # PHASE 2.1: Use constant instead of hardcoded value
     }

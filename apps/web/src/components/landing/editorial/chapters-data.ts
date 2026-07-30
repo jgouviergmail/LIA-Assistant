@@ -26,6 +26,7 @@ import {
   Compass,
   Gauge,
   Globe,
+  Handshake,
   Heart,
   HelpCircle,
   ImagePlus,
@@ -103,6 +104,7 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     catalog: [
       'memory',
       'personal_crm',
+      'peers',
       'briefing',
       'personalities',
       'psyche',
@@ -188,6 +190,7 @@ export const REQUIRED_FEATURE_KEYS: readonly string[] = [
   // personality & memory
   'memory',
   'personal_crm',
+  'peers',
   'personalities',
   'psyche',
   'self_knowledge',
@@ -234,6 +237,7 @@ export const FEATURE_ICONS: Record<string, LucideIcon> = {
   languages: Globe,
   memory: Brain,
   personal_crm: Users,
+  peers: Handshake,
   personalities: Smile,
   psyche: Heart,
   self_knowledge: HelpCircle,

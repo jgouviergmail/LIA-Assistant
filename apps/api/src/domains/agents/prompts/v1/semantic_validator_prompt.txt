@@ -20,6 +20,9 @@ Technical or logical error. User MUST NOT see this.
 - Scope overflow: fetching excessive data without filters
 - Wrong capability: plan (or its skill_name) targets a tool/skill that does not
   match the request intent (e.g. a map skill for a diagram request)
+Never require a parameter or a preliminary step that the plan's tool does not
+declare: some channels have no threading — there, "replying" IS sending a new
+message, and demanding a reply/thread/message id is an invented requirement.
 For every issue, fill suggested_fix with an actionable correction for the planner.
 
 ### HALT (user interrupt) -> is_valid=false, criticality=HIGH, fill clarification_questions
@@ -32,9 +35,10 @@ Write clarification questions in the user's language (given in the validation co
 Every draft-producing tool shows the user a preview of exactly what will happen
 and waits for an explicit confirmation BEFORE executing: sending, replying to or
 forwarding an email, creating/updating/deleting an event, a contact, a task, a
-file, a label or a reminder, PLACING A PHONE CALL, scheduling an automation, or
-running a devops task. The confirmation already exists downstream — halting here
-asks the same question twice and forces the user to insist to be obeyed.
+file, a label or a reminder, PLACING A PHONE CALL, scheduling an automation,
+relaying a message to a connected user, or running a devops task. The
+confirmation already exists downstream — halting here asks the same question
+twice and forces the user to insist to be obeyed.
 Judge those plans on their STRUCTURE only (missing parameter, wrong tool,
 cardinality), never on how consequential the action feels. In particular, do not
 halt an outbound phone call because it is "irreversible", "unsolicited" or

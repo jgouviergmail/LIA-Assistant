@@ -939,6 +939,11 @@
       "dialing": "LIA is calling {{name}}…",
       "in_progress": "LIA is on the phone with {{name}}",
       "details": "Details"
+    },
+    "peer": {
+      "reply": "Reply",
+      "block": "Block",
+      "reply_prefill": "Reply to {{name}}: "
     }
   },
   "skill_apps": {
@@ -2321,6 +2326,101 @@
       "confirm_delete_all_description": "This will permanently delete all your active and blocked interests. This action cannot be undone.",
       "delete_all_confirm": "Delete all"
     },
+    "peers": {
+      "title": "Connections",
+      "description": "Find other users of this instance, connect, and share read-only access with the people you choose.",
+      "discovery": {
+        "toggle_label": "Let others find me",
+        "toggle_hint": "Off by default. When enabled, users searching your exact full name can send you a connection request. Without a full name on your profile, you cannot be found.",
+        "toggle_saved": "Discovery preference saved",
+        "title": "Find someone",
+        "search_label": "Full name",
+        "search_placeholder": "e.g. Jane Smith",
+        "search_button": "Search",
+        "exact_hint": "The search matches the exact full name only (accents and case are ignored).",
+        "no_results": "No one found with that exact name. They may not have enabled discovery.",
+        "context_label": "Optional note",
+        "context_placeholder": "A few words so they know who you are…",
+        "request_button": "Request connection",
+        "request_sent": "Connection request sent",
+        "status_connected": "Already connected",
+        "status_pending": "Request pending"
+      },
+      "requests": {
+        "title": "Pending requests",
+        "empty": "No pending requests.",
+        "accept": "Accept",
+        "decline": "Decline",
+        "block": "Block",
+        "outgoing_badge": "Awaiting their answer",
+        "accepted": "Connection accepted",
+        "declined": "Request declined"
+      },
+      "connections": {
+        "title": "My connections",
+        "empty": "No connections yet. Find someone above to get started.",
+        "remove": "Remove connection",
+        "block": "Block",
+        "removed": "Connection removed — both assistants will let you know",
+        "remove_confirm_title": "Remove this connection?",
+        "remove_confirm_description": "All shares stop immediately and both of you are notified by your assistants. You can reconnect later with a new request.",
+        "block_confirm_title": "Block this user?",
+        "block_confirm_description": "The connection and all shares end immediately and silently. They will not be notified and can no longer find or contact you."
+      },
+      "shares": {
+        "my_title": "What I share with them",
+        "their_title": "What they share with me",
+        "their_empty": "They are not sharing anything with you yet.",
+        "saved": "Sharing preference saved",
+        "calendar_label": "Calendar",
+        "task_label": "Tasks (titles only)",
+        "calendar_level": {
+          "none": "Not shared",
+          "availability": "Availability only (free/busy)",
+          "details": "Availability and event titles"
+        },
+        "badge": {
+          "calendar_availability": "Calendar — availability",
+          "calendar_details": "Calendar — details",
+          "task_titles": "Tasks — titles"
+        }
+      },
+      "blocks": {
+        "title": "Blocked users",
+        "hint": "Blocked users cannot find you, contact you, or see anything about you. Unblocking restores nothing — a new request is needed.",
+        "empty": "You have not blocked anyone.",
+        "unblock": "Unblock",
+        "unknown_user": "Deleted account",
+        "blocked": "User blocked",
+        "unblocked": "User unblocked"
+      },
+      "access_log": {
+        "title": "Who read my shared data",
+        "hint": "Every time a connection's assistant reads data you share, it is recorded here.",
+        "empty": "No one has read your shared data recently."
+      },
+      "domains": {
+        "calendar": "read your calendar",
+        "task": "read your tasks"
+      },
+      "errors": {
+        "self_request": "You cannot connect to yourself.",
+        "context_too_long": "The note is too long.",
+        "already_connected": "You are already connected with this person.",
+        "not_pending": "This request has already been answered.",
+        "not_connected": "This connection no longer exists.",
+        "invalid_share_level": "This sharing level is not available for that domain.",
+        "self_block": "You cannot block yourself.",
+        "conflict": "Simultaneous change detected — please try again.",
+        "generic": "The action could not be completed. Please try again."
+      },
+      "my_name": {
+        "label": "Your name:",
+        "copy": "Copy your name",
+        "hint": "Others must search this exact name to find you.",
+        "missing": "Add your full name in your profile so people you know can find you."
+      }
+    },
     "notifications": {
       "title": "Push Notifications",
       "description": "Receive reminders even when the app is closed",
@@ -2958,6 +3058,7 @@
         "psyche": "emotions, mood, feelings, affect, emotional",
         "memories": "memory, remember, forget, facts, recollection",
         "interests": "topics, tastes, subjects, curiosity, preferences",
+        "peer-connections": "contacts, friends, family, network, share calendar, availability, block, discover users, connect, my name, copy my name, connection request, access log, relay message, blocked users",
         "heartbeat": "proactive, spontaneous, initiative, check-in, autonomous messages",
         "scheduled-actions": "cron, schedule, recurring, automation, timer, planned",
         "journals": "diary, logbook, portrait, reflections, notes",
@@ -3573,6 +3674,10 @@
         "todayBriefing": {
           "title": "🌅 Today Briefing",
           "description": "The dashboard home page is a daily briefing: personalized LLM greeting + 2-3 sentence synthesis above a 9-card grid (enriched weather, agenda, unread mails, birthdays, reminders, health, « For you » — open loops + automations digest —, pending/overdue tasks, latest Drive documents). Pure architecture: no LangGraph chain, parallel asyncio.gather, per-section Redis cache with adapted TTL (weather 1 h, agenda 10 min, mails 5 min…). Split endpoints (/briefing/cards fast + /briefing/synthesis LLM-bound) for progressive rendering. Tokens and EUR cost of each LLM call surfaced in the UI next to the timestamp and tracked in user usage statistics via track_proactive_tokens (cached tokens correctly subtracted). Seven of those nine cards render nothing until their source is configured: rather than invisible holes, a single line names them and links each one to the setting that switches it on — while the cards you hid yourself stay, rightly, out of the conversation."
+        },
+        "peers": {
+          "title": "🤝 Peer Connections",
+          "description": "Two users of the same instance connect through a <b>single canonical pair row</b> with claim-once conditional transitions (no duplicate requests, races auto-accept). Privacy is enforced by construction: blocked, unknown and cooldown targets answer a <b>byte-identical 404</b>, so existence can never be probed. Message relay is a HITL-confirmed draft delivered by the <b>recipient's own assistant</b> (personality, psychological memory profile, psyche, portrait — one LLM call, billed to the sender). Shares are field-level and read-only (calendar free/busy or details, task titles), <b>re-validated at execution time</b> and written to a retention-pruned access log. The whole domain sits behind an instance flag, exports and purges cleanly under GDPR, and exposes lifecycle + delivery metrics to Prometheus."
         }
       },
       "diagram_alt": "LIA architecture diagram"
@@ -3581,6 +3686,17 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_27_0": {
+          "title": "v1.27.0 — 🤝 Connect with people you know",
+          "date": "July 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🤝 Peer connections</b> — two users of the same LIA instance can now connect: enable discovery in Settings, share your exact name, accept or decline requests in one click from the chat or the new Connections section. Nothing is shared by default.",
+            "i2": "<b>💬 Assistant-to-assistant messages</b> — ask LIA to tell something to a connection: you confirm before anything leaves, then the recipient's own assistant delivers it in its personality and language, naming you — and your assistant confirms delivery.",
+            "i3": "<b>🗓 Chosen read-only shares</b> — per connection, you can open your calendar availability (or details) and task titles, in both directions and visible to both sides; every access is recorded in a consultable log, and you can revoke at any time.",
+            "i4": "<b>✨ Frosted-glass interface</b> — dialogs, menus, toasts and the chat header now show a real glass effect (content slides beneath the blur), and native controls (dropdowns, scrollbars) finally follow dark mode."
+          }
+        },
         "v1_26_4": {
           "title": "v1.26.4 — 📞 Your call reports, in your language",
           "date": "July 2026",
@@ -5479,6 +5595,37 @@
           }
         }
       },
+      "peers": {
+        "title": "Connections between users",
+        "description": "Connect with other users of this LIA instance, relay messages assistant-to-assistant, and open chosen read-only shares.",
+        "count": "6",
+        "questions": {
+          "q1": {
+            "question": "How do I connect with someone?",
+            "answer": "Both of you enable <strong>discovery</strong> in Settings → Connections (off by default), then one searches the other's <strong>exact full name</strong> — your own searchable name is shown in the section with a copy button. Send a request (with an optional note); the other person accepts or declines in one click, from the chat card or the settings. A masked email fragment (j…@g….com) helps tell homonyms apart. Nothing else is shared by connecting."
+          },
+          "q2": {
+            "question": "How do I send a message to a connection?",
+            "answer": "Just tell LIA: <em>tell Marie I am running late</em>. You see a <strong>confirmation card</strong> with the exact wording before anything leaves. The message is then delivered by <strong>the recipient's own assistant</strong>, in its personality and language, which names you as the sender — and your assistant confirms delivery in your chat. Replying works the same way: a reply is simply a new relayed message. The small AI cost of delivery is billed to the sender, and daily quotas prevent abuse."
+          },
+          "q3": {
+            "question": "What can I share, and what does the other person see?",
+            "answer": "Per connection, you choose <strong>read-only</strong> shares: calendar as free/busy only or with event titles, and task titles. Nothing is shared by default. Both directions are visible to both sides in the Connections section, every access is re-checked at the moment of the read, and recorded in an <strong>access log</strong> you can consult. You can change or revoke a share at any time."
+          },
+          "q4": {
+            "question": "How do I block someone, and what do they notice?",
+            "answer": "Block from the chat (under a relayed message) or from the Connections section, with a confirmation. Blocking <strong>ends the connection silently</strong>: the other person is not notified, can no longer find you in discovery, and any message they try to relay quietly goes nowhere. Unblocking does not restore anything — you would have to reconnect explicitly."
+          },
+          "q5": {
+            "question": "Can someone find me without my consent?",
+            "answer": "No. Discovery is <strong>opt-in and off by default</strong>. Search only matches your <strong>exact full name</strong> (accents and case are forgiven, but there is no partial or fuzzy search), and without a full name on your profile you are unfindable. Blocked, unknown and declined targets all receive the exact same neutral answer, so nobody can probe whether you exist, declined, or blocked them."
+          },
+          "q6": {
+            "question": "What happens when I remove a connection, or delete my account?",
+            "answer": "Removing a connection ends all shares immediately, and <strong>both</strong> assistants inform their users. Relayed message content is scrubbed after delivery — LIA does not keep a browsable message history. Your GDPR export includes your connections and shares, and deleting your account purges both sides of every pair."
+          }
+        }
+      },
       "tool_examples_services": {
         "title": "Email, Calendar & Contacts Examples",
         "description": "How to use your connected services (Google, Apple iCloud or Microsoft 365): emails, contacts, calendar, Drive and Tasks",
@@ -6384,6 +6531,14 @@
       "a11y_care": {
         "title": "The care you don’t see",
         "desc": "Motion preferences honored, contrast held, everything keyboard-reachable."
+      },
+      "peer_actions": {
+        "title": "Reply from right under the message",
+        "desc": "A message relayed by a connection arrives in its own tinted bubble — with Reply and Block one tap below. Reply prefills the composer with the right addressee; nothing ever sends itself."
+      },
+      "frosted_glass": {
+        "title": "Glass you can see through",
+        "desc": "The chat header, dialogs, menus and toasts are frosted glass — and the blur is real: your messages actually slide beneath the pane as you scroll, in light and dark alike."
       }
     },
     "scenes": {
@@ -6433,6 +6588,9 @@
       },
       "background_response": {
         "ready": "Response ready"
+      },
+      "peer_actions": {
+        "reply": "Reply"
       }
     },
     "craft": {
@@ -7540,6 +7698,10 @@
       "briefing": {
         "title": "Today briefing",
         "description": "Every morning, your day at a glance: personalized synthesis, weather, agenda, birthdays, reminders, health, unread emails, your tracked commitments, overdue tasks and freshly edited documents — before you even ask. Each card now acts, not just informs — summarize a document, draft a reply, mark a task done or reschedule right there — and states honestly how fresh it is (updated X ago, from cache, one-click retry)."
+      },
+      "peers": {
+        "title": "Your circle, assistant to assistant",
+        "description": "Connect with people you know on the same LIA instance — by exact name, opt-in only. Ask LIA to pass them a message: you approve the wording, then THEIR assistant delivers it in its own voice and confirms back to yours. Open read-only shares per person — calendar availability, task titles — every access checked and journaled, revocable anytime. Blocking is silent by design."
       }
     },
     "use_cases": {

@@ -262,7 +262,7 @@ export function SettingsSearch({ lng, availability, onSelect }: SettingsSearchPr
       </div>
 
       {showPopup && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-border bg-popover/85 backdrop-blur-md shadow-lg">
           {results.length > 0 ? (
             <ul
               id={LISTBOX_ID}

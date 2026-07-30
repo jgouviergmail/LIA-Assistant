@@ -120,6 +120,38 @@ TABLE_RULES: dict[str, TableRule] = {
     # ------------------------------------------------------------------
     "conversations": _PURGED_FULL,
     "conversation_messages": _PURGED_FULL,
+    # ------------------------------------------------------------------
+    # Peers (peer-connections program): two-sided rows — a user sits on
+    # either side, so every table is explicitly purged (users-row soft
+    # delete means FK CASCADEs from users never fire). Shares/messages
+    # also die with their connection, but are deleted explicitly first
+    # for accurate counting (conversation_messages precedent).
+    # ------------------------------------------------------------------
+    "peer_connections": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason="User-to-user connection lifecycle rows (either side) — purged on deletion.",
+    ),
+    "peer_blocks": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason="Anti-harassment blocks (either side) — purged on deletion.",
+    ),
+    "peer_domain_shares": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason="Sharing choices on connections involving the user — purged with them.",
+    ),
+    "peer_messages": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason="Relay delivery metadata (content scrubbed post-delivery) — purged on deletion.",
+    ),
+    "peer_access_log": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason="Cross-user read audit (accessor or owner side) — purged on deletion.",
+    ),
     "conversation_audit_log": TableRule(
         data_class=TableDataClass.USER_PURGED,
         export=ExportPolicy.FULL,
@@ -363,6 +395,7 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "language": _PREFERENCE,
     "personality_id": _PREFERENCE,
     "weather_use_last_known_location": _PREFERENCE,
+    "discovery_enabled": _PREFERENCE,
     "memory_enabled": _PREFERENCE,
     "health_metrics_agents_enabled": _PREFERENCE,
     "execution_mode": _PREFERENCE,

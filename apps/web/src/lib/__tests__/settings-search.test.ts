@@ -52,6 +52,7 @@ const TOKENS = Object.keys(SETTINGS_SECTIONS) as SettingsSectionToken[];
 const ALL_AVAILABLE: SettingsSearchAvailability = {
   isSuperuser: false,
   openLoopsEnabled: true,
+  peersEnabled: true,
   debugUserAccess: true,
 };
 
@@ -80,8 +81,9 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // The type already forbids a missing entry; this catches the reverse, an
     // entry left behind by a token that was removed.
     expect(Object.keys(SETTINGS_SEARCH_META).sort()).toEqual([...TOKENS].sort());
-    // 30 at ADR-172, +1 chat-shortcuts (UX Actions program, SLASH admin lot).
-    expect(TOKENS).toHaveLength(31);
+    // 30 at ADR-172, +1 chat-shortcuts (UX Actions program, SLASH admin lot),
+    // +1 peer-connections (peers program, Lot 2).
+    expect(TOKENS).toHaveLength(32);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

@@ -459,6 +459,24 @@ def _render_devops_task(
     return lines
 
 
+def _render_peer_message(
+    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
+) -> list[str]:
+    """Render a relayed-message preview (recipient, full message — peers A3).
+
+    The message is shown in full and untruncated: the recipient's assistant
+    will convey exactly this intent, so the sender must be able to read every
+    word they are approving. No datetime — delivery starts on confirmation.
+    """
+    recipient = content.get("recipient_name") or "?"
+    message = content.get("message", "")
+
+    lines = [f"<br/>**{lbl['recipient']}**: {recipient}"]
+    if message:
+        lines.append(f"<br/>**{lbl['message']}**: {message}")
+    return lines
+
+
 def _render_scheduled_action(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
 ) -> list[str]:
@@ -505,6 +523,7 @@ _PREVIEW_RENDERERS: dict[DraftType, _PreviewRenderer] = {
     DraftType.PHONE_CALL: _render_phone_call,
     DraftType.SCHEDULED_ACTION: _render_scheduled_action,
     DraftType.DEVOPS_TASK: _render_devops_task,
+    DraftType.PEER_MESSAGE: _render_peer_message,
 }
 
 

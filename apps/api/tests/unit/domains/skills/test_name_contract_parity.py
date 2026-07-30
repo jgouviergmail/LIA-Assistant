@@ -41,6 +41,10 @@ GENERATOR_EXCLUDED_AGENTS = frozenset(
         # Real paid outbound calls to real people, feature-flagged, HITL-confirmed
         # per call — generated skills must never be able to place phone calls.
         "telephony_agent",
+        # Peers program (ADR-180): interpersonal actions toward OTHER USERS
+        # (relayed messages, cross-user reads), feature-flagged, draft-confirmed
+        # per send — kept out of generated skills until deliberately designed.
+        "peer_agent",
     }
 )
 

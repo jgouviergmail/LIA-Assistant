@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 3.6
-**Date**: 2026-07-29
-**Application**: LIA v1.26.4
+**Date**: 2026-07-30
+**Application**: LIA v1.27.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -153,7 +153,7 @@ apps/api/src/
 │   │   ├── registry/             # AgentRegistry, domain_taxonomy, catalogue
 │   │   ├── semantic/             # Semantic router, expansion service
 │   │   ├── middleware/           # Memory injection, personality injection
-│   │   ├── prompts/v1/           # 78 versioned .txt prompt files
+│   │   ├── prompts/v1/           # 86 versioned .txt prompt files
 │   │   ├── graphs/               # 15 agent builders (one per domain)
 │   │   ├── context/              # Context store (Data Registry), decorators
 │   │   └── models.py             # MessagesState (TypedDict + custom reducer)
@@ -167,6 +167,7 @@ apps/api/src/
 │   ├── voice/                    # TTS Factory, STT Sherpa, Wake Word
 │   ├── skills/                   # agentskills.io standard
 │   ├── sub_agents/               # Persistent specialized agents
+│   ├── peers/                    # User-to-user connections (assistant-to-assistant relay)
 │   ├── usage_limits/             # Per-user quotas (5-layer defence)
 │   └── ...                       # conversations, reminders, scheduled_actions, users, user_mcp
 │
@@ -967,7 +968,7 @@ All tools return `ToolResponse` (success) or `ToolErrorModel` (failure) with a `
 
 ### 23.4. Prompt System
 
-78 versioned `.txt` files in `src/domains/agents/prompts/v1/`, loaded via `load_prompt()` with LRU cache (32 entries). Versions configurable via environment variables.
+86 versioned `.txt` files in `src/domains/agents/prompts/v1/`, loaded via `load_prompt()` with LRU cache (32 entries). Versions configurable via environment variables.
 
 ### 23.5. Centralized Component Activation (ADR-061)
 
@@ -1191,4 +1192,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 170+ ADRs, and the changelog (v1.0 to v1.26.4). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 170+ ADRs, and the changelog (v1.0 to v1.27.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

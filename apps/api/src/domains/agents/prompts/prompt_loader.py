@@ -115,6 +115,7 @@ PromptName = Literal[
     # Heartbeat autonome (proactive notifications)
     "heartbeat_decision_prompt",
     "heartbeat_message_prompt",
+    "peer_message_delivery_prompt",
     # MCP domain description generation
     "mcp_description_prompt",
     # Admin broadcast translation

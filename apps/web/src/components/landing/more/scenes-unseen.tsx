@@ -192,9 +192,60 @@ function A11yCareScene({ active }: SceneProps) {
   );
 }
 
+type GlassPhase = 'top' | 'scrolled' | 'deep';
+const GLASS_STEPS: readonly TimelineStep<GlassPhase>[] = [
+  { at: 0, state: 'top' },
+  { at: 1200, state: 'scrolled' },
+  { at: 2400, state: 'deep' },
+];
+
+const GLASS_SCROLL: Readonly<Record<GlassPhase, string>> = {
+  top: 'translate-y-0',
+  scrolled: '-translate-y-4',
+  deep: '-translate-y-9',
+};
+
+/**
+ * The frosted-glass signature: skeleton content scrolls and genuinely slides
+ * BENEATH a translucent blurred header band — the blur is real, not painted.
+ */
+function FrostedGlassScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(GLASS_STEPS, { active });
+  return (
+    <div className={cn(STAGE, 'justify-start overflow-hidden p-0')}>
+      <div
+        className={cn(
+          'flex flex-col gap-2 px-5 pt-10 transition-transform duration-700 ease-out',
+          GLASS_SCROLL[phase]
+        )}
+      >
+        <MiniBubble side="assistant" className="w-3/4 space-y-1.5">
+          <SkeletonLine w="w-full" />
+          <SkeletonLine w="w-1/2" />
+        </MiniBubble>
+        <MiniBubble side="user" className="w-1/2 space-y-1.5 self-end">
+          <SkeletonLine w="w-full" />
+        </MiniBubble>
+        <MiniBubble side="assistant" className="w-2/3 space-y-1.5">
+          <SkeletonLine w="w-full" />
+          <SkeletonLine w="w-2/3" />
+        </MiniBubble>
+      </div>
+      <div className="absolute inset-x-0 top-0 flex h-8 items-center gap-2 border-b border-border/40 bg-card/60 px-4 backdrop-blur-md">
+        <SkeletonLine w="w-12" className="h-1.5" />
+        <span className="ml-auto flex gap-1.5">
+          <SkeletonLine w="w-5" className="h-1.5" />
+          <SkeletonLine w="w-5" className="h-1.5" />
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   background_response: BackgroundResponseScene,
   widgets_travel: WidgetsTravelScene,
   cost_transparency: CostTransparencyScene,
   a11y_care: A11yCareScene,
+  frosted_glass: FrostedGlassScene,
 };
