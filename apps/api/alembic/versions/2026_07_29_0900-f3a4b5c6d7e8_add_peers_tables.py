@@ -204,7 +204,7 @@ def upgrade() -> None:
             sa.String(length=20),
             nullable=False,
             server_default="pending",
-            comment="pending | delivered | failed | cancelled (PeerMessageStatus).",
+            comment="pending | delivering | delivered | failed | cancelled (PeerMessageStatus).",
         ),
         sa.Column(
             "attempts",
