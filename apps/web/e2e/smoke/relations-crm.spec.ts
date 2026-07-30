@@ -62,16 +62,42 @@ const DETAIL = {
   is_peer: false,
 };
 
-const ROUTES: MockRoute[] = [
-  { url: '**/api/v1/relations', method: 'GET', json: OVERVIEW },
-  { url: '**/api/v1/relations/favorites/*', method: 'PUT', status: 204 },
-  { url: '**/api/v1/relations/*', method: 'GET', json: DETAIL },
-];
+/** Truthful favorites server: the PUT flips the state the GET then serves —
+ * required because the hook RECONCILES the optimistic star against the fresh
+ * overview (a static `is_favorite: false` mock would un-star the card as soon
+ * as the refetch lands, which is exactly what CI caught). */
+function buildRoutes() {
+  const state = { starred: new Set<string>() };
+  const overview = () => ({
+    relations: OVERVIEW.relations.map(relation => ({
+      ...relation,
+      is_favorite: state.starred.has(relation.display_name),
+    })),
+  });
+  const routes: MockRoute[] = [
+    {
+      url: '**/api/v1/relations',
+      method: 'GET',
+      handler: route => route.fulfill({ json: overview() }),
+    },
+    {
+      url: '**/api/v1/relations/favorites/*',
+      method: 'PUT',
+      handler: route => {
+        const name = decodeURIComponent(route.request().url().split('/').pop() ?? '');
+        state.starred.add(name);
+        return route.fulfill({ status: 204, body: '' });
+      },
+    },
+    { url: '**/api/v1/relations/*', method: 'GET', json: DETAIL },
+  ];
+  return routes;
+}
 
 test.describe('relations CRM (N-09)', () => {
   test('is reached from the navigation bar', async ({ page, authenticate, mockApi }) => {
     await authenticate({ language: 'fr' });
-    await mockApi(ROUTES);
+    await mockApi(buildRoutes());
     await page.goto('/fr/dashboard');
 
     // Relations holds a first-class nav slot since 2026-07-30 (default-locale
@@ -89,7 +115,7 @@ test.describe('relations CRM (N-09)', () => {
     mockApi,
   }) => {
     await authenticate({ language: 'fr' });
-    await mockApi(ROUTES);
+    await mockApi(buildRoutes());
     await page.goto('/fr/dashboard/relations');
     await expect(page.getByText(NAME)).toBeVisible({ timeout: 30_000 });
 
@@ -111,7 +137,7 @@ test.describe('relations CRM (N-09)', () => {
     mockApi,
   }) => {
     await authenticate({ language: 'fr' });
-    await mockApi(ROUTES);
+    await mockApi(buildRoutes());
     await page.goto('/fr/dashboard/relations');
 
     // Overview: both people appear.
