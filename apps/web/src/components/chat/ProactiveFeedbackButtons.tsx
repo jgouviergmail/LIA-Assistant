@@ -42,6 +42,13 @@ import { toast } from 'sonner';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useApiMutation } from '@/hooks/useApiMutation';
 
+/* A failed submission never surfaces an error toast (owner arbitration
+ * 2026-07-30): the vote is optimistic and final in the UI, and older
+ * notifications may legitimately have no matching backend row anymore (404) —
+ * shouting at the user about a preference ping is worse than dropping it.
+ * `useApiMutation` still records every failure via its structured client
+ * logger, so the signal is kept, just not shown. */
+
 export type ProactiveFeedbackKind = 'interest' | 'heartbeat';
 export type ProactiveFeedbackVerdict = 'thumbs_up' | 'thumbs_down' | 'block';
 
@@ -126,7 +133,6 @@ export function ProactiveFeedbackButtons({
   const { mutate } = useApiMutation<{ feedback: ProactiveFeedbackVerdict; run_id?: string }, void>({
     method: contract.method,
     componentName: 'ProactiveFeedbackButtons',
-    onError: () => toast.error(t(`${contract.ns}.error`)),
   });
 
   const handleFeedback = useCallback(
@@ -134,8 +140,8 @@ export function ProactiveFeedbackButtons({
       if (isSubmitting || submittedVerdict) return;
       setIsSubmitting(true);
 
-      // Optimistic: the parent locks the row on this verdict immediately, so a
-      // failed request surfaces its own error toast without reopening the vote;
+      // Optimistic: the parent locks the row on this verdict immediately; a
+      // failed request is logged but never toasted (see the note above);
       // `isSubmitting` only guards the double click before that lock lands.
       onFeedbackSubmitted(verdict);
       const { toastKey, toastKind } = VERDICT_UI[verdict];
@@ -147,7 +153,7 @@ export function ProactiveFeedbackButtons({
           ...(kind === 'interest' && runId ? { run_id: runId } : {}),
         });
       } catch {
-        // Handled by onError.
+        // Already logged by useApiMutation; deliberately not surfaced.
       }
     },
     [

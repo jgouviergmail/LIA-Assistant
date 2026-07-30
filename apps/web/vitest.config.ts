@@ -68,10 +68,20 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
-        // Global floor — re-measured 2026-07-30 (peers Lot 7: chat quick
+        // Global floor — re-measured 2026-07-30 (LIA Cosmos swap: `/` and the
+        // whole public space carry the identity, preview routes deleted, page
+        // tests migrated to the real routes + app adjustments wave):
+        // statements 69.25 / branches 62.75 / functions 64.43 / lines 69.86.
+        // Raised 66/60/61/67 -> 67/60/62/67 (floor(measured - 2); branches
+        // and lines hold — no integer step admits the 2-point margin there).
+        // Previous re-measure 2026-07-30 (LIA Cosmos Lot A: cosmic
+        // primitives, planetarium, pinned day, count-up, preview pages):
+        // statements 68.58 / branches 62.38 / functions 63.65 / lines 69.17.
+        // Raised 65/60/60/66 -> 66/60/61/67 (floor(measured - 2); branches
+        // hold — no integer step admits the 2-point margin there yet).
+        // Previous re-measure 2026-07-30 (peers Lot 7: chat quick
         // actions, tinted bubbles, own-name block, discovery status badge):
         // statements 67.94 / branches 62.07 / functions 62.90 / lines 68.51.
-        // No integer step admits the 2-point margin — floors hold at 65/60/60/66.
         // Previous re-measure 2026-07-29 late (339 files / 4,201 tests,
         // peers program Lot 2: hook + 7 section components at 98.7/86.9/100/100):
         // statements 67.85 / branches 62.01 / functions 62.79 / lines 68.42.
@@ -101,10 +111,10 @@ export default defineConfig({
         // other lanes: App Router pages (hermetic E2E) and the WASM/Web-Audio
         // modules `sherpaKws` / `audio-queue`, which jsdom cannot simulate
         // without the test degenerating into a test of its own mocks.
-        statements: 65,
+        statements: 67,
         branches: 60,
-        functions: 60,
-        lines: 66,
+        functions: 62,
+        lines: 67,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {
           statements: 100,

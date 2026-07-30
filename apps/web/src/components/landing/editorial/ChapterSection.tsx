@@ -17,6 +17,7 @@ export function ChapterSection({
   reverse,
   visual,
   catalogExtra,
+  ghost,
 }: {
   t: Translate;
   chapter: ChapterConfig;
@@ -25,6 +26,8 @@ export function ChapterSection({
   visual: React.ReactNode;
   /** Extra catalog content (e.g. the detailed security blocks under c4). */
   catalogExtra?: React.ReactNode;
+  /** Cosmos-only decorative background node (GhostWord); absent on `/`. */
+  ghost?: React.ReactNode;
 }) {
   const k = (suffix: string) => t(`landing.chapters.${chapter.key}.${suffix}`);
   const benefitIndexes = Array.from({ length: chapter.benefits }, (_, i) => i + 1);
@@ -38,6 +41,7 @@ export function ChapterSection({
         chapter.tinted && 'border-y border-border/60 bg-card'
       )}
     >
+      {ghost}
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         {/* min-w-0 on both grid items: a chip row's or truncated pill's
             intrinsic width must never widen the track past the viewport */}

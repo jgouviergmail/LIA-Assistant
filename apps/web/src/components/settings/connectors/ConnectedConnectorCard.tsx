@@ -57,13 +57,20 @@ export function ConnectedConnectorCard({
 
   return (
     <div className="p-4 bg-muted/50 rounded-lg border">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <ConnectorIcon connectorType={connector.connector_type} />
-          <div>
-            <div className="font-medium">{getConnectorLabel(connector.connector_type)}</div>
+      <div className="flex items-center justify-between gap-2">
+        {/* min-w-0 keeps long labels wrapping inside the row on narrow phones
+            (flex min-width:auto otherwise inflates the track past the
+            viewport — the recurring mobile-overflow mechanism). */}
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="shrink-0">
+            <ConnectorIcon connectorType={connector.connector_type} />
+          </span>
+          <div className="min-w-0">
+            <div className="font-medium break-words">
+              {getConnectorLabel(connector.connector_type)}
+            </div>
             <div className="text-xs text-muted-foreground flex items-center gap-1">
-              <Clock className="h-3 w-3" />
+              <Clock className="h-3 w-3 shrink-0" />
               {formatDate(connector.created_at, lng, { dateStyle: 'short' })}
             </div>
           </div>
@@ -73,7 +80,7 @@ export function ConnectedConnectorCard({
           size="icon"
           onClick={() => onDisconnect(connector.id)}
           disabled={deleteLoading}
-          className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+          className="shrink-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
           title={t('settings.connectors.google.disconnect')}
         >
           {deleteLoading ? <LoadingSpinner size="default" /> : <Unplug className="h-4 w-4" />}

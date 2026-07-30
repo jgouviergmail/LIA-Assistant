@@ -82,6 +82,14 @@ describe('useTelephonyCalls', () => {
     expect(get).toHaveBeenCalledWith('/telephony/calls');
   });
 
+  it('asks the server for exactly the requested window when a limit is given', async () => {
+    get.mockResolvedValue([call()]);
+    const { result } = renderHook(() => useTelephonyCalls(true, 10));
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(get).toHaveBeenCalledWith('/telephony/calls?limit=10');
+  });
+
   it('does not poll an idle account', async () => {
     // The whole point: a finished list is static. Re-reading it forever would
     // be noise on every session of every user.

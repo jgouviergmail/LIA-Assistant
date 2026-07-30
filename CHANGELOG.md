@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.27.2] - 2026-07-30
+
+**L'espace public prend son identité — et répond au défilement, du héros à l'horizon.** Toute la vitrine (landing, Encore +, démo, Story, Philosophie, Technique, FAQ, blog, mentions) porte désormais l'identité **LIA Cosmos** (ADR-181) : fond cosmique, planétarium des fonctionnalités en orbite autour de la vraie démo, mots-repères géants qui dérivent derrière les chapitres, et **neuf chorégraphies distinctes pilotées par le scroll** — les preuves surgissent une à une, les cas d'usage se retournent en 3D, la journée s'épingle, l'architecture s'exécute comme une trace. Sombre par défaut (le thème clair reste à un clic, et a reçu sa propre passe de qualité), **tutoiement** sur toutes les surfaces publiques en français, allemand et espagnol, et **zéro dépendance d'animation ajoutée**. Côté application : six ajustements demandés (carte « Pour toi », pouce sur notification proactive, connecteurs en écran étroit, passkeys, appels récents, import de skills) et un défaut de mise en page corrigé **à la racine du composant accordéon partagé**, donc dans toute l'application. Frontend **4 250** tests.
+
+### Added
+
+- **Identité LIA Cosmos sur tout l'espace public** (ADR-181) — re-skin par scope CSS : la classe `.cosmos` redéfinit les jetons du design system, les sections réelles se rhabillent **sans une seule édition de composant de contenu** ; sous-scope `cosmos-calm` (fond atténué, cartes opaques, aucune chorégraphie) pour les sept pages de lecture. Primitives maison dans `components/landing/cosmic/` : `CosmicBackdrop`, `Planetarium` (8 fonctionnalités sur 3 ellipses), `GhostWord`, `PinnedScene`, `ScrollScrub`, `BlurReveal`, `GlowCard`, `TrustStat`, `useCosmosScroll`, `useCountUp` — **aucune dépendance nouvelle**.
+- **Neuf chorégraphies pilotées par le scroll, réversibles** — une idée produit par animation : entrée orchestrée du héros, dérive des mots-repères, surgissement un-par-un des preuves, retournement 3D des cas d'usage, élévation de la galerie avec souligné qui se trace, apparition séquentielle du socle technique, « l'architecture s'exécute » (flux puis étapes des deux modes), journée épinglée qui avance avec le défilement, planète finale aux nuages vivants. Les scènes des six chapitres réutilisent **leurs propres délais d'origine** convertis en fenêtres de défilement : l'ordre de chaque scène est préservé, le scroll joue la partition dans les deux sens.
+- **Sombre par défaut sur les surfaces publiques** — `CosmosDarkFirst` pose le thème avant le premier rendu quand aucune préférence n'est stockée ; le sélecteur de thème garde toujours le dernier mot et sa préférence est persistée.
+- **Tutoiement des surfaces publiques en fr, de et es** — ~1 150 chaînes converties (l'italien l'était déjà, le chinois n'a pas la distinction) ; l'interlocuteur d'un exemple d'appel téléphonique reste vouvoyé — ce n'est pas l'utilisateur.
+- **Gardes navigateur durables** — `landing-day-pin.spec.ts` mesure l'épinglage **pendant** un vrai défilement (doctrine ADR-171) ; `settings-connectors-overflow.spec.ts` verrouille « Mes connecteurs » à 320/360/390 px avec une charge réaliste ; le balayage axe couvre désormais la landing entière parcourue, dans les deux thèmes.
+
+### Changed
+
+- **Contraste des contrôles primaires, divergent par thème** — le bleu vif sous texte blanc mesurait 3,2:1 (sous le seuil AA de 4,5:1) : en thème sombre les boutons gardent le bleu vif avec un texte encre (≈5,5:1), en thème clair ils passent au bleu profond `#2c56c4` sous blanc (≈6,5:1), qui sert aussi de couleur de texte sur les pastilles teintées (≥4,9:1).
+- **Carte « Pour toi » : seules les exécutions à venir sont affichées** — les exécutions passées restent dans la charge utile de l'API mais quittent la carte, qui répond désormais à « qu'est-ce qui va se passer ? ».
+- **« Appels récents » se limite aux dix derniers** — la fenêtre est demandée au serveur (`?limit=10`), jamais tronquée côté client.
+- **Boutons d'import de skills détachés** — Guide, Depuis une URL et Importer passent sous une ligne de séparation dédiée.
+- **Planchers de couverture frontend relevés** — 66/60/61/67 → **67/60/62/67** (mesuré 69,3/62,8/64,5/69,9), doctrine du cliquet : ils ne redescendent jamais.
+
+### Fixed
+
+- **Débordement horizontal des accordéons sur écran étroit** — la ligne « Connecteurs Google connectés (5) [Connecté] » sortait de l'écran : le composant partagé `AccordionTrigger` était un élément `flex-1` **sans `min-w-0`**, donc incapable de rétrécir sous la largeur intrinsèque de sa rangée (le `truncate` intérieur ne peut rien y faire — le plancher vit sur l'élément flex lui-même). Corrigé dans le primitif : **tous les accordéons de l'application en bénéficient**, avec un garde navigateur à 320/360/390 px.
+- **Un pouce sur une notification proactive n'affiche plus d'erreur** — le vote est optimiste et définitif côté interface ; un échec d'enregistrement est journalisé mais ne dérange plus l'utilisateur (une notification ancienne peut légitimement n'avoir plus de ligne côté serveur).
+- **« Authentification forte » en vue mobile** — le bouton « Ajouter une passkey » passe **sous** le texte au lieu de le comprimer.
+- **Cartes de connecteurs en écran étroit** — libellés et descriptions se replient dans la carte (`min-w-0`, `break-words`), icônes et boutons ne rétrécissent plus.
+- **Badge BÊTA illisible en thème sombre** — la pastille rouge opaque du badge donnait 3,48:1 avec son texte : teinte de texte éclaircie (≈5,3:1).
+
+### Removed
+
+- **Routes de prévisualisation `/cosmos/*`** et leurs outils (sélecteur de previews, coquille de lecture) — la bascule remplace, il ne reste pas de code mort ; `HeroSection`, `CtaSection` et un baril d'exports inutilisé disparaissent avec elles.
+- **Lune de la planète finale** — l'horizon garde la sphère et ses nuages.
+
+### Tests
+
+- Frontend **4 250** (+79) : primitives cosmiques (défilement, épinglage, dérive, planétarium, compteurs, synchronisation des délais de scène), composition de la landing et contrat de production restauré (redirection authentifiée, mesure produit, données structurées SEO), scope calme des sept pages de lecture, exécutions à venir seules, échec silencieux du vote proactif, fenêtre des appels récents.
+- E2e : épinglage mesuré pendant le défilement, débordement des connecteurs à trois largeurs, balayage axe AA de la landing parcourue dans les deux thèmes (8 scans publics verts).
+
 ## [1.27.1] - 2026-07-30
 
 **Les relations gagnent leur place — dans la barre de navigation, et dans le cœur.** La page Relations, jusqu'ici sans porte d'entrée, prend le créneau de navigation de « Connaissances » (qui reste à un clic dans le chat : son indicateur s'affiche désormais **toujours**, même sans aucun espace) et reçoit la refonte qu'elle méritait : avatars à initiales à teinte stable, pastilles de signaux colorées, **favoris persistés** (l'étoile résiste à l'expiration des signaux, en tête de liste avant le cap), bandes « Favoris / Autres » distinctes, filtre par nom, badge 🤝 pour les proches également connectés sur LIA, et une fiche 360° en cartes sectionnées. Les connexions entre utilisateurs gagnent leur **chapitre 06** sur la landing (« LIA vous relie à vos proches », scène animée du relais), la recherche des réglages apprend leurs synonymes naturels, et les cartes « Comment fonctionne LIA » cessent d'afficher leurs balises HTML littérales (14 cartes touchées). Backend **14 950** tests, frontend **4 171**.

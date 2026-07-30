@@ -3495,7 +3495,7 @@
         },
         "semanticValidation": {
           "title": "✅ Validazione Semantica dei Piani",
-          "description": "Rilevamento LLM di 15 tipi di anomalie prima dell'esecuzione: HALLUCINATED_CAPABILITY, GHOST_DEPENDENCY, CARDINALITY_MISMATCH, SCOPE_OVERFLOW, DANGEROUS_AMBIGUITY, FOR_EACH_INVALID, ecc. Analisi di criticità (LOW/MEDIUM/HIGH) basata sulla reversibilità. Integrazione Pattern Learning bayesiano (bypass >90% confidenza). P95 < 2s con cortocircuito per piani banali."
+          "description": "Rilevamento LLM di 15 tipi di anomalie prima dell'esecuzione: capacità allucinata, dipendenza fantasma, ciclo logico, incoerenza di cardinalità, sconfinamento di perimetro, ambiguità pericolosa, piano incompleto, strumento mancante, parametri errati, vincolo impossibile, paradosso temporale, costo eccessivo, riferimento ambiguo, conflitto tra passaggi e problemi di FOR_EACH. Analisi di criticità (LOW/MEDIUM/HIGH) in base alla reversibilità dell'azione. Integrazione del Pattern Learning bayesiano (bypass oltre il 90% di confidenza). P95 < 2s con corto circuito per i piani banali."
         },
         "semantic": {
           "title": "🎯 Validazione & Pivot Semantico",
@@ -3535,7 +3535,7 @@
         },
         "llm": {
           "title": "🤖 Multi-Provider LLM & Pattern Learning",
-          "description": "Supporto OpenAI (GPT-5.4, o3), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity e Ollama locale (7 provider). Apprendimento bayesiano dei pattern di pianificazione (≥90% confidenza → bypass LLM). Risparmio medio dell'89% dei token. Profili configurabili per attività con tracciamento costi in tempo reale."
+          "description": "Supporto per 7 fornitori: OpenAI (GPT-5.4, o3), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity e Ollama locale. Apprendimento bayesiano dei pattern di pianificazione (≥90% di confidenza → bypass dell'LLM). Risparmio medio dell'89% dei token. Profili configurabili per attività con monitoraggio dei costi in tempo reale. Ogni famiglia di modelli passa dal proprio adattatore: budget di ragionamento, conteggio dei token e formato degli output strutturati vengono tradotti per fornitore, mai indovinati. Un output strutturato segue un unico percorso in tutto il codice, protetto da analisi statica, e una soglia minima di budget rifiuta all'avvio ogni configurazione in cui il ragionamento mangerebbe la risposta."
         },
         "security": {
           "title": "🔐 Sicurezza Multi-Livello",
@@ -3696,6 +3696,18 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_27_2": {
+          "title": "v1.27.2 — 🌌 Il sito pubblico trova la sua identità",
+          "date": "Luglio 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🌌 Una nuova identità visiva</b> — la home e tutte le pagine pubbliche (Altro, demo, Story, Filosofia, Tecnica, FAQ, blog) passano al tema cosmico: sfondo stellato, un planetario di funzioni in orbita attorno alla demo, e animazioni che si svolgono al ritmo del tuo scorrimento.",
+            "i2": "<b>🌓 Scuro per impostazione predefinita</b> — le pagine pubbliche si aprono in scuro se non hai mai scelto un tema; il tuo pulsante del tema ha sempre l’ultima parola, e la tua scelta viene ricordata.",
+            "i3": "<b>✅ Migliore leggibilità</b> — pulsanti, badge e pastiglie tornano sopra la soglia di contrasto consigliata, sia in chiaro sia in scuro.",
+            "i4": "<b>🗓️ Scheda «Per te» più utile</b> — ora mostra solo la prossima automazione in arrivo, niente più cronologia. E un pollice su o giù su una notifica proattiva non fa più comparire un messaggio di errore.",
+            "i5": "<b>📱 Impostazioni su schermi stretti</b> — le righe di «I miei connettori» non escono più dallo schermo, il pulsante «Aggiungi una passkey» passa sotto il suo testo, «Chiamate recenti» si ferma alle ultime dieci, e i pulsanti di importazione delle skill hanno una linea di separazione dedicata."
+          }
+        },
         "v1_27_1": {
           "title": "v1.27.1 — ⭐ Le tue relazioni, in primo piano",
           "date": "Luglio 2026",
@@ -6584,6 +6596,10 @@
         "title": "Un vetro, per davvero",
         "desc": "L'intestazione della chat, i dialoghi, i menu e le notifiche sono in vetro smerigliato — e la sfocatura è reale: i tuoi messaggi scorrono davvero sotto il vetro mentre scorri, in chiaro come in scuro."
       },
+      "narrow_screens": {
+        "title": "Uno schermo stretto non è un incidente",
+        "desc": "Impostazioni, connettori ed elenchi tengono anche sugli schermi più stretti — niente straborda, niente viene tagliato al bordo. Test del browser lo verificano a ogni rilascio, in tutte le lingue."
+      },
       "relation_star": {
         "title": "Una stella che non dimentica",
         "desc": "Metti una stella a una relazione direttamente sulla sua scheda — senza aprirla. I preferiti mantengono la loro fascia in alto, e una persona con la stella resta visibile anche dopo mesi di silenzio."
@@ -8094,6 +8110,30 @@
     },
     "rail": {
       "aria": "Navigazione capitoli"
+    },
+    "cosmos": {
+      "ghost": {
+        "act": "AGISCE",
+        "know": "CONOSCE",
+        "anticipate": "NOTA",
+        "control": "CONTROLLO",
+        "grow": "CRESCE",
+        "connect": "COLLEGA",
+        "day": "GIORNATA",
+        "transparency": "PROVE",
+        "cta": "AVANTI"
+      },
+      "planet": {
+        "maison": "Casa",
+        "emails": "Email",
+        "agenda": "Agenda",
+        "memoire": "Memoria",
+        "voix": "Voce e chiamate",
+        "veille": "Interessi",
+        "skills": "Skill",
+        "briefing": "Briefing"
+      },
+      "day_hint": "Continua a scorrere: la giornata avanza con te."
     }
   },
   "public_footer": {

@@ -9,6 +9,9 @@ import { BreadcrumbJsonLd, BlogListJsonLd } from '@/components/seo/JsonLd';
 import { LandingHeader } from '@/components/landing/LandingHeader';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { PublicFooter } from '@/components/layout/PublicFooter';
+import { CosmicBackdrop } from '@/components/landing/cosmic/CosmicBackdrop';
+import { CosmosDarkFirst } from '@/components/landing/cosmic/CosmosDarkFirst';
+import { CosmosThemeDefault } from '@/components/landing/cosmic/CosmosThemeDefault';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
 
@@ -88,7 +91,10 @@ export default async function BlogPage({ params }: BlogPageProps) {
           excerpt: t(`blog.articles.${a.slug}.excerpt`),
         }))}
       />
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      <div className="landing-page cosmos cosmos-calm min-h-screen">
+        <CosmosDarkFirst />
+        <CosmicBackdrop />
+        <CosmosThemeDefault />
         {/* Header — same as landing page (fixed top, transparent until scroll) */}
         <LandingHeader lng={lng} />
 

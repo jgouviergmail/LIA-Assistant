@@ -1,8 +1,9 @@
 /**
  * Scenes of section 06 — "Unseen but felt": background response continuity,
  * widgets that travel across devices, per-response cost transparency, and
- * the accessibility care (focus ring travelling on Tab). Timer-driven
- * micro-demos; last phase = resting frame.
+ * the accessibility care (focus ring travelling on Tab), and the reflow that
+ * keeps a narrow screen readable. Timer-driven micro-demos; last phase =
+ * resting frame.
  */
 
 'use client';
@@ -242,10 +243,63 @@ function FrostedGlassScene({ active }: SceneProps) {
   );
 }
 
+type NarrowPhase = 'wide' | 'shrinking' | 'narrow';
+const NARROW_STEPS: readonly TimelineStep<NarrowPhase>[] = [
+  { at: 0, state: 'wide' },
+  { at: 1400, state: 'shrinking' },
+  { at: 2200, state: 'narrow' },
+];
+
+const NARROW_WIDTH: Readonly<Record<NarrowPhase, string>> = {
+  wide: 'w-full',
+  shrinking: 'w-2/3',
+  narrow: 'w-1/2',
+};
+
+/**
+ * The narrow-screen promise: as the frame shrinks, a settings row REFLOWS —
+ * the label wraps and the action drops beneath it — instead of running past
+ * the edge. Resting frame = the narrow layout, which is the point.
+ */
+function NarrowScreensScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(NARROW_STEPS, { active });
+  const narrow = phase === 'narrow';
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div
+        className={cn(
+          'rounded-lg border border-border/60 bg-card/70 p-2 transition-all duration-700 ease-out',
+          NARROW_WIDTH[phase]
+        )}
+      >
+        <div className={cn('flex gap-2', narrow ? 'flex-col items-start' : 'items-center')}>
+          <div className="min-w-0 flex-1 space-y-1">
+            <SkeletonLine w="w-full" className="h-1.5" />
+            <SkeletonLine w={narrow ? 'w-4/5' : 'w-1/2'} className="h-1.5" />
+          </div>
+          <span
+            className={cn(
+              'shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[9px] font-medium text-primary transition-all duration-500',
+              narrow && 'self-start'
+            )}
+          >
+            <SkeletonLine w="w-6" className="h-1 bg-primary/40" />
+          </span>
+        </div>
+      </div>
+      <span className="mt-2 flex items-center gap-1 text-[9px] text-muted-foreground">
+        <Check className="h-2.5 w-2.5 text-emerald-500" aria-hidden="true" />
+        <SkeletonLine w="w-10" className="h-1" />
+      </span>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   background_response: BackgroundResponseScene,
   widgets_travel: WidgetsTravelScene,
   cost_transparency: CostTransparencyScene,
   a11y_care: A11yCareScene,
   frosted_glass: FrostedGlassScene,
+  narrow_screens: NarrowScreensScene,
 };

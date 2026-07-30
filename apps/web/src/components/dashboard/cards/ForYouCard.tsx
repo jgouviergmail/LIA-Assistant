@@ -19,9 +19,11 @@ interface ForYouCardProps {
  * « For you » card (P15, interdomain program Lot 4).
  *
  * Aggregates the commitments ledger (open loops, ADR-139) and the
- * automations digest (ADR-140): what ran in the last 24 h and what runs
- * next. Loop rows deep-link to the chat prefilled with a direction-aware
- * intent (QW-9 `?draft=` mechanism) — nothing is auto-sent.
+ * automations digest (ADR-140). Only the UPCOMING execution is shown — past
+ * runs are deliberately not displayed (owner arbitration 2026-07-30); the
+ * API payload still carries them unchanged. Loop rows deep-link to the chat
+ * prefilled with a direction-aware intent (QW-9 `?draft=` mechanism) —
+ * nothing is auto-sent.
  */
 export function ForYouCard({ section, isRefreshing, onRefresh, staggerIndex }: ForYouCardProps) {
   const router = useRouter();
@@ -97,31 +99,21 @@ function ForYouContent({
           </ul>
         </div>
       )}
-      {(data.recent_automations.length > 0 || data.next_automation) && (
+      {data.next_automation && (
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
             {t('dashboard.briefing.cards.for_you.automations_title')}
           </p>
           <ul className="space-y-0.5 text-sm" role="list">
-            {data.recent_automations.map(auto => (
-              <li key={auto.id} className="flex items-baseline justify-between gap-2">
-                <span className="text-foreground/90 truncate">{auto.title}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {t('dashboard.briefing.cards.for_you.ran_recently')}
-                </span>
-              </li>
-            ))}
-            {data.next_automation && (
-              <li className="flex items-baseline justify-between gap-2">
-                <span className="text-foreground/90 truncate">{data.next_automation.title}</span>
-                <span className="shrink-0 text-xs font-semibold text-fuchsia-600 dark:text-fuchsia-300 tabular-nums">
-                  {/* Precise backend-formatted execution time; label fallback
-                      keeps older cached payloads rendering. */}
-                  {data.next_automation.next_trigger_local ??
-                    t('dashboard.briefing.cards.for_you.next_up')}
-                </span>
-              </li>
-            )}
+            <li className="flex items-baseline justify-between gap-2">
+              <span className="text-foreground/90 truncate">{data.next_automation.title}</span>
+              <span className="shrink-0 text-xs font-semibold text-fuchsia-600 dark:text-fuchsia-300 tabular-nums">
+                {/* Precise backend-formatted execution time; label fallback
+                    keeps older cached payloads rendering. */}
+                {data.next_automation.next_trigger_local ??
+                  t('dashboard.briefing.cards.for_you.next_up')}
+              </span>
+            </li>
           </ul>
         </div>
       )}

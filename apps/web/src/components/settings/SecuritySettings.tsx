@@ -142,7 +142,9 @@ export function SecuritySettings({ collapsible = true }: { collapsible?: boolean
 
   const content = (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-3">
+      {/* Stacked on phones (the button drops UNDER the text), side by side
+          from sm up — the row layout squeezed the description on 390px. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <h4 className="text-sm font-semibold flex items-center gap-2">
             <KeyRound className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -154,7 +156,7 @@ export function SecuritySettings({ collapsible = true }: { collapsible?: boolean
         </div>
         <Button
           size="sm"
-          className="gap-1.5 shrink-0"
+          className="gap-1.5 self-start sm:shrink-0"
           onClick={() => setAddOpen(true)}
           disabled={!browserSupported}
         >

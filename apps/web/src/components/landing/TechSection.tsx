@@ -116,8 +116,11 @@ export async function TechSection({ lng }: TechSectionProps) {
                 ['providers', `${LANDING_STATS.providers}`],
                 ['voice_languages', `${LANDING_STATS.voiceLanguages}+`],
                 ['tests', `${formatNumber(LANDING_STATS.tests, lng as Language)}+`],
-                ['adrs', `${LANDING_STATS.adrs}+`],
-                ['releases', `${LANDING_STATS.releases}+`],
+                // Exact counts (ADR files, CHANGELOG entries): no "+" — it would
+                // claim one more than the repository actually holds. `tests` keeps
+                // its "+" because that value is rounded DOWN by contract.
+                ['adrs', `${LANDING_STATS.adrs}`],
+                ['releases', `${LANDING_STATS.releases}`],
               ] as const
             ).map(([key, value]) => (
               <li

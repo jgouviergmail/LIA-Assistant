@@ -15,7 +15,14 @@ import { AUDIT_REPORT_URL } from '../constants';
 
 const GITHUB_REPO_URL = 'https://github.com/jgouviergmail/LIA-Assistant';
 
-export async function TransparencySection({ lng }: { lng: string }) {
+export async function TransparencySection({
+  lng,
+  ghost,
+}: {
+  lng: string;
+  /** Cosmos-only decorative background node (GhostWord); absent on `/`. */
+  ghost?: React.ReactNode;
+}) {
   const { t } = await initI18next(lng);
   const storyHref = buildLocalizedPath('/story', lng as Language);
   const registerHref = buildLocalizedPath('/register', lng as Language);
@@ -33,6 +40,7 @@ export async function TransparencySection({ lng }: { lng: string }) {
       aria-labelledby="transparency-title"
       className="landing-section scroll-mt-24 border-y border-border/60 bg-card py-24"
     >
+      {ghost}
       <div className="mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-8">
         <FadeInOnScroll>
           <h2 id="transparency-title" className="text-3xl font-bold tracking-tight mobile:text-4xl">

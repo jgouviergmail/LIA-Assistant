@@ -3502,7 +3502,7 @@
         },
         "semanticValidation": {
           "title": "✅ Semantic Plan Validation",
-          "description": "LLM detection of 15 types of anomalies before execution: incomplete plan, missing tool, wrong parameters, logical incoherence, impossible constraint, temporal paradox, excessive cost, empty result, missing dependency, conflict between steps, ambiguous reference, unsupported format, exceeded capacity, unjustified privilege escalation, circular dependency. Criticality analysis (LOW/MEDIUM/HIGH) based on reversibility. Bayesian Pattern Learning integration (bypass >90% confidence). P95 < 2s with short-circuit for trivial plans."
+          "description": "LLM detection of 15 types of anomalies before execution: hallucinated capability, ghost dependency, logical cycle, cardinality mismatch, scope overflow, dangerous ambiguity, incomplete plan, missing tool, wrong parameters, impossible constraint, temporal paradox, excessive cost, ambiguous reference, conflict between steps and FOR_EACH issues. Criticality analysis (LOW/MEDIUM/HIGH) based on how reversible the action is. Bayesian Pattern Learning integration (bypass above 90% confidence). P95 < 2s with short-circuit for trivial plans."
         },
         "semantic": {
           "title": "🎯 Semantic Validation & Pivot",
@@ -3542,7 +3542,7 @@
         },
         "llm": {
           "title": "🤖 Multi-Provider LLM & Pattern Learning",
-          "description": "Support for OpenAI (GPT-5.4, o3), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity, and local Ollama. Bayesian learning of planning patterns (≥90% confidence → LLM bypass). Average 89% token savings. Configurable profiles per task with real-time cost tracking."
+          "description": "Support for OpenAI (GPT-5.4, o3), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity, and local Ollama. Bayesian learning of planning patterns (≥90% confidence → LLM bypass). Average 89% token savings. Configurable profiles per task with real-time cost tracking. Every model family goes through its own adapter: reasoning budget, token counting and structured-output format are translated per provider, never guessed. Structured output takes a single path across the whole codebase, guarded by static analysis, and a budget floor refuses at boot any configuration where reasoning would eat the answer."
         },
         "security": {
           "title": "🔐 Multi-Layer Security",
@@ -3703,6 +3703,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_27_2": {
+          "title": "v1.27.2 — 🌌 The public site gets its identity",
+          "date": "July 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🌌 A new visual identity</b> — the home page and every public page (More, demo, Story, Philosophy, Technical, FAQ, blog) move to the cosmic theme: starfield background, a planetarium of features orbiting the live demo, and animations that play at the pace of your scroll.",
+            "i2": "<b>🌓 Dark by default</b> — public pages open in dark when you have never picked a theme; your theme button always wins, and your choice is remembered.",
+            "i3": "<b>✅ Better readability</b> — buttons, badges and pills all move back above the recommended contrast threshold, in light and dark alike.",
+            "i4": "<b>🗓️ A more useful “For you” card</b> — it now shows only the next upcoming automation, no more history. And a thumbs-up or thumbs-down on a proactive notification no longer pops an error message.",
+            "i5": "<b>📱 Settings on narrow screens</b> — the “My connectors” rows no longer overflow, the “Add a passkey” button moves below its text, “Recent calls” sticks to the last ten, and the skill-import buttons sit under their own separator."
+          }
+        },
         "v1_27_1": {
           "title": "v1.27.1 — ⭐ Your relations, front and center",
           "date": "July 2026",
@@ -6591,6 +6603,10 @@
         "title": "Glass you can see through",
         "desc": "The chat header, dialogs, menus and toasts are frosted glass — and the blur is real: your messages actually slide beneath the pane as you scroll, in light and dark alike."
       },
+      "narrow_screens": {
+        "title": "A narrow screen is not an accident",
+        "desc": "Settings, connectors and lists hold on the narrowest screens — nothing overflows, nothing gets clipped at the edge. Browser tests check it on every release, in every language."
+      },
       "relation_star": {
         "title": "A star that never forgets",
         "desc": "Star a relation right on its card — no need to open it. Favorites keep their own band at the top, and a starred person stays visible even after months of silence."
@@ -8172,6 +8188,30 @@
     },
     "rail": {
       "aria": "Chapter navigation"
+    },
+    "cosmos": {
+      "ghost": {
+        "act": "ACTS",
+        "know": "KNOWS",
+        "anticipate": "NOTICES",
+        "control": "CONTROL",
+        "grow": "GROWS",
+        "connect": "CONNECTS",
+        "day": "DAY",
+        "transparency": "PROOF",
+        "cta": "AHEAD"
+      },
+      "planet": {
+        "maison": "Home",
+        "emails": "Emails",
+        "agenda": "Calendar",
+        "memoire": "Memory",
+        "voix": "Voice & calls",
+        "veille": "Interests",
+        "skills": "Skills",
+        "briefing": "Briefing"
+      },
+      "day_hint": "Keep scrolling: the day moves with you."
     }
   },
   "public_footer": {

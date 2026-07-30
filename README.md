@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.27.1</strong> — <strong>Relations earn their place — in the navigation bar, and at heart.</strong> The personal-CRM page, until now without a front door, takes the « Knowledge » navigation slot (spaces stay one click away in the chat: their indicator now always renders, even before the first space exists) and receives the redesign it deserved: stable-tint initial avatars, colored signal pills, <strong>persisted favorites</strong> (the star survives signal expiry, leads the list and survives the cap), distinct Favorites/Others bands, a name filter, a 🤝 badge for people also connected on LIA, and a sectioned 360° sheet. Peer connections gain their <strong>chapter 06</strong> on the landing (« LIA connects you to your people », animated relay scene), the settings search learns their natural synonyms, and the « How LIA works » cards stop showing literal HTML tags (14 cards affected). <strong>16,808 backend</strong> + <strong>4,171 frontend</strong> tests, all six languages. — 30 July 2026.
+  <strong>Version 1.27.2</strong> — <strong>The public space gets its identity — and answers to the scroll, from hero to horizon.</strong> The whole showcase (landing, More, demo, Story, Philosophy, Technical, FAQ, blog, legal) now wears the <strong>LIA Cosmos</strong> identity (ADR-181): cosmic backdrop, a planetarium of features orbiting the live demo, giant ghost words drifting behind the chapters, and <strong>nine distinct scroll-driven choreographies</strong> — proofs surge one by one, use cases flip in 3D, the day pins itself, the architecture runs like an execution trace. Dark by default (the light theme stays one click away and got its own quality pass), <strong>informal address</strong> across every public surface in French, German, Spanish and Chinese, and <strong>zero animation dependency added</strong>. In the app: six requested adjustments (« For you » card, thumbs on proactive notifications, connectors on narrow screens, passkeys, recent calls, skill imports) and one layout defect fixed <strong>at the root of the shared accordion primitive</strong>, so everywhere at once. <strong>16,808 backend</strong> + <strong>4,250 frontend</strong> tests, all six languages. — 30 July 2026.
 
 </p>
 
@@ -115,8 +115,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **33** functional domains | **420,000** lines of code (excl. tests) | **21,000+** automated tests | **180** ADRs                                                           |
-| **156** versions shipped  | **6 languages**, parity enforced in CI  | **425** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **36** functional domains | **495,000** lines of code (excl. tests) | **21,000+** automated tests | **180** ADRs                                                           |
+| **189** versions shipped  | **6 languages**, parity enforced in CI  | **447** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -910,7 +910,7 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md)   | Complete development workflow                             |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent                                 |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md)   | How to create a new tool                                  |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~16,808 backend tests across 903 files) |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~16,808 backend tests across 902 files) |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md)           | LangGraph and log debugging                               |
 
 ### Architecture Decision Records (ADR)

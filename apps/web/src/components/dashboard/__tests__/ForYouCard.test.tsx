@@ -103,15 +103,28 @@ describe('ForYouCard', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders the automations digest with the precise next execution time', () => {
+  it('shows only the UPCOMING automation — past runs are not displayed', () => {
     render(<ForYouCard {...cardProps} section={section(fullData)} />);
 
-    expect(screen.getByText('Revue de presse IA')).toBeInTheDocument();
-    expect(screen.getByText('dashboard.briefing.cards.for_you.ran_recently')).toBeInTheDocument();
+    // Past executions (owner arbitration 2026-07-30): present in the payload,
+    // absent from the card.
+    expect(screen.queryByText('Revue de presse IA')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('dashboard.briefing.cards.for_you.ran_recently')
+    ).not.toBeInTheDocument();
+    // The upcoming one renders with its precise backend-formatted time.
     expect(screen.getByText('Météo du matin')).toBeInTheDocument();
-    // Precise backend-formatted time replaces the vague "next up" label
     expect(screen.getByText('06:00 demain')).toBeInTheDocument();
     expect(screen.queryByText('dashboard.briefing.cards.for_you.next_up')).not.toBeInTheDocument();
+  });
+
+  it('renders no automations block at all when only past runs exist', () => {
+    render(
+      <ForYouCard {...cardProps} section={section({ ...fullData, next_automation: null })} />
+    );
+    expect(
+      screen.queryByText('dashboard.briefing.cards.for_you.automations_title')
+    ).not.toBeInTheDocument();
   });
 
   it('falls back to the next-up label when no local time is provided', () => {

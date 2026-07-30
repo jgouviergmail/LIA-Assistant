@@ -11,8 +11,8 @@ import { Tabs } from './Tabs';
  * a shipped feature.
  */
 
-const PROFILES = ['freelance', 'family', 'dev', 'admin'] as const;
-const STOPS = ['s1', 's2', 's3', 's4'] as const;
+export const PROFILES = ['freelance', 'family', 'dev', 'admin'] as const;
+export const STOPS = ['s1', 's2', 's3', 's4'] as const;
 
 function Day({ profile }: { profile: (typeof PROFILES)[number] }) {
   const { t } = useTranslation();

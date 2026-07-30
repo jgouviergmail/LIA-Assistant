@@ -217,7 +217,7 @@ function UserScopeSection(props: {
   const { importing, fileInputRef, onImportFile, onShowGuide, onShowUrlImport } = props;
   return (
     <div>
-      <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 mb-3">
         <button
           type="button"
           onClick={onToggleOpen}
@@ -236,7 +236,9 @@ function UserScopeSection(props: {
             <span className="text-xs text-muted-foreground">({skills.length})</span>
           )}
         </button>
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* Import actions on their own row, visually detached by a separator
+            line (owner request 2026-07-30). */}
+        <div className="flex items-center gap-2 flex-wrap border-t pt-3">
           <Button
             variant="outline"
             size="sm"

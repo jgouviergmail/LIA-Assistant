@@ -4,7 +4,7 @@
 
 **Versione** : 4.1
 **Data** : 2026-07-30
-**Applicazione** : LIA v1.27.1
+**Applicazione** : LIA v1.27.2
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -228,7 +228,7 @@ Quando usi ChatGPT, le tue conversazioni vivono sui server di OpenAI. Con Gemini
 
 Con LIA, **tutto rimane nel tuo PostgreSQL**: conversazioni, memoria, profilo psicologico, documenti, preferenze. Puoi esportare, fare backup, migrare o eliminare tutti i tuoi dati in qualsiasi momento — inclusa un'esportazione completa in un clic dalle impostazioni: Markdown leggibile, JSON strutturato e i tuoi file, con il materiale segreto inesportabile per costruzione. E ogni dispositivo collegato al tuo account è visibile e revocabile con un clic. Il GDPR non è un vincolo — è una conseguenza naturale dell'architettura. I dati sensibili sono cifrati, le sessioni isolate, e il filtraggio automatico delle informazioni personalmente identificabili (PII) è integrato.
 
-La protezione vale anche per ciò che **entra**. Ogni giorno LIA legge testi che non avete scritto voi: il corpo di un'e-mail, la descrizione di un invito redatta dal suo organizzatore, una pagina web, la scheda di un luogo. Chiunque può infilarvi un'istruzione destinata all'assistente. Ogni dato porta ora la propria provenienza, e ciò che viene dall'esterno arriva etichettato come **materiale da analizzare, mai come ordine da eseguire** — con i tentativi di manipolazione individuati e nominati, nelle sei lingue. Il vostro contenuto non viene però mai riscritto: un'e-mail resta ciò che il suo autore ha scritto. Riscrivere darebbe l'illusione di una garanzia che l'aggiramento successivo smentirebbe; nominare ciò che si vede è più onesto, e più utile.
+La protezione vale anche per ciò che **entra**. Ogni giorno LIA legge testi che non avete scritto voi: il corpo di un'e-mail, la descrizione di un invito redatta dal suo organizzatore, una pagina web, la scheda di un luogo. Chiunque può infilarvi un'istruzione destinata all'assistente. Ogni dato porta ora la propria provenienza, e ciò che viene dall'esterno arriva etichettato come **materiale da analizzare, mai come ordine da eseguire** — con i tentativi di manipolazione individuati e nominati, nelle sei lingue. Il tuo contenuto non viene però mai riscritto: un'e-mail resta ciò che il suo autore ha scritto. Riscrivere darebbe l'illusione di una garanzia che l'aggiramento successivo smentirebbe; nominare ciò che si vede è più onesto, e più utile.
 
 ### 5.2. Basta anche un Raspberry Pi
 

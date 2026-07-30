@@ -43,7 +43,7 @@ export function hasActiveCall(calls: readonly TelephonyCallSummary[]): boolean {
   return calls.some(call => ACTIVE_CALL_STATUSES.includes(call.status));
 }
 
-export function useTelephonyCalls(enabled = true): UseTelephonyCallsReturn {
+export function useTelephonyCalls(enabled = true, limit?: number): UseTelephonyCallsReturn {
   const [calls, setCalls] = useState<TelephonyCallSummary[]>([]);
   const [isLoading, setIsLoading] = useState(enabled);
   const [isUnavailable, setIsUnavailable] = useState(false);
@@ -55,7 +55,11 @@ export function useTelephonyCalls(enabled = true): UseTelephonyCallsReturn {
   const fetchCalls = useCallback(async () => {
     const isStale = guard.begin();
     try {
-      const response = await apiClient.get<TelephonyCallSummary[]>('/telephony/calls');
+      // Ask the server for exactly what the caller displays — never fetch a
+      // longer list to slice it client-side (the endpoint caps at 100).
+      const endpoint =
+        limit !== undefined ? `/telephony/calls?limit=${limit}` : '/telephony/calls';
+      const response = await apiClient.get<TelephonyCallSummary[]>(endpoint);
       if (isStale()) return;
       setCalls(Array.isArray(response) ? response : []);
     } catch (error) {
@@ -76,7 +80,7 @@ export function useTelephonyCalls(enabled = true): UseTelephonyCallsReturn {
     } finally {
       if (!isStale()) setIsLoading(false);
     }
-  }, [guard]);
+  }, [guard, limit]);
 
   useEffect(() => {
     if (!enabled || isUnavailable) {

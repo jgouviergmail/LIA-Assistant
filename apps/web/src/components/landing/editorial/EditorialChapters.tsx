@@ -1,4 +1,5 @@
 import { initI18next } from '@/i18n';
+import { GhostWord } from '../cosmic/GhostWord';
 import { CHAPTERS } from './chapters-data';
 import { ChapterSection } from './ChapterSection';
 import { SceneBriefing, SceneEdit, SceneRelay } from './scenes';
@@ -10,8 +11,11 @@ import { VignetteForge, VignetteOrchestration, VignetteSpark } from './vignettes
  * how-it-works and security sections. Visuals alternate between decomposed
  * backstage vignettes (chapters 01/03/05) and complementary chat scenes
  * (chapters 02/04/06) — never duplicating the hero's four acts.
+ *
+ * `ghosts` (used by the cosmos landing, default off):
+ * each chapter receives its translated GhostWord with alternating drift.
  */
-export async function EditorialChapters({ lng }: { lng: string }) {
+export async function EditorialChapters({ lng, ghosts = false }: { lng: string; ghosts?: boolean }) {
   const { t } = await initI18next(lng);
 
   const visuals: Record<string, React.ReactNode> = {
@@ -34,6 +38,14 @@ export async function EditorialChapters({ lng }: { lng: string }) {
           reverse={i % 2 === 1}
           visual={visuals[chapter.id]}
           catalogExtra={chapter.id === 'control' ? <SecurityDetail t={t} lng={lng} /> : undefined}
+          ghost={
+            ghosts ? (
+              <GhostWord
+                wordKey={`landing.cosmos.ghost.${chapter.id}`}
+                direction={i % 2 === 0 ? 1 : -1}
+              />
+            ) : undefined
+          }
         />
       ))}
     </div>

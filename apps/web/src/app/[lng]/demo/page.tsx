@@ -4,13 +4,17 @@ import { languages, fallbackLng, LOCALE_MAP } from '@/i18n/settings';
 import type { Language } from '@/i18n/settings';
 import { InteractiveChatMockup } from '@/components/landing/InteractiveChatMockup';
 import { TrackView } from '@/components/telemetry/TelemetryBootstrap';
+import { CosmicBackdrop } from '@/components/landing/cosmic/CosmicBackdrop';
+import { CosmosDarkFirst } from '@/components/landing/cosmic/CosmosDarkFirst';
+import { CosmosThemeDefault } from '@/components/landing/cosmic/CosmosThemeDefault';
+import { Planetarium } from '@/components/landing/cosmic/Planetarium';
 
 /**
  * Standalone URL for the hero conversation animation, made to be shared on
  * social networks and embedded in publications: no header, no footer, no auth
- * redirect — the four-act mockup on the hero's ambient background, made
- * INTERACTIVE here (UX P12): scene pastilles, pause/replay, progress and a
- * closing CTA. The auto loop is preserved until the visitor interacts.
+ * redirect — the four-act mockup at the center of the cosmos planetarium,
+ * made INTERACTIVE here (UX P12): scene pastilles, pause/replay, progress and
+ * a closing CTA. The auto loop is preserved until the visitor interacts.
  * Localized like every route (the mockup aria text doubles as the page
  * description).
  */
@@ -68,19 +72,24 @@ export default async function DemoPage({ params }: DemoPageProps) {
   const lng = validateLanguage(lngParam);
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
-      {/* Product funnel (ADR-178 Phase 4, anonymous allowed) — inert unless enabled */}
-      <TrackView event="demo_started" />
-      {/* Same ambient background as the landing hero */}
-      <div className="absolute inset-0 -z-10" aria-hidden="true">
-        <div className="absolute -top-32 -left-32 w-[36rem] h-[36rem] rounded-full bg-primary/15 blur-3xl" />
-        <div className="absolute top-1/3 -right-40 w-[32rem] h-[32rem] rounded-full bg-violet-500/10 blur-3xl" />
-        <div className="absolute bottom-0 left-1/4 w-[28rem] h-[20rem] rounded-full bg-cyan-500/10 blur-3xl" />
-      </div>
-
-      <div className="w-full max-w-md">
-        <InteractiveChatMockup lng={lng} />
-      </div>
-    </main>
+    <div className="landing-page cosmos">
+      <CosmosDarkFirst />
+      <CosmicBackdrop />
+      <CosmosThemeDefault />
+      <main className="relative flex min-h-screen items-center justify-center overflow-clip px-4 py-10">
+        {/* Product funnel (ADR-178 Phase 4, anonymous allowed) — inert unless enabled */}
+        <TrackView event="demo_started" />
+        {/* The real four-act mockup at the center of the planetarium — LIA's
+            feature families in orbit around the live conversation. */}
+        <div className="cosmos-orbit-zone w-full">
+          <Planetarium />
+          {/* min-w-0/max-w-full: an unbreakable mockup line must never widen
+              the centered grid track past a phone viewport. */}
+          <div className="relative z-10 w-full min-w-0 max-w-md">
+            <InteractiveChatMockup lng={lng} />
+          </div>
+        </div>
+      </main>
+    </div>
   );
 }

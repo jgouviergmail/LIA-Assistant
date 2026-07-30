@@ -1633,3 +1633,790 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Opera */
 }
+
+/* =============================================================================
+   LIA COSMOS — scoped identity for the public-space redesign (spec
+   docs/superpowers/specs/2026-07-30-lia-cosmos-landing-design.md).
+   Everything lives under `.cosmos`; the classic landing is untouched until the
+   swap. Values come from the validated mockup v4. Dark is the identity's
+   default; `html:not(.dark) .cosmos` is the sober light variant.
+   ============================================================================= */
+
+.cosmos {
+  /* Identity tokens */
+  --cosmos-bg: #06070f;
+  --cosmos-bg-2: #0a0e1d;
+  --cosmos-ink: #eef1fb;
+  --cosmos-mut: #98a0bd;
+  --cosmos-blue: #4f8dfd;
+  /* Light-theme functional primary (buttons, filled CTAs, text-primary): a
+     deeper cut of the brand blue — #4f8dfd under white text is 3.2:1, below
+     WCAG AA (4.5:1); this one measures ≈6.5:1 under white and ≥4.9:1 as text
+     on the `bg-primary/10` tinted chips. The bright blue stays for glows,
+     gradients, and the dark theme's ink-text buttons. */
+  --cosmos-primary: #2c56c4;
+  --cosmos-violet: #8b5cf6;
+  --cosmos-cyan: #38d4f5;
+  --cosmos-line: rgba(148, 163, 220, 0.14);
+  --cosmos-glass: rgba(15, 19, 38, 0.55);
+  --cosmos-ghost-stroke: rgba(148, 163, 220, 0.3);
+  --cosmos-ghost-fill: rgba(148, 163, 220, 0.05);
+  --cosmos-grad: linear-gradient(
+    100deg,
+    var(--cosmos-blue),
+    var(--cosmos-violet) 55%,
+    var(--cosmos-cyan)
+  );
+  --cosmos-glow-blue: rgba(79, 141, 253, 0.3);
+  --cosmos-glow-violet: rgba(139, 92, 246, 0.28);
+  --cosmos-glow-cyan: rgba(56, 212, 245, 0.2);
+
+  /* Skin: Tailwind utilities inside the scope resolve to these — the reused
+     sections restyle themselves without a single component edit. Portaled
+     surfaces (Radix menus) live outside the scope and keep the app theme. */
+  --color-background: var(--cosmos-bg);
+  --color-foreground: var(--cosmos-ink);
+  --color-card: rgba(15, 19, 38, 0.55);
+  --color-card-foreground: var(--cosmos-ink);
+  --color-border: var(--cosmos-line);
+  --color-input: var(--cosmos-line);
+  --color-muted: rgba(20, 26, 50, 0.6);
+  --color-muted-foreground: var(--cosmos-mut);
+  --color-secondary: rgba(20, 26, 50, 0.6);
+  --color-secondary-foreground: var(--cosmos-ink);
+  --color-accent: rgba(31, 38, 70, 0.6);
+  --color-accent-foreground: var(--cosmos-ink);
+  /* Dark theme: filled controls keep the BRIGHT brand blue but flip to ink
+     text (white on #4f8dfd is 3.2:1 — fails AA; ink on it is ≈5.5:1), while
+     `text-primary` stays the bright blue on the near-black ground (≈6:1). */
+  --color-primary: var(--cosmos-blue);
+  --color-primary-foreground: #0b1020;
+  --color-popover: var(--cosmos-bg-2);
+  --color-popover-foreground: var(--cosmos-ink);
+  --color-ring: var(--cosmos-cyan);
+
+  background: var(--cosmos-bg);
+  color: var(--cosmos-ink);
+}
+
+/* Sober light variant (owner arbitration: dark-first, polished light) */
+html:not(.dark) .cosmos {
+  --cosmos-bg: #f5f6fc;
+  --cosmos-bg-2: #eceef9;
+  --cosmos-ink: #1b2140;
+  --cosmos-mut: #525a7c;
+  --cosmos-line: rgba(27, 33, 64, 0.12);
+  --cosmos-glass: rgba(255, 255, 255, 0.78);
+  --cosmos-ghost-stroke: rgba(27, 33, 64, 0.17);
+  --cosmos-ghost-fill: rgba(27, 33, 64, 0.03);
+  --cosmos-glow-blue: rgba(79, 141, 253, 0.2);
+  --cosmos-glow-violet: rgba(139, 92, 246, 0.17);
+  --cosmos-glow-cyan: rgba(56, 212, 245, 0.12);
+  --color-card: rgba(255, 255, 255, 0.72);
+  --color-muted: rgba(228, 231, 245, 0.7);
+  --color-secondary: rgba(228, 231, 245, 0.7);
+  --color-accent: rgba(220, 225, 244, 0.7);
+  --color-popover: #ffffff;
+  /* Light theme: deep brand blue under white text (≈5.2:1 — AA), and the
+     same deep blue as `text-primary` on the light ground (≈5.2:1). */
+  --color-primary: var(--cosmos-primary);
+  --color-primary-foreground: #ffffff;
+}
+
+/* --- Fixed cosmic layers (CosmicBackdrop) --- */
+.cosmos-stars {
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  opacity: 0.9;
+  transition: opacity 400ms ease;
+}
+html:not(.dark) .cosmos .cosmos-stars {
+  opacity: 0;
+}
+.cosmos-nebula {
+  position: fixed;
+  inset: 0;
+  z-index: -4;
+  pointer-events: none;
+  overflow: clip;
+  background:
+    radial-gradient(50rem 34rem at 12% -6%, var(--cosmos-glow-blue), transparent 62%),
+    radial-gradient(44rem 30rem at 88% 22%, var(--cosmos-glow-violet), transparent 64%),
+    radial-gradient(40rem 28rem at 30% 105%, var(--cosmos-glow-cyan), transparent 60%),
+    var(--cosmos-bg);
+  transition: background 400ms ease;
+}
+.cosmos-nebula::before,
+.cosmos-nebula::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform;
+}
+.cosmos-nebula::before {
+  width: 64rem;
+  height: 46rem;
+  left: -14rem;
+  top: -10rem;
+  background: radial-gradient(closest-side, var(--cosmos-glow-violet), transparent 70%);
+  animation: cosmos-drift-a 46s ease-in-out infinite alternate;
+}
+.cosmos-nebula::after {
+  width: 56rem;
+  height: 42rem;
+  right: -16rem;
+  bottom: -8rem;
+  background: radial-gradient(closest-side, var(--cosmos-glow-cyan), transparent 70%);
+  animation: cosmos-drift-b 38s ease-in-out infinite alternate;
+}
+@keyframes cosmos-drift-a {
+  to {
+    transform: translate3d(9vw, 7vh, 0) scale(1.18);
+  }
+}
+@keyframes cosmos-drift-b {
+  to {
+    transform: translate3d(-8vw, -6vh, 0) scale(1.12);
+  }
+}
+.cosmos-grain {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+}
+html:not(.dark) .cosmos .cosmos-grain {
+  opacity: 0.03;
+}
+
+/* --- Shared identity pieces --- */
+/* Static frame: keeps the edge fade aligned to the screen while the word
+   inside drifts. Slight blur + faded edges so the word never fights the copy. */
+.cosmos-ghost-frame {
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent);
+}
+.cosmos-ghost {
+  display: block;
+  font-size: clamp(7rem, 28vw, 26rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--cosmos-ghost-fill);
+  -webkit-text-stroke: 1.5px var(--cosmos-ghost-stroke);
+  filter: blur(2px);
+  opacity: 0.85;
+  user-select: none;
+  will-change: transform;
+}
+.cosmos section,
+.cosmos .landing-section {
+  position: relative;
+  overflow: clip;
+}
+.cosmos .landing-section > :not(.cosmos-ghost-frame) {
+  position: relative;
+  z-index: 1;
+}
+.cosmos-ghost-frame.cosmos-ghost-high {
+  top: 32%;
+}
+.cosmos-glass {
+  position: relative;
+  z-index: 1;
+  background: var(--cosmos-glass);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--cosmos-line);
+  border-radius: 1.25rem;
+  /* Bloom comes from the shared card-bloom rule (single source of truth). */
+}
+.cosmos-tilt-n2 {
+  transform: rotate(-2deg);
+  transition: transform 350ms ease;
+}
+.cosmos-tilt-n1 {
+  transform: rotate(-1.2deg);
+  transition: transform 350ms ease;
+}
+.cosmos-tilt-1 {
+  transform: rotate(1.2deg);
+  transition: transform 350ms ease;
+}
+.cosmos-tilt-2 {
+  transform: rotate(2deg);
+  transition: transform 350ms ease;
+}
+.cosmos-tilt-n2:hover,
+.cosmos-tilt-n1:hover,
+.cosmos-tilt-1:hover,
+.cosmos-tilt-2:hover {
+  transform: rotate(0deg);
+}
+.cosmos-grad-text {
+  background: var(--cosmos-grad);
+  background-size: 220% 220%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: cosmos-grad-shift 7s ease-in-out infinite;
+}
+@keyframes cosmos-grad-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+.cosmos-rise {
+  opacity: 0;
+  animation: cosmos-rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+@keyframes cosmos-rise {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.cosmos-reveal {
+  filter: blur(16px);
+  opacity: 0.12;
+  transform: translateY(16px) scale(0.97);
+  transition:
+    filter 900ms ease,
+    opacity 900ms ease,
+    transform 900ms ease;
+}
+.cosmos-reveal.in {
+  filter: blur(0);
+  opacity: 1;
+  transform: none;
+}
+
+/* --- Planetarium (hero) --- */
+.cosmos-orbit-zone {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 44rem;
+}
+.cosmos-halo {
+  position: absolute;
+  width: 40rem;
+  height: 40rem;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(closest-side, var(--cosmos-glow-violet), transparent 72%);
+  animation: cosmos-halo-pulse 6s ease-in-out infinite;
+}
+@keyframes cosmos-halo-pulse {
+  50% {
+    transform: scale(1.08);
+    opacity: 0.75;
+  }
+}
+.cosmos-orbits {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  transform: rotate(-6deg) scaleY(0.82);
+  pointer-events: none;
+}
+.cosmos-orbit {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  animation: cosmos-spin var(--t) linear infinite;
+  animation-delay: var(--ph, 0s);
+}
+.cosmos-orbit.ringed {
+  border-color: var(--cosmos-line);
+}
+.cosmos-orbit.ringed::before {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from -90deg,
+    transparent 0 62%,
+    var(--trail, var(--cosmos-glow-cyan)) 97%,
+    transparent 100%
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 1px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 1px));
+}
+.cosmos-orbit.o-out {
+  width: 54rem;
+  height: 54rem;
+  --t: 84s;
+}
+.cosmos-orbit.o-mid {
+  width: 44rem;
+  height: 44rem;
+  --t: 58s;
+}
+.cosmos-orbit.o-in {
+  width: 34rem;
+  height: 34rem;
+  --t: 38s;
+}
+@keyframes cosmos-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.cosmos-sat {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  animation: cosmos-spin-rev var(--t) linear infinite;
+  animation-delay: var(--ph, 0s);
+}
+@keyframes cosmos-spin-rev {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(-360deg);
+  }
+}
+/* Compensates the tilted orbital plane: round spheres, upright labels */
+.cosmos-pl-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  transform: scaleY(1.2195) rotate(6deg);
+}
+.cosmos-pl {
+  display: block;
+  width: var(--s, 18px);
+  height: var(--s, 18px);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 32% 28%,
+    rgba(255, 255, 255, 0.85),
+    var(--c, var(--cosmos-blue)) 42%,
+    color-mix(in srgb, var(--c, var(--cosmos-blue)) 35%, #000) 92%
+  );
+  box-shadow: 0 0 calc(var(--s, 18px) * 0.9)
+    color-mix(in srgb, var(--c, var(--cosmos-blue)) 55%, transparent);
+}
+.cosmos-pl-body em {
+  font-style: normal;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--cosmos-ink);
+  background: var(--cosmos-glass);
+  border: 1px solid var(--cosmos-line);
+  border-radius: 999px;
+  padding: 0.14rem 0.55rem;
+  white-space: nowrap;
+  backdrop-filter: blur(6px);
+}
+@media (max-width: 880px) {
+  .cosmos-orbit-zone {
+    min-height: 30rem;
+  }
+  .cosmos-orbit.o-out {
+    width: 30rem;
+    height: 30rem;
+  }
+  .cosmos-orbit.o-mid {
+    width: 24rem;
+    height: 24rem;
+  }
+  .cosmos-orbit.o-in {
+    width: 18rem;
+    height: 18rem;
+  }
+  .cosmos-pl-body em {
+    display: none;
+  }
+}
+
+/* --- Pinned scene (a day with LIA) --- */
+.cosmos-pin-stage {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: clip;
+}
+.cosmos-track-clip {
+  position: relative;
+  z-index: 1;
+  overflow: clip;
+  padding-block: 1rem;
+}
+.cosmos-track {
+  display: flex;
+  gap: 3.5rem;
+  width: max-content;
+  padding-inline: max(1.5rem, calc(50vw - 12rem));
+  will-change: transform;
+  transform: translateX(calc(var(--p, 0) * -1 * var(--track-max, 0px)));
+}
+.cosmos-step {
+  width: 21rem;
+  padding: 1.4rem;
+  opacity: 0.28;
+  filter: saturate(0.4);
+  transition:
+    opacity 500ms ease,
+    filter 500ms ease,
+    box-shadow 500ms ease;
+}
+.cosmos-step.lit {
+  opacity: 1;
+  filter: none;
+}
+.cosmos-step.focus {
+  box-shadow:
+    0 30px 90px -26px var(--cosmos-glow-blue),
+    0 0 40px -18px var(--cosmos-glow-cyan);
+}
+.cosmos-step time {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--cosmos-cyan);
+}
+.cosmos-step p {
+  margin-top: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--cosmos-mut);
+}
+.cosmos-progress {
+  position: relative;
+  height: 2px;
+  background: var(--cosmos-line);
+  margin-top: 3rem;
+  border-radius: 999px;
+}
+.cosmos-progress i {
+  position: relative;
+  display: block;
+  height: 100%;
+  width: calc(var(--p, 0) * 100%);
+  background: var(--cosmos-grad);
+}
+.cosmos-progress i::after {
+  content: '';
+  position: absolute;
+  right: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cosmos-cyan);
+  box-shadow: 0 0 16px 4px var(--cosmos-glow-cyan);
+}
+
+/* --- Cosmic finale (planet horizon, scroll-driven dawn) --- */
+.cosmos-planet {
+  position: relative;
+  margin-top: 4rem;
+  width: 100%;
+  height: 36dvh;
+  pointer-events: none;
+}
+.cosmos-globe {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  width: 220vw;
+  height: 220vw;
+  border-radius: 50%;
+  overflow: hidden;
+  background:
+    radial-gradient(140vw 40vw at 50% 0, rgba(56, 212, 245, 0.1), transparent 55%),
+    radial-gradient(circle at 50% 5%, #17264f, #0c1430 30%, var(--cosmos-bg) 58%);
+  box-shadow:
+    0 -24px 90px -12px var(--cosmos-glow-violet),
+    inset 0 40px 90px -30px var(--cosmos-glow-blue);
+}
+html:not(.dark) .cosmos .cosmos-globe {
+  background:
+    radial-gradient(140vw 40vw at 50% 0, rgba(79, 141, 253, 0.12), transparent 55%),
+    radial-gradient(circle at 50% 5%, #dce3f8, #e9edfb 30%, var(--cosmos-bg) 58%);
+}
+.cosmos-cloud {
+  position: absolute;
+  border-radius: 50%;
+}
+.cosmos-cloud.c1 {
+  width: 120vw;
+  height: 26vw;
+  left: -6vw;
+  top: 0;
+  background: radial-gradient(closest-side, rgba(102, 156, 255, 0.3), transparent 70%);
+  animation: cosmos-cloud-a 46s ease-in-out infinite alternate;
+}
+.cosmos-cloud.c2 {
+  width: 95vw;
+  height: 22vw;
+  right: -10vw;
+  top: 3vw;
+  background: radial-gradient(closest-side, rgba(155, 118, 255, 0.24), transparent 70%);
+  animation: cosmos-cloud-b 58s ease-in-out infinite alternate;
+}
+.cosmos-cloud.c3 {
+  width: 80vw;
+  height: 18vw;
+  left: 26vw;
+  top: 1vw;
+  background: radial-gradient(closest-side, rgba(72, 216, 244, 0.18), transparent 70%);
+  animation: cosmos-cloud-a 34s ease-in-out infinite alternate-reverse;
+}
+html:not(.dark) .cosmos .cosmos-cloud.c1 {
+  background: radial-gradient(closest-side, rgba(102, 156, 255, 0.18), transparent 70%);
+}
+html:not(.dark) .cosmos .cosmos-cloud.c2 {
+  background: radial-gradient(closest-side, rgba(155, 118, 255, 0.14), transparent 70%);
+}
+html:not(.dark) .cosmos .cosmos-cloud.c3 {
+  background: radial-gradient(closest-side, rgba(72, 216, 244, 0.1), transparent 70%);
+}
+@keyframes cosmos-cloud-a {
+  to {
+    transform: translateX(16vw);
+  }
+}
+@keyframes cosmos-cloud-b {
+  to {
+    transform: translateX(-14vw);
+  }
+}
+
+/* --- Scroll-scrubbed section choreographies (driven by --sp via ScrollScrub).
+   Every tile owns a SEQUENTIAL window: they reveal ONE BY ONE as you scroll
+   (and retract when you scroll back — a scrub, not a one-shot). The legacy
+   FadeIn animation is neutralized inside these sections so nothing fights
+   the scrub. One DISTINCT pattern per section. --- */
+.cosmos #transparency,
+.cosmos #use-cases,
+.cosmos #gallery,
+.cosmos #technology,
+.cosmos #architecture {
+  --sp: 1;
+}
+.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > * {
+  --i: 0;
+  animation: none !important;
+}
+.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(2) { --i: 1; }
+.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(3) { --i: 2; }
+.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(4) { --i: 3; }
+.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(5) { --i: 4; }
+.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(6) { --i: 5; }
+.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(7) { --i: 6; }
+.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(8) { --i: 7; }
+
+/* "LIA n'a rien à cacher" — proofs SURGE one by one (rise + inflate) */
+.cosmos #transparency .grid > * {
+  --f: clamp(0, calc((var(--sp, 1) - 0.12 - var(--i) * 0.11) * 9), 1);
+  opacity: var(--f);
+  transform: translateY(calc((1 - var(--f)) * 90px)) scale(calc(0.92 + var(--f) * 0.08));
+}
+/* "Des demandes réelles" — 3D FLIP, one card at a time, hinged on its edge */
+.cosmos #use-cases .grid > * {
+  --f: clamp(0, calc((var(--sp, 1) - 0.12 - var(--i) * 0.11) * 9), 1);
+  opacity: var(--f);
+}
+.cosmos #use-cases .grid > :nth-child(odd) {
+  transform: perspective(900px) rotateY(calc((1 - var(--f)) * 85deg));
+  transform-origin: left center;
+}
+.cosmos #use-cases .grid > :nth-child(even) {
+  transform: perspective(900px) rotateY(calc((1 - var(--f)) * -85deg));
+  transform-origin: right center;
+}
+/* "LIA, en vrai" — the whole panel RISES from depth and its accent underline
+   DRAWS itself with the scroll */
+.cosmos #gallery [role='tabpanel'] {
+  --f: clamp(0, calc((var(--sp, 1) - 0.1) * 2.8), 1);
+  animation: none !important;
+  opacity: calc(0.2 + var(--f) * 0.8);
+  transform: perspective(1200px) translateY(calc((1 - var(--f)) * 60px))
+    rotateX(calc((1 - var(--f)) * 7deg)) scale(calc(0.94 + var(--f) * 0.06));
+  transform-origin: top center;
+}
+.cosmos #gallery [role='tabpanel']::after {
+  content: '';
+  display: block;
+  height: 2px;
+  margin-top: 1.6rem;
+  border-radius: 999px;
+  background: var(--cosmos-grad);
+  transform: scaleX(var(--f, 1));
+  transform-origin: left center;
+}
+/* "Sous le capot" — tiles POP in sequence (small → overshoot feel) */
+.cosmos #technology .grid > * {
+  --f: clamp(0, calc((var(--sp, 1) - 0.1 - var(--i) * 0.055) * 11), 1);
+  opacity: var(--f);
+  transform: translateY(calc((1 - var(--f)) * 40px)) rotate(calc((1 - var(--f)) * -4deg))
+    scale(calc(0.55 + var(--f) * 0.45));
+}
+/* "Dans les coulisses" — the architecture RUNS as you scroll: the flow
+   blocks assemble first, then each mode's steps light up in order like an
+   execution trace. */
+.cosmos #architecture [role='img'] > div > * {
+  --i: 0;
+  --f: clamp(0, calc((var(--sp, 1) - 0.04 - var(--i) * 0.07) * 10), 1);
+  animation: none !important;
+  opacity: var(--f);
+  transform: perspective(900px) rotateX(calc((1 - var(--f)) * 18deg))
+    translateY(calc((1 - var(--f)) * 34px));
+  transform-origin: top center;
+}
+.cosmos #architecture [role='img'] > div > :nth-child(2) { --i: 1; }
+.cosmos #architecture [role='img'] > div > :nth-child(3) { --i: 2; }
+.cosmos #architecture [role='img'] > div > :nth-child(4) { --i: 3; }
+.cosmos #architecture [role='img'] > div > :nth-child(5) { --i: 4; }
+.cosmos #architecture ol > li {
+  --j: 0;
+  --g: clamp(0, calc((var(--sp, 1) - 0.22 - var(--j) * 0.06) * 12), 1);
+  opacity: calc(0.25 + var(--g) * 0.75);
+  transform: translateX(calc((1 - var(--g)) * -18px));
+}
+.cosmos #architecture ol > :nth-child(2) { --j: 1; }
+.cosmos #architecture ol > :nth-child(3) { --j: 2; }
+.cosmos #architecture ol > :nth-child(4) { --j: 3; }
+.cosmos #architecture ol > :nth-child(5) { --j: 4; }
+
+
+/* --- Card bloom, final form (owner: subtle, refined). A colored shadow
+   paints ONLY outside the border-box: solid card backgrounds stay solid,
+   the glow follows the rounded shape, and subtlety is guaranteed by
+   construction — no pseudo-element, no stacking-context traps. --- */
+.cosmos {
+  --cosmos-bloom-a: rgba(139, 92, 246, 0.3);
+  --cosmos-bloom-b: rgba(56, 212, 245, 0.16);
+}
+html:not(.dark) .cosmos {
+  --cosmos-bloom-a: rgba(139, 92, 246, 0.14);
+  --cosmos-bloom-b: rgba(56, 212, 245, 0.08);
+}
+.cosmos .rounded-xl.border,
+.cosmos .rounded-2xl.border,
+.cosmos .cosmos-glass {
+  box-shadow:
+    0 14px 48px -12px var(--cosmos-bloom-a),
+    0 -10px 40px -16px var(--cosmos-bloom-b);
+}
+
+
+/* --- Chapter scenes scrubbed (cosmos only): the vignette assembles at the
+   rhythm of YOUR scroll — the original one-shot timeline's delay-* stagger
+   becomes proportional scrub windows on --sp; ambient loops keep breathing. --- */
+.cosmos [id^='chapter-'] .delay-100 { --d: 100; }
+.cosmos [id^='chapter-'] .delay-200 { --d: 200; }
+.cosmos [id^='chapter-'] .delay-300 { --d: 300; }
+.cosmos [id^='chapter-'] .delay-400 { --d: 400; }
+.cosmos [id^='chapter-'] .delay-500 { --d: 500; }
+.cosmos [id^='chapter-'] .delay-600 { --d: 600; }
+.cosmos [id^='chapter-'] .delay-700 { --d: 700; }
+.cosmos [id^='chapter-'] .delay-800 { --d: 800; }
+.cosmos [id^='chapter-'] .delay-1000 { --d: 1000; }
+.cosmos [id^='chapter-'] .delay-1200 { --d: 1200; }
+.cosmos [id^='chapter-'] .delay-1500 { --d: 1500; }
+.cosmos [id^='chapter-'] .delay-2000 { --d: 2000; }
+.cosmos [id^='chapter-'] .delay-2500 { --d: 2500; }
+.cosmos [id^='chapter-'] .delay-3000 { --d: 3000; }
+.cosmos [id^='chapter-'] .scroll-stage
+  :is(.animate-chip-pop, .animate-glass-in, .animate-word-in, .animate-step-in, .animate-drop-fill, .animate-wire-draw, .animate-fan-draw, .animate-gate-pulse, .animate-step-dim) {
+  --f: clamp(0, calc((var(--sp, 1) - 0.1 - var(--d, 0) / 8500) * 5), 1);
+}
+.cosmos [id^='chapter-'] .scroll-stage
+  :is(.animate-chip-pop, .animate-glass-in, .animate-word-in, .animate-step-in, .animate-drop-fill, .animate-wire-draw) {
+  animation: none !important;
+}
+.cosmos [id^='chapter-'] .scroll-stage :is(.animate-chip-pop, .animate-drop-fill) {
+  opacity: var(--f);
+  transform: scale(calc(0.85 + 0.15 * var(--f)));
+}
+.cosmos [id^='chapter-'] .scroll-stage
+  :is(.animate-glass-in, .animate-word-in, .animate-step-in) {
+  opacity: var(--f);
+}
+.cosmos [id^='chapter-'] .scroll-stage .animate-wire-draw {
+  transform: scaleX(var(--f));
+}
+/* Ambient loops keep their life; only the ENTRANCE is scrubbed. */
+.cosmos [id^='chapter-'] .scroll-stage .animate-fan-draw {
+  animation: fan-flow 1.4s linear infinite !important;
+  opacity: var(--f);
+}
+.cosmos [id^='chapter-'] .scroll-stage .animate-gate-pulse {
+  animation: gate-pulse 1.6s ease-in-out infinite !important;
+  opacity: var(--f);
+}
+/* The dim step: fades DOWN as its window passes (the next step took over). */
+.cosmos [id^='chapter-'] .scroll-stage .animate-step-dim {
+  animation: none !important;
+  opacity: calc(1 - 0.45 * var(--f));
+}
+
+/* --- Calm sub-scope (reading pages, Lot C): attenuated cosmos, no choreography --- */
+.cosmos.cosmos-calm {
+  --cosmos-glow-blue: rgba(79, 141, 253, 0.14);
+  --cosmos-glow-violet: rgba(139, 92, 246, 0.12);
+  --cosmos-glow-cyan: rgba(56, 212, 245, 0.08);
+  --color-card: rgba(13, 17, 34, 0.92);
+}
+html:not(.dark) .cosmos.cosmos-calm {
+  --color-card: rgba(255, 255, 255, 0.95);
+}
+.cosmos.cosmos-calm .cosmos-ghost-frame {
+  display: none;
+}
+
+/* --- Reduced motion: final states, zero movement (durations AND delays) --- */
+@media (prefers-reduced-motion: reduce) {
+  .cosmos *,
+  .cosmos *::before,
+  .cosmos *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+  .cosmos-reveal {
+    filter: none;
+    opacity: 1;
+    transform: none;
+  }
+  .cosmos-step {
+    opacity: 1;
+    filter: none;
+  }
+  .cosmos-track {
+    transform: none;
+  }
+}

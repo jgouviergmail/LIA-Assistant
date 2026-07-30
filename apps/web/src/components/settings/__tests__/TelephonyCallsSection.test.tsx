@@ -71,6 +71,12 @@ describe('TelephonyCallsSection', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('requests only the 10 most recent calls (owner arbitration 2026-07-30)', () => {
+    mockCalls([call()]);
+    renderWithProviders(<TelephonyCallsSection lng="fr" collapsible={false} />);
+    expect(useTelephonyCalls).toHaveBeenCalledWith(true, 10);
+  });
+
   it('shows what LIA was asked to do and what came of it', () => {
     mockCalls([call()]);
     renderWithProviders(<TelephonyCallsSection lng="fr" collapsible={false} />);

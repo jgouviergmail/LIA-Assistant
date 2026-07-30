@@ -4,6 +4,9 @@ import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { LandingHeader } from '@/components/landing/LandingHeader';
 import { MoreContent } from '@/components/landing/more/MoreContent';
 import { PublicFooter } from '@/components/layout/PublicFooter';
+import { CosmicBackdrop } from '@/components/landing/cosmic/CosmicBackdrop';
+import { CosmosDarkFirst } from '@/components/landing/cosmic/CosmosDarkFirst';
+import { CosmosThemeDefault } from '@/components/landing/cosmic/CosmosThemeDefault';
 import { initI18next, validateLanguage } from '@/i18n';
 import { fallbackLng, languages, LOCALE_MAP } from '@/i18n/settings';
 import type { Language } from '@/i18n/settings';
@@ -72,7 +75,10 @@ export default async function MorePage({ params }: MorePageProps) {
         ]}
       />
 
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      <div className="landing-page cosmos min-h-screen">
+        <CosmosDarkFirst />
+        <CosmicBackdrop />
+        <CosmosThemeDefault />
         {/* Header — same as landing page (fixed top, transparent until scroll) */}
         <LandingHeader lng={lng} />
 

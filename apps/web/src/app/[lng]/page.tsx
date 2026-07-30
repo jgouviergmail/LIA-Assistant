@@ -6,19 +6,24 @@ import { SoftwareApplicationJsonLd, HowToJsonLd } from '@/components/seo/JsonLd'
 import { AuthRedirect } from '@/components/landing/AuthRedirect';
 import { TrackView } from '@/components/telemetry/TelemetryBootstrap';
 import { LandingHeader } from '@/components/landing/LandingHeader';
-import { HeroSection } from '@/components/landing/HeroSection';
 import { EditorialChapters } from '@/components/landing/editorial/EditorialChapters';
 import { BasicsBand } from '@/components/landing/editorial/BasicsBand';
 import { TransparencySection } from '@/components/landing/editorial/TransparencySection';
-import { DayTimeline } from '@/components/landing/editorial/DayTimeline';
 import { GallerySection } from '@/components/landing/editorial/GallerySection';
 import { ChapterRail } from '@/components/landing/editorial/ChapterRail';
 import { ArchitectureDiagram } from '@/components/landing/ArchitectureDiagram';
 import { UseCasesSection } from '@/components/landing/UseCasesSection';
 import { TechSection } from '@/components/landing/TechSection';
 import { BlogPreviewSection } from '@/components/landing/BlogPreviewSection';
-import { CtaSection } from '@/components/landing/CtaSection';
 import { LandingFooter } from '@/components/landing/LandingFooter';
+import { CosmicBackdrop } from '@/components/landing/cosmic/CosmicBackdrop';
+import { CosmosDarkFirst } from '@/components/landing/cosmic/CosmosDarkFirst';
+import { CosmosDay } from '@/components/landing/cosmic/CosmosDay';
+import { CosmosFinale } from '@/components/landing/cosmic/CosmosFinale';
+import { CosmosHero } from '@/components/landing/cosmic/CosmosHero';
+import { CosmosThemeDefault } from '@/components/landing/cosmic/CosmosThemeDefault';
+import { GhostWord } from '@/components/landing/cosmic/GhostWord';
+import { ScrollScrub } from '@/components/landing/cosmic/ScrollScrub';
 
 interface HomePageProps {
   params: Promise<{ lng: string }>;
@@ -113,7 +118,11 @@ export default async function HomePage({ params }: HomePageProps) {
       {/* Product funnel (ADR-178 Phase 4, anonymous allowed) — inert unless enabled */}
       <TrackView event="landing_view" />
 
-      <div className="landing-page">
+      <div className="landing-page cosmos">
+        <CosmosDarkFirst />
+        <CosmicBackdrop />
+        <CosmosThemeDefault />
+
         {/* Skip to content */}
         <a
           href="#features"
@@ -125,23 +134,40 @@ export default async function HomePage({ params }: HomePageProps) {
         <LandingHeader lng={lng} />
         <ChapterRail />
 
-        {/* Editorial narrative (ADR: the page speaks the product's language):
-            hero → five differentiation chapters (each with its expandable
-            catalog) → commodities band → radical-transparency proofs → real
-            use cases → a day per profile → gallery → under the hood. */}
+        {/* Editorial narrative (ADR: the page speaks the product's language),
+            worn by the cosmos identity: content reused verbatim, the `.cosmos`
+            scope + the cosmos compositions provide the skin. */}
         <main>
-          <HeroSection lng={lng} />
-          <EditorialChapters lng={lng} />
+          <CosmosHero lng={lng} />
+          <EditorialChapters lng={lng} ghosts />
           <BasicsBand lng={lng} />
-          <TransparencySection lng={lng} />
+          <TransparencySection
+            lng={lng}
+            ghost={<GhostWord wordKey="landing.cosmos.ghost.transparency" direction={1} />}
+          />
           <UseCasesSection lng={lng} />
-          <DayTimeline />
+          <CosmosDay />
           <GallerySection />
           <TechSection lng={lng} />
           <ArchitectureDiagram />
           <BlogPreviewSection lng={lng} />
-          <CtaSection lng={lng} />
+          <CosmosFinale lng={lng} />
         </main>
+
+        {/* Scroll-scrub drivers: each writes its section's --sp so the cosmos
+            skin can choreograph the tiles in sync with the scroll (one distinct
+            pattern per section — rise, 3D flip, lift, pop, execution trace). */}
+        <ScrollScrub targetId="chapter-act" syncStageDelays />
+        <ScrollScrub targetId="chapter-know" syncStageDelays />
+        <ScrollScrub targetId="chapter-anticipate" syncStageDelays />
+        <ScrollScrub targetId="chapter-control" syncStageDelays />
+        <ScrollScrub targetId="chapter-grow" syncStageDelays />
+        <ScrollScrub targetId="chapter-connect" syncStageDelays />
+        <ScrollScrub targetId="transparency" />
+        <ScrollScrub targetId="use-cases" />
+        <ScrollScrub targetId="gallery" />
+        <ScrollScrub targetId="technology" />
+        <ScrollScrub targetId="architecture" />
 
         <LandingFooter lng={lng} />
       </div>

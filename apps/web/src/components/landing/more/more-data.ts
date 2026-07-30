@@ -35,6 +35,7 @@ import {
   MessageSquarePlus,
   PanelTop,
   MonitorSmartphone,
+  Smartphone,
   Paperclip,
   PenLine,
   Radio,
@@ -119,7 +120,14 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
     key: 's6',
     num: '06',
     tinted: true,
-    cards: ['background_response', 'widgets_travel', 'cost_transparency', 'a11y_care', 'frosted_glass'],
+    cards: [
+      'background_response',
+      'widgets_travel',
+      'cost_transparency',
+      'a11y_care',
+      'frosted_glass',
+      'narrow_screens',
+    ],
   },
 ] as const;
 
@@ -160,6 +168,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   cost_transparency: Coins,
   a11y_care: Accessibility,
   frosted_glass: PanelTop,
+  narrow_screens: Smartphone,
 };
 
 /**
@@ -200,4 +209,5 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   cost_transparency: [],
   a11y_care: [],
   frosted_glass: [],
+  narrow_screens: [],
 };

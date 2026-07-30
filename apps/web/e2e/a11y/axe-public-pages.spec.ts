@@ -1,13 +1,15 @@
 /**
- * Accessibility smoke for the redesigned public pages (2026-07): the landing
+ * Accessibility smoke for the public pages (2026-07): the cosmos landing
+ * (`/` — scroll-scrubbed sections, ghost words, planetarium), the landing
  * FAQ (`/faq` — icon section headers, chip anchor rail, native <details>
  * accordions, grouped long answers) and the shareable demo page (`/demo` —
- * the hero animation standalone). Same AC-002 policy as axe-smoke: EVERY
- * critical/serious violation blocks, color-contrast included, light AND dark
- * (the theme is user-toggled — `defaultTheme="light"` means emulating the
- * OS scheme does nothing; the next-themes localStorage key drives it).
+ * the hero animation inside the planetarium). Same AC-002 policy as
+ * axe-smoke: EVERY critical/serious violation blocks, color-contrast
+ * included, light AND dark (the theme is user-toggled — the stored
+ * next-themes localStorage key drives it; the cosmos dark-first script only
+ * fires when that key is absent, so seeding it pins each pass).
  *
- * Both pages are anonymous: no auth harness, the API catch-all (auto fixture)
+ * All pages are anonymous: no auth harness, the API catch-all (auto fixture)
  * proves no backend dependency beyond the expected /auth/me 401 probe.
  */
 import { test, expect } from '../fixtures';
@@ -25,6 +27,30 @@ for (const theme of THEMES) {
           // Storage may be unavailable (privacy mode) — default theme then.
         }
       }, theme);
+    });
+
+    test(`cosmos landing scans clean after a full scroll-through (${theme})`, async ({
+      page,
+    }, testInfo) => {
+      await page.goto('/');
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+      // Scroll through every section so the scroll-scrubbed tiles reach their
+      // revealed state (--sp → 1) — an opacity-0 tile would be scanned as
+      // invisible, making the sweep vacuously clean.
+      const ids = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('section[id]'), s => s.id).filter(Boolean)
+      );
+      expect(ids.length, 'the landing must expose its section anchors').toBeGreaterThanOrEqual(10);
+      for (const id of ids) {
+        await page.evaluate(sectionId => {
+          document.getElementById(sectionId)?.scrollIntoView();
+        }, id);
+        await page.waitForTimeout(200);
+      }
+
+      const { blocking, summary } = await scanPage(page, testInfo, `/landing-${theme}`);
+      expect(blocking, `axe violations on / (${theme}):\n${summary}`).toHaveLength(0);
     });
 
     test(`FAQ page scans clean with a long grouped answer open (${theme})`, async ({

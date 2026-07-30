@@ -6,7 +6,7 @@
 
 **Version** : 3.6
 **Date** : 2026-07-30
-**Application** : LIA v1.27.1
+**Application** : LIA v1.27.2
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 447 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 170+ ADRs, ~16 535 tests collectés par pytest sur 873 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 180 ADRs, ~16 808 tests collectés par pytest sur 902 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -72,10 +72,10 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~16 535 (collectés par pytest sur 873 fichiers de test) + 3 540 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | ~16 808 (collectés par pytest sur 902 fichiers de test) + 4 247 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures réutilisables | 170+ |
 | Documents de documentation | 400+ |
-| ADRs (Architecture Decision Records) | 160+ |
+| ADRs (Architecture Decision Records) | 180 |
 | Métriques Prometheus | 447 définitions |
 | Dashboards Grafana | 26 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -557,7 +557,7 @@ Chaque souvenir est un document structuré avec :
 - `usage_nuance` : comment utiliser cette information de manière bienveillante
 - Embedding `gemini-embedding-001` (1536d) via pgvector HNSW
 
-**Pourquoi un poids émotionnel ?** Un assistant qui sait que votre mère est malade mais traite ce fait comme n'importe quelle donnée est au mieux maladroit, au pire blessant. Le poids émotionnel permet d'activer la `DANGER_DIRECTIVE` (interdiction de plaisanter, minimiser, comparer, banaliser) quand un sujet sensible est touché.
+**Pourquoi un poids émotionnel ?** Un assistant qui sait que ta mère est malade mais traite ce fait comme n'importe quelle donnée est au mieux maladroit, au pire blessant. Le poids émotionnel permet d'activer la `DANGER_DIRECTIVE` (interdiction de plaisanter, minimiser, comparer, banaliser) quand un sujet sensible est touché.
 
 ### 11.3. Extraction et injection
 
@@ -918,7 +918,7 @@ transitif complet est audité et inventorié, pas seulement les paquets déclar�
 
 ### 22.4. L'audit est public — et reproductible
 
-Le niveau d'exigence décrit dans ce guide n'est pas auto-déclaré : un audit technique 360° complet — **8,3/10 sur 24 périmètres normalisés** de la grille ISO/IEC 25010, constats ouverts compris — est publié dans le dépôt ([rapport complet](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), avec le [protocole d'audit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) qui rend chaque cycle reproductible : commit épinglé, exigences de preuve par périmètre, notation ancrée, et un script versionné qui mesure la taille en SLOC logiques. Le rapport se termine par les commandes exactes pour reproduire les mesures vous-même.
+Le niveau d'exigence décrit dans ce guide n'est pas auto-déclaré : un audit technique 360° complet — **8,3/10 sur 24 périmètres normalisés** de la grille ISO/IEC 25010, constats ouverts compris — est publié dans le dépôt ([rapport complet](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), avec le [protocole d'audit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) qui rend chaque cycle reproductible : commit épinglé, exigences de preuve par périmètre, notation ancrée, et un script versionné qui mesure la taille en SLOC logiques. Le rapport se termine par les commandes exactes pour reproduire les mesures toi-même.
 
 ### 22.5. Une garde ne vaut que ce qu'elle mesure
 
@@ -1111,7 +1111,7 @@ Reste qu'une destination peut légitimement ne pas exister : plusieurs sections 
 
 ## 24. Architecture des décisions (ADR)
 
-170+ ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+180 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1201,10 +1201,10 @@ Le contexte psyché est injecté dans **tous** les points de génération utilis
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 170+ ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~16 535 tests sur 873 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 180 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~16 808 tests sur 902 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 170+ ADRs, et du changelog (v1.0 à v1.27.1). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 180 ADRs, et du changelog (v1.0 à v1.27.2). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

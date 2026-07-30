@@ -85,9 +85,16 @@ function CallRow({ call, lng }: { call: TelephonyCallSummary; lng: Language }) {
   );
 }
 
+/** The section shows the 10 most recent calls only (owner arbitration
+ *  2026-07-30) — the full history stays in the database, out of the way. */
+const RECENT_CALLS_LIMIT = 10;
+
 export default function TelephonyCallsSection({ lng, collapsible = true }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
-  const { calls, hasActiveCall, isLoading, isUnavailable } = useTelephonyCalls();
+  const { calls, hasActiveCall, isLoading, isUnavailable } = useTelephonyCalls(
+    true,
+    RECENT_CALLS_LIMIT
+  );
 
   // Feature off, or nothing ever dialled: no empty shelf on the settings page.
   if (isUnavailable || (!isLoading && calls.length === 0)) return null;

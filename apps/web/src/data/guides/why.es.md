@@ -4,7 +4,7 @@
 
 **Versión** : 4.1
 **Fecha** : 2026-07-30
-**Aplicación** : LIA v1.27.1
+**Aplicación** : LIA v1.27.2
 **Licencia** : AGPL-3.0 (Open Source)
 
 ---
@@ -228,7 +228,7 @@ Cuando usas ChatGPT, tus conversaciones viven en los servidores de OpenAI. Con G
 
 Con LIA, **todo se queda en tu PostgreSQL**: conversaciones, memoria, perfil psicológico, documentos, preferencias. Puedes exportar, hacer copias de seguridad, migrar o eliminar la totalidad de tus datos en cualquier momento — incluida una exportación completa en un clic desde los ajustes: Markdown legible, JSON estructurado y tus archivos, con el material secreto inexportable por construcción. Y cada dispositivo conectado a tu cuenta es visible y revocable con un clic. El RGPD no es una restricción — es una consecuencia natural de la arquitectura. Los datos sensibles están cifrados, las sesiones aisladas, y el filtrado automático de información personal identificable (PII) está integrado.
 
-La protección vale también para lo que **entra**. LIA lee cada día textos que usted no ha escrito: el cuerpo de un correo, la descripción de una invitación redactada por su organizador, una página web, la ficha de un lugar. Cualquiera puede deslizar allí una consigna dirigida a la asistente. Cada dato lleva ahora su procedencia, y lo que viene de fuera llega etiquetado como **material a analizar, nunca como una orden que seguir** — con los intentos de manipulación detectados y nombrados, en los seis idiomas. Su contenido no se reescribe por ello: un correo sigue siendo lo que su autor escribió. Reescribir daría la ilusión de una garantía que el siguiente rodeo desmentiría; nombrar lo que se ve es más honesto, y más útil.
+La protección vale también para lo que **entra**. LIA lee cada día textos que tú no has escrito: el cuerpo de un correo, la descripción de una invitación redactada por su organizador, una página web, la ficha de un lugar. Cualquiera puede deslizar allí una consigna dirigida a la asistente. Cada dato lleva ahora su procedencia, y lo que viene de fuera llega etiquetado como **material a analizar, nunca como una orden que seguir** — con los intentos de manipulación detectados y nombrados, en los seis idiomas. Su contenido no se reescribe por ello: un correo sigue siendo lo que su autor escribió. Reescribir daría la ilusión de una garantía que el siguiente rodeo desmentiría; nombrar lo que se ve es más honesto, y más útil.
 
 ### 5.2. Incluso una Raspberry Pi es suficiente
 

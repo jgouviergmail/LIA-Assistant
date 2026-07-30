@@ -1,6 +1,6 @@
 /**
  * Centralized landing page statistics.
- * Single source of truth consumed by HeroSection (trust badges), ProofSection
+ * Single source of truth consumed by CosmosHero (trust badges), ProofSection
  * (animated counters + engineering proof) and JsonLd (SEO feature list).
  *
  * Verified against the codebase (2026-07):
@@ -21,17 +21,18 @@
  *   Reconciles with 446 at v1.25.29: -2 (hybrid memory search removed, ADR-168),
  *   +1 prompt_injection_patterns_total, +2 ReAct loop-guard counters (ADR-170).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured at v1.26.4: backend 16,651 collected (+25, ADR-179 thinking-
- *   budget lock + structured-output AST guard + shared token capture),
- *   frontend 4,094 (+11, structured-422 toast paths + locale placeholder
- *   guards) = 20,745. Rounded down to the thousand, so the displayed figure
- *   is unchanged while the measurement moved. Re-measure every release: the
- *   value carried the backend count alone until v1.25.9.
- * - adrs: docs/architecture/ ADR files (179 files, numbered up to ADR-180 —
- *   ADR-008 has no separate file, so 178 numbers map to 177 files).
+ *   Re-measured at v1.27.2: backend 16,808 collected (unchanged — the release
+ *   is frontend-only), frontend 4,250 (+79, ADR-181 cosmic primitives, landing
+ *   composition + production contract, calm scope of the seven reading pages,
+ *   upcoming-only automations, silent proactive vote, recent-calls window)
+ *   = 21,058 → 21,000. The displayed figure MOVES this release (20,000 since
+ *   v1.25.9). Re-measure every release: the value carried the backend count
+ *   alone until v1.25.9.
+ * - adrs: docs/architecture/ ADR files (180 files, numbered up to ADR-181 —
+ *   ADR-008 has no separate file, so 181 numbers map to 180 files).
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   186 headings at v1.26.4, no Unreleased pending.
+ *   189 headings at v1.27.2, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -47,9 +48,9 @@ export const LANDING_STATS = {
   voiceLanguages: 99,
   metrics: 447,
   uiLanguages: 6,
-  tests: 20000,
-  adrs: 179,
-  releases: 188,
+  tests: 21000,
+  adrs: 180,
+  releases: 189,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

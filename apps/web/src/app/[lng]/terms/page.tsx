@@ -10,6 +10,9 @@ import { LanguageSelector } from '@/components/LanguageSelector';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { TermsContent } from '@/components/legal/TermsContent';
 import { PublicFooter } from '@/components/layout/PublicFooter';
+import { CosmicBackdrop } from '@/components/landing/cosmic/CosmicBackdrop';
+import { CosmosDarkFirst } from '@/components/landing/cosmic/CosmosDarkFirst';
+import { CosmosThemeDefault } from '@/components/landing/cosmic/CosmosThemeDefault';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
 
@@ -79,7 +82,10 @@ export default async function TermsPage({ params }: TermsPageProps) {
         ]}
       />
 
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      <div className="landing-page cosmos cosmos-calm min-h-screen">
+        <CosmosDarkFirst />
+        <CosmicBackdrop />
+        <CosmosThemeDefault />
         {/* Header */}
         <header className="border-b border-border/40 bg-background/80 backdrop-blur-xl sticky top-0 z-50">
           <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 lg:px-8 py-3">

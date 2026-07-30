@@ -20,10 +20,14 @@ const AccordionTrigger = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Trigger>
 >(({ className, children, ...props }, ref) => (
   <AccordionPrimitive.Header className="flex">
+    {/* min-w-0: without it the flex-1 trigger refuses to shrink below the
+        intrinsic width of its (nowrap) label row and silently overflows
+        narrow viewports — inner truncate/min-w-0 cannot compensate, the
+        floor lives on the flex item itself. */}
     <AccordionPrimitive.Trigger
       ref={ref}
       className={cn(
-        'flex flex-1 items-center justify-between py-4 text-sm font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180',
+        'flex min-w-0 flex-1 items-center justify-between py-4 text-sm font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180',
         className
       )}
       {...props}
