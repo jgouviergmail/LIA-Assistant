@@ -1,12 +1,13 @@
 /**
- * Personal CRM (N-09) — the Relations page is reachable and works end to end.
+ * Personal CRM (N-09 + favorites) — the Relations page end to end.
  *
- * Unit tests cover the aggregation service and the two presentational
- * components. Only a browser proves the chain that made this feature INVISIBLE
- * before the fix: the page has no nav slot, so it is reached through the Quick
- * Access bar; the overview must render, a card must open the 360° detail
- * (client-state, no route change), and "prepare a 360° point" must deep-link
- * the chat with a `?intent=` (ADR-173).
+ * Unit tests cover the aggregation service and the presentational components.
+ * The browser proves the doors and the journey: Relations holds a first-class
+ * NAV slot since 2026-07-30 (it took the `spaces` slot — the chat indicator
+ * keeps spaces one click away), the overview renders, the star moves a card
+ * into the Favorites band, a card opens the 360° detail (client-state, no
+ * route change), and "prepare a 360° point" deep-links the chat with a
+ * `?intent=` (ADR-173).
  */
 import { test, expect, type MockRoute } from '../fixtures';
 
@@ -20,6 +21,8 @@ const OVERVIEW = {
       open_loops_count: 2,
       calls_count: 1,
       last_interaction_at: '2026-07-28T09:00:00Z',
+      is_favorite: false,
+      is_peer: false,
     },
     {
       display_name: 'Marie Leroy',
@@ -27,6 +30,8 @@ const OVERVIEW = {
       open_loops_count: 1,
       calls_count: 0,
       last_interaction_at: '2026-07-20T09:00:00Z',
+      is_favorite: false,
+      is_peer: false,
     },
   ],
 };
@@ -53,23 +58,51 @@ const DETAIL = {
     },
   ],
   memories: [{ id: 'm1', content: 'Aime la randonnée en montagne.' }],
+  is_favorite: false,
+  is_peer: false,
 };
 
 const ROUTES: MockRoute[] = [
   { url: '**/api/v1/relations', method: 'GET', json: OVERVIEW },
+  { url: '**/api/v1/relations/favorites/*', method: 'PUT', status: 204 },
   { url: '**/api/v1/relations/*', method: 'GET', json: DETAIL },
 ];
 
 test.describe('relations CRM (N-09)', () => {
-  test('is reached from Quick Access on the dashboard', async ({ page, authenticate, mockApi }) => {
+  test('is reached from the navigation bar', async ({ page, authenticate, mockApi }) => {
     await authenticate({ language: 'fr' });
     await mockApi(ROUTES);
     await page.goto('/fr/dashboard');
 
-    // The CRM has no nav slot (R01 header clips at 5); Quick Access is its
-    // only always-visible door — the exact gap the review caught.
-    const link = page.getByRole('link', { name: /Relations/i });
-    await expect(link.first()).toHaveAttribute('href', '/fr/dashboard/relations');
+    // Relations holds a first-class nav slot since 2026-07-30 (default-locale
+    // hrefs carry no /fr prefix — assert the journey, not the string).
+    const navLink = page.getByRole('navigation').getByRole('link', { name: 'Relations' });
+    await expect(navLink).toBeVisible();
+    await navLink.click();
+    await page.waitForURL(/\/dashboard\/relations/, { timeout: 30_000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Relations' })).toBeVisible();
+  });
+
+  test('the star moves a card into the Favorites band without opening it', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await authenticate({ language: 'fr' });
+    await mockApi(ROUTES);
+    await page.goto('/fr/dashboard/relations');
+    await expect(page.getByText(NAME)).toBeVisible({ timeout: 30_000 });
+
+    // No favorites yet: a single band.
+    await expect(page.getByRole('heading', { name: /Favoris/ })).toHaveCount(0);
+    await page.getByRole('button', { name: `Ajouter ${NAME} aux favoris` }).click();
+    // Optimistic: the Favorites band appears with the starred card inside.
+    const favoritesBand = page.locator('section', {
+      has: page.getByRole('heading', { name: /Favoris/ }),
+    });
+    await expect(favoritesBand.getByText(NAME)).toBeVisible();
+    // The 360° detail did NOT open (starring is not opening).
+    await expect(page.getByText('Rendre la perceuse')).toHaveCount(0);
   });
 
   test('lists relationships and opens a 360° view that deep-links the chat', async ({
@@ -86,7 +119,9 @@ test.describe('relations CRM (N-09)', () => {
     await expect(page.getByText('Marie Leroy')).toBeVisible();
 
     // Open the 360° detail (client state — the URL stays on /relations).
-    await page.getByRole('button', { name: new RegExp(NAME) }).click();
+    // Anchored: the sibling star button is named "Ajouter <name> aux favoris"
+    // and must not match (two buttons carry the name since favorites).
+    await page.getByRole('button', { name: new RegExp(`^${NAME}`) }).click();
     await expect(page.getByText('Rendre la perceuse')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText('Anniversaire surprise')).toBeVisible();
     await expect(page.getByText('Aime la randonnée en montagne.')).toBeVisible();
