@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.27.1] - 2026-07-30
+
+**Les relations gagnent leur place — dans la barre de navigation, et dans le cœur.** La page Relations, jusqu'ici sans porte d'entrée, prend le créneau de navigation de « Connaissances » (qui reste à un clic dans le chat : son indicateur s'affiche désormais **toujours**, même sans aucun espace) et reçoit la refonte qu'elle méritait : avatars à initiales à teinte stable, pastilles de signaux colorées, **favoris persistés** (l'étoile résiste à l'expiration des signaux, en tête de liste avant le cap), bandes « Favoris / Autres » distinctes, filtre par nom, badge 🤝 pour les proches également connectés sur LIA, et une fiche 360° en cartes sectionnées. Les connexions entre utilisateurs gagnent leur **chapitre 06** sur la landing (« LIA vous relie à vos proches », scène animée du relais), la recherche des réglages apprend leurs synonymes naturels, et les cartes « Comment fonctionne LIA » cessent d'afficher leurs balises HTML littérales (14 cartes touchées). Backend **14 950** tests, frontend **4 171**.
+
+### Added
+
+- **Favoris de relations** — nouvelle table `relation_favorites` (une étoile par nom plié et par utilisateur, migration `a4b5c6d7e8f9`) : PUT/DELETE `/relations/favorites/{name}` idempotents, étoile optimiste avec réconciliation serveur, favoris injectés dans la vue d'ensemble même sans signal vivant et triés en tête avant le cap ; export RGPD et purge de compte couverts.
+- **Refonte UX de la page Relations** — avatars à initiales (teinte stable par personne), pastilles engagements/appels colorées, bandes « Favoris » / « Autres relations » avec compteurs, filtre par nom dès neuf personnes, badge « LIA » sur les proches connectés (pont peers en lecture seule, désactivé avec le flag), fiche 360° : header d'identité (grand avatar, étoile, action « Préparer un point 360° »), sections en cartes avec ancienneté et dates relatives, souvenirs en notes.
+- **« Relations » dans la navigation** — l'entrée « Connaissances » cède son créneau (desktop et menu mobile pilotés par la même table) ; l'indicateur Connaissances du chat s'affiche désormais **toujours**, y compris sans aucun espace — il devient la porte permanente de la page.
+- **Chapitre 06 de la landing** — « LIA vous relie à vos proches » : trame éditoriale étendue à six chapitres (rail 01→06), scène animée du relais assistant-à-assistant (formulation validée, carte teintée, remise confirmée), trois bénéfices et « sous le capot », dans les six langues.
+
+### Fixed
+
+- **Les cartes « Comment fonctionne LIA » affichaient leurs balises** — quatorze cartes sur cinquante-quatre rendaient `<b>…</b>` littéralement (le rendu des cartes échappait le HTML que les réponses voisines interprétaient) : aligné sur le même contrat de rendu, avec un test qui épingle le bug.
+- **La recherche des réglages ignorait les synonymes naturels des Connexions** — « proches », « peer », « social », « réseau social » et même « découverte » (le nom du réglage !) ne trouvaient rien : lexique enrichi dans les six langues, sondé en runtime (7/7 termes).
+- **Apostrophes typographiques** — trois clés françaises préexistantes de la page Relations normalisées (U+2019).
+
+### Tests
+
+- +12 backend (14 950) : favoris dans la vue d'ensemble (tri en tête, survie au cap, survie sans signal), badge peers (avec et sans flag), pliage des noms à l'ajout/retrait, délégation et idempotence des endpoints, pont `list_accepted_peer_names` (pliage, déduplication, court-circuit) ; +26 frontend (4 171) : étoile sans ouverture (bouton sœur, `aria-pressed`), bandes et compteurs, filtre (les deux bandes, aucun résultat), badge peers, toggle optimiste en vol + réconciliation + rollback, fiche 360° (étoile, badge), indicateur Connaissances toujours rendu, cartes FAQ sans balise littérale.
+
 ## [1.27.0] - 2026-07-30
 
 **LIA cesse d'être un assistant solitaire : deux utilisateurs d'une même instance peuvent désormais se connecter — et leurs assistants se parlent.** Le programme « Connexions entre utilisateurs » ([ADR-180](docs/architecture/ADR-180-Peer-Connections.md)) livre la découverte opt-in par nom exact, les demandes de connexion accept/refus (dans le chat comme dans les réglages), le blocage silencieux anti-harcèlement, et le cœur du dispositif : le **relais de messages assistant-à-assistant** — l'assistant du destinataire transmet le message avec SA personnalité, SA mémoire et SON contexte, en nommant l'expéditeur, dont l'assistant confirme la remise. Chaque connexion peut ouvrir des partages **en lecture seule** choisis champ par champ (disponibilités ou détails du calendrier, titres des tâches — rien n'est partagé par défaut, chaque accès est journalisé et re-vérifié à l'exécution). Trois défauts découverts au premier usage réel sont corrigés à la racine — le validateur sémantique jugeait le contenu français sur son pivot anglais, le discours indirect était relayé tel quel, un plan de disponibilité mourait sur des scopes Google hors sujet — et l'interface gagne sa signature **verre dépoli** : le flou est maintenant réel (les bulles glissent sous la vitre du header), généralisé aux dialogues, menus, tooltips et toasts. Backend **16 796** tests collectés (+145), frontend **4 159** (+65) ; planchers de couverture relevés (backend 63 %). Un ADR (180).

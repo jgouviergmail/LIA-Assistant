@@ -54,12 +54,12 @@ import {
   Users,
 } from 'lucide-react';
 
-export type ChapterId = 'act' | 'know' | 'anticipate' | 'control' | 'grow';
+export type ChapterId = 'act' | 'know' | 'anticipate' | 'control' | 'grow' | 'connect';
 
 export interface ChapterConfig {
   id: ChapterId;
-  /** i18n suffix under `landing.chapters.` (c1..c5). */
-  key: 'c1' | 'c2' | 'c3' | 'c4' | 'c5';
+  /** i18n suffix under `landing.chapters.` (c1..c6). */
+  key: 'c1' | 'c2' | 'c3' | 'c4' | 'c5' | 'c6';
   /** Anchor id (chapter rail + deep links). */
   anchor: string;
   num: string;
@@ -104,7 +104,6 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     catalog: [
       'memory',
       'personal_crm',
-      'peers',
       'briefing',
       'personalities',
       'psyche',
@@ -142,6 +141,16 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     benefits: 3,
     catalog: ['skills', 'mcp', 'mcp_apps', 'rag_spaces', 'sub_agents', 'devops_cli'],
     tinted: false,
+  },
+  {
+    id: 'connect',
+    key: 'c6',
+    anchor: 'chapter-connect',
+    num: '06',
+    mood: '🙂',
+    benefits: 3,
+    catalog: ['peers'],
+    tinted: true,
   },
 ] as const;
 

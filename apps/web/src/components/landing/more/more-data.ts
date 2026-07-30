@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 31 cards in
+ * Single source of truth for the "/more" small-attentions page: 32 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (31 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (32 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -43,6 +43,7 @@ import {
   Share2,
   SlashSquare,
   Sparkles,
+  Star,
   TextSelect,
   TextSearch,
   ThumbsUp,
@@ -104,7 +105,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
     key: 's4',
     num: '04',
     tinted: true,
-    cards: ['settings_search', 'deep_links', 'history_search', 'mobile_logo_nav'],
+    cards: ['settings_search', 'deep_links', 'history_search', 'mobile_logo_nav', 'relation_star'],
   },
   {
     id: 'daily',
@@ -148,6 +149,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   deep_links: Link2,
   history_search: History,
   mobile_logo_nav: Menu,
+  relation_star: Star,
   briefing_custom: LayoutGrid,
   card_actions: Zap,
   starter_checklist: ListChecks,
@@ -187,6 +189,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   deep_links: [],
   history_search: ['query'],
   mobile_logo_nav: [],
+  relation_star: [],
   briefing_custom: [],
   card_actions: ['chip1', 'chip2'],
   starter_checklist: [],

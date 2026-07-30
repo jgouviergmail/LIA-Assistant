@@ -6,7 +6,7 @@
 
 **Version**: 3.6
 **Datum**: 2026-07-30
-**Application**: LIA v1.27.0
+**Application**: LIA v1.27.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -168,6 +168,7 @@ apps/api/src/
 │   ├── skills/                   # Standard agentskills.io
 │   ├── sub_agents/               # Spezialisierte persistente Agenten
 │   ├── peers/                    # Verbindungen zwischen Nutzern (Assistent-zu-Assistent-Relais)
+│   ├── relations/                # Persönliches CRM (Aggregation + Favoriten)
 │   ├── usage_limits/             # Kontingente pro Benutzer (5-Layer Defence)
 │   └── ...                       # conversations, reminders, scheduled_actions, users, user_mcp
 │
@@ -1165,4 +1166,4 @@ Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lern
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 170+ ADRs und des Changelogs (v1.0 bis v1.27.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 170+ ADRs und des Changelogs (v1.0 bis v1.27.1). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

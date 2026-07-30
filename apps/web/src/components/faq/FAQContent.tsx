@@ -65,6 +65,7 @@ import {
   Sunrise,
   PhoneCall,
   Handshake,
+  Users,
 } from 'lucide-react';
 
 interface FAQContentProps {
@@ -89,6 +90,7 @@ const sections = [
   'connectors',
   'telephony',
   'peers',
+  'relations',
   'tool_examples_services',
   'tool_examples_external',
   'rappels',
@@ -117,6 +119,7 @@ const sections = [
  * releases. `__tests__/changelog-wiring.test.ts` now fails on any drift in either direction.
  */
 export const changelogVersionKeys = [
+  'v1_27_1',
   'v1_27_0',
   'v1_26_4',
   'v1_26_3',
@@ -309,6 +312,7 @@ export const featureIcons = {
   todayBriefing: Sunrise,
   telephony: PhoneCall,
   peers: Handshake,
+  relations: Users,
 };
 
 /**
@@ -362,6 +366,7 @@ export const featureKeys = [
   'todayBriefing',
   'telephony',
   'peers',
+  'relations',
   'richResponses',
 ];
 
@@ -519,9 +524,17 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
                         <h3 className="font-medium text-sm mb-1">
                           {t(`faq.intro.features.${featureKey}.title`)}
                         </h3>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          {t(`faq.intro.features.${featureKey}.description`)}
-                        </p>
+                        {/* Same rendering contract as the section answers and
+                            changelog items below: authored HTML compiled from
+                            the repo locales (the charter's app-controlled
+                            exemption). 14 of the cards carry <b>/<i> markup
+                            that used to display as literal tags. */}
+                        <p
+                          className="text-xs text-muted-foreground leading-relaxed"
+                          dangerouslySetInnerHTML={{
+                            __html: t(`faq.intro.features.${featureKey}.description`),
+                          }}
+                        />
                       </div>
                     </div>
                   );

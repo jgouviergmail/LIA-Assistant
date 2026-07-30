@@ -42,8 +42,32 @@ function detail(over: Partial<RelationDetail> = {}): RelationDetail {
       },
     ],
     memories: [{ id: 'm1', content: 'Aime la randonnée' }],
+    is_favorite: false,
+    is_peer: false,
     ...over,
   };
+}
+
+function renderPanel(
+  over: Partial<{
+    name: string;
+    isFavorite: boolean;
+    onToggleFavorite: (name: string, nextValue: boolean) => void;
+    onBack: () => void;
+  }> = {}
+) {
+  const onToggleFavorite = vi.fn(over.onToggleFavorite);
+  const onBack = vi.fn(over.onBack);
+  const utils = renderWithProviders(
+    <RelationDetailPanel
+      name={over.name ?? 'Gérard Dupont'}
+      lng="fr"
+      isFavorite={over.isFavorite ?? false}
+      onToggleFavorite={onToggleFavorite}
+      onBack={onBack}
+    />
+  );
+  return { ...utils, onToggleFavorite, onBack };
 }
 
 beforeEach(() => {
@@ -54,7 +78,7 @@ beforeEach(() => {
 describe('RelationDetailPanel', () => {
   it('renders each populated section', () => {
     useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
-    renderWithProviders(<RelationDetailPanel name="Gérard Dupont" lng="fr" onBack={vi.fn()} />);
+    renderPanel();
 
     expect(screen.getByText('Rendre la perceuse')).toBeInTheDocument();
     expect(screen.getByText('Anniversaire')).toBeInTheDocument();
@@ -67,7 +91,7 @@ describe('RelationDetailPanel', () => {
       loading: false,
       error: false,
     });
-    renderWithProviders(<RelationDetailPanel name="Gérard" lng="fr" onBack={vi.fn()} />);
+    renderPanel({ name: 'Gérard' });
     expect(screen.getByText('relations.identity_best_effort')).toBeInTheDocument();
   });
 
@@ -75,7 +99,7 @@ describe('RelationDetailPanel', () => {
     // Memories match by name substring — they can over-match even when the
     // loop/call identity is EXACT, so the caveat must show.
     useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
-    renderWithProviders(<RelationDetailPanel name="Gérard Dupont" lng="fr" onBack={vi.fn()} />);
+    renderPanel();
     expect(screen.getByText('relations.identity_best_effort')).toBeInTheDocument();
   });
 
@@ -85,26 +109,41 @@ describe('RelationDetailPanel', () => {
       loading: false,
       error: false,
     });
-    renderWithProviders(<RelationDetailPanel name="Gérard Dupont" lng="fr" onBack={vi.fn()} />);
+    renderPanel();
     expect(screen.queryByText('relations.identity_best_effort')).not.toBeInTheDocument();
   });
 
   it('deep-links a 360° preparation as a chat intent (ADR-173)', async () => {
     useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
-    const { user } = renderWithProviders(
-      <RelationDetailPanel name="Gérard Dupont" lng="fr" onBack={vi.fn()} />
-    );
+    const { user } = renderPanel();
     await user.click(screen.getByRole('button', { name: 'relations.prepare_360' }));
     expect((push.mock.calls[0][0] as string).startsWith('/fr/dashboard/chat?intent=')).toBe(true);
   });
 
   it('returns to the list', async () => {
     useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
-    const onBack = vi.fn();
-    const { user } = renderWithProviders(
-      <RelationDetailPanel name="Gérard Dupont" lng="fr" onBack={onBack} />
-    );
+    const { user, onBack } = renderPanel();
     await user.click(screen.getByRole('button', { name: 'relations.back' }));
     expect(onBack).toHaveBeenCalledTimes(1);
   });
+
+  it('toggles the star from the identity header', async () => {
+    useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
+    const { user, onToggleFavorite } = renderPanel({ isFavorite: true });
+    const star = screen.getByRole('button', { name: 'relations.favorite_remove' });
+    expect(star).toHaveAttribute('aria-pressed', 'true');
+    await user.click(star);
+    expect(onToggleFavorite).toHaveBeenCalledWith('Gérard Dupont', false);
+  });
+
+  it('shows the peers badge only for a connected LIA user', () => {
+    useRelationDetail.mockReturnValue({
+      detail: detail({ is_peer: true }),
+      loading: false,
+      error: false,
+    });
+    renderPanel();
+    expect(screen.getByText('relations.peer_badge')).toBeInTheDocument();
+  });
 });
+

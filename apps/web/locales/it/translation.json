@@ -3038,7 +3038,7 @@
         "psyche": "emozioni, umore, sentimenti, affettività, emotivo",
         "memories": "memoria, ricordi, ricordare, dimenticare, fatti",
         "interests": "argomenti, gusti, temi, curiosità, preferenze",
-        "peer-connections": "contatti, amici, famiglia, rete, condividere calendario, disponibilità, bloccare, trovare utenti, connettere, il mio nome, copia il mio nome, richiesta di connessione, registro accessi, trasmettere messaggio, utenti bloccati",
+        "peer-connections": "contatti, amici, famiglia, rete, condividere calendario, disponibilità, bloccare, trovare utenti, connettere, il mio nome, copia il mio nome, richiesta di connessione, registro accessi, trasmettere messaggio, utenti bloccati, persone care, rete sociale, peer, reperibilità, scoperta",
         "heartbeat": "proattivo, spontaneo, iniziativa, contatto, messaggi autonomi",
         "scheduled-actions": "cron, pianificazione, ricorrente, automazione, timer, programmato",
         "journals": "diario, giornale di bordo, ritratto, riflessioni, note",
@@ -3066,7 +3066,19 @@
     "identity_best_effort": "Questi elementi sono stati abbinati per nome — LIA potrebbe aver unito due persone diverse o mancato una grafia.",
     "section_open_loops": "Impegni aperti",
     "section_calls": "Chiamate recenti",
-    "section_memories": "Ricordi"
+    "section_memories": "Ricordi",
+    "favorites_title": "Preferiti",
+    "others_title": "Altre relazioni",
+    "all_title": "Tutte le relazioni",
+    "favorite_add": "Aggiungi {{name}} ai preferiti",
+    "favorite_remove": "Rimuovi {{name}} dai preferiti",
+    "favorite_error": "Impossibile aggiornare il preferito. Riprova.",
+    "filter_placeholder": "Filtra per nome…",
+    "filter_no_match": "Nessuna relazione corrisponde a questo filtro.",
+    "peer_badge": "Su LIA",
+    "peer_badge_hint": "Anche lui/lei usa questa istanza LIA — siete connessi",
+    "no_recent_signal": "Nessun segnale recente",
+    "subtitle_detail": "La vista a 360° della tua relazione"
   },
   "spaces": {
     "title": "Spazi di conoscenza",
@@ -3167,7 +3179,8 @@
     "settings": "Impostazioni",
     "logout": "Disconnetti",
     "profile": "Profilo",
-    "faq": "Aiuto"
+    "faq": "Aiuto",
+    "relations": "Relazioni"
   },
   "errors": {
     "generic": "Si è verificato un errore",
@@ -3671,6 +3684,10 @@
         "peers": {
           "title": "🤝 Connessioni tra utenti",
           "description": "Due utenti della stessa istanza si connettono tramite un'<b>unica riga di coppia canonica</b> con transizioni condizionali claim-once (niente richieste duplicate; le richieste incrociate si auto-accettano). La privacy è imposta per costruzione: un bersaglio bloccato, sconosciuto o in cooldown risponde con un <b>404 identico byte per byte</b> — l'esistenza non è mai sondabile. Il relay dei messaggi è una bozza confermata (HITL) consegnata dall'<b>assistente del destinatario</b> (personalità, profilo psicologico, psiche, ritratto — una sola chiamata LLM, addebitata al mittente). Le condivisioni sono per campo e in sola lettura (calendario libero/occupato o dettagli, titoli delle attività), <b>riconvalidate al momento dell'esecuzione</b> e tracciate in un registro degli accessi con retention limitata. L'intero dominio sta dietro un flag di istanza, si esporta e si ripulisce correttamente ai sensi del GDPR, ed espone metriche di ciclo di vita e consegna a Prometheus."
+        },
+        "relations": {
+          "title": "⭐ CRM personale — Relazioni",
+          "description": "Una <b>lente, non un database</b>: la pagina Relazioni aggrega ciò che LIA già sa per persona — impegni aperti, chiamate, ricordi che citano il nome — con identità risolta tramite folding di accenti/maiuscole e confidenza <b>dichiarata</b> (esatta vs normalizzata: onestà prima della falsa precisione). L'unico stato persistito è la <b>stella dei preferiti</b>: upsert idempotente lato server, toggle ottimistico riconciliato sulla vista fresca, preferiti iniettati anche quando i loro segnali sono scaduti e ordinati prima del tetto. Le relazioni che sono anche utenti LIA connessi portano un badge peers in sola lettura (ponte dietro flag), e tutto segue l'esportazione GDPR e la pulizia dell'account."
         }
       },
       "diagram_alt": "Diagramma dell'architettura di LIA"
@@ -3679,6 +3696,17 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_27_1": {
+          "title": "v1.27.1 — ⭐ Le tue relazioni, in primo piano",
+          "date": "Luglio 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>⭐ Relazioni nella navigazione</b> — la pagina del CRM personale guadagna la propria voce nella barra (Conoscenze resta a un clic nella chat — la sua pillola ora è sempre visibile). Schede ridisegnate: avatar con iniziali, pillole di segnali colorate, scheda 360°.",
+            "i2": "<b>❤️ Preferiti persistenti</b> — metti una stella a chi vuoi con un gesto, senza aprire la scheda: i tuoi preferiti mantengono la loro fascia in alto, sopravvivono ai periodi tranquilli, e un filtro per nome appare quando l'elenco cresce.",
+            "i3": "<b>🤝 Il badge LIA</b> — le relazioni che sono anche utenti connessi della tua istanza portano un piccolo badge: il ponte tra il tuo CRM e le tue connessioni.",
+            "i4": "<b>🧭 Più facile da trovare</b> — cercare persone care, peer, rete sociale o reperibilità nelle impostazioni ora trova la sezione Connessioni; le schede « Come funziona LIA » mostrano finalmente la loro formattazione correttamente."
+          }
+        },
         "v1_27_0": {
           "title": "v1.27.0 — 🤝 Connettiti con le persone che conosci",
           "date": "Luglio 2026",
@@ -5619,6 +5647,29 @@
           }
         }
       },
+      "relations": {
+        "title": "Relazioni (CRM personale)",
+        "description": "La pagina Relazioni: tutto ciò che LIA sa delle persone con cui hai a che fare, preferiti inclusi.",
+        "count": "4",
+        "questions": {
+          "q1": {
+            "question": "Che cos'è la pagina Relazioni?",
+            "answer": "Apri <strong>Relazioni</strong> nella barra di navigazione: una scheda per persona, che aggrega ciò che LIA già segue — <strong>impegni aperti</strong>, <strong>chiamate</strong> e <strong>ricordi</strong> che la menzionano. Aprendo una scheda vedi la vista 360°, con un pulsante <em>Prepara un punto 360°</em> che informa LIA nella chat. È una lente su dati esistenti: non viene raccolto nulla di nuovo."
+          },
+          "q2": {
+            "question": "Come funzionano i preferiti?",
+            "answer": "Tocca la <strong>stella</strong> di una scheda (o della vista 360°) — senza aprire nulla. I preferiti mantengono la loro fascia in alto, e una persona con la stella <strong>non scompare mai</strong>, anche senza interazioni da molto tempo. Tocca di nuovo per rimuoverla; con molte relazioni, usa il filtro per nome che appare sopra l'elenco."
+          },
+          "q3": {
+            "question": "Cos'è il piccolo badge LIA su alcune schede?",
+            "answer": "Contrassegna le relazioni che sono <strong>anche utenti connessi</strong> della tua istanza LIA (vedi la sezione Connessioni). Il badge è in sola lettura e appare solo se la funzione connessioni è attiva — un ponte tra il tuo CRM personale e le connessioni da assistente ad assistente."
+          },
+          "q4": {
+            "question": "Perché una scheda indica una corrispondenza approssimativa?",
+            "answer": "Le persone sono raggruppate per <strong>nome</strong>, tollerando accenti e maiuscole. Quando le grafie differiscono tra le fonti, o un ricordo menziona solo un nome comune, LIA dichiara che la corrispondenza è <strong>approssimativa</strong> invece di fingere certezza — onestà prima della falsa precisione."
+          }
+        }
+      },
       "tool_examples_services": {
         "title": "Esempi Email, Calendario e Contatti",
         "description": "Come usare i servizi connessi (Google, Apple iCloud o Microsoft 365): email, contatti, calendario, Drive e attività",
@@ -6532,6 +6583,10 @@
       "frosted_glass": {
         "title": "Un vetro, per davvero",
         "desc": "L'intestazione della chat, i dialoghi, i menu e le notifiche sono in vetro smerigliato — e la sfocatura è reale: i tuoi messaggi scorrono davvero sotto il vetro mentre scorri, in chiaro come in scuro."
+      },
+      "relation_star": {
+        "title": "Una stella che non dimentica",
+        "desc": "Metti una stella a una relazione direttamente sulla sua scheda — senza aprirla. I preferiti mantengono la loro fascia in alto, e una persona con la stella resta visibile anche dopo mesi di silenzio."
       }
     },
     "scenes": {
@@ -7591,7 +7646,7 @@
       },
       "personal_crm": {
         "title": "CRM personale",
-        "description": "LIA riunisce ciò che già sa di ogni persona — impegni aperti, chiamate recenti, fatti memorizzati — in una vista d'insieme, per prepararti a una conversazione a colpo d'occhio. Raggiungibile dall'accesso rapido della dashboard."
+        "description": "LIA riunisce ciò che già sa di ogni persona — impegni aperti, chiamate recenti, fatti memorizzati — in una vista d'insieme, per prepararti a una conversazione a colpo d'occhio. Raggiungibile dall'accesso rapido della dashboard. Metti una stella ai tuoi preferiti — mantengono la loro fascia e non svaniscono mai — e riconosci a colpo d'occhio chi è anche connesso su LIA."
       },
       "self_knowledge": {
         "title": "Auto-conoscenza",
@@ -7923,6 +7978,25 @@
         "v_forge": "Skill «Tracker budget» in assemblaggio",
         "v_forge_sub": "codice generato · sandbox · installazione",
         "v_docs": "i tuoi documenti (contratto.pdf, cartella Drive…) — indicizzati, citati nelle sue risposte"
+      },
+      "c6": {
+        "bubble": "Lo passo a Marie? La sua assistente glielo dirà con le sue parole.",
+        "title": "LIA ti collega alle tue persone",
+        "sub": "LIA è un server condiviso: le persone che contano per te possono avere il proprio assistente sulla stessa istanza — e gli assistenti si parlano tra loro.",
+        "b1_t": "Messaggi, da assistente ad assistente.",
+        "b1_d": "Di’ “di’ a Marie…”: approvi la formulazione esatta, poi il SUO assistente lo consegna con la propria voce e personalità, nominandoti — e il tuo ti conferma la consegna.",
+        "b2_t": "Condivisioni scelte, in sola lettura.",
+        "b2_d": "Per ogni connessione, apri le tue disponibilità di calendario o i titoli delle tue attività — niente per impostazione predefinita, entrambe le direzioni visibili, ogni accesso ricontrollato e registrato, revocabile in qualsiasi momento.",
+        "b3_t": "Protezione per costruzione.",
+        "b3_d": "La reperibilità è volontaria e solo per nome esatto; il blocco è silenzioso; uno sconosciuto, un rifiuto e un blocco ricevono la risposta identica byte per byte — nessuno può sondare chi esiste.",
+        "how": "una riga di coppia canonica per connessione, transizioni di stato claim-once, una bozza HITL prima di ogni relay, consegna tramite l’assistente del destinatario (la sua personalità, la sua memoria) e un registro degli accessi riconvalidato a ogni lettura.",
+        "catalog_hint": "Scoperta, ciclo di vita, relay, condivisioni e design anti-molestie nel dettaglio.",
+        "s_chip": "Connessioni",
+        "s_user": "Di’ a Marie che stasera prendo io i bambini.",
+        "s_confirm": "Ecco cosa consegnerò alla sua assistente — invio?",
+        "s_to": "Messaggio a Marie",
+        "s_message": "Stasera prendo io i bambini.",
+        "s_delivered": "Consegnato — la sua assistente gliel’ha trasmesso e l’ha confermato."
       }
     },
     "basics": {

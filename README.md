@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.27.0</strong> — <strong>LIA stops being a solitary assistant: two users of the same instance can now connect — and their assistants talk to each other.</strong> The Peer Connections program (<a href="docs/architecture/ADR-180-Peer-Connections.md">ADR-180</a>) ships opt-in discovery by exact full name (masked-email hint for homonyms, relationship badge in results), a full request/accept/decline/remove lifecycle driven from the chat or the settings, silent anti-harassment blocking (blocked, unknown and cooldown answer the byte-identical 404), and the heart of the design: <strong>assistant-to-assistant message relay</strong> — the recipient's own assistant delivers the message with its personality, memory and context, naming the sender, whose assistant confirms delivery; the LLM cost is billed to the sender, every send is HITL-confirmed, and indirect speech is rephrased into direct address. Each connection can open field-level <strong>read-only shares</strong> (calendar availability or details, task titles — nothing shared by default, every access re-validated and journaled). Three defects caught on first real use are fixed at the root (the semantic validator now treats the user's original wording as authoritative over its English pivot; peer plans no longer die on unrelated Google scopes; native form controls finally follow the dark theme via <code>color-scheme</code>), and the UI gains its frosted-glass signature — real blur under the chat header, dialogs, menus and toasts. <strong>16,796 backend</strong> + <strong>4,159 frontend</strong> tests, all six languages. One ADR (180). — 30 July 2026.
+  <strong>Version 1.27.1</strong> — <strong>Relations earn their place — in the navigation bar, and at heart.</strong> The personal-CRM page, until now without a front door, takes the « Knowledge » navigation slot (spaces stay one click away in the chat: their indicator now always renders, even before the first space exists) and receives the redesign it deserved: stable-tint initial avatars, colored signal pills, <strong>persisted favorites</strong> (the star survives signal expiry, leads the list and survives the cap), distinct Favorites/Others bands, a name filter, a 🤝 badge for people also connected on LIA, and a sectioned 360° sheet. Peer connections gain their <strong>chapter 06</strong> on the landing (« LIA connects you to your people », animated relay scene), the settings search learns their natural synonyms, and the « How LIA works » cards stop showing literal HTML tags (14 cards affected). <strong>16,808 backend</strong> + <strong>4,171 frontend</strong> tests, all six languages. — 30 July 2026.
 
 </p>
 
@@ -115,7 +115,7 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **33** functional domains | **420,000** lines of code (excl. tests) | **20,900+** automated tests | **180** ADRs                                                           |
+| **33** functional domains | **420,000** lines of code (excl. tests) | **21,000+** automated tests | **180** ADRs                                                           |
 | **156** versions shipped  | **6 languages**, parity enforced in CI  | **425** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
@@ -484,6 +484,13 @@ ExecutionStep(
 - **`read_me` convention**: MCP servers exposing a `read_me` tool have their content auto-injected into the planner prompt
 - **Auto-generated descriptions**: LLM analysis of discovered tools for domain description optimized for routing
 - **App-only tools**: Tools with `visibility: ["app"]` filtered from the LLM catalogue (iframe only)
+
+### Personal CRM — Relations
+
+- **A 360° lens over people you deal with** (ADR-176): open loops (commitments), phone calls and name-matching memories aggregated per person — no new truth store, identity resolved by accent/case folding with the confidence stated (`exact` vs `normalized`, honesty over false precision)
+- **Persisted favorites**: star anyone in one tap — the star survives its live signals expiring, leads the overview before the cap, and rides GDPR export/purge; idempotent PUT/DELETE with an optimistic, server-reconciled toggle
+- **Readable at scale**: stable-tint initial avatars, colored signal pills, distinct Favorites/Others bands with counts, a name filter past nine people, and a 🤝 badge for relations who are also connected LIA users (read-only peers bridge)
+- **First-class navigation destination**: desktop nav + mobile menu (one shared table); the spaces page keeps its permanent one-click door through the chat indicator, which now always renders
 
 ### Peer Connections — Users of the Same Instance, Assistant to Assistant
 
@@ -903,7 +910,7 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md)   | Complete development workflow                             |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent                                 |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md)   | How to create a new tool                                  |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~16,796 backend tests across 901 files) |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~16,808 backend tests across 903 files) |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md)           | LangGraph and log debugging                               |
 
 ### Architecture Decision Records (ADR)

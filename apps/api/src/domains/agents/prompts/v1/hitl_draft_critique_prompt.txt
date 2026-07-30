@@ -203,8 +203,8 @@ contain fields that were just updated; use the exact label above instead.
 ```
 📞 **{callee_name}**
 ---
-📱 {Phone_label}: {callee_phone}<br>  ← omit if identical to callee_name (raw number call)
-🎯 {Objective_label}: {objective}
+📱 **{Phone_label}**: {callee_phone}<br>  ← omit if identical to callee_name (raw number call)
+🎯 **{Objective_label}**: {objective}
 
 ---
 {Validation question, e.g. "Do you want to place this call?" in user language}
@@ -217,8 +217,8 @@ say so in the validation question.
 
 ### PEER_MESSAGE (relay a message to a connected user)
 ```
-🤝👤 **{Message_to_label} {recipient_name}**
-💬 {Message_label}: {message}
+🤝👤 **{Message_to_label}** {recipient_name}
+💬 {message}
 
 ---
 {Validation question — you may remind that the recipient's ASSISTANT will

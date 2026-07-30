@@ -1,15 +1,15 @@
 import { initI18next } from '@/i18n';
 import { CHAPTERS } from './chapters-data';
 import { ChapterSection } from './ChapterSection';
-import { SceneBriefing, SceneEdit } from './scenes';
+import { SceneBriefing, SceneEdit, SceneRelay } from './scenes';
 import { SecurityDetail } from './SecurityDetail';
 import { VignetteForge, VignetteOrchestration, VignetteSpark } from './vignettes';
 
 /**
- * The five-chapter narrative replacing the former features wall,
+ * The six-chapter narrative replacing the former features wall,
  * how-it-works and security sections. Visuals alternate between decomposed
  * backstage vignettes (chapters 01/03/05) and complementary chat scenes
- * (chapters 02/04) — never duplicating the hero's four acts.
+ * (chapters 02/04/06) — never duplicating the hero's four acts.
  */
 export async function EditorialChapters({ lng }: { lng: string }) {
   const { t } = await initI18next(lng);
@@ -20,6 +20,7 @@ export async function EditorialChapters({ lng }: { lng: string }) {
     anticipate: <VignetteSpark t={t} />,
     control: <SceneEdit t={t} />,
     grow: <VignetteForge t={t} />,
+    connect: <SceneRelay t={t} />,
   };
 
   return (

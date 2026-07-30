@@ -1,4 +1,4 @@
-import { Mail, Paperclip, Send, Mic, ShieldCheck } from 'lucide-react';
+import { Check, Handshake, Mail, Paperclip, Send, Mic, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Translate } from './FeatureCatalog';
 
@@ -148,6 +148,34 @@ export function SceneEdit({ t }: { t: Translate }) {
       </AssistantLine>
       <UserLine text={k('s_user')} />
       <AssistantLine mood="🙂">{k('s_reply')}</AssistantLine>
+    </SceneFrame>
+  );
+}
+
+/**
+ * Chapter 06 — the assistant-to-assistant relay: the user hands a message to
+ * LIA, approves the exact wording on the tinted peer card, and the OTHER
+ * user's assistant delivers it — LIA reports the confirmed delivery.
+ */
+export function SceneRelay({ t }: { t: Translate }) {
+  const k = (s: string) => t(`landing.chapters.c6.${s}`);
+  return (
+    <SceneFrame t={t} chip={k('s_chip')}>
+      <UserLine text={k('s_user')} />
+      <AssistantLine mood="🙂">
+        {k('s_confirm')}
+        <span className="mt-2 block rounded-lg border border-primary/25 bg-primary/10 px-2.5 py-1.5">
+          <span className="block text-[10px] font-semibold text-muted-foreground">
+            <Handshake className="mr-1 inline h-3 w-3 align-[-1.5px] text-primary" />
+            {k('s_to')}
+          </span>
+          <span className="mt-0.5 block text-[11px] italic">{k('s_message')}</span>
+        </span>
+      </AssistantLine>
+      <AssistantLine mood="😏">
+        <Check className="mr-1 inline h-3 w-3 align-[-1.5px] text-green-600 dark:text-green-400" />
+        {k('s_delivered')}
+      </AssistantLine>
     </SceneFrame>
   );
 }

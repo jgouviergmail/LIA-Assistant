@@ -48,6 +48,11 @@ const CONTENT: Record<string, string> = {
   'faq.sections.privacy.title': 'Confidentialité',
   'faq.sections.privacy.questions.q1.question': 'Mes données sont-elles chiffrées ?',
   'faq.sections.privacy.questions.q1.answer': '<p>Oui, au repos et en transit.</p>',
+  // A "How LIA works" card whose description carries authored markup, like 14
+  // of the real cards do (security's "<b>Mes appareils</b>", peers, hitl…).
+  'faq.intro.features.architecture.title': 'Architecture',
+  'faq.intro.features.architecture.description':
+    'Approbations avec <b>re-authentification step-up</b> pour les actions sensibles.',
 };
 
 const { translate } = vi.hoisted(() => ({
@@ -131,6 +136,19 @@ describe('FAQContent — browsing', () => {
     // content-driven grids they reveal).
     expect(screen.getByRole('button', { name: /Comment ça marche/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Nouveautés/ })).toBeInTheDocument();
+  });
+
+  it('renders card markup as formatting, never as literal tags', async () => {
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: /Comment ça marche/ }));
+
+    // The authored <b> is interpreted: a real bold element carries the words…
+    const bold = screen.getByText('re-authentification step-up');
+    expect(bold.tagName).toBe('B');
+    // …and no literal tag ever reaches the reader (the bug this pins: the
+    // cards rendered their description as plain text while the section
+    // answers next to them interpreted the same markup).
+    expect(screen.queryByText(/<b>/)).not.toBeInTheDocument();
   });
 
   it('offers the welcome tour only when the page can actually show it', async () => {

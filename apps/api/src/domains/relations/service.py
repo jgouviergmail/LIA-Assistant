@@ -25,6 +25,8 @@ import structlog
 
 from src.core.config import settings
 from src.domains.open_loops.repository import OpenLoopRepository
+from src.domains.peers.repository import PeersRepository
+from src.domains.relations.repository import RelationFavoriteRepository
 from src.domains.relations.schemas import (
     IdentityConfidence,
     RelationCall,
@@ -40,6 +42,8 @@ from src.infrastructure.database.session import get_db_context
 
 if TYPE_CHECKING:
     from uuid import UUID
+
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger(__name__)
 
@@ -131,6 +135,45 @@ class _Bucket:
             self.last_interaction_at = when
 
 
+def _bucketize(loops: list, calls: list, now: datetime) -> dict[str, _Bucket]:
+    """Fold loops + calls into per-identity buckets (blank names dropped)."""
+    buckets: dict[str, _Bucket] = {}
+    for loop in loops:
+        key = _normalize_name(loop.counterparty or "")
+        if not key:
+            continue
+        bucket = buckets.setdefault(key, _Bucket())
+        bucket.raw_names.add((loop.counterparty or "").strip())
+        bucket.open_loops.append(
+            RelationOpenLoop(
+                id=str(loop.id),
+                subject=loop.subject,
+                direction=loop.direction,
+                due_hint=loop.due_hint,
+                days_open=_days_between(loop.created_at, now),
+            )
+        )
+        bucket.note_interaction(loop.created_at)
+
+    for call in calls:
+        key = _normalize_name(call.callee_display or "")
+        if not key:
+            continue
+        bucket = buckets.setdefault(key, _Bucket())
+        bucket.raw_names.add((call.callee_display or "").strip())
+        bucket.calls.append(
+            RelationCall(
+                id=str(call.id),
+                objective=call.objective,
+                outcome=call.outcome.value if call.outcome else None,
+                summary=call.summary,
+                created_at=call.created_at,
+            )
+        )
+        bucket.note_interaction(call.created_at)
+    return buckets
+
+
 class RelationsService:
     """Aggregator for the personal CRM. Created per request (holds only ids)."""
 
@@ -140,7 +183,6 @@ class RelationsService:
     async def build_overview(self) -> RelationsOverview:
         """Rank relationships by most-recent interaction (loops + calls)."""
         now = datetime.now(UTC)
-        buckets: dict[str, _Bucket] = {}
 
         async with get_db_context() as db:
             loops = await OpenLoopRepository(db).list_open_for_user(
@@ -149,40 +191,17 @@ class RelationsService:
             calls = await TelephonyRepository(db).list_recent_for_user(
                 self.user_id, limit=settings.relations_max_items * 4
             )
+            favorites = await self._load_favorites(db)
+            peer_keys = await self._load_peer_keys(db)
 
-        for loop in loops:
-            key = _normalize_name(loop.counterparty or "")
-            if not key:
-                continue
-            bucket = buckets.setdefault(key, _Bucket())
-            bucket.raw_names.add((loop.counterparty or "").strip())
-            bucket.open_loops.append(
-                RelationOpenLoop(
-                    id=str(loop.id),
-                    subject=loop.subject,
-                    direction=loop.direction,
-                    due_hint=loop.due_hint,
-                    days_open=_days_between(loop.created_at, now),
-                )
-            )
-            bucket.note_interaction(loop.created_at)
+        buckets = _bucketize(loops, calls, now)
 
-        for call in calls:
-            key = _normalize_name(call.callee_display or "")
-            if not key:
-                continue
-            bucket = buckets.setdefault(key, _Bucket())
-            bucket.raw_names.add((call.callee_display or "").strip())
-            bucket.calls.append(
-                RelationCall(
-                    id=str(call.id),
-                    objective=call.objective,
-                    outcome=call.outcome.value if call.outcome else None,
-                    summary=call.summary,
-                    created_at=call.created_at,
-                )
-            )
-            bucket.note_interaction(call.created_at)
+        # A starred name without any live signal still deserves its card:
+        # inject an empty bucket carrying the spelling the user starred.
+        for key, spelling in favorites.items():
+            if key not in buckets:
+                empty = buckets.setdefault(key, _Bucket())
+                empty.raw_names.add(spelling)
 
         summaries = [
             RelationSummary(
@@ -191,12 +210,16 @@ class RelationsService:
                 open_loops_count=len(bucket.open_loops),
                 calls_count=len(bucket.calls),
                 last_interaction_at=bucket.last_interaction_at,
+                is_favorite=key in favorites,
+                is_peer=key in peer_keys,
             )
-            for bucket in buckets.values()
+            for key, bucket in buckets.items()
         ]
-        # Most-recent interaction first (None last), then name for stability.
+        # Favorites first (they must also survive the cap), then most-recent
+        # interaction (None last), then name for stability.
         summaries.sort(
             key=lambda s: (
+                s.is_favorite,
                 s.last_interaction_at is not None,
                 s.last_interaction_at or datetime.min.replace(tzinfo=UTC),
                 s.display_name,
@@ -225,6 +248,8 @@ class RelationsService:
             from src.domains.memories.repository import MemoryRepository
 
             all_memories = await MemoryRepository(db).get_all_for_user(self.user_id, limit=500)
+            favorites = await self._load_favorites(db)
+            peer_keys = await self._load_peer_keys(db)
 
         open_loops, loop_names = _match_open_loops(loops, target_key, now)
         calls, call_names = _match_calls(phone_calls, target_key)
@@ -237,7 +262,54 @@ class RelationsService:
             open_loops=open_loops[:per_section],
             recent_calls=calls[:per_section],
             memories=memories[:per_section],
+            is_favorite=target_key in favorites,
+            is_peer=target_key in peer_keys,
         )
+
+    async def _load_favorites(self, db: AsyncSession) -> dict[str, str]:
+        """The user's stars, as ``name_key -> starred spelling``."""
+        rows = await RelationFavoriteRepository(db).list_for_user(self.user_id)
+        return {row.name_key: row.display_name for row in rows}
+
+    async def _load_peer_keys(self, db: AsyncSession) -> set[str]:
+        """Folded names of connected LIA peers (empty when the flag is off)."""
+        if not getattr(settings, "peers_enabled", False):
+            return set()
+        return set(await PeersRepository(db).list_accepted_peer_names(self.user_id))
+
+    async def add_favorite(self, name: str) -> None:
+        """Star a relationship name (idempotent).
+
+        Args:
+            name: Display name as typed/shown — folded for identity, stored
+                verbatim (trimmed) for rendering.
+        """
+        display = name.strip()
+        key = _normalize_name(display)
+        if not key:
+            return
+        async with get_db_context() as db:
+            await RelationFavoriteRepository(db).add(
+                self.user_id, name_key=key, display_name=display
+            )
+        logger.info("relation_favorite_added", user_id=str(self.user_id))
+
+    async def remove_favorite(self, name: str) -> bool:
+        """Unstar a relationship name.
+
+        Args:
+            name: Display name (folded to the identity key).
+
+        Returns:
+            True when a star existed.
+        """
+        key = _normalize_name(name)
+        if not key:
+            return False
+        async with get_db_context() as db:
+            removed = await RelationFavoriteRepository(db).remove(self.user_id, name_key=key)
+        logger.info("relation_favorite_removed", user_id=str(self.user_id), removed=removed)
+        return removed
 
     @staticmethod
     def _display_name(raw_names: set[str]) -> str:

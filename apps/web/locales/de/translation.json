@@ -3036,7 +3036,7 @@
         "psyche": "Emotionen, Stimmung, Gefühle, Affekt, emotional",
         "memories": "Gedächtnis, Erinnerungen, erinnern, vergessen, Fakten",
         "interests": "Themen, Vorlieben, Geschmack, Neugier, Präferenzen",
-        "peer-connections": "kontakte, freunde, familie, netzwerk, kalender teilen, verfügbarkeit, blockieren, nutzer finden, verbinden, mein Name, meinen Namen kopieren, Verbindungsanfrage, Zugriffsprotokoll, Nachricht weiterleiten, blockierte Nutzer",
+        "peer-connections": "kontakte, freunde, familie, netzwerk, kalender teilen, verfügbarkeit, blockieren, nutzer finden, verbinden, mein Name, meinen Namen kopieren, Verbindungsanfrage, Zugriffsprotokoll, Nachricht weiterleiten, blockierte Nutzer, Nahestehende, soziales Netzwerk, Peer, Auffindbarkeit, Entdeckung",
         "heartbeat": "proaktiv, spontan, Initiative, Kontaktaufnahme, autonome Nachrichten",
         "scheduled-actions": "Cron, Zeitplan, wiederkehrend, Automatisierung, Timer, geplant",
         "journals": "Tagebuch, Logbuch, Porträt, Reflexionen, Notizen",
@@ -3064,7 +3064,19 @@
     "identity_best_effort": "Diese Einträge wurden über den Namen zugeordnet — LIA könnte zwei verschiedene Personen zusammengefasst oder eine Schreibweise übersehen haben.",
     "section_open_loops": "Offene Zusagen",
     "section_calls": "Letzte Anrufe",
-    "section_memories": "Erinnerungen"
+    "section_memories": "Erinnerungen",
+    "favorites_title": "Favoriten",
+    "others_title": "Weitere Beziehungen",
+    "all_title": "Alle Beziehungen",
+    "favorite_add": "{{name}} zu den Favoriten hinzufügen",
+    "favorite_remove": "{{name}} aus den Favoriten entfernen",
+    "favorite_error": "Der Favorit konnte nicht aktualisiert werden. Bitte erneut versuchen.",
+    "filter_placeholder": "Nach Name filtern…",
+    "filter_no_match": "Keine Beziehung entspricht diesem Filter.",
+    "peer_badge": "Auf LIA",
+    "peer_badge_hint": "Ebenfalls Nutzer dieser LIA-Instanz — Sie sind verbunden",
+    "no_recent_signal": "Kein aktuelles Signal",
+    "subtitle_detail": "Der 360°-Blick auf Ihre Beziehung"
   },
   "spaces": {
     "title": "Wissensräume",
@@ -3165,7 +3177,8 @@
     "settings": "Einstellungen",
     "logout": "Abmelden",
     "profile": "Profil",
-    "faq": "Hilfe"
+    "faq": "Hilfe",
+    "relations": "Beziehungen"
   },
   "errors": {
     "generic": "Ein Fehler ist aufgetreten",
@@ -3669,6 +3682,10 @@
         "peers": {
           "title": "🤝 Verbindungen zwischen Nutzern",
           "description": "Zwei Nutzer derselben Instanz verbinden sich über eine <b>einzige kanonische Paar-Zeile</b> mit Claim-once-Übergängen (keine doppelten Anfragen, gekreuzte Anfragen akzeptieren sich automatisch). Der Datenschutz ist konstruktiv erzwungen: blockierte, unbekannte und Cooldown-Ziele antworten mit einem <b>byte-identischen 404</b> — Existenz ist nie ausforschbar. Die Nachrichtenweiterleitung ist ein HITL-bestätigter Entwurf, zugestellt vom <b>Assistenten des Empfängers</b> (Persönlichkeit, psychologisches Gedächtnisprofil, Psyche, Porträt — ein LLM-Aufruf, dem Absender berechnet). Freigaben sind feldgenau und nur lesend (Kalender frei/belegt oder Details, Aufgabentitel), werden <b>zur Ausführungszeit neu validiert</b> und in ein Zugriffsprotokoll mit begrenzter Aufbewahrung geschrieben. Die gesamte Domäne liegt hinter einem Instanz-Flag, exportiert und bereinigt sich DSGVO-konform und liefert Lebenszyklus- und Zustellmetriken an Prometheus."
+        },
+        "relations": {
+          "title": "⭐ Persönliches CRM — Beziehungen",
+          "description": "Eine <b>Linse, keine Datenbank</b>: Die Beziehungsseite aggregiert, was LIA pro Person bereits weiß — offene Verpflichtungen, Anrufe, namenstreffende Erinnerungen — mit einer über Akzent-/Groß-Kleinschreibungs-Faltung aufgelösten Identität und <b>ausgewiesener</b> Konfidenz (exakt vs. normalisiert: Ehrlichkeit vor falscher Präzision). Der einzige persistierte Zustand ist der <b>Favoriten-Stern</b>: idempotentes serverseitiges Upsert, optimistisches Umschalten mit Abgleich gegen die frische Übersicht, Favoriten auch nach Ablauf ihrer Signale eingefügt und vor der Kappung gereiht. Beziehungen, die zugleich verbundene LIA-Nutzer sind, tragen ein Nur-Lese-Peers-Abzeichen (Brücke hinter Flag), und alles folgt DSGVO-Export und Kontobereinigung."
         }
       },
       "diagram_alt": "LIA-Architekturdiagramm"
@@ -3677,6 +3694,17 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_27_1": {
+          "title": "v1.27.1 — ⭐ Ihre Beziehungen im Mittelpunkt",
+          "date": "Juli 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>⭐ Beziehungen in der Navigation</b> — die persönliche CRM-Seite erhält einen eigenen Eintrag in der Leiste (Wissen bleibt im Chat einen Klick entfernt — die Pille wird jetzt immer angezeigt). Neu gestaltete Karten: Initialen-Avatare, farbige Signal-Pillen, 360°-Ansicht.",
+            "i2": "<b>❤️ Dauerhafte Favoriten</b> — markieren Sie jeden mit einem Fingertipp, ohne die Karte zu öffnen: Ihre Favoriten behalten ihr eigenes Band ganz oben, überstehen ruhige Phasen, und ab einer längeren Liste erscheint ein Namensfilter.",
+            "i3": "<b>🤝 Das LIA-Abzeichen</b> — Beziehungen, die zugleich verbundene Nutzer Ihrer Instanz sind, tragen ein kleines Abzeichen — die Brücke zwischen CRM und Verbindungen.",
+            "i4": "<b>🧭 Besser auffindbar</b> — die Einstellungssuche findet die Verbindungen jetzt auch über Nahestehende, Peer, soziales Netzwerk oder Auffindbarkeit; die Karten „Wie LIA funktioniert“ zeigen ihre Formatierung endlich korrekt an."
+          }
+        },
         "v1_27_0": {
           "title": "v1.27.0 — 🤝 Verbinden Sie sich mit Menschen, die Sie kennen",
           "date": "Juli 2026",
@@ -5617,6 +5645,29 @@
           }
         }
       },
+      "relations": {
+        "title": "Beziehungen (persönliches CRM)",
+        "description": "Die Beziehungsseite: alles, was LIA über die Menschen weiß, mit denen Sie zu tun haben, Favoriten inklusive.",
+        "count": "4",
+        "questions": {
+          "q1": {
+            "question": "Was ist die Beziehungsseite?",
+            "answer": "Öffnen Sie <strong>Beziehungen</strong> in der Navigationsleiste: eine Karte pro Person, die zusammenführt, was LIA bereits verfolgt — <strong>offene Verpflichtungen</strong>, <strong>Telefonanrufe</strong> und <strong>Erinnerungen</strong>, die sie erwähnen. Eine Karte öffnet die 360°-Ansicht, mit einem Knopf <em>360°-Überblick vorbereiten</em>, der LIA im Chat briefen lässt. Es ist eine Linse über vorhandene Daten: Nichts Neues wird gesammelt."
+          },
+          "q2": {
+            "question": "Wie funktionieren die Favoriten?",
+            "answer": "Tippen Sie auf den <strong>Stern</strong> einer Karte (oder der 360°-Ansicht) — ohne etwas zu öffnen. Favoriten behalten ihr eigenes Band oben auf der Seite, und eine markierte Person <strong>verschwindet nie</strong>, auch nach langer Zeit ohne Interaktion. Erneutes Tippen entfernt den Stern; bei vielen Beziehungen hilft der Namensfilter über der Liste."
+          },
+          "q3": {
+            "question": "Was bedeutet das kleine LIA-Abzeichen auf manchen Karten?",
+            "answer": "Es markiert Beziehungen, die <strong>zugleich verbundene Nutzer</strong> Ihrer LIA-Instanz sind (siehe Bereich Verbindungen). Das Abzeichen ist nur lesend und erscheint nur, wenn die Verbindungsfunktion aktiviert ist — eine Brücke zwischen Ihrem persönlichen CRM und den Assistent-zu-Assistent-Verbindungen."
+          },
+          "q4": {
+            "question": "Warum meldet eine Karte eine ungefähre Übereinstimmung?",
+            "answer": "Personen werden nach <strong>Namen</strong> gruppiert, Akzente und Groß-/Kleinschreibung werden toleriert. Wenn die Schreibweisen zwischen Quellen abweichen oder eine Erinnerung nur einen häufigen Vornamen erwähnt, sagt LIA, dass die Übereinstimmung <strong>ungefähr</strong> ist, statt Gewissheit vorzutäuschen — Ehrlichkeit vor falscher Präzision."
+          }
+        }
+      },
       "tool_examples_services": {
         "title": "E-Mail, Kalender & Kontakte Beispiele",
         "description": "So nutzen Sie Ihre verbundenen Dienste (Google, Apple iCloud oder Microsoft 365): E-Mails, Kontakte, Kalender, Drive und Tasks",
@@ -6530,6 +6581,10 @@
       "frosted_glass": {
         "title": "Glas, durch das man wirklich sieht",
         "desc": "Chat-Kopfzeile, Dialoge, Menüs und Benachrichtigungen sind aus Milchglas — und die Unschärfe ist echt: Ihre Nachrichten gleiten beim Scrollen tatsächlich unter der Scheibe hindurch, im hellen wie im dunklen Modus."
+      },
+      "relation_star": {
+        "title": "Ein Stern, der nicht vergisst",
+        "desc": "Markieren Sie eine Beziehung direkt auf ihrer Karte — ohne sie zu öffnen. Favoriten behalten ihr Band ganz oben, und eine markierte Person bleibt sichtbar, selbst nach Monaten der Stille."
       }
     },
     "scenes": {
@@ -7589,7 +7644,7 @@
       },
       "personal_crm": {
         "title": "Persönliches CRM",
-        "description": "LIA fasst zusammen, was sie über jede Person bereits weiß — offene Zusagen, jüngste Anrufe, gemerkte Fakten — in einer Gesamtansicht, damit Sie sich auf ein Gespräch auf einen Blick vorbereiten können. Erreichbar über den Schnellzugriff des Dashboards."
+        "description": "LIA fasst zusammen, was sie über jede Person bereits weiß — offene Zusagen, jüngste Anrufe, gemerkte Fakten — in einer Gesamtansicht, damit Sie sich auf ein Gespräch auf einen Blick vorbereiten können. Erreichbar über den Schnellzugriff des Dashboards. Markieren Sie Ihre Favoriten — sie behalten ihr eigenes Band und verblassen nie — und erkennen Sie auf einen Blick, wer ebenfalls auf LIA verbunden ist."
       },
       "self_knowledge": {
         "title": "App-Selbstwissen",
@@ -7921,6 +7976,25 @@
         "v_forge": "Skill „Budget-Tracker\" wird zusammengebaut",
         "v_forge_sub": "Code generiert · Sandbox · installiert",
         "v_docs": "deine Dokumente (vertrag.pdf, Drive-Ordner…) — indexiert, in ihren Antworten zitiert"
+      },
+      "c6": {
+        "bubble": "Soll ich das an Marie weitergeben? Ihre Assistentin sagt es ihr in ihren eigenen Worten.",
+        "title": "LIA verbindet dich mit deinen Menschen",
+        "sub": "LIA ist ein geteilter Server: Die Menschen, die dir wichtig sind, können ihren eigenen Assistenten auf derselben Instanz haben — und die Assistenten sprechen miteinander.",
+        "b1_t": "Nachrichten, von Assistent zu Assistent.",
+        "b1_d": "Sag „sag Marie…“: Du bestätigst den genauen Wortlaut, dann übermittelt IHR Assistent die Nachricht mit eigener Stimme und Persönlichkeit und nennt dich — und deiner bestätigt dir die Zustellung.",
+        "b2_t": "Gewählte Freigaben, nur lesend.",
+        "b2_d": "Öffne pro Verbindung deine Kalender-Verfügbarkeit oder deine Aufgabentitel — nichts standardmäßig, beide Richtungen sichtbar, jeder Zugriff neu geprüft und protokolliert, jederzeit widerrufbar.",
+        "b3_t": "Schutz durch Konstruktion.",
+        "b3_d": "Die Auffindbarkeit ist freiwillig und nur über den exakten Namen möglich; Blockieren ist lautlos; ein Unbekannter, eine Ablehnung und eine Blockierung erhalten die byte-identische Antwort — niemand kann ausforschen, wer existiert.",
+        "how": "eine kanonische Paar-Zeile pro Verbindung, Claim-once-Zustandsübergänge, ein HITL-Entwurf vor jeder Weiterleitung, Zustellung durch den Assistenten des Empfängers (seine Persönlichkeit, sein Gedächtnis) und ein bei jedem Lesen neu validiertes Zugriffsprotokoll.",
+        "catalog_hint": "Auffindbarkeit, Lebenszyklus, Weiterleitung, Freigaben und Anti-Belästigungs-Design im Detail.",
+        "s_chip": "Verbindungen",
+        "s_user": "Sag Marie, dass ich die Kinder heute Abend abhole.",
+        "s_confirm": "Das übergebe ich ihrer Assistentin — senden?",
+        "s_to": "Nachricht an Marie",
+        "s_message": "Ich hole die Kinder heute Abend ab.",
+        "s_delivered": "Zugestellt — ihre Assistentin hat es weitergegeben und bestätigt."
       }
     },
     "basics": {

@@ -68,10 +68,12 @@ describe('ActiveSpacesIndicator — visibility', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('says nothing when the user has no space at all', () => {
+  it('renders even with no space at all — the only one-click door to the page', () => {
+    // Since the nav slot went to Relations (2026-07-30), this pill is how a
+    // brand-new user reaches the spaces page to create their first space.
     useSpaces.mockReturnValue(hookValue([]));
-    const { container } = renderWithProviders(<ActiveSpacesIndicator />);
-    expect(container).toBeEmptyDOMElement();
+    renderWithProviders(<ActiveSpacesIndicator />);
+    expect(screen.getByRole('button', { name: 'spaces.indicator_tooltip' })).toBeInTheDocument();
   });
 
   it('renders when spaces exist even with zero active — the activation entry point', () => {

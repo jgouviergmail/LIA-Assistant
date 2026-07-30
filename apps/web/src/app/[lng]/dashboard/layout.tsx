@@ -24,7 +24,7 @@ import type { DashboardDestination } from '@/lib/dashboard-nav';
 import { useTranslation } from '@/i18n/client';
 import {
   LayoutDashboard,
-  Library,
+  Users,
   MessageSquare,
   Settings,
   HelpCircle,
@@ -41,7 +41,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 const DESTINATION_ICONS: Record<DashboardDestination['segment'], typeof LayoutDashboard> = {
   '': LayoutDashboard,
   chat: MessageSquare,
-  spaces: Library,
+  relations: Users,
   settings: Settings,
   faq: HelpCircle,
 };

@@ -1,17 +1,22 @@
 'use client';
 
 /**
- * Relations — the personal CRM page (N-09).
+ * Relations — the personal CRM page (N-09 + favorites).
  *
- * Overview ⇄ detail in one page (selected name in local state; the URL stays
- * `/dashboard/relations`). Read-only: every action is a chat deep link
- * (ADR-173). Reached from settings search and a briefing-card shortcut — not
- * a 6th nav destination (the header already clips at 5, R01).
+ * A first-class nav destination since 2026-07-30 (it took the header slot
+ * `spaces` held — the spaces page keeps its one-click door through the chat
+ * indicator, which now always renders). Overview ⇄ detail in one page
+ * (selected name in local state; the URL stays `/dashboard/relations`).
+ * Reads are aggregations; the ONE write is the favorites star, toggled
+ * optimistically through the overview hook — the detail panel receives the
+ * star state from here so both surfaces always agree. A failed toggle rolls
+ * back and toasts.
  */
 
 import { useState } from 'react';
 import { Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 
 import { RelationCardList } from '@/components/relations/RelationCardList';
 import { RelationDetailPanel } from '@/components/relations/RelationDetailPanel';
@@ -23,8 +28,17 @@ import { useLanguageParam } from '@/hooks/useLanguageParam';
 export default function RelationsPage({ params }: { params: Promise<{ lng: string }> }) {
   const lng = useLanguageParam(params);
   const { t } = useTranslation();
-  const { relations, loading } = useRelationsOverview();
+  const { relations, loading, toggleFavorite } = useRelationsOverview();
   const [selected, setSelected] = useState<string | null>(null);
+
+  const handleToggleFavorite = async (name: string, nextValue: boolean) => {
+    const { ok } = await toggleFavorite(name, nextValue);
+    if (!ok) toast.error(t('relations.favorite_error'));
+  };
+
+  const selectedIsFavorite = selected
+    ? (relations.find(relation => relation.display_name === selected)?.is_favorite ?? false)
+    : false;
 
   return (
     <FeatureErrorBoundary feature="relations">
@@ -38,13 +52,23 @@ export default function RelationsPage({ params }: { params: Promise<{ lng: strin
         </div>
 
         {selected ? (
-          <RelationDetailPanel name={selected} lng={lng} onBack={() => setSelected(null)} />
+          <RelationDetailPanel
+            name={selected}
+            lng={lng}
+            isFavorite={selectedIsFavorite}
+            onToggleFavorite={handleToggleFavorite}
+            onBack={() => setSelected(null)}
+          />
         ) : loading ? (
           <div className="flex justify-center py-12">
             <LoadingSpinner className="h-6 w-6" />
           </div>
         ) : (
-          <RelationCardList relations={relations} onOpen={setSelected} />
+          <RelationCardList
+            relations={relations}
+            onOpen={setSelected}
+            onToggleFavorite={handleToggleFavorite}
+          />
         )}
       </div>
     </FeatureErrorBoundary>

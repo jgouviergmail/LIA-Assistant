@@ -6,7 +6,7 @@
 
 **Version**: 3.6
 **Date**: 2026-07-30
-**Application**: LIA v1.27.0
+**Application**: LIA v1.27.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -168,6 +168,7 @@ apps/api/src/
 │   ├── skills/                   # agentskills.io standard
 │   ├── sub_agents/               # Persistent specialized agents
 │   ├── peers/                    # User-to-user connections (assistant-to-assistant relay)
+│   ├── relations/                # Personal CRM (aggregation + favorites)
 │   ├── usage_limits/             # Per-user quotas (5-layer defence)
 │   └── ...                       # conversations, reminders, scheduled_actions, users, user_mcp
 │
@@ -1192,4 +1193,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 170+ ADRs, and the changelog (v1.0 to v1.27.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 170+ ADRs, and the changelog (v1.0 to v1.27.1). All metrics, versions, and patterns cited are verifiable in the codebase.*

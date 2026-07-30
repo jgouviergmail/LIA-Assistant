@@ -28,6 +28,8 @@ from src.domains.peers.models import (
     PeerMessageStatus,
     canonical_pair,
 )
+from src.domains.shared.text_normalization import fold_name
+from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
 
@@ -259,6 +261,26 @@ class PeersRepository(BaseRepository[PeerConnection]):
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def list_accepted_peer_names(self, user_id: UUID) -> list[str]:
+        """Folded full names of the user's ACCEPTED peers (CRM badge, D2).
+
+        Read-only bridge for the relations aggregation: the CRM buckets are
+        keyed on ``fold_name`` output, so the names are folded here — one
+        encapsulated query instead of a cross-domain join at the caller.
+
+        Args:
+            user_id: The user whose connected peers are listed.
+
+        Returns:
+            Folded, de-duplicated peer full names (empty names dropped).
+        """
+        connections = await self.list_accepted_for_user(user_id)
+        peer_ids = {(c.user_b_id if c.user_a_id == user_id else c.user_a_id) for c in connections}
+        if not peer_ids:
+            return []
+        rows = (await self.db.execute(select(User.full_name).where(User.id.in_(peer_ids)))).all()
+        return sorted({fold_name(name or "") for (name,) in rows if fold_name(name or "")})
 
     async def expire_stale_pending(self, older_than: datetime) -> int:
         """Silently expire pending requests older than the given instant.

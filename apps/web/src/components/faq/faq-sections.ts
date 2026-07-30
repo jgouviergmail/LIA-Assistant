@@ -28,6 +28,7 @@ import {
   Settings,
   Shield,
   Sparkles,
+  Users,
   Zap,
 } from 'lucide-react';
 
@@ -39,6 +40,7 @@ export const FAQ_SECTION_ICONS: Record<string, LucideIcon> = {
   connectors: Globe,
   telephony: PhoneCall,
   peers: Handshake,
+  relations: Users,
   tool_examples_services: Mail,
   tool_examples_external: Cloud,
   rappels: Bell,

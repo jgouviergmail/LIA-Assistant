@@ -6,7 +6,7 @@
 
 **Version** : 3.6
 **Date** : 2026-07-30
-**Application** : LIA v1.27.0
+**Application** : LIA v1.27.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -168,6 +168,7 @@ apps/api/src/
 │   ├── skills/                   # Standard agentskills.io
 │   ├── sub_agents/               # Agents spécialisés persistants
 │   ├── peers/                    # Connexions entre utilisateurs (relais assistant-à-assistant)
+│   ├── relations/                # CRM personnel (agrégation + favoris)
 │   ├── usage_limits/             # Quotas par utilisateur (5-layer defence)
 │   └── ...                       # conversations, reminders, scheduled_actions, users, user_mcp
 │
@@ -1206,4 +1207,4 @@ L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayé
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 170+ ADRs, et du changelog (v1.0 à v1.27.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 170+ ADRs, et du changelog (v1.0 à v1.27.1). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

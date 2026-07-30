@@ -127,6 +127,11 @@ TABLE_RULES: dict[str, TableRule] = {
     # also die with their connection, but are deleted explicitly first
     # for accurate counting (conversation_messages precedent).
     # ------------------------------------------------------------------
+    "relation_favorites": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason="CRM favorites (starred relationship names) — purged on deletion.",
+    ),
     "peer_connections": TableRule(
         data_class=TableDataClass.USER_PURGED,
         export=ExportPolicy.FULL,

@@ -10,16 +10,17 @@
  * menu the logo opens. Two lists would drift, and the one that drifted would be
  * the mobile one — the one nobody looks at on a large screen.
  *
- * R01 (2026-07): `spaces` joins the table. The RAG spaces page existed since
- * v1.19 but was only reachable through the chat indicator — which renders
- * NOTHING while zero spaces are active, exactly when the user needs to go
- * there to activate one.
+ * R01 (2026-07): `spaces` joined the table because the chat indicator used
+ * to render nothing without spaces. Superseded (2026-07-30): the indicator
+ * now always renders, so the slot goes to `relations` — the personal CRM,
+ * which had NO navigation home at all (settings search and a briefing
+ * shortcut were its only doors). Spaces stays one click away in the chat.
  */
 
 /** A destination of the dashboard shell. */
 export interface DashboardDestination {
   /** Path suffix appended to the localized `/dashboard` root ('' = the root). */
-  segment: '' | 'chat' | 'spaces' | 'settings' | 'faq';
+  segment: '' | 'chat' | 'relations' | 'settings' | 'faq';
   /** i18n key of the visible label. */
   labelKey: string;
 }
@@ -28,7 +29,7 @@ export interface DashboardDestination {
 export const DASHBOARD_DESTINATIONS: readonly DashboardDestination[] = [
   { segment: '', labelKey: 'navigation.dashboard' },
   { segment: 'chat', labelKey: 'navigation.chat' },
-  { segment: 'spaces', labelKey: 'navigation.spaces' },
+  { segment: 'relations', labelKey: 'navigation.relations' },
   { segment: 'settings', labelKey: 'navigation.settings' },
   { segment: 'faq', labelKey: 'navigation.faq' },
 ];

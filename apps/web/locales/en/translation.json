@@ -3058,7 +3058,7 @@
         "psyche": "emotions, mood, feelings, affect, emotional",
         "memories": "memory, remember, forget, facts, recollection",
         "interests": "topics, tastes, subjects, curiosity, preferences",
-        "peer-connections": "contacts, friends, family, network, share calendar, availability, block, discover users, connect, my name, copy my name, connection request, access log, relay message, blocked users",
+        "peer-connections": "contacts, friends, family, network, share calendar, availability, block, discover users, connect, my name, copy my name, connection request, access log, relay message, blocked users, peers, social network, discovery, loved ones, relatives",
         "heartbeat": "proactive, spontaneous, initiative, check-in, autonomous messages",
         "scheduled-actions": "cron, schedule, recurring, automation, timer, planned",
         "journals": "diary, logbook, portrait, reflections, notes",
@@ -3086,7 +3086,19 @@
     "identity_best_effort": "These items were matched by name — LIA may have grouped two different people, or missed a spelling.",
     "section_open_loops": "Open commitments",
     "section_calls": "Recent calls",
-    "section_memories": "Memories"
+    "section_memories": "Memories",
+    "favorites_title": "Favorites",
+    "others_title": "Other relations",
+    "all_title": "All relations",
+    "favorite_add": "Add {{name}} to favorites",
+    "favorite_remove": "Remove {{name}} from favorites",
+    "favorite_error": "Could not update the favorite. Please try again.",
+    "filter_placeholder": "Filter by name…",
+    "filter_no_match": "No relation matches this filter.",
+    "peer_badge": "On LIA",
+    "peer_badge_hint": "Also a user of this LIA instance — you are connected",
+    "no_recent_signal": "No recent signal",
+    "subtitle_detail": "The 360° view of your relationship"
   },
   "spaces": {
     "title": "Knowledge Spaces",
@@ -3187,7 +3199,8 @@
     "settings": "Settings",
     "logout": "Sign out",
     "profile": "Profile",
-    "faq": "Help"
+    "faq": "Help",
+    "relations": "Relations"
   },
   "errors": {
     "generic": "An error occurred",
@@ -3678,6 +3691,10 @@
         "peers": {
           "title": "🤝 Peer Connections",
           "description": "Two users of the same instance connect through a <b>single canonical pair row</b> with claim-once conditional transitions (no duplicate requests, races auto-accept). Privacy is enforced by construction: blocked, unknown and cooldown targets answer a <b>byte-identical 404</b>, so existence can never be probed. Message relay is a HITL-confirmed draft delivered by the <b>recipient's own assistant</b> (personality, psychological memory profile, psyche, portrait — one LLM call, billed to the sender). Shares are field-level and read-only (calendar free/busy or details, task titles), <b>re-validated at execution time</b> and written to a retention-pruned access log. The whole domain sits behind an instance flag, exports and purges cleanly under GDPR, and exposes lifecycle + delivery metrics to Prometheus."
+        },
+        "relations": {
+          "title": "⭐ Personal CRM — Relations",
+          "description": "A <b>lens, not a database</b>: the Relations page aggregates what LIA already knows per person — open commitments, phone calls, name-matching memories — with identity resolved by accent/case folding and the confidence <b>stated</b> (exact vs normalized, honesty over false precision). The only persisted state is the <b>favorites star</b>: idempotent server-side upsert, optimistic toggle reconciled against the fresh overview, favorites injected even when their live signals expired and ranked ahead of the cap. Relations who are also connected LIA users carry a read-only peers badge (flag-gated bridge), and everything rides GDPR export and account purge."
         }
       },
       "diagram_alt": "LIA architecture diagram"
@@ -3686,6 +3703,17 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_27_1": {
+          "title": "v1.27.1 — ⭐ Your relations, front and center",
+          "date": "July 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>⭐ Relations in the navigation</b> — the personal-CRM page gets its own entry in the bar (Knowledge stays one click away in the chat — its pill now always shows). Redesigned cards: initials avatars, colored signal pills, and a 360° sheet.",
+            "i2": "<b>❤️ Persisted favorites</b> — star anyone in one tap, without opening their card: your favorites keep their own band at the top, survive quiet periods, and a name filter appears once the list grows.",
+            "i3": "<b>🤝 The LIA badge</b> — relations who are also connected users of your instance carry a small badge, bridging your CRM and your connections.",
+            "i4": "<b>🧭 Better findability</b> — searching the settings for peers, social, discovery or loved ones now finds the Connections section; the « How LIA works » cards render their formatting properly."
+          }
+        },
         "v1_27_0": {
           "title": "v1.27.0 — 🤝 Connect with people you know",
           "date": "July 2026",
@@ -5626,6 +5654,29 @@
           }
         }
       },
+      "relations": {
+        "title": "Relations (personal CRM)",
+        "description": "The Relations page: everything LIA knows about the people you deal with, favorites included.",
+        "count": "4",
+        "questions": {
+          "q1": {
+            "question": "What is the Relations page?",
+            "answer": "Open <strong>Relations</strong> in the navigation bar: one card per person, aggregating what LIA already tracks — <strong>open commitments</strong>, <strong>phone calls</strong> and <strong>memories</strong> that mention them. Opening a card shows the 360° sheet, with a one-tap <em>Prepare a 360° recap</em> that briefs LIA in the chat. It is a lens over existing data: nothing new is collected."
+          },
+          "q2": {
+            "question": "How do favorites work?",
+            "answer": "Tap the <strong>star</strong> on any card (or in the 360° sheet) — no need to open anything. Favorites keep their own band at the top of the page, and a starred person <strong>never disappears</strong>, even when there has been no interaction for a long while. Tap the star again to unstar; with many relations, use the name filter that appears above the list."
+          },
+          "q3": {
+            "question": "What is the small LIA badge on some cards?",
+            "answer": "It marks relations who are <strong>also connected users</strong> of your LIA instance (see the Connections section). The badge is read-only and only appears when the connections feature is enabled — a bridge between your personal CRM and assistant-to-assistant connections."
+          },
+          "q4": {
+            "question": "Why does a card say the match is best-effort?",
+            "answer": "People are grouped by <strong>name</strong>, with accents and case forgiven. When the spellings differ across sources, or when a memory merely mentions a common first name, LIA says the match is <strong>best-effort</strong> rather than pretending to be sure — honesty over false precision."
+          }
+        }
+      },
       "tool_examples_services": {
         "title": "Email, Calendar & Contacts Examples",
         "description": "How to use your connected services (Google, Apple iCloud or Microsoft 365): emails, contacts, calendar, Drive and Tasks",
@@ -6539,6 +6590,10 @@
       "frosted_glass": {
         "title": "Glass you can see through",
         "desc": "The chat header, dialogs, menus and toasts are frosted glass — and the blur is real: your messages actually slide beneath the pane as you scroll, in light and dark alike."
+      },
+      "relation_star": {
+        "title": "A star that never forgets",
+        "desc": "Star a relation right on its card — no need to open it. Favorites keep their own band at the top, and a starred person stays visible even after months of silence."
       }
     },
     "scenes": {
@@ -7669,7 +7724,7 @@
       },
       "personal_crm": {
         "title": "Personal CRM",
-        "description": "LIA gathers what it already knows about each person — open commitments, recent calls, remembered facts — into one unified view, so you can prepare for a conversation at a glance. Reached from the dashboard's Quick Access."
+        "description": "LIA gathers what it already knows about each person — open commitments, recent calls, remembered facts — into one unified view, so you can prepare for a conversation at a glance. Reached from the dashboard's Quick Access. Star your favorites — they keep their own band and never fade away — and spot at a glance who is also connected on LIA."
       },
       "self_knowledge": {
         "title": "App Self-Knowledge",
@@ -8001,6 +8056,25 @@
         "v_forge": "Skill \"Budget tracker\" being assembled",
         "v_forge_sub": "code generated · sandboxed · installed",
         "v_docs": "your documents (contract.pdf, Drive folder…) — indexed, cited in her answers"
+      },
+      "c6": {
+        "bubble": "Want me to pass that on to Marie? Her assistant will put it in her words.",
+        "title": "LIA connects you to your people",
+        "sub": "LIA is a shared server: the people you care about can have their own assistant on the same instance — and the assistants talk to each other.",
+        "b1_t": "Messages, assistant to assistant.",
+        "b1_d": "Say “tell Marie…”: you approve the exact wording, then HER assistant delivers it in its own voice and personality, naming you — and yours confirms the delivery.",
+        "b2_t": "Chosen, read-only shares.",
+        "b2_d": "Per connection, open your calendar availability or your task titles — nothing by default, both directions visible, every access re-checked and journaled, revocable anytime.",
+        "b3_t": "Protection by construction.",
+        "b3_d": "Discovery is opt-in and exact-name only; blocking is silent; a stranger, a decline and a block get the byte-identical answer — nobody can probe who exists.",
+        "how": "one canonical pair row per connection, claim-once state transitions, an HITL draft before any relay, delivery through the recipient's own assistant (their personality and memory), and an access log re-validated at every read.",
+        "catalog_hint": "Discovery, lifecycle, relay, shares and anti-harassment design in detail.",
+        "s_chip": "Connections",
+        "s_user": "Tell Marie I'll pick the kids up tonight.",
+        "s_confirm": "Here is what I will hand to her assistant — send it?",
+        "s_to": "Message to Marie",
+        "s_message": "I'll pick the kids up tonight.",
+        "s_delivered": "Delivered — her assistant passed it on and confirmed."
       }
     },
     "basics": {

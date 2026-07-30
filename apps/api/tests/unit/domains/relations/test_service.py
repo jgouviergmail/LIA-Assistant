@@ -92,7 +92,15 @@ async def test_overview_folds_matching_names_into_one_relationship() -> None:
         loops=[_loop("Gérard Dupont", days_ago=3)],
         calls=[_call("gerard dupont", days_ago=1)],
     )
-    with _patch_db(), p_loop, p_call, p_db, patch("src.domains.relations.service.datetime") as dt:
+    with (
+        _patch_db(),
+        p_loop,
+        p_call,
+        p_db,
+        _patch_favorites(),
+        _patch_peers()[0],
+        patch("src.domains.relations.service.datetime") as dt,
+    ):
         dt.now.return_value = NOW
         dt.min = datetime.min
         overview = await svc.build_overview()
@@ -115,7 +123,15 @@ async def test_overview_ranks_by_recent_interaction_and_caps() -> None:
         _loop("Bob", days_ago=1),
     ]
     p_loop, p_call, p_db = _patch_sources(loops=loops)
-    with _patch_db(), p_loop, p_call, p_db, patch("src.domains.relations.service.datetime") as dt:
+    with (
+        _patch_db(),
+        p_loop,
+        p_call,
+        p_db,
+        _patch_favorites(),
+        _patch_peers()[0],
+        patch("src.domains.relations.service.datetime") as dt,
+    ):
         dt.now.return_value = NOW
         dt.min = datetime.min
         with patch("src.domains.relations.service.settings") as cfg:
@@ -132,7 +148,15 @@ async def test_overview_ranks_by_recent_interaction_and_caps() -> None:
 async def test_overview_drops_blank_names() -> None:
     svc = RelationsService(uuid4())
     p_loop, p_call, p_db = _patch_sources(loops=[_loop(None), _loop("   ")], calls=[_call("")])
-    with _patch_db(), p_loop, p_call, p_db, patch("src.domains.relations.service.datetime") as dt:
+    with (
+        _patch_db(),
+        p_loop,
+        p_call,
+        p_db,
+        _patch_favorites(),
+        _patch_peers()[0],
+        patch("src.domains.relations.service.datetime") as dt,
+    ):
         dt.now.return_value = NOW
         dt.min = datetime.min
         overview = await svc.build_overview()
@@ -151,7 +175,15 @@ async def test_detail_gathers_loops_calls_and_matching_memories() -> None:
             _memory("Note sans rapport"),
         ],
     )
-    with _patch_db(), p_loop, p_call, p_db, patch("src.domains.relations.service.datetime") as dt:
+    with (
+        _patch_db(),
+        p_loop,
+        p_call,
+        p_db,
+        _patch_favorites(),
+        _patch_peers()[0],
+        patch("src.domains.relations.service.datetime") as dt,
+    ):
         dt.now.return_value = NOW
         dt.min = datetime.min
         detail = await svc.build_detail("Gérard")
@@ -161,3 +193,151 @@ async def test_detail_gathers_loops_calls_and_matching_memories() -> None:
     # Only the name-matching memory is attached.
     assert len(detail.memories) == 1
     assert "randonnée" in detail.memories[0].content
+
+
+def _favorite(name, key=None):
+    return SimpleNamespace(
+        name_key=key if key is not None else _normalize_name(name),
+        display_name=name,
+    )
+
+
+def _patch_favorites(favorites=()):
+    return patch(
+        "src.domains.relations.service.RelationFavoriteRepository",
+        return_value=SimpleNamespace(
+            list_for_user=AsyncMock(return_value=list(favorites)),
+            add=AsyncMock(),
+            remove=AsyncMock(return_value=True),
+        ),
+    )
+
+
+def _patch_peers(peer_names=(), enabled=True):
+    peers_patch = patch(
+        "src.domains.relations.service.PeersRepository",
+        return_value=SimpleNamespace(
+            list_accepted_peer_names=AsyncMock(return_value=list(peer_names))
+        ),
+    )
+    flag_patch = patch.object(
+        __import__("src.domains.relations.service", fromlist=["settings"]).settings,
+        "peers_enabled",
+        enabled,
+    )
+    return peers_patch, flag_patch
+
+
+@pytest.mark.unit
+class TestFavoritesInOverview:
+    """CRM favorites: starred people lead the list and survive signal expiry."""
+
+    async def test_overview_marks_favorites_and_ranks_them_first(self) -> None:
+        service = RelationsService(user_id=uuid4())
+        p_loop, p_call, p_db = _patch_sources(
+            loops=[_loop("Marie Dupont", days_ago=9)], calls=[_call("Paul Martin", days_ago=0)]
+        )
+        p_peers, p_flag = _patch_peers()
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_db,
+            _patch_favorites([_favorite("Marie Dupont")]),
+            p_peers,
+            p_flag,
+        ):
+            overview = await service.build_overview()
+        assert [r.display_name for r in overview.relations] == ["Marie Dupont", "Paul Martin"]
+        assert [r.is_favorite for r in overview.relations] == [True, False]
+
+    async def test_starred_relation_survives_without_live_signals(self) -> None:
+        service = RelationsService(user_id=uuid4())
+        p_loop, p_call, p_db = _patch_sources(calls=[_call("Paul Martin")])
+        p_peers, p_flag = _patch_peers()
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_db,
+            _patch_favorites([_favorite("Mémé Jeanne")]),
+            p_peers,
+            p_flag,
+        ):
+            overview = await service.build_overview()
+        starred = next(r for r in overview.relations if r.is_favorite)
+        assert starred.display_name == "Mémé Jeanne"
+        assert starred.open_loops_count == 0 and starred.calls_count == 0
+        assert starred.last_interaction_at is None
+
+    async def test_favorite_survives_the_cap(self) -> None:
+        service = RelationsService(user_id=uuid4())
+        p_loop, p_call, p_db = _patch_sources(
+            calls=[_call("Paul Martin", days_ago=0), _call("Ana Lima", days_ago=1)]
+        )
+        p_peers, p_flag = _patch_peers()
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_db,
+            _patch_favorites([_favorite("Ana Lima")]),
+            p_peers,
+            p_flag,
+            patch("src.domains.relations.service.settings") as cfg,
+        ):
+            cfg.relations_max_items = 1
+            cfg.peers_enabled = True
+            overview = await service.build_overview()
+        assert [r.display_name for r in overview.relations] == ["Ana Lima"]
+
+    async def test_peer_badge_set_from_accepted_connections(self) -> None:
+        service = RelationsService(user_id=uuid4())
+        p_loop, p_call, p_db = _patch_sources(calls=[_call("Marie Dupont"), _call("Paul Martin")])
+        p_peers, p_flag = _patch_peers(peer_names=["marie dupont"])
+        with _patch_db(), p_loop, p_call, p_db, _patch_favorites(), p_peers, p_flag:
+            overview = await service.build_overview()
+        flags = {r.display_name: r.is_peer for r in overview.relations}
+        assert flags == {"Marie Dupont": True, "Paul Martin": False}
+
+    async def test_peer_badge_silent_when_flag_off(self) -> None:
+        service = RelationsService(user_id=uuid4())
+        p_loop, p_call, p_db = _patch_sources(calls=[_call("Marie Dupont")])
+        p_peers, p_flag = _patch_peers(peer_names=["marie dupont"], enabled=False)
+        with _patch_db(), p_loop, p_call, p_db, _patch_favorites(), p_peers, p_flag:
+            overview = await service.build_overview()
+        assert overview.relations[0].is_peer is False
+
+    async def test_add_and_remove_favorite_fold_the_name(self) -> None:
+        service = RelationsService(user_id=uuid4())
+        repo = SimpleNamespace(add=AsyncMock(), remove=AsyncMock(return_value=True))
+        with (
+            _patch_db(),
+            patch("src.domains.relations.service.RelationFavoriteRepository", return_value=repo),
+        ):
+            await service.add_favorite("  Mémé Jeanne ")
+            await service.remove_favorite("MÉMÉ jeanne")
+        repo.add.assert_awaited_once_with(
+            service.user_id, name_key="meme jeanne", display_name="Mémé Jeanne"
+        )
+        repo.remove.assert_awaited_once_with(service.user_id, name_key="meme jeanne")
+
+
+@pytest.mark.unit
+class TestDetailFlags:
+    async def test_detail_carries_favorite_and_peer_flags(self) -> None:
+        service = RelationsService(user_id=uuid4())
+        p_loop, p_call, p_db = _patch_sources(calls=[_call("Marie Dupont")])
+        p_peers, p_flag = _patch_peers(peer_names=["marie dupont"])
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_db,
+            _patch_favorites([_favorite("Marie Dupont")]),
+            p_peers,
+            p_flag,
+        ):
+            detail = await service.build_detail("marie dupont")
+        assert detail.is_favorite is True
+        assert detail.is_peer is True

@@ -65,6 +65,10 @@ class RelationSummary(BaseModel):
     calls_count: int = Field(ge=0)
     # ISO-8601 UTC of the most recent signal (loop/call), for "last seen".
     last_interaction_at: datetime | None = None
+    # Starred by the user — persisted, survives the live signals expiring.
+    is_favorite: bool = False
+    # Also a connected LIA user (peers program D2 bridge, read-only).
+    is_peer: bool = False
 
 
 class RelationsOverview(BaseModel):
@@ -85,3 +89,5 @@ class RelationDetail(BaseModel):
     open_loops: list[RelationOpenLoop]
     recent_calls: list[RelationCall]
     memories: list[RelationMemory]
+    is_favorite: bool = False
+    is_peer: bool = False

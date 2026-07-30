@@ -45,7 +45,11 @@ export function ActiveSpacesIndicator() {
   const { spaces, activeCount, loading, toggleSpace, toggling } = useSpaces();
 
   // Nothing to toggle: the nav "Knowledge" entry covers discovery (R01).
-  if (loading || spaces.length === 0) return null;
+  // Always rendered once loaded (2026-07-30): this pill became the ONLY
+  // one-click door to the spaces page when the nav slot went to Relations —
+  // hiding it at zero spaces would strand exactly the user who needs to
+  // create their first one (the original R01 trap, inverted).
+  if (loading) return null;
 
   const handleToggle = async (spaceId: string, spaceName: string) => {
     try {

@@ -6,7 +6,7 @@
 
 'use client';
 
-import { Hash, Link2, Moon, Palette, Search, SunMedium } from 'lucide-react';
+import { Hash, Link2, Moon, Palette, Search, Star, SunMedium } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -181,9 +181,66 @@ function MobileLogoNavScene({ active }: SceneProps) {
   );
 }
 
+type StarPhase = 'plain' | 'starred' | 'promoted';
+const STAR_STEPS: readonly TimelineStep<StarPhase>[] = [
+  { at: 0, state: 'plain' },
+  { at: 1100, state: 'starred' },
+  { at: 2100, state: 'promoted' },
+];
+
+/** A relation card gets starred in place, then rises into the favorites band. */
+function RelationStarScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(STAR_STEPS, { active });
+  const starred = phase !== 'plain';
+  return (
+    <div className={cn(STAGE, 'justify-center gap-2')}>
+      <div className="flex items-center gap-1.5">
+        <Star
+          className={cn(
+            'h-3.5 w-3.5 transition-colors duration-300',
+            phase === 'promoted' ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/40'
+          )}
+        />
+        <SkeletonLine w="w-14" className="h-1.5" />
+      </div>
+      <div
+        className={cn(
+          'relative flex w-3/4 items-center gap-2 self-center rounded-lg border bg-background p-2 transition-all duration-500 ease-out',
+          phase === 'promoted'
+            ? '-translate-y-2 border-amber-500/40 shadow-md'
+            : 'translate-y-0 border-border'
+        )}
+      >
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-[9px] font-bold text-primary">
+          GD
+        </span>
+        <span className="flex-1 space-y-1">
+          <SkeletonLine w="w-2/3" />
+          <SkeletonLine w="w-1/3" className="h-1" />
+        </span>
+        <Star
+          className={cn(
+            'h-3.5 w-3.5 shrink-0 transition-all duration-300',
+            starred
+              ? 'scale-110 fill-amber-400 text-amber-400'
+              : 'scale-100 text-muted-foreground/40'
+          )}
+        />
+        <Cursor
+          className={cn(
+            phase === 'plain' ? 'right-[8%] top-[80%] opacity-100' : 'right-[6%] top-[35%]',
+            phase === 'promoted' && 'opacity-0'
+          )}
+        />
+      </div>
+    </div>
+  );
+}
+
 export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   settings_search: SettingsSearchScene,
   deep_links: DeepLinksScene,
   history_search: HistorySearchScene,
   mobile_logo_nav: MobileLogoNavScene,
+  relation_star: RelationStarScene,
 };
