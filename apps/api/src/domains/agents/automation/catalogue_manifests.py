@@ -177,6 +177,15 @@ list_scheduled_actions_catalogue_manifest = ToolManifest(
             type="array",
             description="Automations: id, title, schedule, is_enabled, status",
         ),
+        # The ONLY source of a valid action_id (a UUID nobody can dictate).
+        # Declared so the catalogue closure can pull this tool in whenever
+        # toggle_scheduled_action_tool survives filtering without it.
+        OutputFieldSchema(
+            path="automations[].id",
+            type="string",
+            description="Automation UUID",
+            semantic_type="automation_id",
+        ),
         OutputFieldSchema(
             path="count",
             type="integer",
@@ -231,6 +240,7 @@ toggle_scheduled_action_catalogue_manifest = ToolManifest(
             type="string",
             required=True,
             description="Automation UUID from list_scheduled_actions_tool",
+            semantic_type="automation_id",
         ),
     ],
     outputs=[

@@ -317,6 +317,9 @@ apps/api/src/
 │   │   │   ├── approval/        # Approval strategies
 │   │   │   │   ├── evaluator.py
 │   │   │   │   └── strategies.py
+│   │   │   ├── catalogue/       # Tool catalogue filtering
+│   │   │   │   ├── closure.py   # Required-handle closure (ADR-183)
+│   │   │   │   └── strategies/  # normal_filtering, panic_filtering
 │   │   │   ├── streaming/
 │   │   │   │   └── service.py
 │   │   │   └── orchestration/

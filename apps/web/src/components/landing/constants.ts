@@ -9,30 +9,33 @@
  *   2026-07-25: `grep -c 'register_agent(' agents.py` — the telephony agent
  *   had landed without this counter following it.
  * - tools: ToolManifest entries across src/domains/agents/{domain}/catalogue_manifests.py.
- *   Re-measured 2026-07-27 (v1.25.27) = 82, and corrected DOWN from 85 at v1.25.26: this tile
- *   renders the raw number with no "+", so an over-count is a false claim.
- *   Cross-checked against runtime rather than grep alone — production logs
- *   328 `catalogue_tool_registered` events across 4 uvicorn workers = 82 per
- *   worker, which matches `grep -rcE '^[A-Za-z_]+ = ToolManifest\(' src/domains/agents/`.
+ *   Re-measured 2026-07-31 (v1.27.3) = 86. This tile renders the raw number
+ *   with no "+", so an over-count is a false claim — hence the runtime
+ *   cross-check rather than grep alone: production logs 344
+ *   `catalogue_tool_registered` events across 4 uvicorn workers = 86 per
+ *   worker, matching `grep -rcE '^[A-Za-z_]+ = ToolManifest\(' src/domains/agents/`.
+ *   The +4 over the v1.25.27 measurement of 82 is the peer tool family shipped
+ *   in v1.27.0 (list_peer_connections, get_peer_availability, get_peer_tasks,
+ *   send_peer_message), which had never been carried into this tile.
  * - providers: ProviderType Literal in infrastructure/llm/providers/adapter.py
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
- * - metrics: Prometheus metric definitions across src/ — re-measured 2026-07-28
- *   (v1.25.30): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 447.
- *   Reconciles with 446 at v1.25.29: -2 (hybrid memory search removed, ADR-168),
- *   +1 prompt_injection_patterns_total, +2 ReAct loop-guard counters (ADR-170).
+ * - metrics: Prometheus metric definitions across src/ — re-measured 2026-07-31
+ *   (v1.27.3): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 463,
+ *   including the two ADR-182 counters (peer_domain_correction_total,
+ *   oauth_health_notification_skipped_total).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured at v1.27.2: backend 16,808 collected (unchanged — the release
- *   is frontend-only), frontend 4,250 (+79, ADR-181 cosmic primitives, landing
- *   composition + production contract, calm scope of the seven reading pages,
- *   upcoming-only automations, silent proactive vote, recent-calls window)
- *   = 21,058 → 21,000. The displayed figure MOVES this release (20,000 since
- *   v1.25.9). Re-measure every release: the value carried the backend count
- *   alone until v1.25.9.
- * - adrs: docs/architecture/ ADR files (180 files, numbered up to ADR-181 —
- *   ADR-008 has no separate file, so 181 numbers map to 180 files).
+ *   Re-measured at v1.27.3: backend 17,025 collected (+217 over v1.27.2 —
+ *   ADR-182 peer routing/summaries/owner-defaults, the honest-failure
+ *   directive, and the ADR-183 catalogue-closure suites), frontend 4,269
+ *   (+19, connector-health banner and shortcut editing) = 21,294 → 21,000
+ *   (the rounded display is unchanged since v1.27.2).
+ *   Re-measure every release: the value carried the backend count alone
+ *   until v1.25.9.
+ * - adrs: docs/architecture/ ADR files (182 files, numbered up to ADR-183 —
+ *   ADR-008 has no separate file, so 183 numbers map to 182 files).
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   189 headings at v1.27.2, no Unreleased pending.
+ *   190 headings at v1.27.3, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -43,14 +46,14 @@
 
 export const LANDING_STATS = {
   agents: 20,
-  tools: 82,
+  tools: 86,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 447,
+  metrics: 463,
   uiLanguages: 6,
   tests: 21000,
-  adrs: 180,
-  releases: 189,
+  adrs: 182,
+  releases: 190,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

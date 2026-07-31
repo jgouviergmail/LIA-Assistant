@@ -1546,7 +1546,11 @@
         "reconnect_failed": "Échec de la reconnexion",
         "dismiss": "Plus tard",
         "modal_title": "Reconnexion requise",
-        "modal_description": "Le renouvellement automatique des accès a échoué. Une reconnexion manuelle est nécessaire :"
+        "modal_description": "Le renouvellement automatique des accès a échoué. Une reconnexion manuelle est nécessaire :",
+        "banner_label": "État des connexions",
+        "banner_one": "{{name}} est déconnecté — LIA ne peut plus l’utiliser.",
+        "banner_many": "{{total}} services sont déconnectés — LIA ne peut plus les utiliser.",
+        "banner_manage": "Gérer les connexions"
       },
       "google": {
         "title": "Google",
@@ -2852,7 +2856,13 @@
       "remove": "Supprimer le raccourci /{{id}}",
       "error_invalid_id": "Le raccourci ne peut contenir que des minuscules, des chiffres et des tirets.",
       "error_reserved": "Ce nom de raccourci est réservé à une commande intégrée.",
-      "error_duplicate": "Vous avez déjà un raccourci portant ce nom."
+      "error_duplicate": "Vous avez déjà un raccourci portant ce nom.",
+      "edit": "Modifier le raccourci /{{id}}",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "updated": "Raccourci /{{id}} modifié.",
+      "edit_id_label": "Identifiant du raccourci /{{id}}",
+      "edit_text_label": "Texte inséré du raccourci /{{id}}"
     },
     "briefing_grid": {
       "title": "Mon dashboard",
@@ -3045,7 +3055,7 @@
         "font": "police, typographie, taille du texte, lisibilité, caractères",
         "display-mode": "cartes, rendu, format des réponses, mise en page, markdown, texte brut",
         "briefing-grid": "accueil, page d'accueil, tableau de bord, widgets, cartes, briefing, ordre des sections",
-        "chat-shortcuts": "slash, raccourci, commande, demande rapide, macro, /commande, modèle de message",
+        "chat-shortcuts": "slash, raccourci, commande, demande rapide, macro, /commande, modèle de message, modifier, renommer",
         "open-loops": "en attente, suivi, engagements, promesses, non terminé, relances",
         "notifications": "push, alertes, bannières, mobile, rappels, FCM",
         "channels": "whatsapp, telegram, sms, email, messagerie, intégrations",
@@ -3054,7 +3064,7 @@
         "security-export": "RGPD, archive, téléchargement, portabilité, sauvegarde, données personnelles, confidentialité",
         "voice-mode": "micro, microphone, parole, dictée, STT, TTS, mot d'activation, audio, vocal",
         "image-generation": "images, photos, dessin, illustration, génération, art",
-        "connectors": "google, gmail, agenda, calendrier, contacts, apple, microsoft, outlook, intégrations, comptes, oauth",
+        "connectors": "google, gmail, agenda, calendrier, contacts, apple, microsoft, outlook, intégrations, comptes, oauth, reconnecter, déconnecté",
         "telephony-calls": "téléphone, appels, historique des appels, composer",
         "admin-mcp-servers": "MCP, model context protocol, serveurs de l'application, outils intégrés",
         "mcp-servers": "MCP, model context protocol, mes serveurs, outils, extensions",
@@ -3479,7 +3489,7 @@
     },
     "intro": {
       "title": "Comment fonctionne LIA",
-      "description": "LIA est un assistant IA de nouvelle génération qui combine des technologies avancées pour toi offrir une expérience intelligente, sécurisée et personnalisée. Les réponses sont générées côté serveur indépendamment de ta connexion : tu peux quitter la page en pleine réponse et la retrouver — ou la reprendre en direct — à ton retour.",
+      "description": "Un assistant IA multi-agents qui relie tes services et te répond à partir de tes propres données.",
       "features": {
         "architecture": {
           "title": "🏗️ Architecture LangGraph Multi-Agents",
@@ -3499,7 +3509,7 @@
         },
         "planning": {
           "title": "📋 Planification Intelligente & FOR_EACH",
-          "description": "Planificateur avancé avec DSL d'exécution. Pattern FOR_EACH pour itérations bulk (« Envoie un email à tous mes contacts du groupe X »). Graphes de dépendances avec exécution parallèle automatique. Mode PANIC avec retry adaptatif. Golden Patterns (~100 modèles pré-entraînés) pour une planification optimale dès le premier essai. Chaque itération FOR_EACH conserve ses propres résultats : un enrichissement récupéré pour un rendez-vous ne peut plus être écrasé par celui d’un autre partageant le même lieu et le même jour, et l’identité de chaque résultat reste stable si l’exécution est rejouée ou reprise après interruption."
+          "description": "Planificateur avancé avec DSL d'exécution. Pattern FOR_EACH pour itérations bulk (« Envoie un email à tous mes contacts du groupe X »). Graphes de dépendances avec exécution parallèle automatique. Mode PANIC avec retry adaptatif. Golden Patterns (~100 modèles pré-entraînés) pour une planification optimale dès le premier essai. Chaque itération FOR_EACH conserve ses propres résultats : un enrichissement récupéré pour un rendez-vous ne peut plus être écrasé par celui d’un autre partageant le même lieu et le même jour, et l’identité de chaque résultat reste stable si l’exécution est rejouée ou reprise après interruption. Le catalogue remis au planificateur est <b>clos</b> : si un outil retenu exige une donnée qu'il ne peut pas deviner — l'identifiant d'un message, d'un événement —, l'outil de lecture capable de la fournir est présent. Sans cette garantie, aucun plan valide n'existerait et le modèle inventerait un nom d'outil."
         },
         "semanticTypes": {
           "title": "📦 Système de Types Sémantiques",
@@ -3623,7 +3633,7 @@
         },
         "adaptiveReplanner": {
           "title": "🔄 Replanning Adaptatif",
-          "description": "Analyse par règles des échecs d’exécution — résultats vides, échecs partiels, erreurs de dépendance et de référence — sans appel LLM supplémentaire. Elle qualifie ce qui s’est passé et calcule une décision de reprise (réessayer, replanifier, demander à l’utilisateur, abandonner). Cette décision est <b>consultative à ce jour</b> : elle est journalisée et comptée à chaque échec, ce qui rend les modes de défaillance mesurables, mais l’orchestrateur ne l’applique pas encore automatiquement. Les résultats partiels sont restitués plutôt qu’écartés : une exécution incomplète répond avec ce qu’elle a effectivement obtenu."
+          "description": "Analyse par règles des échecs d’exécution — résultats vides, échecs partiels, erreurs de dépendance et de référence — sans appel LLM supplémentaire. Elle qualifie ce qui s’est passé et calcule une décision de reprise (réessayer, replanifier, demander à l’utilisateur, abandonner). Cette décision est <b>consultative à ce jour</b> : elle est journalisée et comptée à chaque échec, ce qui rend les modes de défaillance mesurables, mais l’orchestrateur ne l’applique pas encore automatiquement. Les résultats partiels sont restitués plutôt qu’écartés : une exécution incomplète répond avec ce qu’elle a effectivement obtenu. Un échec qu'un nouvel essai ne peut pas changer — outil inexistant, capacité refusée — n'est plus qualifié de passager : c'est cette ligne que l'on lit en cherchant la vraie cause."
         },
         "semanticLeakDefense": {
           "title": "🛡️ Distinction critères indexables vs sémantiques",
@@ -3708,6 +3718,19 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_27_3": {
+          "title": "v1.27.3 — 🤝 Demander la dispo d'un proche connecté fonctionne",
+          "date": "Juillet 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🤝 « Jérôme est-il dispo demain à 10 h ? »</b> — poser la question sur quelqu'un avec qui tu es connecté répond enfin depuis SON agenda, celui qu'il a choisi par défaut, aux heures de ta propre montre. Les entrées « journée entière » (un anniversaire, un pense-bête) sont distinguées des vrais rendez-vous : un anniversaire ne fait plus passer quelqu'un pour occupé toute la journée.",
+            "i2": "<b>🎯 LIA n'invente plus quand elle est bloquée</b> — quand une demande ne peut pas aboutir, la réponse nomme exactement la capacité qui manquait, et s'arrête là. Fini le « aucun service n'est configuré » qui balayait large alors que tout fonctionnait, et fini le reproche implicite alors que la panne peut venir de notre côté.",
+            "i3": "<b>🔌 Un service déconnecté reste visible</b> — au lieu d'une seule alerte que tu as pu manquer, un bandeau discret reste affiché tant que la connexion est cassée, avec un bouton Reconnecter. Il disparaît tout seul dès que le service refonctionne.",
+            "i4": "<b>✏️ Tes /raccourcis sont modifiables</b> — tu peux désormais changer le nom ou le texte d'un raccourci déjà créé, au lieu de le supprimer pour le refaire.",
+            "i5": "<b>✨ Quelques touches de confort</b> — la zone de saisie du chat adopte le même verre poli que l'en-tête, la recherche des réglages passe au-dessus des onglets, les titres de cartes s'alignent sur leur icône, et l'introduction « Comment fonctionne LIA » redevient une phrase.",
+            "i6": "<b>📧 « Résume ce mail et propose une réponse » aboutit à chaque fois</b> — cette demande échouait parfois, puis passait quelques minutes plus tard sans que rien n'ait changé. LIA pouvait se retrouver à devoir répondre à un message sans avoir de quoi le lire. Elle vérifie désormais qu'elle dispose de tout le nécessaire avant de se lancer, au lieu de le découvrir en chemin."
+          }
+        },
         "v1_27_2": {
           "title": "v1.27.2 — 🌌 Le site public prend son identité",
           "date": "Juillet 2026",
@@ -5651,11 +5674,11 @@
           },
           "q2": {
             "question": "Comment envoyer un message à une connexion ?",
-            "answer": "Dites-le simplement à LIA : <em>dis à Marie que je suis en retard</em>. Une <strong>carte de confirmation</strong> te montre la formulation exacte avant tout envoi. Le message est ensuite remis par <strong>l'assistant du destinataire</strong>, avec sa personnalité et sa langue, en te nommant comme expéditeur — et ton assistant te confirme la remise dans ton chat. Répondre fonctionne pareil : une réponse est simplement un nouveau message relayé. Le petit coût IA de la livraison est imputé à l'expéditeur, et des quotas journaliers préviennent les abus."
+            "answer": "Dis-le simplement à LIA : <em>dis à Marie que je suis en retard</em>. Une <strong>carte de confirmation</strong> te montre la formulation exacte avant tout envoi. Le message est ensuite remis par <strong>l'assistant du destinataire</strong>, avec sa personnalité et sa langue, en te nommant comme expéditeur — et ton assistant te confirme la remise dans ton chat. Répondre fonctionne pareil : une réponse est simplement un nouveau message relayé. Le petit coût IA de la livraison est imputé à l'expéditeur, et des quotas journaliers préviennent les abus."
           },
           "q3": {
             "question": "Que puis-je partager, et que voit l'autre personne ?",
-            "answer": "Par connexion, tu choisis des partages <strong>en lecture seule</strong> : le calendrier en occupé/libre seul ou avec les intitulés, et les titres de tâches. Rien n'est partagé par défaut. Les deux sens sont visibles des deux côtés dans la section Connexions, chaque accès est re-vérifié au moment de la lecture et tracé dans un <strong>journal d'accès</strong> consultable. Tu peux modifier ou révoquer un partage à tout moment."
+            "answer": "Par connexion, tu choisis des partages <strong>en lecture seule</strong> : le calendrier en occupé/libre seul ou avec les intitulés, et les titres de tâches. Rien n'est partagé par défaut. Les deux sens sont visibles des deux côtés dans la section Connexions, chaque accès est re-vérifié au moment de la lecture et tracé dans un <strong>journal d'accès</strong> consultable. Tu peux modifier ou révoquer un partage à tout moment. Quand tu demandes <em>Marie est-elle libre demain à 10 h ?</em>, LIA lit le calendrier <strong>que Marie a choisi par défaut</strong> — pas un calendrier arbitraire — et te donne les heures <strong>à ta propre montre</strong>. Les entrées « journée entière » (un anniversaire, un pense-bête) sont listées à part des vrais rendez-vous : elles ne font jamais passer quelqu'un pour occupé toute la journée."
           },
           "q4": {
             "question": "Comment bloquer quelqu'un, et que remarque-t-il ?",
@@ -5663,7 +5686,7 @@
           },
           "q5": {
             "question": "Quelqu'un peut-il me trouver sans mon consentement ?",
-            "answer": "Non. La découverte est <strong>opt-in et désactivée par défaut</strong>. La recherche ne répond qu'au <strong>nom complet exact</strong> (accents et casse sont tolérés, mais aucune recherche partielle ou approximative n'existe), et sans nom complet sur ton profil tu es introuvable. Cible bloquée, inconnue ou refusée reçoivent exactement la même réponse neutre : personne ne peut sonder si tu existes, avez refusé ou avez bloqué."
+            "answer": "Non. La découverte est <strong>opt-in et désactivée par défaut</strong>. La recherche ne répond qu'au <strong>nom complet exact</strong> (accents et casse sont tolérés, mais aucune recherche partielle ou approximative n'existe), et sans nom complet sur ton profil tu es introuvable. Cible bloquée, inconnue ou refusée reçoivent exactement la même réponse neutre : personne ne peut sonder si tu existes, si tu as refusé ou si tu as bloqué."
           },
           "q6": {
             "question": "Que se passe-t-il si je retire une connexion, ou supprime mon compte ?",
@@ -8373,7 +8396,7 @@
       "execution-plans": {
         "title": "ExecutionPlan : comment LIA planifie et exécute tes demandes complexes",
         "excerpt": "LIA décompose tes requêtes multi-étapes en plans d'exécution structurés, validés sémantiquement et exécutés en parallèle pour des réponses rapides et fiables.",
-        "body": "<h2>Un langage de plan structuré</h2><p>Le planificateur de LIA génère un <strong>ExecutionPlan</strong> : un objet Pydantic validé comprenant un <code>plan_id</code> (UUID), un <code>execution_mode</code> (séquentiel ou parallèle), un <code>max_cost_usd</code>, un <code>estimated_cost_usd</code> et un numéro de <code>version</code>. Chaque plan contient une liste d'<strong>ExecutionStep</strong> avec les champs : <code>step_id</code>, <code>step_type</code> (TOOL, CONDITIONAL, REPLAN ou HUMAN), <code>agent_name</code>, <code>tool_name</code>, <code>parameters</code>, <code>depends_on</code> et <code>timeout_seconds</code>.</p><p>Par exemple, pour « envoie un résumé météo à Jean demain matin », le plan contiendrait : (1) récupérer la météo de demain, (2) chercher le contact Jean, (3) composer et envoyer l'email — avec une dépendance entre les étapes 1→3 et 2→3.</p><h2>Le pattern FOR_EACH</h2><p>Pour les opérations en lot, les étapes supportent un champ <code>for_each</code> qui itère sur une collection produite par une étape précédente. Le paramètre <code>for_each_max</code> limite le nombre d'itérations, et chaque erreur d'élément est gérée individuellement sans interrompre le lot entier.</p><h2>Validation sémantique à 11 vérifications</h2><p>Avant toute exécution, le <strong>validateur sémantique</strong> vérifie 11 types de problèmes :</p><ul><li><strong>HALLUCINATED_CAPABILITY</strong> — Outil ou capacité inventé par le LLM</li><li><strong>GHOST_DEPENDENCY</strong> — Référence à une étape inexistante</li><li><strong>LOGICAL_CYCLE</strong> — Dépendances circulaires</li><li><strong>CARDINALITY_MISMATCH</strong> — Incompatibilité de cardinalité entre étapes</li><li><strong>SCOPE_OVERFLOW / SCOPE_UNDERFLOW</strong> — Plan trop large ou insuffisant</li><li><strong>WRONG_PARAMETERS</strong> — Paramètres incorrects pour l'outil</li><li><strong>MISSING_STEP</strong> — Étape manquante pour satisfaire la demande</li><li><strong>DANGEROUS_AMBIGUITY</strong> — Ambiguïté pouvant mener à une erreur</li><li><strong>IMPLICIT_ASSUMPTION / INSUFFICIENT_CONTENT</strong> — Hypothèses non vérifiées</li></ul><h2>Distinction critères indexables vs sémantiques</h2><p>Au-delà des onze vérifications structurelles, le validateur applique un <strong>principe universel de planification</strong> : distinguer les critères <em>indexables</em> (date, identifiant, expéditeur, statut, lieu — passés en paramètre d'outil) des critères <em>sémantiques</em> (catégorie, urgence, qualité, priorité — filtrés en aval par le LLM de réponse). Quand le planificateur tente de faire passer un mot conceptuel comme « médical » ou « urgent » dans la recherche d'un outil littéral (Google Calendar, Gmail, store type Notion…), une couche de détection signale la fuite via une correspondance par mot entier sur l'indice émis par l'analyseur de requête. Mécanisme tool-agnostic : aucun connecteur ni serveur MCP futur ne nécessite de modification — opt-out déclaratif via <code>ToolManifest.text_search_mode</code> pour les stores qui exposent une recherche sémantique native.</p><h2>Exécution parallèle par vagues</h2><p>Un <strong>DependencyGraph</strong> calcule les vagues d'exécution : toutes les étapes sans dépendance forment la première vague et s'exécutent en parallèle. Les vagues suivantes attendent la complétion de leurs prérequis. Ce mécanisme permet de traiter des requêtes complexes impliquant 3 à 5 domaines avec un temps de réponse comparable à une requête simple.</p><h2>Replanification adaptative</h2><p>Si une étape échoue, le système peut replanifier dynamiquement via le type <code>REPLAN</code>. Par exemple, si un contact n'est pas trouvé, LIA peut demander une clarification à l'utilisateur plutôt que d'abandonner l'ensemble du plan.</p><h2>Registre anti-hallucination auto-enrichissant</h2><p>Les LLMs inventent parfois des outils inexistants dans leurs plans (ex : <code>resolve_reference_tool</code>). LIA maintient un registre persistant de patterns hallucinés (<code>hallucinated_tools.json</code>) qui se met à jour automatiquement à chaque nouvelle détection. Lors de la validation du plan, chaque outil est vérifié contre ce registre — les étapes hallucinées sont supprimées et le planner est forcé à replanifier avec les outils réels du catalogue. Ce mécanisme élimine une classe entière d'échecs d'exécution sans intervention humaine.</p>"
+        "body": "<h2>Un langage de plan structuré</h2><p>Le planificateur de LIA génère un <strong>ExecutionPlan</strong> : un objet Pydantic validé comprenant un <code>plan_id</code> (UUID), un <code>execution_mode</code> (séquentiel ou parallèle), un <code>max_cost_usd</code>, un <code>estimated_cost_usd</code> et un numéro de <code>version</code>. Chaque plan contient une liste d'<strong>ExecutionStep</strong> avec les champs : <code>step_id</code>, <code>step_type</code> (TOOL, CONDITIONAL, REPLAN ou HUMAN), <code>agent_name</code>, <code>tool_name</code>, <code>parameters</code>, <code>depends_on</code> et <code>timeout_seconds</code>.</p><p>Par exemple, pour « envoie un résumé météo à Jean demain matin », le plan contiendrait : (1) récupérer la météo de demain, (2) chercher le contact Jean, (3) composer et envoyer l'email — avec une dépendance entre les étapes 1→3 et 2→3.</p><h2>Le pattern FOR_EACH</h2><p>Pour les opérations en lot, les étapes supportent un champ <code>for_each</code> qui itère sur une collection produite par une étape précédente. Le paramètre <code>for_each_max</code> limite le nombre d'itérations, et chaque erreur d'élément est gérée individuellement sans interrompre le lot entier.</p><h2>Validation sémantique à 11 vérifications</h2><p>Avant toute exécution, le <strong>validateur sémantique</strong> vérifie 11 types de problèmes :</p><ul><li><strong>HALLUCINATED_CAPABILITY</strong> — Outil ou capacité inventé par le LLM</li><li><strong>GHOST_DEPENDENCY</strong> — Référence à une étape inexistante</li><li><strong>LOGICAL_CYCLE</strong> — Dépendances circulaires</li><li><strong>CARDINALITY_MISMATCH</strong> — Incompatibilité de cardinalité entre étapes</li><li><strong>SCOPE_OVERFLOW / SCOPE_UNDERFLOW</strong> — Plan trop large ou insuffisant</li><li><strong>WRONG_PARAMETERS</strong> — Paramètres incorrects pour l'outil</li><li><strong>MISSING_STEP</strong> — Étape manquante pour satisfaire la demande</li><li><strong>DANGEROUS_AMBIGUITY</strong> — Ambiguïté pouvant mener à une erreur</li><li><strong>IMPLICIT_ASSUMPTION / INSUFFICIENT_CONTENT</strong> — Hypothèses non vérifiées</li></ul><h2>Distinction critères indexables vs sémantiques</h2><p>Au-delà des onze vérifications structurelles, le validateur applique un <strong>principe universel de planification</strong> : distinguer les critères <em>indexables</em> (date, identifiant, expéditeur, statut, lieu — passés en paramètre d'outil) des critères <em>sémantiques</em> (catégorie, urgence, qualité, priorité — filtrés en aval par le LLM de réponse). Quand le planificateur tente de faire passer un mot conceptuel comme « médical » ou « urgent » dans la recherche d'un outil littéral (Google Calendar, Gmail, store type Notion…), une couche de détection signale la fuite via une correspondance par mot entier sur l'indice émis par l'analyseur de requête. Mécanisme tool-agnostic : aucun connecteur ni serveur MCP futur ne nécessite de modification — opt-out déclaratif via <code>ToolManifest.text_search_mode</code> pour les stores qui exposent une recherche sémantique native.</p><h2>Exécution parallèle par vagues</h2><p>Un <strong>DependencyGraph</strong> calcule les vagues d'exécution : toutes les étapes sans dépendance forment la première vague et s'exécutent en parallèle. Les vagues suivantes attendent la complétion de leurs prérequis. Ce mécanisme permet de traiter des requêtes complexes impliquant 3 à 5 domaines avec un temps de réponse comparable à une requête simple.</p><h2>Replanification adaptative</h2><p>Si une étape échoue, le système peut replanifier dynamiquement via le type <code>REPLAN</code>. Par exemple, si un contact n'est pas trouvé, LIA peut demander une clarification à l'utilisateur plutôt que d'abandonner l'ensemble du plan.</p><h2>Registre anti-hallucination auto-enrichissant</h2><p>Les LLMs inventent parfois des outils inexistants dans leurs plans (ex : <code>resolve_reference_tool</code>). LIA maintient un registre persistant de patterns hallucinés (<code>hallucinated_tools.json</code>) qui se met à jour automatiquement à chaque nouvelle détection. Lors de la validation du plan, chaque outil est vérifié contre ce registre — les étapes hallucinées sont supprimées et le planner est forcé à replanifier avec les outils réels du catalogue. Ce mécanisme élimine une classe entière d'échecs d'exécution sans intervention humaine.</p><h2>Supprimer la raison d'inventer</h2><p>Détecter un outil inventé reste une réaction. La cause est en amont : si le catalogue remis au planificateur contient un outil qui exige une donnée qu'aucun autre ne sait produire — l'identifiant d'un message pour pouvoir y répondre —, alors <strong>aucun plan valide n'existe</strong>, et le modèle ne peut qu'inventer. LIA vérifie donc que le catalogue est <strong>clos</strong> avant de planifier : chaque donnée exigée a une source de lecture présente. La règle ne regarde jamais la demande, elle se lit sur les manifestes — un éditeur de liens qui résout des références manquantes, pas une recherche qui devine.</p>"
       },
       "human-in-the-loop": {
         "title": "Human-in-the-Loop : 6 niveaux de validation pour garder le contrôle",

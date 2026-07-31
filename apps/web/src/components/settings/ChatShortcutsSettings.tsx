@@ -12,7 +12,7 @@
  */
 
 import { useState } from 'react';
-import { TerminalSquare, Trash2 } from 'lucide-react';
+import { Check, Pencil, TerminalSquare, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -26,14 +26,98 @@ import { CHAT_SHORTCUT_ID_MAX_LENGTH, CHAT_SHORTCUT_TEXT_MAX_LENGTH } from '@/li
 import { useTranslation } from '@/i18n/client';
 import type { BaseSettingsProps } from '@/types/settings';
 
+/** A shortcut in read mode: what it is, and the two ways to change it. */
+function ShortcutRow({
+  shortcut,
+  saving,
+  t,
+  onEdit,
+  onRemove,
+}: {
+  shortcut: { id: string; text: string };
+  saving: boolean;
+  t: (key: string, options?: Record<string, unknown>) => string;
+  onEdit: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <li className="flex items-center gap-3 rounded-lg border border-border/40 bg-card/60 px-3 py-2">
+      <code className="shrink-0 text-sm font-semibold text-primary">/{shortcut.id}</code>
+      <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{shortcut.text}</span>
+      <button
+        type="button"
+        onClick={onEdit}
+        disabled={saving}
+        aria-label={t('settings.chat_shortcuts.edit', { id: shortcut.id })}
+        className="p-1.5 rounded-md border border-border/30 bg-background/80 hover:bg-background text-muted-foreground hover:text-primary disabled:opacity-50"
+      >
+        <Pencil className="h-3.5 w-3.5" aria-hidden />
+      </button>
+      <button
+        type="button"
+        onClick={onRemove}
+        disabled={saving}
+        aria-label={t('settings.chat_shortcuts.remove', { id: shortcut.id })}
+        className="p-1.5 rounded-md border border-border/30 bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive disabled:opacity-50"
+      >
+        <Trash2 className="h-3.5 w-3.5" aria-hidden />
+      </button>
+    </li>
+  );
+}
+
 export function ChatShortcutsSettings({ lng, collapsible = true }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { shortcuts, maxCount, loading, save, saving } = useChatShortcuts();
   const [draftId, setDraftId] = useState('');
   const [draftText, setDraftText] = useState('');
   const [formError, setFormError] = useState<ShortcutIdError>(null);
+  // Edit mode is keyed by the ORIGINAL id: it is the only stable handle while
+  // the user is retyping the id itself.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editId, setEditId] = useState('');
+  const [editText, setEditText] = useState('');
+  const [editError, setEditError] = useState<ShortcutIdError>(null);
 
   const atCapacity = maxCount > 0 && shortcuts.length >= maxCount;
+
+  const startEdit = (shortcut: { id: string; text: string }) => {
+    setEditingId(shortcut.id);
+    setEditId(shortcut.id);
+    setEditText(shortcut.text);
+    setEditError(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditError(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId) return;
+    const id = editId.trim().toLowerCase();
+    const text = editText.trim();
+    if (!id || !text) return;
+    // The shortcut being edited is excluded from the duplicate check —
+    // otherwise renaming nothing but the text would collide with itself.
+    const error = validateShortcutId(
+      id,
+      shortcuts.filter(s => s.id !== editingId).map(s => s.id),
+      CHAT_SHORTCUT_ID_MAX_LENGTH
+    );
+    if (error) {
+      setEditError(error);
+      return;
+    }
+    const ok = await save(shortcuts.map(s => (s.id === editingId ? { id, text } : s)));
+    if (ok) {
+      setEditingId(null);
+      setEditError(null);
+      toast.success(t('settings.chat_shortcuts.updated', { id }));
+    } else {
+      toast.error(t('common.error'));
+    }
+  };
 
   const handleAdd = async () => {
     const id = draftId.trim().toLowerCase();
@@ -72,26 +156,69 @@ export function ChatShortcutsSettings({ lng, collapsible = true }: BaseSettingsP
         <p className="text-sm italic text-muted-foreground">{t('settings.chat_shortcuts.empty')}</p>
       ) : (
         <ul className="space-y-1" role="list">
-          {shortcuts.map(shortcut => (
-            <li
-              key={shortcut.id}
-              className="flex items-center gap-3 rounded-lg border border-border/40 bg-card/60 px-3 py-2"
-            >
-              <code className="shrink-0 text-sm font-semibold text-primary">/{shortcut.id}</code>
-              <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-                {shortcut.text}
-              </span>
-              <button
-                type="button"
-                onClick={() => void handleRemove(shortcut.id)}
-                disabled={saving}
-                aria-label={t('settings.chat_shortcuts.remove', { id: shortcut.id })}
-                className="p-1.5 rounded-md border border-border/30 bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive disabled:opacity-50"
+          {shortcuts.map(shortcut =>
+            editingId === shortcut.id ? (
+              <li
+                key={shortcut.id}
+                className="space-y-2 rounded-lg border border-primary/40 bg-card/60 px-3 py-2"
               >
-                <Trash2 className="h-3.5 w-3.5" aria-hidden />
-              </button>
-            </li>
-          ))}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  {/* Names carry the shortcut they act on. Reusing the add
+                      form's labels put two identically-named fields on the
+                      page, which a screen-reader user cannot tell apart. */}
+                  <Input
+                    aria-label={t('settings.chat_shortcuts.edit_id_label', { id: shortcut.id })}
+                    value={editId}
+                    maxLength={CHAT_SHORTCUT_ID_MAX_LENGTH}
+                    onChange={event => {
+                      setEditId(event.target.value);
+                      setEditError(null);
+                    }}
+                    className="sm:w-44"
+                  />
+                  <Input
+                    aria-label={t('settings.chat_shortcuts.edit_text_label', { id: shortcut.id })}
+                    value={editText}
+                    maxLength={CHAT_SHORTCUT_TEXT_MAX_LENGTH}
+                    onChange={event => setEditText(event.target.value)}
+                    className="min-w-0 flex-1"
+                  />
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => void handleSaveEdit()}
+                      disabled={saving || !editId.trim() || !editText.trim()}
+                      className="gap-1.5"
+                    >
+                      <Check className="h-3.5 w-3.5" aria-hidden />
+                      {t('settings.chat_shortcuts.save')}
+                    </Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={cancelEdit}>
+                      <X className="h-3.5 w-3.5" aria-hidden />
+                      <span className="sr-only sm:not-sr-only sm:ml-1.5">
+                        {t('settings.chat_shortcuts.cancel')}
+                      </span>
+                    </Button>
+                  </div>
+                </div>
+                {editError && (
+                  <p className="text-sm text-destructive" role="alert">
+                    {t(`settings.chat_shortcuts.error_${editError}`)}
+                  </p>
+                )}
+              </li>
+            ) : (
+              <ShortcutRow
+                key={shortcut.id}
+                shortcut={shortcut}
+                saving={saving}
+                t={t}
+                onEdit={() => startEdit(shortcut)}
+                onRemove={() => void handleRemove(shortcut.id)}
+              />
+            )
+          )}
         </ul>
       )}
 

@@ -89,6 +89,14 @@ A skill matches when its description semantically aligns with the user's intent 
 
 **HISTORY IS NOT INTENT.** `skill_name` must reflect what the user asks in the CURRENT query, never what appeared in previous turns. If the current query is a greeting ("hi", "ca va", "bonjour"), an acknowledgement, a thank-you, a clarification, an off-topic comment, or any message that does not itself invoke the skill's purpose, set `skill_name` to null — even if the conversation history mentions or previously activated that skill. A past activation does not persist: the user must re-invoke the skill explicitly in the current query.
 
+## CONNECTED USERS
+
+{connected_peers}
+
+The people listed above are OTHER USERS of this assistant that the user is connected to. They are NOT address-book contacts: each of them runs their own assistant and chooses what to share (calendar availability, task titles). Their data is reachable ONLY through the `peer` domain — it is never present in the user's own calendar, tasks or contacts.
+
+**Rule:** when the query asks about the availability, schedule, agenda, free/busy time or tasks OF ONE OF THE PEOPLE LISTED ABOVE, `primary_domain` MUST be `peer`. Reading the user's OWN calendar (`event`) or address book (`contact`) cannot answer that question — routing there yields a confidently wrong "nothing is configured" reply. Add `event` as a SECONDARY domain only when the user's own schedule is part of the same question ("suis-je libre demain pour voir X ?"). A name that is NOT in this list is an ordinary contact — route it as usual.
+
 ## USER CONTEXT
 - Date/Time: {current_datetime}
 - Position: {user_location}

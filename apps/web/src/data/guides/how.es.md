@@ -5,8 +5,8 @@
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
 **Versión**: 3.6
-**Fecha**: 2026-07-30
-**Aplicación**: LIA v1.27.2
+**Fecha**: 2026-07-31
+**Aplicación**: LIA v1.27.3
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -433,6 +433,12 @@ El QueryAnalyzer produce mucho más que detección de dominios — genera una es
 ### 7.4. Pivote Semántico
 
 Las consultas en cualquier idioma se traducen automáticamente al inglés antes de la comparación de embeddings, mejorando la precisión interlingüística. Caché Redis (TTL 5 min, ~5 ms en hit vs ~500 ms en miss), mediante un LLM rápido.
+
+### 7.5. Cierre del catálogo
+
+El filtrado semántico puntúa las herramientas contra una **paráfrasis inglesa de la petición, regenerada en cada turno por un modelo**: la misma pregunta puede producir dos catálogos distintos. Si las herramientas seleccionadas exigen un dato que ninguna de ellas sabe producir — el identificador de un mensaje para poder responderlo —, el espacio de planes válidos está vacío **antes** de que el modelo empiece siquiera. Entonces solo puede inventar un nombre de herramienta.
+
+El cierre aplica una regla que nunca mira la petición: *cada tipo de dato exigido por una herramienta del catálogo debe ser producido por otra herramienta del catálogo*. Es un enlazador que resuelve referencias pendientes, no una búsqueda que adivina. Dos condiciones lo hacen correcto y no solo plausible: una herramienta nunca se satisface a sí misma («responder a un correo» también produce un identificador de mensaje — el del que acaba de enviar), y solo una herramienta de **lectura** cuenta como fuente (no se dispara un envío para descubrir un identificador). Crecimiento medido del catálogo: **+1 herramienta**.
 
 ---
 

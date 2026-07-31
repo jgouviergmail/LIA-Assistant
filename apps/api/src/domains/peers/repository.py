@@ -262,6 +262,26 @@ class PeersRepository(BaseRepository[PeerConnection]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_accepted_peer_display_names(self, user_id: UUID) -> list[str]:
+        """Display names of the user's ACCEPTED peers, as stored.
+
+        Unfolded, unlike :meth:`list_accepted_peer_names`: the query analyzer
+        shows these names to an LLM (peer-routing awareness, defect
+        2026-07-30), and a folded name reads as a different person.
+
+        Args:
+            user_id: The user whose connected peers are listed.
+
+        Returns:
+            Sorted, de-duplicated peer display names (blank names dropped).
+        """
+        connections = await self.list_accepted_for_user(user_id)
+        peer_ids = {(c.user_b_id if c.user_a_id == user_id else c.user_a_id) for c in connections}
+        if not peer_ids:
+            return []
+        rows = (await self.db.execute(select(User.full_name).where(User.id.in_(peer_ids)))).all()
+        return sorted({(name or "").strip() for (name,) in rows if (name or "").strip()})
+
     async def list_accepted_peer_names(self, user_id: UUID) -> list[str]:
         """Folded full names of the user's ACCEPTED peers (CRM badge, D2).
 
@@ -275,12 +295,8 @@ class PeersRepository(BaseRepository[PeerConnection]):
         Returns:
             Folded, de-duplicated peer full names (empty names dropped).
         """
-        connections = await self.list_accepted_for_user(user_id)
-        peer_ids = {(c.user_b_id if c.user_a_id == user_id else c.user_a_id) for c in connections}
-        if not peer_ids:
-            return []
-        rows = (await self.db.execute(select(User.full_name).where(User.id.in_(peer_ids)))).all()
-        return sorted({fold_name(name or "") for (name,) in rows if fold_name(name or "")})
+        display = await self.list_accepted_peer_display_names(user_id)
+        return sorted({fold_name(name) for name in display if fold_name(name)})
 
     async def expire_stale_pending(self, older_than: datetime) -> int:
         """Silently expire pending requests older than the given instant.

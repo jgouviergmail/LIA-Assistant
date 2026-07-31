@@ -1648,16 +1648,23 @@ class SmartPlannerService:
                 f"References are already resolved in CONTEXT - use values directly."
             )
 
-        # Already has _tool suffix - return as is
-        if tool_name.endswith("_tool"):
-            return tool_name
-
-        # MCP tools don't follow the _tool suffix convention
+        # MCP tools don't follow the _tool suffix convention and are never
+        # aliased — they leave untouched.
         if tool_name.startswith("mcp_"):
             return tool_name
 
-        # Add _tool suffix if missing
-        normalized = f"{tool_name}_tool"
+        # Add the _tool suffix when missing, then ALWAYS run the alias table
+        # below.
+        #
+        # This used to `return tool_name` as soon as the name already ended in
+        # `_tool` — which made every entry of that table unreachable, since all
+        # 24 of its keys end in `_tool`. Dead since the initial release, and
+        # user-visible: the planner emits a pre-unification name such as
+        # `search_emails_tool`, the alias that exists precisely to repair it is
+        # skipped, and the plan dies on `NOT_FOUND` because only
+        # `get_emails_tool` carries a catalogue manifest (production 2026-07-30:
+        # every email request failed this way).
+        normalized = tool_name if tool_name.endswith("_tool") else f"{tool_name}_tool"
 
         # Common corrections for LLM mistakes (2026-01 unified architecture)
         # All search/list/details tools are now unified under get_*_tool

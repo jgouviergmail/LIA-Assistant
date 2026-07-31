@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.27.2</strong> — <strong>The public space gets its identity — and answers to the scroll, from hero to horizon.</strong> The whole showcase (landing, More, demo, Story, Philosophy, Technical, FAQ, blog, legal) now wears the <strong>LIA Cosmos</strong> identity (ADR-181): cosmic backdrop, a planetarium of features orbiting the live demo, giant ghost words drifting behind the chapters, and <strong>nine distinct scroll-driven choreographies</strong> — proofs surge one by one, use cases flip in 3D, the day pins itself, the architecture runs like an execution trace. Dark by default (the light theme stays one click away and got its own quality pass), <strong>informal address</strong> across every public surface in French, German, Spanish and Chinese, and <strong>zero animation dependency added</strong>. In the app: six requested adjustments (« For you » card, thumbs on proactive notifications, connectors on narrow screens, passkeys, recent calls, skill imports) and one layout defect fixed <strong>at the root of the shared accordion primitive</strong>, so everywhere at once. <strong>16,808 backend</strong> + <strong>4,250 frontend</strong> tests, all six languages. — 30 July 2026.
+  <strong>Version 1.27.3</strong> — <strong>The answer says what it knows — and reads it from the right data.</strong> A question as plain as "is Jérôme free tomorrow at 10?" crossed <strong>four stacked defects</strong>, each hiding the next: the peer's connector was broken and nobody knew, routing was a coin toss between the <code>peer</code> domain and the asker's own calendar, the slots that were read never reached the model that writes, and the read targeted the <code>primary</code> calendar while the agenda lived in a named one. Each is fixed at its root and pinned by tests (ADR-182). Along the way: a plan the validator refuses no longer lets the model <strong>invent</strong> a diagnosis; a broken connector becomes <strong>permanently visible</strong> to its owner; and the owner-default resolution, written out at <strong>ten call sites</strong>, becomes a single helper. <strong>And one failure that only happened half the time.</strong> "Summarise this email and draft a reply" failed, then succeeded thirty minutes later with nothing changed: tool selection scores keywords against an English paraphrase <strong>an LLM rewrites on every turn</strong>, so "Summarize" or "Find" decided whether the email-reading tool survived. The planner was then handed "reply to an email" with no way to read one — <strong>no valid plan existed before the model even started</strong>. The fix does not tune the randomness, it steps over it: a catalogue is <strong>closed</strong> when every required datum a tool cannot invent has another tool able to supply it (ADR-183) — a linker resolving undefined symbols, not a search guessing. <strong>17,025 backend</strong> + <strong>4,269 frontend</strong> tests, all six languages. — 31 July 2026.
 
 </p>
 
@@ -115,7 +115,7 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **36** functional domains | **495,000** lines of code (excl. tests) | **21,000+** automated tests | **180** ADRs                                                           |
+| **36** functional domains | **497,000** lines of code (excl. tests) | **21,000+** automated tests | **181** ADRs                                                           |
 | **189** versions shipped  | **6 languages**, parity enforced in CI  | **447** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
@@ -498,7 +498,8 @@ ExecutionStep(
 - **Connection lifecycle from chat or settings**: request with an optional context note, accept/decline in one click (chat quick-actions or the « Connexions » settings section), removal notifies BOTH users through their assistants
 - **Silent anti-harassment blocking**: blocking ends the connection without notifying the other side — blocked, unknown and cooldown targets answer the byte-identical 404 (no existence leak, ADR-180)
 - **Assistant-to-assistant relay**: "tell Marie…" produces an HITL-confirmed draft; the recipient's OWN assistant delivers it in its personality, memory and language, naming the sender — whose assistant then confirms delivery; indirect speech is rephrased into direct address; LLM delivery cost is billed to the sender; quotas cap relays per day and per pair
-- **Field-level read-only shares**: calendar (free/busy or titled slots) and task titles — nothing shared by default, both directions visible to each side, every access re-validated at read time and recorded in a retention-pruned access log
+- **Field-level read-only shares**: calendar (free/busy or titled slots) and task titles — nothing shared by default, both directions visible to each side, every access re-validated at read time and recorded in a retention-pruned access log. Reads target the calendar or task list **the owner configured as their default**, never a hardcoded `primary`, and the answer is rendered in the ASKING user's timezone with all-day entries kept apart from real busy hours (a birthday blocks nothing at 10:00 — [ADR-182](docs/architecture/ADR-182-Peer-Routing-Awareness-And-Honest-Failure.md))
+- **Routing that knows who is a peer** ([ADR-182](docs/architecture/ADR-182-Peer-Routing-Awareness-And-Honest-Failure.md)): the analyzer is given the user's accepted connections, so a named person is recognised as another USER of the instance rather than an address-book contact — with a deterministic guard that adds the `peer` domain (never substitutes it) when the verdict stays on a confusable one. The correction is counted and logged without the names
 - **GDPR-complete**: account export and purge cover both sides of every pair; message content is scrubbed after delivery
 
 ### Internationalization (i18n) — 6 Languages
@@ -915,7 +916,7 @@ apps/api/src/
 
 ### Architecture Decision Records (ADR)
 
-176 ADR files (ADR-001 through ADR-177) documenting major architectural decisions:
+182 ADR files (ADR-001 through ADR-183 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

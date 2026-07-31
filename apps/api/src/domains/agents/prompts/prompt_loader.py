@@ -72,6 +72,7 @@ PromptName = Literal[
     "response_system_prompt_base",
     "response_directive_plan_rejection",
     "response_directive_draft_cancelled",
+    "response_directive_plan_blocked",
     "hitl_classifier_prompt",
     "hitl_classifier_examples",
     "reminder_prompt",

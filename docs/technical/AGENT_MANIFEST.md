@@ -561,6 +561,25 @@ réel du tool — les références Jinja s'exécutent dessus, un path faux est u
 échec silencieux de feature. Couverture mesurable via le script d'inventaire
 (voir ADR-121).
 
+> **Piège vérifié (2026-07-31)** : quand un tool renvoie ses données en
+> `registry_updates` plutôt qu'en `structured_data`, l'exécuteur les expose sous
+> **`meta.domain`**, pas sous le nom que suggère le tool. `list_hue_lights_tool`
+> déclarait `lights[].name` alors que le chemin réel est `hues[].name`
+> (`CONTEXT_DOMAIN_HUE`) — toute référence Jinja ne résolvait rien. Vérifier la
+> chaîne de résolution (`parallel_executor`, section « registry → structured_data »)
+> avant de conclure qu'un manifest ment : les manifests Wikipédia paraissaient
+> faux pour la raison inverse et sont corrects.
+
+**Paramètre `required` porteur d'un handle (ADR-183)** : si la valeur est un
+identifiant que l'utilisateur ne peut pas prononcer **et** que le tool ne résout
+pas depuis un libellé humain, l'outil de listing qui l'énumère DOIT déclarer la
+sortie correspondante — sinon le catalogue peut arriver au planner sans aucune
+source, l'espace des plans est vide, et le modèle invente un nom d'outil.
+Réciproquement, ne PAS annoter un paramètre que le tool résout lui-même
+(`peer_name` via `fold_name`, `*_name_or_id` Hue via `_find_resource_by_name`) :
+cela gonflerait les catalogues sans rien corriger. Voir
+`docs/technical/SMART_SERVICES.md` § Closure.
+
 **Contraintes supportées** :
 
 ```python

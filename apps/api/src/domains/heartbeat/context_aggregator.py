@@ -405,10 +405,8 @@ class ContextAggregator:
             List of event dicts or None if unavailable.
         """
         from src.domains.connectors.clients.registry import ClientRegistry
-        from src.domains.connectors.preferences import ConnectorPreferencesService
-        from src.domains.connectors.preferences.resolver import resolve_calendar_name
+        from src.domains.connectors.preferences.owner_defaults import resolve_owner_calendar_id
         from src.domains.connectors.provider_resolver import resolve_active_connector
-        from src.domains.connectors.repository import ConnectorRepository
 
         connector_service = ConnectorService(db)
 
@@ -433,32 +431,11 @@ class ContextAggregator:
         client = client_class(user_id, credentials, connector_service)
         try:
 
-            # Resolve default calendar from user preferences
-            calendar_id = "primary"
-            try:
-                repo = ConnectorRepository(db)
-                connector = await repo.get_by_user_and_type(user_id, resolved_type)
-                if connector and connector.preferences_encrypted:
-                    default_name = ConnectorPreferencesService.get_preference_value(
-                        resolved_type.value,
-                        connector.preferences_encrypted,
-                        "default_calendar_name",
-                    )
-                    if default_name:
-                        calendar_id = await resolve_calendar_name(
-                            client=client,
-                            name=default_name,
-                            fallback="primary",
-                        )
-                        logger.debug(
-                            "heartbeat_calendar_using_preference",
-                            default_calendar_name=default_name,
-                            resolved_calendar_id=calendar_id,
-                            provider=resolved_type.value,
-                            user_id=str(user_id),
-                        )
-            except (ValueError, KeyError, AttributeError, TypeError) as e:
-                logger.warning("heartbeat_calendar_preference_resolution_failed", error=str(e))
+            # The user's preferred default calendar, through the shared
+            # owner-default resolver (falls back to "primary").
+            calendar_id = await resolve_owner_calendar_id(
+                db=db, client=client, owner_id=user_id, connector_type=resolved_type
+            )
 
             hours = settings.heartbeat_context_calendar_hours
             now = datetime.now(UTC)
@@ -519,10 +496,8 @@ class ContextAggregator:
             List of task dicts or None if unavailable.
         """
         from src.domains.connectors.clients.registry import ClientRegistry
-        from src.domains.connectors.preferences import ConnectorPreferencesService
-        from src.domains.connectors.preferences.resolver import resolve_task_list_name
+        from src.domains.connectors.preferences.owner_defaults import resolve_owner_task_list_id
         from src.domains.connectors.provider_resolver import resolve_active_connector
-        from src.domains.connectors.repository import ConnectorRepository
 
         connector_service = ConnectorService(db)
 
@@ -543,32 +518,10 @@ class ContextAggregator:
         client = client_class(user_id, credentials, connector_service)
         try:
 
-            # Resolve default task list from user preferences
-            task_list_id = "@default"
-            try:
-                repo = ConnectorRepository(db)
-                connector = await repo.get_by_user_and_type(user_id, resolved_type)
-                if connector and connector.preferences_encrypted:
-                    default_name = ConnectorPreferencesService.get_preference_value(
-                        resolved_type.value,
-                        connector.preferences_encrypted,
-                        "default_task_list_name",
-                    )
-                    if default_name:
-                        task_list_id = await resolve_task_list_name(
-                            client=client,
-                            name=default_name,
-                            fallback="@default",
-                        )
-                        logger.debug(
-                            "heartbeat_tasks_using_preference",
-                            default_task_list_name=default_name,
-                            resolved_task_list_id=task_list_id,
-                            provider=resolved_type.value,
-                            user_id=str(user_id),
-                        )
-            except (ValueError, KeyError, AttributeError, TypeError) as e:
-                logger.warning("heartbeat_tasks_preference_resolution_failed", error=str(e))
+            # Same shared resolver for the user's preferred task list.
+            task_list_id = await resolve_owner_task_list_id(
+                db=db, client=client, owner_id=user_id, connector_type=resolved_type
+            )
 
             days = settings.heartbeat_context_tasks_days
             now = datetime.now(UTC)

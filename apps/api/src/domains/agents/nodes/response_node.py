@@ -63,6 +63,7 @@ from src.domains.agents.constants import (
     STATE_KEY_RESOLVED_REFERENCES,
     STATE_KEY_SEMANTIC_VALIDATION,
     STATE_KEY_TURN_TYPE,
+    STATE_KEY_VALIDATION_RESULT,
     TURN_TYPE_ACTION,
     make_agent_result_key,
 )
@@ -101,6 +102,10 @@ from src.domains.agents.prompts import (
     get_response_prompt,
 )
 from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.agents.services.plan_blockers import (
+    format_plan_blockers,
+    summarize_plan_blockers,
+)
 from src.domains.agents.utils.message_filters import (
     drop_current_turn_responses,
     filter_for_llm_context,
@@ -2552,6 +2557,22 @@ def _build_response_chain(
             "response_directive_draft_cancelled",
             version=settings.response_prompt_version,
         ).format(user_language=user_language, draft_type=draft_type)
+    # PLAN BLOCKED BY VALIDATION: the validator refused steps and the turn ran
+    # on anyway, so without this the model explains an empty result it knows
+    # nothing about — and invents a diagnosis (2026-07-30: "aucun service de
+    # contacts ni d'agenda n'est configuré", said three times, all false).
+    # Never overrides an explicit user rejection/cancellation above: those are
+    # decisions the user made, this is a failure they must hear about.
+    if not rejection_override:
+        blocked_capabilities = format_plan_blockers(
+            summarize_plan_blockers(state.get(STATE_KEY_VALIDATION_RESULT))
+        )
+        if blocked_capabilities:
+            rejection_override = load_prompt(
+                "response_directive_plan_blocked",
+                version=settings.response_prompt_version,
+            ).format(user_language=user_language, blocked_capabilities=blocked_capabilities)
+
     # Build ChatPromptTemplate dynamically — only include non-empty system blocks.
     # Anthropic (and potentially other providers) reject empty system content blocks.
     # By constructing the template after knowing the values, we avoid sending

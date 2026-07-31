@@ -55,6 +55,13 @@ from src.domains.agents.analysis.query_intelligence import (
     SemanticFallback,
     UserGoal,
 )
+from src.domains.agents.services.analysis.domain_availability import build_available_domains
+from src.domains.agents.services.analysis.peer_directory import (
+    apply_peer_domain_correction,
+    detect_mentioned_peers,
+    format_peer_directory,
+    load_connected_peer_names,
+)
 from src.domains.agents.services.analysis.skill_suppression import (
     _is_dialogue_skill,
     effective_skill_name,
@@ -433,55 +440,11 @@ class QueryAnalysisResult:
 # =============================================================================
 
 
-def _build_available_domains() -> list[dict[str, str]]:
-    """Build the list of available domains for the query analyzer prompt.
-
-    Includes routable domains enriched with semantic types, plus admin and user MCP
-    per-server domains (filtered by user preferences).
-
-    Returns:
-        List of dicts with 'name' and 'description' keys.
-    """
-    from src.core.context import admin_mcp_disabled_ctx, user_mcp_tools_ctx
-    from src.domains.agents.registry.domain_taxonomy import (
-        DOMAIN_REGISTRY,
-        collect_all_mcp_domains,
-        get_routable_domains,
-    )
-    from src.infrastructure.mcp.registration import get_admin_mcp_domains
-
-    # NOTE: Semantic types (provides: ...) are omitted — they are only useful for the
-    # planner's tool selection, not for the query analyzer's routing decision.
-    available_domains: list[dict[str, str]] = []
-
-    for domain_name in get_routable_domains():
-        config = DOMAIN_REGISTRY.get(domain_name)
-        if config:
-            available_domains.append({"name": domain_name, "description": config.description})
-
-    # Agentic telephony (ADR-127) is deployment-flag-gated: when disabled, its
-    # tools/agent are not registered, so the domain must not be offered to the
-    # router either (same runtime-filtering chokepoint as MCP below).
-    if not getattr(settings, "telephony_enabled", False):
-        available_domains = [d for d in available_domains if d["name"] != "telephony"]
-
-    # Documents (P1, ADR-141) — same deployment-flag gating as telephony: the
-    # domain is statically routable, so it must be withdrawn from the router's
-    # menu when RAG spaces are disabled on this deployment.
-    if not getattr(settings, "rag_spaces_enabled", False):
-        available_domains = [d for d in available_domains if d["name"] != "document"]
-
-    # F2.2+F2.5: Unified MCP per-server domain injection (admin + user).
-    mcp_domains = collect_all_mcp_domains(
-        admin_domains=get_admin_mcp_domains(),
-        admin_disabled=admin_mcp_disabled_ctx.get(),
-        user_ctx=user_mcp_tools_ctx.get(),
-    )
-    if mcp_domains:
-        available_domains = [d for d in available_domains if d["name"] != "mcp"]
-        available_domains.extend(mcp_domains)
-
-    return available_domains
+# NOTE: _build_available_domains moved to analysis/domain_availability.py (the
+# ratchet freezes this module at its audited size, so a growing feature pays
+# for itself by extracting a cohesive concern). It stays importable from here —
+# tests included — under its original private name.
+_build_available_domains = build_available_domains
 
 
 # NOTE: _is_dialogue_skill moved to analysis/skill_suppression.py with the
@@ -497,6 +460,7 @@ async def analyze_query(
     user_location: dict[str, Any] | None = None,
     window_size: int = 5,
     base_config: RunnableConfig | None = None,
+    connected_peers: list[str] | None = None,
 ) -> QueryAnalysisResult:
     """
     Analyze user query using LLM to detect intent and domains.
@@ -603,6 +567,7 @@ async def analyze_query(
             current_datetime=get_current_datetime_context(user_timezone, user_language),
             available_domains=domains_str,
             available_skills=skills_str,
+            connected_peers=format_peer_directory(connected_peers or []),
             memory_facts=memory_str,
             conversation_history=history_str,
             user_location=location_str,
@@ -803,6 +768,7 @@ class QueryAnalyzerService:
         user_location: dict[str, Any] | None = None,
         window_size: int = 5,
         base_config: RunnableConfig | None = None,
+        connected_peers: list[str] | None = None,
     ) -> QueryAnalysisResult:
         """
         Simple LLM analysis (backward compatible).
@@ -817,6 +783,7 @@ class QueryAnalyzerService:
             user_location=user_location,
             window_size=window_size,
             base_config=base_config,
+            connected_peers=connected_peers,
         )
 
     async def analyze_full(
@@ -947,6 +914,14 @@ class QueryAnalyzerService:
             # of disabled domains via semantic expansion).
             available_domains = _build_available_domains()
 
+            # Peer-routing awareness (defect 2026-07-30): the analyzer cannot
+            # tell "is Jerome G free tomorrow?" from a question about the
+            # user's own calendar unless it knows Jerome G is a connected USER.
+            # One indexed query, flag-gated, kept sequential on purpose — it is
+            # ~1 ms against a ~4 s analyzer call, and a task here would buy
+            # nothing but a cancellation path to get wrong.
+            connected_peers = await load_connected_peer_names(user_id)
+
             analysis_result = await self.analyze(
                 query=query,
                 available_domains=available_domains,
@@ -954,6 +929,7 @@ class QueryAnalyzerService:
                 conversation_history=conversation_history,
                 user_location=user_location,
                 base_config=config,
+                connected_peers=connected_peers,
             )
 
             # Latency lot R3 (semantic_pivot_enabled=False): no pivot ran — the
@@ -976,7 +952,15 @@ class QueryAnalyzerService:
             # Extract results
             english_query = analysis_result.english_query
             intent = analysis_result.intent
-            domains = analysis_result.domains
+            # Deterministic guarantee behind the prompt awareness above: a
+            # connected user was named, yet the LLM answered with a domain that
+            # reads THIS user's own data. Additive — "am I free to see Jerome"
+            # legitimately needs both — so the tool selector still arbitrates.
+            mentioned_peers = detect_mentioned_peers(
+                [original_query, query, english_query, *(memory_resolved_refs or {}).values()],
+                connected_peers,
+            )
+            domains = apply_peer_domain_correction(analysis_result.domains, mentioned_peers)
             confidence = analysis_result.confidence
 
             # Map LLM intent to internal granular intents (use english_query for consistent matching)
@@ -997,6 +981,13 @@ class QueryAnalyzerService:
                 "english_query": english_query,
                 "reasoning": analysis_result.reasoning,
             }
+            if mentioned_peers:
+                # Names are PII — the debug panel gets the count and the verdict.
+                intelligent_mechanisms["peer_domain_correction"] = {
+                    "applied": domains != analysis_result.domains,
+                    "mentioned_count": len(mentioned_peers),
+                    "domains_before": analysis_result.domains,
+                }
 
             # Handle resolved references: merge memory service + LLM results
             # Memory service has priority (dedicated, more accurate)

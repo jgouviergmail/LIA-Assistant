@@ -188,6 +188,36 @@ async def _execute_oauth_health_check(redis: Redis) -> dict[str, int]:
             raise
 
 
+async def _log_notification_skipped(
+    connector: Connector,
+    *,
+    reason: str,
+    cooldown_remaining_seconds: int | None = None,
+) -> None:
+    """Record why an ERROR connector produced no notification.
+
+    Args:
+        connector: The connector whose owner was not notified.
+        reason: ``cooldown`` (suppressed on purpose) or ``user_unavailable``
+            (the owner is gone, deactivated or deleted).
+        cooldown_remaining_seconds: Seconds left on the anti-spam key, which is
+            what dates the last notification without reading Redis by hand.
+    """
+    from src.infrastructure.observability.metrics_registry import (
+        oauth_health_notification_skipped_total,
+    )
+
+    logger.info(
+        "oauth_health_notification_skipped",
+        reason=reason,
+        connector_type=connector.connector_type.value,
+        connector_id=str(connector.id),
+        user_id=str(connector.user_id),
+        cooldown_remaining_seconds=cooldown_remaining_seconds,
+    )
+    oauth_health_notification_skipped_total.labels(reason=reason).inc()
+
+
 async def _maybe_notify(
     connector: Connector,
     redis: Redis,
@@ -204,10 +234,21 @@ async def _maybe_notify(
     Returns:
         True if notification was sent, False if skipped (already notified).
     """
-    # Check cooldown Redis key
+    # Check cooldown Redis key.
+    # Both exits below used to `return False` in silence, which made a correct
+    # cooldown indistinguishable from a broken notifier: the dev instance
+    # logged `error=5 notified=0` for three hours and dating the one
+    # notification that HAD fired took reading the Redis keyspace and doing
+    # arithmetic on a TTL (2026-07-30). The behaviour is unchanged — only its
+    # observability is.
     notified_key = f"{OAUTH_HEALTH_NOTIFIED_KEY_PREFIX}:{connector.user_id}:{connector.id}"
     if await redis.exists(notified_key):
-        return False  # Already notified recently
+        await _log_notification_skipped(
+            connector,
+            reason="cooldown",
+            cooldown_remaining_seconds=int(await redis.ttl(notified_key) or 0),
+        )
+        return False
 
     # Get user for language preference
     from src.domains.users.repository import UserRepository
@@ -215,6 +256,7 @@ async def _maybe_notify(
     user_repo = UserRepository(db)
     user = await user_repo.get_by_id(connector.user_id)
     if not user:
+        await _log_notification_skipped(connector, reason="user_unavailable")
         return False
 
     # Get connector display name and authorize URL

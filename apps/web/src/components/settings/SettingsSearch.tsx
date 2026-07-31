@@ -202,7 +202,10 @@ export function SettingsSearch({ lng, availability, onSelect }: SettingsSearchPr
   );
 
   return (
-    <div ref={containerRef} className="relative mt-2">
+    // `mb-2`, not `mt-2`: the field now sits ABOVE the tab row inside the
+    // sticky bar (2026-07-30), so the gap it owns is the one to the tabs
+    // below it. The bar's own `py-2` supplies the space above.
+    <div ref={containerRef} className="relative mb-2">
       <Search
         className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
         aria-hidden="true"

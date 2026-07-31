@@ -1,5 +1,5 @@
 {
-  "over": 345,
+  "over": 343,
   "max": 87,
   "threshold": 15,
   "_comment": "Backend cyclomatic-complexity ratchet (audit F011/F015). Shrink-only: measure_cc.py --check-ratchet fails if `over` or `max` grows. Regenerate with --update-ratchet ONLY after decomposing a hotspot."

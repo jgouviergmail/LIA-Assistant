@@ -21,7 +21,6 @@ import { useConnectorHealth, ConnectorHealthItem } from '@/hooks/useConnectorHea
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
-import apiClient from '@/lib/api-client';
 import {
   Dialog,
   DialogContent,
@@ -31,30 +30,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
-import { logger } from '@/lib/logger';
+import { initiateOAuthReconnect } from '@/lib/connector-reconnect';
+import { ConnectorHealthBanner } from './ConnectorHealthBanner';
 
 interface ConnectorHealthAlertProps {
   lng: Language;
-}
-
-/**
- * Initiate OAuth reconnection flow.
- * Fetches the authorization URL from the API and redirects.
- */
-async function initiateOAuthReconnect(authorizeUrl: string): Promise<void> {
-  try {
-    // authorizeUrl is like "/connectors/gmail/authorize"
-    // We call it to get the actual Google authorization URL
-    const response = await apiClient.get<{ authorization_url: string }>(authorizeUrl);
-    navigateToAuthorizationUrl(response.authorization_url, 'connector-reconnect');
-  } catch (error) {
-    // If API call fails, show error toast
-    logger.error('connector_reconnect_failed', error as Error, {
-      component: 'ConnectorHealthAlert',
-    });
-    throw error;
-  }
 }
 
 /**
@@ -111,8 +91,19 @@ export function ConnectorHealthAlert({ lng }: ConnectorHealthAlertProps) {
   };
 
   return (
-    <Dialog open={showModal} onOpenChange={setShowModal}>
-      <DialogContent className="sm:max-w-md">
+    <>
+      {/* Persistent counterpart of the modal: the modal interrupts once, this
+          stays for as long as the connector is broken. One hook instance
+          feeds both — a second consumer would double the health polling. */}
+      <ConnectorHealthBanner
+        connectors={criticalConnectors}
+        lng={lng}
+        t={t}
+        reconnecting={reconnecting !== null}
+        onReconnect={handleReconnect}
+      />
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -147,12 +138,13 @@ export function ConnectorHealthAlert({ lng }: ConnectorHealthAlertProps) {
           ))}
         </div>
 
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => setShowModal(false)}>
-            {t('settings.connectors.health.dismiss')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowModal(false)}>
+              {t('settings.connectors.health.dismiss')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

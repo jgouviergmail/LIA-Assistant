@@ -104,6 +104,35 @@ skill_detection_retained_total = Counter(
     ["skill_name", "primary_domain"],
 )
 
+oauth_health_notification_skipped_total = Counter(
+    "oauth_health_notification_skipped_total",
+    (
+        "ERROR connectors the health check chose NOT to notify about. "
+        "`cooldown` is correct behaviour (anti-spam window, hours long); "
+        "`user_unavailable` means the owner is deactivated or gone. Without "
+        "this split, `notified=0` beside `error=5` is unreadable — measured "
+        "2026-07-30, where telling the two apart took reading the Redis "
+        "keyspace and dating a key by its remaining TTL."
+    ),
+    ["reason"],  # cooldown | user_unavailable
+)
+
+peer_domain_correction_total = Counter(
+    "peer_domain_correction_total",
+    (
+        "Turns where the deterministic guard added the `peer` domain because a "
+        "connected user was named and the analyzer LLM had answered with a "
+        "peer-confusable domain instead (event/task/contact). Measured "
+        "2026-07-30: the same sentence routed `peer` once in four, and the "
+        "three misroutes each planned over the ASKING user's own calendar. A "
+        "rate that stays high means the prompt-awareness layer is not doing "
+        "its job and the guard is carrying the feature alone; a rate that "
+        "falls to zero after a prompt change is what proves the fix landed. "
+        "No peer name is labelled — those are PII."
+    ),
+    ["primary_domain"],
+)
+
 skill_url_imports_total = Counter(
     "skill_url_imports_total",
     (

@@ -133,9 +133,6 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
       <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
 
       <div className="min-h-screen bg-background">
-        {/* OAuth Connector Health Alert (toast + modal) */}
-        <ConnectorHealthAlert lng={lng} />
-
         {/* Admin Broadcast Modal */}
         <BroadcastModal lng={lng} />
 
@@ -224,6 +221,11 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
             </div>
           </div>
         </header>
+
+        {/* OAuth connector health: the persistent banner renders HERE, under
+            the sticky header and above the page, while the modal it ships
+            with is portalled and unaffected by this position. */}
+        <ConnectorHealthAlert lng={lng} />
 
         {/* Main Content - Reduced top spacing, no bottom padding for full-page apps */}
         <main className="w-full max-w-7xl mx-auto pt-4 pb-0 px-4 sm:px-6 lg:px-8">{children}</main>

@@ -22,16 +22,20 @@ class TestDocumentDomainTaxonomy:
         assert config.result_key == "documents"
         assert config.agent_names == ["document_agent"]
 
+    # The chokepoint reads `settings` from whichever module hosts it (it moved
+    # to analysis/domain_availability.py when the analyzer was shrunk under its
+    # size ratchet). Patching the SETTINGS ATTRIBUTES rather than a module's
+    # imported `settings` symbol keeps these tests bound to the behaviour
+    # instead of to the current file layout — the earlier form silently stopped
+    # constraining anything the day the function moved.
     def test_chokepoint_filters_domain_when_rag_disabled(self):
         from src.domains.agents.services.query_analyzer_service import (
             _build_available_domains,
         )
 
         with (
-            patch(
-                "src.domains.agents.services.query_analyzer_service.settings",
-                SimpleNamespace(telephony_enabled=False, rag_spaces_enabled=False),
-            ),
+            patch("src.core.config.settings.telephony_enabled", False),
+            patch("src.core.config.settings.rag_spaces_enabled", False),
             patch(
                 "src.infrastructure.mcp.registration.get_admin_mcp_domains",
                 return_value={},
@@ -47,10 +51,8 @@ class TestDocumentDomainTaxonomy:
         )
 
         with (
-            patch(
-                "src.domains.agents.services.query_analyzer_service.settings",
-                SimpleNamespace(telephony_enabled=False, rag_spaces_enabled=True),
-            ),
+            patch("src.core.config.settings.telephony_enabled", False),
+            patch("src.core.config.settings.rag_spaces_enabled", True),
             patch(
                 "src.infrastructure.mcp.registration.get_admin_mcp_domains",
                 return_value={},

@@ -93,15 +93,24 @@ input via `getpass` (no echo).
 4. **LLM provider** (at least one required): OpenAI / Anthropic / Gemini / DeepSeek /
    Qwen / Perplexity / Ollama; API key entry; **optional immediate key verification**
    ("verify now? [Y/n]" — one lightweight stdlib `urllib` call) so an invalid key is not
-   discovered after a 20-minute build.
+   discovered after a 20-minute build. Keys land in the env-fallback names resolved by
+   `providers/adapter.py::_ENV_FALLBACK` (DB via the admin UI stays primary).
+   **Turnkey nuance**: the seeded LLM slots (`llm_config_seed.sql`) target OpenAI models,
+   so OpenAI is the out-of-the-box provider; choosing only a non-OpenAI provider prints
+   an explicit warning and the final report includes the post-install step (Admin UI >
+   LLM Configuration) required before chat works.
 
 ### Optional sections (each "Configure X? [y/N]", all recoverable post-install)
 
-- **Google OAuth** (Gmail/Calendar/Drive connectors) — client ID + secret; final report reminds the redirect URIs to declare in Google Cloud Console;
+- **Google OAuth** (Gmail/Calendar/Drive connectors) — client ID + secret (also feeds
+  `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, baked into the web image at build time); final report
+  reminds the redirect URIs to declare in Google Cloud Console;
 - **Microsoft OAuth** (Graph);
-- **Voice** — Edge TTS works free with zero questions (default); ElevenLabs / OpenAI keys if desired;
 - **Telegram** — bot token;
-- **Image generation** — provider key;
+- *Not in the wizard, by evidence*: **voice** (Edge TTS is free with zero configuration;
+  the ElevenLabs key is a per-user connector, not an env var — `.env.prod.example:1096`,
+  `:1700`) and **image generation** (admin-catalogue keys, no install-time env var).
+  Both get a pointer in the final report instead of questions;
 - **Observability** — "full stack (Grafana, Prometheus, Loki, Tempo…) or core only?".
   Implementation: add `profiles: ["observability"]` to the monitoring/management
   services in `docker-compose.prod.yml` (exact list — including whether portainer joins

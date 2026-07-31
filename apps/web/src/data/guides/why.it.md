@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versione** : 4.1
-**Data** : 2026-07-30
-**Applicazione** : LIA v1.27.2
+**Data** : 2026-07-31
+**Applicazione** : LIA v1.27.3
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -346,6 +346,8 @@ Una funzionalità che nessuno trova non esiste. Per questo la raggiungibilità d
 Una funzionalità che fallisce in silenzio non esiste altrettanto. Una generazione interrotta poco prima della fine, un'importazione bloccata da una cartella diventata non scrivibile, una connessione che muore senza annunciare nulla: tre cause slegate, un solo sintomo — non succede niente. È il segnale peggiore, perché non indica nessuno. Ogni difetto di questo tipo viene quindi chiuso con un controllo che abbiamo prima fatto fallire di proposito: si rompe ciò che protegge, si verifica che diventi rosso, e solo allora lo si conserva.
 
 C'è qualcosa di più insidioso di una guardia che non si è mai fatta fallire: una guardia che osserva il segnale sbagliato. Tre intestazioni dell'interfaccia si dichiaravano fisse durante lo scorrimento, e nessuna lo era — su ogni schermo, fin dall'inizio. Nulla l'aveva colto, perché nessuna verifica misurava mai una posizione *durante* uno scorrimento: tutte osservavano una pagina a riposo, esattamente lo stato in cui il difetto non esiste. Correggere la causa era dunque solo metà del lavoro; è servito aggiungere la misura mancante e poi ripristinare la vecchia impostazione per confermare che diventasse davvero rossa.
+
+Ancora più insidioso di una guardia puntata sul segnale sbagliato: un difetto che si manifesta solo una volta su due. La stessa richiesta falliva, poi passava trenta minuti dopo senza che una sola riga fosse cambiata — quanto basta per concludere «era passeggero» e chiudere il caso. La causa stava in un dettaglio invisibile: gli strumenti vengono scelti su una riformulazione inglese prodotta da un modello, rigenerata a ogni turno. Un verbo diverso, uno strumento di lettura che sparisce, e l'assistente si ritrova a dover rispondere a un messaggio che non può leggere. La tentazione era regolare quel caso — una parola chiave in più, una soglia spostata. Abbiamo preferito una garanzia che non lo guarda affatto: prima di pianificare, il sistema verifica che tutto ciò che richiede sia davvero a portata. Quando una risposta dipende da un sorteggio, correggerla raramente significa migliorare il sorteggio.
 
 ### 8.2. Uno stack di osservabilità professionale
 

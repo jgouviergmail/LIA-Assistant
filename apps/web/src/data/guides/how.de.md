@@ -5,8 +5,8 @@
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
 **Version**: 3.6
-**Datum**: 2026-07-30
-**Application**: LIA v1.27.2
+**Datum**: 2026-07-31
+**Application**: LIA v1.27.3
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -433,6 +433,12 @@ Der QueryAnalyzer liefert weit mehr als Domain-Erkennung — er erzeugt eine tie
 ### 7.4. Semantischer Pivot
 
 Anfragen in jeder Sprache werden automatisch ins Englische übersetzt, bevor Embedding-Vergleiche stattfinden, was die sprachübergreifende Genauigkeit verbessert. Redis-gecacht (TTL 5 Min, ~5 ms bei Hit vs ~500 ms bei Miss), über ein schnelles LLM.
+
+### 7.5. Katalog-Abschluss
+
+Die semantische Filterung bewertet Werkzeuge anhand einer **englischen Umschreibung der Anfrage, die ein Modell bei jeder Runde neu erzeugt**: Dieselbe Frage kann also zwei verschiedene Kataloge ergeben. Verlangen die ausgewählten Werkzeuge einen Wert, den keines von ihnen liefern kann – die ID einer Nachricht, um darauf zu antworten –, ist der Raum gültiger Pläne leer, **bevor** das Modell überhaupt beginnt. Es kann dann nur noch einen Werkzeugnamen erfinden.
+
+Der Abschluss wendet eine Regel an, die die Anfrage nie ansieht: *Jede Art von Wert, die ein Werkzeug im Katalog benötigt, muss von einem anderen Werkzeug im Katalog erzeugt werden.* Das ist ein Linker, der offene Referenzen auflöst, keine Suche, die rät. Zwei Bedingungen machen die Regel korrekt statt bloß plausibel: Ein Werkzeug erfüllt nie seine eigene Anforderung („auf eine E-Mail antworten" erzeugt ebenfalls eine Nachrichten-ID – die der gerade gesendeten), und nur ein **lesendes** Werkzeug gilt als Quelle (man löst keinen Versand aus, um eine Kennung zu erfahren). Gemessenes Katalogwachstum: **+1 Werkzeug**.
 
 ---
 

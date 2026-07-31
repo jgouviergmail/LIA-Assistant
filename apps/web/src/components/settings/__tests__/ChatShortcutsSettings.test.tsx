@@ -135,3 +135,114 @@ describe('ChatShortcutsSettings', () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe('ChatShortcutsSettings — editing an existing shortcut', () => {
+  /** Enter edit mode on the single seeded shortcut. */
+  async function openEditor() {
+    useChatShortcuts.mockReturnValue(hookValue());
+    const rendered = renderWithProviders(<ChatShortcutsSettings lng="fr" collapsible={false} />);
+    await rendered.user.click(screen.getByRole('button', { name: 'settings.chat_shortcuts.edit' }));
+    return rendered;
+  }
+
+  it('opens an editor pre-filled with the current values', async () => {
+    await openEditor();
+
+    expect(screen.getByRole('textbox', { name: 'settings.chat_shortcuts.edit_id_label' })).toHaveValue(
+      'meteo'
+    );
+    expect(screen.getByRole('textbox', { name: 'settings.chat_shortcuts.edit_text_label' })).toHaveValue(
+      'Quelle est la météo ?'
+    );
+  });
+
+  it('saves the edited text through the full-replace save', async () => {
+    const { user } = await openEditor();
+
+    const text = screen.getByRole('textbox', { name: 'settings.chat_shortcuts.edit_text_label' });
+    await user.clear(text);
+    await user.type(text, 'Météo à Paris ?');
+    await user.click(screen.getByRole('button', { name: /settings.chat_shortcuts.save/ }));
+
+    expect(save).toHaveBeenCalledWith([{ id: 'meteo', text: 'Météo à Paris ?' }]);
+  });
+
+  it('renames the shortcut when the id changes', async () => {
+    const { user } = await openEditor();
+
+    const id = screen.getByRole('textbox', { name: 'settings.chat_shortcuts.edit_id_label' });
+    await user.clear(id);
+    await user.type(id, 'meteo-maison');
+    await user.click(screen.getByRole('button', { name: /settings.chat_shortcuts.save/ }));
+
+    expect(save).toHaveBeenCalledWith([{ id: 'meteo-maison', text: 'Quelle est la météo ?' }]);
+  });
+
+  it('does not collide with itself when only the text changes', async () => {
+    // The duplicate check must exclude the shortcut under edit, or saving an
+    // untouched id would be refused as a duplicate of itself.
+    const { user } = await openEditor();
+
+    const text = screen.getByRole('textbox', { name: 'settings.chat_shortcuts.edit_text_label' });
+    await user.type(text, ' bis');
+    await user.click(screen.getByRole('button', { name: /settings.chat_shortcuts.save/ }));
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(save).toHaveBeenCalled();
+  });
+
+  it('refuses a rename onto another existing shortcut', async () => {
+    useChatShortcuts.mockReturnValue(
+      hookValue({
+        shortcuts: [
+          { id: 'meteo', text: 'A' },
+          { id: 'courses', text: 'B' },
+        ],
+      })
+    );
+    const { user } = renderWithProviders(<ChatShortcutsSettings lng="fr" collapsible={false} />);
+    await user.click(
+      screen.getAllByRole('button', { name: 'settings.chat_shortcuts.edit' })[0]!
+    );
+
+    const id = screen.getByRole('textbox', { name: 'settings.chat_shortcuts.edit_id_label' });
+    await user.clear(id);
+    await user.type(id, 'courses');
+    await user.click(screen.getByRole('button', { name: /settings.chat_shortcuts.save/ }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('error_duplicate');
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('refuses a rename onto a reserved static command', async () => {
+    const { user } = await openEditor();
+
+    const id = screen.getByRole('textbox', { name: 'settings.chat_shortcuts.edit_id_label' });
+    await user.clear(id);
+    await user.type(id, 'weather');
+    await user.click(screen.getByRole('button', { name: /settings.chat_shortcuts.save/ }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('error_reserved');
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('cancels without saving and restores the read row', async () => {
+    const { user } = await openEditor();
+
+    const text = screen.getByRole('textbox', { name: 'settings.chat_shortcuts.edit_text_label' });
+    await user.clear(text);
+    await user.type(text, 'jeté');
+    await user.click(screen.getByRole('button', { name: /settings.chat_shortcuts.cancel/ }));
+
+    expect(save).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'settings.chat_shortcuts.edit' })).toBeInTheDocument();
+  });
+
+  it('blocks saving an emptied field', async () => {
+    const { user } = await openEditor();
+
+    await user.clear(screen.getByRole('textbox', { name: 'settings.chat_shortcuts.edit_text_label' }));
+
+    expect(screen.getByRole('button', { name: /settings.chat_shortcuts.save/ })).toBeDisabled();
+  });
+});

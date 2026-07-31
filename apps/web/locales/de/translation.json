@@ -1099,7 +1099,11 @@
         "reconnect_failed": "Verbindung fehlgeschlagen",
         "dismiss": "Später",
         "modal_title": "Wiederverbindung erforderlich",
-        "modal_description": "Die automatische Erneuerung des Zugriffs ist fehlgeschlagen. Eine manuelle Wiederverbindung ist erforderlich:"
+        "modal_description": "Die automatische Erneuerung des Zugriffs ist fehlgeschlagen. Eine manuelle Wiederverbindung ist erforderlich:",
+        "banner_label": "Verbindungsstatus",
+        "banner_one": "{{name}} ist getrennt – LIA kann es nicht mehr verwenden.",
+        "banner_many": "{{total}} Dienste sind getrennt – LIA kann sie nicht mehr verwenden.",
+        "banner_manage": "Verbindungen verwalten"
       },
       "google": {
         "title": "Google",
@@ -2825,7 +2829,13 @@
       "remove": "Kürzel /{{id}} entfernen",
       "error_invalid_id": "Das Kürzel darf nur Kleinbuchstaben, Ziffern und Bindestriche enthalten.",
       "error_reserved": "Dieser Kürzelname ist für einen integrierten Befehl reserviert.",
-      "error_duplicate": "Sie haben bereits ein Kürzel mit diesem Namen."
+      "error_duplicate": "Sie haben bereits ein Kürzel mit diesem Namen.",
+      "edit": "Verknüpfung /{{id}} bearbeiten",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "updated": "Verknüpfung /{{id}} aktualisiert.",
+      "edit_id_label": "Kennung der Verknüpfung /{{id}}",
+      "edit_text_label": "Eingefügter Text der Verknüpfung /{{id}}"
     },
     "briefing_grid": {
       "title": "Mein Dashboard",
@@ -3018,7 +3028,7 @@
         "font": "Schriftart, Typografie, Textgröße, Textgrosse, Lesbarkeit, Schrift",
         "display-mode": "Karten, Darstellung, Antwortformat, Layout, Markdown, Klartext",
         "briefing-grid": "Startseite, Übersicht, Dashboard, Widgets, Karten, Briefing, Reihenfolge",
-        "chat-shortcuts": "Slash, Kürzel, Befehl, Schnellanfrage, Makro, /Befehl, Textbaustein",
+        "chat-shortcuts": "Slash, Kürzel, Befehl, Schnellanfrage, Makro, /Befehl, Textbaustein, bearbeiten, umbenennen",
         "open-loops": "offen, ausstehend, Nachfassen, Zusagen, Versprechen, schliessen, schließen",
         "notifications": "Push, Benachrichtigungen, Hinweise, mobil, Erinnerungen, FCM",
         "channels": "WhatsApp, Telegram, SMS, E-Mail, Messaging, Integrationen",
@@ -3027,7 +3037,7 @@
         "security-export": "DSGVO, GDPR, Archiv, Download, Datenübertragbarkeit, Sicherung, personenbezogene Daten, Datenschutz",
         "voice-mode": "Mikrofon, Sprache, Diktat, STT, TTS, Aktivierungswort, Audio, sprechen",
         "image-generation": "Bilder, Fotos, Zeichnung, Illustration, Generierung, Kunst",
-        "connectors": "Google, Gmail, Kalender, Kontakte, Apple, Microsoft, Outlook, Integrationen, Konten, OAuth",
+        "connectors": "Google, Gmail, Kalender, Kontakte, Apple, Microsoft, Outlook, Integrationen, Konten, OAuth, neu verbinden, getrennt",
         "telephony-calls": "Telefon, Anrufe, Anrufverlauf, wählen",
         "admin-mcp-servers": "MCP, Model Context Protocol, Anwendungsserver, integrierte Werkzeuge",
         "mcp-servers": "MCP, Model Context Protocol, meine Server, Werkzeuge, Erweiterungen",
@@ -3465,7 +3475,7 @@
     },
     "intro": {
       "title": "Wie LIA funktioniert",
-      "description": "LIA ist ein KI-Assistent der nächsten Generation, der fortschrittliche Technologien kombiniert, um dir eine intelligente, sichere und personalisierte Erfahrung zu bieten. Antworten werden serverseitig unabhängig von deiner Verbindung generiert: Du kannst die Seite mitten in einer Antwort verlassen und sie bei deiner Rückkehr wiederfinden — oder live fortsetzen.",
+      "description": "Ein Multi-Agenten-KI-Assistent, der deine Dienste verbindet und dir mit deinen eigenen Daten antwortet.",
       "features": {
         "architecture": {
           "title": "🏗️ LangGraph Multi-Agenten-Architektur",
@@ -3485,7 +3495,7 @@
         },
         "planning": {
           "title": "📋 Intelligente Planung & FOR_EACH",
-          "description": "Fortgeschrittener Planer mit Ausführungs-DSL. FOR_EACH-Pattern für Bulk-Iterationen («Sende eine E-Mail an alle meine Kontakte der Gruppe X»). Abhängigkeitsgraphen mit automatischer Parallelausführung. PANIC-Modus mit adaptivem Retry. Golden Patterns (~100 vortrainierte Modelle) für optimale Planung beim ersten Versuch. Jede FOR_EACH-Iteration behält ihre eigenen Ergebnisse: eine für einen Termin abgerufene Anreicherung kann nicht mehr von der eines anderen mit gleichem Ort und Tag überschrieben werden, und jedes Ergebnis behält seine Identität, wenn ein Lauf wiederholt oder nach einer Unterbrechung fortgesetzt wird."
+          "description": "Fortgeschrittener Planer mit Ausführungs-DSL. FOR_EACH-Pattern für Bulk-Iterationen («Sende eine E-Mail an alle meine Kontakte der Gruppe X»). Abhängigkeitsgraphen mit automatischer Parallelausführung. PANIC-Modus mit adaptivem Retry. Golden Patterns (~100 vortrainierte Modelle) für optimale Planung beim ersten Versuch. Jede FOR_EACH-Iteration behält ihre eigenen Ergebnisse: eine für einen Termin abgerufene Anreicherung kann nicht mehr von der eines anderen mit gleichem Ort und Tag überschrieben werden, und jedes Ergebnis behält seine Identität, wenn ein Lauf wiederholt oder nach einer Unterbrechung fortgesetzt wird. Der an den Planer übergebene Katalog ist <b>geschlossen</b>: Verlangt ein ausgewähltes Werkzeug einen Wert, den es nicht erraten kann – eine Nachrichten- oder Termin-ID –, ist das Lesewerkzeug vorhanden, das ihn liefern kann. Ohne diese Garantie gäbe es keinen gültigen Plan, und das Modell würde einen Werkzeugnamen erfinden."
         },
         "semanticTypes": {
           "title": "📦 Semantisches Typsystem",
@@ -3609,7 +3619,7 @@
         },
         "adaptiveReplanner": {
           "title": "🔄 Adaptive Neuplanung",
-          "description": "Regelbasierte Analyse von Ausführungsfehlern — leere Ergebnisse, Teilausfälle, Abhängigkeits- und Referenzfehler — ohne zusätzlichen LLM-Aufruf. Sie klassifiziert den Vorfall und berechnet eine Wiederherstellungsentscheidung (erneut versuchen, angepasst neu planen, nachfragen, abbrechen). Diese Entscheidung ist <b>derzeit beratend</b>: sie wird bei jedem Fehler protokolliert und gezählt, wodurch die Fehlermodi messbar werden, aber der Orchestrator wendet sie noch nicht automatisch an. Teilergebnisse werden ausgegeben statt verworfen — ein unvollständiger Lauf antwortet mit dem, was er tatsächlich erhalten hat."
+          "description": "Regelbasierte Analyse von Ausführungsfehlern — leere Ergebnisse, Teilausfälle, Abhängigkeits- und Referenzfehler — ohne zusätzlichen LLM-Aufruf. Sie klassifiziert den Vorfall und berechnet eine Wiederherstellungsentscheidung (erneut versuchen, angepasst neu planen, nachfragen, abbrechen). Diese Entscheidung ist <b>derzeit beratend</b>: sie wird bei jedem Fehler protokolliert und gezählt, wodurch die Fehlermodi messbar werden, aber der Orchestrator wendet sie noch nicht automatisch an. Teilergebnisse werden ausgegeben statt verworfen — ein unvollständiger Lauf antwortet mit dem, was er tatsächlich erhalten hat. Ein Fehler, den ein erneuter Versuch nicht beheben kann – unbekanntes Werkzeug, verweigerte Berechtigung –, gilt nicht mehr als vorübergehend: genau diese Zeile liest man bei der Ursachensuche."
         },
         "semanticLeakDefense": {
           "title": "🛡️ Unterscheidung indexierbarer vs. semantischer Kriterien",
@@ -3694,6 +3704,19 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_27_3": {
+          "title": "v1.27.3 — 🤝 Die Verfügbarkeit einer verbundenen Person abfragen klappt",
+          "date": "Juli 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🤝 « Hat Jérôme morgen um 10 Uhr Zeit? »</b> — die Frage nach jemandem, mit dem du verbunden bist, wird jetzt aus SEINEM Kalender beantwortet, dem er als Standard gewählt hat, zu den Zeiten deiner eigenen Uhr. Ganztägige Einträge (ein Geburtstag, eine Erinnerung) werden von echten Terminen unterschieden: ein Geburtstag lässt niemanden mehr den ganzen Tag beschäftigt wirken.",
+            "i2": "<b>🎯 LIA rät nicht mehr, wenn sie blockiert ist</b> — wenn eine Anfrage nicht ausgeführt werden kann, benennt die Antwort genau die fehlende Fähigkeit und hört dort auf. Kein pauschales « nichts ist eingerichtet » mehr über Dienste, die einwandfrei laufen, und kein impliziter Vorwurf, obwohl die Störung auf unserer Seite liegen kann.",
+            "i3": "<b>🔌 Ein getrennter Dienst bleibt sichtbar</b> — statt einer einzigen Meldung, die du übersehen haben könntest, bleibt ein dezenter Hinweis stehen, solange die Verbindung unterbrochen ist, mit einer Schaltfläche zum Neuverbinden. Er verschwindet von selbst, sobald der Dienst wieder funktioniert.",
+            "i4": "<b>✏️ Deine /Verknüpfungen sind bearbeitbar</b> — du kannst jetzt Name und Text einer bereits angelegten Verknüpfung ändern, statt sie zu löschen und neu anzulegen.",
+            "i5": "<b>✨ Ein paar Komfort-Details</b> — das Eingabefeld im Chat bekommt dieselbe Milchglas-Optik wie die Kopfzeile, die Einstellungssuche rückt über die Reiter, Kartentitel richten sich an ihrem Symbol aus, und die Einleitung « Wie LIA funktioniert » ist wieder ein einziger Satz.",
+            "i6": "<b>📧 « Fasse diese E-Mail zusammen und schlage eine Antwort vor » klappt jetzt immer</b> — diese Anfrage schlug mal fehl und ging Minuten später ohne jede Änderung durch. LIA konnte in die Lage geraten, auf eine Nachricht antworten zu müssen, ohne sie lesen zu können. Sie prüft jetzt vorab, ob sie alles Nötige hat, statt es unterwegs zu merken."
+          }
+        },
         "v1_27_2": {
           "title": "v1.27.2 — 🌌 Die öffentliche Seite bekommt ihre Identität",
           "date": "Juli 2026",
@@ -5637,19 +5660,19 @@
           },
           "q2": {
             "question": "Wie sende ich einer Verbindung eine Nachricht?",
-            "answer": "Sag es einfach LIA: <em>sag Marie, dass ich mich verspäte</em>. Eine <strong>Bestätigungskarte</strong> zeigt dir den genauen Wortlaut, bevor etwas gesendet wird. Die Nachricht wird dann vom <strong>Assistenten des Empfängers</strong> übermittelt, mit dessen Persönlichkeit und Sprache, wobei Sie als Absender genannt werden — und dein Assistent bestätigt dir die Zustellung im Chat. Antworten funktioniert genauso: Eine Antwort ist einfach eine neue weitergeleitete Nachricht. Die geringen KI-Kosten der Zustellung trägt der Absender, Tageskontingente verhindern Missbrauch."
+            "answer": "Sag es einfach LIA: <em>sag Marie, dass ich mich verspäte</em>. Eine <strong>Bestätigungskarte</strong> zeigt dir den genauen Wortlaut, bevor etwas gesendet wird. Die Nachricht wird dann vom <strong>Assistenten des Empfängers</strong> übermittelt, mit dessen Persönlichkeit und Sprache, wobei du als Absender genannt wirst — und dein Assistent bestätigt dir die Zustellung im Chat. Antworten funktioniert genauso: Eine Antwort ist einfach eine neue weitergeleitete Nachricht. Die geringen KI-Kosten der Zustellung trägt der Absender, Tageskontingente verhindern Missbrauch."
           },
           "q3": {
             "question": "Was kann ich teilen, und was sieht die andere Person?",
-            "answer": "Pro Verbindung wähle <strong>Nur-Lese</strong>-Freigaben: den Kalender als frei/belegt oder mit Terminbezeichnungen, und Aufgabentitel. Standardmäßig wird nichts geteilt. Beide Richtungen sind für beide Seiten im Bereich Verbindungen sichtbar, jeder Zugriff wird im Moment des Lesens neu geprüft und in einem einsehbaren <strong>Zugriffsprotokoll</strong> erfasst. Du kannst eine Freigabe jederzeit ändern oder widerrufen."
+            "answer": "Pro Verbindung wähle <strong>Nur-Lese</strong>-Freigaben: den Kalender als frei/belegt oder mit Terminbezeichnungen, und Aufgabentitel. Standardmäßig wird nichts geteilt. Beide Richtungen sind für beide Seiten im Bereich Verbindungen sichtbar, jeder Zugriff wird im Moment des Lesens neu geprüft und in einem einsehbaren <strong>Zugriffsprotokoll</strong> erfasst. Du kannst eine Freigabe jederzeit ändern oder widerrufen. Wenn du fragst <em>Hat Marie morgen um 10 Uhr Zeit?</em>, liest LIA den Kalender, <strong>den Marie als Standard gewählt hat</strong> — keinen beliebigen — und nennt dir die Zeiten <strong>nach deiner eigenen Uhr</strong>. Ganztägige Einträge (ein Geburtstag, eine Erinnerung) stehen getrennt von echten Terminen und lassen niemanden den ganzen Tag beschäftigt wirken."
           },
           "q4": {
             "question": "Wie blockiere ich jemanden, und was bemerkt die Person?",
-            "answer": "Blockiere aus dem Chat (unter einer weitergeleiteten Nachricht) oder aus dem Bereich Verbindungen, mit Bestätigung. Das Blockieren <strong>beendet die Verbindung stillschweigend</strong>: Die andere Person wird nicht benachrichtigt, kann Sie in der Suche nicht mehr finden, und jede Nachricht, die sie weiterzuleiten versucht, verläuft geräuschlos im Nichts. Das Entblocken stellt nichts wieder her — Du müsstest sich ausdrücklich neu verbinden."
+            "answer": "Blockiere aus dem Chat (unter einer weitergeleiteten Nachricht) oder aus dem Bereich Verbindungen, mit Bestätigung. Das Blockieren <strong>beendet die Verbindung stillschweigend</strong>: Die andere Person wird nicht benachrichtigt, kann dich in der Suche nicht mehr finden, und jede Nachricht, die sie weiterzuleiten versucht, verläuft geräuschlos im Nichts. Das Entblocken stellt nichts wieder her — Du müsstest sich ausdrücklich neu verbinden."
           },
           "q5": {
             "question": "Kann mich jemand ohne meine Zustimmung finden?",
-            "answer": "Nein. Die Auffindbarkeit ist <strong>Opt-in und standardmäßig aus</strong>. Die Suche antwortet nur auf den <strong>exakten vollständigen Namen</strong> (Akzente und Groß-/Kleinschreibung werden toleriert, aber es gibt keine Teil- oder unscharfe Suche), und ohne vollständigen Namen im Profil sind Sie unauffindbar. Blockierte, unbekannte und abgelehnte Ziele erhalten exakt dieselbe neutrale Antwort — niemand kann ausloten, ob du existierst, abgelehnt oder blockiert haben."
+            "answer": "Nein. Die Auffindbarkeit ist <strong>Opt-in und standardmäßig aus</strong>. Die Suche antwortet nur auf den <strong>exakten vollständigen Namen</strong> (Akzente und Groß-/Kleinschreibung werden toleriert, aber es gibt keine Teil- oder unscharfe Suche), und ohne vollständigen Namen im Profil bist du unauffindbar. Blockierte, unbekannte und abgelehnte Ziele erhalten exakt dieselbe neutrale Antwort — niemand kann ausloten, ob du existierst, abgelehnt oder blockiert haben."
           },
           "q6": {
             "question": "Was passiert, wenn ich eine Verbindung entferne oder mein Konto lösche?",
@@ -8367,7 +8390,7 @@
       "execution-plans": {
         "title": "ExecutionPlan: Wie LIA komplexe Anfragen plant und ausführt",
         "excerpt": "LIA zerlegt mehrstufige Anfragen in strukturierte Ausführungspläne, semantisch validiert und parallel ausgeführt für schnelle, zuverlässige Antworten.",
-        "body": "<h2>Eine strukturierte Plansprache</h2><p>Der Planer von LIA generiert einen <strong>ExecutionPlan</strong>: ein validiertes Pydantic-Objekt mit einer <code>plan_id</code> (UUID), einem <code>execution_mode</code> (sequenziell oder parallel), einem <code>max_cost_usd</code>, einem <code>estimated_cost_usd</code> und einer <code>version</code>-Nummer. Jeder Plan enthält eine Liste von <strong>ExecutionStep</strong> mit den Feldern: <code>step_id</code>, <code>step_type</code> (TOOL, CONDITIONAL, REPLAN oder HUMAN), <code>agent_name</code>, <code>tool_name</code>, <code>parameters</code>, <code>depends_on</code> und <code>timeout_seconds</code>.</p><p>Zum Beispiel würde der Plan für \"sende eine Wetterzusammenfassung an Jean morgen früh\" enthalten: (1) Wetter von morgen abrufen, (2) Kontakt Jean suchen, (3) E-Mail verfassen und senden — mit einer Abhängigkeit zwischen den Schritten 1→3 und 2→3.</p><h2>Das FOR_EACH-Pattern</h2><p>Für Stapelverarbeitungen unterstützen die Schritte ein <code>for_each</code>-Feld, das über eine von einem vorherigen Schritt erzeugte Sammlung iteriert. Der Parameter <code>for_each_max</code> begrenzt die Anzahl der Iterationen, und jeder Elementfehler wird einzeln behandelt, ohne die gesamte Stapelverarbeitung zu unterbrechen.</p><h2>Semantische Validierung mit 11 Prüfungen</h2><p>Vor jeder Ausführung überprüft der <strong>semantische Validator</strong> 11 Arten von Problemen:</p><ul><li><strong>HALLUCINATED_CAPABILITY</strong> — Vom LLM erfundenes Tool oder Fähigkeit</li><li><strong>GHOST_DEPENDENCY</strong> — Verweis auf einen nicht existierenden Schritt</li><li><strong>LOGICAL_CYCLE</strong> — Zirkuläre Abhängigkeiten</li><li><strong>CARDINALITY_MISMATCH</strong> — Kardinalitätsinkompatibilität zwischen Schritten</li><li><strong>SCOPE_OVERFLOW / SCOPE_UNDERFLOW</strong> — Plan zu umfangreich oder unzureichend</li><li><strong>WRONG_PARAMETERS</strong> — Falsche Parameter für das Tool</li><li><strong>MISSING_STEP</strong> — Fehlender Schritt zur Erfüllung der Anfrage</li><li><strong>DANGEROUS_AMBIGUITY</strong> — Mehrdeutigkeit, die zu einem Fehler führen könnte</li><li><strong>IMPLICIT_ASSUMPTION / INSUFFICIENT_CONTENT</strong> — Nicht überprüfte Annahmen</li></ul><h2>Unterscheidung indexierbarer vs. semantischer Kriterien</h2><p>Über die elf strukturellen Prüfungen hinaus setzt der Validator ein <strong>universelles Planungsprinzip</strong> durch: <em>indexierbare</em> Kriterien (Datum, Kennung, Absender, Status, Ort — als Werkzeugparameter übergeben) von <em>semantischen</em> Kriterien (Kategorie, Dringlichkeit, Qualität, Priorität — nachgelagert vom Antwort-LLM gefiltert) zu unterscheiden. Wenn der Planer versucht, ein konzeptuelles Wort wie « medizinisch » oder « dringend » in die Suche eines wörtlich-suchenden Werkzeugs (Google Calendar, Gmail, Notion-ähnliche Stores…) zu drücken, markiert eine Erkennungsschicht das Leck über Wortgrenzen-Abgleich gegen den vom Anfrageanalysator emittierten Hinweis. Werkzeug-agnostischer Mechanismus: kein aktueller Connector oder zukünftiger MCP-Server muss angepasst werden — deklarativer Opt-out über <code>ToolManifest.text_search_mode</code> für Stores, die native semantische Suche anbieten.</p><h2>Parallele Ausführung in Wellen</h2><p>Ein <strong>DependencyGraph</strong> berechnet die Ausführungswellen: Alle Schritte ohne Abhängigkeiten bilden die erste Welle und werden parallel ausgeführt. Die folgenden Wellen warten auf den Abschluss ihrer Voraussetzungen. Dieser Mechanismus ermöglicht die Verarbeitung komplexer Anfragen über 3 bis 5 Domänen mit einer Antwortzeit vergleichbar mit einer einfachen Anfrage.</p><h2>Adaptive Neuplanung</h2><p>Wenn ein Schritt fehlschlägt, kann das System über den Typ <code>REPLAN</code> dynamisch neu planen. Wenn beispielsweise ein Kontakt nicht gefunden wird, kann LIA den Benutzer um Klärung bitten, anstatt den gesamten Plan aufzugeben.</p><h2>Selbstanreicherndes Anti-Halluzinations-Register</h2><p>LLMs erfinden manchmal nicht existierende Tools in ihren Plänen. LIA pflegt ein persistentes Register halluzinierter Muster (<code>hallucinated_tools.json</code>), das sich bei jeder neuen Erkennung automatisch aktualisiert. Bei der Planvalidierung wird jedes Tool gegen dieses Register geprüft — halluzinierte Schritte werden entfernt und der Planner wird gezwungen, mit echten Katalog-Tools neu zu planen.</p>"
+        "body": "<h2>Eine strukturierte Plansprache</h2><p>Der Planer von LIA generiert einen <strong>ExecutionPlan</strong>: ein validiertes Pydantic-Objekt mit einer <code>plan_id</code> (UUID), einem <code>execution_mode</code> (sequenziell oder parallel), einem <code>max_cost_usd</code>, einem <code>estimated_cost_usd</code> und einer <code>version</code>-Nummer. Jeder Plan enthält eine Liste von <strong>ExecutionStep</strong> mit den Feldern: <code>step_id</code>, <code>step_type</code> (TOOL, CONDITIONAL, REPLAN oder HUMAN), <code>agent_name</code>, <code>tool_name</code>, <code>parameters</code>, <code>depends_on</code> und <code>timeout_seconds</code>.</p><p>Zum Beispiel würde der Plan für \"sende eine Wetterzusammenfassung an Jean morgen früh\" enthalten: (1) Wetter von morgen abrufen, (2) Kontakt Jean suchen, (3) E-Mail verfassen und senden — mit einer Abhängigkeit zwischen den Schritten 1→3 und 2→3.</p><h2>Das FOR_EACH-Pattern</h2><p>Für Stapelverarbeitungen unterstützen die Schritte ein <code>for_each</code>-Feld, das über eine von einem vorherigen Schritt erzeugte Sammlung iteriert. Der Parameter <code>for_each_max</code> begrenzt die Anzahl der Iterationen, und jeder Elementfehler wird einzeln behandelt, ohne die gesamte Stapelverarbeitung zu unterbrechen.</p><h2>Semantische Validierung mit 11 Prüfungen</h2><p>Vor jeder Ausführung überprüft der <strong>semantische Validator</strong> 11 Arten von Problemen:</p><ul><li><strong>HALLUCINATED_CAPABILITY</strong> — Vom LLM erfundenes Tool oder Fähigkeit</li><li><strong>GHOST_DEPENDENCY</strong> — Verweis auf einen nicht existierenden Schritt</li><li><strong>LOGICAL_CYCLE</strong> — Zirkuläre Abhängigkeiten</li><li><strong>CARDINALITY_MISMATCH</strong> — Kardinalitätsinkompatibilität zwischen Schritten</li><li><strong>SCOPE_OVERFLOW / SCOPE_UNDERFLOW</strong> — Plan zu umfangreich oder unzureichend</li><li><strong>WRONG_PARAMETERS</strong> — Falsche Parameter für das Tool</li><li><strong>MISSING_STEP</strong> — Fehlender Schritt zur Erfüllung der Anfrage</li><li><strong>DANGEROUS_AMBIGUITY</strong> — Mehrdeutigkeit, die zu einem Fehler führen könnte</li><li><strong>IMPLICIT_ASSUMPTION / INSUFFICIENT_CONTENT</strong> — Nicht überprüfte Annahmen</li></ul><h2>Unterscheidung indexierbarer vs. semantischer Kriterien</h2><p>Über die elf strukturellen Prüfungen hinaus setzt der Validator ein <strong>universelles Planungsprinzip</strong> durch: <em>indexierbare</em> Kriterien (Datum, Kennung, Absender, Status, Ort — als Werkzeugparameter übergeben) von <em>semantischen</em> Kriterien (Kategorie, Dringlichkeit, Qualität, Priorität — nachgelagert vom Antwort-LLM gefiltert) zu unterscheiden. Wenn der Planer versucht, ein konzeptuelles Wort wie « medizinisch » oder « dringend » in die Suche eines wörtlich-suchenden Werkzeugs (Google Calendar, Gmail, Notion-ähnliche Stores…) zu drücken, markiert eine Erkennungsschicht das Leck über Wortgrenzen-Abgleich gegen den vom Anfrageanalysator emittierten Hinweis. Werkzeug-agnostischer Mechanismus: kein aktueller Connector oder zukünftiger MCP-Server muss angepasst werden — deklarativer Opt-out über <code>ToolManifest.text_search_mode</code> für Stores, die native semantische Suche anbieten.</p><h2>Parallele Ausführung in Wellen</h2><p>Ein <strong>DependencyGraph</strong> berechnet die Ausführungswellen: Alle Schritte ohne Abhängigkeiten bilden die erste Welle und werden parallel ausgeführt. Die folgenden Wellen warten auf den Abschluss ihrer Voraussetzungen. Dieser Mechanismus ermöglicht die Verarbeitung komplexer Anfragen über 3 bis 5 Domänen mit einer Antwortzeit vergleichbar mit einer einfachen Anfrage.</p><h2>Adaptive Neuplanung</h2><p>Wenn ein Schritt fehlschlägt, kann das System über den Typ <code>REPLAN</code> dynamisch neu planen. Wenn beispielsweise ein Kontakt nicht gefunden wird, kann LIA den Benutzer um Klärung bitten, anstatt den gesamten Plan aufzugeben.</p><h2>Selbstanreicherndes Anti-Halluzinations-Register</h2><p>LLMs erfinden manchmal nicht existierende Tools in ihren Plänen. LIA pflegt ein persistentes Register halluzinierter Muster (<code>hallucinated_tools.json</code>), das sich bei jeder neuen Erkennung automatisch aktualisiert. Bei der Planvalidierung wird jedes Tool gegen dieses Register geprüft — halluzinierte Schritte werden entfernt und der Planner wird gezwungen, mit echten Katalog-Tools neu zu planen.</p><h2>Den Grund zum Erfinden beseitigen</h2><p>Ein erfundenes Werkzeug zu erkennen, ist eine Reaktion. Die Ursache liegt davor: Enthält der an den Planer übergebene Katalog ein Werkzeug, das einen Wert verlangt, den kein anderes erzeugen kann – eine Nachrichten-ID, um darauf zu antworten –, dann <strong>existiert kein gültiger Plan</strong>, und das Modell kann nur erfinden. LIA prüft daher vor dem Planen, dass der Katalog <strong>geschlossen</strong> ist: Für jeden verlangten Wert ist eine lesende Quelle vorhanden. Die Regel sieht die Anfrage nie an, sie liest die Manifeste – ein Linker, der offene Referenzen auflöst, keine Suche, die rät.</p>"
       },
       "human-in-the-loop": {
         "title": "Human-in-the-Loop: 6 Genehmigungsstufen für volle Kontrolle",

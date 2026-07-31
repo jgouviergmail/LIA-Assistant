@@ -1109,7 +1109,11 @@
         "reconnect_failed": "重新连接失败",
         "dismiss": "稍后",
         "modal_title": "需要重新连接",
-        "modal_description": "访问权限自动续期失败。需要手动重新连接："
+        "modal_description": "访问权限自动续期失败。需要手动重新连接：",
+        "banner_label": "连接状态",
+        "banner_one": "{{name}} 已断开连接，LIA 无法再使用它。",
+        "banner_many": "{{total}} 项服务已断开连接，LIA 无法再使用它们。",
+        "banner_manage": "管理连接"
       },
       "google": {
         "title": "Google",
@@ -2833,7 +2837,13 @@
       "remove": "删除快捷指令 /{{id}}",
       "error_invalid_id": "快捷指令只能包含小写字母、数字和连字符。",
       "error_reserved": "该快捷指令名称已被内置命令保留。",
-      "error_duplicate": "您已有同名的快捷指令。"
+      "error_duplicate": "您已有同名的快捷指令。",
+      "edit": "编辑快捷指令 /{{id}}",
+      "save": "保存",
+      "cancel": "取消",
+      "updated": "快捷指令 /{{id}} 已更新。",
+      "edit_id_label": "快捷指令 /{{id}} 的标识",
+      "edit_text_label": "快捷指令 /{{id}} 插入的文本"
     },
     "briefing_grid": {
       "title": "我的仪表盘",
@@ -3025,7 +3035,7 @@
         "font": "字体, 排版, 文字大小, 可读性",
         "display-mode": "显示模式, 卡片, 渲染, 回复格式, 布局, markdown, 纯文本",
         "briefing-grid": "首页, 主页, 仪表板, 小组件, 卡片, 简报, 板块顺序",
-        "chat-shortcuts": "斜杠, 快捷指令, 命令, 快速请求, 宏, /命令, 消息模板",
+        "chat-shortcuts": "斜杠, 快捷指令, 命令, 快速请求, 宏, /命令, 消息模板, 编辑, 重命名",
         "open-loops": "待办, 跟进, 承诺, 未完成, 遗留事项",
         "notifications": "推送, 提醒, 通知, 手机, FCM",
         "channels": "WhatsApp, Telegram, 短信, 邮件, 消息渠道, 集成",
@@ -3034,7 +3044,7 @@
         "security-export": "GDPR, 数据导出, 归档, 下载, 可携带性, 备份, 个人数据, 隐私",
         "voice-mode": "麦克风, 语音, 听写, STT, TTS, 唤醒词, 音频, 说话",
         "image-generation": "图像, 图片, 绘画, 插图, 生成, 艺术",
-        "connectors": "Google, Gmail, 日历, 联系人, Apple, Microsoft, Outlook, 集成, 账户, OAuth",
+        "connectors": "Google, Gmail, 日历, 联系人, Apple, Microsoft, Outlook, 集成, 账户, OAuth, 重新连接, 已断开",
         "telephony-calls": "电话, 通话, 通话记录, 拨号",
         "admin-mcp-servers": "MCP, 模型上下文协议, 应用服务器, 内置工具",
         "mcp-servers": "MCP, 模型上下文协议, 我的服务器, 工具, 扩展",
@@ -3460,7 +3470,7 @@
     },
     "intro": {
       "title": "LIA 工作原理",
-      "description": "LIA 是新一代 AI 助手，结合先进技术为你提供智能、安全和个性化的体验。回复在服务器端独立于你的连接生成：你可以在回复进行中离开页面，回来时即可找到它——或实时续播。",
+      "description": "一款多智能体 AI 助手，连接你的各项服务，并基于你自己的数据作答。",
       "features": {
         "architecture": {
           "title": "🏗️ LangGraph 多智能体架构",
@@ -3480,7 +3490,7 @@
         },
         "planning": {
           "title": "📋 智能规划与 FOR_EACH",
-          "description": "高级规划器配备执行 DSL。FOR_EACH 模式支持批量迭代（「给我 X 组的所有联系人发邮件」）。依赖图自动并行执行。PANIC 模式自适应重试。Golden Patterns（~100 预训练模板）首次尝试即达最优规划。 每个 FOR_EACH 迭代都保留自己的结果：为某个日程获取的补充信息，不会再被同地点、同一天的另一个日程覆盖；即使执行被重放或中断后恢复，每份结果的标识也保持稳定。"
+          "description": "高级规划器配备执行 DSL。FOR_EACH 模式支持批量迭代（「给我 X 组的所有联系人发邮件」）。依赖图自动并行执行。PANIC 模式自适应重试。Golden Patterns（~100 预训练模板）首次尝试即达最优规划。 每个 FOR_EACH 迭代都保留自己的结果：为某个日程获取的补充信息，不会再被同地点、同一天的另一个日程覆盖；即使执行被重放或中断后恢复，每份结果的标识也保持稳定。交给规划器的工具清单是<b>闭合</b>的：若某个选中的工具需要一个它无法猜出的值（邮件或日程的标识符），能够提供该值的读取工具必然在场。没有这个保证，就不存在有效的计划，模型只能凭空捏造一个工具名称。"
         },
         "semanticTypes": {
           "title": "📦 语义类型系统",
@@ -3604,7 +3614,7 @@
         },
         "adaptiveReplanner": {
           "title": "🔄 自适应重新规划",
-          "description": "基于规则分析执行失败——空结果、部分失败、依赖与引用错误——无需额外的 LLM 调用。它对发生的情况进行归类，并计算出恢复决策（重试、调整后重新规划、询问用户、终止）。该决策<b>目前仅供参考</b>：每次失败都会被记录和计数，使失败模式可度量，但编排器尚未自动执行它。部分结果会被呈现而非丢弃，因此未完成的执行仍会用已获得的内容作答。"
+          "description": "基于规则分析执行失败——空结果、部分失败、依赖与引用错误——无需额外的 LLM 调用。它对发生的情况进行归类，并计算出恢复决策（重试、调整后重新规划、询问用户、终止）。该决策<b>目前仅供参考</b>：每次失败都会被记录和计数，使失败模式可度量，但编排器尚未自动执行它。部分结果会被呈现而非丢弃，因此未完成的执行仍会用已获得的内容作答。重试无法改变的失败（工具不存在、能力被拒绝）不再被标记为临时性问题：排查真正原因时读到的正是这一行。"
         },
         "semanticLeakDefense": {
           "title": "🛡️ 可索引与语义化条件区分",
@@ -3689,6 +3699,19 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_27_3": {
+          "title": "v1.27.3 — 🤝 查询已连接联系人的空闲时间终于可用",
+          "date": "2026 年 7 月",
+          "count": "6",
+          "items": {
+            "i1": "<b>🤝「Jérôme 明天 10 点有空吗？」</b> — 询问与你连接的人，现在会从他自己设为默认的日历作答，并按你所在时区显示时间。全天日程（生日、提醒）与真正的会议区分开来：生日不会再让人看起来一整天都忙。",
+            "i2": "<b>🎯 被拦截时 LIA 不再猜测</b> — 当某个请求无法执行时，回答会准确指出缺少的能力，并到此为止。不再笼统地说「未配置任何服务」，也不再在故障可能出在我们这边时把责任推给你。",
+            "i3": "<b>🔌 断开的服务会持续可见</b> — 不再只有一条你可能错过的提醒，只要连接仍然中断，就会保留一条不打扰的提示条和「重新连接」按钮。服务恢复后它会自行消失。",
+            "i4": "<b>✏️ 你的 /快捷指令 可以修改</b> — 现在可以直接修改已创建快捷指令的名称或文本，而不必删除后重建。",
+            "i5": "<b>✨ 一些使用细节</b> — 聊天输入区采用与顶栏相同的毛玻璃质感，设置搜索移到标签栏上方，卡片标题与图标对齐，「LIA 如何运作」的引言重新变回一句话。",
+            "i6": "<b>📧「总结这封邮件并拟一份回复」现在每次都能完成</b> — 这个请求以前有时会失败，几分钟后在什么都没改的情况下又能成功。LIA 可能会陷入要回复一封自己无法读取的邮件的境地。现在它会在开始前确认所需的一切都已就位，而不是中途才发现缺了东西。"
+          }
+        },
         "v1_27_2": {
           "title": "v1.27.2 — 🌌 公开页面拥有了自己的视觉身份",
           "date": "2026年7月",
@@ -5636,7 +5659,7 @@
           },
           "q3": {
             "question": "我可以共享什么？对方能看到什么？",
-            "answer": "每个连接都可选择<strong>只读</strong>共享：日历可以只显示忙/闲，或包含日程标题；任务则只共享标题。默认不共享任何内容。双向共享对双方都可见（在「连接」板块中），每次访问都会在读取时重新校验，并记录在可查阅的<strong>访问日志</strong>中。你可以随时修改或撤销共享。"
+            "answer": "每个连接都可选择<strong>只读</strong>共享：日历可以只显示忙/闲，或包含日程标题；任务则只共享标题。默认不共享任何内容。双向共享对双方都可见（在「连接」板块中），每次访问都会在读取时重新校验，并记录在可查阅的<strong>访问日志</strong>中。你可以随时修改或撤销共享。 当你问<em>「Marie 明天 10 点有空吗？」</em>时，LIA 会读取 <strong>Marie 自己设为默认的日历</strong>（而不是任意一个），并按<strong>你所在时区</strong>给出时间。全天日程（生日、提醒）会与真正的会议分开列出，不会让人看起来一整天都忙。"
           },
           "q4": {
             "question": "如何屏蔽某人？对方会察觉吗？",
@@ -8362,7 +8385,7 @@
       "execution-plans": {
         "title": "ExecutionPlan：LIA如何规划和执行复杂请求",
         "excerpt": "LIA将你的多步骤请求分解为结构化执行计划，经过语义验证并并行执行。",
-        "body": "<h2>结构化计划语言</h2><p>LIA的规划器生成<strong>ExecutionPlan</strong>：一个经过Pydantic验证的对象，包含<code>plan_id</code>（UUID）、<code>execution_mode</code>（顺序或并行）、<code>max_cost_usd</code>、<code>estimated_cost_usd</code>和<code>version</code>版本号。每个计划包含一组<strong>ExecutionStep</strong>，字段包括：<code>step_id</code>、<code>step_type</code>（TOOL、CONDITIONAL、REPLAN或HUMAN）、<code>agent_name</code>、<code>tool_name</code>、<code>parameters</code>、<code>depends_on</code>和<code>timeout_seconds</code>。</p><p>例如，对于\"明天早上给Jean发一份天气摘要\"，计划将包含：(1) 获取明天的天气，(2) 查找联系人Jean，(3) 编写并发送邮件——步骤1→3和2→3之间存在依赖关系。</p><h2>FOR_EACH模式</h2><p>对于批量操作，步骤支持<code>for_each</code>字段，可迭代前一步骤产生的集合。<code>for_each_max</code>参数限制迭代次数，每个元素的错误独立处理，不会中断整个批次。</p><h2>11项语义验证检查</h2><p>在执行之前，<strong>语义验证器</strong>检查11类问题：</p><ul><li><strong>HALLUCINATED_CAPABILITY</strong> — LLM编造的工具或能力</li><li><strong>GHOST_DEPENDENCY</strong> — 引用不存在的步骤</li><li><strong>LOGICAL_CYCLE</strong> — 循环依赖</li><li><strong>CARDINALITY_MISMATCH</strong> — 步骤间基数不匹配</li><li><strong>SCOPE_OVERFLOW / SCOPE_UNDERFLOW</strong> — 计划范围过大或不足</li><li><strong>WRONG_PARAMETERS</strong> — 工具参数不正确</li><li><strong>MISSING_STEP</strong> — 缺少满足请求所需的步骤</li><li><strong>DANGEROUS_AMBIGUITY</strong> — 可能导致错误的歧义</li><li><strong>IMPLICIT_ASSUMPTION / INSUFFICIENT_CONTENT</strong> — 未经验证的假设</li></ul><h2>可索引与语义化条件区分</h2><p>除了十一项结构性检查外，验证器还执行一项<strong>通用规划原则</strong>：将<em>可索引</em>条件（日期、标识符、发件人、状态、地点——作为工具参数传递）与<em>语义化</em>条件（类别、紧急程度、质量、优先级——由响应 LLM 在下游过滤）区分开来。当规划器试图将「医疗」或「紧急」等概念性词语硬塞进字面搜索工具（Google 日历、Gmail、类 Notion 存储……）的查询中时，检测层会通过针对查询分析器发出的提示进行整词边界匹配来标记此类泄漏。工具无关机制：当前所有连接器或未来 MCP 服务器都无需修改——通过 <code>ToolManifest.text_search_mode</code> 为提供原生语义搜索的存储声明式地选择退出。</p><h2>波次并行执行</h2><p><strong>DependencyGraph</strong>计算执行波次：所有无依赖的步骤构成第一波并行执行。后续波次等待其前置步骤完成。这一机制使得涉及3到5个领域的复杂请求能够以接近简单请求的响应时间处理。</p><h2>自适应重新规划</h2><p>如果某个步骤失败，系统可以通过<code>REPLAN</code>类型动态重新规划。例如，如果未找到联系人，LIA可以向用户请求澄清，而不是放弃整个计划。</p><h2>自增强反幻觉注册表</h2><p>LLM有时会在计划中发明不存在的工具。LIA维护一个持久化的幻觉模式注册表（<code>hallucinated_tools.json</code>），每次检测到新的幻觉时自动更新。在计划验证期间，每个工具都会与此注册表进行核对——幻觉步骤被移除，规划器被强制使用真实的目录工具重新规划。</p>"
+        "body": "<h2>结构化计划语言</h2><p>LIA的规划器生成<strong>ExecutionPlan</strong>：一个经过Pydantic验证的对象，包含<code>plan_id</code>（UUID）、<code>execution_mode</code>（顺序或并行）、<code>max_cost_usd</code>、<code>estimated_cost_usd</code>和<code>version</code>版本号。每个计划包含一组<strong>ExecutionStep</strong>，字段包括：<code>step_id</code>、<code>step_type</code>（TOOL、CONDITIONAL、REPLAN或HUMAN）、<code>agent_name</code>、<code>tool_name</code>、<code>parameters</code>、<code>depends_on</code>和<code>timeout_seconds</code>。</p><p>例如，对于\"明天早上给Jean发一份天气摘要\"，计划将包含：(1) 获取明天的天气，(2) 查找联系人Jean，(3) 编写并发送邮件——步骤1→3和2→3之间存在依赖关系。</p><h2>FOR_EACH模式</h2><p>对于批量操作，步骤支持<code>for_each</code>字段，可迭代前一步骤产生的集合。<code>for_each_max</code>参数限制迭代次数，每个元素的错误独立处理，不会中断整个批次。</p><h2>11项语义验证检查</h2><p>在执行之前，<strong>语义验证器</strong>检查11类问题：</p><ul><li><strong>HALLUCINATED_CAPABILITY</strong> — LLM编造的工具或能力</li><li><strong>GHOST_DEPENDENCY</strong> — 引用不存在的步骤</li><li><strong>LOGICAL_CYCLE</strong> — 循环依赖</li><li><strong>CARDINALITY_MISMATCH</strong> — 步骤间基数不匹配</li><li><strong>SCOPE_OVERFLOW / SCOPE_UNDERFLOW</strong> — 计划范围过大或不足</li><li><strong>WRONG_PARAMETERS</strong> — 工具参数不正确</li><li><strong>MISSING_STEP</strong> — 缺少满足请求所需的步骤</li><li><strong>DANGEROUS_AMBIGUITY</strong> — 可能导致错误的歧义</li><li><strong>IMPLICIT_ASSUMPTION / INSUFFICIENT_CONTENT</strong> — 未经验证的假设</li></ul><h2>可索引与语义化条件区分</h2><p>除了十一项结构性检查外，验证器还执行一项<strong>通用规划原则</strong>：将<em>可索引</em>条件（日期、标识符、发件人、状态、地点——作为工具参数传递）与<em>语义化</em>条件（类别、紧急程度、质量、优先级——由响应 LLM 在下游过滤）区分开来。当规划器试图将「医疗」或「紧急」等概念性词语硬塞进字面搜索工具（Google 日历、Gmail、类 Notion 存储……）的查询中时，检测层会通过针对查询分析器发出的提示进行整词边界匹配来标记此类泄漏。工具无关机制：当前所有连接器或未来 MCP 服务器都无需修改——通过 <code>ToolManifest.text_search_mode</code> 为提供原生语义搜索的存储声明式地选择退出。</p><h2>波次并行执行</h2><p><strong>DependencyGraph</strong>计算执行波次：所有无依赖的步骤构成第一波并行执行。后续波次等待其前置步骤完成。这一机制使得涉及3到5个领域的复杂请求能够以接近简单请求的响应时间处理。</p><h2>自适应重新规划</h2><p>如果某个步骤失败，系统可以通过<code>REPLAN</code>类型动态重新规划。例如，如果未找到联系人，LIA可以向用户请求澄清，而不是放弃整个计划。</p><h2>自增强反幻觉注册表</h2><p>LLM有时会在计划中发明不存在的工具。LIA维护一个持久化的幻觉模式注册表（<code>hallucinated_tools.json</code>），每次检测到新的幻觉时自动更新。在计划验证期间，每个工具都会与此注册表进行核对——幻觉步骤被移除，规划器被强制使用真实的目录工具重新规划。</p><h2>消除「捏造」的理由</h2><p>识别出被捏造的工具，终究是一种事后反应。真正的原因在上游：如果交给规划器的工具清单里，有一个工具需要某项数据，而清单中没有任何其他工具能产出它（比如要回复邮件就得先有该邮件的标识符），那么<strong>根本不存在有效的计划</strong>，模型除了捏造别无选择。因此 LIA 会在规划之前确认清单是<strong>闭合</strong>的：每一项被需要的数据，都有一个读取来源在场。这条规则从不查看用户的请求，它只读取工具清单本身——这是解析未定义引用的链接器，而不是靠猜测的检索。</p>"
       },
       "human-in-the-loop": {
         "title": "人在回路中：6级审批保持你的控制",

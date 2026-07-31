@@ -39,13 +39,18 @@ export interface SettingsTabDescriptor {
 export interface SettingsTabsBarProps {
   tabs: readonly SettingsTabDescriptor[];
   /**
-   * Rendered under the tab row, inside the sticky wrapper — the settings search.
+   * Rendered ABOVE the tab row, inside the sticky wrapper — the settings search.
+   *
+   * Search first, then the three tabs (owner request 2026-07-30): looking
+   * something up is what the reader came to do, and the tabs are where they
+   * land afterwards.
    *
    * Whatever goes here must have a CONSTANT height. `SettingsSection`'s
    * `scroll-mt` is a single value calibrated against the total height of the
    * sticky chrome (dashboard header + this bar), so a row that grew or vanished
    * would make deep-linked sections land underneath it. The search field
-   * satisfies that by keeping its results in an absolutely positioned popup.
+   * satisfies that by keeping its results in an absolutely positioned popup —
+   * and the order of the two rows leaves that total height untouched.
    */
   children?: React.ReactNode;
 }
@@ -67,6 +72,7 @@ export function SettingsTabsBar({ tabs, children }: SettingsTabsBarProps) {
         '-mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8'
       )}
     >
+      {children}
       {/* `auto-cols-fr` + `grid-flow-col`: equal shares whatever the tab count
           (two tabs for a regular user, three for a superuser) — no lookup table
           that a fourth tab would silently fall through. */}
@@ -88,7 +94,6 @@ export function SettingsTabsBar({ tabs, children }: SettingsTabsBarProps) {
           </TabsTrigger>
         ))}
       </TabsList>
-      {children}
     </div>
   );
 }

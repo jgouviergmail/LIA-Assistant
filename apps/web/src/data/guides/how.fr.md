@@ -5,8 +5,8 @@
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
 **Version** : 3.6
-**Date** : 2026-07-30
-**Application** : LIA v1.27.2
+**Date** : 2026-07-31
+**Application** : LIA v1.27.3
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -432,6 +432,12 @@ Le QueryAnalyzer produit bien plus qu'une détection de domaines — il génère
 ### 7.4. Pivot Sémantique
 
 Les requêtes en toute langue sont automatiquement traduites en anglais avant la comparaison d'embeddings, améliorant la précision cross-lingue. Cache Redis (TTL 5 min, ~5 ms en hit vs ~500 ms en miss), via un LLM rapide.
+
+### 7.5. Clôture du catalogue
+
+Le filtrage sémantique note les outils contre une **paraphrase anglaise de la demande, régénérée à chaque tour par un modèle** : la même question peut donc produire deux catalogues différents. Si les outils retenus exigent une donnée qu'aucun d'eux ne sait produire — l'identifiant d'un message pour pouvoir y répondre —, l'espace des plans valides est vide **avant même** que le modèle ne commence. Il ne peut alors qu'inventer un nom d'outil.
+
+La clôture applique une règle qui ne regarde jamais la demande : *chaque type de donnée exigé par un outil du catalogue doit être produit par un autre outil du catalogue*. C'est un éditeur de liens qui résout des références manquantes, pas une recherche qui devine. Deux conditions la rendent correcte plutôt que seulement plausible : un outil ne se satisfait jamais lui-même (« répondre à un mail » produit aussi un identifiant de message — celui qu'il vient d'envoyer), et seul un outil de **lecture** fait une source (on ne déclenche pas un envoi pour découvrir un identifiant). Croissance mesurée du catalogue : **+1 outil**.
 
 ---
 

@@ -629,6 +629,36 @@ def collect_manifest_param_consumers(manifests: list[Any]) -> dict[str, set[str]
     return consumers
 
 
+def collect_manifest_output_providers(manifests: list[Any]) -> dict[str, set[str]]:
+    """Index the DOMAINS providing each semantic type, from manifest outputs.
+
+    The provider counterpart of :func:`collect_manifest_param_consumers`, and
+    for the same reason: the ontology's editorial ``source_domains`` is written
+    by hand and drifts on every tool added. Measured 2026-07-31 across the 89
+    static manifests: ~70 types carried an incomplete ``used_in_tools`` and
+    several a stale ``source_domains``. Deriving both sides at the point of use
+    makes that class of drift unable to degrade behaviour, without mutating the
+    frozen SemanticType dataclasses or making the semantic layer import the
+    manifest modules at boot.
+
+    Args:
+        manifests: Tool manifests (typically ``get_request_tool_manifests()``).
+
+    Returns:
+        Mapping of semantic type name → set of domains whose tools produce it.
+    """
+    providers: dict[str, set[str]] = {}
+    for manifest in manifests:
+        domain = (getattr(manifest, "agent", "") or "").removesuffix("_agent")
+        if not domain:
+            continue
+        for output in getattr(manifest, "outputs", None) or []:
+            semantic_type = getattr(output, "semantic_type", None)
+            if semantic_type:
+                providers.setdefault(semantic_type, set()).add(domain)
+    return providers
+
+
 def generate_semantic_dependencies_for_prompt(
     domains: list[str],
     include_jinja2_patterns: bool = True,
@@ -679,6 +709,17 @@ def generate_semantic_dependencies_for_prompt(
         service = get_expansion_service()
         registry = service.registry
 
+        # Consumers AND providers declared by the live tool manifests. Both are
+        # derived rather than read from the ontology's hand-written links, which
+        # drift on every tool added (measured 2026-07-31: ~70 types with an
+        # incomplete used_in_tools). Empty outside a request lifecycle — the
+        # section then degrades to the ontology-only behaviour.
+        from src.core.context import get_request_tool_manifests
+
+        request_manifests = get_request_tool_manifests()
+        manifest_consumers = collect_manifest_param_consumers(request_manifests)
+        manifest_providers = collect_manifest_output_providers(request_manifests)
+
         # Collect all semantic types relevant to these domains
         types_by_domain: dict[str, set[str]] = {}
         for domain in domains:
@@ -689,6 +730,15 @@ def generate_semantic_dependencies_for_prompt(
         for types in types_by_domain.values():
             all_types.update(types)
 
+        # A type the manifests provide from an active domain belongs here even
+        # when the ontology never listed that domain as a source.
+        active = set(domains)
+        all_types.update(
+            type_name
+            for type_name, provider_domains in manifest_providers.items()
+            if provider_domains & active
+        )
+
         if not all_types:
             logger.debug(
                 "semantic_deps_no_types",
@@ -697,29 +747,22 @@ def generate_semantic_dependencies_for_prompt(
             )
             return SEMANTIC_DEPS_NO_TYPES_FOUND
 
-        # Consumers declared by the live tool manifests (parameter-level
-        # semantic_type), unioned below with the ontology's editorial
-        # used_in_tools links. Empty outside a request lifecycle — the
-        # section then degrades to the ontology-only behaviour.
-        from src.core.context import get_request_tool_manifests
-
-        manifest_consumers = collect_manifest_param_consumers(get_request_tool_manifests())
-
         # Build dependency descriptions
         lines: list[str] = []
 
         # Focus on cross-domain types (provided by one domain, used by tools in another)
         for type_name in sorted(all_types):
             type_def = registry.get(type_name)
-            if not type_def:
-                continue
 
             # Only include types that are:
             # 1. Provided by at least one of the selected domains
             # 2. Used by tools (have consumers)
-            providers = [d for d in type_def.source_domains if d in domains]
+            declared_domains = set(getattr(type_def, "source_domains", None) or ())
+            provider_domains = declared_domains | manifest_providers.get(type_name, set())
+            providers = sorted(provider_domains & active)
             consumers = sorted(
-                set(type_def.used_in_tools) | manifest_consumers.get(type_name, set())
+                set(getattr(type_def, "used_in_tools", None) or ())
+                | manifest_consumers.get(type_name, set())
             )
             if not providers or not consumers:
                 continue

@@ -107,10 +107,17 @@ list_hue_lights_catalogue_manifest = ToolManifest(
     ],
     parameters=[],
     outputs=[
-        OutputFieldSchema(path="lights", type="array", description="List of lights"),
-        OutputFieldSchema(path="lights[].name", type="string", description="Light name"),
-        OutputFieldSchema(path="lights[].is_on", type="boolean", description="On/off state"),
-        OutputFieldSchema(path="lights[].brightness", type="number", description="Brightness %"),
+        # Referenceable under "hues", NOT "lights": this tool returns its lights
+        # as registry items, and the executor exposes registry payloads under
+        # meta.domain (CONTEXT_DOMAIN_HUE == "hues"). The sibling rooms/scenes
+        # tools post their own structured_data, hence their different keys.
+        # A "lights[0].name" reference resolved to nothing (ADR-121: never
+        # declare an output without checking the real payload).
+        OutputFieldSchema(path="hues", type="array", description="List of lights"),
+        OutputFieldSchema(path="hues[].light_id", type="string", description="Light id"),
+        OutputFieldSchema(path="hues[].name", type="string", description="Light name"),
+        OutputFieldSchema(path="hues[].is_on", type="boolean", description="On/off state"),
+        OutputFieldSchema(path="hues[].brightness", type="number", description="Brightness %"),
     ],
     cost=CostProfile(est_tokens_in=50, est_tokens_out=500, est_cost_usd=0.001, est_latency_ms=300),
     permissions=PermissionProfile(

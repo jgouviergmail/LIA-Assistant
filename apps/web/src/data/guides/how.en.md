@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 3.6
-**Date**: 2026-07-30
-**Application**: LIA v1.27.2
+**Date**: 2026-07-31
+**Application**: LIA v1.27.3
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -433,6 +433,12 @@ The QueryAnalyzer does more than detect domains — it produces a deep `QueryInt
 ### 7.4. Semantic Pivot
 
 Queries in any language are automatically translated to English before embedding comparison, improving cross-lingual accuracy. Redis-cached (5 min TTL, ~5 ms on hit vs ~500 ms on miss), using a fast LLM.
+
+### 7.5. Catalogue closure
+
+Semantic filtering scores tools against an **English paraphrase of the request, regenerated on every turn by a model**: the same question can therefore produce two different catalogues. If the selected tools require a datum none of them can produce — the id of a message in order to reply to it — the space of valid plans is empty **before** the model even starts. All it can do then is invent a tool name.
+
+Closure applies a rule that never looks at the request: *every kind of datum required by a tool in the catalogue must be produced by another tool in the catalogue*. It is a linker resolving undefined references, not a search guessing which one is relevant. Two conditions make it correct rather than merely plausible: a tool never satisfies itself ("reply to an email" also produces a message id — the one it just sent), and only a **read** tool counts as a source (one does not trigger a send to discover an identifier). Measured catalogue growth: **+1 tool**.
 
 ---
 

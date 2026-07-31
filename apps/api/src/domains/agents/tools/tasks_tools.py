@@ -107,9 +107,8 @@ async def _resolve_default_task_list(
     Returns:
         Resolved task list ID.
     """
-    from src.domains.connectors.preferences.service import ConnectorPreferencesService
+    from src.domains.connectors.preferences.owner_defaults import resolve_owner_task_list_id
     from src.domains.connectors.provider_resolver import resolve_active_connector
-    from src.domains.connectors.repository import ConnectorRepository
 
     # If not using @default, resolve the name directly
     if task_list_id_input != "@default":
@@ -125,40 +124,29 @@ async def _resolve_default_task_list(
         )
         return resolved_id
 
-    # Try to get user's default preference (provider-aware)
+    # Try to get user's default preference (provider-aware).
+    #
+    # The broad catch stays HERE rather than moving into the shared resolver:
+    # that resolver deliberately lets infrastructure failures propagate (a
+    # silent fallback would read the wrong list), and this call site has always
+    # swallowed everything. Keeping the net at the call site preserves this
+    # tool's behaviour byte-for-byte while the resolution itself is shared.
     try:
-        repo = ConnectorRepository(client.connector_service.db)
         connector_service = client.connector_service
         resolved_type = await resolve_active_connector(user_id, "tasks", connector_service)
-
         if resolved_type:
-            connector = await repo.get_by_user_and_type(user_id, resolved_type)
-            if connector and connector.preferences_encrypted:
-                # Use provider-specific preference key
-                pref_key = resolved_type.value  # "google_tasks" or "microsoft_tasks"
-                default_name = ConnectorPreferencesService.get_preference_value(
-                    pref_key,
-                    connector.preferences_encrypted,
-                    "default_task_list_name",
-                )
-                if default_name:
-                    logger.debug(
-                        "tasks_using_default_preference",
-                        default_task_list_name=default_name,
-                        user_id=str(user_id),
-                        provider=pref_key,
-                    )
-                    resolved_id = await resolve_task_list_name(
-                        client=client,
-                        name=default_name,
-                        fallback="@default",
-                    )
-                    logger.debug(
-                        "task_list_id_resolved",
-                        input=default_name,
-                        resolved=resolved_id,
-                    )
-                    return resolved_id
+            resolved_id = await resolve_owner_task_list_id(
+                db=connector_service.db,
+                client=client,
+                owner_id=user_id,
+                connector_type=resolved_type,
+            )
+            logger.debug(
+                "task_list_id_resolved",
+                input="preference",
+                resolved=resolved_id,
+            )
+            return resolved_id
     except Exception as e:
         logger.warning("tasks_preference_resolution_failed", error=str(e))
 

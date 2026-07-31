@@ -212,7 +212,10 @@ get_peer_availability_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="peer_timezone",
             type="string",
-            description="Peer's IANA timezone (convert for display)",
+            description=(
+                "Peer's IANA timezone. Only for inter-step references — the "
+                "returned summary is already in the ASKING user's timezone"
+            ),
         ),
     ],
     cost=CostProfile(

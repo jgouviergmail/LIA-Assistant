@@ -273,6 +273,13 @@ class NormalFilteringStrategy:
                 filtered_tools.append(tool_dict)
                 categories_included.add(tool_category)
 
+        # Closure: a catalogue whose tools require a handle nobody can source
+        # leaves the planner no valid plan at all (prod incident 2026-07-30).
+        # Runs on the FINAL set, so it sees exactly what survived the cap.
+        filtered_tools = self._apply_closure(
+            filtered_tools, all_manifests, tool_filter, tool_scores, domain_protected_tools
+        )
+
         # F6: Force-include sub-agent delegation tool (transversal, always available)
         # This tool bypasses domain/score filtering — the planner decides autonomously.
         if getattr(tool_filter, "include_sub_agent_tools", False):
@@ -327,6 +334,130 @@ class NormalFilteringStrategy:
             domains_included=list(domains_included),
             categories_included=list(categories_included),
         )
+
+    def _apply_closure(
+        self,
+        filtered_tools: list[dict[str, Any]],
+        all_manifests: list[Any],
+        tool_filter: ToolFilter,
+        tool_scores: dict[str, float],
+        protected: set[str],
+    ) -> list[dict[str, Any]]:
+        """Add the providers a valid plan needs, arbitrating the max_tools cap.
+
+        A catalogue that respects ``max_tools`` but offers no runnable plan is
+        worth nothing, so a closure provider outranks a filler tool. When the
+        cap is already saturated by tools that may not be evicted, the addition
+        is dropped and logged — an invisible truncation would read as "the
+        catalogue was fine".
+
+        Args:
+            filtered_tools: Tool dicts that survived filtering (mutated).
+            all_manifests: Every manifest available for this request.
+            tool_filter: Active filter (domains, max_tools).
+            tool_scores: Semantic scores per tool name.
+            protected: Tools kept by domain coverage / semantic deps.
+
+        Returns:
+            The catalogue, closed as far as the cap allows.
+        """
+        from src.domains.agents.services.catalogue.closure import resolve_closure_additions
+
+        by_name = {manifest.name: manifest for manifest in all_manifests}
+        kept = [by_name[tool["name"]] for tool in filtered_tools if tool["name"] in by_name]
+        candidates = [
+            manifest
+            for manifest in all_manifests
+            if self.service._extract_domain(manifest) in tool_filter.domains
+        ]
+        try:
+            result = resolve_closure_additions(kept, candidates, tool_scores)
+        except Exception as exc:
+            # Fail-safe, like the semantic-provider lookup above: an incomplete
+            # manifest must degrade the catalogue, never fail the whole request.
+            logger.warning(
+                "catalogue_closure_failed",
+                error=str(exc),
+                error_type=type(exc).__name__,
+                domains=tool_filter.domains,
+            )
+            return filtered_tools
+        if not result:
+            return filtered_tools
+
+        untouchable = protected | result.consumers | set(result.additions)
+        domain_of = {
+            manifest.name: self.service._extract_domain(manifest) for manifest in all_manifests
+        }
+        added: list[str] = []
+        dropped: list[str] = []
+        for name in result.additions:
+            if len(filtered_tools) >= tool_filter.max_tools and not self._evict_lowest(
+                filtered_tools, untouchable, tool_scores, domain_of
+            ):
+                dropped.append(name)
+                continue
+            filtered_tools.append(self.service._manifest_to_dict(by_name[name]))
+            added.append(name)
+
+        if added:
+            logger.info(
+                "catalogue_closure_applied",
+                added=added,
+                required_by=sorted(result.consumers),
+                domains=tool_filter.domains,
+            )
+        if dropped:
+            logger.warning(
+                "catalogue_closure_capped",
+                dropped=dropped,
+                max_tools=tool_filter.max_tools,
+                message="max_tools saturated by protected tools — catalogue stays open",
+            )
+        return filtered_tools
+
+    @staticmethod
+    def _evict_lowest(
+        filtered_tools: list[dict[str, Any]],
+        untouchable: set[str],
+        tool_scores: dict[str, float],
+        domain_of: dict[str, str],
+    ) -> bool:
+        """Free one slot by dropping the lowest-scoring expendable tool.
+
+        The sole representative of a domain is never expendable: the second
+        filtering pass seeds one tool per domain in MANIFEST ORDER, not by
+        score, so that tool is not necessarily among the top-N protected ones.
+        Evicting it would silently break the cross-domain coverage the pass
+        exists to guarantee — trading one broken invariant for another.
+
+        Args:
+            filtered_tools: Catalogue being built (mutated on success).
+            untouchable: Tools that may never be evicted.
+            tool_scores: Semantic scores per tool name.
+            domain_of: Tool name -> functional domain.
+
+        Returns:
+            True when a slot was freed, False when everything is untouchable.
+        """
+        occupancy: dict[str, int] = {}
+        for tool in filtered_tools:
+            domain = domain_of.get(tool["name"], "")
+            occupancy[domain] = occupancy.get(domain, 0) + 1
+
+        expendable = [
+            tool
+            for tool in filtered_tools
+            if tool["name"] not in untouchable
+            and occupancy.get(domain_of.get(tool["name"], ""), 0) > 1
+        ]
+        if not expendable:
+            return False
+        victim = min(
+            expendable, key=lambda tool: (tool_scores.get(tool["name"], 0.0), tool["name"])
+        )
+        filtered_tools.remove(victim)
+        return True
 
 
 __all__ = [

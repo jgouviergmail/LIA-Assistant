@@ -217,7 +217,11 @@ function UserScopeSection(props: {
   const { importing, fileInputRef, onImportFile, onShowGuide, onShowUrlImport } = props;
   return (
     <div>
-      <div className="flex flex-col gap-3 mb-3">
+      {/* No bottom margin here: it stacked UNDER the button row on top of the
+          card's own `pb-4/sm:pb-6`, so the band below the separator was ~48 px
+          against 12 px above and the buttons hugged the line. The spacing that
+          balances them now lives on the row and on the list below it. */}
+      <div className="flex flex-col gap-3">
         <button
           type="button"
           onClick={onToggleOpen}
@@ -237,8 +241,11 @@ function UserScopeSection(props: {
           )}
         </button>
         {/* Import actions on their own row, visually detached by a separator
-            line (owner request 2026-07-30). */}
-        <div className="flex items-center gap-2 flex-wrap border-t pt-3">
+            line (owner request 2026-07-30). `pt-4 sm:pt-6` MIRRORS the card's
+            own `pb-4 sm:pb-6`: what sits under these buttons is the card's
+            bottom padding, so matching it at the top is what actually centres
+            them between the line and the edge, at both breakpoints. */}
+        <div className="flex items-center gap-2 flex-wrap border-t pt-4 sm:pt-6">
           <Button
             variant="outline"
             size="sm"
@@ -272,20 +279,25 @@ function UserScopeSection(props: {
         </div>
       </div>
 
+      {/* When the list is EXPANDED it becomes what sits under the buttons, so
+          it carries the same gap the card's padding provides when collapsed —
+          the row keeps one balanced band in both states. */}
       {open && skills.length === 0 && (
-        <div className="text-center py-6 text-muted-foreground">
+        <div className="mt-4 text-center py-6 text-muted-foreground sm:mt-6">
           <p className="text-sm">{t('settings.skills.empty')}</p>
         </div>
       )}
       {open && skills.length > 0 && (
-        <SkillGallery
-          skills={skills}
-          lng={lng}
-          t={t}
-          onOpen={onOpenSkill}
-          onToggle={onToggle}
-          toggling={toggling}
-        />
+        <div className="mt-4 sm:mt-6">
+          <SkillGallery
+            skills={skills}
+            lng={lng}
+            t={t}
+            onOpen={onOpenSkill}
+            onToggle={onToggle}
+            toggling={toggling}
+          />
+        </div>
       )}
     </div>
   );

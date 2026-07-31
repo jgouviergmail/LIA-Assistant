@@ -18,6 +18,7 @@ Organisation hiérarchique:
   - Action → SearchAction, NavigateAction, etc.
 """
 
+from src.domains.agents.semantic.resource_handle_types import load_resource_handle_types
 from src.domains.agents.semantic.semantic_type import SemanticType, TypeCategory
 from src.domains.agents.semantic.type_registry import TypeRegistry
 from src.infrastructure.observability.logging import get_logger
@@ -1181,6 +1182,9 @@ def load_core_types(registry: TypeRegistry) -> None:
     registry.register(OPTIMAL_ORDER)
     registry.register(ROUTE_CONDITION)
     registry.register(DEGREE_OF_OPENNESS)
+
+    # Resource handles (extracted module — see resource_handle_types.py)
+    load_resource_handle_types(registry)
 
     # Log statistics
     stats = registry.get_stats()

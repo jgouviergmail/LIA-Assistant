@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 4.1
-**Date** : 2026-07-30
-**Application** : LIA v1.27.2
+**Date** : 2026-07-31
+**Application** : LIA v1.27.3
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -346,6 +346,8 @@ Une fonctionnalité que personne ne trouve n'existe pas. C'est pourquoi l'atteig
 Une fonctionnalité qui échoue en silence n'existe pas davantage. Une génération interrompue juste avant la fin, un import bloqué par un répertoire devenu inaccessible, une connexion morte sans rien annoncer : trois causes sans rapport, un seul symptôme — il ne se passe rien. C'est le pire des signaux, parce qu'il ne désigne personne. Chaque défaut de cette nature est donc refermé par une garde qu'on a d'abord fait échouer volontairement : on casse ce qu'elle protège, on vérifie qu'elle rougit, et seulement alors on la conserve.
 
 Il y a plus insidieux qu'une garde qu'on n'a jamais fait échouer : une garde qui observe le mauvais signal. Trois en-têtes de l'interface se déclaraient fixes pendant le défilement, et aucun ne l'était — sur tous les écrans, depuis l'origine. Rien ne l'avait vu, parce qu'aucune vérification ne mesurait une position *pendant* un défilement : toutes observaient une page au repos, précisément l'état où le défaut n'existe pas. Corriger la cause n'était donc que la moitié du travail ; il a fallu ajouter la mesure qui manquait, puis rétablir l'ancien réglage pour vérifier qu'elle rougissait bel et bien.
+
+Plus retors encore qu'une garde mal orientée : un défaut qui ne se produit qu'une fois sur deux. La même demande échouait, puis passait trente minutes plus tard sans qu'une seule ligne n'ait changé — de quoi conclure « c'était passager » et refermer le dossier. La cause tenait à un détail invisible : le choix des outils se fait sur une reformulation anglaise produite par un modèle, régénérée à chaque tour. Un verbe différent, un outil de lecture qui disparaît, et l'assistant se retrouve à devoir répondre à un message sans pouvoir le lire. La tentation était d'ajuster ce hasard — un mot-clé de plus, un seuil déplacé. On a préféré une garantie qui ne le regarde pas : avant de planifier, le système vérifie que tout ce qu'il exige est réellement à sa portée. Quand une réponse dépend d'un tirage, la corriger consiste rarement à améliorer le tirage.
 
 ### 8.2. Une stack d'observabilité professionnelle
 

@@ -193,9 +193,7 @@ async def fetch_agenda(
         ConnectorNotConfiguredError: if no active calendar connector for the user.
         ConnectorAccessError: on credential resolution failure or HTTP error.
     """
-    from src.domains.connectors.preferences import ConnectorPreferencesService
-    from src.domains.connectors.preferences.resolver import resolve_calendar_name
-    from src.domains.connectors.repository import ConnectorRepository
+    from src.domains.connectors.preferences.owner_defaults import resolve_owner_calendar_id
 
     async with get_db_context() as db:
         connector_service = ConnectorService(db)
@@ -220,30 +218,11 @@ async def fetch_agenda(
             raise ConnectorNotConfiguredError("calendar")
         client = client_class(user.id, credentials, connector_service)
 
-        # Resolve the user's preferred default calendar (falls back to "primary").
-        # Mirrors the proven heartbeat ContextAggregator._fetch_calendar pattern.
-        calendar_id: str = "primary"
-        try:
-            repo = ConnectorRepository(db)
-            connector = await repo.get_by_user_and_type(user.id, resolved_type)
-            if connector and connector.preferences_encrypted:
-                default_name = ConnectorPreferencesService.get_preference_value(
-                    resolved_type.value,
-                    connector.preferences_encrypted,
-                    "default_calendar_name",
-                )
-                if default_name:
-                    calendar_id = await resolve_calendar_name(
-                        client=client,
-                        name=default_name,
-                        fallback="primary",
-                    )
-        except (ValueError, KeyError, AttributeError, TypeError) as exc:
-            logger.warning(
-                "briefing_calendar_preference_resolution_failed",
-                user_id=str(user.id),
-                error=str(exc),
-            )
+        # The user's preferred default calendar (falls back to "primary"),
+        # through the shared owner-default resolver.
+        calendar_id: str = await resolve_owner_calendar_id(
+            db=db, client=client, owner_id=user.id, connector_type=resolved_type
+        )
 
         now = datetime.now(UTC)
         try:
@@ -501,9 +480,7 @@ async def _resolve_tasks_client(user: User) -> tuple[Any, str]:
     Raises:
         ConnectorNotConfiguredError: if no active tasks connector.
     """
-    from src.domains.connectors.preferences import ConnectorPreferencesService
-    from src.domains.connectors.preferences.resolver import resolve_task_list_name
-    from src.domains.connectors.repository import ConnectorRepository
+    from src.domains.connectors.preferences.owner_defaults import resolve_owner_task_list_id
 
     async with get_db_context() as db:
         connector_service = ConnectorService(db)
@@ -518,19 +495,9 @@ async def _resolve_tasks_client(user: User) -> tuple[Any, str]:
             raise ConnectorNotConfiguredError("tasks")
         client = client_class(user.id, credentials, connector_service)
 
-        task_list_id = "@default"
-        try:
-            connector = await ConnectorRepository(db).get_by_user_and_type(user.id, resolved_type)
-            if connector and connector.preferences_encrypted:
-                default_name = ConnectorPreferencesService.get_preference_value(
-                    resolved_type.value, connector.preferences_encrypted, "default_task_list_name"
-                )
-                if default_name:
-                    task_list_id = await resolve_task_list_name(
-                        client=client, name=default_name, fallback="@default"
-                    )
-        except (ValueError, KeyError, AttributeError, TypeError) as exc:
-            logger.warning("briefing_tasks_preference_resolution_failed", error=str(exc))
+        task_list_id = await resolve_owner_task_list_id(
+            db=db, client=client, owner_id=user.id, connector_type=resolved_type
+        )
     return client, task_list_id
 
 

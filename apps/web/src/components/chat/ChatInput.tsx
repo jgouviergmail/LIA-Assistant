@@ -761,7 +761,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     <div
       role="presentation"
       className={cn(
-        'border-t bg-card px-4 py-4 sm:px-6 relative',
+        // Frosted glass, same material as the chat header (owner request
+        // 2026-07-30). The surface must live HERE: an opaque `bg-card` on this
+        // root covered any translucency the page wrapper tried to apply, which
+        // is why the effect kept not showing. Its counterpart is the composer
+        // being sticky INSIDE the scroll container — blur only renders what
+        // actually passes behind it.
+        'border-t border-border/30 bg-card/60 backdrop-blur-xl px-4 py-4 sm:px-6 relative',
         isDragOver && 'ring-2 ring-primary ring-inset bg-primary/5',
         className
       )}

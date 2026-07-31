@@ -104,33 +104,17 @@ async def _resolve_calendar_id(
 ) -> str:
     """Resolve the user's preferred default calendar id (falls back to primary).
 
-    Mirrors the proven briefing/heartbeat resolution so availability reflects the
+    Delegates to the shared owner-default resolver so availability reflects the
     user's real calendar (a non-primary default would otherwise read empty).
     """
-    from src.domains.connectors.preferences import ConnectorPreferencesService
-    from src.domains.connectors.preferences.resolver import resolve_calendar_name
-    from src.domains.connectors.repository import ConnectorRepository
+    from src.domains.connectors.preferences.owner_defaults import resolve_owner_calendar_id
 
-    try:
-        repo = ConnectorRepository(connector_service.db)
-        connector = await repo.get_by_user_and_type(user_id, resolved_type)
-        if connector and connector.preferences_encrypted:
-            default_name = ConnectorPreferencesService.get_preference_value(
-                resolved_type.value,
-                connector.preferences_encrypted,
-                "default_calendar_name",
-            )
-            if default_name:
-                return await resolve_calendar_name(
-                    client=client, name=default_name, fallback="primary"
-                )
-    except (ValueError, KeyError, AttributeError, TypeError) as exc:
-        logger.warning(
-            "telephony_availability_calendar_preference_failed",
-            user_id=str(user_id),
-            error=str(exc),
-        )
-    return "primary"
+    return await resolve_owner_calendar_id(
+        db=connector_service.db,
+        client=client,
+        owner_id=user_id,
+        connector_type=resolved_type,
+    )
 
 
 async def build_availability_summary(

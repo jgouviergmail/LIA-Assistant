@@ -42,6 +42,10 @@ class MockManifest:
     parameters: list[Any] = field(default_factory=list)
     outputs: list[Any] = field(default_factory=list)
     semantic_keywords: list[str] | None = None
+    # Declared on every real ToolManifest; the catalogue closure reads it to
+    # tell a source apart from a mutation. A mock without it silently bypassed
+    # the boundary under test.
+    tool_category: str | None = None
 
 
 @dataclass

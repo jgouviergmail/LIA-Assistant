@@ -187,6 +187,54 @@ class TestManifestSemanticTypesRegistered:
 
 
 @pytest.mark.unit
+class TestEveryRequiredHandleHasAReadOnlySource:
+    """A required semantic type nobody can READ is a dead end by construction.
+
+    The catalogue closure repairs a catalogue that merely *omitted* the source
+    of a required handle. It cannot invent one. A tool declaring a REQUIRED
+    parameter whose type no read-only tool produces is therefore unplannable in
+    every catalogue, whatever the scores — the exact shape of the 2026-07-30
+    incident, one step earlier in the chain.
+
+    Read-only is the operative word: ``send_email_tool`` outputs a
+    ``message_id`` too, and accepting a mutation as a source would let this
+    guard pass on a catalogue that still cannot run.
+    """
+
+    def test_required_semantic_types_are_all_sourceable(self, manifests: list[Any]) -> None:
+        from src.domains.agents.registry.catalogue import is_read_only_tool
+
+        sources: dict[str, set[str]] = {}
+        for manifest in manifests:
+            if not is_read_only_tool(manifest):
+                continue
+            for output in getattr(manifest, "outputs", None) or []:
+                semantic_type = getattr(output, "semantic_type", None)
+                if semantic_type:
+                    sources.setdefault(semantic_type, set()).add(manifest.name)
+
+        dead_ends: list[str] = []
+        for manifest in manifests:
+            for param in manifest.parameters or []:
+                semantic_type = getattr(param, "semantic_type", None)
+                if not semantic_type or not getattr(param, "required", False):
+                    continue
+                if not sources.get(semantic_type, set()) - {manifest.name}:
+                    dead_ends.append(
+                        f"{manifest.name} (param '{param.name}') requires "
+                        f"'{semantic_type}', which no read-only tool produces"
+                    )
+
+        assert not dead_ends, (
+            "Required semantic types with no read-only producer — the planner "
+            "can never obtain them, so no valid plan exists. Either annotate "
+            "the listing tool's output with the type, or drop the annotation "
+            "if the tool actually resolves the value itself (as the peer, hue "
+            "and wikipedia tools do):\n" + "\n".join(sorted(dead_ends))
+        )
+
+
+@pytest.mark.unit
 class TestTaxonomyTypeBridgeCoverage:
     """Each related_domains link should be justified by at least one type bridge.
 

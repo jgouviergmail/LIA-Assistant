@@ -653,6 +653,41 @@ SEARCH_CONTACTS_MANIFEST = ToolManifest(
 > annoter un path sans l'avoir vérifié contre le payload réel du tool — les
 > références Jinja s'exécutent dessus. Voir `docs/technical/AGENT_MANIFEST.md`.
 
+#### Paramètre obligatoire : la valeur est-elle un *handle* ? (ADR-183)
+
+Avant d'annoter un paramètre `required=True`, pose-toi **deux** questions. Il
+faut répondre oui aux deux pour que ce soit un handle :
+
+1. l'utilisateur peut-il **prononcer** cette valeur dans sa demande ?
+2. l'outil la **résout-il lui-même** à partir d'un libellé humain ?
+
+Un handle est une valeur dont la réponse est *non* aux deux : un identifiant
+opaque (`message_id` Gmail, `event_id`, un UUID d'automatisation). Un tel
+paramètre rend le catalogue **mal formé** s'il arrive au planner sans outil de
+lecture capable de produire ce type : aucun plan valide n'existe et le modèle
+invente un nom d'outil. La clôture du catalogue le répare automatiquement —
+**à condition que le tool de listing déclare la sortie correspondante**.
+
+```python
+# Le consommateur : un UUID, imprononçable, parsé strictement
+ParameterSchema(name="action_id", required=True, semantic_type="automation_id"),
+
+# Le producteur : SANS cette ligne, la clôture n'a rien à tirer
+OutputFieldSchema(path="automations[].id", semantic_type="automation_id"),
+```
+
+**Le piège inverse coûte cher** : annoter un paramètre que l'outil résout déjà
+gonfle les catalogues sans rien corriger. Mesuré sur ce dépôt — `peer_name`
+(résolu par `fold_name`), les `*_name_or_id` Hue (résolus par
+`_find_resource_by_name`) et les titres Wikipédia (prononçables) sont
+**délibérément non annotés**. Sur 51 paramètres obligatoires sans
+`semantic_type`, 44 le sont à juste titre.
+
+Un nouveau type de handle se déclare dans
+`semantic/resource_handle_types.py` (jamais dans `core_types.py`, gelé par le
+ratchet de taille). La garde `TestEveryRequiredHandleHasAReadOnlySource` échoue
+en CI si un type requis n'a aucune source en lecture seule.
+
 ### Semantic Keywords (ADR-048)
 
 Les `semantic_keywords` permettent la découverte sémantique des outils via OpenAI embeddings et max-pooling.

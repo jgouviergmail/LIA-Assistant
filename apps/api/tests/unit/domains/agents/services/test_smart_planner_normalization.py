@@ -161,20 +161,34 @@ class TestUnifiedToolNormalization:
         assert result == expected, f"{input_tool} should normalize to {expected}"
 
     @pytest.mark.parametrize(
-        "input_tool,domain",
+        "input_tool,domain,expected",
         [
-            # Tools WITH _tool suffix are returned as-is (no correction applied)
-            ("search_events_tool", "calendar"),
-            ("list_events_tool", "calendar"),
-            ("search_contacts_tool", "contacts"),
-            ("get_events_tool", "calendar"),  # Already correct
-            ("get_contacts_tool", "contacts"),  # Already correct
+            # A legacy name is repaired whether or not it carries the suffix.
+            ("search_events_tool", "calendar", "get_events_tool"),
+            ("list_events_tool", "calendar", "get_events_tool"),
+            ("search_contacts_tool", "contacts", "get_contacts_tool"),
+            # A current name is a no-op — the overwhelmingly common case.
+            ("get_events_tool", "calendar", "get_events_tool"),
+            ("get_contacts_tool", "contacts", "get_contacts_tool"),
         ],
     )
-    def test_tools_with_suffix_returned_as_is(self, planner, input_tool, domain):
-        """Tools already ending in _tool are returned unchanged."""
+    def test_a_suffixed_legacy_name_is_repaired_too(self, planner, input_tool, domain, expected):
+        """The suffix must not exempt a name from unification.
+
+        This test used to assert the opposite ("returned as-is"), which
+        contradicted this module's own premise that every search/list/details
+        tool is unified under ``get_*_tool``: ``search_files`` was corrected
+        but ``search_files_tool`` was not. Every key of the alias table ends in
+        ``_tool``, so the early return made all 24 corrections unreachable from
+        v1.0.0 onwards.
+
+        Production 2026-07-30: the planner emitted ``search_emails_tool``, the
+        validator answered NOT_FOUND (no manifest), and every email request
+        failed. The tool does exist in the execution registry — it simply has
+        no catalogue manifest, so nothing could run it in pipeline mode.
+        """
         result = planner._normalize_tool_name(input_tool, domain)
-        assert result == input_tool, f"{input_tool} should be returned as-is"
+        assert result == expected, f"{input_tool} should normalize to {expected}"
 
 
 class TestForEachMisplacementCorrection:

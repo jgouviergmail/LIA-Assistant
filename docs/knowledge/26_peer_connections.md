@@ -19,7 +19,9 @@ Per connection, you choose **read-only** shares:
 
 Nothing is shared by default. Both directions are visible to both sides in the Connections section, every access is re-checked at the moment of the read, and recorded in an **access log** you can consult. You can change or revoke a share at any time.
 
-Once a calendar is shared, you can simply ask LIA: *is Marie free tomorrow at 10?*
+Once a calendar is shared, you can simply ask LIA: *is Marie free tomorrow at 10?* LIA reads the calendar **Marie chose as her default** — not an arbitrary one — and gives you the hours on **your own clock**. All-day entries (a birthday, a reminder) are listed apart from real meetings, so they never make someone look busy all day.
+
+If the other person's own connection to their calendar has broken, LIA says exactly that — a temporary fault on their side — instead of claiming they share nothing.
 
 ## How do I block someone, and what do they notice?
 Block from the chat (under a relayed message) or from the Connections section, with a confirmation.

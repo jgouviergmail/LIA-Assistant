@@ -147,6 +147,38 @@ class RecoveryStrategy(str, Enum):
 # ============================================================================
 
 
+# Failure signatures whose cause is the PLAN, not the world around it: the
+# named tool does not exist, or the account may not use it. Replaying the same
+# plan reproduces them exactly, so they must never be reported as transient.
+#
+# Substring matching on the message is the only signal available here —
+# `StepAnalysis` carries `error: str | None`, not a typed code. Kept narrow and
+# lowercase-compared: an unrecognised failure keeps the historical benefit of
+# the doubt (a retry), which is the safe direction for this classifier.
+_PERMANENT_FAILURE_MARKERS: tuple[str, ...] = (
+    "manifest not found",
+    "not found in catalogue",
+    "missing required scopes",
+    "unauthorized",
+    "forbidden",
+)
+
+
+def _is_permanent_failure(error: str | None) -> bool:
+    """Whether re-running the identical plan would reproduce this failure.
+
+    Args:
+        error: Error text captured on the failed step (may be absent).
+
+    Returns:
+        True when the message matches a known plan-caused failure.
+    """
+    if not error:
+        return False
+    lowered = error.lower()
+    return any(marker in lowered for marker in _PERMANENT_FAILURE_MARKERS)
+
+
 @dataclass
 class StepAnalysis:
     """Analysis of a single executed step."""
@@ -632,17 +664,29 @@ class AdaptiveRePlanner:
         self,
         context: RePlanContext,
     ) -> tuple[RePlanDecision, RecoveryStrategy, str, str | None]:
-        """
-        Handle case where some steps failed with errors.
+        """Decide how to recover when some steps failed with errors.
 
-        Strategy: On first attempt, retry same plan (may be transient).
-        On second attempt, try skipping failed steps if optional.
+        Order matters: a failure whose cause IS the plan is settled first and
+        never reported as transient (see ``_permanent_failure_decision``).
+        Everything else falls back to the attempt-based strategy — retry the
+        same plan once, then treat the failed steps as skippable, then proceed
+        on partial results or abort.
+
+        Args:
+            context: Replan context (execution analysis, attempt number).
+
+        Returns:
+            (decision, strategy, reason, user-facing message or None).
         """
         analysis = context.execution_analysis
 
         # Collect failed step info
         failed_steps = [s for s in analysis.step_analyses if not s.success]
         failed_names = [s.tool_name for s in failed_steps if s.tool_name]
+
+        permanent_decision = self._permanent_failure_decision(failed_steps, failed_names)
+        if permanent_decision is not None:
+            return permanent_decision
 
         if context.replan_attempt == 0:
             # First attempt: the failure looks transient. NOTE: this decision is
@@ -684,6 +728,39 @@ class AdaptiveRePlanner:
                     operations=", ".join(failed_names)
                 ),
             )
+
+    @staticmethod
+    def _permanent_failure_decision(
+        failed_steps: list[StepAnalysis],
+        failed_names: list[str],
+    ) -> tuple[RePlanDecision, RecoveryStrategy, str, str | None] | None:
+        """Decide for failures a rerun cannot change, if any are present.
+
+        A failure whose cause IS the plan cannot be undone by replaying the
+        plan. Saying otherwise is not merely useless — it is the line an
+        operator reads while hunting the real cause (production 2026-07-30: a
+        plan named a tool with no manifest and this was reported as
+        "transient" on every attempt).
+
+        Args:
+            failed_steps: Steps that did not succeed.
+            failed_names: Tool names of those steps, for the message.
+
+        Returns:
+            The recovery tuple when at least one failure is permanent, else
+            None so the caller applies its attempt-based strategy.
+        """
+        permanent = [step for step in failed_steps if _is_permanent_failure(step.error)]
+        if not permanent:
+            return None
+        names = [step.tool_name for step in permanent if step.tool_name] or failed_names
+        return (
+            RePlanDecision.REPLAN_MODIFIED,
+            RecoveryStrategy.SKIP_OPTIONAL,
+            f"Steps {names} failed for a reason a retry cannot change "
+            f"(unknown tool or refused capability); the plan itself must differ.",
+            None,
+        )
 
     def _handle_reference_error(
         self,

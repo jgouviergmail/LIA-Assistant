@@ -17,9 +17,9 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents totaux | 400+ |
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
-| Runbooks | 40 |
-| ADRs | 172 (ADR-172 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 171 fichiers) |
-| Fiches knowledge (RAG système) | 25 |
+| Runbooks | 44 |
+| ADRs | 183 (ADR-183 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 182 fichiers) |
+| Fiches knowledge (RAG système) | 27 |
 
 ---
 
@@ -43,7 +43,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
 | [TELEPHONY.md](./technical/TELEPHONY.md) | Téléphonie agentique (appels sortants, ADR-127) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (179) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (183) |
 
 ### Pour les Product Managers
 
@@ -272,7 +272,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_SCHEDULED_ACTIONS.md](./guides/GUIDE_SCHEDULED_ACTIONS.md) | Guide pratique Actions Planifiees (recurrentes, timezone, retry) | ✅ |
 | [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) | Guide RAG Spaces (espaces de connaissances, upload, hybrid search) | ✅ |
 | [GUIDE_DEVOPS_CLAUDE_CLI.md](./guides/GUIDE_DEVOPS_CLAUDE_CLI.md) | Guide DevOps Claude CLI (remote server management, setup, security) | ✅ |
-| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (24 files, 200+ Q/A) | ✅ |
+| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (27 files, 200+ Q/A) | ✅ |
 
 ### Operations
 

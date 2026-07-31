@@ -782,8 +782,14 @@ export default function ChatPage() {
           this container, i.e. the composer, sits below the fold. `dvh` tracks
           the bar. The `vh` declaration stays as the fallback: unlike the
           `max-h` caps elsewhere, losing this one entirely would collapse the
-          flex column, so it degrades to the old behaviour rather than to none. */}
-      <div className="flex h-[calc(100vh-5.25rem)] supports-[height:100dvh]:h-[calc(100dvh-5.25rem)] gap-4">
+          flex column, so it degrades to the old behaviour rather than to none.
+
+          `--connector-banner-h` is the height of the connector-health banner
+          the dashboard layout may insert ABOVE this shell; it defaults to 0px,
+          so this arithmetic is unchanged whenever no banner is mounted. Without
+          it, a broken connector would push the composer below the fold — the
+          constant above cannot know about a block added after it was written. */}
+      <div className="flex h-[calc(100vh-5.25rem-var(--connector-banner-h,0px))] supports-[height:100dvh]:h-[calc(100dvh-5.25rem-var(--connector-banner-h,0px))] gap-4">
         {/* Main Chat Area */}
         <div
           className={`flex flex-col flex-1 bg-background rounded-xl border border-border/50 shadow-lg overflow-hidden ${showDebugPanel ? 'max-w-[calc(100%-420px)]' : ''}`}
@@ -794,7 +800,12 @@ export default function ChatPage() {
               fixed-height flex column — with the header as a sibling above the
               scroll area, nothing ever slid beneath it and the frosted glass
               stayed invisible. In here, bubbles genuinely scroll under it. */}
-          <div className="flex-1 overflow-y-auto chat-scrollbar">
+          {/* A flex COLUMN scroll container, so the composer below can be
+              `sticky bottom-0` and still behave on a short conversation: with
+              plain block flow a sticky footer only pins once the content
+              overflows, so two messages would leave it floating mid-card. The
+              growing middle fills the gap instead. */}
+          <div className="flex flex-1 flex-col overflow-y-auto chat-scrollbar">
             <div className="sticky top-0 z-20">
               {/* Frosted-glass header: translucent card + strong blur, no gradient. */}
               <div className="relative border-b border-border/30 bg-card/60 backdrop-blur-xl px-4 py-4 sm:px-6 shadow-sm">
@@ -977,68 +988,87 @@ export default function ChatPage() {
                   executes through the same send path as a typed message
                   (ADR-173), or prefills when the action needs the user's
                   own words. Renders nothing without a scoped selection. */}
-              <SelectionActions onExecute={sendMessageFromPresent} onPrefill={handleFollowupPick} />
-              <ChatMessageList
-                messages={displayedMessages}
-                isTyping={isTyping && !searchQuery}
-                activeStreamId={searchQuery ? null : activeStreamId}
-                streamPhase={streamPhase}
-                browserScreenshot={browserScreenshot}
-                // Scroll-up pagination — disabled while the user is searching
-                // (search filters client-side over already-loaded messages
-                // only, so a sentinel would conflate "no match in this page"
-                // with "more remote history exists").
-                hasMoreOlder={hasMoreOlder && !searchQuery}
-                isLoadingOlder={isLoadingOlder}
-                onLoadOlder={handleLoadOlder}
-                searchHighlight={highlightTerm}
-                // UXR Lot 3 (A3): floating return button — in history view it
-                // delegates to the QW-2 return-to-present page swap.
-                historyView={historyView}
-                onReturnToPresent={handleReturnToPresent}
-                ownSendTick={ownSendTick}
-                onRetry={handleRetry}
-                onPrefillComposer={handleFollowupPick}
-                // W8: an empty chat offers three ways in. Same rail as the
-                // follow-up chips — it prefills the composer, never sends.
-                onStarterPick={handleFollowupPick}
-              />
+              {/* `grow shrink-0`: takes the leftover height when the thread is
+                  short (which keeps the sticky composer at the bottom), and
+                  keeps its own content height when it is long (`shrink-0`, or
+                  a flex item would compress and clip the messages). */}
+              <div className="flex grow shrink-0 flex-col">
+                <SelectionActions
+                  onExecute={sendMessageFromPresent}
+                  onPrefill={handleFollowupPick}
+                />
+                <ChatMessageList
+                  messages={displayedMessages}
+                  isTyping={isTyping && !searchQuery}
+                  activeStreamId={searchQuery ? null : activeStreamId}
+                  streamPhase={streamPhase}
+                  browserScreenshot={browserScreenshot}
+                  // Scroll-up pagination — disabled while the user is searching
+                  // (search filters client-side over already-loaded messages
+                  // only, so a sentinel would conflate "no match in this page"
+                  // with "more remote history exists").
+                  hasMoreOlder={hasMoreOlder && !searchQuery}
+                  isLoadingOlder={isLoadingOlder}
+                  onLoadOlder={handleLoadOlder}
+                  searchHighlight={highlightTerm}
+                  // UXR Lot 3 (A3): floating return button — in history view it
+                  // delegates to the QW-2 return-to-present page swap.
+                  historyView={historyView}
+                  onReturnToPresent={handleReturnToPresent}
+                  ownSendTick={ownSendTick}
+                  onRetry={handleRetry}
+                  onPrefillComposer={handleFollowupPick}
+                  // W8: an empty chat offers three ways in. Same rail as the
+                  // follow-up chips — it prefills the composer, never sends.
+                  onStarterPick={handleFollowupPick}
+                />
+              </div>
             </RegistryProvider>
-          </div>
 
-          {/* Conditional surfaces between the thread and the composer, gated by
-              the S1 arbiter. Extracted as one element on purpose: four inline
-              branches here would grow this render hotspot past its complexity
-              cap, and the band is a subject of its own. */}
-          <ChatConditionalSurfaces
-            surfaces={chatSurfaces}
-            followupSuggestions={followupSuggestions}
-            onFollowupPick={handleFollowupPick}
-            currentMessage={currentMessage}
-            hitl={hitl}
-            onHitlAction={submitHitlDecision}
-            connectorNotices={connectorNotices}
-            onDismissConnectorNotice={dismissConnectorNotice}
-          />
+            {/* Frosted-glass footer, STICKY INSIDE the same scroll container as
+                the header (owner request 2026-07-30). The material only reads
+                as glass when something passes behind it, and as a sibling below
+                the scroll area nothing ever did — the exact reason the header
+                was moved in here. Same tokens as the header, so the two edges
+                of the thread are one material. */}
+            <div className="sticky bottom-0 z-20">
+              {/* Conditional surfaces between the thread and the composer, gated by
+                  the S1 arbiter. Extracted as one element on purpose: four inline
+                  branches here would grow this render hotspot past its complexity
+                  cap, and the band is a subject of its own. */}
+              <ChatConditionalSurfaces
+                surfaces={chatSurfaces}
+                followupSuggestions={followupSuggestions}
+                onFollowupPick={handleFollowupPick}
+                currentMessage={currentMessage}
+                hitl={hitl}
+                onHitlAction={submitHitlDecision}
+                connectorNotices={connectorNotices}
+                onDismissConnectorNotice={dismissConnectorNotice}
+              />
 
-          {/* Input Area - Enhanced with elevation */}
-          <div className="border-t border-border/40 bg-card/80 backdrop-blur-sm shadow-lg">
-            <ChatInput
-              initialMessage={resolveInitialMessage(searchParams, initialDraft)}
-              sentHistory={sentHistory}
-              prefill={chipPrefill}
-              slashCommands={slashCommands}
-              onLocalCommand={handleLocalCommand}
-              spotlightVoice={spotlightVoice}
-              onSendMessage={sendMessageFromPresent}
-              disabled={isTyping || isUsageBlocked}
-              isConnected={isConnected}
-              apiAvailable={apiAvailable && !isUsageBlocked}
-              onMessageChange={handleMessageChange}
-              attachmentsEnabled={appConfig?.features?.attachments_enabled ?? true}
-              isGenerating={isTyping}
-              onStopGeneration={stopGeneration}
-            />
+              {/* No background here: `ChatInput` owns the glass material (its
+                  own root used to paint an opaque `bg-card` over anything set
+                  at this level). This wrapper is positioning only. */}
+              <div className="shadow-sm">
+                <ChatInput
+                  initialMessage={resolveInitialMessage(searchParams, initialDraft)}
+                  sentHistory={sentHistory}
+                  prefill={chipPrefill}
+                  slashCommands={slashCommands}
+                  onLocalCommand={handleLocalCommand}
+                  spotlightVoice={spotlightVoice}
+                  onSendMessage={sendMessageFromPresent}
+                  disabled={isTyping || isUsageBlocked}
+                  isConnected={isConnected}
+                  apiAvailable={apiAvailable && !isUsageBlocked}
+                  onMessageChange={handleMessageChange}
+                  attachmentsEnabled={appConfig?.features?.attachments_enabled ?? true}
+                  isGenerating={isTyping}
+                  onStopGeneration={stopGeneration}
+                />
+              </div>
+            </div>
           </div>
         </div>
 

@@ -261,8 +261,10 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             GOOGLE_CALENDAR_DETAILS_FIELDS,
             GOOGLE_CALENDAR_REQUIRED_FIELDS,
         )
-        from src.domains.connectors.preferences.service import ConnectorPreferencesService
-        from src.domains.connectors.repository import ConnectorRepository
+        from src.domains.connectors.preferences.owner_defaults import (
+            CALENDAR_PREFERENCE,
+            read_owner_preference_name,
+        )
 
         # Resolve the query to a reliable attendee email or drop it (free-text
         # title/concept is list-and-filtered downstream — see helper).
@@ -324,22 +326,23 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
 
         # Resolve default calendar from user preferences if not explicitly specified
         if not calendar_id_input or calendar_id_input == "primary":
+            # NAME only — this path feeds the value into its own name→id
+            # resolution a few lines below, so resolving here would do the
+            # work twice. Hence the preference READER, not the full resolver.
             try:
-                repo = ConnectorRepository(client.connector_service.db)
-                connector = await repo.get_by_user_and_type(user_id, client.connector_type)
-                if connector and connector.preferences_encrypted:
-                    default_name = ConnectorPreferencesService.get_preference_value(
-                        client.connector_type.value,
-                        connector.preferences_encrypted,
-                        "default_calendar_name",
+                default_name = await read_owner_preference_name(
+                    client.connector_service.db,
+                    user_id,
+                    client.connector_type,
+                    CALENDAR_PREFERENCE,
+                )
+                if default_name:
+                    calendar_id_input = default_name
+                    logger.debug(
+                        "calendar_search_using_default_preference",
+                        default_calendar_name=default_name,
+                        user_id=str(user_id),
                     )
-                    if default_name:
-                        calendar_id_input = default_name
-                        logger.debug(
-                            "calendar_search_using_default_preference",
-                            default_calendar_name=default_name,
-                            user_id=str(user_id),
-                        )
             except (ValueError, KeyError, AttributeError, TypeError) as e:
                 logger.warning("calendar_preference_resolution_failed", error=str(e))
 
@@ -620,9 +623,7 @@ class GetEventDetailsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             GOOGLE_CALENDAR_DETAILS_FIELDS,
             GOOGLE_CALENDAR_REQUIRED_FIELDS,
         )
-        from src.domains.connectors.preferences.resolver import resolve_calendar_name
-        from src.domains.connectors.preferences.service import ConnectorPreferencesService
-        from src.domains.connectors.repository import ConnectorRepository
+        from src.domains.connectors.preferences.owner_defaults import resolve_owner_calendar_id
 
         # Apply default fields and ensure required fields are always included
         # IMPORTANT: Always include "summary" to ensure event titles are displayed
@@ -632,22 +633,12 @@ class GetEventDetailsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
                 fields_to_use = [required_field] + list(fields_to_use)
 
         # Resolve default calendar from user preferences
-        calendar_id = "primary"
-        try:
-            repo = ConnectorRepository(client.connector_service.db)
-            connector = await repo.get_by_user_and_type(user_id, client.connector_type)
-            if connector and connector.preferences_encrypted:
-                default_name = ConnectorPreferencesService.get_preference_value(
-                    client.connector_type.value,
-                    connector.preferences_encrypted,
-                    "default_calendar_name",
-                )
-                if default_name:
-                    calendar_id = await resolve_calendar_name(
-                        client, default_name, fallback="primary"
-                    )
-        except (ValueError, KeyError, AttributeError, TypeError) as e:
-            logger.warning("calendar_preference_resolution_failed", error=str(e))
+        calendar_id = await resolve_owner_calendar_id(
+            db=client.connector_service.db,
+            client=client,
+            owner_id=user_id,
+            connector_type=client.connector_type,
+        )
 
         result = await client.get_event(
             event_id=event_id, calendar_id=calendar_id, fields=fields_to_use
@@ -691,9 +682,7 @@ class GetEventDetailsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             GOOGLE_CALENDAR_DETAILS_FIELDS,
             GOOGLE_CALENDAR_REQUIRED_FIELDS,
         )
-        from src.domains.connectors.preferences.resolver import resolve_calendar_name
-        from src.domains.connectors.preferences.service import ConnectorPreferencesService
-        from src.domains.connectors.repository import ConnectorRepository
+        from src.domains.connectors.preferences.owner_defaults import resolve_owner_calendar_id
 
         # Apply default fields
         fields_to_use = fields if fields else GOOGLE_CALENDAR_DETAILS_FIELDS
@@ -702,22 +691,12 @@ class GetEventDetailsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
                 fields_to_use = [required_field] + list(fields_to_use)
 
         # Resolve default calendar from user preferences
-        calendar_id = "primary"
-        try:
-            repo = ConnectorRepository(client.connector_service.db)
-            connector = await repo.get_by_user_and_type(user_id, client.connector_type)
-            if connector and connector.preferences_encrypted:
-                default_name = ConnectorPreferencesService.get_preference_value(
-                    client.connector_type.value,
-                    connector.preferences_encrypted,
-                    "default_calendar_name",
-                )
-                if default_name:
-                    calendar_id = await resolve_calendar_name(
-                        client, default_name, fallback="primary"
-                    )
-        except (ValueError, KeyError, AttributeError, TypeError) as e:
-            logger.warning("calendar_preference_resolution_failed", error=str(e))
+        calendar_id = await resolve_owner_calendar_id(
+            db=client.connector_service.db,
+            client=client,
+            owner_id=user_id,
+            connector_type=client.connector_type,
+        )
 
         # Fetch all events in parallel
         async def fetch_single(eid: str) -> tuple[str, dict[str, Any] | None, str | None]:
@@ -1678,9 +1657,8 @@ async def _resolve_calendar_id(
     Returns:
         Resolved calendar ID string (default "primary").
     """
+    from src.domains.connectors.preferences.owner_defaults import resolve_owner_calendar_id
     from src.domains.connectors.preferences.resolver import resolve_calendar_name
-    from src.domains.connectors.preferences.service import ConnectorPreferencesService
-    from src.domains.connectors.repository import ConnectorRepository
 
     draft_calendar_id = draft_content.get("calendar_id")
     calendar_id = "primary"
@@ -1692,22 +1670,13 @@ async def _resolve_calendar_id(
         else:
             calendar_id = await resolve_calendar_name(client, draft_calendar_id, fallback="primary")
     else:
-        try:
-            connector_service = await deps.get_connector_service()
-            repo = ConnectorRepository(connector_service.db)
-            connector = await repo.get_by_user_and_type(user_id, resolved_type)
-            if connector and connector.preferences_encrypted:
-                default_name = ConnectorPreferencesService.get_preference_value(
-                    resolved_type.value,
-                    connector.preferences_encrypted,
-                    "default_calendar_name",
-                )
-                if default_name:
-                    calendar_id = await resolve_calendar_name(
-                        client, default_name, fallback="primary"
-                    )
-        except (ValueError, KeyError, AttributeError, TypeError) as e:
-            logger.warning("calendar_preference_resolution_failed", error=str(e))
+        connector_service = await deps.get_connector_service()
+        calendar_id = await resolve_owner_calendar_id(
+            db=connector_service.db,
+            client=client,
+            owner_id=user_id,
+            connector_type=resolved_type,
+        )
 
     return calendar_id
 

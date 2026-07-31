@@ -223,12 +223,17 @@ export function BriefingCard<T extends SectionData>({
       <div className="relative flex flex-col h-[280px] p-5 sm:p-6 gap-4">
         {/* Header: icon badge (primary chrome) + title + timestamp + refresh — FIXED */}
         <div className="flex items-start justify-between gap-3 shrink-0">
-          <div className="flex items-baseline gap-3 min-w-0">
+          {/* `items-center`, not `items-baseline`: the badge is a 40 px square
+              and the title a single line, so baseline alignment sat the text
+              low against it and needed a `self-center` correction on the icon
+              to look almost right. Centring the row aligns title and freshness
+              badge on the icon's axis, which is what it always meant to do. */}
+          <div className="flex items-center gap-3 min-w-0">
             <div
               className={cn(
                 'flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20',
                 'transition-transform duration-300',
-                'motion-safe:group-hover:scale-110 motion-safe:group-hover:rotate-3 self-center',
+                'motion-safe:group-hover:scale-110 motion-safe:group-hover:rotate-3',
                 iconColorClass
               )}
               aria-hidden="true"

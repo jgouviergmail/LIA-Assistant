@@ -3,8 +3,8 @@
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
 **Version**: 1.1
-**Datum**: 2026-07-30
-**Anwendung**: LIA v1.27.2
+**Datum**: 2026-07-31
+**Anwendung**: LIA v1.27.3
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---

@@ -574,6 +574,48 @@ This list is built once per request by `build_request_tool_manifests(registry)` 
 2. **By DOMAIN** : contacts, emails, calendar, etc.
 3. **By CONTEXT** : context tools si reference turn
 
+### Closure — le catalogue doit permettre l'existence d'un plan valide (ADR-183)
+
+> **Fichier**: [closure.py](../../apps/api/src/domains/agents/services/catalogue/closure.py)
+> **Appelée par**: `NormalFilteringStrategy._apply_closure`, sur le jeu **final** (après `max_tools`)
+
+Le filtrage sémantique note les outils contre `intelligence.english_query` — une
+paraphrase anglaise **régénérée à chaque tour par un LLM à `temperature: 0.2`**
+([router_node_v3.py:222](../../apps/api/src/domains/agents/nodes/router_node_v3.py#L222)).
+La même demande peut donc produire deux catalogues différents. En production
+(2026-07-30), « Summarize the email titled… » a exclu `get_emails_tool` à 0,010
+tandis que « Find the email titled… » l'a gardé : le planner recevait
+`reply_email_tool` — dont `message_id` est `required=True` — sans aucun outil
+capable de produire un `message_id`. **L'espace des plans valides était vide.**
+
+La règle, structurelle et indépendante de la requête :
+
+> Un catalogue est **CLOS** quand chaque type sémantique REQUIS par un outil
+> qu'il contient est PRODUIT par un **autre** outil qu'il contient.
+
+Deux conditions rendent la règle correcte — sans elles, elle serait un no-op sur
+l'incident qui l'a motivée :
+
+| Règle | Pourquoi |
+|---|---|
+| Un outil ne se satisfait jamais lui-même | `reply_email_tool` consomme un `message_id` **et** en produit un (celui qu'il vient d'envoyer) |
+| Un fournisseur doit être en **lecture seule** (`is_read_only_tool`) | `send_email_tool` produit aussi un `message_id` et *était* dans le catalogue en échec ; on ne déclenche pas un effet de bord pour découvrir un identifiant |
+
+Propriétés : **un** fournisseur par type requis (croissance mesurée +1, bornée à
++2), départage déterministe (même domaine → meilleur score → nom), le score ne
+sert plus qu'à *classer* entre fournisseurs et jamais à n'en garder aucun.
+L'arbitrage de `max_tools` évince le remplissage le moins bien noté, **jamais**
+l'unique outil d'un domaine, et journalise (`catalogue_closure_capped`) tout
+ajout abandonné. Toute exception dégrade le catalogue, ne casse jamais la requête.
+
+**Limite énoncée** : la clôture garantit qu'une source est *déclarée*, pas qu'un
+ordre d'exécution existe (deux outils exigeant mutuellement ce que l'autre
+produit resteraient bloqués au moment du plan). Aucun manifest ne déclare un tel
+cycle aujourd'hui ; `MAX_CLOSURE_ROUNDS` borne la résolution.
+
+Garde CI : `TestEveryRequiredHandleHasAReadOnlySource` — aucun type requis ne
+peut être introduit sans source en lecture seule.
+
 ### API Principale
 
 ```python
