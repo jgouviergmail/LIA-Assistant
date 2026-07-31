@@ -20,22 +20,22 @@
  * - providers: ProviderType Literal in infrastructure/llm/providers/adapter.py
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
  * - metrics: Prometheus metric definitions across src/ — re-measured 2026-07-31
- *   (v1.27.3): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 463,
- *   including the two ADR-182 counters (peer_domain_correction_total,
- *   oauth_health_notification_skipped_total).
+ *   (v1.27.4): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 464,
+ *   the ADR-184 counter (planner_parameter_bounds_corrections_total) over the
+ *   463 of v1.27.3.
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured at v1.27.3: backend 17,025 collected (+217 over v1.27.2 —
- *   ADR-182 peer routing/summaries/owner-defaults, the honest-failure
- *   directive, and the ADR-183 catalogue-closure suites), frontend 4,269
- *   (+19, connector-health banner and shortcut editing) = 21,294 → 21,000
- *   (the rounded display is unchanged since v1.27.2).
+ *   Re-measured at v1.27.4: backend 17,089 collected (+64 over v1.27.3 — the
+ *   ADR-184 manifest-bound clamp, catalogue bound publication, configured
+ *   batch size and verdict × execution matrix), frontend 4,269 (unchanged,
+ *   no frontend behaviour in this release) = 21,358 → 21,000 (the rounded
+ *   display is unchanged since v1.27.2).
  *   Re-measure every release: the value carried the backend count alone
  *   until v1.25.9.
- * - adrs: docs/architecture/ ADR files (182 files, numbered up to ADR-183 —
- *   ADR-008 has no separate file, so 183 numbers map to 182 files).
+ * - adrs: docs/architecture/ ADR files (183 files, numbered up to ADR-184 —
+ *   ADR-008 has no separate file, so 184 numbers map to 183 files).
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   190 headings at v1.27.3, no Unreleased pending.
+ *   191 headings at v1.27.4, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -49,11 +49,11 @@ export const LANDING_STATS = {
   tools: 86,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 463,
+  metrics: 464,
   uiLanguages: 6,
   tests: 21000,
-  adrs: 182,
-  releases: 190,
+  adrs: 183,
+  releases: 191,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

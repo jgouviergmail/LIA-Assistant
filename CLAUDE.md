@@ -291,6 +291,13 @@ These rules close recurring bug classes identified by the 2026-07 full-codebase 
 - Backend user-visible strings go through the central i18n mechanisms (`core.i18n_*`, `APIMessages`, `HitlMessages`, `i18n_drafts`) — never inline French (or any language) in Python, **including fallbacks, parameter defaults, and LLM scaffolding around versioned prompts**. All 6 languages, zh included.
 - Chinese has TWO canonical codes by layer: **backend canonical is `zh-CN`** (`User.language`, `SUPPORTED_LANGUAGES`, all backend i18n table keys), **frontend canonical is `zh`** (URL locales, `apps/web/locales/zh/`). Never key a backend table on `zh` (it would break the nominal path) and never do ad-hoc normalization (`language[:2]`…): route every raw locale through the single chokepoint `normalize_language` (`core/i18n.py`), which maps any variant (`zh`, `zh_CN`, `fr-FR`…) to the backend-canonical code.
 - Prompt text — including few-shot examples and system scaffolding — lives in versioned files under `prompts/v1/`, loaded via `load_prompt()`. Never inline prompt fragments in `.py`.
+- A prompt never carries a **tunable numeric value** in prose: it reads it from settings via a placeholder (model: `{semantic_broad_batch}` in `smart_planner_prompt.txt`, ADR-184). A number written in a prompt cannot be reconciled with the limit some other layer enforces — and the model gets blamed for obeying.
+
+### Constraints & verdicts
+
+- A constraint the system **enforces** must be **published** to whoever produces the value. `_manifest_to_dict` enforces this for the planner catalogue (`min`/`max` on every bounded parameter); an enforced-but-hidden bound is not a contract, it is a trap (ADR-184: `max_results` capped at 10 while the planner only ever saw `required: false`). Whatever a validator can reject, its producer must be able to read.
+- What is **mechanically repairable** is repaired before validation, never reported as a defect: out-of-bounds numeric parameters are clamped in `SmartPlannerService._build_plan` (`planner/parameter_bounds.py`), same doctrine as the `for_each_max` auto-correction next to it. What cannot be repaired without inventing intent (`pattern`, `enum`, wrong types) stays a real error the validator must keep reporting.
+- **A validation verdict is not a failure.** `route_from_planner` never reads `is_valid` — a rejected plan executes unchanged and usually succeeds. Nothing may tell the user an operation was blocked on the strength of a verdict alone: the claim requires the capability to have actually produced nothing (`executed_tool_names` in `plan_blockers.py`, ADR-184). Reporting a stale verdict as a failure is the same invented diagnosis ADR-182 removed, pointing the other way.
 
 ### Tools
 
@@ -409,6 +416,6 @@ When working with settings-driven thresholds in tests (e.g. `mcp_user_max_server
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
-- ADR index (183 architectural decisions, ADR-183 latest): `docs/architecture/ADR_INDEX.md`
+- ADR index (184 architectural decisions, ADR-184 latest): `docs/architecture/ADR_INDEX.md`
 - CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
 - 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`

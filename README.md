@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.27.3</strong> — <strong>The answer says what it knows — and reads it from the right data.</strong> A question as plain as "is Jérôme free tomorrow at 10?" crossed <strong>four stacked defects</strong>, each hiding the next: the peer's connector was broken and nobody knew, routing was a coin toss between the <code>peer</code> domain and the asker's own calendar, the slots that were read never reached the model that writes, and the read targeted the <code>primary</code> calendar while the agenda lived in a named one. Each is fixed at its root and pinned by tests (ADR-182). Along the way: a plan the validator refuses no longer lets the model <strong>invent</strong> a diagnosis; a broken connector becomes <strong>permanently visible</strong> to its owner; and the owner-default resolution, written out at <strong>ten call sites</strong>, becomes a single helper. <strong>And one failure that only happened half the time.</strong> "Summarise this email and draft a reply" failed, then succeeded thirty minutes later with nothing changed: tool selection scores keywords against an English paraphrase <strong>an LLM rewrites on every turn</strong>, so "Summarize" or "Find" decided whether the email-reading tool survived. The planner was then handed "reply to an email" with no way to read one — <strong>no valid plan existed before the model even started</strong>. The fix does not tune the randomness, it steps over it: a catalogue is <strong>closed</strong> when every required datum a tool cannot invent has another tool able to supply it (ADR-183) — a linker resolving undefined symbols, not a search guessing. <strong>17,025 backend</strong> + <strong>4,269 frontend</strong> tests, all six languages. — 31 July 2026.
+  <strong>Version 1.27.4</strong> — <strong>A limit you enforce must be a limit you publish — and a refused plan is not a failure.</strong> "Give me my last 3 emails" answered that the retrieval <em>had been blocked by a limit</em> and that the user should go check their email connector. The ten emails were already there — fetched, complete, sitting in the model's own context as it wrote that sentence — and the connector was healthy. Twelve consecutive production requests pinned it: asking for <strong>3</strong> broke three times out of four, asking for 2, 4 or 5 never did. <strong>The bound was enforced but never published.</strong> The catalogue handed to the planner described <code>max_results</code> as a plain optional integer, with neither its cap nor even the description that names it, while the manifest capped it at 10 — and the prompt ordered a batch of "20–50" written in prose, its literal example being <em>"the 3 most important emails"</em>. The model obeyed the only instruction it had, against a limit it had no way to know, and the validator punished it for obeying. A bound that is enforced but hidden is not a contract, it is a trap: it is now published, and the batch size comes from a setting instead of a number written in a sentence (ADR-184). Verified against three successive caps — 10, 20, 5 — the planner asks for exactly what the catalogue announces. <strong>And the verdict no longer convicts.</strong> A refused plan runs anyway (routing never read that verdict) and usually succeeds, the tool clamping the offending value itself; since v1.27.3 the honesty layer nonetheless read "blocked" and announced a failure — ADR-182's own fix turned against itself. A capability is declared blocked only when it produced <strong>nothing</strong>. <strong>17,089 backend</strong> + <strong>4,269 frontend</strong> tests, all six languages. — 31 July 2026.
 
 </p>
 
@@ -115,7 +115,7 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **36** functional domains | **497,000** lines of code (excl. tests) | **21,000+** automated tests | **181** ADRs                                                           |
+| **36** functional domains | **497,000** lines of code (excl. tests) | **21,000+** automated tests | **183** ADRs                                                           |
 | **189** versions shipped  | **6 languages**, parity enforced in CI  | **447** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
@@ -911,12 +911,12 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md)   | Complete development workflow                             |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent                                 |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md)   | How to create a new tool                                  |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~16,808 backend tests across 902 files) |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~17,089 backend tests across 919 files) |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md)           | LangGraph and log debugging                               |
 
 ### Architecture Decision Records (ADR)
 
-182 ADR files (ADR-001 through ADR-183 — ADR-008 has no separate file) documenting major architectural decisions:
+183 ADR files (ADR-001 through ADR-184 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

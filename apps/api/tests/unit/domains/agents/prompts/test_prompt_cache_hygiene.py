@@ -94,7 +94,10 @@ ALLOWED_BEFORE_MARKER: dict[str, frozenset[str]] = {
     # Personality block in the static header; stable per user.
     "hitl_draft_critique_prompt": frozenset({"personnalite"}),
     # Registry-derived, invariant at runtime for a given deployment.
-    "smart_planner_prompt": frozenset({"result_keys_list"}),
+    # `semantic_broad_batch` is settings-driven and equally invariant: it
+    # replaced a hardcoded "20–50" that no tool bound could contradict
+    # (production 2026-07-31). One value per deployment fragments nothing.
+    "smart_planner_prompt": frozenset({"result_keys_list", "semantic_broad_batch"}),
     # Settings-driven cap, invariant at runtime for a given deployment.
     "initiative_prompt": frozenset({"max_actions"}),
     # Personality block in the static header; stable per user.

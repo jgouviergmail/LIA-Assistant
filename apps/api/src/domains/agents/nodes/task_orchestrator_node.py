@@ -53,6 +53,7 @@ from src.core.config import settings
 from src.core.field_names import FIELD_METADATA, FIELD_RUN_ID
 from src.domains.agents.constants import (
     STATE_KEY_AGENT_RESULTS,
+    STATE_KEY_COMPLETED_STEPS,
     STATE_KEY_CURRENT_TURN_ID,
     STATE_KEY_EXECUTION_PLAN,
     STATE_KEY_FOR_EACH_HITL_CTX,
@@ -1372,7 +1373,9 @@ async def _handle_execution_plan(
             STATE_KEY_EXECUTION_PLAN: execution_plan,  # Preserve for observability
             STATE_KEY_AGENT_RESULTS: cleaned_agent_results,
             STATE_KEY_ROUTING_HISTORY: cleaned_routing_history,
-            "completed_steps": completed_steps,  # Preserve for debugging
+            # Read back by the response node to weigh a stale validation
+            # verdict against what the turn actually ran.
+            STATE_KEY_COMPLETED_STEPS: completed_steps,
         }
 
         # CRITICAL FIX: Update last_action_turn_id for context reference resolution

@@ -118,6 +118,23 @@ The display itself is alive: past steps dim while the current one gently pulses,
 
 On an empty conversation, LIA greets you according to the time of day — ☕ in the morning, 👋 during the day, 🌛 in the evening, and 😴 at night while it consolidates its memories. And on the other dashboard pages, a small floating companion keeps LIA present: it rests as the current mood, starts "thinking" when a background run is working, and shows a badge when notifications are waiting — click it to jump back to the chat.
 
+## What does it mean when LIA says it could not do something?
+It means the system **knows** a capability was unavailable and is telling you exactly which one — never a guess.
+
+**What LIA will say:**
+• The **specific capability** that could not run (reading your calendar, sending an email…)
+• **Why**, at the level that matters to you: not connected, not authorized, a limit reached, a detail missing from the request
+• **What would unblock it**, once, calmly — usually a connector to reconnect in Settings
+
+**What LIA will never say:**
+• That *nothing* is configured, when only one capability was affected
+• That **you** did something wrong — the fault may well be on our side, and from where the answer is written that is indistinguishable
+• A made-up result presented as if the step had run
+
+**Partial results are shown as partial.** When one capability fails while another works, LIA presents what it did obtain and names what was missing, instead of announcing a total failure.
+
+**And a refusal is never announced when something did work.** Internally, a plan can be flagged by the validator and still run correctly — the value that bothered the validator is brought back within the allowed range before execution. A failure is reported only when a capability genuinely produced nothing, so a working request is never described as a blocked one.
+
 ## How do I get better results with LIA?
 Here are the **best practices** for communicating with LIA:
 

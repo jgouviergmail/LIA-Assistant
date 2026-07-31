@@ -21,13 +21,26 @@ belongs to the silence, not to the error code, so every ``ToolErrorCode`` the
 validator can emit produces the same honest report — including codes with no
 explicit mapping, which degrade to "blocked, cause unnamed" rather than to
 nothing.
+
+Second measurement, 2026-07-31 (request 83c98053), which added the execution
+filter below: the validator rejected ``max_results=20`` against a cap of 10,
+the step ran anyway, ten emails reached the registry — and the answer told the
+user the retrieval "had been blocked by a limit" and sent them to check their
+email connector. The verdict was stale by the time it was read.
+
+The verdict alone cannot mean "blocked", because nothing acts on it: the router
+never reads ``is_valid`` and executes rejected plans unchanged. So a blocker is
+only real for a capability that produced nothing — which is exactly what the
+founding defect looked like, and exactly what this one did not.
 """
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from dataclasses import dataclass
-from typing import Final
+from typing import Any, Final
 
+from src.domains.agents.orchestration.plan_schemas import ExecutionPlan, StepType
 from src.domains.agents.orchestration.validator import ValidationResult
 from src.domains.agents.tools.common import ToolErrorCode
 
@@ -77,7 +90,47 @@ class PlanBlocker:
     reason: str
 
 
-def summarize_plan_blockers(validation_result: object | None) -> list[PlanBlocker]:
+def executed_tool_names(
+    execution_plan: object | None,
+    completed_steps: object | None,
+) -> frozenset[str]:
+    """Names of the tools that actually ran and returned during this turn.
+
+    A step is counted as executed when the orchestrator stored a result for it
+    that is not an explicit failure. Returning zero items counts: an empty
+    answer is still an answer, and calling it "blocked" is a different claim.
+
+    Args:
+        execution_plan: ``ExecutionPlan`` from state — it holds the only
+            step_id → tool_name mapping (``completed_steps`` is keyed by
+            step_id alone). FOR_EACH expansions are aggregated back under the
+            original step_id by the executor, so this mapping stays complete.
+        completed_steps: ``{step_id: result}`` written by the task
+            orchestrator.
+
+    Returns:
+        The executed tool names, empty whenever either input is absent or came
+        back from a msgpack round-trip in an unexpected shape. Empty is the
+        safe default: it restores the pre-existing behaviour of reporting every
+        blocker, never the reverse.
+    """
+    if not isinstance(execution_plan, ExecutionPlan) or not isinstance(completed_steps, dict):
+        return frozenset()
+
+    executed: set[str] = set()
+    for step in execution_plan.steps:
+        if step.step_type != StepType.TOOL or not step.tool_name:
+            continue
+        outcome: Any = completed_steps.get(step.step_id)
+        if isinstance(outcome, dict) and outcome.get("success") is not False:
+            executed.add(step.tool_name)
+    return frozenset(executed)
+
+
+def summarize_plan_blockers(
+    validation_result: object | None,
+    executed_tools: Collection[str] = (),
+) -> list[PlanBlocker]:
     """Reduce a validation verdict to the capabilities that were blocked.
 
     Args:
@@ -89,18 +142,32 @@ def summarize_plan_blockers(validation_result: object | None) -> list[PlanBlocke
             isinstance check below is what makes that harmless (and narrows the
             type for everything after it) instead of raising inside the
             response node, where an exception costs the whole answer.
+        executed_tools: Tools that ran despite the verdict, from
+            :func:`executed_tool_names`. A rejected plan is executed unchanged
+            — the router never reads ``is_valid`` — so a capability that
+            produced a result was demonstrably not blocked, whatever the
+            verdict says about it. Defaults to empty, which keeps every
+            blocker for callers that have no execution knowledge.
 
     Returns:
         One blocker per distinct blocked tool, capped and order-preserved.
-        Empty when the plan was valid, absent, or not a live verdict.
+        Empty when the plan was valid, absent, not a live verdict, or when
+        every rejected capability ended up running.
     """
     if not isinstance(validation_result, ValidationResult) or validation_result.is_valid:
         return []
 
+    executed = frozenset(executed_tools)
     blockers: list[PlanBlocker] = []
     seen: set[str | None] = set()
     for issue in validation_result.errors:
         if issue.severity != "error" or issue.tool_name in seen:
+            continue
+        # The capability ran: reporting it as blocked is the defect, not the
+        # fix. A plan-level rejection (no tool named) is silenced as soon as
+        # anything ran at all — "the plan itself was blocked" cannot be true
+        # of a plan that produced data.
+        if issue.tool_name in executed or (issue.tool_name is None and executed):
             continue
         seen.add(issue.tool_name)
         blockers.append(

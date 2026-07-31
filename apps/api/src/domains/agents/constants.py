@@ -270,6 +270,9 @@ STATE_KEY_PLANNER_ERROR = (
     "planner_error"  # Phase 5: Planner error/warning for streaming to frontend
 )
 STATE_KEY_VALIDATION_RESULT = "validation_result"  # Phase 8: ValidationResult from planner
+# {step_id: result} written by the task orchestrator — the only record of what
+# the turn actually ran, and the counterweight to a stale validation verdict.
+STATE_KEY_COMPLETED_STEPS = "completed_steps"
 STATE_KEY_SEMANTIC_VALIDATION = "semantic_validation"  # Phase 2 OPTIMPLAN: SemanticValidationResult
 STATE_KEY_CLARIFICATION_RESPONSE = "clarification_response"  # Phase 2 OPTIMPLAN: User clarification
 STATE_KEY_CLARIFICATION_FIELD = (

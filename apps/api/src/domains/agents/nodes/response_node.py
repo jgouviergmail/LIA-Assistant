@@ -53,6 +53,7 @@ from src.domains.agents.constants import (
     LOGGING_SUMMARY_PREVIEW_CHARS,
     RESPONSE_MAX_ERRORS_DISPLAY,
     STATE_KEY_AGENT_RESULTS,
+    STATE_KEY_COMPLETED_STEPS,
     STATE_KEY_CURRENT_TURN_ID,
     STATE_KEY_EXECUTION_PLAN,
     STATE_KEY_MESSAGES,
@@ -103,6 +104,7 @@ from src.domains.agents.prompts import (
 )
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.services.plan_blockers import (
+    executed_tool_names,
     format_plan_blockers,
     summarize_plan_blockers,
 )
@@ -2563,9 +2565,19 @@ def _build_response_chain(
     # contacts ni d'agenda n'est configuré", said three times, all false).
     # Never overrides an explicit user rejection/cancellation above: those are
     # decisions the user made, this is a failure they must hear about.
+    # The verdict is weighed against what the turn actually ran: a rejected
+    # plan is executed unchanged, so a capability that produced data was not
+    # blocked — reporting it as such is the same lie in the other direction
+    # (2026-07-31: ten emails in the registry, "retrieval was blocked").
     if not rejection_override:
         blocked_capabilities = format_plan_blockers(
-            summarize_plan_blockers(state.get(STATE_KEY_VALIDATION_RESULT))
+            summarize_plan_blockers(
+                state.get(STATE_KEY_VALIDATION_RESULT),
+                executed_tool_names(
+                    state.get(STATE_KEY_EXECUTION_PLAN),
+                    state.get(STATE_KEY_COMPLETED_STEPS),
+                ),
+            )
         )
         if blocked_capabilities:
             rejection_override = load_prompt(

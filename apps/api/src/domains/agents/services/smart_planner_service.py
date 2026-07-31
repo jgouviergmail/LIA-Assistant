@@ -41,6 +41,7 @@ from src.domains.agents.semantic.expansion_service import (
     generate_semantic_dependencies_for_prompt,
 )
 from src.domains.agents.services.planner.human_message import build_planner_human_message
+from src.domains.agents.services.planner.parameter_bounds import clamp_parameters_to_manifest
 from src.domains.agents.services.planner.planning_result import PlanningResult
 from src.domains.agents.services.smart_catalogue_service import (
     FilteredCatalogue,
@@ -1501,6 +1502,18 @@ class SmartPlannerService:
                     tool_name=normalized_tool_name,
                     timeout_seconds=step_timeout,
                 )
+
+            # ================================================================
+            # CATALOGUE BOUNDS (defensive programming - always enabled)
+            # The model writes values the manifest may already forbid. Left
+            # alone, the validator marks the whole plan invalid for a defect
+            # the tool repairs itself on the next line of execution — and the
+            # response layer then reports that stale verdict as a failure.
+            # Same doctrine as the for_each_max correction above.
+            # ================================================================
+            parameters = clamp_parameters_to_manifest(
+                normalized_tool_name, parameters, self.catalogue_service.registry
+            )
 
             step = ExecutionStep(
                 step_id=step_data.get("id", "step_1"),

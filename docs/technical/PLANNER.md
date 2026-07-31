@@ -1164,6 +1164,47 @@ graph TD
     P -->|No| R[Return ValidationResult<br/>is_valid=False, errors]
 ```
 
+### Manifest bounds — published, then clamped (ADR-184)
+
+A bound the validator enforces is worthless if the planner cannot see it. Until
+v1.27.4 the compact catalogue entry carried neither the `minimum`/`maximum`
+constraints nor — for an optional, non-semantic, unpatterned parameter such as
+`max_results` — even the description that names the cap. The model received
+`{"name": "max_results", "type": "integer", "required": false}` against a
+manifest declaring `maximum=10`, sized its batch from the prompt alone, and the
+validator rejected the plan for obeying. **A bound that is enforced but hidden
+is not a contract, it is a trap.**
+
+Two mechanisms, in this order:
+
+1. **Publication** — `SmartCatalogueService._manifest_to_dict` emits `min` /
+   `max` for every parameter declaring a numeric bound, in the same flat,
+   compact form already used for `pattern`. Measured cost on a real email-turn
+   catalogue: **9 characters**. Non-numeric constraint values are not published.
+2. **Deterministic clamp** — a correct prompt is still an instruction given to
+   a non-deterministic model. `SmartPlannerService._build_plan` runs every step
+   through `planner/parameter_bounds.py::clamp_parameters_to_manifest`, which
+   brings out-of-range numeric values back inside their bounds *before*
+   validation — same doctrine as the `for_each_max` auto-correction next to it.
+
+What is **never** clamped, because repairing it would invent an intent the user
+never expressed: `pattern`, `enum`, `min_length`/`max_length`, wrong types,
+`$steps` references, Jinja templates, booleans (`isinstance(True, int)` is
+`True` in Python), and incoherent bounds (`minimum > maximum`, a seeding
+defect). The validator must keep reporting those.
+
+Consequence for the validator's contract: a bound violation on a declared
+parameter is now structurally impossible, so `CONSTRAINT_VIOLATION` only ever
+carries a defect that is still real. Observability:
+`planner_parameter_bounds_corrections_total{bound}` — a sustained rate means a
+prompt instruction has outgrown a configured bound.
+
+> **A validation verdict is not a failure.** `route_from_planner` never reads
+> `is_valid`: a rejected plan executes unchanged and usually succeeds. Nothing
+> may tell the user an operation was blocked on the strength of the verdict
+> alone — the claim requires the capability to have produced nothing. See
+> [RESPONSE.md](./RESPONSE.md) and ADR-184.
+
 ### Indexable vs Semantic — Semantic Leak Detection (ADR-084)
 
 **Added in v1.20.6 (2026-05-15)** — universal defense layer that catches semantic qualifiers (`medical`, `urgent`, `important`, `best`…) leaked into the free-text `query` of literal-search tools (Google Calendar / Gmail / any future MCP). See [ADR-084](../architecture/ADR-084-Indexable-vs-Semantic-Criteria.md) for the full diagnosis story and design rationale.
@@ -1176,7 +1217,7 @@ The check runs **per step, on every plan** (single-domain, multi-domain, future 
 |---|---|
 | `off` | Kill switch. Nothing logged, no metric, no plan change. |
 | `observe` (default) | Logs `semantic_leak_in_plan` warning + emits `lia_planner_semantic_leak_detected_total`. **Plan untouched** — zero regression guarantee. |
-| `autocorrect` | NULL the leaky parameter and bump `max_results` to `PLANNER_SEMANTIC_BROAD_BATCH` (default `25`) **only when** the existing `max_results < PLANNER_SEMANTIC_BROAD_BATCH_MIN` (= `20`). Emits `lia_planner_semantic_leak_autocorrected_total`. |
+| `autocorrect` | NULL the leaky parameter and bump `max_results` to `PLANNER_SEMANTIC_BROAD_BATCH` (default `25`) **only when** the existing `max_results < PLANNER_SEMANTIC_BROAD_BATCH_MIN` (= `20`), and never above the parameter's own manifest `maximum` (ADR-184 — writing the raw batch size made the validator author the very `CONSTRAINT_VIOLATION` it reports). Emits `lia_planner_semantic_leak_autocorrected_total`. |
 
 **Free-text parameter names scanned** (`src/core/constants.py::TEXT_SEARCH_PARAM_NAMES`): `query`, `q`, `search`, `search_query`, `text`, `keywords`.
 
@@ -1213,7 +1254,7 @@ for step in plan.steps:
 | Variable | Default | Range | Purpose |
 |---|---|---|---|
 | `PLANNER_SEMANTIC_LEAK_MODE` | `observe` | `off` / `observe` / `autocorrect` | Validator behavior on a detected leak. Ship in `observe` for the rollout, flip to `autocorrect` once observe-mode telemetry confirms safe activation. |
-| `PLANNER_SEMANTIC_BROAD_BATCH` | `25` | 10–100 | `max_results` bump applied by `autocorrect`, only when the existing value is `< PLANNER_SEMANTIC_BROAD_BATCH_MIN` (= `20`). |
+| `PLANNER_SEMANTIC_BROAD_BATCH` | `25` | 10–100 | Batch size the planner targets for semantic criteria. Two consumers since ADR-184: injected into `smart_planner_prompt.txt` as `{semantic_broad_batch}` (it replaced a hardcoded "20–50" that no tool bound could contradict), and used by `autocorrect` when the existing value is `< PLANNER_SEMANTIC_BROAD_BATCH_MIN` (= `20`). A parameter's published `maximum` always wins over this target. |
 
 The `semantic_filter_terms` themselves are emitted by the query analyzer (cf. [SMART_SERVICES.md §QueryIntelligence Output](./SMART_SERVICES.md#queryintelligence-output) and the `INDEXABLE vs SEMANTIC HINT` section in `query_analyzer_prompt.txt`) and propagated through the `_query_intelligence_obj` state field into `planner_node_v3.py::ValidationContext(semantic_filter_terms=...)`.
 

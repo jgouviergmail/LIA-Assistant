@@ -599,6 +599,18 @@ class ParameterConstraint:
     value: Any
 ```
 
+> **Une contrainte appliquée doit être publiée (ADR-184).** `minimum` /
+> `maximum` sont transmis au planificateur dans l'entrée compacte du catalogue
+> (`SmartCatalogueService._manifest_to_dict` → clés plates `min` / `max`, même
+> forme que `pattern`), et toute valeur hors bornes est ramenée dans ses bornes
+> avant validation (`planner/parameter_bounds.py`). Sans cette publication, le
+> validateur refusait un plan pour une limite que le modèle n'avait aucun moyen
+> de connaître — mesuré en production 2026-07-31 sur `max_results` : entrée
+> `{"name": "max_results", "type": "integer", "required": false}` contre un
+> manifeste plafonné à 10. Les contraintes non réparables sans inventer une
+> intention (`pattern`, `enum`, longueurs, types) restent des erreurs que le
+> validateur doit continuer à signaler.
+
 **Exemple** :
 
 ```python

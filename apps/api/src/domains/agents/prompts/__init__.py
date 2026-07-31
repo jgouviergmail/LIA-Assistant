@@ -774,6 +774,10 @@ def get_smart_planner_prompt(
         multi_domain_section=multi_domain_section,
         primary_domain=primary_domain or domains.split(",")[0].strip() if domains else "",
         semantic_filter_terms_hint=semantic_filter_terms_hint,
+        # Single source of truth with the validator's semantic-leak autocorrect:
+        # the prompt used to carry a hardcoded "20–50" that no tool bound could
+        # contradict, since the catalogue published none (production 2026-07-31).
+        semantic_broad_batch=_settings.planner_semantic_broad_batch,
     )
 
 

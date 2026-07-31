@@ -1083,6 +1083,16 @@ planner_for_each_auto_corrections = Counter(
     ["correction_type"],  # correction_type: misplaced_attribute, invalid_type, max_exceeded
 )
 
+# A steady rate here means the planner is asking for values the catalogue
+# forbids — usually a prompt instruction that outgrew a tool's configured
+# bound (production 2026-07-31: max_results=20 against a manifest capped at
+# 10, on every "my 3 latest emails" turn).
+planner_parameter_bounds_corrections = Counter(
+    "planner_parameter_bounds_corrections_total",
+    "Plan parameter values clamped to their catalogue bound",
+    ["bound"],  # bound: minimum, maximum
+)
+
 # ============================================================================
 # INDEXABLE vs SEMANTIC CRITERIA (Universal Planning Principle)
 # ============================================================================

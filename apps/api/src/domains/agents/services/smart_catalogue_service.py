@@ -267,11 +267,25 @@ class SmartCatalogueService:
             # This tells LLM that resource_name MUST match "^people/" format,
             # preventing it from using names like "Jane Smith" instead of IDs.
             # Example: get_contacts_tool(resource_name) expects "people/c123", not a name
+            # FIX 2026-07-31: Include numeric bounds. The validator enforces
+            # `minimum`/`maximum` from the manifest, but they never reached the
+            # planner: `max_results` is optional, unpatterned and non-semantic,
+            # so even its description (which names the cap) was dropped above.
+            # The model sized batches from the prompt alone, the validator
+            # rejected the plan for obeying it, and the response layer reported
+            # that verdict as a failure (production 2026-07-31, "my 3 latest
+            # emails": max_results=20 against a manifest capped at 10).
+            # Two extra keys per bounded parameter — a bound the planner cannot
+            # see is a trap, not a contract.
             if hasattr(p, "constraints") and p.constraints:
                 for c in p.constraints:
                     if c.kind == "pattern":
                         param["pattern"] = c.value
                         break  # Only include first pattern constraint
+                for c in p.constraints:
+                    if c.kind in ("minimum", "maximum") and not isinstance(c.value, bool):
+                        if isinstance(c.value, int | float):
+                            param["min" if c.kind == "minimum" else "max"] = c.value
             # FIX 2026-03-05: Include JSON Schema for complex types (array, object)
             # so the LLM sees the internal structure (items, nested properties, enums).
             # Critical for MCP tools with structured inputs (e.g., Excalidraw elements).

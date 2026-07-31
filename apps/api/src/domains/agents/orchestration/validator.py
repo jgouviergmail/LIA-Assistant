@@ -1117,6 +1117,9 @@ class PlanValidator:
             PLANNER_SEMANTIC_BROAD_BATCH_MIN,
             TEXT_SEARCH_PARAM_NAMES,
         )
+        from src.domains.agents.services.planner.parameter_bounds import (
+            clamp_to_parameter_schema,
+        )
         from src.infrastructure.observability.metrics_agents import (
             planner_semantic_leak_autocorrected,
             planner_semantic_leak_detected,
@@ -1231,7 +1234,19 @@ class PlanValidator:
                         not isinstance(original_max, int)
                         or original_max < PLANNER_SEMANTIC_BROAD_BATCH_MIN
                     ):
-                        step.parameters["max_results"] = broad_batch
+                        # The broad batch is a target, never a licence to break
+                        # a bound: writing it raw would make this repair author
+                        # the CONSTRAINT_VIOLATION the same validator reports
+                        # (an email cap of 10 against a batch of 25), and the
+                        # response layer now turns that verdict into a failure
+                        # the user is told about.
+                        step.parameters["max_results"] = clamp_to_parameter_schema(
+                            next(
+                                (p for p in manifest.parameters if p.name == "max_results"),
+                                None,
+                            ),
+                            broad_batch,
+                        )
                     planner_semantic_leak_autocorrected.labels(
                         tool_name=step.tool_name,
                         param_name=param_name,

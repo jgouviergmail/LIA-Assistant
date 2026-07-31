@@ -41,6 +41,7 @@ from src.domains.agents.registry.agent_registry import AgentRegistry
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     OutputFieldSchema,
+    ParameterConstraint,
     ParameterSchema,
     PermissionProfile,
     ToolManifest,
@@ -284,6 +285,55 @@ class TestSemanticLeakRegressionMatrix:
         assert _count_leak_warnings(result) == 1
         assert plan.steps[0].parameters["query"] is None
         assert plan.steps[0].parameters["max_results"] == 25
+
+    def test_autocorrect_never_bumps_above_the_manifest_cap(self, autocorrect_mode: None) -> None:
+        """The broad batch is a target, never a licence to break a bound.
+
+        Writing the raw batch size here would make the validator author the
+        very CONSTRAINT_VIOLATION it reports elsewhere — the plan would be
+        marked invalid by the step that was supposed to repair it, and since
+        v1.27.3 the response layer turns that verdict into "I could not do it"
+        (production 2026-07-31: an email cap of 10 against a batch of 25).
+        """
+        manifest = _make_manifest("get_emails_tool")
+        manifest.parameters[:] = [
+            (
+                p
+                if p.name != "max_results"
+                else ParameterSchema(
+                    name="max_results",
+                    type="integer",
+                    required=False,
+                    description="Page size",
+                    constraints=[ParameterConstraint(kind="maximum", value=10)],
+                )
+            )
+            for p in manifest.parameters
+        ]
+        validator = _make_validator(manifest)
+        plan = _make_plan(
+            _make_step("s1", "get_emails_tool", {"query": "important", "max_results": 2})
+        )
+        result = ValidationResult(is_valid=True)
+
+        validator._check_semantic_leak(
+            plan, _make_context(semantic_filter_terms=("important",)), result
+        )
+
+        assert plan.steps[0].parameters["max_results"] == 10
+
+        # And the value written must itself survive the constraint check.
+        # Scoped to max_results on purpose: NULLing the leaky `query` is the
+        # documented behaviour of this autocorrect, which deliberately runs
+        # after _validate_execution_step and is never re-validated.
+        constraint_result = ValidationResult(is_valid=True)
+        validator._validate_parameters(
+            {"max_results": plan.steps[0].parameters["max_results"]},
+            manifest,
+            0,
+            constraint_result,
+        )
+        assert constraint_result.is_valid, [i.message for i in constraint_result.errors]
 
     # ------------------------------------------------------------------
     # Row 6 — Cardinality x Semantic: "the 3 most important emails from boss"

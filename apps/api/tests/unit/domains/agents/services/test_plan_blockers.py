@@ -19,10 +19,16 @@ fill a silence) is a property of the silence, not of the error code.
 
 import pytest
 
+from src.domains.agents.orchestration.plan_schemas import (
+    ExecutionPlan,
+    ExecutionStep,
+    StepType,
+)
 from src.domains.agents.orchestration.validator import ValidationIssue, ValidationResult
 from src.domains.agents.services.plan_blockers import (
     BLOCKER_REASONS,
     PlanBlocker,
+    executed_tool_names,
     format_plan_blockers,
     summarize_plan_blockers,
 )
@@ -188,3 +194,165 @@ def test_formatted_block_never_leaks_raw_scope_urls():
 def test_empty_blockers_format_to_nothing():
     """No blockers, no directive — an empty system block breaks Anthropic."""
     assert format_plan_blockers([]) == ""
+
+
+# =========================================================================
+# executed_tool_names — what the turn actually ran
+# =========================================================================
+
+
+def _plan(*tool_names: str) -> ExecutionPlan:
+    return ExecutionPlan(
+        plan_id="p1",
+        user_id="u1",
+        session_id="s1",
+        steps=[
+            ExecutionStep(
+                step_id=f"step_{index + 1}",
+                step_type=StepType.TOOL,
+                agent_name="emails_agent",
+                tool_name=name,
+                parameters={},
+            )
+            for index, name in enumerate(tool_names)
+        ],
+    )
+
+
+def test_a_step_that_returned_data_counts_as_executed():
+    """A successful TOOL step stores its payload, with no `success` key."""
+    completed = {"step_1": {"emails": [{"id": "a"}], "total": 1}}
+
+    assert executed_tool_names(_plan("get_emails_tool"), completed) == frozenset(
+        {"get_emails_tool"}
+    )
+
+
+def test_a_step_that_ran_empty_still_counts_as_executed():
+    """Zero results is an answer; "blocked" would be a different claim."""
+    completed = {"step_1": {"emails": [], "total": 0}}
+
+    assert executed_tool_names(_plan("get_emails_tool"), completed) == frozenset(
+        {"get_emails_tool"}
+    )
+
+
+def test_a_step_marked_failed_does_not_count_as_executed():
+    completed = {"step_1": {"success": False, "error": "boom"}}
+
+    assert executed_tool_names(_plan("get_emails_tool"), completed) == frozenset()
+
+
+def test_a_step_that_never_ran_does_not_count_as_executed():
+    assert executed_tool_names(_plan("get_emails_tool"), {}) == frozenset()
+
+
+def test_only_the_steps_that_ran_are_reported():
+    completed = {"step_1": {"contacts": []}, "step_2": {"success": False}}
+
+    assert executed_tool_names(
+        _plan("get_contacts_tool", "get_events_tool"), completed
+    ) == frozenset({"get_contacts_tool"})
+
+
+@pytest.mark.parametrize("plan", [None, "stale", 42, {}])
+def test_a_stale_or_absent_plan_reports_nothing(plan):
+    """State survives msgpack; never raise inside the response node."""
+    assert executed_tool_names(plan, {"step_1": {"ok": True}}) == frozenset()
+
+
+@pytest.mark.parametrize("completed", [None, "stale", 42, []])
+def test_stale_completed_steps_report_nothing(completed):
+    assert executed_tool_names(_plan("get_emails_tool"), completed) == frozenset()
+
+
+# =========================================================================
+# The v1.27.3 regression: a blocked verdict on a step that actually ran
+# =========================================================================
+
+
+def test_a_tool_that_ran_is_not_reported_as_blocked():
+    """Production 2026-07-31, request 83c98053.
+
+    ``max_results=20`` broke a cap of 10, so the plan was invalid — but the
+    step ran, ten emails reached the registry, and the answer still told the
+    user the retrieval "had been blocked" and to go check their connector.
+    """
+    blockers = summarize_plan_blockers(
+        _result(_issue(code=ToolErrorCode.CONSTRAINT_VIOLATION, tool_name="get_emails_tool")),
+        executed_tools=frozenset({"get_emails_tool"}),
+    )
+
+    assert blockers == []
+
+
+def test_the_founding_defect_still_reports_its_blockers():
+    """Request 303d7ce3 must keep working: nothing ran, so nothing is hidden."""
+    blockers = summarize_plan_blockers(
+        _result(
+            _issue(tool_name="get_contacts_tool", step_index=0),
+            _issue(tool_name="get_events_tool", step_index=1),
+        ),
+        executed_tools=frozenset(),
+    )
+
+    assert [b.tool_name for b in blockers] == ["get_contacts_tool", "get_events_tool"]
+
+
+def test_a_partial_turn_reports_only_what_did_not_run():
+    """Half a truth told as a total failure is still a false diagnosis."""
+    blockers = summarize_plan_blockers(
+        _result(
+            _issue(tool_name="get_contacts_tool", step_index=0),
+            _issue(tool_name="get_events_tool", step_index=1),
+        ),
+        executed_tools=frozenset({"get_contacts_tool"}),
+    )
+
+    assert [b.tool_name for b in blockers] == ["get_events_tool"]
+
+
+def test_a_plan_level_blocker_is_silenced_once_anything_ran():
+    """`the plan itself` cannot be claimed blocked when steps produced data."""
+    blockers = summarize_plan_blockers(
+        _result(_issue(code=ToolErrorCode.FORBIDDEN, tool_name=None)),
+        executed_tools=frozenset({"get_emails_tool"}),
+    )
+
+    assert blockers == []
+
+
+def test_a_plan_level_blocker_survives_when_nothing_ran():
+    blockers = summarize_plan_blockers(
+        _result(_issue(code=ToolErrorCode.FORBIDDEN, tool_name=None)),
+        executed_tools=frozenset(),
+    )
+
+    assert [b.tool_name for b in blockers] == [None]
+
+
+def test_the_default_reports_every_blocker():
+    """Callers with no execution knowledge keep the pre-existing behaviour."""
+    blockers = summarize_plan_blockers(_result(_issue(tool_name="get_events_tool")))
+
+    assert [b.tool_name for b in blockers] == ["get_events_tool"]
+
+
+def test_non_tool_steps_are_ignored_when_listing_what_ran():
+    """A CONDITIONAL step names no capability — it cannot unblock one."""
+    plan = ExecutionPlan(
+        plan_id="p1",
+        user_id="u1",
+        session_id="s1",
+        steps=[
+            ExecutionStep(
+                step_id="step_1",
+                step_type=StepType.CONDITIONAL,
+                agent_name="emails_agent",
+                tool_name="get_emails_tool",
+                parameters={},
+            )
+        ],
+    )
+
+    assert executed_tool_names(plan, {"step_1": {"condition_result": True}}) == frozenset()

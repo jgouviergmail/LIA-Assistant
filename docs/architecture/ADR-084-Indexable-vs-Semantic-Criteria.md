@@ -4,6 +4,16 @@
 **Author**: Claude Opus 4.7 (with `jgouviergmail`)
 **Related**: ADR-014 (ExecutionPlan + Parallel Executor — origin of `PlanValidator`), ADR-019 (Agent Manifest Catalogue System — `ToolManifest` extended), ADR-025 (Prompt Engineering Versioning — `smart_planner_prompt` v1 modified)
 
+> **Amended by ADR-184 (2026-07-31).** The `20–50` batch this ADR asked the
+> planner to fetch was written as a literal in `smart_planner_prompt.txt`, and
+> the catalogue published no bound to contradict it — so on any tool capped
+> lower (5 of 8 domains in production), obeying this rule produced a
+> `CONSTRAINT_VIOLATION` on every turn. Since ADR-184 the batch size comes from
+> `PLANNER_SEMANTIC_BROAD_BATCH`, each parameter's `minimum`/`maximum` is
+> published to the planner, and out-of-range values are clamped before
+> validation. The principle below is unchanged; only the way its batch size is
+> expressed and bounded has moved.
+
 ---
 
 ## Context
@@ -44,7 +54,7 @@ Google Calendar searches event titles by *literal text match* — events are tit
 get_events_tool(
     query=None,                         # ← left empty: "medical" is non-indexable
     time_min=now, time_max=now+30j,     # ← reasonable horizon
-    max_results=30,                     # ← intentionally above cap (capped to 10 downstream)
+    max_results=30,                     # ← broad batch; clamped to the manifest cap before validation (ADR-184)
 )
 ```
 
@@ -83,7 +93,7 @@ The principle, the structured signal, and the runtime check are all framed in te
 | **Indexable** | Value that exists as-is in a structured field of the target store: dates, IDs, sender/recipient, label/category id, status, calendar id, location, has_attachment, language… | Pass to the corresponding tool parameter |
 | **Semantic** | Adjective, category, or quality-judgment qualifying *what kind* of item the user wants — with no literal counterpart in any structured field. Concept-level subclasses: nature/category (medical, professional, personal), priority/urgency (urgent, important, critical), quality/ranking (best, favorite, top, most relevant), relative time without a date (recent, old, latest). | Filter+rank downstream by the Response LLM |
 
-A `cardinality × semantic` rule formalizes the interaction: when the user requests *"the N <semantic> X"*, N is the **final count** after Response filtering, not `max_results`. The planner must ramener a 20–50 batch.
+A `cardinality × semantic` rule formalizes the interaction: when the user requests *"the N <semantic> X"*, N is the **final count** after Response filtering, not `max_results`. The planner must fetch a broad batch — sized by `PLANNER_SEMANTIC_BROAD_BATCH` and always capped by the parameter's published `maximum` (ADR-184; originally a literal `20–50` in the prompt).
 
 Two exceptions preserve legitimate cases:
 1. User explicitly cites the term as a literal string to match (quoted, or "with X in the title/subject").

@@ -27,13 +27,19 @@ Concept-level examples (non-exhaustive):
   - relative time without a date: recent, old, latest
   → NEVER pass these as `query`/`q`/`search`/text values. The store cannot
     match them: it returns 0 hits or false positives on the literal word.
-  → Instead: keep all indexable filters, set max_results = 20–50, and let
-    the Response LLM filter AND rank the batch downstream.
+  → Instead: keep all indexable filters, request a broad batch, and let
+    the Response LLM filter AND rank it downstream.
+
+BATCH SIZE — aim for {semantic_broad_batch} results, and NEVER exceed the `max`
+published on the parameter. Catalogue entries carry `min`/`max` whenever the
+tool declares them: those are hard limits enforced before execution, not
+suggestions. When a parameter publishes a `max` below the target, that `max`
+IS the broad batch — use it as-is.
 
 CARDINALITY × SEMANTIC trap — when the user says "the N <semantic> X"
 ("the 3 most important emails", "my two next medical appointments"), N is
 the FINAL count after Response filtering, NOT max_results. Bring back a
-broad batch (20–50); the Response LLM keeps the N best matches.
+broad batch (see BATCH SIZE above); the Response LLM keeps the N best matches.
 
 EXCEPTIONS — do pass the term as text-search query when:
   1. The user explicitly cites it as a literal string to match (quoted,

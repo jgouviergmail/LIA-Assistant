@@ -19,6 +19,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.domains.agents.nodes.response_node import _build_response_chain
+from src.domains.agents.orchestration.plan_schemas import (
+    ExecutionPlan,
+    ExecutionStep,
+    StepType,
+)
 from src.domains.agents.orchestration.validator import ValidationIssue, ValidationResult
 from src.domains.agents.tools.common import ToolErrorCode
 
@@ -168,3 +173,151 @@ def test_every_blocking_cause_produces_a_directive(code):
     )
 
     assert BLOCKED_MARKER in _system_blocks({"validation_result": result})
+
+
+# =========================================================================
+# The verdict is weighed against what actually ran (defect 2026-07-31)
+# =========================================================================
+
+
+def _ran_plan(tool_name: str = "get_emails_tool") -> ExecutionPlan:
+    return ExecutionPlan(
+        plan_id="smart_unknown",
+        user_id="u1",
+        session_id="s1",
+        steps=[
+            ExecutionStep(
+                step_id="step_1",
+                step_type=StepType.TOOL,
+                agent_name="emails_agent",
+                tool_name=tool_name,
+                parameters={"max_results": 20},
+            )
+        ],
+    )
+
+
+def _capped_plan() -> ValidationResult:
+    """The verbatim validator verdict of request 83c98053."""
+    return ValidationResult(
+        is_valid=False,
+        errors=[
+            ValidationIssue(
+                severity="error",
+                code=ToolErrorCode.CONSTRAINT_VIOLATION,
+                message="Parameter 'max_results' value 20 > max 10",
+                step_index=0,
+                tool_name="get_emails_tool",
+            )
+        ],
+        total_steps=1,
+    )
+
+
+def test_a_capability_that_ran_is_never_declared_blocked():
+    """Production 83c98053: ten emails in the registry, "retrieval blocked".
+
+    The step ran and returned; only the plan carried a verdict nobody acted
+    on. Telling the user their request was blocked — and to go fix an email
+    connector that was healthy — is the same invented diagnosis this directive
+    exists to prevent, pointing the other way.
+    """
+    blocks = _system_blocks(
+        {
+            "validation_result": _capped_plan(),
+            "execution_plan": _ran_plan(),
+            "completed_steps": {"step_1": {"emails": [{"id": "a"}], "total": 10}},
+        }
+    )
+
+    assert BLOCKED_MARKER not in blocks
+
+
+def test_a_capability_that_failed_is_still_declared_blocked():
+    blocks = _system_blocks(
+        {
+            "validation_result": _capped_plan(),
+            "execution_plan": _ran_plan(),
+            "completed_steps": {"step_1": {"success": False, "error": "boom"}},
+        }
+    )
+
+    assert BLOCKED_MARKER in blocks
+    assert "get_emails_tool" in blocks
+
+
+def test_a_capability_that_never_ran_is_still_declared_blocked():
+    """The founding case: the step never reached execution."""
+    blocks = _system_blocks(
+        {
+            "validation_result": _capped_plan(),
+            "execution_plan": _ran_plan(),
+            "completed_steps": {},
+        }
+    )
+
+    assert BLOCKED_MARKER in blocks
+
+
+def test_a_turn_without_execution_state_keeps_reporting_blockers():
+    """HITL resumes and ReAct turns carry no completed_steps — never hide."""
+    blocks = _system_blocks({"validation_result": _invalid_plan()})
+
+    assert BLOCKED_MARKER in blocks
+
+
+def test_only_the_capability_that_did_not_run_is_named():
+    """A partial turn must not be reported as a total failure."""
+    plan = ExecutionPlan(
+        plan_id="p",
+        user_id="u1",
+        session_id="s1",
+        steps=[
+            ExecutionStep(
+                step_id="step_1",
+                step_type=StepType.TOOL,
+                agent_name="emails_agent",
+                tool_name="get_emails_tool",
+                parameters={},
+            ),
+            ExecutionStep(
+                step_id="step_2",
+                step_type=StepType.TOOL,
+                agent_name="calendar_agent",
+                tool_name="get_events_tool",
+                parameters={},
+            ),
+        ],
+    )
+    verdict = ValidationResult(
+        is_valid=False,
+        errors=[
+            ValidationIssue(
+                severity="error",
+                code=ToolErrorCode.CONSTRAINT_VIOLATION,
+                message="Parameter 'max_results' value 20 > max 10",
+                step_index=0,
+                tool_name="get_emails_tool",
+            ),
+            ValidationIssue(
+                severity="error",
+                code=ToolErrorCode.UNAUTHORIZED,
+                message="Missing required scopes",
+                step_index=1,
+                tool_name="get_events_tool",
+            ),
+        ],
+        total_steps=2,
+    )
+
+    blocks = _system_blocks(
+        {
+            "validation_result": verdict,
+            "execution_plan": plan,
+            "completed_steps": {"step_1": {"emails": []}},
+        }
+    )
+
+    assert BLOCKED_MARKER in blocks
+    assert "get_events_tool" in blocks
+    assert "get_emails_tool" not in blocks

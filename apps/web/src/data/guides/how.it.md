@@ -6,7 +6,7 @@
 
 **Versione**: 3.6
 **Data**: 2026-07-31
-**Applicazione**: LIA v1.27.3
+**Applicazione**: LIA v1.27.4
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 447 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 180 ADR, ~16.808 test raccolti da pytest in 902 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 183 ADR, ~17.089 test raccolti da pytest in 919 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -72,10 +72,10 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~16.808 (raccolti da pytest su 902 file di test) + 4.247 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~17.089 (raccolti da pytest su 919 file di test) + 4.269 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 400+ |
-| ADR (Architecture Decision Record) | 180 |
+| ADR (Architecture Decision Record) | 183 |
 | Metriche Prometheus | 447 definizioni |
 | Dashboard Grafana | 26 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1113,7 +1113,7 @@ Resta che una destinazione può legittimamente non esistere: diverse sezioni si 
 
 ## 24. Architettura delle decisioni (ADR)
 
-180 ADR in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+183 ADR in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1167,10 +1167,10 @@ Il Psyche Engine dota l'assistente di uno stato psicologico dinamico che evolve 
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 180 ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~16.808 test in 902 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 183 ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~17.089 test in 919 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 180 ADR e del changelog (da v1.0 a v1.27.2). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 183 ADR e del changelog (da v1.0 a v1.27.4). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
