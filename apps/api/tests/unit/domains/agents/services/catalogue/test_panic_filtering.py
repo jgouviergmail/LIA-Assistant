@@ -28,6 +28,7 @@ from src.domains.agents.services.smart_catalogue_service import (
     CatalogueMetrics,
     FilteredCatalogue,
 )
+from tests.unit.domains.agents.services.catalogue.conftest import wire_placement_domain
 
 # =============================================================================
 # Fixtures & Helpers
@@ -44,6 +45,9 @@ class MockManifest:
     parameters: list[Any] = field(default_factory=list)
     outputs: list[Any] = field(default_factory=list)
     semantic_keywords: list[str] | None = None
+    serves_domains: list[str] = field(default_factory=list)
+    """Mirrors the real ToolManifest field: catalogue filtering reads it to
+    decide reachability, so a double without it bypasses that rule."""
 
 
 @dataclass
@@ -84,6 +88,7 @@ def _build_mock_service(manifests: list[MockManifest]) -> MagicMock:
         return {"name": manifest.name, "description": manifest.description}
 
     service._extract_domain = extract_domain
+    wire_placement_domain(service)
     service._get_tool_category = get_tool_category
     service._manifest_to_dict = manifest_to_dict
     return service

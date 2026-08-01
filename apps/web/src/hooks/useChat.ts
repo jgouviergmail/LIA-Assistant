@@ -18,6 +18,7 @@ import {
 } from '@/types/chat-state';
 import { normalizeHitlPayload } from '@/lib/hitl-payload';
 import type { HitlDecisionWire } from '@/types/hitl';
+import type { CapabilityDirectiveWire } from '@/types/directive';
 import type { ExecutionTraceStep } from '@/types/execution-trace';
 import {
   chatReducer,
@@ -88,7 +89,13 @@ export interface UseChatReturn {
     sttMeta?: import('@/lib/voice-input-service').VoiceTranscriptionMeta & {
       stt_audio_duration_seconds?: number | null;
     },
-    hitlDecision?: HitlDecisionWire
+    hitlDecision?: HitlDecisionWire,
+    /**
+     * Capability the user invoked directly (ADR-191). The backend guarantees
+     * it is part of the plan; the message text is unchanged and still what
+     * the assistant answers.
+     */
+    directive?: CapabilityDirectiveWire
   ) => Promise<void>;
   clearMessages: () => void;
   setMessages: (messages: Message[]) => void;
@@ -176,8 +183,18 @@ function buildChatRequest(args: {
     stt_audio_duration_seconds?: number | null;
   };
   hitlDecision?: HitlDecisionWire;
+  directive?: CapabilityDirectiveWire;
 }) {
-  const { content, userId, sessionId, browserContext, attachmentIds, sttMeta, hitlDecision } = args;
+  const {
+    content,
+    userId,
+    sessionId,
+    browserContext,
+    attachmentIds,
+    sttMeta,
+    hitlDecision,
+    directive,
+  } = args;
   return {
     message: content,
     user_id: userId,
@@ -193,6 +210,7 @@ function buildChatRequest(args: {
         }
       : {}),
     ...(hitlDecision ? { hitl_decision: hitlDecision } : {}),
+    ...(directive ? { directive } : {}),
   };
 }
 
@@ -464,7 +482,8 @@ export const useChat = ({
       sttMeta?: import('@/lib/voice-input-service').VoiceTranscriptionMeta & {
         stt_audio_duration_seconds?: number | null;
       },
-      hitlDecision?: HitlDecisionWire
+      hitlDecision?: HitlDecisionWire,
+      directive?: CapabilityDirectiveWire
     ) => {
       // ✅ CRITICAL: Cancel any pending stream before starting new one
       // Prevents double token counting and ensures clean state
@@ -603,6 +622,7 @@ export const useChat = ({
         attachmentIds,
         sttMeta,
         hitlDecision,
+        directive,
       });
 
       try {

@@ -25,6 +25,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -225,7 +226,17 @@ class PeerDomainShare(BaseModel):
 
 
 class PeerMessage(BaseModel):
-    """Delivery ledger of one relayed message (content scrubbed post-delivery)."""
+    """Ledger of one relayed message — and, for a while, of what it said.
+
+    Content is retained on a TTL rather than erased at delivery (ADR-186),
+    the exact contract phone calls already use: the ROW survives forever
+    (audit, counts, timeline), the TEXT is cleared past ``expires_at`` by the
+    peers sweep. Each side keeps only its own words — ``content`` is the
+    sender's directive, ``delivered_text`` what the recipient's assistant
+    actually said — because showing either across would undo the relay: the
+    recipient would read the raw directive instead of their assistant's
+    rendering, and the sender would read that assistant's private tone.
+    """
 
     __tablename__ = "peer_messages"
 
@@ -250,7 +261,17 @@ class PeerMessage(BaseModel):
     content: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
-        comment="Sender directive text; set to NULL after successful delivery.",
+        comment="Sender's own directive text; cleared past expires_at (retention TTL).",
+    )
+    delivered_text: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="What the recipient's assistant said; cleared past expires_at.",
+    )
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="UTC instant past which both texts are purged (row is kept).",
     )
     status: Mapped[str] = mapped_column(
         String(20),
@@ -277,7 +298,15 @@ class PeerMessage(BaseModel):
         comment="Typed error code of the last failure — never raw exception text.",
     )
 
-    __table_args__ = (Index("ix_peer_messages_status_created", "status", "created_at"),)
+    __table_args__ = (
+        Index("ix_peer_messages_status_created", "status", "created_at"),
+        # The retention reaper only ever visits rows that have a horizon.
+        Index(
+            "ix_peer_messages_expires_at",
+            "expires_at",
+            postgresql_where=text("expires_at IS NOT NULL"),
+        ),
+    )
 
     def __repr__(self) -> str:
         return (

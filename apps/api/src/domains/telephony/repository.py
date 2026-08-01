@@ -7,10 +7,11 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
+from src.domains.shared.aggregates import NameActivity
 from src.domains.telephony.models import (
     NotificationStatus,
     PhoneCall,
@@ -52,6 +53,70 @@ class TelephonyRepository(BaseRepository[PhoneCall]):
         stmt = (
             select(PhoneCall)
             .where(PhoneCall.user_id == user_id)
+            .order_by(PhoneCall.created_at.desc())
+            .limit(limit)
+        )
+        return list((await self.db.scalars(stmt)).all())
+
+    async def aggregate_calls_by_callee(self, user_id: UUID) -> list[NameActivity]:
+        """Exact per-callee activity over ALL of a user's calls.
+
+        The personal CRM used to count from a capped page of recent calls, so
+        a heavy caller's card under-reported. This aggregate answers over the
+        whole history and returns one row per DISTINCT SPELLING, so the
+        payload follows the address book, not the call log.
+
+        Args:
+            user_id: Owner.
+
+        Returns:
+            One entry per non-blank callee spelling.
+        """
+        stmt = (
+            select(
+                PhoneCall.callee_display,
+                func.count().label("total"),
+                func.max(PhoneCall.created_at).label("last_at"),
+            )
+            .where(
+                PhoneCall.user_id == user_id,
+                func.btrim(PhoneCall.callee_display) != "",
+            )
+            .group_by(PhoneCall.callee_display)
+        )
+        rows = (await self.db.execute(stmt)).all()
+        return [
+            NameActivity(raw_name=row.callee_display, count=row.total, last_at=row.last_at)
+            for row in rows
+        ]
+
+    async def list_calls_for_callees(
+        self,
+        user_id: UUID,
+        callees: list[str],
+        limit: int,
+    ) -> list[PhoneCall]:
+        """Calls whose callee is EXACTLY one of the given spellings.
+
+        Identity folding stays in Python (see the open-loops twin): SQL never
+        gets a second opinion on who is the same person.
+
+        Args:
+            user_id: Owner.
+            callees: Raw spellings, as stored.
+            limit: Cap on returned rows.
+
+        Returns:
+            Matching calls, newest first.
+        """
+        if not callees:
+            return []
+        stmt = (
+            select(PhoneCall)
+            .where(
+                PhoneCall.user_id == user_id,
+                PhoneCall.callee_display.in_(callees),
+            )
             .order_by(PhoneCall.created_at.desc())
             .limit(limit)
         )

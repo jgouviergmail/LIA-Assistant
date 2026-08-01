@@ -34,6 +34,8 @@ export interface ConnectionView {
   peer_id: string;
   peer_display_name: string;
   peer_email_hint: string;
+  /** The peer's real address — present only when they opted in AND we are connected. */
+  peer_email: string | null;
   status: 'pending' | 'accepted';
   direction: 'incoming' | 'outgoing' | null;
   requested_at: string;
@@ -58,6 +60,8 @@ export interface AccessLogEntry {
 
 interface DiscoveryState {
   discovery_enabled: boolean;
+  /** ADR-189: whether ACCEPTED connections see this user's real address. */
+  email_visible: boolean;
 }
 
 /** Outcome of one state-changing verb — the error code travels WITH the
@@ -111,6 +115,16 @@ export function usePeerConnections(enabled = true) {
     enabled,
   });
 
+  const queries = [me, requests, connections, blocks, accessLog];
+  const anyLoading = queries.some(query => query.loading);
+  // Monotone by construction — and that is the whole point. `useApiQuery`
+  // only ever SETS `data` (a refetch never clears it, and never clears it on
+  // failure either), so once one query has answered this flips to false and
+  // stays false. Deriving it from `error` instead would not be monotone: a
+  // refetch resets `error` to null, which would resurrect the very unmount
+  // this exists to prevent.
+  const neverAnswered = queries.every(query => query.data === undefined);
+
   const postMutation = useApiMutation({ method: 'POST', componentName: 'usePeerConnections' });
   const putMutation = useApiMutation({ method: 'PUT', componentName: 'usePeerConnections' });
   const deleteMutation = useApiMutation({ method: 'DELETE', componentName: 'usePeerConnections' });
@@ -154,12 +168,20 @@ export function usePeerConnections(enabled = true) {
     [run, putMutate, refetchMe]
   );
 
+  // Sent ALONE, never alongside the other switch: the two are independent
+  // consents, and echoing a stale value would let one toggle revert the other.
+  const setEmailVisible = useCallback(
+    (value: boolean) => run(putMutate, '/peers/me', { email_visible: value }, [refetchMe]),
+    [run, putMutate, refetchMe]
+  );
+
   const search = useCallback(
-    async (fullName: string): Promise<PeerSearchResult> => {
+    async (query: string): Promise<PeerSearchResult> => {
       try {
-        const result = await postMutate('/peers/discovery/search', {
-          full_name: fullName,
-        });
+        // Forwarded verbatim: whether this is a name or an address is the
+        // backend's single decision (`looks_like_email`) — a second heuristic
+        // here would eventually disagree with it on the same string.
+        const result = await postMutate('/peers/discovery/search', { query });
         return { matches: result as DiscoveryMatch[], errorCode: null };
       } catch (err) {
         return { matches: null, errorCode: extractErrorCode(err) };
@@ -230,14 +252,20 @@ export function usePeerConnections(enabled = true) {
 
   return {
     discoveryEnabled: me.data?.discovery_enabled ?? null,
+    emailVisible: me.data?.email_visible ?? null,
     requests: requests.data ?? [],
     connections: connections.data ?? [],
     blocks: blocks.data ?? [],
     accessLog: accessLog.data ?? [],
-    loading:
-      me.loading || requests.loading || connections.loading || blocks.loading || accessLog.loading,
+    loading: anyLoading,
+    // The FIRST load only. A refetch (after any mutation) also raises
+    // `loading`, and swapping the section for a spinner then would unmount
+    // the discovery block mid-use: the typed query, the results and the
+    // keyboard focus would all be lost.
+    initialLoading: neverAnswered && anyLoading,
     mutating,
     setDiscovery,
+    setEmailVisible,
     search,
     sendRequest,
     respond,

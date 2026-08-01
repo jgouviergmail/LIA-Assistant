@@ -74,6 +74,18 @@ _VIA_PARENT: dict[str, tuple[str, str, str]] = {
     "rag_documents": ("rag_spaces", "space_id", "user_id"),
 }
 
+# Columns of a two-sided row that belong to ONE participant only. The archive
+# gives each side THEIR OWN words and never the other's: on a relayed message
+# the sender wrote the directive and the recipient received their assistant's
+# rendering, and crossing the two would undo the relay itself (ADR-186 §2) —
+# the recipient would read the raw instruction instead of the wording they
+# actually got, and the sender would discover the other assistant's tone.
+# Same doctrine as `_OWNER_COLUMN_OVERRIDES` above, one column finer.
+_SIDE_SCOPED_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
+    # table → ((column, the column naming its rightful owner), …)
+    "peer_messages": (("content", "sender_id"), ("delivered_text", "recipient_id")),
+}
+
 # Two-sided tables (peers program): a row belongs to the archive when the
 # requester sits on EITHER column — connections, relayed correspondence and
 # the cross-user read audit are genuinely shared records.
@@ -107,13 +119,25 @@ def _json_default(value: Any) -> str:
     return str(value)
 
 
-def _row_to_dict(table_name: str, row: Any) -> dict[str, Any]:
-    """Serialize one SQLAlchemy Row with redaction + decryption applied."""
+def _row_to_dict(table_name: str, row: Any, user_id: UUID) -> dict[str, Any]:
+    """Serialize one SQLAlchemy Row with redaction + decryption applied.
+
+    Args:
+        table_name: Table the row came from.
+        row: The SQLAlchemy Row.
+        user_id: The requester — decides which side-scoped columns are theirs.
+    """
     redacted = _REDACTED_COLUMNS.get(table_name, frozenset())
     decrypted = _DECRYPTED_COLUMNS.get(table_name, frozenset())
+    # Columns of this row that belong to the OTHER participant.
+    not_mine = {
+        column
+        for column, owner_column in _SIDE_SCOPED_COLUMNS.get(table_name, ())
+        if row._mapping.get(owner_column) != user_id
+    }
     output: dict[str, Any] = {}
     for key, value in row._mapping.items():
-        if key in redacted:
+        if key in redacted or key in not_mine:
             continue
         if key in decrypted and isinstance(value, str) and value:
             # Best-effort decryption: an unreadable historical value must not
@@ -145,7 +169,7 @@ async def _fetch_table_rows(table_name: str, user_id: UUID) -> list[dict[str, An
             query = select(table).where(table.c[owner_column] == user_id)
 
         result = await db.execute(query)
-        return [_row_to_dict(table_name, row) for row in result.fetchall()]
+        return [_row_to_dict(table_name, row, user_id) for row in result.fetchall()]
 
 
 async def _fetch_user_profile(user_id: UUID) -> dict[str, Any]:

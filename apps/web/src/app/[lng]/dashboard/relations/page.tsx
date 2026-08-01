@@ -28,7 +28,8 @@ import { useLanguageParam } from '@/hooks/useLanguageParam';
 export default function RelationsPage({ params }: { params: Promise<{ lng: string }> }) {
   const lng = useLanguageParam(params);
   const { t } = useTranslation();
-  const { relations, loading, toggleFavorite } = useRelationsOverview();
+  const { relations, relationsTotal, loading, initialLoading, toggleFavorite } =
+    useRelationsOverview();
   const [selected, setSelected] = useState<string | null>(null);
 
   const handleToggleFavorite = async (name: string, nextValue: boolean) => {
@@ -59,16 +60,22 @@ export default function RelationsPage({ params }: { params: Promise<{ lng: strin
             onToggleFavorite={handleToggleFavorite}
             onBack={() => setSelected(null)}
           />
-        ) : loading ? (
+        ) : initialLoading ? (
           <div className="flex justify-center py-12">
             <LoadingSpinner className="h-6 w-6" />
           </div>
         ) : (
-          <RelationCardList
-            relations={relations}
-            onOpen={setSelected}
-            onToggleFavorite={handleToggleFavorite}
-          />
+          // `initialLoading`, never `loading`: starring refetches the overview,
+          // and staging a spinner then would unmount the toolbar mid-use —
+          // the user's search text, sort choice and filters, gone on a star.
+          <div aria-busy={loading}>
+            <RelationCardList
+              relations={relations}
+              relationsTotal={relationsTotal}
+              onOpen={setSelected}
+              onToggleFavorite={handleToggleFavorite}
+            />
+          </div>
         )}
       </div>
     </FeatureErrorBoundary>

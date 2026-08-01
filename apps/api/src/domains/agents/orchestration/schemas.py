@@ -40,6 +40,28 @@ class AgentResultData(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    #: Raw tool results of the steps that produced this data.
+    #:
+    #: Declared on the BASE, not on one subclass, because it is the response
+    #: synthesizer's message channel and every normalized shape must keep it:
+    #: ``formatters/agent_results._extract_action_success_messages`` reads
+    #: ``data["step_results"]`` to surface what the tools SAID — action
+    #: confirmations, sub-agent analyses, the 360° briefing.
+    #:
+    #: Measured on the dev API, 2026-08-01: a plan whose results normalised to
+    #: contacts + emails produced ``MultiDomainResultData``, which had no such
+    #: field, so every tool message was discarded and the assistant answered
+    #: "I have no data at hand" while holding the whole payload. Only the
+    #: generic fallback branch of ``map_execution_result_to_agent_result``
+    #: preserved it — so the messages survived or vanished depending on which
+    #: domains the plan happened to touch. The ``extra="forbid"`` comment above
+    #: already warned about exactly this loss, naming ``step_results``; the
+    #: normalization defeated it from the other side.
+    step_results: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Raw tool results of the steps that produced this data",
+    )
+
 
 class ContactsResultData(AgentResultData):
     """

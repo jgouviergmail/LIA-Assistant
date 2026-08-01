@@ -716,6 +716,39 @@ class TestContentFieldNetHardening:
 
         assert result["content"] == "[REDACTED]"
 
+    def test_response_summary_redacted_at_info(self):
+        """The block handed to the response synthesizer carries user content.
+
+        ``response_node`` logs ``agent_results_summary`` verbatim (1000 chars)
+        at INFO. It was mostly short status text until the tools' own messages
+        started reaching it (ADR-191): the 360° briefing puts a person's name,
+        their addresses, relayed MESSAGE BODIES and long-term MEMORIES in
+        there. Observed on the dev API, 2026-08-01.
+        """
+        briefing = (
+            "360 overview for Marie Dupont:\n"
+            '{"relayed_messages":[{"text":"On se voit demain, ok ?"}],'
+            '"memories":["Aime la randonnée"]}'
+        )
+
+        result = add_pii_filter(
+            None,
+            "info",
+            {"event": "response_node_llm_input_debug", "agent_results_summary": briefing},
+        )
+
+        assert result["agent_results_summary"] == "[REDACTED]"
+
+    def test_response_summary_passes_through_at_debug(self):
+        """DEBUG is where an operator may look at the content deliberately."""
+        result = add_pii_filter(
+            None,
+            "debug",
+            {"event": "response_node_llm_input_debug", "agent_results_summary": "360 overview"},
+        )
+
+        assert result["agent_results_summary"] == "360 overview"
+
     def test_hitl_edit_content_fields_redacted_at_info(self):
         """HITL edit/reformulation logs carry the user's original message and
         edit request (orchestration/service.py, hitl/resumption_strategies.py):

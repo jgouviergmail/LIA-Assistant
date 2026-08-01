@@ -44,8 +44,13 @@ const APP_CONFIG = {
   api_version: 'v1',
 };
 
+/** Truthful mock of the exact search: only these two spellings reach Marie. */
+const MARIE_NAME = 'marie dupont';
+const MARIE_EMAIL = 'marie.dupont@gmail.com';
+
 function buildState() {
   const discovery = { discovery_enabled: false };
+  const searches: string[] = [];
   const requests: ConnectionRow[] = [
     {
       id: 'conn-incoming',
@@ -62,7 +67,7 @@ function buildState() {
     },
   ];
   const connections: ConnectionRow[] = [];
-  return { discovery, requests, connections };
+  return { discovery, requests, connections, searches };
 }
 
 function buildRoutes(state: ReturnType<typeof buildState>): MockRoute[] {
@@ -77,14 +82,26 @@ function buildRoutes(state: ReturnType<typeof buildState>): MockRoute[] {
           route.request().postDataJSON().discovery_enabled;
         await route.fulfill({ json: state.discovery });
       } },
-    { url: '**/api/v1/peers/discovery/search', method: 'POST', json: [
-        {
-          peer_id: 'peer-marie',
-          display_name: 'Marie Dupont',
-          email_hint: 'm…@g….com',
-          relationship: 'none',
-        },
-      ] },
+    // Exact match on EITHER identity, like the backend: a near miss must
+    // answer empty, or the test would prove nothing about what was sent.
+    { url: '**/api/v1/peers/discovery/search', method: 'POST', handler: async route => {
+        const query = String(route.request().postDataJSON().query ?? '');
+        state.searches.push(query);
+        const folded = query.trim().toLowerCase();
+        const hit = folded === MARIE_NAME || folded === MARIE_EMAIL;
+        await route.fulfill({
+          json: hit
+            ? [
+                {
+                  peer_id: 'peer-marie',
+                  display_name: 'Marie Dupont',
+                  email_hint: 'm…@g….com',
+                  relationship: 'none',
+                },
+              ]
+            : [],
+        });
+      } },
     { url: '**/api/v1/peers/requests', method: 'GET', handler: route =>
         route.fulfill({ json: state.requests }) },
     { url: '**/api/v1/peers/requests', method: 'POST', handler: async route => {
@@ -152,8 +169,16 @@ test.describe('peer connections section', () => {
       .poll(() => state.discovery.discovery_enabled, { timeout: 5_000 })
       .toBe(true);
 
-    // Exact-name search surfaces the match with the pinned email hint (A6).
-    await section.getByLabel(/nom complet/i).fill('Marie Dupont');
+    // Search by EMAIL (Bloc B): the address travels verbatim in `query` — the
+    // frontend holds no opinion on which identity was typed.
+    const searchBox = section.getByLabel(/nom complet ou email/i);
+    await searchBox.fill('  Marie.Dupont@Gmail.com  ');
+    await section.getByRole('button', { name: /rechercher/i }).click();
+    await expect(section.getByText('Marie Dupont')).toBeVisible();
+    expect(state.searches.at(-1)).toBe('Marie.Dupont@Gmail.com');
+
+    // Exact-name search surfaces the same match with the pinned hint (A6).
+    await searchBox.fill('Marie Dupont');
     await section.getByRole('button', { name: /rechercher/i }).click();
     await expect(section.getByText('m…@g….com')).toBeVisible();
 
@@ -175,6 +200,39 @@ test.describe('peer connections section', () => {
     // Axe scan with the expanded section on screen (the shared helper —
     // styled-window guard + severity policy live there).
     await scanPage(page, testInfo, 'settings-peer-connections');
+  });
+
+  test('a refetch never wipes what the user is typing', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    // Root cause of a long-standing flake in this very file: the section
+    // swapped itself for a spinner on EVERY refetch, so the toggle above the
+    // search box unmounted the box under the user. The typed query — and the
+    // keyboard focus — must both survive.
+    const state = buildState();
+    await authenticate({ language: 'fr' });
+    await mockApi(buildRoutes(state));
+    await page.goto('/fr/dashboard/settings?section=peer-connections');
+
+    const section = page.locator('#settings-section-peer-connections');
+    await expect(section).toBeAttached({ timeout: 20_000 });
+    await expect(section).toHaveAttribute('data-state', 'open', { timeout: 10_000 });
+
+    const searchBox = section.getByLabel(/nom complet ou email/i);
+    await searchBox.fill('marie.dupont@gmail.com');
+
+    // Toggling discovery refetches /peers/me — the trigger of the wipe.
+    const toggle = section.getByRole('switch').first();
+    await toggle.click();
+    await expect.poll(() => state.discovery.discovery_enabled, { timeout: 5_000 }).toBe(true);
+
+    await expect(searchBox).toHaveValue('marie.dupont@gmail.com');
+    // Focus stays where the user put it. An unmount would drop it to <body>,
+    // so asserting the toggle still holds it is the precise oracle here —
+    // asserting the search box would be wrong: the click moved focus itself.
+    await expect(toggle).toBeFocused();
   });
 
   test('mobile viewport renders without horizontal overflow', async ({

@@ -282,6 +282,60 @@ class MemoryRepository:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_mentioning_name(
+        self,
+        user_id: UUID,
+        name: str,
+        limit: int,
+    ) -> tuple[list[Memory], int]:
+        """Memories whose content mentions a name, newest first, plus the total.
+
+        Replaces a load-everything-then-filter-in-Python pass: the personal
+        CRM used to pull the 500 most recent memories and NFKD-normalize each
+        one's full text on every card open, which was both the dominant cost
+        of the request and a silent ceiling (a mention older than those 500
+        was simply invisible). The predicate moves to PostgreSQL —
+        case-insensitive AND accent-insensitive via ``unaccent`` on both
+        sides, the same pair the conversation search uses — so the scan is
+        the database's and the recall covers the whole memory set.
+
+        The match stays a best-effort SUBSTRING, exactly as before: a common
+        first name over-matches, which is why the panel states the caveat.
+        Two documented divergences from the Python folding it replaces, both
+        confined to names this product's locales do not produce: ``unaccent``
+        does not expand ligatures the way NFKD does, and SQL ``lower()`` does
+        not expand ``ß`` the way ``casefold()`` does.
+
+        Args:
+            user_id: Owner.
+            name: Name to look for, as displayed.
+            limit: Cap on returned rows (the count is NOT capped).
+
+        Returns:
+            Tuple of (page of memories, exact total number of matches).
+        """
+        needle = name.strip()
+        if not needle:
+            return [], 0
+        escaped = needle.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        # ONE pass, not two: ``count(*) OVER ()`` is evaluated over every
+        # matching row BEFORE the LIMIT truncates, so the total stays exact
+        # while the ``unaccent`` predicate — the expensive part — runs once. A
+        # separate COUNT query would double the scan for nothing.
+        stmt = (
+            select(Memory, func.count().over().label("total"))
+            .where(
+                Memory.user_id == user_id,
+                func.unaccent(Memory.content).ilike(func.unaccent(f"%{escaped}%"), escape="\\"),
+            )
+            .order_by(Memory.created_at.desc())
+            .limit(limit)
+        )
+        rows = (await self.db.execute(stmt)).all()
+        if not rows:
+            return [], 0
+        return [row[0] for row in rows], int(rows[0].total)
+
     async def get_recent_for_user(
         self,
         user_id: UUID,

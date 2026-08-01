@@ -2897,7 +2897,48 @@ BRIEFING_LAST_GOOD_TTL_SECONDS_DEFAULT = 172800  # 48 h
 
 # Relations (N-09) personal CRM — read-only aggregation caps.
 RELATIONS_MAX_ITEMS_DEFAULT = 30  # relationships listed on the overview
-RELATIONS_MAX_ITEMS_PER_SECTION_DEFAULT = 10  # loops/calls/memories per person
+RELATIONS_MAX_ITEMS_PER_SECTION_DEFAULT = 25  # items returned per 360° section
+# (the UI previews the first few and reveals the rest; each section also
+# carries its exact total, so the cap bounds the payload without hiding it)
+
+# --- Provider-backed sections of the 360° view (contacts / emails / events) ---
+# These reach OUTSIDE the database, so every bound here is a cost bound: each
+# address costs two email searches, and the event window is one call whose
+# result is filtered locally.
+RELATIONS_PROVIDER_WINDOW_DAYS_DEFAULT = 90  # symmetric past/future event window
+# Mail looks back FURTHER than the agenda: correspondence is sparser than
+# meetings, and a quarter of silence is common with someone you still deal
+# with. The window bounds RELEVANCE, not quota — a search costs one call
+# whatever it spans; what bounds quota is the number of calls (1 + 3xN + 1)
+# plus the per-user rate limit on the endpoint.
+RELATIONS_PROVIDER_EMAIL_WINDOW_DAYS_DEFAULT = 365
+RELATIONS_PROVIDER_MAX_ADDRESSES_DEFAULT = 3  # addresses of one contact card queried
+RELATIONS_PROVIDER_MAX_ITEMS_DEFAULT = 10  # items rendered per provider section
+# --- Scope of a "360° point" (what the chat tool is allowed to read) ---
+# Five is what a person can hold in their head before a call; the ceiling
+# exists so the bound is PUBLISHED to whoever produces the value (ADR-184).
+# The ceiling is MIRRORED in the browser form that produces the value —
+# `MAX_ITEMS_CEILING` in apps/web/src/components/relations/RelationScopeSection.tsx.
+# Change one, change the other; the safe failure is a 422 the form reports.
+RELATION_OVERVIEW_MAX_ITEMS_DEFAULT = 5
+RELATION_OVERVIEW_MAX_ITEMS_CEILING = 25
+
+# The version is part of the CONTRACT, not decoration: a cached section is a
+# serialized `ContextSection`, so any change to that shape must invalidate what
+# is already in Redis. v2 = the full contact card (ADR-190) — read under v1, a
+# pre-deploy entry would deserialize with every new block EMPTY and show an
+# amputated card for six hours, which reads as "the address book holds nothing".
+RELATIONS_PROVIDER_CACHE_PREFIX = "relations:context:v2"
+# Opening one card costs up to 1 + 3×addresses + 1 provider calls (mail asks
+# from/to/cc separately — see providers/emails.py), and each
+# NAME is its own cache entry — so the cache does not bound a caller who walks
+# through names. This does. Generous for a human opening cards, ruinous for a
+# loop that would burn the account's provider quota.
+RELATIONS_PROVIDER_RATE_LIMIT_CALLS_DEFAULT = 30
+RELATIONS_PROVIDER_RATE_LIMIT_WINDOW_SECONDS_DEFAULT = 60
+RELATIONS_PROVIDER_CONTACT_TTL_SECONDS = 21600  # 6 h — an address book barely moves
+RELATIONS_PROVIDER_EMAILS_TTL_SECONDS = 900  # 15 min — new mail matters, quotas too
+RELATIONS_PROVIDER_EVENTS_TTL_SECONDS = 900  # 15 min — same cadence as the agenda card
 
 # ============================================================================
 # MEMORY REFERENCE EXTRACTION (3-Phase Resolution Pipeline)
@@ -4669,6 +4710,9 @@ PEERS_DISCOVERY_RATE_LIMIT_WINDOW_SECONDS_DEFAULT = 60
 PEERS_MESSAGE_MAX_PER_DAY_DEFAULT = 20
 PEERS_MESSAGE_MAX_PER_DAY_PER_PAIR_DEFAULT = 10
 PEERS_MESSAGE_MAX_CHARS_DEFAULT = 2000
+# Retention TTL (days) for relayed-message texts. Same contract as
+# TELEPHONY_CALL_RETENTION_DAYS_DEFAULT: the row survives, the text is purged.
+PEERS_MESSAGE_RETENTION_DAYS_DEFAULT = 30
 PEERS_REQUEST_COOLDOWN_DAYS_DEFAULT = 7
 PEERS_REQUEST_EXPIRY_DAYS_DEFAULT = 30
 PEERS_DELIVERY_SWEEP_SECONDS_DEFAULT = 60

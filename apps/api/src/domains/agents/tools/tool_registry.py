@@ -347,6 +347,15 @@ def _import_tool_modules() -> None:
         ("src.domains.agents.tools.hue_tools", "hue_tools"),
         # Browser Automation (F7 — always registered, activation via admin connector panel)
         ("src.domains.agents.tools.browser_tools", "browser_tools"),
+        # Cross-domain reads (their manifests are registered unconditionally,
+        # so the module MUST be imported here — a catalogue entry without an
+        # implementation makes the planner select a tool the executor cannot
+        # find, and the whole plan dies AFTER the plan was committed. Observed
+        # in production 2026-07-31 on `get_person_overview_tool`; pinned by
+        # tests/unit/domains/agents/tools/test_catalogue_registry_parity.py).
+        ("src.domains.agents.tools.person_tools", "person_tools"),
+        ("src.domains.agents.tools.documents_tools", "documents_tools"),
+        ("src.domains.agents.tools.automation_tools", "automation_tools"),
         # Internal Tools
         ("src.domains.agents.tools.context_tools", "context_tools"),
         ("src.domains.agents.tools.reminder_tools", "reminder_tools"),

@@ -464,6 +464,7 @@ class AgentRegistry:
 
         Raises:
             ToolManifestAlreadyRegistered: If manifest already exists and override=False
+            ValueError: If serves_domains names a domain absent from DOMAIN_REGISTRY
 
         Example:
             >>> manifest = ToolManifest(
@@ -477,6 +478,14 @@ class AgentRegistry:
             ... )
             >>> registry.register_tool_manifest(manifest)
         """
+        unknown_domains = [d for d in manifest.serves_domains if d not in DOMAIN_REGISTRY]
+        if unknown_domains:
+            raise ValueError(
+                f"Tool '{manifest.name}' declares serves_domains={unknown_domains} "
+                f"which are absent from DOMAIN_REGISTRY. A domain nobody knows makes "
+                f"the tool silently unreachable instead of cross-domain."
+            )
+
         with self._catalogue_lock:
             if manifest.name in self._tool_manifests and not override:
                 raise ToolManifestAlreadyRegistered(manifest.name)

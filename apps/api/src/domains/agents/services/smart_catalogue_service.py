@@ -31,6 +31,8 @@ from src.domains.agents.analysis.query_intelligence import QueryIntelligence
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Container
+
     from src.domains.agents.registry import AgentRegistry
     from src.domains.agents.registry.catalogue import ToolManifest
 
@@ -177,6 +179,36 @@ class SmartCatalogueService:
                 return domain
 
         return "unknown"
+
+    def placement_domain(self, manifest: "ToolManifest", requested: "Container[str]") -> str | None:
+        """Domain bucket this tool belongs to for a given request, or None.
+
+        Both filtering strategies used to ask the same narrower question — "is
+        the manifest's OWN domain among the requested ones?" — which makes a
+        cross-domain tool unreachable from every domain but its home, before
+        any semantic score is read (ADR-191). This is the single place that
+        answers it, so the two strategies cannot drift apart.
+
+        The home domain wins whenever it was requested, so tools keep landing
+        in the bucket the domain-coverage pass expects. A tool reachable only
+        through ``serves_domains`` is placed under the first requested domain
+        it serves — declaration order, so the manifest decides, not dict
+        iteration.
+
+        Args:
+            manifest: Tool manifest under consideration.
+            requested: Domain buckets open for this request.
+
+        Returns:
+            The bucket to place the tool in, or None when it is out of scope.
+        """
+        home = self._extract_domain(manifest)
+        if home in requested:
+            return home
+        for domain in manifest.serves_domains:
+            if domain in requested:
+                return domain
+        return None
 
     def _get_tool_category(self, tool_name: str) -> str:
         """

@@ -1028,6 +1028,45 @@ describe('useChat — HITL approval card decisions (Lot 1 P1-V1)', () => {
     },
   } as ChatStreamChunk;
 
+  it('puts the capability directive in the request body (ADR-191)', async () => {
+    // The last link of the chain: the button's certainty must survive all the
+    // way into the HTTP payload. Production, 2026-08-01 — only the sentence
+    // travelled, and the planner called the generic mail tool instead of the
+    // 0.853-scoring 360° tool.
+    scriptStream([token('ok'), done({ message_count: 2 })]);
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.sendMessage(
+        'Fais-moi un point 360° sur Paul Martin',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { capability: 'person_overview', subject: 'Paul Martin' }
+      );
+    });
+
+    const request = h.streamChat.mock.calls[0][0] as { directive?: Record<string, unknown> };
+    expect(request.directive).toEqual({
+      capability: 'person_overview',
+      subject: 'Paul Martin',
+    });
+  });
+
+  it('omits the directive key entirely for an ordinary message', async () => {
+    // Purely additive: an ordinary turn must produce the exact same body as
+    // before, not a body carrying `directive: undefined`.
+    scriptStream([token('ok'), done({ message_count: 2 })]);
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.sendMessage('Bonjour');
+    });
+
+    expect(h.streamChat.mock.calls[0][0]).not.toHaveProperty('directive');
+  });
+
   it('submitHitlDecision(confirm) locks the card and resumes with a structured decision', async () => {
     scriptStream([ROUTER_CHUNK, CARD_INTERRUPT]);
     const { result } = renderHook(() => useChat());

@@ -7,14 +7,19 @@ reference real columns, and EXCLUDED tables can never appear in the
 exportable set — by construction AND by assertion.
 """
 
+from types import SimpleNamespace
+from uuid import uuid4
+
 import pytest
 
 from src.domains.account_export.builder import (
     _DECRYPTED_COLUMNS,
     _OWNER_COLUMN_OVERRIDES,
     _REDACTED_COLUMNS,
+    _SIDE_SCOPED_COLUMNS,
     _TWO_SIDED,
     _VIA_PARENT,
+    _row_to_dict,
     exportable_tables,
 )
 from src.domains.users.user_data_map import TABLE_RULES, ExportPolicy
@@ -82,6 +87,20 @@ class TestExportCoverage:
                 missing = columns - set(table.c.keys())
                 assert not missing, f"{table_name}: unknown columns in spec: {sorted(missing)}"
 
+    def test_side_scoped_spec_references_real_columns(self) -> None:
+        """Both halves of the rule must exist: the column AND its owner column."""
+        for table_name, pairs in _SIDE_SCOPED_COLUMNS.items():
+            table = Base.metadata.tables[table_name]
+            known = set(table.c.keys())
+            for column, owner_column in pairs:
+                assert column in known, f"{table_name}: unknown column {column}"
+                assert owner_column in known, f"{table_name}: unknown owner column {owner_column}"
+
+    def test_side_scoped_tables_are_two_sided(self) -> None:
+        """A one-sided table cannot need side scoping — the rule would be dead."""
+        for table_name in _SIDE_SCOPED_COLUMNS:
+            assert table_name in _TWO_SIDED
+
     def test_narrative_domains_are_covered(self) -> None:
         """The dual-format promise covers the narrative domains."""
         exportable = set(exportable_tables())
@@ -105,3 +124,44 @@ class TestExportCoverage:
                 f"{table_name}: _render_markdown reads missing columns {sorted(missing)} "
                 "— update builder._render_markdown AND this pin together."
             )
+
+
+@pytest.mark.unit
+class TestSideScopedSerialization:
+    """Each participant exports THEIR OWN words, never the other's (ADR-186 §2).
+
+    The relayed directive belongs to the sender and the delivered rendering to
+    the recipient; crossing them in the archive would undo on disk exactly what
+    the relay guarantees on screen.
+    """
+
+    @staticmethod
+    def _row(sender_id, recipient_id):
+        return SimpleNamespace(
+            _mapping={
+                "id": uuid4(),
+                "sender_id": sender_id,
+                "recipient_id": recipient_id,
+                "content": "Dis-lui que je serai en retard",
+                "delivered_text": "Marie vous fait dire qu'elle sera en retard.",
+                "status": "delivered",
+            }
+        )
+
+    def test_the_sender_gets_their_directive_and_not_the_rendering(self) -> None:
+        sender, recipient = uuid4(), uuid4()
+        row = _row_to_dict("peer_messages", self._row(sender, recipient), sender)
+        assert row["content"] == "Dis-lui que je serai en retard"
+        assert "delivered_text" not in row
+        assert row["status"] == "delivered"  # the FACT stays on both sides
+
+    def test_the_recipient_gets_the_rendering_and_not_the_directive(self) -> None:
+        sender, recipient = uuid4(), uuid4()
+        row = _row_to_dict("peer_messages", self._row(sender, recipient), recipient)
+        assert row["delivered_text"] == "Marie vous fait dire qu'elle sera en retard."
+        assert "content" not in row
+        assert row["status"] == "delivered"
+
+    def test_a_table_without_a_rule_is_untouched(self) -> None:
+        row = _row_to_dict("memories", SimpleNamespace(_mapping={"content": "x"}), uuid4())
+        assert row == {"content": "x"}

@@ -2313,14 +2313,14 @@
       "description": "Finden Sie andere Nutzer dieser Instanz, verbinde sich und teile Lesezugriff mit den Personen Ihrer Wahl.",
       "discovery": {
         "toggle_label": "Andere dürfen mich finden",
-        "toggle_hint": "Standardmäßig deaktiviert. Wenn aktiviert, können Nutzer, die Ihren exakten vollständigen Namen suchen, Ihnen eine Verbindungsanfrage senden. Ohne vollständigen Namen im Profil sind Sie nicht auffindbar.",
+        "toggle_hint": "Standardmäßig deaktiviert. Wenn aktiviert, können Nutzer, die nach Ihrem exakten vollständigen Namen oder Ihrer E-Mail-Adresse suchen, Ihnen eine Verbindungsanfrage senden. Ohne vollständigen Namen im Profil sind Sie nicht auffindbar.",
         "toggle_saved": "Sichtbarkeitseinstellung gespeichert",
         "title": "Jemanden finden",
-        "search_label": "Vollständiger Name",
-        "search_placeholder": "z. B. Max Mustermann",
+        "search_label": "Vollständiger Name oder E-Mail",
+        "search_placeholder": "z. B. Max Mustermann oder max@beispiel.de",
         "search_button": "Suchen",
-        "exact_hint": "Die Suche findet nur den exakten vollständigen Namen (Akzente und Groß-/Kleinschreibung werden ignoriert).",
-        "no_results": "Niemand mit diesem exakten Namen gefunden. Die Person hat die Auffindbarkeit möglicherweise nicht aktiviert.",
+        "exact_hint": "Die Suche findet den exakten vollständigen Namen (Akzente und Groß-/Kleinschreibung werden ignoriert) oder die exakte E-Mail-Adresse.",
+        "no_results": "Niemand gefunden. Entweder stimmt die Schreibweise nicht genau, oder die Person hat die Auffindbarkeit nicht aktiviert.",
         "context_label": "Optionale Notiz",
         "context_placeholder": "Ein paar Worte, damit die Person weiß, wer Sie sind …",
         "request_button": "Verbindung anfragen",
@@ -2399,8 +2399,13 @@
       "my_name": {
         "label": "Ihr Name:",
         "copy": "Ihren Namen kopieren",
-        "hint": "Andere müssen genau diesen Namen suchen, um Sie zu finden.",
+        "hint": "Andere müssen genau diesen Namen — oder Ihre E-Mail-Adresse — suchen, um Sie zu finden.",
         "missing": "Fügen Sie Ihren vollständigen Namen in Ihrem Profil hinzu, damit Bekannte Sie finden können."
+      },
+      "email_visibility": {
+        "toggle_label": "Meine E-Mail meinen Verbindungen zeigen",
+        "toggle_hint": "Standardmäßig deaktiviert. Wenn aktiviert, sehen von Ihnen AKZEPTIERTE Personen Ihre echte Adresse statt des maskierten Hinweises. Eine offene Anfrage nie.",
+        "toggle_saved": "Sichtbarkeit der Adresse gespeichert"
       }
     },
     "notifications": {
@@ -3046,7 +3051,7 @@
         "psyche": "Emotionen, Stimmung, Gefühle, Affekt, emotional",
         "memories": "Gedächtnis, Erinnerungen, erinnern, vergessen, Fakten",
         "interests": "Themen, Vorlieben, Geschmack, Neugier, Präferenzen",
-        "peer-connections": "kontakte, freunde, familie, netzwerk, kalender teilen, verfügbarkeit, blockieren, nutzer finden, verbinden, mein Name, meinen Namen kopieren, Verbindungsanfrage, Zugriffsprotokoll, Nachricht weiterleiten, blockierte Nutzer, Nahestehende, soziales Netzwerk, Peer, Auffindbarkeit, Entdeckung",
+        "peer-connections": "kontakte, freunde, familie, netzwerk, kalender teilen, verfügbarkeit, blockieren, nutzer finden, verbinden, mein Name, meinen Namen kopieren, Verbindungsanfrage, Zugriffsprotokoll, Nachricht weiterleiten, blockierte Nutzer, Nahestehende, soziales Netzwerk, Peer, Auffindbarkeit, Entdeckung, meine Adresse teilen, E-Mail sichtbar, meine E-Mail, 360°-Überblick",
         "heartbeat": "proaktiv, spontan, Initiative, Kontaktaufnahme, autonome Nachrichten",
         "scheduled-actions": "Cron, Zeitplan, wiederkehrend, Automatisierung, Timer, geplant",
         "journals": "Tagebuch, Logbuch, Porträt, Reflexionen, Notizen",
@@ -3059,8 +3064,8 @@
   },
   "relations": {
     "title": "Beziehungen",
-    "subtitle": "Alles, was LIA über die Menschen weiß, mit dene zu tun haben — offene Zusagen, Anrufe und Erinnerungen an einem Ort.",
-    "empty": "Noch keine Beziehung. Sobald LIA Zusagen verfolgt und Anrufe tätigt, erscheinen die beteiligten Personen hier.",
+    "subtitle": "Alles, was LIA über die Menschen weiß, mit denen Sie zu tun haben — offene Zusagen, Anrufe, weitergeleitete Nachrichten und Erinnerungen an einem Ort.",
+    "empty": "Noch keine Beziehung. Sobald LIA Zusagen verfolgt, Anrufe tätigt und Nachrichten weiterleitet, erscheinen die beteiligten Personen hier.",
     "detail_empty": "Für diese Person ist noch nichts erfasst.",
     "back": "Zurück zur Liste",
     "open_loops_count_one": "{{count}} Zusage",
@@ -3069,12 +3074,46 @@
     "calls_count_other": "{{count}} Anrufe",
     "days_open_one": "offen seit {{count}} Tag",
     "days_open_other": "offen seit {{count}} Tagen",
-    "prepare_360": "360°-Überblick vorbereiten",
     "prepare_intent": "Bereite einen 360°-Überblick zu {{name}} vor: jüngste Interaktionen, offene Zusagen und was als Nächstes anzusprechen ist.",
+    "scope_title": "360°-Überblick — was LIA liest",
+    "scope_hint": "Ihre Auswahl wird gespeichert, bevor der Chat öffnet: Der Assistent wendet sie an, statt sie aus dem Satz zu erraten.",
+    "scope_sections_legend": "Zu verwendende Bereiche",
+    "scope_directions_legend": "Richtung des Austauschs",
+    "scope_roles_legend": "Rolle bei Terminen",
+    "scope_max_items": "Max. Einträge pro Bereich",
+    "scope_empty": "Kein Bereich ausgewählt: Der 360°-Überblick hätte nichts zu lesen.",
+    "scope_launch": "360°-Überblick starten",
     "identity_best_effort": "Diese Einträge wurden über den Namen zugeordnet — LIA könnte zwei verschiedene Personen zusammengefasst oder eine Schreibweise übersehen haben.",
     "section_open_loops": "Offene Zusagen",
     "section_calls": "Letzte Anrufe",
     "section_memories": "Erinnerungen",
+    "section_peer_messages": "Nachrichten",
+    "peer_messages_count_one": "{{count}} Nachricht",
+    "peer_messages_count_other": "{{count}} Nachrichten",
+    "peer_message_received": "Erhalten",
+    "peer_message_sent": "Gesendet",
+    "peer_message_no_content": "Text nicht mehr vorhanden",
+    "show_more_one": "1 weiteren anzeigen",
+    "show_more_other": "{{count}} weitere anzeigen",
+    "more_not_shown_one": "1 weiterer wird hier nicht angezeigt",
+    "more_not_shown_other": "{{count}} weitere werden hier nicht angezeigt",
+    "peer_link_title": "LIA-Verbindung",
+    "peer_link_since": "Verbunden {{when}}",
+    "peer_link_nothing_shared": "Sie teilen bisher nichts.",
+    "dormant": "Ruhend",
+    "dormant_hint": "Seit über drei Monaten kein Lebenszeichen",
+    "sort_label": "Sortieren nach",
+    "sort_recent": "Neueste",
+    "sort_name": "Name",
+    "sort_volume": "Aktivste",
+    "only_peers": "Auf LIA",
+    "only_dormant": "Ruhend",
+    "action_message": "Nachricht schreiben",
+    "action_message_prefill": "Übermittle {{name}} eine Nachricht: ",
+    "action_call": "Anrufen",
+    "action_call_prefill": "Rufe {{name}} an, um: ",
+    "action_loop": "Zusage verfolgen",
+    "action_loop_prefill": "Notiere eine Zusage mit {{name}}: ",
     "favorites_title": "Favoriten",
     "others_title": "Weitere Beziehungen",
     "all_title": "Alle Beziehungen",
@@ -3086,7 +3125,55 @@
     "peer_badge": "Auf LIA",
     "peer_badge_hint": "Ebenfalls Nutzer dieser LIA-Instanz — Sie sind verbunden",
     "no_recent_signal": "Kein aktuelles Signal",
-    "subtitle_detail": "Der 360°-Blick auf Ihre Beziehung"
+    "subtitle_detail": "Der 360°-Blick auf Ihre Beziehung",
+    "section_contact": "Kontaktkarte",
+    "section_emails": "Ausgetauschte E-Mails",
+    "section_events": "Gemeinsame Termine",
+    "contact_no_details": "Keine Adresse und keine Telefonnummer auf dieser Karte.",
+    "contact_nickname": "Auch bekannt als {{name}}",
+    "contact_label": {
+      "anniversary": "Jahrestag",
+      "assistant": "Assistenz",
+      "birthday": "Geburtstag",
+      "blog": "Blog",
+      "brother": "Bruder",
+      "cell": "mobil",
+      "child": "Kind",
+      "domesticpartner": "Partner·in",
+      "father": "Vater",
+      "friend": "Freund·in",
+      "home": "privat",
+      "homepage": "Website",
+      "main": "Hauptnummer",
+      "manager": "Vorgesetzte·r",
+      "mobile": "mobil",
+      "mother": "Mutter",
+      "other": "sonstige",
+      "parent": "Elternteil",
+      "partner": "Partner·in",
+      "profile": "Profil",
+      "referredby": "empfohlen von",
+      "relative": "verwandt",
+      "sister": "Schwester",
+      "spouse": "Ehepartner·in",
+      "work": "Arbeit"
+    },
+    "event_upcoming": "Bevorstehend",
+    "events_window_one": "Der letzte und der nächste Tag wurden geprüft.",
+    "events_window_other": "Die letzten {{count}} und die nächsten {{count}} Tage wurden geprüft.",
+    "provider_none": "Verbinden Sie Ihr Adressbuch, um die Kontaktkarte, die ausgetauschten E-Mails und die gemeinsamen Termine mit dieser Person zu sehen.",
+    "provider_no_address": "Keine Adresse auf dieser Kontaktkarte — E-Mails und Termine konnten daher nicht gesucht werden.",
+    "provider_error": "Einige Ihrer verbundenen Konten konnten gerade nicht gelesen werden.",
+    "refresh_all": "Aktualisieren, was aus den verbundenen Konten stammt",
+    "refresh_section": "Diesen Abschnitt aktualisieren",
+    "event_role_organizer": "Organisator",
+    "event_role_attendee": "Teilnehmer",
+    "emails_window_one": "Der letzte Tag wurde durchsucht.",
+    "emails_window_other": "Die letzten {{count}} Tage wurden durchsucht.",
+    "emails_summarize_one": "Diese E-Mail im Chat zusammenfassen",
+    "emails_summarize_other": "Diese {{count}} E-Mails im Chat zusammenfassen",
+    "emails_summary_intent": "Fasse meinen E-Mail-Austausch mit {{name}} zusammen: {{subjects}}",
+    "emails_select": "„{{subject}}“ auswählen"
   },
   "spaces": {
     "title": "Wissensräume",
@@ -3695,7 +3782,7 @@
         },
         "relations": {
           "title": "⭐ Persönliches CRM — Beziehungen",
-          "description": "Eine <b>Linse, keine Datenbank</b>: Die Beziehungsseite aggregiert, was LIA pro Person bereits weiß — offene Verpflichtungen, Anrufe, namenstreffende Erinnerungen — mit einer über Akzent-/Groß-Kleinschreibungs-Faltung aufgelösten Identität und <b>ausgewiesener</b> Konfidenz (exakt vs. normalisiert: Ehrlichkeit vor falscher Präzision). Der einzige persistierte Zustand ist der <b>Favoriten-Stern</b>: idempotentes serverseitiges Upsert, optimistisches Umschalten mit Abgleich gegen die frische Übersicht, Favoriten auch nach Ablauf ihrer Signale eingefügt und vor der Kappung gereiht. Beziehungen, die zugleich verbundene LIA-Nutzer sind, tragen ein Nur-Lese-Peers-Abzeichen (Brücke hinter Flag), und alles folgt DSGVO-Export und Kontobereinigung."
+          "description": "Eine <b>Linse, keine Datenbank</b>: Die Seite „Beziehungen“ bündelt, was LIA je Person ohnehin weiß — offene Zusagen, Anrufe, Erinnerungen, weitergeleitete Nachrichten — mit einer Identität über Akzent-/Groß-Klein-Faltung und einer <b>angezeigten</b> Sicherheit (exakt vs. normalisiert). Jeder Bereich trägt seine <b>exakte</b> Gesamtzahl, aus einer Aggregation über die Gesamtmenge statt aus der Länge einer Seite. Drei Bereiche stammen aus den verbundenen Konten — Adressbucheintrag, E-Mails, Termine — gefunden über die <b>Adresse</b> statt über den Namen, mit Cache je Bereich und genanntem Zeitraum statt einer Zahl, die keine Anbieterseite belegt. Zwei Dinge werden gespeichert: der Favoritenstern und der <b>360°-Umfang</b>, den das Werkzeug liest, statt ihn zu erraten. Ein 360°-Überblick von der Karte aus schickt nicht mehr nur einen Satz: die <b>aufgerufene Fähigkeit</b> reist als Daten, sodass das Werkzeug zur richtigen Person im Plan steht und die allgemeinen Abfragen, die es bereits abdeckt, entfallen — eine unpassende Antwort neben einer benannten Lücke würde ihr widersprechen. Eine verbundene Person ohne Adressbucheintrag bringt endlich ihre eigene Adresse mit, aber <b>nur wenn sie sie geteilt hat</b>: ihre Einstellung entscheidet allein."
         }
       },
       "diagram_alt": "LIA-Architekturdiagramm"
@@ -3704,6 +3791,21 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_27_5": {
+          "title": "v1.27.5 — 👥 Der 360°-Überblick zu einer Person: vollständig und einstellbar",
+          "date": "August 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>👥 Der 360°-Überblick zu einem Kontakt funktioniert wieder</b> — die Anfrage ergab, dass LIA die jüngsten Interaktionen nicht abrufen konnte. Das Werkzeug existierte, wurde beim Start aber nie geladen: LIA wählte es aus und fand es dann nicht. Es findet jetzt den ausgetauschten E-Mail-Verkehr und die gemeinsamen Termine — über die <b>Adresse</b> statt über den Namen, was deutlich zuverlässiger ist.",
+            "i2": "<b>📇 Die Kontaktkarte zeigt dein ganzes Adressbuch</b> — Spitzname, Funktion, Geburtstag, Notiz, Postanschriften, familiäre Beziehungen, Links, wichtige Daten und Messenger-Kennungen kommen zu Name, Organisation, E-Mail-Adressen und Telefonnummern hinzu. Was dein Anbieter nicht speichert, erscheint gar nicht erst, statt leer angezeigt zu werden.",
+            "i3": "<b>🎯 Du bestimmst, was der 360°-Überblick liest</b> — ein neuer Bereich am Kopf der Beziehungskarte lässt dich die Quellen ankreuzen, empfangene von gesendeten Nachrichten und besuchte von organisierten Terminen unterscheiden und die Anzahl der Einträge je Bereich festlegen. Deine Auswahl wird gespeichert, bevor der Chat öffnet: LIA wendet sie an, statt sie zu erraten.",
+            "i4": "<b>🔢 LIA zählt nicht mehr zu niedrig</b> — die Karte zeigt „137 Verpflichtungen“ und listet nur einige davon; der Assistent bekam allein diese Zeilen und antwortete „du hast fünf“. Er erhält jetzt die exakte Zahl. Und wenn eine Quelle nicht gelesen werden konnte, sagt er das, statt zu behaupten, es gebe nichts.",
+            "i5": "<b>👤 Der 360°-Überblick betrifft garantiert die angezeigte Person</b> — der Knopf schickte bisher einen Satz, den LIA neu deuten musste; sie konnte allgemeine Werkzeuge wählen und daran vorbeigehen. Jetzt trägt der Knopf die Anfrage selbst: das 360°-Werkzeug steht im Plan, zur richtigen Person. Andere nützliche Abfragen bleiben erhalten.",
+            "i6": "<b>💬 Der Assistent erhält endlich alles, was der 360°-Überblick gefunden hat</b> — er konnte antworten „ich habe keine Daten zur Hand“, unmittelbar nachdem er offene Zusagen, Anrufe und weitergeleitete Nachrichten geholt hatte. Der Inhalt blieb unterwegs stehen. Nun kommt er vollständig an.",
+            "i7": "<b>🤝 Ein LIA-Kontakt ohne Eintrag in deinem Adressbuch hat endlich E-Mails und Termine</b> — Austausche werden über die Adresse gefunden, und eine verbundene Person, die du nie gespeichert hast, hatte keine. Wenn sie das Teilen ihrer Adresse aktiviert hat, nutzt LIA sie, um in <b>deiner</b> Post und <b>deinem</b> Kalender zu finden, was euch beide betrifft.",
+            "i8": "<b>📅 Kein Termin aus DEINEM Kalender mehr als ihrer ausgegeben</b> — ohne gemeinsamen Termin füllte der Assistent die Lücke mit dem nächsten Eintrag deines Kalenders, den die Person weder organisiert noch besucht hat. Ein leerer Abschnitt ist eine Antwort; ein Termin ohne sie ist ein Fehler."
+          }
+        },
         "v1_27_4": {
           "title": "v1.27.4 — 📧 Wer 3 E-Mails anfragt, bekommt 3 E-Mails",
           "date": "Juli 2026",
@@ -5693,11 +5795,11 @@
       "relations": {
         "title": "Beziehungen (persönliches CRM)",
         "description": "Die Beziehungsseite: alles, was LIA über die Menschen weiß, mit dene zu tun haben, Favoriten inklusive.",
-        "count": "4",
+        "count": "7",
         "questions": {
           "q1": {
-            "question": "Was ist die Beziehungsseite?",
-            "answer": "Öffne <strong>Beziehungen</strong> in der Navigationsleiste: eine Karte pro Person, die zusammenführt, was LIA bereits verfolgt — <strong>offene Verpflichtungen</strong>, <strong>Telefonanrufe</strong> und <strong>Erinnerungen</strong>, die sie erwähnen. Eine Karte öffnet die 360°-Ansicht, mit einem Knopf <em>360°-Überblick vorbereiten</em>, der LIA im Chat briefen lässt. Es ist eine Linse über vorhandene Daten: Nichts Neues wird gesammelt."
+            "question": "Was ist die Seite „Beziehungen“?",
+            "answer": "Öffne <strong>Beziehungen</strong> in der Navigationsleiste: eine Karte pro Person, die bündelt, was LIA ohnehin verfolgt — <strong>offene Zusagen</strong>, <strong>Telefonate</strong>, <strong>Erinnerungen</strong>, die sie erwähnen, und <strong>weitergeleitete Nachrichten</strong>. Eine Karte zu öffnen zeigt die 360°-Ansicht, in deren erstem Bereich du einen 360°-Überblick im Chat startest. Es ist eine Linse auf vorhandene Daten: nichts Neues wird erhoben."
           },
           "q2": {
             "question": "Wie funktionieren die Favoriten?",
@@ -5710,6 +5812,18 @@
           "q4": {
             "question": "Warum meldet eine Karte eine ungefähre Übereinstimmung?",
             "answer": "Personen werden nach <strong>Namen</strong> gruppiert, Akzente und Groß-/Kleinschreibung werden toleriert. Wenn die Schreibweisen zwischen Quellen abweichen oder eine Erinnerung nur einen häufigen Vornamen erwähnt, sagt LIA, dass die Übereinstimmung <strong>ungefähr</strong> ist, statt Gewissheit vorzutäuschen — Ehrlichkeit vor falscher Präzision."
+          },
+          "q5": {
+            "question": "Was zeigt die Karte einer Beziehung?",
+            "answer": "Über das hinaus, was LIA selbst verfolgt, zeigt die Karte, was deine verbundenen Konten über diese Person wissen: ihren <strong>Adressbucheintrag</strong> (Spitzname, Funktion, Geburtstag, Postanschriften, Beziehungen, Links…), den <strong>E-Mail-Verkehr</strong> und die <strong>gemeinsamen Termine</strong>. Diese drei werden über die <strong>E-Mail-Adresse</strong> gefunden, die aus der Kontaktkarte stammt — ohne hinterlegte Adresse sagt LIA das, statt so zu tun, als hätte sie nichts gefunden. Sie nennen den betrachteten <strong>Zeitraum</strong> statt einer Gesamtzahl, die eine Anbieterseite nicht belegen kann, und jede lässt sich einzeln neu laden."
+          },
+          "q6": {
+            "question": "Wie lege ich fest, was LIA für einen 360°-Überblick liest?",
+            "answer": "Der erste Bereich der Karte, <strong>360°-Überblick</strong>, enthält die Kästchen: welche Quellen verwendet werden (Kontaktkarte, Zusagen, Erinnerungen, Anrufe, weitergeleitete Nachrichten, E-Mails, Termine), die <strong>Richtung</strong> des Austauschs (empfangen, gesendet), die <strong>Rolle</strong> bei Terminen (Teilnehmend, Organisierend) und wie viele Einträge jeder Bereich beisteuern darf. Deine Auswahl wird <strong>gespeichert, bevor der Chat öffnet</strong>, sodass LIA sie anwendet, statt sie aus deinem Satz zu erraten — und sie ist beim nächsten Mal vorausgefüllt. Alles abzuwählen bedeutet nicht, alles zu nehmen: eine nicht angehakte Quelle wird schlicht nicht gelesen."
+          },
+          "q7": {
+            "question": "Warum hatte eine verbundene Person weder E-Mails noch Termine?",
+            "answer": "Austausche werden über die <strong>Adresse</strong> gefunden, nicht über den Namen: wen du nie in deinem Adressbuch gespeichert hast, der hatte keine — also gab es nichts zuzuordnen. Ist diese Person ein <strong>verbundener Nutzer</strong> und hat das Teilen ihrer Adresse aktiviert (Einstellung Verbindungen), nutzt LIA sie nun, um in <strong>deiner</strong> Post und <strong>deinem</strong> Kalender die Austausche und Termine zu finden, in denen sie vorkommt. Ohne dieses Teilen ändert sich nichts: ihre Einstellung entscheidet allein. Und betrifft sie kein Termin, bleibt der Abschnitt <strong>leer</strong> — LIA füllt die Stille nicht mit einem Termin deines Kalenders, den sie weder organisiert noch besucht."
           }
         }
       },
@@ -6634,6 +6748,10 @@
       "relation_star": {
         "title": "Ein Stern, der nicht vergisst",
         "desc": "Markiere eine Beziehung direkt auf ihrer Karte — ohne sie zu öffnen. Favoriten behalten ihr Band ganz oben, und eine markierte Person bleibt sichtbar, selbst nach Monaten der Stille."
+      },
+      "relation_sections": {
+        "title": "Eine Ansicht, die sich aufklappt",
+        "desc": "Die Ansicht einer Beziehung öffnet sich zugeklappt: Die Überschriften sind das Verzeichnis, du öffnest, wofür du gekommen bist. Jeder Bereich nennt den betrachteten Zeitraum und lädt sich einzeln neu."
       }
     },
     "scenes": {
@@ -6686,6 +6804,9 @@
       },
       "peer_actions": {
         "reply": "Antworten"
+      },
+      "relation_sections": {
+        "section": "E-Mail-Verkehr"
       }
     },
     "craft": {
@@ -7850,8 +7971,6 @@
       "response_hint": "Streamt Token für Token"
     },
     "screenshots": {
-      "title": "LIA in Bildern",
-      "subtitle": "Eine klare, intuitive Oberfläche für alle — keine technischen Kenntnisse erforderlich",
       "items": {
         "homepage": "Startseite — Tagesbriefing: personalisierte Synthese, Wetter, Kalender, Geburtstage, Gesundheit und Nutzungsstatistiken",
         "chat": "Chat — Multi-Agenten-Konversation mit Echtzeit-Debug-Panel",
@@ -7868,8 +7987,6 @@
       }
     },
     "presentation": {
-      "title": "Detaillierte Präsentation",
-      "subtitle": "Entdecke LIAs Architektur, Funktionen und Philosophie in 15 Folien",
       "slide_alt": "LIA-Präsentation Folie {{number}}",
       "slide_counter": "Folie {{current}} von {{total}}"
     },
@@ -7878,7 +7995,7 @@
       "title": "LIA ist bereit. Und etwas ungeduldig.",
       "subtitle": "Ein Assistent, der handelt, dich kennt, vorausdenkt — und immer erst fragt.",
       "button": "Konto erstellen",
-      "note_beta": "Kostenlose Beta, 24/7 produktiv im Einsatz. Ehrlich bis zum Schluss: Abos werden kommen.",
+      "note_beta": "Kostenlose Beta, 24/7 produktiv im Einsatz.",
       "philosophy_link": "Oder lies zuerst unsere Philosophie"
     },
     "blog_preview": {
@@ -8081,7 +8198,7 @@
       "p4_t": "Von einer KI geschrieben, von einem Menschen geführt",
       "p4_d": "420.000 Zeilen, ~100 % generiert — unter Rahmenwerk, Reviews und kontradiktorischen Audits. Die Methode ist veröffentlicht.",
       "p4_link": "Erfahrungsbericht lesen",
-      "honest": "Kostenlose Beta, 24/7 produktiv im Einsatz. Ehrlich bis zum Schluss: Abos werden kommen.",
+      "honest": "Kostenlose Beta, 24/7 produktiv im Einsatz.",
       "cta": "Ausprobieren — in voller Kenntnis"
     },
     "day": {
@@ -8400,7 +8517,7 @@
       "execution-plans": {
         "title": "ExecutionPlan: Wie LIA komplexe Anfragen plant und ausführt",
         "excerpt": "LIA zerlegt mehrstufige Anfragen in strukturierte Ausführungspläne, semantisch validiert und parallel ausgeführt für schnelle, zuverlässige Antworten.",
-        "body": "<h2>Eine strukturierte Plansprache</h2><p>Der Planer von LIA generiert einen <strong>ExecutionPlan</strong>: ein validiertes Pydantic-Objekt mit einer <code>plan_id</code> (UUID), einem <code>execution_mode</code> (sequenziell oder parallel), einem <code>max_cost_usd</code>, einem <code>estimated_cost_usd</code> und einer <code>version</code>-Nummer. Jeder Plan enthält eine Liste von <strong>ExecutionStep</strong> mit den Feldern: <code>step_id</code>, <code>step_type</code> (TOOL, CONDITIONAL, REPLAN oder HUMAN), <code>agent_name</code>, <code>tool_name</code>, <code>parameters</code>, <code>depends_on</code> und <code>timeout_seconds</code>.</p><p>Zum Beispiel würde der Plan für \"sende eine Wetterzusammenfassung an Jean morgen früh\" enthalten: (1) Wetter von morgen abrufen, (2) Kontakt Jean suchen, (3) E-Mail verfassen und senden — mit einer Abhängigkeit zwischen den Schritten 1→3 und 2→3.</p><h2>Das FOR_EACH-Pattern</h2><p>Für Stapelverarbeitungen unterstützen die Schritte ein <code>for_each</code>-Feld, das über eine von einem vorherigen Schritt erzeugte Sammlung iteriert. Der Parameter <code>for_each_max</code> begrenzt die Anzahl der Iterationen, und jeder Elementfehler wird einzeln behandelt, ohne die gesamte Stapelverarbeitung zu unterbrechen.</p><h2>Semantische Validierung mit 11 Prüfungen</h2><p>Vor jeder Ausführung überprüft der <strong>semantische Validator</strong> 11 Arten von Problemen:</p><ul><li><strong>HALLUCINATED_CAPABILITY</strong> — Vom LLM erfundenes Tool oder Fähigkeit</li><li><strong>GHOST_DEPENDENCY</strong> — Verweis auf einen nicht existierenden Schritt</li><li><strong>LOGICAL_CYCLE</strong> — Zirkuläre Abhängigkeiten</li><li><strong>CARDINALITY_MISMATCH</strong> — Kardinalitätsinkompatibilität zwischen Schritten</li><li><strong>SCOPE_OVERFLOW / SCOPE_UNDERFLOW</strong> — Plan zu umfangreich oder unzureichend</li><li><strong>WRONG_PARAMETERS</strong> — Falsche Parameter für das Tool</li><li><strong>MISSING_STEP</strong> — Fehlender Schritt zur Erfüllung der Anfrage</li><li><strong>DANGEROUS_AMBIGUITY</strong> — Mehrdeutigkeit, die zu einem Fehler führen könnte</li><li><strong>IMPLICIT_ASSUMPTION / INSUFFICIENT_CONTENT</strong> — Nicht überprüfte Annahmen</li></ul><h2>Unterscheidung indexierbarer vs. semantischer Kriterien</h2><p>Über die elf strukturellen Prüfungen hinaus setzt der Validator ein <strong>universelles Planungsprinzip</strong> durch: <em>indexierbare</em> Kriterien (Datum, Kennung, Absender, Status, Ort — als Werkzeugparameter übergeben) von <em>semantischen</em> Kriterien (Kategorie, Dringlichkeit, Qualität, Priorität — nachgelagert vom Antwort-LLM gefiltert) zu unterscheiden. Wenn der Planer versucht, ein konzeptuelles Wort wie « medizinisch » oder « dringend » in die Suche eines wörtlich-suchenden Werkzeugs (Google Calendar, Gmail, Notion-ähnliche Stores…) zu drücken, markiert eine Erkennungsschicht das Leck über Wortgrenzen-Abgleich gegen den vom Anfrageanalysator emittierten Hinweis. Werkzeug-agnostischer Mechanismus: kein aktueller Connector oder zukünftiger MCP-Server muss angepasst werden — deklarativer Opt-out über <code>ToolManifest.text_search_mode</code> für Stores, die native semantische Suche anbieten.</p><h2>Parallele Ausführung in Wellen</h2><p>Ein <strong>DependencyGraph</strong> berechnet die Ausführungswellen: Alle Schritte ohne Abhängigkeiten bilden die erste Welle und werden parallel ausgeführt. Die folgenden Wellen warten auf den Abschluss ihrer Voraussetzungen. Dieser Mechanismus ermöglicht die Verarbeitung komplexer Anfragen über 3 bis 5 Domänen mit einer Antwortzeit vergleichbar mit einer einfachen Anfrage.</p><h2>Adaptive Neuplanung</h2><p>Wenn ein Schritt fehlschlägt, kann das System über den Typ <code>REPLAN</code> dynamisch neu planen. Wenn beispielsweise ein Kontakt nicht gefunden wird, kann LIA den Benutzer um Klärung bitten, anstatt den gesamten Plan aufzugeben.</p><h2>Selbstanreicherndes Anti-Halluzinations-Register</h2><p>LLMs erfinden manchmal nicht existierende Tools in ihren Plänen. LIA pflegt ein persistentes Register halluzinierter Muster (<code>hallucinated_tools.json</code>), das sich bei jeder neuen Erkennung automatisch aktualisiert. Bei der Planvalidierung wird jedes Tool gegen dieses Register geprüft — halluzinierte Schritte werden entfernt und der Planner wird gezwungen, mit echten Katalog-Tools neu zu planen.</p><h2>Den Grund zum Erfinden beseitigen</h2><p>Ein erfundenes Werkzeug zu erkennen, ist eine Reaktion. Die Ursache liegt davor: Enthält der an den Planer übergebene Katalog ein Werkzeug, das einen Wert verlangt, den kein anderes erzeugen kann – eine Nachrichten-ID, um darauf zu antworten –, dann <strong>existiert kein gültiger Plan</strong>, und das Modell kann nur erfinden. LIA prüft daher vor dem Planen, dass der Katalog <strong>geschlossen</strong> ist: Für jeden verlangten Wert ist eine lesende Quelle vorhanden. Die Regel sieht die Anfrage nie an, sie liest die Manifeste – ein Linker, der offene Referenzen auflöst, keine Suche, die rät.</p><h2>Die durchgesetzten Grenzen veröffentlichen</h2><p>Den Katalog zu schließen beantwortet, <em>welche Werkzeuge</em> ein Plan nutzen darf. Eine zweite Frage entscheidet über seine Annahme: <em>welche Werte</em>. Jedes Werkzeug erklärt Grenzen — wie viele Ergebnisse es auf einmal liefert — und der Validator setzt sie durch. Diese Grenzen erreichten die Planung nicht, die ihre Stapel allein aus dem Prompt dimensionierte und deren Plan abgelehnt wurde, weil sie der erhaltenen Anweisung folgte. Eine durchgesetzte, aber verborgene Grenze ist kein Vertrag, sondern eine Falle. Sie wird jetzt mit dem Werkzeug veröffentlicht, und jeder Wert darüber wird vor der Validierung zurechtgerückt — eine Ablehnung meldet somit nur noch einen real bestehenden Mangel.</p>"
+        "body": "<h2>Eine strukturierte Plansprache</h2><p>Der Planer von LIA generiert einen <strong>ExecutionPlan</strong>: ein validiertes Pydantic-Objekt mit einer <code>plan_id</code> (UUID), einem <code>execution_mode</code> (sequenziell oder parallel), einem <code>max_cost_usd</code>, einem <code>estimated_cost_usd</code> und einer <code>version</code>-Nummer. Jeder Plan enthält eine Liste von <strong>ExecutionStep</strong> mit den Feldern: <code>step_id</code>, <code>step_type</code> (TOOL, CONDITIONAL, REPLAN oder HUMAN), <code>agent_name</code>, <code>tool_name</code>, <code>parameters</code>, <code>depends_on</code> und <code>timeout_seconds</code>.</p><p>Zum Beispiel würde der Plan für \"sende eine Wetterzusammenfassung an Jean morgen früh\" enthalten: (1) Wetter von morgen abrufen, (2) Kontakt Jean suchen, (3) E-Mail verfassen und senden — mit einer Abhängigkeit zwischen den Schritten 1→3 und 2→3.</p><h2>Das FOR_EACH-Pattern</h2><p>Für Stapelverarbeitungen unterstützen die Schritte ein <code>for_each</code>-Feld, das über eine von einem vorherigen Schritt erzeugte Sammlung iteriert. Der Parameter <code>for_each_max</code> begrenzt die Anzahl der Iterationen, und jeder Elementfehler wird einzeln behandelt, ohne die gesamte Stapelverarbeitung zu unterbrechen.</p><h2>Semantische Validierung mit 11 Prüfungen</h2><p>Vor jeder Ausführung überprüft der <strong>semantische Validator</strong> 11 Arten von Problemen:</p><ul><li><strong>HALLUCINATED_CAPABILITY</strong> — Vom LLM erfundenes Tool oder Fähigkeit</li><li><strong>GHOST_DEPENDENCY</strong> — Verweis auf einen nicht existierenden Schritt</li><li><strong>LOGICAL_CYCLE</strong> — Zirkuläre Abhängigkeiten</li><li><strong>CARDINALITY_MISMATCH</strong> — Kardinalitätsinkompatibilität zwischen Schritten</li><li><strong>SCOPE_OVERFLOW / SCOPE_UNDERFLOW</strong> — Plan zu umfangreich oder unzureichend</li><li><strong>WRONG_PARAMETERS</strong> — Falsche Parameter für das Tool</li><li><strong>MISSING_STEP</strong> — Fehlender Schritt zur Erfüllung der Anfrage</li><li><strong>DANGEROUS_AMBIGUITY</strong> — Mehrdeutigkeit, die zu einem Fehler führen könnte</li><li><strong>IMPLICIT_ASSUMPTION / INSUFFICIENT_CONTENT</strong> — Nicht überprüfte Annahmen</li></ul><h2>Unterscheidung indexierbarer vs. semantischer Kriterien</h2><p>Über die elf strukturellen Prüfungen hinaus setzt der Validator ein <strong>universelles Planungsprinzip</strong> durch: <em>indexierbare</em> Kriterien (Datum, Kennung, Absender, Status, Ort — als Werkzeugparameter übergeben) von <em>semantischen</em> Kriterien (Kategorie, Dringlichkeit, Qualität, Priorität — nachgelagert vom Antwort-LLM gefiltert) zu unterscheiden. Wenn der Planer versucht, ein konzeptuelles Wort wie « medizinisch » oder « dringend » in die Suche eines wörtlich-suchenden Werkzeugs (Google Calendar, Gmail, Notion-ähnliche Stores…) zu drücken, markiert eine Erkennungsschicht das Leck über Wortgrenzen-Abgleich gegen den vom Anfrageanalysator emittierten Hinweis. Werkzeug-agnostischer Mechanismus: kein aktueller Connector oder zukünftiger MCP-Server muss angepasst werden — deklarativer Opt-out über <code>ToolManifest.text_search_mode</code> für Stores, die native semantische Suche anbieten.</p><h2>Parallele Ausführung in Wellen</h2><p>Ein <strong>DependencyGraph</strong> berechnet die Ausführungswellen: Alle Schritte ohne Abhängigkeiten bilden die erste Welle und werden parallel ausgeführt. Die folgenden Wellen warten auf den Abschluss ihrer Voraussetzungen. Dieser Mechanismus ermöglicht die Verarbeitung komplexer Anfragen über 3 bis 5 Domänen mit einer Antwortzeit vergleichbar mit einer einfachen Anfrage.</p><h2>Adaptive Neuplanung</h2><p>Wenn ein Schritt fehlschlägt, kann das System über den Typ <code>REPLAN</code> dynamisch neu planen. Wenn beispielsweise ein Kontakt nicht gefunden wird, kann LIA den Benutzer um Klärung bitten, anstatt den gesamten Plan aufzugeben.</p><h2>Selbstanreicherndes Anti-Halluzinations-Register</h2><p>LLMs erfinden manchmal nicht existierende Tools in ihren Plänen. LIA pflegt ein persistentes Register halluzinierter Muster (<code>hallucinated_tools.json</code>), das sich bei jeder neuen Erkennung automatisch aktualisiert. Bei der Planvalidierung wird jedes Tool gegen dieses Register geprüft — halluzinierte Schritte werden entfernt und der Planner wird gezwungen, mit echten Katalog-Tools neu zu planen.</p><h2>Den Grund zum Erfinden beseitigen</h2><p>Ein erfundenes Werkzeug zu erkennen, ist eine Reaktion. Die Ursache liegt davor: Enthält der an den Planer übergebene Katalog ein Werkzeug, das einen Wert verlangt, den kein anderes erzeugen kann – eine Nachrichten-ID, um darauf zu antworten –, dann <strong>existiert kein gültiger Plan</strong>, und das Modell kann nur erfinden. LIA prüft daher vor dem Planen, dass der Katalog <strong>geschlossen</strong> ist: Für jeden verlangten Wert ist eine lesende Quelle vorhanden. Die Regel sieht die Anfrage nie an, sie liest die Manifeste – ein Linker, der offene Referenzen auflöst, keine Suche, die rät.</p><h2>Die durchgesetzten Grenzen veröffentlichen</h2><p>Den Katalog zu schließen beantwortet, <em>welche Werkzeuge</em> ein Plan nutzen darf. Eine zweite Frage entscheidet über seine Annahme: <em>welche Werte</em>. Jedes Werkzeug erklärt Grenzen — wie viele Ergebnisse es auf einmal liefert — und der Validator setzt sie durch. Diese Grenzen erreichten die Planung nicht, die ihre Stapel allein aus dem Prompt dimensionierte und deren Plan abgelehnt wurde, weil sie der erhaltenen Anweisung folgte. Eine durchgesetzte, aber verborgene Grenze ist kein Vertrag, sondern eine Falle. Sie wird jetzt mit dem Werkzeug veröffentlicht, und jeder Wert darüber wird vor der Validierung zurechtgerückt — eine Ablehnung meldet somit nur noch einen real bestehenden Mangel.</p><h2>Ein Klick ist kein Satz</h2><p>Das Veröffentlichen der Grenzen klärt, was ein Plan <em>wert</em> sein darf. Offen blieb, was er <em>enthalten</em> muss. Kommt die Anfrage von einem Knopf — eine benannte Karte, angehakte Kästchen —, besitzt das System diese Gewissheit, bevor irgendein Modell befragt wird; es verwandelte sie in Prosa und verbrauchte drei Stufen, um sie zurückzugewinnen. Gemessen: das erwartete Werkzeug erzielte die beste Bewertung des gesamten Katalogs, und der Plan rief ein allgemeines auf. Kein Prompt-Feintuning macht diesen Weg deterministisch. Die <strong>aufgerufene Fähigkeit</strong> reist daher als Daten, neben dem Satz, den die Nutzerin liest; der Browser benennt eine Fähigkeit, nie ein Werkzeug, und der Server entscheidet, welches nur lesende Werkzeug sie umsetzt. Der zugehörige Schritt kommt <em>vor</em> der Validierung in den Plan, genau wie Werte, die in ihre Grenzen zurückgeholt werden — was mechanisch reparierbar ist, wird repariert und nie als Mangel gemeldet.</p><p>Der Plan wird <strong>bereichert, nicht ersetzt</strong>: alles, was der Planer vorgesehen hat und das etwas beiträgt, bleibt. Was er vorgesehen hat und die Fähigkeit ohnehin abdeckt, entfällt, denn eine unpassende Antwort neben einer benannten Lücke ergänzt sie nicht, sie widerspricht ihr. Ein Schritt, den ein anderer noch liest, bleibt auf jeden Fall erhalten: einen falschen Satz gegen eine hängende Referenz zu tauschen wäre ein schlechtes Geschäft.</p>"
       },
       "human-in-the-loop": {
         "title": "Human-in-the-Loop: 6 Genehmigungsstufen für volle Kontrolle",

@@ -102,6 +102,21 @@ async def init_agent_registry(
         initialize_catalogue(registry)
         logger.info("catalogue_manifests_initialized")
 
+        # Validate user-invocable capability directives (ADR-085 pattern,
+        # ADR-191): every DirectiveCapability must map to a spec, and every
+        # spec to a REGISTERED tool — checked here rather than in
+        # startup/registries.py because the tool half only becomes checkable
+        # once the catalogue above is loaded.
+        try:
+            from src.domains.agents.capability_directives import (
+                assert_registry_completeness,
+            )
+
+            assert_registry_completeness(registry)
+        except AssertionError as exc:
+            logger.error("capability_directive_registry_incomplete", error=str(exc), exc_info=True)
+            raise RuntimeError(f"Capability directive registry incomplete: {exc}") from exc
+
         # Register all available agents
         # NAMING: domain=entity(singular), agent=domain+"_agent"
         # OAuth agents (Google)

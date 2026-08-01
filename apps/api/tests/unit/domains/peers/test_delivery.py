@@ -23,13 +23,13 @@ RECIPIENT_ID = uuid4()
 CONNECTION_ID = uuid4()
 
 
-def _message():
+def _message(content="Demande-lui comment il va"):
     return SimpleNamespace(
         id=uuid4(),
         connection_id=CONNECTION_ID,
         sender_id=SENDER_ID,
         recipient_id=RECIPIENT_ID,
-        content="Demande-lui comment il va",
+        content=content,
         status="delivering",
         attempts=0,
     )
@@ -133,6 +133,39 @@ class TestDeliverClaimedMessage:
         assert outcome == "cancelled_blocked"
         repo.cancel_message.assert_awaited_once()
         notify.assert_awaited_once()  # sender told neutrally
+
+    @pytest.mark.parametrize("expired", [None, "", "   "])
+    async def test_an_expired_directive_is_cancelled_instead_of_relayed(self, expired, not_blocked):
+        """ADR-186 retention meets an undelivered message.
+
+        `expires_at` is stamped at ENQUEUE and the reaper clears texts on every
+        status, so a message deferred past its horizon (a recipient who never
+        resolves a HITL, a suspended account) loses its directive while still
+        pending — and the reaper runs immediately BEFORE the claim in the same
+        sweep. Relaying "" would make the recipient's assistant invent a
+        message and tell the sender it was delivered. It must die instead.
+        """
+        repo = _repo()
+        notify = AsyncMock()
+        generate = AsyncMock()
+        with (
+            patch(
+                "src.infrastructure.scheduler.peer_message_delivery.PeersRepository",
+                return_value=repo,
+            ),
+            patch("src.infrastructure.scheduler.peer_message_delivery._notify_sender", new=notify),
+            patch(
+                "src.infrastructure.scheduler.peer_message_delivery._generate_delivery_text",
+                new=generate,
+            ),
+        ):
+            outcome = await delivery.deliver_claimed_message(_message(expired), _db(_users()))
+
+        assert outcome == "cancelled_content_expired"
+        repo.cancel_message.assert_awaited_once()
+        notify.assert_awaited_once()  # the sender learns it never left
+        generate.assert_not_awaited()  # no LLM call, no invented message
+        repo.mark_message_delivered.assert_not_awaited()
 
     async def test_sender_at_quota_cancels(self):
         repo = _repo()

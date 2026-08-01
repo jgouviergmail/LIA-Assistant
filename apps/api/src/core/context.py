@@ -167,6 +167,18 @@ admin_mcp_disabled_ctx: ContextVar[set[str] | None] = ContextVar(
 # Read by build_skills_catalog(), response_node, and skill_bypass to filter by inclusion.
 active_skills_ctx: ContextVar[set[str] | None] = ContextVar("active_skills_ctx", default=None)
 
+# Capability the user invoked directly on this request, e.g. the 360° button on
+# a relationship card: {"capability": ..., "subject": ...} (ADR-191).
+# Set per-request in AgentService._stream_with_new_services() from the validated
+# ChatRequest.directive, exactly like active_skills_ctx above.
+# Read by planner_node_v3 to guarantee the capability is part of the plan.
+# A ContextVar rather than a RunnableConfig entry: the value is request-scoped
+# and consumed at planner depth, so threading it through five signatures would
+# buy nothing but churn in files already at their size cap.
+capability_directive_ctx: ContextVar[dict[str, str] | None] = ContextVar(
+    "capability_directive_ctx", default=None
+)
+
 
 # ---------------------------------------------------------------------------
 # Per-request filtered tool manifests (centralized catalogue).

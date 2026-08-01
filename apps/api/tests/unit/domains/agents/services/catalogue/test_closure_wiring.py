@@ -20,6 +20,7 @@ from src.domains.agents.services.catalogue.strategies.normal_filtering import (
     NormalFilteringStrategy,
 )
 from src.domains.agents.services.smart_catalogue_service import CatalogueMetrics
+from tests.unit.domains.agents.services.catalogue.conftest import wire_placement_domain
 
 
 @dataclass
@@ -44,6 +45,9 @@ class MockManifest:
     parameters: list[Any] = field(default_factory=list)
     outputs: list[Any] = field(default_factory=list)
     semantic_keywords: list[str] | None = None
+    # Mirrors the real ToolManifest field: catalogue filtering reads it to
+    # decide reachability, so a double without it bypasses that rule.
+    serves_domains: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -87,6 +91,7 @@ def _build_service(manifests: list[MockManifest]) -> MagicMock:
     service._metrics = CatalogueMetrics()
     service.TOKEN_ESTIMATES = {"search": 200, "send": 250}
     service._extract_domain = lambda m: m.agent.replace("_agent", "") if m.agent else "unknown"
+    wire_placement_domain(service)
     service._get_tool_category = lambda name: (
         "send" if "reply" in name or "send" in name else "search"
     )

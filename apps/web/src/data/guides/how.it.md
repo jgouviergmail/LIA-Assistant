@@ -5,8 +5,8 @@
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
 **Versione**: 3.6
-**Data**: 2026-07-31
-**Applicazione**: LIA v1.27.4
+**Data**: 2026-08-01
+**Applicazione**: LIA v1.27.5
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 447 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 183 ADR, ~17.089 test raccolti da pytest in 919 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 191 ADR, ~17.415 test raccolti da pytest in 933 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -72,10 +72,10 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~17.089 (raccolti da pytest su 919 file di test) + 4.269 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~17.415 (raccolti da pytest su 933 file di test) + 4.447 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 400+ |
-| ADR (Architecture Decision Record) | 183 |
+| ADR (Architecture Decision Record) | 189 |
 | Metriche Prometheus | 447 definizioni |
 | Dashboard Grafana | 26 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -405,6 +405,16 @@ In caso di fallimento dell'esecuzione, un analizzatore rule-based (senza LLM) cl
 
 ---
 
+### 6.7. Capacità invocata: quando la richiesta non è una frase
+
+Un piano nasce da un testo. Ma quando la richiesta viene da un **pulsante** — una scheda con un nome, caselle spuntate — il sistema possiede quella certezza **prima** che sia consultato un solo modello. Trasformarla in prosa e poi spendere tre fasi stocastiche (analizzatore, pianificatore, validatore) per ricostruirla distrugge informazione e paga per ritrovarla. Misurato: lo strumento atteso otteneva **0,853**, il miglior punteggio del catalogo, e il piano ne chiamava uno generico.
+
+La richiesta porta quindi, accanto alla frase mostrata, la **capacità invocata**: una coppia `{capability, subject}`. `capability` è un `Literal` **chiuso**, respinto da Pydantic al confine HTTP — il browser nomina una capacità, **mai** uno strumento, e il server decide quale strumento in sola lettura la realizza. Questa porta non conduce ad alcuno strumento di mutazione. Il trasporto fino al pianificatore è una `ContextVar` di richiesta, posta nello stesso punto e con la stessa disciplina delle preferenze degli skill.
+
+Viene applicata **prima della validazione**, esattamente come il riporto dei parametri entro i limiti: ciò che è meccanicamente riparabile viene riparato, mai segnalato come difetto. Il piano è **arricchito, non sostituito** — tutto ciò che il pianificatore ha previsto e che aggiunge qualcosa resta; ciò che ha previsto e che la capacità già copre viene rimosso, perché una risposta senza relazione posta accanto a una lacuna dichiarata la contraddice. Due garanzie: un passo che un altro sta ancora leggendo — per dipendenza dichiarata **o** per riferimento `$steps` — viene conservato, e un piano senza passi (chiarimento in attesa, esecuzione delegata a uno skill) non viene mai trasformato in un'esecuzione. Una garanzia che scavalca una domanda non è una garanzia.
+
+---
+
 ## 7. Smart Services: ottimizzazione intelligente
 
 ### 7.1. Il problema risolto
@@ -441,6 +451,14 @@ Il filtraggio semantico valuta gli strumenti rispetto a una **parafrasi inglese 
 La chiusura applica una regola che non guarda mai la richiesta: *ogni tipo di dato richiesto da uno strumento del catalogo deve essere prodotto da un altro strumento del catalogo*. È un linker che risolve riferimenti mancanti, non una ricerca che tira a indovinare. Due condizioni la rendono corretta e non soltanto plausibile: uno strumento non soddisfa mai se stesso («rispondere a una mail» produce anch'esso un identificativo di messaggio — quello appena inviato), e solo uno strumento di **lettura** vale come fonte (non si scatena un invio per scoprire un identificativo). Crescita misurata del catalogo: **+1 strumento**.
 
 ---
+
+### 7.6. Raggiungibilità tra domini
+
+Chiudere il catalogo definisce ciò che un piano può **concatenare**. Prima viene un'altra domanda: quali strumenti vi **entrano**. Il filtraggio scarta ogni strumento il cui dominio non figura tra quelli rilevati — **prima** di consultare qualunque punteggio semantico. Uno strumento davvero trasversale è quindi invisibile a ogni richiesta classificata altrove, per quanto bene sia valutato.
+
+Misurato: lo strumento del punto 360° su una persona vive nel dominio `contact`, mentre l'istruzione dell'analizzatore invia ogni domanda su un utente connesso al dominio `peer`. Punteggio **0,853** — il migliore dell'intero catalogo, contro strumenti generici a 0,000 — e mai presentato al pianificatore. Quando funzionava, era perché il modello era uscito dalla propria istruzione: una deviazione stocastica, non il percorso nominale.
+
+Un manifesto dichiara ora i domini **aggiuntivi** da cui è raggiungibile, e un'**unica implementazione** risponde a «questo strumento rientra nell'ambito?» per entrambe le strategie di filtraggio, che ponevano la stessa domanda ciascuna per conto proprio. Ogni valore è validato alla registrazione contro il registro dei domini: un dominio sconosciuto rifiuta l'avvio invece di rendere lo strumento silenziosamente introvabile. Da dichiarare con parsimonia — ogni dominio aggiunto allarga la scelta offerta per **tutte** le richieste di quel dominio. Non equivale a mettere in relazione due domini: metterli in relazione trascina l'intera cassetta degli attrezzi dell'uno nell'altro, cosa che ha già provocato un incidente in produzione. Qui si sposta uno strumento, non un dominio.
 
 ## 8. Routing semantico ed embeddings semantici
 
@@ -1113,7 +1131,7 @@ Resta che una destinazione può legittimamente non esistere: diverse sezioni si 
 
 ## 24. Architettura delle decisioni (ADR)
 
-183 ADR in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+191 ADR in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1167,10 +1185,10 @@ Il Psyche Engine dota l'assistente di uno stato psicologico dinamico che evolve 
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 183 ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~17.089 test in 919 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 191 ADR documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~17.415 test in 933 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 183 ADR e del changelog (da v1.0 a v1.27.4). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 191 ADR e del changelog (da v1.0 a v1.27.5). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

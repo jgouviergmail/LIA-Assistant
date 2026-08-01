@@ -1,5 +1,9 @@
 """Catalogue manifest for the person-360 tool (P3, ADR-141).
 
+The tool was rebuilt on the Relations services (2026-08-01): it reads the CRM
+half as well as the connectors, queries mail/calendar by ADDRESS, and applies
+the scope the user selected on the relationship card.
+
 Registered through ``registry/program_manifests.py`` (frozen-loader budget).
 Attached to contact_agent — person-centric home, cross-domain by construction.
 """
@@ -20,11 +24,16 @@ get_person_overview_catalogue_manifest = ToolManifest(
     name="get_person_overview_tool",
     agent="contact_agent",
     description=(
-        "Cross-domain 360° overview of ONE person: contact card, recent "
-        "email exchanges, upcoming shared events, and relevant long-term "
-        "memories — in a single call. Use for meeting/call preparation "
-        "('prépare mon call avec Marie') or 'tell me everything about X'. "
-        "Read-only; the overview is partial when a connector is unavailable."
+        "Cross-domain 360° overview of ONE person, in a single call: open "
+        "commitments, recent calls, messages relayed through LIA, long-term "
+        "memories, contact card, mail exchanged and meetings shared. Use for "
+        "meeting/call preparation ('prépare mon call avec Marie', 'point 360° "
+        "sur X') or 'tell me everything about X'. SELF-CONTAINED: never add a "
+        "contacts, email or calendar lookup alongside it — this tool already "
+        "queries them, by ADDRESS rather than by name. The user's own scope "
+        "selection (which sections, which directions, how many items) is read "
+        "server-side and applied; it is not a parameter to guess. Read-only; "
+        "the overview states what it could not read."
     ),
     parameters=[
         ParameterSchema(
@@ -40,19 +49,83 @@ get_person_overview_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(
+            path="is_peer",
+            type="boolean",
+            description="Whether this person is a CONNECTED user of this LIA instance.",
+        ),
+        OutputFieldSchema(
+            path="peer_connection",
+            type="object",
+            description=(
+                "The LIA connection behind this relationship, when there is "
+                "one: `connected_since` and what each side shares "
+                "(`shared_by_me`, `shared_with_me`, as `domain:level`). Absent "
+                "when the two are not connected."
+            ),
+        ),
+        OutputFieldSchema(
             path="contact",
             type="object",
-            description="Contact card: name, emails, phones, organizations",
+            description=(
+                "Address-book entry, in full: name, nickname, organization, "
+                "occupation, birthday, biography, emails, phones, postal "
+                "addresses, family/professional relations, links, important "
+                "dates, messaging handles. A block the address book does not "
+                "hold is ABSENT from the object — never report it as empty."
+            ),
         ),
         OutputFieldSchema(
-            path="recent_emails",
+            path="open_commitments",
             type="array",
-            description="Last exchanges: subject, from, date, snippet",
+            description=(
+                "Open loops with this person: subject, direction, days open, "
+                "and `due_hint` (the deadline) when one was captured — absent "
+                "means none was, never assume a date. A PAGE: "
+                "`open_commitments_total` holds the exact number that exist, "
+                "so never count the rows to answer 'how many'."
+            ),
         ),
         OutputFieldSchema(
-            path="upcoming_events",
+            path="open_commitments_total",
+            type="integer",
+            description="Exact number of open commitments (database aggregate).",
+        ),
+        OutputFieldSchema(
+            path="recent_calls",
             type="array",
-            description="Upcoming events mentioning the person",
+            description=(
+                "Past calls: objective, outcome, summary and the instant "
+                "they happened. A page — see the total."
+            ),
+        ),
+        OutputFieldSchema(
+            path="recent_calls_total",
+            type="integer",
+            description="Exact number of calls with this person (database aggregate).",
+        ),
+        OutputFieldSchema(
+            path="relayed_messages",
+            type="array",
+            description="Messages relayed through LIA: direction, text, instant",
+        ),
+        OutputFieldSchema(
+            path="relayed_messages_total",
+            type="integer",
+            description=(
+                "Exact number of relayed messages — present ONLY when both "
+                "directions were kept. Absent means the list was narrowed and "
+                "no exact count describes it: do not state one."
+            ),
+        ),
+        OutputFieldSchema(
+            path="emails",
+            type="array",
+            description="Mail exchanged, by address: direction, subject, instant",
+        ),
+        OutputFieldSchema(
+            path="events",
+            type="array",
+            description="Shared meetings: summary, role, start and end instants",
         ),
         OutputFieldSchema(
             path="memories",
@@ -60,9 +133,15 @@ get_person_overview_catalogue_manifest = ToolManifest(
             description="Relevant long-term memories about the person",
         ),
         OutputFieldSchema(
-            path="partial_failures",
+            path="unavailable",
             type="array",
-            description="Sub-blocks that failed (overview is honest about gaps)",
+            description=(
+                "Sections the user asked for that could NOT be read (no "
+                "connector, no address, provider error, recall unavailable). "
+                "Those sections carry NO key at all in the payload: a missing "
+                "block means 'not looked at', an empty list means 'looked and "
+                "found nothing'. Say which one it was."
+            ),
         ),
     ],
     cost=CostProfile(
@@ -84,6 +163,14 @@ get_person_overview_catalogue_manifest = ToolManifest(
         "brief me before I talk to someone",
     ],
     reference_examples=[],
+    # Reachable from `peer` too (ADR-191). The analyzer prompt sends every
+    # question about a CONNECTED USER to the `peer` domain — "their data is
+    # reachable ONLY through the peer domain" — while this tool lives in
+    # `contact`. Catalogue filtering drops out-of-domain manifests before
+    # reading any score, so without this the 360° on a peer was structurally
+    # impossible: measured absent from the planner catalogue at score 0.853,
+    # the highest of the whole catalogue.
+    serves_domains=["peer"],
     display=DisplayMetadata(
         emoji="👤",
         i18n_key="get_person_overview",

@@ -11,7 +11,11 @@ spec §9d), generate the delivery wording with the RECIPIENT's personality,
 psychological memory profile, psyche state and journal portrait (the exact
 ingredient set the chat pipeline injects — invoked here deterministically),
 deliver through :class:`NotificationDispatcher` (archive + FCM + SSE +
-channels), scrub the directive, then confirm to the sender.
+channels), RECORD what was said, then confirm to the sender.
+
+Since ADR-186 the directive is no longer erased on delivery: both texts live
+on the ledger until ``expires_at`` and the sweep clears them there, the same
+contract phone calls use. Each side keeps only its own words.
 
 Cost attribution (spec §9, hard requirement): the single LLM call's tokens are
 tracked to the SENDER via ``track_proactive_tokens`` — the recipient's
@@ -39,6 +43,14 @@ from src.core.config import settings
 from src.core.i18n_proactive import ProactiveMessages
 from src.core.i18n_types import get_language_name
 from src.domains.agents.prompts import load_prompt
+from src.domains.peers.constants import (
+    PEER_CONNECTION_TASK_TYPE,
+    PEER_MESSAGE_TASK_TYPE,
+    PEER_META_MESSAGE_FLAG,
+    PEER_META_SENDER_ID,
+    PEER_META_SENDER_NAME,
+    PEER_UNKNOWN_DISPLAY_NAME,
+)
 from src.domains.peers.models import PeerConnectionStatus, PeerMessage
 from src.domains.peers.repository import PeersRepository
 from src.domains.users.models import User
@@ -75,7 +87,7 @@ async def _generate_delivery_text(
     from src.infrastructure.llm import get_llm
     from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
 
-    sender_name = sender.full_name or "?"
+    sender_name = sender.full_name or PEER_UNKNOWN_DISPLAY_NAME
     directive = message.content or ""
 
     personality: str | None = None
@@ -156,6 +168,14 @@ async def _revalidation_cancel_code(
         return "cancelled_recipient_gone"
     if sender is None or not sender.is_active or sender.deleted_at:
         return "cancelled_sender_gone"
+    # The retention horizon is stamped at ENQUEUE and the reaper clears texts
+    # whatever the status — and it runs immediately before the claim, in this
+    # very sweep. A message deferred past its horizon (a recipient who never
+    # resolves a HITL, an account suspended for weeks) therefore arrives here
+    # with nothing left to relay. Handing "" to the recipient's assistant would
+    # have it invent a message, and the sender would be told it was delivered.
+    if not (message.content or "").strip():
+        return "cancelled_content_expired"
     connection = await repo.get_by_id(message.connection_id)
     if connection is None or connection.status != PeerConnectionStatus.ACCEPTED.value:
         return "cancelled_not_connected"
@@ -174,11 +194,11 @@ async def _notify_sender(sender: User, body: str, message: PeerMessage, db: Asyn
         await NotificationDispatcher().dispatch(
             user=sender,
             content=body,
-            task_type="peer_connection",
+            task_type=PEER_CONNECTION_TASK_TYPE,
             target_id=str(message.id),
             metadata={"peer_message_notice": True},
             db=db,
-            title=ProactiveMessages.notification_title("peer_connection", sender.language),
+            title=ProactiveMessages.notification_title(PEER_CONNECTION_TASK_TYPE, sender.language),
         )
     except Exception as exc:  # noqa: BLE001 — notice must never sink the delivery
         logger.warning(
@@ -302,18 +322,19 @@ async def deliver_claimed_message(message: PeerMessage, db: AsyncSession) -> str
         await NotificationDispatcher().dispatch(
             user=recipient,
             content=text,
-            task_type="peer_message",
+            task_type=PEER_MESSAGE_TASK_TYPE,
             target_id=str(message.id),
             metadata={
-                "peer_message": True,
-                "sender_id": str(message.sender_id),
+                PEER_META_MESSAGE_FLAG: True,
+                PEER_META_SENDER_ID: str(message.sender_id),
                 # Chat quick-actions (Lot 7): reply prefill + block need the
                 # sender identity without a lookup. Recipient's own archive —
-                # the name already appears in the title/body.
-                "sender_name": sender.full_name or "?",
+                # the name already appears in the title/body. The Relations CRM
+                # reads it back too, as the fallback when the account is gone.
+                PEER_META_SENDER_NAME: sender.full_name or PEER_UNKNOWN_DISPLAY_NAME,
             },
             db=db,
-            title=ProactiveMessages.notification_title("peer_message", recipient.language),
+            title=ProactiveMessages.notification_title(PEER_MESSAGE_TASK_TYPE, recipient.language),
         )
     except Exception as exc:  # noqa: BLE001 — typed retryable failure
         return await _record_retryable_failure(
@@ -327,7 +348,9 @@ async def deliver_claimed_message(message: PeerMessage, db: AsyncSession) -> str
             db,
         )
 
-    await repo.mark_message_delivered(message.id, now=datetime.now(UTC))
+    # The rendered text is recorded, not discarded (ADR-186): the recipient's
+    # CRM reads it from the ledger, which outlives their conversation archive.
+    await repo.mark_message_delivered(message.id, now=datetime.now(UTC), delivered_text=text)
     await _notify_sender(
         sender,
         ProactiveMessages.peer_message_delivered_body(recipient.full_name or "?", sender.language),
@@ -341,12 +364,13 @@ async def deliver_claimed_message(message: PeerMessage, db: AsyncSession) -> str
 async def sweep_pending_deliveries() -> dict[str, int]:
     """Scheduler sweep: recover stale claims, then deliver pending messages.
 
-    Also expires stale pending REQUESTS (spec §5.2) — one periodic job owns
-    every peers time-based transition.
+    Also expires stale pending REQUESTS (spec §5.2) and clears message texts
+    past their retention horizon (ADR-186) — one periodic job owns every peers
+    time-based transition.
 
     Returns:
         Counters for logging/metrics: claimed / delivered / retried / failed /
-        cancelled / recovered / expired_requests.
+        cancelled / recovered / expired_requests / purged_texts.
     """
     counters = {
         "claimed": 0,
@@ -357,6 +381,7 @@ async def sweep_pending_deliveries() -> dict[str, int]:
         "recovered": 0,
         "expired_requests": 0,
         "pruned_access_log": 0,
+        "purged_texts": 0,
     }
     async with get_db_context() as db:
         repo = PeersRepository(db)
@@ -369,6 +394,8 @@ async def sweep_pending_deliveries() -> dict[str, int]:
         counters["pruned_access_log"] = await repo.prune_access_log(
             older_than=datetime.now(UTC) - timedelta(days=settings.peers_access_log_retention_days)
         )
+        # Retention reaper (ADR-186): the rows stay, their words do not.
+        counters["purged_texts"] = await repo.purge_expired_message_texts(now=datetime.now(UTC))
         messages = await repo.claim_pending_messages()
         counters["claimed"] = len(messages)
         await db.commit()

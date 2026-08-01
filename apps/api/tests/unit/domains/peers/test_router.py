@@ -40,16 +40,20 @@ def _service(**overrides):
 
 @pytest.mark.unit
 class TestEndpointDelegation:
-    async def test_search_delegates_to_service(self):
+    @pytest.mark.parametrize("query", ["Peer Beta", "beta@test.local"])
+    async def test_search_delegates_to_service(self, query):
+        """One field, forwarded verbatim: the branch is the service's call."""
         match = DiscoveryMatch(peer_id=uuid4(), display_name="Peer Beta", email_hint="b…@t….local")
         service = _service(search_discoverable=[match])
+        user = _user()
         with patch("src.domains.peers.router.PeersService", return_value=service):
             result = await search_discovery(
-                payload=DiscoverySearchRequest(full_name="Peer Beta"),
-                user=_user(),
+                payload=DiscoverySearchRequest(query=query),
+                user=user,
                 db=MagicMock(),
             )
         assert result == [match]
+        service.search_discoverable.assert_awaited_once_with(user.id, query)
 
     async def test_respond_commits_then_dispatches_events(self):
         view = ConnectionStateView(id=uuid4(), status="accepted")

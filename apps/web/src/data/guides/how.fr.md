@@ -5,8 +5,8 @@
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
 **Version** : 3.6
-**Date** : 2026-07-31
-**Application** : LIA v1.27.4
+**Date** : 2026-08-01
+**Application** : LIA v1.27.5
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 447 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 183 ADRs, ~17 089 tests collectés par pytest sur 919 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 191 ADRs, ~17 415 tests collectés par pytest sur 933 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -72,10 +72,10 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~17 089 (collectés par pytest sur 919 fichiers de test) + 4 269 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | ~17 415 (collectés par pytest sur 933 fichiers de test) + 4 447 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures réutilisables | 170+ |
 | Documents de documentation | 400+ |
-| ADRs (Architecture Decision Records) | 183 |
+| ADRs (Architecture Decision Records) | 189 |
 | Métriques Prometheus | 447 définitions |
 | Dashboards Grafana | 26 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -404,6 +404,16 @@ En cas d'échec d'exécution, un analyseur rule-based (sans LLM) classifie le pa
 
 ---
 
+### 6.7. Capacité invoquée : quand la demande n'est pas une phrase
+
+Un plan naît d'un texte. Mais lorsque la demande vient d'un **bouton** — une fiche nommée, des cases cochées —, le système détient cette certitude **avant** qu'aucun modèle ne soit consulté. La sérialiser en prose, puis dépenser trois étapes stochastiques (analyseur, planificateur, validateur) à la reconstituer, c'est détruire une information puis payer pour la retrouver. Mesuré : l'outil attendu obtenait **0,853**, le meilleur score du catalogue, et le plan appelait un outil générique.
+
+La demande porte donc, à côté de la phrase affichée, la **capacité invoquée** : un couple `{capability, subject}`. `capability` est un `Literal` **fermé**, rejeté par Pydantic à la frontière HTTP — le navigateur nomme une capacité, **jamais** un outil, et le serveur choisit quel outil en lecture seule l'implémente. Cette porte ne mène pas à un outil de mutation. Le transport jusqu'au planificateur est un `ContextVar` de requête, posé au même endroit et avec la même discipline que les préférences de skills.
+
+L'application se fait **avant la validation**, au même titre que le clamp des paramètres hors bornes : ce qui est mécaniquement réparable est réparé, jamais rapporté comme un défaut. Le plan est **enrichi, pas remplacé** — ce que le planificateur a prévu et qui apporte quelque chose demeure ; ce qu'il a prévu et que la capacité recouvre déjà s'en va, parce qu'une réponse sans rapport posée à côté d'un manque annoncé le contredit. Deux garde-fous : une étape qu'une autre lit encore — par dépendance déclarée **ou** par référence `$steps` — est conservée, et un plan sans étape (clarification en attente, exécution déléguée à un skill) n'est jamais transformé en exécution. Une garantie qui écrase une question n'est pas une garantie.
+
+---
+
 ## 7. Smart Services : optimisation intelligente
 
 ### 7.1. Le problème résolu
@@ -440,6 +450,14 @@ Le filtrage sémantique note les outils contre une **paraphrase anglaise de la d
 La clôture applique une règle qui ne regarde jamais la demande : *chaque type de donnée exigé par un outil du catalogue doit être produit par un autre outil du catalogue*. C'est un éditeur de liens qui résout des références manquantes, pas une recherche qui devine. Deux conditions la rendent correcte plutôt que seulement plausible : un outil ne se satisfait jamais lui-même (« répondre à un mail » produit aussi un identifiant de message — celui qu'il vient d'envoyer), et seul un outil de **lecture** fait une source (on ne déclenche pas un envoi pour découvrir un identifiant). Croissance mesurée du catalogue : **+1 outil**.
 
 ---
+
+### 7.6. Joignabilité inter-domaines
+
+Fermer le catalogue règle ce qu'un plan peut **enchaîner**. Une question précède celle-là : quels outils y **entrent**. Le filtrage écarte tout outil dont le domaine n'est pas parmi ceux détectés — **avant** de consulter le moindre score sémantique. Un outil réellement transverse est donc invisible à toute requête classée ailleurs, aussi bien qu'il note.
+
+Mesuré : l'outil de synthèse 360° d'une personne vit dans le domaine `contact`, tandis que la consigne de l'analyseur envoie toute question sur un utilisateur connecté vers le domaine `peer`. Score obtenu **0,853** — le meilleur du catalogue, face à des outils génériques à 0,000 — et jamais présenté au planificateur. Quand cela fonctionnait, c'est que le modèle était sorti de la consigne : une bascule stochastique, pas un chemin nominal.
+
+Un manifeste déclare désormais les domaines **additionnels** depuis lesquels il est joignable, et une **implémentation unique** répond à « cet outil est-il dans la portée ? » pour les deux stratégies de filtrage, qui posaient la même question chacune de son côté. Toute valeur est validée à l'enregistrement contre le registre des domaines : un domaine inconnu refuse le démarrage plutôt que de rendre l'outil silencieusement introuvable. À déclarer avec parcimonie — chaque domaine ajouté élargit l'éventail proposé pour **toutes** les requêtes de ce domaine. Ce n'est pas relier deux domaines entre eux : relier tire l'intégralité de leurs boîtes à outils l'une dans l'autre, ce qui a déjà provoqué un incident de production. Ici un seul outil se déplace, pas un domaine.
 
 ## 8. Routage sémantique et embeddings IA
 
@@ -1117,7 +1135,7 @@ Reste qu'une destination peut légitimement ne pas exister : plusieurs sections 
 
 ## 24. Architecture des décisions (ADR)
 
-183 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+191 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1207,10 +1225,10 @@ Le contexte psyché est injecté dans **tous** les points de génération utilis
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 183 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~17 089 tests sur 919 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 191 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~17 415 tests sur 933 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 183 ADRs, et du changelog (v1.0 à v1.27.4). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 191 ADRs, et du changelog (v1.0 à v1.27.5). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

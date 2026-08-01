@@ -1,18 +1,16 @@
 'use client';
 
-import { useState } from 'react';
-import Image from 'next/image';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { FadeInOnScroll } from './FadeInOnScroll';
+import { LandingCarousel, type CarouselSlide } from './LandingCarousel';
 
-interface ScreenshotItem {
-  key: string;
-  src: string;
-}
+/**
+ * The app captures of the "LIA, en vrai" gallery — real screenshots, listed
+ * here and rendered by the shared {@link LandingCarousel}. The section owns
+ * the content (which capture, which translated name); the carousel owns the
+ * presentation.
+ */
 
-const SCREENSHOTS: ScreenshotItem[] = [
+const SCREENSHOT_KEYS: ReadonlyArray<{ key: string; src: string }> = [
   { key: 'homepage', src: '/screenshots/homepage.png' },
   { key: 'chat', src: '/screenshots/chat.png' },
   { key: 'chat_debug_panel', src: '/screenshots/chat-debug-panel.png' },
@@ -30,127 +28,24 @@ const SCREENSHOTS: ScreenshotItem[] = [
   { key: 'faq', src: '/screenshots/faq.png' },
 ];
 
-export function ScreenshotsSection({ embedded = false }: { embedded?: boolean } = {}) {
+export function ScreenshotsSection() {
   const { t } = useTranslation();
-  const [activeIndex, setActiveIndex] = useState(0);
 
-  const goTo = (index: number) => {
-    setActiveIndex((index + SCREENSHOTS.length) % SCREENSHOTS.length);
-  };
-
-  const active = SCREENSHOTS[activeIndex];
-
-  // Embedded mode (gallery tab): carousel only — the host section owns the
-  // heading; standalone mode keeps the historical full section.
-  const carousel = (
-    <>
-      {/* Main screenshot display — portrait-friendly frame (the captures
-              are ~0.65–0.88 ratio; a 16/10 frame letterboxes them badly) */}
-      <div className="relative group">
-        <div className="relative h-[480px] mobile:h-[620px] w-full max-w-3xl mx-auto rounded-xl overflow-hidden border border-border/60 shadow-2xl bg-gradient-to-b from-muted/40 to-background">
-          <Image
-            src={active.src}
-            alt={t(`landing.screenshots.items.${active.key}`)}
-            fill
-            className="object-contain"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1024px"
-            priority={activeIndex === 0}
-          />
-        </div>
-
-        {/* Navigation arrows */}
-        <button
-          onClick={() => goTo(activeIndex - 1)}
-          className="absolute left-2 mobile:left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm border border-border/60 flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          aria-label={t('common.previous')}
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        <button
-          onClick={() => goTo(activeIndex + 1)}
-          className="absolute right-2 mobile:right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm border border-border/60 flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          aria-label={t('common.next')}
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
-      </div>
-
-      {/* Caption */}
-      <p className="text-center text-sm text-muted-foreground mt-4 font-medium">
-        {t(`landing.screenshots.items.${active.key}`)}
-      </p>
-
-      {/* Thumbnail navigation (desktop only) */}
-      <div className="hidden mobile:flex justify-center gap-3 mt-6 flex-wrap">
-        {SCREENSHOTS.map((screenshot, i) => (
-          <button
-            key={screenshot.key}
-            onClick={() => setActiveIndex(i)}
-            className={cn(
-              'relative w-20 h-14 mobile:w-24 mobile:h-16 rounded-lg overflow-hidden border-2 transition-all',
-              i === activeIndex
-                ? 'border-primary shadow-md scale-105'
-                : 'border-border/40 opacity-60 hover:opacity-100 hover:border-border'
-            )}
-            aria-label={t(`landing.screenshots.items.${screenshot.key}`)}
-            aria-current={i === activeIndex ? 'true' : undefined}
-          >
-            <Image src={screenshot.src} alt="" fill className="object-cover" sizes="96px" />
-          </button>
-        ))}
-      </div>
-
-      {/* Dot indicators (mobile) — 24px hit-area (WCAG 2.5.8) with a small
-              visual dot inside; keyboard focus is visible (WCAG 2.4.7).
-              flex-wrap: 12 dots × 24px exceed a 320px viewport (WCAG reflow). */}
-      <div className="flex flex-wrap justify-center gap-1 mt-4 mobile:hidden">
-        {SCREENSHOTS.map((screenshot, i) => (
-          <button
-            key={screenshot.key}
-            onClick={() => setActiveIndex(i)}
-            className="flex items-center justify-center min-w-6 min-h-6 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            aria-label={t(`landing.screenshots.items.${screenshot.key}`)}
-            aria-current={i === activeIndex ? 'true' : undefined}
-          >
-            <span
-              className={cn(
-                'block h-2 rounded-full transition-all',
-                i === activeIndex ? 'bg-primary w-6' : 'bg-border w-2'
-              )}
-            />
-          </button>
-        ))}
-      </div>
-    </>
-  );
-
-  if (embedded) {
-    return <FadeInOnScroll>{carousel}</FadeInOnScroll>;
-  }
+  const slides: CarouselSlide[] = SCREENSHOT_KEYS.map(({ key, src }) => {
+    const label = t(`landing.screenshots.items.${key}`);
+    // The name of the view IS the caption here: it says which screen is on
+    // screen, which is exactly what changes when the carousel moves.
+    return { key, src, label, caption: label };
+  });
 
   return (
-    <section
-      id="screenshots"
-      className="landing-section py-20 bg-card"
-      aria-labelledby="screenshots-title"
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <FadeInOnScroll>
-          <div className="text-center mb-12">
-            <h2
-              id="screenshots-title"
-              className="text-3xl mobile:text-4xl font-bold tracking-tight mb-4"
-            >
-              {t('landing.screenshots.title')}
-            </h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              {t('landing.screenshots.subtitle')}
-            </p>
-          </div>
-        </FadeInOnScroll>
-
-        <FadeInOnScroll delay={100}>{carousel}</FadeInOnScroll>
-      </div>
-    </section>
+    <LandingCarousel
+      slides={slides}
+      variant="portrait"
+      label={t('landing.gallery.tab_screens')}
+      // Captures are dense UI shown at 544 px: full screen is where they
+      // become readable, and each asset is light enough to fetch on demand.
+      zoomable
+    />
   );
 }

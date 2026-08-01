@@ -45,13 +45,16 @@ export function PeerConnectionsSettings({ lng, collapsible = true }: BaseSetting
   const flagOn = !!config?.features?.peers_enabled;
   const {
     discoveryEnabled,
+    emailVisible,
     requests,
     connections,
     blocks,
     accessLog,
     loading,
+    initialLoading,
     mutating,
     setDiscovery,
+    setEmailVisible,
     search,
     sendRequest,
     respond,
@@ -75,8 +78,8 @@ export function PeerConnectionsSettings({ lng, collapsible = true }: BaseSetting
     return result.ok;
   };
 
-  const handleSearch = async (fullName: string): Promise<DiscoveryMatch[] | undefined> => {
-    const result = await search(fullName);
+  const handleSearch = async (query: string): Promise<DiscoveryMatch[] | undefined> => {
+    const result = await search(query);
     if (result.matches === null) {
       toastPeersError(t, result.errorCode);
       return undefined;
@@ -86,12 +89,16 @@ export function PeerConnectionsSettings({ lng, collapsible = true }: BaseSetting
 
   if (!flagOn) return null;
 
-  const content = loading ? (
+  // `initialLoading`, never `loading`: every mutation refetches, and swapping
+  // this subtree for a spinner then would unmount the discovery block under a
+  // user mid-search — losing their typed query, their results and their
+  // keyboard focus. Refreshes are announced with aria-busy instead.
+  const content = initialLoading ? (
     <div className="flex justify-center py-6">
       <LoadingSpinner />
     </div>
   ) : (
-    <div className="space-y-6">
+    <div className="space-y-6" aria-busy={loading}>
       <div className="flex items-center justify-between gap-2">
         <div className="space-y-0.5">
           <Label htmlFor="peers-discovery-enabled" className="text-sm font-medium">
@@ -101,13 +108,20 @@ export function PeerConnectionsSettings({ lng, collapsible = true }: BaseSetting
             {t('settings.peers.discovery.toggle_hint')}
           </p>
         </div>
+        {/* `aria-disabled`, not `disabled`: a control disabled while it is
+            focused is blurred by the browser and leaves the tab order, so a
+            keyboard user who toggles this switch is thrown back to the top of
+            the document. The state is still announced, and the guard below —
+            not the attribute — is what actually prevents a double submit. */}
         <Switch
           id="peers-discovery-enabled"
           checked={discoveryEnabled ?? false}
-          disabled={mutating}
-          onCheckedChange={value =>
-            void settle(setDiscovery(value), 'settings.peers.discovery.toggle_saved')
-          }
+          aria-disabled={mutating}
+          className={mutating ? 'cursor-not-allowed opacity-50' : undefined}
+          onCheckedChange={value => {
+            if (mutating) return;
+            void settle(setDiscovery(value), 'settings.peers.discovery.toggle_saved');
+          }}
         />
       </div>
 
@@ -142,6 +156,31 @@ export function PeerConnectionsSettings({ lng, collapsible = true }: BaseSetting
         ) : (
           <p className="text-muted-foreground">{t('settings.peers.my_name.missing')}</p>
         )}
+      </div>
+
+      {/* ADR-189: a SECOND, independent consent. Being findable and handing
+          your address over are different decisions — and this one only ever
+          reaches people you already accepted. Same aria-disabled treatment as
+          the switch above: disabling a focused control loses the keyboard. */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="space-y-0.5">
+          <Label htmlFor="peers-email-visible" className="text-sm font-medium">
+            {t('settings.peers.email_visibility.toggle_label')}
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            {t('settings.peers.email_visibility.toggle_hint')}
+          </p>
+        </div>
+        <Switch
+          id="peers-email-visible"
+          checked={emailVisible ?? false}
+          aria-disabled={mutating}
+          className={mutating ? 'cursor-not-allowed opacity-50' : undefined}
+          onCheckedChange={value => {
+            if (mutating) return;
+            void settle(setEmailVisible(value), 'settings.peers.email_visibility.toggle_saved');
+          }}
+        />
       </div>
 
       <Separator />

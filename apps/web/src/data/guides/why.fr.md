@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 4.1
-**Date** : 2026-07-31
-**Application** : LIA v1.27.4
+**Date** : 2026-08-01
+**Application** : LIA v1.27.5
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -188,7 +188,7 @@ Et cela reste confidentiel par construction. Pendant un appel, LIA peut seulemen
 
 Sur une même instance, deux utilisateurs peuvent se connecter — et leurs assistants se parlent. Tu dis « demande à Marie si elle est libre mardi », tu valides la formulation exacte, et c’est l’assistant de Marie qui lui transmet le message, avec sa personnalité à elle, en te nommant ; le tien te confirme la remise. Chaque connexion peut aussi ouvrir des partages choisis, en lecture seule : tes disponibilités de calendrier, les titres de tes tâches — rien de plus, rien par défaut.
 
-La protection des personnes prime sur la fonctionnalité : la découverte est volontaire et sur nom exact uniquement, le blocage est silencieux (l’autre ne l’apprend jamais), et un inconnu, un refus ou un blocage reçoivent exactement la même réponse — impossible de sonder qui existe. Chaque accès à un partage est re-vérifié à l’instant de la lecture et journalisé, et le contenu des messages relayés est effacé une fois remis.
+La protection des personnes prime sur la fonctionnalité : la découverte est volontaire et sur identité exacte uniquement — nom complet ou adresse, jamais un fragment, le blocage est silencieux (l’autre ne l’apprend jamais), et un inconnu, un refus ou un blocage reçoivent exactement la même réponse — impossible de sonder qui existe. Chaque accès à un partage est re-vérifié à l’instant de la lecture et journalisé, et le contenu des messages relayés s’efface au bout de trente jours, ne laissant que la trace de l’échange.
 
 ---
 

@@ -145,6 +145,26 @@ class User(BaseModel):
         comment="Opt-in: this user can be found by peer discovery search. Default off.",
     )
 
+    # What a "360° point" is allowed to read (relations program). JSONB
+    # because it is a small STRUCTURE, not a flag — and rebuilt through
+    # `RelationOverviewScope.from_stored`, which degrades an unreadable shape
+    # to the default instead of handing the tool a half-payload.
+    relation_overview_scope: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Sections/directions/roles/max the 360° chat tool applies. Null = defaults.",
+    )
+
+    # Peer email visibility opt-in (ADR-189). Separate from discovery on
+    # purpose: being findable and handing your address over are two different
+    # consents, and only ACCEPTED connections ever see it.
+    peer_email_visible: Mapped[bool] = mapped_column(
+        default=False,
+        nullable=False,
+        server_default="false",
+        comment="Opt-in: accepted connections see this user's real email. Default off.",
+    )
+
     # Long-term memory preference
     memory_enabled: Mapped[bool] = mapped_column(
         default=True,

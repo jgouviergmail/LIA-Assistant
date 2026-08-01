@@ -25,6 +25,7 @@ from src.core.constants import (
     PEERS_MESSAGE_MAX_CHARS_DEFAULT,
     PEERS_MESSAGE_MAX_PER_DAY_DEFAULT,
     PEERS_MESSAGE_MAX_PER_DAY_PER_PAIR_DEFAULT,
+    PEERS_MESSAGE_RETENTION_DAYS_DEFAULT,
     PEERS_REQUEST_COOLDOWN_DAYS_DEFAULT,
     PEERS_REQUEST_EXPIRY_DAYS_DEFAULT,
 )
@@ -66,6 +67,17 @@ class PeersSettings(BaseSettings):
         ge=100,
         le=10000,
         description="Max characters of a relayed-message directive.",
+    )
+    peers_message_retention_days: int = Field(
+        default=PEERS_MESSAGE_RETENTION_DAYS_DEFAULT,
+        ge=1,
+        le=365,
+        description=(
+            "Retention TTL (days) for relayed-message texts. The ledger row "
+            "survives forever (audit, counts, timeline); the sender's directive "
+            "and the delivered text are purged past it — the same contract as "
+            "telephony_call_retention_days."
+        ),
     )
     peers_request_cooldown_days: int = Field(
         default=PEERS_REQUEST_COOLDOWN_DAYS_DEFAULT,

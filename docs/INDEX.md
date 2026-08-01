@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 44 |
-| ADRs | 184 (ADR-184 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 183 fichiers) |
+| ADRs | 191 (ADR-191 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 190 fichiers) |
 | Fiches knowledge (RAG système) | 27 |
 
 ---
@@ -43,7 +43,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
 | [TELEPHONY.md](./technical/TELEPHONY.md) | Téléphonie agentique (appels sortants, ADR-127) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (184) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (190) |
 
 ### Pour les Product Managers
 

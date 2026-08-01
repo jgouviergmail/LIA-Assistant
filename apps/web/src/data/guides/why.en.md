@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 4.1
-**Date**: 2026-07-31
-**Application**: LIA v1.27.4
+**Date**: 2026-08-01
+**Application**: LIA v1.27.5
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -188,7 +188,7 @@ And it stays private by construction. During a call LIA can only tell whether yo
 
 On the same instance, two users can connect — and their assistants talk to each other. You say “ask Marie if she is free on Tuesday”, you approve the exact wording, and it is Marie’s assistant that delivers the message, in her assistant’s own personality, naming you; yours confirms delivery back to you. Each connection can also open chosen, read-only shares: your calendar availability, your task titles — nothing more, nothing by default.
 
-Protecting people comes before the feature: discovery is opt-in and exact-name only, blocking is silent (the other side never learns of it), and an unknown person, a decline or a block all receive exactly the same answer — probing who exists is impossible. Every access to a share is re-checked at the moment of the read and journaled, and relayed message content is erased once delivered.
+Protecting people comes before the feature: discovery is opt-in and exact-identity only — a full name or an address, never a fragment, blocking is silent (the other side never learns of it), and an unknown person, a decline or a block all receive exactly the same answer — probing who exists is impossible. Every access to a share is re-checked at the moment of the read and journaled, and relayed message content is erased after thirty days, leaving only the trace of the exchange.
 
 ---
 

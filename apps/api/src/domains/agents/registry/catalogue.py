@@ -444,6 +444,8 @@ class ToolManifest:
         reference_fields: Fields usable as contextual references
         context_key: Key for auto-save in Store (if applicable)
         field_mappings: Optional mapping of user-friendly names to API names (e.g., {"name": "names", "emails": "emailAddresses"})
+        serves_domains: Extra domains this tool is reachable from, beyond its
+            owning agent's domain (cross-domain tools only)
         examples: Input/output examples for documentation and tests
         version: Semver version of the tool
         updated_at: Last modification date
@@ -507,6 +509,20 @@ class ToolManifest:
     # This enables the Planner LLM to generate correct references without guessing
     # Example: ["contacts[0].resource_name", "contacts[*].emails", "total"]
     reference_examples: list[str] = field(default_factory=list)
+
+    # Extra domains this tool is REACHABLE from, beyond its owning agent's own
+    # domain (ADR-191). Catalogue filtering drops out-of-domain manifests BEFORE
+    # consulting any semantic score, so a genuinely cross-domain tool is
+    # invisible to every query the analyzer classifies elsewhere — however well
+    # it scores. Measured 2026-08-01: get_person_overview_tool (domain
+    # `contact`, score 0.853, the catalogue's best) was absent from the planner
+    # catalogue for a `peer` query, where the analyzer prompt sends every
+    # question about a connected user.
+    # Declare ONLY domains the tool genuinely serves: each extra domain widens
+    # the candidate set for every query in it. Validated at registration against
+    # DOMAIN_REGISTRY — an unknown domain is a boot failure, never a silent
+    # no-op.
+    serves_domains: list[str] = field(default_factory=list)
 
     # Versioning
     version: str = "1.0.0"

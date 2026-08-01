@@ -154,6 +154,10 @@ describe('editorial i18n contract', () => {
       ...['s1', 's2', 's3', 's4'].flatMap(s => [`day.${p}.${s}_time`, `day.${p}.${s}_text`]),
     ]),
     ...['title', 'sub', 'tabs_label', 'tab_screens', 'tab_slides'].map(s => `gallery.${s}`),
+    // The deck tab of the gallery: alt text of a slide, and the caption line
+    // that doubles as the carousel's live region.
+    'presentation.slide_alt',
+    'presentation.slide_counter',
     'rail.aria',
     ...['bubble', 'title', 'subtitle', 'button', 'note_beta', 'philosophy_link'].map(
       s => `cta.${s}`
@@ -192,6 +196,13 @@ describe('editorial i18n contract', () => {
     'proof.audit_link_aria',
     'proof.rex_teaser',
     'proof.rex_link',
+    // The captures and the deck are two tabs of the gallery, which owns the
+    // heading: their standalone-section headings died with the standalone
+    // sections (the `embedded` prop nobody set to false).
+    'screenshots.title',
+    'screenshots.subtitle',
+    'presentation.title',
+    'presentation.subtitle',
   ];
 
   it.each(LANGS)('%s carries every referenced editorial key, non-empty', lang => {

@@ -24,18 +24,20 @@
  *   the ADR-184 counter (planner_parameter_bounds_corrections_total) over the
  *   463 of v1.27.3.
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured at v1.27.4: backend 17,089 collected (+64 over v1.27.3 — the
- *   ADR-184 manifest-bound clamp, catalogue bound publication, configured
- *   batch size and verdict × execution matrix), frontend 4,269 (unchanged,
- *   no frontend behaviour in this release) = 21,358 → 21,000 (the rounded
- *   display is unchanged since v1.27.2).
+ *   Re-measured at v1.27.5: backend 17,415 collected across 933 files (+326
+ *   over v1.27.4 — the full contact card, the 360° scope model and routes,
+ *   the catalogue/registry parity guard, the tool's honesty matrix, plus the
+ *   ADR-191 cross-domain reachability and capability-directive oracles),
+ *   frontend 4,447 (+178) = 21,862 → 21,000 (the rounded display is unchanged
+ *   since v1.27.2).
  *   Re-measure every release: the value carried the backend count alone
  *   until v1.25.9.
- * - adrs: docs/architecture/ ADR files (183 files, numbered up to ADR-184 —
- *   ADR-008 has no separate file, so 184 numbers map to 183 files).
+ * - adrs: docs/architecture/ ADR files (190 files, numbered up to ADR-191 —
+ *   ADR-008 has no separate file, so 191 numbers map to 190 files). Was
+ *   stranded at 183 from v1.27.0 to v1.27.4: recount it, never carry it over.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   191 headings at v1.27.4, no Unreleased pending.
+ *   192 headings at v1.27.5, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -52,8 +54,8 @@ export const LANDING_STATS = {
   metrics: 464,
   uiLanguages: 6,
   tests: 21000,
-  adrs: 183,
-  releases: 191,
+  adrs: 190,
+  releases: 192,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

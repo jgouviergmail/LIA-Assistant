@@ -1342,14 +1342,14 @@
       "description": "Trouvez d'autres utilisateurs de cette instance, connectez-vous et partagez un accès en lecture seule avec les personnes de votre choix.",
       "discovery": {
         "toggle_label": "Autoriser les autres à me trouver",
-        "toggle_hint": "Désactivé par défaut. Une fois activé, les utilisateurs qui cherchent votre nom complet exact peuvent vous envoyer une demande de connexion. Sans nom complet sur votre profil, vous êtes introuvable.",
+        "toggle_hint": "Désactivé par défaut. Une fois activé, les utilisateurs qui cherchent votre nom complet exact ou votre adresse email peuvent vous envoyer une demande de connexion. Sans nom complet sur votre profil, vous êtes introuvable.",
         "toggle_saved": "Préférence de découverte enregistrée",
         "title": "Trouver quelqu'un",
-        "search_label": "Nom complet",
-        "search_placeholder": "ex. Marie Dupont",
+        "search_label": "Nom complet ou email",
+        "search_placeholder": "ex. Marie Dupont ou marie@exemple.fr",
         "search_button": "Rechercher",
-        "exact_hint": "La recherche ne trouve que le nom complet exact (accents et majuscules ignorés).",
-        "no_results": "Personne trouvée avec ce nom exact. La personne n'a peut-être pas activé la découverte.",
+        "exact_hint": "La recherche trouve le nom complet exact (accents et majuscules ignorés) ou l'adresse email exacte.",
+        "no_results": "Aucune personne trouvée. Soit l'orthographe n'est pas exacte, soit la personne n'a pas activé la découverte.",
         "context_label": "Note facultative",
         "context_placeholder": "Quelques mots pour qu'elle sache qui vous êtes…",
         "request_button": "Demander la connexion",
@@ -1428,8 +1428,13 @@
       "my_name": {
         "label": "Votre nom :",
         "copy": "Copier votre nom",
-        "hint": "Vos proches doivent chercher ce nom exact pour vous trouver.",
+        "hint": "Vos proches doivent chercher ce nom exact — ou votre adresse email — pour vous trouver.",
         "missing": "Ajoutez votre nom complet dans votre profil pour que vos proches puissent vous trouver."
+      },
+      "email_visibility": {
+        "toggle_label": "Montrer mon email à mes connexions",
+        "toggle_hint": "Désactivé par défaut. Une fois activé, les personnes que vous avez ACCEPTÉES voient votre adresse réelle au lieu de l'indice masqué. Jamais une demande en attente.",
+        "toggle_saved": "Visibilité de l'adresse enregistrée"
       }
     },
     "notifications": {
@@ -3073,7 +3078,7 @@
         "psyche": "émotions, humeur, sentiments, affect, émotionnel",
         "memories": "mémoire, souvenirs, se souvenir, oublier, faits",
         "interests": "sujets, goûts, thèmes, curiosité, préférences",
-        "peer-connections": "contacts, amis, famille, réseau, partager calendrier, disponibilités, bloquer, découvrir utilisateurs, connecter, mon nom, copier mon nom, demande de connexion, journal des accès, relayer un message, utilisateurs bloqués, proches, réseau social, peer, découverte, se connecter à un proche",
+        "peer-connections": "contacts, amis, famille, réseau, partager calendrier, disponibilités, bloquer, découvrir utilisateurs, connecter, mon nom, copier mon nom, demande de connexion, journal des accès, relayer un message, utilisateurs bloqués, proches, réseau social, peer, découverte, se connecter à un proche, partager mon adresse, email visible, mon email, point 360",
         "heartbeat": "proactif, spontané, initiative, prise de contact, messages autonomes",
         "scheduled-actions": "cron, planification, récurrent, automatisation, minuterie, programmé",
         "journals": "journal intime, carnet, portrait, réflexions, notes",
@@ -3086,8 +3091,8 @@
   },
   "relations": {
     "title": "Relations",
-    "subtitle": "Tout ce que LIA sait des personnes avec qui vous traitez — engagements ouverts, appels et souvenirs, au même endroit.",
-    "empty": "Aucune relation pour l’instant. À mesure que LIA suit des engagements et passe des appels, les personnes concernées apparaissent ici.",
+    "subtitle": "Tout ce que LIA sait des personnes avec qui vous traitez — engagements ouverts, appels, messages relayés et souvenirs, au même endroit.",
+    "empty": "Aucune relation pour l’instant. À mesure que LIA suit des engagements, passe des appels et relaie des messages, les personnes concernées apparaissent ici.",
     "detail_empty": "Rien de suivi pour cette personne pour l’instant.",
     "back": "Retour à la liste",
     "open_loops_count_one": "{{count}} engagement",
@@ -3096,12 +3101,46 @@
     "calls_count_other": "{{count}} appels",
     "days_open_one": "ouvert depuis {{count}} jour",
     "days_open_other": "ouvert depuis {{count}} jours",
-    "prepare_360": "Préparer un point 360°",
     "prepare_intent": "Prépare un point 360° sur {{name}} : interactions récentes, engagements ouverts et ce qu’il faut aborder ensuite.",
+    "scope_title": "Point 360° — ce que LIA consulte",
+    "scope_hint": "Votre sélection est enregistrée avant l'ouverture du chat : l'assistant l'applique au lieu de la deviner dans la phrase.",
+    "scope_sections_legend": "Sections à utiliser",
+    "scope_directions_legend": "Sens des échanges",
+    "scope_roles_legend": "Rôle dans les rendez-vous",
+    "scope_max_items": "Nombre d'éléments max par section",
+    "scope_empty": "Aucune section sélectionnée : le point 360° n'aurait rien à consulter.",
+    "scope_launch": "Lancer le point 360°",
     "identity_best_effort": "Ces éléments ont été rapprochés par le nom — LIA a pu regrouper deux personnes différentes, ou manquer une orthographe.",
     "section_open_loops": "Engagements ouverts",
     "section_calls": "Appels récents",
     "section_memories": "Souvenirs",
+    "section_peer_messages": "Messages",
+    "peer_messages_count_one": "{{count}} message",
+    "peer_messages_count_other": "{{count}} messages",
+    "peer_message_received": "Reçu",
+    "peer_message_sent": "Envoyé",
+    "peer_message_no_content": "Texte non conservé",
+    "show_more_one": "Voir 1 de plus",
+    "show_more_other": "Voir {{count}} de plus",
+    "more_not_shown_one": "1 autre n’est pas affiché ici",
+    "more_not_shown_other": "{{count}} autres ne sont pas affichés ici",
+    "peer_link_title": "Connexion LIA",
+    "peer_link_since": "Connectés {{when}}",
+    "peer_link_nothing_shared": "Vous ne partagez rien pour l’instant.",
+    "dormant": "En sommeil",
+    "dormant_hint": "Aucun signe depuis plus de trois mois",
+    "sort_label": "Trier par",
+    "sort_recent": "Plus récents",
+    "sort_name": "Nom",
+    "sort_volume": "Plus actifs",
+    "only_peers": "Sur LIA",
+    "only_dormant": "En sommeil",
+    "action_message": "Écrire un message",
+    "action_message_prefill": "Fais passer un message à {{name}} : ",
+    "action_call": "Appeler",
+    "action_call_prefill": "Appelle {{name}} pour : ",
+    "action_loop": "Suivre un engagement",
+    "action_loop_prefill": "Note un engagement avec {{name}} : ",
     "favorites_title": "Favoris",
     "others_title": "Autres relations",
     "all_title": "Toutes les relations",
@@ -3113,7 +3152,55 @@
     "peer_badge": "Sur LIA",
     "peer_badge_hint": "Également utilisateur de cette instance LIA — vous êtes connectés",
     "no_recent_signal": "Aucun signal récent",
-    "subtitle_detail": "La vue 360° de votre relation"
+    "subtitle_detail": "La vue 360° de votre relation",
+    "section_contact": "Fiche contact",
+    "section_emails": "Emails échangés",
+    "section_events": "Rendez-vous partagés",
+    "contact_no_details": "Aucune adresse ni téléphone sur cette fiche.",
+    "contact_nickname": "Aussi appelé·e {{name}}",
+    "contact_label": {
+      "anniversary": "anniversaire",
+      "assistant": "assistant·e",
+      "birthday": "anniversaire",
+      "blog": "blog",
+      "brother": "frère",
+      "cell": "mobile",
+      "child": "enfant",
+      "domesticpartner": "partenaire",
+      "father": "père",
+      "friend": "ami·e",
+      "home": "domicile",
+      "homepage": "site web",
+      "main": "principal",
+      "manager": "responsable",
+      "mobile": "mobile",
+      "mother": "mère",
+      "other": "autre",
+      "parent": "parent",
+      "partner": "partenaire",
+      "profile": "profil",
+      "referredby": "recommandé par",
+      "relative": "proche",
+      "sister": "sœur",
+      "spouse": "conjoint·e",
+      "work": "travail"
+    },
+    "event_upcoming": "À venir",
+    "events_window_one": "Regardé le dernier jour et le suivant.",
+    "events_window_other": "Regardé les {{count}} derniers jours et les {{count}} prochains.",
+    "provider_none": "Connectez votre carnet d'adresses pour voir la fiche contact, les emails échangés et les rendez-vous partagés avec cette personne.",
+    "provider_no_address": "Aucune adresse sur cette fiche contact : impossible de chercher les emails et les rendez-vous.",
+    "provider_error": "Certains de vos comptes connectés n'ont pas pu être lus à l'instant.",
+    "refresh_all": "Rafraîchir ce qui vient des comptes connectés",
+    "refresh_section": "Rafraîchir cette section",
+    "event_role_organizer": "Organisateur",
+    "event_role_attendee": "Participant",
+    "emails_window_one": "Recherche sur le dernier jour.",
+    "emails_window_other": "Recherche sur les {{count}} derniers jours.",
+    "emails_summarize_one": "Résumer cet email dans le chat",
+    "emails_summarize_other": "Résumer ces {{count}} emails dans le chat",
+    "emails_summary_intent": "Résume-moi mes échanges par email avec {{name}} : {{subjects}}",
+    "emails_select": "Sélectionner « {{subject}} »"
   },
   "spaces": {
     "title": "Espaces de connaissances",
@@ -3709,7 +3796,7 @@
         },
         "relations": {
           "title": "⭐ CRM personnel — Relations",
-          "description": "Une <b>lentille, pas une base de données</b> : la page Relations agrège ce que LIA sait déjà par personne — engagements ouverts, appels, souvenirs mentionnant le nom — avec une identité résolue par pliage accents/casse et une confiance <b>affichée</b> (exacte vs normalisée : l’honnêteté avant la fausse précision). Le seul état persisté est l’<b>étoile des favoris</b> : upsert idempotent côté serveur, toggle optimiste réconcilié sur la vue fraîche, favoris injectés même quand leurs signaux ont expiré et classés avant le plafond. Les relations qui sont aussi des utilisateurs LIA connectés portent un badge peers en lecture seule (pont sous flag), et tout suit l’export RGPD et la purge de compte."
+          "description": "Une <b>lentille, pas une base de données</b> : la page Relations agrège ce que LIA sait déjà par personne — engagements ouverts, appels, souvenirs, messages relayés — avec une identité résolue par pliage accents/casse et une confiance <b>affichée</b> (exacte vs normalisée). Chaque section porte son total <b>exact</b>, issu d’un agrégat sur l’ensemble et non de la longueur d’une page. Trois sections viennent des comptes connectés — fiche du carnet, emails, rendez-vous — retrouvées par <b>adresse</b> et non par nom, avec cache par section et période affichée plutôt qu’un total qu’une page fournisseur ne prouve pas. Deux états sont persistés : l’étoile des favoris et la <b>portée du point 360°</b>, lue par l’outil au lieu d’être devinée dans la phrase. Lancer un point 360° depuis la fiche ne transmet plus seulement une phrase : la <b>capacité invoquée</b> voyage en données, si bien que l’outil figure au plan sur la bonne personne, et les recherches génériques que cet outil recouvre déjà sont retirées — une réponse sans rapport à côté d’un manque annoncé le contredirait. Un utilisateur connecté absent du carnet apporte enfin sa propre adresse, mais <b>seulement s’il l’a partagée</b> : son réglage reste le seul à décider."
         }
       },
       "diagram_alt": "Schéma d'architecture de LIA"
@@ -3718,6 +3805,21 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_27_5": {
+          "title": "v1.27.5 — 👥 Le point 360° sur une personne, complet et paramétrable",
+          "date": "Août 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>👥 Le point 360° sur un contact fonctionne à nouveau</b> — demander « fais-moi un point 360° sur Jérôme » répondait que LIA n'avait pas réussi à remonter ses interactions récentes. L'outil existait bien, mais n'était jamais chargé au démarrage : LIA le choisissait, puis ne le trouvait pas. Il retrouve désormais les emails échangés et les rendez-vous partagés, en cherchant par <b>adresse</b> plutôt que par nom — beaucoup plus fiable.",
+            "i2": "<b>📇 La fiche contact montre tout ton carnet d'adresses</b> — pseudonyme, fonction, anniversaire, note, adresses postales, relations familiales, liens, dates importantes et messageries s'ajoutent au nom, à l'organisation, aux emails et aux téléphones. Ce que ton fournisseur ne stocke pas n'apparaît simplement pas, plutôt qu'affiché vide.",
+            "i3": "<b>🎯 Tu choisis ce que le point 360° consulte</b> — une nouvelle section en tête de fiche relation permet de cocher les sources à utiliser, de distinguer les échanges reçus des envoyés, les rendez-vous où la personne participe de ceux qu'elle organise, et de fixer le nombre d'éléments par section. Ton choix est enregistré avant l'ouverture du chat : LIA l'applique, elle ne le devine pas.",
+            "i4": "<b>🔢 LIA ne sous-estime plus ce qu'elle te résume</b> — la fiche affiche « 137 engagements » et n'en montre que quelques-uns ; l'assistant, lui, ne recevait que ces quelques lignes et répondait « tu en as cinq ». Il reçoit désormais le compte exact. Et quand une source n'a pas pu être lue, il le dit au lieu d'annoncer qu'il n'y avait rien.",
+            "i5": "<b>👤 Le point 360° porte sur la personne affichée, garanti</b> — appuyer sur le bouton envoyait une phrase que LIA devait réinterpréter ; elle pouvait choisir des outils génériques et passer à côté. Le bouton transmet désormais la demande elle-même : l'outil 360° figure dans le plan, sur la bonne personne. Les autres recherches utiles sont conservées.",
+            "i6": "<b>💬 L'assistant reçoit enfin tout ce que le point 360° a trouvé</b> — il pouvait répondre « je n'ai aucune donnée sous la main » alors qu'il venait de remonter engagements, appels et messages relayés. Le contenu s'arrêtait en chemin, avant d'arriver jusqu'à lui. Il le reçoit désormais en entier.",
+            "i7": "<b>🤝 Un contact LIA absent de ton carnet a enfin ses emails et rendez-vous</b> — les échanges sont retrouvés par adresse, et une personne connectée que tu n'as pas enregistrée n'en avait aucune. Si elle a activé le partage de son adresse, LIA s'en sert pour retrouver, dans <b>ton</b> courrier et <b>ton</b> agenda, ce qui vous concerne tous les deux.",
+            "i8": "<b>📅 Plus de rendez-vous de ton agenda présenté comme le sien</b> — faute de rendez-vous partagé, l'assistant comblait le vide avec le prochain événement de ton calendrier, que la personne n'organisait ni ne fréquentait. Une section vide est une réponse ; un rendez-vous sans elle est une erreur."
+          }
+        },
         "v1_27_4": {
           "title": "v1.27.4 — 📧 Demander 3 emails te rend bien 3 emails",
           "date": "Juillet 2026",
@@ -5707,11 +5809,11 @@
       "relations": {
         "title": "Relations (CRM personnel)",
         "description": "La page Relations : tout ce que LIA sait des personnes avec qui tu traites, favoris compris.",
-        "count": "4",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "Qu’est-ce que la page Relations ?",
-            "answer": "Ouvre <strong>Relations</strong> dans la barre de navigation : une carte par personne, agrégeant ce que LIA suit déjà — <strong>engagements ouverts</strong>, <strong>appels téléphoniques</strong> et <strong>souvenirs</strong> qui la mentionnent. Ouvrir une carte affiche la fiche 360°, avec un bouton <em>Préparer un point 360°</em> qui briefe LIA dans le chat. C’est une lentille sur des données existantes : rien de nouveau n’est collecté."
+            "answer": "Ouvre <strong>Relations</strong> dans la barre de navigation : une carte par personne, agrégeant ce que LIA suit déjà — <strong>engagements ouverts</strong>, <strong>appels téléphoniques</strong>, <strong>souvenirs</strong> qui la mentionnent et <strong>messages relayés</strong>. Ouvrir une carte affiche la fiche 360°, dont la première section permet de lancer un point 360° dans le chat. C’est une lentille sur des données existantes : rien de nouveau n’est collecté."
           },
           "q2": {
             "question": "Comment fonctionnent les favoris ?",
@@ -5724,6 +5826,18 @@
           "q4": {
             "question": "Pourquoi une fiche indique-t-elle une correspondance approximative ?",
             "answer": "Les personnes sont regroupées par <strong>nom</strong>, accents et casse tolérés. Quand les graphies diffèrent selon les sources, ou qu’un souvenir mentionne simplement un prénom courant, LIA dit que la correspondance est <strong>approximative</strong> plutôt que de feindre la certitude — l’honnêteté avant la fausse précision."
+          },
+          "q5": {
+            "question": "Que montre la fiche d’une relation ?",
+            "answer": "En plus de ce que LIA suit elle-même, la fiche affiche ce que tes comptes connectés savent de cette personne : sa <strong>fiche du carnet d’adresses</strong> (pseudonyme, fonction, anniversaire, adresses postales, relations, liens…), les <strong>emails échangés</strong> et les <strong>rendez-vous partagés</strong>. Ces trois sections sont retrouvées par <strong>adresse email</strong>, résolue depuis ta fiche contact — sans adresse au carnet, LIA le dit au lieu de prétendre n’avoir rien trouvé. Elles indiquent la <strong>période</strong> consultée plutôt qu’un total qu’une page de fournisseur ne peut pas prouver, et chacune porte une icône pour la relire à la demande."
+          },
+          "q6": {
+            "question": "Comment choisir ce que LIA consulte pour un point 360° ?",
+            "answer": "La première section de la fiche, <strong>Point 360°</strong>, contient des cases : les sources à utiliser (fiche contact, engagements, souvenirs, appels, messages relayés, emails, rendez-vous), le <strong>sens des échanges</strong> (reçus, envoyés), le <strong>rôle</strong> dans les rendez-vous (participant, organisateur) et le nombre maximal d’éléments par section. Ton choix est <strong>enregistré avant l’ouverture du chat</strong>, si bien que LIA l’applique au lieu de le deviner dans ta phrase — et il sert de préremplissage la fois suivante. Décocher tout n’équivaut pas à tout prendre : une source décochée n’est simplement pas consultée."
+          },
+          "q7": {
+            "question": "Pourquoi une personne connectée n’avait-elle ni emails ni rendez-vous ?",
+            "answer": "Les échanges sont retrouvés par <strong>adresse</strong>, pas par nom : quelqu’un que tu n’as jamais enregistré dans ton carnet n’en avait aucune, donc rien à rapprocher. Si cette personne est un <strong>utilisateur connecté</strong> et qu’elle a activé le partage de son adresse (réglage Connexions), LIA s’en sert désormais pour retrouver, dans <strong>ton</strong> courrier et <strong>ton</strong> agenda, les échanges et les rendez-vous où elle figure. Sans ce partage, rien ne change : son réglage reste le seul à décider. Et si aucun rendez-vous ne la concerne, la section reste <strong>vide</strong> — LIA ne comble pas le silence avec un événement de ton agenda qu’elle n’organise ni ne fréquente."
           }
         }
       },
@@ -6648,6 +6762,10 @@
       "relation_star": {
         "title": "Une étoile qui n’oublie pas",
         "desc": "Étoile une relation directement sur sa carte — sans l’ouvrir. Les favoris gardent leur bande en tête, et une personne étoilée reste visible même après des mois de silence."
+      },
+      "relation_sections": {
+        "title": "Une fiche qui se déplie",
+        "desc": "La fiche d’une relation s’ouvre repliée : les titres forment l’index, tu ouvres ce que tu es venu chercher. Chaque section indique la période qu’elle a regardée et se relit d’un geste."
       }
     },
     "scenes": {
@@ -6700,6 +6818,9 @@
       },
       "peer_actions": {
         "reply": "Répondre"
+      },
+      "relation_sections": {
+        "section": "Emails échangés"
       }
     },
     "craft": {
@@ -7856,8 +7977,6 @@
       "response_hint": "Streaming token par token"
     },
     "screenshots": {
-      "title": "LIA en images",
-      "subtitle": "Une interface claire et intuitive, conçue pour tous — aucune compétence technique requise",
       "items": {
         "homepage": "Accueil — Briefing du jour : synthèse personnalisée, météo, agenda, anniversaires, santé et statistiques d'usage",
         "chat": "Chat — Conversation multi-agents avec panneau debug en temps réel",
@@ -7874,8 +7993,6 @@
       }
     },
     "presentation": {
-      "title": "Présentation détaillée",
-      "subtitle": "Découvre l'architecture, les fonctionnalités et la philosophie de LIA en 15 slides",
       "slide_alt": "Slide {{number}} de la présentation LIA",
       "slide_counter": "Slide {{current}} sur {{total}}"
     },
@@ -7884,7 +8001,7 @@
       "title": "LIA est prête. Et un peu impatiente.",
       "subtitle": "Un assistant qui agit, qui te connaît, qui anticipe — et qui demande toujours avant.",
       "button": "Créer mon compte",
-      "note_beta": "Bêta gratuite, exploitée en production 24/7. Honnêteté jusqu’au bout : des abonnements viendront.",
+      "note_beta": "Bêta gratuite, exploitée en production 24/7.",
       "philosophy_link": "Ou découvre d’abord notre philosophie"
     },
     "blog_preview": {
@@ -8087,7 +8204,7 @@
       "p4_t": "Écrit par une IA, dirigé par un humain",
       "p4_d": "420 000 lignes, ~100 % générées — sous cadre, revues et audits contradictoires. La méthode est publiée.",
       "p4_link": "Lire le retour d’expérience",
-      "honest": "Bêta gratuite, exploitée en production 24/7. Honnêteté jusqu’au bout : des abonnements viendront.",
+      "honest": "Bêta gratuite, exploitée en production 24/7.",
       "cta": "Essayer, en toute connaissance"
     },
     "day": {
@@ -8406,7 +8523,7 @@
       "execution-plans": {
         "title": "ExecutionPlan : comment LIA planifie et exécute tes demandes complexes",
         "excerpt": "LIA décompose tes requêtes multi-étapes en plans d'exécution structurés, validés sémantiquement et exécutés en parallèle pour des réponses rapides et fiables.",
-        "body": "<h2>Un langage de plan structuré</h2><p>Le planificateur de LIA génère un <strong>ExecutionPlan</strong> : un objet Pydantic validé comprenant un <code>plan_id</code> (UUID), un <code>execution_mode</code> (séquentiel ou parallèle), un <code>max_cost_usd</code>, un <code>estimated_cost_usd</code> et un numéro de <code>version</code>. Chaque plan contient une liste d'<strong>ExecutionStep</strong> avec les champs : <code>step_id</code>, <code>step_type</code> (TOOL, CONDITIONAL, REPLAN ou HUMAN), <code>agent_name</code>, <code>tool_name</code>, <code>parameters</code>, <code>depends_on</code> et <code>timeout_seconds</code>.</p><p>Par exemple, pour « envoie un résumé météo à Jean demain matin », le plan contiendrait : (1) récupérer la météo de demain, (2) chercher le contact Jean, (3) composer et envoyer l'email — avec une dépendance entre les étapes 1→3 et 2→3.</p><h2>Le pattern FOR_EACH</h2><p>Pour les opérations en lot, les étapes supportent un champ <code>for_each</code> qui itère sur une collection produite par une étape précédente. Le paramètre <code>for_each_max</code> limite le nombre d'itérations, et chaque erreur d'élément est gérée individuellement sans interrompre le lot entier.</p><h2>Validation sémantique à 11 vérifications</h2><p>Avant toute exécution, le <strong>validateur sémantique</strong> vérifie 11 types de problèmes :</p><ul><li><strong>HALLUCINATED_CAPABILITY</strong> — Outil ou capacité inventé par le LLM</li><li><strong>GHOST_DEPENDENCY</strong> — Référence à une étape inexistante</li><li><strong>LOGICAL_CYCLE</strong> — Dépendances circulaires</li><li><strong>CARDINALITY_MISMATCH</strong> — Incompatibilité de cardinalité entre étapes</li><li><strong>SCOPE_OVERFLOW / SCOPE_UNDERFLOW</strong> — Plan trop large ou insuffisant</li><li><strong>WRONG_PARAMETERS</strong> — Paramètres incorrects pour l'outil</li><li><strong>MISSING_STEP</strong> — Étape manquante pour satisfaire la demande</li><li><strong>DANGEROUS_AMBIGUITY</strong> — Ambiguïté pouvant mener à une erreur</li><li><strong>IMPLICIT_ASSUMPTION / INSUFFICIENT_CONTENT</strong> — Hypothèses non vérifiées</li></ul><h2>Distinction critères indexables vs sémantiques</h2><p>Au-delà des onze vérifications structurelles, le validateur applique un <strong>principe universel de planification</strong> : distinguer les critères <em>indexables</em> (date, identifiant, expéditeur, statut, lieu — passés en paramètre d'outil) des critères <em>sémantiques</em> (catégorie, urgence, qualité, priorité — filtrés en aval par le LLM de réponse). Quand le planificateur tente de faire passer un mot conceptuel comme « médical » ou « urgent » dans la recherche d'un outil littéral (Google Calendar, Gmail, store type Notion…), une couche de détection signale la fuite via une correspondance par mot entier sur l'indice émis par l'analyseur de requête. Mécanisme tool-agnostic : aucun connecteur ni serveur MCP futur ne nécessite de modification — opt-out déclaratif via <code>ToolManifest.text_search_mode</code> pour les stores qui exposent une recherche sémantique native.</p><h2>Exécution parallèle par vagues</h2><p>Un <strong>DependencyGraph</strong> calcule les vagues d'exécution : toutes les étapes sans dépendance forment la première vague et s'exécutent en parallèle. Les vagues suivantes attendent la complétion de leurs prérequis. Ce mécanisme permet de traiter des requêtes complexes impliquant 3 à 5 domaines avec un temps de réponse comparable à une requête simple.</p><h2>Replanification adaptative</h2><p>Si une étape échoue, le système peut replanifier dynamiquement via le type <code>REPLAN</code>. Par exemple, si un contact n'est pas trouvé, LIA peut demander une clarification à l'utilisateur plutôt que d'abandonner l'ensemble du plan.</p><h2>Registre anti-hallucination auto-enrichissant</h2><p>Les LLMs inventent parfois des outils inexistants dans leurs plans (ex : <code>resolve_reference_tool</code>). LIA maintient un registre persistant de patterns hallucinés (<code>hallucinated_tools.json</code>) qui se met à jour automatiquement à chaque nouvelle détection. Lors de la validation du plan, chaque outil est vérifié contre ce registre — les étapes hallucinées sont supprimées et le planner est forcé à replanifier avec les outils réels du catalogue. Ce mécanisme élimine une classe entière d'échecs d'exécution sans intervention humaine.</p><h2>Supprimer la raison d'inventer</h2><p>Détecter un outil inventé reste une réaction. La cause est en amont : si le catalogue remis au planificateur contient un outil qui exige une donnée qu'aucun autre ne sait produire — l'identifiant d'un message pour pouvoir y répondre —, alors <strong>aucun plan valide n'existe</strong>, et le modèle ne peut qu'inventer. LIA vérifie donc que le catalogue est <strong>clos</strong> avant de planifier : chaque donnée exigée a une source de lecture présente. La règle ne regarde jamais la demande, elle se lit sur les manifestes — un éditeur de liens qui résout des références manquantes, pas une recherche qui devine.</p><h2>Publier les limites qu'il fait respecter</h2><p>Clore le catalogue répond à la question <em>quels outils</em> un plan peut utiliser. Une seconde question décide s'il sera accepté : <em>quelles valeurs</em>. Chaque outil déclare des limites — combien de résultats il rend d'un coup — et le validateur les fait respecter. Ces limites n'étaient pas transmises au planificateur, qui dimensionnait ses lots d'après le seul prompt et voyait son plan refusé pour avoir suivi la consigne qu'on lui avait donnée. Une limite appliquée mais cachée n'est pas un contrat, c'est un piège. Elle est désormais publiée avec l'outil, et toute valeur qui la dépasse est ramenée dans ses bornes avant validation — un refus ne signale donc plus qu'un défaut encore réel.</p>"
+        "body": "<h2>Un langage de plan structuré</h2><p>Le planificateur de LIA génère un <strong>ExecutionPlan</strong> : un objet Pydantic validé comprenant un <code>plan_id</code> (UUID), un <code>execution_mode</code> (séquentiel ou parallèle), un <code>max_cost_usd</code>, un <code>estimated_cost_usd</code> et un numéro de <code>version</code>. Chaque plan contient une liste d'<strong>ExecutionStep</strong> avec les champs : <code>step_id</code>, <code>step_type</code> (TOOL, CONDITIONAL, REPLAN ou HUMAN), <code>agent_name</code>, <code>tool_name</code>, <code>parameters</code>, <code>depends_on</code> et <code>timeout_seconds</code>.</p><p>Par exemple, pour « envoie un résumé météo à Jean demain matin », le plan contiendrait : (1) récupérer la météo de demain, (2) chercher le contact Jean, (3) composer et envoyer l'email — avec une dépendance entre les étapes 1→3 et 2→3.</p><h2>Le pattern FOR_EACH</h2><p>Pour les opérations en lot, les étapes supportent un champ <code>for_each</code> qui itère sur une collection produite par une étape précédente. Le paramètre <code>for_each_max</code> limite le nombre d'itérations, et chaque erreur d'élément est gérée individuellement sans interrompre le lot entier.</p><h2>Validation sémantique à 11 vérifications</h2><p>Avant toute exécution, le <strong>validateur sémantique</strong> vérifie 11 types de problèmes :</p><ul><li><strong>HALLUCINATED_CAPABILITY</strong> — Outil ou capacité inventé par le LLM</li><li><strong>GHOST_DEPENDENCY</strong> — Référence à une étape inexistante</li><li><strong>LOGICAL_CYCLE</strong> — Dépendances circulaires</li><li><strong>CARDINALITY_MISMATCH</strong> — Incompatibilité de cardinalité entre étapes</li><li><strong>SCOPE_OVERFLOW / SCOPE_UNDERFLOW</strong> — Plan trop large ou insuffisant</li><li><strong>WRONG_PARAMETERS</strong> — Paramètres incorrects pour l'outil</li><li><strong>MISSING_STEP</strong> — Étape manquante pour satisfaire la demande</li><li><strong>DANGEROUS_AMBIGUITY</strong> — Ambiguïté pouvant mener à une erreur</li><li><strong>IMPLICIT_ASSUMPTION / INSUFFICIENT_CONTENT</strong> — Hypothèses non vérifiées</li></ul><h2>Distinction critères indexables vs sémantiques</h2><p>Au-delà des onze vérifications structurelles, le validateur applique un <strong>principe universel de planification</strong> : distinguer les critères <em>indexables</em> (date, identifiant, expéditeur, statut, lieu — passés en paramètre d'outil) des critères <em>sémantiques</em> (catégorie, urgence, qualité, priorité — filtrés en aval par le LLM de réponse). Quand le planificateur tente de faire passer un mot conceptuel comme « médical » ou « urgent » dans la recherche d'un outil littéral (Google Calendar, Gmail, store type Notion…), une couche de détection signale la fuite via une correspondance par mot entier sur l'indice émis par l'analyseur de requête. Mécanisme tool-agnostic : aucun connecteur ni serveur MCP futur ne nécessite de modification — opt-out déclaratif via <code>ToolManifest.text_search_mode</code> pour les stores qui exposent une recherche sémantique native.</p><h2>Exécution parallèle par vagues</h2><p>Un <strong>DependencyGraph</strong> calcule les vagues d'exécution : toutes les étapes sans dépendance forment la première vague et s'exécutent en parallèle. Les vagues suivantes attendent la complétion de leurs prérequis. Ce mécanisme permet de traiter des requêtes complexes impliquant 3 à 5 domaines avec un temps de réponse comparable à une requête simple.</p><h2>Replanification adaptative</h2><p>Si une étape échoue, le système peut replanifier dynamiquement via le type <code>REPLAN</code>. Par exemple, si un contact n'est pas trouvé, LIA peut demander une clarification à l'utilisateur plutôt que d'abandonner l'ensemble du plan.</p><h2>Registre anti-hallucination auto-enrichissant</h2><p>Les LLMs inventent parfois des outils inexistants dans leurs plans (ex : <code>resolve_reference_tool</code>). LIA maintient un registre persistant de patterns hallucinés (<code>hallucinated_tools.json</code>) qui se met à jour automatiquement à chaque nouvelle détection. Lors de la validation du plan, chaque outil est vérifié contre ce registre — les étapes hallucinées sont supprimées et le planner est forcé à replanifier avec les outils réels du catalogue. Ce mécanisme élimine une classe entière d'échecs d'exécution sans intervention humaine.</p><h2>Supprimer la raison d'inventer</h2><p>Détecter un outil inventé reste une réaction. La cause est en amont : si le catalogue remis au planificateur contient un outil qui exige une donnée qu'aucun autre ne sait produire — l'identifiant d'un message pour pouvoir y répondre —, alors <strong>aucun plan valide n'existe</strong>, et le modèle ne peut qu'inventer. LIA vérifie donc que le catalogue est <strong>clos</strong> avant de planifier : chaque donnée exigée a une source de lecture présente. La règle ne regarde jamais la demande, elle se lit sur les manifestes — un éditeur de liens qui résout des références manquantes, pas une recherche qui devine.</p><h2>Publier les limites qu'il fait respecter</h2><p>Clore le catalogue répond à la question <em>quels outils</em> un plan peut utiliser. Une seconde question décide s'il sera accepté : <em>quelles valeurs</em>. Chaque outil déclare des limites — combien de résultats il rend d'un coup — et le validateur les fait respecter. Ces limites n'étaient pas transmises au planificateur, qui dimensionnait ses lots d'après le seul prompt et voyait son plan refusé pour avoir suivi la consigne qu'on lui avait donnée. Une limite appliquée mais cachée n'est pas un contrat, c'est un piège. Elle est désormais publiée avec l'outil, et toute valeur qui la dépasse est ramenée dans ses bornes avant validation — un refus ne signale donc plus qu'un défaut encore réel.</p><h2>Un clic n'est pas une phrase</h2><p>Publier les limites règle ce qu'un plan peut <em>valoir</em>. Restait ce qu'il doit <em>contenir</em>. Quand la demande vient d'un bouton — une fiche nommée, des cases cochées — le système détient cette certitude avant qu'aucun modèle ne soit consulté, puis il la transformait en prose et dépensait trois étapes à tenter de la reconstituer. Mesuré : l'outil attendu obtenait le meilleur score du catalogue, et le plan appelait un outil générique. Aucun réglage de prompt ne rend ce chemin déterministe. La <strong>capacité invoquée</strong> voyage donc en données, à côté de la phrase que l'utilisateur lit ; le navigateur nomme une capacité, jamais un outil, et le serveur choisit quel outil en lecture seule l'implémente. Le pas correspondant est ajouté au plan <em>avant</em> la validation, au même titre que les bornes ramenées dans leurs limites — ce qui est mécaniquement réparable est réparé, jamais rapporté comme un défaut.</p><p>Le plan est <strong>enrichi, pas remplacé</strong> : tout ce que le planificateur a prévu et qui apporte quelque chose demeure. Ce qu'il a prévu et que la capacité recouvre déjà s'en va, car une réponse sans rapport posée à côté d'un manque annoncé ne le complète pas, elle le contredit. Une étape qu'une autre lit encore est conservée quoi qu'il arrive : échanger une phrase fausse contre une référence pendante serait un mauvais marché.</p>"
       },
       "human-in-the-loop": {
         "title": "Human-in-the-Loop : 6 niveaux de validation pour garder le contrôle",

@@ -529,6 +529,16 @@ async def planner_node_v3(
                 if planning_result.used_panic_mode:
                     planner_retry_success_total.labels(retry_attempt="1").inc()
 
+        # ADR-191: honour a capability the user invoked directly (360° button).
+        # BEFORE validation, like every other mechanical repair (parameter
+        # clamping, for_each_max) — a plan missing a step the user explicitly
+        # asked for is repairable, not a defect to report. No-op without a
+        # directive, and never replaces what the planner produced.
+        from src.core.context import capability_directive_ctx
+        from src.domains.agents.capability_directives import ensure_directive_step
+
+        ensure_directive_step(planning_result.plan, capability_directive_ctx.get())
+
         # Validate plan to determine HITL requirements
         from src.domains.agents.orchestration.validator import (
             PlanValidator,

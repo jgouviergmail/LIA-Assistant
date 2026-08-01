@@ -32,27 +32,69 @@ class TestUtcDayBounds:
 
 
 @pytest.mark.unit
-class TestListAcceptedPeerNames:
-    """CRM badge bridge (D2): folded, de-duplicated, blank-free peer names."""
+class TestListDeliveredMessageActivity:
+    """CRM timeline rows: direction is relative to the CALLER, and a peer with
+    no usable name never becomes a phantom '?' relationship card.
 
-    async def test_folds_dedupes_and_drops_blanks(self) -> None:
-        repo = PeersRepository(db=AsyncMock())
-        me = uuid4()
-        other_a, other_b, other_c = uuid4(), uuid4(), uuid4()
-        connections = [
-            SimpleNamespace(user_a_id=me, user_b_id=other_a),
-            SimpleNamespace(user_a_id=other_b, user_b_id=me),
-            SimpleNamespace(user_a_id=me, user_b_id=other_c),
-        ]
-        repo.list_accepted_for_user = AsyncMock(return_value=connections)  # type: ignore[method-assign]
-        rows = MagicMock()
-        rows.all.return_value = [("Gérard Dupont",), ("gerard DUPONT",), (None,)]
-        repo.db.execute = AsyncMock(return_value=rows)
-        names = await repo.list_accepted_peer_names(me)
-        assert names == ["gerard dupont"]
+    The SQL itself (CASE counterpart join, block exclusion, delivered-only) is
+    a PostgreSQL behavior and is covered in the integration tier — what the
+    unit tier owns is the row → contract mapping.
+    """
 
-    async def test_no_connections_short_circuits(self) -> None:
-        repo = PeersRepository(db=AsyncMock())
-        repo.list_accepted_for_user = AsyncMock(return_value=[])  # type: ignore[method-assign]
-        assert await repo.list_accepted_peer_names(uuid4()) == []
-        repo.db.execute.assert_not_awaited()
+    ME = uuid4()
+
+    @staticmethod
+    def _repo_returning(rows: list[SimpleNamespace]) -> PeersRepository:
+        """A repository whose single SELECT yields the given rows.
+
+        ``db.execute`` is awaited but ``.all()`` is synchronous: an AsyncMock
+        child would return a coroutine, so the result object is a MagicMock.
+        """
+        result = MagicMock()
+        result.all.return_value = rows
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=result)
+        return PeersRepository(db=db)
+
+    def _row(self, *, sender_id, peer_id, full_name="Marie Leroy", when=None):
+        return SimpleNamespace(
+            message_id=uuid4(),
+            peer_id=peer_id,
+            sender_id=sender_id,
+            full_name=full_name,
+            delivered_at=when or datetime(2026, 7, 30, 9, 0, tzinfo=UTC),
+            content="ma directive",
+            delivered_text="ce que son assistant a dit",
+        )
+
+    async def test_direction_is_relative_to_the_caller(self) -> None:
+        peer = uuid4()
+        repo = self._repo_returning(
+            [
+                self._row(sender_id=self.ME, peer_id=peer),
+                self._row(sender_id=peer, peer_id=peer),
+            ]
+        )
+        activity = await repo.list_delivered_message_activity(self.ME, limit=10)
+        assert [item.direction for item in activity] == ["sent", "received"]
+        assert {item.peer_id for item in activity} == {peer}
+        # Each side reads its OWN words — crossing them would undo the relay.
+        assert [item.text for item in activity] == ["ma directive", "ce que son assistant a dit"]
+
+    # The unattributable-peer exclusion USED to live here, as a Python
+    # post-filter over the stubbed rows. It moved into the WHERE clause: run
+    # after the LIMIT it emptied a page whose newest row happened to belong to
+    # a nameless peer, while the aggregate — which excluded them in SQL — kept
+    # reporting a total. Its oracle now lives where the SQL is real:
+    # tests/integration/domains/peers/test_repository_db.py
+    # ::test_a_nameless_peer_never_costs_a_real_row_its_place.
+
+    async def test_maps_identity_and_instant_verbatim(self) -> None:
+        peer = uuid4()
+        when = datetime(2026, 7, 29, 18, 30, tzinfo=UTC)
+        row = self._row(sender_id=peer, peer_id=peer, full_name="  Gérard Dupont  ", when=when)
+        repo = self._repo_returning([row])
+        (item,) = await repo.list_delivered_message_activity(self.ME, limit=10)
+        assert item.message_id == row.message_id
+        assert item.peer_display_name == "Gérard Dupont"  # trimmed, never folded
+        assert item.occurred_at == when

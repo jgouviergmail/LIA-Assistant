@@ -23,7 +23,7 @@ from sqlalchemy.exc import IntegrityError
 from src.core.config import settings
 from src.core.constants import PEERS_CONTEXT_MESSAGE_MAX_CHARS
 from src.core.exceptions import raise_invalid_input, raise_not_found_or_unauthorized
-from src.domains.peers.discovery import mask_email
+from src.domains.peers.discovery import looks_like_email, mask_email
 from src.domains.peers.models import (
     PeerConnection,
     PeerConnectionStatus,
@@ -40,7 +40,7 @@ from src.domains.peers.schemas import (
     PeerEvent,
     ShareItem,
 )
-from src.domains.shared.text_normalization import fold_name
+from src.domains.shared.text_normalization import fold_email, fold_name
 from src.domains.users.models import User
 
 if TYPE_CHECKING:
@@ -108,23 +108,57 @@ class PeersService:
         await self.db.flush()
         logger.info("peers_discovery_toggled", user_id=str(user_id), enabled=enabled)
 
-    async def search_discoverable(self, searcher_id: UUID, full_name: str) -> list[DiscoveryMatch]:
-        """Exact folded-name search over opted-in active users (spec §5.1).
+    async def set_email_visibility(self, user_id: UUID, visible: bool) -> None:
+        """Toggle whether ACCEPTED connections see the caller's real address.
 
-        O(N) scan over discoverable users with Python-side folding: the folding
-        is NFKD-based and has no portable SQL equivalent, and a self-hosted
-        instance holds tens of users, not millions (documented trade-off). No
-        prefix or substring matching, ever (anti-enumeration).
+        A separate consent from discovery (ADR-189): being findable and handing
+        an address over are different decisions, and one must never imply the
+        other.
+
+        Args:
+            user_id: The caller.
+            visible: New opt-in value.
+        """
+        user = await self.db.get(User, user_id)
+        if user is None:  # defensive — the session dependency already resolved them
+            raise_not_found_or_unauthorized("peer", user_id)
+        user.peer_email_visible = visible
+        await self.db.flush()
+        logger.info("peers_email_visibility_toggled", user_id=str(user_id), visible=visible)
+
+    async def search_discoverable(self, searcher_id: UUID, query: str) -> list[DiscoveryMatch]:
+        """Exact search over opted-in active users, by name OR address (§5.1).
+
+        ONE box, two branches, one authority: :func:`looks_like_email` decides
+        which identity was typed, and the two folds never mix (an address is
+        compared to addresses, a name to names). Both branches share the same
+        scan and the same guards — self excluded, blocks in either direction
+        invisible, relationship annotated identically — so neither can quietly
+        become the permissive one.
+
+        O(N) scan with Python-side folding: the folds have no portable SQL
+        equivalent, and expressing them in SQL would make the database a
+        second authority on which mailbox (or which person) is which — the
+        documented trade-off is that a self-hosted instance holds tens of
+        users, not millions. No prefix or substring matching, ever: the
+        superuser-only ``/users/search/by-email`` endpoint exists precisely
+        because a ``%pattern%`` sweep over EVERY account is an enumeration
+        tool; this is an exact match over people who opted in to being found.
+
+        A user without a ``full_name`` stays unfindable by either branch: the
+        result must carry a display name, and being nameless is already the
+        documented reason not to appear (spec §5.1, UI hint).
 
         Args:
             searcher_id: The caller (excluded from results).
-            full_name: Name to match exactly after folding.
+            query: Full name or email address to match exactly after folding.
 
         Returns:
             Matches with the A6 masked email hint; empty for blank queries.
         """
-        folded = fold_name(full_name)
-        if not folded:
+        by_email = looks_like_email(query)
+        key = fold_email(query) if by_email else fold_name(query)
+        if not key:
             return []
         stmt = select(User.id, User.full_name, User.email).where(
             User.is_active.is_(True),
@@ -136,7 +170,14 @@ class PeersService:
         rows = (await self.db.execute(stmt)).all()
         matches: list[DiscoveryMatch] = []
         for user_id, name, email in rows:
-            if fold_name(name) != folded:
+            folded_name = fold_name(name)
+            # `full_name` is only NOT NULL — "" and "   " are storable, and a
+            # match must carry a display name. The name branch never reaches
+            # such a row (a blank key returned above); the address branch would,
+            # so the rule is enforced here for BOTH rather than left to luck.
+            if not folded_name:
+                continue
+            if (fold_email(email) if by_email else folded_name) != key:
                 continue
             if await self.repo.has_block_between(searcher_id, user_id):
                 continue  # indistinguishable from no-match (spec §12.2)
@@ -145,7 +186,10 @@ class PeersService:
             matches.append(
                 DiscoveryMatch(
                     peer_id=user_id,
-                    display_name=name,
+                    # Trimmed, like every other peer display name on the wire
+                    # (`PeerConnectionProfile`): the guard above already makes
+                    # the trimmed value non-blank.
+                    display_name=name.strip(),
                     email_hint=mask_email(email),
                     relationship=relationship,
                 )
@@ -154,6 +198,7 @@ class PeersService:
             "peers_discovery_search",
             searcher_id=str(searcher_id),
             matches=len(matches),
+            by="email" if by_email else "name",  # never the query itself (PII)
         )
         return matches
 
@@ -525,20 +570,30 @@ class PeersService:
         rows = (await self.db.execute(stmt)).all()
         return {uid: name for uid, name in rows if name}
 
-    async def _peer_directory(self, user_ids: set[UUID]) -> dict[UUID, tuple[str, str]]:
-        """Batch-load (display name, email hint) for peers in listings.
+    async def _peer_directory(self, user_ids: set[UUID]) -> dict[UUID, tuple[str, str, str | None]]:
+        """Batch-load (display name, masked hint, opted-in address) for peers.
+
+        The third slot is the REAL address, and it is filled only when its
+        owner opted in (ADR-189). It is still the CALLER's job to decide
+        whether this listing may show it: an accepted connection may, a
+        pending request may not — not yet connected is not connected.
 
         Args:
             user_ids: Peer ids to resolve.
 
         Returns:
-            Mapping id → (full_name or empty, masked email hint).
+            Mapping id → (full_name or empty, masked hint, address or None).
         """
         if not user_ids:
             return {}
-        stmt = select(User.id, User.full_name, User.email).where(User.id.in_(user_ids))
+        stmt = select(User.id, User.full_name, User.email, User.peer_email_visible).where(
+            User.id.in_(user_ids)
+        )
         rows = (await self.db.execute(stmt)).all()
-        return {uid: (name or "", mask_email(email)) for uid, name, email in rows}
+        return {
+            uid: (name or "", mask_email(email), email if visible else None)
+            for uid, name, email, visible in rows
+        }
 
     def _peer_of(self, connection: PeerConnection, user_id: UUID) -> UUID:
         """Return the OTHER side of a pair row."""
@@ -560,7 +615,7 @@ class PeersService:
         views: list[ConnectionView] = []
         for connection in connections:
             peer_id = self._peer_of(connection, user_id)
-            name, hint = directory.get(peer_id, ("", ""))
+            name, hint, opted_in_email = directory.get(peer_id, ("", "", None))
             shares = await self.repo.list_shares(connection.id)
             views.append(
                 ConnectionView(
@@ -568,6 +623,9 @@ class PeersService:
                     peer_id=peer_id,
                     peer_display_name=name,
                     peer_email_hint=hint,
+                    # ADR-189: shown only on an ACCEPTED pair, and only because
+                    # its owner asked. The hint stays either way.
+                    peer_email=opted_in_email,
                     status=connection.status,
                     direction=None,
                     requested_at=connection.requested_at,
@@ -602,7 +660,11 @@ class PeersService:
         views: list[ConnectionView] = []
         for connection in pending:
             peer_id = self._peer_of(connection, user_id)
-            name, hint = directory.get(peer_id, ("", ""))
+            # The opted-in address is deliberately DISCARDED here: not yet
+            # accepted is not connected, so the opt-in cannot apply early
+            # (ADR-189). Unpacking it and ignoring it is the point — a future
+            # reader sees the decision instead of an absent field.
+            name, hint, _not_connected_yet = directory.get(peer_id, ("", "", None))
             incoming = connection.requested_by_id != user_id
             views.append(
                 ConnectionView(

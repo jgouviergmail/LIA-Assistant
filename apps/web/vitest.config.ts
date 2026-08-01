@@ -68,7 +68,36 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
-        // Global floor — re-measured 2026-07-30 (LIA Cosmos swap: `/` and the
+        // Global floor — re-measured 2026-08-01 late (ADR-190: the full contact
+        // card and its date/label rendering, the 360° scope selector and its
+        // draft/commit hook, plus the header-button removal):
+        // statements 70.02 / branches 63.59 / functions 65.57 / lines 70.61.
+        // Raised 67/61/63/68 -> 68/61/63/68 (floor(measured - 2); branches,
+        // functions and lines hold — no integer step admits the 2-point margin
+        // there yet).
+        // Previous re-measure 2026-08-01 (landing gallery: the shared
+        // LandingCarousel with its keyboard/swipe/live-region contract, the two
+        // tab inventories, the disclosure open by default, Tabs.defaultTabId):
+        // statements 69.98 / branches 63.57 / functions 65.55 / lines 70.57.
+        // Raised 67/61/62/68 -> 67/61/63/68 (floor(measured - 2); statements,
+        // branches and lines hold — no integer step admits the 2-point margin
+        // there yet).
+        // Previous re-measure 2026-07-31 late (Bloc B + Bloc C:
+        // discovery by address, the provider-backed 360° sections, plus the
+        // refetch/focus regressions and their guards):
+        // statements 69.58 / branches 63.20 / functions 64.90 / lines 70.18.
+        // Raised 67/60/62/68 -> 67/61/62/68 (floor(measured - 2); statements,
+        // functions and lines hold — no integer step admits the 2-point
+        // margin there yet).
+        // Previous re-measure 2026-07-31 (Relations CRM enrichment,
+        // ADR-185: relayed peer messages, exact aggregate counts, progressive
+        // disclosure, the LIA connection block, dormancy + sort/filters, quick
+        // actions, plus the useRelationDetail hook tests):
+        // statements 69.49 / branches 62.95 / functions 64.77 / lines 70.10.
+        // Raised 67/60/62/67 -> 67/60/62/68 (floor(measured - 2); statements,
+        // branches and functions hold — no integer step admits the 2-point
+        // margin there yet).
+        // Previous re-measure 2026-07-30 (LIA Cosmos swap: `/` and the
         // whole public space carry the identity, preview routes deleted, page
         // tests migrated to the real routes + app adjustments wave):
         // statements 69.25 / branches 62.75 / functions 64.43 / lines 69.86.
@@ -111,10 +140,10 @@ export default defineConfig({
         // other lanes: App Router pages (hermetic E2E) and the WASM/Web-Audio
         // modules `sherpaKws` / `audio-queue`, which jsdom cannot simulate
         // without the test degenerating into a test of its own mocks.
-        statements: 67,
-        branches: 60,
-        functions: 62,
-        lines: 67,
+        statements: 68,
+        branches: 61,
+        functions: 63,
+        lines: 68,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {
           statements: 100,

@@ -19,6 +19,7 @@ const CONNECTION = {
   peer_id: 'p1',
   peer_display_name: 'Marie Dupont',
   peer_email_hint: 'm…@g….com',
+            peer_email: null,
   status: 'accepted' as const,
   direction: null,
   requested_at: '2026-07-28T08:00:00Z',

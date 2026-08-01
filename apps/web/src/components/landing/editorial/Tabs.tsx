@@ -23,10 +23,21 @@ export interface TabsProps {
   className?: string;
   /** Center (default) or left-align the tab bar. */
   align?: 'center' | 'start';
+  /**
+   * Id of the tab selected on first render. Defaults to the first item; an
+   * unknown id falls back to it too, so a renamed tab can never blank the
+   * panel.
+   */
+  defaultTabId?: string;
 }
 
-export function Tabs({ items, label, className, align = 'center' }: TabsProps) {
-  const [active, setActive] = useState(0);
+export function Tabs({ items, label, className, align = 'center', defaultTabId }: TabsProps) {
+  const [active, setActive] = useState(() =>
+    Math.max(
+      0,
+      items.findIndex(item => item.id === defaultTabId)
+    )
+  );
   const baseId = useId();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 

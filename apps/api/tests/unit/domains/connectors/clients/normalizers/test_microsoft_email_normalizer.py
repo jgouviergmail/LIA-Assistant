@@ -174,3 +174,18 @@ class TestNormalizeGraphMessage:
     def test_empty_payload_does_not_raise(self) -> None:
         result = normalize_graph_message({})
         assert result["id"] == ""
+
+
+@pytest.mark.unit
+class TestCcOperator:
+    """`cc:` is a KQL search term, not leftover free text.
+
+    Microsoft's `$search` honours `cc:` natively; leaving it in the remaining
+    text made it a bare keyword — matching the address anywhere in the message
+    instead of the copy line.
+    """
+
+    def test_cc_becomes_a_search_term(self) -> None:
+        params = build_search_filter("in:sent cc:alice@example.com")
+        assert params["search"] == '"cc:alice@example.com"'
+        assert params["folder"] == "sentitems"

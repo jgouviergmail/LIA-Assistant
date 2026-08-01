@@ -500,6 +500,7 @@ class AgentService(
         stt_cost_usd: float | None = None,
         stt_cost_eur: float | None = None,
         hitl_decision: dict[str, Any] | None = None,
+        directive: dict[str, str] | None = None,
         client_user_agent: str | None = None,
     ) -> AsyncGenerator[ChatStreamChunk, None]:
         """
@@ -583,6 +584,7 @@ class AgentService(
             stt_cost_usd=stt_cost_usd,
             stt_cost_eur=stt_cost_eur,
             hitl_decision=hitl_decision,
+            directive=directive,
             client_user_agent=client_user_agent,
         ):
             yield chunk
@@ -614,6 +616,7 @@ class AgentService(
         stt_cost_usd: float | None = None,
         stt_cost_eur: float | None = None,
         hitl_decision: dict[str, Any] | None = None,
+        directive: dict[str, str] | None = None,
         client_user_agent: str | None = None,
     ) -> AsyncGenerator[ChatStreamChunk, None]:
         """
@@ -755,6 +758,7 @@ class AgentService(
                 active_skills_ctx,
                 admin_mcp_disabled_ctx,
                 build_request_tool_manifests,
+                capability_directive_ctx,
                 request_tool_manifests_ctx,
             )
             from src.infrastructure.mcp.user_context import (
@@ -762,6 +766,7 @@ class AgentService(
                 setup_user_mcp_tools,
             )
 
+            _directive_token = capability_directive_ctx.set(directive)
             _admin_mcp_token = None
             _active_skills_token = None
             if user_obj:
@@ -1678,6 +1683,7 @@ class AgentService(
                 # Cleanup per-request tool manifests ContextVar
                 if _manifests_token is not None:
                     request_tool_manifests_ctx.reset(_manifests_token)
+                capability_directive_ctx.reset(_directive_token)
 
                 # Voice services own a persistent httpx client (TTS) that
                 # must be closed deterministically — without this, the
@@ -1702,6 +1708,7 @@ class AgentService(
                 # Cleanup per-request tool manifests ContextVar on error
                 if _manifests_token is not None:
                     request_tool_manifests_ctx.reset(_manifests_token)
+                capability_directive_ctx.reset(_directive_token)
 
                 # Voice services owned by this generator must be torn down
                 # so their persistent httpx clients aren't leaked when the

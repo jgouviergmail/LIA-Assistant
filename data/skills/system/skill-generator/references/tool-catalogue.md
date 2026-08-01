@@ -131,7 +131,7 @@ Search, list, or fetch contacts.
 - `max_results` (int) — Maximum number of results
 - `fields` (list[string]) — Specific fields to return
 ### get_person_overview_tool
-- `person_name` (string, required) — Person to aggregate (contact card + recent emails + upcoming events + memories, honest partial on connector gaps)
+- `person_name` (string, required) — Person to aggregate. Reads the CRM services: full contact card, mail exchanged and meetings shared (resolved by ADDRESS from the address book, not by name), open commitments, calls, relayed messages and relevant memories. Sections the user could not have read are listed in `unavailable` rather than reported as empty. The SCOPE (which sections, which directions/roles, how many items) is a stored user preference the tool reads — it is not a parameter.
 
 
 ### create_contact_tool

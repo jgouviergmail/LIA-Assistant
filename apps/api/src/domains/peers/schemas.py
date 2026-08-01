@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.core.constants import PEERS_CONTEXT_MESSAGE_MAX_CHARS
 from src.domains.peers.models import PeerShareDomain, PeerShareLevel
@@ -37,6 +37,62 @@ class PeerEvent:
     affected_ids: tuple[UUID, ...]
 
 
+@dataclass(frozen=True)
+class PeerMessageActivity:
+    """One DELIVERED relayed message on the caller's timeline, either way.
+
+    The read-only bridge the Relations CRM consumes (spec §11, D2). Identity
+    comes from foreign keys, never from a name match: ``peer_id`` is the OTHER
+    participant and ``peer_display_name`` their live name, so a rename or a
+    homonym can never split or merge two people's timelines.
+
+    Attributes:
+        message_id: ``PeerMessage`` id — the stable key of the rendered item.
+        peer_id: The other participant.
+        peer_display_name: Their current ``full_name``, trimmed. Never blank
+            and never the unknown placeholder — such rows are dropped.
+        direction: ``received`` when they wrote to the caller, ``sent`` when
+            the caller wrote to them.
+        occurred_at: UTC instant of the delivery.
+        text: The caller's OWN side of the exchange — their directive when
+            they sent it, their assistant's rendering when they received it —
+            or None once the retention horizon cleared it (ADR-186). Never the
+            other side's words: that would undo the relay.
+    """
+
+    message_id: UUID
+    peer_id: UUID
+    peer_display_name: str
+    direction: str
+    occurred_at: datetime
+    text: str | None
+
+
+@dataclass(frozen=True)
+class PeerConnectionProfile:
+    """One ACCEPTED connection, as the personal CRM needs to see it.
+
+    The read-only bridge of spec §11 (D2): enough to badge a relationship, to
+    say since when it exists, and to look its shares up — without the CRM ever
+    touching the peers tables itself.
+
+    Attributes:
+        connection_id: Pair row id, to fetch the shares of both sides.
+        peer_id: The other participant.
+        peer_display_name: Their current ``full_name``, trimmed and non-blank.
+        connected_since: UTC instant of the acceptance, when recorded.
+        peer_email: Their address, ONLY when they opted into
+            ``peer_email_visible``; ``None`` otherwise. It is the peer's own
+            consent that fills this field, and nothing else may.
+    """
+
+    connection_id: UUID
+    peer_id: UUID
+    peer_display_name: str
+    connected_since: datetime | None
+    peer_email: str | None = None
+
+
 class DiscoveryMatch(BaseModel):
     """One discoverable user matching an exact folded-name search."""
 
@@ -55,21 +111,47 @@ class DiscoveryMatch(BaseModel):
 
 
 class DiscoverySearchRequest(BaseModel):
-    """Exact full-name discovery search input (never prefix/substring)."""
+    """Exact discovery search input — a full name OR an email address.
 
-    full_name: str = Field(min_length=1, max_length=255, description="Exact name to search.")
+    ONE field on purpose (Bloc B): the backend decides which identity was
+    typed (``looks_like_email``), so the frontend cannot hold a second,
+    diverging opinion about the same string — and a half-typed address is
+    searched as a name and answers "no result" instead of a 422.
+    """
+
+    query: str = Field(
+        min_length=1,
+        max_length=255,
+        description="Exact full name or email address to search (never prefix/substring).",
+    )
 
 
 class DiscoveryStateResponse(BaseModel):
-    """The caller's own discovery opt-in state."""
+    """The caller's own peers opt-ins — two independent consents."""
 
     discovery_enabled: bool = Field(description="Whether the caller is discoverable.")
+    email_visible: bool = Field(
+        default=False,
+        description="Whether ACCEPTED connections see the caller's real address (ADR-189).",
+    )
 
 
 class DiscoveryStateUpdate(BaseModel):
-    """Toggle payload for the discovery opt-in."""
+    """Toggle payload — each field is optional, and at least one is required.
 
-    discovery_enabled: bool = Field(description="New opt-in value.")
+    Partial on purpose: the two switches live side by side, and sending both
+    every time would let one tab silently revert what another just changed.
+    """
+
+    discovery_enabled: bool | None = Field(default=None, description="New discoverability.")
+    email_visible: bool | None = Field(default=None, description="New address visibility.")
+
+    @model_validator(mode="after")
+    def _at_least_one(self) -> DiscoveryStateUpdate:
+        """Refuse a payload that asks for nothing."""
+        if self.discovery_enabled is None and self.email_visible is None:
+            raise ValueError("at least one of discovery_enabled or email_visible is required")
+        return self
 
 
 class ConnectionRequestCreate(BaseModel):
@@ -131,6 +213,14 @@ class ConnectionView(BaseModel):
     peer_display_name: str = Field(description="The other user's full name.")
     peer_email_hint: str = Field(
         description="A6 masked email fragment — pinned permanently (spec §12.8)."
+    )
+    peer_email: str | None = Field(
+        default=None,
+        description=(
+            "The peer's real address, present ONLY when they opted in AND the "
+            "pair is accepted (ADR-189). Null everywhere else, including on a "
+            "pending request: not yet connected is not connected."
+        ),
     )
     status: str = Field(description="pending | accepted.")
     direction: str | None = Field(

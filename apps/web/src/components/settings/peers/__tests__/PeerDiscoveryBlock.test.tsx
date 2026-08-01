@@ -43,6 +43,25 @@ describe('PeerDiscoveryBlock', () => {
     expect(screen.getByText('m…@g….com')).toBeInTheDocument();
   });
 
+  it('forwards an email address verbatim, without deciding anything itself', async () => {
+    // Bloc B: one box, two kinds of identity — the branch belongs to the
+    // backend (`looks_like_email`), so this component must not pre-parse.
+    const props = setup();
+    const input = screen.getByRole('textbox', { name: 'settings.peers.discovery.search_label' });
+    await userEvent.type(input, '  Marie.Dupont@Gmail.com  ');
+    await userEvent.click(
+      screen.getByRole('button', { name: 'settings.peers.discovery.search_button' })
+    );
+    expect(props.search).toHaveBeenCalledWith('Marie.Dupont@Gmail.com');
+  });
+
+  it('accepts a plain name in the same box — no browser-side email validation', () => {
+    setup();
+    const input = screen.getByRole('textbox', { name: 'settings.peers.discovery.search_label' });
+    // type="email" would make the browser refuse "Marie Dupont" before submit.
+    expect(input).not.toHaveAttribute('type', 'email');
+  });
+
   it('does not search on an empty submit', async () => {
     const props = setup();
     await userEvent.click(

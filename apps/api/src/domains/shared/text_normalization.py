@@ -1,9 +1,19 @@
 """Shared text-normalization helpers.
 
-``fold_name`` is the single identity-folding chokepoint used by the relations
-CRM grouping and the peers discovery exact-match search. Hoisted from
-``relations/service.py`` (peer-connections program, Lot 1) — behavior
-unchanged: NFKD accent stripping + aggressive casefold + outer strip.
+The identity-folding chokepoints: ``fold_name`` for people, ``fold_email`` for
+mailboxes. Each has exactly ONE implementation, here — re-expressing either in
+SQL would make the database a second authority on who (or what) is the same.
+
+The two folds differ on purpose, and the difference is load-bearing:
+
+- a NAME is folded aggressively (NFKD accent stripping + casefold), because
+  two spellings of a person are the same person;
+- an ADDRESS is folded conservatively (strip + lowercase), because two
+  spellings of a mailbox are NOT necessarily the same mailbox — folding
+  ``jérôme@`` into ``jerome@`` would hand a searcher someone else's account.
+
+``fold_name`` was hoisted from ``relations/service.py`` (peer-connections
+program, Lot 1) with behavior unchanged.
 """
 
 from __future__ import annotations
@@ -28,3 +38,27 @@ def fold_name(name: str) -> str:
         c for c in unicodedata.normalize("NFKD", name) if not unicodedata.combining(c)
     )
     return stripped.casefold().strip()
+
+
+def fold_email(email: str) -> str:
+    """Fold an email address for exact-match comparison.
+
+    Strip + ``lower()``, and nothing else. Case is the only difference no mail
+    system distinguishes in practice, and the product's own storage produces
+    it: registration keeps the local part's case (Pydantic ``EmailStr``
+    lowercases the domain only), so ``Jean.Dupont@gmail.com`` must answer to
+    ``jean.dupont@gmail.com``.
+
+    Deliberately NOT ``casefold`` and NOT NFKD: casefold expands ``ß`` to
+    ``ss`` and NFKD drops accents, either of which would merge two genuinely
+    distinct mailboxes — a false positive that hands a searcher the wrong
+    account. Under-matching here costs a "no result"; over-matching costs an
+    identity.
+
+    Args:
+        email: Raw address.
+
+    Returns:
+        The folded address; ``""`` for empty or whitespace-only input.
+    """
+    return email.strip().lower()

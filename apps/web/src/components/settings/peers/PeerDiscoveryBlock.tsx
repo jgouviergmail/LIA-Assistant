@@ -1,12 +1,19 @@
 'use client';
 
 /**
- * PeerDiscoveryBlock — exact-name search + connection request (spec §5.1).
+ * PeerDiscoveryBlock — exact search + connection request (spec §5.1, Bloc B).
  *
- * The search is EXACT full-name (accent/case folded server-side) — the hint
- * says so, because a prefix search is what users will try first. Results
- * carry the pinned masked email (A6, homonym discriminator). One optional
- * context note applies to the next request sent.
+ * ONE box takes a full name OR an email address, and the input stays
+ * `type="text"`: `type="email"` would let the browser reject a perfectly
+ * valid name before the form ever submits. Which identity was typed is
+ * decided server-side (`looks_like_email`) — this component holds no second
+ * opinion about the same string.
+ *
+ * The search is EXACT either way (accent/case folded server-side for a name,
+ * case folded for an address) — the hint says so, because a prefix search is
+ * what users will try first. Results carry the pinned masked email (A6,
+ * homonym discriminator). One optional context note applies to the next
+ * request sent.
  */
 
 import { useState } from 'react';
@@ -26,7 +33,8 @@ const CONTEXT_MESSAGE_MAX_CHARS = 500;
 export interface PeerDiscoveryBlockProps {
   lng: Language;
   mutating: boolean;
-  search: (fullName: string) => Promise<DiscoveryMatch[] | undefined>;
+  /** Runs the exact search; the argument is a full name OR an email address. */
+  search: (query: string) => Promise<DiscoveryMatch[] | undefined>;
   onSendRequest: (peerId: string, contextMessage?: string) => Promise<boolean>;
 }
 
@@ -83,6 +91,7 @@ export function PeerDiscoveryBlock({
             onChange={event => setQuery(event.target.value)}
             placeholder={t('settings.peers.discovery.search_placeholder')}
             autoComplete="off"
+            spellCheck={false}
           />
         </div>
         <Button type="submit" disabled={searching || !query.trim()}>

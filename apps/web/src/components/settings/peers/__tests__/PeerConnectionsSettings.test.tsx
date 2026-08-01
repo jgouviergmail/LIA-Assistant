@@ -29,8 +29,11 @@ function hookState(over: Record<string, unknown> = {}) {
     blocks: [],
     accessLog: [],
     loading: false,
+    initialLoading: false,
     mutating: false,
+    emailVisible: false,
     setDiscovery: vi.fn().mockResolvedValue({ ok: true, errorCode: null }),
+    setEmailVisible: vi.fn().mockResolvedValue({ ok: true, errorCode: null }),
     search: vi.fn().mockResolvedValue({ matches: [], errorCode: null }),
     sendRequest: vi.fn().mockResolvedValue({ ok: true, errorCode: null }),
     respond: vi.fn().mockResolvedValue({ ok: true, errorCode: null }),
@@ -106,6 +109,24 @@ describe('PeerConnectionsSettings', () => {
     await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
   });
 
+  it('the discovery switch keeps its focus and refuses a second submit while saving', async () => {
+    // A control disabled *while focused* is blurred by the browser and leaves
+    // the tab order — a keyboard user toggling this would land back on <body>.
+    // aria-disabled announces the state without that cost; the handler guard
+    // is what actually prevents the double submit.
+    const setDiscovery = vi.fn().mockResolvedValue({ ok: true, errorCode: null });
+    usePeerConnections.mockReturnValue(hookState({ mutating: true, setDiscovery }));
+    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" collapsible={false} />);
+
+    const toggle = screen.getByRole('switch', { name: 'settings.peers.discovery.toggle_label' });
+    await user.click(toggle);
+
+    expect(setDiscovery).not.toHaveBeenCalled();
+    expect(toggle).toHaveAttribute('aria-disabled', 'true');
+    expect(toggle).not.toBeDisabled();
+    expect(toggle).toHaveFocus();
+  });
+
   it('a failed action toasts the MAPPED backend code', async () => {
     const respond = vi
       .fn()
@@ -119,6 +140,7 @@ describe('PeerConnectionsSettings', () => {
             peer_id: 'p1',
             peer_display_name: 'Marie Dupont',
             peer_email_hint: 'm…@g….com',
+            peer_email: null,
             status: 'pending',
             direction: 'incoming',
             requested_at: '2026-07-29T08:00:00Z',
@@ -137,11 +159,53 @@ describe('PeerConnectionsSettings', () => {
     );
   });
 
-  it('renders a loading placeholder while the hook loads', () => {
-    usePeerConnections.mockReturnValue(hookState({ loading: true, discoveryEnabled: null }));
+  it('renders a loading placeholder while the FIRST load runs', () => {
+    usePeerConnections.mockReturnValue(
+      hookState({ loading: true, initialLoading: true, discoveryEnabled: null })
+    );
     renderWithProviders(<PeerConnectionsSettings lng="fr" collapsible={false} />);
     expect(screen.getByText('settings.peers.title')).toBeInTheDocument();
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+  });
+
+  it('a REFETCH never unmounts the section — it only marks it busy', async () => {
+    // Regression guard: swapping the subtree for a spinner on every refetch
+    // wiped the search box under the user (and lost their keyboard focus)
+    // each time any mutation succeeded.
+    usePeerConnections.mockReturnValue(hookState({ loading: true, initialLoading: false }));
+    const { user } = renderWithProviders(
+      <PeerConnectionsSettings lng="fr" collapsible={false} />
+    );
+    const input = screen.getByRole('textbox', {
+      name: 'settings.peers.discovery.search_label',
+    });
+    await user.type(input, 'marie@exemple.fr');
+
+    expect(input).toHaveValue('marie@exemple.fr');
+    expect(input).toHaveFocus();
+    const toggle = screen.getByRole('switch', {
+      name: 'settings.peers.discovery.toggle_label',
+    });
+    expect(toggle).toBeInTheDocument();
+    expect(toggle.closest('[aria-busy="true"]')).not.toBeNull();
+  });
+
+  it('the address-visibility switch is a SEPARATE consent from discovery', async () => {
+    // ADR-189: being findable and handing your address over are two different
+    // decisions. The verb sends only its own field, so one toggle can never
+    // revert the other by echoing a stale value.
+    const setEmailVisible = vi.fn().mockResolvedValue({ ok: true, errorCode: null });
+    const setDiscovery = vi.fn().mockResolvedValue({ ok: true, errorCode: null });
+    usePeerConnections.mockReturnValue(hookState({ setEmailVisible, setDiscovery }));
+    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" collapsible={false} />);
+
+    await user.click(
+      screen.getByRole('switch', { name: 'settings.peers.email_visibility.toggle_label' })
+    );
+
+    expect(setEmailVisible).toHaveBeenCalledWith(true);
+    expect(setDiscovery).not.toHaveBeenCalled();
+    await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
   });
 
   it('lists connection cards for accepted connections', () => {
@@ -153,6 +217,7 @@ describe('PeerConnectionsSettings', () => {
             peer_id: 'p2',
             peer_display_name: 'Peer Beta',
             peer_email_hint: 'b…@t….local',
+            peer_email: null,
             status: 'accepted',
             direction: null,
             requested_at: '2026-07-28T08:00:00Z',

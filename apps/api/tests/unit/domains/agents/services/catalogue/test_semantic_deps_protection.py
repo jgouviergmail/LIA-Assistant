@@ -26,6 +26,7 @@ from src.domains.agents.services.catalogue.strategies.normal_filtering import (
     NormalFilteringStrategy,
 )
 from src.domains.agents.services.smart_catalogue_service import CatalogueMetrics
+from tests.unit.domains.agents.services.catalogue.conftest import wire_placement_domain
 
 # =============================================================================
 # Fixtures & Helpers
@@ -46,6 +47,9 @@ class MockManifest:
     # tell a source apart from a mutation. A mock without it silently bypassed
     # the boundary under test.
     tool_category: str | None = None
+    # Mirrors the real ToolManifest field: catalogue filtering reads it to
+    # decide reachability, so a double without it bypasses that rule.
+    serves_domains: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -111,6 +115,7 @@ def _build_mock_service(manifests: list[MockManifest]) -> MagicMock:
         return sum(service.DOMAIN_FULL_TOKENS.get(d, 2000) for d in domains)
 
     service._extract_domain = extract_domain
+    wire_placement_domain(service)
     service._get_tool_category = get_tool_category
     service._manifest_to_dict = manifest_to_dict
     service._estimate_full_tokens = estimate_full_tokens

@@ -11,11 +11,12 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import structlog
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
 from src.domains.open_loops.models import OpenLoop, OpenLoopStatus
+from src.domains.shared.aggregates import NameActivity
 
 logger = structlog.get_logger(__name__)
 
@@ -45,6 +46,80 @@ class OpenLoopRepository(BaseRepository[OpenLoop]):
             .where(
                 OpenLoop.user_id == user_id,
                 OpenLoop.status == OpenLoopStatus.OPEN.value,
+            )
+            .order_by(OpenLoop.due_hint.asc().nulls_last(), OpenLoop.created_at.asc())
+            .limit(limit)
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def aggregate_open_by_counterparty(self, user_id: UUID) -> list[NameActivity]:
+        """Exact per-counterparty activity over ALL of a user's OPEN loops.
+
+        The personal CRM used to count from a capped page of rows, so a busy
+        user's card could under-report. An aggregate answers the question the
+        card actually asks — how many, how recently — over the whole set, and
+        returns one row per DISTINCT SPELLING rather than per loop, so the
+        payload is bounded by the address book, not by the backlog.
+
+        Rides the partial index ``ix_open_loops_user_open`` (user_id WHERE
+        status = 'open').
+
+        Args:
+            user_id: Owner.
+
+        Returns:
+            One entry per non-blank counterparty spelling.
+        """
+        stmt = (
+            select(
+                OpenLoop.counterparty,
+                func.count().label("total"),
+                func.max(OpenLoop.created_at).label("last_at"),
+            )
+            .where(
+                OpenLoop.user_id == user_id,
+                OpenLoop.status == OpenLoopStatus.OPEN.value,
+                OpenLoop.counterparty.is_not(None),
+                func.btrim(OpenLoop.counterparty) != "",
+            )
+            .group_by(OpenLoop.counterparty)
+        )
+        rows = (await self.db.execute(stmt)).all()
+        return [
+            NameActivity(raw_name=row.counterparty, count=row.total, last_at=row.last_at)
+            for row in rows
+        ]
+
+    async def list_open_for_counterparties(
+        self,
+        user_id: UUID,
+        counterparties: list[str],
+        limit: int,
+    ) -> list[OpenLoop]:
+        """OPEN loops whose counterparty is EXACTLY one of the given spellings.
+
+        Identity folding stays in Python: the caller resolved the spellings
+        with :func:`fold_name` from the aggregate above, so this query matches
+        raw strings and introduces no second, silently diverging notion of
+        "same person" in SQL.
+
+        Args:
+            user_id: Owner.
+            counterparties: Raw spellings, as stored.
+            limit: Cap on returned rows.
+
+        Returns:
+            Matching OPEN loops, earliest deadline first (NULLs last).
+        """
+        if not counterparties:
+            return []
+        stmt = (
+            select(OpenLoop)
+            .where(
+                OpenLoop.user_id == user_id,
+                OpenLoop.status == OpenLoopStatus.OPEN.value,
+                OpenLoop.counterparty.in_(counterparties),
             )
             .order_by(OpenLoop.due_hint.asc().nulls_last(), OpenLoop.created_at.asc())
             .limit(limit)

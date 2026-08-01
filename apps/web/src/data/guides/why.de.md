@@ -2,10 +2,10 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 4.1
-**Datum** : 2026-07-31
-**Anwendung** : LIA v1.27.4
-**Lizenz** : AGPL-3.0 (Open Source)
+**Version**: 4.1
+**Datum**: 2026-08-01
+**Anwendung**: LIA v1.27.5
+**Lizenz**: AGPL-3.0 (Open Source)
 
 ---
 
@@ -188,7 +188,7 @@ Und es bleibt konstruktionsbedingt privat. Während eines Anrufs kann LIA nur mi
 
 Auf derselben Instanz können sich zwei Nutzer verbinden — und ihre Assistenten sprechen miteinander. Du sagst „frag Marie, ob sie am Dienstag frei ist“, bestätigst den genauen Wortlaut, und es ist Maries Assistent, der die Nachricht übermittelt, mit seiner eigenen Persönlichkeit, und dich dabei nennt; deiner bestätigt dir die Zustellung. Jede Verbindung kann außerdem gewählte Nur-Lese-Freigaben öffnen: Deine Kalender-Verfügbarkeit, deine Aufgabentitel — nicht mehr, nichts standardmäßig.
 
-Der Schutz der Menschen steht über der Funktion: Die Auffindbarkeit ist freiwillig und nur über den exakten Namen möglich, das Blockieren ist lautlos (die andere Seite erfährt nie davon), und ein Unbekannter, eine Ablehnung oder eine Blockierung erhalten exakt dieselbe Antwort — auszuforschen, wer existiert, ist unmöglich. Jeder Zugriff auf eine Freigabe wird im Moment des Lesens neu geprüft und protokolliert, und der Inhalt übermittelter Nachrichten wird nach der Zustellung gelöscht.
+Der Schutz der Menschen steht über der Funktion: Die Auffindbarkeit ist freiwillig und nur über die exakte Identität möglich — vollständiger Name oder Adresse, nie ein Fragment, das Blockieren ist lautlos (die andere Seite erfährt nie davon), und ein Unbekannter, eine Ablehnung oder eine Blockierung erhalten exakt dieselbe Antwort — auszuforschen, wer existiert, ist unmöglich. Jeder Zugriff auf eine Freigabe wird im Moment des Lesens neu geprüft und protokolliert, und der Inhalt übermittelter Nachrichten wird nach dreißig Tagen gelöscht, sodass nur die Spur des Austauschs bleibt.
 
 ---
 

@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 3.6
-**Date**: 2026-07-31
-**Application**: LIA v1.27.4
+**Date**: 2026-08-01
+**Application**: LIA v1.27.5
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 447 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 183 ADRs, ~17,089 pytest-collected tests across 919 files, native observability, 6-level HITL |
+| Production reliability | 191 ADRs, ~17,415 pytest-collected tests across 933 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -72,10 +72,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~17,089 (collected by pytest across 919 test files) + 4,269 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~17,415 (collected by pytest across 933 test files) + 4,447 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 400+ |
-| ADRs (Architecture Decision Records) | 183 |
+| ADRs (Architecture Decision Records) | 189 |
 | Prometheus metrics | 447 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -405,6 +405,16 @@ When execution fails, a rule-based (no LLM) analyser classifies the failure patt
 
 ---
 
+### 6.7. Invoked capability: when the request is not a sentence
+
+A plan is born from text. But when the request comes from a **button** — a named card, ticked boxes — the system holds that certainty **before** any model is consulted. Serialising it into prose and then spending three stochastic stages (analyzer, planner, validator) recovering it destroys information and pays to find it again. Measured: the expected tool scored **0.853**, the best in the catalogue, and the plan called a generic one.
+
+The request therefore carries, alongside the displayed sentence, the **invoked capability**: a `{capability, subject}` pair. `capability` is a **closed** `Literal`, rejected by Pydantic at the HTTP boundary — the browser names a capability, **never** a tool, and the server decides which read-only tool implements it. This door does not lead to a mutating tool. Transport to the planner is a request-scoped `ContextVar`, set in the same place and with the same discipline as the skill preferences.
+
+It is applied **before validation**, exactly like clamping out-of-range parameters: what is mechanically repairable is repaired, never reported as a defect. The plan is **enriched, not replaced** — everything the planner intended that adds something stays; what it intended that the capability already covers is dropped, because an unrelated answer placed next to a stated gap contradicts it. Two guards: a step another one still reads — through a declared dependency **or** a `$steps` reference — is kept, and a plan with no steps (pending clarification, execution delegated to a skill) is never turned into an execution. A guarantee that overrides a question is not a guarantee.
+
+---
+
 ## 7. Smart Services: intelligent optimization
 
 ### 7.1. The problem solved
@@ -441,6 +451,14 @@ Semantic filtering scores tools against an **English paraphrase of the request, 
 Closure applies a rule that never looks at the request: *every kind of datum required by a tool in the catalogue must be produced by another tool in the catalogue*. It is a linker resolving undefined references, not a search guessing which one is relevant. Two conditions make it correct rather than merely plausible: a tool never satisfies itself ("reply to an email" also produces a message id — the one it just sent), and only a **read** tool counts as a source (one does not trigger a send to discover an identifier). Measured catalogue growth: **+1 tool**.
 
 ---
+
+### 7.6. Cross-domain reachability
+
+Closing the catalogue settles what a plan may **chain**. A question comes before it: which tools **enter** at all. Filtering drops every tool whose domain is not among those detected — **before** any semantic score is consulted. A genuinely cross-domain tool is therefore invisible to every query classified elsewhere, however well it scores.
+
+Measured: the 360° person-overview tool lives in the `contact` domain, while the analyzer's own instructions send any question about a connected user to the `peer` domain. It scored **0.853** — the best of the whole catalogue, against generic tools at 0.000 — and never reached the planner. When it worked, it was because the model had stepped outside its instructions: a stochastic escape, not the nominal path.
+
+A manifest now declares the **additional** domains it is reachable from, and a **single implementation** answers "is this tool in scope?" for both filtering strategies, which used to ask the same question each on its own. Every value is validated at registration against the domain registry: an unknown domain refuses to boot rather than making the tool silently unreachable. To be declared sparingly — each added domain widens the choice offered for **every** query in that domain. This is not relating two domains to each other: relating pulls their entire toolboxes into one another, which has already caused a production incident. Here one tool moves, not a domain.
 
 ## 8. Semantic routing and AI-powered embeddings
 
@@ -1110,7 +1128,7 @@ A destination may still legitimately not exist: several sections only render whe
 
 ## 24. Architecture Decision Records (ADR)
 
-183 ADRs in MADR format document the major architectural decisions. Some representative examples:
+191 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1193,10 +1211,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 183 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~17,089 tests across 919 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 191 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~17,415 tests across 933 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 183 ADRs, and the changelog (v1.0 to v1.27.4). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 191 ADRs, and the changelog (v1.0 to v1.27.5). All metrics, versions, and patterns cited are verifiable in the codebase.*

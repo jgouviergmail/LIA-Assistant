@@ -19,7 +19,7 @@ from sqlalchemy.exc import IntegrityError
 
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException
-from src.domains.peers.discovery import mask_email
+from src.domains.peers.discovery import looks_like_email, mask_email
 from src.domains.peers.models import PeerConnectionStatus, PeerShareDomain, PeerShareLevel
 from src.domains.peers.service import PeersService
 
@@ -93,6 +93,147 @@ class TestMaskEmail:
 
 
 @pytest.mark.unit
+class TestLooksLikeEmail:
+    """The ONE authority deciding what kind of identity was typed.
+
+    The search box takes a name OR an address; this predicate routes, and
+    nothing else may re-decide (a second heuristic in the frontend would make
+    the two layers disagree on the same string).
+    """
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "jean@example.com",
+            "  Jean.Dupont@Gmail.COM  ",  # surrounding whitespace is not a name
+            "admin@localhost",  # self-hosted: a dot is NOT required
+            "jérôme@exemple.fr",
+        ],
+    )
+    def test_addresses(self, value):
+        assert looks_like_email(value) is True
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "",
+            "   ",
+            "Jean Dupont",
+            "Jean Dupont <jean@x.com>",  # inner whitespace → a name, not an address
+            "@lex",  # empty local part
+            "jean@",  # empty domain
+            "jean@@x.com",  # two separators
+            "DJ @lex",
+        ],
+    )
+    def test_not_addresses(self, value):
+        assert looks_like_email(value) is False
+
+
+@pytest.mark.unit
+class TestDiscoverySearchByEmail:
+    """Search by address: same guards as by name, a different comparison key.
+
+    Bloc B. The address is folded conservatively and compared in PYTHON, on
+    the very same scan the name search uses — never re-expressed as SQL
+    ``lower()``, which would make the database a second authority on which
+    mailbox is which.
+    """
+
+    @staticmethod
+    def _stub_rows(service: PeersService, rows) -> None:
+        result = MagicMock()
+        result.all.return_value = rows
+        service.db.execute.return_value = result
+
+    async def test_finds_the_owner_of_the_address(self):
+        service = _service()
+        self._stub_rows(service, [(ADDRESSEE, "Peer Beta", "beta@test.local")])
+        matches = await service.search_discoverable(REQUESTER, "beta@test.local")
+        assert [(m.peer_id, m.display_name) for m in matches] == [(ADDRESSEE, "Peer Beta")]
+
+    async def test_case_and_padding_are_not_a_difference(self):
+        service = _service()
+        self._stub_rows(service, [(ADDRESSEE, "Peer Beta", "Beta@Test.Local")])
+        matches = await service.search_discoverable(REQUESTER, "  beta@test.local  ")
+        assert len(matches) == 1
+
+    async def test_an_address_never_matches_a_name(self):
+        """Routing must be exclusive: the email branch reads emails only."""
+        service = _service()
+        self._stub_rows(service, [(ADDRESSEE, "beta@test.local", "other@test.local")])
+        assert await service.search_discoverable(REQUESTER, "beta@test.local") == []
+
+    async def test_a_name_never_matches_an_address(self):
+        service = _service()
+        self._stub_rows(service, [(ADDRESSEE, "Peer Beta", "beta@test.local")])
+        assert await service.search_discoverable(REQUESTER, "Peer Gamma") == []
+
+    async def test_a_near_miss_address_finds_nobody(self):
+        """Exact match only — no prefix, no substring, no domain-wide sweep."""
+        service = _service()
+        self._stub_rows(service, [(ADDRESSEE, "Peer Beta", "beta@test.local")])
+        assert await service.search_discoverable(REQUESTER, "bet@test.local") == []
+        assert await service.search_discoverable(REQUESTER, "beta@test.loca") == []
+
+    async def test_accents_are_not_folded_away_in_an_address(self):
+        """The name fold would merge these two mailboxes; the address must not."""
+        service = _service()
+        self._stub_rows(service, [(ADDRESSEE, "Peer Beta", "jerome@test.local")])
+        assert await service.search_discoverable(REQUESTER, "jérôme@test.local") == []
+
+    async def test_a_blocked_owner_stays_invisible(self):
+        service = _service()
+        self._stub_rows(service, [(ADDRESSEE, "Peer Beta", "beta@test.local")])
+        service.repo.has_block_between.return_value = True
+        assert await service.search_discoverable(REQUESTER, "beta@test.local") == []
+        service.repo.get_pair.assert_not_awaited()
+
+    async def test_the_relationship_is_annotated_the_same_way(self):
+        service = _service()
+        self._stub_rows(service, [(ADDRESSEE, "Peer Beta", "beta@test.local")])
+        service.repo.get_pair.return_value = _pair_row(status=PeerConnectionStatus.ACCEPTED)
+        matches = await service.search_discoverable(REQUESTER, "beta@test.local")
+        assert [m.relationship for m in matches] == ["connected"]
+
+    async def test_the_masked_hint_is_still_returned(self):
+        """One response shape for both branches — the searcher already knows
+        the address they typed, so the hint neither adds nor leaks anything."""
+        service = _service()
+        self._stub_rows(service, [(ADDRESSEE, "Peer Beta", "beta@test.local")])
+        (match,) = await service.search_discoverable(REQUESTER, "beta@test.local")
+        assert match.email_hint == mask_email("beta@test.local")
+
+    @pytest.mark.parametrize("blank_name", ["", "   "])
+    async def test_a_blank_display_name_is_still_not_discoverable(self, blank_name):
+        """`full_name` has no length validation, so "" and "   " are storable.
+
+        The name branch is immune by accident (a blank query folds to "" and
+        returns early); the address branch would otherwise answer with a row
+        carrying no name at all — a nameless entry the UI cannot render and
+        the spec says must not exist.
+        """
+        service = _service()
+        self._stub_rows(service, [(ADDRESSEE, blank_name, "beta@test.local")])
+        assert await service.search_discoverable(REQUESTER, "beta@test.local") == []
+
+    async def test_two_mailboxes_differing_only_by_case_both_answer(self):
+        """The column is UNIQUE on the raw string, so both rows CAN exist.
+
+        Returning a list rather than one row is what keeps that truthful: the
+        searcher sees both names instead of a silently arbitrary one.
+        """
+        other = uuid4()
+        service = _service()
+        self._stub_rows(
+            service,
+            [(ADDRESSEE, "Peer Beta", "Beta@test.local"), (other, "Beta Bis", "beta@test.local")],
+        )
+        matches = await service.search_discoverable(REQUESTER, "beta@test.local")
+        assert {m.peer_id for m in matches} == {ADDRESSEE, other}
+
+
+@pytest.mark.unit
 class TestDiscoverySearchAnnotation:
     """Lot 7: search results carry the searcher's relationship to each match.
 
@@ -132,6 +273,90 @@ class TestDiscoverySearchAnnotation:
         service.repo.has_block_between.return_value = True
         assert await service.search_discoverable(REQUESTER, "Peer Beta") == []
         service.repo.get_pair.assert_not_awaited()
+
+
+@pytest.mark.unit
+class TestPeerEmailVisibility:
+    """ADR-189: the address is shown only when its owner asked, and only to
+    people they actually accepted.
+
+    Being findable (`discovery_enabled`) and handing an address over are two
+    different consents — one must never imply the other.
+    """
+
+    @staticmethod
+    def _directory(service: PeersService, rows) -> None:
+        result = MagicMock()
+        result.all.return_value = rows
+        service.db.execute.return_value = result
+
+    @staticmethod
+    def _accepted_pair():
+        return SimpleNamespace(
+            id=uuid4(),
+            user_a_id=min(REQUESTER, ADDRESSEE),
+            user_b_id=max(REQUESTER, ADDRESSEE),
+            requested_by_id=REQUESTER,
+            status=PeerConnectionStatus.ACCEPTED.value,
+            context_message=None,
+            requested_at=datetime.now(UTC),
+            responded_at=datetime.now(UTC),
+            removed_at=None,
+        )
+
+    async def test_an_accepted_connection_sees_an_address_its_owner_opened(self):
+        service = _service()
+        service.repo.list_accepted_for_user.return_value = [self._accepted_pair()]
+        service.repo.list_shares.return_value = []
+        self._directory(service, [(ADDRESSEE, "Peer Beta", "beta@test.local", True)])
+
+        (view,) = await service.get_connections(REQUESTER)
+
+        assert view.peer_email == "beta@test.local"
+        assert view.peer_email_hint == mask_email("beta@test.local")  # the hint stays
+
+    async def test_a_peer_who_did_not_opt_in_keeps_only_the_masked_hint(self):
+        service = _service()
+        service.repo.list_accepted_for_user.return_value = [self._accepted_pair()]
+        service.repo.list_shares.return_value = []
+        self._directory(service, [(ADDRESSEE, "Peer Beta", "beta@test.local", False)])
+
+        (view,) = await service.get_connections(REQUESTER)
+
+        assert view.peer_email is None
+        assert view.peer_email_hint == mask_email("beta@test.local")
+
+    async def test_a_pending_request_never_carries_the_address(self):
+        """Not yet accepted is not connected: the opt-in cannot apply early."""
+        service = _service()
+        pending = _pair_row(status=PeerConnectionStatus.PENDING)
+        service.repo.list_pending_for_user.return_value = [pending]
+        self._directory(service, [(ADDRESSEE, "Peer Beta", "beta@test.local", True)])
+
+        views = await service.get_pending(REQUESTER)
+
+        assert all(view.peer_email is None for view in views)
+
+    async def test_opening_an_address_never_makes_someone_discoverable(self):
+        """Two consents, two columns: one must never imply the other."""
+        service = _service()
+        user = SimpleNamespace(id=REQUESTER, discovery_enabled=False, peer_email_visible=False)
+        service.db.get = AsyncMock(return_value=user)
+
+        await service.set_email_visibility(REQUESTER, True)
+
+        assert user.peer_email_visible is True
+        assert user.discovery_enabled is False
+
+    async def test_becoming_discoverable_never_opens_an_address(self):
+        service = _service()
+        user = SimpleNamespace(id=REQUESTER, discovery_enabled=False, peer_email_visible=False)
+        service.db.get = AsyncMock(return_value=user)
+
+        await service.set_discovery(REQUESTER, True)
+
+        assert user.discovery_enabled is True
+        assert user.peer_email_visible is False
 
 
 @pytest.mark.unit

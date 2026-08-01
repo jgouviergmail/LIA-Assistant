@@ -1,19 +1,41 @@
-"""Person-360 overview tool (P3, ADR-141).
+"""Person-360 overview tool (P3, ADR-141 — rebuilt on the CRM services).
 
-One call aggregates everything the assistant knows about a person across
-domains: contact card (active contacts provider), recent emails, upcoming
-shared events, and relevant long-term memories. Each sub-fetch runs with its
-OWN session/client and its own failure boundary (briefing pattern) — the
-overview is honestly PARTIAL (``partial_failures``) rather than
-all-or-nothing. Read-only, no HITL.
+One call aggregates everything the assistant knows about a person: the
+database-local half the personal CRM already owns (open commitments, calls,
+relayed messages), the provider-backed half (contact card, mail exchanged,
+meetings shared), and the long-term memories that are ABOUT the person —
+semantically, which is this tool's own read and why it differs from the page's
+literal name match.
 
-Typical chains: "prépare mon call avec Marie", meeting preparation, the
-``preparation-reunion`` skill.
+**It searches by ADDRESS first.** The original version asked the mail
+provider for the person's NAME and the calendar for a text query; both are
+unreliable — a mail search matches MIME headers, and ``list_events(query=)``
+has no cross-provider parity nor any notion of "this person is an attendee".
+It now delegates to the two services the Relations page uses, which resolve
+the person's ADDRESSES from the user's own address book and query by those.
+The page and the assistant therefore answer from the SAME reads — including
+the same Redis cache, so a 360° asked right after opening the card costs no
+provider call at all.
+
+The by-name search survives as the **fallback of last resort**: with no
+address on the contact card, an empty answer would be worse than an imprecise
+one. Its results are FLAGGED (``*_matched_by_name``) so the assistant can say
+they may be incomplete or off-target rather than present them as fact.
+
+The SCOPE is not inferred from the request. The chat link carries prose, so
+the user's selection is written server-side before the chat opens and read
+back here (``RelationOverviewScope``): what they ticked is what the assistant
+gets, whatever the sentence says.
+
+Each half keeps its own failure boundary — the overview is honestly PARTIAL
+rather than all-or-nothing. Read-only, no HITL.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 from uuid import UUID
@@ -30,14 +52,67 @@ from src.domains.agents.tools.runtime_helpers import (
     parse_user_id,
     validate_runtime_config,
 )
+from src.domains.relations.overview_scope import (
+    OverviewDirection,
+    OverviewSection,
+    RelationOverviewScope,
+)
+from src.domains.relations.providers.schemas import (
+    ContactCard,
+    ContactValue,
+    ContextStatus,
+    RelationContext,
+)
+from src.domains.relations.providers.service import RelationContextService
+from src.domains.relations.schemas import RelationDetail
+from src.domains.relations.service import RelationsService
 
 logger = structlog.get_logger(__name__)
 
+#: The three sections that come from a connector, in payload order.
+_PROVIDER_SECTIONS = (
+    OverviewSection.CONTACT,
+    OverviewSection.EMAILS,
+    OverviewSection.EVENTS,
+)
+
+
+#: Semantic memory recall stays this tool's own read, deliberately different
+#: from the page's literal `ILIKE`: the page answers "which memories MENTION
+#: this name" (and says it is best-effort), the assistant benefits from
+#: memories that are ABOUT the person without naming them.
+_MEMORIES_LIMIT = 5
+_MEMORY_MIN_SCORE = 0.3
+
+
+async def _fetch_person_memories(user_id: UUID, person_name: str) -> list[str] | None:
+    """Long-term memories relevant to the person (embedding + topic match)."""
+    from src.domains.memories.repository import MemoryRepository
+    from src.infrastructure.database.session import get_db_context
+    from src.infrastructure.llm.user_message_embedding import get_or_compute_embedding
+
+    # A person name is a lookup key, never an utterance: the triviality patterns
+    # collide with real surnames (Fine, Cool, Bien), and treating one as trivial
+    # returned None here — silently erasing that contact's memories.
+    query_embedding = await get_or_compute_embedding(message=person_name, is_conversational=False)
+    if not query_embedding:
+        return None
+    async with get_db_context() as db:
+        results = await MemoryRepository(db).search_by_relevance(
+            user_id=user_id,
+            query_embedding=query_embedding,
+            limit=_MEMORIES_LIMIT,
+            min_score=_MEMORY_MIN_SCORE,
+        )
+    return [memory.content for memory, _score in results if memory.content]
+
+
+#: The by-name path, kept ONLY as the fallback of last resort (see
+#: `_fill_by_name`): a person with no address on their contact card would
+#: otherwise get an empty answer. Its results are always flagged.
 _RECENT_EMAILS_LIMIT = 5
 _UPCOMING_EVENTS_DAYS = 30
 _UPCOMING_EVENTS_LIMIT = 5
-_MEMORIES_LIMIT = 5
-_MEMORY_MIN_SCORE = 0.3
 
 
 async def _resolve_provider_client(user_id: UUID, category: str) -> Any | None:
@@ -74,43 +149,6 @@ async def _resolve_provider_client(user_id: UUID, category: str) -> Any | None:
         if client_class is None:
             return None
         return client_class(user_id, credentials, connector_service)
-
-
-def _values_of(person: dict[str, Any], field: str, key: str = "value") -> list[str]:
-    """Extract the non-empty ``key`` values of a People API multi-valued field."""
-    return [entry.get(key) for entry in (person.get(field) or []) if entry.get(key)]
-
-
-def _person_to_card(person: dict[str, Any], fallback_name: str) -> dict[str, Any]:
-    """Map a People API person payload to the compact overview card."""
-    names = person.get("names", []) or []
-    display = next((n.get("displayName") for n in names if n.get("displayName")), fallback_name)
-    return {
-        "name": display,
-        "emails": _values_of(person, "emailAddresses"),
-        "phones": _values_of(person, "phoneNumbers"),
-        "organizations": _values_of(person, "organizations", key="name"),
-    }
-
-
-async def _fetch_contact_card(user_id: UUID, person_name: str) -> dict[str, Any] | None:
-    """Resolve the person's contact card from the active contacts provider.
-
-    Returns:
-        Compact card dict, or None when unresolved / provider missing.
-    """
-    client = await _resolve_provider_client(user_id, "contacts")
-    if client is None:
-        return None
-    try:
-        result = await client.search_contacts(query=person_name, page_size=3)
-    finally:
-        await client.close()
-    people = result.get("results", []) or result.get("connections", []) or []
-    if not people:
-        return None
-    person = people[0].get("person", people[0])
-    return _person_to_card(person, person_name)
 
 
 async def _fetch_recent_emails(user_id: UUID, person_name: str) -> list[dict[str, str]] | None:
@@ -170,26 +208,356 @@ async def _fetch_upcoming_events(user_id: UUID, person_name: str) -> list[dict[s
     ]
 
 
-async def _fetch_person_memories(user_id: UUID, person_name: str) -> list[str] | None:
-    """Long-term memories relevant to the person (embedding + topic match)."""
-    from src.domains.memories.repository import MemoryRepository
-    from src.infrastructure.database.session import get_db_context
-    from src.infrastructure.llm.user_message_embedding import get_or_compute_embedding
+async def _nothing() -> None:
+    """Placeholder for a block the reader excluded — keeps the gather shape."""
+    return None
 
-    # A person name is a lookup key, never an utterance: the triviality patterns
-    # collide with real surnames (Fine, Cool, Bien), and treating one as trivial
-    # returned None here — silently erasing that contact's memories.
-    query_embedding = await get_or_compute_embedding(message=person_name, is_conversational=False)
-    if not query_embedding:
+
+def _directions(scope: RelationOverviewScope) -> set[str]:
+    """Directions the reader kept — mail and relayed messages share them."""
+    return {direction.value for direction in scope.directions}
+
+
+def _local_blocks(detail: RelationDetail, scope: RelationOverviewScope) -> dict[str, Any]:
+    """The database-local half, filtered by what the reader ticked.
+
+    Each list is a PAGE, and every page ships its EXACT total (ADR-185): the
+    totals come from database aggregates over the whole set, so five rows out
+    of a hundred and thirty-seven can be said as such. Without them the
+    assistant reads five rows and states "you have five open commitments" —
+    the same under-report the CRM cards were fixed for, one surface later.
+
+    The relayed messages are the exception, and deliberately: the direction
+    filter narrows the LIST but not the stored total, so a total would then
+    describe a different set than the rows beside it. No total is the honest
+    answer there — an inexact count must not exist.
+    """
+    blocks: dict[str, Any] = {}
+    if scope.includes(OverviewSection.OPEN_LOOPS):
+        blocks["open_commitments"] = [
+            {
+                "subject": loop.subject,
+                "direction": loop.direction,
+                "days_open": loop.days_open,
+                # The DEADLINE, when one was captured. "What should I raise
+                # next" is answered by what is due, so dropping it left the
+                # most actionable field of the payload on the floor. Absent
+                # rather than null: most commitments have none, and a key full
+                # of nulls trains the model to mention them.
+                **({"due_hint": loop.due_hint.isoformat()} if loop.due_hint else {}),
+            }
+            for loop in detail.open_loops[: scope.max_items]
+        ]
+        blocks["open_commitments_total"] = detail.open_loops_total
+    if scope.includes(OverviewSection.CALLS):
+        blocks["recent_calls"] = [
+            {
+                "objective": call.objective,
+                "outcome": call.outcome,
+                "summary": call.summary,
+                # WHEN, like every other interaction in this payload. Without
+                # it the assistant cannot place a call in time, and a request
+                # about "recent interactions" walked straight past four of
+                # them (production, 2026-08-01) — the one block that carried
+                # no instant was the one block that went unused.
+                "occurred_at": call.created_at.isoformat(),
+            }
+            for call in detail.recent_calls[: scope.max_items]
+        ]
+        blocks["recent_calls_total"] = detail.recent_calls_total
+    if scope.includes(OverviewSection.PEER_MESSAGES):
+        wanted = _directions(scope)
+        blocks["relayed_messages"] = [
+            {
+                "direction": message.direction,
+                "text": message.content,
+                "occurred_at": message.occurred_at.isoformat(),
+            }
+            for message in detail.peer_messages
+            if message.direction in wanted
+        ][: scope.max_items]
+        if len(wanted) == len(OverviewDirection):
+            # Unfiltered: the stored total describes exactly these rows.
+            blocks["relayed_messages_total"] = detail.peer_messages_total
+    return blocks
+
+
+def _labelled(values: Sequence[ContactValue]) -> list[str]:
+    """Flatten labelled values, keeping the label that makes them legible.
+
+    "Claire Lefèvre" alone does not say she is his spouse, and a phone number
+    without "mobile" is one the assistant cannot choose between. The label is
+    dropped only when the provider stored none.
+    """
+    return [f"{item.value} ({item.label})" if item.label else item.value for item in values]
+
+
+def _card_block(card: ContactCard) -> dict[str, Any]:
+    """The address-book entry, as the assistant reads it.
+
+    The SAME content the card shows on screen — asking "what do you know about
+    this person" and reading their file must not produce two different answers.
+    Empty blocks are dropped rather than sent as ``[]``: a provider that stores
+    no relations says nothing about whether this person has any, and a listed
+    empty key invites the model to conclude one way (ADR-184).
+    """
+    fields: dict[str, Any] = {
+        "display_name": card.display_name,
+        "nickname": card.nickname,
+        "organization": card.organization,
+        "occupation": card.occupation,
+        "birthday": card.birthday,
+        "biography": card.biography,
+        # Addresses stay bare: they are long, and "home"/"work" adds little to
+        # a string that already names a street and a city.
+        "emails": [email.value for email in card.emails],
+        "addresses": [address.value for address in card.addresses],
+        "links": [link.value for link in card.links],
+        "phones": _labelled(card.phones),
+        "relations": _labelled(card.relations),
+        "important_dates": _labelled(card.important_dates),
+        "messaging": _labelled(card.messaging),
+    }
+    return {key: value for key, value in fields.items() if value}
+
+
+def _mail_block(context: RelationContext, scope: RelationOverviewScope) -> dict[str, Any]:
+    """Mail exchanged, in the reader's chosen directions, plus its window."""
+    wanted = _directions(scope)
+    return {
+        "emails": [
+            {
+                "direction": email.direction,
+                "subject": email.subject,
+                "occurred_at": email.occurred_at.isoformat() if email.occurred_at else None,
+            }
+            for email in context.emails.emails
+            if email.direction in wanted
+        ][: scope.max_items],
+        # The scope, never a total: a provider page proves none (ADR-185).
+        "emails_window_days": context.email_window_days,
+    }
+
+
+def _meeting_block(context: RelationContext, scope: RelationOverviewScope) -> dict[str, Any]:
+    """Meetings shared, in the reader's chosen roles, plus their window."""
+    wanted_roles = {role.value for role in scope.roles}
+    return {
+        "events": [
+            {
+                "summary": event.summary,
+                "role": event.role if event.organizer_known else "unknown",
+                "starts_at": event.starts_at.isoformat() if event.starts_at else None,
+                "ends_at": event.ends_at.isoformat() if event.ends_at else None,
+                "is_past": event.is_past,
+            }
+            for event in context.events.events
+            # A role nobody verified must not be filtered ON: under a provider
+            # that exposes no organizer, filtering by role would silently drop
+            # every meeting instead of admitting the distinction is unknown.
+            if not event.organizer_known or event.role in wanted_roles
+        ][: scope.max_items],
+        "events_window_days": context.window_days,
+    }
+
+
+def _peer_connection(detail: RelationDetail) -> dict[str, Any] | None:
+    """The LIA connection behind this relationship, when there is one.
+
+    Root-level context, NOT a scoped section: "you are connected since May,
+    they share their availability, you share your task titles" describes the
+    RELATIONSHIP, the way `identity_confidence` does — it is not a source of
+    items a scope could narrow. It also costs nothing: the same `build_detail`
+    read already carries it, and a 360° on a connected peer that never says
+    they are one omits the most relevant fact on the card.
+    """
+    link = detail.peer_link
+    if link is None:
         return None
-    async with get_db_context() as db:
-        results = await MemoryRepository(db).search_by_relevance(
-            user_id=user_id,
-            query_embedding=query_embedding,
-            limit=_MEMORIES_LIMIT,
-            min_score=_MEMORY_MIN_SCORE,
+    block: dict[str, Any] = {
+        "shared_by_me": [f"{s.domain}:{s.level}" for s in link.shared_by_me],
+        "shared_with_me": [f"{s.domain}:{s.level}" for s in link.shared_with_me],
+    }
+    if link.connected_since:
+        block["connected_since"] = link.connected_since.isoformat()
+    return block
+
+
+def _recalled_memories(recall: object) -> list[str] | None:
+    """What the semantic recall actually answered — or None for "I could not".
+
+    ``None`` is not ``[]``: the recall returns None when no embedding could be
+    computed (provider down, key missing), and an exception means the same.
+    Flattening either into an empty list would have the assistant state this
+    person is unmemorable — the negative ADR-184 forbids.
+    """
+    if isinstance(recall, BaseException) or recall is None:
+        logger.info(
+            "person_overview_memories_unreadable",
+            error_type=type(recall).__name__ if recall is not None else "no_embedding",
         )
-    return [memory.content for memory, _score in results if memory.content]
+        return None
+    return list(recall) if isinstance(recall, list) else []
+
+
+#: Statuses that mean "the question was never answered" — a missing connector,
+#: a failed read, an identity with no address. Never "there is nothing".
+_UNREADABLE = frozenset(
+    {ContextStatus.ERROR, ContextStatus.NOT_CONFIGURED, ContextStatus.NO_ADDRESS}
+)
+
+
+def _provider_blocks(context: RelationContext, scope: RelationOverviewScope) -> dict[str, Any]:
+    """The provider-backed half, filtered the same way.
+
+    A section that could not be READ carries no block at all. Emitting
+    ``"emails": []`` next to ``unavailable: ["emails"]`` states both "nothing
+    found" and "I could not look" in the same payload — and the model believes
+    the list, because a list is data and the other is a caveat (ADR-184).
+    """
+    blocks: dict[str, Any] = {}
+    if scope.includes(OverviewSection.CONTACT) and context.contact.contact is not None:
+        blocks["contact"] = _card_block(context.contact.contact)
+    if scope.includes(OverviewSection.EMAILS) and context.emails.status not in _UNREADABLE:
+        blocks.update(_mail_block(context, scope))
+    if scope.includes(OverviewSection.EVENTS) and context.events.status not in _UNREADABLE:
+        blocks.update(_meeting_block(context, scope))
+    return blocks
+
+
+def _unavailable(context: RelationContext, scope: RelationOverviewScope) -> list[str]:
+    """Sections the reader asked for that could not be read.
+
+    Stated rather than silently empty: "I could not look" and "there is
+    nothing" are different answers (ADR-184), and only the first is worth the
+    assistant mentioning.
+    """
+    payloads = (context.contact, context.emails, context.events)
+    return [
+        section.value
+        for section, payload in zip(_PROVIDER_SECTIONS, payloads, strict=True)
+        if scope.includes(section) and payload.status in _UNREADABLE
+    ]
+
+
+async def _fill_by_name(
+    blocks: dict[str, Any],
+    unavailable: list[str],
+    user_id: UUID,
+    person_name: str,
+    scope: RelationOverviewScope,
+    context: RelationContext,
+) -> list[str]:
+    """Last resort when the contact card carries no address.
+
+    The address path is the exact one, and it is tried first. But a person with
+    no address on their card would otherwise come back with nothing at all —
+    so rather than an empty answer, the OLD by-name search runs and its results
+    are FLAGGED (``*_matched_by_name``). That flag is the whole point: matching
+    a person's name against MIME headers and event text finds strangers and
+    misses real threads, so the assistant must be able to say "found by name,
+    possibly incomplete or off-target" instead of presenting it as fact.
+
+    Only ``no_address`` triggers it. A provider that is absent or broken is a
+    different answer, and retrying it by name would answer a question nobody
+    could ask.
+
+    Args:
+        blocks: Payload being assembled, mutated in place.
+        unavailable: Sections that could not be read.
+        user_id: Owner.
+        person_name: The name to fall back on.
+        scope: What the reader ticked.
+
+    Returns:
+        The remaining unavailable sections (those the fallback did not fill).
+    """
+    remaining = list(unavailable)
+    fallbacks = (
+        (OverviewSection.EMAILS, "emails", _fetch_recent_emails, context.emails),
+        (OverviewSection.EVENTS, "events", _fetch_upcoming_events, context.events),
+    )
+    for section, key, fetcher, payload in fallbacks:
+        if section.value not in remaining or not scope.includes(section):
+            continue
+        # ONLY a missing address. A connector that is absent or broken is a
+        # different answer, and retrying it by name would answer a question
+        # nobody could ask — and would present a provider outage as data.
+        if payload.status is not ContextStatus.NO_ADDRESS:
+            continue
+        try:
+            found = await fetcher(user_id, person_name)
+        except Exception as exc:  # noqa: BLE001 — a last resort never raises
+            logger.info(
+                "person_overview_name_fallback_failed",
+                block=key,
+                error_type=type(exc).__name__,
+            )
+            continue
+        if not found:
+            continue
+        blocks[key] = found[: scope.max_items]
+        blocks[f"{key}_matched_by_name"] = True
+        remaining.remove(section.value)
+        logger.info("person_overview_name_fallback_used", user_id=str(user_id), block=key)
+    return remaining
+
+
+def _overview_message(payload: dict[str, Any]) -> str:
+    """The overview, in the field the response synthesizer actually reads.
+
+    Measured on the dev API, 2026-08-01: the tool ran, produced relayed
+    messages, commitments and memories — and the assistant answered *"I have no
+    data at hand"*. Its payload had reached ``structured_data`` and stopped
+    there. Only two channels reach the response prompt: the **data registry**,
+    fed exclusively by tools declaring a ``context_key``, and this ``message``
+    field (``formatters/agent_results._extract_action_success_messages``). This
+    tool has no ``context_key`` — deliberately: the registry serialises ITEMS
+    for filtering, one truncated line each, which is the wrong shape for one
+    person's briefing across nine heterogeneous blocks. So the message carried
+    ``"overview built for X"``: proof the tool ran, and not one fact.
+
+    Serialised as compact JSON, like the planner catalogue: lossless, and it
+    preserves the distinction the whole design rests on — a block that could
+    not be read carries NO key and is named in ``unavailable``, while an empty
+    list means "looked, found nothing" (ADR-190).
+
+    Args:
+        payload: The overview payload, exactly as ``structured_data`` carries it.
+
+    Returns:
+        A one-line header plus the payload as compact JSON.
+    """
+    person = payload.get("person", "")
+    unavailable = payload.get("unavailable") or []
+    # The gap is stated in the HEADER, not left to be inferred from a key
+    # buried in the payload: "could not read" and "read and found nothing" are
+    # the distinction the whole design rests on (ADR-190), and it is the one a
+    # model is most likely to flatten when it is not said plainly.
+    gap = f" (could not read: {', '.join(unavailable)})" if unavailable else ""
+    return f"360 overview for {person}{gap}:\n" + json.dumps(
+        payload, separators=(",", ":"), ensure_ascii=False, default=str
+    )
+
+
+def _overview_payload(
+    detail: RelationDetail, blocks: dict[str, Any], unavailable: list[str]
+) -> dict[str, Any]:
+    """The tool's answer: who this is, then what was read about them.
+
+    Identity and relationship context first — the name, how confidently it was
+    matched, whether this person is a connected LIA user and what the two
+    sides share — then the scoped blocks, then what could NOT be read.
+    """
+    connection = _peer_connection(detail)
+    return {
+        "person": detail.display_name,
+        "identity_confidence": detail.identity_confidence.value,
+        "is_peer": detail.is_peer,
+        **({"peer_connection": connection} if connection else {}),
+        **blocks,
+        "unavailable": unavailable,
+    }
 
 
 @read_tool(name="get_person_overview", agent_name=AGENT_CONTACT)
@@ -197,14 +565,17 @@ async def _fetch_person_memories(user_id: UUID, person_name: str) -> list[str] |
 async def get_person_overview_tool(
     person_name: Annotated[
         str,
-        "Person to build the 360° overview for: a contact name as the user "
-        "says it ('Marie', 'Marie Dupont', 'mon frère' AFTER memory resolution).",
+        "Person to build the 360 overview for: a relationship name as the user "
+        "says it (Marie, Marie Dupont, or a nickname already resolved).",
     ],
     runtime: Annotated[ToolRuntime, InjectedToolArg],
     user_timezone: str = "UTC",
     locale: str = "fr",
 ) -> UnifiedToolOutput:
-    """Cross-domain 360° overview of a person (contact + emails + events + memories).
+    """360° overview of ONE person, across the CRM and the connected accounts.
+
+    Reads exactly what the user selected on the relationship card — the scope
+    is stored server-side, never inferred from the request's wording.
 
     Args:
         person_name: Person to resolve and aggregate.
@@ -213,51 +584,55 @@ async def get_person_overview_tool(
         locale: Injected user language (preference contract).
 
     Returns:
-        UnifiedToolOutput with ``{contact, recent_emails, upcoming_events,
-        memories, partial_failures}`` — honestly partial on sub-failures.
+        UnifiedToolOutput with the selected blocks plus ``unavailable`` —
+        honestly partial rather than silently empty.
     """
     config = validate_runtime_config(runtime, "get_person_overview_tool")
     if isinstance(config, UnifiedToolOutput):
         return config
     user_id = parse_user_id(config.user_id)
 
-    results = await asyncio.gather(
-        _fetch_contact_card(user_id, person_name),
-        _fetch_recent_emails(user_id, person_name),
-        _fetch_upcoming_events(user_id, person_name),
-        _fetch_person_memories(user_id, person_name),
+    service = RelationsService(user_id)
+    scope = await service.get_overview_scope()
+
+    # Two independent reads, each with its own session and failure boundary.
+    wants_memories = scope.includes(OverviewSection.MEMORIES)
+    detail, context, memories = await asyncio.gather(
+        service.build_detail(person_name),
+        RelationContextService(user_id).build(person_name),
+        _fetch_person_memories(user_id, person_name) if wants_memories else _nothing(),
         return_exceptions=True,
     )
-    labels = ("contact", "emails", "events", "memories")
-    partial_failures: list[str] = []
-    resolved: dict[str, Any] = {}
-    for label, result in zip(labels, results, strict=True):
-        if isinstance(result, BaseException):
-            logger.warning(
-                "person_overview_subfetch_failed",
-                block=label,
-                error=str(result),
-            )
-            partial_failures.append(label)
-            resolved[label] = None
-        else:
-            resolved[label] = result
-
-    contact = resolved["contact"]
-    if contact is None and "contact" not in partial_failures:
+    if isinstance(detail, BaseException):
+        logger.warning("person_overview_detail_failed", error_type=type(detail).__name__)
         return UnifiedToolOutput.failure(
-            message=f"no contact found matching '{person_name}'",
-            error_code="person_not_found",
+            message=f"could not read the relationship '{person_name}'",
+            error_code="person_overview_unavailable",
         )
 
+    blocks = _local_blocks(detail, scope)
+    recalled = _recalled_memories(memories) if wants_memories else []
+    unreadable_memories = wants_memories and recalled is None
+    if recalled is not None and wants_memories:
+        blocks["memories"] = recalled
+    if isinstance(context, BaseException):
+        logger.warning("person_overview_context_failed", error_type=type(context).__name__)
+        unavailable = [section.value for section in _PROVIDER_SECTIONS if scope.includes(section)]
+    else:
+        blocks |= _provider_blocks(context, scope)
+        unavailable = _unavailable(context, scope)
+        unavailable = await _fill_by_name(blocks, unavailable, user_id, person_name, scope, context)
+    if unreadable_memories:
+        unavailable.append(OverviewSection.MEMORIES.value)
+
+    logger.info(
+        "person_overview_built",
+        user_id=str(user_id),
+        blocks=sorted(blocks),
+        unavailable=unavailable,
+    )
+    payload = _overview_payload(detail, blocks, unavailable)
     return UnifiedToolOutput.data_success(
-        message=f"overview built for {person_name}"
-        + (f" (partial: {', '.join(partial_failures)} unavailable)" if partial_failures else ""),
-        structured_data={
-            "contact": contact or {"name": person_name},
-            "recent_emails": resolved["emails"] or [],
-            "upcoming_events": resolved["events"] or [],
-            "memories": resolved["memories"] or [],
-            "partial_failures": partial_failures,
-        },
+        message=_overview_message(payload),
+        structured_data=payload,
     )

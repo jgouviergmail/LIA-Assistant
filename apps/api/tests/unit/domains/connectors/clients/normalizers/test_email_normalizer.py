@@ -149,6 +149,21 @@ class TestConvertImapQuery:
         criteria_str = str(criteria)
         assert "meeting" in criteria_str
 
+    def test_cc_operator_maps_to_a_real_criterion(self) -> None:
+        """`cc:` must be a CRITERION, never free text.
+
+        The CRM lists mail SENT to a person whether they were a direct
+        recipient or in copy. Unrecognized, `cc:` fell through to the
+        full-text bucket — which matches the address anywhere in the body and
+        turns a precise question into a bag of false positives.
+        """
+        criteria, folder = convert_imap_query("in:sent cc:alice@example.com")
+        criteria_str = str(criteria)
+        assert "alice@example.com" in criteria_str
+        # Proof it is the CC criterion and not the text one.
+        assert "text" not in criteria_str.lower()
+        assert folder == "Sent Messages"
+
     def test_label_sets_target_folder(self) -> None:
         """label: operator sets the target_folder return value."""
         _, folder = convert_imap_query("label:Important")

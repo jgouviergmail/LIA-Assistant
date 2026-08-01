@@ -5,8 +5,8 @@
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
 **Version**: 3.6
-**Datum**: 2026-07-31
-**Application**: LIA v1.27.4
+**Datum**: 2026-08-01
+**Application**: LIA v1.27.5
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 447 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 183 ADRs, ~17.089 von pytest gesammelte Tests in 919 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 191 ADRs, ~17.415 von pytest gesammelte Tests in 933 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -72,10 +72,10 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~17.089 von pytest gesammelt (von pytest über 919 Testdateien gesammelt) + 4.269 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | ~17.415 von pytest gesammelt (von pytest über 933 Testdateien gesammelt) + 4.447 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 400+ |
-| ADRs (Architecture Decision Records) | 183 |
+| ADRs (Architecture Decision Records) | 189 |
 | Prometheus-Metriken | 447 Definitionen |
 | Grafana-Dashboards | 26 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -405,6 +405,16 @@ Bei Ausführungsfehlern klassifiziert ein regelbasierter Analysator (kein LLM) d
 
 ---
 
+### 6.7. Aufgerufene Fähigkeit: wenn die Anfrage kein Satz ist
+
+Ein Plan entsteht aus Text. Kommt die Anfrage jedoch von einem **Knopf** — eine benannte Karte, angehakte Kästchen —, besitzt das System diese Gewissheit, **bevor** irgendein Modell befragt wird. Sie in Prosa zu verwandeln und dann drei stochastische Stufen (Analysator, Planer, Validierer) für ihre Rückgewinnung aufzuwenden, zerstört Information und bezahlt dafür, sie wiederzufinden. Gemessen: das erwartete Werkzeug erreichte **0,853**, den besten Wert des Katalogs, und der Plan rief ein allgemeines auf.
+
+Die Anfrage trägt daher neben dem angezeigten Satz die **aufgerufene Fähigkeit**: ein Paar `{capability, subject}`. `capability` ist ein **geschlossenes** `Literal`, das Pydantic an der HTTP-Grenze zurückweist — der Browser benennt eine Fähigkeit, **nie** ein Werkzeug, und der Server entscheidet, welches nur lesende Werkzeug sie umsetzt. Diese Tür führt zu keinem verändernden Werkzeug. Der Transport zum Planer ist eine anfragebezogene `ContextVar`, an derselben Stelle und mit derselben Disziplin gesetzt wie die Skill-Einstellungen.
+
+Angewendet wird sie **vor der Validierung**, genau wie das Zurückholen von Werten in ihre Grenzen: was mechanisch reparierbar ist, wird repariert und nie als Mangel gemeldet. Der Plan wird **bereichert, nicht ersetzt** — alles, was der Planer vorgesehen hat und das etwas beiträgt, bleibt; was er vorgesehen hat und die Fähigkeit ohnehin abdeckt, entfällt, denn eine unpassende Antwort neben einer benannten Lücke widerspricht ihr. Zwei Sicherungen: ein Schritt, den ein anderer noch liest — über eine erklärte Abhängigkeit **oder** eine `$steps`-Referenz —, bleibt erhalten, und ein Plan ohne Schritte (offene Rückfrage, an einen Skill delegierte Ausführung) wird nie in eine Ausführung verwandelt. Eine Garantie, die eine Frage überschreibt, ist keine Garantie.
+
+---
+
 ## 7. Smart Services: intelligente Optimierung
 
 ### 7.1. Das gelöste Problem
@@ -441,6 +451,14 @@ Die semantische Filterung bewertet Werkzeuge anhand einer **englischen Umschreib
 Der Abschluss wendet eine Regel an, die die Anfrage nie ansieht: *Jede Art von Wert, die ein Werkzeug im Katalog benötigt, muss von einem anderen Werkzeug im Katalog erzeugt werden.* Das ist ein Linker, der offene Referenzen auflöst, keine Suche, die rät. Zwei Bedingungen machen die Regel korrekt statt bloß plausibel: Ein Werkzeug erfüllt nie seine eigene Anforderung („auf eine E-Mail antworten" erzeugt ebenfalls eine Nachrichten-ID – die der gerade gesendeten), und nur ein **lesendes** Werkzeug gilt als Quelle (man löst keinen Versand aus, um eine Kennung zu erfahren). Gemessenes Katalogwachstum: **+1 Werkzeug**.
 
 ---
+
+### 7.6. Domänenübergreifende Erreichbarkeit
+
+Das Schließen des Katalogs klärt, was ein Plan **verketten** darf. Davor steht eine andere Frage: welche Werkzeuge überhaupt **hineinkommen**. Die Filterung verwirft jedes Werkzeug, dessen Domäne nicht zu den erkannten gehört — **bevor** irgendein semantischer Wert gelesen wird. Ein wirklich domänenübergreifendes Werkzeug ist damit für jede anders eingeordnete Anfrage unsichtbar, so gut es auch bewertet sein mag.
+
+Gemessen: das Werkzeug für den 360°-Überblick zu einer Person lebt in der Domäne `contact`, während die Anweisung des Analysators jede Frage zu einem verbundenen Nutzer in die Domäne `peer` schickt. Bewertung **0,853** — die beste des gesamten Katalogs, gegenüber allgemeinen Werkzeugen bei 0,000 — und nie dem Planer vorgelegt. Wenn es funktionierte, dann weil das Modell von seiner Anweisung abgewichen war: ein stochastischer Ausweg, kein regulärer Pfad.
+
+Ein Manifest erklärt nun die **zusätzlichen** Domänen, aus denen es erreichbar ist, und eine **einzige Implementierung** beantwortet „ist dieses Werkzeug im Geltungsbereich?" für beide Filterstrategien, die dieselbe Frage bisher jede für sich stellten. Jeder Wert wird bei der Registrierung gegen das Domänenregister geprüft: eine unbekannte Domäne verweigert den Start, statt das Werkzeug still unauffindbar zu machen. Sparsam zu deklarieren — jede zusätzliche Domäne erweitert die Auswahl für **alle** Anfragen dieser Domäne. Das ist nicht dasselbe wie zwei Domänen zu verknüpfen: Verknüpfen zieht ihre gesamten Werkzeugkästen ineinander, was bereits einen Produktionsvorfall verursacht hat. Hier bewegt sich ein Werkzeug, keine Domäne.
 
 ## 8. Semantisches Routing und KI-gestützte Embeddings
 
@@ -1112,7 +1130,7 @@ Eine Destination kann dennoch berechtigterweise fehlen: Mehrere Bereiche rendern
 
 ## 24. Architekturentscheidungen (ADR)
 
-183 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+191 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1166,10 +1184,10 @@ Die Psyche Engine verleiht dem Assistenten einen dynamischen psychologischen Zus
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 183 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~17.089 Tests in 919 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 191 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~17.415 Tests in 933 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 183 ADRs und des Changelogs (v1.0 bis v1.27.4). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 191 ADRs und des Changelogs (v1.0 bis v1.27.5). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

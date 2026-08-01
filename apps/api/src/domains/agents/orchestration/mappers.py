@@ -21,6 +21,7 @@ from src.core.field_names import (
 from src.domains.agents.constants import make_agent_result_key
 from src.domains.agents.orchestration.schemas import (
     AgentResult,
+    AgentResultData,
     ContactsResultData,
     EmailsResultData,
     MultiDomainResultData,
@@ -814,6 +815,17 @@ def map_execution_result_to_agent_result(
             # For response synthesis: combine all results
             "aggregated_results": all_results_data,
         }
+
+    # Whatever shape the normalization chose, the tools' own words survive.
+    # Each typed branch above REPLACES the generic envelope, and only the
+    # fallback carried `step_results` — so a plan touching two known domains
+    # silently dropped every action confirmation, sub-agent analysis and the
+    # 360° briefing (measured 2026-08-01: the assistant answered "I have no
+    # data at hand" while holding the whole payload). The field lives on
+    # `AgentResultData` precisely so this holds for every subclass, present
+    # and future.
+    if isinstance(normalized_data, AgentResultData):
+        normalized_data.step_results = all_results_data
 
     # Build agent_result entry (Phase 3.2.5: Use Pydantic AgentResult)
     # Data Registry LOT 5.2: Include aggregated registry_updates for response_node filtering

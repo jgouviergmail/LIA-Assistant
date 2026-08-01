@@ -32,10 +32,10 @@ _GRAPH_FOLDER_TO_LABEL: dict[str, str] = {
 # Gmail-style query operators → Microsoft Graph KQL/OData patterns
 # Supports both unquoted values (from:john) and quoted multi-word values (subject:"meeting notes")
 _GMAIL_OPERATOR_PATTERN = re.compile(
-    r'(from|to|subject|after|before|label|is|has|in):("(?:[^"\\]|\\.)*"|\S+)'
+    r'(from|to|cc|subject|after|before|label|is|has|in):("(?:[^"\\]|\\.)*"|\S+)'
 )
 _GMAIL_NEGATION_PATTERN = re.compile(
-    r'-(?:in|label|is|has|from|to|subject|after|before):("(?:[^"\\]|\\.)*"|\S+)'
+    r'-(?:in|label|is|has|from|to|cc|subject|after|before):("(?:[^"\\]|\\.)*"|\S+)'
 )
 
 # Well-known Microsoft folder display names → folder IDs
@@ -292,6 +292,12 @@ def build_search_filter(gmail_query: str) -> dict[str, str | None]:
             search_parts.append(f"from:{value}")
         elif operator == "to":
             search_parts.append(f"to:{value}")
+        elif operator == "cc":
+            # Declared rather than left to the free-text bucket: KQL happens to
+            # parse `cc:` there too, so the output was right BY ACCIDENT. An
+            # accident is not a contract — and the negation pattern above only
+            # strips the operators it knows.
+            search_parts.append(f"cc:{value}")
         elif operator == "subject":
             search_parts.append(f"subject:{value}")
         elif operator == "after":

@@ -9,16 +9,24 @@
 
 import { cn } from '@/lib/utils';
 
-/** Charter-friendly tint pairs (bg wash + readable text, both themes). */
+/**
+ * Charter-friendly tint pairs (bg wash + readable text, both themes).
+ *
+ * Light-mode text is `-800`, not `-700`: measured on the production bundle,
+ * emerald/amber/teal at `-700` land on 4.31 / 4.18 / 4.33:1 over their own
+ * wash — under the 4.5:1 AA floor. One uniform rule beats three per-hue
+ * exceptions, and the avatar's initials are read by anyone with low vision
+ * even though the element is decorative for screen readers.
+ */
 const TINTS = [
   'bg-primary/15 text-primary',
-  'bg-sky-500/15 text-sky-700 dark:text-sky-300',
-  'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-  'bg-amber-500/15 text-amber-700 dark:text-amber-300',
-  'bg-violet-500/15 text-violet-700 dark:text-violet-300',
-  'bg-rose-500/15 text-rose-700 dark:text-rose-300',
-  'bg-teal-500/15 text-teal-700 dark:text-teal-300',
-  'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300',
+  'bg-sky-500/15 text-sky-800 dark:text-sky-300',
+  'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300',
+  'bg-amber-500/15 text-amber-800 dark:text-amber-300',
+  'bg-violet-500/15 text-violet-800 dark:text-violet-300',
+  'bg-rose-500/15 text-rose-800 dark:text-rose-300',
+  'bg-teal-500/15 text-teal-800 dark:text-teal-300',
+  'bg-indigo-500/15 text-indigo-800 dark:text-indigo-300',
 ] as const;
 
 /** Stable non-negative hash of a display name (accent-insensitive enough). */

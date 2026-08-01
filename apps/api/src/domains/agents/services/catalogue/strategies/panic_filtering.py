@@ -160,8 +160,8 @@ class PanicFilteringStrategy:
             tools_by_domain["context"] = []
 
         for manifest in all_manifests:
-            tool_domain = self.service._extract_domain(manifest)
-            if tool_domain not in tools_by_domain:
+            tool_domain = self.service.placement_domain(manifest, tools_by_domain)
+            if tool_domain is None:
                 continue
 
             # NO category filtering in panic mode (all categories allowed)

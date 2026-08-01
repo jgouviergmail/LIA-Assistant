@@ -150,7 +150,11 @@ TABLE_RULES: dict[str, TableRule] = {
     "peer_messages": TableRule(
         data_class=TableDataClass.USER_PURGED,
         export=ExportPolicy.FULL,
-        reason="Relay delivery metadata (content scrubbed post-delivery) — purged on deletion.",
+        reason=(
+            "Relayed correspondence: delivery metadata forever, both texts until "
+            "the retention horizon clears them (ADR-186). Exported side-scoped — "
+            "each participant gets their own words — and purged on deletion."
+        ),
     ),
     "peer_access_log": TableRule(
         data_class=TableDataClass.USER_PURGED,
@@ -401,6 +405,10 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "personality_id": _PREFERENCE,
     "weather_use_last_known_location": _PREFERENCE,
     "discovery_enabled": _PREFERENCE,
+    # A consent, kept separate from discovery on purpose (ADR-189).
+    "peer_email_visible": _PREFERENCE,
+    # How the user wants a "360° point" built — a display preference.
+    "relation_overview_scope": _PREFERENCE,
     "memory_enabled": _PREFERENCE,
     "health_metrics_agents_enabled": _PREFERENCE,
     "execution_mode": _PREFERENCE,

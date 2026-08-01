@@ -2321,14 +2321,14 @@
       "description": "查找本实例的其他用户，建立连接，并与您选择的人共享只读访问权限。",
       "discovery": {
         "toggle_label": "允许他人找到我",
-        "toggle_hint": "默认关闭。开启后，搜索您确切全名的用户可以向您发送连接请求。个人资料中没有全名时，任何人都无法找到您。",
+        "toggle_hint": "默认关闭。开启后，搜索您的确切全名或电子邮箱地址的用户可以向您发送连接请求。若个人资料中没有全名，则无法被找到。",
         "toggle_saved": "可发现性偏好已保存",
         "title": "查找用户",
-        "search_label": "全名",
-        "search_placeholder": "例如 王小明",
+        "search_label": "全名或电子邮箱",
+        "search_placeholder": "例如 王小明 或 wang@example.com",
         "search_button": "搜索",
-        "exact_hint": "搜索仅匹配确切的全名（忽略重音和大小写）。",
-        "no_results": "未找到该确切姓名的用户。对方可能尚未开启可发现性。",
+        "exact_hint": "搜索仅匹配确切的全名（忽略重音和大小写）或确切的电子邮箱地址。",
+        "no_results": "未找到用户。可能是拼写不完全一致，或对方尚未开启可发现性。",
         "context_label": "附言（可选）",
         "context_placeholder": "写几句话让对方知道您是谁……",
         "request_button": "请求连接",
@@ -2407,8 +2407,13 @@
       "my_name": {
         "label": "您的姓名：",
         "copy": "复制您的姓名",
-        "hint": "对方需要搜索这个确切的姓名才能找到您。",
+        "hint": "他人必须搜索这个确切的姓名——或您的电子邮箱地址——才能找到您。",
         "missing": "请在个人资料中填写您的全名，以便熟人找到您。"
+      },
+      "email_visibility": {
+        "toggle_label": "向我的连接显示我的邮箱",
+        "toggle_hint": "默认关闭。开启后，你已接受的连接会看到你的真实地址，而不是掩码提示。待处理的请求永远看不到。",
+        "toggle_saved": "地址可见性已保存"
       }
     },
     "notifications": {
@@ -3053,7 +3058,7 @@
         "psyche": "情绪, 心情, 感受, 情感",
         "memories": "记忆, 长期记忆, 记住, 遗忘, 事实",
         "interests": "兴趣, 话题, 爱好, 主题, 偏好",
-        "peer-connections": "联系人, 好友, 家人, 网络, 共享日历, 空闲状态, 屏蔽, 查找用户, 连接，我的姓名，复制姓名，连接请求，访问日志，转达消息，已屏蔽用户，亲友，社交网络，peer，可发现性，发现",
+        "peer-connections": "联系人, 好友, 家人, 网络, 共享日历, 空闲状态, 屏蔽, 查找用户, 连接，我的姓名，复制姓名，连接请求，访问日志，转达消息，已屏蔽用户，亲友，社交网络，peer，可发现性，发现，共享我的地址，邮箱可见，我的邮箱，360 概览",
         "heartbeat": "主动, 自发, 主动联系, 自主消息, 心跳",
         "scheduled-actions": "定时任务, cron, 计划, 重复, 自动化, 定时器",
         "journals": "日记, 日志, 画像, 反思, 笔记",
@@ -3067,8 +3072,8 @@
   },
   "relations": {
     "title": "人际关系",
-    "subtitle": "LIA 掌握的、关于您所往来之人的一切——未了的承诺、通话与记忆，集中于一处。",
-    "empty": "暂无关系。随着 LIA 跟进承诺并拨打电话，相关的人会出现在这里。",
+    "subtitle": "LIA 掌握的、关于您所往来之人的一切——未了的承诺、通话、转达的消息与记忆，集中于一处。",
+    "empty": "暂无关系。随着 LIA 跟进承诺、拨打电话并转达消息，相关的人会出现在这里。",
     "detail_empty": "这个人暂时还没有任何记录。",
     "back": "返回列表",
     "open_loops_count_one": "{{count}} 项承诺",
@@ -3077,12 +3082,46 @@
     "calls_count_other": "{{count}} 次通话",
     "days_open_one": "已未了 {{count}} 天",
     "days_open_other": "已未了 {{count}} 天",
-    "prepare_360": "准备 360° 概览",
     "prepare_intent": "为{{name}}准备一次 360° 概览：近期往来、未了的承诺，以及接下来需要提出的事项。",
+    "scope_title": "360° 概览 — LIA 查阅的内容",
+    "scope_hint": "你的选择会在打开聊天前保存：助手将直接应用它，而不是从句子中猜测。",
+    "scope_sections_legend": "要使用的板块",
+    "scope_directions_legend": "往来方向",
+    "scope_roles_legend": "会面中的角色",
+    "scope_max_items": "每个板块最多条目数",
+    "scope_empty": "未选择任何板块：360° 概览将无内容可读。",
+    "scope_launch": "启动 360° 概览",
     "identity_best_effort": "这些条目是按姓名匹配的——LIA 可能把两个不同的人合并了，或漏掉了某种拼写。",
     "section_open_loops": "未了的承诺",
     "section_calls": "近期通话",
     "section_memories": "记忆",
+    "section_peer_messages": "消息",
+    "peer_messages_count_one": "{{count}} 条消息",
+    "peer_messages_count_other": "{{count}} 条消息",
+    "peer_message_received": "收到",
+    "peer_message_sent": "已发送",
+    "peer_message_no_content": "文本已不再保留",
+    "show_more_one": "再显示 {{count}} 条",
+    "show_more_other": "再显示 {{count}} 条",
+    "more_not_shown_one": "另有 {{count}} 条未在此显示",
+    "more_not_shown_other": "另有 {{count}} 条未在此显示",
+    "peer_link_title": "LIA 连接",
+    "peer_link_since": "{{when}}建立连接",
+    "peer_link_nothing_shared": "您暂时没有共享任何内容。",
+    "dormant": "沉寂",
+    "dormant_hint": "已超过三个月没有任何动态",
+    "sort_label": "排序方式",
+    "sort_recent": "最近往来",
+    "sort_name": "姓名",
+    "sort_volume": "最活跃",
+    "only_peers": "LIA 用户",
+    "only_dormant": "沉寂",
+    "action_message": "写一条消息",
+    "action_message_prefill": "给{{name}}捎一条消息：",
+    "action_call": "拨打电话",
+    "action_call_prefill": "打电话给{{name}}，目的是：",
+    "action_loop": "跟进一项承诺",
+    "action_loop_prefill": "记录与{{name}}的一项承诺：",
     "favorites_title": "收藏",
     "others_title": "其他关系",
     "all_title": "全部关系",
@@ -3094,7 +3133,55 @@
     "peer_badge": "LIA 用户",
     "peer_badge_hint": "同样使用这个 LIA 实例 — 你们已建立连接",
     "no_recent_signal": "暂无最近动态",
-    "subtitle_detail": "这段关系的全景视图"
+    "subtitle_detail": "这段关系的全景视图",
+    "section_contact": "联系人卡片",
+    "section_emails": "往来邮件",
+    "section_events": "共同日程",
+    "contact_no_details": "该卡片没有地址和电话。",
+    "contact_nickname": "又名 {{name}}",
+    "contact_label": {
+      "anniversary": "纪念日",
+      "assistant": "助理",
+      "birthday": "生日",
+      "blog": "博客",
+      "brother": "兄弟",
+      "cell": "手机",
+      "child": "子女",
+      "domesticpartner": "伴侣",
+      "father": "父亲",
+      "friend": "朋友",
+      "home": "住宅",
+      "homepage": "网站",
+      "main": "主要",
+      "manager": "主管",
+      "mobile": "手机",
+      "mother": "母亲",
+      "other": "其他",
+      "parent": "父母",
+      "partner": "伴侣",
+      "profile": "个人主页",
+      "referredby": "推荐人",
+      "relative": "亲属",
+      "sister": "姐妹",
+      "spouse": "配偶",
+      "work": "工作"
+    },
+    "event_upcoming": "即将到来",
+    "events_window_one": "已查看过去一天和未来一天。",
+    "events_window_other": "已查看过去 {{count}} 天和未来 {{count}} 天。",
+    "provider_none": "连接你的通讯录，即可查看与此人的联系人卡片、往来邮件和共同日程。",
+    "provider_no_address": "该联系人卡片没有地址，因此无法查找邮件和日程。",
+    "provider_error": "部分已连接的账户暂时无法读取。",
+    "refresh_all": "刷新来自已连接账户的内容",
+    "refresh_section": "刷新此板块",
+    "event_role_organizer": "组织者",
+    "event_role_attendee": "参与者",
+    "emails_window_one": "已搜索最近一天。",
+    "emails_window_other": "已搜索最近 {{count}} 天。",
+    "emails_summarize_one": "在聊天中总结这封邮件",
+    "emails_summarize_other": "在聊天中总结这 {{count}} 封邮件",
+    "emails_summary_intent": "请总结我与 {{name}} 的邮件往来：{{subjects}}",
+    "emails_select": "选择「{{subject}}」"
   },
   "spaces": {
     "title": "知识空间",
@@ -3690,7 +3777,7 @@
         },
         "relations": {
           "title": "⭐ 个人 CRM — 人际关系",
-          "description": "是<b>透镜而非数据库</b>：人际关系页面按人聚合 LIA 已知的信息 — 未了结的承诺、通话、提及姓名的记忆 — 身份通过口音/大小写折叠解析，置信度<b>明确标注</b>（精确 vs 归一化：诚实优于虚假精确）。唯一持久化的状态是<b>收藏星标</b>：服务端幂等 upsert、乐观切换并与新数据核对、即使信号过期收藏也会保留并排在上限之前。同时是已连接 LIA 用户的关系带有只读 peers 徽章（受开关控制的桥接），全部纳入 GDPR 导出与账户清除。"
+          "description": "这是一个<b>视角，而不是一个数据库</b>：关系页面按人汇总 LIA 本就知道的内容 — 未了结的承诺、通话、记忆、转达的消息 — 身份通过折叠重音与大小写来归并，并<b>如实显示</b>匹配的把握（精确或规范化后匹配）。每个板块都带有<b>精确</b>总数，来自对全集的聚合，而不是某一页的长度。其中三个板块来自已连接的账户 — 通讯录条目、邮件、会面 — 按<b>邮箱地址</b>而非姓名查找，按板块缓存，并说明所查阅的时间范围，而不是给出服务商分页无法证明的总数。被持久保存的只有两样：收藏星标，以及<b>360° 概览的范围</b>，由工具读取而不是从句子里猜测。 从卡片启动 360° 概览不再只发送一句话：<b>被调用的能力</b>以数据形式传递，因此该工具必定出现在计划中并针对正确的人，而它已经覆盖的通用查询会被移除 — 在已声明的缺口旁给出无关的答案只会与之矛盾。不在通讯录中的已连接用户终于带来了自己的地址，但<b>仅当其已开启共享</b>：决定权始终只在其设置。"
         }
       },
       "diagram_alt": "LIA架构图"
@@ -3699,6 +3786,21 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_27_5": {
+          "title": "v1.27.5 — 👥 关于某个人的 360° 概览：完整且可配置",
+          "date": "2026 年 8 月",
+          "count": "8",
+          "items": {
+            "i1": "<b>👥 联系人的 360° 概览恢复正常</b> — 此前请求会得到「未能获取最近的往来」。工具其实存在，只是启动时从未被加载：LIA 选中了它，却找不到它。现在它能找到往来邮件和共同的会面，并且按<b>邮箱地址</b>而非姓名查找，可靠得多。",
+            "i2": "<b>📇 联系人卡片展示整本通讯录</b> — 昵称、职务、生日、备注、通信地址、亲属关系、链接、重要日期和即时通讯账号，都加入到姓名、单位、邮箱和电话之外。你的服务商没有存储的内容不会出现，而不是显示为空白。",
+            "i3": "<b>🎯 由你决定 360° 概览查阅什么</b> — 关系卡片顶部新增一个板块，可勾选要使用的来源，区分收到与发出的往来、以及对方参加与对方组织的会面，并设定每个板块最多取多少条。你的选择会在聊天打开之前保存：LIA 直接应用，而不是猜测。",
+            "i4": "<b>🔢 LIA 不再少算</b> — 卡片显示「137 项承诺」却只列出其中几条；助手此前只收到这几行，于是回答「你有五项」。现在它收到的是精确总数。而当某个来源无法读取时，它会如实说明，而不是宣称什么都没有。",
+            "i5": "<b>👤 360° 概览必定针对屏幕上显示的那个人</b> — 以前按下按钮只会发出一句话，LIA 需要重新理解它，可能选择通用工具而错过重点。现在按钮直接携带请求本身：360° 工具一定出现在计划中，且针对正确的人。其他有用的查询仍会保留。",
+            "i6": "<b>💬 助手终于收到 360° 找到的全部内容</b> — 它可能在刚刚取回未结承诺、通话和转达消息之后，仍回答「我手头没有任何数据」。内容在半路就停下了，没能送达。现在它会完整抵达。",
+            "i7": "<b>🤝 不在你通讯录中的 LIA 联系人，终于有了邮件与约会</b> — 往来是按<b>地址</b>查找的，而你从未保存过的已连接用户没有地址。若对方开启了地址共享，LIA 便用它在<b>你自己</b>的邮件和日历中，找出与你们双方相关的内容。",
+            "i8": "<b>📅 不再把你日历上的日程说成是对方的</b> — 找不到共同约会时，助手会用你自己日历里的下一个日程来填补空白，而那个日程对方既未组织也未参加。空白版块是一种回答；没有对方的约会则是错误。"
+          }
+        },
         "v1_27_4": {
           "title": "v1.27.4 — 📧 要 3 封邮件就给 3 封邮件",
           "date": "2026 年 7 月",
@@ -5688,11 +5790,11 @@
       "relations": {
         "title": "人际关系（个人 CRM）",
         "description": "人际关系页面：LIA 对你来往之人所知的一切，包括收藏。",
-        "count": "4",
+        "count": "7",
         "questions": {
           "q1": {
-            "question": "人际关系页面是什么？",
-            "answer": "在导航栏打开<strong>人际关系</strong>：每人一张卡片，聚合 LIA 已在跟踪的信息 — <strong>未了结的承诺</strong>、<strong>通话</strong>和提及此人的<strong>记忆</strong>。打开卡片即可查看 360° 档案，并可一键<em>准备 360° 回顾</em>，让 LIA 在聊天中为你梳理。这只是对现有数据的透镜：不会收集任何新信息。"
+            "question": "「关系」页面是什么？",
+            "answer": "在导航栏打开<strong>关系</strong>：每个人一张卡片，汇总 LIA 本就在跟踪的内容 — <strong>未了结的承诺</strong>、<strong>通话</strong>、提到该人的<strong>记忆</strong>以及<strong>转达的消息</strong>。打开卡片会显示 360° 视图，其第一个板块用于在聊天中发起一次 360° 概览。这只是既有数据的一个视角：不会额外采集任何内容。"
           },
           "q2": {
             "question": "收藏如何使用？",
@@ -5705,6 +5807,18 @@
           "q4": {
             "question": "为什么有的档案提示匹配是近似的？",
             "answer": "人员按<strong>姓名</strong>分组，容忍口音符号和大小写差异。当不同来源的拼写不一致，或某条记忆只提到一个常见名字时，LIA 会说明匹配是<strong>近似的</strong>，而不是假装确定 — 诚实优于虚假精确。"
+          },
+          "q5": {
+            "question": "关系卡片会显示什么？",
+            "answer": "除了 LIA 自己跟踪的内容，卡片还会显示你已连接的账户对这个人的了解：他们的<strong>通讯录条目</strong>（昵称、职务、生日、通信地址、亲属关系、链接……）、<strong>往来邮件</strong>和<strong>共同的会面</strong>。这三部分是按<strong>邮箱地址</strong>查找的，地址取自通讯录条目 — 若通讯录里没有地址，LIA 会直言，而不是假装什么都没找到。它们说明所查阅的<strong>时间范围</strong>，而不是一个服务商分页无法证明的总数，并且每一部分都可以单独刷新。"
+          },
+          "q6": {
+            "question": "如何决定 LIA 为 360° 概览查阅哪些内容？",
+            "answer": "卡片的第一个板块 <strong>360° 概览</strong> 里就是这些复选框：使用哪些来源（联系人卡片、承诺、记忆、通话、转达的消息、邮件、会面）、往来的<strong>方向</strong>（收到、发出）、会面中的<strong>角色</strong>（参加、组织）以及每个板块最多取多少条。你的选择会在<strong>聊天打开之前保存</strong>，因此 LIA 会直接应用，而不是从你的句子里猜测 — 下次也会自动预填。全部取消勾选并不等于全都要：未勾选的来源就是不查阅。"
+          },
+          "q7": {
+            "question": "为什么一位已连接的联系人既没有邮件也没有约会？",
+            "answer": "往来是按<strong>地址</strong>而非姓名查找的：你从未存入通讯录的人没有地址，自然无从匹配。如果这个人是<strong>已连接用户</strong>并开启了地址共享（连接设置），LIA 现在会用它在<strong>你自己</strong>的邮件和日历中，找出其参与的往来与约会。若未开启共享则一切照旧：决定权始终只在对方的设置。而如果没有任何约会与其相关，该版块就保持<strong>空白</strong> — LIA 不会用你日历里她既未组织也未参加的日程来填补沉默。"
           }
         }
       },
@@ -6629,6 +6743,10 @@
       "relation_star": {
         "title": "不会遗忘的星标",
         "desc": "直接在卡片上收藏关系 — 无需打开。收藏保持在顶部专属区域，被收藏的人即使数月没有动态也始终可见。"
+      },
+      "relation_sections": {
+        "title": "可以展开的档案",
+        "desc": "关系档案默认是收起的：标题就是目录，你只展开自己要看的部分。每个板块都会说明它查阅的时间范围，也可以单独重新载入。"
       }
     },
     "scenes": {
@@ -6681,6 +6799,9 @@
       },
       "peer_actions": {
         "reply": "回复"
+      },
+      "relation_sections": {
+        "section": "往来邮件"
       }
     },
     "craft": {
@@ -7845,8 +7966,6 @@
       "response_hint": "逐Token流式输出"
     },
     "screenshots": {
-      "title": "LIA 界面展示",
-      "subtitle": "简洁直观的界面，为所有人设计——无需技术技能",
       "items": {
         "homepage": "首页 — 今日简报：个性化摘要、天气、日程、生日、健康与使用统计",
         "chat": "聊天 — 多智能体对话，带实时调试面板",
@@ -7863,8 +7982,6 @@
       }
     },
     "presentation": {
-      "title": "详细介绍",
-      "subtitle": "通过15张幻灯片了解LIA的架构、功能和理念",
       "slide_alt": "LIA演示文稿第{{number}}页",
       "slide_counter": "第{{current}}页，共{{total}}页"
     },
@@ -7873,7 +7990,7 @@
       "title": "LIA 准备好了。还有点等不及。",
       "subtitle": "一个会行动、了解你、能预判的助手——而且永远先问过你。",
       "button": "创建我的账户",
-      "note_beta": "免费公测，7×24 小时生产运行。坦诚到底：将来会推出订阅。",
+      "note_beta": "免费公测，7×24 小时生产运行。",
       "philosophy_link": "或者先了解我们的理念"
     },
     "blog_preview": {
@@ -8076,7 +8193,7 @@
       "p4_t": "由 AI 编写，由人类主导",
       "p4_d": "42 万行代码，约 100% 由 AI 生成——在框架、评审与对抗性审计之下。方法已公开发表。",
       "p4_link": "阅读实践分享",
-      "honest": "免费公测，7×24 小时生产运行。坦诚到底：将来会推出订阅。",
+      "honest": "免费公测，7×24 小时生产运行。",
       "cta": "知情地试用"
     },
     "day": {
@@ -8395,7 +8512,7 @@
       "execution-plans": {
         "title": "ExecutionPlan：LIA如何规划和执行复杂请求",
         "excerpt": "LIA将你的多步骤请求分解为结构化执行计划，经过语义验证并并行执行。",
-        "body": "<h2>结构化计划语言</h2><p>LIA的规划器生成<strong>ExecutionPlan</strong>：一个经过Pydantic验证的对象，包含<code>plan_id</code>（UUID）、<code>execution_mode</code>（顺序或并行）、<code>max_cost_usd</code>、<code>estimated_cost_usd</code>和<code>version</code>版本号。每个计划包含一组<strong>ExecutionStep</strong>，字段包括：<code>step_id</code>、<code>step_type</code>（TOOL、CONDITIONAL、REPLAN或HUMAN）、<code>agent_name</code>、<code>tool_name</code>、<code>parameters</code>、<code>depends_on</code>和<code>timeout_seconds</code>。</p><p>例如，对于\"明天早上给Jean发一份天气摘要\"，计划将包含：(1) 获取明天的天气，(2) 查找联系人Jean，(3) 编写并发送邮件——步骤1→3和2→3之间存在依赖关系。</p><h2>FOR_EACH模式</h2><p>对于批量操作，步骤支持<code>for_each</code>字段，可迭代前一步骤产生的集合。<code>for_each_max</code>参数限制迭代次数，每个元素的错误独立处理，不会中断整个批次。</p><h2>11项语义验证检查</h2><p>在执行之前，<strong>语义验证器</strong>检查11类问题：</p><ul><li><strong>HALLUCINATED_CAPABILITY</strong> — LLM编造的工具或能力</li><li><strong>GHOST_DEPENDENCY</strong> — 引用不存在的步骤</li><li><strong>LOGICAL_CYCLE</strong> — 循环依赖</li><li><strong>CARDINALITY_MISMATCH</strong> — 步骤间基数不匹配</li><li><strong>SCOPE_OVERFLOW / SCOPE_UNDERFLOW</strong> — 计划范围过大或不足</li><li><strong>WRONG_PARAMETERS</strong> — 工具参数不正确</li><li><strong>MISSING_STEP</strong> — 缺少满足请求所需的步骤</li><li><strong>DANGEROUS_AMBIGUITY</strong> — 可能导致错误的歧义</li><li><strong>IMPLICIT_ASSUMPTION / INSUFFICIENT_CONTENT</strong> — 未经验证的假设</li></ul><h2>可索引与语义化条件区分</h2><p>除了十一项结构性检查外，验证器还执行一项<strong>通用规划原则</strong>：将<em>可索引</em>条件（日期、标识符、发件人、状态、地点——作为工具参数传递）与<em>语义化</em>条件（类别、紧急程度、质量、优先级——由响应 LLM 在下游过滤）区分开来。当规划器试图将「医疗」或「紧急」等概念性词语硬塞进字面搜索工具（Google 日历、Gmail、类 Notion 存储……）的查询中时，检测层会通过针对查询分析器发出的提示进行整词边界匹配来标记此类泄漏。工具无关机制：当前所有连接器或未来 MCP 服务器都无需修改——通过 <code>ToolManifest.text_search_mode</code> 为提供原生语义搜索的存储声明式地选择退出。</p><h2>波次并行执行</h2><p><strong>DependencyGraph</strong>计算执行波次：所有无依赖的步骤构成第一波并行执行。后续波次等待其前置步骤完成。这一机制使得涉及3到5个领域的复杂请求能够以接近简单请求的响应时间处理。</p><h2>自适应重新规划</h2><p>如果某个步骤失败，系统可以通过<code>REPLAN</code>类型动态重新规划。例如，如果未找到联系人，LIA可以向用户请求澄清，而不是放弃整个计划。</p><h2>自增强反幻觉注册表</h2><p>LLM有时会在计划中发明不存在的工具。LIA维护一个持久化的幻觉模式注册表（<code>hallucinated_tools.json</code>），每次检测到新的幻觉时自动更新。在计划验证期间，每个工具都会与此注册表进行核对——幻觉步骤被移除，规划器被强制使用真实的目录工具重新规划。</p><h2>消除「捏造」的理由</h2><p>识别出被捏造的工具，终究是一种事后反应。真正的原因在上游：如果交给规划器的工具清单里，有一个工具需要某项数据，而清单中没有任何其他工具能产出它（比如要回复邮件就得先有该邮件的标识符），那么<strong>根本不存在有效的计划</strong>，模型除了捏造别无选择。因此 LIA 会在规划之前确认清单是<strong>闭合</strong>的：每一项被需要的数据，都有一个读取来源在场。这条规则从不查看用户的请求，它只读取工具清单本身——这是解析未定义引用的链接器，而不是靠猜测的检索。</p><h2>公布它所强制执行的上限</h2><p>让目录闭合，回答的是一个计划<em>可以用哪些工具</em>。还有第二个问题决定计划能否被接受：<em>用什么取值</em>。每个工具都会声明上限——一次返回多少条结果——并由验证器强制执行。可这些上限并没有传给规划器：它只能依据提示词来确定批量大小，然后因为遵循了收到的指令而被驳回。一个被强制执行却被隐藏的上限不是契约，而是陷阱。现在它随工具一同公布，任何超出的取值都会在验证前被收回到范围内——于是驳回所报告的，永远是仍然真实存在的缺陷。</p>"
+        "body": "<h2>结构化计划语言</h2><p>LIA的规划器生成<strong>ExecutionPlan</strong>：一个经过Pydantic验证的对象，包含<code>plan_id</code>（UUID）、<code>execution_mode</code>（顺序或并行）、<code>max_cost_usd</code>、<code>estimated_cost_usd</code>和<code>version</code>版本号。每个计划包含一组<strong>ExecutionStep</strong>，字段包括：<code>step_id</code>、<code>step_type</code>（TOOL、CONDITIONAL、REPLAN或HUMAN）、<code>agent_name</code>、<code>tool_name</code>、<code>parameters</code>、<code>depends_on</code>和<code>timeout_seconds</code>。</p><p>例如，对于\"明天早上给Jean发一份天气摘要\"，计划将包含：(1) 获取明天的天气，(2) 查找联系人Jean，(3) 编写并发送邮件——步骤1→3和2→3之间存在依赖关系。</p><h2>FOR_EACH模式</h2><p>对于批量操作，步骤支持<code>for_each</code>字段，可迭代前一步骤产生的集合。<code>for_each_max</code>参数限制迭代次数，每个元素的错误独立处理，不会中断整个批次。</p><h2>11项语义验证检查</h2><p>在执行之前，<strong>语义验证器</strong>检查11类问题：</p><ul><li><strong>HALLUCINATED_CAPABILITY</strong> — LLM编造的工具或能力</li><li><strong>GHOST_DEPENDENCY</strong> — 引用不存在的步骤</li><li><strong>LOGICAL_CYCLE</strong> — 循环依赖</li><li><strong>CARDINALITY_MISMATCH</strong> — 步骤间基数不匹配</li><li><strong>SCOPE_OVERFLOW / SCOPE_UNDERFLOW</strong> — 计划范围过大或不足</li><li><strong>WRONG_PARAMETERS</strong> — 工具参数不正确</li><li><strong>MISSING_STEP</strong> — 缺少满足请求所需的步骤</li><li><strong>DANGEROUS_AMBIGUITY</strong> — 可能导致错误的歧义</li><li><strong>IMPLICIT_ASSUMPTION / INSUFFICIENT_CONTENT</strong> — 未经验证的假设</li></ul><h2>可索引与语义化条件区分</h2><p>除了十一项结构性检查外，验证器还执行一项<strong>通用规划原则</strong>：将<em>可索引</em>条件（日期、标识符、发件人、状态、地点——作为工具参数传递）与<em>语义化</em>条件（类别、紧急程度、质量、优先级——由响应 LLM 在下游过滤）区分开来。当规划器试图将「医疗」或「紧急」等概念性词语硬塞进字面搜索工具（Google 日历、Gmail、类 Notion 存储……）的查询中时，检测层会通过针对查询分析器发出的提示进行整词边界匹配来标记此类泄漏。工具无关机制：当前所有连接器或未来 MCP 服务器都无需修改——通过 <code>ToolManifest.text_search_mode</code> 为提供原生语义搜索的存储声明式地选择退出。</p><h2>波次并行执行</h2><p><strong>DependencyGraph</strong>计算执行波次：所有无依赖的步骤构成第一波并行执行。后续波次等待其前置步骤完成。这一机制使得涉及3到5个领域的复杂请求能够以接近简单请求的响应时间处理。</p><h2>自适应重新规划</h2><p>如果某个步骤失败，系统可以通过<code>REPLAN</code>类型动态重新规划。例如，如果未找到联系人，LIA可以向用户请求澄清，而不是放弃整个计划。</p><h2>自增强反幻觉注册表</h2><p>LLM有时会在计划中发明不存在的工具。LIA维护一个持久化的幻觉模式注册表（<code>hallucinated_tools.json</code>），每次检测到新的幻觉时自动更新。在计划验证期间，每个工具都会与此注册表进行核对——幻觉步骤被移除，规划器被强制使用真实的目录工具重新规划。</p><h2>消除「捏造」的理由</h2><p>识别出被捏造的工具，终究是一种事后反应。真正的原因在上游：如果交给规划器的工具清单里，有一个工具需要某项数据，而清单中没有任何其他工具能产出它（比如要回复邮件就得先有该邮件的标识符），那么<strong>根本不存在有效的计划</strong>，模型除了捏造别无选择。因此 LIA 会在规划之前确认清单是<strong>闭合</strong>的：每一项被需要的数据，都有一个读取来源在场。这条规则从不查看用户的请求，它只读取工具清单本身——这是解析未定义引用的链接器，而不是靠猜测的检索。</p><h2>公布它所强制执行的上限</h2><p>让目录闭合，回答的是一个计划<em>可以用哪些工具</em>。还有第二个问题决定计划能否被接受：<em>用什么取值</em>。每个工具都会声明上限——一次返回多少条结果——并由验证器强制执行。可这些上限并没有传给规划器：它只能依据提示词来确定批量大小，然后因为遵循了收到的指令而被驳回。一个被强制执行却被隐藏的上限不是契约，而是陷阱。现在它随工具一同公布，任何超出的取值都会在验证前被收回到范围内——于是驳回所报告的，永远是仍然真实存在的缺陷。</p><h2>点击不是句子</h2><p>公开限制解决了一个计划可以「值」多少，但它必须「包含」什么仍未解决。当请求来自一个按钮 — 一张具名的卡片、若干勾选框 — 系统在任何模型被咨询之前就已掌握这份确定性，却把它转成散文，再花三个阶段试图还原。实测：应当被选中的工具在整个目录中得分最高，而计划调用的却是通用工具。任何提示词调校都无法让这条路径变得确定。因此<strong>被调用的能力</strong>以数据形式传递，与用户所读的句子并行；浏览器命名的是能力，绝不是工具，由服务器决定由哪个只读工具来实现。对应的步骤在验证<em>之前</em>加入计划，与被拉回边界的取值一视同仁 — 凡是可机械修复的就修复，绝不上报为缺陷。</p><p>计划是<strong>被丰富，而非被替换</strong>：规划器安排的、确实有所增益的一切都会保留。它安排的、而该能力本已覆盖的部分则被移除，因为在一个已声明的缺口旁放上无关的答案，不是补全而是矛盾。仍被其他步骤读取的步骤无论如何都会保留：用一句错话换一个悬空引用，是一笔亏本买卖。</p>"
       },
       "human-in-the-loop": {
         "title": "人在回路中：6级审批保持你的控制",

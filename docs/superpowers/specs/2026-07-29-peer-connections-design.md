@@ -108,8 +108,10 @@ state key + one router guard (§8, deliberately minimal and reusable).
   calendar; `titles` for tasks), `created_at`, `updated_at`,
   UNIQUE(connection_id, owner_user_id, domain). Absence of row = not shared (default-off).
 - `peer_messages` — `connection_id` (CASCADE), `sender_id`, `recipient_id`, `content`
-  (sender directive text; **scrubbed to NULL after successful delivery** — the delivered
-  wording lives only in the recipient's conversation archive), `status`
+  (sender directive text), `delivered_text` (what the recipient's assistant said),
+  `expires_at` (**both texts purged past the retention horizon, the row is kept** —
+  [ADR-186](../../architecture/ADR-186-Relayed-Message-Retention.md); the original
+  design scrubbed `content` at delivery), `status`
   `pending | delivered | failed | cancelled`, `attempts`, `created_at`, `delivered_at`,
   `last_error` (typed code, never raw text). Consumed with `FOR UPDATE SKIP LOCKED` + atomic
   status transition (imitate `scheduled_actions/repository.py`).
@@ -158,8 +160,12 @@ raisers, `hide_existence=True` semantics wherever a block/unknown user could be 
 
 ### 5.1 Discovery search
 
-Input: a full name. Matching: **exact match on folded `full_name`** (shared NFKD+casefold
-helper) — never prefix/substring (enumeration). Result rows only for users who are
+Input: a full name **or an email address**, in ONE field (`query`) — the backend decides
+which was typed (`looks_like_email`), so no second heuristic can disagree with it
+([ADR-187](../../architecture/ADR-187-Discovery-By-Address.md)). Matching: **exact match on
+folded `full_name`** (shared NFKD+casefold helper) or on the folded address (`strip` +
+`lower` only — never NFKD/casefold, which would merge two distinct mailboxes) — never
+prefix/substring (enumeration). Result rows only for users who are
 `discovery_enabled AND is_active AND deleted_at IS NULL`, excluding self and excluding any
 user with a block in **either** direction (indistinguishable from no-match). Payload per row:
 `peer_id`, `display_name` (their `full_name`), `email_hint` — first character of the local
@@ -282,7 +288,8 @@ periodic sweep `peers_delivery_sweep_seconds` as the durable guarantee, SKIP LOC
 3. The produced text is delivered via `NotificationDispatcher` (task type `peer_message`,
    title naming the sender) — not via the run's own archive path
    (`archive_user_message=False`; no user-role turn exists in the recipient's conversation).
-4. Row → `delivered`, `content` scrubbed to NULL; sender notified in chat
+4. Row → `delivered`, `delivered_text` recorded, `content` kept until `expires_at`
+   (ADR-186); sender notified in chat
    (`peer_message_delivered`, quoting the original directive from the sender's own turn).
 5. Failure → `attempts+1`; past `peers_delivery_max_attempts` → `failed`, sender notified
    neutrally. All transitions atomic. **Deferral ≠ failure**: a delivery postponed because
@@ -345,8 +352,8 @@ truth" (its stated contract) — the block is aggregation like every other secti
 4. Peer reads: share re-checked at execution time; read-only tool subset; immutable
    `peer_access_log` visible to the data owner.
 5. No PII at INFO (ids and counters only; names/contents at DEBUG or redacted);
-   `peer_messages.content` scrubbed post-delivery; typed error codes, no raw exceptions to
-   the LLM.
+   `peer_messages` texts purged past `expires_at` (ADR-186 — 30 days by default, the row
+   survives for audit); typed error codes, no raw exceptions to the LLM.
 6. GDPR: all 5 tables classified in `user_data_map.py` (CI guard) — purge covers rows where
    the user sits on either side; export includes connections/blocks/shares/message metadata
    (content only while pending) and access-log rows involving the user.

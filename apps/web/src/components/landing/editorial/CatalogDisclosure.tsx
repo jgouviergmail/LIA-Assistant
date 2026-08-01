@@ -5,10 +5,12 @@ import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
- * Reading level 2 of the editorial landing: the expandable catalog under each
- * chapter (and the basics band). The narrative stays light on scroll; one
- * click reveals the full detailed feature cards — which remain in the DOM
- * while collapsed, so search engines index every description.
+ * Reading level 2 of the editorial landing: the catalog under each chapter
+ * (and the basics band). It is OPEN on arrival — the detailed feature cards
+ * are the substance of the page, and a reader should not have to discover a
+ * disclosure to reach them; the button is there to fold a chapter away once
+ * read. Collapsed content stays in the DOM either way, so search engines index
+ * every description.
  *
  * Native button + aria-expanded/aria-controls; the grid collapses via the
  * CSS `grid-template-rows` trick (animatable, no JS measurement).
@@ -25,7 +27,7 @@ export interface CatalogDisclosureProps {
 }
 
 export function CatalogDisclosure({ summary, hint, anchor, children }: CatalogDisclosureProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const panelId = useId();
 
   return (

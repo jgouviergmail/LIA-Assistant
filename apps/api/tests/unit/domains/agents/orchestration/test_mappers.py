@@ -1254,3 +1254,171 @@ class TestMapExecutionResultAgentResultFields:
 
         agent_result = result["1:plan_executor"]
         assert agent_result["duration_ms"] == 500
+
+
+class TestToolMessagesSurviveNormalization:
+    """What the tools SAID must reach the response synthesizer, always.
+
+    Measured on the dev API, 2026-08-01: a 360° on a connected peer produced
+    relayed messages, open commitments and memories, and the assistant answered
+    *"I have no data at hand"*. The plan had also called contacts and mail, so
+    the mapper normalised to ``MultiDomainResultData`` — which carried no
+    ``step_results`` — and `_extract_action_success_messages` reads exactly
+    that key to surface tool messages. Every typed branch REPLACED the generic
+    envelope; only the fallback preserved it. So an action confirmation, a
+    sub-agent analysis or a 360° briefing survived or vanished depending on
+    which domains the plan happened to touch.
+
+    The base ``AgentResultData`` docstring already promised the field, and the
+    ``extra="forbid"`` comment already warned about losing ``step_results``
+    from the other direction. These oracles pin the invariant on every shape,
+    so a future schema cannot drop it again in silence.
+    """
+
+    @staticmethod
+    def _step(index: int, tool: str, result: dict) -> StepResult:
+        return StepResult(step_index=index, tool_name=tool, args={}, result=result, success=True)
+
+    @staticmethod
+    def _map(step_results: list[StepResult]) -> dict:
+        execution_result = ExecutionResult(
+            success=True,
+            step_results=step_results,
+            total_steps=len(step_results),
+            completed_steps=len(step_results),
+            total_execution_time_ms=10,
+        )
+        mapped = map_execution_result_to_agent_result(
+            execution_result=execution_result, plan_id="p", turn_id=1
+        )
+        return mapped["1:plan_executor"]["data"]
+
+    #: The production shape, reduced: a briefing whose ONLY channel is its
+    #: message, alongside tools whose payloads trigger normalization.
+    BRIEFING = {"result": "360 overview for Hua: relayed messages...", "person": "Hua"}
+
+    def test_two_domains_keep_the_briefing(self):
+        """MultiDomainResultData — the exact shape of the production defect."""
+        data = self._map(
+            [
+                self._step(0, "get_person_overview", self.BRIEFING),
+                self._step(1, "get_contacts", {"contacts": [{"resource_name": "c1"}], "total": 1}),
+                self._step(2, "get_emails", {"emails": [{"id": "m1"}], "total": 1}),
+            ]
+        )
+
+        assert data["result_type"] == "multi_domain"
+        assert self.BRIEFING in data["step_results"]
+
+    def test_one_domain_keeps_the_briefing(self):
+        """ContactsResultData — the same loss, one domain earlier."""
+        data = self._map(
+            [
+                self._step(0, "get_person_overview", self.BRIEFING),
+                self._step(1, "get_contacts", {"contacts": [{"resource_name": "c1"}], "total": 1}),
+            ]
+        )
+
+        assert data["result_type"] == "contacts"
+        assert self.BRIEFING in data["step_results"]
+
+    def test_the_generic_fallback_still_carries_it(self):
+        """The one branch that always worked must keep working."""
+        data = self._map([self._step(0, "get_person_overview", self.BRIEFING)])
+
+        assert self.BRIEFING in data["step_results"]
+
+    def test_the_messages_reach_the_prompt_formatter(self):
+        """End of the channel: the formatter the response node actually calls.
+
+        Asserting the field alone would prove the data is stored, not that it
+        is read — which is precisely the gap that let this ship.
+        """
+        from src.domains.agents.formatters.agent_results import (
+            format_agent_results_for_prompt,
+        )
+
+        execution_result = ExecutionResult(
+            success=True,
+            step_results=[
+                self._step(0, "get_person_overview", self.BRIEFING),
+                self._step(1, "get_contacts", {"contacts": [{"resource_name": "c1"}], "total": 1}),
+                self._step(2, "get_emails", {"emails": [{"id": "m1"}], "total": 1}),
+            ],
+            total_steps=3,
+            completed_steps=3,
+            total_execution_time_ms=10,
+        )
+        agent_results = map_execution_result_to_agent_result(
+            execution_result=execution_result, plan_id="p", turn_id=1
+        )
+
+        summary = format_agent_results_for_prompt(agent_results, current_turn_id=1)
+
+        assert "360 overview for Hua" in summary
+
+
+class TestTheGenericEnvelopeIsStillNotCoercible:
+    """`extra="forbid"` must keep protecting after the base gained a field.
+
+    `AgentResult.data` is a Union that includes `dict[str, Any]`. The base
+    docstring warns that without `extra="forbid"` a plain dict could be coerced
+    into a domain model "causing the dict's actual data (like step_results) to
+    be silently discarded". Adding `step_results` to the base moves the generic
+    dict one field CLOSER to those models, so the protection has to be
+    re-verified rather than assumed.
+    """
+
+    def test_the_fallback_stays_a_dict_and_keeps_both_keys(self):
+        step_result = StepResult(
+            step_index=0,
+            tool_name="create_reminder",
+            args={},
+            result={"result": "Rappel créé pour demain 9h"},
+            success=True,
+        )
+        execution_result = ExecutionResult(
+            success=True,
+            step_results=[step_result],
+            total_steps=1,
+            completed_steps=1,
+            total_execution_time_ms=5,
+        )
+
+        data = map_execution_result_to_agent_result(
+            execution_result=execution_result, plan_id="p", turn_id=1
+        )["1:plan_executor"]["data"]
+
+        # `aggregated_results` exists on no model, so the dict cannot be
+        # coerced into one — the discriminator the base docstring relies on.
+        assert "aggregated_results" in data
+        assert "result_type" not in data
+
+    def test_an_action_confirmation_still_reaches_the_prompt(self):
+        """The oldest contract of this path: a reminder says it was created."""
+        from src.domains.agents.formatters.agent_results import (
+            format_agent_results_for_prompt,
+        )
+
+        execution_result = ExecutionResult(
+            success=True,
+            step_results=[
+                StepResult(
+                    step_index=0,
+                    tool_name="create_reminder",
+                    args={},
+                    result={"result": "Rappel créé pour demain 9h"},
+                    success=True,
+                )
+            ],
+            total_steps=1,
+            completed_steps=1,
+            total_execution_time_ms=5,
+        )
+        agent_results = map_execution_result_to_agent_result(
+            execution_result=execution_result, plan_id="p", turn_id=1
+        )
+
+        assert "Rappel créé pour demain 9h" in format_agent_results_for_prompt(
+            agent_results, current_turn_id=1
+        )

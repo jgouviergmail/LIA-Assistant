@@ -297,6 +297,8 @@ These rules close recurring bug classes identified by the 2026-07 full-codebase 
 
 - A constraint the system **enforces** must be **published** to whoever produces the value. `_manifest_to_dict` enforces this for the planner catalogue (`min`/`max` on every bounded parameter); an enforced-but-hidden bound is not a contract, it is a trap (ADR-184: `max_results` capped at 10 while the planner only ever saw `required: false`). Whatever a validator can reject, its producer must be able to read.
 - What is **mechanically repairable** is repaired before validation, never reported as a defect: out-of-bounds numeric parameters are clamped in `SmartPlannerService._build_plan` (`planner/parameter_bounds.py`), same doctrine as the `for_each_max` auto-correction next to it. What cannot be repaired without inventing intent (`pattern`, `enum`, wrong types) stays a real error the validator must keep reporting.
+- **A count shown to the user is a claim: it is exact, or it does not exist.** Deriving it from the length of a capped page under-reports the moment the data outgrows the page, and says nothing about what it dropped — the CRM counted rows from a 120-row window and a 200/500-row detail fetch, so a busy relationship silently under-reported and one whose only activity fell outside the window had no card at all (ADR-185). Count with an aggregate over the whole set (`GROUP BY`, `COUNT(*)`), page the ROWS only, and ship the exact total next to the page so a cap is stated rather than applied in silence.
+- **Folding identity has exactly one implementation.** When a lens must query rows for one person, resolve the raw spellings from an aggregate and match them EXACTLY in SQL (`IN (...)`) — never re-express `fold_name` as `unaccent`+`lower`, which diverges on `ß` and ligatures and quietly makes SQL a second authority on who is the same person (`_spellings_for` in `relations/service.py`, ADR-185).
 - **A validation verdict is not a failure.** `route_from_planner` never reads `is_valid` — a rejected plan executes unchanged and usually succeeds. Nothing may tell the user an operation was blocked on the strength of a verdict alone: the claim requires the capability to have actually produced nothing (`executed_tool_names` in `plan_blockers.py`, ADR-184). Reporting a stale verdict as a failure is the same invented diagnosis ADR-182 removed, pointing the other way.
 
 ### Tools
@@ -416,6 +418,6 @@ When working with settings-driven thresholds in tests (e.g. `mcp_user_max_server
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
-- ADR index (184 architectural decisions, ADR-184 latest): `docs/architecture/ADR_INDEX.md`
+- ADR index (191 architectural decisions, ADR-191 latest): `docs/architecture/ADR_INDEX.md`
 - CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
 - 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`

@@ -9,6 +9,7 @@ import {
   ERROR_CODE_CONNECTOR_OAUTH_EXPIRED,
   ERROR_CODE_CONNECTOR_RATE_LIMIT,
 } from '@/types/briefing';
+import type { CapabilityDirectiveWire } from '@/types/directive';
 
 // =============================================================================
 // Relative time helper for "updated X ago" labels
@@ -75,6 +76,56 @@ export function timeAgoLabel(
   }
 }
 
+/**
+ * Absolute date (and time slot) for an item the reader may need to place.
+ *
+ * "il y a 4 j" answers *how long ago*; it never answers *when*. A meeting or a
+ * message you are about to act on needs the second, so the CRM shows both —
+ * the relative label to feel the distance, this one to pin it down.
+ *
+ * A SLOT renders both edges when the provider gave an end, because a meeting is
+ * a span, not an instant. Nothing is invented: a missing end renders as a
+ * single instant, and an all-day entry (midnight to midnight, provider-side)
+ * renders without any clock at all rather than claiming "00:00".
+ *
+ * Rendered in the runtime's timezone through `Intl`, like every other absolute
+ * time in this app — the backend always sends UTC ISO.
+ *
+ * @param locale - BCP-47 locale (the i18n language).
+ * @param startIso - ISO 8601 UTC start.
+ * @param endIso - ISO 8601 UTC end, when the source has one.
+ * @returns The localized label, or null when nothing is parseable.
+ */
+export function dateTimeRangeLabel(
+  locale: string,
+  startIso: string | null,
+  endIso: string | null = null
+): string | null {
+  if (!startIso) return null;
+  const start = new Date(startIso);
+  if (Number.isNaN(start.getTime())) return null;
+  const end = endIso ? new Date(endIso) : null;
+  const hasEnd = end !== null && !Number.isNaN(end.getTime());
+
+  const date = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(start);
+
+  // An all-day entry is midnight→midnight on the provider's side: printing
+  // "00:00 – 00:00" would invent a precision the calendar never had.
+  const clock = (value: Date) =>
+    new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(value);
+  const isMidnight = start.getHours() === 0 && start.getMinutes() === 0;
+  const allDay = isMidnight && (!hasEnd || (end.getHours() === 0 && end.getMinutes() === 0));
+  if (allDay) return date;
+
+  // U+202F narrow no-break space around the dash: the range must never wrap
+  // onto two lines on a 320 px screen.
+  return hasEnd ? `${date}, ${clock(start)} – ${clock(end)}` : `${date}, ${clock(start)}`;
+}
+
 // =============================================================================
 // Error code → i18n CTA key resolver
 // =============================================================================
@@ -109,12 +160,30 @@ export function chatDraftHref(lng: string, draft?: string): string {
  * named action button IS the deliberate act. External writes stay behind
  * the pipeline's tool-level HITL cards.
  *
+ * An optional `directive` rides alongside the prose (ADR-191): the sentence
+ * stays what the user reads, the directive is what the backend guarantees to
+ * run. Actions whose meaning is fully carried by their text pass nothing and
+ * behave exactly as before.
+ *
  * @param lng - Current URL locale segment.
  * @param intent - The full localized request to send.
+ * @param directive - Capability the click invoked, when the action has one.
  * @returns Localized chat route with the encoded `intent`.
  */
-export function chatIntentHref(lng: string, intent: string): string {
-  return `/${lng}/dashboard/chat?intent=${encodeURIComponent(intent)}`;
+export function chatIntentHref(
+  lng: string,
+  intent: string,
+  directive?: CapabilityDirectiveWire
+): string {
+  // `encodeURIComponent`, not `URLSearchParams`: the latter encodes a space as
+  // `+`, which would rewrite every existing briefing deep link. Both decode
+  // identically, but a change nobody asked for is a change nobody tested.
+  const parts = [`intent=${encodeURIComponent(intent)}`];
+  if (directive) {
+    parts.push(`capability=${encodeURIComponent(directive.capability)}`);
+    parts.push(`subject=${encodeURIComponent(directive.subject)}`);
+  }
+  return `/${lng}/dashboard/chat?${parts.join('&')}`;
 }
 
 export function resolveErrorCtaKey(errorCode: string | null): string | null {
@@ -162,6 +231,35 @@ export function parseBirthdayIso(dateIso: string): ParsedBirthdayDate | null {
     };
   }
   return null;
+}
+
+/**
+ * Localize a contact-card date, year included only when the address book has one.
+ *
+ * A birthday stored without a year is the normal case, not a degraded one:
+ * printing `1900` — or today's year — would state an age nobody wrote down.
+ * Anything that is not one of the two ISO shapes is the provider's own free
+ * text ("in the spring"), and is returned untouched rather than dropped.
+ *
+ * @param locale - BCP-47 locale (the i18n language).
+ * @param value - `YYYY-MM-DD`, `--MM-DD`, or free text.
+ * @returns The localized label, or the input when it is not a date.
+ */
+export function partialDateLabel(locale: string, value: string): string {
+  const parsed = parseBirthdayIso(value);
+  if (!parsed) return value;
+  // Midday, never midnight: a timezone west of UTC would roll a midnight date
+  // back to the previous day and move the birthday.
+  const date = new Date(Date.UTC(parsed.year ?? 2000, parsed.month - 1, parsed.day, 12));
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      day: 'numeric',
+      month: 'long',
+      ...(parsed.year === null ? {} : { year: 'numeric' }),
+    }).format(date);
+  } catch {
+    return value;
+  }
 }
 
 // =============================================================================

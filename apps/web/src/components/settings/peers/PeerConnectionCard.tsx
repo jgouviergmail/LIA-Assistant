@@ -81,7 +81,13 @@ export function PeerConnectionCard({
         <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{connection.peer_display_name}</p>
-          <p className="text-xs text-muted-foreground">{connection.peer_email_hint}</p>
+          {/* The real address when its owner opened it to their connections
+              (ADR-189), the masked hint otherwise — never both, which would
+              read as two different pieces of information about one person.
+              `break-all`: an address has no spaces to wrap on. */}
+          <p className="break-all text-xs text-muted-foreground">
+            {connection.peer_email ?? connection.peer_email_hint}
+          </p>
         </div>
       </div>
 

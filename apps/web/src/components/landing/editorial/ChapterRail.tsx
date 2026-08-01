@@ -10,6 +10,13 @@ import { CHAPTERS } from './chapters-data';
  * diamond, scroll-spied. A real <nav> of anchor links — each labelled with
  * its chapter title — so it is keyboard- and screen-reader-usable, not
  * decoration.
+ *
+ * Inactive links carry FULL `text-muted-foreground`, never a dimmed variant:
+ * at 10px bold the token itself is the AA floor (7.4:1 dark / 5.8:1 light over
+ * the section backgrounds it flies over), and `/50` measured 2.68:1 — a WCAG
+ * 1.4.3 failure axe only sees when the rail happens to fly over an opaque
+ * section (2026-08-01). The active link stays `text-primary`, which is what
+ * carries the state.
  */
 
 const TRANSPARENCY_ANCHOR = 'transparency';
@@ -50,7 +57,7 @@ export function ChapterRail() {
             'rounded px-1 text-[10px] font-bold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             active === chapter.anchor
               ? 'text-primary'
-              : 'text-muted-foreground/50 hover:text-muted-foreground'
+              : 'text-muted-foreground hover:text-foreground'
           )}
         >
           {chapter.num}
@@ -64,7 +71,7 @@ export function ChapterRail() {
           'rounded px-1 text-[10px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           active === TRANSPARENCY_ANCHOR
             ? 'text-primary'
-            : 'text-muted-foreground/50 hover:text-muted-foreground'
+            : 'text-muted-foreground hover:text-foreground'
         )}
       >
         ◈

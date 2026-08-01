@@ -132,8 +132,8 @@ class NormalFilteringStrategy:
         # Example: "contact details" needs both get_contacts AND get_contact_details
         best_tools_per_domain: dict[str, list[tuple[str, float]]] = {}
         for manifest in all_manifests:
-            tool_domain = self.service._extract_domain(manifest)
-            if tool_domain not in tool_filter.domains:
+            tool_domain = self.service.placement_domain(manifest, tool_filter.domains)
+            if tool_domain is None:
                 continue
             score = tool_scores.get(manifest.name, 0.0)
 
@@ -190,8 +190,8 @@ class NormalFilteringStrategy:
         kept_for_domain_coverage: list[str] = []
 
         for manifest in all_manifests:
-            tool_domain = self.service._extract_domain(manifest)
-            if tool_domain not in tools_by_domain:
+            tool_domain = self.service.placement_domain(manifest, tools_by_domain)
+            if tool_domain is None:
                 continue
 
             # Check category match (if categories specified)
@@ -368,7 +368,7 @@ class NormalFilteringStrategy:
         candidates = [
             manifest
             for manifest in all_manifests
-            if self.service._extract_domain(manifest) in tool_filter.domains
+            if self.service.placement_domain(manifest, tool_filter.domains) is not None
         ]
         try:
             result = resolve_closure_additions(kept, candidates, tool_scores)
@@ -386,9 +386,12 @@ class NormalFilteringStrategy:
             return filtered_tools
 
         untouchable = protected | result.consumers | set(result.additions)
-        domain_of = {
-            manifest.name: self.service._extract_domain(manifest) for manifest in all_manifests
-        }
+        # Placement domain, not home domain: eviction reasons about which bucket
+        # a tool actually occupies in THIS catalogue, and a cross-domain tool
+        # sits in the bucket that made it reachable (ADR-191). Keying on the
+        # home domain would count it as the sole tenant of an absent bucket and
+        # make it wrongly un-evictable.
+        domain_of = self._placement_index(all_manifests, tool_filter)
         added: list[str] = []
         dropped: list[str] = []
         for name in result.additions:
@@ -415,6 +418,28 @@ class NormalFilteringStrategy:
                 message="max_tools saturated by protected tools — catalogue stays open",
             )
         return filtered_tools
+
+    def _placement_index(self, manifests: list[Any], tool_filter: ToolFilter) -> dict[str, str]:
+        """Tool name -> the bucket it occupies in THIS catalogue ("" when none).
+
+        Placement domain, not home domain: eviction reasons about occupancy of
+        the buckets that actually exist, and a cross-domain tool sits in the one
+        that made it reachable (ADR-191). Keying on the home domain would count
+        it as the sole tenant of an absent bucket and make it wrongly
+        un-evictable.
+
+        Args:
+            manifests: Every manifest available for this request.
+            tool_filter: Active filter (its domains define the buckets).
+
+        Returns:
+            Mapping usable by the occupancy count in :meth:`_evict_lowest`.
+        """
+        index: dict[str, str] = {}
+        for manifest in manifests:
+            placement = self.service.placement_domain(manifest, tool_filter.domains)
+            index[manifest.name] = placement if placement else ""
+        return index
 
     @staticmethod
     def _evict_lowest(

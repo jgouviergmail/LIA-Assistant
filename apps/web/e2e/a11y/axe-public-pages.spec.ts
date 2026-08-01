@@ -1,6 +1,8 @@
 /**
  * Accessibility smoke for the public pages (2026-07): the cosmos landing
- * (`/` — scroll-scrubbed sections, ghost words, planetarium), the landing
+ * (`/` — scroll-scrubbed sections, ghost words, planetarium, and both gallery
+ * carousels: a hidden tab panel scans as invisible, so each tab needs its own
+ * pass), the landing
  * FAQ (`/faq` — icon section headers, chip anchor rail, native <details>
  * accordions, grouped long answers) and the shareable demo page (`/demo` —
  * the hero animation inside the planetarium). Same AC-002 policy as
@@ -51,6 +53,20 @@ for (const theme of THEMES) {
 
       const { blocking, summary } = await scanPage(page, testInfo, `/landing-${theme}`);
       expect(blocking, `axe violations on / (${theme}):\n${summary}`).toHaveLength(0);
+
+      // Second pass on the other gallery tab. A hidden panel is scanned as
+      // invisible, so the arrival tab (the deck) is all the pass above covers —
+      // and the captures carousel carries one control the deck does not (the
+      // full-screen view). Selected by position, not by label: the landing is
+      // served in the browser's negotiated locale.
+      const capturesTab = page.locator('#gallery [role="tab"]').first();
+      await capturesTab.click();
+      await expect(capturesTab).toHaveAttribute('aria-selected', 'true');
+      const captures = await scanPage(page, testInfo, `/landing-captures-${theme}`);
+      expect(
+        captures.blocking,
+        `axe violations on the / captures tab (${theme}):\n${captures.summary}`
+      ).toHaveLength(0);
     });
 
     test(`FAQ page scans clean with a long grouped answer open (${theme})`, async ({

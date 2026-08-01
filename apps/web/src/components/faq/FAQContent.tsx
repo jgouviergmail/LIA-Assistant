@@ -119,6 +119,7 @@ const sections = [
  * releases. `__tests__/changelog-wiring.test.ts` now fails on any drift in either direction.
  */
 export const changelogVersionKeys = [
+  'v1_27_5',
   'v1_27_4',
   'v1_27_3',
   'v1_27_2',

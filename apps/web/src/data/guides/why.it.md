@@ -2,10 +2,10 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versione** : 4.1
-**Data** : 2026-07-31
-**Applicazione** : LIA v1.27.4
-**Licenza** : AGPL-3.0 (Open Source)
+**Versione**: 4.1
+**Data**: 2026-08-01
+**Applicazione**: LIA v1.27.5
+**Licenza**: AGPL-3.0 (Open Source)
 
 ---
 
@@ -188,7 +188,7 @@ E resta riservato per costruzione. Durante una chiamata LIA può solo indicare s
 
 Sulla stessa istanza, due utenti possono connettersi — e i loro assistenti si parlano. Dici “chiedi a Marie se è libera martedì”, approvi la formulazione esatta, ed è l’assistente di Marie a consegnarle il messaggio, con la sua personalità, nominandoti; il tuo ti conferma la consegna. Ogni connessione può inoltre aprire condivisioni scelte, in sola lettura: le tue disponibilità di calendario, i titoli delle tue attività — niente di più, niente per impostazione predefinita.
 
-La protezione delle persone viene prima della funzionalità: la reperibilità è volontaria e solo per nome esatto, il blocco è silenzioso (l’altra parte non lo saprà mai), e uno sconosciuto, un rifiuto o un blocco ricevono esattamente la stessa risposta — sondare chi esiste è impossibile. Ogni accesso a una condivisione viene ricontrollato al momento della lettura e registrato, e il contenuto dei messaggi trasmessi viene cancellato una volta consegnato.
+La protezione delle persone viene prima della funzionalità: la reperibilità è volontaria e solo per identità esatta — nome completo o indirizzo, mai un frammento, il blocco è silenzioso (l’altra parte non lo saprà mai), e uno sconosciuto, un rifiuto o un blocco ricevono esattamente la stessa risposta — sondare chi esiste è impossibile. Ogni accesso a una condivisione viene ricontrollato al momento della lettura e registrato, e il contenuto dei messaggi trasmessi viene cancellato dopo trenta giorni, lasciando solo la traccia dello scambio.
 
 ---
 

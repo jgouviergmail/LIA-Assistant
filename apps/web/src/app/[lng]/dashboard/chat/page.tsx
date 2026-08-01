@@ -45,6 +45,8 @@ import {
 } from '@/lib/slash-commands';
 import { useChatShortcuts } from '@/hooks/useChatShortcuts';
 import { useAutoSendIntent } from '@/hooks/useAutoSendIntent';
+import { useDeepLinkParams } from '@/hooks/useDeepLinkParams';
+import type { CapabilityDirectiveWire } from '@/types/directive';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UsageBanners } from '@/components/usage/UsageBanners';
 import { ActiveCallBanner } from '@/components/telephony/ActiveCallBanner';
@@ -89,40 +91,6 @@ function proactiveToastPresentation(metadata?: Record<string, unknown>): {
   };
 }
 
-/**
- * Strip the consumed deep-link params from the URL (module-level — keeps
- * ChatPage under the CC cap). `?draft=` is also handed to the persisted draft
- * BEFORE stripping, so a refresh right after arriving keeps the prefill; the
- * one-shot `?voice=`/`?intent=` are read into state at mount, so removing them
- * here only prevents a reload/back from replaying them.
- */
-/** One-shot deep-link flags read at mount (module-level — CC discipline). */
-function readDeepLinkFlags(searchParams: ReadonlyURLSearchParams | null): {
-  spotlightVoice: boolean;
-  pendingIntent: string;
-} {
-  return {
-    spotlightVoice: searchParams?.get('voice') === '1',
-    pendingIntent: searchParams?.get('intent') ?? '',
-  };
-}
-
-function consumeDeepLinkParams(
-  searchParams: ReadonlyURLSearchParams | null,
-  saveDraft: (text: string) => void
-): void {
-  const draft = searchParams?.get('draft');
-  const voice = searchParams?.get('voice');
-  const intent = searchParams?.get('intent');
-  if (!draft && !voice && !intent) return;
-  if (draft?.trim()) saveDraft(draft);
-  const url = new URL(window.location.href);
-  url.searchParams.delete('draft');
-  url.searchParams.delete('voice');
-  url.searchParams.delete('intent');
-  window.history.replaceState({}, '', url.toString());
-}
-
 export default function ChatPage() {
   const { user, isLoading } = useAuth();
   const searchParams = useSearchParams();
@@ -146,24 +114,22 @@ export default function ChatPage() {
   // page only once the user is resolved, so the one-shot read is reliable.
   const { initialDraft, saveDraft } = useInputDraft(user);
 
-  // QW-9: strip the consumed ?draft= from the URL so a later reload does not
-  // re-prefill the input (also fixes the latent onboarding F5 re-prefill).
-  // ChatInput consumes initialMessage at mount only, so cleaning afterwards
-  // is safe. Same history.replaceState pattern as the settings ?section=.
-  // UXR Lot 2 (A7): the consumed deep link is handed to the persisted draft —
-  // ChatInput never signals its initial value, so without this a refresh
-  // right after arriving from a briefing intent would lose the prefill.
-  // N-13 `?voice=1` (PTT spotlight) + QW-24 `?intent=` (auto-send, ADR-173):
-  // read ONCE at mount, BEFORE the consumption effect strips them from the URL
-  // so a reload/back cannot replay them. Extracted to keep ChatPage's CC flat.
-  const [deepLinkFlags] = useState(() => readDeepLinkFlags(searchParams));
-  const { spotlightVoice, pendingIntent } = deepLinkFlags;
+  // QW-9 / UXR Lot 2 (A7) / N-13 / QW-24 (ADR-173): the one-shot deep links,
+  // read live and cleared through the router. Both rules and the production
+  // defect that paid for them are documented in the hook.
+  const { spotlightVoice, pendingIntent, pendingDirective, clearIntent } =
+    useDeepLinkParams(saveDraft);
 
-  useEffect(() => {
-    consumeDeepLinkParams(searchParams, saveDraft);
-    // Mount-only consumption of the deep link.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // True once the mount history load has SETTLED (loaded, empty, or failed).
+  //
+  // Production, 2026-08-01: a second chained 360° showed its answer without the
+  // question. `?intent=` was auto-sent as soon as auth and the API were ready —
+  // which can be BEFORE the history GET returns — and the reply below then did
+  // `setMessages(page.messages)` with a server list that predated the send,
+  // wiping the optimistic bubble. The message was persisted all along (it came
+  // back on refresh); only the browser's list lost it. Gating the send on this
+  // flag removes the race instead of merging lists afterwards.
+  const [historySettled, setHistorySettled] = useState(false);
 
   // Debug panel requires desktop viewport (≥1024px) - not suitable for mobile
   const [isDesktop, setIsDesktop] = useState(false);
@@ -492,14 +458,29 @@ export default function ChatPage() {
     },
     [saveDraft, t]
   );
+  // The auto-send's `send` takes (text, directive) — the directive is the SIXTH
+  // positional argument of `sendMessage`, so this adapter names the gap rather
+  // than making the hook know about attachments and STT metadata it has none of.
+  const sendIntent = useCallback(
+    (text: string, directive?: CapabilityDirectiveWire) =>
+      sendMessageFromPresent(text, undefined, undefined, undefined, undefined, directive),
+    [sendMessageFromPresent]
+  );
   useAutoSendIntent({
     intent: pendingIntent,
-    ready: authReady,
+    directive: pendingDirective,
+    // The settled history IMPLIES auth (the load only runs for a resolved
+    // user): sending before the list is in place lets the history load
+    // overwrite the very message the user just asked for.
+    ready: historySettled,
     apiAvailable,
     isTyping,
     isUsageBlocked,
-    send: sendMessageFromPresent,
+    send: sendIntent,
     fallbackToDraft: intentFallbackToDraft,
+    // Cleared only ONCE ACTED ON: clearing it on arrival races the readiness
+    // gate above, and the request evaporates before anything can send it.
+    onConsumed: clearIntent,
   });
 
   // UXR Lot 3 (A3): stable handler for the floating button's history-view
@@ -620,7 +601,11 @@ export default function ChatPage() {
   // PERF 2026-01-13: Parallelize API calls for faster page load
   useEffect(() => {
     const loadData = async () => {
-      if (user && apiAvailable) {
+      if (!user || !apiAvailable) return;
+      // `finally`, always: the auto-send waits for this flag, so a history load
+      // that FAILS must still release it — a deep-linked request that never
+      // leaves is a worse failure than a list that is momentarily stale.
+      try {
         // Load first page (with pagination metadata) and totals in parallel
         const [page, totals] = await Promise.all([
           loadConversationPage(),
@@ -655,10 +640,12 @@ export default function ChatPage() {
         if (!resumed) {
           await hydratePendingHitl();
         }
+      } finally {
+        setHistorySettled(true);
       }
     };
 
-    loadData();
+    void loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, apiAvailable]);
 

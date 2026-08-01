@@ -27,6 +27,11 @@ import structlog
 
 from src.core.config import settings
 from src.core.i18n_proactive import ProactiveMessages
+from src.domains.peers.constants import (
+    PEER_CONNECTION_TASK_TYPE,
+    PEER_REQUEST_TASK_TYPE,
+    PEER_UNKNOWN_DISPLAY_NAME,
+)
 from src.domains.peers.models import PeerConnection
 from src.domains.users.models import User
 from src.infrastructure.observability.metrics_registry import peers_events_total
@@ -50,8 +55,15 @@ def _settings_url() -> str:
 
 
 def _display_name(user: User | None) -> str:
-    """Best-available display name for a participant (never the email)."""
-    return (user.full_name if user is not None and user.full_name else None) or "?"
+    """Best-available display name for a participant (never the email).
+
+    Falls back to the shared placeholder rather than a local literal: readers
+    (the Relations CRM) must be able to recognize an unattributable name from
+    ONE constant instead of guessing.
+    """
+    return (
+        user.full_name if user is not None and user.full_name else None
+    ) or PEER_UNKNOWN_DISPLAY_NAME
 
 
 def _body_for(
@@ -74,17 +86,17 @@ def _body_for(
     name = _display_name(other)
     if kind == _REQUEST_KIND:
         note = connection.context_message if connection is not None else None
-        return "peer_request", ProactiveMessages.peer_request_body(
+        return PEER_REQUEST_TASK_TYPE, ProactiveMessages.peer_request_body(
             name, note, _settings_url(), language
         )
     if kind == "request_accepted":
-        return "peer_connection", ProactiveMessages.peer_accepted_body(
+        return PEER_CONNECTION_TASK_TYPE, ProactiveMessages.peer_accepted_body(
             name, _settings_url(), language
         )
     if kind == "request_declined":
-        return "peer_connection", ProactiveMessages.peer_declined_body(name, language)
+        return PEER_CONNECTION_TASK_TYPE, ProactiveMessages.peer_declined_body(name, language)
     # connection_removed (and any future kind defaults to the removal wording).
-    return "peer_connection", ProactiveMessages.peer_removed_body(name, language)
+    return PEER_CONNECTION_TASK_TYPE, ProactiveMessages.peer_removed_body(name, language)
 
 
 def _recipients(event: PeerEvent) -> tuple[UUID, ...]:

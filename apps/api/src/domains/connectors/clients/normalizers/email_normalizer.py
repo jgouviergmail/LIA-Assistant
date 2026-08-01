@@ -15,7 +15,7 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 # Gmail query operators → imap_tools AND criteria
-_GMAIL_OPERATOR_PATTERN = re.compile(r"(from|to|subject|after|before|label|is|has|in):(\S+)")
+_GMAIL_OPERATOR_PATTERN = re.compile(r"(from|to|cc|subject|after|before|label|is|has|in):(\S+)")
 # Gmail negation operators (e.g., -in:sent, -label:promo) — IMAP has no equivalent,
 # these are stripped from the query to avoid polluting full-text search
 _GMAIL_NEGATION_PATTERN = re.compile(r"-(?:in|label|is|has|from|to|subject|after|before):(\S+)")
@@ -220,6 +220,11 @@ def convert_imap_query(gmail_query: str) -> tuple[Any, str | None]:
             criteria["from_"] = value
         elif operator == "to":
             criteria["to"] = value
+        elif operator == "cc":
+            # A real IMAP criterion, not free text: "sent to this person"
+            # includes being in copy, and a full-text fallback would match the
+            # address anywhere in the body instead of on the copy line.
+            criteria["cc"] = value
         elif operator == "subject":
             criteria["subject"] = value
         elif operator == "after":

@@ -688,6 +688,44 @@ Un nouveau type de handle se déclare dans
 ratchet de taille). La garde `TestEveryRequiredHandleHasAReadOnlySource` échoue
 en CI si un type requis n'a aucune source en lecture seule.
 
+### Joignabilité inter-domaines : `serves_domains` (ADR-191)
+
+**Un score sémantique excellent ne sert à rien si l'outil est éliminé avant
+d'être lu.** Le filtrage du catalogue écarte tout manifeste dont le domaine
+n'est pas parmi ceux détectés par l'analyseur (`normal_filtering.py`), **puis
+seulement** applique le seuil de score. Le domaine d'un outil est celui de son
+agent (`agent="contact_agent"` → `contact`), et il n'y en a qu'un.
+
+Mesuré en production le 2026-08-01 : `get_person_overview_tool` marquait
+**0,853**, le meilleur score de tout le catalogue, et n'atteignait jamais le
+planificateur sur une question concernant un utilisateur connecté — parce que
+le prompt de l'analyseur classe ces questions en `peer` et que l'outil vit dans
+`contact`.
+
+```python
+get_person_overview_catalogue_manifest = ToolManifest(
+    name="get_person_overview_tool",
+    agent="contact_agent",          # domaine d'origine
+    serves_domains=["peer"],        # domaines ADDITIONNELS de joignabilité
+    ...
+)
+```
+
+**Quand l'utiliser** : uniquement pour un outil réellement transverse, dont
+l'utilisateur peut légitimement parler depuis plusieurs domaines. Chaque
+domaine ajouté élargit l'éventail proposé au planificateur pour **toutes** les
+requêtes de ce domaine — c'est un coût en jetons et en distraction.
+
+**Ce que ce n'est pas** : un substitut à `related_domains` dans
+`DOMAIN_REGISTRY`. Relier deux domaines tire **toute** leur boîte à outils l'un
+dans l'autre — ce qui a cassé la production le 2026-07-30 (les outils Google
+Contacts arrivaient dans chaque plan `peer`, et un scope manquant invalidait le
+plan entier). `serves_domains` déplace **un** outil, pas un domaine.
+
+Toute valeur est validée à l'enregistrement contre `DOMAIN_REGISTRY` : un
+domaine inconnu lève une `ValueError` au démarrage plutôt que de rendre l'outil
+silencieusement injoignable.
+
 ### Semantic Keywords (ADR-048)
 
 Les `semantic_keywords` permettent la découverte sémantique des outils via OpenAI embeddings et max-pooling.

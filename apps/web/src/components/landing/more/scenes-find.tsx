@@ -6,7 +6,7 @@
 
 'use client';
 
-import { Hash, Link2, Moon, Palette, Search, Star, SunMedium } from 'lucide-react';
+import { ChevronDown, Hash, Link2, Moon, Palette, Search, Star, SunMedium } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -237,10 +237,65 @@ function RelationStarScene({ active }: SceneProps) {
   );
 }
 
+type FoldPhase = 'folded' | 'opening' | 'open';
+const FOLD_STEPS: readonly TimelineStep<FoldPhase>[] = [
+  { at: 0, state: 'folded' },
+  { at: 1200, state: 'opening' },
+  { at: 1700, state: 'open' },
+];
+
+/** A relationship sheet is an index: every section folded, one opens on demand. */
+function RelationSectionsScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(FOLD_STEPS, { active });
+  const open = phase === 'open';
+  return (
+    <div className={cn(STAGE, 'justify-center gap-1.5')}>
+      {[0, 1, 2].map(row => (
+        <div
+          key={row}
+          className="w-3/4 self-center rounded-lg border border-border bg-background px-2 py-1.5"
+        >
+          <span className="flex items-center gap-1.5">
+            <ChevronDown
+              className={cn(
+                'h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-300',
+                !(open && row === 1) && '-rotate-90'
+              )}
+            />
+            {row === 1 ? (
+              <span className="text-[9px] font-medium text-foreground/80">{labels.section}</span>
+            ) : (
+              <SkeletonLine w="w-1/2" className="h-1.5" />
+            )}
+          </span>
+          {row === 1 && (
+            <span
+              className={cn(
+                'mt-1 block space-y-1 overflow-hidden transition-all duration-300 ease-out',
+                open ? 'max-h-8 opacity-100' : 'max-h-0 opacity-0'
+              )}
+            >
+              <SkeletonLine w="w-5/6" className="h-1" />
+              <SkeletonLine w="w-2/3" className="h-1" />
+            </span>
+          )}
+        </div>
+      ))}
+      <Cursor
+        className={cn(
+          'right-[18%] top-[46%] transition-opacity',
+          phase === 'folded' ? 'opacity-100' : 'opacity-0'
+        )}
+      />
+    </div>
+  );
+}
+
 export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   settings_search: SettingsSearchScene,
   deep_links: DeepLinksScene,
   history_search: HistorySearchScene,
   mobile_logo_nav: MobileLogoNavScene,
   relation_star: RelationStarScene,
+  relation_sections: RelationSectionsScene,
 };

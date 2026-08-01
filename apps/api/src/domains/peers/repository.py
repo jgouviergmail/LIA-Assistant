@@ -10,14 +10,21 @@ the service/router layer — open_loops doctrine).
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import UUID
 
 import structlog
-from sqlalchemy import delete, exists, func, or_, select, update
+from sqlalchemy import case, delete, exists, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.repository import BaseRepository
+from src.domains.peers.constants import (
+    PEER_MESSAGE_DIRECTION_RECEIVED,
+    PEER_MESSAGE_DIRECTION_SENT,
+    PEER_UNKNOWN_DISPLAY_NAME,
+)
 from src.domains.peers.models import (
     PeerAccessLog,
     PeerBlock,
@@ -28,7 +35,8 @@ from src.domains.peers.models import (
     PeerMessageStatus,
     canonical_pair,
 )
-from src.domains.shared.text_normalization import fold_name
+from src.domains.peers.schemas import PeerConnectionProfile, PeerMessageActivity
+from src.domains.shared.aggregates import NameActivity
 from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
@@ -265,9 +273,9 @@ class PeersRepository(BaseRepository[PeerConnection]):
     async def list_accepted_peer_display_names(self, user_id: UUID) -> list[str]:
         """Display names of the user's ACCEPTED peers, as stored.
 
-        Unfolded, unlike :meth:`list_accepted_peer_names`: the query analyzer
-        shows these names to an LLM (peer-routing awareness, defect
-        2026-07-30), and a folded name reads as a different person.
+        Unfolded on purpose: the query analyzer shows these names to an LLM
+        (peer-routing awareness, defect 2026-07-30), and a folded name reads
+        as a different person.
 
         Args:
             user_id: The user whose connected peers are listed.
@@ -282,21 +290,58 @@ class PeersRepository(BaseRepository[PeerConnection]):
         rows = (await self.db.execute(select(User.full_name).where(User.id.in_(peer_ids)))).all()
         return sorted({(name or "").strip() for (name,) in rows if (name or "").strip()})
 
-    async def list_accepted_peer_names(self, user_id: UUID) -> list[str]:
-        """Folded full names of the user's ACCEPTED peers (CRM badge, D2).
+    async def list_accepted_peer_profiles(self, user_id: UUID) -> list[PeerConnectionProfile]:
+        """Accepted connections with the identity the CRM buckets on (D2).
 
-        Read-only bridge for the relations aggregation: the CRM buckets are
-        keyed on ``fold_name`` output, so the names are folded here — one
-        encapsulated query instead of a cross-domain join at the caller.
+        One encapsulated read instead of a cross-domain join at the caller —
+        one encapsulated read instead of a cross-domain join at the caller.
+        Names come back RAW: folding belongs to the consumer, which owns the
+        single implementation of identity.
 
         Args:
             user_id: The user whose connected peers are listed.
 
         Returns:
-            Folded, de-duplicated peer full names (empty names dropped).
+            Profiles, most recently accepted first; peers with no usable
+            display name are dropped rather than surfaced nameless.
         """
-        display = await self.list_accepted_peer_display_names(user_id)
-        return sorted({fold_name(name) for name in display if fold_name(name)})
+        connections = await self.list_accepted_for_user(user_id)
+        if not connections:
+            return []
+        peer_of = {
+            connection.id: (
+                connection.user_b_id if connection.user_a_id == user_id else connection.user_a_id
+            )
+            for connection in connections
+        }
+        rows = (
+            await self.db.execute(
+                select(User.id, User.full_name, User.email, User.peer_email_visible).where(
+                    User.id.in_(set(peer_of.values()))
+                )
+            )
+        ).all()
+        names = {row.id: (row.full_name or "").strip() for row in rows}
+        # The address travels ONLY when its owner opted in (ADR-189 flag). Same
+        # rule as `PeersService._peer_directory`, applied at the single read the
+        # CRM uses — so no consumer can obtain it by asking a different way.
+        emails = {row.id: (row.email if row.peer_email_visible else None) for row in rows}
+        profiles: list[PeerConnectionProfile] = []
+        for connection in connections:
+            peer_id = peer_of[connection.id]
+            name = names.get(peer_id, "")
+            if not name or name == PEER_UNKNOWN_DISPLAY_NAME:
+                continue  # unattributable — a "?" card is not a person
+            profiles.append(
+                PeerConnectionProfile(
+                    connection_id=connection.id,
+                    peer_id=peer_id,
+                    peer_display_name=name,
+                    connected_since=connection.responded_at,
+                    peer_email=emails.get(peer_id),
+                )
+            )
+        return profiles
 
     async def expire_stale_pending(self, older_than: datetime) -> int:
         """Silently expire pending requests older than the given instant.
@@ -564,8 +609,15 @@ class PeersRepository(BaseRepository[PeerConnection]):
         await self.db.flush()
         return messages
 
-    async def mark_message_delivered(self, message_id: UUID, *, now: datetime) -> bool:
-        """Finish a delivery: delivered + content scrubbed (spec §8.4).
+    async def mark_message_delivered(
+        self, message_id: UUID, *, now: datetime, delivered_text: str
+    ) -> bool:
+        """Finish a delivery and record what was actually said (ADR-186).
+
+        The directive is NO LONGER erased here: both texts now live until
+        ``expires_at``, the same contract phone calls use. Each side keeps its
+        own words — the sender's directive stays in ``content``, the
+        recipient's rendering lands in ``delivered_text``.
 
         Conditional on the ``delivering`` claim — a concurrent transition
         (crash recovery racing the finish) loses cleanly.
@@ -573,6 +625,7 @@ class PeersRepository(BaseRepository[PeerConnection]):
         Args:
             message_id: The message.
             now: Timezone-aware UTC delivery instant.
+            delivered_text: What the recipient's assistant said.
 
         Returns:
             True when this call performed the transition.
@@ -586,12 +639,40 @@ class PeersRepository(BaseRepository[PeerConnection]):
             .values(
                 status=PeerMessageStatus.DELIVERED.value,
                 delivered_at=now,
-                content=None,
+                delivered_text=delivered_text,
                 last_error=None,
             )
         )
         result = await self.db.execute(stmt)
         return bool(getattr(result, "rowcount", 0))
+
+    async def purge_expired_message_texts(self, *, now: datetime) -> int:
+        """Clear both texts of messages past their retention horizon.
+
+        The ROW is kept — counts, timeline and audit outlive the words, which
+        is exactly what the telephony reaper does with a call's summary.
+
+        Args:
+            now: Timezone-aware UTC reference instant.
+
+        Returns:
+            Number of rows whose texts were cleared.
+        """
+        stmt = (
+            update(PeerMessage)
+            .where(
+                PeerMessage.expires_at.is_not(None),
+                PeerMessage.expires_at < now,
+                or_(
+                    PeerMessage.content.is_not(None),
+                    PeerMessage.delivered_text.is_not(None),
+                ),
+            )
+            .values(content=None, delivered_text=None)
+            .execution_options(synchronize_session=False)
+        )
+        result = await self.db.execute(stmt)
+        return int(getattr(result, "rowcount", 0) or 0)
 
     async def mark_message_failed(
         self,
@@ -636,6 +717,10 @@ class PeersRepository(BaseRepository[PeerConnection]):
     async def cancel_message(self, message_id: UUID, error_code: str) -> None:
         """Cancel a claimed message (revalidation failed — block/removal/inactive).
 
+        The directive is KEPT (ADR-186): it is the sender's own text, and
+        "here is what you tried to pass on, and it did not leave" is worth
+        more than a blank line. It expires on the same horizon as any other.
+
         Args:
             message_id: The message.
             error_code: Typed reason code.
@@ -648,7 +733,6 @@ class PeersRepository(BaseRepository[PeerConnection]):
             )
             .values(
                 status=PeerMessageStatus.CANCELLED.value,
-                content=None,
                 last_error=error_code[:50],
             )
         )
@@ -687,7 +771,7 @@ class PeersRepository(BaseRepository[PeerConnection]):
             connection_id: Connection the message travels on.
             sender_id: Sender (pays the LLM cost — spec A4).
             recipient_id: Recipient.
-            content: Sender directive text (scrubbed after delivery).
+            content: Sender directive text (kept until ``expires_at``).
 
         Returns:
             The pending message row.
@@ -698,10 +782,154 @@ class PeersRepository(BaseRepository[PeerConnection]):
             recipient_id=recipient_id,
             content=content,
             status=PeerMessageStatus.PENDING.value,
+            # Stamped at ENQUEUE, not at delivery: a message that never left
+            # must expire too, and its horizon must not depend on whether the
+            # sweep ever got to it.
+            expires_at=datetime.now(UTC) + timedelta(days=settings.peers_message_retention_days),
         )
         self.db.add(message)
         await self.db.flush()
         return message
+
+    def _delivered_with_peer(self, user_id: UUID) -> tuple[Any, Any]:
+        """Shared skeleton of the two delivered-message reads.
+
+        EVERY exclusion lives here — including the unusable-name one. Filtering
+        those rows in Python instead would run AFTER the ``LIMIT``: the newest
+        row being a nameless peer would empty a page that had a good row
+        waiting behind it, and the page would then disagree with the aggregate,
+        which excludes them in SQL. Both callers join ``User`` on
+        ``counterpart``, so the name predicates are valid for both.
+
+        Returns:
+            Tuple of (counterpart expression, WHERE clauses).
+        """
+        counterpart = case(
+            (PeerMessage.sender_id == user_id, PeerMessage.recipient_id),
+            else_=PeerMessage.sender_id,
+        )
+        blocked = select(PeerBlock.blocked_id).where(PeerBlock.blocker_id == user_id)
+        clauses = (
+            or_(PeerMessage.sender_id == user_id, PeerMessage.recipient_id == user_id),
+            PeerMessage.status == PeerMessageStatus.DELIVERED.value,
+            PeerMessage.delivered_at.is_not(None),
+            counterpart.not_in(blocked),
+            # NULL folds to NULL here, which excludes the row — a peer with no
+            # name is unattributable, and a "?" card is not a person.
+            func.btrim(User.full_name) != "",
+            func.btrim(User.full_name) != PEER_UNKNOWN_DISPLAY_NAME,
+        )
+        return counterpart, clauses
+
+    async def aggregate_delivered_messages_by_peer(self, user_id: UUID) -> list[NameActivity]:
+        """Exact per-peer message activity, both directions, over ALL history.
+
+        The CRM overview needs a COUNT, not a page: reading the timeline and
+        measuring its length would under-report as soon as the exchange
+        outgrew the page. Grouping on the peer's live name matches how the CRM
+        buckets people — two connections sharing a full name are one card
+        there too.
+
+        Args:
+            user_id: The caller.
+
+        Returns:
+            One entry per peer display name (blank names dropped).
+        """
+        counterpart, clauses = self._delivered_with_peer(user_id)
+        stmt = (
+            select(
+                User.full_name,
+                func.count().label("total"),
+                func.max(PeerMessage.delivered_at).label("last_at"),
+            )
+            .join(User, User.id == counterpart)
+            .where(*clauses)
+            .group_by(User.full_name)
+        )
+        rows = (await self.db.execute(stmt)).all()
+        return [
+            NameActivity(raw_name=row.full_name, count=row.total, last_at=row.last_at)
+            for row in rows
+        ]
+
+    async def list_delivered_message_activity(
+        self, user_id: UUID, *, limit: int, peer_names: list[str] | None = None
+    ) -> list[PeerMessageActivity]:
+        """List the caller's DELIVERED relayed messages, both directions.
+
+        The spine of the CRM timeline (spec §11, D2). Identity is resolved by
+        FOREIGN KEY, never by a name match: ``counterpart`` picks the other
+        side of each row and the join reads that user's live name — so a
+        rename never splits a timeline, a homonym never merges two, and a
+        deleted account drops out on its own (the FK cascades).
+
+        Exclusions happen in SQL, BEFORE the cap, so blocking someone can
+        never leave a hole in an otherwise full page:
+
+        - anything not ``delivered`` — a message that never arrived is not an
+          exchange, and its text was never archived either;
+        - rows with no delivery instant — defensive: ``DESC`` sorts NULLs
+          first in PostgreSQL and would float junk to the top;
+        - peers the caller has blocked.
+
+        Args:
+            user_id: The caller — ``direction`` is expressed relative to them.
+            limit: Cap on returned rows, newest delivery first.
+            peer_names: When given, restrict to these EXACT stored spellings.
+                A page for ONE person must be narrowed in SQL, not sliced out
+                of a global page afterwards: the caller would otherwise show a
+                total with no rows behind it as soon as that person's messages
+                fell outside the newest ``limit`` of the whole timeline. The
+                spellings come from the aggregate, folded in Python, so SQL
+                still gets no opinion on who is the same person.
+
+        Returns:
+            Timeline entries; a peer with no usable display name is dropped
+            rather than surfaced as a phantom relationship. An EMPTY
+            ``peer_names`` asks for nothing — never for everything.
+        """
+        if peer_names is not None and not peer_names:
+            return []
+        counterpart, clauses = self._delivered_with_peer(user_id)
+        narrowed = (*clauses, User.full_name.in_(peer_names)) if peer_names else clauses
+        stmt = (
+            select(
+                PeerMessage.id.label("message_id"),
+                PeerMessage.sender_id.label("sender_id"),
+                PeerMessage.delivered_at.label("delivered_at"),
+                PeerMessage.content.label("content"),
+                PeerMessage.delivered_text.label("delivered_text"),
+                counterpart.label("peer_id"),
+                User.full_name.label("full_name"),
+            )
+            .join(User, User.id == counterpart)
+            .where(*narrowed)
+            .order_by(PeerMessage.delivered_at.desc())
+            .limit(limit)
+        )
+        activity: list[PeerMessageActivity] = []
+        for row in (await self.db.execute(stmt)).all():
+            # Unattributable peers are already gone (SQL, before the cap).
+            name = row.full_name.strip()
+            sent = row.sender_id == user_id
+            activity.append(
+                PeerMessageActivity(
+                    message_id=row.message_id,
+                    peer_id=row.peer_id,
+                    peer_display_name=name,
+                    direction=(
+                        PEER_MESSAGE_DIRECTION_SENT if sent else PEER_MESSAGE_DIRECTION_RECEIVED
+                    ),
+                    occurred_at=row.delivered_at,
+                    # Each side reads its own words: the sender's directive,
+                    # the recipient's rendering. Crossing them would let the
+                    # recipient read the raw directive instead of what their
+                    # assistant said, and show the sender that assistant's tone.
+                    text=row.content if sent else row.delivered_text,
+                )
+            )
+        return activity
 
     # ------------------------------------------------------------------
     # Access log (immutable audit + owner transparency)

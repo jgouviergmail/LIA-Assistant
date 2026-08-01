@@ -12,7 +12,7 @@ import { CatalogDisclosure } from '../CatalogDisclosure';
 import { Tabs } from '../Tabs';
 
 describe('CatalogDisclosure', () => {
-  it('toggles with a native button and keeps content in the DOM while collapsed', async () => {
+  it('opens on arrival and folds away on demand, content always in the DOM', async () => {
     const user = userEvent.setup();
     render(
       <CatalogDisclosure summary="Everything here" hint="8 items">
@@ -21,19 +21,23 @@ describe('CatalogDisclosure', () => {
     );
 
     const button = screen.getByRole('button', { name: /Everything here/ });
-    expect(button).toHaveAttribute('aria-expanded', 'false');
-    // SEO contract: collapsed content is hidden, not removed.
-    expect(screen.getByText('detailed card copy')).toBeInTheDocument();
+    // The detail IS the substance of the page: nothing to discover first.
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    const panel = document.getElementById(button.getAttribute('aria-controls') ?? '');
+    expect(panel?.firstElementChild).not.toHaveAttribute('inert');
 
     await user.click(button);
-    expect(button).toHaveAttribute('aria-expanded', 'true');
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    // SEO contract: collapsed content is hidden, not removed — and untabbable.
+    expect(screen.getByText('detailed card copy')).toBeInTheDocument();
+    expect(panel?.firstElementChild).toHaveAttribute('inert');
 
     // Keyboard toggle (native button: Enter + Space).
     button.focus();
     await user.keyboard('{Enter}');
-    expect(button).toHaveAttribute('aria-expanded', 'false');
-    await user.keyboard(' ');
     expect(button).toHaveAttribute('aria-expanded', 'true');
+    await user.keyboard(' ');
+    expect(button).toHaveAttribute('aria-expanded', 'false');
   });
 });
 
@@ -59,6 +63,16 @@ describe('Tabs', () => {
     expect(tabs[1]).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText('panel beta')).toBeVisible();
     expect(screen.getByText('panel alpha')).not.toBeVisible();
+  });
+
+  it('selects the requested tab on first render, first tab when unknown', () => {
+    const { unmount } = render(<Tabs items={items} label="Profiles" defaultTabId="c" />);
+    expect(screen.getAllByRole('tab')[2]).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('panel gamma')).toBeVisible();
+    unmount();
+
+    render(<Tabs items={items} label="Profiles" defaultTabId="does-not-exist" />);
+    expect(screen.getAllByRole('tab')[0]).toHaveAttribute('aria-selected', 'true');
   });
 
   it('supports arrow-key roving with wrap-around and Home/End', async () => {

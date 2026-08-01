@@ -2,10 +2,10 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versión** : 4.1
-**Fecha** : 2026-07-31
-**Aplicación** : LIA v1.27.4
-**Licencia** : AGPL-3.0 (Open Source)
+**Versión**: 4.1
+**Fecha**: 2026-08-01
+**Aplicación**: LIA v1.27.5
+**Licencia**: AGPL-3.0 (Open Source)
 
 ---
 
@@ -188,7 +188,7 @@ Y sigue siendo privado por construcción. Durante una llamada LIA solo puede ind
 
 En la misma instancia, dos usuarios pueden conectarse — y sus asistentes se hablan. Dices “pregúntale a Marie si está libre el martes”, apruebas la redacción exacta, y es el asistente de Marie quien le entrega el mensaje, con su propia personalidad, nombrándote; el tuyo te confirma la entrega. Cada conexión puede además abrir comparticiones elegidas, de solo lectura: tu disponibilidad de calendario, los títulos de tus tareas — nada más, nada por defecto.
 
-Proteger a las personas está por encima de la funcionalidad: la visibilidad es voluntaria y solo por nombre exacto, el bloqueo es silencioso (la otra parte nunca lo sabe), y un desconocido, un rechazo o un bloqueo reciben exactamente la misma respuesta — sondear quién existe es imposible. Cada acceso a una compartición se vuelve a comprobar en el momento de la lectura y queda registrado, y el contenido de los mensajes transmitidos se borra una vez entregado.
+Proteger a las personas está por encima de la funcionalidad: la visibilidad es voluntaria y solo por identidad exacta — nombre completo o dirección, nunca un fragmento, el bloqueo es silencioso (la otra parte nunca lo sabe), y un desconocido, un rechazo o un bloqueo reciben exactamente la misma respuesta — sondear quién existe es imposible. Cada acceso a una compartición se vuelve a comprobar en el momento de la lectura y queda registrado, y el contenido de los mensajes transmitidos se borra al cabo de treinta días, dejando solo el rastro del intercambio.
 
 ---
 

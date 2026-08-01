@@ -14,6 +14,8 @@ const BASE = {
   peer_id: 'p1',
   peer_display_name: 'Marie Dupont',
   peer_email_hint: 'm…@g….com',
+  // Always null on a request: not yet accepted is not connected (ADR-189).
+  peer_email: null,
   status: 'pending' as const,
   requested_at: '2026-07-29T08:00:00Z',
   responded_at: null,

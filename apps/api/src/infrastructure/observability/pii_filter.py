@@ -230,6 +230,16 @@ CONTENT_FIELD_NAMES = {
     "clarification_response",
     "original_filename",
     "exclude_criteria",
+    #   - agent_results_summary: the block handed to the response synthesizer,
+    #                   logged verbatim (1000 chars) by two INFO events in
+    #                   response_node. It was mostly short status text until the
+    #                   tools' own messages started reaching it (ADR-191) — the
+    #                   360° briefing puts a person's name, addresses, relayed
+    #                   MESSAGE BODIES and long-term MEMORIES in there. Observed
+    #                   on the dev API 2026-08-01. The two events keep their
+    #                   diagnostic value (lengths, domains, keys, counts); only
+    #                   the content is withheld above DEBUG.
+    "agent_results_summary",
     # Raw tool parameters
     "params",
     # Query text (may embed names/emails)

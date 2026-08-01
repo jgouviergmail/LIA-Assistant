@@ -7,8 +7,9 @@ import { PresentationSection } from '../PresentationSection';
 import { Tabs } from './Tabs';
 
 /**
- * "See LIA for real." — the 12 app screenshots and the 15-slide deck merged
- * into one tabbed gallery (two sections become one, contents untouched).
+ * "See LIA for real." — the 12 app screenshots and the 15-slide deck in one
+ * tabbed gallery, the deck selected on arrival (see the `defaultTabId` note
+ * below). Both tabs render the same shared carousel.
  */
 export function GallerySection() {
   const { t } = useTranslation();
@@ -31,16 +32,19 @@ export function GallerySection() {
           </div>
           <Tabs
             label={t('landing.gallery.tabs_label')}
+            // The deck opens the section: it tells the product's story in
+            // order, where the captures answer "show me a screen" on demand.
+            defaultTabId="slides"
             items={[
               {
                 id: 'screens',
                 label: t('landing.gallery.tab_screens'),
-                content: <ScreenshotsSection embedded />,
+                content: <ScreenshotsSection />,
               },
               {
                 id: 'slides',
                 label: t('landing.gallery.tab_slides'),
-                content: <PresentationSection embedded />,
+                content: <PresentationSection />,
               },
             ]}
           />

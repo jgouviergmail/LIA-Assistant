@@ -11,6 +11,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from src.domains.agents.capability_directives import DirectiveCapability
+
 
 class BrowserGeolocation(BaseModel):
     """
@@ -91,6 +93,37 @@ class HitlDecisionRequest(BaseModel):
     )
 
 
+class CapabilityDirectiveRequest(BaseModel):
+    """A capability the user invoked directly, alongside the displayed prose.
+
+    Same doctrine as :class:`HitlDecisionRequest`: a click carries certainty,
+    and re-deriving that certainty from a French sentence is how it gets lost.
+    Measured 2026-08-01 — the 360° tool scored 0.853, the catalogue's best, and
+    the plan named ``get_emails_tool`` (ADR-191).
+
+    ``capability`` is a CLOSED literal, so this endpoint can never be used to
+    name an arbitrary tool: the browser asks for a capability, the server
+    decides which read-only tool implements it
+    (``domains/agents/capability_directives.py``). The message itself is still
+    what the user sees and what the assistant answers.
+
+    The directive does two things and only two: it guarantees the capability is
+    part of the plan, and it removes the steps that capability already answers
+    (``supersedes``) — a lookup that ignores the subject contradicts the
+    overview instead of enriching it. Everything else the planner produced is
+    kept.
+    """
+
+    capability: DirectiveCapability = Field(
+        description="User-invocable capability (closed allowlist).",
+    )
+    subject: str = Field(
+        min_length=2,
+        max_length=120,
+        description="Subject the capability applies to (e.g. the person's name).",
+    )
+
+
 class ChatRequest(BaseModel):
     """
     Request to send a message to the agent.
@@ -105,6 +138,8 @@ class ChatRequest(BaseModel):
         attachment_ids: Optional list of uploaded attachment UUIDs.
         hitl_decision: Optional structured one-click HITL decision — bypasses
             the reply classifier when it matches the pending interrupt.
+        directive: Optional capability the user invoked directly (the 360°
+            button); guarantees it reaches the plan (ADR-191).
     """
 
     message: str = Field(
@@ -154,6 +189,15 @@ class ChatRequest(BaseModel):
             "Structured one-click HITL decision (Lot 1 option B). When present "
             "and matching the pending interrupt, the resume path bypasses the "
             "reply classifier. Ignored by channels (NL-only surfaces)."
+        ),
+    )
+    directive: CapabilityDirectiveRequest | None = Field(
+        default=None,
+        description=(
+            "Capability the user invoked directly (ADR-191). When present, the "
+            "planner guarantees it is part of the plan and drops the steps it "
+            "already answers; every other step is kept. Absent = unchanged "
+            "prose path."
         ),
     )
 

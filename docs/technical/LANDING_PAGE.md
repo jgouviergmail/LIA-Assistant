@@ -62,14 +62,14 @@ Tout vit dans `apps/web/src/components/landing/`, la couche editoriale dans `lan
 | `scenes.tsx` | Server | Mini-scenes de chat : `SceneBriefing` (ch. 02), `SceneEdit` (ch. 04 — HITL en mode modification, complementaire du hero). |
 | `FeatureCatalog` | Server | Grille des fiches detaillees — reutilise `landing.features.<k>.{title,description}` existants ×6. |
 | `SecurityDetail` | Server | L'ex-section Securite & Vie privee, integrale, dans le depliant du ch. 04 (`landing.security.*`). |
-| `CatalogDisclosure` | Client | Depliant accessible (bouton natif, `aria-expanded`, contenu DOM replie via `grid-template-rows`, `inert` replie). |
+| `CatalogDisclosure` | Client | Depliant accessible **ouvert a l'arrivee** (le detail est la substance de la page ; le bouton sert a replier). Bouton natif, `aria-expanded`, contenu conserve dans le DOM via `grid-template-rows`, `inert` une fois replie. |
 | `ScrollStage` | Client | Declencheur one-shot : les keyframes fill-both des vignettes restent `animation-play-state: paused` jusqu'a l'arrivee au scroll (delais geles par pause → choregraphie au moment de la revelation). Reduced-motion : durees a zero → etat final instantane. |
 | `BasicsBand` | Server | « Et tout le reste, evidemment. » — commodites en chips APRES les chapitres (le pic d'attention post-hero n'est jamais depense sur les basiques) + son propre catalogue depliable (9 fiches commodites). |
 | `TransparencySection` | Server | « LIA n'a rien a cacher. » (ancre `#transparency`) : compteur de cout reel en motif de marque, 4 preuves (cout / audit public / open source / REX), ligne beta honnete, **CTA intermediaire** au pic de confiance. |
 | `DayTimeline` | Client | « Une journee avec LIA. » — 4 profils en onglets × 4 scenes horodatees (remplace les personas, plus riche : 16 scenes). |
-| `GallerySection` | Client | Galerie a onglets fusionnant captures (12) et presentation (15 slides) — 2 sections → 1, contenus intacts. |
+| `GallerySection` | Client | Galerie a onglets fusionnant captures (12) et presentation (15 slides) — 2 sections → 1, contenus intacts. **Onglet par defaut : la presentation** (`defaultTabId="slides"`) — le deck raconte le produit dans l'ordre, les captures repondent a la demande. |
 | `ChapterRail` | Client | Rail fixe desktop (xl+) : 01-05 + ◈ transparence, scroll-spy, vraie `<nav>` de liens ancres (clavier + SR). |
-| `Tabs` | Client | Onglets WAI-ARIA generiques (roving tabindex, fleches, Home/End, panneaux `hidden` mais dans le DOM). |
+| `Tabs` | Client | Onglets WAI-ARIA generiques (roving tabindex, fleches, Home/End, panneaux `hidden` mais dans le DOM). `defaultTabId` choisit l'onglet initial ; un id inconnu retombe sur le premier. |
 
 ### 2.2 Sections conservees
 
@@ -79,7 +79,8 @@ Tout vit dans `apps/web/src/components/landing/`, la couche editoriale dans `lan
 | `UseCasesSection` | Server | 6 requetes reelles (la 6e : telephonie) ; vedettes en tete ET en pied (`example1`, `example6`). |
 | `TechSection` | Server | « Sous le capot » + **bande des chiffres d'ingenierie** (ex-ProofSection, re-cibles vers l'audience dev : agents, tools, providers, langues, tests, ADRs, releases). |
 | `ArchitectureDiagram` | Client | Deux modes d'execution (inchange). |
-| `ScreenshotsSection` / `PresentationSection` | Client | Prop `embedded` : rendu carrousel seul dans la galerie ; le mode section autonome reste disponible. |
+| `ScreenshotsSection` / `PresentationSection` | Client | Les deux onglets de la galerie : chacun n'apporte que son inventaire (12 captures / 15 slides) et delegue l'affichage a `LandingCarousel`. Le mode section autonome (prop `embedded`, jamais mise a `false`) a ete supprime avec ses 4 cles i18n de titre/sous-titre. |
+| `LandingCarousel` | Client | Carrousel partage des deux onglets. Cadre au ratio de l'actif (`7/8` captures, `43/24` slides — plus de letterbox), fond ambiant = copie floutee de l'image servie en 32 px (elle sert aussi de placeholder progressif), fleches **toujours visibles** (elles etaient `opacity-0` hors `:hover` — invisibles au tactile, audit F038), rail de vignettes a scroll-snap recentre sur l'active, clavier ←/→/Home/End + swipe, legende `aria-live` (region vivante), plein ecran optionnel (`zoomable`, reserve aux captures). |
 | `CtaSection` | Server | CTA final : bulle LIA (le personnage a le dernier mot) + copy voix du produit. |
 | `LandingHeader` / `LandingFooter` / `AuthRedirect` / `FadeInOnScroll` / `AnimatedCounter` | — | Inchanges (ancre header → `#features`). |
 
@@ -127,8 +128,9 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
 - **Vignettes de chapitres (ScrollStage)** : reutilisent les keyframes du mockup (`chip-pop`, `wire-draw`, `fan-draw`)
   avec `animation-delay` par element ; gating CSS `.scroll-stage:not(.staged) { animation-play-state: paused }` —
   la pause gele aussi le delai, la choregraphie demarre donc a la revelation. One-shot (unobserve).
-- **Depliants (CatalogDisclosure)** : transition `grid-template-rows 0fr → 1fr` (animable sans mesure JS),
-  `motion-reduce:transition-none`, contenu `inert` quand replie (non tabbable, mais indexable).
+- **Depliants (CatalogDisclosure)** : **ouverts par defaut** ; transition `grid-template-rows 1fr → 0fr` au repli
+  (animable sans mesure JS), `motion-reduce:transition-none`, contenu `inert` une fois replie (non tabbable, mais
+  indexable).
 - **Onglets (Tabs)** : pattern WAI-ARIA complet — roving tabindex, ArrowLeft/Right avec bouclage, Home/End,
   panneaux `hidden` conserves dans le DOM.
 - **Choregraphies au scroll (ADR-181)** : un driver unique `ScrollScrub` ecrit la progression 0→1 de sa section dans
@@ -270,7 +272,9 @@ apps/web/src/components/landing/
     __tests__/                   # Gardes-fous (couverture, i18n, a11y)
   UseCasesSection.tsx            # 6 requetes reelles
   TechSection.tsx                # Sous le capot + chiffres d'ingenierie
-  ArchitectureDiagram.tsx  ScreenshotsSection.tsx  PresentationSection.tsx  (embedded)
+  ArchitectureDiagram.tsx
+  LandingCarousel.tsx            # Carrousel partage de la galerie
+  ScreenshotsSection.tsx  PresentationSection.tsx   # Inventaires des 2 onglets
   CtaSection.tsx                 # CTA final (bulle LIA)
   constants.ts                   # LANDING_STATS (chiffres sources)
 ```

@@ -70,44 +70,64 @@ async def _notify_events_best_effort(service: PeersService, db: AsyncSession) ->
 @router.get(
     "/me",
     response_model=DiscoveryStateResponse,
-    summary="Get my discovery opt-in",
-    description="Whether the current user can be found by peer discovery search.",
+    summary="Get my peers opt-ins",
+    description=(
+        "Whether the current user can be found by peer discovery search, and "
+        "whether accepted connections see their real address."
+    ),
 )
 async def get_discovery_state(
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> DiscoveryStateResponse:
-    """Return the caller's discovery opt-in state."""
+    """Return the caller's peers opt-ins (discovery + address visibility)."""
     service = PeersService(db)
     enabled = await service.get_discovery_state(user.id)
-    return DiscoveryStateResponse(discovery_enabled=enabled)
+    return DiscoveryStateResponse(
+        discovery_enabled=enabled,
+        email_visible=bool(user.peer_email_visible),
+    )
 
 
 @router.put(
     "/me",
     response_model=DiscoveryStateResponse,
-    summary="Toggle my discovery opt-in",
-    description="Opt in or out of being discoverable by other users (default: out).",
+    summary="Toggle my peers opt-ins",
+    description=(
+        "Opt in or out of being discoverable, and of showing your address to "
+        "accepted connections. Fields are independent; send only what changes."
+    ),
 )
 async def update_discovery_state(
     payload: DiscoveryStateUpdate,
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> DiscoveryStateResponse:
-    """Persist the caller's discovery opt-in."""
+    """Persist whichever peers opt-in the payload actually carries.
+
+    Partial by contract: the two switches are independent consents, and one
+    tab must never revert what another just changed by echoing a stale value.
+    """
     service = PeersService(db)
-    await service.set_discovery(user.id, payload.discovery_enabled)
+    if payload.discovery_enabled is not None:
+        await service.set_discovery(user.id, payload.discovery_enabled)
+    if payload.email_visible is not None:
+        await service.set_email_visibility(user.id, payload.email_visible)
     await db.commit()
-    return DiscoveryStateResponse(discovery_enabled=payload.discovery_enabled)
+    return DiscoveryStateResponse(
+        discovery_enabled=bool(user.discovery_enabled),
+        email_visible=bool(user.peer_email_visible),
+    )
 
 
 @router.post(
     "/discovery/search",
     response_model=list[DiscoveryMatch],
-    summary="Search discoverable users by exact name",
+    summary="Search discoverable users by exact name or email",
     description=(
-        "Exact full-name match (accent/case folded) over opted-in active users. "
-        "Rate limited per user; never prefix or substring matching."
+        "Exact match over opted-in active users: a full name (accent/case folded) "
+        "or an email address (case folded). Rate limited per user; never prefix "
+        "or substring matching."
     ),
     dependencies=[Depends(rate_limit_peer_discovery)],
 )
@@ -118,7 +138,7 @@ async def search_discovery(
 ) -> list[DiscoveryMatch]:
     """Run the exact-match discovery search."""
     service = PeersService(db)
-    return await service.search_discoverable(user.id, payload.full_name)
+    return await service.search_discoverable(user.id, payload.query)
 
 
 @router.post(

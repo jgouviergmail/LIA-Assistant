@@ -139,10 +139,54 @@ describe('usePeerConnections', () => {
       searchResult = await result.current.search('Peer Beta');
     });
     expect(mutateByMethod['POST']).toHaveBeenCalledWith('/peers/discovery/search', {
-      full_name: 'Peer Beta',
+      query: 'Peer Beta',
     });
     expect(searchResult.matches).toHaveLength(1);
     expect(searchResult.errorCode).toBeNull();
+  });
+
+  it('forwards an ADDRESS verbatim — the branch is the backend to decide', async () => {
+    mutateByMethod['POST'].mockResolvedValueOnce([]);
+    const { result } = renderHook(() => usePeerConnections());
+    await act(async () => {
+      await result.current.search('jean.dupont@gmail.com');
+    });
+    expect(mutateByMethod['POST']).toHaveBeenCalledWith('/peers/discovery/search', {
+      query: 'jean.dupont@gmail.com',
+    });
+  });
+
+  describe('initialLoading', () => {
+    it('is true only while the first load is still in flight', () => {
+      Object.keys(stubs).forEach(url => {
+        stubs[url] = { ...queryStub(undefined), loading: true };
+      });
+      const { result } = renderHook(() => usePeerConnections());
+      expect(result.current.initialLoading).toBe(true);
+    });
+
+    it('is false during a REFETCH, so nothing unmounts under the user', () => {
+      // Every query has answered once; one is now refetching after a mutation.
+      stubs['/peers/requests'] = { ...queryStub([]), loading: true };
+      const { result } = renderHook(() => usePeerConnections());
+      expect(result.current.loading).toBe(true);
+      expect(result.current.initialLoading).toBe(false);
+    });
+
+    it('is false when a query failed, so the section renders instead of hanging', () => {
+      stubs['/peers/access-log'] = { ...queryStub(undefined), loading: false };
+      const { result } = renderHook(() => usePeerConnections());
+      expect(result.current.initialLoading).toBe(false);
+    });
+
+    it('stays false while a query that FAILED is being retried', () => {
+      // Regression guard: `useApiQuery` resets `error` to null when a refetch
+      // starts, so an error-based derivation would flip back to true here and
+      // unmount the section under a user who is mid-search.
+      stubs['/peers/access-log'] = { ...queryStub(undefined), loading: true };
+      const { result } = renderHook(() => usePeerConnections());
+      expect(result.current.initialLoading).toBe(false);
+    });
   });
 
   it('carries the backend error code with the failed outcome (ApiError)', async () => {

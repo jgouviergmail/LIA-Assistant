@@ -1883,6 +1883,61 @@ class Settings(BaseSettings):
 | **Cost per call** | $0.02 | $0.002 | **90%** |
 | **Scalability** | Max 3-4 domains | Max 10+ domains | **3x+** |
 
+### Joignabilité inter-domaines (`serves_domains`, ADR-191)
+
+Le filtrage écarte un outil dont le domaine n'est pas demandé **avant** de consulter son score
+sémantique (`normal_filtering.py` : `placement_domain(...) is None → continue`). Un outil
+réellement transverse est donc invisible à toute requête classée ailleurs, aussi bien
+qu'il note.
+
+Mesuré le 2026-08-01 : `get_person_overview_tool` (domaine `contact`, `agent="contact_agent"`)
+obtenait **0,853** — le meilleur score du catalogue, face à des génériques à 0,000-0,005 — et
+n'atteignait jamais le planificateur sur une question concernant un utilisateur connecté, que
+le prompt de l'analyseur classe en `peer`. Reproduit sur le registre réel :
+
+| `intelligence.domains` | Catalogue | `get_person_overview_tool` |
+|---|---|---|
+| `["peer"]` | 1 outil | **absent** |
+| `["peer", "event"]` | 5 outils | **absent** |
+| `["peer", "contact"]` | 5 outils | présent |
+
+`ToolManifest.serves_domains` déclare les domaines **additionnels** depuis lesquels un outil est
+joignable. `SmartCatalogueService.placement_domain` est l'**implémentation unique** de la question
+« cet outil est-il dans la portée ? », appelée par les deux stratégies (normale et panic) qui la
+posaient chacune de leur côté. Le domaine d'origine l'emporte quand il est demandé, de sorte que
+la couverture par domaine place les outils dans le seau qu'elle attend.
+
+Validation à l'enregistrement (`AgentRegistry.register_tool_manifest`) contre `DOMAIN_REGISTRY` :
+un domaine inconnu lève, il ne rend pas l'outil silencieusement injoignable.
+
+**Ce que ce n'est PAS** : ajouter un `related_domains`. Relier deux domaines tire l'intégralité
+de leurs boîtes à outils l'une dans l'autre — ce qui a causé un incident de production le
+2026-07-30 (les outils Google Contacts arrivaient dans chaque plan `peer`). Mesuré après
+correctif : un plan `peer` gagne **exactement un** outil, en lecture seule.
+
+### Capacité invoquée (`ChatRequest.directive`, ADR-191)
+
+Quand la demande vient d'un bouton, le système détient la certitude **avant** tout appel de
+modèle. `ChatRequest.directive` porte `{capability, subject}` — `capability` est un `Literal`
+**fermé**, donc le client nomme une capacité, jamais un outil ; le serveur choisit quel outil en
+**lecture seule** l'implémente (`domains/agents/capability_directives.py`). Transport :
+`capability_directive_ctx` (ContextVar de requête, posé dans `AgentService`).
+
+`planner_node_v3` appelle `ensure_directive_step` **avant** `validate_execution_plan`, au même
+titre que le clamp des bornes (`planner/parameter_bounds.py`) : ce qui est mécaniquement
+réparable est réparé avant validation.
+
+- pas garanti **ajouté** s'il manque (`step_id = "directive_1"`, aucune dépendance) ;
+- si le planificateur l'a déjà produit, **ses paramètres l'emportent** ;
+- les outils déclarés dans `supersedes` sont **retirés** — sauf si une autre étape les lit
+  encore, par `depends_on` **ou** par référence `$steps` (motif unique :
+  `ReferenceValidator.STEPS_REFERENCE_PATTERN`), résolu à point fixe ;
+- un plan sans étape (`needs_clarification`, `skill_bypass_noop`) n'est **jamais** transformé
+  en exécution.
+
+Assert de complétude au démarrage (`startup/agents.py`) : chaque capacité a une spec, et chaque
+outil nommé — cible comme recouvert — est enregistré.
+
 ---
 
 ## 🧠 Memory Reference Resolution (Phase 7)
