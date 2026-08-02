@@ -127,7 +127,7 @@ class HitlResponseClassifier:
     Classification Decisions:
         Approve: "yes", "ok", "sure", "go ahead", "confirm"
         Reject: "no", "stop", "cancel", "not now"
-        Edit: "not john but Hua", "use john@example.com instead" (same action type, different params)
+        Edit: "not john but Alice", "use john@example.com instead" (same action type, different params)
         Replan: "details of X", "send to Y instead" (different action type requested)
         Ambiguous: "maybe", "I don't know", "hmm"
 

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 import structlog
@@ -51,6 +51,13 @@ _STATUS_TO_PHRASE: dict[str, str] = {
     # a lie — nothing changes until the provider side is fixed.
     "rejected": "call_rejected",
 }
+
+
+# A national number keeps enough digits to identify a line on its own; below
+# that, a suffix match would be a coincidence.
+_MIN_SIGNIFICANT_DIGITS = 8
+# Longest country calling code (3 digits) plus the leading '+'.
+_MAX_COUNTRY_PREFIX = 4
 
 
 def _looks_like_phone(value: str) -> bool:
@@ -119,6 +126,54 @@ class _CalleeResolution:
     candidates: list[tuple[str, str]] = field(default_factory=list)
 
 
+async def _search_contacts_raw(
+    user_id: UUID, query: str, max_results: int = 5, fields: list[str] | None = None
+) -> dict[str, Any]:
+    """One search against the active contacts provider, payload untouched.
+
+    The single place this module opens a contacts client, so the by-name and
+    by-number lookups cannot drift on connector resolution or credentials.
+
+    Args:
+        user_id: Owner of the address book.
+        query: What the provider is asked for (a name, or a number).
+        max_results: Provider-side cap.
+        fields: Field projection; defaults to names + phone numbers, which is
+            all either caller needs — no other contact detail is requested.
+
+    Returns:
+        The provider payload, or an empty result when no contacts connector is
+        usable (no connector, no credentials, no client class).
+    """
+    from src.domains.connectors.clients.registry import ClientRegistry
+    from src.domains.connectors.provider_resolver import resolve_active_connector
+    from src.domains.connectors.service import ConnectorService
+    from src.infrastructure.database.session import get_db_context
+
+    empty: dict[str, Any] = {"results": []}
+    async with get_db_context() as db:
+        connector_service = ConnectorService(db)
+        resolved_type = await resolve_active_connector(user_id, "contacts", connector_service)
+        if resolved_type is None:
+            return empty
+
+        credentials = (
+            await connector_service.get_apple_credentials(user_id, resolved_type)
+            if resolved_type.is_apple
+            else await connector_service.get_connector_credentials(user_id, resolved_type)
+        )
+        if not credentials:
+            return empty
+
+        client_class = ClientRegistry.get_client_class(resolved_type)
+        if client_class is None:
+            return empty
+        client = client_class(user_id, credentials, connector_service)
+        return await client.search_contacts(
+            query, max_results=max_results, fields=fields or ["names", "phoneNumbers"]
+        )
+
+
 async def _search_contacts_with_phones(
     user_id: UUID, query: str, max_results: int = 5
 ) -> tuple[list[tuple[str, str]], str | None]:
@@ -128,36 +183,9 @@ async def _search_contacts_with_phones(
     ``[(display_name, phone), ...]`` limited to matches that have a number, and
     ``first_match_name`` is the display name of the first match overall (used to
     distinguish "no match" from "matched but no phone"), or ``None`` if nothing
-    matched. Requests only ``names``/``phoneNumbers`` — no other contact detail.
+    matched.
     """
-    from src.domains.connectors.clients.registry import ClientRegistry
-    from src.domains.connectors.provider_resolver import resolve_active_connector
-    from src.domains.connectors.service import ConnectorService
-    from src.infrastructure.database.session import get_db_context
-
-    async with get_db_context() as db:
-        connector_service = ConnectorService(db)
-        resolved_type = await resolve_active_connector(user_id, "contacts", connector_service)
-        if resolved_type is None:
-            return [], None
-
-        credentials = (
-            await connector_service.get_apple_credentials(user_id, resolved_type)
-            if resolved_type.is_apple
-            else await connector_service.get_connector_credentials(user_id, resolved_type)
-        )
-        if not credentials:
-            return [], None
-
-        client_class = ClientRegistry.get_client_class(resolved_type)
-        if client_class is None:
-            return [], None
-        client = client_class(user_id, credentials, connector_service)
-        result = await client.search_contacts(
-            query, max_results=max_results, fields=["names", "phoneNumbers"]
-        )
-
-    return _extract_candidates(result)
+    return _extract_candidates(await _search_contacts_raw(user_id, query, max_results))
 
 
 def _extract_candidates(result: dict) -> tuple[list[tuple[str, str]], str | None]:
@@ -178,11 +206,120 @@ def _extract_candidates(result: dict) -> tuple[list[tuple[str, str]], str | None
     return candidates, _person_display_name(persons[0])
 
 
+def _person_all_phones(person: dict) -> list[str]:
+    """EVERY dialable number of a person, normalized — not just the first.
+
+    ``_person_first_phone`` reads ``phones[0]``, which is the right answer when
+    CALLING a name. Verifying a reverse lookup against it would reject a
+    contact whose matching number happens to sit second: a false negative that
+    leaves the relationship split under a raw number.
+    """
+    numbers: list[str] = []
+    for entry in person.get("phoneNumbers") or []:
+        canonical = entry.get("canonicalForm") or ""
+        value = canonical or _normalize_phone(entry.get("value", "") or "")
+        if value:
+            numbers.append(value)
+    return numbers
+
+
+def _same_line(a: str, b: str) -> bool:
+    """Whether two raw numbers designate the same line.
+
+    Equality after normalization is the nominal case. The national/E.164 pair
+    is handled ONLY when one side could not be promoted — i.e. when no
+    ``TELEPHONY_DEFAULT_COUNTRY_CODE`` is configured: the international form
+    must then END with the whole national number minus its trunk zero, and
+    differ by a country prefix at most. A loose suffix comparison would merge
+    two lines in different countries.
+    """
+    na, nb = _normalize_phone(a), _normalize_phone(b)
+    if not na or not nb:
+        return False
+    if na == nb:
+        return True
+    if na.startswith("+") == nb.startswith("+"):
+        return False
+    intl, local = (na, nb) if na.startswith("+") else (nb, na)
+    significant = local.lstrip("0")
+    if len(significant) < _MIN_SIGNIFICANT_DIGITS or not intl.endswith(significant):
+        return False
+    return len(intl) - len(significant) <= _MAX_COUNTRY_PREFIX
+
+
+def _number_search_variants(number: str) -> list[str]:
+    """The spellings to search a number under, most canonical first.
+
+    Providers index the string AS STORED: a contact saved ``06 12 34 56 78`` is
+    invisible to a ``+33612345678`` search. Without the national variant the
+    reverse lookup would miss the most common case and fail silently.
+    """
+    normalized = _normalize_phone(number)
+    variants = [normalized]
+    country_code = get_settings().telephony_default_country_code
+    if normalized.startswith("+") and country_code and normalized.startswith(country_code):
+        variants.append("0" + normalized[len(country_code) :])
+    if not normalized.startswith("+") and normalized.startswith("0"):
+        variants.append(normalized.lstrip("0"))
+    return list(dict.fromkeys(variant for variant in variants if variant))
+
+
+async def _lookup_name_for_number(user_id: UUID, number: str) -> str | None:
+    """The address-book name for a dialled number, when it is CERTAIN.
+
+    Certain means: exactly one named contact, and that contact really carries
+    this number (checked against ALL of its numbers, normalized). The
+    provider's search is fuzzy — its idea of "close" is not proof of identity.
+
+    Args:
+        user_id: Owner of the address book.
+        number: The number about to be dialled, already normalized.
+
+    Returns:
+        The display name, or ``None`` — no candidate, several of them, an
+        unnamed one, or any provider failure. A naming aid never blocks a call.
+    """
+    try:
+        for variant in _number_search_variants(number):
+            payload = await _search_contacts_raw(user_id, variant)
+            persons = [
+                (r.get("person") or r)
+                for r in (payload.get("results") or [])
+                if isinstance(r, dict)
+            ]
+            named = [
+                person
+                for person in persons
+                if _person_display_name(person) != "?"
+                and any(_same_line(candidate, number) for candidate in _person_all_phones(person))
+            ]
+            if len(named) == 1:
+                return _person_display_name(named[0])
+            if named:
+                # Several people carry this line (a shared landline): naming one
+                # of them would be a guess the user never made.
+                return None
+    except Exception as exc:  # noqa: BLE001 - naming aid, never fatal
+        logger.info(
+            "telephony_reverse_lookup_degraded",
+            error_type=type(exc).__name__,
+        )
+    return None
+
+
 async def _resolve_callee(user_id: UUID, contact: str) -> _CalleeResolution:
     """Resolve a callee reference (raw number or contact name) to name + phone."""
     if _looks_like_phone(contact):
         number = _normalize_phone(contact)
-        return _CalleeResolution(kind="resolved", name=number, phone=number)
+        # The NUMBER is settled; only its label is looked up. A raw number used
+        # to become its own callee_display, and the CRM keys relationships on
+        # that display name — so calling "0612345678" and calling "Alice Vernier"
+        # built TWO relations for one person.
+        return _CalleeResolution(
+            kind="resolved",
+            name=await _lookup_name_for_number(user_id, number) or number,
+            phone=number,
+        )
 
     candidates, first_match_name = await _search_contacts_with_phones(user_id, contact)
     if first_match_name is None:

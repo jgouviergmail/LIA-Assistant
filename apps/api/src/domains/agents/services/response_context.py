@@ -64,6 +64,8 @@ class ResponseContextBundle:
     journal_injected_ids: list[str] = field(default_factory=list)
     user_model_block: str = ""
     psyche_context: str = ""
+    #: Local CRM facts about a connected user named in the turn (lot 6).
+    peer_context: str = ""
     user_msg_is_trivial: bool = True
     user_message_embedding: list[float] | None = None
     prefetched: bool = False
@@ -466,20 +468,67 @@ async def fetch_response_context(
             )
             return ""
 
+    async def _inject_peer_context() -> str:
+        """Local facts about a CONNECTED user named in this turn (lot 6).
+
+        Database-only, so it costs no provider quota; the user's 360° scope
+        decides which blocks may be read. Own failure boundary, like every
+        other injection here.
+        """
+        user_id_for_peer = config.get("configurable", {}).get("langgraph_user_id")
+        if not (user_id_for_peer and last_user_message):
+            return ""
+
+        # Inside the try, `UUID(...)` included — same shape as `_inject_psyche`
+        # above. The conversion used to sit OUTSIDE it, so a malformed id raised
+        # through `asyncio.gather` and cost the user the whole answer for the
+        # sake of an enrichment.
+        try:
+            from src.domains.agents.middleware.peer_context_injection import build_peer_context
+
+            # The name may be nowhere in what the user typed ("ma femme"): the
+            # English pivot and the resolved references carry it instead.
+            intelligence = state.get("query_intelligence") or {}
+            texts: list[str | None] = [last_user_message]
+            if isinstance(intelligence, dict):
+                texts.append(intelligence.get("english_query"))
+                resolved = intelligence.get("resolved_references") or {}
+                if isinstance(resolved, dict):
+                    texts.extend(str(value) for value in resolved.values())
+            return await build_peer_context(UUID(user_id_for_peer), texts)
+        except Exception as exc:  # noqa: BLE001 - enrichment, never fatal
+            logger.warning(
+                "peer_context_injection_failed",
+                run_id=run_id,
+                error_type=type(exc).__name__,
+            )
+            return ""
+
+    async def _inject_psyche_and_peer() -> tuple[str, str]:
+        """Both string injections, launched together.
+
+        ``asyncio.gather`` is typed through overloads that stop at SIX
+        awaitables; a seventh degrades the result to ``list[union]`` and every
+        unpacked value loses its type. Pairing the two keeps the outer gather
+        at six — and both still run concurrently.
+        """
+        psyche, peer = await asyncio.gather(_inject_psyche(), _inject_peer_context())
+        return psyche, peer
+
     (
         (psychological_profile, memory_injection_debug),
         (rag_context, rag_injection_debug),
         app_knowledge_context,
         (journal_context, journal_injection_debug, current_journal_injected_ids),
         user_model_block,
-        psyche_context,
+        (psyche_context, peer_context),
     ) = await asyncio.gather(
         _inject_memory(),
         _inject_user_rag(),
         _inject_system_rag(),
         _inject_journal(),
         _inject_portrait(),
-        _inject_psyche(),
+        _inject_psyche_and_peer(),
     )
 
     return ResponseContextBundle(
@@ -493,6 +542,7 @@ async def fetch_response_context(
         journal_injected_ids=current_journal_injected_ids,
         user_model_block=user_model_block,
         psyche_context=psyche_context,
+        peer_context=peer_context,
         user_msg_is_trivial=user_msg_is_trivial,
         user_message_embedding=user_message_embedding,
         system_rag_deferred=not include_system_rag,

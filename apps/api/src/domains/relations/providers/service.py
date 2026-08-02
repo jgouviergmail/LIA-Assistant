@@ -192,11 +192,32 @@ class RelationContextService:
     # ------------------------------------------------------------------
 
     def _addresses_of(self, contact: ContextSection) -> list[str]:
-        """The addresses the mail and event lookups may use, capped."""
+        """The card's addresses, folded and deduplicated — NOT yet capped.
+
+        Folding before capping is what makes each slot buy a DISTINCT mailbox.
+        Capping first spent two of three slots on ``Jean@x.com`` +
+        ``jean@x.com`` — six mail searches for one mailbox — and evicted a
+        third address that might have held real correspondence.
+
+        The stored spelling is what goes to the provider: folding decides
+        IDENTITY, it never rewrites the query.
+
+        Args:
+            contact: The contact-card section, however it came back.
+
+        Returns:
+            Addresses in card order, one per mailbox.
+        """
         if contact.contact is None:
             return []
-        cap = settings.relations_provider_max_addresses
-        return [email.value for email in contact.contact.emails][:cap]
+        seen: set[str] = set()
+        unique: list[str] = []
+        for email in contact.contact.emails:
+            key = fold_email(email.value)
+            if key and key not in seen:
+                seen.add(key)
+                unique.append(email.value)
+        return unique
 
     async def _match_addresses(self, contact: ContextSection, target_key: str) -> list[str]:
         """Address-book addresses, plus a connected peer's own when they shared it.
@@ -218,28 +239,43 @@ class RelationContextService:
         the address becoming a source by SIDE EFFECT, bypassing the setting.
         Here the setting is read, and it alone decides.
 
-        APPENDED, never prepended. The cap is a COST bound — each address costs
-        three mail searches, since no provider expresses an OR — so a card
-        already at the cap loses the addition. Putting the peer's address first
-        would instead evict a card address that relationships already query by
-        today: strictly additive beats marginally better ranking.
+        The peer's address is GUARANTEED a slot, because it is the one address
+        the user is certain about: the two are connected through this very
+        product and the peer opted in. Two ways it used to be lost, both from
+        comparing against an already-capped list:
+
+        - absent from the card and the card full → the append was truncated
+          away;
+        - present on the card but PAST the cap → the fold could not even see
+          it, so it was dropped like any overflow address.
+
+        It is now reserved a slot when absent, and promoted when present. This
+        revises ADR-191's "APPENDED, never prepended": that clause protected a
+        card address from being evicted by an OUTSIDE address, which still
+        holds — nothing is added that was not going to be queried. When the
+        address is already the card's own, promoting it evicts nothing the cap
+        was not evicting anyway; it only changes WHICH address loses the seat,
+        in favour of the one identity the user confirmed.
 
         Args:
             contact: The contact-card section, however it came back.
             target_key: Folded relationship name — the identity key.
 
         Returns:
-            Addresses to query by, deduplicated on the mailbox fold and capped.
+            Addresses to query by, one per mailbox, capped.
         """
         addresses = self._addresses_of(contact)
+        cap = settings.relations_provider_max_addresses
         peer_address = await self._peer_address(target_key)
         if not peer_address:
-            return addresses
-        seen = {fold_email(address) for address in addresses}
-        if fold_email(peer_address) in seen:
-            return addresses
-        cap = settings.relations_provider_max_addresses
-        return [*addresses, peer_address][:cap]
+            return addresses[:cap]
+
+        peer_key = fold_email(peer_address)
+        if peer_key in {fold_email(address) for address in addresses}:
+            promoted = [a for a in addresses if fold_email(a) == peer_key]
+            others = [a for a in addresses if fold_email(a) != peer_key]
+            return [*promoted, *others][:cap]
+        return [*addresses[: cap - 1], peer_address]
 
     async def _peer_address(self, target_key: str) -> str | None:
         """The connected peer's address for this relationship, if they shared it.
@@ -258,6 +294,7 @@ class RelationContextService:
         """
         if not settings.peers_enabled:
             return None
+        # Imported lazily: the tests patch these at their SOURCE modules.
         from src.domains.peers.repository import PeersRepository
         from src.infrastructure.database.session import get_db_context
 
@@ -267,7 +304,10 @@ class RelationContextService:
         except Exception as exc:
             # Own failure boundary, like the peers bridge in RelationsService:
             # the CRM answers without the peer address rather than not at all.
-            logger.warning("relations_peer_address_lookup_failed", error=str(exc))
+            # The TYPE, never the message: a SQLAlchemy error stringifies its
+            # statement and bound parameters, which here are names and email
+            # addresses. Same form as every other handler in this domain.
+            logger.warning("relations_peer_address_lookup_failed", error_type=type(exc).__name__)
             return None
         match = next(
             (p for p in profiles if fold_name(p.peer_display_name) == target_key),

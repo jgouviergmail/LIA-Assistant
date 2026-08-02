@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The chat's one-shot deep links — read LIVE, cleared through the router.
+ * The chat's one-shot deep links — read LIVE, cleared through the History API.
  *
  * `?draft=` prefills, `?voice=1` spotlights push-to-talk, `?intent=` executes
  * (QW-24 / ADR-173). All three are one-shot: once acted upon they leave the URL
@@ -14,11 +14,12 @@
  *    `useState(() => …)` keeps executing the previous request. That is how a
  *    360° recap on one person, then another, then a third sent the FIRST one's
  *    sentence three times — the database holds it verbatim.
- * 2. **Clear through the router, never `window.history.replaceState`.** That
- *    API rewrites the address bar behind the App Router's back: the router then
- *    keeps serving the params it believes are current, so every later arrival
- *    on this route read the FIRST `?intent=` again. One source of truth — what
- *    `useSearchParams` returns is what the URL says.
+ * 2. **Clear through the History API, never `router.replace`.** A replace that
+ *    only removes params is swallowed: the App Router restores the search
+ *    params of the entry it already holds for the route (ADR-192, the same
+ *    mechanism that sent one person's request for another's). The History API
+ *    is the supported way to update the query without navigating, and Next
+ *    syncs `useSearchParams` with it — so the latch still re-arms.
  * 3. **Clear `?intent=` only once it has been CONSUMED, never on arrival.** The
  *    auto-send waits for auth to resolve; clearing at mount wins that race and
  *    the request evaporates before anything can send it. (Measured: the scope
@@ -26,27 +27,12 @@
  *    mount-capture was silently doing double duty here — it was also the buffer
  *    that let the send wait. `?draft=` and `?voice=` have no such wait: they are
  *    read during render, so they are cleared on arrival as before.
- * **OPEN — measured, not yet explained (2026-08-01, production build).**
- * `clearIntent` is not reliably applied when it is the ONLY router navigation
- * of the page's life. Measured in a real browser, hermetic e2e:
  *
- * - `?intent=X` alone → the URL keeps `intent` (the replace does not commit);
- * - `?intent=X&voice=1` → the arrival strip replaces first, `clearIntent`
- *   replaces second, and the URL ends completely clean.
- *
- * Two hypotheses were tested against that data and BOTH disproved: the target
- * pathname (`usePathname()` returns the internal route while the middleware
- * owns the locale segment — real, but changing it fixed nothing) and the empty
- * resulting query (the two-replace case ends with an empty query and commits
- * fine). So it is not the href shape; it is that a lone `router.replace` on
- * this page is swallowed.
- *
- * Consequence, scoped honestly: the one-shot contract holds WITHIN a session —
- * the latch below is keyed on the VALUE, so nothing replays and a second deep
- * link executes the second request (proven by the browser journey). What does
- * NOT hold is a page RELOAD, which re-executes the request. Pre-existing since
- * ADR-173, unrelated to ADR-191 (reproduced with a plain `?intent=`, no
- * directive). Left as-is rather than patched on a third guess.
+ * A fourth behaviour was measured alongside them and stayed unexplained for a
+ * day: `clearIntent` did not commit when it was the only router navigation of
+ * the page's life, so a RELOAD re-executed the request. ADR-192 named the cause
+ * — the App Router restores the search params of the entry it already holds —
+ * and rule 2 above is the fix. The two are one defect seen from two sides.
  *
  * The "act only once" latch is NOT here — it belongs to the consumer
  * (`useAutoSendIntent`), keyed on the VALUE, so that clearing the param is what
@@ -58,7 +44,7 @@
  */
 
 import { useCallback, useEffect, useMemo } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 import type { CapabilityDirectiveWire } from '@/types/directive';
 
@@ -115,22 +101,30 @@ export interface DeepLinkParams {
  */
 export function useDeepLinkParams(saveDraft: (text: string) => void): DeepLinkParams {
   const searchParams = useSearchParams();
-  const pathname = usePathname();
-  // The RAW App Router, not `useLocalizedRouter`: `pathname` already carries
-  // the locale segment, which the localized wrapper would prefix a second time.
-  const router = useRouter();
 
-  /** Rewrite the URL without the named params (no-op when none are present). */
-  const drop = useCallback(
-    (names: readonly string[]) => {
-      const current = new URLSearchParams(searchParams?.toString() ?? '');
-      if (!names.some(name => current.has(name))) return;
-      names.forEach(name => current.delete(name));
-      const query = current.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-    },
-    [searchParams, pathname, router]
-  );
+  /**
+   * Rewrite the URL without the named params (no-op when none are present).
+   *
+   * `window.history.replaceState`, NOT `router.replace`: the App Router
+   * restores the search params of the entry it already holds for a route, so a
+   * replace that only removes params is swallowed — measured, and the same
+   * mechanism that made a second deep link leave with the first one's URL
+   * (ADR-192). The History API is the officially supported way to update the
+   * query without a navigation, and Next syncs `useSearchParams` with it, so
+   * the latch below still re-arms exactly as before.
+   *
+   * It reads `window.location`, not `usePathname()`/`useSearchParams()`: the
+   * address bar is what a RELOAD will re-execute, so it is the only source of
+   * truth that matters here — and it needs no locale reconstruction.
+   */
+  const drop = useCallback((names: readonly string[]) => {
+    const current = new URLSearchParams(window.location.search);
+    if (!names.some(name => current.has(name))) return;
+    names.forEach(name => current.delete(name));
+    const query = current.toString();
+    const { pathname: livePath } = window.location;
+    window.history.replaceState(null, '', query ? `${livePath}?${query}` : livePath);
+  }, []);
 
   useEffect(() => {
     // `?draft=` and `?voice=` are consumed during RENDER, so they can go as

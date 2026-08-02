@@ -38,6 +38,18 @@ class PeersSettings(BaseSettings):
         default=False,
         description="Enable the peer-connections feature (discovery, messages, sharing).",
     )
+    peer_context_injection_enabled: bool = Field(
+        default=False,
+        description=(
+            "Inject what the CRM knows LOCALLY (open commitments, calls, "
+            "relayed messages) about a connected user named in the turn. "
+            "Database-only: no connector is called, so a turn that merely "
+            "names someone never spends provider quota. Bounded by the user's "
+            "own 360° scope — a section unticked on the relationship card is "
+            "not injected either. Off by default: it reads one relationship "
+            "per turn that names a peer."
+        ),
+    )
     peers_discovery_rate_limit_calls: int = Field(
         default=PEERS_DISCOVERY_RATE_LIMIT_CALLS_DEFAULT,
         ge=1,

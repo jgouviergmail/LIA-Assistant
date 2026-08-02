@@ -2,10 +2,10 @@
 
 import Link from 'next/link';
 import { Sparkles } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
 import { chatDraftHref } from '@/lib/briefing-utils';
+import { openChatDeepLink } from '@/lib/chat-deep-link';
 import type { CardSection, ForYouData } from '@/types/briefing';
 
 interface ForYouCardProps {
@@ -26,7 +26,6 @@ interface ForYouCardProps {
  * nothing is auto-sent.
  */
 export function ForYouCard({ section, isRefreshing, onRefresh, staggerIndex }: ForYouCardProps) {
-  const router = useRouter();
   const { i18n } = useTranslation();
   const lng = (i18n.language || 'fr').split('-')[0];
   return (
@@ -39,7 +38,7 @@ export function ForYouCard({ section, isRefreshing, onRefresh, staggerIndex }: F
       onRefresh={onRefresh}
       emptyStateKey="dashboard.briefing.cards.for_you.empty"
       renderContent={data => (
-        <ForYouContent data={data} onOpenChat={draft => router.push(chatDraftHref(lng, draft))} />
+        <ForYouContent data={data} onOpenChat={draft => openChatDeepLink(chatDraftHref(lng, draft))} />
       )}
       staggerIndex={staggerIndex}
     />

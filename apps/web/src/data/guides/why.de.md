@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 4.1
-**Datum**: 2026-08-01
-**Anwendung**: LIA v1.27.5
+**Datum**: 2026-08-02
+**Anwendung**: LIA v1.27.6
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -189,6 +189,14 @@ Und es bleibt konstruktionsbedingt privat. Während eines Anrufs kann LIA nur mi
 Auf derselben Instanz können sich zwei Nutzer verbinden — und ihre Assistenten sprechen miteinander. Du sagst „frag Marie, ob sie am Dienstag frei ist“, bestätigst den genauen Wortlaut, und es ist Maries Assistent, der die Nachricht übermittelt, mit seiner eigenen Persönlichkeit, und dich dabei nennt; deiner bestätigt dir die Zustellung. Jede Verbindung kann außerdem gewählte Nur-Lese-Freigaben öffnen: Deine Kalender-Verfügbarkeit, deine Aufgabentitel — nicht mehr, nichts standardmäßig.
 
 Der Schutz der Menschen steht über der Funktion: Die Auffindbarkeit ist freiwillig und nur über die exakte Identität möglich — vollständiger Name oder Adresse, nie ein Fragment, das Blockieren ist lautlos (die andere Seite erfährt nie davon), und ein Unbekannter, eine Ablehnung oder eine Blockierung erhalten exakt dieselbe Antwort — auszuforschen, wer existiert, ist unmöglich. Jeder Zugriff auf eine Freigabe wird im Moment des Lesens neu geprüft und protokolliert, und der Inhalt übermittelter Nachrichten wird nach dreißig Tagen gelöscht, sodass nur die Spur des Austauschs bleibt.
+### 3.12. Was dich mit jemandem verbindet, an einem Ort
+
+Die Seite **Beziehungen** führt Person für Person zusammen, was LIA ohnehin verfolgt: die offenen Zusagen zwischen euch, die geführten Anrufe, die Erinnerungen, die sie erwähnen, die Nachrichten, die eure Assistenten weitergegeben haben. Nichts Neues wird gesammelt — es ist eine Linse auf das, was bereits da ist.
+
+Du kannst auch einfach fragen, ohne die Seite zu öffnen: wann der letzte Anruf war, was du jemandem noch schuldest. Die Antwort stammt aus derselben Berechnung wie die Karte, sodass Assistent und Seite dir nicht zwei verschiedene Dinge sagen können — und die genannte Gesamtzahl ist exakt, nie bloß die Länge dessen, was gerade auf den Bildschirm passt.
+
+Bleibt, was kein System erraten kann. LIA gruppiert, was gleich geschrieben wird, unabhängig von Akzenten und Großschreibung; sie kann nicht wissen, dass eine irgendwann notierte Nummer und ein Name dieselbe Person sind, oder wer genau „Papa“ ist. Das ist ein Urteil, und es liegt bei dir: Du sagst es einmal, auf der Karte, und es ist **umkehrbar** — die Zusammenführung erscheint samt Rückgängig-Schaltfläche, und in deinen Quellen wird nichts umgeschrieben. Eine Anzeige-Gruppierung ändert im Übrigen nie, an wen eine Nachricht gerichtet ist.
+
 
 ---
 

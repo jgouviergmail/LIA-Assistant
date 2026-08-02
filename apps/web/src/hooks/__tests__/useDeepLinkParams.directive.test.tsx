@@ -15,25 +15,29 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 
-const { replace, params } = vi.hoisted(() => ({
-  replace: vi.fn(),
-  params: { current: new URLSearchParams() },
-}));
+const { params } = vi.hoisted(() => ({ params: { current: new URLSearchParams() } }));
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => params.current,
-  usePathname: () => '/fr/dashboard/chat',
-  useRouter: () => ({ replace }),
 }));
 
 import { useDeepLinkParams } from '../useDeepLinkParams';
 
+const PATH = '/fr/dashboard/chat';
+
+/** Put the browser AND the router's view on the same query (ADR-192: the hook
+ * strips through the History API, so the ADDRESS BAR is the oracle). */
 function at(query: string) {
   params.current = new URLSearchParams(query);
+  window.history.replaceState(null, '', query ? `${PATH}?${query}` : PATH);
+}
+
+/** What the address bar holds — the only thing a reload will re-execute. */
+function url(): string {
+  return `${window.location.pathname}${window.location.search}`;
 }
 
 beforeEach(() => {
-  replace.mockReset();
   at('');
 });
 
@@ -82,7 +86,7 @@ describe('useDeepLinkParams — capability directive', () => {
 
     result.current.clearIntent();
 
-    expect(replace).toHaveBeenLastCalledWith('/fr/dashboard/chat', { scroll: false });
+    expect(url()).toBe(PATH);
   });
 
   it('does not survive its sentence', () => {
@@ -92,10 +96,9 @@ describe('useDeepLinkParams — capability directive', () => {
 
     result.current.clearIntent();
 
-    const href = String(replace.mock.calls.at(-1)?.[0]);
-    expect(href).not.toContain('capability');
-    expect(href).not.toContain('subject');
-    expect(href).toContain('conversation=42');
+    expect(url()).not.toContain('capability');
+    expect(url()).not.toContain('subject');
+    expect(url()).toContain('conversation=42');
   });
 
   it('ignores a capability nobody implements', () => {
@@ -154,8 +157,7 @@ describe('useDeepLinkParams — capability directive', () => {
     at('intent=go&capability=person_overview&subject=Marie&voice=1');
     renderHook(() => useDeepLinkParams(vi.fn()));
 
-    const href = String(replace.mock.calls.at(-1)?.[0]);
-    expect(href).toContain('capability=person_overview');
-    expect(href).toContain('subject=Marie');
+    expect(url()).toContain('capability=person_overview');
+    expect(url()).toContain('subject=Marie');
   });
 });

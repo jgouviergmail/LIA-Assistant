@@ -17,6 +17,15 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
 }));
 
+// Chat deep links are REAL navigations since 2026-08-01 (ADR-192): the App
+// Router restored the search params of the entry it already held, so a second
+// deep link in a session left with the FIRST one's URL. The oracle is the same
+// href — only the door changed.
+const openChat = vi.fn();
+vi.mock('@/lib/chat-deep-link', () => ({
+  openChatDeepLink: (href: string) => openChat(href),
+}));
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) =>
@@ -60,7 +69,7 @@ const fullData: TasksData = {
 
 describe('TasksCard', () => {
   beforeEach(() => {
-    push.mockClear();
+    openChat.mockClear();
   });
 
   it('renders overdue tasks with reschedule intent and overdue badge', () => {
@@ -70,8 +79,8 @@ describe('TasksCard', () => {
       name: /intents\.task_reschedule\|subject=Payer la facture EDF/,
     });
     fireEvent.click(overdue);
-    expect(push).toHaveBeenCalledWith(expect.stringContaining('/fr/dashboard/chat?draft='));
-    expect(push.mock.calls[0][0]).toContain(encodeURIComponent('Payer la facture EDF'));
+    expect(openChat).toHaveBeenCalledWith(expect.stringContaining('/fr/dashboard/chat?draft='));
+    expect(openChat.mock.calls[0][0]).toContain(encodeURIComponent('Payer la facture EDF'));
     expect(
       screen.getByText('dashboard.briefing.cards.tasks.overdue_days|count=2')
     ).toBeInTheDocument();

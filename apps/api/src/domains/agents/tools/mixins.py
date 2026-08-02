@@ -456,6 +456,26 @@ class ToolOutputMixin:
             # Add 1-based index for ordinal reference resolution
             contact["index"] = idx
 
+            # Promote the display name to the top level, like `subject`/`from`
+            # on emails. THREE readers ask for `name` on a contact payload and
+            # got None until now, because every mode of get_contacts_tool hands
+            # over the provider's RAW person (names[0].displayName):
+            #   - the catalogue publishes `contacts[].name` as a reference path,
+            #     and ReferenceValidator approves it on sight (prod 2026-08-01:
+            #     "path 'contacts[0].name' not found in step result");
+            #   - ContextTypeDefinition declares display_name_field="name", so
+            #     fuzzy resolution of "Marie" scored 0.0 on EVERY item and
+            #     disambiguation offered "Item 1" instead of a name;
+            #   - HITL parameter enrichment labels a confirmation with it.
+            # Absent rather than a placeholder when the provider stored no
+            # display name: a fabricated "Inconnu" would be matched by the fuzzy
+            # resolver and shown as somebody's name.
+            display_name = contact.get("name") or (
+                ((contact.get("names") or [{}])[0] or {}).get("displayName")
+            )
+            if display_name and "name" not in contact:
+                contact["name"] = display_name
+
             item_id, registry_item = self.create_registry_item(
                 item_type=RegistryItemType.CONTACT,
                 unique_key=resource_name,
@@ -465,9 +485,7 @@ class ToolOutputMixin:
             )
             registry_updates[item_id] = registry_item
             item_ids.append(item_id)
-            item_names.append(
-                ((contact.get("names") or [{}])[0] or {}).get("displayName") or item_id
-            )
+            item_names.append(display_name or item_id)
 
         # Minimal summary for debug/logs only (not displayed to user)
         summary = f"[{op}] {len(contacts)} contact(s): {self._build_item_preview(item_names)}"

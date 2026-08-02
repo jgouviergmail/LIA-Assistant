@@ -3181,7 +3181,17 @@
     "emails_summarize_one": "在聊天中总结这封邮件",
     "emails_summarize_other": "在聊天中总结这 {{count}} 封邮件",
     "emails_summary_intent": "请总结我与 {{name}} 的邮件往来：{{subjects}}",
-    "emails_select": "选择「{{subject}}」"
+    "emails_select": "选择「{{subject}}」",
+    "merge_title": "是同一个人吗？",
+    "merge_help": "系统会自动归并拼写相近的名称。如果两张卡片其实是同一个人，请在此说明：不会改写任何原始数据，合并也可以撤销。",
+    "merge_pick": "要合并的卡片",
+    "merge_pick_placeholder": "选择一张卡片…",
+    "merge_action": "合并",
+    "merge_no_candidate": "暂时没有其他可合并的卡片。",
+    "merge_merged_title": "已合并到此处的卡片",
+    "merge_undo": "撤销与 {{name}} 的合并",
+    "merge_undo_short": "拆分",
+    "merge_failed": "合并未能保存，没有任何更改。"
   },
   "spaces": {
     "title": "知识空间",
@@ -3531,7 +3541,11 @@
       "delegate_to_sub_agent": "正在委托给子代理...",
       "mcp_tool": "正在执行外部MCP工具...",
       "previous_steps_one": "之前的步骤",
-      "previous_steps_other": "之前的步骤"
+      "previous_steps_other": "之前的步骤",
+      "get_calls": "正在读取通话记录…",
+      "get_open_loops": "正在读取未完成的约定…",
+      "get_peer_messages": "正在读取转发的消息…",
+      "get_person_overview": "正在生成 360° 概览…"
     },
     "reasoning": {
       "title": "推理"
@@ -3660,8 +3674,8 @@
           "description": "完整栈：Prometheus 指标（token、延迟、错误、成本）、26 个 Grafana 仪表盘、Tempo 分布式追踪、Loki 集中日志、每条告警都关联 runbook 的邮件告警。第 26 个仪表盘是产品驾驶舱：统计经验证的结果 — 你的明确 👍（E1），或整整一天未被更正的操作（E2）— 并由此推导 North Star、激活漏斗、留存与每个有用结果的成本。精确计数存放在 PostgreSQL 中（状态会变化，计数器无法回退）；Grafana 通过只读角色读取，该角色只能访问聚合视图，绝不能访问原始表。"
         },
         "tools": {
-          "title": "🔧 80+类型化工具",
-          "description": "超过80个原生工具，JSON 模式从 Python/Pydantic 自动生成。声明式清单带 semantic_keywords 支持智能路由。统一的 StandardToolOutput 带注册表更新支持上下文引用。通过MCP服务器无限扩展。"
+          "title": "🔧 89 个类型化工具",
+          "description": "89 个原生工具，JSON 模式从 Python/Pydantic 自动生成，可通过 MCP 服务器与 Skills 无限扩展。声明式清单带 semantic_keywords 支持智能路由，并公布参数上限：验证器能拒绝的，规划器就能读到。目录按领域过滤，因此只带写入工具的领域会促使系统去执行动作——正因如此，每个领域现在也带上了自己的读取能力。"
         },
         "costTransparency": {
           "title": "💰 成本透明度",
@@ -3786,6 +3800,20 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_27_6": {
+          "title": "v1.27.6 — 🔗 每次请求都带着正确的名字出发",
+          "date": "2026 年 8 月",
+          "count": "7",
+          "items": {
+            "i1": "<b>🔗 一次请求不再带着上一次的名字</b> — 先对某人做 360° 概览，再打开并启动另一个人的卡片，发出的却是<b>第一个人</b>的那句话。现在由浏览器独自决定地址：你启动的就是你请求的，即使该链接只是预填输入框。",
+            "i2": "<b>📞 关于通话的提问会得到回答，而不是一通电话</b> — 询问上一次通话是什么时候，可能生成一个<b>打电话去问对方</b>的计划。LIA 现在能读取你过往的通话、进行中的约定以及转达的消息，而不再只有行动的手段。",
+            "i3": "<b>🤝 把同一个人的两张卡片合并</b> — LIA 会把写法相同的内容归为一组，忽略重音与大小写。它无法猜到一串号码和一个姓名是同一段关系：由你在卡片底部告诉它一次即可。这一操作可撤销，并且你始终能看到合并了什么。",
+            "i4": "<b>✉️ 邮件主题下方的摘录</b> — 诸如 Re: Re: 之类的主题说明不了这次往来的内容。现在关系卡片的主题下方最多显示两行摘录。",
+            "i5": "<b>📇 拨打号码不再生成第二张卡片</b> — 先拨号码、再拨姓名，会为同一个人建立两段关系。号码现在会被识别并归入正确的卡片。",
+            "i6": "<b>📱 真正能用手指点到的按钮</b> — 手机屏幕上有六个控件太小，其中包括收起伴侣的那个叉：没有鼠标时它不可见，却依然可以点击。它们现在都达到了建议尺寸。",
+            "i7": "<b>⚙️ 面向管理员：LIA 可以知道它已经掌握的已连接联系人信息</b> — 当对话中提到一位已连接的人时，其约定、通话以及你们之间转达的消息可以直接提供给 LIA，而不是被宣告为一次检索。默认关闭，可通过 <code>PEER_CONTEXT_INJECTION_ENABLED</code> 启用，且仅限于你在 360° 范围中勾选的内容。"
+          }
+        },
         "v1_27_5": {
           "title": "v1.27.5 — 👥 关于某个人的 360° 概览：完整且可配置",
           "date": "2026 年 8 月",
@@ -5790,7 +5818,7 @@
       "relations": {
         "title": "人际关系（个人 CRM）",
         "description": "人际关系页面：LIA 对你来往之人所知的一切，包括收藏。",
-        "count": "7",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "「关系」页面是什么？",
@@ -5819,6 +5847,14 @@
           "q7": {
             "question": "为什么一位已连接的联系人既没有邮件也没有约会？",
             "answer": "往来是按<strong>地址</strong>而非姓名查找的：你从未存入通讯录的人没有地址，自然无从匹配。如果这个人是<strong>已连接用户</strong>并开启了地址共享（连接设置），LIA 现在会用它在<strong>你自己</strong>的邮件和日历中，找出其参与的往来与约会。若未开启共享则一切照旧：决定权始终只在对方的设置。而如果没有任何约会与其相关，该版块就保持<strong>空白</strong> — LIA 不会用你日历里她既未组织也未参加的日程来填补沉默。"
+          },
+          "q8": {
+            "question": "如何把同一个人的两张卡片合并？",
+            "answer": "LIA 会把写法相同的内容归为一组，忽略重音与大小写。它无法猜到一串<strong>号码</strong>和一个<strong>姓名</strong>指的是同一段关系，也无法猜到「爸爸」就是「张伟」：这是一个判断，只有你能做出。打开你想<strong>保留</strong>的那张卡片，向下找到<strong>合并关系</strong>，选择另一张卡片并确认。这一合并<strong>可撤销</strong>：它会显示在卡片上并附带撤销按钮，你的数据源中不会被改写任何内容——两张卡片会完全恢复原样。它<strong>绝不</strong>改动已连接联系人的名录：一次展示层面的归并，不应当把消息重定向到另一个账户。"
+          },
+          "q9": {
+            "question": "我可以询问与某人的通话或约定吗？",
+            "answer": "可以。「我上次给玛丽打电话是什么时候？」「我欠她什么？」「我们通过 LIA 转达过什么？」现在都会得到<strong>回答</strong>。此前，关于通话的提问可能生成一个<strong>打电话去问对方</strong>的计划：电话领域只会拨打电话，因此覆盖自身领域就意味着行动。LIA 现在会读取你<strong>过往的通话</strong>、<strong>进行中的约定</strong>和<strong>转达的消息</strong>，所用的计算与关系卡片完全一致——因此助手与卡片不会给你两个不同的答案。总数始终精确，就显示在当前这一页旁边。"
           }
         }
       },
@@ -6726,7 +6762,7 @@
       },
       "a11y_care": {
         "title": "看不见的用心",
-        "desc": "尊重动画偏好、保持对比度、一切皆可用键盘抵达。"
+        "desc": "尊重动画偏好，保持对比度，一切都可用键盘操作——而且你要点的东西足够大，包括那些只在鼠标悬停时才出现、因而手指根本够不到的小叉。"
       },
       "peer_actions": {
         "title": "在消息正下方回复",
@@ -8585,9 +8621,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p>"
       },
       "observability": {
-        "title": "447个Prometheus指标、26个Grafana仪表板和Langfuse追踪",
-        "excerpt": "LIA提供企业级可观测性：447指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 447个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26个Grafana仪表板</h2><p>LIA提供26个编号01至26的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p>"
+        "title": "464个Prometheus指标、26个Grafana仪表板和Langfuse追踪",
+        "excerpt": "LIA提供企业级可观测性：464指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 464个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26个Grafana仪表板</h2><p>LIA提供26个编号01至26的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：78个提示作为代码管理",

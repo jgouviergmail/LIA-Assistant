@@ -326,10 +326,21 @@ def _mail_block(context: RelationContext, scope: RelationOverviewScope) -> dict[
     wanted = _directions(scope)
     return {
         "emails": [
+            # `excerpt` is omitted, never null, when the provider returned no
+            # preview: a key present with no value invites the assistant to
+            # describe a message it has not read.
             {
-                "direction": email.direction,
-                "subject": email.subject,
-                "occurred_at": email.occurred_at.isoformat() if email.occurred_at else None,
+                key: value
+                for key, value in (
+                    ("direction", email.direction),
+                    ("subject", email.subject),
+                    (
+                        "occurred_at",
+                        email.occurred_at.isoformat() if email.occurred_at else None,
+                    ),
+                    ("excerpt", email.excerpt),
+                )
+                if value is not None
             }
             for email in context.emails.emails
             if email.direction in wanted

@@ -91,7 +91,11 @@ def _bridge_unavailable(user_id: UUID, exc: Exception, event: str) -> None:
 
 
 async def _read_page_for(
-    db: AsyncSession, user_id: UUID, target_key: str, limit: int
+    db: AsyncSession,
+    user_id: UUID,
+    target_key: str,
+    limit: int,
+    identity_keys: frozenset[str],
 ) -> PeerMessagePage:
     """Gather one relationship's page and total, on one session.
 
@@ -103,13 +107,15 @@ async def _read_page_for(
         user_id: Owner of the CRM.
         target_key: Folded name of the relationship being opened.
         limit: Cap on returned entries.
+        identity_keys: Every folded key belonging to this identity (the
+            canonical one plus anything merged into it).
 
     Returns:
         The page and the exact total, both derived from the same read.
     """
     repo = PeersRepository(db)
     aggregates = await repo.aggregate_delivered_messages_by_peer(user_id)
-    mine = [item for item in aggregates if fold_name(item.raw_name) == target_key]
+    mine = [item for item in aggregates if fold_name(item.raw_name) in identity_keys]
     activity = await repo.list_delivered_message_activity(
         user_id, limit=limit, peer_names=[item.raw_name for item in mine]
     )
@@ -152,7 +158,13 @@ async def fetch_peer_message_activity(user_id: UUID) -> list[NameActivity]:
         return []
 
 
-async def fetch_peer_messages_for(user_id: UUID, *, target_key: str, limit: int) -> PeerMessagePage:
+async def fetch_peer_messages_for(
+    user_id: UUID,
+    *,
+    target_key: str,
+    limit: int,
+    merged_keys: frozenset[str] = frozenset(),
+) -> PeerMessagePage:
     """The relayed-message page AND its exact total, for ONE relationship.
 
     Both halves come from ONE session and ONE instant. Asking twice would let
@@ -173,6 +185,11 @@ async def fetch_peer_messages_for(user_id: UUID, *, target_key: str, limit: int)
         user_id: Owner of the CRM.
         target_key: Folded name of the relationship being opened.
         limit: Cap on returned entries, newest delivery first.
+        merged_keys: Every folded key of this identity when relationships were
+            merged. The merged-away half still stores messages under its OWN
+            spelling, so matching the canonical key alone would drop them —
+            and the total would then contradict a page it no longer covers.
+            Defaults to "no merge", i.e. the pre-merge behaviour.
 
     Returns:
         The page and the exact total; both empty/zero when the peers feature
@@ -182,7 +199,9 @@ async def fetch_peer_messages_for(user_id: UUID, *, target_key: str, limit: int)
         return _EMPTY_PAGE
     try:
         async with get_db_context() as db:
-            return await _read_page_for(db, user_id, target_key, limit)
+            return await _read_page_for(
+                db, user_id, target_key, limit, merged_keys or frozenset({target_key})
+            )
     except SQLAlchemyError as exc:
         _bridge_unavailable(user_id, exc, "relations_peer_messages_unavailable")
         return _EMPTY_PAGE

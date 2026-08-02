@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 4.1
-**Date**: 2026-08-01
-**Application**: LIA v1.27.5
+**Date**: 2026-08-02
+**Application**: LIA v1.27.6
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -189,6 +189,14 @@ And it stays private by construction. During a call LIA can only tell whether yo
 On the same instance, two users can connect — and their assistants talk to each other. You say “ask Marie if she is free on Tuesday”, you approve the exact wording, and it is Marie’s assistant that delivers the message, in her assistant’s own personality, naming you; yours confirms delivery back to you. Each connection can also open chosen, read-only shares: your calendar availability, your task titles — nothing more, nothing by default.
 
 Protecting people comes before the feature: discovery is opt-in and exact-identity only — a full name or an address, never a fragment, blocking is silent (the other side never learns of it), and an unknown person, a decline or a block all receive exactly the same answer — probing who exists is impossible. Every access to a share is re-checked at the moment of the read and journaled, and relayed message content is erased after thirty days, leaving only the trace of the exchange.
+### 3.12. What ties you to someone, gathered
+
+The **Relations** page brings together, person by person, what LIA already tracks: the commitments open between you, the calls placed, the memories that mention them, the messages your assistants passed on. Nothing new is collected — it is a lens over what already exists.
+
+You can also just ask, without opening the page: "when did I last call Marie?", "what do I owe her?". The answer comes from the same computation as the card, so the assistant and the page cannot tell you two different things — and the total stated is exact, never the length of what happens to fit on screen.
+
+What remains is what no system can guess. LIA groups what is written the same, accents and capitals aside; it cannot know that a number jotted down one day and a name are the same person, or that "Dad" is anyone in particular. That is a judgement, and it is yours: you say it once, from the card, and it is **reversible** — the merge is shown with its own undo, and nothing is rewritten in your sources. A display grouping never changes who a message is addressed to, either.
+
 
 ---
 

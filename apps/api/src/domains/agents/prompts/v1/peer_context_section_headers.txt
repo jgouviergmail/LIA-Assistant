@@ -1,0 +1,21 @@
+# Sections of the mentioned-peer context, in INJECTION ORDER.
+# One `section|header|line_template` per line; blank lines and #-comments are
+# ignored.
+#
+# Single source of truth for the labels, their order AND the line wording —
+# same reason as memory_profile_section_headers: parallel Python structures
+# drift, and prose in .py violates the versioned-prompt rule (CLAUDE.md).
+#
+# `section` matches OverviewSection values, so the user's 360° scope selects
+# these blocks by name: what they unticked on the relationship card is never
+# injected here either.
+#
+# Placeholders available per template:
+#   open_loops     : {subject} {direction} {days_open}
+#   calls          : {objective} {outcome} {summary}  (summary already carries
+#                    its separator, or is empty)
+#   peer_messages  : {direction} {content}
+
+open_loops|### Engagements en cours|- {subject} ({direction}, ouvert depuis {days_open} j)
+calls|### Appels récents|- {objective} ({outcome}){summary}
+peer_messages|### Messages relayés par LIA|- [{direction}] {content}

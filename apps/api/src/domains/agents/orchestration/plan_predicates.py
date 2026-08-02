@@ -8,11 +8,16 @@ the dict-serialized plan form (LangGraph state round-trips).
 
 from __future__ import annotations
 
-from typing import Any
+import re
+from collections.abc import Iterator
+from typing import TYPE_CHECKING, Any
 
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+if TYPE_CHECKING:
+    from src.domains.agents.orchestration.plan_schemas import ExecutionPlan
 
 # Tool name patterns indicating mutation operations (for tool validation ONLY)
 # These match against TOOL NAMES (internal data), not user queries
@@ -149,13 +154,66 @@ def plan_contains_mutation(plan: Any) -> bool:
     return any(tool_is_mutation(tool) for tool in _iter_plan_tools(plan))
 
 
+#: Sentinel telling "the analyzer said nothing" apart from "the analyzer said
+#: False". They are NOT the same verdict, and only the second one is evidence.
+_ABSENT = object()
+
+
+def plan_writes_without_write_intent(plan: Any, query_intelligence: Any) -> list[str]:
+    """Mutation tools a plan calls while the ANALYZER read no intent to write.
+
+    The mirror image of the "mutation intent but no mutation tool" rule: that
+    one catches a plan that under-delivers, this one a plan that acts when
+    nobody asked it to. Production 2026-08-01: "de quand date mon dernier appel
+    à ma femme ?" produced ``get_contacts_tool`` then ``place_phone_call_tool``
+    with objective "vérifier la date du dernier appel" — the user asked WHEN,
+    the plan was to phone her and ask. Tool-level HITL would still have required
+    a click, but a read question that surfaces "confirm this call?" has already
+    broken the user's trust.
+
+    Deliberately conservative on the two axes that could produce noise:
+
+    - it needs an EXPLICIT ``is_mutation_intent=False`` from the analyzer; no
+      verdict means no contradiction, so an absent intelligence never fires;
+    - it reads the declared tool category (``tool_is_mutation``), so a tool
+      whose name carries no CRUD verb — ``place_phone_call_tool`` — is still
+      recognised as a write.
+
+    Args:
+        plan: ExecutionPlan, its dict form, or None.
+        query_intelligence: QueryIntelligence or its dict form, or None.
+
+    Returns:
+        The offending tool names in step order — empty when the plan is
+        consistent with the detected intent.
+    """
+    if query_intelligence is None:
+        return []
+    # `_ABSENT`, not `False`: a payload that carries NO verdict says nothing
+    # about intent, and defaulting it to False would read that silence as "the
+    # user only wanted to read" — sending every legitimate action back to the
+    # planner. Only an explicit False may contradict a writing plan.
+    if isinstance(query_intelligence, dict):
+        verdict = query_intelligence.get("is_mutation_intent", _ABSENT)
+    else:
+        verdict = getattr(query_intelligence, "is_mutation_intent", _ABSENT)
+    if verdict is _ABSENT or verdict:
+        return []
+    return [tool for tool in _iter_plan_tools(plan) if tool_is_mutation(tool)]
+
+
 def plan_covers_domain(plan: Any, domain: str) -> bool:
     """Tell whether any step of ``plan`` calls a tool of ``domain``.
 
-    Both sides are resolved through ``DOMAIN_REGISTRY`` (the single source of
-    truth for the domain vocabulary) rather than by name heuristics: the domain
-    is mapped to its ``result_key`` and compared with the ``result_key`` the
-    registry derives for each step's tool.
+    The tool's domain comes from its MANIFEST (agent + ``serves_domains``), not
+    from its name. Deriving it from the name made ``place_phone_call_tool``
+    — whose name starts with ``place_`` — belong to ``places`` and NOT to
+    ``telephony``, so the "primary_domain_uncovered" rule fired on every
+    single-step call request while staying silent on the plan that genuinely
+    dropped the domain (prod 2026-08-01).
+
+    The name convention survives as the fallback for tools with no manifest,
+    via ``get_result_key_for_tool``.
 
     Fail-open: an unknown domain, a plan whose tools are all unregistered (MCP,
     skills, future tools) or any registry error answers True, so the caller
@@ -174,6 +232,7 @@ def plan_covers_domain(plan: Any, domain: str) -> bool:
             get_result_key,
             get_result_key_for_tool,
         )
+        from src.domains.agents.registry.tool_domain_resolution import tool_serves_domain
 
         expected_key = get_result_key(domain)
         if not expected_key:
@@ -181,9 +240,17 @@ def plan_covers_domain(plan: Any, domain: str) -> bool:
 
         resolved_any = False
         for tool in _iter_plan_tools(plan):
+            declared = tool_serves_domain(tool, domain)
+            if declared is not None:
+                resolved_any = True
+                if declared:
+                    return True
+                continue
+
+            # No manifest: fall back to the name convention.
             tool_key = get_result_key_for_tool(tool)
             if tool_key is None:
-                # Unregistered tool: it cannot be proven to miss the domain,
+                # Unresolvable tool: it cannot be proven to miss the domain,
                 # so it must not count as evidence either way.
                 continue
             resolved_any = True
@@ -202,10 +269,67 @@ def plan_covers_domain(plan: Any, domain: str) -> bool:
         return True
 
 
+# Emails on RFC 2606 reserved domains (example.com/org/net, .invalid, .test) are
+# ALWAYS fabricated — no real mailbox can live there. Observed in prod
+# (2026-07-17): the planner filled attendees=['jane.doe@example.com'] for
+# a real contact instead of resolving or omitting. The reserved TLDs are only
+# matched as the FINAL label (dot required) so real domains like test.com or
+# invalid-prefixed names never false-positive.
+_PLACEHOLDER_EMAIL_RE = re.compile(
+    r"@(?:[\w-]+\.)*example\.(?:com|org|net)\b|@[\w.-]+\.(?:invalid|test)\b",
+    re.IGNORECASE,
+)
+
+# Free-text parameters where a placeholder address may be QUOTED legitimately
+# (e.g. a dictated email body citing example.com) — never flagged.
+_FREE_TEXT_PARAM_NAMES = frozenset(
+    {"body", "subject", "description", "notes", "content_instruction", "message", "text", "content"}
+)
+
+
+def _iter_param_strings(value: Any) -> Iterator[str]:
+    """Yield every string nested inside a parameter value (str/list/dict)."""
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, list | tuple):
+        for item in value:
+            yield from _iter_param_strings(item)
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _iter_param_strings(item)
+
+
+def detect_placeholder_contacts(plan: ExecutionPlan) -> list[str]:
+    """Find fabricated placeholder emails in MUTATION step parameters.
+
+    Deterministic pre-LLM guard: scans every non-free-text parameter of
+    mutation steps for RFC 2606 reserved-domain emails. Read-only steps are
+    exempt (no real-world damage, and a search query quoting a placeholder
+    must not loop the planner).
+
+    Returns:
+        Human-readable findings like ``"step_1.attendees='j.doe@example.com'"``
+        (empty list when the plan is clean).
+    """
+    findings: list[str] = []
+    for step in plan.steps:
+        if not tool_is_mutation(step.tool_name or ""):
+            continue
+        for param_name, value in (step.parameters or {}).items():
+            if param_name.lower() in _FREE_TEXT_PARAM_NAMES:
+                continue
+            for text in _iter_param_strings(value):
+                if _PLACEHOLDER_EMAIL_RE.search(text):
+                    findings.append(f"{step.step_id}.{param_name}='{text[:60]}'")
+    return findings
+
+
 __all__ = [
     "CROSS_DOMAIN_CAPABLE_TOOLS",
     "MUTATION_TOOL_PATTERNS",
+    "detect_placeholder_contacts",
     "plan_contains_mutation",
+    "plan_writes_without_write_intent",
     "plan_covers_domain",
     "tool_is_mutation",
 ]

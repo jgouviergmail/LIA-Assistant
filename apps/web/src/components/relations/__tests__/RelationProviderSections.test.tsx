@@ -31,6 +31,15 @@ import {
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
+// Chat deep links are REAL navigations since 2026-08-01 (ADR-192): the App
+// Router restored the search params of the entry it already held, so a second
+// deep link in a session left with the FIRST one's URL. The oracle is the same
+// href — only the door changed.
+const openChat = vi.fn();
+vi.mock('@/lib/chat-deep-link', () => ({
+  openChatDeepLink: (href: string) => openChat(href),
+}));
+
 function section(over: Partial<ContextSection> = {}): ContextSection {
   return {
     status: 'empty',
@@ -158,8 +167,15 @@ describe('ProviderEmailsSection', () => {
         direction: 'received',
         subject: 'Devis chantier',
         occurred_at: '2026-07-29T09:00:00Z',
+        excerpt: 'Bonjour, voici le devis pour le chantier de la rue Victor Hugo.',
       },
-      { id: 'm2', direction: 'sent', subject: 'Relance', occurred_at: '2026-07-28T09:00:00Z' },
+      {
+        id: 'm2',
+        direction: 'sent',
+        subject: 'Relance',
+        occurred_at: '2026-07-28T09:00:00Z',
+        excerpt: null,
+      },
     ],
   });
 
@@ -191,6 +207,23 @@ describe('ProviderEmailsSection', () => {
     expect(screen.getByText('relations.emails_window')).toBeInTheDocument();
   });
 
+  it('shows the excerpt under the subject — "Re: Re: point" says nothing', async () => {
+    await renderEmails();
+    expect(
+      screen.getByText('Bonjour, voici le devis pour le chantier de la rue Victor Hugo.')
+    ).toBeInTheDocument();
+  });
+
+  it('renders NOTHING when the provider returned no preview', async () => {
+    const { container } = await renderEmails();
+    // 'Relance' has excerpt: null — its row must carry the subject and no
+    // empty line pretending the message was blank.
+    const relance = screen.getByText('Relance').closest('label');
+    expect(relance).not.toBeNull();
+    expect(relance?.querySelectorAll('.line-clamp-2')).toHaveLength(0);
+    expect(container.querySelectorAll('.line-clamp-2')).toHaveLength(1);
+  });
+
   it('dates each message absolutely, next to the relative label', async () => {
     await renderEmails();
     expect(screen.getByText('relations.peer_message_received')).toBeVisible();
@@ -207,14 +240,14 @@ describe('ProviderEmailsSection', () => {
   });
 
   it('sends the request to the chat as an auto-sent INTENT', async () => {
-    push.mockClear();
+    openChat.mockClear();
     const { user } = await renderEmails();
 
     await user.click(screen.getAllByRole('checkbox')[1]);
     await user.click(screen.getByRole('button', { name: /relations.emails_summarize/ }));
 
-    expect(push).toHaveBeenCalledTimes(1);
-    const href = String(push.mock.calls[0][0]);
+    expect(openChat).toHaveBeenCalledTimes(1);
+    const href = String(openChat.mock.calls[0][0]);
     // `?intent=` and not `?draft=`: ticking messages and pressing a named
     // button IS the deliberate act — and the request goes to LIA, not to a
     // human (ADR-173, where `?draft=` is reserved for writing to someone).
@@ -430,9 +463,15 @@ describe('the one sentence unusable sections may say', () => {
 
 describe('selectedSubjects', () => {
   const emails = [
-    { id: 'm1', direction: 'received' as const, subject: 'Devis', occurred_at: null },
-    { id: 'm2', direction: 'sent' as const, subject: 'Relance', occurred_at: null },
-    { id: 'm3', direction: 'received' as const, subject: 'Merci', occurred_at: null },
+    { id: 'm1', direction: 'received' as const, subject: 'Devis', occurred_at: null, excerpt: null },
+    {
+      id: 'm2',
+      direction: 'sent' as const,
+      subject: 'Relance',
+      occurred_at: null,
+      excerpt: null,
+    },
+    { id: 'm3', direction: 'received' as const, subject: 'Merci', occurred_at: null, excerpt: null },
   ];
 
   it('carries ONLY what was ticked', () => {

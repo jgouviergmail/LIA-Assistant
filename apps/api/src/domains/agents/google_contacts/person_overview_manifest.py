@@ -10,6 +10,7 @@ Attached to contact_agent — person-centric home, cross-domain by construction.
 
 from datetime import UTC, datetime
 
+from src.core.config import settings
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -120,7 +121,14 @@ get_person_overview_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="emails",
             type="array",
-            description="Mail exchanged, by address: direction, subject, instant",
+            description=(
+                "Mail exchanged, by address: direction, subject, instant, and "
+                f"an `excerpt` of at most {settings.relations_provider_email_excerpt_max_chars} "
+                "characters — the provider's own preview, NOT the full body. A "
+                "message whose provider returned no preview carries no "
+                "`excerpt` key at all: say nothing about its content rather "
+                "than infer it from the subject."
+            ),
         ),
         OutputFieldSchema(
             path="events",

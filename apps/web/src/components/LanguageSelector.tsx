@@ -91,7 +91,10 @@ export function LanguageSelector({ currentLocale }: LanguageSelectorProps) {
         <Button
           variant="ghost"
           size="sm"
-          className="gap-2 h-11 px-3 max-[380px]:gap-1 max-[380px]:h-9 max-[380px]:px-2"
+          // `min-w-11` because below `xl` the label collapses to a single flag
+          // glyph: the height was already 44 px, the WIDTH fell to 39 and the
+          // target failed on a phone (measured 2026-08-01 at 390 px).
+          className="gap-2 h-11 min-w-11 px-3 max-[380px]:gap-1 max-[380px]:h-9 max-[380px]:min-w-9 max-[380px]:px-2"
           // Below `xl` only the flag renders (the header row cannot fit the
           // language name next to the nav), and a flag emoji is not an
           // accessible name — carry it explicitly, with the current value.

@@ -109,7 +109,7 @@ async def test_under_cap_instruction_does_not_trigger_cap_error(_settings_defaul
     tool invocation may fail for other reasons in this isolated unit test (e.g.,
     no real tool registry / database) — those are out of scope here.
     """
-    short_instruction = "Analyse the last 5 emails from Hua and produce a summary."
+    short_instruction = "Analyse the last 5 emails from Alice and produce a summary."
     step = _delegate_step(short_instruction)
 
     result = await _execute_tool_step(

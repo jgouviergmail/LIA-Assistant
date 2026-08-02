@@ -490,7 +490,10 @@ class ToolFilter:
 
     domains: list[str]
     categories: list[str]
-    max_tools: int = 5
+    #: Defaults to the SETTING, not to a literal: a ToolFilter built by hand
+    #: used to get 5 — four short of what every request actually ran with —
+    #: which made the dataclass a third source of truth for one number.
+    max_tools: int = field(default_factory=lambda: settings.planner_catalogue_max_tools)
     include_context_tools: bool = True
     include_sub_agent_tools: bool = True  # F6: always include delegation tool
 
@@ -501,13 +504,13 @@ class ToolFilter:
 
         ARCHITECTURE v3.1: Domain-only filtering
         - categories is empty (no intent-based filtering)
-        - max_tools increased to accommodate all domain tools
+        - max_tools comes from ``planner_catalogue_max_tools`` (deployment knob)
         - LLM sees complete toolset and reasons about dependencies
         """
         return cls(
             domains=intelligence.domains,
             categories=intelligence.get_tool_categories(),  # Returns [] - no filtering
-            max_tools=10,  # Increased: include all tools for domain (~6-8 per domain)
+            max_tools=settings.planner_catalogue_max_tools,
             include_context_tools=intelligence.is_reference_turn(),
             include_sub_agent_tools=True,  # F6: always available for planner
         )

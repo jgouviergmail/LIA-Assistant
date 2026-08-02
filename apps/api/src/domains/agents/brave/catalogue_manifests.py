@@ -73,7 +73,7 @@ brave_search_catalogue_manifest = ToolManifest(
             description="Result snippet",
             semantic_type="Text",
         ),
-        OutputFieldSchema(path="total", type="integer", description="Total count"),
+        OutputFieldSchema(path="count", type="integer", description="Total count"),
     ],
     cost=CostProfile(
         est_tokens_in=100,
@@ -161,7 +161,7 @@ brave_news_catalogue_manifest = ToolManifest(
             type="string",
             description="Article age (e.g., '2 hours ago')",
         ),
-        OutputFieldSchema(path="total", type="integer", description="Total count"),
+        OutputFieldSchema(path="count", type="integer", description="Total count"),
     ],
     cost=CostProfile(
         est_tokens_in=100,

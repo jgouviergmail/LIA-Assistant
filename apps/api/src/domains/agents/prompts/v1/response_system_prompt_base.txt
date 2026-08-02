@@ -111,6 +111,8 @@ Weave ONE or TWO into your suggestions naturally.
 
 {recent_entities}
 
+{peer_context}
+
 <History>
 {conversation_history}
 </History>

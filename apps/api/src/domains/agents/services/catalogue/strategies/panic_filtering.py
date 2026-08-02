@@ -39,6 +39,21 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+def _panic_max_tools() -> int:
+    """The panic catalogue cap, read fresh from settings.
+
+    Read at CALL time, not at import: a test (or a deployment) that overrides
+    the knob must be honoured by the strategy that already exists.
+
+    Returns:
+        ``planner_catalogue_panic_max_tools``, validated at boot to be at or
+        above the normal cap.
+    """
+    from src.core.config import get_settings
+
+    return int(get_settings().planner_catalogue_panic_max_tools)
+
+
 class PanicFilteringStrategy:
     """
     Panic mode catalogue filtering strategy.
@@ -93,7 +108,8 @@ class PanicFilteringStrategy:
 
         Returns ALL tools for detected domains with:
         - All categories included (no category filtering)
-        - Higher max_tools limit (15 instead of 5)
+        - The panic cap (``planner_catalogue_panic_max_tools``), which boot
+          validation keeps at or above the normal one
         - Context tools included
 
         ONE TIME ONLY: If already used, falls back to normal filtering
@@ -133,7 +149,7 @@ class PanicFilteringStrategy:
         expanded_filter = ToolFilter(
             domains=intelligence.domains,
             categories=[],  # Empty = all categories
-            max_tools=15,  # Higher limit (vs 5 for normal)
+            max_tools=_panic_max_tools(),
             include_context_tools=True,
         )
 

@@ -31,6 +31,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 API_SRC = REPO_ROOT / "apps" / "api" / "src"
+WEB_SRC = REPO_ROOT / "apps" / "web" / "src"
 
 # GitHub Actions renders `::error::`/`::warning::` as annotations; locally they
 # would just be noise. Selected by an explicit `--github` flag rather than by
@@ -74,6 +75,75 @@ def _iter_python_sources(root: Path) -> list[Path]:
         for p in root.rglob("*.py")
         if not any(part in skip for part in p.parts)
     )
+
+
+def _iter_web_sources() -> list[Path]:
+    """Every TypeScript/TSX source of the frontend, tests excluded.
+
+    Returns:
+        Sorted list of frontend source files.
+    """
+    skip = {"node_modules", "__tests__", ".next"}
+    return sorted(
+        p
+        for suffix in ("*.ts", "*.tsx")
+        for p in WEB_SRC.rglob(suffix)
+        if not any(part in skip for part in p.parts)
+    )
+
+
+def check_chat_deep_link_navigation() -> CheckResult:
+    """A chat deep link is opened by the browser, never by `router.push` (ADR-192).
+
+    Measured in production on 2026-08-01: the App Router restores the search
+    params of the entry it already holds for a route, so a client-side push
+    landed on the PREVIOUS deep link's URL — the first 360° of a session
+    replayed itself for every later one, and a `?draft=` prefill could come back
+    as an auto-sent `?intent=`.
+
+    The whole guarantee rests on every producer going through
+    ``openChatDeepLink``; one call site reverting to ``router.push`` silently
+    reopens the defect for that surface alone, which is exactly the kind of
+    regression no test elsewhere would notice.
+
+    Scanned on the WHOLE file, not line by line, and in three shapes — the
+    first version matched only ``router.push(chatIntentHref(`` on a single
+    line, and therefore saw none of the ways this actually gets written:
+
+    1. the call split across lines (Prettier does this by itself as soon as the
+       arguments are long, which is how every existing call site is formatted);
+    2. the href held in a variable first, the natural result of any refactor;
+    3. ``replace`` instead of ``push`` — same client-side navigation, same
+       restored search params, same defect.
+
+    A guard that answers OK on the shape the codebase actually uses is worse
+    than no guard: it is a promise nobody re-checks.
+    """
+    result = CheckResult(
+        "chat_deep_link",
+        "Chat deep link pushed through the client router instead of openChatDeepLink",
+    )
+    href_call = r"chat(?:Intent|Draft)Href\s*\("
+    # `[^()]*` keeps the match inside ONE argument list — it cannot run past the
+    # closing paren into an unrelated later call.
+    direct = re.compile(rf"\.(?:push|replace)\(\s*[^()]*{href_call}", re.DOTALL)
+    assigned = re.compile(rf"(?:const|let|var)\s+(\w+)\s*(?::[^=]+)?=\s*{href_call}")
+
+    for path in _iter_web_sources():
+        text = path.read_text(encoding="utf-8")
+        rel = path.relative_to(REPO_ROOT)
+        offenders = list(direct.finditer(text))
+        # Shape 2: any identifier this file built from a deep-link helper, then
+        # handed to the client router.
+        for name in {match.group(1) for match in assigned.finditer(text)}:
+            offenders += re.finditer(rf"\.(?:push|replace)\(\s*{re.escape(name)}\s*[,)]", text)
+        for match in offenders:
+            lineno = text.count("\n", 0, match.start()) + 1
+            snippet = " ".join(match.group(0).split())[:80]
+            result.details.append(f"{rel}:{lineno}: {snippet}")
+    result.details.sort()
+    result.failed = bool(result.details)
+    return result
 
 
 def check_bak_files() -> CheckResult:
@@ -213,6 +283,7 @@ def check_env_example_completeness() -> CheckResult:
 
 
 CHECKS = (
+    check_chat_deep_link_navigation,
     check_bak_files,
     check_sync_store_calls,
     check_redis_setex_serialization,

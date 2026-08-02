@@ -79,7 +79,6 @@ search_wikipedia_catalogue_manifest = ToolManifest(
             description="ID",
             semantic_type="wikipedia_page_id",
         ),
-        OutputFieldSchema(path="total", type="integer", description="Count"),
     ],
     cost=CostProfile(est_tokens_in=100, est_tokens_out=400, est_cost_usd=0.001, est_latency_ms=500),
     permissions=PermissionProfile(
@@ -229,7 +228,6 @@ get_wikipedia_related_catalogue_manifest = ToolManifest(
         OutputFieldSchema(path="title", type="string", description="Source"),
         OutputFieldSchema(path="related", type="array", description="Linked articles"),
         OutputFieldSchema(path="related[].title", type="string", description="Article title"),
-        OutputFieldSchema(path="total", type="integer", description="Count"),
     ],
     cost=CostProfile(est_tokens_in=80, est_tokens_out=300, est_cost_usd=0.001, est_latency_ms=500),
     permissions=PermissionProfile(

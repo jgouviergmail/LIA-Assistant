@@ -14,6 +14,15 @@ import type { RelationDetail, RelationPeerLink, RelationPeerMessage } from '@/ho
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
+// Chat deep links are REAL navigations since 2026-08-01 (ADR-192): the App
+// Router restored the search params of the entry it already held, so a second
+// deep link in a session left with the FIRST one's URL. The oracle is the same
+// href — only the door changed.
+const openChat = vi.fn();
+vi.mock('@/lib/chat-deep-link', () => ({
+  openChatDeepLink: (href: string) => openChat(href),
+}));
+
 const { useRelationDetail, useRelationContext, useOverviewScope, saveScope } = vi.hoisted(() => ({
   useRelationDetail: vi.fn(),
   useRelationContext: vi.fn(),
@@ -36,6 +45,7 @@ function detail(over: Partial<RelationDetail> = {}): RelationDetail {
   return {
     display_name: 'Gérard Dupont',
     identity_confidence: 'exact',
+    merged_from: [],
     open_loops: [
       {
         id: 'l1',
@@ -94,6 +104,8 @@ function renderPanel(
       isFavorite={over.isFavorite ?? false}
       onToggleFavorite={onToggleFavorite}
       onBack={onBack}
+      candidates={[]}
+      onMerged={vi.fn()}
     />
   );
   return { ...utils, onToggleFavorite, onBack };
@@ -103,7 +115,7 @@ beforeEach(() => {
   // `mockReset`, not `mockClear`: one test below installs an implementation on
   // `push` to observe call ORDER, and a cleared-but-not-reset mock would keep
   // running it for every later test.
-  push.mockReset();
+  openChat.mockReset();
   useRelationDetail.mockReset();
   // The provider sections are a SEPARATE query — silent by default here so
   // these tests keep asserting the database-local half on its own.
@@ -201,7 +213,7 @@ describe('RelationDetailPanel', () => {
     useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
     const { user } = renderPanel();
     await runTheOverview(user);
-    expect((push.mock.calls[0][0] as string).startsWith('/fr/dashboard/chat?intent=')).toBe(true);
+    expect((openChat.mock.calls[0][0] as string).startsWith('/fr/dashboard/chat?intent=')).toBe(true);
   });
 
   it('offers the 360° run ONLY inside the scope section', async () => {
@@ -229,7 +241,7 @@ describe('RelationDetailPanel', () => {
         order.push('save');
         return true;
       });
-      push.mockImplementation(() => order.push('push'));
+      openChat.mockImplementation(() => order.push('push'));
       useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
       const { user } = renderPanel();
 
@@ -257,7 +269,7 @@ describe('RelationDetailPanel', () => {
       useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
       const { user } = renderPanel();
       await runTheOverview(user);
-      expect(push).toHaveBeenCalledTimes(1);
+      expect(openChat).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -434,7 +446,7 @@ describe('RelationDetailPanel', () => {
 
 describe('RelationDetailPanel — quick actions', () => {
   beforeEach(() => {
-    push.mockClear();
+    openChat.mockClear();
     useRelationDetail.mockReset();
   });
 
@@ -479,7 +491,7 @@ describe('RelationDetailPanel — quick actions', () => {
     const { user } = renderPanel();
     await user.click(screen.getByRole('button', { name: label }));
 
-    const href = push.mock.calls[0][0] as string;
+    const href = openChat.mock.calls[0][0] as string;
     expect(href.startsWith('/fr/dashboard/chat?draft=')).toBe(true);
     // ?intent= is AUTO-SENT (QW-24/ADR-173) — forbidden for anything that
     // reaches another human or places a call.
@@ -489,7 +501,7 @@ describe('RelationDetailPanel — quick actions', () => {
 
 describe('RelationDetailPanel — LIA connection block', () => {
   beforeEach(() => {
-    push.mockClear();
+    openChat.mockClear();
     useRelationDetail.mockReset();
   });
 
@@ -551,7 +563,7 @@ describe('RelationDetailPanel — LIA connection block', () => {
 
 describe('RelationDetailPanel — empty state', () => {
   beforeEach(() => {
-    push.mockClear();
+    openChat.mockClear();
     useRelationDetail.mockReset();
   });
 

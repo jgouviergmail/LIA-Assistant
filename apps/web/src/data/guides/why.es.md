@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versión**: 4.1
-**Fecha**: 2026-08-01
-**Aplicación**: LIA v1.27.5
+**Fecha**: 2026-08-02
+**Aplicación**: LIA v1.27.6
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -189,6 +189,14 @@ Y sigue siendo privado por construcción. Durante una llamada LIA solo puede ind
 En la misma instancia, dos usuarios pueden conectarse — y sus asistentes se hablan. Dices “pregúntale a Marie si está libre el martes”, apruebas la redacción exacta, y es el asistente de Marie quien le entrega el mensaje, con su propia personalidad, nombrándote; el tuyo te confirma la entrega. Cada conexión puede además abrir comparticiones elegidas, de solo lectura: tu disponibilidad de calendario, los títulos de tus tareas — nada más, nada por defecto.
 
 Proteger a las personas está por encima de la funcionalidad: la visibilidad es voluntaria y solo por identidad exacta — nombre completo o dirección, nunca un fragmento, el bloqueo es silencioso (la otra parte nunca lo sabe), y un desconocido, un rechazo o un bloqueo reciben exactamente la misma respuesta — sondear quién existe es imposible. Cada acceso a una compartición se vuelve a comprobar en el momento de la lectura y queda registrado, y el contenido de los mensajes transmitidos se borra al cabo de treinta días, dejando solo el rastro del intercambio.
+### 3.12. Lo que te une a alguien, reunido
+
+La página **Relaciones** reúne, persona por persona, lo que LIA ya sigue: los compromisos abiertos entre vosotros, las llamadas realizadas, los recuerdos que la mencionan, los mensajes que vuestros asistentes se han transmitido. No se recoge nada nuevo — es una lente sobre lo que ya existe.
+
+También puedes preguntarlo sin abrir la página: cuándo fue la última llamada, qué le debes. La respuesta procede del mismo cálculo que la ficha, de modo que el asistente y la página no pueden decirte dos cosas distintas — y el total anunciado es exacto, nunca la longitud de lo que cabe en pantalla.
+
+Queda lo que ningún sistema puede adivinar. LIA agrupa lo que se escribe igual, salvando acentos y mayúsculas; no puede saber que un número anotado un día y un nombre son la misma persona, ni quién es exactamente «Papá». Eso es un juicio, y te corresponde: lo dices una vez, desde la ficha, y es **reversible** — la fusión se muestra con su propia opción de deshacer y no se reescribe nada en tus fuentes. Además, una agrupación de visualización nunca cambia a quién va dirigido un mensaje.
+
 
 ---
 

@@ -551,14 +551,15 @@ ContextTypeRegistry.register(
         item_schema=ContactItem,  # Type-safe validation
         primary_id_field=FIELD_RESOURCE_NAME,
         display_name_field="name",
-        # Updated: addresses and birthdays added for enhanced fuzzy matching capabilities
-        reference_fields=[
-            "name",
-            "emails",
-            "phones",
-            "addresses",
-            "birthdays",
-        ],  # Searchable fields for fuzzy matching
+        # Fuzzy matching reads these keys off the STORED items, which are the
+        # registry payloads: the provider's raw person plus the promotions made
+        # in `build_contacts_output`. `emails`/`phones`/`addresses`/`birthdays`
+        # were never among them — the raw keys are `emailAddresses`,
+        # `phoneNumbers`, … and the resolver only scores strings and lists of
+        # strings, so those four scored 0.0 on every item. Declaring a field the
+        # data does not carry does not widen matching, it only hides that
+        # "Marie" could never resolve at all.
+        reference_fields=["name"],
         icon="📇",  # Optional emoji for UI
     )
 )

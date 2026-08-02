@@ -16,7 +16,6 @@
  */
 
 import { Check, CircleSlash, ListTodo, Send } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { SettingsSection } from '@/components/settings/SettingsSection';
@@ -24,6 +23,7 @@ import { useAppConfig } from '@/hooks/useAppConfig';
 import { daysOpen, groupLoops, useOpenLoops, type OpenLoop } from '@/hooks/useOpenLoops';
 import { useTranslation } from '@/i18n/client';
 import { chatDraftHref } from '@/lib/briefing-utils';
+import { openChatDeepLink } from '@/lib/chat-deep-link';
 import type { Language } from '@/i18n/settings';
 import type { BaseSettingsProps } from '@/types/settings';
 
@@ -100,7 +100,6 @@ function LoopGroup({
   close: (id: string, action: 'done' | 'dismissed') => Promise<boolean>;
 }) {
   const { t, i18n } = useTranslation(lng);
-  const router = useRouter();
   if (loops.length === 0) return null;
 
   const handleClose = async (loop: OpenLoop, action: 'done' | 'dismissed') => {
@@ -115,7 +114,7 @@ function LoopGroup({
         : 'dashboard.briefing.intents.loop_owed',
       { subject: loop.subject }
     );
-    router.push(chatDraftHref(lng, intent));
+    openChatDeepLink(chatDraftHref(lng, intent));
   };
 
   return (

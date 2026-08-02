@@ -35,13 +35,28 @@ def register_program_manifests(registry: AgentRegistry) -> None:
     registry.register_tool_manifest(search_user_documents_catalogue_manifest)
     registry.register_tool_manifest(get_person_overview_catalogue_manifest)
 
-    # Peers program: flag-gated like its router — a disabled instance must
-    # not advertise tools whose REST surface is absent.
     from src.core.config import settings
 
+    # The CRM read capabilities. Each follows the flag of the AGENT it belongs
+    # to: a tool whose agent manifest is absent is an orphan the planner can
+    # still be offered, in a domain the analyzer cannot even route to. Open
+    # commitments live on task_agent, which always ships.
+    from src.domains.agents.relations.catalogue_manifests import (
+        get_calls_catalogue_manifest,
+        get_open_loops_catalogue_manifest,
+        get_peer_messages_catalogue_manifest,
+    )
+
+    registry.register_tool_manifest(get_open_loops_catalogue_manifest)
+    if getattr(settings, "telephony_enabled", False):
+        registry.register_tool_manifest(get_calls_catalogue_manifest)
+
+    # Peers program: flag-gated like its router — a disabled instance must
+    # not advertise tools whose REST surface is absent.
     if getattr(settings, "peers_enabled", False):
         from src.domains.agents.peer.catalogue_registration import (
             register_peer_manifests,
         )
 
         register_peer_manifests(registry)
+        registry.register_tool_manifest(get_peer_messages_catalogue_manifest)

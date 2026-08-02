@@ -23,10 +23,10 @@ import {
   PenLine,
   Send,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 
 import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
+import { openChatDeepLink } from '@/lib/chat-deep-link';
 import type { PhoneCallDebrief } from '@/types/telephony';
 import type { LucideIcon } from 'lucide-react';
 
@@ -96,14 +96,13 @@ function DebriefList({
 
 export function CallDebrief({ debrief, lng = 'fr', actionable = false }: CallDebriefProps) {
   const { t } = useTranslation();
-  const router = useRouter();
   if (!hasContent(debrief)) return null;
 
   const executeChip = (intentKey: string) =>
     actionable
       ? (item: string) => {
           const intent = t(intentKey, { item });
-          return { label: intent, onSelect: () => router.push(chatIntentHref(lng, intent)) };
+          return { label: intent, onSelect: () => openChatDeepLink(chatIntentHref(lng, intent)) };
         }
       : undefined;
 
@@ -149,7 +148,7 @@ export function CallDebrief({ debrief, lng = 'fr', actionable = false }: CallDeb
             <button
               type="button"
               onClick={() =>
-                router.push(
+                openChatDeepLink(
                   chatDraftHref(
                     lng,
                     t('settings.telephony.debrief.draft_prefill', {

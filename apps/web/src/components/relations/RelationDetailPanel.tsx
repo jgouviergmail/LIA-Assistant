@@ -38,8 +38,7 @@ import {
   Star,
   StickyNote,
 } from 'lucide-react';
-import { Children, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Children, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
@@ -54,9 +53,12 @@ import {
   providerNoteKey,
 } from '@/components/relations/RelationProviderSections';
 import { CollapsibleSection, SectionBadge } from '@/components/relations/CollapsibleSection';
+import { RelationMergePanel } from '@/components/relations/RelationMergePanel';
 import { RelationScopeSection, useScopeDraft } from '@/components/relations/RelationScopeSection';
 import { chatDraftHref, chatIntentHref, timeAgoLabel } from '@/lib/briefing-utils';
+import { openChatDeepLink } from '@/lib/chat-deep-link';
 import {
+  useRelationMerge,
   useRelationContext,
   useRelationDetail,
   type RelationContext,
@@ -293,7 +295,6 @@ function PeerMessagesSection({
  */
 function QuickActions({ detail, lng }: { detail: RelationDetail; lng: string }) {
   const { t } = useTranslation();
-  const router = useRouter();
   const name = detail.display_name;
 
   const actions: { key: string; icon: typeof Handshake; label: string; draft: string }[] = [
@@ -330,8 +331,11 @@ function QuickActions({ detail, lng }: { detail: RelationDetail; lng: string }) 
         <button
           key={key}
           type="button"
-          onClick={() => router.push(chatDraftHref(lng, draft))}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-card px-2.5 py-1.5 text-xs font-medium text-foreground/90 transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={() => openChatDeepLink(chatDraftHref(lng, draft))}
+          // `min-h-11`: these read as chips, but they are the card's primary
+          // actions and were 30 px tall on a phone — wide enough to look
+          // clickable, too short to hit reliably (measured 2026-08-01).
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-border/60 bg-card px-2.5 py-1.5 text-xs font-medium text-foreground/90 transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Icon className="h-3.5 w-3.5" aria-hidden="true" />
           {label}
@@ -532,6 +536,8 @@ export function RelationDetailPanel({
   lng,
   isFavorite,
   onToggleFavorite,
+  candidates,
+  onMerged,
   onBack,
 }: {
   name: string;
@@ -539,11 +545,40 @@ export function RelationDetailPanel({
   /** Star state from the overview (single source; the panel never re-reads). */
   isFavorite: boolean;
   onToggleFavorite: (name: string, nextValue: boolean) => void;
+  /** Every relationship of the overview — the merge candidates. */
+  candidates: string[];
+  /** Bring the overview back in sync: a merge turns two cards into one. */
+  onMerged: () => void;
   onBack: () => void;
 }) {
   const { t } = useTranslation();
-  const router = useRouter();
-  const { detail, loading } = useRelationDetail(name);
+  const { detail, loading, refetch } = useRelationDetail(name);
+  const { merge, split, busy: merging } = useRelationMerge();
+
+  const applyMerge = useCallback(
+    async (source: string) => {
+      const result = await merge(source, name);
+      if (result.ok) {
+        // Both surfaces: this card absorbs the other, and the list loses one.
+        await Promise.resolve(refetch());
+        onMerged();
+      }
+      return result;
+    },
+    [merge, name, refetch, onMerged]
+  );
+
+  const applySplit = useCallback(
+    async (source: string) => {
+      const result = await split(source);
+      if (result.ok) {
+        await Promise.resolve(refetch());
+        onMerged();
+      }
+      return result;
+    },
+    [split, refetch, onMerged]
+  );
   // ONE scope for both entry points. The header button and the panel's own
   // button must not diverge: a reader who ticks boxes here and presses the
   // header button would otherwise silently get their PREVIOUS scope.
@@ -591,7 +626,11 @@ export function RelationDetailPanel({
     // measured in production, the 360° tool scored 0.853, the best of the whole
     // catalogue, and the plan called the generic mail tool instead. The subject
     // is the name on screen, so what runs is what was displayed.
-    router.push(
+    // A REAL navigation, never `router.push`: the App Router restores the
+    // search params of the entry it already holds for this route, so a second
+    // 360° in the same session left with the FIRST person's URL (measured in
+    // production 2026-08-01 — see `openChatDeepLink`).
+    openChatDeepLink(
       chatIntentHref(lng, prepIntent, {
         capability: 'person_overview',
         subject: detail.display_name,
@@ -648,6 +687,17 @@ export function RelationDetailPanel({
           {t('relations.detail_empty')}
         </p>
       )}
+
+      {/* Last: merging CORRECTS what is above it, so it reads after the card
+          rather than competing with it for attention. */}
+      <RelationMergePanel
+        displayName={detail.display_name}
+        mergedFrom={detail.merged_from ?? []}
+        candidates={candidates}
+        busy={merging}
+        onMerge={applyMerge}
+        onSplit={applySplit}
+      />
     </div>
   );
 }

@@ -9,7 +9,10 @@
  *   2026-07-25: `grep -c 'register_agent(' agents.py` — the telephony agent
  *   had landed without this counter following it.
  * - tools: ToolManifest entries across src/domains/agents/{domain}/catalogue_manifests.py.
- *   Re-measured 2026-07-31 (v1.27.3) = 86. This tile renders the raw number
+ *   Re-measured 2026-08-02 (v1.27.6) = 89: the three CRM read capabilities
+ *   (get_calls, get_open_loops, get_peer_messages), each registered in the
+ *   domain whose catalogue had none (ADR-193).
+ *   Previous measurement 2026-07-31 (v1.27.3) = 86. This tile renders the raw number
  *   with no "+", so an over-count is a false claim — hence the runtime
  *   cross-check rather than grep alone: production logs 344
  *   `catalogue_tool_registered` events across 4 uvicorn workers = 86 per
@@ -24,20 +27,19 @@
  *   the ADR-184 counter (planner_parameter_bounds_corrections_total) over the
  *   463 of v1.27.3.
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured at v1.27.5: backend 17,415 collected across 933 files (+326
- *   over v1.27.4 — the full contact card, the 360° scope model and routes,
- *   the catalogue/registry parity guard, the tool's honesty matrix, plus the
- *   ADR-191 cross-domain reachability and capability-directive oracles),
- *   frontend 4,447 (+178) = 21,862 → 21,000 (the rounded display is unchanged
- *   since v1.27.2).
+ *   Re-measured at v1.27.6: backend 17,622 collected across 947 files (+207
+ *   over v1.27.5 — the three CRM read capabilities, the manual merge of two
+ *   relationships, the deterministic read-intent rule, plus the regression
+ *   oracles the code review produced), frontend 4,474 (+27) = 22,096 →
+ *   22,000.
  *   Re-measure every release: the value carried the backend count alone
  *   until v1.25.9.
- * - adrs: docs/architecture/ ADR files (190 files, numbered up to ADR-191 —
- *   ADR-008 has no separate file, so 191 numbers map to 190 files). Was
+ * - adrs: docs/architecture/ ADR files (192 files, numbered up to ADR-193 —
+ *   ADR-008 has no separate file, so 193 numbers map to 192 files). Was
  *   stranded at 183 from v1.27.0 to v1.27.4: recount it, never carry it over.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   192 headings at v1.27.5, no Unreleased pending.
+ *   193 headings at v1.27.6, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -48,14 +50,14 @@
 
 export const LANDING_STATS = {
   agents: 20,
-  tools: 86,
+  tools: 89,
   providers: 7,
   voiceLanguages: 99,
   metrics: 464,
   uiLanguages: 6,
-  tests: 21000,
-  adrs: 190,
-  releases: 192,
+  tests: 22000,
+  adrs: 192,
+  releases: 193,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

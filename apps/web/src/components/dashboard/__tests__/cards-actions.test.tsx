@@ -28,6 +28,15 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
 }));
 
+// Chat deep links are REAL navigations since 2026-08-01 (ADR-192): the App
+// Router restored the search params of the entry it already held, so a second
+// deep link in a session left with the FIRST one's URL. The oracle is the same
+// href — only the door changed.
+const openChat = vi.fn();
+vi.mock('@/lib/chat-deep-link', () => ({
+  openChatDeepLink: (href: string) => openChat(href),
+}));
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) =>
@@ -56,11 +65,11 @@ function section<T extends SectionData>(data: T): CardSection<T> {
 const cardProps = { isRefreshing: false, onRefresh: vi.fn(), staggerIndex: 0 };
 
 function lastUrl(): string {
-  return push.mock.calls[push.mock.calls.length - 1][0] as string;
+  return openChat.mock.calls[openChat.mock.calls.length - 1][0] as string;
 }
 
 beforeEach(() => {
-  push.mockClear();
+  openChat.mockClear();
 });
 
 describe('mail actions (QW-24)', () => {

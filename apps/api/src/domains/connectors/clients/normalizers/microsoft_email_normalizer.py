@@ -119,6 +119,38 @@ def _extract_recipients(recipients: list[dict[str, Any]] | None) -> str:
     return ", ".join(addresses)
 
 
+def _build_snippet(body_content: str, body_type: str, body_preview: Any) -> str:
+    """Build the short excerpt, falling back to the preview Graph already sent.
+
+    ``search_emails`` and the list endpoints select ``bodyPreview`` and NOT
+    ``body``, so a snippet derived from the body alone was EMPTY on every
+    search result — while the preview sat unused in the same payload.
+
+    Only the snippet is served this way: ``body`` means the FULL body, and
+    filling it with a truncated preview would make every downstream reader
+    believe it holds the whole message.
+
+    Args:
+        body_content: Raw ``body.content`` (may be empty on list endpoints).
+        body_type: Raw ``body.contentType`` ("html" or "text").
+        body_preview: Raw ``bodyPreview`` field, of any shape or missing.
+
+    Returns:
+        A snippet capped at ``_SNIPPET_MAX_LENGTH``, possibly empty when the
+        payload carries neither a body nor a preview.
+    """
+    if body_type == "html":
+        snippet = _strip_html(body_content)[:_SNIPPET_MAX_LENGTH]
+    else:
+        snippet = body_content[:_SNIPPET_MAX_LENGTH]
+
+    if snippet.strip():
+        return snippet
+
+    preview = str(body_preview or "").strip()
+    return _strip_html(preview)[:_SNIPPET_MAX_LENGTH] if preview else snippet
+
+
 def normalize_graph_message(msg: dict[str, Any]) -> dict[str, Any]:
     """
     Normalize a Microsoft Graph message to Gmail API dict format.
@@ -152,11 +184,7 @@ def normalize_graph_message(msg: dict[str, Any]) -> dict[str, Any]:
     body_content = body_data.get("content", "")
     body_type = body_data.get("contentType", "html")
 
-    # Generate snippet from body
-    if body_type == "html":
-        snippet = _strip_html(body_content)[:_SNIPPET_MAX_LENGTH]
-    else:
-        snippet = body_content[:_SNIPPET_MAX_LENGTH]
+    snippet = _build_snippet(body_content, body_type, msg.get("bodyPreview"))
 
     # Build label IDs (Gmail-compatible)
     label_ids: list[str] = []

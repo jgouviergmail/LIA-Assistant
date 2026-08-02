@@ -354,6 +354,7 @@ def _import_tool_modules() -> None:
         # in production 2026-07-31 on `get_person_overview_tool`; pinned by
         # tests/unit/domains/agents/tools/test_catalogue_registry_parity.py).
         ("src.domains.agents.tools.person_tools", "person_tools"),
+        ("src.domains.agents.tools.relation_read_tools", "relation_read_tools"),
         ("src.domains.agents.tools.documents_tools", "documents_tools"),
         ("src.domains.agents.tools.automation_tools", "automation_tools"),
         # Internal Tools

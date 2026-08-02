@@ -18,6 +18,15 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
 }));
 
+// Chat deep links are REAL navigations since 2026-08-01 (ADR-192): the App
+// Router restored the search params of the entry it already held, so a second
+// deep link in a session left with the FIRST one's URL. The oracle is the same
+// href — only the door changed.
+const openChat = vi.fn();
+vi.mock('@/lib/chat-deep-link', () => ({
+  openChatDeepLink: (href: string) => openChat(href),
+}));
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) =>
@@ -84,7 +93,7 @@ const fullData: ForYouData = {
 
 describe('ForYouCard', () => {
   beforeEach(() => {
-    push.mockClear();
+    openChat.mockClear();
   });
 
   it('renders loops with direction-aware intents and opens the chat on click', () => {
@@ -94,8 +103,8 @@ describe('ForYouCard', () => {
       name: /intents\.loop_owed\|subject=rappeler le plombier/,
     });
     fireEvent.click(owed);
-    expect(push).toHaveBeenCalledWith(expect.stringContaining('/fr/dashboard/chat?draft='));
-    expect(push.mock.calls[0][0]).toContain(encodeURIComponent('rappeler le plombier'));
+    expect(openChat).toHaveBeenCalledWith(expect.stringContaining('/fr/dashboard/chat?draft='));
+    expect(openChat.mock.calls[0][0]).toContain(encodeURIComponent('rappeler le plombier'));
 
     // Waiting-direction loop gets the waiting intent
     expect(

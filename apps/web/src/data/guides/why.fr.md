@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 4.1
-**Date** : 2026-08-01
-**Application** : LIA v1.27.5
+**Date** : 2026-08-02
+**Application** : LIA v1.27.6
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -189,6 +189,14 @@ Et cela reste confidentiel par construction. Pendant un appel, LIA peut seulemen
 Sur une même instance, deux utilisateurs peuvent se connecter — et leurs assistants se parlent. Tu dis « demande à Marie si elle est libre mardi », tu valides la formulation exacte, et c’est l’assistant de Marie qui lui transmet le message, avec sa personnalité à elle, en te nommant ; le tien te confirme la remise. Chaque connexion peut aussi ouvrir des partages choisis, en lecture seule : tes disponibilités de calendrier, les titres de tes tâches — rien de plus, rien par défaut.
 
 La protection des personnes prime sur la fonctionnalité : la découverte est volontaire et sur identité exacte uniquement — nom complet ou adresse, jamais un fragment, le blocage est silencieux (l’autre ne l’apprend jamais), et un inconnu, un refus ou un blocage reçoivent exactement la même réponse — impossible de sonder qui existe. Chaque accès à un partage est re-vérifié à l’instant de la lecture et journalisé, et le contenu des messages relayés s’efface au bout de trente jours, ne laissant que la trace de l’échange.
+### 3.12. Ce qui te lie à quelqu'un, rassemblé
+
+La page **Relations** réunit, personne par personne, ce que LIA suit déjà : les engagements ouverts entre vous, les appels passés, les souvenirs qui la mentionnent, les messages que vos assistants se sont transmis. Rien de nouveau n'est collecté — c'est une lentille posée sur ce qui existe déjà.
+
+Tu peux aussi le demander à voix haute, sans ouvrir la page : « de quand date mon dernier appel à Marie ? », « qu'est-ce que je lui dois ? ». La réponse vient du même calcul que la fiche, si bien que l'assistant et la page ne peuvent pas te dire deux choses différentes — et le total annoncé est exact, jamais la longueur de ce qui tient à l'écran.
+
+Reste ce qu'aucun système ne peut deviner. LIA regroupe ce qui s'écrit pareil, aux accents et aux majuscules près ; elle ne peut pas savoir qu'un numéro noté un jour et un nom sont la même personne, ni que « Papa » est quelqu'un en particulier. C'est un jugement, et il te revient : tu le dis une fois, depuis la fiche, et c'est **réversible** — la fusion s'affiche avec son annulation, rien n'est réécrit dans tes sources. Un regroupement d'affichage ne change d'ailleurs jamais à qui un message est adressé.
+
 
 ---
 

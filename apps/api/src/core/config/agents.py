@@ -230,6 +230,8 @@ from src.core.constants import (
     PLAN_PATTERN_REDIS_PREFIX,
     PLAN_PATTERN_REDIS_TTL_DAYS_DEFAULT,
     PLAN_PATTERN_SUGGESTION_TIMEOUT_MS_DEFAULT,
+    PLANNER_CATALOGUE_MAX_TOOLS_DEFAULT,
+    PLANNER_CATALOGUE_PANIC_MAX_TOOLS_DEFAULT,
     PLANNER_LLM_FREQUENCY_PENALTY_DEFAULT,
     PLANNER_LLM_MAX_TOKENS_DEFAULT,
     PLANNER_LLM_MODEL_DEFAULT,
@@ -498,6 +500,61 @@ class AgentsSettings(BaseSettings):
             "react_repeated_call_block_threshold so the model gets a chance to adapt first."
         ),
     )
+
+    planner_catalogue_max_tools: int = Field(
+        default=PLANNER_CATALOGUE_MAX_TOOLS_DEFAULT,
+        ge=3,
+        le=60,
+        description=(
+            "Tools the planner sees for one request. The catalogue is a NOISE "
+            "filter as much as a token budget — excluding low-scoring tools is "
+            "what stops the model picking a simpler-but-wrong one — so raising "
+            "this is a trade-off, not a free win. Watch `excluded_tools` and "
+            "`max_tools saturated by protected tools` in the logs before doing so."
+        ),
+    )
+    planner_catalogue_panic_max_tools: int = Field(
+        default=PLANNER_CATALOGUE_PANIC_MAX_TOOLS_DEFAULT,
+        ge=3,
+        le=80,
+        description=(
+            "Tools the planner sees on the PANIC retry, after normal filtering "
+            "left no runnable plan. Must stay at or above "
+            "planner_catalogue_max_tools: a narrower safety net than the path "
+            "that just failed would make the guard the restriction."
+        ),
+    )
+
+    @field_validator("planner_catalogue_panic_max_tools", mode="after")
+    @classmethod
+    def panic_cap_not_below_normal(cls, v: int, info: ValidationInfo) -> int:
+        """Refuse a panic catalogue smaller than the normal one.
+
+        Panic mode exists to REOPEN the catalogue when filtering left the
+        planner no valid plan. Configured below the normal cap it would offer
+        strictly less than what already failed — an inversion the two former
+        literals (10 and 15) could not express, and which would be invisible
+        until a user hit the fallback.
+
+        Args:
+            v: The panic cap being validated.
+            info: Validation context carrying the already-validated fields.
+
+        Returns:
+            The unchanged value when the invariant holds.
+
+        Raises:
+            ValueError: When the panic cap is below the normal cap.
+        """
+        normal = info.data.get("planner_catalogue_max_tools")
+        if normal is not None and v < normal:
+            raise ValueError(
+                f"planner_catalogue_panic_max_tools ({v}) must be >= "
+                f"planner_catalogue_max_tools ({normal}): panic mode reopens the "
+                "catalogue after normal filtering failed, so a smaller value "
+                "would offer the planner strictly less than what already failed."
+            )
+        return v
 
     @field_validator("react_repeated_call_terminal_threshold", mode="after")
     @classmethod

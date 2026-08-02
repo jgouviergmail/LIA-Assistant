@@ -16,6 +16,15 @@ import type { PhoneCallDebrief } from '@/types/telephony';
 
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
+
+// Chat deep links are REAL navigations since 2026-08-01 (ADR-192): the App
+// Router restored the search params of the entry it already held, so a second
+// deep link in a session left with the FIRST one's URL. The oracle is the same
+// href — only the door changed.
+const openChat = vi.fn();
+vi.mock('@/lib/chat-deep-link', () => ({
+  openChatDeepLink: (href: string) => openChat(href),
+}));
 // Echo translator that SHOWS interpolations — the intent must carry the item.
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -41,7 +50,7 @@ const FULL: PhoneCallDebrief = {
 };
 
 beforeEach(() => {
-  push.mockClear();
+  openChat.mockClear();
 });
 
 describe('CallDebrief', () => {
@@ -86,7 +95,7 @@ describe('CallDebrief', () => {
       screen.getByRole('button', { name: /settings.telephony.debrief.intent_task/ })
     );
 
-    const url = push.mock.calls[0][0] as string;
+    const url = openChat.mock.calls[0][0] as string;
     expect(url.startsWith('/fr/dashboard/chat?intent=')).toBe(true);
     expect(decodeURIComponent(url)).toContain('Réserver la table en terrasse.');
   });
@@ -96,7 +105,7 @@ describe('CallDebrief', () => {
 
     await user.click(screen.getByRole('button', { name: 'settings.telephony.debrief.use_draft' }));
 
-    const url = push.mock.calls[0][0] as string;
+    const url = openChat.mock.calls[0][0] as string;
     expect(url.startsWith('/fr/dashboard/chat?draft=')).toBe(true);
   });
 });

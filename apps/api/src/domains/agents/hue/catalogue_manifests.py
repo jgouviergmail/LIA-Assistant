@@ -124,7 +124,7 @@ list_hue_lights_catalogue_manifest = ToolManifest(
         required_scopes=[], hitl_required=False, data_classification="CONFIDENTIAL"
     ),
     context_key=CONTEXT_DOMAIN_HUE,
-    reference_examples=["name", "is_on", "brightness"],
+    reference_examples=["hues[0].name", "hues[0].is_on", "hues[0].brightness"],
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="💡", i18n_key="list_hue_lights", visible=True, category="tool"),
@@ -201,7 +201,7 @@ list_hue_rooms_catalogue_manifest = ToolManifest(
         required_scopes=[], hitl_required=False, data_classification="CONFIDENTIAL"
     ),
     context_key=CONTEXT_DOMAIN_HUE,
-    reference_examples=["name", "children"],
+    reference_examples=["rooms[0].name", "rooms[0].children_count"],
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="🏠", i18n_key="list_hue_rooms", visible=True, category="tool"),
@@ -274,7 +274,7 @@ list_hue_scenes_catalogue_manifest = ToolManifest(
         required_scopes=[], hitl_required=False, data_classification="CONFIDENTIAL"
     ),
     context_key=CONTEXT_DOMAIN_HUE,
-    reference_examples=["name"],
+    reference_examples=["scenes[0].name"],
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="🎬", i18n_key="list_hue_scenes", visible=True, category="tool"),

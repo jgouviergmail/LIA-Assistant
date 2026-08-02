@@ -38,6 +38,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 import structlog
 
+from src.core.config import settings
 from src.core.exceptions import MaxRetriesExceededError
 from src.domains.relations.providers.client import open_category_client
 from src.domains.relations.providers.schemas import ExchangedEmail
@@ -78,6 +79,27 @@ def _occurred_at(message: dict[str, Any]) -> datetime | None:
         return None
 
 
+def _excerpt(message: dict[str, Any]) -> str | None:
+    """The provider's own preview, whitespace-collapsed and capped.
+
+    Every provider returns one WITH the search — Gmail ``snippet``, Graph
+    ``bodyPreview`` (through its normalizer), Apple likewise — so this costs no
+    extra call, where reading the full body would cost one PER MESSAGE.
+
+    Args:
+        message: One normalized message.
+
+    Returns:
+        The excerpt, or ``None`` when the provider gave nothing usable. Never
+        an empty string: a blank line would claim the message had no content.
+    """
+    raw = str(message.get("snippet") or "").strip()
+    if not raw:
+        return None
+    collapsed = " ".join(raw.split())
+    return collapsed[: settings.relations_provider_email_excerpt_max_chars] or None
+
+
 def _to_email(message: dict[str, Any], direction: str) -> ExchangedEmail | None:
     """Map one normalized message onto the contract (None when unusable)."""
     message_id = str(message.get("id") or "").strip()
@@ -89,6 +111,7 @@ def _to_email(message: dict[str, Any], direction: str) -> ExchangedEmail | None:
         direction=direction,
         subject=subject,
         occurred_at=_occurred_at(message),
+        excerpt=_excerpt(message),
     )
 
 

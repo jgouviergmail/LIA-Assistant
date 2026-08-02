@@ -164,3 +164,29 @@ class RelationDetail(BaseModel):
     peer_link: RelationPeerLink | None = None
     is_favorite: bool = False
     is_peer: bool = False
+    # Relationships the user merged INTO this one, as they were displayed
+    # before the merge. Shown so the merge is visible and undoable: a merge
+    # nobody can see is a merge nobody can correct.
+    merged_from: list[str] = Field(default_factory=list)
+
+
+class RelationMergeRequest(BaseModel):
+    """Declare that two relationships are the same person.
+
+    Names travel as the UI displays them; the service folds them into identity
+    keys. Sending keys instead would make the client a second authority on
+    identity — the exact thing ADR-185 keeps to one place.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    source: str = Field(
+        min_length=1,
+        max_length=255,
+        description="Relationship merged AWAY, as displayed.",
+    )
+    target: str = Field(
+        min_length=1,
+        max_length=255,
+        description="Relationship it joins, as displayed.",
+    )

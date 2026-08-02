@@ -160,6 +160,10 @@ PromptName = Literal[
     "memory_normal_directive",
     "memory_profile_template",
     "memory_profile_section_headers",
+    # Mentioned-peer context injection (local CRM facts about a connected user
+    # named in the turn). Scoped by the user's own 360° selection.
+    "peer_context_template",
+    "peer_context_section_headers",
     # Pipeline intelligence (analysis, planning, validation)
     "query_analyzer_prompt",
     "smart_planner_prompt",
@@ -227,7 +231,13 @@ def calculate_prompt_hash(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
-@lru_cache(maxsize=32)
+# 256, not 32: `prompts/v1/` holds 89 files and a single turn touches the
+# router, the analyzer, the planner, the validator, the response scaffolding and
+# every injected block. Below the working set the LRU evicts, and the next miss
+# is a SYNCHRONOUS `read_text` inside a coroutine — disk I/O on the event loop
+# that carries the SSE stream. Prompts are immutable at runtime and weigh a few
+# KB each, so the whole corpus costs under a megabyte to never re-read.
+@lru_cache(maxsize=256)
 def load_prompt(
     name: PromptName,
     version: PromptVersion = "v1",

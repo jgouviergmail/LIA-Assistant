@@ -200,7 +200,7 @@ get_events_catalogue_manifest = ToolManifest(
             description="Calendar ID where event is stored",
             semantic_type="calendar_id",
         ),
-        OutputFieldSchema(path="total", type="integer", description="Count"),
+        OutputFieldSchema(path="count", type="integer", description="Count"),
     ],
     cost=CostProfile(est_tokens_in=150, est_tokens_out=800, est_cost_usd=0.002, est_latency_ms=500),
     permissions=PermissionProfile(
@@ -218,7 +218,7 @@ get_events_catalogue_manifest = ToolManifest(
         "events[0].location",
         "events[0].description",
         "events[0].calendar_id",
-        "total",
+        "count",
     ],
     version="2.0.0",
     maintainer="Team Agents",
@@ -548,7 +548,6 @@ list_calendars_catalogue_manifest = ToolManifest(
             semantic_type="access_role",
         ),
         OutputFieldSchema(path="calendars[].primary", type="boolean", description="Is primary"),
-        OutputFieldSchema(path="total", type="integer", description="Total"),
     ],
     cost=CostProfile(est_tokens_in=100, est_tokens_out=300, est_cost_usd=0.001, est_latency_ms=300),
     permissions=PermissionProfile(

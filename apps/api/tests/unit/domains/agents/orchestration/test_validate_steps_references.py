@@ -10,9 +10,11 @@ The gate is wired (``PlanSemanticValidator``) and had no test at all.
 
 The sharp edge: the reference regex captures ANY ``$steps.X.Y``, but ``Y`` is
 only a result_key some of the time. It is just as often a plain output FIELD —
-``total``, ``count``, ``success`` — which the catalogue documents as legitimate
-(``reference_examples`` of get_contacts_tool literally lists ``"total"``).
+``count``, ``success`` — which the catalogue documents as legitimate
+(``reference_examples`` of get_contacts_tool literally lists ``"count"``).
 Treating a field access as a domain reference rejects a perfectly valid plan.
+``total`` stays in the parametrization below on purpose: the discriminator must
+skip ANY non-result_key segment, including one no manifest advertises.
 ``get_domain_from_result_key`` is the discriminator: it resolves result_keys and
 returns ``None`` for field names.
 """
@@ -144,7 +146,7 @@ class TestLegitimateReferencesArePreserved:
     @pytest.mark.parametrize("field", ["total", "count", "success", "message_count"])
     def test_scalar_output_field_is_not_a_ghost_dependency(self, field: str) -> None:
         """Regression: the second path segment is a plain output FIELD, not a
-        result_key. ``get_contacts_tool`` documents ``"total"`` in its own
+        result_key. ``get_contacts_tool`` documents ``"count"`` in its own
         ``reference_examples``, yet this gate used to reject it as a ghost
         dependency — rejecting a valid plan and forcing a wasted replan.
         """

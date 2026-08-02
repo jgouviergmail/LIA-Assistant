@@ -2914,6 +2914,11 @@ RELATIONS_PROVIDER_WINDOW_DAYS_DEFAULT = 90  # symmetric past/future event windo
 RELATIONS_PROVIDER_EMAIL_WINDOW_DAYS_DEFAULT = 365
 RELATIONS_PROVIDER_MAX_ADDRESSES_DEFAULT = 3  # addresses of one contact card queried
 RELATIONS_PROVIDER_MAX_ITEMS_DEFAULT = 10  # items rendered per provider section
+# Excerpt shown under an exchanged message. Every provider returns a preview
+# WITH the search (Gmail snippet, Graph bodyPreview), so this costs no extra
+# call; the full body would cost one per message. 220 chars ≈ two rendered
+# lines — enough to recognise a thread, short enough not to become the card.
+RELATIONS_PROVIDER_EMAIL_EXCERPT_MAX_CHARS_DEFAULT = 220
 # --- Scope of a "360° point" (what the chat tool is allowed to read) ---
 # Five is what a person can hold in their head before a call; the ceiling
 # exists so the bound is PUBLISHED to whoever produces the value (ADR-184).
@@ -3179,6 +3184,15 @@ V3_DOMAIN_CALIBRATED_PRIMARY_MIN = 0.75
 # Reference: services/tool_selector.py
 # Problem: Same as domains - cosine similarity produces narrow score ranges.
 # Solution: Same pipeline - min-max stretching + softmax temperature.
+
+# --- Planner catalogue size (ADR-191 lineage) ---
+# How many tools the planner sees for one request. The catalogue is a NOISE
+# filter as much as a token budget: excluding low-scoring tools is what stops
+# the model from picking a simpler-but-wrong one, so widening it is a real
+# trade-off, not a free win. Panic mode reopens the catalogue when filtering
+# left no runnable plan — it must never be NARROWER than the normal path.
+PLANNER_CATALOGUE_MAX_TOOLS_DEFAULT = 10
+PLANNER_CATALOGUE_PANIC_MAX_TOOLS_DEFAULT = 15
 
 V3_TOOL_SOFTMAX_TEMPERATURE = 0.1  # Strong discrimination with stretching
 

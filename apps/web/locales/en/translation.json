@@ -3195,7 +3195,17 @@
     "emails_summarize_one": "Summarize this email in the chat",
     "emails_summarize_other": "Summarize these {{count}} emails in the chat",
     "emails_summary_intent": "Summarize my email exchange with {{name}}: {{subjects}}",
-    "emails_select": "Select “{{subject}}”"
+    "emails_select": "Select “{{subject}}”",
+    "merge_title": "Same person?",
+    "merge_help": "Automatic grouping catches close spellings. When two cards are the same person, say so here: nothing is rewritten, and the merge can be undone.",
+    "merge_pick": "Card to merge",
+    "merge_pick_placeholder": "Pick a card…",
+    "merge_action": "Merge",
+    "merge_no_candidate": "No other card to merge with yet.",
+    "merge_merged_title": "Cards merged here",
+    "merge_undo": "Undo the merge of {{name}}",
+    "merge_undo_short": "Split",
+    "merge_failed": "The merge could not be saved. Nothing changed."
   },
   "spaces": {
     "title": "Knowledge Spaces",
@@ -3545,7 +3555,11 @@
       "delegate_to_sub_agent": "Delegating to sub-agent...",
       "mcp_tool": "Executing external MCP tool...",
       "previous_steps_one": "previous step",
-      "previous_steps_other": "previous steps"
+      "previous_steps_other": "previous steps",
+      "get_calls": "Reading past calls...",
+      "get_open_loops": "Reading open commitments...",
+      "get_peer_messages": "Reading relayed messages...",
+      "get_person_overview": "Building the 360° overview..."
     },
     "reasoning": {
       "title": "Reasoning"
@@ -3674,8 +3688,8 @@
           "description": "Full stack: Prometheus metrics (tokens, latency, errors, costs), 26 Grafana dashboards, Tempo distributed tracing, Loki centralized logs, active email alerting with a linked runbook on every alert. The 26th dashboard is a product cockpit: it counts validated outcomes — your explicit 👍 (E1) or an action left uncorrected for a full day (E2) — and derives the North Star, activation funnel, retention and cost per useful result. The exact counting lives in PostgreSQL (states can change, counters cannot un-count); Grafana reads it through a read-only role that can only see aggregate views, never raw tables."
         },
         "tools": {
-          "title": "🔧 80+ Typed Tools",
-          "description": "Over 75 native tools with JSON schemas auto-generated from Python/Pydantic, infinitely extensible via MCP servers. Declarative manifests with semantic_keywords for intelligent routing. Unified StandardToolOutput with registry updates for contextual references."
+          "title": "🔧 89 Typed Tools",
+          "description": "89 native tools with JSON schemas auto-generated from Python/Pydantic, infinitely extensible via MCP servers and Skills. Declarative manifests with semantic_keywords for intelligent routing, and published bounds: whatever a validator can reject, the planner can read. The catalogue is filtered per domain, so a domain carrying only write tools pushes the planner to write — which is why every domain now carries its read capabilities too."
         },
         "costTransparency": {
           "title": "💰 Cost Transparency",
@@ -3800,6 +3814,20 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_27_6": {
+          "title": "v1.27.6 — 🔗 Every request leaves with the right name",
+          "date": "August 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>🔗 A request no longer leaves carrying the previous name</b> — a 360° overview of someone, then another person's card opened and launched, sent the <b>first</b> one's sentence. The browser alone decides the address now: what you launch is what you asked for, including when the link only prefills the input box.",
+            "i2": "<b>📞 A question about a call gets an answer, not a call</b> — \"when did I last call Marie?\" could produce a plan to <b>phone her and ask</b>. LIA can now read your past calls, your open commitments and your relayed messages, instead of only having the means to act.",
+            "i3": "<b>🤝 Merge two cards that are the same person</b> — LIA groups what is written the same, accents and capitals aside. It cannot guess that a raw phone number and a name are one relationship: you tell it, once, from the bottom of the card. It is reversible, and you always see what was merged.",
+            "i4": "<b>✉️ An excerpt of the email under its subject</b> — \"Re: Re: catch-up\" says nothing about what the exchange was about. Up to two lines now appear under the subject, on the relationship card.",
+            "i5": "<b>📇 Calling a number no longer creates a second card</b> — calling \"06 12 34 56 78\" then \"Marie Martin\" built two relationships for one person. The number is recognised and attached to the right card.",
+            "i6": "<b>📱 Buttons you can actually hit with a finger</b> — six controls were too small on a phone screen, including the cross that minimises the companion: invisible without a mouse, yet clickable. They now meet the recommended size.",
+            "i7": "<b>⚙️ For the administrator: LIA can know what it already knows about a connected contact</b> — when a connected person is named in the conversation, their commitments, calls and your relayed messages can be handed to LIA directly rather than announced as a lookup. Off by default, enabled by <code>PEER_CONTEXT_INJECTION_ENABLED</code>, and limited to what you ticked in the 360° scope."
+          }
+        },
         "v1_27_5": {
           "title": "v1.27.5 — 👥 The 360° overview of a person, complete and configurable",
           "date": "August 2026",
@@ -5804,7 +5832,7 @@
       "relations": {
         "title": "Relations (personal CRM)",
         "description": "The Relations page: everything LIA knows about the people you deal with, favorites included.",
-        "count": "7",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "What is the Relations page?",
@@ -5833,6 +5861,14 @@
           "q7": {
             "question": "Why did a connected person have no mail and no meetings?",
             "answer": "Exchanges are found by <strong>address</strong>, not by name: someone you never saved in your address book had none, so there was nothing to match. If that person is a <strong>connected user</strong> and has turned on address sharing (Connections setting), LIA now uses it to find, in <strong>your</strong> mail and <strong>your</strong> calendar, the exchanges and meetings they appear in. Without that sharing nothing changes: their setting stays the only thing that decides. And if no meeting involves them, the section stays <strong>empty</strong> — LIA does not fill the silence with an event of your calendar they neither organise nor attend."
+          },
+          "q8": {
+            "question": "How do I merge two cards that are the same person?",
+            "answer": "LIA groups what is written the same, accents and capitals aside. It cannot guess that a <strong>raw phone number</strong> and a <strong>name</strong> are one relationship, or that \"Dad\" is \"John Smith\": that is a judgement, and only you can make it. Open the card you want to <strong>keep</strong>, scroll to <strong>Group relationships</strong>, pick the other card and confirm. The merge is <strong>reversible</strong>: it appears on the card with its own undo, and nothing is rewritten in your sources — both cards come back exactly as they were. It <strong>never</strong> changes the directory of connected people: a display grouping must not be able to redirect a message to another account."
+          },
+          "q9": {
+            "question": "Can I ask about my calls or my commitments with someone?",
+            "answer": "Yes. \"When did I last call Marie?\", \"what do I owe her?\", \"what did we pass on through LIA?\" now get an <strong>answer</strong>. Before, a question about a call could produce a plan to <strong>phone her and ask</strong>: the telephony domain only knew how to place calls, so covering its own domain meant acting. LIA now reads your <strong>past calls</strong>, your <strong>open commitments</strong> and the <strong>relayed messages</strong>, through exactly the same computation as the relationship card — so the assistant and the card cannot give you two different answers. The total count is always exact, next to the page shown."
           }
         }
       },
@@ -6739,8 +6775,8 @@
         "desc": "If you enable it, every response shows what it consumed."
       },
       "a11y_care": {
-        "title": "The care you don’t see",
-        "desc": "Motion preferences honored, contrast held, everything keyboard-reachable."
+        "title": "The care you never notice",
+        "desc": "Motion preferences honoured, contrast held, everything reachable from the keyboard — and whatever you tap is big enough to tap, including the small crosses that only appeared on hover and were therefore out of a finger's reach."
       },
       "peer_actions": {
         "title": "Reply from right under the message",
@@ -8670,9 +8706,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA is designed from the ground up with data protection as a founding principle, not an afterthought.</p><h2>Fernet symmetric encryption</h2><p>All sensitive data is encrypted with <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) via the <code>encrypt_data()</code> function. This covers OAuth tokens, connector credentials, PII, and MCP server credentials. OAuth credentials are encrypted before database writes and decrypted on-the-fly during retrieval. Encryption keys are managed separately from data.</p><h2>Collection minimization</h2><p>LIA only collects data strictly necessary for its operation:</p><ul><li>Profile information (name, email, preferences)</li><li>Conversation history (encrypted)</li><li>Service connection tokens (encrypted)</li><li>Anonymized usage metrics</li></ul><h2>Deletion and cascading</h2><p>Deleting a user account triggers a complete <strong>cascading delete</strong>: connectors, conversations, settings, sessions, memories, and all associated data are irreversibly deleted. No orphaned data persists in the database.</p><h2>Secure sessions and cookies</h2><p>Session cookies are configured with <code>HttpOnly</code>, <code>Secure</code> (in production), and <code>SameSite=lax</code> attributes. Session duration is 7 days by default, extendable to 30 days with the \"Remember me\" option. Single-use tokens are invalidated after first use via a Redis blacklist.</p><h2>External content protection</h2><p>Content retrieved from external sources (emails, web pages, documents) is tagged as <code>UNTRUSTED</code> with configurable wrapping before injection into prompts. The web_fetch tool is rate limited to 10 calls per 60-second window per user to prevent abuse.</p><h2>PII filtering in logs</h2><p>The logging system applies <strong>OWASP Logging Cheat Sheet</strong> recommendations to automatically filter personal data from application logs. No sensitive data appears in logs.</p><h2>Data portability (v1.9.1)</h2><p>LIA allows each user to <strong>export their own consumption data</strong> as CSV from Settings > Features. Three export types: LLM consumption (tokens and costs per call), Google API consumption, and aggregated summary. Security: the <code>user_id</code> is forced server-side — no parameter is exposed, preventing access to other users' data (IDOR protection).</p><h2>Backups with a proven restore</h2><p>Protecting data also means making sure it survives incidents. The production database is backed up automatically every night, with 7 days, 4 weeks and 6 months of history kept, in a dedicated directory with restrictive permissions. And because a backup only counts once a restore has been proven, the procedure is tested for real: the latest dump is restored into a disposable container and compared against the live database (schema revision, row counts) — a drill that ships with the stack.</p>"
       },
       "observability": {
-        "title": "447 Prometheus Metrics, 26 Grafana Dashboards, and Langfuse Tracing",
-        "excerpt": "LIA offers enterprise-grade observability with 447 metrics, dedicated Grafana dashboards, LLM tracing via Langfuse, and email alerting with runbooks.",
-        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 447 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance</li><li><strong>Logs</strong> — Structured JSON logging via structlog, centralized in Loki with PII filtering</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo) and LLM tracing via Langfuse</li></ul><h2>23 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 23 modules cover: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 Grafana dashboards</h2><p>LIA provides 26 Grafana dashboards numbered 01 to 26: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, and briefing. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of 14 vital alerts — API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration has 8 dedicated metrics to trace every LLM call: consumed tokens (input/output/cache), response time, model used, estimated cost, and request context. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p>"
+        "title": "464 Prometheus Metrics, 26 Grafana Dashboards, and Langfuse Tracing",
+        "excerpt": "LIA offers enterprise-grade observability with 464 metrics, dedicated Grafana dashboards, LLM tracing via Langfuse, and email alerting with runbooks.",
+        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 464 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance</li><li><strong>Logs</strong> — Structured JSON logging via structlog, centralized in Loki with PII filtering</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo) and LLM tracing via Langfuse</li></ul><h2>23 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 23 modules cover: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 Grafana dashboards</h2><p>LIA provides 26 Grafana dashboards numbered 01 to 26: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, and briefing. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of 14 vital alerts — API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration has 8 dedicated metrics to trace every LLM call: consumed tokens (input/output/cache), response time, model used, estimated cost, and request context. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p>"
       },
       "prompt-engineering": {
         "title": "Versioned Prompt System: 78 Prompts Managed as Code",

@@ -70,6 +70,7 @@ AGENT_AUTOMATION = "automation_agent"  # Chat-piloted scheduled actions (ADR-140
 AGENT_PEER = "peer_agent"  # User-to-user connections (peers program)
 AGENT_DOCUMENT = "document_agent"  # User RAG spaces as active capability (ADR-141)
 AGENT_HEALTH = "health_agent"  # Health Metrics — unified agent (v1.17.2)
+AGENT_TELEPHONY = "telephony_agent"  # Outbound calls + their history (ADR-193)
 
 # Per-server MCP domain prefix (evolution F2.2)
 # Each user MCP server gets its own domain: mcp_<slugified_server_name>

@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import {
@@ -14,6 +13,7 @@ import {
 import { normalizeSearchText } from '@/lib/utils';
 import { highlightText, stripHtml } from '@/lib/faq-search';
 import { chatDraftHref } from '@/lib/briefing-utils';
+import { openChatDeepLink } from '@/lib/chat-deep-link';
 import { FaqAnswer } from './FaqAnswer';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -119,6 +119,7 @@ const sections = [
  * releases. `__tests__/changelog-wiring.test.ts` now fails on any drift in either direction.
  */
 export const changelogVersionKeys = [
+  'v1_27_6',
   'v1_27_5',
   'v1_27_4',
   'v1_27_3',
@@ -376,7 +377,6 @@ export const featureKeys = [
 
 export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FAQContentProps) {
   const { t } = useTranslation(lng);
-  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [showIntro, setShowIntro] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
@@ -386,9 +386,9 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
   // the user reads it, edits it and decides.
   const handleExampleClick = useCallback(
     (example: string) => {
-      router.push(chatDraftHref(lng, example));
+      openChatDeepLink(chatDraftHref(lng, example));
     },
-    [router, lng]
+    [lng]
   );
 
   // Build searchable FAQ data

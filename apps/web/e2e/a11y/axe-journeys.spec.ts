@@ -195,9 +195,58 @@ const relationsData: MockRoute[] = [
     },
   },
   {
-    // BEFORE the `/relations/*` catch-all, like the context route below: the
-    // shorter glob matches `/relations/overview-scope` too, and the panel would
-    // then read a RelationDetail as its 360° scope.
+    // FIRST among the `/relations/...` routes, not last: Playwright resolves
+    // route handlers LAST-REGISTERED-FIRST (see `fixtures/api-mock.ts`).
+    // Declared last, this catch-all won and answered `/relations/overview-scope`
+    // with a RelationDetail; the panel then read `scope.sections.length` off an
+    // object that has no `sections` and died behind its error boundary.
+    url: '**/api/v1/relations/*',
+    json: {
+      display_name: 'Gérard Dupont',
+      identity_confidence: 'normalized',
+      open_loops: [
+        {
+          id: 'l1',
+          subject: 'Rendre la perceuse',
+          direction: 'user_owes',
+          due_hint: null,
+          days_open: 4,
+        },
+      ],
+      recent_calls: [
+        {
+          id: 'c1',
+          objective: 'Anniversaire surprise',
+          outcome: 'objective_met',
+          summary: 'Il est partant.',
+          created_at: '2026-07-25T10:00:00Z',
+        },
+      ],
+      memories: [{ id: 'm1', content: 'Aime la randonnée en montagne.' }],
+      open_loops_total: 1,
+      recent_calls_total: 1,
+      memories_total: 1,
+      peer_messages_total: 2,
+      peer_messages: [
+        {
+          id: 'pm1',
+          direction: 'received',
+          content: 'Gérard vous fait dire qu’il sera en retard.',
+          occurred_at: '2026-07-27T18:00:00Z',
+        },
+        { id: 'pm2', direction: 'sent', content: null, occurred_at: '2026-07-26T08:00:00Z' },
+      ],
+      peer_link: {
+        connected_since: '2026-06-01T10:00:00Z',
+        shared_by_me: [{ domain: 'calendar', level: 'availability' }],
+        shared_with_me: [{ domain: 'task', level: 'titles' }],
+      },
+      is_favorite: true,
+      is_peer: true,
+    },
+  },
+  {
+    // AFTER the catch-all above, so this more specific route wins (LIFO).
     url: '**/api/v1/relations/overview-scope',
     json: {
       sections: ['contact', 'open_loops', 'calls', 'memories', 'peer_messages', 'emails', 'events'],
@@ -207,8 +256,8 @@ const relationsData: MockRoute[] = [
     },
   },
   {
-    // BEFORE the `/relations/*` catch-all — routes match in order, and the
-    // shorter glob would serve the detail payload to the context request.
+    // AFTER the catch-all above (LIFO). The single-segment glob does not match
+    // a two-segment path anyway, but the order now states the intent correctly.
     url: '**/api/v1/relations/*/context',
     json: {
       contact: {
@@ -280,52 +329,6 @@ const relationsData: MockRoute[] = [
       addresses_used: 1,
       window_days: 90,
       email_window_days: 365,
-    },
-  },
-  {
-    url: '**/api/v1/relations/*',
-    json: {
-      display_name: 'Gérard Dupont',
-      identity_confidence: 'normalized',
-      open_loops: [
-        {
-          id: 'l1',
-          subject: 'Rendre la perceuse',
-          direction: 'user_owes',
-          due_hint: null,
-          days_open: 4,
-        },
-      ],
-      recent_calls: [
-        {
-          id: 'c1',
-          objective: 'Anniversaire surprise',
-          outcome: 'objective_met',
-          summary: 'Il est partant.',
-          created_at: '2026-07-25T10:00:00Z',
-        },
-      ],
-      memories: [{ id: 'm1', content: 'Aime la randonnée en montagne.' }],
-      open_loops_total: 1,
-      recent_calls_total: 1,
-      memories_total: 1,
-      peer_messages_total: 2,
-      peer_messages: [
-        {
-          id: 'pm1',
-          direction: 'received',
-          content: 'Gérard vous fait dire qu’il sera en retard.',
-          occurred_at: '2026-07-27T18:00:00Z',
-        },
-        { id: 'pm2', direction: 'sent', content: null, occurred_at: '2026-07-26T08:00:00Z' },
-      ],
-      peer_link: {
-        connected_since: '2026-06-01T10:00:00Z',
-        shared_by_me: [{ domain: 'calendar', level: 'availability' }],
-        shared_with_me: [{ domain: 'task', level: 'titles' }],
-      },
-      is_favorite: true,
-      is_peer: true,
     },
   },
 ];
@@ -426,7 +429,11 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
     // Clicking a collapsed toggle removes it from this set, so the first one
     // is always the next to open. Bounded: a runaway loop must fail the test,
     // not hang it.
-    const collapsed = page.getByRole('button', { expanded: false });
+    //
+    // Scoped to `main`: the HEADER carries its own `aria-expanded` menus
+    // (personality, language), and an unscoped set made the loop open a menu,
+    // close it on the next click, and never converge.
+    const collapsed = page.getByRole('main').getByRole('button', { expanded: false });
     for (let guard = 0; guard < 20 && (await collapsed.count()) > 0; guard += 1) {
       await collapsed.first().click();
     }
@@ -456,18 +463,25 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
     // The section heading carries a title, a count pill AND the reply button:
     // the row that is most likely to overflow on the narrowest supported width.
     await page.getByRole('button', { name: /^Gérard Dupont/ }).click();
-    await expect(page.getByText(/sera en retard/)).toBeVisible();
+    // The FOLDED panel first: every section is a heading row here, and a
+    // heading row is what overflows. Its content is asserted below, once
+    // opened — asserting it now would be asserting a folded section is visible.
+    await expect(page.getByRole('heading', { level: 2, name: 'Gérard Dupont' })).toBeVisible();
     await assertNoHorizontalScroll(page);
 
     // Then OPEN everything. The contact card is the widest content on the
     // page — a postal address that must wrap on its spaces and a URL that
     // cannot wrap at all — and it is folded by default, so a check that
     // stopped here would never have looked at it.
-    const collapsed = page.getByRole('button', { expanded: false });
+    //
+    // Scoped to `main`: the header's own `aria-expanded` menus (personality,
+    // language) would otherwise make this loop open and close a menu forever.
+    const collapsed = page.getByRole('main').getByRole('button', { expanded: false });
     for (let guard = 0; guard < 20 && (await collapsed.count()) > 0; guard += 1) {
       await collapsed.first().click();
     }
     expect(await collapsed.count()).toBe(0);
+    await expect(page.getByText(/sera en retard/)).toBeVisible();
     await expect(page.getByText(/Lilas Blancs/)).toBeVisible();
     await assertNoHorizontalScroll(page);
   });

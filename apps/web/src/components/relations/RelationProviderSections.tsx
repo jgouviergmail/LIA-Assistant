@@ -22,12 +22,12 @@
 
 import { useState } from 'react';
 import { CalendarDays, Contact, Mail, RefreshCw, Sparkles } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 
 import { CollapsibleSection } from '@/components/relations/CollapsibleSection';
 import { ContactCardBody } from '@/components/relations/ContactCardBody';
 import { chatIntentHref, dateTimeRangeLabel, timeAgoLabel } from '@/lib/briefing-utils';
+import { openChatDeepLink } from '@/lib/chat-deep-link';
 import { cn } from '@/lib/utils';
 import type {
   ContactCard,
@@ -147,7 +147,6 @@ export function ProviderEmailsSection({
   onRefresh: () => void;
 }) {
   const { t, i18n } = useTranslation();
-  const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
   const absolute = (iso: string | null) => dateTimeRangeLabel(i18n.language, iso);
 
@@ -166,7 +165,7 @@ export function ProviderEmailsSection({
 
   const askForSummary = () => {
     const subjects = selectedSubjects(emails, selected);
-    router.push(
+    openChatDeepLink(
       chatIntentHref(lng, t('relations.emails_summary_intent', { name: personName, subjects }))
     );
   };
@@ -212,13 +211,26 @@ export function ProviderEmailsSection({
               </span>
             )}
             {/* The relative label says how long ago; this says WHEN — the one
-                a reader needs before replying. */}
+                a reader needs before replying. Full `text-muted-foreground`,
+                never a diluted `/80`: at 11px the faded pair measures 3.51:1,
+                under the 4.5:1 AA floor (axe, production bundle) — the same
+                trap already closed on the relayed-message placeholder. */}
             {absolute(email.occurred_at) && (
-              <span className="text-[11px] tabular-nums text-muted-foreground/80">
+              <span className="text-[11px] tabular-nums text-muted-foreground">
                 {absolute(email.occurred_at)}
               </span>
             )}
             <span className="w-full text-sm text-foreground/90">{email.subject}</span>
+            {/* The subject alone rarely says what an exchange was about
+                ("Re: Re: point"). Two lines at most: the excerpt informs the
+                row, it must not become it. Full `text-muted-foreground` — the
+                diluted variants fall under the 4.5:1 AA floor at this size,
+                the trap already closed on the timestamps above. */}
+            {email.excerpt && (
+              <span className="line-clamp-2 w-full text-xs leading-relaxed text-muted-foreground">
+                {email.excerpt}
+              </span>
+            )}
           </label>
         );
       })}
@@ -257,7 +269,7 @@ function EventRow({ event, showRole }: { event: SharedEvent; showRole: boolean }
         )}
         {/* A meeting is a SLOT: the reader needs the day and both hours to
             know whether they can be there, not only how far off it is. */}
-        {slot && <span className="text-[11px] tabular-nums text-muted-foreground/80">{slot}</span>}
+        {slot && <span className="text-[11px] tabular-nums text-muted-foreground">{slot}</span>}
         {showRole && (
           <span className="rounded-full bg-muted px-2 py-px text-[10px] font-medium text-muted-foreground">
             {event.role === 'organizer'

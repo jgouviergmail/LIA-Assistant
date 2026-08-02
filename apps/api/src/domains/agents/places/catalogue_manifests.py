@@ -335,7 +335,7 @@ get_places_catalogue_manifest = ToolManifest(
             description="Distance (km)",
             semantic_type="distance",
         ),
-        OutputFieldSchema(path="total", type="integer", description="Count"),
+        OutputFieldSchema(path="count", type="integer", description="Count"),
     ],
     cost=CostProfile(est_tokens_in=100, est_tokens_out=800, est_cost_usd=0.008, est_latency_ms=600),
     permissions=PermissionProfile(
@@ -349,7 +349,7 @@ get_places_catalogue_manifest = ToolManifest(
         "places[0].name",
         "places[0].phone",
         "places[0].opening_hours",
-        "total",
+        "count",
     ],
     version="2.0.0",
     maintainer="Team Agents",

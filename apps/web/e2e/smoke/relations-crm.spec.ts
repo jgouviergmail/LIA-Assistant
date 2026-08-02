@@ -183,15 +183,16 @@ function buildRoutes(relations = OVERVIEW.relations) {
         return route.fulfill({ status: 204, body: '' });
       },
     },
-    // Declared BEFORE the `/relations/*` catch-all: Playwright matches routes
-    // in order, and the shorter glob would otherwise serve the DETAIL payload
-    // to the context request (mirroring the backend's own ordering hazard).
-    // The scope is in the same hazard — `/relations/overview-scope` matches the
-    // catch-all too, and the panel would then read a RelationDetail as a scope.
+    // Declared BEFORE the specific routes, not after: Playwright resolves route
+    // handlers LAST-REGISTERED-FIRST (see `fixtures/api-mock.ts`). Measured on
+    // 2026-08-01 — with this catch-all declared last it won, and
+    // `/relations/overview-scope` was answered with a RelationDetail. The panel
+    // then read `scope.sections.length` off an object that has no `sections`
+    // and died behind its error boundary, taking seven tests with it.
+    { url: '**/api/v1/relations/*', method: 'GET', json: DETAIL },
     { url: '**/api/v1/relations/overview-scope', method: 'GET', json: OVERVIEW_SCOPE },
     { url: '**/api/v1/relations/overview-scope', method: 'PUT', json: OVERVIEW_SCOPE },
     { url: '**/api/v1/relations/*/context', method: 'GET', json: CONTEXT },
-    { url: '**/api/v1/relations/*', method: 'GET', json: DETAIL },
   ];
   return routes;
 }
@@ -339,16 +340,24 @@ test.describe('relations CRM (N-09)', () => {
     await expect(messages.getByText('Envoyé')).toBeVisible();
     await expect(messages.getByText('Texte non conservé')).toBeVisible();
 
-    // The LIA connection block states BOTH share directions.
+    // The LIA connection block states BOTH share directions. It is NOT a
+    // collapsible section — a live connection is context the reader needs
+    // without asking, so there is no toggle to open (and a test that tried to
+    // click one waited ninety seconds for a button that never existed).
     await expect(page.getByText('Connexion LIA')).toBeVisible();
-    await openSection(page, 'Connexion LIA');
     await expect(page.getByText('Calendrier — disponibilités')).toBeVisible();
     await expect(page.getByText('Tâches — titres')).toBeVisible();
 
-    // Writing must PREFILL, never send: `?draft=`, never `?intent=`
-    // (A4 contract — `?intent=` is auto-sent, QW-24/ADR-173).
+    // Writing must PREFILL, never send (A4 contract — `?intent=` is auto-sent,
+    // QW-24/ADR-173). The oracle is the COMPOSER, not the address bar: since
+    // ADR-192 the one-shot param really leaves the URL as soon as it is
+    // consumed, so `?draft=` is gone by the time anyone could read it — and a
+    // test that waited for it was passing on a defect.
     await page.getByRole('button', { name: 'Écrire un message' }).click();
-    await page.waitForURL(/\/dashboard\/chat\?draft=/, { timeout: 30_000 });
+    await page.waitForURL(/\/dashboard\/chat/, { timeout: 30_000 });
+    await expect(page.getByRole('textbox').first()).toHaveValue(new RegExp(NAME), {
+      timeout: 30_000,
+    });
     expect(page.url()).not.toContain('intent=');
   });
 
@@ -521,6 +530,13 @@ test.describe('relations CRM (N-09)', () => {
       return el.scrollWidth - el.clientWidth;
     });
     expect(overflow).toBeLessThanOrEqual(1);
+
+    // The companion's MINIMIZED state is a screen of its own, and the only way
+    // back is a 12 px dot — measured here because no other journey ever reaches
+    // it, so it went unmeasured while looking covered.
+    await page.getByRole('button', { name: 'Réduire le compagnon' }).click();
+    await expect(page.getByRole('button', { name: 'Afficher le compagnon LIA' })).toBeVisible();
+    expect(await tooSmall(), 'controls under 44 CSS px once minimized').toEqual([]);
   });
 
   test('an unconnected account says so once, not three times', async ({

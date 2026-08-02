@@ -24,6 +24,15 @@ const { push, apiGet, apiPut } = vi.hoisted(() => ({
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
+// Chat deep links are REAL navigations since 2026-08-01 (ADR-192): the App
+// Router restored the search params of the entry it already held, so a second
+// deep link in a session left with the FIRST one's URL. The oracle is the same
+// href — only the door changed.
+const openChat = vi.fn();
+vi.mock('@/lib/chat-deep-link', () => ({
+  openChatDeepLink: (href: string) => openChat(href),
+}));
+
 // The global stub echoes keys, which would make the assertion below blind to
 // the very thing it checks — the NAME carried by the intent. This one
 // interpolates, exactly as i18next does.
@@ -81,7 +90,7 @@ const EMPTY_SECTION = {
 };
 
 beforeEach(() => {
-  push.mockReset();
+  openChat.mockReset();
   apiPut.mockReset();
   apiPut.mockResolvedValue(SCOPE);
   apiGet.mockReset();
@@ -111,6 +120,8 @@ function renderPanel(name: string) {
       isFavorite={false}
       onToggleFavorite={vi.fn()}
       onBack={vi.fn()}
+      candidates={[]}
+      onMerged={vi.fn()}
     />
   );
 }
@@ -135,6 +146,8 @@ describe('switching relationship then running a 360°', () => {
         isFavorite={false}
         onToggleFavorite={vi.fn()}
         onBack={vi.fn()}
+      candidates={[]}
+      onMerged={vi.fn()}
       />
     );
 
@@ -156,6 +169,8 @@ describe('switching relationship then running a 360°', () => {
         isFavorite={false}
         onToggleFavorite={vi.fn()}
         onBack={vi.fn()}
+      candidates={[]}
+      onMerged={vi.fn()}
       />
     );
     // The header must show the person the panel was asked about — if it still
@@ -166,12 +181,12 @@ describe('switching relationship then running a 360°', () => {
 
     await runTheOverview(user);
 
-    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(openChat).toHaveBeenCalledTimes(1));
     // The INTENT specifically, not the whole href: since ADR-191 the link also
     // carries `subject=`, so asserting on the href would pass on the subject
     // alone even if the sentence named the wrong person — the very defect this
     // test exists to catch.
-    const intent = new URLSearchParams(String(push.mock.calls[0][0]).split('?')[1]).get('intent');
+    const intent = new URLSearchParams(String(openChat.mock.calls[0][0]).split('?')[1]).get('intent');
     expect(intent).toContain('Paul Martin');
     expect(intent).not.toContain('Marie Dupont');
   });
@@ -194,6 +209,8 @@ describe('switching relationship then running a 360°', () => {
         isFavorite={false}
         onToggleFavorite={vi.fn()}
         onBack={vi.fn()}
+      candidates={[]}
+      onMerged={vi.fn()}
       />
     );
     await waitFor(() =>
@@ -202,8 +219,8 @@ describe('switching relationship then running a 360°', () => {
 
     await runTheOverview(user);
 
-    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
-    const query = new URLSearchParams(String(push.mock.calls[0][0]).split('?')[1]);
+    await waitFor(() => expect(openChat).toHaveBeenCalledTimes(1));
+    const query = new URLSearchParams(String(openChat.mock.calls[0][0]).split('?')[1]);
     expect(query.get('capability')).toBe('person_overview');
     expect(query.get('subject')).toBe('Paul Martin');
   });
@@ -219,9 +236,9 @@ describe('switching relationship then running a 360°', () => {
 
     await runTheOverview(user);
 
-    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(openChat).toHaveBeenCalledTimes(1));
     expect(apiPut.mock.calls[0][0]).toBe('/relations/overview-scope');
-    expect(apiPut.mock.invocationCallOrder[0]).toBeLessThan(push.mock.invocationCallOrder[0]);
+    expect(apiPut.mock.invocationCallOrder[0]).toBeLessThan(openChat.mock.invocationCallOrder[0]);
   });
 
   it('never offers the button while the panel still holds the previous person', async () => {
@@ -248,6 +265,8 @@ describe('switching relationship then running a 360°', () => {
         isFavorite={false}
         onToggleFavorite={vi.fn()}
         onBack={vi.fn()}
+      candidates={[]}
+      onMerged={vi.fn()}
       />
     );
 

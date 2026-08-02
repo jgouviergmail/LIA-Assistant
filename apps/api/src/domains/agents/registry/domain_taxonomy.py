@@ -816,12 +816,21 @@ def get_result_key(domain_name: str) -> str | None:
 
 def get_result_key_for_tool(tool_name: str) -> str | None:
     """
-    Get the canonical result_key for a tool based on its name.
+    Get the canonical result_key for a tool.
 
-    This is THE source of truth for mapping tool names to result keys.
+    This is THE source of truth for mapping tools to result keys.
     Used by semantic_validator to validate $steps references.
 
-    Naming convention v3.2:
+    Resolution order:
+    1. The manifest's declared ``context_key`` — ground truth.
+    2. The name convention below, for tools without a manifest.
+
+    The declared value comes first because the name lies whenever a tool is
+    named after something other than its domain: ``browser_task_tool`` matched
+    the ``task`` domain and answered ``tasks`` while it actually produces
+    ``browsers``.
+
+    Naming convention v3.2 (fallback):
     - Tools follow patterns: {action}_{domain}_tool, {action}_{domain}s_tool
     - Examples: get_contacts_tool, send_email_tool, get_events_tool
     - Returns the result_key from DOMAIN_REGISTRY for the detected domain
@@ -842,6 +851,12 @@ def get_result_key_for_tool(tool_name: str) -> str | None:
     """
     if not tool_name:
         return None
+
+    from src.domains.agents.registry.tool_domain_resolution import declared_result_key
+
+    declared = declared_result_key(tool_name)
+    if declared:
+        return declared
 
     tool_lower = tool_name.lower()
 

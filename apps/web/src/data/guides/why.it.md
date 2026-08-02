@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versione**: 4.1
-**Data**: 2026-08-01
-**Applicazione**: LIA v1.27.5
+**Data**: 2026-08-02
+**Applicazione**: LIA v1.27.6
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -189,6 +189,14 @@ E resta riservato per costruzione. Durante una chiamata LIA può solo indicare s
 Sulla stessa istanza, due utenti possono connettersi — e i loro assistenti si parlano. Dici “chiedi a Marie se è libera martedì”, approvi la formulazione esatta, ed è l’assistente di Marie a consegnarle il messaggio, con la sua personalità, nominandoti; il tuo ti conferma la consegna. Ogni connessione può inoltre aprire condivisioni scelte, in sola lettura: le tue disponibilità di calendario, i titoli delle tue attività — niente di più, niente per impostazione predefinita.
 
 La protezione delle persone viene prima della funzionalità: la reperibilità è volontaria e solo per identità esatta — nome completo o indirizzo, mai un frammento, il blocco è silenzioso (l’altra parte non lo saprà mai), e uno sconosciuto, un rifiuto o un blocco ricevono esattamente la stessa risposta — sondare chi esiste è impossibile. Ogni accesso a una condivisione viene ricontrollato al momento della lettura e registrato, e il contenuto dei messaggi trasmessi viene cancellato dopo trenta giorni, lasciando solo la traccia dello scambio.
+### 3.12. Ciò che ti lega a qualcuno, riunito
+
+La pagina **Relazioni** riunisce, persona per persona, ciò che LIA già segue: gli impegni aperti tra voi, le chiamate effettuate, i ricordi che la menzionano, i messaggi che i vostri assistenti si sono trasmessi. Non viene raccolto nulla di nuovo — è una lente su ciò che esiste già.
+
+Puoi anche chiederlo senza aprire la pagina: quando è avvenuta l'ultima chiamata, che cosa devi a quella persona. La risposta viene dallo stesso calcolo della scheda, così l'assistente e la pagina non possono dirti due cose diverse — e il totale indicato è esatto, mai la lunghezza di ciò che sta sullo schermo.
+
+Resta ciò che nessun sistema può indovinare. LIA raggruppa ciò che si scrive allo stesso modo, a meno di accenti e maiuscole; non può sapere che un numero annotato un giorno e un nome sono la stessa persona, né chi sia esattamente «Papà». È un giudizio, e spetta a te: lo dici una volta, dalla scheda, ed è **reversibile** — l'unione compare con il proprio annullamento e nulla viene riscritto nelle tue fonti. Del resto, un raggruppamento di visualizzazione non cambia mai a chi è indirizzato un messaggio.
+
 
 ---
 

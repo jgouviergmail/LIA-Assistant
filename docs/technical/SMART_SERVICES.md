@@ -667,18 +667,23 @@ class FilteredCatalogue:
 ### PANIC MODE Catalogue
 
 ```python
-# Normal: filtered by intent + categories
+# Normal: filtered by intent + categories.
+# `max_tools` defaults to PLANNER_CATALOGUE_MAX_TOOLS (10) — a deployment
+# knob since v1.27.6, not a literal: a ToolFilter built by hand used to get 5,
+# four short of what every request actually ran with.
 ToolFilter(
     domains=["contacts"],
     categories=["search"],
-    max_tools=5,
 )
 
-# PANIC MODE: all tools for domains
+# PANIC MODE: all tools for domains, read at CALL time from
+# PLANNER_CATALOGUE_PANIC_MAX_TOOLS (15). Boot validation keeps it at or above
+# the normal cap: panic mode reopens the catalogue after filtering left no
+# valid plan, so a smaller value would offer strictly less than what just failed.
 ToolFilter(
     domains=["contacts"],
     categories=[],  # Empty = ALL categories
-    max_tools=15,   # Higher limit
+    max_tools=settings.planner_catalogue_panic_max_tools,
     include_context_tools=True,
 )
 ```

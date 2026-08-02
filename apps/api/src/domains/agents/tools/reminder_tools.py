@@ -375,9 +375,14 @@ async def list_reminders_tool(
             reminders = await service.list_pending_for_user(user_id)
 
             if not reminders:
+                # `total` used to be set HERE and nowhere else: the key existed
+                # only when the list was empty — the one case it is useless —
+                # while the catalogue advertised it unconditionally. The
+                # non-empty branch exposes its items through the registry, so
+                # the empty branch mirrors that shape and promises nothing more.
                 return UnifiedToolOutput.action_success(
                     message=APIMessages.no_pending_reminders(locale),
-                    structured_data={"reminders": [], "total": 0},
+                    structured_data={"reminders": []},
                 )
 
             # Build registry items for frontend rendering

@@ -91,6 +91,15 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+// Chat deep links are REAL navigations since 2026-08-01 (ADR-192): the App
+// Router restored the search params of the entry it already held, so a second
+// deep link in a session left with the FIRST one's URL. The oracle is the same
+// href — only the door changed.
+const openChat = vi.fn();
+vi.mock('@/lib/chat-deep-link', () => ({
+  openChatDeepLink: (href: string) => openChat(href),
+}));
+
 import { FAQContent } from '../FAQContent';
 
 function render(props: Partial<Parameters<typeof FAQContent>[0]> = {}) {
@@ -301,7 +310,7 @@ describe('FAQContent — actionable examples (W1)', () => {
 
     // Prefilled, NEVER sent: the user lands in the composer with the phrase
     // ready to read, edit or discard.
-    expect(push).toHaveBeenCalledWith(
+    expect(openChat).toHaveBeenCalledWith(
       `/fr/dashboard/chat?draft=${encodeURIComponent('Retiens que je préfère les réponses courtes')}`
     );
   });
@@ -312,7 +321,7 @@ describe('FAQContent — actionable examples (W1)', () => {
 
     expect(screen.queryByRole('button', { name: /^le premier$/ })).not.toBeInTheDocument();
     expect(screen.getByText('le premier')).toBeInTheDocument();
-    expect(push).not.toHaveBeenCalled();
+    expect(openChat).not.toHaveBeenCalled();
   });
 
   it('keeps the answer formatting around the examples', async () => {
@@ -336,7 +345,7 @@ describe('FAQContent — actionable examples (W1)', () => {
     });
     await user.click(example);
 
-    expect(push).toHaveBeenCalledWith(
+    expect(openChat).toHaveBeenCalledWith(
       `/fr/dashboard/chat?draft=${encodeURIComponent('Retiens que je préfère les réponses courtes')}`
     );
   });

@@ -33,7 +33,6 @@ import asyncio
 import json
 import re
 import time
-from collections.abc import Iterator
 from contextlib import suppress
 from typing import Any
 
@@ -56,8 +55,13 @@ from src.infrastructure.observability.logging import get_logger
 # (``as`` form: explicit re-export under mypy strict) for historical callers.
 from .plan_predicates import CROSS_DOMAIN_CAPABLE_TOOLS as CROSS_DOMAIN_CAPABLE_TOOLS
 from .plan_predicates import MUTATION_TOOL_PATTERNS as MUTATION_TOOL_PATTERNS
+from .plan_predicates import (
+    detect_placeholder_contacts,
+    plan_covers_domain,
+    plan_writes_without_write_intent,
+    tool_is_mutation,
+)
 from .plan_predicates import plan_contains_mutation as plan_contains_mutation
-from .plan_predicates import plan_covers_domain, tool_is_mutation
 from .plan_schemas import ExecutionPlan
 
 # Validation domain models extracted to validation_models.py (file-size
@@ -82,59 +86,45 @@ logger = get_logger(__name__)
 # ============================================================================
 
 
-# Emails on RFC 2606 reserved domains (example.com/org/net, .invalid, .test) are
-# ALWAYS fabricated — no real mailbox can live there. Observed in prod
-# (2026-07-17): the planner filled attendees=['jane.doe@example.com'] for
-# a real contact instead of resolving or omitting. The reserved TLDs are only
-# matched as the FINAL label (dot required) so real domains like test.com or
-# invalid-prefixed names never false-positive.
-_PLACEHOLDER_EMAIL_RE = re.compile(
-    r"@(?:[\w-]+\.)*example\.(?:com|org|net)\b|@[\w.-]+\.(?:invalid|test)\b",
-    re.IGNORECASE,
-)
+def _programmatic_rejection(
+    issue_type: SemanticIssueType,
+    description: str,
+    suggested_fix: str,
+    criticality: CriticalityLevel,
+    started_at: float,
+) -> SemanticValidationResult:
+    """Build the verdict of a DETERMINISTIC rule (no LLM was consulted).
 
-# Free-text parameters where a placeholder address may be QUOTED legitimately
-# (e.g. a dictated email body citing example.com) — never flagged.
-_FREE_TEXT_PARAM_NAMES = frozenset(
-    {"body", "subject", "description", "notes", "content_instruction", "message", "text", "content"}
-)
+    The four pre-LLM rules reject the same way — one issue, full confidence, no
+    clarification — so the shape lives here instead of being retyped at each
+    site, where a divergence would be invisible.
 
-
-def _iter_param_strings(value: Any) -> Iterator[str]:
-    """Yield every string nested inside a parameter value (str/list/dict)."""
-    if isinstance(value, str):
-        yield value
-    elif isinstance(value, list | tuple):
-        for item in value:
-            yield from _iter_param_strings(item)
-    elif isinstance(value, dict):
-        for item in value.values():
-            yield from _iter_param_strings(item)
-
-
-def detect_placeholder_contacts(plan: ExecutionPlan) -> list[str]:
-    """Find fabricated placeholder emails in MUTATION step parameters.
-
-    Deterministic pre-LLM guard: scans every non-free-text parameter of
-    mutation steps for RFC 2606 reserved-domain emails. Read-only steps are
-    exempt (no real-world damage, and a search query quoting a placeholder
-    must not loop the planner).
+    Args:
+        issue_type: Which of the deadly sins the plan committed.
+        description: What was detected, for the trace and the replan prompt.
+        suggested_fix: The correction instruction handed back to the planner.
+        criticality: How much the issue costs if executed as-is.
+        started_at: ``time.time()`` at validation entry, for the duration.
 
     Returns:
-        Human-readable findings like ``"step_1.attendees='j.doe@example.com'"``
-        (empty list when the plan is clean).
+        An invalid result carrying exactly one issue, routed to auto-replan.
     """
-    findings: list[str] = []
-    for step in plan.steps:
-        if not tool_is_mutation(step.tool_name or ""):
-            continue
-        for param_name, value in (step.parameters or {}).items():
-            if param_name.lower() in _FREE_TEXT_PARAM_NAMES:
-                continue
-            for text in _iter_param_strings(value):
-                if _PLACEHOLDER_EMAIL_RE.search(text):
-                    findings.append(f"{step.step_id}.{param_name}='{text[:60]}'")
-    return findings
+    return SemanticValidationResult(
+        is_valid=False,
+        issues=[
+            SemanticIssue(
+                issue_type=issue_type,
+                description=description,
+                suggested_fix=suggested_fix,
+                severity="high",
+            )
+        ],
+        confidence=1.0,  # Programmatic detection = 100% confident
+        requires_clarification=False,
+        clarification_questions=[],
+        validation_duration_seconds=time.time() - started_at,
+        criticality=criticality,
+    )
 
 
 def should_trigger_semantic_validation(
@@ -384,11 +374,11 @@ def validate_steps_references(plan: "ExecutionPlan") -> tuple[bool, str | None]:
 
             # The regex captures ANY `$steps.X.Y`, but Y is a result_key only
             # some of the time — it is just as often a plain output FIELD
-            # ("total", "count", "success"), which the catalogue documents as a
-            # legitimate reference (get_contacts_tool lists "total" among its own
-            # reference_examples). Ghost-dependency detection compares DOMAIN
-            # keys, so a field access must be skipped: flagging it rejected a
-            # valid plan and forced a wasted replan.
+            # ("count", "success"), which the catalogue documents as a
+            # legitimate reference (the unified read tools list "count" among
+            # their own reference_examples). Ghost-dependency detection compares
+            # DOMAIN keys, so a field access must be skipped: flagging it
+            # rejected a valid plan and forced a wasted replan.
             from src.domains.agents.utils.type_domain_mapping import (
                 get_domain_from_result_key,
             )
@@ -1236,21 +1226,12 @@ class PlanSemanticValidator:
                 feedback_preview=refs_feedback[:100] if refs_feedback else "",
                 duration_ms=int((time.time() - start_time) * 1000),
             )
-            return SemanticValidationResult(
-                is_valid=False,
-                issues=[
-                    SemanticIssue(
-                        issue_type=SemanticIssueType.GHOST_DEPENDENCY,
-                        description="$steps reference uses wrong result_key for step",
-                        suggested_fix=refs_feedback or "Fix $steps references",
-                        severity="high",
-                    )
-                ],
-                confidence=1.0,  # Programmatic detection = 100% confident
-                requires_clarification=False,
-                clarification_questions=[],
-                validation_duration_seconds=time.time() - start_time,
-                criticality=CriticalityLevel.HIGH,
+            return _programmatic_rejection(
+                SemanticIssueType.GHOST_DEPENDENCY,
+                "$steps reference uses wrong result_key for step",
+                refs_feedback or "Fix $steps references",
+                CriticalityLevel.HIGH,
+                start_time,
             )
 
         # =====================================================================
@@ -1270,29 +1251,20 @@ class PlanSemanticValidator:
                 step_count=len(plan.steps),
                 duration_ms=int((time.time() - start_time) * 1000),
             )
-            return SemanticValidationResult(
-                is_valid=False,
-                issues=[
-                    SemanticIssue(
-                        issue_type=SemanticIssueType.WRONG_PARAMETERS,
-                        description=(
-                            "Fabricated placeholder contact detail: "
-                            f"{'; '.join(placeholder_findings[:3])}"
-                        ),
-                        suggested_fix=(
-                            "NEVER invent contact details (emails, phone numbers). "
-                            "Either add a get_contacts_tool step and reference its "
-                            "output ($steps.step_N.contacts[0].emails[0]), or OMIT "
-                            "the optional parameter entirely."
-                        ),
-                        severity="high",
-                    )
-                ],
-                confidence=1.0,  # Programmatic detection = 100% confident
-                requires_clarification=False,
-                clarification_questions=[],
-                validation_duration_seconds=time.time() - start_time,
-                criticality=CriticalityLevel.HIGH,
+            return _programmatic_rejection(
+                SemanticIssueType.WRONG_PARAMETERS,
+                (
+                    "Fabricated placeholder contact detail: "
+                    f"{'; '.join(placeholder_findings[:3])}"
+                ),
+                (
+                    "NEVER invent contact details (emails, phone numbers). "
+                    "Either add a get_contacts_tool step and reference its "
+                    "output ($steps.step_N.contacts[0].emailAddresses[0].value), "
+                    "or OMIT the optional parameter entirely."
+                ),
+                CriticalityLevel.HIGH,
+                start_time,
             )
 
         # =====================================================================
@@ -1315,21 +1287,52 @@ class PlanSemanticValidator:
                 feedback_preview=for_each_feedback[:100] if for_each_feedback else "",
                 duration_ms=int((time.time() - start_time) * 1000),
             )
-            return SemanticValidationResult(
-                is_valid=False,
-                issues=[
-                    SemanticIssue(
-                        issue_type=for_each_issue,
-                        description="for_each pattern issue detected",
-                        suggested_fix=for_each_feedback or "Fix for_each configuration",
-                        severity="high",
-                    )
-                ],
-                confidence=1.0,  # Programmatic detection = 100% confident
-                requires_clarification=False,
-                clarification_questions=[],
-                validation_duration_seconds=time.time() - start_time,
-                criticality=CriticalityLevel.MEDIUM,
+            return _programmatic_rejection(
+                for_each_issue,
+                "for_each pattern issue detected",
+                for_each_feedback or "Fix for_each configuration",
+                CriticalityLevel.MEDIUM,
+                start_time,
+            )
+
+        # =====================================================================
+        # READ INTENT vs WRITING PLAN: the plan acts when nobody asked it to
+        # =====================================================================
+        # Prod 2026-08-01: "de quand date mon dernier appel à ma femme ?" was
+        # planned as get_contacts_tool -> place_phone_call_tool("vérifier la
+        # date du dernier appel"). The user asked WHEN; the plan was to phone
+        # her and ask. Nothing caught it: the trigger below skips a two-step,
+        # $steps-chained, mutation-ending plan as `well_formed_cross_domain_
+        # mutation` — the better formed the plan, the less it was reviewed.
+        #
+        # So this runs BEFORE the trigger, with the other deterministic rules:
+        # no LLM, no token cost, and out of reach of that exemption. Mirror of
+        # `mutation_intent_but_no_mutation_tool`, which had no counterpart in
+        # this direction.
+        # =====================================================================
+        writing_tools = plan_writes_without_write_intent(plan, query_intelligence)
+        if writing_tools:
+            logger.warning(
+                "semantic_validation_write_without_intent",
+                step_count=len(plan.steps),
+                writing_tools=writing_tools,
+                duration_ms=int((time.time() - start_time) * 1000),
+            )
+            return _programmatic_rejection(
+                SemanticIssueType.SCOPE_OVERFLOW,
+                (
+                    "The request asks for information, but the plan performs "
+                    f"action(s): {', '.join(writing_tools)}"
+                ),
+                (
+                    "The user asked a QUESTION, not for an action. Answer it by "
+                    "READING: keep the lookup steps and replace every action tool "
+                    f"({', '.join(writing_tools)}) with a read tool of the same "
+                    "domain. Never contact anyone to obtain information the "
+                    "system can read itself."
+                ),
+                CriticalityLevel.HIGH,
+                start_time,
             )
 
         # =====================================================================

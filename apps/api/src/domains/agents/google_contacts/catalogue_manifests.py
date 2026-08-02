@@ -176,7 +176,7 @@ get_contacts_catalogue_manifest = ToolManifest(
             description="Biographies/Notes",
             semantic_type="biography",
         ),
-        OutputFieldSchema(path="total", type="integer", description="Total count"),
+        OutputFieldSchema(path="count", type="integer", description="Total count"),
     ],
     cost=CostProfile(est_tokens_in=150, est_tokens_out=900, est_cost_usd=0.002, est_latency_ms=600),
     permissions=PermissionProfile(
@@ -196,7 +196,7 @@ get_contacts_catalogue_manifest = ToolManifest(
         "contacts[0].emailAddresses[0].value",
         "contacts[0].phoneNumbers[0].value",
         "contacts[0].addresses[0].formattedValue",  # physical_address for routes
-        "total",
+        "count",
     ],
     version="2.0.0",
     maintainer="Team Agents",

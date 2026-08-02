@@ -181,8 +181,12 @@ export function CompanionPresence({ isAuthenticated }: CompanionPresenceProps) {
         type="button"
         onClick={() => setDismissed(false)}
         aria-label={t('companion.restore')}
-        className="fixed bottom-6 right-6 z-40 h-3 w-3 rounded-full bg-primary/60 shadow-md ring-2 ring-background hover:bg-primary transition-colors"
-      />
+        // The dot stays 12 px; the TARGET is 44. The box is anchored to the
+        // same corner and grows inward, so the dot does not move a pixel.
+        className="group fixed bottom-6 right-6 z-40 flex h-11 w-11 items-end justify-end"
+      >
+        <span className="h-3 w-3 rounded-full bg-primary/60 shadow-md ring-2 ring-background transition-colors group-hover:bg-primary" />
+      </button>
     );
   }
 
@@ -209,37 +213,56 @@ export function CompanionPresence({ isAuthenticated }: CompanionPresenceProps) {
           type="button"
           onClick={openChat}
           aria-label={stateLabel}
+          // The avatar is 40 px; the TARGET must be 44. The ring/shadow move
+          // onto an inner span so the button can grow to a touch-sized box
+          // without the companion itself looking bigger.
           className={cn(
-            'rounded-full shadow-lg ring-2 ring-background transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-primary',
+            'flex h-11 w-11 items-center justify-center rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-primary',
             state.base === 'rest' && 'motion-safe:animate-greet-float'
           )}
         >
-          <AssistantAvatar
-            psycheState={psycheState}
-            animateEmoji
-            animate={state.base === 'working'}
-            ring={ringing}
-          />
+          <span className="block rounded-full shadow-lg ring-2 ring-background">
+            <AssistantAvatar
+              psycheState={psycheState}
+              animateEmoji
+              animate={state.base === 'working'}
+              ring={ringing}
+            />
+          </span>
         </button>
 
         {/* Notification count badge */}
         {state.showBadge && (
           <span
             aria-hidden="true"
-            className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold tabular-nums shadow ring-2 ring-background"
+            // -0.5 rather than -1: the button box grew from 40 to 44 px for the
+            // touch target, so the corner moved out by 2 px. Compensating here
+            // keeps the badge exactly where it sat against the avatar.
+            className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold tabular-nums shadow ring-2 ring-background"
           >
             {state.badgeCount > 9 ? '9+' : state.badgeCount}
           </span>
         )}
 
-        {/* Minimize control — appears on hover */}
+        {/* Minimize control — on hover, and permanently where hover does not
+            exist. Two things were wrong at once on a phone: the dot was 16 px,
+            and `opacity-0` with no hover made it INVISIBLE YET CLICKABLE — so
+            minimizing was unreachable on purpose-built taps and reachable by
+            accident. Enlarging the hit area without showing the control would
+            have made that trap bigger, not smaller. */}
         <button
           type="button"
           onClick={() => setDismissed(true)}
           aria-label={t('companion.minimize')}
-          className="absolute -top-1 -left-1 h-4 w-4 flex items-center justify-center rounded-full bg-muted text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity shadow ring-1 ring-border"
+          // 44 px box growing AWAY from the avatar (up-left, where nothing is),
+          // with the 16 px dot pinned to its bottom-right corner — the visual
+          // stays put and the enlarged target never steals a tap meant for the
+          // chat button underneath.
+          className="absolute -top-[30px] -left-[30px] flex h-11 w-11 items-end justify-end opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
         >
-          <X className="h-2.5 w-2.5" />
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-muted text-muted-foreground shadow ring-1 ring-border">
+            <X className="h-2.5 w-2.5" />
+          </span>
         </button>
       </div>
     </div>

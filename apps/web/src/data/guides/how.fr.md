@@ -5,8 +5,8 @@
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
 **Version** : 3.6
-**Date** : 2026-08-01
-**Application** : LIA v1.27.5
+**Date** : 2026-08-02
+**Application** : LIA v1.27.6
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 447 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 191 ADRs, ~17 415 tests collectés par pytest sur 933 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 192 ADRs, ~17 622 tests collectés par pytest sur 947 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -72,7 +72,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~17 415 (collectés par pytest sur 933 fichiers de test) + 4 447 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | ~17 622 (collectés par pytest sur 947 fichiers de test) + 4 474 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures réutilisables | 170+ |
 | Documents de documentation | 400+ |
 | ADRs (Architecture Decision Records) | 189 |
@@ -458,6 +458,20 @@ Fermer le catalogue règle ce qu'un plan peut **enchaîner**. Une question préc
 Mesuré : l'outil de synthèse 360° d'une personne vit dans le domaine `contact`, tandis que la consigne de l'analyseur envoie toute question sur un utilisateur connecté vers le domaine `peer`. Score obtenu **0,853** — le meilleur du catalogue, face à des outils génériques à 0,000 — et jamais présenté au planificateur. Quand cela fonctionnait, c'est que le modèle était sorti de la consigne : une bascule stochastique, pas un chemin nominal.
 
 Un manifeste déclare désormais les domaines **additionnels** depuis lesquels il est joignable, et une **implémentation unique** répond à « cet outil est-il dans la portée ? » pour les deux stratégies de filtrage, qui posaient la même question chacune de son côté. Toute valeur est validée à l'enregistrement contre le registre des domaines : un domaine inconnu refuse le démarrage plutôt que de rendre l'outil silencieusement introuvable. À déclarer avec parcimonie — chaque domaine ajouté élargit l'éventail proposé pour **toutes** les requêtes de ce domaine. Ce n'est pas relier deux domaines entre eux : relier tire l'intégralité de leurs boîtes à outils l'une dans l'autre, ce qui a déjà provoqué un incident de production. Ici un seul outil se déplace, pas un domaine.
+### 7.7. Le catalogue d'un domaine est une offre de capacités
+
+Le filtrage par domaine a un corollaire que la mesure a rendu visible : **le contenu du catalogue d'un domaine dicte ce que le planificateur peut vouloir**. En production, « de quand date mon dernier appel à ma femme ? » a produit un plan en deux étapes — chercher le contact, puis **lui téléphoner pour le lui demander**. Seul l'échec d'une référence l'a arrêté.
+
+Ce n'était pas un caprice du modèle mais la seule façon d'obéir. Le prompt annonce `Primary domain: telephony`, une règle vérifie que le plan couvre bien ce domaine, et le catalogue de `telephony` ne contenait **qu'une capacité : passer un appel**. Couvrir son domaine primaire voulait donc dire agir.
+
+Trois capacités de lecture ont été ajoutées, **chacune dans le domaine qui en manquait** — appels, engagements ouverts, messages relayés. Le rattachement alternatif, via les domaines additionnels de la section précédente, a été mesuré puis écarté : rendre ces trois outils joignables depuis `contact` évinçait **six outils de mutation** des catalogues les plus chargés, le plafond étant fixe. Une capacité de lecture ne doit pas coûter une capacité d'écriture.
+
+Une règle **déterministe** complète le dispositif, avant tout appel de modèle : intention non mutative détectée + plan appelant un outil de mutation → plan invalide. Elle s'exécute avec les autres règles pré-LLM, donc hors de portée de l'exemption qui dispensait de vérification tout plan bien chaîné se terminant par une mutation — c'est-à-dire exactement la forme fautive. Plus le plan était bien formé, moins il était vérifié.
+
+Les deux plafonds du catalogue (nominal et mode panique) sont devenus des réglages, avec une garde au démarrage : **le plafond de secours n'est jamais inférieur au plafond nominal**, sans quoi le filet offrirait moins que le chemin qui vient d'échouer.
+
+---
+
 
 ## 8. Routage sémantique et embeddings IA
 
@@ -1135,7 +1149,7 @@ Reste qu'une destination peut légitimement ne pas exister : plusieurs sections 
 
 ## 24. Architecture des décisions (ADR)
 
-191 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+192 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1225,10 +1239,10 @@ Le contexte psyché est injecté dans **tous** les points de génération utilis
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 191 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~17 415 tests sur 933 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 192 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~17 622 tests sur 947 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 191 ADRs, et du changelog (v1.0 à v1.27.5). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 192 ADRs, et du changelog (v1.0 à v1.27.6). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

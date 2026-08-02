@@ -131,6 +131,17 @@ class ExchangedEmail(BaseModel):
     occurred_at: datetime | None = Field(
         default=None, description="UTC instant, when the provider gave a usable one."
     )
+    excerpt: str | None = Field(
+        default=None,
+        description=(
+            "First words of the message, capped at "
+            "``relations_provider_email_excerpt_max_chars``. This is the preview "
+            "the provider returns WITH the search — free — never the full body, "
+            "which would cost one call per message. Absent when the provider "
+            "gave none: an empty string would render as a blank line claiming "
+            "the message had no content."
+        ),
+    )
 
 
 class SharedEvent(BaseModel):

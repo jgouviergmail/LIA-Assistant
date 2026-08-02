@@ -28,7 +28,7 @@ import { useLanguageParam } from '@/hooks/useLanguageParam';
 export default function RelationsPage({ params }: { params: Promise<{ lng: string }> }) {
   const lng = useLanguageParam(params);
   const { t } = useTranslation();
-  const { relations, relationsTotal, loading, initialLoading, toggleFavorite } =
+  const { relations, relationsTotal, loading, initialLoading, toggleFavorite, refetch } =
     useRelationsOverview();
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -58,6 +58,11 @@ export default function RelationsPage({ params }: { params: Promise<{ lng: strin
             lng={lng}
             isFavorite={selectedIsFavorite}
             onToggleFavorite={handleToggleFavorite}
+            // The merge candidates come from the overview the page already
+            // holds: a second read would be a second opinion on which
+            // relationships exist.
+            candidates={relations.map(relation => relation.display_name)}
+            onMerged={refetch}
             onBack={() => setSelected(null)}
           />
         ) : initialLoading ? (

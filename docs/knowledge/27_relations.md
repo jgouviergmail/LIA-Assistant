@@ -30,3 +30,17 @@ Your choice is **saved before the chat opens**, so LIA applies it instead of gue
 Exchanges are found by **address**, not by name: someone you never saved in your address book had none, so there was nothing to match. If that person is a **connected user** and has turned on address sharing (Connections setting), LIA now uses it to find, in **your** mail and **your** calendar, the exchanges and meetings they appear in.
 
 Without that sharing nothing changes: their setting stays the only thing that decides. And if no meeting involves them, the section stays **empty** — LIA does not fill the silence with an event of your calendar they neither organise nor attend.
+
+## How do I merge two cards that are the same person?
+LIA groups what is written the same, accents and capitals aside. It cannot guess that a **raw phone number** and a **name** are one relationship, or that "Dad" is "John Smith": that is a judgement, and only you can make it.
+
+Open the card you want to **keep**, scroll to **Group relationships**, pick the other card and confirm. The merge is **reversible**: it appears on the card with its own undo, and nothing is rewritten in your sources — both cards come back exactly as they were.
+
+It **never** changes the directory of connected people: a display grouping must not be able to redirect a message to another account.
+
+## Can I ask about my calls or my commitments with someone?
+Yes. "When did I last call Marie?", "what do I owe her?", "what did we pass on through LIA?" now get an **answer**.
+
+Before, a question about a call could produce a plan to **phone her and ask**: the telephony domain only knew how to place calls, so covering its own domain meant acting. LIA now reads your **past calls**, your **open commitments** and the **relayed messages**, through exactly the same computation as the relationship card — so the assistant and the card cannot give you two different answers.
+
+The total count is always exact, next to the page shown.

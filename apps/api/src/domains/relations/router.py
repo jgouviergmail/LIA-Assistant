@@ -23,12 +23,17 @@ longer path would otherwise be swallowed by it.
 from fastapi import APIRouter, Depends, Query, Response, status
 
 from src.core.config import settings
+from src.core.exceptions import raise_invalid_input
 from src.core.session_dependencies import get_current_active_session
 from src.domains.auth.dependencies import create_user_rate_limiter
 from src.domains.relations.overview_scope import RelationOverviewScope
 from src.domains.relations.providers.schemas import RelationContext
 from src.domains.relations.providers.service import RelationContextService
-from src.domains.relations.schemas import RelationDetail, RelationsOverview
+from src.domains.relations.schemas import (
+    RelationDetail,
+    RelationMergeRequest,
+    RelationsOverview,
+)
 from src.domains.relations.service import RelationsService
 from src.domains.users.models import User
 
@@ -72,6 +77,51 @@ async def remove_relation_favorite(
 ) -> Response:
     """Remove the star; unstarring an unstarred name is a no-op."""
     await RelationsService(current_user.id).remove_favorite(name)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/merges",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Merge two relationships into one (idempotent, reversible)",
+    responses={
+        400: {"description": "Blank name, or the same relationship on both sides"},
+    },
+)
+async def merge_relations(
+    payload: RelationMergeRequest,
+    current_user: User = Depends(get_current_active_session),
+) -> Response:
+    """Record that two relationships are the same person.
+
+    Manual by design: folding already merges what is literally the same
+    spelling, and everything beyond that is a judgement only the user can
+    make. Nothing is rewritten in the sources, so the merge is reversible.
+    """
+    try:
+        await RelationsService(current_user.id).merge_relations(
+            source=payload.source, target=payload.target
+        )
+    except ValueError as exc:
+        raise_invalid_input(str(exc))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete(
+    "/merges/{name}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Undo a merge — the relationship becomes its own card again",
+    responses={400: {"description": "Blank name"}},
+)
+async def split_relation(
+    name: str,
+    current_user: User = Depends(get_current_active_session),
+) -> Response:
+    """Split one merged-away relationship back out (idempotent)."""
+    try:
+        await RelationsService(current_user.id).split_relation(name)
+    except ValueError as exc:
+        raise_invalid_input(str(exc))
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

@@ -2108,6 +2108,7 @@ def _build_response_system_prompt(
     user_model_block: Any,
     react_result: dict[str, Any] | None,
     recent_entities: str = "",
+    peer_context: str = "",
 ) -> str:
     """Assemble the response LLM system prompt from all injected context.
 
@@ -2134,6 +2135,7 @@ def _build_response_system_prompt(
         journal_context=journal_context,  # Personal journal context
         psyche_context=psyche_context,  # Psyche Engine expression profile
         recent_entities=recent_entities,  # Grounding when this turn produced no data
+        peer_context=peer_context,  # Local CRM facts about a named connected user
     )
     # ADR-079 commit 3: ambient diffusion of the user-model portrait.
     # Appended after the base prompt so it is read alongside (not in place
@@ -3389,6 +3391,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         journal_context = context_bundle.journal_context
         user_model_block = context_bundle.user_model_block
         psyche_context = context_bundle.psyche_context
+        peer_context = context_bundle.peer_context
         logger.info(
             "response_context_ready",
             run_id=run_id,
@@ -3488,6 +3491,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             user_model_block=user_model_block,
             react_result=react_result,
             recent_entities=recent_entities,
+            peer_context=peer_context,
         )
 
         (

@@ -14,6 +14,7 @@ from pydantic_settings import BaseSettings
 from src.core.constants import (
     RELATIONS_MAX_ITEMS_DEFAULT,
     RELATIONS_MAX_ITEMS_PER_SECTION_DEFAULT,
+    RELATIONS_PROVIDER_EMAIL_EXCERPT_MAX_CHARS_DEFAULT,
     RELATIONS_PROVIDER_EMAIL_WINDOW_DAYS_DEFAULT,
     RELATIONS_PROVIDER_MAX_ADDRESSES_DEFAULT,
     RELATIONS_PROVIDER_MAX_ITEMS_DEFAULT,
@@ -86,6 +87,18 @@ class RelationsSettings(BaseSettings):
         ge=1,
         le=50,
         description="Items rendered per provider-backed section (mails, events).",
+    )
+    relations_provider_email_excerpt_max_chars: int = Field(
+        default=RELATIONS_PROVIDER_EMAIL_EXCERPT_MAX_CHARS_DEFAULT,
+        ge=40,
+        le=1000,
+        description=(
+            "Length of the excerpt shown under an exchanged message. The "
+            "excerpt is the preview the provider already returns with the "
+            "search, so it costs no extra call; the bound is PUBLISHED to the "
+            "planner so the limit it is subject to is the limit it can read "
+            "(ADR-184)."
+        ),
     )
     relations_provider_rate_limit_calls: int = Field(
         default=RELATIONS_PROVIDER_RATE_LIMIT_CALLS_DEFAULT,

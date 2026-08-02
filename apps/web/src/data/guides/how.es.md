@@ -5,8 +5,8 @@
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
 **Versión**: 3.6
-**Fecha**: 2026-08-01
-**Aplicación**: LIA v1.27.5
+**Fecha**: 2026-08-02
+**Aplicación**: LIA v1.27.6
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 447 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 191 ADRs, ~17.415 tests recogidos por pytest en 933 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 192 ADRs, ~17.622 tests recogidos por pytest en 947 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -72,7 +72,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | ~17.415 (recopilados por pytest en 933 archivos de prueba) + 4.447 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | ~17.622 (recopilados por pytest en 947 archivos de prueba) + 4.474 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures reutilizables | 170+ |
 | Documentos de documentación | 400+ |
 | ADRs (Architecture Decision Records) | 189 |
@@ -459,6 +459,20 @@ Cerrar el catálogo resuelve lo que un plan puede **encadenar**. Antes hay otra 
 Medido: la herramienta de resumen 360° de una persona vive en el dominio `contact`, mientras que la instrucción del analizador envía cualquier pregunta sobre un usuario conectado al dominio `peer`. Puntuación **0,853** — la mejor de todo el catálogo, frente a herramientas genéricas en 0,000 — y jamás presentada al planificador. Cuando funcionaba, era porque el modelo se había salido de su instrucción: un escape estocástico, no el camino nominal.
 
 Un manifiesto declara ahora los dominios **adicionales** desde los que es alcanzable, y una **única implementación** responde a «¿está esta herramienta dentro del alcance?» para las dos estrategias de filtrado, que antes formulaban la misma pregunta cada una por su lado. Todo valor se valida al registrarse contra el registro de dominios: un dominio desconocido impide el arranque en lugar de volver la herramienta silenciosamente inencontrable. A declarar con parsimonia — cada dominio añadido amplía el abanico ofrecido para **todas** las consultas de ese dominio. No es relacionar dos dominios entre sí: relacionar arrastra sus cajas de herramientas enteras la una hacia la otra, lo que ya provocó un incidente en producción. Aquí se desplaza una herramienta, no un dominio.
+### 7.7. El catálogo de un dominio es una oferta de capacidades
+
+El filtrado por dominio tiene un corolario que la medición hizo visible: **lo que contiene el catálogo de un dominio dicta lo que el planificador puede querer**. En producción, preguntar cuándo fue la última llamada produjo un plan de dos pasos — buscar el contacto y luego **llamarle para preguntárselo**. Solo el fallo de una referencia lo detuvo.
+
+No era un capricho del modelo, sino la única forma de obedecer. El prompt anuncia `Primary domain: telephony`, una regla comprueba que el plan cubra ese dominio, y el catálogo de `telephony` contenía **exactamente una capacidad: realizar una llamada**. Cubrir su dominio primario significaba, pues, actuar.
+
+Se añadieron tres capacidades de lectura, **cada una en el dominio que carecía de ella** — llamadas, compromisos abiertos, mensajes retransmitidos. La alternativa, mediante los dominios adicionales de la sección anterior, se midió y se descartó: hacerlas accesibles desde `contact` expulsaba **seis herramientas de mutación** de los catálogos más cargados, al ser fijo el límite. Una capacidad de lectura no debe costar una de escritura.
+
+Una regla **determinista** completa el dispositivo, antes de cualquier llamada al modelo: intención no mutante detectada + plan que llama a una herramienta de mutación → plan inválido. Se ejecuta junto a las demás reglas previas al LLM, fuera del alcance de la exención que eximía de revisión a todo plan bien encadenado que terminase en una mutación — es decir, exactamente la forma defectuosa. Cuanto mejor formado estaba el plan, menos se verificaba.
+
+Ambos límites del catálogo (normal y modo pánico) pasaron a ser ajustes, con una comprobación al arranque: **el límite de reserva nunca es inferior al normal**, o la red de seguridad ofrecería menos que el camino que acaba de fallar.
+
+---
+
 
 ## 8. Enrutamiento semántico y embeddings semánticos
 
@@ -1131,7 +1145,7 @@ Con todo, un destino puede legítimamente no existir: varias secciones solo se r
 
 ## 24. Arquitectura de decisiones (ADR)
 
-191 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+192 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1185,10 +1199,10 @@ El Psyche Engine dota al asistente de un estado psicológico dinámico que evolu
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 191 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~17.415 tests en 933 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 192 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~17.622 tests en 947 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (400+ documentos), de los 191 ADRs y del changelog (v1.0 a v1.27.5). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (400+ documentos), de los 192 ADRs y del changelog (v1.0 a v1.27.6). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

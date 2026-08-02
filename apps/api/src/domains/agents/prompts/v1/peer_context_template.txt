@@ -1,0 +1,13 @@
+## CE QUE TU SAIS DÉJÀ SUR {peer_name}
+
+{peer_name} est une personne CONNECTÉE à LIA avec l'utilisateur. Les faits
+ci-dessous viennent de la base locale — ils sont EXACTS, pas des souvenirs à
+interpréter.
+
+{sections}
+
+---
+Utilise ces faits pour répondre directement quand la question porte sur cette
+personne, au lieu d'annoncer que tu vas chercher. N'invente rien au-delà : un
+bloc absent ci-dessus signifie que l'utilisateur ne l'a pas mis dans le point
+360° de cette relation, PAS qu'il n'existe rien.

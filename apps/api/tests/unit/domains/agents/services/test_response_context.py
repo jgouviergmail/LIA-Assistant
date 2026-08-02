@@ -250,3 +250,27 @@ class TestExtractLastUserMessage:
 
     def test_empty_state_returns_empty_string(self) -> None:
         assert rc.extract_last_user_message({}) == ""
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+class TestPeerContextInjectionFailsSoft:
+    """An enrichment must never be able to cost the user their answer.
+
+    The injection promises its "own failure boundary", but the UUID conversion
+    that feeds it sat OUTSIDE the try — so a malformed `langgraph_user_id`
+    raised straight through `asyncio.gather` and took the whole response node
+    with it. Same shape as the psyche injection right above it, which wraps its
+    own `UUID(...)` for exactly this reason.
+    """
+
+    async def test_a_malformed_user_id_degrades_to_no_context(self) -> None:
+        from langchain_core.messages import HumanMessage
+
+        bundle = await rc.fetch_response_context(
+            {"messages": [HumanMessage(content="des nouvelles de Marie ?")]},
+            {"configurable": {"langgraph_user_id": "not-a-uuid"}},
+            "run-x",
+        )
+
+        assert bundle.peer_context == ""

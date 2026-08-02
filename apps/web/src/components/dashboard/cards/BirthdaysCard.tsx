@@ -1,11 +1,11 @@
 'use client';
 
 import { Cake, Gift } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
 import { CardItemActions } from './CardItemActions';
 import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
+import { openChatDeepLink } from '@/lib/chat-deep-link';
 import type { BirthdaysData, CardSection } from '@/types/briefing';
 
 interface BirthdaysCardProps {
@@ -21,7 +21,6 @@ export function BirthdaysCard({
   onRefresh,
   staggerIndex,
 }: BirthdaysCardProps) {
-  const router = useRouter();
   const { i18n } = useTranslation();
   const lng = (i18n.language || 'fr').split('-')[0];
   return (
@@ -36,8 +35,8 @@ export function BirthdaysCard({
       renderContent={data => (
         <BirthdaysContent
           data={data}
-          onOpenChat={draft => router.push(chatDraftHref(lng, draft))}
-          onExecute={intent => router.push(chatIntentHref(lng, intent))}
+          onOpenChat={draft => openChatDeepLink(chatDraftHref(lng, draft))}
+          onExecute={intent => openChatDeepLink(chatIntentHref(lng, intent))}
         />
       )}
       staggerIndex={staggerIndex}

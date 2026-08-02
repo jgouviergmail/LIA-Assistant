@@ -185,7 +185,7 @@ get_files_catalogue_manifest = ToolManifest(
             description="Text content",
             semantic_type="file_content",
         ),
-        OutputFieldSchema(path="total", type="integer", description="Count"),
+        OutputFieldSchema(path="count", type="integer", description="Count"),
     ],
     cost=CostProfile(
         est_tokens_in=150, est_tokens_out=1000, est_cost_usd=0.003, est_latency_ms=700
@@ -196,7 +196,7 @@ get_files_catalogue_manifest = ToolManifest(
     max_iterations=1,
     supports_dry_run=False,
     context_key="files",
-    reference_examples=["files[0].id", "files[0].name", "files[0].content", "total"],
+    reference_examples=["files[0].id", "files[0].name", "files[0].content", "count"],
     version="2.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="📁", i18n_key="get_files", visible=True, category="tool"),

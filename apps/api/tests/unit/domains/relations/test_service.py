@@ -147,6 +147,30 @@ def _favorite(name, key=None):
     )
 
 
+def _patch_aliases(pairs=()):
+    """Patch the merge table — empty means "no relationship was merged".
+
+    Added when manual merges landed: the service resolves identity through
+    this table on EVERY read, so a suite that does not stub it is asserting
+    on a code path the product no longer has.
+    """
+    return patch(
+        "src.domains.relations.service.RelationAliasRepository",
+        return_value=SimpleNamespace(
+            list_for_user=AsyncMock(
+                return_value=[
+                    SimpleNamespace(
+                        alias_key=alias, canonical_key=canonical, alias_display_name=alias
+                    )
+                    for alias, canonical in pairs
+                ]
+            ),
+            merge=AsyncMock(),
+            split=AsyncMock(return_value=True),
+        ),
+    )
+
+
 def _patch_favorites(favorites=()):
     return patch(
         "src.domains.relations.service.RelationFavoriteRepository",
@@ -259,7 +283,15 @@ class TestOverview:
             loop_activity=[_activity("Gérard Dupont", days_ago=3)],
             call_activity=[_activity("gerard dupont", days_ago=1)],
         )
-        with _patch_db(), p_loop, p_call, p_mem, _patch_favorites(), _patch_peers()[0]:
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_mem,
+            _patch_favorites(),
+            _patch_aliases(),
+            _patch_peers()[0],
+        ):
             overview = await service.build_overview()
 
         (relation,) = overview.relations
@@ -278,7 +310,15 @@ class TestOverview:
             loop_activity=[_activity("Marie Dupont", count=137)],
             call_activity=[_activity("Marie Dupont", count=42)],
         )
-        with _patch_db(), p_loop, p_call, p_mem, _patch_favorites(), _patch_peers()[0]:
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_mem,
+            _patch_favorites(),
+            _patch_aliases(),
+            _patch_peers()[0],
+        ):
             overview = await service.build_overview()
 
         (relation,) = overview.relations
@@ -290,7 +330,15 @@ class TestOverview:
         p_loop, p_call, p_mem = _patch_sources(
             loop_activity=[_activity("Gérard", count=2), _activity("gerard", count=3)],
         )
-        with _patch_db(), p_loop, p_call, p_mem, _patch_favorites(), _patch_peers()[0]:
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_mem,
+            _patch_favorites(),
+            _patch_aliases(),
+            _patch_peers()[0],
+        ):
             overview = await service.build_overview()
 
         (relation,) = overview.relations
@@ -307,6 +355,7 @@ class TestOverview:
             p_call,
             p_mem,
             _patch_favorites(),
+            _patch_aliases(),
             _patch_peers()[0],
             patch("src.domains.relations.service.settings") as cfg,
         ):
@@ -333,6 +382,7 @@ class TestOverview:
             p_call,
             p_mem,
             _patch_favorites(),
+            _patch_aliases(),
             _patch_peers()[0],
             patch("src.domains.relations.service.settings") as cfg,
         ):
@@ -357,6 +407,7 @@ class TestOverview:
             p_call,
             p_mem,
             _patch_favorites([_favorite("Carla"), _favorite("Bruno"), _favorite("Alice")]),
+            _patch_aliases(),
             _patch_peers()[0],
         ):
             overview = await service.build_overview()
@@ -368,7 +419,15 @@ class TestOverview:
         p_loop, p_call, p_mem = _patch_sources(
             loop_activity=[_activity("   ")], call_activity=[_activity("")]
         )
-        with _patch_db(), p_loop, p_call, p_mem, _patch_favorites(), _patch_peers()[0]:
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_mem,
+            _patch_favorites(),
+            _patch_aliases(),
+            _patch_peers()[0],
+        ):
             overview = await service.build_overview()
         assert overview.relations == []
 
@@ -390,6 +449,7 @@ class TestFavoritesInOverview:
             p_call,
             p_mem,
             _patch_favorites([_favorite("Marie Dupont")]),
+            _patch_aliases(),
             p_peers,
             p_flag,
         ):
@@ -407,6 +467,7 @@ class TestFavoritesInOverview:
             p_call,
             p_mem,
             _patch_favorites([_favorite("Mémé Jeanne")]),
+            _patch_aliases(),
             p_peers,
             p_flag,
         ):
@@ -428,6 +489,7 @@ class TestFavoritesInOverview:
             p_call,
             p_mem,
             _patch_favorites([_favorite("Ana Lima")]),
+            _patch_aliases(),
             p_peers,
             p_flag,
             patch("src.domains.relations.service.settings") as cfg,
@@ -443,7 +505,16 @@ class TestFavoritesInOverview:
             call_activity=[_activity("Marie Dupont"), _activity("Paul Martin")]
         )
         p_peers, p_flag = _patch_peers(peer_names=["marie dupont"])
-        with _patch_db(), p_loop, p_call, p_mem, _patch_favorites(), p_peers, p_flag:
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_mem,
+            _patch_favorites(),
+            _patch_aliases(),
+            p_peers,
+            p_flag,
+        ):
             overview = await service.build_overview()
         flags = {r.display_name: r.is_peer for r in overview.relations}
         assert flags == {"Marie Dupont": True, "Paul Martin": False}
@@ -452,7 +523,16 @@ class TestFavoritesInOverview:
         service = RelationsService(user_id=uuid4())
         p_loop, p_call, p_mem = _patch_sources(call_activity=[_activity("Marie Dupont")])
         p_peers, p_flag = _patch_peers(peer_names=["marie dupont"], enabled=False)
-        with _patch_db(), p_loop, p_call, p_mem, _patch_favorites(), p_peers, p_flag:
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_mem,
+            _patch_favorites(),
+            _patch_aliases(),
+            p_peers,
+            p_flag,
+        ):
             overview = await service.build_overview()
         assert overview.relations[0].is_peer is False
 
@@ -484,7 +564,15 @@ class TestDetail:
             calls=[_call("gérard", objective="anniversaire")],
             memories=[_memory("Gérard adore la randonnée")],
         )
-        with _patch_db(), p_loop, p_call, p_mem, _patch_favorites(), _patch_peers()[0]:
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_mem,
+            _patch_favorites(),
+            _patch_aliases(),
+            _patch_peers()[0],
+        ):
             detail = await service.build_detail("Gérard")
 
         assert [loop.subject for loop in detail.open_loops] == ["prêt perceuse"]
@@ -508,6 +596,7 @@ class TestDetail:
             p_call,
             p_mem,
             _patch_favorites(),
+            _patch_aliases(),
             _patch_peers()[0],
         ):
             await service.build_detail("GERARD DUPONT")
@@ -527,7 +616,15 @@ class TestDetail:
             memories=[_memory("Marie aime la voile")],
             memories_total=54,
         )
-        with _patch_db(), p_loop, p_call, p_mem, _patch_favorites(), _patch_peers()[0]:
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_mem,
+            _patch_favorites(),
+            _patch_aliases(),
+            _patch_peers()[0],
+        ):
             detail = await service.build_detail("Marie")
 
         assert len(detail.open_loops) == 3 and detail.open_loops_total == 137
@@ -537,7 +634,15 @@ class TestDetail:
     async def test_unknown_person_answers_empty_without_inventing_a_name(self) -> None:
         service = RelationsService(uuid4())
         p_loop, p_call, p_mem = _patch_sources()
-        with _patch_db(), p_loop, p_call, p_mem, _patch_favorites(), _patch_peers()[0]:
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_mem,
+            _patch_favorites(),
+            _patch_aliases(),
+            _patch_peers()[0],
+        ):
             detail = await service.build_detail("  Personne Inconnue  ")
 
         assert detail.display_name == "Personne Inconnue"
@@ -554,6 +659,7 @@ class TestDetail:
             p_call,
             p_mem,
             _patch_favorites([_favorite("Marie Dupont")]),
+            _patch_aliases(),
             p_peers,
             p_flag,
         ):
@@ -582,6 +688,7 @@ class TestPeerMessagesInTheCrm:
             p_call,
             p_mem,
             _patch_favorites(),
+            _patch_aliases(),
             p_peers,
             p_flag,
             p_signals,
@@ -614,6 +721,7 @@ class TestPeerMessagesInTheCrm:
             p_call,
             p_mem,
             _patch_favorites(),
+            _patch_aliases(),
             p_peers,
             p_flag,
             p_signals,
@@ -639,6 +747,7 @@ class TestPeerMessagesInTheCrm:
             p_call,
             p_mem,
             _patch_favorites(),
+            _patch_aliases(),
             p_peers,
             p_flag,
             p_signals,
@@ -664,6 +773,7 @@ class TestPeerMessagesInTheCrm:
             p_call,
             p_mem,
             _patch_favorites(),
+            _patch_aliases(),
             p_peers,
             p_flag,
             p_signals,
@@ -687,6 +797,7 @@ class TestPeerMessagesInTheCrm:
             p_call,
             p_mem,
             _patch_favorites(),
+            _patch_aliases(),
             p_peers,
             p_flag,
             p_signals,
@@ -719,6 +830,7 @@ class TestPeerMessagesInTheCrm:
             p_call,
             p_mem,
             _patch_favorites(),
+            _patch_aliases(),
             p_peers,
             p_flag,
             p_signals,
@@ -750,7 +862,16 @@ class TestPeerConnectionBlock:
                 _share(PEER_ID, "task", "titles"),
             ],
         )
-        with _patch_db(), p_loop, p_call, p_mem, _patch_favorites(), p_peers, p_flag:
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_mem,
+            _patch_favorites(),
+            _patch_aliases(),
+            p_peers,
+            p_flag,
+        ):
             detail = await service.build_detail("marie dupont")
 
         assert detail.peer_link is not None
@@ -766,7 +887,16 @@ class TestPeerConnectionBlock:
         service = RelationsService(user_id=ME_ID)
         p_loop, p_call, p_mem = _patch_sources(call_activity=[_activity("Paul Martin")])
         p_peers, p_flag = _patch_peers(peer_names=["Marie Dupont"])
-        with _patch_db(), p_loop, p_call, p_mem, _patch_favorites(), p_peers, p_flag:
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_mem,
+            _patch_favorites(),
+            _patch_aliases(),
+            p_peers,
+            p_flag,
+        ):
             detail = await service.build_detail("paul martin")
 
         assert detail.peer_link is None
@@ -776,7 +906,16 @@ class TestPeerConnectionBlock:
         service = RelationsService(user_id=ME_ID)
         p_loop, p_call, p_mem = _patch_sources(call_activity=[_activity("Marie Dupont")])
         p_peers, p_flag = _patch_peers(peer_names=["Marie Dupont"], enabled=False)
-        with _patch_db(), p_loop, p_call, p_mem, _patch_favorites(), p_peers, p_flag:
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_mem,
+            _patch_favorites(),
+            _patch_aliases(),
+            p_peers,
+            p_flag,
+        ):
             detail = await service.build_detail("marie dupont")
         assert detail.peer_link is None
 
@@ -786,7 +925,16 @@ class TestPeerConnectionBlock:
         service = RelationsService(user_id=ME_ID)
         p_loop, p_call, p_mem = _patch_sources(call_activity=[_activity("Marie Dupont")])
         p_peers, p_flag = _patch_peers(peer_names=["Marie Dupont"], shares=[])
-        with _patch_db(), p_loop, p_call, p_mem, _patch_favorites(), p_peers, p_flag:
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_mem,
+            _patch_favorites(),
+            _patch_aliases(),
+            p_peers,
+            p_flag,
+        ):
             detail = await service.build_detail("marie dupont")
 
         assert detail.peer_link is not None
@@ -797,7 +945,16 @@ class TestPeerConnectionBlock:
         service = RelationsService(user_id=ME_ID)
         p_loop, p_call, p_mem = _patch_sources(call_activity=[_activity("gerard dupont")])
         p_peers, p_flag = _patch_peers(peer_names=["Gérard Dupont"])
-        with _patch_db(), p_loop, p_call, p_mem, _patch_favorites(), p_peers, p_flag:
+        with (
+            _patch_db(),
+            p_loop,
+            p_call,
+            p_mem,
+            _patch_favorites(),
+            _patch_aliases(),
+            p_peers,
+            p_flag,
+        ):
             detail = await service.build_detail("GÉRARD DUPONT")
         assert detail.peer_link is not None
         assert detail.is_peer is True

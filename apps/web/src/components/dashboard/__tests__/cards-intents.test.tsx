@@ -19,6 +19,15 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
 }));
 
+// Chat deep links are REAL navigations since 2026-08-01 (ADR-192): the App
+// Router restored the search params of the entry it already held, so a second
+// deep link in a session left with the FIRST one's URL. The oracle is the same
+// href — only the door changed.
+const openChat = vi.fn();
+vi.mock('@/lib/chat-deep-link', () => ({
+  openChatDeepLink: (href: string) => openChat(href),
+}));
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) =>
@@ -48,7 +57,7 @@ const cardProps = { isRefreshing: false, onRefresh: vi.fn(), staggerIndex: 0 };
 
 describe('briefing cards — actionable items (QW-9)', () => {
   beforeEach(() => {
-    push.mockClear();
+    openChat.mockClear();
   });
 
   it('mail item opens the chat prefilled with the summarize intent', () => {
@@ -72,8 +81,8 @@ describe('briefing cards — actionable items (QW-9)', () => {
     const item = screen.getByRole('button', { name: /intents\.mail\|subject=Point projet/ });
     fireEvent.click(item);
 
-    expect(push).toHaveBeenCalledTimes(1);
-    const url = push.mock.calls[0][0] as string;
+    expect(openChat).toHaveBeenCalledTimes(1);
+    const url = openChat.mock.calls[0][0] as string;
     expect(url.startsWith('/fr/dashboard/chat?draft=')).toBe(true);
     expect(decodeURIComponent(url.split('draft=')[1])).toContain('subject=Point projet');
     expect(decodeURIComponent(url.split('draft=')[1])).toContain('sender=Alice Martin');
@@ -93,7 +102,7 @@ describe('briefing cards — actionable items (QW-9)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /intents\.event\|title=Comité produit/ }));
 
-    const url = push.mock.calls[0][0] as string;
+    const url = openChat.mock.calls[0][0] as string;
     expect(decodeURIComponent(url)).toContain('title=Comité produit');
     expect(decodeURIComponent(url)).toContain('time=14:00');
   });
@@ -112,7 +121,7 @@ describe('briefing cards — actionable items (QW-9)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /intents\.birthday\|name=Gérard Dupont/ }));
 
-    expect(decodeURIComponent(push.mock.calls[0][0] as string)).toContain('name=Gérard Dupont');
+    expect(decodeURIComponent(openChat.mock.calls[0][0] as string)).toContain('name=Gérard Dupont');
   });
 
   it('reminder item opens the chat plainly (no draft)', () => {
@@ -129,6 +138,6 @@ describe('briefing cards — actionable items (QW-9)', () => {
       screen.getByRole('button', { name: 'dashboard.briefing.intents.reminder_aria' })
     );
 
-    expect(push).toHaveBeenCalledWith('/fr/dashboard/chat');
+    expect(openChat).toHaveBeenCalledWith('/fr/dashboard/chat');
   });
 });

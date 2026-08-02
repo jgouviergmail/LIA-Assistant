@@ -5,8 +5,8 @@
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
 **Version**: 3.6
-**Datum**: 2026-08-01
-**Application**: LIA v1.27.5
+**Datum**: 2026-08-02
+**Application**: LIA v1.27.6
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 447 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 191 ADRs, ~17.415 von pytest gesammelte Tests in 933 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 192 ADRs, ~17.622 von pytest gesammelte Tests in 947 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -72,7 +72,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~17.415 von pytest gesammelt (von pytest über 933 Testdateien gesammelt) + 4.447 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | ~17.622 von pytest gesammelt (von pytest über 947 Testdateien gesammelt) + 4.474 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 400+ |
 | ADRs (Architecture Decision Records) | 189 |
@@ -459,6 +459,20 @@ Das Schließen des Katalogs klärt, was ein Plan **verketten** darf. Davor steht
 Gemessen: das Werkzeug für den 360°-Überblick zu einer Person lebt in der Domäne `contact`, während die Anweisung des Analysators jede Frage zu einem verbundenen Nutzer in die Domäne `peer` schickt. Bewertung **0,853** — die beste des gesamten Katalogs, gegenüber allgemeinen Werkzeugen bei 0,000 — und nie dem Planer vorgelegt. Wenn es funktionierte, dann weil das Modell von seiner Anweisung abgewichen war: ein stochastischer Ausweg, kein regulärer Pfad.
 
 Ein Manifest erklärt nun die **zusätzlichen** Domänen, aus denen es erreichbar ist, und eine **einzige Implementierung** beantwortet „ist dieses Werkzeug im Geltungsbereich?" für beide Filterstrategien, die dieselbe Frage bisher jede für sich stellten. Jeder Wert wird bei der Registrierung gegen das Domänenregister geprüft: eine unbekannte Domäne verweigert den Start, statt das Werkzeug still unauffindbar zu machen. Sparsam zu deklarieren — jede zusätzliche Domäne erweitert die Auswahl für **alle** Anfragen dieser Domäne. Das ist nicht dasselbe wie zwei Domänen zu verknüpfen: Verknüpfen zieht ihre gesamten Werkzeugkästen ineinander, was bereits einen Produktionsvorfall verursacht hat. Hier bewegt sich ein Werkzeug, keine Domäne.
+### 7.7. Der Katalog einer Domäne ist ein Angebot an Fähigkeiten
+
+Die Filterung nach Domäne hat eine Folge, die erst die Messung sichtbar machte: **Was der Katalog einer Domäne enthält, bestimmt, was der Planer wollen kann**. In der Produktion erzeugte die Frage nach dem letzten Anruf einen zweistufigen Plan — den Kontakt suchen und dann **dort anrufen, um es zu erfragen**. Nur eine fehlgeschlagene Referenz stoppte ihn.
+
+Das war keine Laune des Modells, sondern die einzige Art zu gehorchen. Der Prompt nennt `Primary domain: telephony`, eine Regel prüft, ob der Plan diese Domäne abdeckt, und der Katalog von `telephony` enthielt **genau eine Fähigkeit: einen Anruf tätigen**. Die eigene Primärdomäne abzudecken hieß also zu handeln.
+
+Drei Lesefähigkeiten kamen hinzu, **jede in der Domäne, der sie fehlte** — Anrufe, offene Zusagen, weitergeleitete Nachrichten. Die Alternative über die zusätzlichen Domänen aus dem vorigen Abschnitt wurde gemessen und verworfen: Diese drei von `contact` aus erreichbar zu machen verdrängte **sechs schreibende Werkzeuge** aus den vollsten Katalogen, da die Obergrenze fest ist. Eine Lesefähigkeit darf keine Schreibfähigkeit kosten.
+
+Eine **deterministische** Regel vervollständigt das Ganze, vor jedem Modellaufruf: nicht-mutierende Absicht erkannt + Plan ruft ein schreibendes Werkzeug auf → Plan ungültig. Sie läuft mit den übrigen Pre-LLM-Regeln und ist damit außer Reichweite jener Ausnahme, die jeden gut verketteten, mit einer Mutation endenden Plan von der Prüfung befreite — also genau die fehlerhafte Form. Je besser der Plan geformt war, desto weniger wurde er geprüft.
+
+Beide Katalog-Obergrenzen (normal und Panikmodus) wurden zu Einstellungen, mit einer Prüfung beim Start: **die Rückfall-Obergrenze liegt nie unter der normalen**, sonst böte das Sicherheitsnetz weniger als der Weg, der gerade gescheitert ist.
+
+---
+
 
 ## 8. Semantisches Routing und KI-gestützte Embeddings
 
@@ -1130,7 +1144,7 @@ Eine Destination kann dennoch berechtigterweise fehlen: Mehrere Bereiche rendern
 
 ## 24. Architekturentscheidungen (ADR)
 
-191 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+192 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1184,10 +1198,10 @@ Die Psyche Engine verleiht dem Assistenten einen dynamischen psychologischen Zus
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 191 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~17.415 Tests in 933 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 192 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~17.622 Tests in 947 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 191 ADRs und des Changelogs (v1.0 bis v1.27.5). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 192 ADRs und des Changelogs (v1.0 bis v1.27.6). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

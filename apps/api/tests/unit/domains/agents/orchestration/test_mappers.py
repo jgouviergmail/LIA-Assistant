@@ -1295,7 +1295,7 @@ class TestToolMessagesSurviveNormalization:
 
     #: The production shape, reduced: a briefing whose ONLY channel is its
     #: message, alongside tools whose payloads trigger normalization.
-    BRIEFING = {"result": "360 overview for Hua: relayed messages...", "person": "Hua"}
+    BRIEFING = {"result": "360 overview for Alice: relayed messages...", "person": "Alice"}
 
     def test_two_domains_keep_the_briefing(self):
         """MultiDomainResultData — the exact shape of the production defect."""
@@ -1355,7 +1355,7 @@ class TestToolMessagesSurviveNormalization:
 
         summary = format_agent_results_for_prompt(agent_results, current_turn_id=1)
 
-        assert "360 overview for Hua" in summary
+        assert "360 overview for Alice" in summary
 
 
 class TestTheGenericEnvelopeIsStillNotCoercible:

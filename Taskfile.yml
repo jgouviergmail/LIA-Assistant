@@ -454,16 +454,17 @@ tasks:
         platforms: [linux, darwin]
 
   test:backend:unit:coverage:
-    # The CI command, verbatim — including the 61% floor. `test:backend:unit:fast`
+    # The CI command, verbatim — including the 64% floor (raised from 63 on
+    # 2026-08-01, measured 66.09% after ADR-193). `test:backend:unit:fast`
     # trades coverage for xdist parallelism because the pre-commit hook has a
     # 5-minute budget; that makes it the right gate for a commit and the wrong
     # one for reproducing CI, which is what this task is for.
     desc: Backend unit tests with coverage and the CI floor (mirrors the CI job step)
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: .venv/Scripts/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=63
+      - cmd: .venv/Scripts/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=64
         platforms: [windows]
-      - cmd: .venv/bin/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=63
+      - cmd: .venv/bin/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=64
         platforms: [linux, darwin]
 
   test:backend:agents:

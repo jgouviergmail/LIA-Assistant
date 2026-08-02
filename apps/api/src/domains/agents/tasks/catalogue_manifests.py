@@ -152,7 +152,7 @@ get_tasks_catalogue_manifest = ToolManifest(
             description="Link",
             semantic_type="URL",
         ),
-        OutputFieldSchema(path="total", type="integer", description="Count"),
+        OutputFieldSchema(path="count", type="integer", description="Count"),
     ],
     cost=CostProfile(est_tokens_in=100, est_tokens_out=500, est_cost_usd=0.001, est_latency_ms=400),
     permissions=PermissionProfile(
@@ -160,7 +160,7 @@ get_tasks_catalogue_manifest = ToolManifest(
     ),
     context_key="tasks",
     # context_save_mode set dynamically by tool (LIST for search, DETAILS for ID fetch)
-    reference_examples=["tasks[0].id", "tasks[0].title", "tasks[0].notes", "total"],
+    reference_examples=["tasks[0].id", "tasks[0].title", "tasks[0].notes", "count"],
     version="2.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="✓", i18n_key="get_tasks", visible=True, category="tool"),
@@ -468,7 +468,6 @@ list_task_lists_catalogue_manifest = ToolManifest(
             semantic_type="task_list_id",
         ),
         OutputFieldSchema(path="task_lists[].title", type="string", description="Title"),
-        OutputFieldSchema(path="total", type="integer", description="Count"),
     ],
     cost=CostProfile(est_tokens_in=50, est_tokens_out=150, est_cost_usd=0.001, est_latency_ms=300),
     permissions=PermissionProfile(

@@ -358,6 +358,7 @@ def get_response_prompt(
     app_knowledge_context: str = "",
     journal_context: str = "",
     psyche_context: str = "",
+    peer_context: str = "",
     recent_entities: str = "",
 ) -> str:
     """Get the formatted system prompt for the response node.
@@ -483,6 +484,18 @@ def get_response_prompt(
         "Your behavioral directives from past interactions. Apply silently — do NOT quote entries.",
     )
     safe_psyche_context = escape_braces(psyche_context) if psyche_context else ""
+    # Local CRM facts about a CONNECTED user named in this turn. Labelled as
+    # database-exact so it outranks recollection, and explicitly bounded: the
+    # user's 360° scope decides which blocks exist, so a missing one means
+    # "not selected", never "nothing happened".
+    safe_peer_context = _wrap_section(
+        "PeerContext",
+        peer_context,
+        "Exact local records about a person connected to the user through LIA. "
+        "Answer from them directly instead of announcing a lookup. A block that "
+        "is absent was not selected by the user — never read it as an absence "
+        "of facts.",
+    )
     # Entities still in context from earlier turns, injected ONLY when the current
     # turn produced no data of its own (see context/recent_entities.py). Labelled
     # as non-authoritative so <DataAuthority>'s hierarchy stays intact.
@@ -528,6 +541,7 @@ def get_response_prompt(
         journal_context=safe_journal_context,
         psyche_context=safe_psyche_context,
         recent_entities=safe_recent_entities,
+        peer_context=safe_peer_context,
     )
 
     return formatted_system_prompt

@@ -1,11 +1,11 @@
 'use client';
 
 import { ExternalLink, FileText, MessageCircleQuestion, Sparkles } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
 import { CardItemActions, CARD_ITEM_ACTION_CLASS } from './CardItemActions';
 import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
+import { openChatDeepLink } from '@/lib/chat-deep-link';
 import { cn } from '@/lib/utils';
 import type { CardSection, DocumentsData } from '@/types/briefing';
 
@@ -29,7 +29,6 @@ export function DocumentsCard({
   onRefresh,
   staggerIndex,
 }: DocumentsCardProps) {
-  const router = useRouter();
   const { i18n } = useTranslation();
   const lng = (i18n.language || 'fr').split('-')[0];
   return (
@@ -44,8 +43,8 @@ export function DocumentsCard({
       renderContent={data => (
         <DocumentsContent
           data={data}
-          onOpenChat={draft => router.push(chatDraftHref(lng, draft))}
-          onExecute={intent => router.push(chatIntentHref(lng, intent))}
+          onOpenChat={draft => openChatDeepLink(chatDraftHref(lng, draft))}
+          onExecute={intent => openChatDeepLink(chatIntentHref(lng, intent))}
         />
       )}
       staggerIndex={staggerIndex}

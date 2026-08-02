@@ -68,7 +68,14 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
-        // Global floor — re-measured 2026-08-01 late (ADR-190: the full contact
+        // Global floor — re-measured 2026-08-01 night (ADR-193: the merge panel
+        // and its undo list, the merge/split hook and its refusal paths, plus
+        // the touch-target fixes):
+        // statements 70.14 / branches 63.89 / functions 65.77 / lines 70.73.
+        // 68/61/63/68 HOLDS — every axis gained ground but none crosses an
+        // integer step while keeping the 2-point margin, so nothing to raise.
+        // The gains are locked per-directory instead, on the relations glob.
+        // Previous re-measure 2026-08-01 late (ADR-190: the full contact
         // card and its date/label rendering, the 360° scope selector and its
         // draft/commit hook, plus the header-button removal):
         // statements 70.02 / branches 63.59 / functions 65.57 / lines 70.61.
@@ -193,6 +200,18 @@ export default defineConfig({
           branches: 73,
           functions: 70,
           lines: 84,
+        },
+        // CRM Relations components — the 360° card, its provider sections, the
+        // scope selector and the merge panel. Measured 2026-08-01 on the glob
+        // itself: statements 93.3 / branches 93.2 / functions 94.9 / lines 94.2.
+        // Locked here because this surface carries decisions a user cannot undo
+        // by reloading (a merge) and claims they must be able to trust (exact
+        // counts, who someone is). Set just under, never lower.
+        'src/components/relations/**/*.tsx': {
+          statements: 91,
+          branches: 91,
+          functions: 92,
+          lines: 92,
         },
         // Connector provider hooks — F010 risk-first extension. These were
         // systematically mocked out by the component tests (three of them sat

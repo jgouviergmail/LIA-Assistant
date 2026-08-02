@@ -1,10 +1,10 @@
 'use client';
 
 import { Bell } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
 import { chatDraftHref } from '@/lib/briefing-utils';
+import { openChatDeepLink } from '@/lib/chat-deep-link';
 import type { CardSection, RemindersData } from '@/types/briefing';
 
 interface RemindersCardProps {
@@ -20,7 +20,6 @@ export function RemindersCard({
   onRefresh,
   staggerIndex,
 }: RemindersCardProps) {
-  const router = useRouter();
   const { i18n } = useTranslation();
   const lng = (i18n.language || 'fr').split('-')[0];
   return (
@@ -33,7 +32,7 @@ export function RemindersCard({
       onRefresh={onRefresh}
       emptyStateKey="dashboard.briefing.cards.reminders.empty"
       renderContent={data => (
-        <RemindersContent data={data} onOpenChat={() => router.push(chatDraftHref(lng))} />
+        <RemindersContent data={data} onOpenChat={() => openChatDeepLink(chatDraftHref(lng))} />
       )}
       staggerIndex={staggerIndex}
     />

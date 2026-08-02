@@ -2096,8 +2096,11 @@ Règles :
    Re-mesuré le 2026-07-28 : réel 64,98 % (14 688 tests dans le sous-ensemble
    gated) — le plancher reste à 62 %, le passer à 63 % ne laisserait que 1,98 pt
    de marge. → **63 % (2026-07-30, réel 65,22 % — 14 938 tests dans le
-   sous-ensemble gated, programme peers Lots 1-7)**. Palier suivant 64 % dès que
-   le réel dépasse ~66 %.
+   sous-ensemble gated, programme peers Lots 1-7)**. → **64 % (2026-08-01, réel
+   66,09 % — 15 719 tests dans le sous-ensemble gated, programme Relations /
+   Pairs / 360° + ADR-193)** : le seuil de déclenchement annoncé au palier
+   précédent (~66 %) est atteint, la marge retombe à 2,09 pt. Palier suivant
+   65 % dès que le réel dépasse ~67 %.
 
    La marge volontairement conservée (~4 pts) couvre l'écart entre la mesure
    locale (Windows) et le runner CI (Linux) : quelques branches dépendent de la
@@ -2165,7 +2168,7 @@ Lancer la tâche en local, c'est exécuter littéralement ce que la CI exécute.
 
 | Job CI | Tâche appelée | Sélection | Gate |
 |---|---|---|---|
-| `test-backend` | `task test:backend:unit:coverage` | `tests/unit/`, `-m "not integration and not slow and not e2e and not benchmark and not multiprocess"` | couverture ≥ 63 % |
+| `test-backend` | `task test:backend:unit:coverage` | `tests/unit/`, `-m "not integration and not slow and not e2e and not benchmark and not multiprocess"` | couverture ≥ 64 % |
 | `test-backend` (step 2) | `task test:backend:agents` | `tests/agents/`, `-m "not slow and not e2e and not benchmark and not multiprocess"`, `--no-cov` | tests verts |
 | `test-backend` (step 3) | `task test:markers` | tous les nodeids + leurs markers | aucun test ne tourne dans **zéro** job (F006) |
 | `test-backend-integration` | `task test:backend:integration` | `tests/integration/`, **puis** les tests marqués `integration` sous `tests/unit`/`tests/agents` (F006), `--no-cov` | tests verts |

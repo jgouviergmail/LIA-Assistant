@@ -12,6 +12,15 @@ import type { OpenLoop } from '@/hooks/useOpenLoops';
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
+// Chat deep links are REAL navigations since 2026-08-01 (ADR-192): the App
+// Router restored the search params of the entry it already held, so a second
+// deep link in a session left with the FIRST one's URL. The oracle is the same
+// href — only the door changed.
+const openChat = vi.fn();
+vi.mock('@/lib/chat-deep-link', () => ({
+  openChatDeepLink: (href: string) => openChat(href),
+}));
+
 const close = vi.fn(async () => true);
 const refetch = vi.fn();
 const state = {
@@ -114,7 +123,7 @@ describe('OpenLoopsSection', () => {
   it('relaunches into a prefilled chat — never a send', () => {
     renderSection();
     fireEvent.click(screen.getAllByRole('button', { name: 'settings.open_loops.relaunch' })[0]);
-    expect(push).toHaveBeenCalledWith(expect.stringContaining('/fr/dashboard/chat?draft='));
+    expect(openChat).toHaveBeenCalledWith(expect.stringContaining('/fr/dashboard/chat?draft='));
     expect(close).not.toHaveBeenCalled();
   });
 

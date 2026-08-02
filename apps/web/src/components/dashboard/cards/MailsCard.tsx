@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
 import { CardItemActions } from './CardItemActions';
 import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
+import { openChatDeepLink } from '@/lib/chat-deep-link';
 import type { CardSection, MailsData } from '@/types/briefing';
 
 interface MailsCardProps {
@@ -32,8 +33,8 @@ export function MailsCard({ section, isRefreshing, onRefresh, staggerIndex }: Ma
       renderContent={data => (
         <MailsContent
           data={data}
-          onOpenChat={draft => router.push(chatDraftHref(lng, draft))}
-          onExecute={intent => router.push(chatIntentHref(lng, intent))}
+          onOpenChat={draft => openChatDeepLink(chatDraftHref(lng, draft))}
+          onExecute={intent => openChatDeepLink(chatIntentHref(lng, intent))}
         />
       )}
       staggerIndex={staggerIndex}

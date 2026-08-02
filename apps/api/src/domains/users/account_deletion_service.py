@@ -129,6 +129,7 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         by_either_side("peer_connections", "user_a_id", "user_b_id"),
         # Group 2 — Main tables (FK directly to users)
         by_user("relation_favorites"),
+        by_user("relation_aliases"),
         by_user("conversations"),
         by_user("memories"),
         by_user("journal_entries"),

@@ -25,16 +25,17 @@ vi.mock('@/lib/api-client', () => ({
   ApiError: class ApiError extends Error {},
 }));
 
-const { putMutate, delMutate } = vi.hoisted(() => ({
+const { putMutate, delMutate, postMutate } = vi.hoisted(() => ({
   // `Promise<unknown>`, not `Promise<undefined>`: the scope PUT answers with
   // the stored scope, and a mock that can only resolve `undefined` could not
   // express the echo the caller adopts.
   putMutate: vi.fn(async (): Promise<unknown> => undefined),
   delMutate: vi.fn(async (): Promise<unknown> => undefined),
+  postMutate: vi.fn(async (): Promise<unknown> => undefined),
 }));
 vi.mock('@/hooks/useApiMutation', () => ({
   useApiMutation: ({ method }: { method: string }) => ({
-    mutate: method === 'PUT' ? putMutate : delMutate,
+    mutate: method === 'PUT' ? putMutate : method === 'POST' ? postMutate : delMutate,
     loading: false,
   }),
 }));
@@ -42,6 +43,7 @@ vi.mock('@/hooks/useApiMutation', () => ({
 import {
   useRelationContext,
   useRelationDetail,
+  useRelationMerge,
   useRelationsOverview,
   useOverviewScope,
   type RelationDetail,
@@ -185,6 +187,7 @@ describe('useRelationDetail', () => {
   const detail: RelationDetail = {
     display_name: 'Ana Lima',
     identity_confidence: 'exact',
+    merged_from: [],
     open_loops: [],
     open_loops_total: 0,
     recent_calls: [],
@@ -407,5 +410,61 @@ describe('useOverviewScope', () => {
 
     expect(ok).toBe(false);
     expect(setData).not.toHaveBeenCalled();
+  });
+});
+
+describe('useRelationMerge', () => {
+  it('sends both sides — the service owns the folding, not the caller', async () => {
+    const { result } = renderHook(() => useRelationMerge());
+
+    let verdict: { ok: boolean } | undefined;
+    await act(async () => {
+      verdict = await result.current.merge('0612345678', 'Alice Vernier');
+    });
+
+    expect(postMutate).toHaveBeenCalledWith('/relations/merges', {
+      source: '0612345678',
+      target: 'Alice Vernier',
+    });
+    expect(verdict).toEqual({ ok: true });
+  });
+
+  it('turns a refused merge into a verdict instead of throwing', async () => {
+    // The panel renders an error from this boolean. If the rejection escaped
+    // instead, it would cross the whole card and land on the error boundary —
+    // the user would lose the page rather than read one sentence.
+    postMutate.mockRejectedValueOnce(new Error('400'));
+    const { result } = renderHook(() => useRelationMerge());
+
+    let verdict: { ok: boolean } | undefined;
+    await act(async () => {
+      verdict = await result.current.merge('Alice', 'Alice');
+    });
+
+    expect(verdict).toEqual({ ok: false });
+  });
+
+  it('escapes the name it undoes — a relationship is called anything', async () => {
+    // A merged-away spelling can be a raw number, but also "Marie / bureau"
+    // or "R&D". Unescaped, the slash alone would address another route.
+    const { result } = renderHook(() => useRelationMerge());
+
+    await act(async () => {
+      await result.current.split('Marie / R&D');
+    });
+
+    expect(delMutate).toHaveBeenCalledWith('/relations/merges/Marie%20%2F%20R%26D');
+  });
+
+  it('turns a refused undo into a verdict too', async () => {
+    delMutate.mockRejectedValueOnce(new Error('500'));
+    const { result } = renderHook(() => useRelationMerge());
+
+    let verdict: { ok: boolean } | undefined;
+    await act(async () => {
+      verdict = await result.current.split('Papa');
+    });
+
+    expect(verdict).toEqual({ ok: false });
   });
 });

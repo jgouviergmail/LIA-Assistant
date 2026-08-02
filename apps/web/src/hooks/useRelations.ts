@@ -116,6 +116,14 @@ export interface RelationDetail {
   peer_link: RelationPeerLink | null;
   is_favorite: boolean;
   is_peer: boolean;
+  /** Relationships merged INTO this one, as they were displayed before.
+   * Shown so a merge is visible and undoable — one nobody can see is one
+   * nobody can correct.
+   *
+   * OPTIONAL on purpose: the front can ship before the API that returns it,
+   * and a panel that crashes on a missing key would take the whole card down
+   * with it. Absent reads as "no merge", which is what an older API means. */
+  merged_from?: string[];
 }
 
 export function useRelationsOverview() {
@@ -181,6 +189,9 @@ export function useRelationsOverview() {
     initialLoading: data === undefined && loading,
     error: !!error,
     toggleFavorite,
+    // Exposed so a merge can bring the list back in sync: two cards become
+    // one, and the page holds the only copy of that list.
+    refetch,
   };
 }
 
@@ -226,6 +237,10 @@ export interface ExchangedEmail {
   direction: PeerMessageDirection;
   subject: string;
   occurred_at: string | null;
+  /** First words of the message — the preview the provider returns with the
+   * search, capped server-side. Null when it returned none: render nothing
+   * rather than an empty line, which would read as "this message was blank". */
+  excerpt: string | null;
 }
 
 export interface SharedEvent {
@@ -320,11 +335,63 @@ export function useRelationContext(name: string | null) {
 }
 
 export function useRelationDetail(name: string | null) {
-  const { data, loading, error } = useApiQuery<RelationDetail>(
+  const { data, loading, error, refetch } = useApiQuery<RelationDetail>(
     name ? `/relations/${encodeURIComponent(name)}` : '',
     { componentName: 'RelationDetail', enabled: !!name }
   );
-  return { detail: data ?? null, loading, error: !!error };
+  // No `initialLoading` here, deliberately: this query is KEYED ON A PERSON,
+  // and `useApiQuery` keeps the previous `data` while the next one loads. A
+  // monotone first-load flag would therefore render the PREVIOUS person's
+  // commitments under the new name. Staging on `loading` is the correct
+  // behaviour for this panel (see RelationDetailPanel) — the opposite of the
+  // overview, where a refetch returns the same list.
+  return { detail: data ?? null, loading, error: !!error, refetch };
+}
+
+/**
+ * Declare that two relationships are the same person — and undo it.
+ *
+ * Manual by design: folding already groups what is literally the same
+ * spelling, and only the user can know that a raw phone number and a name are
+ * one person. Nothing is rewritten in the sources, so a merge is one row and
+ * undoing it is deleting that row.
+ *
+ * Both verbs return `{ ok }` rather than leaving the caller to read state
+ * after an await — the peers-hook doctrine, so a failed merge cannot look
+ * like a successful one.
+ */
+export function useRelationMerge() {
+  const post = useApiMutation<{ source: string; target: string }, void>({
+    method: 'POST',
+    componentName: 'RelationMerge',
+  });
+  const del = useApiMutation({ method: 'DELETE', componentName: 'RelationMerge' });
+
+  const merge = useCallback(
+    async (source: string, target: string): Promise<{ ok: boolean }> => {
+      try {
+        await post.mutate('/relations/merges', { source, target });
+        return { ok: true };
+      } catch {
+        return { ok: false };
+      }
+    },
+    [post]
+  );
+
+  const split = useCallback(
+    async (name: string): Promise<{ ok: boolean }> => {
+      try {
+        await del.mutate(`/relations/merges/${encodeURIComponent(name)}`);
+        return { ok: true };
+      } catch {
+        return { ok: false };
+      }
+    },
+    [del]
+  );
+
+  return { merge, split, busy: post.loading || del.loading };
 }
 
 // =============================================================================

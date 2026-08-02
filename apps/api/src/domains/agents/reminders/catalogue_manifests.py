@@ -232,11 +232,6 @@ list_reminders_catalogue_manifest = ToolManifest(
             semantic_type="trigger_datetime",
         ),
         OutputFieldSchema(
-            path="total",
-            type="integer",
-            description="Total number of reminders",
-        ),
-        OutputFieldSchema(
             path="message",
             type="string",
             description="Formatted list for display",
@@ -264,7 +259,6 @@ list_reminders_catalogue_manifest = ToolManifest(
     reference_examples=[
         "reminders[0].id",
         "reminders[*].content",
-        "total",
     ],
     display=DisplayMetadata(
         emoji="📋",

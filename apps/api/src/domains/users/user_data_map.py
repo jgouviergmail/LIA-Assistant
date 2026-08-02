@@ -132,6 +132,14 @@ TABLE_RULES: dict[str, TableRule] = {
         export=ExportPolicy.FULL,
         reason="CRM favorites (starred relationship names) — purged on deletion.",
     ),
+    "relation_aliases": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason=(
+            "CRM identity merges declared by the user (which spellings are one "
+            "person) — purged on deletion."
+        ),
+    ),
     "peer_connections": TableRule(
         data_class=TableDataClass.USER_PURGED,
         export=ExportPolicy.FULL,

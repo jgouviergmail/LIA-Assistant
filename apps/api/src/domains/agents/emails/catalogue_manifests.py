@@ -171,7 +171,7 @@ get_emails_catalogue_manifest = ToolManifest(
             description="Attachment info",
             semantic_type="attachment_info",
         ),
-        OutputFieldSchema(path="total", type="integer", description="Total count"),
+        OutputFieldSchema(path="count", type="integer", description="Total count"),
     ],
     cost=CostProfile(
         est_tokens_in=150, est_tokens_out=1200, est_cost_usd=0.003, est_latency_ms=800
@@ -184,7 +184,7 @@ get_emails_catalogue_manifest = ToolManifest(
     reference_fields=["id", "snippet", "body"],
     context_key="emails",
     # context_save_mode set dynamically by tool (LIST for search, DETAILS for ID fetch)
-    reference_examples=["emails[0].id", "emails[0].body", "emails[0].subject", "total"],
+    reference_examples=["emails[0].id", "emails[0].body", "emails[0].subject", "count"],
     version="2.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="📧", i18n_key="get_emails", visible=True, category="tool"),
