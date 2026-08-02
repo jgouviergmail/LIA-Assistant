@@ -288,10 +288,13 @@ function FixCommitmentScene({ active, labels }: SceneProps) {
   return (
     <div className={cn(STAGE, 'items-stretch justify-center gap-2')}>
       <div className="flex items-center gap-2 rounded-md border border-border/60 bg-background/70 px-2 py-1.5">
+        {/* The strike-through alone marks the superseded wording. Dimming it on
+            top dropped the contrast to 2.65:1 in dark mode — an axe serious
+            violation, and a line nobody could read anyway. */}
         <span
           className={cn(
-            'min-w-0 flex-1 truncate text-[10px] transition-all duration-300',
-            corrected ? 'text-muted-foreground/50 line-through' : 'text-muted-foreground'
+            'min-w-0 flex-1 truncate text-[10px] text-muted-foreground transition-all duration-300',
+            corrected && 'line-through'
           )}
         >
           {labels.before}
@@ -299,7 +302,7 @@ function FixCommitmentScene({ active, labels }: SceneProps) {
         <PencilLine
           className={cn(
             'h-3 w-3 shrink-0 transition-colors duration-300',
-            phase === 'editing' ? 'text-primary' : 'text-muted-foreground/70'
+            phase === 'editing' ? 'text-primary' : 'text-muted-foreground'
           )}
         />
       </div>

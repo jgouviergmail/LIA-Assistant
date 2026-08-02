@@ -297,12 +297,12 @@ test.describe('relations CRM (N-09)', () => {
     // and must not match (two buttons carry the name since favorites).
     await page.getByRole('button', { name: new RegExp(`^${NAME}`) }).click();
     // Folded by default: the headings are the index, the content opens on demand.
-    await expect(page.getByRole('button', { name: /Engagements ouverts/ })).toHaveAttribute(
+    await expect(page.getByRole('button', { name: /Engagements/ })).toHaveAttribute(
       'aria-expanded',
       'false',
       { timeout: 30_000 }
     );
-    await openSection(page, 'Engagements ouverts');
+    await openSection(page, 'Engagements');
     await expect(page.getByText('Rendre la perceuse')).toBeVisible();
     await openSection(page, 'Appels récents');
     await expect(page.getByText('Anniversaire surprise')).toBeVisible();
@@ -373,7 +373,7 @@ test.describe('relations CRM (N-09)', () => {
     await page.getByRole('button', { name: new RegExp(`^${NAME}`) }).click();
 
     // The database-local half is on screen; the provider half arrives behind it.
-    await openSection(page, 'Engagements ouverts');
+    await openSection(page, 'Engagements');
     await expect(page.getByText('Rendre la perceuse')).toBeVisible({ timeout: 30_000 });
 
     await openSection(page, 'Fiche contact');
@@ -411,8 +411,8 @@ test.describe('relations CRM (N-09)', () => {
     expect(rank('Point 360')).toBeGreaterThanOrEqual(0);
     expect(rank('Point 360')).toBeLessThan(rank('Fiche contact'));
     expect(rank('Fiche contact')).toBeGreaterThanOrEqual(0);
-    expect(rank('Fiche contact')).toBeLessThan(rank('Engagements ouverts'));
-    expect(rank('Engagements ouverts')).toBeLessThan(rank('Souvenirs'));
+    expect(rank('Fiche contact')).toBeLessThan(rank('Engagements'));
+    expect(rank('Engagements')).toBeLessThan(rank('Souvenirs'));
     expect(rank('Souvenirs')).toBeLessThan(rank('Appels récents'));
     expect(rank('Appels récents')).toBeLessThan(rank('Emails échangés'));
     expect(rank('Emails échangés')).toBeLessThan(rank('Rendez-vous partagés'));

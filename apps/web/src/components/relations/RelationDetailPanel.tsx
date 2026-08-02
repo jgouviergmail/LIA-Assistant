@@ -653,8 +653,8 @@ function RelationSections({
             lng={lng}
             onChanged={onCommitmentChanged}
           />
-          <CallsSection calls={detail.recent_calls} total={detail.recent_calls_total} />
           <MemoriesSection memories={detail.memories} total={detail.memories_total} />
+          <CallsSection calls={detail.recent_calls} total={detail.recent_calls_total} />
           <PeerMessagesSection messages={detail.peer_messages} total={detail.peer_messages_total} />
           {/* Last, always: a note ABOUT the relationship, not one of its contents. */}
           <PeerLinkSection link={detail.peer_link} />
