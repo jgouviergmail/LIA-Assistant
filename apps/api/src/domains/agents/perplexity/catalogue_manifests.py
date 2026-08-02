@@ -65,19 +65,30 @@ perplexity_search_catalogue_manifest = ToolManifest(
             description="Include URLs (def: True)",
         ),
     ],
+    # Registry-backed: the answer hangs off the `perplexitys` context entry, it
+    # is never a top-level key. `related_queries` was advertised but the tool
+    # does not carry the provider's follow-up questions into its payload at all.
     outputs=[
+        OutputFieldSchema(path="perplexitys", type="array", description="Answer entries"),
         OutputFieldSchema(
-            path="answer", type="string", description="Synthesized answer", semantic_type="Text"
+            path="perplexitys[].answer",
+            type="string",
+            description="Synthesized answer",
+            semantic_type="Text",
         ),
-        OutputFieldSchema(path="citations", type="array", description="Sources"),
         OutputFieldSchema(
-            path="citations[].url",
+            path="perplexitys[].question", type="string", description="Question asked"
+        ),
+        OutputFieldSchema(path="perplexitys[].citations", type="array", description="Sources"),
+        OutputFieldSchema(
+            path="perplexitys[].citations[].url",
             type="string",
             description="URL",
             semantic_type="citation_url",
         ),
-        OutputFieldSchema(path="citations[].title", type="string", description="Title"),
-        OutputFieldSchema(path="related_queries", type="array", description="Follow-up queries"),
+        OutputFieldSchema(
+            path="perplexitys[].citations[].title", type="string", description="Title"
+        ),
     ],
     cost=CostProfile(est_tokens_in=150, est_tokens_out=800, est_cost_usd=0.01, est_latency_ms=3000),
     permissions=PermissionProfile(
@@ -86,7 +97,7 @@ perplexity_search_catalogue_manifest = ToolManifest(
     max_iterations=1,
     supports_dry_run=True,
     context_key="perplexitys",  # Must match CONTEXT_DOMAIN_PERPLEXITY (domain + "s" pattern)
-    reference_examples=["answer", "citations[0].url", "related_queries"],
+    reference_examples=["perplexitys[0].answer", "perplexitys[0].citations[0].url"],
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(
@@ -133,23 +144,26 @@ perplexity_ask_catalogue_manifest = ToolManifest(
             description="Focus domain (e.g. 'medical', 'finance')",
         ),
     ],
+    # Registry-backed, same shape as perplexity_search_tool. `confidence` was
+    # advertised but never produced: the provider does not return one and the
+    # tool invents none.
     outputs=[
+        OutputFieldSchema(path="perplexitys", type="array", description="Answer entries"),
         OutputFieldSchema(
-            path="answer", type="string", description="Detailed answer", semantic_type="Text"
+            path="perplexitys[].answer",
+            type="string",
+            description="Detailed answer",
+            semantic_type="Text",
         ),
-        OutputFieldSchema(path="citations", type="array", description="Sources"),
         OutputFieldSchema(
-            path="citations[].url",
+            path="perplexitys[].question", type="string", description="Question asked"
+        ),
+        OutputFieldSchema(path="perplexitys[].citations", type="array", description="Sources"),
+        OutputFieldSchema(
+            path="perplexitys[].citations[].url",
             type="string",
             description="URL",
             semantic_type="citation_url",
-        ),
-        OutputFieldSchema(
-            path="confidence",
-            type="number",
-            nullable=True,
-            description="Confidence (0-1)",
-            semantic_type="confidence_score",
         ),
     ],
     cost=CostProfile(
@@ -161,7 +175,7 @@ perplexity_ask_catalogue_manifest = ToolManifest(
     max_iterations=1,
     supports_dry_run=True,
     context_key="perplexitys",  # Must match CONTEXT_DOMAIN_PERPLEXITY (domain + "s" pattern)
-    reference_examples=["answer", "confidence"],
+    reference_examples=["perplexitys[0].answer", "perplexitys[0].citations[0].url"],
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="❓", i18n_key="perplexity_ask", visible=True, category="tool"),

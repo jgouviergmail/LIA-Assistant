@@ -3,7 +3,7 @@
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
 **Version**: 7.12
-**Dernière mise à jour**: 2026-07-23
+**Dernière mise à jour**: 2026-08-02
 **Statut**: Complète (320+ documents)
 
 ---
@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 44 |
-| ADRs | 193 (ADR-193 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 192 fichiers) |
+| ADRs | 195 (ADR-195 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 194 fichiers) |
 | Fiches knowledge (RAG système) | 27 |
 
 ---
@@ -297,7 +297,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-193 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-195 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 

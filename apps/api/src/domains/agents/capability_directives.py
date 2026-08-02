@@ -267,14 +267,15 @@ def _steps_read_by(steps: list[Any]) -> set[str]:
     """
     # Local import: `orchestration/__init__` is heavy (replanner, orchestrator),
     # and this module is a leaf the HTTP schemas import.
-    from src.domains.agents.orchestration.reference_validator import ReferenceValidator
+    from src.domains.agents.orchestration.step_references import STEPS_REFERENCE_PATTERN
 
-    # The repository's ONE definition of what a step reference looks like —
-    # re-deriving it here would make this a second authority on the syntax.
+    # The definition of a FULL-PATH step reference. `semantic_validator` owns a
+    # narrower one that stops at the domain key, for a different question —
+    # see `step_references` for why the two must not be merged.
     return {dep for step in steps for dep in step.depends_on} | {
         match.group(1)
         for step in steps
-        for match in ReferenceValidator.STEPS_REFERENCE_PATTERN.finditer(step.model_dump_json())
+        for match in STEPS_REFERENCE_PATTERN.finditer(step.model_dump_json())
     }
 
 

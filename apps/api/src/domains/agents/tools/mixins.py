@@ -461,8 +461,10 @@ class ToolOutputMixin:
             # got None until now, because every mode of get_contacts_tool hands
             # over the provider's RAW person (names[0].displayName):
             #   - the catalogue publishes `contacts[].name` as a reference path,
-            #     and ReferenceValidator approves it on sight (prod 2026-08-01:
-            #     "path 'contacts[0].name' not found in step result");
+            #     and nothing verified it before execution (prod 2026-08-01:
+            #     "path 'contacts[0].name' not found in step result"). The guard
+            #     that now does is a CI test, not a runtime validator — see
+            #     test_manifest_reference_examples_truthful (ADR-194);
             #   - ContextTypeDefinition declares display_name_field="name", so
             #     fuzzy resolution of "Marie" scored 0.0 on EVERY item and
             #     disambiguation offered "Item 1" instead of a name;

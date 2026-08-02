@@ -151,11 +151,16 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     // only its body waits for the shortcuts to load.
     gate: { kind: 'always' },
   },
+  // Commitments live with the other CAPABILITIES, not with display
+  // preferences (2026-08-02) — right after `interests`, which is how the
+  // Features tab orders them. The index is what deep links and the quick
+  // search read: indexed in one group while rendered in another sends the
+  // user to a tab that does not contain the section.
   'open-loops': {
     titleKey: 'settings.open_loops.title',
     descriptionKey: 'settings.open_loops.description',
     keywordsKey: `${KEYWORDS_PREFIX}.open-loops`,
-    group: 'personalization',
+    group: 'identity_memory',
     gate: { kind: 'instanceFlag', flag: 'openLoopsEnabled' },
   },
 

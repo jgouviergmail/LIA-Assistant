@@ -140,6 +140,7 @@ class TestRouteFromPlannerMetrics:
             steps=[
                 ExecutionStep(
                     step_id="step-1",
+                    agent_name="contacts_agent",
                     tool_name="get_contacts_tool",
                     step_type=StepType.TOOL,
                     args={"query": "test"},
@@ -192,6 +193,7 @@ class TestRouteFromPlannerMetrics:
             steps=[
                 ExecutionStep(
                     step_id="step-1",
+                    agent_name="calendar_agent",
                     tool_name="get_events_tool",
                     step_type=StepType.TOOL,
                     args={"query": "test"},
@@ -249,9 +251,10 @@ class TestRouteFromApprovalGateMetrics:
             steps=[
                 ExecutionStep(
                     step_id="step_1",
-                    tool="search_contacts",
+                    agent_name="contacts_agent",
+                    tool_name="search_contacts_tool",
                     description="Search contacts",
-                    params={"query": "test"},
+                    parameters={"query": "test"},
                     step_type=StepType.TOOL,
                 )
             ],

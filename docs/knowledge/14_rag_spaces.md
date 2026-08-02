@@ -26,7 +26,7 @@ Yes! LIA has a **built-in knowledge base** that lets it answer questions about i
 
 **🧠 How it works:**
 • LIA automatically detects when you ask about the app ("*What can you do?*", "*How do I connect my calendar?*")
-• It searches its FAQ knowledge base (200+ Q&A across 24 sections) using the same hybrid search as user spaces
+• It searches its FAQ knowledge base (250 Q&A across 24 sections) using the same hybrid search as user spaces
 • An **App Identity Prompt** describing all capabilities is injected into the response
 
 **⚡ Zero overhead:**

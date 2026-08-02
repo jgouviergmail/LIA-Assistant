@@ -597,7 +597,6 @@ class SearchContactsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
     def __init__(self) -> None:
         """Initialize search contacts tool with Data Registry support."""
         super().__init__(tool_name="get_contacts_tool", operation="search")
-        self.formatter = ContactsFormatter(tool_name="get_contacts_tool", operation="search")
 
     async def execute_api_call(
         self,
@@ -929,7 +928,6 @@ class ListContactsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
     def __init__(self) -> None:
         """Initialize list contacts tool with Data Registry support."""
         super().__init__(tool_name="get_contacts_tool", operation="list")
-        self.formatter = ContactsFormatter(tool_name="get_contacts_tool", operation="list")
 
     async def execute_api_call(
         self,
@@ -1239,7 +1237,6 @@ class GetContactDetailsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
     def __init__(self) -> None:
         """Initialize get contact details tool with Data Registry support."""
         super().__init__(tool_name="get_contacts_tool", operation="details")
-        self.formatter = ContactsFormatter(tool_name="get_contacts_tool", operation="details")
 
     async def execute_api_call(
         self,

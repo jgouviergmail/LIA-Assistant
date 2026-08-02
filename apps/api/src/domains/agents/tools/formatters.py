@@ -6,23 +6,19 @@ The static _extract_* methods are used throughout the codebase for consistent
 data extraction from raw Google API responses.
 
 Architecture:
-- BaseFormatter: Abstract base with format_item() template method
-- ContactsFormatter: Field extractors for Google People API
-- GmailFormatter: Field extractors for Gmail API
+- ContactsFormatter: field extractors for the Google People API
+- GmailFormatter: field extractors for the Gmail API
 
-Key Usage Patterns:
-1. Static extraction methods (ACTIVELY USED):
-   - ContactsFormatter._extract_emails(person)
-   - ContactsFormatter._extract_phones(person)
-   - GmailFormatter._extract_body_truncated(message)
-   - GmailFormatter._extract_attachments(message)
+Both are **namespaces of static methods**, never instantiated: every caller
+reaches them through the class (``ContactsFormatter._extract_emails(person)``).
+They are classes rather than modules only because that is how the ~38 call sites
+address them.
 
-2. Schema extraction (ACTIVELY USED):
-   - FIELD_EXTRACTORS dict used by SchemaExtractor
-   - OPERATION_DEFAULT_FIELDS dict for operation-specific fields
-
-3. format_item() for single item formatting (ACTIVELY USED):
-   - Used by schema_extractor.py to instantiate formatters
+The instance machinery they used to carry — ``BaseFormatter`` and its two
+abstract methods, ``format_item``, ``_get_items_key``, ``FIELD_EXTRACTORS``,
+``OPERATION_DEFAULT_FIELDS`` — was removed with ADR-194: its last consumer was
+``SchemaExtractor``, itself removed with the tool-schema registry it fed. Adding
+an instance method here would resurrect a lifecycle nothing needs.
 
 Usage Example:
     from src.domains.agents.tools.formatters import ContactsFormatter, GmailFormatter
@@ -31,16 +27,9 @@ Usage Example:
     emails = ContactsFormatter._extract_emails(person)
     body = GmailFormatter._extract_body_truncated(message)
     attachments = GmailFormatter._extract_attachments(message)
-
-    # Schema extraction for tool validation
-    from src.domains.agents.tools.schema_extractor import SchemaExtractor
-    extractor = SchemaExtractor()
-    schema = extractor.extract_from_formatter(ContactsFormatter, operation="search")
 """
 
 import html
-from abc import ABC, abstractmethod
-from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -48,7 +37,6 @@ import structlog
 
 from src.core.field_names import (
     FIELD_METADATA,
-    FIELD_RESOURCE_NAME,
 )
 from src.core.i18n import normalize_language
 from src.core.i18n_api_messages import APIMessages
@@ -61,221 +49,12 @@ from src.core.i18n_dates import (
 logger = structlog.get_logger(__name__)
 
 
-class BaseFormatter(ABC):
-    """
-    Abstract base formatter for tool responses.
-
-    Provides common infrastructure for formatting API results into standardized
-    JSON responses consumed by LLMs.
-
-    Handles automatically:
-    - Success/error envelope
-    - Timestamp metadata
-    - Cache freshness tracking
-    - Data source transparency
-    - JSON serialization with Unicode support
-    """
-
-    def __init__(self, tool_name: str, operation: str) -> None:
-        """
-        Initialize formatter.
-
-        Args:
-            tool_name: Tool identifier (e.g., "search_contacts_tool")
-            operation: Operation name for metrics (e.g., "search", "list")
-        """
-        self.tool_name = tool_name
-        self.operation = operation
-        self.logger = logger.bind(tool=tool_name, operation=operation)
-
-    @abstractmethod
-    def format_item(
-        self, raw_item: dict[str, Any], fields: list[str] | None = None
-    ) -> dict[str, Any]:
-        """
-        Format a single raw API item.
-
-        Subclasses must implement this to transform raw API response
-        into clean, LLM-friendly dict.
-
-        Args:
-            raw_item: Raw item from API (e.g., Google People person object)
-            fields: List of fields to include (None = all fields)
-
-        Returns:
-            Formatted item dict
-        """
-        pass
-
-    @abstractmethod
-    def _get_items_key(self) -> str:
-        """
-        Get the key for items list in response.
-
-        Returns:
-            Key name (e.g., "contacts", "emails", "events")
-        """
-        pass
-
-
-class ContactsFormatter(BaseFormatter):
+class ContactsFormatter:
     """
     Formatter for Google Contacts responses.
 
     Handles all Google People API person object formatting with field extraction.
     """
-
-    # Field extractors (reusable across all contact tools)
-    # Maps Google API field names to extraction functions
-    # Reference: https://developers.google.com/people/api/rest/v1/people
-    FIELD_EXTRACTORS: dict[str, Callable[[dict[str, Any]], Any]] = {
-        # Always included
-        FIELD_RESOURCE_NAME: lambda person: person.get("resourceName", ""),
-        # IDENTITY (9 fields)
-        "photos": lambda person: ContactsFormatter._extract_photos(person),
-        "names": lambda person: ContactsFormatter._extract_name(person),
-        "nicknames": lambda person: ContactsFormatter._extract_nicknames(person),
-        "emailAddresses": lambda person: ContactsFormatter._extract_emails(person),
-        "phoneNumbers": lambda person: ContactsFormatter._extract_phones(person),
-        "addresses": lambda person: ContactsFormatter._extract_addresses(person),
-        "locations": lambda person: ContactsFormatter._extract_locations(person),
-        "imClients": lambda person: ContactsFormatter._extract_im_clients(person),
-        "calendarUrls": lambda person: ContactsFormatter._extract_calendar_urls(person),
-        # PERSONNEL (7 fields)
-        "birthdays": lambda person: ContactsFormatter._extract_birthdays(person),
-        "relations": lambda person: ContactsFormatter._extract_relations(person),
-        "events": lambda person: ContactsFormatter._extract_events(person),
-        "interests": lambda person: ContactsFormatter._extract_interests(person),
-        "biographies": lambda person: ContactsFormatter._extract_biographies(person),
-        "occupations": lambda person: ContactsFormatter._extract_occupations(person),
-        # "metadata": Technical metadata (sources, object_type) - not useful for end users
-        # Kept in code for potential future internal use, but excluded from LLM context
-        # lambda person: ContactsFormatter._extract_metadata(person),
-        # PROFESSIONNEL (2 fields)
-        "organizations": lambda person: ContactsFormatter._extract_organizations(person),
-        "skills": lambda person: ContactsFormatter._extract_skills(person),
-    }
-
-    # Operation-specific default fields (token optimization)
-    # Different operations have different verbosity needs:
-    # - list: Minimalist (name, emails, phones) for quick browsing (~100 tokens/contact)
-    # - search: Essential identification (name, photo, emails, phones, addresses, birthday) (~200 tokens/contact)
-    # - details: Full details with 20 curated fields (~600 tokens/contact)
-    OPERATION_DEFAULT_FIELDS = {
-        "list": [FIELD_RESOURCE_NAME, "names", "emailAddresses", "phoneNumbers"],
-        "search": [
-            FIELD_RESOURCE_NAME,
-            "names",
-            "photos",  # Profile photo for visual identification
-            "emailAddresses",
-            "phoneNumbers",
-            "addresses",
-            "birthdays",
-        ],
-        # Full details: 20 curated fields organized by category
-        "details": [
-            # IDENTITY (9 fields)
-            "photos",
-            "names",
-            "nicknames",
-            "emailAddresses",
-            "phoneNumbers",
-            "addresses",
-            "locations",
-            "imClients",
-            "calendarUrls",
-            # PERSONNEL (7 fields)
-            "birthdays",
-            "relations",
-            "events",
-            "interests",
-            "biographies",
-            "occupations",
-            "metadata",
-            # PROFESSIONNEL (2 fields)
-            "organizations",
-            "skills",
-            # TECHNIQUE (1 field)
-            FIELD_RESOURCE_NAME,
-        ],
-    }
-
-    # Legacy fallback (for backwards compatibility)
-    DEFAULT_FIELDS = [FIELD_RESOURCE_NAME, "names", "emailAddresses", "phoneNumbers"]
-
-    def __init__(
-        self,
-        tool_name: str,
-        operation: str,
-        user_timezone: str = "UTC",
-        locale: str = "fr-FR",
-    ) -> None:
-        """
-        Initialize Contacts formatter.
-
-        Args:
-            tool_name: Tool identifier (e.g., "search_contacts_tool")
-            operation: Operation name ("search", "list", "details")
-            user_timezone: User's IANA timezone (e.g., "Europe/Paris")
-            locale: User's locale (e.g., "fr-FR", "en-US")
-        """
-        super().__init__(tool_name, operation)
-        self.user_timezone = user_timezone
-        self.locale = locale
-
-    def format_item(
-        self, raw_item: dict[str, Any], fields: list[str] | None = None
-    ) -> dict[str, Any]:
-        """
-        Format a single contact person object.
-
-        Args:
-            raw_item: Raw Google People person object
-            fields: List of fields to include (None = operation-specific defaults)
-
-        Returns:
-            Formatted contact dict
-        """
-        # Determine fields to include
-        if fields is None:
-            # Use operation-specific defaults for token optimization
-            # Falls back to legacy DEFAULT_FIELDS if operation not recognized
-            fields_to_include = self.OPERATION_DEFAULT_FIELDS.get(
-                self.operation, self.DEFAULT_FIELDS
-            )
-            self.logger.debug(
-                "using_operation_default_fields",
-                operation=self.operation,
-                fields_count=len(fields_to_include),
-                fields=fields_to_include,
-            )
-        else:
-            # Fields parameter already uses Google API field names
-            # Always include resource_name as identifier
-            fields_to_include = [FIELD_RESOURCE_NAME]
-            for field in fields:
-                if field not in fields_to_include:
-                    fields_to_include.append(field)
-
-        # Extract fields using extractors
-        contact_info: dict[str, Any] = {}
-        for field in fields_to_include:
-            extractor = self.FIELD_EXTRACTORS.get(field)
-            if extractor:
-                contact_info[field] = extractor(raw_item)
-            else:
-                # Unknown field - log warning
-                self.logger.warning(
-                    "unknown_field_in_formatter",
-                    field=field,
-                    available_fields=list(self.FIELD_EXTRACTORS.keys()),
-                )
-
-        return contact_info
-
-    def _get_items_key(self) -> str:
-        """Get the key for contacts list in response."""
-        return "contacts"
 
     # =========================================================================
     # FIELD EXTRACTION HELPERS (from google_contacts_tools.py)
@@ -385,8 +164,9 @@ class ContactsFormatter(BaseFormatter):
         Uses format_google_birthday() for localized, unambiguous date formatting.
         Format: "03 novembre 1975" (without day of week, without time).
 
-        Note: Currently uses default locale "fr-FR". In future, this should receive
-        user's locale from ContactsFormatter constructor (similar to GmailFormatter).
+        Note: uses the default locale. These extractors are static by design
+        (no formatter instance exists to carry a per-user locale); a caller that
+        needs the user's locale formats the raw date itself.
         """
         birthdays = person.get("birthdays", [])
         formatted_birthdays: list[str] = []
@@ -398,9 +178,8 @@ class ContactsFormatter(BaseFormatter):
                 month = date.get("month")
                 day = date.get("day")
 
-                # Use localized date formatter (no ambiguity, proper i18n)
-                # Note: For static extractors, use default locale. Instance methods
-                # should pass locale from FormattingContext when available.
+                # Use localized date formatter (no ambiguity, proper i18n).
+                # These extractors are static and carry no per-user locale.
                 from src.core.constants import DEFAULT_LOCALE
 
                 formatted = format_google_birthday(
@@ -583,30 +362,6 @@ class ContactsFormatter(BaseFormatter):
         if object_type := metadata.get("objectType"):
             result["object_type"] = object_type
         return result
-
-    def _format_metadata_timestamp(self, timestamp_iso: str) -> str | None:
-        """
-        Format metadata timestamp for user display.
-
-        Uses default timezone and locale for formatting.
-
-        Note: For instance methods with access to context, pass user_timezone and locale
-        from FormattingContext. For static extractors, use centralized defaults.
-
-        Args:
-            timestamp_iso: ISO timestamp string
-
-        Returns:
-            Formatted timestamp (e.g., "Monday, November 17, 2025 at 2:30 PM")
-        """
-        from src.core.constants import DEFAULT_LOCALE, DEFAULT_TIMEZONE
-
-        return format_google_datetime(
-            timestamp_ms=timestamp_iso,
-            user_timezone=DEFAULT_TIMEZONE,
-            locale=DEFAULT_LOCALE,
-            include_time=True,
-        )
 
 
 # =============================================================================
@@ -866,143 +621,13 @@ def format_google_birthday(
 # =============================================================================
 
 
-class GmailFormatter(BaseFormatter):
+class GmailFormatter:
     """
     Formatter for Gmail email responses.
 
     Handles Gmail message object formatting with field extraction.
     Optimized for minimal token usage in search mode.
     """
-
-    # Field extractors for Gmail messages
-    # Reference: https://developers.google.com/gmail/api/reference/rest/v1/users.messages
-    FIELD_EXTRACTORS: dict[str, Callable[[dict[str, Any], str, str], Any]] = {
-        # Always included
-        "id": lambda msg, tz, loc: msg.get("id", ""),
-        "threadId": lambda msg, tz, loc: msg.get("threadId", ""),
-        # Search mode fields (lightweight)
-        "from": lambda msg, tz, loc: GmailFormatter._extract_from(msg, loc),
-        "from_email": lambda msg, tz, loc: GmailFormatter._extract_from_email(msg),
-        "to": lambda msg, tz, loc: GmailFormatter._extract_to(msg),
-        "cc": lambda msg, tz, loc: GmailFormatter._extract_cc(msg),
-        "subject": lambda msg, tz, loc: GmailFormatter._extract_subject(msg, loc),
-        "date": lambda msg, tz, loc: GmailFormatter._extract_date(msg, tz, loc),
-        "snippet": lambda msg, tz, loc: GmailFormatter._extract_snippet(msg),
-        "is_unread": lambda msg, tz, loc: GmailFormatter._extract_is_unread(msg),
-        "gmail_url": lambda msg, tz, loc: GmailFormatter._extract_email_web_url(msg),
-        # Details mode fields (comprehensive)
-        "body": lambda msg, tz, loc: GmailFormatter._extract_body_truncated(msg, loc),
-        "labels": lambda msg, tz, loc: msg.get("labelIds", []),
-        "headers": lambda msg, tz, loc: GmailFormatter._extract_all_headers(msg),
-        "attachments": lambda msg, tz, loc: GmailFormatter._extract_attachments(msg, loc),
-        "internalDate": lambda msg, tz, loc: msg.get("internalDate"),
-    }
-
-    # Operation-specific default fields (token optimization)
-    OPERATION_DEFAULT_FIELDS = {
-        # Search: Minimal fields for quick browsing (~150 tokens/email)
-        "search": [
-            "id",
-            "from",
-            "from_email",
-            "to",
-            "cc",
-            "subject",
-            "date",
-            "snippet",
-            "is_unread",
-            "gmail_url",
-        ],
-        # Details: Full email content (~500-800 tokens/email)
-        "details": [
-            "id",
-            "threadId",
-            "from",
-            "from_email",
-            "to",
-            "cc",
-            "subject",
-            "date",
-            "snippet",
-            "body",
-            "is_unread",
-            "labels",
-            "headers",
-            "attachments",
-            "gmail_url",
-        ],
-    }
-
-    DEFAULT_FIELDS = OPERATION_DEFAULT_FIELDS["search"]
-
-    def __init__(
-        self,
-        tool_name: str,
-        operation: str,
-        user_timezone: str = "UTC",
-        locale: str = "fr-FR",
-    ) -> None:
-        """
-        Initialize Gmail formatter.
-
-        Args:
-            tool_name: Tool identifier (e.g., "search_emails_tool")
-            operation: Operation name ("search", "details")
-            user_timezone: User's IANA timezone (e.g., "Europe/Paris")
-            locale: User's locale (e.g., "fr-FR", "en-US")
-        """
-        super().__init__(tool_name, operation)
-        self.user_timezone = user_timezone
-        self.locale = locale
-
-    def format_item(
-        self, raw_item: dict[str, Any], fields: list[str] | None = None
-    ) -> dict[str, Any]:
-        """
-        Format a single Gmail message object.
-
-        Args:
-            raw_item: Raw Gmail message object
-            fields: List of fields to include (None = operation-specific defaults)
-
-        Returns:
-            Formatted email dict
-        """
-        # Determine fields to include
-        if fields is None:
-            fields_to_include = self.OPERATION_DEFAULT_FIELDS.get(
-                self.operation, self.DEFAULT_FIELDS
-            )
-            self.logger.debug(
-                "using_operation_default_fields",
-                operation=self.operation,
-                fields_count=len(fields_to_include),
-            )
-        else:
-            # Always include id as identifier
-            fields_to_include = ["id"]
-            for field in fields:
-                if field not in fields_to_include:
-                    fields_to_include.append(field)
-
-        # Extract fields using extractors
-        email_info: dict[str, Any] = {}
-        for field in fields_to_include:
-            extractor = self.FIELD_EXTRACTORS.get(field)
-            if extractor:
-                email_info[field] = extractor(raw_item, self.user_timezone, self.locale)
-            else:
-                self.logger.warning(
-                    "unknown_field_in_gmail_formatter",
-                    field=field,
-                    available_fields=list(self.FIELD_EXTRACTORS.keys()),
-                )
-
-        return email_info
-
-    def _get_items_key(self) -> str:
-        """Get the key for emails list in response."""
-        return "emails"
 
     # =========================================================================
     # FIELD EXTRACTION HELPERS
@@ -1324,32 +949,12 @@ class GmailFormatter(BaseFormatter):
 
         return attachments
 
-    def _format_metadata_timestamp(self, timestamp_iso: str) -> str | None:
-        """
-        Format metadata timestamp for user display.
-
-        Uses user's timezone and locale for formatting.
-
-        Args:
-            timestamp_iso: ISO timestamp string
-
-        Returns:
-            Formatted timestamp (e.g., "lundi 17 novembre 2025 à 14:30")
-        """
-        return format_google_datetime(
-            timestamp_ms=timestamp_iso,
-            user_timezone=self.user_timezone,
-            locale=self.locale,
-            include_time=True,
-        )
-
 
 # =============================================================================
 # EXPORTS
 # =============================================================================
 
 __all__ = [
-    "BaseFormatter",
     "ContactsFormatter",
     "GmailFormatter",
     "format_google_datetime",

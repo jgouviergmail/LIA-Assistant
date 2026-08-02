@@ -1,6 +1,7 @@
 /**
  * Scenes of section 03 — "When things go wrong": actionable errors, one-click
- * retry, early quota warning, image expiry notice, named attachment limits.
+ * retry, early quota warning, image expiry notice, named attachment limits,
+ * correcting a commitment the extractor misheard.
  * Timer-driven micro-demos; last phase = resting frame.
  */
 
@@ -13,6 +14,7 @@ import {
   Clock,
   FileWarning,
   Image as ImageIcon,
+  PencilLine,
   RefreshCw,
   RotateCcw,
   RotateCw,
@@ -272,6 +274,48 @@ function HonestFreshnessScene({ active, labels }: SceneProps) {
   );
 }
 
+type FixPhase = 'wrong' | 'editing' | 'fixed' | 'settle';
+const FIX_STEPS: readonly TimelineStep<FixPhase>[] = [
+  { at: 0, state: 'wrong' },
+  { at: 1200, state: 'editing' },
+  { at: 2200, state: 'fixed' },
+  { at: 3200, state: 'settle' },
+];
+
+function FixCommitmentScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(FIX_STEPS, { active });
+  const corrected = phase === 'fixed' || phase === 'settle';
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-2')}>
+      <div className="flex items-center gap-2 rounded-md border border-border/60 bg-background/70 px-2 py-1.5">
+        <span
+          className={cn(
+            'min-w-0 flex-1 truncate text-[10px] transition-all duration-300',
+            corrected ? 'text-muted-foreground/50 line-through' : 'text-muted-foreground'
+          )}
+        >
+          {labels.before}
+        </span>
+        <PencilLine
+          className={cn(
+            'h-3 w-3 shrink-0 transition-colors duration-300',
+            phase === 'editing' ? 'text-primary' : 'text-muted-foreground/70'
+          )}
+        />
+      </div>
+      <div
+        className={cn(
+          'flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/5 px-2 py-1.5 transition-all duration-300',
+          corrected ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        )}
+      >
+        <Check className="h-3 w-3 shrink-0 text-primary" />
+        <span className="min-w-0 flex-1 truncate text-[10px] text-foreground">{labels.after}</span>
+      </div>
+    </div>
+  );
+}
+
 export const RECOVER_SCENES: Readonly<Record<string, SceneComponent>> = {
   actionable_errors: ActionableErrorsScene,
   retry_turn: RetryTurnScene,
@@ -279,4 +323,5 @@ export const RECOVER_SCENES: Readonly<Record<string, SceneComponent>> = {
   quota_warning: QuotaWarningScene,
   image_expiry: ImageExpiryScene,
   attachment_limits: AttachmentLimitsScene,
+  fix_commitment: FixCommitmentScene,
 };

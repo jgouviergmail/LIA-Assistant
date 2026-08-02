@@ -41,6 +41,9 @@ def _plan(*tools: str) -> ExecutionPlan:
             ExecutionStep(
                 step_id=f"step_{idx + 1}",
                 step_type=StepType.TOOL,
+                # Every producer names the agent, and a TOOL step without one is
+                # now refused outright — test data has to look like real data.
+                agent_name="test_agent",
                 tool_name=tool,
                 parameters={},
             )

@@ -8,7 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { renderWithProviders, screen, within } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
 import type { RelationDetail, RelationPeerLink, RelationPeerMessage } from '@/hooks/useRelations';
 
 const push = vi.fn();
@@ -32,6 +32,28 @@ const { useRelationDetail, useRelationContext, useOverviewScope, saveScope } = v
 // PARTIAL mock: the module also exports the section/direction/role vocabulary
 // the scope selector is built from. Replacing it wholesale silently empties
 // those lists, and the panel then renders a selector with no boxes at all.
+// Acting on a commitment goes through its own hook (the sheet already HAS the
+// commitments — reusing the ledger hook would refetch every one of them).
+const { closeCommitment, updateCommitment } = vi.hoisted(() => ({
+  closeCommitment: vi.fn(async (_id: string, _action: string) => true),
+  updateCommitment: vi.fn(async (_id: string, _patch: unknown) => true),
+}));
+vi.mock('@/hooks/useCommitmentActions', () => ({
+  useCommitmentActions: (onChanged: () => void) => ({
+    pendingId: null,
+    close: async (id: string, action: string) => {
+      const ok = await closeCommitment(id, action);
+      if (ok) onChanged();
+      return ok;
+    },
+    update: async (id: string, patch: unknown) => {
+      const ok = await updateCommitment(id, patch);
+      if (ok) onChanged();
+      return ok;
+    },
+  }),
+}));
+
 vi.mock('@/hooks/useRelations', async importOriginal => ({
   ...(await importOriginal<typeof import('@/hooks/useRelations')>()),
   useRelationDetail,
@@ -117,6 +139,8 @@ beforeEach(() => {
   // running it for every later test.
   openChat.mockReset();
   useRelationDetail.mockReset();
+  closeCommitment.mockClear();
+  updateCommitment.mockClear();
   // The provider sections are a SEPARATE query — silent by default here so
   // these tests keep asserting the database-local half on its own.
   useRelationContext.mockReturnValue({
@@ -213,7 +237,9 @@ describe('RelationDetailPanel', () => {
     useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
     const { user } = renderPanel();
     await runTheOverview(user);
-    expect((openChat.mock.calls[0][0] as string).startsWith('/fr/dashboard/chat?intent=')).toBe(true);
+    expect((openChat.mock.calls[0][0] as string).startsWith('/fr/dashboard/chat?intent=')).toBe(
+      true
+    );
   });
 
   it('offers the 360° run ONLY inside the scope section', async () => {
@@ -448,6 +474,8 @@ describe('RelationDetailPanel — quick actions', () => {
   beforeEach(() => {
     openChat.mockClear();
     useRelationDetail.mockReset();
+    closeCommitment.mockClear();
+    updateCommitment.mockClear();
   });
 
   it('always offers to call and to track a commitment', () => {
@@ -503,6 +531,8 @@ describe('RelationDetailPanel — LIA connection block', () => {
   beforeEach(() => {
     openChat.mockClear();
     useRelationDetail.mockReset();
+    closeCommitment.mockClear();
+    updateCommitment.mockClear();
   });
 
   const link = (over: Partial<RelationPeerLink> = {}): RelationPeerLink => ({
@@ -565,6 +595,8 @@ describe('RelationDetailPanel — empty state', () => {
   beforeEach(() => {
     openChat.mockClear();
     useRelationDetail.mockReset();
+    closeCommitment.mockClear();
+    updateCommitment.mockClear();
   });
 
   const bare = {
@@ -599,5 +631,135 @@ describe('RelationDetailPanel — empty state', () => {
     renderPanel();
     expect(screen.getByText('relations.peer_link_title')).toBeInTheDocument();
     expect(screen.queryByText('relations.detail_empty')).toBeNull();
+  });
+});
+
+describe('acting on a commitment from the sheet', () => {
+  /** A refetch is what also moves the counters next to the list. */
+  const refetch = vi.fn();
+
+  beforeEach(() => {
+    refetch.mockClear();
+    useRelationDetail.mockReturnValue({
+      detail: detail(),
+      loading: false,
+      error: false,
+      refetch,
+    });
+  });
+
+  it('closes a commitment as done and re-reads the relation', async () => {
+    const { user } = renderPanel();
+    await openSection(user, 'relations.section_open_loops');
+
+    await user.click(screen.getByRole('button', { name: /settings\.open_loops\.done/ }));
+
+    await waitFor(() => expect(closeCommitment).toHaveBeenCalledWith('l1', 'done'));
+    // Without this the counter beside the list keeps the stale total — the
+    // exact "a count shown to the user is a claim" rule of ADR-185.
+    expect(refetch).toHaveBeenCalled();
+  });
+
+  it('dismisses a commitment that is no longer relevant', async () => {
+    const { user } = renderPanel();
+    await openSection(user, 'relations.section_open_loops');
+
+    await user.click(screen.getByRole('button', { name: /settings\.open_loops\.dismiss/ }));
+
+    await waitFor(() => expect(closeCommitment).toHaveBeenCalledWith('l1', 'dismissed'));
+  });
+
+  it('sends the corrected wording, and only that', async () => {
+    const { user } = renderPanel();
+    await openSection(user, 'relations.section_open_loops');
+    await user.click(screen.getByRole('button', { name: /settings\.open_loops\.edit$/ }));
+
+    const field = await screen.findByDisplayValue('Rendre la perceuse');
+    await user.clear(field);
+    await user.type(field, 'Rendre la perceuse vendredi');
+    await user.click(screen.getByRole('button', { name: /settings\.open_loops\.edit_save/ }));
+
+    await waitFor(() =>
+      expect(updateCommitment).toHaveBeenCalledWith('l1', {
+        subject: 'Rendre la perceuse vendredi',
+      })
+    );
+  });
+
+  it('relaunching opens the chat rather than writing anything', async () => {
+    const { user } = renderPanel();
+    await openSection(user, 'relations.section_open_loops');
+
+    await user.click(screen.getByRole('button', { name: /settings\.open_loops\.relaunch/ }));
+
+    expect(openChat).toHaveBeenCalled();
+    expect(closeCommitment).not.toHaveBeenCalled();
+    expect(updateCommitment).not.toHaveBeenCalled();
+  });
+});
+
+describe('the order of the sheet is a contract, not a coincidence', () => {
+  it('opens with the address book and ends the left column with the LIA link', async () => {
+    // Explicit request (2026-08-02): the contact sheet is the answer to "which
+    // person is this?", so it leads; the LIA link is a note ABOUT the
+    // relationship rather than one of its contents, so it trails. Asserting on
+    // DOM ORDER rather than CSS: the grid never reorders, so this is also what
+    // a screen reader announces.
+    useRelationDetail.mockReturnValue({
+      detail: detail({
+        is_peer: true,
+        peer_link: {
+          connected_since: '2026-06-01T10:00:00Z',
+          shared_by_me: [{ domain: 'calendar', level: 'availability' }],
+          shared_with_me: [{ domain: 'task', level: 'titles' }],
+        },
+      }),
+      loading: false,
+      error: false,
+      refetch: vi.fn(),
+    });
+    useRelationContext.mockReturnValue({
+      context: {
+        contact: {
+          status: 'ok',
+          contact: {
+            nickname: null,
+            organization: 'Atelier',
+            occupation: 'Menuisière',
+            birthday: null,
+            biography: null,
+            emails: [{ value: 'marie@client.fr', label: null }],
+            phones: [],
+            addresses: [],
+            relations: [],
+            links: [],
+            important_dates: [],
+            messaging: [],
+          },
+        },
+        // `providerNoteKey` reads `.status` on all three sections — a null here
+        // is not a lighter fixture, it is a different scenario.
+        emails: { status: 'empty', items: [] },
+        events: { status: 'empty', items: [] },
+        window_days: 30,
+        email_window_days: 30,
+      },
+      loading: false,
+      refreshing: [],
+      error: false,
+      refreshSections: vi.fn(),
+    });
+    renderPanel();
+
+    const headings = screen
+      .getAllByRole('button')
+      .map(node => node.textContent ?? '')
+      .filter(text => /relations\.section_/.test(text));
+
+    const contact = headings.findIndex(text => text.includes('relations.section_contact'));
+    const peerLink = headings.findIndex(text => text.includes('relations.section_peer_link'));
+
+    expect(contact).toBeGreaterThanOrEqual(0);
+    if (peerLink >= 0) expect(peerLink).toBeGreaterThan(contact);
   });
 });

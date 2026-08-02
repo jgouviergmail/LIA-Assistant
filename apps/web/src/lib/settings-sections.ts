@@ -94,11 +94,6 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'chat-shortcuts',
     declaredIn: 'components/settings/ChatShortcutsSettings.tsx',
   },
-  'open-loops': {
-    tab: 'preferences',
-    accordionValue: 'open-loops',
-    declaredIn: 'components/settings/OpenLoopsSection.tsx',
-  },
 
   // ---- Preferences tab / Notifications & Communication
   notifications: {
@@ -193,6 +188,14 @@ export const SETTINGS_SECTIONS = {
     tab: 'features',
     accordionValue: 'interests',
     declaredIn: 'components/settings/InterestsSettings.tsx',
+  },
+  // Commitments moved out of Preferences (2026-08-02): a ledger of what people
+  // owe each other is a capability, not a display preference. Kept immediately
+  // after `interests`, which is the order the Features tab renders.
+  'open-loops': {
+    tab: 'features',
+    accordionValue: 'open-loops',
+    declaredIn: 'components/settings/OpenLoopsSection.tsx',
   },
   // Renders nothing when the instance flag `features.peers_enabled` is off
   // (self-gating, OpenLoopsSection precedent) — a deep link then legitimately

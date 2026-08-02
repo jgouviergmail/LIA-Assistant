@@ -98,6 +98,19 @@ class SemanticIssue(BaseModel):
         default=None,
         description="How the planner should correct this issue (actionable guidance)",
     )
+    user_facing: bool = Field(
+        default=True,
+        description=(
+            "Whether `description` may be shown to the user as-is. True for the "
+            "LLM path, which honours the 'in user's language' contract above and "
+            "says something specific ('La date de début est incorrecte'). The "
+            "deterministic pre-LLM rules set it to False: their descriptions are "
+            "English technical literals meant for the trace and the replan "
+            "prompt, and showing one delivered 'for_each pattern issue detected' "
+            "to a French account (prod 2026-08-02). A False description is "
+            "replaced by the localized question for its issue type."
+        ),
+    )
 
 
 class CriticalityLevel(str, Enum):

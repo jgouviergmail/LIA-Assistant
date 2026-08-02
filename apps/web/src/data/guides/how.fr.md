@@ -6,7 +6,7 @@
 
 **Version** : 3.6
 **Date** : 2026-08-02
-**Application** : LIA v1.27.6
+**Application** : LIA v1.27.7
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 447 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 192 ADRs, ~17 622 tests collectés par pytest sur 947 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 194 ADRs, ~17 803 tests collectés par pytest sur 955 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -72,7 +72,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~17 622 (collectés par pytest sur 947 fichiers de test) + 4 474 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | ~17 803 (collectés par pytest sur 955 fichiers de test) + 4 487 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures réutilisables | 170+ |
 | Documents de documentation | 400+ |
 | ADRs (Architecture Decision Records) | 189 |
@@ -394,9 +394,17 @@ Avant l'approbation HITL, un LLM dédié (distinct du planner, pour éviter le b
 
 En complément, un **registre anti-hallucination auto-enrichissant** (`hallucinated_tools.json`) détecte les outils inventés par le LLM (ex : `resolve_reference_tool`) via des patterns regex persistants. Chaque nouvelle hallucination est automatiquement ajoutée au registre pour une détection plus rapide lors des plans suivants. Les étapes hallucinées sont supprimées du plan et le planner est forcé à replanifier avec les outils réels du catalogue — éliminant une classe entière d'échecs d'exécution sans intervention humaine.
 
-### 6.5. Validation des Références
+Un verdict classe, il ne condamne pas — et un **diagnostic n'est pas une question**. Quand un plan de *mutation* épuise ses replans automatiques, le validateur refuse de l'exécuter et bascule vers une clarification HITL : écrire une donnée fausse coûte plus cher que demander. Ce qui est alors demandé à l'utilisateur est une question **dans sa langue**, puisée dans une table de quinze entrées dont la complétude est vérifiée au démarrage **dans les deux sens** — une issue que le code sait lever sans question rédigée refuse de démarrer l'application, et une question qu'aucun code ne lève aussi. La description interne de l'issue reste dans la trace, où elle a sa place. Le même principe couvre les valeurs : un paramètre fourni à un tour précédent est **repris du plan antérieur** au lieu d'être réinventé, car la réparation reconnaît une adresse de documentation et n'écrase jamais une valeur réelle — un changement d'avis est toujours respecté (ADR-195).
 
-Les références inter-étapes (`$steps.get_meetings.events[0].title`) sont validées au moment du plan avec des messages d'erreur structurés : champ invalide, alternatives disponibles et exemples corrigés — permettant au planner de s'auto-corriger lors d'un retry au lieu de produire des échecs silencieux.
+### 6.5. La vérité d'une référence (ADR-194)
+
+Une référence inter-étapes (`$steps.get_meetings.events[0].title`) est écrite par le planificateur **avant** que l'étape n'ait tourné. Le chemin doit donc être juste du premier coup, sans quoi le plan échoue après avoir engagé des appels API payants et l'attente de l'utilisateur.
+
+Ce qui le rend juste est un **contrat** : chaque manifeste d'outil publie les chemins que sa sortie porte, et l'intégration continue prouve ce contrat avant toute fusion de code. La vérification pilote l'outil réel — son vrai builder, le vrai résolveur de références, la fusion reconstruite — et compare ce que le manifeste publie à ce que l'exécution produit : le chemin lui-même, sa **forme** (enregistrement, liste, liste d'enregistrements) et son **type** (chaîne, nombre, objet). Le planificateur lit ce type pour décider dans quoi il peut chaîner une valeur : un mauvais type casse un plan aussi sûrement qu'un mauvais chemin.
+
+Le contrat est délibérément **asymétrique** : tout ce qui est publié doit être produit, jamais l'inverse. Un manifeste liste des *exemples*, pas une énumération exhaustive — `events[0].summary` est réel que quelqu'un ait pensé ou non à l'écrire, et exiger la réciproque reviendrait à refuser des chemins légitimes.
+
+La couverture est annoncée plutôt que supposée : 36 des 59 outils qui publient des chemins. Ce que la forme d'un outil rend difficile à piloter est chiffré et daté dans un dossier de dette, plutôt que laissé implicite. À l'exécution, le filet est `ReferenceResolver`, qui lève une erreur explicite au lieu de résoudre vers le vide.
 
 ### 6.6. Re-Planner Adaptatif (Panic Mode)
 
@@ -773,7 +781,7 @@ Note : l'injection RAG se fait dans le nœud de réponse, pas dans le planificat
 
 ### 17.2. System RAG Spaces (ADR-058)
 
-FAQ intégrée (200+ Q/A, 24 sections) indexée depuis `docs/knowledge/`. Détection `is_app_help_query` par QueryAnalyzer, Rule 0 override dans RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). La péremption se juge sur un SHA-256 des fichiers source **et** sur le corpus stocké lui-même (un chunk par entrée parsée, exactement un document) : une empreinte concordante sur un nombre de lignes erroné est une réparation, pas un no-op. L'auto-indexation tourne dans chaque worker uvicorn, donc la ligne de l'espace est revendiquée par `FOR UPDATE SKIP LOCKED` — un seul écrivain, les autres passent sans attendre — et chaque vecteur est calculé **avant** la première instruction destructrice : un refus du fournisseur ne supprime rien et le corpus précédent continue de servir (ADR-162).
+FAQ intégrée (250 Q/A, 24 sections) indexée depuis `docs/knowledge/`. Détection `is_app_help_query` par QueryAnalyzer, Rule 0 override dans RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). La péremption se juge sur un SHA-256 des fichiers source **et** sur le corpus stocké lui-même (un chunk par entrée parsée, exactement un document) : une empreinte concordante sur un nombre de lignes erroné est une réparation, pas un no-op. L'auto-indexation tourne dans chaque worker uvicorn, donc la ligne de l'espace est revendiquée par `FOR UPDATE SKIP LOCKED` — un seul écrivain, les autres passent sans attendre — et chaque vecteur est calculé **avant** la première instruction destructrice : un refus du fournisseur ne supprime rien et le corpus précédent continue de servir (ADR-162).
 
 ---
 
@@ -1149,7 +1157,7 @@ Reste qu'une destination peut légitimement ne pas exister : plusieurs sections 
 
 ## 24. Architecture des décisions (ADR)
 
-192 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+194 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1239,10 +1247,10 @@ Le contexte psyché est injecté dans **tous** les points de génération utilis
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 192 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~17 622 tests sur 947 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 194 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~17 803 tests sur 955 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 192 ADRs, et du changelog (v1.0 à v1.27.6). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 194 ADRs, et du changelog (v1.0 à v1.27.7). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

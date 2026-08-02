@@ -34,6 +34,7 @@ from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
+from src.core.i18n import DEFAULT_LANGUAGE
 from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr
 from src.domains.agents.constants import (
     STATE_KEY_EXECUTION_PLAN,
@@ -45,10 +46,71 @@ from src.domains.agents.orchestration.semantic_validator import (
     PlanSemanticValidator,
     plan_contains_mutation,
 )
+from src.domains.agents.utils.shape_agnostic import read_field
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+#: How many distinct questions a single clarification may carry. More than that
+#: reads as a wall of text rather than a question.
+_MAX_CLARIFICATION_QUESTIONS = 3
+
+
+def _questions_for_issues(issues: list[Any], user_language: str) -> list[str]:
+    """Turn semantic issues into something the user can actually answer.
+
+    Prefers the issue's own ``description`` when it is user-facing: the LLM path
+    honours the "in user's language" contract and says something SPECIFIC ("La
+    date de début est incorrecte"), which beats any generic question. Falls back
+    to the localized question for the issue type when the description is
+    technical (the deterministic rules, ``user_facing=False``) or empty —
+    showing one delivered "for_each pattern issue detected" to a French account
+    (prod 2026-08-02).
+
+    Deduplicated on the RESULTING TEXT, not on the issue type: distinct types can
+    legitimately share one question — ``cardinality_mismatch`` and
+    ``for_each_missing_cardinality`` are two diagnoses of the same thing to ask,
+    and asking it twice reads as a bug. Deduplicating on the text also keeps two
+    genuinely different LLM descriptions of one type, which each carry their own
+    information. Capped, so a clarification stays a question rather than a wall
+    of text.
+
+    Args:
+        issues: The verdict's issues, as models or mappings.
+        user_language: The account's language; variants are normalized by the
+            i18n accessor.
+
+    Returns:
+        Up to ``_MAX_CLARIFICATION_QUESTIONS`` entries, in first-seen order.
+        Empty when there is no issue to ask about.
+    """
+    from src.core.i18n_hitl import HitlMessages
+
+    questions: list[str] = []
+    seen: set[str] = set()
+    for issue in issues or []:
+        issue_type = read_field(issue, "issue_type")
+        if issue_type is None:
+            continue
+        # `SemanticIssueType` is a (str, Enum): `.value` is the table key.
+        key = str(getattr(issue_type, "value", issue_type))
+
+        description = str(read_field(issue, "description", "")).strip()
+        if description and read_field(issue, "user_facing", True):
+            question = description
+        else:
+            question = HitlMessages.get_semantic_issue_question(key, user_language)
+
+        if question in seen:
+            continue
+        seen.add(question)
+        questions.append(question)
+
+        if len(questions) >= _MAX_CLARIFICATION_QUESTIONS:
+            break
+
+    return questions
 
 
 async def semantic_validator_node(
@@ -184,7 +246,10 @@ async def semantic_validator_node(
 
     # Extract required data from state
     execution_plan = state.get(STATE_KEY_EXECUTION_PLAN)
-    user_language = state.get("user_language", "fr")
+    # DEFAULT_LANGUAGE, not a "fr" literal: the fallback has to follow
+    # `settings.default_language`, or a deployment configured in another
+    # language would still get its clarification questions in French.
+    user_language = state.get("user_language") or DEFAULT_LANGUAGE
 
     # Safety check: execution_plan must exist
     if not execution_plan:
@@ -251,11 +316,20 @@ async def semantic_validator_node(
             reason="query_intelligence not available or english_query empty",
         )
 
+    # The request preview is the USER'S MESSAGE — "message bodies" is on the
+    # short list of things that never belong at INFO. `add_pii_filter` catches
+    # e-mails but not everything a person types (a national-format phone number
+    # goes through untouched, measured), so the level is the real guard here.
+    # Counters and ids stay, the content moves down.
     logger.info(
         "semantic_validator_node_validating",
         plan_id=execution_plan.plan_id if hasattr(execution_plan, "plan_id") else None,
         step_count=len(execution_plan.steps) if hasattr(execution_plan, "steps") else 0,
         user_language=user_language,
+        request_length=len(user_request),
+    )
+    logger.debug(
+        "semantic_validator_node_validating_request",
         user_request_preview=user_request[:100],
     )
 
@@ -352,22 +426,25 @@ async def semantic_validator_node(
                 # replanner failed to converge). Hand it to a HITL clarification
                 # instead: the routing then takes Case 5 (clarification, since the
                 # iteration is NOT bumped past the bypass threshold) and
-                # ClarificationInteraction synthesizes a localized question from
-                # the issues. Read-only plans keep the bypass — a wrong read is
-                # harmless and asking would only annoy.
+                # ClarificationInteraction then STREAMS these questions as they
+                # are — it does not synthesize anything from the issues (its LLM
+                # branch is unbuilt and only yields a generic fallback), so what
+                # is written just below is literally what the user reads.
+                # Read-only plans keep the bypass — a wrong read is harmless and
+                # asking would only annoy.
                 validation_result.requires_clarification = True
-                # Surface the specific mismatches so the user knows WHAT to
-                # confirm: the issue descriptions are already localized, and the
-                # ClarificationInteraction renders them under the localized
-                # "points needing clarification" header (its issue→question
-                # generator is not built yet, so an empty list would only yield a
-                # generic fallback question). Capped to keep the prompt readable.
+                # Ask something the user can answer, in their language. An issue
+                # description is shown ONLY when its producer declared it
+                # showable (`user_facing`): the deterministic rules set it False
+                # because theirs are English technical literals, and recycling
+                # them shipped "for_each pattern issue detected" plus a
+                # fabricated address to a French account (prod 2026-08-02, 4
+                # occurrences in 30 days). See `_questions_for_issues` for the
+                # cap and for why the de-duplication is on the TEXT.
                 if not validation_result.clarification_questions:
-                    validation_result.clarification_questions = [
-                        issue.description
-                        for issue in validation_result.issues[:3]
-                        if getattr(issue, "description", None)
-                    ]
+                    validation_result.clarification_questions = _questions_for_issues(
+                        validation_result.issues, user_language
+                    )
                 # planner_iteration deliberately NOT incremented: a clarification
                 # is not an auto-replan (2026-01-14) and the un-bumped value is
                 # what keeps the router on the clarification branch.

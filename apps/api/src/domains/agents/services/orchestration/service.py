@@ -424,83 +424,23 @@ class OrchestrationService:
                     )
                     state = migrate_state_to_current(state)
 
-                # === CRITICAL FIX: Restore Pydantic/dataclass models from checkpoint dicts ===
-                # PostgresCheckpointer serializes state as JSON, converting models to dicts.
-                # When restored, these remain dicts which breaks attribute access (e.g., plan.steps).
-                # We must explicitly restore these models for proper type handling.
+                # NOTE: there is deliberately NO model restoration here.
+                # A checkpointed object comes back with its type intact — the
+                # serializer rebuilds allowlisted types through their constructor
+                # (measured on 99 real plans and 44 verdicts: none degraded). What
+                # keeps it that way is a CI test, not runtime code:
+                # tests/unit/domains/conversations/test_checkpoint_allowlist_guard.py
+                # fails the build if an allowlist entry stops naming a definition
+                # site — the drift that actually caused a degradation in the past.
                 #
-                # Models that need restoration:
-                # 1. execution_plan: ExecutionPlan (Pydantic) - used in route_from_approval_gate
-                # 2. validation_result: ValidationResult (dataclass) - used in approval_gate_node
-
-                # Restore ExecutionPlan (Pydantic model)
-                if "execution_plan" in state and state["execution_plan"] is not None:
-                    execution_plan_data = state["execution_plan"]
-                    if isinstance(execution_plan_data, dict):
-                        try:
-                            from src.domains.agents.orchestration.plan_schemas import ExecutionPlan
-
-                            state["execution_plan"] = ExecutionPlan.model_validate(
-                                execution_plan_data
-                            )
-                            logger.debug(
-                                "execution_plan_restored_from_dict",
-                                run_id=run_id,
-                                conversation_id=str(conversation_id),
-                                plan_id=execution_plan_data.get("plan_id"),
-                                steps_count=len(execution_plan_data.get("steps", [])),
-                            )
-                        except (ValueError, KeyError, TypeError, AttributeError) as restore_err:
-                            logger.error(
-                                "execution_plan_restore_failed",
-                                run_id=run_id,
-                                conversation_id=str(conversation_id),
-                                error=str(restore_err),
-                                error_type=type(restore_err).__name__,
-                                execution_plan_keys=(
-                                    list(execution_plan_data.keys())
-                                    if isinstance(execution_plan_data, dict)
-                                    else None
-                                ),
-                            )
-                            # Clear corrupted execution_plan - will trigger route to response
-                            state["execution_plan"] = None
-
-                # Restore ValidationResult (dataclass) - simpler structure, direct instantiation
-                if "validation_result" in state and state["validation_result"] is not None:
-                    validation_data = state["validation_result"]
-                    if isinstance(validation_data, dict):
-                        try:
-                            from src.domains.agents.orchestration.validator import ValidationResult
-
-                            # ValidationResult is a simple dataclass - reconstruct with key fields
-                            # Note: errors/warnings contain ValidationIssue objects, but we only
-                            # need is_valid, requires_hitl for HITL flow
-                            state["validation_result"] = ValidationResult(
-                                is_valid=validation_data.get("is_valid", True),
-                                errors=[],  # Skip complex nested objects
-                                warnings=[],  # Skip complex nested objects
-                                total_cost_usd=validation_data.get("total_cost_usd", 0.0),
-                                total_steps=validation_data.get("total_steps", 0),
-                                requires_hitl=validation_data.get("requires_hitl", False),
-                            )
-                            logger.debug(
-                                "validation_result_restored_from_dict",
-                                run_id=run_id,
-                                conversation_id=str(conversation_id),
-                                is_valid=validation_data.get("is_valid"),
-                                requires_hitl=validation_data.get("requires_hitl"),
-                            )
-                        except (ValueError, KeyError, TypeError, AttributeError) as restore_err:
-                            logger.error(
-                                "validation_result_restore_failed",
-                                run_id=run_id,
-                                conversation_id=str(conversation_id),
-                                error=str(restore_err),
-                                error_type=type(restore_err).__name__,
-                            )
-                            # Keep as dict - code should handle gracefully
-                            pass
+                # The restoration that used to sit here could never help: an object
+                # only comes back as a dict when it no longer passes its own
+                # validation, and `model_validate` then fails for the very same
+                # reason. Its ValidationResult half rebuilt with `errors=[]`, which
+                # would have silently emptied the blockers ADR-184 reports to the
+                # user. Modifications made here are dropped on an interrupt resume
+                # anyway (the graph receives Command(resume=...), not this dict).
+                # See ADR-195.
 
                 # === MIGRATION: Normalize old agent_results keys (backward compatibility) ===
                 agent_results = state.get("agent_results", {})

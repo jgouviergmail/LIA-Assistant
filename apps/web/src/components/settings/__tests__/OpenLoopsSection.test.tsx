@@ -22,6 +22,9 @@ vi.mock('@/lib/chat-deep-link', () => ({
 }));
 
 const close = vi.fn(async () => true);
+// A PARTIAL hook mock is its own defect: the component would call an
+// undefined `update` and the suite would blame the component.
+const update = vi.fn(async () => true);
 const refetch = vi.fn();
 const state = {
   flagOn: true,
@@ -46,6 +49,7 @@ vi.mock('@/hooks/useOpenLoops', async importOriginal => {
       loadError: state.loadError,
       refetch,
       close,
+      update,
     }),
   };
 });
@@ -131,5 +135,59 @@ describe('OpenLoopsSection', () => {
     state.loops = [];
     renderSection();
     expect(screen.getByText('settings.open_loops.empty')).toBeInTheDocument();
+  });
+});
+
+
+describe('correcting a commitment the extractor got wrong', () => {
+  // The i18n stub echoes KEYS without interpolation, so controls are addressed
+  // by their key — the same convention as the suite above.
+  const openEditor = () => {
+    renderSection();
+    fireEvent.click(screen.getAllByRole('button', { name: 'settings.open_loops.edit' })[0]);
+  };
+
+  it('opens an editor seeded with the current wording', async () => {
+    openEditor();
+
+    // Seeding matters: an empty field would read as a NEW entry, and the
+    // ledger deliberately has no manual creation.
+    await waitFor(() =>
+      expect(screen.getByDisplayValue('rappeler le plombier')).toBeInTheDocument()
+    );
+  });
+
+  it('sends only what actually changed', async () => {
+    openEditor();
+
+    const field = await screen.findByDisplayValue('rappeler le plombier');
+    fireEvent.change(field, { target: { value: 'rappeler le plombier mardi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'settings.open_loops.edit_save' }));
+
+    await waitFor(() =>
+      expect(update).toHaveBeenCalledWith('l-1', { subject: 'rappeler le plombier mardi' })
+    );
+  });
+
+  it('refuses to save an empty commitment', async () => {
+    openEditor();
+
+    const field = await screen.findByDisplayValue('rappeler le plombier');
+    fireEvent.change(field, { target: { value: '   ' } });
+    const save = screen.getByRole('button', { name: 'settings.open_loops.edit_save' });
+
+    // `aria-disabled`, never `disabled`: a disabled control that HAS focus
+    // blurs and drops out of the tab order mid-interaction.
+    expect(save).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(save);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('leaves the row alone when the user cancels', async () => {
+    openEditor();
+    fireEvent.click(await screen.findByRole('button', { name: 'common.cancel' }));
+
+    await waitFor(() => expect(screen.queryByDisplayValue('rappeler le plombier')).toBeNull());
+    expect(update).not.toHaveBeenCalled();
   });
 });

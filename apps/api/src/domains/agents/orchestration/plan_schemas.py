@@ -58,7 +58,7 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 from src.core.config import settings
-from src.core.field_names import FIELD_AGENT_NAME, FIELD_STEP_ID
+from src.core.field_names import FIELD_AGENT_NAME, FIELD_STEP_ID, FIELD_TOOL_NAME
 
 # ============================================================================
 # Parameter Types (OpenAI Strict Mode Compatible)
@@ -236,6 +236,26 @@ class StepType(str, Enum):
 # Execution Step
 # ============================================================================
 
+#: Fields without which a step of a given type cannot be executed.
+#:
+#: Every ``StepType`` is listed, including those requiring nothing: an empty
+#: entry is a decision, an absent one is an oversight (ADR-085 doctrine). The
+#: assert below refuses to import the module if a type is added without one, so
+#: the question gets asked at the moment the type is created rather than the
+#: first time a plan carrying it fails somewhere else.
+_REQUIRED_FIELDS_BY_STEP_TYPE: dict[StepType, frozenset[str]] = {
+    StepType.TOOL: frozenset({FIELD_AGENT_NAME, FIELD_TOOL_NAME}),
+    StepType.CONDITIONAL: frozenset({"condition"}),
+    StepType.REPLAN: frozenset(),
+    StepType.HUMAN: frozenset(),
+}
+
+assert set(_REQUIRED_FIELDS_BY_STEP_TYPE) == set(StepType), (
+    "_REQUIRED_FIELDS_BY_STEP_TYPE must list every StepType — missing: "
+    f"{sorted(t.value for t in StepType if t not in _REQUIRED_FIELDS_BY_STEP_TYPE)}. "
+    "Use frozenset() to declare that a type requires nothing."
+)
+
 
 class ExecutionStep(BaseModel):
     """
@@ -379,29 +399,40 @@ class ExecutionStep(BaseModel):
             raise ValueError("step_id cannot contain spaces")
         return v.strip()
 
-    @field_validator(FIELD_AGENT_NAME)
-    @classmethod
-    def validate_agent_name(cls, v: str | None, info: ValidationInfo) -> str | None:
-        """Validate that agent_name is required for TOOL steps."""
-        if info.data.get("step_type") == StepType.TOOL and not v:
-            raise ValueError("agent_name is required for TOOL steps")
-        return v
+    @model_validator(mode="after")
+    def validate_fields_required_by_step_type(self) -> ExecutionStep:
+        """Enforce the fields each step type cannot work without.
 
-    @field_validator("tool_name")
-    @classmethod
-    def validate_tool_name(cls, v: str | None, info: ValidationInfo) -> str | None:
-        """Validate that tool_name is required for TOOL steps."""
-        if info.data.get("step_type") == StepType.TOOL and not v:
-            raise ValueError("tool_name is required for TOOL steps")
-        return v
+        Deliberately a MODEL validator, not three field validators. Pydantic
+        does not validate default values, so a field validator on an optional
+        field never runs when the field is simply omitted — which is how a TOOL
+        step without ``agent_name`` used to be accepted, at step level AND at
+        plan level (measured; the previous test called it "by design").
 
-    @field_validator("condition")
-    @classmethod
-    def validate_condition(cls, v: str | None, info: ValidationInfo) -> str | None:
-        """Validate that condition is required for CONDITIONAL steps."""
-        if info.data.get("step_type") == StepType.CONDITIONAL and not v:
-            raise ValueError("condition is required for CONDITIONAL steps")
-        return v
+        It was not harmless. Serialized, the field is written explicitly as
+        None; on the way back the validator DOES fire, the constructor raises,
+        and the serializer falls back to handing out a plain ``dict`` — with no
+        error anywhere. ``parallel_executor`` then reads ``step.step_id`` on a
+        mapping and dies far from the cause. Refusing the object here turns a
+        silent corruption into an immediate, located failure (ADR-195).
+
+        Returns:
+            The validated step.
+
+        Raises:
+            ValueError: A field required by this step type is missing or empty.
+        """
+        missing = sorted(
+            field
+            for field in _REQUIRED_FIELDS_BY_STEP_TYPE[self.step_type]
+            if not getattr(self, field, None)
+        )
+        if missing:
+            raise ValueError(
+                f"{', '.join(missing)} required for {self.step_type.value} steps "
+                f"(step_id={self.step_id!r})"
+            )
+        return self
 
     model_config = {"frozen": False}  # Allow modification during execution
 

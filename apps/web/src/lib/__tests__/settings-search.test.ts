@@ -441,3 +441,15 @@ describe('matchSettingsSections — recall in the six languages', () => {
     expect(matchSettingsSections(indexes.fr, 'zzzqwerty')).toEqual([]);
   });
 });
+
+describe('commitments live with the other Features sections', () => {
+  it('is grouped under identity_memory, next to interests', () => {
+    // Moved out of `personalization` (2026-08-02): a commitments ledger is a
+    // capability, not a display preference — it now sits in the Features tab,
+    // right after "Centres d'intérêt". The search index is what deep links and
+    // the quick search read, so a section shown in one tab and indexed under
+    // another sends the user to the wrong place.
+    expect(SETTINGS_SEARCH_META['open-loops'].group).toBe('identity_memory');
+    expect(SETTINGS_SEARCH_META['open-loops'].group).toBe(SETTINGS_SEARCH_META.interests.group);
+  });
+});

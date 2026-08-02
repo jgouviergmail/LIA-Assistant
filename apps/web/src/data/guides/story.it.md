@@ -4,7 +4,7 @@
 
 **Versione**: 1.1
 **Data**: 2026-08-02
-**Applicazione**: LIA v1.27.6
+**Applicazione**: LIA v1.27.7
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Indicatore | Valore |
 | --- | --- |
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
-| Righe di codice (esclusi i test) — 36 domini funzionali | **495.000** |
-| Test automatizzati, eseguiti a ogni commit e rilascio | **21.000+** |
-| Decisioni di architettura documentate (ADR) | **180** |
-| Versioni rilasciate a ritmo regolare | **189** |
+| Righe di codice (esclusi i test) — 36 domini funzionali | **505.000** |
+| Test automatizzati, eseguiti a ogni commit e rilascio | **22.200+** |
+| Decisioni di architettura documentate (ADR) | **194** |
+| Versioni rilasciate a ritmo regolare | **194** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
 

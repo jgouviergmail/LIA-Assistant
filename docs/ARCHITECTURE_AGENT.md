@@ -3172,9 +3172,9 @@ Le système valide les plans générés par le Planner avant exécution.
 │     - Structure ExecutionPlan correcte                                  │
 │     - Types des champs                                                  │
 │       ↓                                                                  │
-│  2. Reference Validation (reference_validator.py)                       │
-│     - $steps.X.field existe                                             │
-│     - Pas de références circulaires                                     │
+│  2. Reference Validation (semantic_validator.py)                        │
+│     - $steps.X.<clé de domaine> cohérent avec le result_key produit     │
+│       (détection de dépendance fantôme)                                 │
 │       ↓                                                                  │
 │  3. Tool Validation (plan_validator.py)                                 │
 │     - Tools existent dans le catalogue                                  │
@@ -3270,61 +3270,33 @@ class SemanticValidator:
 
 ### 19.3 Validation des Références
 
-**Fichier**: `src/domains/agents/orchestration/reference_validator.py`
+**Fichiers**: `src/domains/agents/orchestration/step_references.py` (syntaxe),
+`src/domains/agents/orchestration/semantic_validator.py` (dépendances fantômes),
+`tests/unit/domains/agents/registry/test_manifest_reference_examples_truthful.py` (véracité des chemins publiés)
 
-```python
-class ReferenceValidator:
-    """Valide les expressions de référence dans le plan."""
+Il n'existe **pas** de validateur runtime de chemins de référence, et c'est une
+décision (ADR-194). Celui qui existait — `ReferenceValidator` + le registre de
+schémas d'outils — n'a jamais rien rejeté depuis le premier commit, et sa
+réparation a été mesurée comme **pire que sa suppression** : 63 chemins
+légitimes rejetés sur 112 pour le bras manifeste, 13 sur 35 pour le bras schéma.
 
-    REFERENCE_PATTERN = re.compile(r'\$steps\.(\w+)\.(.+)')
+Trois mécanismes se partagent aujourd'hui le travail :
 
-    def validate_references(
-        self,
-        plan: ExecutionPlan,
-    ) -> list[ValidationError]:
-        """
-        Vérifie que toutes les références $steps.X.field sont valides.
-        """
-        errors = []
-        step_outputs = self._collect_step_outputs(plan)
+| Quand | Quoi | Où |
+|---|---|---|
+| **CI, avant le merge** | Tout chemin publié dans `reference_examples` doit résoudre contre la sortie réelle de l'outil | `test_manifest_reference_examples_truthful` |
+| **Runtime, avant exécution** | La clé de domaine référencée correspond-elle au `result_key` de l'étape productrice (dépendance fantôme) | `semantic_validator` |
+| **Runtime, à la résolution** | Index hors bornes, champ ou clé inexistants | `ReferenceResolver` (`KeyError` explicite) |
 
-        for step in plan.steps:
-            for param_value in step.params.values():
-                if refs := self._extract_references(param_value):
-                    for ref in refs:
-                        if not self._reference_exists(ref, step_outputs, step.id):
-                            errors.append(ValidationError(
-                                type="GHOST_DEPENDENCY",
-                                message=f"Reference {ref} does not exist",
-                                step_id=step.id,
-                            ))
+L'asymétrie de la garde CI est délibérée : elle vérifie que **tout ce qui est
+publié est produit**, jamais l'inverse. Un outil a le droit de produire plus que
+ce qu'il documente ; il n'a pas le droit de documenter ce qu'il ne produit pas.
 
-        return errors
-
-    def _reference_exists(
-        self,
-        ref: str,
-        step_outputs: dict[str, set[str]],
-        current_step_id: str,
-    ) -> bool:
-        """Vérifie qu'une référence pointe vers un output existant."""
-        match = self.REFERENCE_PATTERN.match(ref)
-        if not match:
-            return False
-
-        step_id, field_path = match.groups()
-
-        # Le step référencé doit exister
-        if step_id not in step_outputs:
-            return False
-
-        # Le step référencé doit être exécuté AVANT current_step
-        # (vérifié via dependency graph)
-
-        return True
-```
-
----
+La syntaxe d'une référence a **deux** définitions, volontairement distinctes :
+`STEPS_REFERENCE_PATTERN` (chemin complet, pour l'extraction de dépendances dans
+`capability_directives`) et `_STEPS_REFERENCE_PATTERN` du `semantic_validator`
+(clé de domaine seule). Sur `$steps.s1.contacts[0].name`, le premier rend
+`contacts[0].name`, le second `contacts` — les fusionner casserait l'un des deux.
 
 ## 20. Métriques et Observabilité
 

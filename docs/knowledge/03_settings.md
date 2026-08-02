@@ -397,8 +397,12 @@ All runtime code uses `settings.field_name` to access configurable values, ensur
 ## Can I customize the dashboard cards?
 Yes — Settings → "My dashboard". Hide any of the 9 briefing cards or reorder them (↑/↓ buttons, or drag-and-drop). A hidden card is **not even fetched** anymore: fewer API calls, faster dashboard. A starter checklist on the dashboard also shows what your instance can do (connectors, voice, channels…) until you dismiss it.
 
-## What is the "Open loops" section?
-LIA automatically detects **commitments** in your conversations ("I must call the plumber back", "waiting for Marc's reply"). Settings → "Open loops" lists them by direction (you owe / you are waiting), with three one-tap actions: **Done**, **Relaunch in chat** (pre-fills a follow-up message) or **No longer relevant**. Nothing is created manually — the ledger's value is being automatic.
+## What is the "Commitments" section?
+LIA automatically detects **commitments** in your conversations ("I must call the plumber back", "waiting for Marc's reply"). Settings → Features → "Commitments" lists them by direction (you owe / you are waiting), with three one-tap actions: **Done**, **Relaunch in chat** (pre-fills a follow-up message) or **No longer relevant**. Nothing is created manually — the ledger's value is being automatic.
+
+The same actions are available from a relationship's card, and a commitment's wording or deadline can be **corrected**. Correcting is not creating: the ledger stays automatic, it simply stops being wrong. The counterparty and the meaning are not editable — changing those would describe a different commitment rather than correct this one.
+
+The section used to be called "Open loops" and used to live under Preferences; the settings search knows both names.
 
 ## Can I link straight to a settings section?
 

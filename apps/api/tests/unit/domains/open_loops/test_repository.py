@@ -106,3 +106,48 @@ class TestListOpenForUser:
         loops = await repo.list_open_for_user(uuid4(), limit=10)
 
         assert loops == [loop]
+
+
+@pytest.mark.unit
+class TestUpdateLoop:
+    """The extractor gets the wording wrong sometimes — the user can fix it.
+
+    Same claim shape as ``close_loop``: a conditional UPDATE scoped to the owner
+    AND to the OPEN status, so a closed or foreign loop is never edited and the
+    caller learns it from the return value rather than from a silent no-op.
+    """
+
+    async def test_returns_true_when_the_row_is_claimed(self):
+        db, _ = _db_with_result(rowcount=1)
+        repo = OpenLoopRepository(db)
+
+        updated = await repo.update_loop(uuid4(), uuid4(), subject="rappeler le plombier mardi")
+
+        assert updated is True
+        db.execute.assert_awaited_once()
+
+    async def test_returns_false_when_nothing_matched(self):
+        """Closed, expired, or someone else's: no row, no edit."""
+        db, _ = _db_with_result(rowcount=0)
+        repo = OpenLoopRepository(db)
+
+        assert await repo.update_loop(uuid4(), uuid4(), subject="x") is False
+
+    async def test_editing_nothing_does_not_touch_the_database(self):
+        """An empty patch is a no-op, not an UPDATE that only bumps updated_at."""
+        db, _ = _db_with_result(rowcount=1)
+        repo = OpenLoopRepository(db)
+
+        assert await repo.update_loop(uuid4(), uuid4()) is False
+        db.execute.assert_not_awaited()
+
+    async def test_ownership_and_status_are_in_the_where_clause(self):
+        """Never filter in Python: a foreign row must not even be selected."""
+        db, _ = _db_with_result(rowcount=1)
+        repo = OpenLoopRepository(db)
+
+        await repo.update_loop(uuid4(), uuid4(), subject="x")
+
+        rendered = str(db.execute.await_args.args[0])
+        assert "user_id" in rendered
+        assert "status" in rendered

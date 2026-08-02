@@ -1093,6 +1093,17 @@ planner_parameter_bounds_corrections = Counter(
     ["bound"],  # bound: minimum, maximum
 )
 
+# A repair is never silent: this counts how often a replan re-invented a contact
+# detail it had right on the previous pass and had to be given it back. A rising
+# rate means the replan prompt is losing parameters while fixing an unrelated
+# issue (production 2026-08-02: a user-supplied address replaced by
+# 'jerome@example.com' on the very next turn), which is a prompt problem this
+# repair only hides.
+planner_fabricated_parameters_restored = Counter(
+    "planner_fabricated_parameters_restored_total",
+    "Fabricated plan parameters restored from the previous plan of the same turn",
+)
+
 # ============================================================================
 # INDEXABLE vs SEMANTIC CRITERIA (Universal Planning Principle)
 # ============================================================================
@@ -1217,6 +1228,16 @@ semantic_validation_issues_detected = Counter(
     "semantic_validation_issues_detected_total",
     "Semantic issues detected by type",
     ["issue_type"],  # issue_type: cardinality_mismatch/missing_dependency/etc
+)
+
+# A cardinality was detected but NO step of the plan produces a collection, so
+# demanding a for_each would be unsatisfiable and the verdict could never
+# converge (prod dev 2026-08-02: "the 3 first results" read as "for EACH
+# browsers" — 16 planning cycles, clarification loop). A rising rate points at
+# the ANALYZER over-detecting cardinality, which this only stops from blocking.
+semantic_validation_for_each_demand_dropped = Counter(
+    "semantic_validation_for_each_demand_dropped_total",
+    "for_each requirements dropped because no step of the plan yields a collection",
 )
 
 semantic_validation_clarification_requests = Counter(

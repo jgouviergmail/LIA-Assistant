@@ -226,6 +226,17 @@ run_skill_script_catalogue_manifest = ToolManifest(
         # Rich outputs (v1.16.8, ADR-075): emitted only when the script returns
         # a SkillScriptOutput JSON with frame or image. The SKILL_APP registry
         # item is rendered as an interactive widget (iframe + optional image).
+        #
+        # The CONTAINER is declared before its members: `structured_data` groups
+        # the payload under `skill_apps` as a LIST (see skills/output_builder),
+        # and a planner told only about `skill_apps[].title` cannot know the
+        # collection exists — the same gap that made other manifests advertise
+        # unreachable paths (ADR-194).
+        OutputFieldSchema(
+            path="skill_apps",
+            type="array",
+            description="Interactive widgets produced by the script (empty when it only returns text)",
+        ),
         OutputFieldSchema(
             path="skill_apps[].skill_name",
             type="string",

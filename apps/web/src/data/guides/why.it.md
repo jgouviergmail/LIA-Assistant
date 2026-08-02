@@ -4,7 +4,7 @@
 
 **Versione**: 4.1
 **Data**: 2026-08-02
-**Applicazione**: LIA v1.27.6
+**Applicazione**: LIA v1.27.7
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---

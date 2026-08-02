@@ -6,7 +6,7 @@
 
 **Version**: 3.6
 **Date**: 2026-08-02
-**Application**: LIA v1.27.6
+**Application**: LIA v1.27.7
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 447 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 192 ADRs, ~17,622 pytest-collected tests across 947 files, native observability, 6-level HITL |
+| Production reliability | 194 ADRs, ~17,803 pytest-collected tests across 955 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -72,7 +72,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~17,622 (collected by pytest across 947 test files) + 4,474 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~17,803 (collected by pytest across 955 test files) + 4,487 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 400+ |
 | ADRs (Architecture Decision Records) | 189 |
@@ -395,9 +395,17 @@ Before HITL approval, a dedicated LLM (distinct from the planner, to avoid self-
 
 Additionally, a **self-enriching anti-hallucination registry** (`hallucinated_tools.json`) detects tools invented by the LLM (e.g. `resolve_reference_tool`) via persistent regex patterns. Each new hallucination is automatically added to the registry for faster detection in subsequent plans. Hallucinated steps are removed and the planner is forced to replan with real catalogue tools — eliminating an entire class of execution failures without human intervention.
 
-### 6.5. Reference Validation
+A verdict classifies, it does not condemn — and a **diagnosis is not a question**. When a *writing* plan exhausts its automatic replans, the validator refuses to execute it and hands over to a HITL clarification: writing wrong data costs more than asking. What the user is then asked is a question **in their own language**, drawn from a table of fifteen entries whose completeness is asserted at boot **in both directions** — an issue the code can raise with no written question refuses to start the application, and so does a question no code can raise. The internal issue description stays in the trace, where it belongs. The same principle covers the values: a parameter supplied in an earlier turn is **carried over from the previous plan** rather than re-imagined, because the repair recognises a documentation placeholder and never overwrites a genuine value — a change of mind is always honoured (ADR-195).
 
-Cross-step references (`$steps.get_meetings.events[0].title`) are validated at plan time with structured error messages: invalid field, available alternatives, and corrected examples — so the planner can self-correct on retry instead of producing silent failures.
+### 6.5. Reference truth (ADR-194)
+
+A cross-step reference (`$steps.get_meetings.events[0].title`) is written by the planner **before** the step has run. The path therefore has to be right the first time, or the plan fails after paid API calls and the user's wait.
+
+What makes it right is a **contract**: every tool manifest publishes the paths its output carries, and continuous integration proves that contract before any code is merged. The check drives the real tool — its actual builder, the real reference resolver, the reconstructed merge — and compares what the manifest publishes to what execution produces: the path itself, its **shape** (record, list, list of records) and its **type** (string, number, object). The planner reads that type to decide what it can chain a value into, so a wrong type breaks a plan just as surely as a wrong path.
+
+The contract is deliberately **asymmetric**: everything published must be produced, never the reverse. A manifest lists *examples*, not an exhaustive enumeration — `events[0].summary` is real whether or not anyone thought to write it down, and demanding the converse would reject legitimate paths.
+
+Coverage is stated rather than assumed: 36 of the 59 tools that publish paths. What a tool's shape makes hard to drive is costed and dated in a debt file instead of being left implicit. At runtime the net is `ReferenceResolver`, which raises an explicit error rather than resolving to nothing.
 
 ### 6.6. Adaptive Re-Planner (Panic Mode)
 
@@ -774,7 +782,7 @@ Note: RAG injection is done in the response node, not in the planner. The planne
 
 ### 17.2. System RAG Spaces (ADR-058)
 
-Built-in FAQ (200+ Q/A, 24 sections) indexed from `docs/knowledge/`. `is_app_help_query` detection by QueryAnalyzer, Rule 0 override in RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). Staleness is judged on a SHA-256 over the source files **and** on the stored corpus itself (one chunk per parsed entry, exactly one document): a matching hash over the wrong number of rows is a repair, not a no-op. Auto-indexation runs in every uvicorn worker, so the space row is claimed with `FOR UPDATE SKIP LOCKED` — one writer, the others skip without queueing — and every vector is computed **before** the first destructive statement, so a provider rejection deletes nothing and the previous corpus keeps serving (ADR-162).
+Built-in FAQ (250 Q/A, 24 sections) indexed from `docs/knowledge/`. `is_app_help_query` detection by QueryAnalyzer, Rule 0 override in RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). Staleness is judged on a SHA-256 over the source files **and** on the stored corpus itself (one chunk per parsed entry, exactly one document): a matching hash over the wrong number of rows is a repair, not a no-op. Auto-indexation runs in every uvicorn worker, so the space row is claimed with `FOR UPDATE SKIP LOCKED` — one writer, the others skip without queueing — and every vector is computed **before** the first destructive statement, so a provider rejection deletes nothing and the previous corpus keeps serving (ADR-162).
 
 ---
 
@@ -1142,7 +1150,7 @@ A destination may still legitimately not exist: several sections only render whe
 
 ## 24. Architecture Decision Records (ADR)
 
-192 ADRs in MADR format document the major architectural decisions. Some representative examples:
+194 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1225,10 +1233,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 192 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~17,622 tests across 947 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 194 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~17,803 tests across 955 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 192 ADRs, and the changelog (v1.0 to v1.27.6). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 194 ADRs, and the changelog (v1.0 to v1.27.7). All metrics, versions, and patterns cited are verifiable in the codebase.*

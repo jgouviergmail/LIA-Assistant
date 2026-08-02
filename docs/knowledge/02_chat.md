@@ -390,3 +390,17 @@ Tap the **LIA logo** at the top left. On narrow screens the navigation bar is
 hidden, so the logo opens a menu with the same four destinations — dashboard,
 chat, settings, help — and announces which page you are currently on. On a
 desktop the logo stays what it has always been: a link back to the dashboard.
+
+## What happens when LIA cannot carry out my request?
+
+LIA drafts a plan before acting, then re-reads it before running it. When that
+plan **writes** something — sending an email, creating an appointment, calling
+someone — and it cannot repair the plan on its own, it **refuses to run it** and
+asks you a question. Writing wrong data costs more than asking.
+
+The question is written in your language and says exactly what is missing: which
+recipient, which date, which items to act on. It never contains technical
+jargon, a code path or an example address — what LIA shows you is a question,
+not its internal diagnosis.
+
+You can answer, rephrase, or drop it: nothing is sent until you decide.

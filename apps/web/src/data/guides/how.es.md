@@ -6,7 +6,7 @@
 
 **Versión**: 3.6
 **Fecha**: 2026-08-02
-**Aplicación**: LIA v1.27.6
+**Aplicación**: LIA v1.27.7
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 447 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 192 ADRs, ~17.622 tests recogidos por pytest en 947 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 194 ADRs, ~17.803 tests recogidos por pytest en 955 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -72,7 +72,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | ~17.622 (recopilados por pytest en 947 archivos de prueba) + 4.474 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | ~17.803 (recopilados por pytest en 955 archivos de prueba) + 4.487 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures reutilizables | 170+ |
 | Documentos de documentación | 400+ |
 | ADRs (Architecture Decision Records) | 189 |
@@ -395,9 +395,17 @@ Antes de la aprobación HITL, un LLM dedicado (distinto del planner, para evitar
 
 Además, un **registro anti-alucinación auto-enriquecido** (`hallucinated_tools.json`) detecta herramientas inventadas por el LLM mediante patrones regex persistentes. Cada nueva alucinación se añade automáticamente al registro. Los pasos alucinados se eliminan y el planificador se ve forzado a replanificar con las herramientas reales del catálogo.
 
-### 6.5. Validación de Referencias
+Un veredicto clasifica, no condena — y un **diagnóstico no es una pregunta**. Cuando un plan de *escritura* agota sus replanificaciones automáticas, el validador se niega a ejecutarlo y pasa a una aclaración HITL: escribir un dato falso cuesta más que preguntar. Lo que entonces se pregunta al usuario es una pregunta **en su idioma**, tomada de una tabla de quince entradas cuya completitud se verifica al arranque **en ambos sentidos**: un problema que el código puede lanzar sin pregunta escrita impide arrancar la aplicación, y una pregunta que ningún código lanza, también. La descripción interna del problema se queda en la traza, que es su sitio. El mismo principio cubre los valores: un parámetro facilitado en un turno anterior se **recupera del plan previo** en lugar de reinventarse, porque la reparación reconoce una dirección de documentación y nunca sobrescribe un valor real — un cambio de opinión siempre se respeta (ADR-195).
 
-Las referencias entre pasos (`$steps.get_meetings.events[0].title`) se validan en tiempo de planificación con mensajes de error estructurados: campo inválido, alternativas disponibles y ejemplos corregidos — permitiendo al planner autocorregirse en el retry en lugar de producir fallos silenciosos.
+### 6.5. La verdad de una referencia (ADR-194)
+
+Una referencia entre pasos (`$steps.get_meetings.events[0].title`) la escribe el planificador **antes** de que el paso se haya ejecutado. La ruta debe ser correcta a la primera, o el plan fracasa tras haber gastado llamadas de API de pago y la espera del usuario.
+
+Lo que la hace correcta es un **contrato**: cada manifiesto de herramienta publica las rutas que lleva su salida, y la integración continua demuestra ese contrato antes de fusionar cualquier código. La comprobación pilota la herramienta real — su builder auténtico, el resolutor de referencias real, la fusión reconstruida — y compara lo que el manifiesto publica con lo que la ejecución produce: la ruta en sí, su **forma** (registro, lista, lista de registros) y su **tipo** (cadena, número, objeto). El planificador lee ese tipo para decidir en qué puede encadenar un valor: un tipo equivocado rompe un plan tan seguramente como una ruta equivocada.
+
+El contrato es deliberadamente **asimétrico**: todo lo publicado debe producirse, nunca al revés. Un manifiesto enumera *ejemplos*, no una enumeración exhaustiva — `events[0].summary` es real haya pensado alguien o no en escribirlo, y exigir lo contrario rechazaría rutas legítimas.
+
+La cobertura se declara en lugar de suponerse: 36 de las 59 herramientas que publican rutas. Lo que la forma de una herramienta hace difícil de pilotar se cifra y se fecha en un expediente de deuda, en vez de quedar implícito. En ejecución, la red es `ReferenceResolver`, que lanza un error explícito en lugar de resolver al vacío.
 
 ### 6.6. Re-Planner Adaptativo (Panic Mode)
 
@@ -774,7 +782,7 @@ Nota: la inyección RAG se realiza en el nodo de respuesta, no en el planificado
 
 ### 17.2. System RAG Spaces (ADR-058)
 
-FAQ integrada (200+ Q/A, 24 secciones) indexada desde `docs/knowledge/`. Detección `is_app_help_query` por QueryAnalyzer, Rule 0 override en RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). La obsolescencia se juzga con un SHA-256 de los archivos fuente **y** con el propio corpus almacenado (un fragmento por entrada analizada, exactamente un documento): una huella coincidente sobre un número de filas erróneo es una reparación, no un no-op. La auto-indexación se ejecuta en cada worker de uvicorn, así que la fila del espacio se reclama con `FOR UPDATE SKIP LOCKED` — un solo escritor, los demás pasan sin esperar — y cada vector se calcula **antes** de la primera instrucción destructiva: un rechazo del proveedor no borra nada y el corpus anterior sigue sirviendo (ADR-162).
+FAQ integrada (250 Q/A, 24 secciones) indexada desde `docs/knowledge/`. Detección `is_app_help_query` por QueryAnalyzer, Rule 0 override en RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). La obsolescencia se juzga con un SHA-256 de los archivos fuente **y** con el propio corpus almacenado (un fragmento por entrada analizada, exactamente un documento): una huella coincidente sobre un número de filas erróneo es una reparación, no un no-op. La auto-indexación se ejecuta en cada worker de uvicorn, así que la fila del espacio se reclama con `FOR UPDATE SKIP LOCKED` — un solo escritor, los demás pasan sin esperar — y cada vector se calcula **antes** de la primera instrucción destructiva: un rechazo del proveedor no borra nada y el corpus anterior sigue sirviendo (ADR-162).
 
 ---
 
@@ -1145,7 +1153,7 @@ Con todo, un destino puede legítimamente no existir: varias secciones solo se r
 
 ## 24. Arquitectura de decisiones (ADR)
 
-192 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+194 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1199,10 +1207,10 @@ El Psyche Engine dota al asistente de un estado psicológico dinámico que evolu
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 192 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~17.622 tests en 947 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 194 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~17.803 tests en 955 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (400+ documentos), de los 192 ADRs y del changelog (v1.0 a v1.27.6). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (400+ documentos), de los 194 ADRs y del changelog (v1.0 a v1.27.7). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

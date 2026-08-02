@@ -552,42 +552,6 @@ def get_response_prompt(
 # ============================
 
 
-def build_schema_reference_guide(tool_names: list[str]) -> str:
-    """Build tool response schemas reference guide for planner prompt injection."""
-    try:
-        import json
-
-        from src.domains.agents.tools.schema_registry import ToolSchemaRegistry
-
-        registry = ToolSchemaRegistry.get_instance()
-        guide_sections = []
-
-        for tool_name in tool_names:
-            schema_data = registry.get_schema(tool_name)
-            if not schema_data:
-                continue
-
-            response_schema = schema_data["response_schema"]
-            examples = schema_data.get("examples", [])
-
-            section = f"### {tool_name}\n\nResponse Structure:\n```json\n"
-            section += json.dumps(response_schema, indent=2, ensure_ascii=False)
-            section += "\n```\n\n"
-
-            if examples:
-                section += "Valid References:\n"
-                for example in examples:
-                    section += f"- {example['reference']} => {example['expected_type']}\n"
-
-            guide_sections.append(section)
-
-        return "\n".join(guide_sections) if guide_sections else ""
-
-    except Exception as e:
-        logger.warning("schema_guide_build_failed", error=str(e), error_type=type(e).__name__)
-        return ""
-
-
 def _get_semantic_deps_fallback() -> str:
     """Get fallback message for semantic dependencies from centralized constants."""
     from src.core.constants import SEMANTIC_DEPS_NO_DEPENDENCIES
@@ -956,7 +920,6 @@ __all__ = [
     # Prompt builders
     "get_response_prompt",
     "get_smart_planner_prompt",
-    "build_schema_reference_guide",
     "get_hitl_classifier_prompt",
     # HITL messages
     "get_hitl_classification_fallback_message",

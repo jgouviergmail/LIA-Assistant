@@ -70,3 +70,36 @@ rien » identifié comme pilier n° 1 de l'analyse produit du 2026-07-21.
 - `sources_used` gagne le label `OPEN_LOOPS` (enum `HeartbeatSourceLabel`).
 - Vérification : TDD intégral (48 tests unitaires nouveaux sur le lot),
   suite complète verte, migration à tête unique, preuve runtime dev.
+
+## Suite (2026-08-02, v1.27.7) : corriger n'est pas créer
+
+L'API v1 laissait une seule sortie à un engagement mal extrait : le classer
+sans suite. Autrement dit, **perdre** l'information plutôt que la corriger —
+alors que la cause n'est pas l'engagement mais la façon dont la conversation
+a été lue.
+
+**`PATCH /open-loops/{loop_id}`** ouvre exactement deux champs : le `subject`
+(1 à 500 caractères, jamais vide) et le `due_hint`. Un booléen `clear_due_hint`
+distingue « laisse l'échéance tranquille » de « il n'y a finalement pas
+d'échéance », ce qu'un champ nullable ne sait pas exprimer avec `None` seul.
+
+**`direction` et `counterparty` restent en lecture seule**, et c'est la
+décision de fond : les changer ne corrigerait pas cet engagement, cela en
+décrirait un autre. Ce qui fait la valeur du registre est qu'il reflète ce
+qui a été dit ; un registre que l'utilisateur peut réécrire entièrement n'est
+plus un registre automatique, c'est une liste de tâches manuelle — la
+fonctionnalité que l'ADR-139 avait explicitement écartée.
+
+La correction porte la **même réclamation atomique** que `close_loop` :
+propriété et statut dans la clause `WHERE`, si bien qu'un engagement clos,
+expiré ou appartenant à quelqu'un d'autre n'est jamais touché et que
+l'appelant l'apprend par la valeur de retour. Une modification vide est un
+no-op explicite plutôt qu'un `UPDATE` qui ne changerait que `updated_at`.
+
+**Surface** : les quatre gestes (fait, relancer, plus d'actualité, corriger)
+sont désormais offerts depuis la fiche d'une relation autant que depuis les
+réglages — le moment où l'on pense à un engagement est celui où l'on regarde
+la personne concernée. La section est renommée « Engagements » et remonte
+dans Réglages → Fonctionnalités ; le lexique de la recherche des réglages
+conserve les deux termes, un renommage qui efface l'ancien mot rendant la
+section introuvable pour qui l'a connue sous son premier nom.

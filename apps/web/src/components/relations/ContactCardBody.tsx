@@ -24,6 +24,7 @@
 
 import {
   AtSign,
+  BriefcaseBusiness,
   Cake,
   CalendarHeart,
   Link2,
@@ -71,7 +72,7 @@ function ContactValueRow({
   href?: string;
 }) {
   return (
-    <p className="flex flex-wrap items-center gap-2 text-sm text-foreground/90">
+    <p className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm text-foreground/90">
       <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       {/* `break-words`, NOT `break-all`: the same row now carries mailboxes and
           URLs (one long unbreakable token, which must be split or it pushes the
@@ -160,15 +161,23 @@ function isBlankCard(card: ContactCard): boolean {
 function CardIdentity({ card }: { card: ContactCard }) {
   const { t } = useTranslation();
   const identity = [card.occupation, card.organization].filter(Boolean).join(' · ');
+  if (!card.nickname && !identity) return null;
   return (
-    <>
+    // The job line leads: it is what a reader recognises a person by once the
+    // name is already in the header above. The nickname follows it, quieter.
+    <div className="flex flex-col gap-0.5">
+      {identity && (
+        <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <BriefcaseBusiness className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+          <span className="min-w-0 break-words">{identity}</span>
+        </p>
+      )}
       {card.nickname && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {t('relations.contact_nickname', { name: card.nickname })}
         </p>
       )}
-      {identity && <p className="text-sm font-medium text-foreground/90">{identity}</p>}
-    </>
+    </div>
   );
 }
 
@@ -182,25 +191,39 @@ export function ContactCardBody({ card, locale }: { card: ContactCard; locale: s
   const { t } = useTranslation();
   const date = (value: string) => partialDateLabel(locale, value);
 
+  const hasReach = card.emails.length + card.phones.length + card.addresses.length > 0;
+  const hasDates = Boolean(card.birthday) || card.important_dates.length > 0;
+  const hasTies = card.relations.length + card.links.length + card.messaging.length > 0;
+
   return (
-    <>
+    <div className="flex flex-col gap-3">
       <CardIdentity card={card} />
-      <ContactBlock icon={AtSign} values={card.emails} />
-      <ContactBlock icon={Phone} values={card.phones} />
-      <ContactBlock icon={MapPin} values={card.addresses} />
-      {card.birthday && (
-        <ContactValueRow
-          icon={Cake}
-          value={date(card.birthday)}
-          label={t('relations.contact_label.birthday')}
-        />
-      )}
-      <ContactBlock icon={CalendarHeart} values={card.important_dates} format={date} />
-      <ContactBlock icon={Users} values={card.relations} />
-      <ContactBlock icon={Link2} values={card.links} linkify />
-      <ContactBlock icon={MessageCircle} values={card.messaging} />
+      {/* Grouped rather than piled: an address book answers three different
+          questions — how do I reach them, which dates matter, who and what are
+          they tied to. One flat stack of rows made the reader scan for the
+          boundary between them; a bordered group per question shows it. */}
+      <ContactGroup show={hasReach}>
+        <ContactBlock icon={AtSign} values={card.emails} />
+        <ContactBlock icon={Phone} values={card.phones} />
+        <ContactBlock icon={MapPin} values={card.addresses} />
+      </ContactGroup>
+      <ContactGroup show={hasDates}>
+        {card.birthday && (
+          <ContactValueRow
+            icon={Cake}
+            value={date(card.birthday)}
+            label={t('relations.contact_label.birthday')}
+          />
+        )}
+        <ContactBlock icon={CalendarHeart} values={card.important_dates} format={date} />
+      </ContactGroup>
+      <ContactGroup show={hasTies}>
+        <ContactBlock icon={Users} values={card.relations} />
+        <ContactBlock icon={Link2} values={card.links} linkify />
+        <ContactBlock icon={MessageCircle} values={card.messaging} />
+      </ContactGroup>
       {card.biography && (
-        <p className="flex gap-2 text-sm italic text-muted-foreground">
+        <p className="flex gap-2 rounded-lg border-l-2 border-border/60 bg-muted/20 px-3 py-2 text-sm italic text-muted-foreground">
           <Quote className="mt-1 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <span className="whitespace-pre-line">{card.biography}</span>
         </p>
@@ -208,6 +231,21 @@ export function ContactCardBody({ card, locale }: { card: ContactCard; locale: s
       {isBlankCard(card) && (
         <p className="text-xs text-muted-foreground">{t('relations.contact_no_details')}</p>
       )}
-    </>
+    </div>
+  );
+}
+
+/**
+ * One themed group of contact rows.
+ *
+ * `show` is computed by the caller from the SAME lists it renders: a group whose
+ * blocks all return null would otherwise draw an empty bordered box.
+ */
+function ContactGroup({ show, children }: { show: boolean; children: React.ReactNode }) {
+  if (!show) return null;
+  return (
+    <div className="divide-y divide-border/40 overflow-hidden rounded-lg border border-border/40 bg-muted/10">
+      {children}
+    </div>
   );
 }

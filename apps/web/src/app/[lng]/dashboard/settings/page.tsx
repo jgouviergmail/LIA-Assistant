@@ -412,7 +412,6 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <CardsDisplaySettings lng={lng} />
               <BriefingGridSettings lng={lng} />
               <ChatShortcutsSettings lng={lng} />
-              <OpenLoopsSection lng={lng} />
 
               {/* Group: Notifications & Communication */}
               <SettingsGroupLabel
@@ -492,6 +491,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
                 <MemorySettings lng={lng} />
               </FeatureErrorBoundary>
               <InterestsSettings lng={lng} />
+              <OpenLoopsSection lng={lng} />
               <FeatureErrorBoundary feature="peer-connections">
                 <PeerConnectionsSettings lng={lng} />
               </FeatureErrorBoundary>
@@ -595,7 +595,6 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <CardsDisplaySettings lng={lng} />
               <BriefingGridSettings lng={lng} />
               <ChatShortcutsSettings lng={lng} />
-              <OpenLoopsSection lng={lng} />
 
               {/* Group: Notifications & Communication */}
               <SettingsGroupLabel
@@ -676,6 +675,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
                 <MemorySettings lng={lng} />
               </FeatureErrorBoundary>
               <InterestsSettings lng={lng} />
+              <OpenLoopsSection lng={lng} />
               <FeatureErrorBoundary feature="peer-connections">
                 <PeerConnectionsSettings lng={lng} />
               </FeatureErrorBoundary>

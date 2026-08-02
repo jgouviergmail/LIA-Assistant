@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class CloseLoopRequest(BaseModel):
@@ -23,6 +23,58 @@ class CloseLoopRequest(BaseModel):
             "Why the user closes the loop: done (completed) | dismissed " "(no longer relevant)."
         ),
     )
+
+
+class UpdateLoopRequest(BaseModel):
+    """Correction of a commitment the extractor read wrong (2026-08-02).
+
+    Only the two fields conversation gets wrong are editable. ``direction`` and
+    ``counterparty`` are not: changing them does not correct this commitment, it
+    describes another one — and the ledger's value is that it reflects what was
+    actually said.
+
+    ``clear_due_hint`` exists because ``None`` cannot mean two things at once:
+    omitting ``due_hint`` leaves the deadline alone, while this flag says "there
+    is no deadline after all".
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    subject: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=500,
+        description="Corrected wording of the commitment.",
+    )
+    due_hint: datetime | None = Field(
+        default=None,
+        description="Corrected advisory deadline (UTC). Omit to leave unchanged.",
+    )
+    clear_due_hint: bool = Field(
+        default=False,
+        description="Drop the deadline entirely (wins over due_hint).",
+    )
+
+    @field_validator("subject")
+    @classmethod
+    def _reject_blank_subject(cls, value: str | None) -> str | None:
+        """A commitment with no wording says nothing to anyone.
+
+        Args:
+            value: Candidate subject.
+
+        Returns:
+            The trimmed subject, or None when the field was omitted.
+
+        Raises:
+            ValueError: The subject was whitespace only.
+        """
+        if value is None:
+            return None
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("subject cannot be blank")
+        return trimmed
 
 
 class OpenLoopResponse(BaseModel):

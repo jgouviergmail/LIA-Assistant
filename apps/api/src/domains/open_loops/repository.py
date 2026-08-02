@@ -8,6 +8,7 @@ mutate → flush): a loop leaves OPEN exactly once, whatever the concurrency
 
 from contextlib import suppress
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 import structlog
@@ -199,6 +200,73 @@ class OpenLoopRepository(BaseRepository[OpenLoop]):
                 )
 
                 track_open_loop_closure(reason)
+        return claimed
+
+    async def update_loop(
+        self,
+        loop_id: UUID,
+        user_id: UUID,
+        *,
+        subject: str | None = None,
+        due_hint: datetime | None = None,
+        clear_due_hint: bool = False,
+    ) -> bool:
+        """Correct what the extractor got wrong, on an OPEN loop.
+
+        The ledger fills itself from conversation, and conversation is
+        approximate: a subject can come out garbled and a deadline can be read
+        from "d'ici vendredi" as the wrong Friday. Only those two are editable —
+        changing the direction or the counterparty would not be a correction but
+        a different commitment.
+
+        Same claim shape as :meth:`close_loop`: ownership AND status live in the
+        WHERE clause, so a closed, expired or foreign loop is never touched and
+        the caller learns it from the return value.
+
+        Args:
+            loop_id: Loop to edit.
+            user_id: Owner (enforced in the WHERE clause).
+            subject: New wording, when the caller sends one.
+            due_hint: New advisory deadline (UTC), when the caller sends one.
+            clear_due_hint: Explicitly drop the deadline. Distinguishes "leave it
+                alone" (the default) from "there is no deadline after all", which
+                a nullable field cannot express with ``None`` alone.
+
+        Returns:
+            True when the row was claimed and updated, False when nothing
+            matched — or when the patch was empty, which is a no-op rather than
+            an UPDATE that would only bump ``updated_at``.
+        """
+        values: dict[str, Any] = {}
+        if subject is not None:
+            values["subject"] = subject
+        if clear_due_hint:
+            values["due_hint"] = None
+        elif due_hint is not None:
+            values["due_hint"] = due_hint
+        if not values:
+            return False
+
+        values["updated_at"] = datetime.now(UTC)
+        stmt = (
+            update(OpenLoop)
+            .where(
+                OpenLoop.id == loop_id,
+                OpenLoop.user_id == user_id,
+                OpenLoop.status == OpenLoopStatus.OPEN.value,
+            )
+            .values(**values)
+        )
+        result = await self.db.execute(stmt)
+        claimed = bool(getattr(result, "rowcount", 0))
+        if claimed:
+            # Field NAMES only: a subject quotes what the user said out loud.
+            logger.info(
+                "open_loop_updated",
+                loop_id=str(loop_id),
+                user_id=str(user_id),
+                fields=sorted(k for k in values if k != "updated_at"),
+            )
         return claimed
 
     async def expire_stale(

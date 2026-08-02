@@ -748,6 +748,153 @@ _INSUFFICIENT_CONTENT_GENERIC: dict[str, str] = {
 }
 
 # =============================================================================
+# SEMANTIC ISSUE → CLARIFICATION QUESTION
+# =============================================================================
+# Asked when a MUTATION plan exhausted its auto-replans and the user has to
+# unblock the turn (semantic_validator_node's safety net).
+#
+# These exist because the node used to recycle the ISSUE DESCRIPTION as the
+# question — English technical literals whose own docstring says they are "for
+# the trace and the replan prompt". Production 2026-08-02 delivered
+# "for_each pattern issue detected" to a French account.
+#
+# Written for someone who has never read the code: no identifier, no internal
+# vocabulary, and always an actual question — the user is being asked to
+# unblock the turn, the sentence must make that obvious. Informal "tu" in
+# French, like the rest of this module.
+# Guarded by tests/unit/core/test_i18n_semantic_clarification.py (completeness,
+# six languages, no jargon) and by an ADR-085 boot assert.
+
+_SEMANTIC_ISSUE_QUESTIONS: dict[str, dict[str, str]] = {
+    # --- Scope: how many items, and which ones ---------------------------
+    "cardinality_mismatch": {
+        "fr": "Veux-tu que je le fasse pour tous les éléments concernés, ou pour un seul ?",
+        "en": "Should I do this for every matching item, or just one?",
+        "es": "¿Lo hago para todos los elementos, o solo para uno?",
+        "de": "Soll ich das für alle betroffenen Einträge tun oder nur für einen?",
+        "it": "Lo faccio per tutti gli elementi, o solo per uno?",
+        "zh-CN": "需要我对所有相关项目执行，还是只对其中一个？",
+    },
+    "for_each_missing_cardinality": {
+        "fr": "Veux-tu que je le fasse pour tous les éléments concernés, ou pour un seul ?",
+        "en": "Should I do this for every matching item, or just one?",
+        "es": "¿Lo hago para todos los elementos, o solo para uno?",
+        "de": "Soll ich das für alle betroffenen Einträge tun oder nur für einen?",
+        "it": "Lo faccio per tutti gli elementi, o solo per uno?",
+        "zh-CN": "需要我对所有相关项目执行，还是只对其中一个？",
+    },
+    "for_each_max_exceeded": {
+        "fr": "Cela concerne beaucoup d'éléments. Sur combien veux-tu que j'agisse ?",
+        "en": "That covers a lot of items. How many should I act on?",
+        "es": "Esto afecta a muchos elementos. ¿Sobre cuántos quieres que actúe?",
+        "de": "Das betrifft viele Einträge. Bei wie vielen soll ich handeln?",
+        "it": "Riguarda molti elementi. Su quanti vuoi che agisca?",
+        "zh-CN": "这涉及很多项目。您希望我处理多少个？",
+    },
+    "scope_overflow": {
+        "fr": "Je risque d'en faire plus que ce que tu demandes. Peux-tu préciser ce que je dois traiter ?",
+        "en": "I might do more than you asked. Can you tell me exactly what to cover?",
+        "es": "Podría hacer más de lo que pides. ¿Puedes precisar qué debo tratar?",
+        "de": "Ich würde mehr tun als gewünscht. Kannst du genauer sagen, was ich abdecken soll?",
+        "it": "Rischio di fare più di quanto chiedi. Puoi precisare cosa devo trattare?",
+        "zh-CN": "我可能会超出您的要求。能否明确我需要处理的范围？",
+    },
+    "scope_underflow": {
+        "fr": "Je risque d'en oublier une partie. Peux-tu préciser tout ce que je dois traiter ?",
+        "en": "I might leave part of it out. Can you tell me everything I should cover?",
+        "es": "Podría dejarme una parte. ¿Puedes precisar todo lo que debo tratar?",
+        "de": "Ich könnte einen Teil auslassen. Kannst du sagen, was alles dazugehört?",
+        "it": "Rischio di tralasciare una parte. Puoi precisare tutto ciò che devo trattare?",
+        "zh-CN": "我可能会遗漏一部分。能否说明我需要处理的全部内容？",
+    },
+    # --- Missing or wrong information ------------------------------------
+    "insufficient_content": {
+        "fr": "Il me manque des informations pour agir. Peux-tu m'en dire un peu plus ?",
+        "en": "I am missing some information to act. Can you tell me a bit more?",
+        "es": "Me falta información para actuar. ¿Puedes contarme un poco más?",
+        "de": "Mir fehlen Informationen zum Handeln. Kannst du mir mehr sagen?",
+        "it": "Mi mancano informazioni per agire. Puoi dirmi qualcosa in più?",
+        "zh-CN": "我还缺少一些信息才能执行。您能再补充一点吗？",
+    },
+    "wrong_parameters": {
+        "fr": "Certaines informations ne me semblent pas justes. Peux-tu me les confirmer ?",
+        "en": "Some of the details do not look right. Can you confirm them?",
+        "es": "Algunos datos no me parecen correctos. ¿Puedes confirmármelos?",
+        "de": "Einige Angaben wirken nicht stimmig. Kannst du sie bestätigen?",
+        "it": "Alcune informazioni non mi sembrano corrette. Puoi confermarmele?",
+        "zh-CN": "有些信息看起来不太对。您能确认一下吗？",
+    },
+    "missing_step": {
+        "fr": "Il me manque une étape pour aller au bout. Peux-tu me préciser ce que tu attends ?",
+        "en": "I am missing a step to see this through. Can you tell me what you expect?",
+        "es": "Me falta un paso para completarlo. ¿Puedes precisar qué esperas?",
+        "de": "Mir fehlt ein Schritt bis zum Ende. Kannst du sagen, was du erwartest?",
+        "it": "Mi manca un passaggio per arrivare in fondo. Puoi precisare cosa ti aspetti?",
+        "zh-CN": "我还缺少一个步骤才能完成。您能说明期望的结果吗？",
+    },
+    # --- Ambiguity: acting now would be a guess ---------------------------
+    "dangerous_ambiguity": {
+        "fr": "Ta demande peut se comprendre de plusieurs façons, et l'action est irréversible. Peux-tu confirmer ce que je dois faire ?",
+        "en": "Your request can be read several ways and the action cannot be undone. Can you confirm what I should do?",
+        "es": "Tu petición puede entenderse de varias formas y la acción es irreversible. ¿Puedes confirmar qué debo hacer?",
+        "de": "Deine Anfrage lässt mehrere Deutungen zu und die Aktion ist endgültig. Kannst du bestätigen, was ich tun soll?",
+        "it": "La tua richiesta si può intendere in più modi e l'azione è irreversibile. Puoi confermare cosa devo fare?",
+        "zh-CN": "您的请求有多种理解方式，而该操作无法撤销。能否确认我应该怎么做？",
+    },
+    "implicit_assumption": {
+        "fr": "Je devrais deviner une information que tu n'as pas donnée. Peux-tu me la préciser ?",
+        "en": "I would have to guess something you have not told me. Can you fill it in?",
+        "es": "Tendría que adivinar un dato que no me has dado. ¿Puedes precisármelo?",
+        "de": "Ich müsste etwas erraten, das du nicht gesagt hast. Kannst du es ergänzen?",
+        "it": "Dovrei indovinare un dato che non mi hai dato. Puoi precisarmelo?",
+        "zh-CN": "我需要猜测您未提供的信息。能否补充说明？",
+    },
+    # --- The assistant cannot do it as asked ------------------------------
+    "hallucinated_capability": {
+        "fr": "Je ne sais pas faire cela tel quel. Peux-tu me dire autrement ce que tu veux obtenir ?",
+        "en": "I cannot do that as asked. Can you tell me differently what you want to achieve?",
+        "es": "No sé hacer eso tal cual. ¿Puedes decirme de otra forma qué quieres conseguir?",
+        "de": "So kann ich das nicht tun. Kannst du anders beschreiben, was du erreichen willst?",
+        "it": "Non so farlo così com'è. Puoi dirmi in altro modo cosa vuoi ottenere?",
+        "zh-CN": "我无法按原样完成。您能换个方式说明想达成什么吗？",
+    },
+    # --- The plan does not hold together ----------------------------------
+    "ghost_dependency": {
+        "fr": "Je n'arrive pas à enchaîner les étapes de ta demande. Peux-tu me la décrire en une phrase simple ?",
+        "en": "I cannot chain the steps of your request. Can you describe it in one simple sentence?",
+        "es": "No consigo encadenar los pasos de tu petición. ¿Puedes describirla en una frase sencilla?",
+        "de": "Ich bekomme die Schritte nicht verkettet. Kannst du es in einem einfachen Satz beschreiben?",
+        "it": "Non riesco a concatenare i passaggi. Puoi descrivermelo in una frase semplice?",
+        "zh-CN": "我无法把各个步骤串联起来。能否用一句话简单描述？",
+    },
+    "logical_cycle": {
+        "fr": "Les étapes de ta demande tournent en rond. Peux-tu me dire par quoi commencer ?",
+        "en": "The steps of your request loop back on themselves. Can you tell me where to start?",
+        "es": "Los pasos de tu petición dan vueltas. ¿Puedes decirme por dónde empezar?",
+        "de": "Die Schritte drehen sich im Kreis. Kannst du sagen, womit ich anfangen soll?",
+        "it": "I passaggi girano in tondo. Puoi dirmi da dove cominciare?",
+        "zh-CN": "这些步骤形成了循环。能否告诉我应该从哪里开始？",
+    },
+    "for_each_invalid_reference": {
+        "fr": "Je n'arrive pas à relier cette action aux éléments concernés. Peux-tu me dire sur quoi l'appliquer ?",
+        "en": "I cannot tie this action to the items involved. Can you tell me what to apply it to?",
+        "es": "No consigo vincular esta acción con los elementos. ¿Puedes decirme sobre qué aplicarla?",
+        "de": "Ich kann die Aktion den Einträgen nicht zuordnen. Worauf soll ich sie anwenden?",
+        "it": "Non riesco a collegare l'azione agli elementi. Puoi dirmi su cosa applicarla?",
+        "zh-CN": "我无法把该操作与相关项目对应起来。能否说明应用到哪些内容？",
+    },
+    "for_each_missing_item_ref": {
+        "fr": "Je ne sais pas à quels éléments appliquer cette action. Peux-tu me les indiquer ?",
+        "en": "I do not know which items to apply this to. Can you point them out?",
+        "es": "No sé a qué elementos aplicar esto. ¿Puedes indicármelos?",
+        "de": "Ich weiß nicht, auf welche Einträge ich das anwenden soll. Kannst du sie nennen?",
+        "it": "Non so a quali elementi applicarlo. Puoi indicarmeli?",
+        "zh-CN": "我不知道该对哪些项目执行。能否指明？",
+    },
+}
+
+
+# =============================================================================
 # INSUFFICIENT CONTENT FIELD-SPECIFIC QUESTIONS
 # =============================================================================
 # Questions for each specific field, used in multi-turn clarification flow.
@@ -2105,6 +2252,83 @@ class HitlMessages:
 
         # Fallback to generic question
         return _INSUFFICIENT_CONTENT_GENERIC.get(lang, _INSUFFICIENT_CONTENT_GENERIC["en"])
+
+    @staticmethod
+    def get_semantic_issue_question(issue_type: str, language: str) -> str:
+        """Get the clarification question to ask for a semantic issue.
+
+        Used when a mutation plan exhausted its auto-replans: the user is asked
+        to unblock the turn. NEVER surface the issue's own ``description`` —
+        those are English technical literals meant for the trace and the replan
+        prompt (prod 2026-08-02: "for_each pattern issue detected" was shown to
+        a French account).
+
+        Args:
+            issue_type: ``SemanticIssueType`` value (e.g. "cardinality_mismatch").
+            language: Language code (fr, en, es, de, it, zh-CN, or a variant).
+
+        Returns:
+            A localized question. Falls back to the generic clarification
+            question for an unmapped type, so the user is never left with an
+            empty prompt — a boot assert keeps that path unreachable for known
+            types.
+
+        Example:
+            >>> HitlMessages.get_semantic_issue_question("cardinality_mismatch", "fr")
+            'Veux-tu que je le fasse pour tous les éléments concernés, ou pour un seul ?'
+        """
+        lang = HitlMessages._normalize_language(language)
+        entry = _SEMANTIC_ISSUE_QUESTIONS.get(issue_type)
+        if entry:
+            return entry.get(lang, entry["en"])
+
+        return _INSUFFICIENT_CONTENT_GENERIC.get(lang, _INSUFFICIENT_CONTENT_GENERIC["en"])
+
+    @staticmethod
+    def assert_semantic_issue_questions_coverage() -> None:
+        """Fail fast when the question table and ``SemanticIssueType`` disagree.
+
+        ADR-085 pattern, checked in BOTH directions. A missing entry silently
+        degrades the safety-net clarification to a generic question — the very
+        vagueness this table replaced, and invisible until a user hits it. An
+        entry keyed on something the enum never yields is dead weight that reads
+        as coverage: the enum declares ``MISSING_DEPENDENCY`` and
+        ``AMBIGUOUS_INTENT`` as ALIASES of ``ghost_dependency`` /
+        ``dangerous_ambiguity``, so a table keyed on the alias NAME can never be
+        reached — which is exactly how this table was first written.
+
+        Raises:
+            AssertionError: A type has no entry, an entry has no matching type,
+                or an entry misses a language.
+        """
+        from src.domains.agents.orchestration.validation_models import SemanticIssueType
+
+        expected_languages = set(SUPPORTED_LANGUAGES)
+        # `SemanticIssueType` iterates over CANONICAL members only; aliases share
+        # their target's value, so this set is exactly what reaches the lookup.
+        known_values = {issue.value for issue in SemanticIssueType}
+
+        missing_types = sorted(known_values - set(_SEMANTIC_ISSUE_QUESTIONS))
+        assert not missing_types, (
+            f"SemanticIssueType(s) without a clarification question: {missing_types}. "
+            f"Add them to _SEMANTIC_ISSUE_QUESTIONS in i18n_hitl."
+        )
+
+        unreachable = sorted(set(_SEMANTIC_ISSUE_QUESTIONS) - known_values)
+        assert not unreachable, (
+            f"Clarification questions no SemanticIssueType can yield: {unreachable}. "
+            f"An enum ALIAS is not a key — use the value it aliases."
+        )
+
+        incomplete = {
+            issue_type: sorted(expected_languages - set(entry))
+            for issue_type, entry in _SEMANTIC_ISSUE_QUESTIONS.items()
+            if expected_languages - set(entry)
+        }
+        assert not incomplete, (
+            f"Clarification questions missing languages: {incomplete}. "
+            f"A user on a missing language would silently get another one."
+        )
 
     @staticmethod
     def get_insufficient_content_patterns(domain: str) -> list[str]:

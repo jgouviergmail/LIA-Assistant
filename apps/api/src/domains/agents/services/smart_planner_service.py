@@ -28,8 +28,6 @@ from langchain_core.runnables import RunnableConfig
 
 from src.core.constants import (
     FOR_EACH_STEP_ATTRIBUTES,
-    PLANNER_FIELD_TO_PARAM_NAMES,
-    PLANNER_PRESERVABLE_PARAM_NAMES,
     V3_PLANNER_DOMAIN_FULL_TOKENS,
 )
 from src.core.context import exclude_sub_agents_from_prompt, panic_mode_attempted
@@ -42,6 +40,10 @@ from src.domains.agents.semantic.expansion_service import (
 )
 from src.domains.agents.services.planner.human_message import build_planner_human_message
 from src.domains.agents.services.planner.parameter_bounds import clamp_parameters_to_manifest
+from src.domains.agents.services.planner.parameter_restoration import (
+    preserved_parameters_for_prompt,
+    restore_and_report,
+)
 from src.domains.agents.services.planner.planning_result import PlanningResult
 from src.domains.agents.services.smart_catalogue_service import (
     FilteredCatalogue,
@@ -447,7 +449,13 @@ class SmartPlannerService:
                 )
 
             # Build ExecutionPlan
-            plan = self._build_plan(parse_result.data, intelligence, config)  # type: ignore
+            plan = self._build_plan(
+                parse_result.data,  # type: ignore[arg-type]  # parser returns Any|None
+                intelligence,
+                config,
+                existing_plan,
+                clarification_field,
+            )
 
             # Calculate savings
             full_tokens = self._estimate_full_catalogue_tokens(intelligence.domains)
@@ -461,10 +469,15 @@ class SmartPlannerService:
             )
 
         except ValueError as e:
-            # Hallucinated tool detected - specific handling
+            # A rejected tool name OR a step the model left incomplete: both
+            # surface as ValueError (pydantic's ValidationError IS one), and the
+            # turn ends as a clean planning failure rather than a crash. The
+            # event name stays neutral — naming a cause we have not established
+            # is the invented diagnosis ADR-182 removed.
             logger.warning(
-                "smart_planner_hallucinated_tool",
+                "smart_planner_step_rejected",
                 error=str(e),
+                error_type=type(e).__name__,
                 domain=intelligence.primary_domain,
             )
             return PlanningResult(
@@ -596,7 +609,13 @@ class SmartPlannerService:
                     error=f"Generative planning failed: {parse_result.error}",
                 )
 
-            plan = self._build_plan(parse_result.data, intelligence, config)  # type: ignore
+            plan = self._build_plan(
+                parse_result.data,  # type: ignore[arg-type]  # parser returns Any|None
+                intelligence,
+                config,
+                existing_plan,
+                clarification_field,
+            )
 
             return PlanningResult(
                 plan=plan,
@@ -606,10 +625,12 @@ class SmartPlannerService:
             )
 
         except ValueError as e:
-            # Hallucinated tool detected - specific handling
+            # See the sibling handler above: rejected tool name or incomplete
+            # step, both ending as a clean planning failure.
             logger.warning(
-                "smart_planner_hallucinated_tool",
+                "smart_planner_step_rejected",
                 error=str(e),
+                error_type=type(e).__name__,
                 domains=intelligence.domains,
             )
             return PlanningResult(
@@ -722,7 +743,7 @@ class SmartPlannerService:
         # =========================================================================
         if existing_plan and clarification_field:
             try:
-                preserved_params = self._extract_preserved_parameters(
+                preserved_params = preserved_parameters_for_prompt(
                     existing_plan, clarification_field
                 )
             except Exception as e:
@@ -1102,71 +1123,6 @@ class SmartPlannerService:
             "   sub-agent's analysis returns.\n"
         )
 
-    def _extract_preserved_parameters(
-        self,
-        existing_plan: "ExecutionPlan",
-        clarification_field: str,
-    ) -> dict[str, Any]:
-        """
-        Extract parameters from existing plan that should be preserved.
-
-        When replanning after a clarification, we want to preserve parameters
-        that were already set (from previous clarifications or original query),
-        EXCEPT for the field currently being clarified.
-
-        Args:
-            existing_plan: The previous execution plan
-            clarification_field: The field being clarified (to exclude from preservation)
-
-        Returns:
-            Dict of parameter_name -> value for parameters to preserve
-
-        Note:
-            Uses PLANNER_PRESERVABLE_PARAM_NAMES and PLANNER_FIELD_TO_PARAM_NAMES
-            from constants.py, which are automatically derived from
-            INSUFFICIENT_CONTENT_REQUIRED_FIELDS to ensure consistency.
-        """
-        preserved: dict[str, Any] = {}
-
-        if not existing_plan or not existing_plan.steps:
-            return preserved
-
-        # Get all param_names that correspond to the clarification_field
-        # Example: clarification_field="body" → skip {"body", "content", "content_instruction"}
-        # This handles the case where tool uses "content_instruction" but we clarify "body"
-        params_to_skip = PLANNER_FIELD_TO_PARAM_NAMES.get(clarification_field, frozenset())
-        # Also include the clarification_field itself in case it's a direct match
-        params_to_skip = params_to_skip | {clarification_field}
-
-        # Look at all steps to preserve parameters across the plan
-        for step in existing_plan.steps:
-            if not step.parameters:
-                continue
-
-            for param_name, param_value in step.parameters.items():
-                # Skip all param_names related to the field being clarified
-                # This correctly handles "body" vs "content_instruction" mismatch
-                if param_name in params_to_skip:
-                    continue
-
-                # Skip non-preservable fields (like IDs, flags, etc.)
-                # Uses centralized constant derived from INSUFFICIENT_CONTENT_REQUIRED_FIELDS
-                if param_name not in PLANNER_PRESERVABLE_PARAM_NAMES:
-                    continue
-
-                # Skip empty/None values
-                if param_value is None or param_value == "":
-                    continue
-
-                # Skip values that look like placeholders or references
-                if isinstance(param_value, str):
-                    if param_value.startswith("$steps.") or param_value.startswith("{{"):
-                        continue
-
-                preserved[param_name] = param_value
-
-        return preserved
-
     def _get_field_specific_instruction(self, clarification_field: str) -> str:
         """
         Get field-specific instruction for clarification injection.
@@ -1376,8 +1332,21 @@ class SmartPlannerService:
         plan_data: dict,
         intelligence: QueryIntelligence,
         config: RunnableConfig,
+        existing_plan: "ExecutionPlan | None" = None,
+        clarification_field: str | None = None,
     ) -> "ExecutionPlan":
-        """Build ExecutionPlan from LLM response."""
+        """Build ExecutionPlan from LLM response.
+
+        Args:
+            plan_data: The LLM's parsed output.
+            intelligence: The analyzed query.
+            config: LangGraph runnable config.
+            existing_plan: The plan this one replaces, when replanning. Used to
+                put back a parameter the replan fabricated (ADR-184 mechanical
+                repair) — see `restore_fabricated_parameters`.
+            clarification_field: The field the user was just asked about, whose
+                parameters the previous plan no longer speaks for.
+        """
         from src.core.config import get_settings
         from src.domains.agents.orchestration.plan_schemas import ExecutionStep, StepType
 
@@ -1516,9 +1485,14 @@ class SmartPlannerService:
             )
 
             step = ExecutionStep(
-                step_id=step_data.get("id", "step_1"),
+                step_id=step_data.get("id") or "step_1",
                 step_type=StepType.TOOL,
-                agent_name=step_data.get("agent_name", f"{intelligence.primary_domain}_agent"),
+                # `or`, not `.get(k, default)`: a default only applies to an ABSENT
+                # key, and a model that emits `"agent_name": null` would slip a None
+                # through — which the step now refuses outright (ADR-195). Naming
+                # the agent from the domain is the same fallback as before, it just
+                # also covers the explicit-null case.
+                agent_name=step_data.get("agent_name") or f"{intelligence.primary_domain}_agent",
                 tool_name=normalized_tool_name,
                 parameters=parameters,
                 depends_on=step_data.get("depends_on", []),
@@ -1549,6 +1523,15 @@ class SmartPlannerService:
         resolved_skill = self._resolve_plan_skill_name(skill_name, intelligence, config)
         if resolved_skill:
             plan.metadata["skill_name"] = resolved_skill
+
+        # Mechanical repair, same doctrine as the parameter clamping above
+        # (ADR-184): a replan that re-invents a contact detail it had right on
+        # the previous pass gets it back rather than being rejected in a loop.
+        # Only ever replaces a FABRICATED value, so a change of mind always wins.
+        # The deterministic counterpart of the "PRESERVED PARAMETERS" prompt
+        # section, which can only ASK the model to keep them — and is skipped
+        # for the clarified field for the same reason this repair skips it.
+        restore_and_report(plan, existing_plan, clarification_field)
 
         return plan
 

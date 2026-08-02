@@ -193,7 +193,17 @@ class SingleDomainStrategy:
                 )
 
             # Build ExecutionPlan (delegate to service)
-            plan = self.service._build_plan(parse_result.data, intelligence, config)
+            # `existing_plan` / `clarification_field` are threaded through so the
+            # mechanical repair of fabricated parameters can run on the NOMINAL
+            # path too (ADR-195). Omitting them left the repair wired only to the
+            # panic-mode fallback, where it would almost never fire.
+            plan = self.service._build_plan(
+                parse_result.data,
+                intelligence,
+                config,
+                existing_plan,
+                clarification_field,
+            )
 
             # Calculate savings
             full_tokens = self.service._estimate_full_catalogue_tokens(intelligence.domains)
@@ -207,10 +217,15 @@ class SingleDomainStrategy:
             )
 
         except ValueError as e:
-            # Hallucinated tool detected - specific handling
+            # A rejected tool name OR a step the model left incomplete: both
+            # surface as ValueError (pydantic's ValidationError IS one), and the
+            # turn ends as a clean planning failure rather than a crash. The event
+            # name stays neutral — naming a cause we have not established is the
+            # invented diagnosis ADR-182 removed.
             logger.warning(
-                "smart_planner_hallucinated_tool",
+                "smart_planner_step_rejected",
                 error=str(e),
+                error_type=type(e).__name__,
                 domain=intelligence.primary_domain,
             )
             return PlanningResult(

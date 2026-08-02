@@ -44,3 +44,26 @@ Yes. "When did I last call Marie?", "what do I owe her?", "what did we pass on t
 Before, a question about a call could produce a plan to **phone her and ask**: the telephony domain only knew how to place calls, so covering its own domain meant acting. LIA now reads your **past calls**, your **open commitments** and the **relayed messages**, through exactly the same computation as the relationship card — so the assistant and the card cannot give you two different answers.
 
 The total count is always exact, next to the page shown.
+
+## Can I act on a commitment from a person's card?
+
+Yes. A relationship's card lists the open commitments with that person — what
+you owe them, what you are waiting for — and offers four gestures on each:
+**Done**, **Follow up** (opens the chat with a message already written, without
+sending it), **No longer relevant** and **Correct**.
+
+The correction covers the wording and the deadline. The ledger fills itself from
+your conversations, so it sometimes mishears a sentence, or reads "by Friday" as
+the wrong Friday. The other party and the meaning cannot be edited: changing
+those would describe a *different* commitment rather than correct this one.
+
+The same gestures live in Settings → Features → "Commitments", which lists them
+all, across every person.
+
+## In what order does a relationship card read?
+
+The **contact card** always opens the left column — everything below it assumes
+you already know who the person is — and the **LIA connection**, when there is
+one, always closes it: that is a note *about* the relationship, not one of its
+contents. The address-book details themselves read as three groups: how to reach
+the person, which dates matter, and who they are tied to.

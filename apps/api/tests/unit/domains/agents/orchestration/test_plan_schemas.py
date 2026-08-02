@@ -48,38 +48,99 @@ class TestExecutionStep:
         assert step.description == "Search for contacts named John"
 
     def test_tool_step_requires_agent_name(self):
-        """Test that TOOL step validation requires agent_name.
+        """A TOOL step without an agent is refused AT CONSTRUCTION.
 
-        Note: Pydantic field validators run in order of field definition.
-        The agent_name validator checks if step_type is TOOL, but due to
-        field order, step_type may not be set when agent_name is validated.
-        The validation happens at ExecutionPlan level for complete validation.
+        It used to be accepted: Pydantic does not validate default values, so an
+        omitted ``agent_name`` never reached its field validator. The previous
+        version of this test enshrined that as "by design — plan-level validation
+        catches issues"; measured, the plan accepted it too, so nothing caught it.
+
+        It was not harmless. On the way back from a checkpoint the field IS
+        passed explicitly as None, the validator fires, the constructor raises,
+        and the step degrades to a plain dict with no error surfaced — after
+        which `parallel_executor` reads `step.step_id` and dies. Refusing the
+        object up front turns a silent corruption into an immediate, located
+        failure (ADR-195).
         """
-        # Direct creation may not raise (depends on field order)
-        # This behavior is by design - plan-level validation catches issues
+        with pytest.raises(ValidationError, match="agent_name"):
+            ExecutionStep(
+                step_id="step_1",
+                step_type=StepType.TOOL,
+                tool_name="search_contacts_tool",
+            )
+
+    def test_tool_step_refuses_an_explicitly_null_agent_name(self):
+        """Omitted and explicitly-None must behave identically.
+
+        The old field validator only caught the second one — the asymmetry is
+        exactly what let the defect through.
+        """
+        with pytest.raises(ValidationError, match="agent_name"):
+            ExecutionStep(
+                step_id="step_1",
+                step_type=StepType.TOOL,
+                agent_name=None,
+                tool_name="search_contacts_tool",
+            )
+
+    def test_a_non_tool_step_needs_neither_agent_nor_tool(self):
+        """The rule is scoped to TOOL steps and must not leak to the others."""
         step = ExecutionStep(
             step_id="step_1",
-            step_type=StepType.TOOL,
-            tool_name="search_contacts_tool",
-            # Missing agent_name - allowed at step creation
+            step_type=StepType.CONDITIONAL,
+            condition="$steps.step_0.success",
         )
-        # Step is created but incomplete for TOOL type
+
         assert step.agent_name is None
-        assert step.step_type == StepType.TOOL
+        assert step.tool_name is None
+
+    def test_a_valid_tool_step_survives_a_checkpoint_round_trip(self):
+        """The property the rule protects, end to end.
+
+        Pinned here and not only in the checkpoint guard: this is the reason the
+        rule exists, and a reader of this model should see it.
+        """
+        from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+
+        from src.domains.conversations.checkpointer import _CHECKPOINT_ALLOWED_MODULES
+
+        serde = JsonPlusSerializer(allowed_msgpack_modules=_CHECKPOINT_ALLOWED_MODULES)
+        plan = ExecutionPlan(
+            plan_id="p1",
+            user_id="u1",
+            session_id="s1",
+            steps=[
+                ExecutionStep(
+                    step_id="step_1",
+                    step_type=StepType.TOOL,
+                    agent_name="contacts_agent",
+                    tool_name="search_contacts_tool",
+                )
+            ],
+        )
+
+        restored = serde.loads_typed(serde.dumps_typed(plan))
+
+        assert isinstance(restored.steps[0], ExecutionStep)
 
     def test_tool_step_requires_tool_name(self):
-        """Test that TOOL step validation requires tool_name.
+        """Same rule, other field: a TOOL step with no tool is refused."""
+        with pytest.raises(ValidationError, match="tool_name"):
+            ExecutionStep(
+                step_id="step_1",
+                step_type=StepType.TOOL,
+                agent_name="contacts_agent",
+            )
 
-        Note: Similar to agent_name - field order affects validation timing.
-        """
-        step = ExecutionStep(
-            step_id="step_1",
-            step_type=StepType.TOOL,
-            agent_name="contacts_agent",
-            # Missing tool_name - allowed at step creation
-        )
-        assert step.tool_name is None
-        assert step.step_type == StepType.TOOL
+    def test_a_tool_step_missing_both_reports_both(self):
+        """One message naming every missing field beats fixing them one by one."""
+        with pytest.raises(ValidationError) as exc_info:
+            ExecutionStep(step_id="step_1", step_type=StepType.TOOL)
+
+        message = str(exc_info.value)
+        assert "agent_name" in message
+        assert "tool_name" in message
+        assert "step_1" in message, "the message must locate the offending step"
 
     def test_conditional_step_creation(self):
         """Test creating a CONDITIONAL step."""
@@ -98,18 +159,16 @@ class TestExecutionStep:
         assert step.on_fail == "step_4"
 
     def test_conditional_step_requires_condition(self):
-        """Test that CONDITIONAL step validation expects condition.
+        """A CONDITIONAL step with nothing to evaluate is refused too.
 
-        Note: Same field order issue as TOOL steps - condition validation
-        depends on step_type being set first.
+        Its field validator had the same blind spot as the TOOL ones: an omitted
+        `condition` never reached it.
         """
-        step = ExecutionStep(
-            step_id="step_2",
-            step_type=StepType.CONDITIONAL,
-            # Missing condition - allowed at step creation
-        )
-        assert step.condition is None
-        assert step.step_type == StepType.CONDITIONAL
+        with pytest.raises(ValidationError, match="condition"):
+            ExecutionStep(
+                step_id="step_2",
+                step_type=StepType.CONDITIONAL,
+            )
 
     def test_step_id_validation_not_empty(self):
         """Test that step_id cannot be empty."""
@@ -555,3 +614,27 @@ class TestPlanValidationError:
             raise error
 
         assert exc_info.value.message == "Test error"
+
+
+class TestRequiredFieldsRegistry:
+    """The table driving the rule must stay in sync with the model itself."""
+
+    def test_every_step_type_has_an_entry(self):
+        """ADR-085: an empty entry is a decision, an absent one is an oversight."""
+        from src.domains.agents.orchestration.plan_schemas import _REQUIRED_FIELDS_BY_STEP_TYPE
+
+        assert set(_REQUIRED_FIELDS_BY_STEP_TYPE) == set(StepType)
+
+    def test_every_listed_field_exists_on_the_model(self):
+        """A typo would make the field permanently 'missing'.
+
+        The rule reads through ``getattr(..., None)``, so a misspelt name would
+        never resolve and every step of that type would be rejected forever —
+        with a message naming a field the model does not have.
+        """
+        from src.domains.agents.orchestration.plan_schemas import _REQUIRED_FIELDS_BY_STEP_TYPE
+
+        listed = {field for fields in _REQUIRED_FIELDS_BY_STEP_TYPE.values() for field in fields}
+        unknown = sorted(listed - set(ExecutionStep.model_fields))
+
+        assert not unknown, f"required fields absent from ExecutionStep: {unknown}"

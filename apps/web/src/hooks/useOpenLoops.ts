@@ -28,6 +28,14 @@ export interface OpenLoop {
 
 export type CloseLoopAction = 'done' | 'dismissed';
 
+/** Fields a user may correct on a commitment the extractor read wrong. */
+export interface OpenLoopPatch {
+  subject?: string;
+  due_hint?: string | null;
+  /** `due_hint: null` cannot mean both "unchanged" and "no deadline". */
+  clear_due_hint?: boolean;
+}
+
 /** Direction groups, preserving the server order (due first, then age). */
 export function groupLoops(loops: OpenLoop[]): {
   owed: OpenLoop[];
@@ -54,6 +62,8 @@ export interface UseOpenLoopsReturn {
   loadError: boolean;
   refetch: () => void;
   close: (id: string, action: CloseLoopAction) => Promise<boolean>;
+  /** Correct wording/deadline. Resolves false when the server refused. */
+  update: (id: string, patch: OpenLoopPatch) => Promise<boolean>;
 }
 
 export function useOpenLoops(enabled = true): UseOpenLoopsReturn {
@@ -63,10 +73,31 @@ export function useOpenLoops(enabled = true): UseOpenLoopsReturn {
   );
   // Optimistic removals (closed ids) — derived-with-override, no sync effect.
   const [removedIds, setRemovedIds] = useState<ReadonlySet<string>>(new Set());
-  const loops = (data?.items ?? []).filter(l => !removedIds.has(l.id));
+  // Same doctrine for edits: the server's row wins on the next fetch, but the
+  // user sees their correction immediately instead of a value they just changed.
+  const [edits, setEdits] = useState<Readonly<Record<string, OpenLoopPatch>>>({});
+  const loops = (data?.items ?? [])
+    .filter(l => !removedIds.has(l.id))
+    .map(l => {
+      const patch = edits[l.id];
+      if (!patch) return l;
+      return {
+        ...l,
+        ...(patch.subject !== undefined ? { subject: patch.subject } : {}),
+        ...(patch.clear_due_hint
+          ? { due_hint: null }
+          : patch.due_hint !== undefined
+            ? { due_hint: patch.due_hint }
+            : {}),
+      };
+    });
 
   const { mutate } = useApiMutation<{ action: CloseLoopAction }, OpenLoop>({
     method: 'POST',
+    componentName: 'useOpenLoops',
+  });
+  const { mutate: patchLoop } = useApiMutation<OpenLoopPatch, OpenLoop>({
+    method: 'PATCH',
     componentName: 'useOpenLoops',
   });
 
@@ -88,6 +119,28 @@ export function useOpenLoops(enabled = true): UseOpenLoopsReturn {
     [mutate]
   );
 
+  const update = useCallback(
+    async (id: string, patch: OpenLoopPatch): Promise<boolean> => {
+      const previous = edits[id];
+      setEdits(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+      try {
+        await patchLoop(`/open-loops/${id}`, patch);
+        return true;
+      } catch {
+        // Put the row back the way it was: showing an edit the server refused
+        // is worse than showing none — the user would believe it was saved.
+        setEdits(prev => {
+          const next = { ...prev };
+          if (previous) next[id] = previous;
+          else delete next[id];
+          return next;
+        });
+        return false;
+      }
+    },
+    [edits, patchLoop]
+  );
+
   // 404 = the router is not mounted on this instance (flag off) → the
   // surface genuinely does not exist. Anything else (network, 5xx) is
   // TRANSIENT — hiding the section on a blip would silently lose the
@@ -100,5 +153,6 @@ export function useOpenLoops(enabled = true): UseOpenLoopsReturn {
     loadError: !!error && !notFound,
     refetch,
     close,
+    update,
   };
 }

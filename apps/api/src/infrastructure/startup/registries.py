@@ -1,8 +1,8 @@
 """Startup steps: registries and fail-fast boot validations.
 
 Groups the lifespan steps that guarantee every registry is complete and
-populated before the first request: eager SQLAlchemy model imports, boot-time
-completeness gates (ADR-085 family) and tool schema registration.
+populated before the first request: eager SQLAlchemy model imports and
+boot-time completeness gates (ADR-085 family).
 
 Extracted verbatim from ``src.main.lifespan`` (ADR-123): same structlog
 events, same exception handling. The lifespan remains the single
@@ -12,7 +12,6 @@ orchestration point — these functions are only called from there.
 import structlog
 
 from src.core.bootstrap import (
-    register_tool_schemas,
     validate_llm_configuration,
     validate_tool_error_codes,
 )
@@ -109,6 +108,19 @@ def run_failfast_validations() -> None:
         logger.error("hitl_classifier_examples_incomplete", error=str(exc), exc_info=True)
         raise RuntimeError(f"HITL classifier examples incomplete: {exc}") from exc
 
+    # Validate semantic-issue clarification questions (ADR-085 pattern: fail-fast
+    # if a SemanticIssueType can be raised without a localized question behind
+    # it — the safety-net clarification would degrade to a generic prompt, or
+    # worse, to the issue's English technical description as it did in prod
+    # 2026-08-02).
+    try:
+        from src.core.i18n_hitl import HitlMessages
+
+        HitlMessages.assert_semantic_issue_questions_coverage()
+    except AssertionError as exc:
+        logger.error("semantic_issue_questions_incomplete", error=str(exc), exc_info=True)
+        raise RuntimeError(f"Semantic issue clarification questions incomplete: {exc}") from exc
+
     # Validate registry content-trust classification (ADR-085 pattern: fail-fast
     # if a RegistryItemType has been added without declaring whether its payload
     # can carry third-party free text — it would reach the LLM unmarked).
@@ -144,18 +156,3 @@ def init_response_feedback_hooks() -> None:
     from src.domains.journals.feedback_hooks import JournalResponseFeedbackHooks
 
     register_journal_feedback_hooks(JournalResponseFeedbackHooks())
-
-
-def init_tool_schemas() -> None:
-    """Register tool schemas (Phase 2.1 - Issue #32).
-
-    Must be called early to populate the schema registry before first request.
-
-    Raises:
-        RuntimeError: If tool schema registration fails.
-    """
-    try:
-        register_tool_schemas()
-    except RuntimeError as exc:
-        logger.error("tool_schema_registration_failed", error=str(exc), exc_info=True)
-        raise RuntimeError(f"Failed to register tool schemas: {exc}") from exc

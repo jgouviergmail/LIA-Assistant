@@ -21,6 +21,7 @@ any template, use generative planning (LLM).
 Templates cover 80% (Pareto), LLM handles the rest.
 """
 
+from collections.abc import Mapping
 from contextlib import suppress
 from typing import Any
 
@@ -48,6 +49,7 @@ from src.domains.agents.constants import (
     STATE_KEY_VALIDATION_RESULT,
 )
 from src.domains.agents.models import MessagesState
+from src.domains.agents.utils.shape_agnostic import read_field
 from src.domains.agents.utils.state_tracking import track_state_updates
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.decorators import track_metrics
@@ -184,32 +186,41 @@ async def planner_node_v3(
         semantic_validation = state.get(STATE_KEY_SEMANTIC_VALIDATION)
         if semantic_validation:
             validation_feedback = _format_validation_feedback(semantic_validation)
-            # Extract issue details for logging
-            issues_summary = []
-            if hasattr(semantic_validation, "issues"):
-                for issue in semantic_validation.issues:
-                    issue_type = (
-                        issue.issue_type.value
-                        if hasattr(issue.issue_type, "value")
-                        else str(issue.issue_type)
-                    )
-                    issues_summary.append(
-                        {
-                            "type": issue_type,
-                            "description": issue.description[:100] if issue.description else "",
-                            "step_index": issue.step_index,
-                            "suggested_fix": (
-                                issue.suggested_fix[:50] if issue.suggested_fix else None
-                            ),
-                        }
-                    )
+            # Extract issue details for logging. Read through the shape-agnostic
+            # accessors: after a clarification the verdict is a mapping, and
+            # attribute access would log an empty summary rather than fail.
+            issues = _semantic_issues(semantic_validation)
+            issues_summary = [
+                {
+                    "type": _issue_type_value(issue),
+                    "description": str(read_field(issue, "description") or "")[:100],
+                    "step_index": read_field(issue, "step_index"),
+                    "suggested_fix": (
+                        str(fix)[:50] if (fix := read_field(issue, "suggested_fix")) else None
+                    ),
+                }
+                for issue in issues
+            ]
+            # Counters and types at INFO, CONTENT at DEBUG. An issue description
+            # quotes the plan it rejects, and a plan carries contact details —
+            # the production case that opened ADR-195 was literally
+            # "…step_2.to='jerome@example.com'"; the validation feedback embeds
+            # those same descriptions.
+            # `add_pii_filter` does pseudonymize e-mails (measured), so this is
+            # not about a leak it would miss on that front — it is the doctrine:
+            # contents belong at DEBUG, and the filter's coverage is narrower
+            # than "everything a user typed" (national-format phone numbers, for
+            # one, go straight through).
             logger.info(
                 "planner_v3_replan_with_feedback",
                 run_id=run_id,
                 planner_iteration=planner_iteration,
-                issue_count=(
-                    len(semantic_validation.issues) if hasattr(semantic_validation, "issues") else 0
-                ),
+                issue_count=len(issues),
+                issue_types=[entry["type"] for entry in issues_summary],
+            )
+            logger.debug(
+                "planner_v3_replan_feedback_detail",
+                run_id=run_id,
                 issues=issues_summary,
                 feedback_preview=validation_feedback[:200] if validation_feedback else "",
             )
@@ -225,59 +236,47 @@ async def planner_node_v3(
             # Fix: If we detect cardinality_mismatch, update intelligence to
             # set for_each_detected=True so the planner gets the directive.
             # =================================================================
-            if hasattr(semantic_validation, "issues") and semantic_validation.issues:
+            if _has_cardinality_mismatch(semantic_validation) and (
+                not intelligence.for_each_detected
+            ):
                 from dataclasses import replace as dataclass_replace
 
-                has_cardinality_mismatch = any(
-                    (
-                        issue.issue_type.value
-                        if hasattr(issue.issue_type, "value")
-                        else str(issue.issue_type)
-                    )
-                    == "cardinality_mismatch"
-                    for issue in semantic_validation.issues
-                    if hasattr(issue, "issue_type")
+                # Infer collection key from domains if not set
+                # Uses domain_taxonomy as single source of truth for result_key mapping
+                from src.domains.agents.registry.domain_taxonomy import get_result_key
+
+                collection_key = intelligence.for_each_collection_key
+                if not collection_key:
+                    # For action domains (routes, weather), look for source domain
+                    # in the full domains list to find what we're iterating over
+                    source_domains = ["calendar", "event", "contact", "place"]
+                    for domain in intelligence.domains:
+                        # Try exact match first, then singular form
+                        result_key = get_result_key(domain) or get_result_key(domain.rstrip("s"))
+                        if result_key and domain.rstrip("s") in source_domains:
+                            collection_key = result_key
+                            break
+
+                    # Fallback to primary domain mapping
+                    if not collection_key and intelligence.primary_domain:
+                        collection_key = (
+                            get_result_key(intelligence.primary_domain)
+                            or get_result_key(intelligence.primary_domain.rstrip("s"))
+                            or "items"
+                        )
+
+                intelligence = dataclass_replace(
+                    intelligence,
+                    for_each_detected=True,
+                    for_each_collection_key=collection_key,
                 )
 
-                if has_cardinality_mismatch and not intelligence.for_each_detected:
-                    # Infer collection key from domains if not set
-                    # Uses domain_taxonomy as single source of truth for result_key mapping
-                    from src.domains.agents.registry.domain_taxonomy import get_result_key
-
-                    collection_key = intelligence.for_each_collection_key
-                    if not collection_key:
-                        # For action domains (routes, weather), look for source domain
-                        # in the full domains list to find what we're iterating over
-                        source_domains = ["calendar", "event", "contact", "place"]
-                        for domain in intelligence.domains:
-                            # Try exact match first, then singular form
-                            result_key = get_result_key(domain) or get_result_key(
-                                domain.rstrip("s")
-                            )
-                            if result_key and domain.rstrip("s") in source_domains:
-                                collection_key = result_key
-                                break
-
-                        # Fallback to primary domain mapping
-                        if not collection_key and intelligence.primary_domain:
-                            collection_key = (
-                                get_result_key(intelligence.primary_domain)
-                                or get_result_key(intelligence.primary_domain.rstrip("s"))
-                                or "items"
-                            )
-
-                    intelligence = dataclass_replace(
-                        intelligence,
-                        for_each_detected=True,
-                        for_each_collection_key=collection_key,
-                    )
-
-                    logger.info(
-                        "planner_v3_for_each_activated_on_cardinality_mismatch",
-                        run_id=run_id,
-                        for_each_collection_key=collection_key,
-                        msg="Activated FOR_EACH directive due to cardinality_mismatch",
-                    )
+                logger.info(
+                    "planner_v3_for_each_activated_on_cardinality_mismatch",
+                    run_id=run_id,
+                    for_each_collection_key=collection_key,
+                    msg="Activated FOR_EACH directive due to cardinality_mismatch",
+                )
 
     # Track if we should clear needs_replan flag (used when returning plan)
     should_clear_needs_replan = bool(clarification_response)
@@ -392,8 +391,14 @@ async def planner_node_v3(
     #    so the planner FIXES it instead of rebuilding from scratch and losing
     #    already-correct parameters (prod 2026-07-17: the replanner oscillated —
     #    fixed the date on one pass, lost it on the next — because it never saw
-    #    its own previous plan). Same live in-memory object (no interrupt in the
-    #    planner→validator→planner cycle), safe to read as an ExecutionPlan.
+    #    its own previous plan).
+    # The two branches do not reach here the same way: the validation replan stays
+    # in one live planner→validator→planner cycle, while the clarification branch
+    # resumes from an INTERRUPT and its plan comes back from the checkpoint. A
+    # valid plan is restored whole (measured), so attribute access is normally
+    # safe — but a step that no longer passes its own validation degrades to a
+    # mapping in silence, which is why consumers read through `read_field`.
+
     existing_plan = (
         state.get(STATE_KEY_EXECUTION_PLAN)
         if (clarification_response or planner_iteration > 0)
@@ -820,7 +825,82 @@ def get_planner_v3_edge(
     return "response"
 
 
-def _format_validation_feedback(semantic_validation) -> str:
+def _semantic_issues(semantic_validation: Any) -> list[Any]:
+    """Read the issues off a semantic verdict, whatever shape it arrived in.
+
+    ``STATE_KEY_SEMANTIC_VALIDATION`` legitimately holds TWO shapes:
+    ``semantic_validator_node`` writes the ``SemanticValidationResult``
+    dataclass, while ``clarification_node`` rebuilds the verdict through
+    ``dataclasses.asdict`` and writes back a plain mapping. Attribute access
+    alone yields nothing on the second shape — and yields it *silently*, since
+    ``hasattr`` returns False rather than raising. That is how the FOR_EACH
+    directive stopped being injected on ``cardinality_mismatch`` for every turn
+    that had passed through a clarification.
+
+    Args:
+        semantic_validation: Verdict read from the graph state, in either
+            shape, or absent.
+
+    Returns:
+        The issues it carries, or an empty list when there are none to read.
+        Never raises: an unexpected shape must not cost the whole turn.
+    """
+    if not semantic_validation:
+        return []
+
+    issues = getattr(semantic_validation, "issues", None)
+    if issues is None and isinstance(semantic_validation, Mapping):
+        issues = semantic_validation.get("issues")
+
+    return list(issues) if issues else []
+
+
+def _issue_type_value(issue: Any) -> str:
+    """Reduce an issue's type to its string value, model or mapping alike.
+
+    Issues cross the same shape boundary as their container: a model exposing
+    a ``SemanticIssueType`` member, or a mapping carrying a bare string.
+
+    Args:
+        issue: A single semantic issue, as a model or a mapping.
+
+    Returns:
+        The issue type as a string, or ``"unknown"`` when absent.
+    """
+    issue_type = getattr(issue, "issue_type", None)
+    if issue_type is None and isinstance(issue, Mapping):
+        issue_type = issue.get("issue_type")
+    if issue_type is None:
+        return "unknown"
+
+    return str(getattr(issue_type, "value", issue_type))
+
+
+def _has_cardinality_mismatch(semantic_validation: Any) -> bool:
+    """Whether the verdict reports a cardinality mismatch.
+
+    Drives the FOR_EACH directive injection: the planner needs the exact
+    ``for_each`` syntax when the validator says the plan handles one item where
+    the user asked for all of them.
+
+    Args:
+        semantic_validation: Verdict read from the graph state, in either shape.
+
+    Returns:
+        True when at least one issue is a cardinality mismatch.
+    """
+    # Local import: this module reaches orchestration lazily throughout (see
+    # the planner/validator call sites), because `orchestration/__init__` pulls
+    # in the replanner and the orchestrator.
+    from src.domains.agents.orchestration.validation_models import SemanticIssueType
+
+    return any(
+        _issue_type_value(issue) == SemanticIssueType.CARDINALITY_MISMATCH.value
+        for issue in _semantic_issues(semantic_validation)
+    )
+
+
+def _format_validation_feedback(semantic_validation: Any) -> str:
     """
     Format SemanticValidationResult issues for planner prompt injection.
 
@@ -833,38 +913,17 @@ def _format_validation_feedback(semantic_validation) -> str:
     Returns:
         Formatted feedback string for the planner prompt
     """
-    if not semantic_validation:
-        return ""
-
-    # Handle both dataclass and dict access patterns
-    if hasattr(semantic_validation, "issues"):
-        issues = semantic_validation.issues
-    elif isinstance(semantic_validation, dict):
-        issues = semantic_validation.get("issues", [])
-    else:
-        return ""
-
+    issues = _semantic_issues(semantic_validation)
     if not issues:
         return ""
 
     lines = ["PREVIOUS PLAN VALIDATION FAILED. Issues detected:"]
 
     for i, issue in enumerate(issues, 1):
-        # Handle both Pydantic model and dict access
-        if hasattr(issue, "issue_type"):
-            issue_type = (
-                issue.issue_type.value
-                if hasattr(issue.issue_type, "value")
-                else str(issue.issue_type)
-            )
-            description = issue.description
-            step_index = issue.step_index
-            suggested_fix = issue.suggested_fix
-        else:
-            issue_type = issue.get("issue_type", "unknown")
-            description = issue.get("description", "")
-            step_index = issue.get("step_index")
-            suggested_fix = issue.get("suggested_fix")
+        issue_type = _issue_type_value(issue)
+        description = read_field(issue, "description") or ""
+        step_index = read_field(issue, "step_index")
+        suggested_fix = read_field(issue, "suggested_fix")
 
         step_info = f" (step {step_index})" if step_index is not None else ""
         lines.append(f"{i}. [{issue_type}]{step_info} - {description}")

@@ -121,17 +121,24 @@ get_wikipedia_summary_catalogue_manifest = ToolManifest(
         _LANG_PARAM,
     ],
     outputs=[
-        OutputFieldSchema(path="title", type="string", description="Title"),
-        OutputFieldSchema(path="summary", type="string", description="Text", semantic_type="Text"),
-        OutputFieldSchema(path="url", type="string", description="URL", semantic_type="URL"),
-        OutputFieldSchema(path="thumbnail", type="string", nullable=True, description="Image"),
+        # Registry-backed: the article hangs off the `wikipedias` context key,
+        # never the top level. `thumbnail` was advertised but never produced.
+        OutputFieldSchema(path="wikipedias", type="array", description="Article summary entry"),
+        OutputFieldSchema(path="wikipedias[].title", type="string", description="Title"),
+        OutputFieldSchema(
+            path="wikipedias[].summary", type="string", description="Text", semantic_type="Text"
+        ),
+        OutputFieldSchema(
+            path="wikipedias[].url", type="string", description="URL", semantic_type="URL"
+        ),
+        OutputFieldSchema(path="wikipedias[].page_id", type="integer", description="Page ID"),
     ],
     cost=CostProfile(est_tokens_in=80, est_tokens_out=500, est_cost_usd=0.001, est_latency_ms=400),
     permissions=PermissionProfile(
         required_scopes=[], hitl_required=False, data_classification="PUBLIC"
     ),
     context_key="wikipedias",  # Must match CONTEXT_DOMAIN_WIKIPEDIA (domain + "s" pattern)
-    reference_examples=["summary", "url"],
+    reference_examples=["wikipedias[0].summary", "wikipedias[0].url"],
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(
@@ -180,19 +187,28 @@ get_wikipedia_article_catalogue_manifest = ToolManifest(
         _LANG_PARAM,
     ],
     outputs=[
-        OutputFieldSchema(path="title", type="string", description="Title"),
+        OutputFieldSchema(path="wikipedias", type="array", description="Article entry"),
+        OutputFieldSchema(path="wikipedias[].title", type="string", description="Title"),
         OutputFieldSchema(
-            path="content", type="string", description="Full text", semantic_type="Text"
+            path="wikipedias[].content",
+            type="string",
+            description="Full text",
+            semantic_type="Text",
         ),
-        OutputFieldSchema(path="sections", type="array", description="Headers"),
-        OutputFieldSchema(path="url", type="string", description="URL", semantic_type="URL"),
+        OutputFieldSchema(path="wikipedias[].sections", type="array", description="Headers"),
+        OutputFieldSchema(
+            path="wikipedias[].url", type="string", description="URL", semantic_type="URL"
+        ),
+        OutputFieldSchema(
+            path="wikipedias[].content_length", type="integer", description="Characters"
+        ),
     ],
     cost=CostProfile(est_tokens_in=80, est_tokens_out=3000, est_cost_usd=0.005, est_latency_ms=800),
     permissions=PermissionProfile(
         required_scopes=[], hitl_required=False, data_classification="PUBLIC"
     ),
     context_key="wikipedias",  # Must match CONTEXT_DOMAIN_WIKIPEDIA (domain + "s" pattern)
-    reference_examples=["content", "sections"],
+    reference_examples=["wikipedias[0].content", "wikipedias[0].sections"],
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(
@@ -225,16 +241,23 @@ get_wikipedia_related_catalogue_manifest = ToolManifest(
         _LANG_PARAM,
     ],
     outputs=[
-        OutputFieldSchema(path="title", type="string", description="Source"),
-        OutputFieldSchema(path="related", type="array", description="Linked articles"),
-        OutputFieldSchema(path="related[].title", type="string", description="Article title"),
+        # Each related article is its own `wikipedias` entry; the source article
+        # it was derived from is carried per entry, not at the top level.
+        OutputFieldSchema(path="wikipedias", type="array", description="Linked articles"),
+        OutputFieldSchema(path="wikipedias[].title", type="string", description="Article title"),
+        OutputFieldSchema(
+            path="wikipedias[].source_article", type="string", description="Source article"
+        ),
+        OutputFieldSchema(
+            path="wikipedias[].url", type="string", description="URL", semantic_type="URL"
+        ),
     ],
     cost=CostProfile(est_tokens_in=80, est_tokens_out=300, est_cost_usd=0.001, est_latency_ms=500),
     permissions=PermissionProfile(
         required_scopes=[], hitl_required=False, data_classification="PUBLIC"
     ),
     context_key="wikipedias",  # Must match CONTEXT_DOMAIN_WIKIPEDIA (domain + "s" pattern)
-    reference_examples=["related[0].title"],
+    reference_examples=["wikipedias[0].title", "wikipedias[0].source_article"],
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(

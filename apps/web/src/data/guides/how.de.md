@@ -6,7 +6,7 @@
 
 **Version**: 3.6
 **Datum**: 2026-08-02
-**Application**: LIA v1.27.6
+**Application**: LIA v1.27.7
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 447 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 192 ADRs, ~17.622 von pytest gesammelte Tests in 947 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 194 ADRs, ~17.803 von pytest gesammelte Tests in 955 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -72,7 +72,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~17.622 von pytest gesammelt (von pytest über 947 Testdateien gesammelt) + 4.474 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | ~17.803 von pytest gesammelt (von pytest über 955 Testdateien gesammelt) + 4.487 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 400+ |
 | ADRs (Architecture Decision Records) | 189 |
@@ -395,9 +395,17 @@ Vor der HITL-Genehmigung prüft ein dediziertes LLM (vom Planner getrennt, um Se
 
 Ergänzend erkennt ein **selbstanreicherndes Anti-Halluzinations-Register** (`hallucinated_tools.json`) vom LLM erfundene Tools über persistente Regex-Muster. Jede neue Halluzination wird automatisch zum Register hinzugefügt. Halluzinierte Schritte werden entfernt und der Planner wird gezwungen, mit echten Katalog-Tools neu zu planen.
 
-### 6.5. Referenzvalidierung
+Ein Urteil klassifiziert, es verurteilt nicht — und eine **Diagnose ist keine Frage**. Wenn ein *schreibender* Plan seine automatischen Replans ausgeschöpft hat, verweigert der Validator die Ausführung und übergibt an eine HITL-Rückfrage: Falsche Daten zu schreiben kostet mehr, als zu fragen. Was der Nutzerin dann gestellt wird, ist eine Frage **in ihrer Sprache**, aus einer Tabelle von fünfzehn Einträgen, deren Vollständigkeit beim Start **in beide Richtungen** geprüft wird — ein Problem, das der Code auslösen kann, ohne dass eine Frage dafür geschrieben ist, verhindert den Start der Anwendung, und eine Frage, die kein Code auslösen kann, ebenso. Die interne Fehlerbeschreibung bleibt in der Ablaufspur, wo sie hingehört. Dasselbe Prinzip gilt für die Werte: Ein in einer früheren Runde angegebener Parameter wird **aus dem vorherigen Plan übernommen** statt neu erfunden, denn die Reparatur erkennt eine Dokumentationsadresse und überschreibt nie einen echten Wert — eine Meinungsänderung wird immer respektiert (ADR-195).
 
-Schrittübergreifende Referenzen (`$steps.get_meetings.events[0].title`) werden zur Planzeit mit strukturierten Fehlermeldungen validiert: ungültiges Feld, verfügbare Alternativen und korrigierte Beispiele — damit der Planner sich beim Retry selbst korrigieren kann, statt stille Fehler zu produzieren.
+### 6.5. Die Wahrheit einer Referenz (ADR-194)
+
+Eine schrittübergreifende Referenz (`$steps.get_meetings.events[0].title`) wird vom Planer geschrieben, **bevor** der Schritt gelaufen ist. Der Pfad muss deshalb auf Anhieb stimmen, sonst scheitert der Plan nach kostenpflichtigen API-Aufrufen und der Wartezeit der Nutzerin.
+
+Was ihn stimmen lässt, ist ein **Vertrag**: Jedes Werkzeug-Manifest veröffentlicht die Pfade, die seine Ausgabe trägt, und die Continuous Integration beweist diesen Vertrag vor jedem Zusammenführen von Code. Die Prüfung steuert das reale Werkzeug an — seinen echten Builder, den echten Referenz-Resolver, den rekonstruierten Merge — und vergleicht, was das Manifest veröffentlicht, mit dem, was die Ausführung liefert: den Pfad selbst, seine **Form** (Datensatz, Liste, Liste von Datensätzen) und seinen **Typ** (Zeichenkette, Zahl, Objekt). Der Planer liest diesen Typ, um zu entscheiden, worin er einen Wert verketten kann: Ein falscher Typ zerbricht einen Plan genauso sicher wie ein falscher Pfad.
+
+Der Vertrag ist bewusst **asymmetrisch**: Alles Veröffentlichte muss produziert werden, nie umgekehrt. Ein Manifest listet *Beispiele*, keine vollständige Aufzählung — `events[0].summary` ist real, ob jemand daran gedacht hat, es aufzuschreiben, oder nicht; die Umkehrung zu verlangen würde legitime Pfade ablehnen.
+
+Die Abdeckung wird genannt statt angenommen: 36 der 59 Werkzeuge, die Pfade veröffentlichen. Was sich aufgrund der Bauform eines Werkzeugs schwer ansteuern lässt, wird in einer Schuldenakte beziffert und datiert, statt implizit zu bleiben. Zur Laufzeit ist das Netz `ReferenceResolver`, der einen expliziten Fehler wirft, statt ins Leere aufzulösen.
 
 ### 6.6. Adaptiver Re-Planner (Panic Mode)
 
@@ -774,7 +782,7 @@ Hinweis: Die RAG-Injection erfolgt im Antwortknoten, nicht im Planner. Der Plann
 
 ### 17.2. System RAG Spaces (ADR-058)
 
-Integrierte FAQ (200+ Q/A, 24 Abschnitte), indexiert aus `docs/knowledge/`. Erkennung `is_app_help_query` durch QueryAnalyzer, Rule 0 Override im RoutingDecider, App Identity Prompt (~200 Token, Lazy Loading). Die Aktualität wird an einem SHA-256 über die Quelldateien **und** am gespeicherten Korpus selbst beurteilt (ein Chunk pro geparster Eintrag, genau ein Dokument): eine passende Signatur über der falschen Zeilenzahl ist eine Reparatur, kein No-op. Die Auto-Indexierung läuft in jedem uvicorn-Worker, daher wird die Zeile des Raums mit `FOR UPDATE SKIP LOCKED` beansprucht — ein Schreiber, die übrigen überspringen ohne Warteschlange — und jeder Vektor entsteht **vor** der ersten löschenden Anweisung: eine Ablehnung des Anbieters löscht nichts, und der vorherige Korpus bedient weiter (ADR-162).
+Integrierte FAQ (250 Q/A, 24 Abschnitte), indexiert aus `docs/knowledge/`. Erkennung `is_app_help_query` durch QueryAnalyzer, Rule 0 Override im RoutingDecider, App Identity Prompt (~200 Token, Lazy Loading). Die Aktualität wird an einem SHA-256 über die Quelldateien **und** am gespeicherten Korpus selbst beurteilt (ein Chunk pro geparster Eintrag, genau ein Dokument): eine passende Signatur über der falschen Zeilenzahl ist eine Reparatur, kein No-op. Die Auto-Indexierung läuft in jedem uvicorn-Worker, daher wird die Zeile des Raums mit `FOR UPDATE SKIP LOCKED` beansprucht — ein Schreiber, die übrigen überspringen ohne Warteschlange — und jeder Vektor entsteht **vor** der ersten löschenden Anweisung: eine Ablehnung des Anbieters löscht nichts, und der vorherige Korpus bedient weiter (ADR-162).
 
 ---
 
@@ -1144,7 +1152,7 @@ Eine Destination kann dennoch berechtigterweise fehlen: Mehrere Bereiche rendern
 
 ## 24. Architekturentscheidungen (ADR)
 
-192 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+194 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1198,10 +1206,10 @@ Die Psyche Engine verleiht dem Assistenten einen dynamischen psychologischen Zus
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 192 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~17.622 Tests in 947 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 194 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~17.803 Tests in 955 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 192 ADRs und des Changelogs (v1.0 bis v1.27.6). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 194 ADRs und des Changelogs (v1.0 bis v1.27.7). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

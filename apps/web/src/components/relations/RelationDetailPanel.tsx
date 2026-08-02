@@ -29,18 +29,28 @@ import {
   ArrowDownLeft,
   ArrowLeft,
   ArrowUpRight,
+  Check,
   ChevronDown,
+  CircleSlash,
   Handshake,
-  RefreshCw,
   ListTodo,
   MessageSquare,
+  Pencil,
   PhoneCall,
+  RefreshCw,
+  Send,
   Star,
   StickyNote,
 } from 'lucide-react';
 import { Children, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { toast } from 'sonner';
+
+import { CommitmentEditor } from '@/components/commitments/CommitmentEditor';
+import { useCommitmentActions } from '@/hooks/useCommitmentActions';
+import type { OpenLoopPatch } from '@/hooks/useOpenLoops';
+import type { Language } from '@/i18n/settings';
 import { cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { RelationAvatar } from '@/components/relations/RelationAvatar';
@@ -218,27 +228,140 @@ function PeerLinkSection({ link }: { link: RelationPeerLink | null }) {
 function OpenLoopsSection({
   loops,
   total,
+  lng,
+  onChanged,
 }: {
   loops: RelationDetail['open_loops'];
   total: number;
+  lng: string;
+  onChanged: () => void;
 }) {
   const { t } = useTranslation();
+  // One editor at a time: two open forms would compete for the same list.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const { pendingId, close, update } = useCommitmentActions(onChanged);
+
   if (loops.length === 0) return null;
+
+  const act = async (id: string, action: 'done' | 'dismissed') => {
+    if (!(await close(id, action))) toast.error(t('common.error'));
+  };
+
+  const save = async (id: string, patch: OpenLoopPatch) => {
+    if (await update(id, patch)) {
+      setEditingId(null);
+      toast.success(t('settings.open_loops.edit_saved'));
+      return;
+    }
+    toast.error(t('common.error'));
+  };
+
+  const relaunch = (loop: RelationDetail['open_loops'][number]) => {
+    // Same intent as the Settings ledger — a commitment behaves identically
+    // wherever the user meets it.
+    const intent = t(
+      loop.direction === 'waiting_on_other'
+        ? 'dashboard.briefing.intents.loop_waiting'
+        : 'dashboard.briefing.intents.loop_owed',
+      { subject: loop.subject }
+    );
+    openChatDeepLink(chatDraftHref(lng as Language, intent));
+  };
+
   return (
     <SectionCard icon={ListTodo} title={t('relations.section_open_loops')} total={total}>
-      {loops.map(loop => (
-        <p
-          key={loop.id}
-          className="flex flex-wrap items-baseline gap-2 border-l-2 border-amber-500/40 pl-3 text-sm text-foreground/90"
-        >
-          {loop.subject}
-          {/* amber-800 for the AA floor at this size — see RelationCardList. */}
-          <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-px text-[10px] font-medium text-amber-800 dark:text-amber-300">
-            {t('relations.days_open', { count: loop.days_open })}
-          </span>
-        </p>
-      ))}
+      {loops.map(loop =>
+        editingId === loop.id ? (
+          <div key={loop.id} className="border-l-2 border-amber-500/40 pl-3">
+            <CommitmentEditor
+              lng={lng as Language}
+              subject={loop.subject}
+              dueHint={loop.due_hint}
+              saving={pendingId === loop.id}
+              onCancel={() => setEditingId(null)}
+              onSave={patch => void save(loop.id, patch)}
+            />
+          </div>
+        ) : (
+          <div key={loop.id} className="flex items-start gap-2 border-l-2 border-amber-500/40 pl-3">
+            <p className="flex min-w-0 flex-1 flex-wrap items-baseline gap-2 text-sm text-foreground/90">
+              {loop.subject}
+              {/* amber-800 for the AA floor at this size — see RelationCardList. */}
+              <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-px text-[10px] font-medium text-amber-800 dark:text-amber-300">
+                {t('relations.days_open', { count: loop.days_open })}
+              </span>
+            </p>
+            <span className="flex shrink-0 items-center gap-1">
+              <CommitmentButton
+                icon={Pencil}
+                label={t('settings.open_loops.edit', { subject: loop.subject })}
+                title={t('settings.open_loops.edit_label')}
+                onClick={() => setEditingId(loop.id)}
+              />
+              <CommitmentButton
+                icon={Check}
+                label={t('settings.open_loops.done', { subject: loop.subject })}
+                title={t('settings.open_loops.done_label')}
+                hover="hover:text-green-600"
+                busy={pendingId === loop.id}
+                onClick={() => void act(loop.id, 'done')}
+              />
+              <CommitmentButton
+                icon={Send}
+                label={t('settings.open_loops.relaunch', { subject: loop.subject })}
+                title={t('settings.open_loops.relaunch_label')}
+                onClick={() => relaunch(loop)}
+              />
+              <CommitmentButton
+                icon={CircleSlash}
+                label={t('settings.open_loops.dismiss', { subject: loop.subject })}
+                title={t('settings.open_loops.dismiss_label')}
+                hover="hover:text-orange-600"
+                busy={pendingId === loop.id}
+                onClick={() => void act(loop.id, 'dismissed')}
+              />
+            </span>
+          </div>
+        )
+      )}
     </SectionCard>
+  );
+}
+
+/** One commitment action. `aria-disabled` keeps it focusable while busy. */
+function CommitmentButton({
+  icon: Icon,
+  label,
+  title,
+  onClick,
+  busy = false,
+  hover = 'hover:text-primary',
+}: {
+  icon: typeof Check;
+  label: string;
+  title: string;
+  onClick: () => void;
+  busy?: boolean;
+  hover?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        // A `disabled` control that HAS focus blurs and leaves the tab order
+        // mid-interaction, so the guard lives here rather than in the DOM.
+        if (busy) return;
+        onClick();
+      }}
+      aria-disabled={busy}
+      aria-label={label}
+      title={title}
+      className={`rounded-md border border-border/30 bg-background/80 p-1.5 ${
+        busy ? 'opacity-40' : `hover:bg-background ${hover}`
+      }`}
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden />
+    </button>
   );
 }
 
@@ -482,6 +605,7 @@ function RelationSections({
   saving,
   onScopeChange,
   onPrepare,
+  onCommitmentChanged,
 }: {
   detail: RelationDetail;
   context: RelationContext | null;
@@ -493,39 +617,65 @@ function RelationSections({
   saving: boolean;
   onScopeChange: (scope: RelationOverviewScope) => void;
   onPrepare: () => void;
+  /** Re-read the relation after a commitment changed — it also moves counters. */
+  onCommitmentChanged: () => void;
 }) {
   return (
     <>
+      {/* Scope first: it decides what everything below is allowed to show. */}
       <RelationScopeSection
         scope={scope}
         saving={saving}
         onChange={onScopeChange}
         onPrepare={onPrepare}
       />
-      <ProviderContactSection
-        section={context?.contact}
-        busy={refreshing.includes('contact')}
-        onRefresh={() => onRefresh(['contact'])}
-      />
-      <OpenLoopsSection loops={detail.open_loops} total={detail.open_loops_total} />
-      <MemoriesSection memories={detail.memories} total={detail.memories_total} />
-      <CallsSection calls={detail.recent_calls} total={detail.recent_calls_total} />
-      <ProviderEmailsSection
-        section={context?.emails}
-        personName={detail.display_name}
-        windowDays={context?.email_window_days ?? 0}
-        lng={lng}
-        busy={refreshing.includes('emails')}
-        onRefresh={() => onRefresh(['emails'])}
-      />
-      <ProviderEventsSection
-        section={context?.events}
-        windowDays={context?.window_days ?? 0}
-        busy={refreshing.includes('events')}
-        onRefresh={() => onRefresh(['events'])}
-      />
-      <PeerMessagesSection messages={detail.peer_messages} total={detail.peer_messages_total} />
-      <PeerLinkSection link={detail.peer_link} />
+      {/* Two columns from `lg`, one below — and the ORDER carries meaning.
+          LEFT is the person: who they are (address book), then what the two of
+          you owe each other, then what LIA remembers, and finally the LIA link
+          as a footnote about the relationship itself. RIGHT is what connected
+          accounts happen to know. A single stack of ten cards of equal weight
+          made the human part indistinguishable from the plumbing; the DOM order
+          still reads person-first for a screen reader, since the grid never
+          reorders. Sections render nothing when empty, so the order holds
+          whatever the account actually has. */}
+      <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+        <div className="flex flex-col gap-4">
+          {/* First, always: the address book answers "which person is this?",
+              and every section below assumes that answer. */}
+          <ProviderContactSection
+            section={context?.contact}
+            busy={refreshing.includes('contact')}
+            onRefresh={() => onRefresh(['contact'])}
+          />
+          <OpenLoopsSection
+            loops={detail.open_loops}
+            total={detail.open_loops_total}
+            lng={lng}
+            onChanged={onCommitmentChanged}
+          />
+          <CallsSection calls={detail.recent_calls} total={detail.recent_calls_total} />
+          <MemoriesSection memories={detail.memories} total={detail.memories_total} />
+          <PeerMessagesSection messages={detail.peer_messages} total={detail.peer_messages_total} />
+          {/* Last, always: a note ABOUT the relationship, not one of its contents. */}
+          <PeerLinkSection link={detail.peer_link} />
+        </div>
+        <div className="flex flex-col gap-4">
+          <ProviderEmailsSection
+            section={context?.emails}
+            personName={detail.display_name}
+            windowDays={context?.email_window_days ?? 0}
+            lng={lng}
+            busy={refreshing.includes('emails')}
+            onRefresh={() => onRefresh(['emails'])}
+          />
+          <ProviderEventsSection
+            section={context?.events}
+            windowDays={context?.window_days ?? 0}
+            busy={refreshing.includes('events')}
+            onRefresh={() => onRefresh(['events'])}
+          />
+        </div>
+      </div>
       <ProviderNote noteKey={providerNoteKey(context)} />
     </>
   );
@@ -673,6 +823,7 @@ export function RelationDetailPanel({
       <RelationSections
         detail={detail}
         context={context}
+        onCommitmentChanged={() => void Promise.resolve(refetch())}
         refreshing={refreshing}
         lng={lng}
         onRefresh={refreshSections}

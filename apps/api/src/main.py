@@ -102,7 +102,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Log rate limiting configuration
     log_rate_limiting_status()
 
-    registries.init_tool_schemas()
     # QW-5 (ADR-138): journals implementation of the response-feedback port —
     # composition here because conversations must not import journals (F009).
     registries.init_response_feedback_hooks()

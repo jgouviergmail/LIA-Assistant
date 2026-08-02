@@ -459,22 +459,25 @@ list_task_lists_catalogue_manifest = ToolManifest(
             ],
         ),
     ],
+    # Registry-backed under `context_key="tasks"`: the lists are grouped there,
+    # NOT under a top-level `task_lists`. The manifest advertised a collection
+    # name the execution never produces.
     outputs=[
-        OutputFieldSchema(path="task_lists", type="array", description="Lists"),
+        OutputFieldSchema(path="tasks", type="array", description="Task lists"),
         OutputFieldSchema(
-            path="task_lists[].id",
+            path="tasks[].id",
             type="string",
             description="ID",
             semantic_type="task_list_id",
         ),
-        OutputFieldSchema(path="task_lists[].title", type="string", description="Title"),
+        OutputFieldSchema(path="tasks[].title", type="string", description="Title"),
     ],
     cost=CostProfile(est_tokens_in=50, est_tokens_out=150, est_cost_usd=0.001, est_latency_ms=300),
     permissions=PermissionProfile(
         required_scopes=GOOGLE_TASKS_SCOPES, hitl_required=False, data_classification="CONFIDENTIAL"
     ),
     context_key="tasks",
-    reference_examples=["task_lists[0].id", "task_lists[0].title"],
+    reference_examples=["tasks[0].id", "tasks[0].title"],
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="📚", i18n_key="list_task_lists", visible=True, category="tool"),

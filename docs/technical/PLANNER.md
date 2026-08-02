@@ -1930,8 +1930,8 @@ réparable est réparé avant validation.
 - pas garanti **ajouté** s'il manque (`step_id = "directive_1"`, aucune dépendance) ;
 - si le planificateur l'a déjà produit, **ses paramètres l'emportent** ;
 - les outils déclarés dans `supersedes` sont **retirés** — sauf si une autre étape les lit
-  encore, par `depends_on` **ou** par référence `$steps` (motif unique :
-  `ReferenceValidator.STEPS_REFERENCE_PATTERN`), résolu à point fixe ;
+  encore, par `depends_on` **ou** par référence `$steps` (motif chemin complet :
+  `step_references.STEPS_REFERENCE_PATTERN`), résolu à point fixe ;
 - un plan sans étape (`needs_clarification`, `skill_bypass_noop`) n'est **jamais** transformé
   en exécution.
 

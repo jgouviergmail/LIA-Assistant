@@ -508,7 +508,11 @@ list_labels_catalogue_manifest = ToolManifest(
         OutputFieldSchema(path="labels[].id", type="string", description="Label ID"),
         OutputFieldSchema(path="labels[].name", type="string", description="Label name (path)"),
         OutputFieldSchema(path="total_user_labels", type="integer", description="Total count"),
-        OutputFieldSchema(path="name_filter", type="string", description="Filter used (if any)"),
+        # `name_filter` is echoed back by the client ONLY when the call carried
+        # one (the tool passes the client result through as structured_data).
+        # A conditional field cannot be advertised as a reference path: the
+        # planner would emit `$steps.X.name_filter` and the unfiltered call —
+        # the common one — resolves nothing. Published means produced, every time.
     ],
     cost=CostProfile(est_tokens_in=50, est_tokens_out=300, est_cost_usd=0.001, est_latency_ms=200),
     permissions=PermissionProfile(

@@ -319,7 +319,12 @@ get_places_catalogue_manifest = ToolManifest(
             semantic_type="price_level",
         ),
         OutputFieldSchema(
-            path="places[].opening_hours", type="object", nullable=True, description="Opening hours"
+            # `weekdayDescriptions` from the Places API: a LIST of per-day
+            # strings, not a record (see places_tools._format_place).
+            path="places[].opening_hours",
+            type="array",
+            nullable=True,
+            description="Opening hours, one string per weekday",
         ),
         OutputFieldSchema(
             path="places[].reviews",

@@ -117,3 +117,65 @@ class TestCloseOpenLoop:
         with pytest.raises(ValidationError):
             CloseLoopRequest(action="expired")  # type: ignore[arg-type]
         assert CloseLoopRequest().action == "done"
+
+
+@pytest.mark.unit
+class TestUpdateOpenLoop:
+    """Editing a commitment the extractor got wrong (2026-08-02).
+
+    The ledger fills itself from conversation, and conversation is approximate:
+    a subject comes out garbled, "d'ici vendredi" lands on the wrong Friday.
+    Only `subject` and `due_hint` are editable — changing the direction or the
+    counterparty describes a DIFFERENT commitment, not a correction.
+    """
+
+    async def test_updates_and_returns_the_fresh_row(self):
+        from src.domains.open_loops.router import update_open_loop
+        from src.domains.open_loops.schemas import UpdateLoopRequest
+
+        user = _user()
+        loop_id = uuid4()
+        row = _loop_row(id=loop_id, subject="rappeler le plombier mardi")
+        with patch("src.domains.open_loops.router.OpenLoopRepository") as repo_cls:
+            repo = repo_cls.return_value
+            repo.update_loop = AsyncMock(return_value=True)
+            repo.get_by_id = AsyncMock(return_value=row)
+            db = MagicMock()
+            db.commit = AsyncMock()
+
+            result = await update_open_loop(
+                loop_id,
+                UpdateLoopRequest(subject="rappeler le plombier mardi"),
+                user=user,
+                db=db,
+            )
+
+        assert result.subject == "rappeler le plombier mardi"
+        db.commit.assert_awaited_once()
+
+    async def test_a_loop_that_cannot_be_claimed_is_a_404(self):
+        """Closed, expired or someone else's — same answer, existence hidden."""
+        from src.domains.open_loops.router import update_open_loop
+        from src.domains.open_loops.schemas import UpdateLoopRequest
+
+        with patch("src.domains.open_loops.router.OpenLoopRepository") as repo_cls:
+            repo_cls.return_value.update_loop = AsyncMock(return_value=False)
+            db = MagicMock()
+            db.commit = AsyncMock()
+
+            with pytest.raises(ResourceNotFoundError):
+                await update_open_loop(uuid4(), UpdateLoopRequest(subject="x"), user=_user(), db=db)
+
+    async def test_an_empty_subject_is_rejected_by_the_schema(self):
+        """A commitment with no wording says nothing to anyone."""
+        from src.domains.open_loops.schemas import UpdateLoopRequest
+
+        with pytest.raises(ValidationError):
+            UpdateLoopRequest(subject="   ")
+
+    async def test_clearing_the_deadline_is_distinct_from_leaving_it_alone(self):
+        """`None` cannot express both "unchanged" and "no deadline after all"."""
+        from src.domains.open_loops.schemas import UpdateLoopRequest
+
+        assert UpdateLoopRequest(subject="x").clear_due_hint is False
+        assert UpdateLoopRequest(clear_due_hint=True).clear_due_hint is True

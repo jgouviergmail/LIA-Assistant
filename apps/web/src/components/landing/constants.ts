@@ -22,24 +22,25 @@
  *   send_peer_message), which had never been carried into this tile.
  * - providers: ProviderType Literal in infrastructure/llm/providers/adapter.py
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
- * - metrics: Prometheus metric definitions across src/ — re-measured 2026-07-31
- *   (v1.27.4): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 464,
- *   the ADR-184 counter (planner_parameter_bounds_corrections_total) over the
- *   463 of v1.27.3.
+ * - metrics: Prometheus metric definitions across src/ — re-measured 2026-08-02
+ *   (v1.27.7): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 466,
+ *   the two ADR-194/195 counters (planner_fabricated_parameters_restored_total,
+ *   semantic_validation_for_each_demand_dropped_total) over the 464 of v1.27.4.
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured at v1.27.6: backend 17,622 collected across 947 files (+207
- *   over v1.27.5 — the three CRM read capabilities, the manual merge of two
- *   relationships, the deterministic read-intent rule, plus the regression
- *   oracles the code review produced), frontend 4,474 (+27) = 22,096 →
- *   22,000.
+ *   Re-measured at v1.27.7: backend 17,803 collected across 955 files (+181
+ *   over v1.27.6 — the manifest truth/shape/type guards, the clarification
+ *   i18n completeness guard, the checkpoint allowlist guard and the commitment
+ *   edit path), frontend 4,487 (+13) = 22,290 → 22,200. The rounding step
+ *   moved from the thousand to the hundred so a real gain stops being erased
+ *   by the rounding itself; it stays a strict round-DOWN either way.
  *   Re-measure every release: the value carried the backend count alone
  *   until v1.25.9.
- * - adrs: docs/architecture/ ADR files (192 files, numbered up to ADR-193 —
- *   ADR-008 has no separate file, so 193 numbers map to 192 files). Was
+ * - adrs: docs/architecture/ ADR files (194 files, numbered up to ADR-195 —
+ *   ADR-008 has no separate file, so 195 numbers map to 194 files). Was
  *   stranded at 183 from v1.27.0 to v1.27.4: recount it, never carry it over.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   193 headings at v1.27.6, no Unreleased pending.
+ *   194 headings at v1.27.7, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -53,11 +54,11 @@ export const LANDING_STATS = {
   tools: 89,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 464,
+  metrics: 466,
   uiLanguages: 6,
-  tests: 22000,
-  adrs: 192,
-  releases: 193,
+  tests: 22200,
+  adrs: 194,
+  releases: 194,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

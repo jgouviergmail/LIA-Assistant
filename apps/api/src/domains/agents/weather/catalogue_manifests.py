@@ -79,31 +79,66 @@ get_current_weather_catalogue_manifest = ToolManifest(
     # NOTE: No date parameter - current weather is always "now"
     # Calendar event dates should route to get_weather_forecast_tool via semantic_type
     parameters=[_LOC_PARAM, _UNIT_PARAM, _LANG_PARAM],
+    # Registry-backed tool: the payload is grouped under the `weathers` context
+    # key, never at the top level. Advertising bare `temperature` made the
+    # planner emit `$steps.X.temperature`, which no execution can resolve.
     outputs=[
+        OutputFieldSchema(path="weathers", type="array", description="Current weather readings"),
+        # The payload carries the resolved location as a RECORD (name / country /
+        # lat / lon), not a label — declaring it `string` with a `locality`
+        # semantic type invited the planner to chain a dict where a city name
+        # was expected.
         OutputFieldSchema(
-            path="location", type="string", description="Location", semantic_type="locality"
+            path="weathers[].location",
+            type="object",
+            description="Resolved location (name / country / lat / lon)",
         ),
         OutputFieldSchema(
-            path="temperature", type="number", description="Temp", semantic_type="temperature"
+            path="weathers[].location.name",
+            type="string",
+            description="City name",
+            semantic_type="locality",
         ),
         OutputFieldSchema(
-            path="feels_like", type="number", description="Feels like", semantic_type="temperature"
+            path="weathers[].temperature",
+            type="number",
+            description="Temp",
+            semantic_type="temperature",
         ),
         OutputFieldSchema(
-            path="humidity", type="integer", description="Humidity %", semantic_type="humidity"
+            path="weathers[].feels_like",
+            type="number",
+            description="Feels like",
+            semantic_type="temperature",
         ),
-        OutputFieldSchema(path="description", type="string", description="Condition"),
         OutputFieldSchema(
-            path="wind_speed", type="number", description="Wind", semantic_type="wind_speed"
+            path="weathers[].humidity",
+            type="integer",
+            description="Humidity %",
+            semantic_type="humidity",
         ),
-        OutputFieldSchema(path="pressure", type="integer", description="Pressure hPa"),
+        OutputFieldSchema(path="weathers[].description", type="string", description="Condition"),
+        OutputFieldSchema(
+            path="weathers[].wind_speed",
+            type="number",
+            description="Wind",
+            semantic_type="wind_speed",
+        ),
+        OutputFieldSchema(path="weathers[].pressure", type="integer", description="Pressure hPa"),
     ],
     cost=CostProfile(est_tokens_in=100, est_tokens_out=200, est_cost_usd=0.001, est_latency_ms=500),
     permissions=PermissionProfile(
         required_scopes=[], hitl_required=False, data_classification="PUBLIC"
     ),
     context_key="weathers",  # Must match CONTEXT_DOMAIN_WEATHER in constants.py
-    reference_examples=["location", "temperature", "description"],
+    reference_examples=[
+        # The city NAME, not the `location` record: a reference example is what
+        # the planner will chain, and chaining a dict into a string parameter
+        # fails at execution.
+        "weathers[0].location.name",
+        "weathers[0].temperature",
+        "weathers[0].description",
+    ],
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(
@@ -154,29 +189,63 @@ get_weather_forecast_catalogue_manifest = ToolManifest(
         _UNIT_PARAM,
         _LANG_PARAM,
     ],
+    # The daily forecast exposes BOTH a flat `forecasts` list and the
+    # registry-backed `weathers` entries. The collection is `forecasts`, not
+    # `forecast`, and its temperatures are min/max/avg — there is no single
+    # `temperature`, and no `datetime`: the slot is dated by `date`.
     outputs=[
         OutputFieldSchema(
-            path="location", type="string", description="Location", semantic_type="locality"
+            path="location",
+            type="object",
+            description="Resolved location (name / country / display)",
         ),
-        OutputFieldSchema(path="forecast", type="array", description="Points"),
         OutputFieldSchema(
-            path="forecast[].datetime",
+            # The semantic type belongs on the string, not on the object above:
+            # `location` is a record, and typing it `locality` would invite the
+            # planner to chain a dict where a city name is expected.
+            path="location.display",
             type="string",
-            description="UTC Time",
+            description="Location label for display",
+            semantic_type="locality",
+        ),
+        OutputFieldSchema(path="days", type="integer", description="Number of days returned"),
+        OutputFieldSchema(path="forecasts", type="array", description="Daily forecast points"),
+        OutputFieldSchema(
+            path="forecasts[].date",
+            type="string",
+            description="Day (ISO date)",
             semantic_type="datetime",
         ),
         OutputFieldSchema(
-            path="forecast[].temperature",
+            path="forecasts[].temp_min",
             type="number",
-            description="Temp",
+            description="Min temp",
             semantic_type="temperature",
         ),
-        OutputFieldSchema(path="forecast[].description", type="string", description="Condition"),
         OutputFieldSchema(
-            path="forecast[].precipitation_prob",
+            path="forecasts[].temp_max",
             type="number",
-            description="Rain Prob",
-            semantic_type="precipitation_probability",
+            description="Max temp",
+            semantic_type="temperature",
+        ),
+        OutputFieldSchema(
+            path="forecasts[].temp_avg",
+            type="number",
+            description="Average temp",
+            semantic_type="temperature",
+        ),
+        OutputFieldSchema(path="forecasts[].description", type="string", description="Condition"),
+        OutputFieldSchema(
+            path="forecasts[].humidity",
+            type="integer",
+            description="Humidity %",
+            semantic_type="humidity",
+        ),
+        OutputFieldSchema(
+            path="forecasts[].wind_speed",
+            type="number",
+            description="Wind",
+            semantic_type="wind_speed",
         ),
     ],
     cost=CostProfile(est_tokens_in=100, est_tokens_out=800, est_cost_usd=0.002, est_latency_ms=600),
@@ -184,7 +253,12 @@ get_weather_forecast_catalogue_manifest = ToolManifest(
         required_scopes=[], hitl_required=False, data_classification="PUBLIC"
     ),
     context_key="weathers",  # Must match CONTEXT_DOMAIN_WEATHER in constants.py
-    reference_examples=["forecast[0].datetime", "forecast[0].temperature"],
+    reference_examples=[
+        "forecasts[0].date",
+        "forecasts[0].temp_min",
+        "forecasts[0].temp_max",
+        "location.display",
+    ],
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(
@@ -231,39 +305,54 @@ get_hourly_forecast_catalogue_manifest = ToolManifest(
         _UNIT_PARAM,
         _LANG_PARAM,
     ],
+    # Registry-backed: the slots hang off the `weathers` entry, they are NOT a
+    # top-level `hourly` list. The payload key is `temp` (see
+    # weather_formatting._format_hourly_response), not `temperature`.
     outputs=[
+        OutputFieldSchema(path="weathers", type="array", description="Hourly forecast entry"),
         OutputFieldSchema(
-            path="location", type="string", description="Location", semantic_type="locality"
+            path="weathers[].location",
+            type="object",
+            description="Location",
+            semantic_type="locality",
         ),
-        OutputFieldSchema(path="hourly", type="array", description="3-hour slots"),
         OutputFieldSchema(
-            path="hourly[].datetime",
+            path="weathers[].interval", type="string", description="Slot interval (e.g. '3 hours')"
+        ),
+        OutputFieldSchema(path="weathers[].hourly", type="array", description="3-hour slots"),
+        OutputFieldSchema(
+            path="weathers[].hourly[].datetime",
             type="string",
-            description="UTC epoch (hourly[].datetime_text is the local wall clock)",
+            description="UTC epoch (datetime_text is the local wall clock)",
             semantic_type="datetime",
         ),
         OutputFieldSchema(
-            path="hourly[].datetime_text",
+            path="weathers[].hourly[].datetime_text",
             type="string",
             description="Local wall-clock time of the slot (YYYY-MM-DD HH:MM:SS, user timezone)",
             semantic_type="datetime",
         ),
-        # Payload key is `temp` (see weather_formatting._format_hourly_response),
-        # not `temperature` — the manifest advertised a field that never existed.
         OutputFieldSchema(
-            path="hourly[].temp",
-            type="string",
+            # Measured a float, not a string — the manifest had it wrong before
+            # the path prefix was fixed too.
+            path="weathers[].hourly[].temp",
+            type="number",
             description="Temp",
             semantic_type="temperature",
         ),
-        OutputFieldSchema(path="hourly[].description", type="string", description="Condition"),
+        OutputFieldSchema(
+            path="weathers[].hourly[].description", type="string", description="Condition"
+        ),
     ],
     cost=CostProfile(est_tokens_in=100, est_tokens_out=600, est_cost_usd=0.002, est_latency_ms=600),
     permissions=PermissionProfile(
         required_scopes=[], hitl_required=False, data_classification="PUBLIC"
     ),
     context_key="weathers",  # Must match CONTEXT_DOMAIN_WEATHER in constants.py
-    reference_examples=["hourly[0].datetime_text", "hourly[0].temp"],
+    reference_examples=[
+        "weathers[0].hourly[0].datetime_text",
+        "weathers[0].hourly[0].temp",
+    ],
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(

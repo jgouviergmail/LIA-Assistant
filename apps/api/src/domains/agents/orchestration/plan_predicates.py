@@ -9,15 +9,16 @@ the dict-serialized plan form (LangGraph state round-trips).
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator
+from collections.abc import Collection, Iterator, Mapping
 from typing import TYPE_CHECKING, Any
 
+from src.domains.agents.utils.shape_agnostic import read_field
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
 if TYPE_CHECKING:
-    from src.domains.agents.orchestration.plan_schemas import ExecutionPlan
+    from src.domains.agents.orchestration.plan_schemas import ExecutionPlan, ExecutionStep
 
 # Tool name patterns indicating mutation operations (for tool validation ONLY)
 # These match against TOOL NAMES (internal data), not user queries
@@ -287,6 +288,55 @@ _FREE_TEXT_PARAM_NAMES = frozenset(
 )
 
 
+def iterable_collections_of(plan: ExecutionPlan) -> list[str]:
+    """The ``$steps.<id>.<collection>`` references a ``for_each`` could actually walk.
+
+    Reads the catalogue manifests, which ADR-194 made truthful about what an
+    execution actually produces — the same source the planner is shown. This is
+    what makes the difference between telling the planner to iterate over
+    something real and sending it after a key nobody returns.
+
+    Conservative by design, and the asymmetry is the point: a tool with NO
+    manifest yields a wildcard entry, because standing a safety net down requires
+    proof of absence, never mere ignorance.
+
+    Args:
+        plan: The plan whose steps are inspected.
+
+    Returns:
+        Fully-qualified references in step order, e.g.
+        ``["$steps.step_1.results"]``. Empty when nothing in the plan can be
+        iterated over — in which case demanding a ``for_each`` is unsatisfiable.
+    """
+    from src.domains.agents.registry import get_global_registry
+    from src.domains.agents.registry.catalogue import ToolManifestNotFound
+
+    registry = get_global_registry()
+    references: list[str] = []
+    for step in plan.steps:
+        if not step.tool_name:
+            continue
+        try:
+            manifest = registry.get_tool_manifest(step.tool_name)
+        except ToolManifestNotFound:
+            # Unknown shape: assume it could iterate rather than disarm the rule.
+            references.append(f"$steps.{step.step_id}.<collection>")
+            continue
+        seen: set[str] = set()
+        for output in manifest.outputs or []:
+            if output.type != "array":
+                continue
+            # Keep the path DOWN TO the array, only trimming anything below it:
+            # `get_route_tool` publishes `route.steps` (an array) under `route`
+            # (an object). Reducing to the root would suggest iterating over an
+            # object — the very kind of unreachable advice this exists to stop.
+            path = output.path.split("[")[0]
+            if path and path not in seen:
+                seen.add(path)
+                references.append(f"$steps.{step.step_id}.{path}")
+    return references
+
+
 def _iter_param_strings(value: Any) -> Iterator[str]:
     """Yield every string nested inside a parameter value (str/list/dict)."""
     if isinstance(value, str):
@@ -324,10 +374,133 @@ def detect_placeholder_contacts(plan: ExecutionPlan) -> list[str]:
     return findings
 
 
+def _contains_placeholder(value: Any) -> bool:
+    """True when any string nested in the value is a fabricated address."""
+    return any(_PLACEHOLDER_EMAIL_RE.search(text) for text in _iter_param_strings(value))
+
+
+def _previous_steps_by_id(previous_plan: Any) -> dict[str, Any]:
+    """Index the previous plan's steps by id, whatever shape they came back in.
+
+    After a HITL resume ``plan.steps`` holds mappings rather than
+    ``ExecutionStep`` (the serializer does not re-validate nested models — see
+    the checkpoint guard), so neither access form can be assumed.
+    """
+    indexed: dict[str, Any] = {}
+    for step in getattr(previous_plan, "steps", None) or []:
+        step_id = getattr(step, "step_id", None)
+        if step_id is None and isinstance(step, Mapping):
+            step_id = step.get("step_id")
+        if step_id:
+            indexed[str(step_id)] = step
+    return indexed
+
+
+def _restore_step_parameters(
+    step: ExecutionStep,
+    previous_parameters: Mapping[str, Any],
+    skip_parameters: Collection[str],
+) -> list[str]:
+    """Repair one mutation step's parameters from the ones it carried before.
+
+    A parameter is rewritten only when it is currently a fabrication AND the
+    previous pass held something real for the same name — both conditions
+    together are what makes the repair unable to overwrite a change of mind.
+
+    Args:
+        step: The step to repair, mutated in place.
+        previous_parameters: Same-id, same-tool parameters from the previous plan.
+        skip_parameters: Names the previous plan is no longer authoritative on.
+
+    Returns:
+        The repaired parameter names, prefixed by the step id.
+    """
+    # Case-folded on BOTH sides. The free-text exemption already normalized, and
+    # comparing the skip list raw next to it would have made `To` repairable
+    # while `to` was not — the kind of asymmetry that only shows up in a bug
+    # report about one specific tool.
+    skipped = {name.lower() for name in skip_parameters}
+
+    restored: list[str] = []
+    for name, value in list((step.parameters or {}).items()):
+        if name.lower() in _FREE_TEXT_PARAM_NAMES or name.lower() in skipped:
+            continue
+        if not _contains_placeholder(value):
+            continue
+        candidate = previous_parameters.get(name)
+        if candidate is None or _contains_placeholder(candidate):
+            continue
+        step.parameters[name] = candidate
+        restored.append(f"{step.step_id}.{name}")
+    return restored
+
+
+def restore_fabricated_parameters(
+    plan: ExecutionPlan,
+    previous_plan: Any,
+    skip_parameters: Collection[str] = (),
+) -> list[str]:
+    """Put back the value the previous plan carried where one was fabricated.
+
+    The repair half of :func:`detect_placeholder_contacts`, applied BEFORE
+    validation (ADR-184: what is mechanically repairable is repaired; what would
+    require inventing intent stays an error). Restoring a value the previous
+    plan already carried invents nothing — it had already passed validation.
+
+    This cannot overwrite a change of mind. The trigger is not "the parameter
+    changed" but "the parameter is an RFC 2606 reserved domain": nobody asks to
+    write to example.com, so such a value is by construction a fabrication. A
+    real new value is left untouched.
+
+    Mirrors the detector on both axes that matter: mutation steps only, and
+    free-text parameters are never rewritten (replacing a drafted body would
+    destroy what the user wrote).
+
+    One exception, and it is the caller's to declare: when the user has just
+    ANSWERED a clarification about a field, the previous plan is no longer
+    authoritative on it — the prompt already drops it for exactly that reason
+    (``_extract_preserved_parameters`` excludes the clarified field). Passing
+    those names in ``skip_parameters`` keeps the repair from re-imposing an
+    answer the user has since replaced.
+
+    Args:
+        plan: The freshly generated plan, repaired in place.
+        previous_plan: The plan of the same turn before the replan, in either
+            object or checkpoint-restored mapping form. None when there is none.
+        skip_parameters: Parameter names the previous plan no longer speaks for,
+            typically the ones behind the field being clarified.
+
+    Returns:
+        The repaired locations as ``"step_id.parameter"``, for the caller to log
+        and count. Empty when nothing was repairable — the plan then reaches the
+        guard unchanged and is rejected as before.
+    """
+    if previous_plan is None:
+        return []
+
+    previous_steps = _previous_steps_by_id(previous_plan)
+    if not previous_steps:
+        return []
+
+    restored: list[str] = []
+    for step in plan.steps:
+        if not tool_is_mutation(step.tool_name or ""):
+            continue
+        previous = previous_steps.get(str(step.step_id))
+        if previous is None or read_field(previous, "tool_name") != step.tool_name:
+            continue
+        previous_parameters = read_field(previous, "parameters") or {}
+        restored.extend(_restore_step_parameters(step, previous_parameters, skip_parameters))
+
+    return restored
+
+
 __all__ = [
     "CROSS_DOMAIN_CAPABLE_TOOLS",
     "MUTATION_TOOL_PATTERNS",
     "detect_placeholder_contacts",
+    "iterable_collections_of",
+    "restore_fabricated_parameters",
     "plan_contains_mutation",
     "plan_writes_without_write_intent",
     "plan_covers_domain",

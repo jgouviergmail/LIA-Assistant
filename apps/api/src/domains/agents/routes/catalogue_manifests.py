@@ -267,9 +267,10 @@ get_route_catalogue_manifest = ToolManifest(
             description="Human-readable suggested departure time",
             semantic_type="formatted_time",
         ),
-        OutputFieldSchema(
-            path="alternatives_count", type="integer", description="Number of alternative routes"
-        ),
+        # `alternatives_count` IS computed (routes_tools._format_route_response)
+        # but stays nested beside `route` and never reaches the step result, so
+        # `$steps.X.alternatives_count` resolves to nothing. Declared here it
+        # read as a promise; removed, the contract matches the execution.
     ],
     cost=CostProfile(est_tokens_in=150, est_tokens_out=600, est_cost_usd=0.007, est_latency_ms=800),
     permissions=PermissionProfile(

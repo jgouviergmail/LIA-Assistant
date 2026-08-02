@@ -265,7 +265,17 @@ async def clarification_node(
     semantic_validation_clarification_requests.inc()
 
     # Return state updates
-    # planner_iteration prevents infinite clarification loops (max: PLANNER_MAX_REPLANS setting)
+    #
+    # NOTE: nothing here bounds the number of clarification rounds. This comment
+    # used to claim `planner_iteration` did — it does not, it is never
+    # incremented on this path (measured 2026-08-02: frozen at 2 across 8
+    # consecutive clarifications). The loop is real and was observed in dev: a
+    # question whose answer cannot change the verdict is re-asked forever. The
+    # ABORT branch below is a partial fix — it covers the "user cancels" case
+    # only. Whether the general exit should execute the plan anyway or give up
+    # out loud is a product call: tool-level HITL does NOT cover it
+    # (`send_email_tool` has `hitl_required=False`), so "just execute" would send
+    # a mail nobody confirmed. Tracked in docs/plans/2026-08-02-dette-post-adr194.md.
     #
     # CRITICAL: We must set requires_clarification=False to signal that the clarification
     # has been received. This prevents semantic_validator_node from re-routing to clarification.

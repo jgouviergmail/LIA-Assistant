@@ -48,11 +48,20 @@ from src.infrastructure.observability.logging import get_logger
 # custom application types. Without this, deserialization warnings are logged
 # and will become hard errors in a future version.
 #
-# MAINTAINER NOTE: Only dataclasses and Enums need allowlisting here.
-# Pydantic BaseModels serialize as native dicts and don't trigger this.
-# When adding a new dataclass or Enum to the graph state (MessagesState),
-# add it here. Monitor logs for "Deserializing unregistered type" warnings
-# to detect missing entries.
+# MAINTAINER NOTE: an entry must name the module where the class is DEFINED,
+# never one that merely re-exports it — the serializer matches on the value's
+# real ``__module__``, so an alias left behind by a move allowlists nothing
+# (prod 2026-08-01: ``SemanticValidationResult`` moved to ``validation_models``
+# and came back from every resume as a plain dict).
+# What needs an entry:
+#   - anything stored at the ROOT of a channel, whatever its kind (dataclass,
+#     Enum or BaseModel) — without one it comes back as dict / str / dict;
+#   - a value NESTED in a dataclass, which re-validates nothing.
+# What does NOT: a value nested in a Pydantic model — the parent's validation
+# recreates it (``ExecutionStep`` is absent here on purpose and comes back typed).
+# Caveat: a nested value that fails ITS OWN validation degrades to a dict with no
+# error raised, so a model must never accept what it cannot re-read (ADR-195).
+# Guarded by tests/unit/domains/conversations/test_checkpoint_allowlist_guard.py.
 _CHECKPOINT_ALLOWED_MODULES: list[tuple[str, str]] = [
     # --- Graph state: routing & analysis ---
     ("src.domains.agents.domain_schemas", "RouterOutput"),
@@ -61,9 +70,10 @@ _CHECKPOINT_ALLOWED_MODULES: list[tuple[str, str]] = [
     # --- Graph state: orchestration ---
     ("src.domains.agents.orchestration.plan_schemas", "ExecutionPlan"),
     ("src.domains.agents.orchestration.plan_schemas", "StepType"),
-    ("src.domains.agents.orchestration.semantic_validator", "CriticalityLevel"),
-    ("src.domains.agents.orchestration.semantic_validator", "SemanticValidationResult"),
-    ("src.domains.agents.orchestration.semantic_validator", "SemanticIssueType"),
+    ("src.domains.agents.orchestration.validation_models", "CriticalityLevel"),
+    ("src.domains.agents.orchestration.validation_models", "SemanticIssue"),
+    ("src.domains.agents.orchestration.validation_models", "SemanticIssueType"),
+    ("src.domains.agents.orchestration.validation_models", "SemanticValidationResult"),
     ("src.domains.agents.orchestration.validator", "ValidationIssue"),
     ("src.domains.agents.orchestration.validator", "ValidationResult"),
     # --- Graph state: planning & catalogue ---

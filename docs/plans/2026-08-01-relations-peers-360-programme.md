@@ -218,10 +218,19 @@ C'est le défaut le plus large et le moins visible.
    ne pas généraliser sans une deuxième.**
 2. Réconcilier le manifeste et la production : soit l'outil produit `name`, soit le
    manifeste cesse de le promettre. Le sens de la correction dépend de l'étape 1.
-3. Enregistrer le schéma de sortie pour que `reference_validator` cesse de s'abstenir.
-   Une garde qui se tait sur absence de schéma est une garde décorative.
-4. Chercher les **autres** manifestes dans le même cas (exemples de référence non
-   couverts par un schéma enregistré). Le défaut est probablement pluriel.
+3. ~~Enregistrer le schéma de sortie pour que `reference_validator` cesse de
+   s'abstenir.~~ **TRANCHÉ AUTREMENT — ADR-194 (2026-08-02).** Mesure faite : le
+   validateur n'a jamais rien rejeté depuis le premier commit (0 erreur sur 254
+   références ; en production 28 tentatives, 0 succès sur 30 jours), et **le
+   réparer coûtait plus cher que le supprimer** — 63 chemins légitimes rejetés
+   sur 112 pour le bras manifeste, 13 sur 35 pour le bras schéma, dont
+   `contacts[0].name` lui-même. Le sous-système est supprimé ; la garde qui tient
+   le contrat est `test_manifest_reference_examples_truthful`, en CI.
+4. ~~Chercher les autres manifestes dans le même cas.~~ **FAIT — le défaut était
+   bien pluriel** : les trois outils météo publiaient 7 chemins de référence faux
+   sur 7 (plus 10 `outputs` faux), `list_labels_tool` déclarait un champ produit
+   seulement sur appel filtré. Couverture de la garde portée de 6 à 11 outils ;
+   ce qui reste non couvert est nommé dans l'ADR.
 
 **Non-régression** : un plan valide aujourd'hui doit rester valide. Le validateur
 devient plus strict — vérifier qu'il ne rejette pas des références légitimes.

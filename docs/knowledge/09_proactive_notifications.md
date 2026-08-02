@@ -114,8 +114,8 @@ Your feedback helps LIA improve:
 Yes. If your administrator has set usage limits and you have reached any of your quotas (tokens, messages, or cost), proactive notifications are automatically paused until your limits are reset (next billing period) or adjusted by your administrator. This ensures that background LLM usage doesn't exceed your allocated budget.
 
 
-## What are "open loops"?
-An open loop is a **commitment LIA heard in conversation** and quietly keeps for you — "I must call the plumber back", "Marie owes me the quote". At the right moment (imminent deadline, or a loop left silent too long), a proactive notification gives a gentle, direction-aware memory-jog: "You wanted to call the plumber back — is now a good time?" vs "Still no news from Marie about the quote?".
+## What are "commitments"?
+A commitment is a **promise LIA heard in conversation** and quietly keeps for you — "I must call the plumber back", "Marie owes me the quote". At the right moment (imminent deadline, or a loop left silent too long), a proactive notification gives a gentle, direction-aware memory-jog: "You wanted to call the plumber back — is now a good time?" vs "Still no news from Marie about the quote?".
 
 **Never nagging:** each loop has its own cooldown — once surfaced, it will not come back for several days. A loop closes itself when you say "done", or from the dashboard "For you" card, and quietly expires after weeks of inactivity.
 

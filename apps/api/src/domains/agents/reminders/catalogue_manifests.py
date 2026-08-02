@@ -127,20 +127,10 @@ create_reminder_catalogue_manifest = ToolManifest(
     ],
     outputs=[
         OutputFieldSchema(
-            path="success",
-            type="boolean",
-            description="Whether creation succeeded",
-        ),
-        OutputFieldSchema(
             path="reminder_id",
             type="string",
             description="UUID of the created reminder",
             semantic_type="reminder_id",
-        ),
-        OutputFieldSchema(
-            path="message",
-            type="string",
-            description="Confirmation message with formatted date",
         ),
         OutputFieldSchema(
             path="trigger_at_formatted",
@@ -204,11 +194,6 @@ list_reminders_catalogue_manifest = ToolManifest(
     parameters=[],  # No parameters needed
     outputs=[
         OutputFieldSchema(
-            path="success",
-            type="boolean",
-            description="Whether the request succeeded",
-        ),
-        OutputFieldSchema(
             path="reminders",
             type="array",
             description="List of pending reminders",
@@ -230,11 +215,6 @@ list_reminders_catalogue_manifest = ToolManifest(
             type="string",
             description="Formatted date/time",
             semantic_type="trigger_datetime",
-        ),
-        OutputFieldSchema(
-            path="message",
-            type="string",
-            description="Formatted list for display",
         ),
     ],
     cost=CostProfile(

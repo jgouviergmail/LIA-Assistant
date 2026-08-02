@@ -348,6 +348,7 @@ def test_non_tool_steps_are_ignored_when_listing_what_ran():
             ExecutionStep(
                 step_id="step_1",
                 step_type=StepType.CONDITIONAL,
+                condition="$steps.step_0.success",
                 agent_name="emails_agent",
                 tool_name="get_emails_tool",
                 parameters={},

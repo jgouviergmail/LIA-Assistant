@@ -455,7 +455,10 @@ tasks:
 
   test:backend:unit:coverage:
     # The CI command, verbatim — including the 64% floor (raised from 63 on
-    # 2026-08-01, measured 66.09% after ADR-193). `test:backend:unit:fast`
+    # 2026-08-01; measured 66.54% after ADR-194 and its follow-up lots, so the
+    # floor stays at 64: 65 would leave 1.54 pt of headroom, under the >=2 pt
+    # rule).
+    # `test:backend:unit:fast`
     # trades coverage for xdist parallelism because the pre-commit hook has a
     # 5-minute budget; that makes it the right gate for a commit and the wrong
     # one for reproducing CI, which is what this task is for.
