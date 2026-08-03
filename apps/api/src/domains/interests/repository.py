@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import and_, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.core.config import settings
 from src.core.constants import (
@@ -662,6 +663,49 @@ class InterestNotificationRepository:
         """Initialize repository with database session."""
         self.db = db
 
+    async def get_history(
+        self,
+        user_id: UUID,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> tuple[list[InterestNotification], int]:
+        """One page of this user's interest notifications, newest first.
+
+        Mirrors ``HeartbeatNotificationRepository.get_history`` deliberately:
+        the two histories share a panel and a card, so a divergence in ordering
+        or in what "total" means would be visible side by side.
+
+        The total is an EXACT aggregate over the whole set, never the length of
+        the page (ADR-185): a figure shown to the reader is a claim, and
+        "10 of 10" on an account with 200 notifications is a false one.
+
+        Args:
+            user_id: Owner — scopes both reads.
+            limit: Page size.
+            offset: Page offset.
+
+        Returns:
+            Tuple of (notifications, exact total).
+        """
+        base_filter = InterestNotification.user_id == user_id
+
+        count_result = await self.db.execute(select(func.count()).where(base_filter))
+        total = count_result.scalar() or 0
+
+        result = await self.db.execute(
+            select(InterestNotification)
+            # Eager, not lazy: the caller reads `notification.interest.topic`,
+            # and under asyncio touching a lazy relationship after the query
+            # returned raises `MissingGreenlet` — a 500 on a page that looks
+            # perfectly fine in a mocked test.
+            .options(selectinload(InterestNotification.interest))
+            .where(base_filter)
+            .order_by(InterestNotification.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return list(result.scalars().all()), total
+
     async def create(
         self,
         user_id: UUID,
@@ -670,6 +714,7 @@ class InterestNotificationRepository:
         content_hash: str,
         source: str,
         content_embedding: list[float] | None = None,
+        content: str | None = None,
     ) -> InterestNotification:
         """
         Create a notification record.
@@ -681,6 +726,9 @@ class InterestNotificationRepository:
             content_hash: SHA256 hash of content
             source: Content source
             content_embedding: Optional embedding
+            content: The message the user received. Optional and last so every
+                existing caller keeps working; a row without it renders without
+                its paragraph rather than with an invented one.
 
         Returns:
             Created InterestNotification instance
@@ -689,6 +737,7 @@ class InterestNotificationRepository:
             user_id=user_id,
             interest_id=interest_id,
             run_id=run_id,
+            content=content,
             content_hash=content_hash,
             source=source,
             content_embedding=content_embedding,

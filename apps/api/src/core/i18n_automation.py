@@ -11,6 +11,41 @@ _DEFAULT = "en"
 
 # Keyed by ISO base code (``zh`` for ``zh-CN``); normalized on lookup like
 # the sibling i18n modules.
+#: Compact day-set wordings for a routine's schedule.
+#:
+#: The three sets a weekly schedule falls into often enough to deserve a
+#: phrase rather than an enumeration. Anything else is listed day by day using
+#: the central ``i18n_dates`` abbreviations, so no day name is ever declared
+#: twice in the codebase.
+#:
+#: Keyed on the backend-canonical language (``zh-CN``, never ``zh``).
+SCHEDULE_DAY_SETS: dict[str, dict[str, str]] = {
+    "fr": {"every_day": "Tous les jours", "weekdays": "Lun-Ven", "weekend": "Sam-Dim"},
+    "en": {"every_day": "Every day", "weekdays": "Mon-Fri", "weekend": "Sat-Sun"},
+    "es": {"every_day": "Todos los días", "weekdays": "Lun-Vie", "weekend": "Sáb-Dom"},
+    "de": {"every_day": "Täglich", "weekdays": "Mo-Fr", "weekend": "Sa-So"},
+    "it": {"every_day": "Tutti i giorni", "weekdays": "Lun-Ven", "weekend": "Sab-Dom"},
+    "zh-CN": {"every_day": "每天", "weekdays": "周一至周五", "weekend": "周末"},
+}
+
+
+def get_schedule_day_set(kind: str, language: str | None) -> str:
+    """Localized wording for a recognised day set.
+
+    Args:
+        kind: ``every_day`` | ``weekdays`` | ``weekend``.
+        language: Any raw locale — normalized through the single chokepoint.
+
+    Returns:
+        The wording in the user's language, English as the last resort.
+    """
+    from src.core.i18n import DEFAULT_LANGUAGE, normalize_language
+
+    canonical = normalize_language(language or DEFAULT_LANGUAGE)
+    table = SCHEDULE_DAY_SETS.get(canonical, SCHEDULE_DAY_SETS["en"])
+    return table[kind]
+
+
 RECURRENCE_SUGGESTION_TEXT: dict[str, str] = {
     "fr": (
         "Tu me demandes régulièrement ce genre de chose au même moment de la "

@@ -436,6 +436,33 @@ class HeartbeatSettingsResponse(BaseModel):
     available_sources: list[str] = Field(
         description="Connected data sources (calendar, tasks, emails, weather, interests, memories)"
     )
+    # Availability and permission are DIFFERENT questions: a source can be
+    # connected and refused, or unavailable and permitted. Conflating them is
+    # what forced "disconnect the connector" as the only way to stop being
+    # interrupted (ADR-197).
+    disabled_sources: list[str] = Field(
+        default_factory=list,
+        description="Sources the user refuses to be interrupted from (empty = none).",
+    )
+    all_sources: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Every source that can be toggled, in display order. Published so "
+            "the client never re-declares the vocabulary the server enforces."
+        ),
+    )
+    # A switch that is ON and yields nothing is worse than one that is off:
+    # `fetch_departure_advice` returns None without calendar events, so
+    # refusing `calendar` silently neutralises `departure`. Enforced here,
+    # therefore published here (ADR-184).
+    source_dependencies: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description=(
+            "Sources whose result requires another source. A dependency the "
+            "user refused makes the dependent switch a no-op, so the panel "
+            "can say so instead of leaving a live control that does nothing."
+        ),
+    )
 
 
 class HeartbeatSettingsUpdate(BaseModel):
@@ -447,6 +474,11 @@ class HeartbeatSettingsUpdate(BaseModel):
     heartbeat_push_enabled: bool | None = None
     heartbeat_notify_start_hour: int | None = Field(None, ge=0, le=23)
     heartbeat_notify_end_hour: int | None = Field(None, ge=0, le=23)
+    # `None` means "not part of this PATCH" — an empty LIST means "I refuse
+    # nothing", which is a different, storable answer.
+    heartbeat_disabled_sources: list[str] | None = Field(
+        None, description="Full replacement of the refused-source set."
+    )
 
 
 # ---------------------------------------------------------------------------

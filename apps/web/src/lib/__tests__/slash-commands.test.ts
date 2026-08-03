@@ -77,6 +77,44 @@ describe('static command table (SLASH admin lot)', () => {
     expect(STATIC_SLASH_COMMAND_IDS).toEqual(new Set(STATIC_SLASH_COMMANDS.map(d => d.id)));
     expect(STATIC_SLASH_COMMAND_IDS.has('resume')).toBe(true);
   });
+
+  // The rail covered "what do I have" (agenda, emails, tasks, reminders) but
+  // none of the everyday CREATIONS, nor the door to the knowledge spaces.
+  it.each([
+    ['new-reminder', 'conversational'],
+    ['new-routine', 'conversational'],
+    ['spaces', 'local'],
+  ])('offers /%s as a %s command', (id, kind) => {
+    const entry = STATIC_SLASH_COMMANDS.find(d => d.id === id);
+    expect(entry).toBeDefined();
+    expect(entry?.kind).toBe(kind);
+  });
+
+  it('prefills the creations and navigates for the spaces door', () => {
+    const t = (key: string) => `T(${key})`;
+    const commands = buildStaticSlashCommands(t);
+
+    expect(commands.find(c => c.id === 'new-reminder')?.insertText).toBe(
+      'T(chat.slash.new_reminder_intent)'
+    );
+    expect(commands.find(c => c.id === 'new-routine')?.insertText).toBe(
+      'T(chat.slash.new_routine_intent)'
+    );
+    // A navigation inserts nothing — the page owns the handler.
+    expect(commands.find(c => c.id === 'spaces')?.insertText).toBeUndefined();
+  });
+
+  it('keeps the creation ids distinct from the listing ones', () => {
+    // `/reminders` lists, `/new-reminder` creates: two different requests, and
+    // an id collision would make one unreachable.
+    expect(STATIC_SLASH_COMMAND_IDS.has('reminders')).toBe(true);
+    expect(STATIC_SLASH_COMMAND_IDS.has('new-reminder')).toBe(true);
+  });
+
+  it('declares no duplicate id at all', () => {
+    const ids = STATIC_SLASH_COMMANDS.map(d => d.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
 });
 
 describe('userShortcutCommands', () => {

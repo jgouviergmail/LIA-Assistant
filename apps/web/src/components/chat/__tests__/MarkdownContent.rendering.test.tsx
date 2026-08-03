@@ -5,7 +5,6 @@
  *
  * The assistant emits *sentinel* markup — `<div class="lia-mcp-app"
  * data-registry-id=…>`, `<div class="lia-place__photo" data-photo-urls=…>`,
- * `<div class="contact-photos-gallery">` — which this component swaps for real
  * widgets. Three properties matter:
  *
  *  - a sentinel **missing its payload** must degrade to a plain container
@@ -134,62 +133,6 @@ describe('MarkdownContent — place photos', () => {
 
     expect(container.querySelector('div.lia-place__photo')).not.toBeNull();
     expect(screen.getByText('Sans photo')).toBeInTheDocument();
-  });
-});
-
-describe('MarkdownContent — contact photo gallery', () => {
-  /** Every gallery button carries the same translated action label. */
-  const EXPAND = 'common.expand_image';
-  /** The button wrapping a given photo, identified by its alt text. */
-  const photoButton = (container: HTMLElement, alt: string) =>
-    container.querySelector(`img[alt="${alt}"]`)?.closest('button') ?? null;
-
-  const gallery = (className: string) =>
-    `<div class="${className}"><img src="https://cdn.example.com/a.png" alt="Alice"><img src="https://cdn.example.com/b.png" alt="Bob"></div>`;
-
-  it('renders each photo as an activatable button', () => {
-    const { container } = render(gallery('contact-photos-gallery'));
-
-    // The buttons share the translated action label; the photo they carry is
-    // what tells them apart.
-    expect(screen.getAllByRole('button', { name: EXPAND })).toHaveLength(2);
-    expect(photoButton(container, 'Alice')).not.toBeNull();
-    expect(photoButton(container, 'Bob')).not.toBeNull();
-  });
-
-  it('recognises the class even when the model spaces it out', () => {
-    // Observed live: the LLM writes "contact - photos - gallery".
-    const { container } = render(gallery('contact - photos - gallery'));
-
-    expect(photoButton(container, 'Alice')).not.toBeNull();
-  });
-
-  it('opens the picture in a lightbox', async () => {
-    const { user, container } = render(gallery('contact-photos-gallery'));
-
-    await user.click(photoButton(container, 'Alice')!);
-
-    expect(await screen.findByRole('dialog', { name: 'Alice' })).toBeInTheDocument();
-  });
-
-  it('remembers a photo that finished loading', () => {
-    const { container } = render(gallery('contact-photos-gallery'));
-    const first = container.querySelector('img[alt="Alice"]');
-    expect(first).not.toBeNull();
-
-    fireEvent.load(first!);
-
-    // Caching is what keeps the picture from flashing back to transparent on
-    // the next streaming re-render.
-    expect(markImageLoaded).toHaveBeenCalledWith('https://cdn.example.com/a.png');
-  });
-
-  it('shows a cached photo as already loaded', () => {
-    isImageLoaded.mockReturnValue(true);
-    const { container } = render(gallery('contact-photos-gallery'));
-
-    expect(photoButton(container, 'Alice')).not.toBeNull();
-    expect(isImageLoaded).toHaveBeenCalledWith('https://cdn.example.com/a.png');
   });
 });
 

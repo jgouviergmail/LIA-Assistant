@@ -363,6 +363,104 @@ describe('ScheduledActionsSettings — edition', () => {
   });
 });
 
+describe('ScheduledActionsSettings — duplication', () => {
+  const DUPLICATE = 'scheduled_actions.duplicate';
+
+  async function openDuplicate(user: User) {
+    await user.click(screen.getByRole('button', { name: DUPLICATE }));
+    return screen.findByLabelText(FIELD_TITLE);
+  }
+
+  it('opens a CREATION form carrying every field of the source routine', async () => {
+    // The point of duplicating is declining a routine (week/weekend,
+    // personal/professional): everything is copied, only the title is marked.
+    useScheduledActions.mockReturnValue(
+      hook({
+        actions: [
+          action({ days_of_week: [6, 7], trigger_hour: 19, trigger_minute: 30 }),
+        ],
+      })
+    );
+    const { user } = render();
+
+    expect(await openDuplicate(user)).toHaveValue(
+      'Morning brief scheduled_actions.duplicate_suffix'
+    );
+    expect(screen.getByLabelText(FIELD_PROMPT)).toHaveValue('Summarise my day');
+  });
+
+  it('creates nothing until the reader saves', async () => {
+    const createAction = vi.fn().mockResolvedValue(action());
+    useScheduledActions.mockReturnValue(hook({ actions: [action()], createAction }));
+    const { user } = render();
+
+    await openDuplicate(user);
+
+    expect(createAction).not.toHaveBeenCalled();
+  });
+
+  it('creates a NEW routine on save — it never edits the source', async () => {
+    const createAction = vi.fn().mockResolvedValue(action());
+    const updateAction = vi.fn();
+    useScheduledActions.mockReturnValue(
+      hook({ actions: [action()], createAction, updateAction })
+    );
+    const { user } = render();
+    await openDuplicate(user);
+
+    await user.click(saveButton());
+
+    await waitFor(() => expect(createAction).toHaveBeenCalledTimes(1));
+    expect(updateAction).not.toHaveBeenCalled();
+    expect(createAction.mock.calls[0][0]).toMatchObject({
+      title: 'Morning brief scheduled_actions.duplicate_suffix',
+      action_prompt: 'Summarise my day',
+      days_of_week: [1, 2],
+      trigger_hour: 8,
+      trigger_minute: 0,
+    });
+  });
+
+  it('carries the condition of a CONDITION routine, filter included', async () => {
+    // A `mail_match` copied without its query is refused by the backend
+    // schema — duplicating would produce a routine that cannot be saved.
+    const createAction = vi.fn().mockResolvedValue(action());
+    useScheduledActions.mockReturnValue(
+      hook({
+        actions: [
+          action({
+            trigger_kind: 'condition',
+            condition_config: { type: 'mail_match', query: 'invoice' },
+          }),
+        ],
+        createAction,
+      })
+    );
+    const { user } = render();
+    await openDuplicate(user);
+
+    await user.click(saveButton());
+
+    await waitFor(() => expect(createAction).toHaveBeenCalledTimes(1));
+    expect(createAction.mock.calls[0][0]).toMatchObject({
+      trigger_kind: 'condition',
+      condition_config: { type: 'mail_match', query: 'invoice' },
+    });
+  });
+
+  it('never lets the suffix push the title past the column limit', async () => {
+    // `title` is `max_length=200` server-side: an over-long copy would be
+    // rejected by the API after the reader believed the form was valid.
+    const longTitle = 'x'.repeat(200);
+    useScheduledActions.mockReturnValue(hook({ actions: [action({ title: longTitle })] }));
+    const { user } = render();
+
+    const field = await openDuplicate(user);
+
+    expect((field as HTMLInputElement).value.length).toBeLessThanOrEqual(200);
+  });
+});
+
 describe('ScheduledActionsSettings — deletion', () => {
   /** Opens the row's confirmation; the confirm button shares the trigger label. */
   async function confirmDelete(user: User) {
@@ -401,5 +499,74 @@ describe('ScheduledActionsSettings — deletion', () => {
     const { user } = render();
     await confirmDelete(user);
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('scheduled_actions.error_delete'));
+  });
+});
+
+describe('the enable/disable toggle of a routine in the list', () => {
+  // Found by the browser scan, not by the static ratchet: a Radix `Switch`
+  // renders a `<button role="switch">`, and jsx-a11y cannot see that nothing
+  // names it. Axe reported it `critical` — a screen-reader user hears "switch,
+  // on" with no idea which routine it belongs to, on a list of several.
+  it('carries a name that says what it does AND which routine', async () => {
+    useScheduledActions.mockReturnValue(
+      hook({ actions: [action({ title: 'Revue du matin', is_enabled: true })], total: 1 })
+    );
+    render();
+
+    const toggle = await screen.findByRole('switch', {
+      name: 'scheduled_actions.toggle_aria',
+    });
+    expect(toggle).toBeChecked();
+  });
+
+  it('names every routine in the list, not only the first', async () => {
+    // The harness translator is `(key) => key` (src/__tests__/setup.ts), so
+    // the interpolated titles cannot be observed through the DOM here. What
+    // this pins is that EVERY row carries the name — a loop that named only
+    // the first would leave the rest anonymous, which is the shape of the
+    // defect axe found. That the resulting names then differ is proven in a
+    // real browser, with real translations, by the `button-name` check in
+    // e2e/a11y/axe-journeys.spec.ts.
+    useScheduledActions.mockReturnValue(
+      hook({
+        actions: [
+          action({ id: 'a1', title: 'Revue du matin' }),
+          action({ id: 'a2', title: 'Bilan du soir' }),
+        ],
+        total: 2,
+      })
+    );
+    render();
+
+    const toggles = await screen.findAllByRole('switch');
+    expect(toggles).toHaveLength(2);
+    for (const toggle of toggles) {
+      expect(toggle).toHaveAttribute('aria-label', 'scheduled_actions.toggle_aria');
+    }
+  });
+});
+
+describe('where the keyboard lands once a routine is deleted', () => {
+  // Same defect as the reminder card, in the other panel: Radix returns focus
+  // to the trigger the dialog opened from, and that trigger lived inside the
+  // row the deletion just removed. The keyboard user is dropped on <body> and
+  // has to tab back through the whole settings page.
+  it('returns focus into the section, not to the top of the document', async () => {
+    const deleteAction = vi.fn().mockResolvedValue(undefined);
+    useScheduledActions.mockReturnValue(
+      hook({ actions: [action({ title: 'Revue du matin' })], total: 1, deleteAction })
+    );
+    const { user } = render();
+
+    await user.click(await screen.findByRole('button', { name: DELETE }));
+    await user.click(screen.getByText(DELETE, { selector: 'button' }));
+
+    await waitFor(() => expect(deleteAction).toHaveBeenCalled());
+    await waitFor(() => {
+      expect(document.activeElement).not.toBe(document.body);
+      // The panel's own region: it outlives every row, including the last one
+      // — which is precisely when a row-based anchor would vanish too.
+      expect(document.activeElement).toHaveAttribute('data-routines-region');
+    });
   });
 });

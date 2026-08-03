@@ -301,6 +301,53 @@ class ProductRepository:
             stmt = stmt.where(ProductOutcome.evidence_level == evidence)
         return int(await self.db.scalar(stmt) or 0)
 
+    async def personal_results(self, *, user_id: UUID, since: datetime) -> dict[str, int]:
+        """What this account ACHIEVED over its billing cycle.
+
+        The dashboard led with messages, tokens and cost — administration
+        figures that say how much was spent and never what came of it. These
+        three say the latter, and each counts its own kind: a validated ANSWER
+        is not a successful ACTION.
+
+        Only ``validated`` rows are counted. ``produced`` means the result was
+        presented (E3), which is not the same as confirmed useful (E1 by the
+        reader's thumb, E2 by an uncorrected validation window).
+
+        Exact aggregates over the whole set — never the length of a page
+        (ADR-185): a figure shown to the user is a claim.
+
+        Args:
+            user_id: Owner (every query is scoped to it).
+            since: Start of the billing cycle (UTC).
+
+        Returns:
+            ``useful_results`` (every kind), ``actions``, ``automations``.
+        """
+        # ONE pass, three columns. Three separate counts would each see their
+        # own READ COMMITTED snapshot, and `actions` is a SUBSET of
+        # `useful_results`: a row landing between two reads would show the
+        # reader more actions than results — not a smaller truth, an
+        # impossible one. The window and the state are applied once, so the
+        # three figures cannot describe different populations either.
+        useful, actions, automations = (
+            await self.db.execute(
+                select(
+                    func.count(),
+                    func.count().filter(ProductOutcome.result_type == "action"),
+                    func.count().filter(ProductOutcome.result_type == "automation_run"),
+                ).where(
+                    ProductOutcome.user_id == user_id,
+                    ProductOutcome.state == "validated",
+                    ProductOutcome.produced_at >= since,
+                )
+            )
+        ).one()
+        return {
+            "useful_results": int(useful or 0),
+            "actions": int(actions or 0),
+            "automations": int(automations or 0),
+        }
+
     async def penetration_by_device(self, window_days: int) -> dict[str, float]:
         """Useful users / engaged users, overall and per device class (NS-02).
 

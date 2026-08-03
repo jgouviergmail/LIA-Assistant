@@ -2,10 +2,11 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { isImageLoaded, markImageLoaded } from '@/lib/image-cache';
 import { CAROUSEL_SWIPE_THRESHOLD_PX } from '@/lib/constants';
+import { ImageLightbox } from '@/components/ui/image-lightbox';
 
 interface InlinePlaceCarouselProps {
   /** Array of image URLs */
@@ -40,6 +41,7 @@ export const InlinePlaceCarousel: React.FC<InlinePlaceCarouselProps> = ({
 }) => {
   const { t } = useTranslation();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   // Touch/swipe state
   const touchStartX = useRef<number | null>(null);
@@ -129,9 +131,17 @@ export const InlinePlaceCarousel: React.FC<InlinePlaceCarouselProps> = ({
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
         navigateNext();
+      } else if (e.key === 'Home') {
+        // Arrowing to the far end of a long gallery is a chore the platform
+        // already answers; both keys are part of the WAI-ARIA carousel pattern.
+        e.preventDefault();
+        setCurrentIndex(0);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        setCurrentIndex(images.length - 1);
       }
     },
-    [navigatePrevious, navigateNext]
+    [navigatePrevious, navigateNext, images.length]
   );
 
   if (images.length === 0) return null;
@@ -203,11 +213,49 @@ export const InlinePlaceCarousel: React.FC<InlinePlaceCarouselProps> = ({
         </div>
       )}
 
+      {/* Full-screen entry. A gallery of small inline photos is exactly where
+          a reader wants a closer look, and the lightbox carries the same
+          navigation so they do not have to close it to move on. */}
+      {showNavigation && (
+        <button
+          type="button"
+          onClick={e => {
+            e.stopPropagation();
+            setLightboxOpen(true);
+          }}
+          aria-label={t('gallery.expand_photo')}
+          className="lia-place-carousel__nav lia-place-carousel__nav--expand"
+        >
+          <Maximize2 className="w-4 h-4" aria-hidden="true" />
+        </button>
+      )}
+
+      {lightboxOpen && (
+        <ImageLightbox
+          src={currentImage}
+          alt={alt || t('gallery.place_photo')}
+          isOpen
+          onClose={() => setLightboxOpen(false)}
+          onPrev={navigatePrevious}
+          onNext={navigateNext}
+          position={{ current: currentIndex + 1, total: images.length }}
+        />
+      )}
+
       {/* Counter badge */}
       {showNavigation && (
         <div className="lia-place-carousel__counter">
           {currentIndex + 1} / {images.length}
         </div>
+      )}
+
+      {/* The badge above is text on screen and nothing else: a screen-reader
+          user moving through the gallery would hear the image change with no
+          idea where they are. `polite` so it never interrupts. */}
+      {showNavigation && (
+        <span role="status" aria-live="polite" className="sr-only">
+          {t('gallery.photo_counter', { current: currentIndex + 1, total: images.length })}
+        </span>
       )}
     </div>
   );

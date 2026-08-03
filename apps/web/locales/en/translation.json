@@ -139,7 +139,8 @@
         "badge": "Maps & Places"
       },
       "cycle_dates": "Period from {{start}} to {{end}}",
-      "since": "since {{date}}"
+      "since": "since {{date}}",
+      "consumption_title": "Consumption"
     },
     "actions": {
       "open_chat": "Open Chat",
@@ -209,7 +210,14 @@
         "reconnect": "Reconnect",
         "retry": "Retry",
         "retry_later": "Try again later",
-        "configure": "Configure"
+        "configure": "Configure",
+        "cancel_reminder": "Cancel this reminder",
+        "cancel_reminder_done": "Reminder cancelled",
+        "cancel_reminder_title": "Cancel this reminder?",
+        "cancel_reminder_description": "“{{content}}” will not fire. This cannot be undone.",
+        "loop_done": "Mark as done",
+        "loop_dismiss": "No longer relevant",
+        "loop_edit": "Edit this commitment"
       },
       "cards": {
         "weather": {
@@ -352,6 +360,20 @@
       "cta": "Install",
       "ios_text": "Add LIA to your Home Screen: Share → “Add to Home Screen”.",
       "dismiss": "Never suggest installing again"
+    },
+    "avatar_picker": {
+      "group_label": "Choose LIA's avatar",
+      "female": "Feminine portrait",
+      "male": "Masculine portrait"
+    },
+    "results": {
+      "title": "What LIA achieved",
+      "since": "Since {{date}}",
+      "useful_results": "Useful results confirmed",
+      "actions": "Successful actions",
+      "automations": "Successful routines",
+      "commitments_closed": "Commitments closed",
+      "not_measured": "Outcome measurement is turned off on this instance."
     }
   },
   "auth": {
@@ -690,7 +712,9 @@
       "stt_tooltip_provider": "Speech-to-text via {{provider}}",
       "stt_tooltip_fallback": "Speech-to-text cost",
       "tts_tooltip_provider": "Text-to-speech via {{provider}}{{model}}",
-      "tts_tooltip_fallback": "Text-to-speech cost"
+      "tts_tooltip_fallback": "Text-to-speech cost",
+      "share_peer": "Share with a peer",
+      "share_peer_draft": "Relay this to {{recipient}}:\n\n{{content}}"
     },
     "code": {
       "copy": "Copy code",
@@ -928,7 +952,15 @@
       "news_label": "news",
       "news_description": "News on my interests",
       "news_intent": "Any news on my interests today?",
-      "skill_intent": "Start the {{name}} skill"
+      "skill_intent": "Start the {{name}} skill",
+      "new_reminder_label": "new reminder",
+      "new_reminder_description": "Create a reminder",
+      "new_reminder_intent": "Remind me to ",
+      "new_routine_label": "new routine",
+      "new_routine_description": "Create a recurring routine",
+      "new_routine_intent": "Create a routine that ",
+      "spaces_label": "spaces",
+      "spaces_description": "Open my knowledge spaces"
     },
     "reset_confirm": {
       "title": "Delete this conversation?",
@@ -944,6 +976,13 @@
       "reply": "Reply",
       "block": "Block",
       "reply_prefill": "Reply to {{name}}: "
+    },
+    "suggestions": {
+      "label": "From your day",
+      "next_event": "Prepare me for “{{subject}}”",
+      "important_mails": "Summarise my important emails",
+      "close_loop": "Help me close “{{subject}}”",
+      "reminder": "Remind me about « {{subject}} »"
     }
   },
   "skill_apps": {
@@ -3078,16 +3117,22 @@
         "personality": "tone, style, character, behaviour, behavior, persona, voice",
         "psyche": "emotions, mood, feelings, affect, emotional",
         "memories": "memory, remember, forget, facts, recollection",
-        "interests": "topics, tastes, subjects, curiosity, preferences",
+        "interests": "topics, tastes, subjects, curiosity, preferences, history, recent notifications",
         "peer-connections": "contacts, friends, family, network, share calendar, availability, block, discover users, connect, my name, copy my name, connection request, access log, relay message, blocked users, peers, social network, discovery, loved ones, relatives, share my address, email visible, my email, 360 overview",
-        "heartbeat": "proactive, spontaneous, initiative, check-in, autonomous messages",
+        "heartbeat": "proactive, spontaneous, initiative, check-in, autonomous messages, notification topics, sources, history, recent notifications",
         "scheduled-actions": "cron, schedule, recurring, automation, timer, planned",
         "journals": "diary, logbook, portrait, reflections, notes",
         "health-metrics": "heart rate, steps, sleep, iPhone, Apple Health, fitness, activity",
         "skills": "skills, capabilities, abilities, plugins, extensions",
         "rag-spaces": "documents, RAG, knowledge base, files, upload, indexing, library",
-        "user-consumption-export": "CSV, usage, tokens, cost, billing, statistics, export"
+        "user-consumption-export": "CSV, usage, tokens, cost, billing, statistics, export",
+        "haptics": "haptics vibration touch feedback sensory"
       }
+    },
+    "haptics": {
+      "title": "Haptic feedback",
+      "label": "Vibrate on key actions",
+      "description": "A very short vibration when push-to-talk starts, an action succeeds, or a commitment is closed. Separate from reduced motion, and stored on this device only."
     }
   },
   "relations": {
@@ -3370,7 +3415,8 @@
   },
   "gallery": {
     "photo_counter": "Photo {{current}} of {{total}}",
-    "place_photo": "Place photo"
+    "place_photo": "Place photo",
+    "expand_photo": "Open the photo full screen"
   },
   "hitl": {
     "default": "Do you confirm this action?",
@@ -3723,7 +3769,7 @@
         },
         "heartbeatAutonome": {
           "title": "💓 Autonomous Heartbeat",
-          "description": "LLM-driven proactive contextual notifications with 8 parallel data sources aggregated in real-time. 2-phase approach: structured decision (skip/notify via cheap model) then personality-aware message rewrite. Topics rotate through a varied interest sample and a content-level anti-repetition window (10 notifications / 7 days), so the same theme never comes back day after day. When a notification centers on an interest, real facts are fetched (Perplexity, Brave, Wikipedia) and clickable source links appended. Weather change detection (rain start/end, temperature drops, wind alerts). Configurable time windows and per-user push control. Every source is independently failable, and a source that drops out is counted and timed rather than silently missing: health indicators are read as per-day aggregates computed in the database (about fifty times lighter) and no longer vanish from notifications."
+          "description": "LLM-driven proactive contextual notifications with eleven parallel data sources aggregated in real-time. 2-phase approach: structured decision (skip/notify via cheap model) then personality-aware message rewrite. Topics rotate through a varied interest sample and a content-level anti-repetition window (10 notifications / 7 days), so the same theme never comes back day after day. When a notification centers on an interest, real facts are fetched (Perplexity, Brave, Wikipedia) and clickable source links appended. Weather change detection (rain start/end, temperature drops, wind alerts). Configurable time windows, per-user push control, and one switch per source — being connected to a service and being interrupted by it are two separate decisions. The panel also shows the last ten notifications sent, with their sources and the verdict already given. Every source is independently failable, and a source that drops out is counted and timed rather than silently missing: health indicators are read as per-day aggregates computed in the database (about fifty times lighter) and no longer vanish from notifications."
         },
         "webFetch": {
           "title": "🌐 Intelligent Web Fetch",
@@ -3820,6 +3866,23 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_27_8": {
+          "title": "v1.27.8 — 🧭 What LIA produced, and what may interrupt you",
+          "date": "August 2026",
+          "count": "10",
+          "items": {
+            "i1": "<b>👍 Your thumbs-up on a proactive notification is finally recorded</b> — the archived card carried a fabricated identifier the recording route could not resolve, so every vote failed silently. <b>No feedback had ever been recorded.</b> Already-archived cards no longer show the button at all, rather than offering a gesture with no effect.",
+            "i2": "<b>⏰ A routine no longer runs twice on the night the clocks change</b> — the scheduled time exists twice that night, and the routine fired again sixty minutes later. 54 double runs measured across the 2026 transitions of seven time zones. Now <b>at most one run per local day</b> — without ever dropping today’s run when you test a routine ahead of time.",
+            "i3": "<b>🔇 Eleven switches: being connected to a service is no longer being interrupted by it</b> — to stop mail-driven nudges you had to <b>disconnect the connector</b>, losing the tool you ask with. Settings → Proactivity → Notification topics. Everything is on by default, and a switch that cannot produce anything says so (leave-by advice needs the calendar).",
+            "i4": "<b>📜 The settings finally show what they produced</b> — the last ten proactive notifications and, identically, the interest ones: date, content, sources, verdict already given. Until now you could tune a frequency without ever seeing the result. Interest notifications older than this version show without their text: it was not kept, and a reconstructed summary would be worse than an absence.",
+            "i5": "<b>📁 Three blocks fold, closed by default</b> — the eleven switches and the two histories. The panel becomes an index you open rather than a wall you scroll past, and a closed block costs no request. The number of refused topics stays on the header: folding must not hide a decision.",
+            "i6": "<b>✨ The empty chat offers what LIA already knows about your day</b> — a meeting to prepare, a batch of mail, a commitment waiting, a pending reminder. Nothing is fetched to produce them: no connector woken, no quota spent. With nothing to go on, the generic starters come back.",
+            "i7": "<b>🏆 The dashboard opens on your results, not your consumption</b> — results confirmed useful, successful actions, routines run, commitments closed. Messages, tokens and costs move under “Consumption”. “Time saved” was <b>dropped rather than estimated</b>: nothing here measures it.",
+            "i8": "<b>🤝 Share an answer with a connected peer</b> — under an assistant bubble, the “…” menu lists your accepted peers and prepares the request in the composer. Nothing is sent without your confirmation.",
+            "i9": "<b>✅ A commitment’s actions are where you read it</b> — mark done, dismiss and correct, straight from the “For you” card on the dashboard. The full ledger stays one click away.",
+            "i10": "<b>🎨 Also</b> — LIA’s portrait is chosen from two visible thumbnails; a routine duplicates without creating anything before you confirm; the preview of the next five runs shows the time in the routine’s own zone and flags clock changes; a reminder cancels from its card; the photo gallery is fully keyboard-navigable; three quick commands join the list; and a brief haptic accompanies gestures on mobile, <b>set separately</b> from reduced animations."
+          }
+        },
         "v1_27_7": {
           "title": "v1.27.7 — 🗣️ A real question rather than an error message",
           "date": "August 2026",
@@ -6831,6 +6894,14 @@
       "relation_sections": {
         "title": "A sheet that unfolds",
         "desc": "A relationship sheet opens folded: the headings are the index, and you open what you came for. Each section states the window it looked at and reloads on its own."
+      },
+      "haptics": {
+        "title": "A brief buzz, if you want one",
+        "desc": "A discreet tap when you speak, when an action succeeds, when a commitment closes. Set separately: wanting a still interface is not wanting a silent phone."
+      },
+      "folded_settings": {
+        "title": "Settings, folded",
+        "desc": "The eleven notification topics and the histories stay closed. You open what you came to change — and a closed block loads nothing."
       }
     },
     "scenes": {
@@ -7299,7 +7370,18 @@
     "delete_all_error": "Error deleting interests",
     "confirm_delete_all_title": "Delete all interests?",
     "confirm_delete_all_description": "This will permanently delete all your active and blocked interests. This action cannot be undone.",
-    "delete_all_confirm": "Delete all"
+    "delete_all_confirm": "Delete all",
+    "history": {
+      "title": "Recent notifications",
+      "description": "The last interest updates LIA sent you.",
+      "empty": "No interest notification yet.",
+      "error": "Could not load the history.",
+      "count": "{{shown}} shown of {{total}}",
+      "source_perplexity": "Perplexity",
+      "source_brave": "Brave Search",
+      "source_rss": "RSS feed",
+      "source_web": "Web"
+    }
   },
   "heartbeat": {
     "settings": {
@@ -7347,7 +7429,40 @@
       "liked": "Thanks for your feedback!",
       "disliked": "Noted, I'll adjust.",
       "error": "Error sending feedback"
-    }
+    },
+    "source_health_signals": "Health",
+    "source_birthdays": "Birthdays",
+    "source_open_loops": "Commitments",
+    "source_departure": "Leave-by advice",
+    "source_not_connected": "Not connected",
+    "sources_permission_title": "Notification topics",
+    "sources_permission_description": "Being connected and being interrupted are two different things. Turn a source off to keep using it on request, without proactive notifications about it.",
+    "history": {
+      "title": "Recent notifications",
+      "description": "The last proactive messages LIA sent you.",
+      "empty": "No proactive notification yet.",
+      "error": "Could not load the history.",
+      "count": "{{shown}} shown of {{total}}",
+      "priority_low": "Low",
+      "priority_medium": "Medium",
+      "priority_high": "High",
+      "feedback_thumbs_up": "Useful",
+      "feedback_thumbs_down": "Not useful",
+      "feedback_none": "No feedback",
+      "source_UPCOMING_CALENDAR_EVENTS": "Upcoming events",
+      "source_PENDING_TASKS": "Pending tasks",
+      "source_UNREAD_EMAILS": "Unread emails",
+      "source_CURRENT_WEATHER": "Current weather",
+      "source_WEATHER_CHANGES": "Weather changes",
+      "source_USER_INTERESTS": "Interests",
+      "source_USER_MEMORIES": "Memories",
+      "source_JOURNAL_ENTRIES": "Journal",
+      "source_HEALTH_SIGNALS": "Health",
+      "source_UPCOMING_BIRTHDAYS": "Birthdays",
+      "source_OPEN_LOOPS": "Commitments",
+      "source_DEPARTURE_ADVICE": "Leave-by advice"
+    },
+    "source_requires": "Needs {{sources}}, which you have switched off"
   },
   "notifications": {
     "title": "Notifications",
@@ -7708,7 +7823,13 @@
     "error_create": "Failed to create",
     "error_update": "Failed to update",
     "error_delete": "Failed to delete",
-    "error_execute": "Failed to execute"
+    "error_execute": "Failed to execute",
+    "duplicate": "Duplicate",
+    "duplicate_suffix": "(copy)",
+    "next_executions": "Next runs",
+    "next_evaluations": "Next evaluation windows",
+    "clock_change": "(clocks change)",
+    "toggle_aria": "Enable or disable {{title}}"
   },
   "landing": {
     "meta": {

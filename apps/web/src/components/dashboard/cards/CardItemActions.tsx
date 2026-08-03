@@ -16,11 +16,22 @@
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 
+import { cn } from '@/lib/utils';
+
 export interface CardItemAction {
   icon: LucideIcon;
   /** Full localized intent — doubles as the accessible name. */
   label: string;
   onSelect: () => void;
+  /**
+   * A write is in flight for this item.
+   *
+   * `aria-disabled`, never `disabled`: the attribute on a FOCUSED control
+   * blurs it and drops it from the tab order, leaving a keyboard user on
+   * `<body>`. The caller's own handler guard is what prevents the double
+   * submit — this only says so.
+   */
+  busy?: boolean;
 }
 
 /** Shared chip classes — reuse for a `trailing` element so it aligns exactly. */
@@ -49,8 +60,9 @@ export function CardItemActions({
           type="button"
           onClick={action.onSelect}
           aria-label={action.label}
+          aria-disabled={action.busy || undefined}
           title={action.label}
-          className={CARD_ITEM_ACTION_CLASS}
+          className={cn(CARD_ITEM_ACTION_CLASS, action.busy && 'opacity-50')}
         >
           <action.icon className="h-3.5 w-3.5" aria-hidden="true" />
         </button>

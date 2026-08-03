@@ -3447,6 +3447,20 @@ a.lia-email__sender-email:hover {
   right: var(--lia-space-sm);
 }
 
+/* Full-screen entry: top-right, clear of the side arrows and of the dots row.
+   The shared `--nav` rule centres vertically, so this one overrides `top` and
+   neutralises that transform (a `translateY(-50%)` here would push it half
+   out of the frame). */
+.lia-place-carousel__nav--expand {
+  top: var(--lia-space-sm);
+  right: var(--lia-space-sm);
+  transform: none;
+}
+
+.lia-place-carousel__nav--expand:hover {
+  transform: scale(1.05);
+}
+
 /* Dots indicator */
 .lia-place-carousel__dots {
   position: absolute;

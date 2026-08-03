@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useLiaGender } from '@/hooks/useLiaGender';
+import { AvatarVariantPicker } from './AvatarVariantPicker';
 import { LLMUsageBadge } from './LLMUsageBadge';
 import type { TextSection } from '@/types/briefing';
 
@@ -36,12 +37,27 @@ interface HeroLiaCardProps {
  * CTA container (never an ancestor), so no invalid interactive nesting occurs;
  * the CardContent layer is pointer-transparent except for its own controls,
  * which preserves the whole-card mouse affordance exactly.
+ *
+ * That overlay stays — but it is invisible, so the change could read as
+ * accidental. `AvatarVariantPicker` adds the missing affordance: the two
+ * portraits, side by side, where pressing one SELECTS it instead of flipping.
+ * It is a sibling of the overlay too (a button may not nest interactive
+ * children) and sits above it, so a press lands on the picker rather than on
+ * the surface underneath. `group` here is what lets the picker fade in on
+ * hover and on `focus-within` at desktop widths.
  */
 export function HeroLiaCard({ greeting = null, isLoadingGreeting = false }: HeroLiaCardProps = {}) {
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const lng = (i18n.language || 'fr').split('-')[0];
-  const { liaImage, toggleGender: toggleLiaGender } = useLiaGender();
+  const {
+    liaImage,
+    liaImageVariants,
+    isMale,
+    mounted,
+    setGender,
+    toggleGender: toggleLiaGender,
+  } = useLiaGender();
 
   const headlineText = greeting?.text ?? '';
   const usingGreeting = Boolean(greeting?.text);
@@ -49,7 +65,7 @@ export function HeroLiaCard({ greeting = null, isLoadingGreeting = false }: Hero
   return (
     <Card
       variant="elevated"
-      className="w-full border-0 overflow-hidden relative rounded-xl h-[420px] sm:h-[530px]"
+      className="group w-full border-0 overflow-hidden relative rounded-xl h-[420px] sm:h-[530px]"
     >
       <Image src={liaImage} alt="LIA" fill className="object-cover" priority />
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-background/60" />
@@ -58,6 +74,12 @@ export function HeroLiaCard({ greeting = null, isLoadingGreeting = false }: Hero
         onClick={toggleLiaGender}
         aria-label={t('dashboard.actions.toggle_avatar')}
         className="absolute inset-0 z-[5] cursor-pointer rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      />
+      <AvatarVariantPicker
+        isMale={isMale}
+        mounted={mounted}
+        variants={liaImageVariants}
+        onSelect={setGender}
       />
       <CardContent className="pointer-events-none flex flex-col items-center justify-end gap-12 h-[420px] sm:h-[530px] py-6 px-6 relative z-10">
         {/* Greeting sits directly above the CTA buttons (no top spacer) so

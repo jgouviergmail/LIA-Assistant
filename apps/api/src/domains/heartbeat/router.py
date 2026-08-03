@@ -33,6 +33,12 @@ from src.domains.heartbeat.schemas import (
     HeartbeatSettingsResponse,
     HeartbeatSettingsUpdate,
 )
+from src.domains.heartbeat.source_policy import (
+    HEARTBEAT_SOURCE_DEPENDENCIES,
+    HEARTBEAT_SOURCE_ORDER,
+    disabled_sources_for,
+    sanitize_disabled_sources,
+)
 from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
@@ -140,6 +146,9 @@ async def get_heartbeat_settings(
         heartbeat_notify_start_hour=user.heartbeat_notify_start_hour,
         heartbeat_notify_end_hour=user.heartbeat_notify_end_hour,
         available_sources=available_sources,
+        disabled_sources=sorted(disabled_sources_for(user)),
+        all_sources=list(HEARTBEAT_SOURCE_ORDER),
+        source_dependencies={k: list(v) for k, v in HEARTBEAT_SOURCE_DEPENDENCIES.items()},
     )
 
 
@@ -166,6 +175,19 @@ async def update_heartbeat_settings(
                 APIMessages.heartbeat_min_max_invalid(normalize_language(user.language))
             )
 
+        # Refusals are validated BEFORE anything is written: an unknown key
+        # silently dropped would be a preference the reader believes they set.
+        # Canonical (sorted, de-duplicated) so two equivalent requests leave
+        # one row state, and a NEW list — never a mutation of the stored one
+        # (JSONB in-place changes are skipped by SQLAlchemy).
+        if update_data.get("heartbeat_disabled_sources") is not None:
+            try:
+                update_data["heartbeat_disabled_sources"] = sanitize_disabled_sources(
+                    update_data["heartbeat_disabled_sources"]
+                )
+            except ValueError as exc:
+                raise_unprocessable_entity(str(exc))
+
         if update_data:
             for field_name, value in update_data.items():
                 setattr(user, field_name, value)
@@ -189,6 +211,9 @@ async def update_heartbeat_settings(
             heartbeat_notify_start_hour=user.heartbeat_notify_start_hour,
             heartbeat_notify_end_hour=user.heartbeat_notify_end_hour,
             available_sources=available_sources,
+            disabled_sources=sorted(disabled_sources_for(user)),
+            all_sources=list(HEARTBEAT_SOURCE_ORDER),
+            source_dependencies={k: list(v) for k, v in HEARTBEAT_SOURCE_DEPENDENCIES.items()},
         )
 
     except HTTPException:

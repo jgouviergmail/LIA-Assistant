@@ -143,10 +143,21 @@ if [ -n "$PYTHON_FILES" ]; then
     fi
 
     # 2.4 Unit tests (fast only - same as `task test:backend:unit:fast`)
-    # -n auto --dist loadscope: parallel workers (pytest-xdist), tests grouped
+    # -n 8 --dist loadscope: parallel workers (pytest-xdist), tests grouped
     # by module so module-scoped fixtures never split across workers. Keeps
     # the pytest step inside the 5-minute pre-commit budget (single-process
     # baseline measured at ~12 min on 8916 tests).
+    #
+    # WORKER COUNT IS CAPPED, and `-n auto` is a trap on a big machine.
+    # Measured 2026-08-03 on a 24-core host: `-n auto` spawns 24 workers and
+    # the run WEDGES at 99 % — reproduced five times, including on a clean
+    # worktree of the previous release, so it is neither a flake nor a
+    # regression. py-spy on the stuck workers: 16 of 24 blocked in
+    # `socket.accept` inside `_fallback_socketpair`, i.e. asyncio building the
+    # Windows proactor self-pipe while pytest-asyncio creates an event loop.
+    # Loopback socketpair creation does not survive that much concurrency
+    # here; the same suite completes at -n 4 and -n 8. A cap keeps the gate
+    # deterministic without giving up parallelism.
     #
     # The -m expression must stay IDENTICAL to test:backend:unit:fast. It read
     # "not integration and not slow" until 2026-07-25: the same set today (zero
@@ -154,7 +165,7 @@ if [ -n "$PYTHON_FILES" ]; then
     # added would have run here and in no CI job. Guarded by
     # tests/unit/test_task_ci_pytest_parity_guard.py.
     echo "  Running fast unit tests..."
-    if ! $PYTEST_BIN tests/unit/ --tb=short --no-cov -q -m "not integration and not slow and not e2e and not benchmark and not multiprocess" -n auto --dist loadscope 2>&1; then
+    if ! $PYTEST_BIN tests/unit/ --tb=short --no-cov -q -m "not integration and not slow and not e2e and not benchmark and not multiprocess" -n 8 --dist loadscope 2>&1; then
         print_error "Unit tests failed"
         FAILED=1
     else

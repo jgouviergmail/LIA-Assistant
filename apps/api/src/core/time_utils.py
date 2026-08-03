@@ -1397,3 +1397,31 @@ def convert_weather_dates_in_payload(
         sys["sunset_formatted"] = format_time_only(sys["sunset"], user_timezone)
 
     return weather
+
+
+def resolve_user_timezone(user: Any) -> ZoneInfo:
+    """The user's display timezone, with the doctrine's safe fallback.
+
+    Two byte-identical copies of this existed — ``briefing.service``'s private
+    ``_resolve_user_tz`` and ``heartbeat.context_sources``'s public
+    ``resolve_user_tz``. A third caller (the chat's grounded suggestions) had
+    to reach into another domain's PRIVATE symbol to get it, which is the
+    signal that it never belonged to either domain.
+
+    Here rather than in one of them: ``core`` is imported by everything, so no
+    caller has to create a cross-domain edge — and the cycle ratchet stays put.
+
+    Args:
+        user: Anything carrying a ``timezone`` attribute; a missing, None or
+            invalid value falls back to ``DEFAULT_USER_DISPLAY_TIMEZONE``
+            rather than to a hardcoded literal.
+
+    Returns:
+        The resolved zone, never raising.
+    """
+    from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+
+    try:
+        return ZoneInfo(user.timezone)
+    except (KeyError, ValueError, AttributeError, TypeError):
+        return ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)

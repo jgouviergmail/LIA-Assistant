@@ -215,6 +215,37 @@ The i18n key `dashboard.briefing.synthesis_unavailable` is provided in all 6 sup
 
 ---
 
+## Reading the cache without fetching (ADR-199)
+
+`BriefingService.read_cached_cards()` is **public**: "what we already know, at
+no cost" is a capability of this domain rather than a detail. Without it a
+caller would either reach into the Redis keys itself or call `build_cards` and
+wake every connector.
+
+Its one consumer today is the empty chat's grounded suggestions
+(`domains/chat/suggestions.py`). The chat page deliberately knows nothing about
+the account's connectors — offering "show my last emails" to someone with no
+mail connector turns the very first interaction into a failure — so a
+suggestion is produced only where the briefing has ALREADY computed the
+evidence. Sections without a cache entry come back as `NOT_CONFIGURED`
+placeholders, and the builder treats them as "no evidence": a cold cache yields
+an empty list, which is the ordinary cold-start case, not a degraded one.
+
+`CardStatus.OK` is required on purpose. `ERROR` means the connector failed —
+an absence of knowledge, not a fact — and `HIDDEN` means the reader removed
+that card, which a suggestion must not override.
+
+**One source is read LIVE, and only one.** Measured on a real account
+(2026-08-03): `agenda` and `mails` were `NOT_CONFIGURED` — no connector — and
+`for_you` `EMPTY`, so the rail could never be anything but generic. The three
+cache-backed sources are exactly the ones a connector-less account cannot fill.
+Reminders close that gap without costing anything the rule above forbids: they
+live in a LOCAL table, `fetch_reminders` is documented as "always succeeds —
+does not raise `ConnectorNotConfiguredError`", and the read is rated at < 10 ms.
+That is precisely why `SECTION_REMINDERS_TTL_SECONDS = 0` and the section is
+never cached — which is also why a cache-only reader could not see the cheapest
+source in the system.
+
 ## Unconfigured cards (W7)
 
 `BriefingCard` returns `null` on `status === 'not_configured'`, and **seven of

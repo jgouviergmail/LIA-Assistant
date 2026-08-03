@@ -135,6 +135,13 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'personalization',
     gate: { kind: 'always' },
   },
+  haptics: {
+    titleKey: 'settings.haptics.title',
+    descriptionKey: 'settings.haptics.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.haptics`,
+    group: 'personalization',
+    gate: { kind: 'always' },
+  },
   'briefing-grid': {
     titleKey: 'settings.briefing_grid.title',
     descriptionKey: 'settings.briefing_grid.description',

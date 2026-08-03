@@ -20,6 +20,20 @@ DAY_NAMES: dict[Language, list[str]] = {
     "zh-CN": ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"],
 }
 
+# Short day names indexed by weekday (0=Monday, 6=Sunday).
+#
+# Declared, never derived: truncating the full name is wrong in German (the
+# usual forms are Mo/Di/Mi, not Mon/Die/Mit) and meaningless in Chinese. An
+# abbreviation is linguistic data.
+DAY_NAMES_SHORT: dict[Language, list[str]] = {
+    "fr": ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
+    "en": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "es": ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
+    "de": ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"],
+    "it": ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"],
+    "zh-CN": ["周一", "周二", "周三", "周四", "周五", "周六", "周日"],
+}
+
 # Month names indexed by month (0=January, 11=December)
 MONTH_NAMES: dict[Language, list[str]] = {
     "fr": [
@@ -138,6 +152,27 @@ def get_day_name(weekday: int, locale: str = "fr") -> str:
     """
     lang = _extract_language(locale)
     return DAY_NAMES.get(lang, DAY_NAMES[DEFAULT_LANGUAGE])[weekday]
+
+
+def get_day_name_short(weekday: int, locale: str = "fr") -> str:
+    """
+    Get the localized SHORT day name.
+
+    Args:
+        weekday: Day of week (0=Monday, 6=Sunday)
+        locale: Locale string (e.g., "fr", "en", "fr-FR")
+
+    Returns:
+        Localized abbreviation
+
+    Example:
+        >>> get_day_name_short(2, "de")
+        "Mi"
+        >>> get_day_name_short(2, "fr")
+        "Mer"
+    """
+    lang = _extract_language(locale)
+    return DAY_NAMES_SHORT.get(lang, DAY_NAMES_SHORT[DEFAULT_LANGUAGE])[weekday]
 
 
 def get_month_name(month: int, locale: str = "fr") -> str:

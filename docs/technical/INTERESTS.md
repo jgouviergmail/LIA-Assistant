@@ -355,6 +355,32 @@ la variete percue par l'utilisateur, avec une frontiere explicite :
 | Dedup de contenu (`get_recent_for_interest`), echantillon heartbeat | **OUI** |
 | Effacement RGPD | **OUI** — tout est purge |
 
+### Le contenu est conserve depuis v1.27.8 (ADR-200)
+
+`interest_notifications` a ete batie pour la **deduplication** : elle stockait
+un SHA-256 et un embedding, jamais le texte. Le panneau de reglages pouvait
+donc montrer QUAND LIA a interrompu le lecteur et jamais CE qu'elle a dit — la
+seule chose qui permet de juger si cela valait l'interruption, et exactement
+l'angle mort que l'historique heartbeat avait ferme.
+
+Le texte existe pourtant a l'ecriture (`result.content` dans
+`interests/proactive_task.py`) et etait simplement jete. Une colonne `content`
+**nullable** le conserve desormais.
+
+- **Aucun rattrapage n'est possible** : une empreinte ne s'inverse pas. Les
+  lignes anterieures portent `NULL` et la carte s'affiche **sans son
+  paragraphe**, plutot qu'avec un resume reconstruit.
+- `GET /interests/notifications/history` sert une page (defaut 20, max 100)
+  avec le **total exact** de l'ensemble a cote (ADR-185), jamais la longueur de
+  la page. La relation `interest` est chargee par `selectinload` : la lire
+  paresseusement leverait `MissingGreenlet` sous asyncio.
+- La route vit dans `interests/notifications_router.py` — extrait parce que
+  `interests/router.py` avait atteint son plafond de taille gele ; le prefixe
+  est identique, le chemin appele par le client n'a pas change.
+- La table est declaree `USER_PURGED` + export `FULL` dans `user_data_map.py` :
+  le contenu conserve est donc **exporte au titre du RGPD et purge a la
+  suppression** du compte, par construction.
+
 Consequence concrete : une notification heartbeat sur « Cinema A24 » met le sujet
 « cinema » au repos pour LES DEUX flux (cooldown sujet 36 h), sans consommer le
 quota quotidien du flux interets. Les lignes portent aussi l'embedding du contenu

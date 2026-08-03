@@ -204,3 +204,56 @@ describe('ImageLightbox — focus trap', () => {
     outside.remove();
   });
 });
+
+describe('ImageLightbox — navigating a gallery (item 10b)', () => {
+  const nav = { onPrev: vi.fn(), onNext: vi.fn(), position: { current: 2, total: 5 } };
+
+  beforeEach(() => vi.clearAllMocks());
+
+  it('offers no navigation when the caller provides none', () => {
+    // Four call sites show a single image; they must be untouched.
+    renderWithProviders(<ImageLightbox src="/a.png" alt="A" isOpen onClose={vi.fn()} />);
+
+    expect(screen.queryByRole('button', { name: 'common.previous' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'common.next' })).not.toBeInTheDocument();
+  });
+
+  it('offers named previous/next buttons for a gallery', async () => {
+    const { user } = renderWithProviders(
+      <ImageLightbox src="/a.png" alt="A" isOpen onClose={vi.fn()} {...nav} />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'common.previous' }));
+    expect(nav.onPrev).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole('button', { name: 'common.next' }));
+    expect(nav.onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it('moves with the arrow keys, where the reader expects them', () => {
+    renderWithProviders(<ImageLightbox src="/a.png" alt="A" isOpen onClose={vi.fn()} {...nav} />);
+
+    fireEvent.keyDown(document, { key: 'ArrowRight' });
+    expect(nav.onNext).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(document, { key: 'ArrowLeft' });
+    expect(nav.onPrev).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores the arrows on a single image instead of swallowing them', () => {
+    const onClose = vi.fn();
+    renderWithProviders(<ImageLightbox src="/a.png" alt="A" isOpen onClose={onClose} />);
+
+    fireEvent.keyDown(document, { key: 'ArrowRight' });
+
+    // Escape must keep working: the handler did not take over the keyboard.
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('states the position for assistive tech', () => {
+    renderWithProviders(<ImageLightbox src="/a.png" alt="A" isOpen onClose={vi.fn()} {...nav} />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('gallery.photo_counter');
+  });
+});

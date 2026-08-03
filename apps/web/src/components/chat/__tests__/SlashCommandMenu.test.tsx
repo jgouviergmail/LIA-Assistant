@@ -167,3 +167,31 @@ describe('ChatInput — slash menu', () => {
     expect(box().getAttribute('aria-controls')).toBeNull();
   });
 });
+
+describe('SlashCommandMenu — the highlighted option stays in view', () => {
+  // The list is capped at `max-h-64` (~5 rows) while the registry now ships
+  // thirteen static commands, plus the user's own shortcuts and every dialogue
+  // skill. Without scrolling the active option, arrowing past the fifth entry
+  // highlights a row nobody can see — the keyboard user loses their place in a
+  // menu the mouse user reads fine.
+  it('scrolls the active option into view when the highlight moves', () => {
+    const scrollIntoView = vi.fn();
+    // jsdom does not implement it; the component must still call it.
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      writable: true,
+      value: scrollIntoView,
+    });
+
+    renderInput();
+    type('/');
+    scrollIntoView.mockClear();
+
+    fireEvent.keyDown(box(), { key: 'ArrowDown' });
+
+    expect(scrollIntoView).toHaveBeenCalled();
+    // `nearest` keeps the page still — `center` would yank the whole
+    // conversation under the composer on every arrow press.
+    expect(scrollIntoView.mock.calls[0][0]).toMatchObject({ block: 'nearest' });
+  });
+});

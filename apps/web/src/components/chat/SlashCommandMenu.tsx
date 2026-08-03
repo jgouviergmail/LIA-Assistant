@@ -11,7 +11,7 @@
  * clicks use onMouseDown+preventDefault so they land before the blur.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CornerDownLeft, TerminalSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -128,6 +128,19 @@ export function SlashCommandMenu({
   menu: Pick<UseSlashMenuReturn, 'open' | 'items' | 'activeIndex' | 'select' | 'listboxId'>;
 }) {
   const { t } = useTranslation();
+  const activeRef = useRef<HTMLLIElement>(null);
+
+  // The list is capped at `max-h-64` (~5 rows) and the registry ships far more
+  // than that once skills and user shortcuts join the thirteen static
+  // commands. Arrowing without this highlights rows outside the scroll box:
+  // the mouse user reads the menu fine, the keyboard user loses their place.
+  // `block: 'nearest'` scrolls the LIST only — `center` would yank the whole
+  // conversation under the composer on every arrow press.
+  useEffect(() => {
+    if (!menu.open) return;
+    activeRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [menu.open, menu.activeIndex]);
+
   if (!menu.open) return null;
   return (
     <div className="absolute bottom-full left-0 right-0 z-20 mb-2 overflow-hidden rounded-lg border border-border/60 bg-popover shadow-lg">
@@ -140,6 +153,7 @@ export function SlashCommandMenu({
         {menu.items.map((command, index) => (
           <li
             key={command.id}
+            ref={index === menu.activeIndex ? activeRef : undefined}
             id={`slash-option-${index}`}
             role="option"
             aria-selected={index === menu.activeIndex}

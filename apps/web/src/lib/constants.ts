@@ -140,6 +140,15 @@ export const CHAT_SHORTCUT_ID_MAX_LENGTH = 32;
 export const CHAT_SHORTCUT_TEXT_MAX_LENGTH = 500;
 
 /**
+ * Mirror of `ScheduledActionCreate.title` (`max_length=200`).
+ *
+ * Duplicating a routine appends a suffix to its title; without this bound the
+ * copy of an already-long title would be refused by the API after the form
+ * looked perfectly valid.
+ */
+export const SCHEDULED_ACTION_TITLE_MAX_LENGTH = 200;
+
+/**
  * Max characters of a selected passage quoted into a C-02 selection intent —
  * beyond this the quote is ellipsized (a 4-page quote is prompt noise, and
  * the model can re-read the answer it just wrote anyway).

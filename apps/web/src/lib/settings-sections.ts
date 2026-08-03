@@ -84,6 +84,14 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'display-mode',
     declaredIn: 'components/settings/CardsDisplaySettings.tsx',
   },
+  // Renders nothing where `navigator.vibrate` is absent (desktop, iOS Safari),
+  // so a deep link can legitimately resolve to an absent section — same as the
+  // other capability-gated entries here.
+  haptics: {
+    tab: 'preferences',
+    accordionValue: 'haptics',
+    declaredIn: 'components/settings/HapticsSettings.tsx',
+  },
   'briefing-grid': {
     tab: 'preferences',
     accordionValue: 'briefing-grid',

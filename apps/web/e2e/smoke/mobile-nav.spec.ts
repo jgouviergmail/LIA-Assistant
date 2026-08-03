@@ -10,10 +10,10 @@
  * What is asserted here is the exclusivity (exactly one logo affordance at any
  * width) and the journey (open the menu, land on the page).
  */
-import { test, expect, type MockRoute } from '../fixtures';
+import { test, expect, briefingCardsMock, type MockRoute } from '../fixtures';
 
 const ROUTES: MockRoute[] = [
-  { url: '**/api/v1/briefing/cards', json: { cards: {} } },
+  briefingCardsMock,
   {
     url: '**/api/v1/briefing/synthesis',
     json: { greeting: 'Bonjour', synthesis: null, generated_at: null, llm_usage: null },

@@ -22,6 +22,9 @@ from src.domains.google_api.router import router as google_api_admin_router
 from src.domains.google_api.user_export_router import router as user_export_router
 from src.domains.image_generation.options_router import router as image_options_router
 from src.domains.image_generation.router import router as image_pricing_admin_router
+from src.domains.interests.notifications_router import (
+    router as interests_notifications_router,
+)
 from src.domains.interests.router import router as interests_router
 from src.domains.llm.router import router as llm_admin_router
 from src.domains.llm_config.router import router as llm_config_router
@@ -29,6 +32,7 @@ from src.domains.memories.router import router as memories_router
 from src.domains.notifications.router import router as notifications_router
 from src.domains.personalities.router import router as personalities_router
 from src.domains.relations.router import router as relations_router
+from src.domains.reminders.router import router as reminders_router
 from src.domains.scheduled_actions.router import router as scheduled_actions_router
 from src.domains.system_settings.public_router import router as system_settings_public_router
 from src.domains.system_settings.router import router as system_settings_router
@@ -49,8 +53,15 @@ api_router.include_router(connectors_router)
 api_router.include_router(agents_router)
 api_router.include_router(conversations_router)
 api_router.include_router(chat_router)
+# Reminders expose exactly ONE action (cancel by id) — the domain has no
+# management surface by design (discrete, ephemeral, chat-created).
+api_router.include_router(reminders_router)
 api_router.include_router(memories_router)
 api_router.include_router(interests_router)
+# Same prefix, separate module: the history is an audit surface, and
+# `interests/router.py` sits at its frozen size ceiling (ADR doctrine: extract,
+# never bump the cap).
+api_router.include_router(interests_notifications_router)
 api_router.include_router(notifications_router)
 api_router.include_router(scheduled_actions_router)
 api_router.include_router(briefing_router)  # Today dashboard

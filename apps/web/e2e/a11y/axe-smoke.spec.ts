@@ -17,11 +17,11 @@
  * Deeper journeys (chat, settings, spaces, admin, reflow/zoom) live in
  * ./axe-journeys.spec.ts.
  */
-import { test, expect, type MockRoute } from '../fixtures';
+import { test, expect, briefingCardsMock, type MockRoute } from '../fixtures';
 import { scanPage } from './scan';
 
 const dashboardData: MockRoute[] = [
-  { url: '**/api/v1/briefing/cards', json: { cards: {} } },
+  briefingCardsMock,
   {
     url: '**/api/v1/briefing/synthesis',
     json: { greeting: { text: 'Welcome back', generated_at: null, usage: null }, synthesis: null },
@@ -49,6 +49,12 @@ test.describe('accessibility smoke (axe WCAG 2.x A/AA)', () => {
     await mockApi(dashboardData);
     await page.goto('/en/dashboard');
     await expect(page.getByRole('main')).toBeVisible();
+    // The <main> landmark survives the error boundary, so its presence alone
+    // does NOT mean the dashboard rendered — this scan spent its life reporting
+    // a clean bill of health on "Error in dashboard" (fixed 2026-08-03, see
+    // briefingCardsMock). Name something only the real page has, so a payload
+    // that crashes the tree fails here instead of passing quietly.
+    await expect(page.getByRole('button', { name: "Switch LIA's avatar" })).toBeVisible();
 
     const { blocking, summary } = await scanPage(page, testInfo, '/dashboard');
     expect(blocking, `axe violations on /dashboard:\n${summary}`).toHaveLength(0);

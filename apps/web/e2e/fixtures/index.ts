@@ -57,3 +57,4 @@ export { makeTestUser } from './test-user';
 export type { TestUser } from './test-user';
 export type { MockRoute } from './api-mock';
 export { waitForHydration } from './hydration';
+export { briefingCardsMock } from './dashboard-shell';

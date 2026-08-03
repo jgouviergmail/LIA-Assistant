@@ -12,6 +12,7 @@ import {
   Download,
   Moon,
   RotateCcw,
+  History,
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,9 @@ import {
 import { useTranslation } from '@/i18n/client';
 import { type Language, getIntlLocale } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
+import { InterestNotificationHistory } from '@/components/settings/InterestNotificationHistory';
+import { useInterestNotificationHistory } from '@/hooks/useInterestNotificationHistory';
 import {
   useInterests,
   INTEREST_CATEGORY_ICONS,
@@ -127,6 +131,15 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
     updateInterest,
     reactivateInterest,
   } = useInterests();
+
+  const intlLocale = getIntlLocale(lng);
+
+  // Opened by the reader, not on arrival: the history block folds CLOSED, so
+  // an account that never opens it costs no request at all. Gating on the
+  // disclosure rather than merely hiding the list is the difference between
+  // "not shown" and "not paid for".
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const notificationHistory = useInterestNotificationHistory(historyOpen);
 
   // State for create dialog
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -980,6 +993,29 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
           </AlertDialog>
         </>
       )}
+
+      {/* What the settings above actually produced. Same blind spot the
+          proactive panel closed, on the same page: the reader could tune
+          topics and frequency without ever seeing what LIA sent. Folded
+          CLOSED, and not fetched until opened — a list nobody looks at must
+          not cost a request. */}
+      <div className="border-t pt-4">
+        <SettingsDisclosure
+          icon={History}
+          title={t('interests.history.title')}
+          onOpenChange={setHistoryOpen}
+        >
+          <p className="mb-2 text-xs text-muted-foreground">{t('interests.history.description')}</p>
+          <InterestNotificationHistory
+            notifications={notificationHistory.notifications}
+            total={notificationHistory.total}
+            firstLoad={notificationHistory.firstLoad}
+            loading={notificationHistory.loading}
+            error={notificationHistory.error}
+            locale={intlLocale}
+          />
+        </SettingsDisclosure>
+      </div>
     </div>
   );
 

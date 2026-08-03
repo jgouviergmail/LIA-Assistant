@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { haptic } from '@/lib/haptics';
 import { Send, Mic, Paperclip, Square, ImageUp } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useTranslation } from 'react-i18next';
@@ -695,6 +696,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         if ('touches' in e) {
           e.preventDefault();
         }
+        // Fired inside the gesture handler, which is the only place browsers
+        // honour it — and BEFORE the await, so the confirmation is immediate
+        // rather than tied to how long the microphone takes to open.
+        haptic('start');
         await startRecording();
       }
     },

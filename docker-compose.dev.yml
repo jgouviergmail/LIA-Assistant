@@ -121,6 +121,15 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile.dev
+    # Explicit and DISTINCT from the production tag. Without it Compose names
+    # the built image after the project + service — `lia-api:latest` — which is
+    # exactly what `task build:api` (Taskfile.yml) tags the PRODUCTION build
+    # with. Any local prod build then silently replaced the dev image, and the
+    # next `up` without `--build` reused it: the container started with the dev
+    # COMMAND (`python -m debugpy …`) inside a prod image that has no dev
+    # dependencies, and died on `No module named debugpy`.
+    # Twice now — 2026-07-24 (web) and 2026-08-03 (web AND api).
+    image: lia-api-dev:latest
     container_name: lia-api-dev
     # ADR-117: parity with prod — lifespan shutdown drains in-flight chat
     # runs + background tasks before exit (see docker-compose.prod.yml).
@@ -196,6 +205,12 @@ services:
     build:
       context: .  # Build from monorepo root (changed from ./apps/web)
       dockerfile: apps/web/Dockerfile.dev  # Path to Dockerfile relative to context
+    # Same collision, same fix (see the api service above): `task build:web`
+    # tags the production image `lia-web:latest`, which is the name Compose
+    # would give this one by default. The symptom was
+    # `Cannot find module '/monorepo/apps/web/.next/standalone/pnpm'` — the dev
+    # COMMAND run against the prod image's standalone WORKDIR.
+    image: lia-web-dev:latest
     container_name: lia-web-dev
     security_opt:
       - no-new-privileges:true

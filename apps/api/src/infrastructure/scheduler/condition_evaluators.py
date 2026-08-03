@@ -29,7 +29,7 @@ from zoneinfo import ZoneInfo
 
 import structlog
 
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.time_utils import resolve_user_timezone
 from src.domains.scheduled_actions.models import (
     CONDITION_TYPE_CALENDAR_EVENT,
     CONDITION_TYPE_DOCUMENT_ADDED,
@@ -68,10 +68,8 @@ def _fingerprint(*parts: str) -> str:
 
 
 def _user_tz(user: User) -> ZoneInfo:
-    try:
-        return ZoneInfo(user.timezone)
-    except (KeyError, ValueError, AttributeError, TypeError):
-        return ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
+    """Delegates to the shared helper — this was the THIRD identical copy."""
+    return resolve_user_timezone(user)
 
 
 def _contains(haystack: str | None, needle: str) -> bool:

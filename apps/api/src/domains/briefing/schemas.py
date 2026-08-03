@@ -208,6 +208,10 @@ class ReminderItem(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
+    # Optional so a payload cached before this field still parses. The card
+    # only offers "cancel" on rows that carry one: acting on a reminder we
+    # cannot name exactly is how the wrong one gets cancelled.
+    id: str | None = None
     content: str
     trigger_at_local: str = Field(
         ..., description="Pre-formatted local time, e.g. 'today 14:30' or 'tomorrow 09:00'"

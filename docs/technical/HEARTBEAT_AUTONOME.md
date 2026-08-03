@@ -86,6 +86,7 @@ APScheduler (30 min, configurable)
 | `heartbeat_notify_start_hour` | int | `9` | Start hour (0-23) for notification window |
 | `heartbeat_notify_end_hour` | int | `22` | End hour (0-23) for notification window |
 | `weather_use_last_known_location` | bool | `false` | Opt-in: use persisted browser geoloc (Phase 3) when traveling (>50 km from home, <24 h old) |
+| `heartbeat_disabled_sources` | JSONB | `NULL` | Sources the user refuses to be INTERRUPTED from (ADR-197). `NULL` = every source allowed. |
 
 ## Context Sources
 
@@ -116,6 +117,41 @@ with a dynamic query built from the aggregated context (`_build_second_pass_quer
 The standalone fetchers and the pure weather-transition rules live in
 `src/domains/heartbeat/context_sources.py` (extracted — file-size ratchet);
 `ContextAggregator` keeps thin delegate methods.
+
+### Per-source permission (ADR-197)
+
+Being **connected** to a service and being **interrupted** by it are two
+decisions. Until v1.27.8 they were one: the only documented way to stop
+mail-driven nudges was to disconnect the mail connector — which also removes
+the tool the user asks with.
+
+`domains/heartbeat/source_policy.py` owns the vocabulary:
+
+- `HEARTBEAT_SOURCE_KEYS` — the eleven sources a notification can be *about*.
+  `activity` and the three anti-redundancy windows are deliberately absent:
+  they say what was already sent, so gating them would make the assistant
+  repeat itself rather than interrupt less.
+- `HEARTBEAT_SOURCE_ORDER` — the display order, published by the API so the
+  frontend never re-declares a vocabulary it does not enforce (ADR-184).
+- `assert_source_registry_complete()` — called at import, checks the two
+  declarations **in both directions** (ADR-085 doctrine).
+
+The preference stores the **refusal set**, never the allowlist: `NULL` means
+"never expressed", so existing accounts keep their exact behaviour and a source
+added later is ON until someone refuses it.
+
+Gating happens in `ContextAggregator.aggregate` **before** the fetch, so a
+refused source also stops costing an API call — a side benefit, not the reason.
+
+**Dependencies are declared and published.** `fetch_departure_advice` opens
+with `if not calendar_events: return None`: refusing `calendar` leaves the
+`departure` switch ON and permanently silent. `HEARTBEAT_SOURCE_DEPENDENCIES`
+declares that edge, the boot assert checks both sides of it, and the settings
+response carries it as `source_dependencies` so the panel can say "requires
+Calendar" instead of leaving a live control that yields nothing. `journals` and
+`memories` are deliberately absent from that table: they also consume the first
+pass, but through a query that falls back to a generic one — they degrade
+rather than go silent.
 
 ### Weather Change Detection
 

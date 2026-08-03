@@ -16,6 +16,11 @@ from src.domains.chat.shortcuts import (
     ChatShortcutsResponse,
     sanitize_chat_shortcuts,
 )
+from src.domains.chat.suggestions import (
+    ChatSuggestionItem,
+    ChatSuggestionsResponse,
+    build_chat_suggestions,
+)
 from src.domains.users.models import User
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -97,3 +102,28 @@ async def get_user_statistics(
         UserStatisticsResponse: User statistics
     """
     return await StatisticsService.get_user_statistics(current_user.id, db)
+
+
+@router.get(
+    "/suggestions",
+    response_model=ChatSuggestionsResponse,
+    summary="Grounded suggestions for the empty chat",
+    description=(
+        "Suggestions backed by what the briefing cache ALREADY holds. Never "
+        "fetches: a cold cache returns an empty list and the client falls back "
+        "to its generic starters."
+    ),
+)
+async def get_chat_suggestions(
+    current_user: User = Depends(get_current_active_session),
+) -> ChatSuggestionsResponse:
+    """Read-only, cache-only, no LLM.
+
+    Returning nothing is a normal answer here, not an error: the empty chat
+    must never wait on a connector, and a suggestion nobody can act on is
+    worse than the generic example it would replace.
+    """
+    suggestions = await build_chat_suggestions(current_user)
+    return ChatSuggestionsResponse(
+        suggestions=[ChatSuggestionItem(id=s.id, params=s.params) for s in suggestions]
+    )

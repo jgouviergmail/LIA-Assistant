@@ -560,20 +560,6 @@
     background-image: radial-gradient(circle, var(--tw-gradient-stops));
   }
 
-  /* Contact Photos Gallery - Horizontal Layout */
-  .contact-photos-gallery {
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 1rem;
-    margin: 1rem 0;
-    flex-wrap: wrap;
-    min-height: 127px;
-    /* Anti-flicker: isolate this container from parent repaints */
-    isolation: isolate;
-  }
-
   .contact-photo {
     width: 127px;
     height: 127px;

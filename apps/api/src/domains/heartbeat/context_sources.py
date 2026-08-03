@@ -25,7 +25,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.time_utils import resolve_user_timezone
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.heartbeat.schemas import WeatherChange
 
@@ -65,13 +65,11 @@ def format_utc_datetime(dt: datetime | None, user_tz: ZoneInfo) -> str:
 def resolve_user_tz(user: Any) -> ZoneInfo:
     """Resolve the user's timezone with safe fallback.
 
-    Falls back to DEFAULT_USER_DISPLAY_TIMEZONE if the user's timezone
-    attribute is missing, None, or invalid.
+    Delegates to the shared helper: this and `briefing.service`'s private twin
+    were byte-identical, and the duplication is what made a third caller reach
+    into a private symbol.
     """
-    try:
-        return ZoneInfo(user.timezone)
-    except (KeyError, ValueError, AttributeError, TypeError):
-        return ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
+    return resolve_user_timezone(user)
 
 
 def detect_weather_changes(

@@ -125,6 +125,34 @@ export const STATIC_SLASH_COMMANDS: readonly StaticSlashCommandDef[] = [
     descriptionKey: 'chat.slash.news_description',
     insertKey: 'chat.slash.news_intent',
   },
+  // The rail covered "what do I have" and none of the everyday CREATIONS.
+  // Both resolve on any account — reminders live in local tables and routines
+  // are created through the automation tool — so neither can turn into the
+  // broken promise `chat-starters` documents (offering an intent that needs a
+  // connector the account may not have).
+  {
+    id: 'new-reminder',
+    kind: 'conversational',
+    labelKey: 'chat.slash.new_reminder_label',
+    descriptionKey: 'chat.slash.new_reminder_description',
+    insertKey: 'chat.slash.new_reminder_intent',
+  },
+  {
+    id: 'new-routine',
+    kind: 'conversational',
+    labelKey: 'chat.slash.new_routine_label',
+    descriptionKey: 'chat.slash.new_routine_description',
+    insertKey: 'chat.slash.new_routine_intent',
+  },
+  // A navigation, not a request: the knowledge spaces have their own page, and
+  // asking the model to "open" it would be prose for something the browser
+  // does directly.
+  {
+    id: 'spaces',
+    kind: 'local',
+    labelKey: 'chat.slash.spaces_label',
+    descriptionKey: 'chat.slash.spaces_description',
+  },
 ];
 
 /** The ids a user-defined shortcut may NOT take (statics win, deterministically). */

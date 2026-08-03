@@ -9,13 +9,17 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from src.core.constants import SCHEDULED_ACTION_OCCURRENCES_PREVIEW
 from src.domains.scheduled_actions.models import (
     CONDITION_TYPE_CALENDAR_EVENT,
     CONDITION_TYPE_MAIL_MATCH,
     CONDITION_TYPES,
     TriggerKind,
 )
-from src.domains.scheduled_actions.schedule_helpers import format_schedule_display
+from src.domains.scheduled_actions.schedule_helpers import (
+    compute_next_triggers_utc,
+    format_schedule_display,
+)
 
 # Weather-change kinds accepted by the condition (mirror of the briefing
 # ForecastAlertKind values — a wrong kind would silently never fire).
@@ -218,14 +222,34 @@ class ScheduledActionResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    # The next runs, as INSTANTS. Structured rather than pre-formatted: the
+    # client renders them with `Intl` in the routine's OWN timezone (which it
+    # already receives), so a traveller reads the hours the routine will really
+    # fire at rather than their current wall clock. Never recomputed in the
+    # browser — a second interpretation of the cron would be a second
+    # authority, and the daylight-saving edges are exactly where the two would
+    # disagree.
+    next_occurrences: list[datetime] = Field(
+        default_factory=list,
+        description="Next runs in UTC (one per local day; DST duplicates removed).",
+    )
+
     @model_validator(mode="after")
     def compute_schedule_display(self) -> "ScheduledActionResponse":
-        """Compute human-readable schedule string from days/time fields."""
+        """Compute the human-readable schedule and the upcoming runs."""
         if not self.schedule_display:
             self.schedule_display = format_schedule_display(
                 self.days_of_week,
                 self.trigger_hour,
                 self.trigger_minute,
+            )
+        if not self.next_occurrences:
+            self.next_occurrences = compute_next_triggers_utc(
+                self.days_of_week,
+                self.trigger_hour,
+                self.trigger_minute,
+                self.user_timezone,
+                count=SCHEDULED_ACTION_OCCURRENCES_PREVIEW,
             )
         return self
 

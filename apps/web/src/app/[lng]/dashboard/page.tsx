@@ -5,18 +5,25 @@ import { useAuth } from '@/hooks/useAuth';
 import { FeatureErrorBoundary } from '@/components/errors';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { TodayBriefing } from '@/components/dashboard/TodayBriefing';
+import { ResultsSummary } from '@/components/dashboard/ResultsSummary';
 import { UsageStatistics } from '@/components/dashboard/UsageStatistics';
+import { usePersonalResults } from '@/hooks/usePersonalResults';
 
 /**
  * Today dashboard — the daily ritual home page.
  *
  * Layout (top → bottom):
  *   1. <TodayBriefing> — greeting + synthesis + hero LIA + quick access + 9-card grid
- *   2. <UsageStatistics> — billing cycle counters (preserved as-is)
+ *   2. <ResultsSummary> — what the assistant ACHIEVED this cycle
+ *   3. <UsageStatistics> — the volumes, folded behind a "Consumption" disclosure
+ *
+ * Results lead and consumption follows: messages, tokens, Google requests and
+ * cost are what an administrator needs, not what a reader can act on.
  */
 export default function DashboardPage() {
   const { user, isLoading } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { results, firstLoad, error: resultsError } = usePersonalResults();
 
   if (isLoading) {
     return (
@@ -35,6 +42,12 @@ export default function DashboardPage() {
     <FeatureErrorBoundary feature="dashboard">
       <div className="space-y-10 sm:space-y-12">
         <TodayBriefing />
+        <ResultsSummary
+          results={results}
+          firstLoad={firstLoad}
+          error={resultsError}
+          locale={i18n.language || 'fr'}
+        />
         <UsageStatistics />
       </div>
     </FeatureErrorBoundary>

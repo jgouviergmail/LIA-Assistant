@@ -491,6 +491,20 @@ PRODUCT_ROLLUP_INITIAL_DELAY_MINUTES = 2
 SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS = 60
 SCHEDULED_ACTIONS_MAX_PER_USER = 20
 SCHEDULED_ACTIONS_SESSION_PREFIX = "scheduled_action_"  # Session ID prefix for automated sources
+
+
+#: How many upcoming runs of a routine the interfaces preview.
+#:
+#: One per LOCAL day: at the daylight-saving fall-back the cron yields two
+#: instants for the same wall-clock time, and listing both would show the
+#: same line twice.
+SCHEDULED_ACTION_OCCURRENCES_PREVIEW = 5
+
+#: How many grounded suggestions the empty chat offers.
+#:
+#: Three, like the generic starters they replace: a fourth would turn a
+#: nudge into a menu on the one screen a newcomer is already unsure about.
+CHAT_SUGGESTIONS_MAX = 3
 SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS = 300  # 5 minutes
 SCHEDULED_ACTIONS_MAX_RETRIES = 1  # 1 retry = 2 total attempts on transient errors
 SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS = 30  # Delay between retry attempts

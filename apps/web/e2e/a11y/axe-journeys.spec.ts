@@ -15,7 +15,8 @@
  * Keyboard: from the page body, Tab must reach visibly-focusable controls —
  * a minimal reachability check complementing the per-component RTL tests.
  */
-import { test, expect, type MockRoute } from '../fixtures';
+import { test, expect, briefingCardsMock, type MockRoute } from '../fixtures';
+import { relationsData } from '../fixtures/relations';
 import { scanPage } from './scan';
 
 // --- Hermetic payloads (mirroring the smoke specs' shapes) -------------------
@@ -143,195 +144,6 @@ const adminData: MockRoute[] = [
   },
 ];
 
-/**
- * Relations CRM — a first-class nav destination since v1.27.1 that had no axe
- * coverage. The detail payload carries every section INCLUDING relayed peer
- * messages, both directions and the "no text kept" degraded case, so the scan
- * exercises the colored pills, the section cards and the reply control.
- */
-const relationsData: MockRoute[] = [
-  {
-    url: '**/api/v1/relations',
-    json: {
-      relations: [
-        {
-          display_name: 'Gérard Dupont',
-          identity_confidence: 'exact',
-          open_loops_count: 2,
-          calls_count: 1,
-          peer_messages_count: 2,
-          last_interaction_at: '2026-07-28T09:00:00Z',
-          is_favorite: true,
-          is_peer: true,
-        },
-        {
-          // A starred relationship with NO live signal: exercises the "no
-          // recent signal" italic and the empty pills row, a branch the
-          // populated card above never renders.
-          display_name: 'Mémé Jeanne',
-          identity_confidence: 'exact',
-          open_loops_count: 0,
-          calls_count: 0,
-          peer_messages_count: 0,
-          last_interaction_at: null,
-          is_favorite: false,
-          is_peer: false,
-        },
-        // Enough people to bring the TOOLBAR out (search + sort select +
-        // filter chips appear past the threshold) — otherwise the scan would
-        // silently skip every control it introduced. One of them is dormant,
-        // so the "dormant" chip is scanned too.
-        ...Array.from({ length: 9 }, (_, index) => ({
-          display_name: `Contact ${index}`,
-          identity_confidence: 'exact',
-          open_loops_count: index % 3,
-          calls_count: index % 2,
-          peer_messages_count: 0,
-          last_interaction_at: index === 0 ? '2025-01-05T09:00:00Z' : '2026-07-20T09:00:00Z',
-          is_favorite: false,
-          is_peer: index === 1,
-        })),
-      ],
-    },
-  },
-  {
-    // FIRST among the `/relations/...` routes, not last: Playwright resolves
-    // route handlers LAST-REGISTERED-FIRST (see `fixtures/api-mock.ts`).
-    // Declared last, this catch-all won and answered `/relations/overview-scope`
-    // with a RelationDetail; the panel then read `scope.sections.length` off an
-    // object that has no `sections` and died behind its error boundary.
-    url: '**/api/v1/relations/*',
-    json: {
-      display_name: 'Gérard Dupont',
-      identity_confidence: 'normalized',
-      open_loops: [
-        {
-          id: 'l1',
-          subject: 'Rendre la perceuse',
-          direction: 'user_owes',
-          due_hint: null,
-          days_open: 4,
-        },
-      ],
-      recent_calls: [
-        {
-          id: 'c1',
-          objective: 'Anniversaire surprise',
-          outcome: 'objective_met',
-          summary: 'Il est partant.',
-          created_at: '2026-07-25T10:00:00Z',
-        },
-      ],
-      memories: [{ id: 'm1', content: 'Aime la randonnée en montagne.' }],
-      open_loops_total: 1,
-      recent_calls_total: 1,
-      memories_total: 1,
-      peer_messages_total: 2,
-      peer_messages: [
-        {
-          id: 'pm1',
-          direction: 'received',
-          content: 'Gérard vous fait dire qu’il sera en retard.',
-          occurred_at: '2026-07-27T18:00:00Z',
-        },
-        { id: 'pm2', direction: 'sent', content: null, occurred_at: '2026-07-26T08:00:00Z' },
-      ],
-      peer_link: {
-        connected_since: '2026-06-01T10:00:00Z',
-        shared_by_me: [{ domain: 'calendar', level: 'availability' }],
-        shared_with_me: [{ domain: 'task', level: 'titles' }],
-      },
-      is_favorite: true,
-      is_peer: true,
-    },
-  },
-  {
-    // AFTER the catch-all above, so this more specific route wins (LIFO).
-    url: '**/api/v1/relations/overview-scope',
-    json: {
-      sections: ['contact', 'open_loops', 'calls', 'memories', 'peer_messages', 'emails', 'events'],
-      directions: ['received', 'sent'],
-      roles: ['attendee', 'organizer'],
-      max_items: 5,
-    },
-  },
-  {
-    // AFTER the catch-all above (LIFO). The single-segment glob does not match
-    // a two-segment path anyway, but the order now states the intent correctly.
-    url: '**/api/v1/relations/*/context',
-    json: {
-      contact: {
-        status: 'ok',
-        from_cache: false,
-        generated_at: '2026-07-30T09:00:00Z',
-        contact: {
-          display_name: 'Gérard Dupont',
-          nickname: null,
-          organization: 'Menuiserie Dupont',
-          occupation: 'Menuisier',
-          birthday: '--04-07',
-          biography: null,
-          emails: [{ value: 'gerard@example.com', label: 'work' }],
-          phones: [{ value: '+33600000000', label: 'mobile' }],
-          addresses: [
-            {
-              // Deliberately long, with spaces: it must wrap on the spaces at
-              // 320 px, never be chopped mid-word.
-              value: '12 rue des Lilas Blancs, 69008 Lyon Métropole, France',
-              label: 'home',
-            },
-          ],
-          relations: [{ value: 'Claire Lefèvre', label: 'spouse' }],
-          // One unbreakable token far wider than 320 px: the case that decides
-          // whether the card overflows the viewport or wraps inside it.
-          links: [
-            {
-              value: 'https://example.com/menuiserie-dupont/realisations/terrasses-bois',
-              label: null,
-            },
-          ],
-          important_dates: [{ value: '2011-09-03', label: 'anniversary' }],
-          messaging: [],
-        },
-        emails: [],
-        events: [],
-      },
-      emails: {
-        status: 'ok',
-        from_cache: false,
-        generated_at: '2026-07-30T09:00:00Z',
-        contact: null,
-        emails: [
-          {
-            id: 'm1',
-            direction: 'received',
-            subject: 'Devis pour la terrasse',
-            occurred_at: '2026-07-28T09:00:00Z',
-          },
-        ],
-        events: [],
-      },
-      events: {
-        status: 'ok',
-        from_cache: false,
-        generated_at: '2026-07-30T09:00:00Z',
-        contact: null,
-        emails: [],
-        events: [
-          {
-            id: 'e1',
-            summary: 'Visite du chantier',
-            starts_at: '2026-08-05T09:00:00Z',
-            is_past: false,
-          },
-        ],
-      },
-      addresses_used: 1,
-      window_days: 90,
-      email_window_days: 365,
-    },
-  },
-];
 
 async function assertNoHorizontalScroll(page: import('@playwright/test').Page) {
   const overflow = await page.evaluate(() => {
@@ -369,6 +181,67 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
 
     const { blocking, summary } = await scanPage(page, testInfo, '/dashboard/settings');
     expect(blocking, `axe violations on /dashboard/settings:\n${summary}`).toHaveLength(0);
+  });
+
+  test('the routines list and its upcoming runs scan clean', async ({
+    page,
+    authenticate,
+    mockApi,
+  }, testInfo) => {
+    // The scan above mocks nothing, so `/scheduled-actions` 501s and the
+    // section renders empty: the routine rows — and the two coloured markers
+    // the upcoming-runs preview introduced, a 70%-opacity zone name and a
+    // clock-change warning — have never been contrast-checked.
+    //
+    // The two instants below straddle the end of summer time in Paris: same
+    // wall clock, different offset, which is exactly when the warning renders.
+    await authenticate();
+    await mockApi([
+      {
+        url: '**/api/v1/scheduled-actions**',
+        json: {
+          // `scheduled_actions`, not `actions`: the hook reads
+          // `listData?.scheduled_actions ?? []`, so a wrong key here yields an
+          // empty list that looks exactly like a working mock.
+          scheduled_actions: [
+            {
+              id: '00000000-0000-4000-8000-00000000ac01',
+              user_id: '00000000-0000-4000-8000-000000000001',
+              title: 'Revue du matin',
+              action_prompt: 'Résume ma journée',
+              days_of_week: [1, 2, 3, 4, 5],
+              trigger_hour: 8,
+              trigger_minute: 0,
+              user_timezone: 'Europe/Paris',
+              trigger_kind: 'time',
+              condition_config: null,
+              requires_approval: false,
+              next_trigger_at: '2026-10-24T06:00:00Z',
+              is_enabled: true,
+              status: 'active',
+              last_executed_at: '2026-10-23T06:00:00Z',
+              execution_count: 12,
+              consecutive_failures: 0,
+              last_error: null,
+              created_at: '2026-08-01T10:00:00Z',
+              updated_at: '2026-08-01T10:00:00Z',
+              schedule_display: '',
+              next_occurrences: ['2026-10-24T06:00:00Z', '2026-10-26T07:00:00Z'],
+            },
+          ],
+          total: 1,
+        },
+      },
+    ]);
+    await page.goto('/en/dashboard/settings?section=scheduled-actions');
+    await expect(page.getByText('Revue du matin')).toBeVisible({ timeout: 20_000 });
+    // The transition marker must actually be on screen, or this scans a page
+    // that happens not to contain the thing it was written for.
+    await expect(page.getByText('(clocks change)', { exact: false }).first()).toBeVisible();
+
+    const { blocking, summary } = await scanPage(page, testInfo, '/dashboard/settings#routines');
+    expect(blocking, `axe violations on the routines list:
+${summary}`).toHaveLength(0);
   });
 
   test('settings search results scan clean', async ({ page, authenticate, mockApi }, testInfo) => {
@@ -484,6 +357,59 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
     await expect(page.getByText(/sera en retard/)).toBeVisible();
     await expect(page.getByText(/Lilas Blancs/)).toBeVisible();
     await assertNoHorizontalScroll(page);
+  });
+
+  test('the dashboard home scans clean and reflows at 320 CSS px', async ({
+    page,
+    authenticate,
+    mockApi,
+  }, testInfo) => {
+    // The dashboard grew a results block (four tiles), a Consumption
+    // disclosure and a visible avatar picker. The four-up tile row is exactly
+    // the kind of grid that reflows badly: at 320 px it must be one column,
+    // not four 70 px columns pushed off the side.
+    await authenticate();
+    await mockApi([
+      briefingCardsMock,
+      {
+        url: '**/api/v1/briefing/synthesis',
+        json: {
+          greeting: { text: 'Welcome back', generated_at: null, usage: null },
+          synthesis: null,
+        },
+      },
+      {
+        url: '**/api/v1/product/me/results',
+        json: {
+          useful_results: 12,
+          actions: 5,
+          automations: 3,
+          commitments_closed: 2,
+          cycle_start: '2026-07-15T00:00:00Z',
+          measured: true,
+        },
+      },
+      { url: '**/api/v1/usage/**', json: {} },
+    ]);
+
+    await page.setViewportSize({ width: 320, height: 900 });
+    await page.goto('/en/dashboard');
+    // Something only the real page has: the error boundary keeps <main>.
+    await expect(page.getByRole('button', { name: "Switch LIA's avatar" })).toBeVisible();
+    await assertNoHorizontalScroll(page);
+
+    // Then OPEN the Consumption disclosure — it is closed by default, so a
+    // check that stopped here would never look at the widest numbers on the
+    // page (token totals, which do not wrap).
+    // The <summary> element itself: `getByText` could land on an inner node,
+    // and `getByRole('button')` depends on how the engine maps a disclosure
+    // triangle — neither is a stable handle on the thing that toggles.
+    await page.locator('summary', { hasText: 'Consumption' }).click();
+    await assertNoHorizontalScroll(page);
+
+    const { blocking, summary } = await scanPage(page, testInfo, '/dashboard@320');
+    expect(blocking, `axe violations on /dashboard at 320 px:
+${summary}`).toHaveLength(0);
   });
 
   test('space detail page (upload zone) scans clean', async ({

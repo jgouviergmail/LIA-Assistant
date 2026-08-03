@@ -131,7 +131,8 @@
         "badge": "Maps & Places"
       },
       "cycle_dates": "Zeitraum vom {{start}} bis {{end}}",
-      "since": "seit {{date}}"
+      "since": "seit {{date}}",
+      "consumption_title": "Verbrauch"
     },
     "actions": {
       "open_chat": "Chat öffnen",
@@ -201,7 +202,14 @@
         "reconnect": "Erneut verbinden",
         "retry": "Wiederholen",
         "retry_later": "Später erneut versuchen",
-        "configure": "Konfigurieren"
+        "configure": "Konfigurieren",
+        "cancel_reminder": "Diese Erinnerung abbrechen",
+        "cancel_reminder_done": "Erinnerung abgebrochen",
+        "cancel_reminder_title": "Diese Erinnerung abbrechen?",
+        "cancel_reminder_description": "„{{content}}“ wird nicht ausgelöst. Dies kann nicht rückgängig gemacht werden.",
+        "loop_done": "Als erledigt markieren",
+        "loop_dismiss": "Nicht mehr aktuell",
+        "loop_edit": "Diese Verpflichtung bearbeiten"
       },
       "cards": {
         "weather": {
@@ -344,6 +352,20 @@
       "cta": "Installieren",
       "ios_text": "Fügen Sie LIA dem Home-Bildschirm hinzu: Teilen → „Zum Home-Bildschirm“.",
       "dismiss": "Installation nicht mehr vorschlagen"
+    },
+    "avatar_picker": {
+      "group_label": "LIA-Avatar auswählen",
+      "female": "Weibliches Porträt",
+      "male": "Männliches Porträt"
+    },
+    "results": {
+      "title": "Was LIA erreicht hat",
+      "since": "Seit {{date}}",
+      "useful_results": "Bestätigte nützliche Ergebnisse",
+      "actions": "Erfolgreiche Aktionen",
+      "automations": "Erfolgreiche Routinen",
+      "commitments_closed": "Abgeschlossene Verpflichtungen",
+      "not_measured": "Die Ergebnismessung ist auf dieser Instanz deaktiviert."
     }
   },
   "auth": {
@@ -669,7 +691,9 @@
       "stt_tooltip_provider": "Spracherkennung via {{provider}}",
       "stt_tooltip_fallback": "Kosten der Transkription",
       "tts_tooltip_provider": "Sprachsynthese via {{provider}}{{model}}",
-      "tts_tooltip_fallback": "Kosten der Sprachsynthese"
+      "tts_tooltip_fallback": "Kosten der Sprachsynthese",
+      "share_peer": "Mit einem Peer teilen",
+      "share_peer_draft": "Leite dies an {{recipient}} weiter:\n\n{{content}}"
     },
     "code": {
       "copy": "Code kopieren",
@@ -906,7 +930,15 @@
       "news_label": "news",
       "news_description": "Neuigkeiten zu meinen Interessen",
       "news_intent": "Gibt es heute Neuigkeiten zu meinen Interessen?",
-      "skill_intent": "Starte den Skill {{name}}"
+      "skill_intent": "Starte den Skill {{name}}",
+      "new_reminder_label": "neue Erinnerung",
+      "new_reminder_description": "Eine Erinnerung erstellen",
+      "new_reminder_intent": "Erinnere mich daran, ",
+      "new_routine_label": "neue Routine",
+      "new_routine_description": "Eine wiederkehrende Routine erstellen",
+      "new_routine_intent": "Erstelle eine Routine, die ",
+      "spaces_label": "Räume",
+      "spaces_description": "Meine Wissensräume öffnen"
     },
     "reset_confirm": {
       "title": "Diese Unterhaltung löschen?",
@@ -922,6 +954,13 @@
       "reply": "Antworten",
       "block": "Blockieren",
       "reply_prefill": "Antworte {{name}}: "
+    },
+    "suggestions": {
+      "label": "Aus deinem Tag",
+      "next_event": "Bereite mich auf „{{subject}}“ vor",
+      "important_mails": "Fasse meine wichtigen E-Mails zusammen",
+      "close_loop": "Hilf mir, „{{subject}}“ abzuschließen",
+      "reminder": "Wo stehe ich bei « {{subject}} »?"
     }
   },
   "skill_apps": {
@@ -3056,16 +3095,22 @@
         "personality": "Ton, Stil, Charakter, Verhalten, Persona, Stimme",
         "psyche": "Emotionen, Stimmung, Gefühle, Affekt, emotional",
         "memories": "Gedächtnis, Erinnerungen, erinnern, vergessen, Fakten",
-        "interests": "Themen, Vorlieben, Geschmack, Neugier, Präferenzen",
+        "interests": "Themen, Vorlieben, Geschmack, Neugier, Präferenzen, Verlauf, letzte Benachrichtigungen",
         "peer-connections": "kontakte, freunde, familie, netzwerk, kalender teilen, verfügbarkeit, blockieren, nutzer finden, verbinden, mein Name, meinen Namen kopieren, Verbindungsanfrage, Zugriffsprotokoll, Nachricht weiterleiten, blockierte Nutzer, Nahestehende, soziales Netzwerk, Peer, Auffindbarkeit, Entdeckung, meine Adresse teilen, E-Mail sichtbar, meine E-Mail, 360°-Überblick",
-        "heartbeat": "proaktiv, spontan, Initiative, Kontaktaufnahme, autonome Nachrichten",
+        "heartbeat": "proaktiv, spontan, Initiative, Kontaktaufnahme, autonome Nachrichten, Benachrichtigungsthemen, Quellen, Verlauf, letzte Benachrichtigungen",
         "scheduled-actions": "Cron, Zeitplan, wiederkehrend, Automatisierung, Timer, geplant",
         "journals": "Tagebuch, Logbuch, Porträt, Reflexionen, Notizen",
         "health-metrics": "Herzfrequenz, Schritte, Schlaf, iPhone, Apple Health, Fitness, Aktivität",
         "skills": "Fähigkeiten, Kompetenzen, Skills, Plugins, Erweiterungen",
         "rag-spaces": "Dokumente, RAG, Wissensdatenbank, Dateien, Upload, Indexierung, Bibliothek",
-        "user-consumption-export": "CSV, Verbrauch, Tokens, Kosten, Abrechnung, Statistiken, Export"
+        "user-consumption-export": "CSV, Verbrauch, Tokens, Kosten, Abrechnung, Statistiken, Export",
+        "haptics": "haptik vibration tastrückmeldung sensorisch"
       }
+    },
+    "haptics": {
+      "title": "Haptisches Feedback",
+      "label": "Bei wichtigen Aktionen vibrieren",
+      "description": "Eine sehr kurze Vibration beim Start von Push-to-Talk, bei erfolgreicher Aktion oder beim Abschluss einer Verpflichtung. Unabhängig von reduzierter Bewegung und nur auf diesem Gerät gespeichert."
     }
   },
   "relations": {
@@ -3348,7 +3393,8 @@
   },
   "gallery": {
     "photo_counter": "Foto {{current}} von {{total}}",
-    "place_photo": "Ortsfoto"
+    "place_photo": "Ortsfoto",
+    "expand_photo": "Foto im Vollbild öffnen"
   },
   "hitl": {
     "default": "Bestätigen Sie diese Aktion?",
@@ -3714,7 +3760,7 @@
         },
         "heartbeatAutonome": {
           "title": "💓 Autonomer Heartbeat",
-          "description": "LLM-gesteuerte proaktive Kontextbenachrichtigungen mit 8 parallel aggregierten Datenquellen. 2-Phasen-Ansatz: strukturierte Entscheidung (überspringen/benachrichtigen über ein günstiges Modell), dann Umschreiben mit Persönlichkeit. Die Themen rotieren über eine abwechslungsreiche Interessenauswahl und ein inhaltsbasiertes Anti-Wiederholungsfenster (10 Benachrichtigungen / 7 Tage), sodass dasselbe Thema nicht Tag für Tag wiederkehrt. Stützt sich eine Benachrichtigung auf ein Interesse, werden echte Fakten abgerufen (Perplexity, Brave, Wikipedia) und klickbare Quellenlinks angehängt. Wetterwechsel-Erkennung (Regenbeginn/-ende, Temperaturstürze, Windwarnungen). Konfigurierbare Zeitfenster und Push-Steuerung pro Benutzer. Jede Quelle kann unabhängig ausfallen, und ein Ausfall wird gezählt und zeitlich erfasst statt stillschweigend übergangen: Gesundheitsindikatoren werden als Tagesaggregate in der Datenbank gelesen (rund fünfzigmal leichter) und verschwinden nicht mehr aus den Benachrichtigungen."
+          "description": "LLM-gesteuerte proaktive Kontextbenachrichtigungen mit elf parallel aggregierten Datenquellen. 2-Phasen-Ansatz: strukturierte Entscheidung (überspringen/benachrichtigen über ein günstiges Modell), dann Umschreiben mit Persönlichkeit. Die Themen rotieren über eine abwechslungsreiche Interessenauswahl und ein inhaltsbasiertes Anti-Wiederholungsfenster (10 Benachrichtigungen / 7 Tage), sodass dasselbe Thema nicht Tag für Tag wiederkehrt. Stützt sich eine Benachrichtigung auf ein Interesse, werden echte Fakten abgerufen (Perplexity, Brave, Wikipedia) und klickbare Quellenlinks angehängt. Wetterwechsel-Erkennung (Regenbeginn/-ende, Temperaturstürze, Windwarnungen). Konfigurierbare Zeitfenster, Push-Steuerung pro Benutzer und ein Schalter pro Quelle — mit einem Dienst verbunden zu sein und von ihm unterbrochen zu werden sind zwei getrennte Entscheidungen. Das Panel zeigt zudem die letzten zehn gesendeten Benachrichtigungen mit ihren Quellen und der bereits gegebenen Bewertung. Jede Quelle kann unabhängig ausfallen, und ein Ausfall wird gezählt und zeitlich erfasst statt stillschweigend übergangen: Gesundheitsindikatoren werden als Tagesaggregate in der Datenbank gelesen (rund fünfzigmal leichter) und verschwinden nicht mehr aus den Benachrichtigungen."
         },
         "webFetch": {
           "title": "🌐 Intelligenter Web Fetch",
@@ -3811,6 +3857,23 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_27_8": {
+          "title": "v1.27.8 — 🧭 Was LIA hervorgebracht hat, und was Sie unterbrechen darf",
+          "date": "August 2026",
+          "count": "10",
+          "items": {
+            "i1": "<b>👍 Ihr Daumen hoch auf eine proaktive Benachrichtigung wird endlich gespeichert</b> — die archivierte Karte trug eine erfundene Kennung, die der Speicherpfad nicht auflösen konnte: jede Bewertung schlug stillschweigend fehl. <b>Es wurde nie eine Rückmeldung gespeichert.</b> Bereits archivierte Karten zeigen die Schaltfläche gar nicht mehr, statt eine wirkungslose Geste anzubieten.",
+            "i2": "<b>⏰ Eine Routine läuft in der Zeitumstellungsnacht nicht mehr zweimal</b> — die eingetragene Uhrzeit existiert in dieser Nacht zweimal, und die Routine startete sechzig Minuten später erneut. 54 Doppelläufe wurden über die Übergänge 2026 in sieben Zeitzonen gemessen. Jetzt <b>höchstens ein Lauf pro lokalem Tag</b> — ohne den heutigen Lauf zu verlieren, wenn Sie eine Routine vorab testen.",
+            "i3": "<b>🔇 Elf Schalter: mit einem Dienst verbunden zu sein heißt nicht mehr, von ihm unterbrochen zu werden</b> — um E-Mail-Hinweise zu stoppen, musste man den <b>Connector trennen</b> und verlor damit das Werkzeug, mit dem man fragt. Einstellungen → Proaktivität → Benachrichtigungsthemen. Alles ist standardmäßig aktiv, und ein Schalter, der nichts hervorbringen kann, sagt es (der Aufbruchshinweis braucht den Kalender).",
+            "i4": "<b>📜 Die Einstellungen zeigen endlich, was sie hervorbringen</b> — die letzten zehn proaktiven Benachrichtigungen und, genauso, die der Interessen: Datum, Inhalt, Quellen, bereits gegebene Bewertung. Bisher konnte man eine Häufigkeit einstellen, ohne je das Ergebnis zu sehen. Interessens-Benachrichtigungen älter als diese Version erscheinen ohne ihren Text: er wurde nicht aufbewahrt, und eine rekonstruierte Zusammenfassung wäre schlimmer als ein Fehlen.",
+            "i5": "<b>📁 Drei Blöcke klappen zu, standardmäßig geschlossen</b> — die elf Schalter und die beiden Verläufe. Das Panel wird ein Index, den man öffnet, statt einer Wand, an der man vorbeiscrollt, und ein geschlossener Block kostet keine Anfrage. Die Zahl der abgelehnten Themen bleibt in der Kopfzeile sichtbar: Zuklappen darf keine Entscheidung verbergen.",
+            "i6": "<b>✨ Der leere Chat schlägt vor, was LIA über Ihren Tag bereits weiß</b> — ein vorzubereitender Termin, ein Stapel E-Mails, eine wartende Verpflichtung, eine offene Erinnerung. Nichts wird dafür abgerufen: kein Connector geweckt, kein Kontingent verbraucht. Ohne Grundlage kehren die allgemeinen Einstiege zurück.",
+            "i7": "<b>🏆 Das Dashboard öffnet mit Ihren Ergebnissen, nicht mit Ihrem Verbrauch</b> — als nützlich bestätigte Ergebnisse, gelungene Aktionen, ausgeführte Routinen, geschlossene Verpflichtungen. Nachrichten, Tokens und Kosten wandern unter „Verbrauch“. „Gesparte Zeit“ wurde <b>verworfen statt geschätzt</b>: nichts hier misst sie.",
+            "i8": "<b>🤝 Eine Antwort mit einem verbundenen Peer teilen</b> — unter einer Assistenten-Blase listet das „…“-Menü Ihre akzeptierten Peers und bereitet die Anfrage im Eingabefeld vor. Ohne Ihre Bestätigung wird nichts gesendet.",
+            "i9": "<b>✅ Die Gesten einer Verpflichtung sind dort, wo Sie sie lesen</b> — als erledigt markieren, verwerfen und korrigieren, direkt auf der Karte „Für Sie“ im Dashboard. Das vollständige Register bleibt einen Klick entfernt.",
+            "i10": "<b>🎨 Außerdem</b> — LIAs Porträt wählt man über zwei sichtbare Miniaturen; eine Routine lässt sich duplizieren, ohne vor Ihrer Bestätigung etwas anzulegen; die Vorschau der nächsten fünf Läufe zeigt die Zeit in der Zone der Routine und markiert Zeitumstellungen; eine Erinnerung lässt sich von ihrer Karte abbrechen; die Fotogalerie ist vollständig per Tastatur bedienbar; drei Schnellbefehle kommen hinzu; und ein kurzes haptisches Feedback begleitet Gesten auf dem Handy, <b>getrennt einstellbar</b> von reduzierten Animationen."
+          }
+        },
         "v1_27_7": {
           "title": "v1.27.7 — 🗣️ Eine echte Frage statt einer Fehlermeldung",
           "date": "August 2026",
@@ -6822,6 +6885,14 @@
       "relation_sections": {
         "title": "Eine Ansicht, die sich aufklappt",
         "desc": "Die Ansicht einer Beziehung öffnet sich zugeklappt: Die Überschriften sind das Verzeichnis, du öffnest, wofür du gekommen bist. Jeder Bereich nennt den betrachteten Zeitraum und lädt sich einzeln neu."
+      },
+      "haptics": {
+        "title": "Ein kurzes Vibrieren, wenn Sie mögen",
+        "desc": "Eine dezente Rückmeldung, wenn Sie sprechen, wenn eine Aktion gelingt, wenn eine Verpflichtung endet. Getrennt einstellbar: eine ruhige Oberfläche zu wollen heißt nicht, ein stummes Telefon zu wollen."
+      },
+      "folded_settings": {
+        "title": "Einstellungen, zugeklappt",
+        "desc": "Die elf Benachrichtigungsthemen und die Verläufe bleiben geschlossen. Sie öffnen, was Sie ändern wollten — und ein geschlossener Block lädt nichts."
       }
     },
     "scenes": {
@@ -7486,7 +7557,18 @@
     "thumbs_up": "Dieses Thema gefällt mir",
     "topic_placeholder": "z.B.: Künstliche Intelligenz, französische Küche...",
     "update_error": "Fehler beim Aktualisieren",
-    "update_success": "Interesse aktualisiert"
+    "update_success": "Interesse aktualisiert",
+    "history": {
+      "title": "Letzte Benachrichtigungen",
+      "description": "Die letzten Interessens-Updates, die LIA Ihnen gesendet hat.",
+      "empty": "Noch keine Interessens-Benachrichtigung.",
+      "error": "Verlauf konnte nicht geladen werden.",
+      "count": "{{shown}} von {{total}} angezeigt",
+      "source_perplexity": "Perplexity",
+      "source_brave": "Brave Search",
+      "source_rss": "RSS-Feed",
+      "source_web": "Web"
+    }
   },
   "heartbeat": {
     "settings": {
@@ -7534,7 +7616,40 @@
       "liked": "Danke für Ihr Feedback!",
       "disliked": "Notiert, ich passe mich an.",
       "error": "Fehler beim Senden des Feedbacks"
-    }
+    },
+    "source_health_signals": "Gesundheit",
+    "source_birthdays": "Geburtstage",
+    "source_open_loops": "Verpflichtungen",
+    "source_departure": "Aufbruchszeit",
+    "source_not_connected": "Nicht verbunden",
+    "sources_permission_title": "Benachrichtigungsthemen",
+    "sources_permission_description": "Verbunden sein und unterbrochen werden sind zweierlei. Schalte eine Quelle aus, um sie weiterhin auf Anfrage zu nutzen — ohne proaktive Benachrichtigungen dazu.",
+    "history": {
+      "title": "Letzte Benachrichtigungen",
+      "description": "Die letzten proaktiven Nachrichten von LIA.",
+      "empty": "Noch keine proaktive Benachrichtigung.",
+      "error": "Verlauf konnte nicht geladen werden.",
+      "count": "{{shown}} von {{total}} angezeigt",
+      "priority_low": "Niedrig",
+      "priority_medium": "Mittel",
+      "priority_high": "Hoch",
+      "feedback_thumbs_up": "Nützlich",
+      "feedback_thumbs_down": "Wenig nützlich",
+      "feedback_none": "Keine Rückmeldung",
+      "source_UPCOMING_CALENDAR_EVENTS": "Anstehende Termine",
+      "source_PENDING_TASKS": "Offene Aufgaben",
+      "source_UNREAD_EMAILS": "Ungelesene E-Mails",
+      "source_CURRENT_WEATHER": "Aktuelles Wetter",
+      "source_WEATHER_CHANGES": "Wetterumschwung",
+      "source_USER_INTERESTS": "Interessen",
+      "source_USER_MEMORIES": "Erinnerungen",
+      "source_JOURNAL_ENTRIES": "Journal",
+      "source_HEALTH_SIGNALS": "Gesundheit",
+      "source_UPCOMING_BIRTHDAYS": "Geburtstage",
+      "source_OPEN_LOOPS": "Verpflichtungen",
+      "source_DEPARTURE_ADVICE": "Aufbruchszeit"
+    },
+    "source_requires": "Benötigt {{sources}}, was Sie deaktiviert haben"
   },
   "notifications": {
     "already_enabled": "Benachrichtigungen sind bereits aktiviert.",
@@ -7628,7 +7743,13 @@
     "error_create": "Fehler beim Erstellen",
     "error_update": "Fehler beim Ändern",
     "error_delete": "Fehler beim Löschen",
-    "error_execute": "Fehler beim Ausführen"
+    "error_execute": "Fehler beim Ausführen",
+    "duplicate": "Duplizieren",
+    "duplicate_suffix": "(Kopie)",
+    "next_executions": "Nächste Ausführungen",
+    "next_evaluations": "Nächste Auswertungsfenster",
+    "clock_change": "(Zeitumstellung)",
+    "toggle_aria": "{{title}} aktivieren oder deaktivieren"
   },
   "landing": {
     "meta": {

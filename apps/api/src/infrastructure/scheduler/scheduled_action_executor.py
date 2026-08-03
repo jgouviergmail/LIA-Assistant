@@ -145,7 +145,7 @@ async def execute_single_action(
     from src.domains.conversations.service import ConversationService
     from src.domains.notifications.service import FCMNotificationService
     from src.domains.scheduled_actions.repository import ScheduledActionRepository
-    from src.domains.scheduled_actions.schedule_helpers import compute_next_trigger_utc
+    from src.domains.scheduled_actions.schedule_helpers import compute_rearm_trigger
     from src.domains.users.service import UserService
     from src.infrastructure.cache.redis import get_redis_cache
     from src.infrastructure.database.session import get_db_context
@@ -214,11 +214,12 @@ async def execute_single_action(
             verdict = await evaluate_condition(orm_user, action.condition_config or {})
             last_fingerprint = (action.condition_state or {}).get("last_fingerprint")
             if not verdict.met or verdict.fingerprint == last_fingerprint:
-                next_trigger = compute_next_trigger_utc(
+                next_trigger = compute_rearm_trigger(
                     days_of_week=action.days_of_week,
                     hour=action.trigger_hour,
                     minute=action.trigger_minute,
                     user_timezone=action.user_timezone,
+                    due_at=action.next_trigger_at,
                 )
                 await repo.reschedule(action, next_trigger)
                 await db.commit()
@@ -249,11 +250,12 @@ async def execute_single_action(
                 action=action,
                 user_language=user_language,
             )
-            next_trigger = compute_next_trigger_utc(
+            next_trigger = compute_rearm_trigger(
                 days_of_week=action.days_of_week,
                 hour=action.trigger_hour,
                 minute=action.trigger_minute,
                 user_timezone=action.user_timezone,
+                due_at=action.next_trigger_at,
             )
             await repo.reschedule(action, next_trigger, condition_state=new_condition_state)
             await db.commit()
@@ -289,11 +291,12 @@ async def execute_single_action(
                     conversation_id=str(conversation.id),
                 )
                 # Recalculate next trigger for the next cycle (skip without error)
-                next_trigger = compute_next_trigger_utc(
+                next_trigger = compute_rearm_trigger(
                     days_of_week=action.days_of_week,
                     hour=action.trigger_hour,
                     minute=action.trigger_minute,
                     user_timezone=action.user_timezone,
+                    due_at=action.next_trigger_at,
                 )
                 await repo.mark_execution_success(action, next_trigger)
                 await db.commit()
@@ -372,11 +375,12 @@ async def execute_single_action(
 
                 # Success — recalculate next trigger (+ the N-07 dedup ledger,
                 # written only on a REAL run so a failed one retries the fact).
-                next_trigger = compute_next_trigger_utc(
+                next_trigger = compute_rearm_trigger(
                     days_of_week=action.days_of_week,
                     hour=action.trigger_hour,
                     minute=action.trigger_minute,
                     user_timezone=action.user_timezone,
+                    due_at=action.next_trigger_at,
                 )
                 await repo.mark_execution_success(
                     action, next_trigger, condition_state=new_condition_state
@@ -437,11 +441,12 @@ async def execute_single_action(
             else:
                 error_msg = f"{type(last_error).__name__}: {last_error}"
 
-            next_trigger = compute_next_trigger_utc(
+            next_trigger = compute_rearm_trigger(
                 days_of_week=action.days_of_week,
                 hour=action.trigger_hour,
                 minute=action.trigger_minute,
                 user_timezone=action.user_timezone,
+                due_at=action.next_trigger_at,
             )
             await repo.mark_execution_failure(
                 action,

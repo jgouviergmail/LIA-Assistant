@@ -43,7 +43,9 @@ import {
   userShortcutCommands,
   type SlashCommand,
 } from '@/lib/slash-commands';
+import { runLocalCommand } from '@/lib/chat-local-commands';
 import { useChatShortcuts } from '@/hooks/useChatShortcuts';
+import { useChatSuggestions } from '@/hooks/useChatSuggestions';
 import { useAutoSendIntent } from '@/hooks/useAutoSendIntent';
 import { useDeepLinkParams } from '@/hooks/useDeepLinkParams';
 import type { CapabilityDirectiveWire } from '@/types/directive';
@@ -89,6 +91,22 @@ function proactiveToastPresentation(metadata?: Record<string, unknown>): {
     message: isPeer ? `🤝 ${peerName || 'Info'}` : topic ? `💡 ${topic}` : '💡 Info',
     className: isPeer ? '!bg-primary/10 !border-primary/25' : undefined,
   };
+}
+
+/**
+ * Whether the grounded starter rail can be shown — and therefore fetched.
+ *
+ * Module-level and pure (CC discipline: the page's render function is under a
+ * shrink-only complexity ratchet). A busy chat must not pay for a rail nobody
+ * will read, and "no messages yet" is only meaningful once the history has
+ * SETTLED — an empty list mid-load is not an empty conversation.
+ */
+function canShowGroundedRail(args: {
+  authReady: boolean;
+  historySettled: boolean;
+  messageCount: number;
+}): boolean {
+  return args.authReady && args.historySettled && args.messageCount === 0;
 }
 
 export default function ChatPage() {
@@ -493,6 +511,9 @@ export default function ChatPage() {
   // (declared once in lib/slash-commands, QA 2026-07-23), the user's own
   // shortcuts (server-persisted; statics win on a legacy id collision), then
   // the dialogue-flagged skills (ADR-118). All labels localized here.
+  const { suggestions: groundedSuggestions } = useChatSuggestions(
+    canShowGroundedRail({ authReady, historySettled, messageCount: messages.length })
+  );
   const { skills } = useSkills();
   const { shortcuts: userShortcuts } = useChatShortcuts();
   const slashCommands = useMemo<SlashCommand[]>(() => {
@@ -508,18 +529,24 @@ export default function ChatPage() {
       }));
     return [...statics, ...userShortcutCommands(userShortcuts), ...dialogueSkills];
   }, [t, skills, lng, userShortcuts]);
+  // The id → side-effect mapping lives in `lib/chat-local-commands` (a table
+  // whose agreement with the registry is asserted in BOTH directions), so a
+  // command added to the menu and forgotten here fails CI instead of shipping
+  // as an entry that does nothing when pressed.
   const handleLocalCommand = useCallback(
     (commandId: string) => {
-      if (commandId === 'briefing') router.push('/dashboard');
-      if (commandId === 'search') {
-        // Mobile: the search row auto-focuses itself on mount. Desktop: the
-        // header input is already mounted — focus it via its OWN marker
-        // (a bare input[type=search] selector could catch a foreign field).
-        setMobileSearchOpen(true);
-        requestAnimationFrame(() => {
-          document.querySelector<HTMLElement>('input[data-chat-search]')?.focus();
-        });
-      }
+      runLocalCommand(commandId, {
+        navigate: path => router.push(path),
+        openSearch: () => {
+          // Mobile: the search row auto-focuses itself on mount. Desktop: the
+          // header input is already mounted — focus it via its OWN marker
+          // (a bare input[type=search] selector could catch a foreign field).
+          setMobileSearchOpen(true);
+          requestAnimationFrame(() => {
+            document.querySelector<HTMLElement>('input[data-chat-search]')?.focus();
+          });
+        },
+      });
     },
     [router]
   );
@@ -1008,6 +1035,7 @@ export default function ChatPage() {
                   // W8: an empty chat offers three ways in. Same rail as the
                   // follow-up chips — it prefills the composer, never sends.
                   onStarterPick={handleFollowupPick}
+                  groundedSuggestions={groundedSuggestions}
                 />
               </div>
             </RegistryProvider>

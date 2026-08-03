@@ -27,6 +27,21 @@ const ROUTES: MockRoute[] = [
   { url: '**/api/v1/connectors', json: { connectors: [] } },
   { url: '**/api/v1/scheduled-actions**', json: { actions: [], total: 0 } },
   { url: '**/api/v1/usage/**', json: {} },
+  // `OpenLoopsSection` self-gates on this flag and renders NOTHING without it,
+  // so the commitments case below needs the instance to declare the capability.
+  // Narrow and additive: every other section reads flags that stay absent here,
+  // and an absent flag is falsy exactly as it was when nothing answered.
+  {
+    url: '**/api/v1/config',
+    json: {
+      sse: { heartbeat_interval_seconds: 30 },
+      rate_limits: { enabled: false, per_minute: 60, burst: 10 },
+      i18n: { supported_languages: ['fr', 'en'], default_language: 'en' },
+      features: { open_loops_enabled: true },
+      api_version: 'v1',
+    },
+  },
+  { url: '**/api/v1/open-loops**', json: { items: [], total: 0 } },
 ];
 
 /**
@@ -56,6 +71,12 @@ const CASES = [
   { token: 'interests', value: 'interests' },
   { token: 'scheduled-actions', value: 'scheduled-actions' },
   { token: 'journals', value: 'journals' },
+  // The destination of the dashboard's "For you" commitments card. That card
+  // linked to the bare settings page until 2026-08-03, so someone following
+  // "you have 3 open commitments" landed on a wall of closed accordions with
+  // no commitments in sight — the exact failure this file was written for,
+  // reappearing at a new call site. Pinned here so the link keeps arriving.
+  { token: 'open-loops', value: 'open-loops' },
 ] as const;
 
 test.describe('settings deep links', () => {

@@ -131,7 +131,8 @@
         "badge": "Maps & Places"
       },
       "cycle_dates": "周期 {{start}} 至 {{end}}",
-      "since": "自 {{date}} 起"
+      "since": "自 {{date}} 起",
+      "consumption_title": "用量"
     },
     "actions": {
       "open_chat": "打开聊天",
@@ -201,7 +202,14 @@
         "reconnect": "重新连接",
         "retry": "重试",
         "retry_later": "稍后再试",
-        "configure": "配置"
+        "configure": "配置",
+        "cancel_reminder": "取消此提醒",
+        "cancel_reminder_done": "提醒已取消",
+        "cancel_reminder_title": "取消此提醒？",
+        "cancel_reminder_description": "「{{content}}」将不会触发。此操作无法撤销。",
+        "loop_done": "标记为完成",
+        "loop_dismiss": "不再相关",
+        "loop_edit": "编辑此承诺"
       },
       "cards": {
         "weather": {
@@ -344,6 +352,20 @@
       "cta": "安装",
       "ios_text": "将 LIA 添加到主屏幕：分享 → “添加到主屏幕”。",
       "dismiss": "不再建议安装"
+    },
+    "avatar_picker": {
+      "group_label": "选择 LIA 头像",
+      "female": "女性形象",
+      "male": "男性形象"
+    },
+    "results": {
+      "title": "LIA 完成了什么",
+      "since": "自 {{date}} 起",
+      "useful_results": "已确认的有用结果",
+      "actions": "成功的操作",
+      "automations": "成功的例程",
+      "commitments_closed": "已完成的承诺",
+      "not_measured": "本实例已关闭结果统计。"
     }
   },
   "auth": {
@@ -682,7 +704,9 @@
       "stt_tooltip_provider": "语音识别 via {{provider}}",
       "stt_tooltip_fallback": "语音转文字成本",
       "tts_tooltip_provider": "语音合成 via {{provider}}{{model}}",
-      "tts_tooltip_fallback": "文字转语音成本"
+      "tts_tooltip_fallback": "文字转语音成本",
+      "share_peer": "分享给伙伴",
+      "share_peer_draft": "把这个转发给{{recipient}}：\n\n{{content}}"
     },
     "code": {
       "copy": "复制代码",
@@ -914,7 +938,15 @@
       "news_label": "资讯",
       "news_description": "我关注领域的新闻",
       "news_intent": "今天我关注的领域有什么新消息吗？",
-      "skill_intent": "启动 {{name}} 技能"
+      "skill_intent": "启动 {{name}} 技能",
+      "new_reminder_label": "新建提醒",
+      "new_reminder_description": "创建一个提醒",
+      "new_reminder_intent": "提醒我",
+      "new_routine_label": "新建例程",
+      "new_routine_description": "创建一个重复例程",
+      "new_routine_intent": "创建一个例程，",
+      "spaces_label": "空间",
+      "spaces_description": "打开我的知识空间"
     },
     "reset_confirm": {
       "title": "删除此对话？",
@@ -930,6 +962,13 @@
       "reply": "回复",
       "block": "屏蔽",
       "reply_prefill": "回复{{name}}："
+    },
+    "suggestions": {
+      "label": "来自你的一天",
+      "next_event": "帮我准备「{{subject}}」",
+      "important_mails": "总结我的重要邮件",
+      "close_loop": "帮我完成「{{subject}}」",
+      "reminder": "「{{subject}}」进展如何？"
     }
   },
   "skill_apps": {
@@ -3063,17 +3102,23 @@
         "personality": "语气, 风格, 性格, 行为, 人设, 声音",
         "psyche": "情绪, 心情, 感受, 情感",
         "memories": "记忆, 长期记忆, 记住, 遗忘, 事实",
-        "interests": "兴趣, 话题, 爱好, 主题, 偏好",
+        "interests": "兴趣, 话题, 爱好, 主题, 偏好，历史记录，最近的通知",
         "peer-connections": "联系人, 好友, 家人, 网络, 共享日历, 空闲状态, 屏蔽, 查找用户, 连接，我的姓名，复制姓名，连接请求，访问日志，转达消息，已屏蔽用户，亲友，社交网络，peer，可发现性，发现，共享我的地址，邮箱可见，我的邮箱，360 概览",
-        "heartbeat": "主动, 自发, 主动联系, 自主消息, 心跳",
+        "heartbeat": "主动, 自发, 主动联系, 自主消息, 心跳，通知主题，来源，历史记录，最近的通知",
         "scheduled-actions": "定时任务, cron, 计划, 重复, 自动化, 定时器",
         "journals": "日记, 日志, 画像, 反思, 笔记",
         "health-metrics": "健康, 心率, 步数, 睡眠, iPhone, Apple 健康, 运动",
         "skills": "技能, 能力, 插件, 扩展",
         "rag-spaces": "文档, RAG, 知识库, 文件, 上传, 索引, 资料库",
-        "user-consumption-export": "CSV, 用量, 消耗, 令牌, 成本, 账单, 统计, 导出"
+        "user-consumption-export": "CSV, 用量, 消耗, 令牌, 成本, 账单, 统计, 导出",
+        "haptics": "触觉 震动 触感 反馈"
       },
       "results_count_other": "找到 {{count}} 项设置"
+    },
+    "haptics": {
+      "title": "触觉反馈",
+      "label": "在关键操作时震动",
+      "description": "按住说话开始、操作成功或承诺完成时的极短震动。与减少动效相互独立，仅保存在本设备上。"
     }
   },
   "relations": {
@@ -3356,7 +3401,8 @@
   },
   "gallery": {
     "photo_counter": "照片 {{current}}/{{total}}",
-    "place_photo": "地点照片"
+    "place_photo": "地点照片",
+    "expand_photo": "全屏打开照片"
   },
   "hitl": {
     "default": "您确认此操作吗？",
@@ -3709,7 +3755,7 @@
         },
         "heartbeatAutonome": {
           "title": "💓 自主心跳",
-          "description": "由 LLM 驱动的主动上下文通知，实时并行聚合 8 个数据源。两阶段方式：结构化决策（通过经济型模型决定跳过/通知），然后按个性重写消息。话题通过多样化的兴趣样本和基于内容的防重复窗口（7天内10条通知）进行轮换，同一主题不会日复一日地重复。当通知围绕某个兴趣时，会获取真实事实（Perplexity、Brave、Wikipedia）并附加可点击的来源链接。天气变化检测（降雨开始/结束、气温骤降、大风预警）。可配置时间窗口和按用户的推送控制。 每个来源都可能独立失败，而一旦缺失会被计数并记录耗时，而非无声消失：健康指标改为在数据库中按日聚合读取（开销约为原来的五十分之一），不会再从通知中消失。"
+          "description": "由 LLM 驱动的主动上下文通知，实时并行聚合十一个数据源。两阶段方式：结构化决策（通过经济型模型决定跳过/通知），然后按个性重写消息。话题通过多样化的兴趣样本和基于内容的防重复窗口（7天内10条通知）进行轮换，同一主题不会日复一日地重复。当通知围绕某个兴趣时，会获取真实事实（Perplexity、Brave、Wikipedia）并附加可点击的来源链接。天气变化检测（降雨开始/结束、气温骤降、大风预警）。可配置时间窗口和按用户的推送控制。 每个来源都可能独立失败，而一旦缺失会被计数并记录耗时，而非无声消失：健康指标改为在数据库中按日聚合读取（开销约为原来的五十分之一），不会再从通知中消失。 用户控制：推送开/关、每日上限、专用时段，以及每个来源一个开关 — 连接一项服务与被它打断是两个独立的决定。面板还会展示最近发送的十条通知，包括其来源和已给出的评价。"
         },
         "webFetch": {
           "title": "🌐 智能网页抓取",
@@ -3806,6 +3852,23 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_27_8": {
+          "title": "v1.27.8 — 🧭 LIA 带来了什么，以及什么可以打断您",
+          "date": "2026 年 8 月",
+          "count": "10",
+          "items": {
+            "i1": "<b>👍 您对主动通知的好评终于被记录</b> — 归档卡片带着一个虚构的标识，记录接口无法解析，因此每一次评价都静默失败。<b>从未有任何反馈被记录。</b>已归档的卡片不再显示该按钮，而不是提供一个无效的动作。",
+            "i2": "<b>⏰ 在时间变更的夜晚，例行不再执行两次</b> — 那一夜所定的时刻会出现两次，例行会在六十分钟后再次启动。在七个时区的 2026 年过渡中测得 54 次重复执行。现在<b>每个本地日最多执行一次</b>，同时不会在您提前测试时丢失当天的执行。",
+            "i3": "<b>🔇 十一个开关：连接一项服务不再等于被它打断</b> — 以前要停止邮件相关的提醒，只能<b>断开连接器</b>，同时失去了提问的工具。设置 → 主动性 → 通知主题。默认全部开启，而无法产生任何内容的开关会明确告知（出发建议需要日历）。",
+            "i4": "<b>📜 设置终于展示它们的产出</b> — 最近十条主动通知，以及同样形式的兴趣通知：日期、内容、来源、已给出的评价。此前您可以调整频率，却从未看到结果。早于本版本的兴趣通知不带正文显示：它未被保留，而重建的摘要比缺失更糟。",
+            "i5": "<b>📁 三个区块可折叠，默认折起</b> — 十一个开关和两份历史记录。面板成为一份可展开的目录，而不是一堵需要滚动的墙；折起的区块不产生任何请求。被拒绝的主题数量仍显示在标题栏：折叠不应掩盖一个决定。",
+            "i6": "<b>✨ 空白对话会提出 LIA 已知的当日事项</b> — 一场需要准备的会面、一批邮件、一个等待中的承诺、一条未完成的提醒。为此不会获取任何数据：不唤醒连接器，不消耗配额。没有依据时，通用引导语会回来。",
+            "i7": "<b>🏆 仪表盘以您的成果开场，而非消耗</b> — 确认有用的结果、成功的操作、已执行的例行、已完结的承诺。消息、令牌和费用移入「消耗」。「节省的时间」被<b>舍弃而非估算</b>：这里没有任何数据能度量它。",
+            "i8": "<b>🤝 与已连接的伙伴分享一条回复</b> — 在助手气泡下方，「…」菜单列出已接受的伙伴，并在输入框中准备好请求。未经您确认不会发送任何内容。",
+            "i9": "<b>✅ 承诺的操作就在您阅读它的地方</b> — 标记完成、不再相关、以及修改，直接在仪表盘的「为您」卡片上。完整登记仍只需一次点击。",
+            "i10": "<b>🎨 另外</b> — LIA 的头像通过两个可见缩略图选择；例行可以复制，确认前不会创建任何内容；接下来五次执行的预览按例行所在时区显示时间并标注时间变更；提醒可从其卡片取消；照片画廊可完全使用键盘浏览；新增三个快捷命令；移动端的手势伴有简短的触觉反馈，并且<b>与减弱动画分开设置</b>。"
+          }
+        },
         "v1_27_7": {
           "title": "v1.27.7 — 🗣️ 一个真正的问题，而不是一条错误信息",
           "date": "2026 年 8 月",
@@ -6817,6 +6880,14 @@
       "relation_sections": {
         "title": "可以展开的档案",
         "desc": "关系档案默认是收起的：标题就是目录，你只展开自己要看的部分。每个板块都会说明它查阅的时间范围，也可以单独重新载入。"
+      },
+      "haptics": {
+        "title": "一次短暂的震动，如果您愿意",
+        "desc": "说话时、操作成功时、承诺完结时的轻微触感反馈。可单独设置：想要一个静止的界面，并不等于想要一部无声的手机。"
+      },
+      "folded_settings": {
+        "title": "折叠起来的设置",
+        "desc": "十一个通知主题和两份历史记录默认保持关闭。您只打开自己要改的那一项 — 而关闭的区块不加载任何内容。"
       }
     },
     "scenes": {
@@ -7481,7 +7552,18 @@
     "thumbs_up": "喜欢这个主题",
     "topic_placeholder": "例如：人工智能、法国美食...",
     "update_error": "更新时出错",
-    "update_success": "兴趣已更新"
+    "update_success": "兴趣已更新",
+    "history": {
+      "title": "最近的通知",
+      "description": "LIA 最近向您发送的兴趣更新。",
+      "empty": "暂无兴趣通知。",
+      "error": "无法加载历史记录。",
+      "count": "已显示 {{shown}} 条，共 {{total}} 条",
+      "source_perplexity": "Perplexity",
+      "source_brave": "Brave Search",
+      "source_rss": "RSS 订阅",
+      "source_web": "网页"
+    }
   },
   "heartbeat": {
     "settings": {
@@ -7529,7 +7611,40 @@
       "liked": "感谢您的反馈！",
       "disliked": "已记录，我会调整。",
       "error": "发送反馈时出错"
-    }
+    },
+    "source_health_signals": "健康",
+    "source_birthdays": "生日",
+    "source_open_loops": "承诺事项",
+    "source_departure": "出发时间",
+    "source_not_connected": "未连接",
+    "sources_permission_title": "通知主题",
+    "sources_permission_description": "已连接与被打断是两回事。关闭某个来源后，你仍可按需使用它，只是不会再收到相关的主动通知。",
+    "history": {
+      "title": "最近的通知",
+      "description": "LIA 最近向你发送的主动消息。",
+      "empty": "暂无主动通知。",
+      "error": "无法加载历史记录。",
+      "count": "已显示 {{shown}} 条，共 {{total}} 条",
+      "priority_low": "低",
+      "priority_medium": "中",
+      "priority_high": "高",
+      "feedback_thumbs_up": "有用",
+      "feedback_thumbs_down": "不太有用",
+      "feedback_none": "未评价",
+      "source_UPCOMING_CALENDAR_EVENTS": "即将到来的日程",
+      "source_PENDING_TASKS": "待办任务",
+      "source_UNREAD_EMAILS": "未读邮件",
+      "source_CURRENT_WEATHER": "当前天气",
+      "source_WEATHER_CHANGES": "天气变化",
+      "source_USER_INTERESTS": "兴趣",
+      "source_USER_MEMORIES": "记忆",
+      "source_JOURNAL_ENTRIES": "日志",
+      "source_HEALTH_SIGNALS": "健康",
+      "source_UPCOMING_BIRTHDAYS": "生日",
+      "source_OPEN_LOOPS": "承诺事项",
+      "source_DEPARTURE_ADVICE": "出发时间"
+    },
+    "source_requires": "需要{{sources}}，而您已将其关闭"
   },
   "notifications": {
     "already_enabled": "通知已经启用。",
@@ -7623,7 +7738,13 @@
     "error_create": "创建失败",
     "error_update": "修改失败",
     "error_delete": "删除失败",
-    "error_execute": "执行失败"
+    "error_execute": "执行失败",
+    "duplicate": "复制",
+    "duplicate_suffix": "（副本）",
+    "next_executions": "接下来的执行",
+    "next_evaluations": "接下来的评估窗口",
+    "clock_change": "（时间变更）",
+    "toggle_aria": "启用或停用{{title}}"
   },
   "landing": {
     "meta": {

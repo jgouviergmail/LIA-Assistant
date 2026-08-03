@@ -361,6 +361,15 @@ class User(BaseModel):
         server_default=str(HEARTBEAT_NOTIFY_END_HOUR_DEFAULT),
         comment="End hour (0-23) for heartbeat notification window.",
     )
+    # Sources the heartbeat may NOT interrupt from (ADR-197). Stored as the
+    # refusal set so NULL keeps every existing account exactly as it was, and
+    # a source added later is on until refused. Vocabulary + read/write rules
+    # live in `domains/heartbeat/source_policy.py`.
+    heartbeat_disabled_sources: Mapped[list[str] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Heartbeat sources the user refused; NULL = all enabled.",
+    )
 
     # Journal settings (Personal Journals — Carnets de Bord)
     journals_enabled: Mapped[bool] = mapped_column(

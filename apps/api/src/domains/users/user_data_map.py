@@ -440,6 +440,11 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "heartbeat_push_enabled": _PREFERENCE,
     "heartbeat_notify_start_hour": _PREFERENCE,
     "heartbeat_notify_end_hour": _PREFERENCE,
+    # Which sources may interrupt the reader (ADR-197). A setting like its
+    # siblings above: it holds source KEYS from a closed registry, never
+    # content — nothing personal to scrub, and resetting it would silently
+    # re-enable interruptions the user refused.
+    "heartbeat_disabled_sources": _PREFERENCE,
     "journals_enabled": _PREFERENCE,
     "journal_consolidation_enabled": _PREFERENCE,
     "journal_consolidation_with_history": _PREFERENCE,

@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.27.8] - 2026-08-03
+
+**Votre pouce levé sur une notification proactive ne servait à rien.** La carte archivée dans le chat portait un identifiant fabriqué — `heartbeat_a3f2c1d8` — quand la route d'enregistrement attend un identifiant réel. Chaque vote partait donc en erreur, silencieusement avalée pour ne pas déranger. Résultat mesuré : **aucun retour n'avait jamais été enregistré**, et un tableau de bord lisant cette table en aurait conclu que personne ne jugeait jamais rien. L'identité est désormais décidée **avant l'envoi** et la même des deux côtés. Les cartes déjà archivées portent un identifiant qu'aucune route ne peut résoudre : leur bouton n'est plus affiché du tout, plutôt que d'offrir un geste qui n'enregistrerait rien.
+
+**Une routine s'exécutait deux fois, une nuit par an.** Au passage à l'heure d'hiver, l'heure inscrite existe deux fois : « la prochaine exécution après maintenant » retombait sur la même heure, soixante minutes plus tard. Mesuré contre le planificateur réel sur les transitions 2026 de sept fuseaux : **54 doubles exécutions**, et l'heure touchée dépend du fuseau — Santiago est frappé à 23 h, pas à 2 h du matin. La règle est désormais celle du modèle lui-même : une heure par jour signifie **au plus une exécution par jour local**. Le bouton « tester maintenant » en est explicitement distingué : lui appliquer la même règle aurait *supprimé* l'exécution du jour pour qui teste une routine de 8 h à 7 h.
+
+**Être connecté à un service et se laisser interrompre par lui sont deux décisions.** Pour ne plus recevoir de relances liées au courrier, la seule voie documentée était de **déconnecter le connecteur** — ce qui retire aussi l'outil avec lequel on pose ses questions. Onze interrupteurs séparent maintenant les deux, un par source. Ils sont **tous actifs par défaut** et le refus est stocké, jamais l'autorisation : un compte existant ne change pas de comportement, et une source ajoutée plus tard est active tant que personne ne l'a refusée. Au passage, la santé — huitième source calculée par le serveur depuis des mois — n'était affichée nulle part.
+
+**Un interrupteur allumé qui ne produit rien le dit maintenant.** Le conseil de départ lit l'agenda déjà récupéré : refuser l'agenda le rendait muet pour toujours, sans que rien ne l'explique. La dépendance est déclarée, vérifiée au démarrage dans les deux sens, et **publiée** au panneau, qui affiche « nécessite l'agenda » sur l'interrupteur concerné.
+
+**Le chat vide propose ce que LIA sait déjà de votre journée.** Trois amorces génériques laissaient place à des propositions ancrées — un rendez-vous à préparer, un lot de courriels, un engagement qui attend, un rappel en cours. Rien n'est récupéré pour les produire : elles ne naissent que d'informations déjà connues, sans réveiller un connecteur ni dépenser un quota, et **un cache froid rend la liste vide** — cas ordinaire, pas dégradé, qui affiche alors les amorces génériques. Les rappels sont lus en direct : ils vivent en base locale, se lisent en moins de dix millisecondes, et c'est la seule source qu'un compte sans aucun connecteur puisse alimenter.
+
+**Le tableau de bord ouvre sur ce que LIA a produit, pas sur ce qu'elle a consommé.** Quatre chiffres exacts — résultats confirmés utiles, actions abouties, routines exécutées, engagements clôturés — devant les messages, jetons et coûts, désormais repliés sous « Consommation ». Deux candidats ont été **écartés plutôt qu'estimés** : le « temps gagné », qu'aucune donnée ne mesure ici, et les « documents effectivement utilisés » — un extrait injecté dans un contexte n'est pas un document utilisé, et rien ne le consigne durablement. Une instance qui ne mesure pas ses résultats **le dit** au lieu d'afficher quatre zéros : « vous n'avez rien accompli » et « rien n'est compté » sont deux phrases différentes, et une seule serait vraie.
+
+**Les réglages de proactivité montrent enfin ce qu'ils produisent.** Les dix dernières notifications proactives avec leur date, leur contenu, les sources utilisées et le verdict déjà donné — et, à l'identique, celles des centres d'intérêt. On pouvait jusqu'ici régler une fréquence et des sujets sans jamais voir ce que cela donnait. Une limite assumée : la table d'audit des intérêts ne conservait qu'une empreinte du message, jamais le texte. Il est gardé à partir de cette version ; les notifications antérieures s'affichent **sans leur paragraphe**, parce qu'une empreinte ne s'inverse pas et qu'un résumé reconstitué serait pire qu'une absence.
+
+**Trois blocs se replient, et se replient fermés** — les onze interrupteurs, les deux historiques : le panneau devient un index qu'on ouvre plutôt qu'un mur qu'on parcourt. Replié ne veut pas dire caché mais **démonté** : un bloc fermé ne coûte aucune requête, et l'ouvrir en coûte exactement une. Le nombre de sources refusées reste porté par l'en-tête — replier ne doit pas dissimuler une décision.
+
+**Partager une réponse avec un proche connecté.** Sous une bulle de l'assistant, le menu « … » propose les pairs acceptés ; le choix prépare la demande dans le composeur. Rien n'est envoyé depuis le navigateur : la transmission emprunte la route ordinaire — l'assistant, l'outil de relais, et la confirmation qu'il réclame.
+
+**Les gestes d'un engagement sont là où vous le lisez.** Marquer fait, classer sans suite et corriger sont désormais sur la carte « Pour vous » du tableau de bord, avec le registre complet toujours à un clic. Les deux surfaces écrivent par le même chemin et partagent le même éditeur.
+
+**Aussi** : le portrait de LIA se choisit par deux vignettes visibles plutôt que par un clic invisible sur toute l'image ; une routine se duplique, formulaire prérempli et titre suffixé, sans rien créer avant validation ; l'aperçu des cinq prochaines exécutions affiche l'heure **du fuseau de la routine** et signale les changements d'heure, les instants venant du planificateur et jamais d'une seconde lecture du cron dans le navigateur ; un rappel s'annule depuis sa carte, par identifiant exact plutôt que par ressemblance de texte ; la galerie de photos se parcourt entièrement au clavier ; « Créer un rappel », « Créer une routine » et « Ouvrir mes espaces » rejoignent les commandes rapides ; et un retour tactile bref accompagne les gestes sur mobile — **réglage distinct** des animations réduites, parce que vouloir une interface immobile n'est pas vouloir un téléphone muet.
+
+### Fixed
+
+- **Le libellé des routines était en anglais** pour les comptes allemand, espagnol, italien et chinois, dans un texte que le modèle relit.
+- **Une notification d'agenda sans titre** s'affichait « Untitled » quelle que soit la langue demandée — et le test figeait ce comportement en réclamant du français.
+- **Trois chiffres de résultats pouvaient se contredire** : comptés par trois requêtes séparées, les actions pouvaient dépasser le total qui les contient. Une seule passe désormais.
+- **Le focus disparaissait** après l'annulation d'un rappel, la suppression d'une routine ou la clôture d'un engagement : le clavier retombait en haut de page.
+- **Un commutateur d'activation de routine n'avait aucun nom** pour les lecteurs d'écran, et le nom du fuseau des occurrences n'atteignait pas le contraste minimum.
+- **Un identifiant de suggestion inconnu** aurait inséré une clé technique dans le composeur ; une priorité inconnue s'affichait en clair dans l'historique.
+- **Un titre de routine contenant un emoji** pouvait être tronqué au milieu du caractère lors d'une duplication.
+- **Le menu de partage coûtait cinq requêtes par réponse affichée** — 120 appels mesurés sur une conversation de douze réponses. Il n'en coûte plus aucune tant qu'il reste fermé.
+- **La carte « Pour vous » gardait un engagement déjà clôturé** à l'écran, si bien qu'un second clic échouait.
+
+### Tests
+
+- Backend 17 925 tests collectés, frontend 4 690 ; 158 parcours navigateur, 23 audits d'accessibilité.
+- Planchers de couverture relevés : branches 61 → 62, fonctions 63 → 64, lignes 68 → 69 côté frontend.
+- Nouvelles gardes : symétrie des suggestions et de la borne de titre avec le backend, coût réseau du menu de partage, débordement mobile de Relations dans les six langues, et blocs de réglages repliés.
+- Le tableau de bord n'avait **jamais** été audité en accessibilité : la charge de test utilisée était impossible et l'écroulait derrière son garde-fou, si bien que l'audit rendait un rapport vert sur une page d'erreur.
+
+### Infrastructure
+
+- Les images de développement portent enfin un nom distinct de celles de production (`lia-api-dev`, `lia-web-dev`). Une construction de production locale écrasait silencieusement l'environnement de développement — deux occurrences.
+
 ## [1.27.7] - 2026-08-02
 
 **L'assistant répondait par son propre diagnostic.** Quand un plan qui écrit épuise ses tentatives de correction, il refuse de l'exécuter — c'est un garde-fou, et il est juste — et demande à l'utilisateur de trancher. Sauf que la question posée était le **diagnostic interne**. Un compte en français a reçu `for_each pattern issue detected`, puis `Fabricated placeholder contact detail: step_2.to='jerome@example.com'` : du jargon, un chemin de code, et une adresse inventée qu'on pouvait croire tirée de son carnet d'adresses. Quatre fois en trente jours. Le commentaire du code affirmait que ces textes étaient déjà traduits ; c'était faux pour les cinq règles déterministes, dont la documentation dit elle-même qu'ils servent à la trace, pas à l'utilisateur. **Mais c'était vrai pour l'autre voie** : quand un modèle analyse le plan, il écrit quelque chose de précis et dans la bonne langue — « La date de début est incorrecte (samedi 18 à 9h30 demandé) » — et un test existant le protégeait à raison. Le premier correctif l'aurait détruit. Désormais **quinze questions, dans les six langues**, refusées au démarrage si l'une manque — et refusées aussi dans l'autre sens, ce qui a fait tomber deux questions écrites pour des noms que le code ne produit jamais : parfaitement traduites, parfaitement inatteignables, et qui se lisaient comme de la couverture. Enfin, **celui qui produit le texte déclare** s'il est montrable, plutôt que de laisser deviner en aval.

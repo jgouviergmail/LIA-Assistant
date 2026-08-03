@@ -192,6 +192,14 @@ export function BriefingCard<T extends SectionData>({
       role="region"
       aria-label={titleLabel}
       aria-busy={isRefreshing}
+      // A stable focus anchor for cards whose rows can DISAPPEAR under the
+      // reader (cancelling a reminder). Radix returns focus to the trigger it
+      // opened from; when that trigger was inside the removed row, focus falls
+      // to <body> and the keyboard user restarts at the top of the page.
+      // `-1` adds no tab stop — it only makes this named region a legal
+      // destination for a deliberate `.focus()`, and it survives every state
+      // the card can reach, the empty one included.
+      tabIndex={-1}
       style={staggerStyle}
       className={cn(
         'group relative overflow-hidden rounded-2xl border bg-card',

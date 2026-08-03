@@ -1659,6 +1659,20 @@ _DOMAIN_SECTION_LABELS: dict[str, dict[str, str]] = {
 # EVENT COMPONENT STRINGS
 # =============================================================================
 
+#: Name for a calendar event whose provider returned no summary.
+#:
+#: Baked as the literal "Untitled" until 2026-08-03, so a German or Chinese
+#: reader found an English word in the middle of their own agenda — and the
+#: fallback is common enough (recurring holds, blocked slots) to be visible.
+_DISPLAY_UNTITLED_EVENT: dict[str, str] = {
+    "fr": "Sans titre",
+    "en": "Untitled",
+    "es": "Sin título",
+    "de": "Ohne Titel",
+    "it": "Senza titolo",
+    "zh-CN": "无标题",
+}
+
 _DISPLAY_TENTATIVE: dict[str, str] = {
     "fr": "Provisoire",
     "en": "Tentative",
@@ -3419,6 +3433,12 @@ class V3Messages:
     # =========================================================================
     # EVENT COMPONENT STRINGS
     # =========================================================================
+
+    @staticmethod
+    def get_untitled_event(language: str) -> str:
+        """Get the placeholder name for an event with no summary."""
+        lang = V3Messages._normalize_language(language)
+        return _DISPLAY_UNTITLED_EVENT.get(lang, _DISPLAY_UNTITLED_EVENT["en"])
 
     @staticmethod
     def get_tentative(language: str) -> str:

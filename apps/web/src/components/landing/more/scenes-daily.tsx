@@ -6,7 +6,7 @@
 
 'use client';
 
-import { Check, CheckCircle2, Circle, EyeOff, FileText, Sparkles } from 'lucide-react';
+import { Check, CheckCircle2, ChevronDown, Circle, EyeOff, FileText, Sparkles } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -241,9 +241,75 @@ function CardActionsScene({ active, labels }: SceneProps) {
   );
 }
 
+
+/**
+ * Folded settings — the panel is an index you open, not a wall you scroll.
+ *
+ * Three shut rows; one opens and reveals its content. The badge on the closed
+ * row is the point: folding must not hide a decision, so what was refused
+ * stays legible while everything is shut.
+ */
+type FoldPhase = 'shut' | 'hover' | 'open' | 'rest';
+const FOLD_STEPS: readonly TimelineStep<FoldPhase>[] = [
+  { at: 0, state: 'shut' },
+  { at: 800, state: 'hover' },
+  { at: 1300, state: 'open' },
+  { at: 2600, state: 'rest' },
+];
+
+function FoldedSettingsScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(FOLD_STEPS, { active });
+  const opened = phase === 'open' || phase === 'rest';
+  return (
+    <div className={cn(STAGE, 'justify-center gap-1.5 px-6')}>
+      {[0, 1, 2].map(row => (
+        <div key={row} className="w-full">
+          <div
+            className={cn(
+              'flex w-full items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 transition-shadow duration-200 motion-reduce:transition-none',
+              row === 1 && phase === 'hover' && 'ring-2 ring-primary/50'
+            )}
+          >
+            <ChevronDown
+              className={cn(
+                'h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-300 motion-reduce:transition-none',
+                row === 1 && opened && 'rotate-180'
+              )}
+            />
+            <SkeletonLine w="w-1/3" />
+            {/* Refused-source count: the one thing that must stay readable
+                while the block is shut. */}
+            {row === 1 && (
+              <span className="ml-auto rounded-full bg-muted px-1.5 text-[9px] tabular-nums text-muted-foreground">
+                2
+              </span>
+            )}
+          </div>
+          {row === 1 && (
+            <div
+              className={cn(
+                'grid overflow-hidden transition-[grid-template-rows] duration-300 motion-reduce:transition-none',
+                opened ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+              )}
+            >
+              <div className="min-h-0">
+                <div className="mt-1 space-y-1 pl-5">
+                  <SkeletonLine w="w-2/3" />
+                  <SkeletonLine w="w-1/2" />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   briefing_custom: BriefingCustomScene,
   card_actions: CardActionsScene,
+  folded_settings: FoldedSettingsScene,
   starter_checklist: StarterChecklistScene,
   empty_starters: EmptyStartersScene,
   pwa: PwaScene,

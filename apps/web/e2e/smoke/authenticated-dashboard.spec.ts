@@ -7,11 +7,18 @@
  * backend, LLM, or paid provider is contacted — the catch-all fails any
  * un-mocked call loudly.
  */
-import { test, expect, makeTestUser, type MockRoute, waitForHydration } from '../fixtures';
+import {
+  test,
+  expect,
+  makeTestUser,
+  briefingCardsMock,
+  type MockRoute,
+  waitForHydration,
+} from '../fixtures';
 
 /** Minimal, shape-correct briefing/usage mocks so the dashboard renders clean. */
 const dashboardData: MockRoute[] = [
-  { url: '**/api/v1/briefing/cards', json: { cards: {} } },
+  briefingCardsMock,
   {
     url: '**/api/v1/briefing/synthesis',
     json: { greeting: { text: 'Welcome back', generated_at: null, usage: null }, synthesis: null },

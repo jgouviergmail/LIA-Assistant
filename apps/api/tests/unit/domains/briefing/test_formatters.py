@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -221,10 +222,39 @@ def test_format_agenda_event_tomorrow_uses_locale_word() -> None:
 
 @pytest.mark.unit
 def test_format_agenda_event_falls_back_to_untitled() -> None:
+    # An event with no summary is named in the READER's language. This used to
+    # bake "Untitled" into the payload whatever the request asked for, so a
+    # German reader saw an English word in the middle of their agenda — and the
+    # test pinned it, French request included.
     item = format_agenda_event({}, PARIS, "fr")
-    assert item.title == "Untitled"
+    assert item.title == "Sans titre"
     assert item.location is None
     assert item.start_local == "?"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("language", "expected"),
+    [
+        ("fr", "Sans titre"),
+        ("en", "Untitled"),
+        ("de", "Ohne Titel"),
+        ("es", "Sin título"),
+        ("it", "Senza titolo"),
+        ("zh-CN", "无标题"),
+        # Frontend-canonical Chinese must reach the same table, not fall back.
+        ("zh", "无标题"),
+    ],
+)
+def test_format_agenda_event_names_an_untitled_event_in_every_language(
+    language: str, expected: str
+) -> None:
+    assert format_agenda_event({}, PARIS, language).title == expected
+
+
+@pytest.mark.unit
+def test_a_real_summary_is_never_replaced_by_the_fallback() -> None:
+    assert format_agenda_event({"summary": "Dentiste"}, PARIS, "de").title == "Dentiste"
 
 
 # =============================================================================
@@ -281,7 +311,9 @@ class TestFormatEmailItem:
 @pytest.mark.unit
 def test_format_reminder_item_today() -> None:
     now_utc = datetime.now(UTC).replace(microsecond=0)
-    reminder = SimpleNamespace(content="Call mom", trigger_at=now_utc)
+    # `id` is not optional on the model (UUIDMixin); a double without it
+    # would only prove the double is incomplete.
+    reminder = SimpleNamespace(id=uuid4(), content="Call mom", trigger_at=now_utc)
     item = format_reminder_item(reminder, PARIS)
     assert item.content == "Call mom"
     # Should be HH:MM (today)
@@ -294,7 +326,7 @@ def test_format_reminder_item_tomorrow() -> None:
     from datetime import timedelta as td
 
     now_utc = datetime.now(UTC).replace(microsecond=0) + td(days=1)
-    reminder = SimpleNamespace(content="Wake up early", trigger_at=now_utc)
+    reminder = SimpleNamespace(id=uuid4(), content="Wake up early", trigger_at=now_utc)
     item = format_reminder_item(reminder, PARIS)
     # New format: "HH:MM tomorrow" (time first, then relative day marker).
     assert item.trigger_at_local.endswith(" tomorrow")

@@ -138,3 +138,50 @@ export const dashboardShellMocks: MockRoute[] = [
   // cross `/`, so `/rag-spaces/<id>` stays unmocked here (spec concern).
   { url: '**/api/v1/rag-spaces*', json: { spaces: [], total: 0 } },
 ];
+
+/**
+ * A briefing bundle with all NINE sections resolved and empty.
+ *
+ * `CardsBundle` (apps/api → domains/briefing/schemas.py) declares all nine as
+ * REQUIRED, so the backend cannot omit one. A partial `{ cards: {} }` is not a
+ * lighter fixture, it is an impossible payload — and an actively harmful one:
+ * `visibleOrderedSections` keeps every section the preferences do not hide, so
+ * each renderer receives `undefined`, `BriefingCard` reads `.status` off it,
+ * and the error boundary replaces the WHOLE dashboard with "Error in
+ * dashboard". Landmark assertions still pass on that fallback, and an axe scan
+ * still reports zero violations — on a page that is not the dashboard.
+ *
+ * Found 2026-08-03: three specs shared that payload, including the one whose
+ * title claims the authenticated dashboard scans clean.
+ *
+ * `empty` rather than `not_configured`: a not-configured card renders nothing,
+ * which would leave the grid — and anything a scan or a test looks for inside
+ * it — absent for a different reason.
+ */
+export const briefingCardsMock: MockRoute = {
+  url: '**/api/v1/briefing/cards',
+  json: {
+    cards: Object.fromEntries(
+      [
+        'weather',
+        'agenda',
+        'mails',
+        'birthdays',
+        'health',
+        'tasks',
+        'documents',
+        'reminders',
+        'for_you',
+      ].map(name => [
+        name,
+        {
+          status: 'empty',
+          data: null,
+          generated_at: '2026-08-03T08:00:00Z',
+          error_code: null,
+          error_message: null,
+        },
+      ])
+    ),
+  },
+};

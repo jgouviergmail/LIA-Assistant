@@ -5,8 +5,8 @@
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
 **Version**: 3.6
-**Datum**: 2026-08-02
-**Application**: LIA v1.27.7
+**Datum**: 2026-08-03
+**Application**: LIA v1.27.8
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 447 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 194 ADRs, ~17.803 von pytest gesammelte Tests in 955 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 199 ADRs, ~17.925 von pytest gesammelte Tests in 968 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -72,7 +72,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~17.803 von pytest gesammelt (von pytest über 955 Testdateien gesammelt) + 4.487 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | ~17.925 von pytest gesammelt (von pytest über 968 Testdateien gesammelt) + 4.690 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 400+ |
 | ADRs (Architecture Decision Records) | 189 |
@@ -752,6 +752,8 @@ Wake Word ("OK Guy") über Sherpa-onnx WASM im Browser (kein externer Versand). 
 **Phase 1 — Entscheidung** (kosteneffektiv, gpt-4.1-mini):
 1. `EligibilityChecker`: Opt-in, Zeitfenster, Cooldown (1h global, 30 Min. pro Typ), kürzliche Aktivität — optionale `notification_filter`/`cross_type_filters` trennen das Eligibility-Budget jedes Kanals vom gemeinsamen Ledger
 2. `ContextAggregator`: 12 Quellen parallel (`asyncio.gather`): Calendar, Weather (Änderungserkennung), Tasks, Emails, Interests, Aktivität, jüngste Heartbeat-/Interessen-Benachrichtigungen, weitere proaktive Oberflächen (ausgelöste Erinnerungen, Automatisierungsergebnisse, Anrufberichte — das erweiterte Anti-Redundanz-Fenster), Health, anstehende Geburtstage und Offene Schleifen (das Verpflichtungsregister, ADR-139). Ein **zweiter Durchlauf** leitet dann eine dynamische semantische Anfrage aus dem aggregierten Kontext ab, um Journale und Erinnerungen auszuwählen (ADR-135-Symmetrie), und berechnet die verkehrsbewusste Abfahrtsempfehlung (Routes-ETA, per Flag). Interessen kommen als **abwechslungsreiche Auswahl** (`pick_varied_sample`: ein Interesse pro Thema, am längsten nicht bediente Themen zuerst) — das Modell kann nur nennen, was es sieht, die Rotation ist also mechanisch
+
+   **Verbunden zu sein und unterbrochen zu werden sind zwei Entscheidungen** (ADR-197). Elf dieser Quellen tragen einen eigenen Schalter, der **vor** dem Abruf greift: eine abgelehnte Quelle speist die Entscheidung nicht mehr *und* kostet keinen API-Aufruf mehr, ohne den Dienst zu trennen — also ohne das Werkzeug zu verlieren, mit dem man fragt. Gespeichert wird die **Ablehnung**, nie die Erlaubnis: `NULL` bedeutet „nie geäußert“, sodass ein bestehendes Konto sein Verhalten behält und eine später ergänzte Quelle aktiv ist, bis jemand sie ablehnt. Was keine Quelle ist — Aktivität, die Anti-Redundanz-Fenster — bleibt konstruktionsbedingt außerhalb des Registers: sie abzuschalten würde den Assistenten wiederholen lassen, nicht seltener unterbrechen. Und eine Abhängigkeit wird **deklariert und veröffentlicht**: der Aufbruchshinweis liest den Kalender des ersten Durchlaufs, eine Ablehnung des Kalenders würde ihn also verstummen lassen; das Panel sagt es, statt einen wirkungslosen Schalter stehen zu lassen.
 3. LLM Structured Output: `skip` | `notify` plus `interest_topic` (wortwörtlich aus der Auswahl kopiert, Fail-open-Laufzeitprüfung) und per `Literal` beschränkte Quellenlabels. Zweistufige Anti-Redundanz: Quelle und **Inhalt** — die letzten 10 Benachrichtigungen über 7 Tage werden mit Auszügen injiziert, was das erneute Vorschlagen eines Themas auch aus anderer Quelle verbietet
 
 **Phase 1b — Anreicherung** (wenn `interest_topic` gesetzt): `InterestContentGenerator` (Perplexity → Brave → Wikipedia) unter hartem Timeout, dedupliziert gegen die Embeddings kürzlicher Benachrichtigungen. Vollständig fail-open: Flag aus, Fehler oder leeres Ergebnis → die Nachricht geht ohne Fakten raus.
@@ -1152,7 +1154,7 @@ Eine Destination kann dennoch berechtigterweise fehlen: Mehrere Bereiche rendern
 
 ## 24. Architekturentscheidungen (ADR)
 
-194 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+199 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1206,10 +1208,10 @@ Die Psyche Engine verleiht dem Assistenten einen dynamischen psychologischen Zus
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 194 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~17.803 Tests in 955 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 199 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~17.925 Tests in 968 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 194 ADRs und des Changelogs (v1.0 bis v1.27.7). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 199 ADRs und des Changelogs (v1.0 bis v1.27.8). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

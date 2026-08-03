@@ -82,8 +82,9 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // entry left behind by a token that was removed.
     expect(Object.keys(SETTINGS_SEARCH_META).sort()).toEqual([...TOKENS].sort());
     // 30 at ADR-172, +1 chat-shortcuts (UX Actions program, SLASH admin lot),
-    // +1 peer-connections (peers program, Lot 2).
-    expect(TOKENS).toHaveLength(32);
+    // +1 peer-connections (peers program, Lot 2), +1 haptics (its own sensory
+    // control — `prefers-reduced-motion` is about animation, not touch).
+    expect(TOKENS).toHaveLength(33);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

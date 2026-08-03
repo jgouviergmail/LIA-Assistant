@@ -191,7 +191,7 @@ describe('ChatMessage — proactive interest feedback', () => {
       content: 'Un article sur les fusées',
       metadata: {
         type: 'proactive_interest',
-        target_id: 'int-7',
+        target_id: '11111111-1111-4111-8111-111111111111',
         feedback_enabled: true,
         ...over,
       },
@@ -232,7 +232,10 @@ describe('ChatMessage — proactive interest feedback', () => {
     const { user } = renderMessage(proactive());
     await user.click(screen.getByRole('button', { name: label }));
     await waitFor(() =>
-      expect(mutate).toHaveBeenCalledWith('/interests/int-7/feedback', { feedback: verdict })
+      expect(mutate).toHaveBeenCalledWith(
+        '/interests/11111111-1111-4111-8111-111111111111/feedback',
+        { feedback: verdict }
+      )
     );
   });
 
@@ -265,8 +268,8 @@ describe('ChatMessage — proactive interest feedback, audit trail', () => {
         content: 'Un article sur les fusées',
         metadata: {
           type: 'proactive_interest',
-          target_id: 'int-7',
-          run_id: 'interest_int-7_ab12cd34',
+          target_id: '11111111-1111-4111-8111-111111111111',
+          run_id: 'interest_11111111_ab12cd34',
           feedback_enabled: true,
         },
       })
@@ -275,10 +278,13 @@ describe('ChatMessage — proactive interest feedback, audit trail', () => {
     await user.click(screen.getByRole('button', { name: 'interests.feedback.like' }));
 
     await waitFor(() =>
-      expect(mutate).toHaveBeenCalledWith('/interests/int-7/feedback', {
-        feedback: 'thumbs_up',
-        run_id: 'interest_int-7_ab12cd34',
-      })
+      expect(mutate).toHaveBeenCalledWith(
+        '/interests/11111111-1111-4111-8111-111111111111/feedback',
+        {
+          feedback: 'thumbs_up',
+          run_id: 'interest_11111111_ab12cd34',
+        }
+      )
     );
   });
 });
@@ -291,7 +297,7 @@ describe('ChatMessage — proactive heartbeat feedback', () => {
       content: 'Il pleuvra cet après-midi',
       metadata: {
         type: 'proactive_heartbeat',
-        target_id: 'hb-42',
+        target_id: '22222222-2222-4222-8222-222222222222',
         feedback_enabled: true,
         ...over,
       },
@@ -330,7 +336,11 @@ describe('ChatMessage — proactive heartbeat feedback', () => {
     renderMessage(
       makeMessage({
         content: 'Un article sur les fusées',
-        metadata: { type: 'proactive_interest', target_id: 'int-7', feedback_enabled: true },
+        metadata: {
+          type: 'proactive_interest',
+          target_id: '11111111-1111-4111-8111-111111111111',
+          feedback_enabled: true,
+        },
       })
     );
 
@@ -358,9 +368,12 @@ describe('ChatMessage — proactive heartbeat feedback', () => {
     await user.click(screen.getByRole('button', { name: 'heartbeat.feedback.like' }));
 
     await waitFor(() =>
-      expect(mutate).toHaveBeenCalledWith('/heartbeat/notifications/hb-42/feedback', {
-        feedback: 'thumbs_up',
-      })
+      expect(mutate).toHaveBeenCalledWith(
+        '/heartbeat/notifications/22222222-2222-4222-8222-222222222222/feedback',
+        {
+          feedback: 'thumbs_up',
+        }
+      )
     );
     expect(apiMutationOptions).toHaveBeenCalledWith(expect.objectContaining({ method: 'PATCH' }));
   });
@@ -404,7 +417,12 @@ describe('ChatMessage — proactive heartbeat feedback', () => {
 });
 
 describe('proactiveFeedbackProps — which contract a bubble routes to', () => {
-  const base = { target_id: 'x-1', feedback_enabled: true };
+  // Both backend routes declare their path parameter as a UUID
+  // (`POST /interests/{interest_id}/feedback`,
+  // `PATCH /heartbeat/notifications/{notification_id}/feedback`), so the
+  // identifier a card carries has to be one.
+  const TARGET = '3f4a1c8e-9d2b-4e7a-8c15-6b0d2f9a7e31';
+  const base = { target_id: TARGET, feedback_enabled: true };
 
   it.each([
     ['proactive_interest', 'interest'],
@@ -412,7 +430,7 @@ describe('proactiveFeedbackProps — which contract a bubble routes to', () => {
   ])('routes %s to the %s contract', (type, kind) => {
     expect(proactiveFeedbackProps({ ...base, type })).toEqual({
       kind,
-      targetId: 'x-1',
+      targetId: TARGET,
       runId: undefined,
       submittedVerdict: undefined,
     });
@@ -421,7 +439,7 @@ describe('proactiveFeedbackProps — which contract a bubble routes to', () => {
   it('keeps the run_id when the card carries one', () => {
     expect(proactiveFeedbackProps({ ...base, type: 'proactive_interest', run_id: 'r-9' })).toEqual({
       kind: 'interest',
-      targetId: 'x-1',
+      targetId: TARGET,
       runId: 'r-9',
       submittedVerdict: undefined,
     });
@@ -438,6 +456,25 @@ describe('proactiveFeedbackProps — which contract a bubble routes to', () => {
     ],
   ])('offers nothing for %s', (_label, metadata) => {
     expect(proactiveFeedbackProps(metadata as Record<string, unknown>)).toBeNull();
+  });
+
+  // Heartbeat notifications archived BEFORE the identity fix carry a
+  // synthetic `heartbeat_<hex>` target. The route would reject it with a 422
+  // that the buttons deliberately swallow, so the user would press a control
+  // that silently records nothing. Offering no control at all is the honest
+  // reading: the vote is genuinely impossible on those rows.
+  it.each([
+    ['a legacy heartbeat identifier', 'heartbeat_ab12cd34', 'proactive_heartbeat'],
+    ['a non-uuid interest identifier', 'x-1', 'proactive_interest'],
+    [
+      'a uuid-shaped but invalid target',
+      '3f4a1c8e-9d2b-4e7a-8c15-6b0d2f9a7e3',
+      'proactive_interest',
+    ],
+  ])('offers nothing for %s', (_label, targetId, type) => {
+    expect(
+      proactiveFeedbackProps({ feedback_enabled: true, target_id: targetId, type })
+    ).toBeNull();
   });
 
   it('reports the verdict of this session over the persisted one', () => {
@@ -469,7 +506,7 @@ describe('proactiveFeedbackProps — which contract a bubble routes to', () => {
   it('ignores a non-string run_id instead of forwarding garbage', () => {
     expect(proactiveFeedbackProps({ ...base, type: 'proactive_interest', run_id: 42 })).toEqual({
       kind: 'interest',
-      targetId: 'x-1',
+      targetId: TARGET,
       runId: undefined,
       submittedVerdict: undefined,
     });
@@ -510,7 +547,7 @@ describe('ChatMessage — bubble action row (PERSO)', () => {
       makeMessage({
         metadata: {
           type: 'proactive_interest',
-          target_id: 'int-1',
+          target_id: '33333333-3333-4333-8333-333333333333',
           feedback_enabled: true,
           message_db_id: 'db-9',
         },
@@ -686,9 +723,7 @@ describe('ChatMessage — peer bubble (peers Lot 7)', () => {
 
   it('tints the bubble and offers the quick actions on a relayed message', () => {
     renderAssistantWith(peerMessage(), { onPrefillComposer: vi.fn() });
-    const bubble = screen
-      .getByText('Marie te fait dire bonjour')
-      .closest('.message-bubble');
+    const bubble = screen.getByText('Marie te fait dire bonjour').closest('.message-bubble');
     expect(bubble).toHaveClass('bg-primary/10');
     expect(screen.getByRole('button', { name: /chat\.peer\.reply/ })).toBeInTheDocument();
   });

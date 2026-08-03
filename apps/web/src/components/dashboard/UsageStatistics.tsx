@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
-import { BarChart3, Coins, Database, Globe, MessageSquare } from 'lucide-react';
+import { BarChart3, ChevronDown, Coins, Database, Globe, MessageSquare } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { useUserStatistics } from '@/hooks/useUserStatistics';
@@ -24,12 +24,20 @@ export function UsageStatistics() {
   const totalSinceIso = !statsLoading && statistics ? statistics.total_since : null;
 
   return (
-    <div>
-      <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold tracking-tight text-foreground mb-4">
-        <BarChart3 className="h-5 w-5 text-primary shrink-0" aria-hidden="true" />
-        {t('dashboard.statistics.title')}
-      </h2>
-      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+    // A native <details>: the disclosure semantics, the keyboard behaviour and
+    // the open/closed announcement come from the platform. Closed by default —
+    // these are the administration figures, and the results block above is now
+    // what leads. `group` drives the chevron rotation only.
+    <details className="group">
+      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg py-2 text-base font-semibold tracking-tight text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-lg">
+        <BarChart3 className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+        {t('dashboard.statistics.consumption_title')}
+        <ChevronDown
+          className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180 motion-reduce:transition-none"
+          aria-hidden="true"
+        />
+      </summary>
+      <div className="mt-4 grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
         <StatCard
           title={t('dashboard.statistics.messages.title')}
           icon={<MessageSquare className="h-5 w-5 text-primary" />}
@@ -90,7 +98,7 @@ export function UsageStatistics() {
 
         <UsageLimitsTile limits={usageLimits} isLoading={limitsLoading} />
       </div>
-    </div>
+    </details>
   );
 }
 

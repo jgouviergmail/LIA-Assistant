@@ -116,6 +116,14 @@ export interface BirthdaysData {
 }
 
 export interface ReminderItem {
+  /**
+   * The reminder's own id.
+   *
+   * Optional because a payload cached before this field still parses. The card
+   * only offers "cancel" on rows that carry one: acting on a reminder we
+   * cannot name exactly is how the wrong one gets cancelled.
+   */
+  id?: string | null;
   content: string;
   trigger_at_local: string;
 }

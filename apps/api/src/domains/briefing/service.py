@@ -20,9 +20,11 @@ from zoneinfo import ZoneInfo
 import structlog
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 
 # Moved to core/time_utils (P7) — kept under its historical private name.
+from src.core.time_utils import (
+    resolve_user_timezone,
+)
 from src.core.time_utils import (
     seconds_to_next_local_midnight as _seconds_to_next_local_midnight,
 )
@@ -96,11 +98,12 @@ _ORIGIN_STALE = "stale"  # D-04: last known-good served alongside an ERROR
 
 
 def _resolve_user_tz(user: User) -> ZoneInfo:
-    """Best-effort timezone resolution with safe fallback."""
-    try:
-        return ZoneInfo(user.timezone)
-    except (KeyError, ValueError, AttributeError, TypeError):
-        return ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
+    """Best-effort timezone resolution with safe fallback.
+
+    Delegates to the shared helper: this used to be one of two byte-identical
+    copies, and a third caller had to import THIS private symbol to reuse it.
+    """
+    return resolve_user_timezone(user)
 
 
 def _has_content(data: Any) -> bool:
@@ -319,7 +322,7 @@ class BriefingService:
             sections, or when the LLM call itself fails).
         """
         if cards is None:
-            cards = await self._read_cards_from_cache()
+            cards = await self.read_cached_cards()
 
             # Race-aware: if the cache hasn't been populated yet (cold start,
             # or /synthesis racing /cards), the synthesis would be silently
@@ -507,11 +510,18 @@ class BriefingService:
     # Redis helpers (defensive — cache is best-effort)
     # =========================================================================
 
-    async def _read_cards_from_cache(self) -> CardsBundle:
-        """Read every card section from Redis cache.
+    async def read_cached_cards(self) -> CardsBundle:
+        """Read every card section from Redis cache — NEVER fetching.
 
-        Sections without a cache entry are returned as NOT_CONFIGURED placeholders
-        — the LLM helpers will then ignore them when summarizing for the prompt.
+        Public because it is a capability of this domain rather than a detail:
+        a caller that wants "what we already know, at no cost" (the chat's
+        grounded suggestions) must have a way to ask for exactly that, instead
+        of reaching into the cache keys itself or calling `build_cards` and
+        waking every connector.
+
+        Sections without a cache entry are returned as NOT_CONFIGURED
+        placeholders — the LLM helpers ignore them when summarizing for the
+        prompt, and the suggestion builder treats them as "no evidence".
         """
         now = datetime.now(UTC)
         sections = await asyncio.gather(

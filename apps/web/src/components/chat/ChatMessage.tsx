@@ -86,6 +86,22 @@ export function isFreshProactive(
   return Math.abs(nowMs - timestampMs) < windowMs;
 }
 
+/**
+ * The shape both feedback routes accept in their path.
+ *
+ * `POST /interests/{interest_id}/feedback` and
+ * `PATCH /heartbeat/notifications/{notification_id}/feedback` each declare a
+ * `UUID` path parameter, so anything else is rejected before a handler runs —
+ * and the buttons swallow that failure by design (a preference ping must not
+ * shout at the user). A control that cannot succeed is therefore not offered
+ * at all.
+ *
+ * Deliberately the generic 8-4-4-4-12 form rather than a version-4 pattern:
+ * Python's `UUID()` accepts any variant, and being stricter here would hide
+ * buttons the server would have honoured.
+ */
+const FEEDBACK_TARGET_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** A verdict the backend already recorded for this notification, if any. */
 function recordedVerdict(
   metadata: Record<string, unknown> | undefined
@@ -122,7 +138,11 @@ export function proactiveFeedbackProps(
 } | null {
   if (!metadata || !metadata.feedback_enabled) return null;
   const targetId = metadata.target_id;
-  if (typeof targetId !== 'string' || targetId.length === 0) return null;
+  // Not merely non-empty: it must be an identifier the route can resolve.
+  // Heartbeat notifications archived before the identity fix carry a
+  // synthetic `heartbeat_<hex>` value; their vote is genuinely impossible,
+  // so no control is rendered rather than one that records nothing.
+  if (typeof targetId !== 'string' || !FEEDBACK_TARGET_RE.test(targetId)) return null;
 
   const kind: ProactiveFeedbackKind | null =
     metadata.type === 'proactive_interest'
@@ -269,7 +289,11 @@ function AssistantActionRow({
           bubbles (image-only answers) have nothing to share or export:
           `navigator.share({ text: '' })` rejects and the .md would be empty. */}
       {message.content.trim().length > 0 && (
-        <ShareResponseMenu content={message.content} timestamp={message.timestamp} />
+        <ShareResponseMenu
+          content={message.content}
+          timestamp={message.timestamp}
+          onPrefillComposer={onPrefillComposer}
+        />
       )}
       {/* W3: a failed turn used to be a dead end — the user had to find their
           question and retype it. Labelled, not icon-only: this one re-runs a

@@ -62,3 +62,49 @@ describe('useLiaGender — toggle', () => {
     expect(document.cookie).toContain('lia_gender=female');
   });
 });
+
+describe('useLiaGender — choosing a variant outright', () => {
+  // The hero picker offers the two portraits side by side: the reader picks
+  // one rather than flipping blind. Expressing that through `toggleGender`
+  // would mean the caller comparing state before acting — a read-then-write
+  // the hook can do correctly once.
+  it('sets the requested variant and persists it', () => {
+    const { result } = renderHook(() => useLiaGender());
+
+    act(() => result.current.setGender(true));
+
+    expect(result.current.isMale).toBe(true);
+    expect(document.cookie).toContain('lia_gender=male');
+    expect(result.current.liaImage).toBe('/LIA_TCM.jpg');
+  });
+
+  it('is idempotent — choosing the active variant changes nothing', () => {
+    const { result } = renderHook(() => useLiaGender());
+
+    act(() => result.current.setGender(false));
+
+    expect(result.current.isMale).toBe(false);
+    expect(document.cookie).toContain('lia_gender=female');
+  });
+});
+
+describe('useLiaGender — the two portraits offered by the picker', () => {
+  it('exposes both variants for the CURRENT theme', () => {
+    const { result } = renderHook(() => useLiaGender());
+
+    expect(result.current.liaImageVariants).toEqual({
+      female: '/LIA_TC.jpg',
+      male: '/LIA_TCM.jpg',
+    });
+  });
+
+  it('follows the resolved theme, so the picker never shows a light face on a dark hero', () => {
+    mockUseTheme.mockReturnValue({ resolvedTheme: 'dark' });
+    const { result } = renderHook(() => useLiaGender());
+
+    expect(result.current.liaImageVariants).toEqual({
+      female: '/LIA_TS.jpg',
+      male: '/LIA_TSM.jpg',
+    });
+  });
+});

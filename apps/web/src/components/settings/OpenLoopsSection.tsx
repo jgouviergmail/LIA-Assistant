@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 
 import { CommitmentEditor } from '@/components/commitments/CommitmentEditor';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { haptic } from '@/lib/haptics';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import {
   daysOpen,
@@ -123,7 +124,10 @@ function LoopGroup({
 
   const handleClose = async (loop: OpenLoop, action: 'done' | 'dismissed') => {
     const ok = await close(loop.id, action);
-    if (!ok) toast.error(t('common.error'));
+    // Confirmed only once the server accepted: a buzz on the optimistic press
+    // would acknowledge something that may still fail.
+    if (ok) haptic('confirm');
+    else toast.error(t('common.error'));
   };
 
   if (loops.length === 0) return null;

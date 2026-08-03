@@ -8,7 +8,7 @@
 
 'use client';
 
-import { Check, Coins, EyeOff, Map as MapIcon } from 'lucide-react';
+import { Check, Coins, EyeOff, Map as MapIcon, Vibrate } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -295,10 +295,56 @@ function NarrowScreensScene({ active }: SceneProps) {
   );
 }
 
+
+/**
+ * Haptics — a brief tap, on request.
+ *
+ * The ring expands once and fades: a buzz longer than a few tens of
+ * milliseconds reads as an alarm, not as an acknowledgement, and the scene
+ * says so by never lingering. `motion-reduce` neutralises the pulse — the
+ * page must not animate at someone who asked it not to.
+ */
+type HapticPhase = 'idle' | 'tap' | 'echo' | 'rest';
+const HAPTIC_STEPS: readonly TimelineStep<HapticPhase>[] = [
+  { at: 0, state: 'idle' },
+  { at: 900, state: 'tap' },
+  { at: 1150, state: 'echo' },
+  { at: 2200, state: 'rest' },
+];
+
+function HapticsScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(HAPTIC_STEPS, { active });
+  const firing = phase === 'tap' || phase === 'echo';
+  return (
+    <div className={cn(STAGE, 'items-center justify-center')}>
+      <PhoneFrame className="relative flex items-center justify-center">
+        <span
+          aria-hidden="true"
+          className={cn(
+            'absolute h-10 w-10 rounded-full border-2 border-primary/60 transition-all duration-300 motion-reduce:transition-none',
+            phase === 'tap' && 'scale-100 opacity-90',
+            phase === 'echo' && 'scale-150 opacity-0',
+            (phase === 'idle' || phase === 'rest') && 'scale-75 opacity-0'
+          )}
+        />
+        <span
+          className={cn(
+            'relative flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background transition-transform duration-150 motion-reduce:transition-none',
+            firing && 'scale-105'
+          )}
+        >
+          <Vibrate className={cn('h-4 w-4', firing ? 'text-primary' : 'text-muted-foreground')} />
+        </span>
+      </PhoneFrame>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   background_response: BackgroundResponseScene,
   widgets_travel: WidgetsTravelScene,
   cost_transparency: CostTransparencyScene,
+  haptics: HapticsScene,
   a11y_care: A11yCareScene,
   frosted_glass: FrostedGlassScene,
   narrow_screens: NarrowScreensScene,

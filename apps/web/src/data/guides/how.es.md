@@ -5,8 +5,8 @@
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
 **Versión**: 3.6
-**Fecha**: 2026-08-02
-**Aplicación**: LIA v1.27.7
+**Fecha**: 2026-08-03
+**Aplicación**: LIA v1.27.8
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 447 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 194 ADRs, ~17.803 tests recogidos por pytest en 955 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 199 ADRs, ~17.925 tests recogidos por pytest en 968 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -72,7 +72,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | ~17.803 (recopilados por pytest en 955 archivos de prueba) + 4.487 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | ~17.925 (recopilados por pytest en 968 archivos de prueba) + 4.690 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures reutilizables | 170+ |
 | Documentos de documentación | 400+ |
 | ADRs (Architecture Decision Records) | 189 |
@@ -752,6 +752,8 @@ Factory **catalogue-driven** (ADR-081): `factory.get_tts_client()` lee el overri
 **Fase 1 — Decisión** (coste-efectiva, gpt-4.1-mini):
 1. `EligibilityChecker`: opt-in, ventana horaria, cooldown (1h global, 30 min por tipo), actividad reciente — los filtros opcionales `notification_filter`/`cross_type_filters` separan el presupuesto de elegibilidad de cada flujo del libro de cuentas compartido
 2. `ContextAggregator`: 12 fuentes en paralelo (`asyncio.gather`): Calendar, Weather (detección de cambios), Tasks, Emails, Interests, Actividad, notificaciones heartbeat/intereses recientes, otras superficies proactivas (recordatorios disparados, resultados de automatizaciones, informes de llamadas — la ventana anti-redundancia extendida), Health, Cumpleaños próximos y Bucles abiertos (el registro de compromisos, ADR-139). Una **segunda pasada** deriva luego una consulta semántica dinámica del contexto agregado para seleccionar Diarios y Memorias (simetría ADR-135) y calcula el consejo de salida según el tráfico (ETA de Routes, tras flag). Los intereses llegan como **muestra variada** (`pick_varied_sample`: un interés por tema, los temas menos servidos recientemente primero) — el modelo solo puede mencionar lo que se le muestra, así que la rotación es mecánica
+
+   **Estar conectado y ser interrumpido son dos decisiones** (ADR-197). Once de estas fuentes llevan su propio interruptor, aplicado **antes** de la recuperación: una fuente rechazada deja de alimentar la decisión *y* deja de costar una llamada de API, sin desconectar el servicio — así que sin perder la herramienta con la que preguntas. El almacenamiento guarda el **rechazo**, nunca el permiso: `NULL` significa «nunca expresado», de modo que una cuenta existente conserva su comportamiento y una fuente añadida más tarde está activa hasta que alguien la rechace. Lo que no es una fuente — la actividad, las ventanas anti-redundancia — queda fuera del registro por construcción: cortarlas haría que el asistente se repitiera, no que interrumpiera menos. Y una dependencia se **declara y luego se publica**: el aviso de salida lee el calendario de la primera pasada, así que rechazar el calendario lo silenciaría; el panel lo dice en vez de dejar un interruptor encendido sin efecto.
 3. LLM structured output: `skip` | `notify` más `interest_topic` (copiado literalmente de la muestra, guardia de ejecución fail-open) y etiquetas de fuente restringidas por un `Literal`. Anti-redundancia de dos niveles: fuente y **contenido** — las últimas 10 notificaciones en 7 días se inyectan con sus extractos, lo que prohíbe volver a proponer un tema aunque provenga de otra fuente
 
 **Fase 1b — Enriquecimiento** (si `interest_topic`): `InterestContentGenerator` (Perplexity → Brave → Wikipedia) bajo timeout estricto, deduplicado contra los embeddings de notificaciones recientes. Totalmente fail-open: flag apagado, fallo o resultado vacío → el mensaje sale sin hechos.
@@ -1153,7 +1155,7 @@ Con todo, un destino puede legítimamente no existir: varias secciones solo se r
 
 ## 24. Arquitectura de decisiones (ADR)
 
-194 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+199 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1207,10 +1209,10 @@ El Psyche Engine dota al asistente de un estado psicológico dinámico que evolu
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 194 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~17.803 tests en 955 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 199 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~17.925 tests en 968 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (400+ documentos), de los 194 ADRs y del changelog (v1.0 a v1.27.7). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (400+ documentos), de los 199 ADRs y del changelog (v1.0 a v1.27.8). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

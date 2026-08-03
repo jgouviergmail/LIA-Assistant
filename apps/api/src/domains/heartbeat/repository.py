@@ -49,6 +49,7 @@ class HeartbeatNotificationRepository:
         tokens_in: int = 0,
         tokens_out: int = 0,
         model_name: str | None = None,
+        notification_id: UUID | None = None,
     ) -> HeartbeatNotification:
         """Create an audit record for a sent heartbeat notification.
 
@@ -63,11 +64,21 @@ class HeartbeatNotificationRepository:
             tokens_in: Total input tokens consumed.
             tokens_out: Total output tokens consumed.
             model_name: LLM model used.
+            notification_id: Primary key to create the row UNDER. The caller
+                pre-generates it so the identifier the archived chat card
+                carries (``metadata.target_id``) and this row's ``id`` are the
+                same value — the feedback route resolves the card by that id.
+                ``None`` falls back to the model default, which is only safe
+                when no card will ever point at the row.
 
         Returns:
             Created HeartbeatNotification instance.
         """
+        # `id=None` is safe: the model's `default=uuid.uuid4` still fires for
+        # an explicitly-None primary key (verified against SQLAlchemy 2.x), so
+        # the optional argument needs no conditional splat.
         notification = HeartbeatNotification(
+            id=notification_id,
             user_id=user_id,
             run_id=run_id,
             content=content,

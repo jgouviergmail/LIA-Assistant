@@ -51,7 +51,7 @@ cd apps/api && .venv/Scripts/pytest tests/ -k "test_name" -v
 
 ```bash
 task test:frontend          # vitest run
-task test:frontend:coverage # + the per-file coverage thresholds CI enforces
+task test:frontend:coverage # + aggregate global and scoped-glob thresholds enforced by CI
 task test:e2e               # Playwright + axe journeys (hermetic, mocked API)
 ```
 
@@ -223,6 +223,7 @@ These mandatory **non-security** gates apply to new code and every touched file.
 - Completion requires fresh evidence from the current snapshot: exact commands, exit status, test counts, warnings, and material limits. A targeted or cached success does not replace the relevant clean gate when types, discovery, configuration, migrations, or generated artifacts changed.
 - Test code obeys production contracts. Builders use precise override types (for example `Partial<Props>`) and return the declared type without `Any`, double assertions, ignored diagnostics, or mocks that bypass the boundary under test.
 - Fix root causes: do not relocate complexity, split one violation into several files, weaken an oracle, substitute a real integration boundary, or update a baseline before measured debt actually decreases.
+- Production build inputs are explicit and immutable: no `latest` image, unversioned global installation, or undeclared transitive import. Pin production base images by version and digest, pin globally installed tools, declare every imported package directly, and validate through a clean frozen install and no-cache production build.
 
 ### Architecture and reliability
 
@@ -237,6 +238,7 @@ These mandatory **non-security** gates apply to new code and every touched file.
 - Interactive UI correctness includes native semantics, a stable translated accessible name, keyboard equivalence, deterministic focus, and disabled/error states. Critical changed journeys require hermetic browser coverage with controlled API/SSE traffic; periodic evidence extends Chromium smoke to Firefox/WebKit, zoom/reflow, and assistive technologies.
 - Coverage grows by business risk: prioritize orchestration, App Router pages, chat/SSE, connectors, uploads, voice/audio, persistence transitions, and error paths before trivial wrappers.
 - A test module never disables itself on a missing provider key (`pytestmark = skipif(not os.getenv("OPENAI_API_KEY"))`): a skipped test is green, so the suite silently leaves CI and rots (measured 2026-07-26: 219 test functions that had never run, 142 of them red on re-enable against a since-migrated API). Mock the provider and keep the tests unconditional, or mark the file `integration`/`e2e` so the exclusion is visible in the CI `-m` filter. Enforced in CI by `apps/api/tests/unit/test_no_env_skipped_suite_guard.py` (shrink-only allowlist, ADR-155).
+- A test double that receives a coroutine owns it: it must await it, schedule it, or explicitly capture and close it. A no-op mock of a fire-and-forget boundary is forbidden. Any unawaited coroutine, `PytestUnraisableExceptionWarning`, unclosed transport, or post-summary stderr is a test failure. Changes to background execution must pass both the fast xdist gate and the sequential coverage gate.
 
 ### Minimum verification by impact
 
@@ -246,9 +248,9 @@ task lint                         # backend + frontend + i18n + docs + the shrin
 task test:backend:unit:fast       # backend changes
 task test:frontend                # frontend changes
 
-# Frontend coverage: the per-file thresholds CI enforces (blanks NEXT_PUBLIC_API_URL,
-# which the Taskfile's global `dotenv: .env` would otherwise inject and which
-# measurably changes branch coverage)
+# Frontend coverage: aggregate global and scoped-glob thresholds (blanks
+# NEXT_PUBLIC_API_URL, which the Taskfile's global `dotenv: .env` would otherwise
+# inject and which measurably changes branch coverage; `thresholds.perFile` is not enabled)
 task test:frontend:coverage
 
 # Before pushing: every CI gate that needs no service
@@ -279,6 +281,8 @@ These rules close recurring bug classes identified by the 2026-07 full-codebase 
 - Never mutate a JSONB column in place (`obj.meta["k"] = v`, `obj.meta.update(...)`, or re-assigning the **same** dict object): SQLAlchemy silently skips the UPDATE. Always build a **new** dict: `obj.meta = {**(obj.meta or {}), **updates}`. `flag_modified`/`MutableDict` are intentionally absent from this codebase — new-dict reassignment is the convention. Enforced in CI by the AST guard `apps/api/tests/unit/test_jsonb_mutation_guard.py`.
 - Concurrent counters use server-side atomic UPSERTs (`pg_insert ... ON CONFLICT DO UPDATE` with column arithmetic) — imitate `ChatRepository.create_or_update_token_summary`. Never SELECT → increment in Python → flush (lost updates).
 - Rows consumed by schedulers use `FOR UPDATE SKIP LOCKED` + an atomic status transition in the same transaction — imitate `scheduled_actions/repository.py`.
+- Every distributed lock, lease, or durable claim has a unique owner token and, where stale writers can commit, a monotonic fencing token. Acquire, renew, release, heartbeat, complete, fail, and retry are atomic and conditioned on the current owner/token. A failed heartbeat immediately aborts all later effects. `SET NX` followed by unconditional `EXPIRE`/`DELETE`, and `SKIP LOCKED` followed by work outside the claiming transaction, are forbidden. Test expiry, takeover, stale completion/failure, and stale shutdown with two independent actors.
+- Absence of an exception is not proof of delivery. Durable work may enter `DELIVERED` or `SUCCEEDED` only from an explicit successful result. Claim before external effects, persist attempts and errors, propagate a stable idempotency key, and test total failure, partial success, crash after effect before commit, and two-worker execution.
 
 ### Registries & vocabulary
 
@@ -313,6 +317,7 @@ These rules close recurring bug classes identified by the 2026-07 full-codebase 
 - An `except` handler whose body is only `pass` is forbidden (CodeQL `py/empty-except`; 193 sites purged 2026-07). Intentional best-effort swallows use `contextlib.suppress(SpecificError)` with the justification comment ABOVE the block (canonical example: metrics emission in `infrastructure/database/session.py`); when one branch must swallow while another logs, nest `with suppress(...)` inside the `try` (canonical example: `agents/api/sse_keepalive.py`). A swallow that hides a real signal gets a `logger.debug(...)` instead. Enforced in CI by the AST guard `apps/api/tests/unit/test_no_empty_except_guard.py`.
 - A docstring describing behavior the code does not have **is a bug**: fix the code or the doc in the same change — never leave the contradiction (audited examples: "uses asyncio.to_thread" without to_thread, "connection pool" on a single connection, "streaming check" that loads everything in RAM).
 - Dead code is deleted, not kept "for later": an unwired subsystem with settings/i18n/tests attached costs maintenance on every change and fakes coverage. Wire it or remove it — record the decision in a short ADR.
+- Optional configuration is validated as a matrix, not only in the empty and fully configured cases. Every supported Alertmanager receiver combination must start and route representative labels correctly; every dashboard query must resolve to an actual metric producer, recording rule, or documented datasource. Syntax-only validation is insufficient.
 
 ### Size & structure
 
@@ -418,6 +423,6 @@ When working with settings-driven thresholds in tests (e.g. `mcp_user_max_server
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
-- ADR index (194 ADR files, ADR-195 latest — ADR-008 has no separate file): `docs/architecture/ADR_INDEX.md`
+- ADR index (199 ADR files, ADR-200 latest — ADR-008 has no separate file): `docs/architecture/ADR_INDEX.md`
 - CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
 - 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`

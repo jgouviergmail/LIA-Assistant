@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { downloadImage } from '@/lib/utils/download-image';
-import { Download, Loader2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Loader2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface ImageLightboxProps {
@@ -13,6 +13,17 @@ interface ImageLightboxProps {
   onClose: () => void;
   /** Minimum width for the lightbox image (ensures zoom effect) */
   minWidth?: number;
+  /**
+   * Gallery navigation — all THREE optional and read together.
+   *
+   * Four call sites show a single image and pass none of them; they must keep
+   * their exact behaviour, arrow keys included (a handler that swallowed the
+   * arrows there would take the keyboard away for nothing).
+   */
+  onPrev?: () => void;
+  onNext?: () => void;
+  /** 1-based position, announced and displayed when navigating. */
+  position?: { current: number; total: number };
 }
 
 /** Focusable descendants, in DOM order. The dialog itself carries `tabIndex=-1`
@@ -23,6 +34,45 @@ function focusablesIn(root: HTMLElement): HTMLElement[] {
       'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
     )
   );
+}
+
+/**
+ * Keep Tab inside the dialog.
+ *
+ * `aria-modal` tells assistive tech that the rest of the page is inert; nothing
+ * in the DOM enforces that, so without this the very next Tab walks out into
+ * content the user was just told did not exist.
+ *
+ * Module-level and pure (CC discipline: the component is under a shrink-only
+ * complexity ratchet, and the gallery arrows pushed it over).
+ *
+ * @param e - The Tab keydown.
+ * @param dialog - The modal container, when mounted.
+ */
+function trapTab(e: KeyboardEvent, dialog: HTMLElement | null): void {
+  if (!dialog) return;
+  const focusables = focusablesIn(dialog);
+  if (focusables.length === 0) return;
+
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  const active = document.activeElement;
+
+  // Focus can sit outside the ring legitimately: on the dialog itself right
+  // after opening, or on `body` after the download button disabled itself
+  // under the user's fingers. Either way the next Tab belongs inside.
+  if (!(active instanceof HTMLElement) || !dialog.contains(active) || active === dialog) {
+    e.preventDefault();
+    (e.shiftKey ? last : first).focus();
+    return;
+  }
+  if (e.shiftKey && active === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && active === last) {
+    e.preventDefault();
+    first.focus();
+  }
 }
 
 /**
@@ -44,6 +94,9 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   isOpen,
   onClose,
   minWidth,
+  onPrev,
+  onNext,
+  position,
 }) => {
   const { t } = useTranslation();
   const [isDownloading, setIsDownloading] = useState(false);
@@ -61,40 +114,24 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
         onClose();
         return;
       }
-      if (e.key !== 'Tab') return;
-
-      // `aria-modal` tells assistive tech that the rest of the page is inert;
-      // nothing in the DOM enforces that, so without this the very next Tab
-      // walks out into content the user was just told did not exist.
-      const dialog = dialogRef.current;
-      if (!dialog) return;
-      const focusables = focusablesIn(dialog);
-      if (focusables.length === 0) return;
-
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      const active = document.activeElement;
-
-      // Focus can sit outside the ring legitimately: on the dialog itself right
-      // after opening, or on `body` after the download button disabled itself
-      // under the user's fingers. Either way the next Tab belongs inside.
-      if (!(active instanceof HTMLElement) || !dialog.contains(active) || active === dialog) {
+      // Arrows only where there IS a gallery: swallowing them on a single
+      // image would take the keyboard away for nothing.
+      if (e.key === 'ArrowLeft' && onPrev) {
         e.preventDefault();
-        (e.shiftKey ? last : first).focus();
+        onPrev();
         return;
       }
-      if (e.shiftKey && active === first) {
+      if (e.key === 'ArrowRight' && onNext) {
         e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault();
-        first.focus();
+        onNext();
+        return;
       }
+      if (e.key === 'Tab') trapTab(e, dialogRef.current);
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, onPrev, onNext]);
 
   // Focus ownership and the scroll lock — keyed on `isOpen` ALONE. Depending on
   // `onClose` here would re-run this on every parent render (a streaming chat
@@ -166,6 +203,49 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
           'animate-in fade-in duration-300'
         )}
       >
+        {/* Gallery navigation — rendered only when the caller provides it,
+            inside the dialog so the existing focus trap already covers the
+            new buttons. Touch targets are full 44 px. */}
+        {(onPrev || onNext) && (
+          <>
+            {onPrev && (
+              <button
+                type="button"
+                onClick={onPrev}
+                aria-label={t('common.previous')}
+                className="pointer-events-auto absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-border/50 bg-background/80 p-3 transition-all hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <ChevronLeft className="h-6 w-6 text-foreground" aria-hidden="true" />
+              </button>
+            )}
+            {onNext && (
+              <button
+                type="button"
+                onClick={onNext}
+                aria-label={t('common.next')}
+                className="pointer-events-auto absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-border/50 bg-background/80 p-3 transition-all hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <ChevronRight className="h-6 w-6 text-foreground" aria-hidden="true" />
+              </button>
+            )}
+          </>
+        )}
+        {position && (
+          <>
+            <div className="pointer-events-none absolute bottom-6 left-1/2 z-10 -translate-x-1/2 rounded-full bg-background/80 px-3 py-1 text-xs tabular-nums text-foreground/80">
+              {position.current} / {position.total}
+            </div>
+            {/* Spoken, not merely drawn: a screen-reader user moving through
+                the gallery would otherwise have no idea where they are. */}
+            <span role="status" aria-live="polite" className="sr-only">
+              {t('gallery.photo_counter', {
+                current: position.current,
+                total: position.total,
+              })}
+            </span>
+          </>
+        )}
+
         {/* Action buttons */}
         <div className="pointer-events-auto absolute top-4 right-4 z-10 flex items-center gap-2">
           {/* Download button */}

@@ -103,12 +103,20 @@ Your feedback helps LIA improve:
   after a reload — a notification is rated once
 
 **📜 History:**
-• View your recent proactive notifications in the dedicated section
-• Each entry shows the sources used and priority level
+• Settings → Proactivity → **Recent notifications** lists the last ten you
+  received: date, the message itself, the sources used, the priority, and the
+  verdict you already gave
+• The block is folded by default and loads nothing until you open it
+• The interest notifications have their own list, in the same shape
 
 **⚙️ Adjustment:**
 • If you receive too many notifications, reduce the daily maximum
-• If notifications aren't relevant, disable unwanted sources (disconnect the corresponding connector)
+• If a source is not relevant, switch it off in **Notification topics** —
+  eleven switches, one per source. You keep the service connected and the tool
+  you ask with: being connected to a service and being interrupted by it are
+  two separate decisions
+• Everything is on by default, and a switch that cannot produce anything says
+  so (leave-by advice needs the calendar)
 
 ## Are proactive notifications affected by usage limits?
 Yes. If your administrator has set usage limits and you have reached any of your quotas (tokens, messages, or cost), proactive notifications are automatically paused until your limits are reset (next billing period) or adjusted by your administrator. This ensures that background LLM usage doesn't exceed your allocated budget.

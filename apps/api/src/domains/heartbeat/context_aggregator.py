@@ -55,6 +55,7 @@ from src.domains.heartbeat.context_sources import (
 from src.domains.heartbeat.health_context import fetch_health_signals
 from src.domains.heartbeat.repository import HeartbeatNotificationRepository
 from src.domains.heartbeat.schemas import HeartbeatContext, WeatherChange
+from src.domains.heartbeat.source_policy import is_source_enabled
 from src.domains.interests.models import InterestNotification, UserInterest
 from src.infrastructure.database.session import get_db_context
 
@@ -198,39 +199,38 @@ class ContextAggregator:
         # they run in the second pass with a dynamic query (P8, ADR-135
         # symmetry — the historical static query anchored the same memories
         # cycle after cycle).
-        results = await asyncio.gather(
-            self._with_fresh_session(self._fetch_calendar, user_id, user, settings),
-            self._with_fresh_session(self._fetch_tasks, user_id, user, settings),
-            self._with_fresh_session(self._fetch_emails, user_id, user, settings),
-            self._with_fresh_session(self._fetch_weather_with_changes, user_id, user, settings),
-            self._with_fresh_session(self._fetch_interests, user_id),
-            self._with_fresh_session(self._fetch_activity, user_id),
-            self._with_fresh_session(self._fetch_recent_heartbeats, user_id, user),
-            self._with_fresh_session(self._fetch_recent_interest_notifications, user_id, user),
-            self._with_fresh_session(self._fetch_recent_other_notifications, user_id, user),
-            fetch_health_signals(user_id, user, settings),
-            self._fetch_birthdays(user_id, user, settings),
-            self._with_fresh_session(fetch_open_loops_context, user_id, user, settings),
-            return_exceptions=True,
+        #
+        # Refused sources are skipped BEFORE their coroutine is built: a
+        # coroutine created and never awaited leaks and warns, and skipping at
+        # fetch time is also what makes a silenced source stop costing an API
+        # call. The names NOT in the registry (activity, the anti-redundancy
+        # windows) are never gated — they say what was already sent.
+        # `scoped=True` means the fetcher expects a DB session as its first
+        # argument (`_with_fresh_session` provides one); the other two manage
+        # their own session internally.
+        common = (user_id, user, settings)
+        specs: tuple[tuple[str, Any, tuple[Any, ...], bool], ...] = (
+            ("calendar", self._fetch_calendar, common, True),
+            ("tasks", self._fetch_tasks, common, True),
+            ("emails", self._fetch_emails, common, True),
+            ("weather", self._fetch_weather_with_changes, common, True),
+            ("interests", self._fetch_interests, (user_id,), True),
+            ("activity", self._fetch_activity, (user_id,), True),
+            ("recent_heartbeats", self._fetch_recent_heartbeats, (user_id, user), True),
+            ("recent_interests", self._fetch_recent_interest_notifications, (user_id, user), True),
+            ("recent_other", self._fetch_recent_other_notifications, (user_id, user), True),
+            ("health_signals", fetch_health_signals, common, False),
+            ("birthdays", self._fetch_birthdays, common, False),
+            ("open_loops", fetch_open_loops_context, common, True),
         )
-
-        # Unpack results with stable ordering (matches gather order)
-        source_names = [
-            "calendar",
-            "tasks",
-            "emails",
-            "weather",
-            "interests",
-            "activity",
-            "recent_heartbeats",
-            "recent_interests",
-            "recent_other",
-            "health_signals",
-            "birthdays",
-            "open_loops",
+        planned = [
+            (name, self._with_fresh_session(fetch, *args) if scoped else fetch(*args))
+            for name, fetch, args, scoped in specs
+            if is_source_enabled(user, name)
         ]
+        results = await asyncio.gather(*(coro for _, coro in planned), return_exceptions=True)
 
-        for name, result in zip(source_names, results, strict=True):
+        for (name, _), result in zip(planned, results, strict=True):
             if isinstance(result, BaseException):
                 logger.warning(
                     "heartbeat_source_failed",
@@ -253,47 +253,72 @@ class ContextAggregator:
         # context, not a static generic query. Sequential on purpose — two
         # indexed queries, each on its own session (CLAUDE.md concurrency
         # guidance: a plain sequential pass is fine and simpler here).
-        second_pass_query = self._build_second_pass_query(context)
-
-        try:
-            journal_result = await self._fetch_journals(user_id, user, query=second_pass_query)
-            if journal_result:
-                self._apply_source_result(context, "journals", journal_result)
-        except Exception as e:
-            logger.warning(
-                "heartbeat_journals_second_pass_failed",
-                user_id=str(user_id),
-                error=str(e),
-            )
-
-        # Departure advice (P6): consumes the calendar events fetched above.
-        try:
-            departure = await fetch_departure_advice(
-                user_id, user, settings, context.calendar_events
-            )
-            if departure:
-                context.departure_advice = departure
-                context.available_sources.append("departure")
-        except Exception as e:
-            logger.warning(
-                "heartbeat_departure_second_pass_failed",
-                user_id=str(user_id),
-                error=str(e),
-            )
-
-        try:
-            memories_result = await self._fetch_memories(user_id, settings, query=second_pass_query)
-            if memories_result:
-                self._apply_source_result(context, "memories", memories_result)
-        except Exception as e:
-            logger.warning(
-                "heartbeat_memories_second_pass_failed",
-                user_id=str(user_id),
-                error=str(e),
-            )
-            context.failed_sources.append("memories")
+        await self._second_pass(context, user_id, user, settings)
 
         return context
+
+    async def _second_pass(
+        self,
+        context: HeartbeatContext,
+        user_id: UUID,
+        user: Any,
+        settings: Any,
+    ) -> None:
+        """Sources selected from the aggregated context, not from a static query.
+
+        Journals and memories are searched with a query built from what the
+        first pass found (P8, ADR-135); departure advice consumes the calendar
+        events it fetched. Extracted from ``aggregate`` so the per-source
+        gating (ADR-197) does not push it over the complexity ratchet — the
+        three blocks are unchanged.
+        """
+        second_pass_query = self._build_second_pass_query(context)
+
+        if is_source_enabled(user, "journals"):
+            try:
+                journal_result = await self._fetch_journals(user_id, user, query=second_pass_query)
+                if journal_result:
+                    self._apply_source_result(context, "journals", journal_result)
+            except Exception as e:
+                logger.warning(
+                    "heartbeat_journals_second_pass_failed",
+                    user_id=str(user_id),
+                    error=str(e),
+                )
+
+        # Departure advice (P6): consumes the calendar events fetched above.
+        # Refusing `calendar` therefore leaves nothing to advise on — the
+        # switch stays independent because a user may well want the agenda in
+        # the decision without traffic-driven nudges about it.
+        if is_source_enabled(user, "departure"):
+            try:
+                departure = await fetch_departure_advice(
+                    user_id, user, settings, context.calendar_events
+                )
+                if departure:
+                    context.departure_advice = departure
+                    context.available_sources.append("departure")
+            except Exception as e:
+                logger.warning(
+                    "heartbeat_departure_second_pass_failed",
+                    user_id=str(user_id),
+                    error=str(e),
+                )
+
+        if is_source_enabled(user, "memories"):
+            try:
+                memories_result = await self._fetch_memories(
+                    user_id, settings, query=second_pass_query
+                )
+                if memories_result:
+                    self._apply_source_result(context, "memories", memories_result)
+            except Exception as e:
+                logger.warning(
+                    "heartbeat_memories_second_pass_failed",
+                    user_id=str(user_id),
+                    error=str(e),
+                )
+                context.failed_sources.append("memories")
 
     def _apply_source_result(
         self,

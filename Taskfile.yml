@@ -398,11 +398,19 @@ tasks:
     desc: Run fast unit tests only (excludes slow/integration tests) - used by pre-commit
     dir: "{{.API_DIR}}"
     cmds:
-      # -n auto --dist loadscope (pytest-xdist): parallel workers, tests
+      # -n 8 --dist loadscope (pytest-xdist): parallel workers, tests
       # grouped by module — same flags as the pre-commit hook pytest step.
-      - cmd: .venv/Scripts/pytest tests/unit/ -v --no-cov -m "not integration and not slow and not e2e and not benchmark and not multiprocess" -n auto --dist loadscope
+      #
+      # The worker count is CAPPED on purpose. Measured 2026-08-03 on a
+      # 24-core host: `-n auto` wedges the run at 99 % (five reproductions,
+      # including on a clean worktree of the previous release). py-spy on the
+      # stuck workers showed 16 of 24 blocked in `socket.accept` inside
+      # `_fallback_socketpair` — asyncio building the Windows proactor
+      # self-pipe as pytest-asyncio creates an event loop. The suite completes
+      # at -n 4 and -n 8; a cap keeps the gate deterministic.
+      - cmd: .venv/Scripts/pytest tests/unit/ -v --no-cov -m "not integration and not slow and not e2e and not benchmark and not multiprocess" -n 8 --dist loadscope
         platforms: [windows]
-      - cmd: .venv/bin/pytest tests/unit/ -v --no-cov -m "not integration and not slow and not e2e and not benchmark and not multiprocess" -n auto --dist loadscope
+      - cmd: .venv/bin/pytest tests/unit/ -v --no-cov -m "not integration and not slow and not e2e and not benchmark and not multiprocess" -n 8 --dist loadscope
         platforms: [linux, darwin]
 
   test:backend:integration:

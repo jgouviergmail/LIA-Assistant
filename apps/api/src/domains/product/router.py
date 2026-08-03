@@ -9,11 +9,17 @@ Invalid-for-context items are dropped silently — telemetry must never
 degrade the UX.
 """
 
+from datetime import datetime
+
 import structlog
 from fastapi import APIRouter, Depends, Request, status
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.client_metadata import parse_user_agent
-from src.core.session_dependencies import get_optional_session
+from src.core.config import settings
+from src.core.dependencies import get_db
+from src.core.session_dependencies import get_current_active_session, get_optional_session
 from src.domains.product.constants import (
     ANONYMOUS_EVENT_TYPES,
     WEB_VITAL_SECONDS_METRICS,
@@ -184,3 +190,65 @@ async def ingest_client_events(
         authenticated=user_id is not None,
     )
     return ClientEventAck(accepted=accepted, dropped=dropped)
+
+
+class PersonalResultsResponse(BaseModel):
+    """What the assistant achieved for this account, over its billing cycle.
+
+    Four figures, each an EXACT aggregate over its own set (ADR-185). Two
+    candidates were deliberately left out rather than estimated: "time saved",
+    which no source in this system measures, and "documents actually used",
+    which no table records durably — an injected chunk is not a used one.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    cycle_start: datetime = Field(description="Start of the billing cycle these cover.")
+    useful_results: int = Field(ge=0, description="Results confirmed useful (E1 or E2).")
+    actions: int = Field(ge=0, description="Successful actions among them.")
+    automations: int = Field(ge=0, description="Successful routine runs among them.")
+    commitments_closed: int = Field(ge=0, description="Commitments closed in the window.")
+    #: False when product analytics is off on this instance: the client then
+    #: says so instead of showing four zeros, which would read as "you achieved
+    #: nothing" rather than "nothing is being measured".
+    measured: bool = Field(description="Whether outcome recording is enabled here.")
+
+
+@router.get(
+    "/me/results",
+    response_model=PersonalResultsResponse,
+    summary="Results achieved for the current user this cycle",
+)
+async def get_personal_results(
+    current_user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> PersonalResultsResponse:
+    """Outcomes and closed commitments over the current billing cycle.
+
+    The dashboard led with messages, tokens, Google requests and cost — useful
+    for administration, not as the story of what the assistant is for.
+    """
+    from src.domains.chat.service import StatisticsService
+    from src.domains.open_loops.repository import OpenLoopRepository
+    from src.domains.product.repository import ProductRepository
+
+    # The same window the consumption tiles use — the two blocks must never
+    # describe different periods on one screen.
+    since = StatisticsService.calculate_cycle_start(current_user.created_at)
+
+    measured = bool(getattr(settings, "product_analytics_enabled", False))
+    outcomes = (
+        await ProductRepository(db).personal_results(user_id=current_user.id, since=since)
+        if measured
+        else {"useful_results": 0, "actions": 0, "automations": 0}
+    )
+    closed = await OpenLoopRepository(db).count_closed_since(current_user.id, since)
+
+    return PersonalResultsResponse(
+        cycle_start=since,
+        useful_results=outcomes["useful_results"],
+        actions=outcomes["actions"],
+        automations=outcomes["automations"],
+        commitments_closed=closed,
+        measured=measured,
+    )

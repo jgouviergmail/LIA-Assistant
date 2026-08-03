@@ -43,10 +43,24 @@ test.describe('cosmos landing — pinned day scene', () => {
         if (!el || !stage) return null;
         const total = el.offsetHeight - window.innerHeight;
         const start = el.getBoundingClientRect().top + window.scrollY;
+        // The value the scrub last wrote, BEFORE this scroll moves anything.
+        // Waiting for "non-zero" would be wrong: on the second measurement the
+        // previous fraction is already non-zero, so the loop would exit on a
+        // stale reading and compare a value to itself.
+        const before = el.style.getPropertyValue('--p');
         // 'instant' bypasses the landing's global `scroll-behavior: smooth` —
         // a smooth scroll would still be animating when we measure.
         window.scrollTo({ top: Math.round(start + total * f), behavior: 'instant' });
-        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        // Wait for the rAF scrub to write a NEW value, rather than for a fixed
+        // two frames. Two is enough on an idle machine and not always enough on
+        // a loaded one — measured ~1 run in 4 red, on `--p` still reading its
+        // previous value. Bounded at 60 frames (~1 s) and returning whatever it
+        // has: a scrub that genuinely never runs must still fail the assertions
+        // below, with its real value rather than a timeout.
+        for (let frame = 0; frame < 60; frame += 1) {
+          await new Promise(r => requestAnimationFrame(r));
+          if (el.style.getPropertyValue('--p') !== before) break;
+        }
         return {
           stageTop: Math.round(stage.getBoundingClientRect().top),
           p: parseFloat(el.style.getPropertyValue('--p') || 'NaN'),

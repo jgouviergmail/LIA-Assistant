@@ -12,7 +12,28 @@ export interface HeartbeatSettings {
   heartbeat_push_enabled: boolean;
   heartbeat_notify_start_hour: number;
   heartbeat_notify_end_hour: number;
+  /** Sources this account is CONNECTED to — a fact, not a decision. */
   available_sources: string[];
+  /** Sources the reader refuses to be interrupted from (empty = none). */
+  disabled_sources: string[];
+  /**
+   * Every toggleable source, in display order.
+   *
+   * Published by the server so the client never re-declares a vocabulary it
+   * does not enforce — the frontend used to hard-code seven names while the
+   * backend computed eight, and `health_signals` was simply never shown.
+   */
+  all_sources: string[];
+  /**
+   * Sources whose result requires another source.
+   *
+   * `departure` reads the calendar the first pass already fetched and returns
+   * nothing without it, so refusing `calendar` leaves a live switch that
+   * yields nothing forever. Published rather than guessed here: the constraint
+   * lives where it is enforced (ADR-184). Optional — a response predating the
+   * field simply carries no warning.
+   */
+  source_dependencies?: Record<string, string[]>;
 }
 
 /**
@@ -25,6 +46,8 @@ export interface HeartbeatSettingsUpdate {
   heartbeat_push_enabled?: boolean;
   heartbeat_notify_start_hour?: number;
   heartbeat_notify_end_hour?: number;
+  /** FULL replacement of the refusal set — never a partial diff. */
+  heartbeat_disabled_sources?: string[];
 }
 
 /**

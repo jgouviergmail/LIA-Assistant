@@ -653,6 +653,11 @@ class InterestProactiveTask:
                     content_hash=content_hash,
                     source=result.source_name,
                     content_embedding=content_embedding,
+                    # Kept, not merely hashed: the settings history shows the
+                    # reader what they were interrupted with, which is what
+                    # makes the frequency and source controls above it
+                    # answerable rather than blind.
+                    content=result.content or None,
                 )
 
                 await db.commit()

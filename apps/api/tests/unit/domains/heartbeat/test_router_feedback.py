@@ -71,7 +71,13 @@ class TestSubmitHeartbeatFeedback:
             )
 
             # target_id is the notification id — the same key the archived
-            # metadata carries for a proactive_heartbeat card.
+            # metadata carries for a proactive_heartbeat card. That equality
+            # is not an assumption of this test: it is produced by
+            # `generate_content` and pinned by
+            # tests/unit/domains/heartbeat/test_notification_identity.py.
+            # Both halves are mocked here, so this file alone could not tell
+            # the difference — and for a long time it did not: the two values
+            # diverged while this comment claimed they matched.
             conv_cls.return_value.mark_proactive_feedback_submitted.assert_awaited_once_with(
                 user_id=user.id, target_id=notification_id, feedback_value="thumbs_down"
             )

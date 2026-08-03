@@ -1,17 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
-import {
-  Bell,
-  BookOpen,
-  Calendar,
-  Clock,
-  CloudSun,
-  Brain,
-  Mail,
-  Sparkles,
-  ListChecks,
-} from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Bell, Clock, History, SlidersHorizontal } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
@@ -22,24 +12,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useTranslation } from '@/i18n/client';
+import { getIntlLocale } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { useHeartbeatHistory } from '@/hooks/useHeartbeatHistory';
 import { useHeartbeatSettings } from '@/hooks/useHeartbeatSettings';
+import { HeartbeatHistory } from '@/components/settings/HeartbeatHistory';
+import { HeartbeatSourceSwitches } from '@/components/settings/HeartbeatSourceSwitches';
+import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
 import { WeatherLocationBlock } from '@/components/settings/WeatherLocationBlock';
 import { toast } from 'sonner';
 import type { BaseSettingsProps } from '@/types/settings';
-
-/**
- * Source icon mapping for available sources display.
- */
-const SOURCE_ICONS: Record<string, typeof Calendar> = {
-  calendar: Calendar,
-  emails: Mail,
-  tasks: ListChecks,
-  weather: CloudSun,
-  interests: Sparkles,
-  memories: Brain,
-  journals: BookOpen,
-};
 
 /**
  * Generate hour options for select (00:00 to 23:00).
@@ -59,12 +41,23 @@ function generateHourOptions() {
  * - Max notifications per day selector
  * - Notification time window (start/end hour)
  * - Push notification toggle (FCM/Telegram vs silent)
- * - Available data sources indicator
+ * - Per-source permission switches (what may interrupt the reader)
  */
 export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { settings, loading, updating, updateSettings } = useHeartbeatSettings();
   const hourOptions = useMemo(() => generateHourOptions(), []);
+  const intlLocale = getIntlLocale(lng);
+  // Called BEFORE the early return below — hooks may not sit behind a
+  // conditional. Fetching is gated by the argument instead: the history block
+  // only renders inside the enabled panel, so an account with the heartbeat
+  // off costs no request.
+  // Opened by the reader, not on arrival: the history block folds CLOSED, so
+  // an account that never opens it costs no request at all. Gating on the
+  // disclosure rather than merely hiding the list is the difference between
+  // "not shown" and "not fetched".
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const history = useHeartbeatHistory(Boolean(settings?.heartbeat_enabled) && historyOpen);
 
   if (!settings) return null;
 
@@ -92,6 +85,21 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
     const update =
       field === 'min' ? { heartbeat_min_per_day: value } : { heartbeat_max_per_day: value };
     const result = await updateSettings(update);
+    if (result) {
+      toast.success(t('heartbeat.settings_updated'));
+    } else {
+      toast.error(t('heartbeat.settings_error'));
+    }
+  };
+
+  /**
+   * Persist the FULL refusal set.
+   *
+   * The API replaces it wholesale, so sending a diff would silently re-permit
+   * every other source. Optimistic update + revert live in the hook.
+   */
+  const handleSourcesChange = async (disabled: string[]) => {
+    const result = await updateSettings({ heartbeat_disabled_sources: disabled });
     if (result) {
       toast.success(t('heartbeat.settings_updated'));
     } else {
@@ -233,45 +241,68 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
             />
           </div>
 
-          {/* Available sources indicator */}
-          <div className="space-y-2">
-            <Label className="text-sm">{t('heartbeat.available_sources')}</Label>
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  'calendar',
-                  'emails',
-                  'tasks',
-                  'weather',
-                  'interests',
-                  'memories',
-                  'journals',
-                ] as const
-              ).map(source => {
-                const isConnected = settings.available_sources.includes(source);
-                const Icon = SOURCE_ICONS[source] || Brain;
-                return (
-                  <div
-                    key={source}
-                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                      isConnected
-                        ? 'bg-primary/10 text-primary'
-                        : 'bg-muted text-muted-foreground opacity-50'
-                    }`}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    <span>{t(`heartbeat.source_${source}`)}</span>
-                    {isConnected && <span className="h-1.5 w-1.5 rounded-full bg-green-500" />}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
+          {/* Per-source permission (ADR-197).
+              Replaces the old availability strip, which showed seven
+              hard-coded names against the eight the backend computed — health
+              signals were never displayed at all — and offered no decision:
+              the documented way to stop being interrupted by a source was to
+              disconnect its connector, losing the tool with it. */}
           {/* Weather location cascade (Phase 3 — ADR-073) */}
           <div className="space-y-2 border-t pt-4">
             <Label className="text-sm">{t('heartbeat.weather_location.section_label')}</Label>
             <WeatherLocationBlock lng={lng} />
+          </div>
+
+          {/* What the configuration above actually produced. The endpoint had
+              shipped with the domain and no client ever called it: the panel
+              let a reader tune frequency and sources without ever seeing what
+              LIA chose to say. */}
+          {/* Folded, and folded CLOSED: eleven switches shown at once is a
+              wall on a panel where the reader came to change one thing. The
+              badge carries how many are refused, so the fold still says
+              whether anything was silenced. */}
+          <div className="border-t pt-4">
+            <SettingsDisclosure
+              icon={SlidersHorizontal}
+              title={t('heartbeat.sources_permission_title')}
+              badge={
+                (settings.disabled_sources ?? []).length > 0
+                  ? (settings.disabled_sources ?? []).length
+                  : undefined
+              }
+            >
+              <p className="mb-2 text-xs text-muted-foreground">
+                {t('heartbeat.sources_permission_description')}
+              </p>
+              <HeartbeatSourceSwitches
+                allSources={settings.all_sources ?? []}
+                disabledSources={settings.disabled_sources ?? []}
+                availableSources={settings.available_sources ?? []}
+                sourceDependencies={settings.source_dependencies}
+                updating={updating}
+                onChange={handleSourcesChange}
+              />
+            </SettingsDisclosure>
+          </div>
+
+          <div className="border-t pt-4">
+            <SettingsDisclosure
+              icon={History}
+              title={t('heartbeat.history.title')}
+              onOpenChange={setHistoryOpen}
+            >
+              <p className="mb-2 text-xs text-muted-foreground">
+                {t('heartbeat.history.description')}
+              </p>
+              <HeartbeatHistory
+                notifications={history.notifications}
+                total={history.total}
+                firstLoad={history.firstLoad}
+                loading={history.loading}
+                error={history.error}
+                locale={intlLocale}
+              />
+            </SettingsDisclosure>
           </div>
         </div>
       )}

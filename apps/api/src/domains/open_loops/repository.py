@@ -128,6 +128,35 @@ class OpenLoopRepository(BaseRepository[OpenLoop]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def count_closed_since(self, user_id: UUID, since: datetime) -> int:
+        """Commitments this user CLOSED since a point in time.
+
+        ``updated_at`` is a safe closing date here rather than an
+        approximation: both :meth:`close_loop` and :meth:`update_loop` carry
+        ``status == OPEN`` in their WHERE clause, so a closed row can never be
+        touched again — its timestamp is frozen at the moment it was closed.
+
+        ``expired`` rows are excluded by construction: a commitment the system
+        gave up on is not one the reader resolved.
+
+        Args:
+            user_id: Owner.
+            since: Window start (UTC), typically the billing cycle start.
+
+        Returns:
+            Exact count over the whole set (ADR-185), never a page length.
+        """
+        return int(
+            await self.db.scalar(
+                select(func.count()).where(
+                    OpenLoop.user_id == user_id,
+                    OpenLoop.status == OpenLoopStatus.CLOSED.value,
+                    OpenLoop.updated_at >= since,
+                )
+            )
+            or 0
+        )
+
     async def list_for_user(
         self,
         user_id: UUID,

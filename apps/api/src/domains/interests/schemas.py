@@ -240,3 +240,46 @@ class ExtractionResult(BaseModel):
         max_length=2,
         description="Extracted interests (max 2 per exchange)",
     )
+
+
+class InterestNotificationHistoryItem(BaseModel):
+    """One interest notification, as the settings history shows it.
+
+    Deliberately the same shape as `HeartbeatNotificationResponse` minus the
+    fields interests do not have: there is no priority (an interest nudge is
+    never urgent) and the "source used" is a single content provider rather
+    than a list of context sources.
+
+    `content` is optional because the audit table only started keeping the
+    message on 2026-08-03: an older row renders without its paragraph rather
+    than with an invented one.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID = Field(description="Notification identifier.")
+    created_at: datetime = Field(description="When the notification was sent (UTC).")
+    content: str | None = Field(
+        None,
+        description="Message sent to the user; absent for rows predating the column.",
+    )
+    source: str = Field(description="Content provider that produced it.")
+    topic: str | None = Field(
+        None,
+        description="The interest it was about; absent when that interest was deleted.",
+    )
+    user_feedback: str | None = Field(
+        None, description="thumbs_up | thumbs_down | block, or absent."
+    )
+
+
+class InterestNotificationHistoryResponse(BaseModel):
+    """A page of interest notifications, with the EXACT total behind it."""
+
+    notifications: list[InterestNotificationHistoryItem] = Field(default_factory=list)
+    total: int = Field(
+        description=(
+            "Exact count over the whole set, never the page length (ADR-185): "
+            "the panel states the cap instead of applying it in silence."
+        )
+    )

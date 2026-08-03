@@ -57,6 +57,14 @@ export interface ScheduledAction {
   consecutive_failures: number;
   last_error: string | null;
   schedule_display: string;
+  /**
+   * Upcoming runs as UTC instants, from the backend scheduler.
+   *
+   * Optional because a cached payload predating the field must still parse.
+   * Never recomputed in the browser: a second reading of the cron would be a
+   * second authority, and the two would disagree at the daylight-saving edges.
+   */
+  next_occurrences?: string[];
   created_at: string;
   updated_at: string;
 }

@@ -19,7 +19,9 @@ import {
   type ScrollUiState,
 } from '@/lib/chat-scroll';
 import { logger } from '@/lib/logger';
-import { CHAT_STARTER_IDS, starterTextKey } from '@/lib/chat-starters';
+import { composeStarterRail } from '@/lib/chat-starters';
+import type { ChatSuggestion } from '@/hooks/useChatSuggestions';
+import { cn } from '@/lib/utils';
 
 export interface ChatMessageListProps {
   messages: Message[];
@@ -52,6 +54,8 @@ export interface ChatMessageListProps {
    * follow-up chips' rail: it fills the input, it never sends.
    */
   onStarterPick?: (text: string) => void;
+  /** Grounded suggestions for the empty state (empty = generic starters). */
+  groundedSuggestions?: readonly ChatSuggestion[];
   /** QW-2 history view: the floating button becomes "return to the present"
    *  and delegates to ``onReturnToPresent`` (UXR Lot 3, A3). */
   historyView?: boolean;
@@ -210,9 +214,12 @@ export function lastRetryableErrorId(messages: Message[]): string | null {
 function EmptyConversation({
   mounted,
   onStarterPick,
+  groundedSuggestions,
 }: {
   mounted: boolean;
   onStarterPick?: (text: string) => void;
+  /** Grounded suggestions for the empty state (empty = generic starters). */
+  groundedSuggestions?: readonly ChatSuggestion[];
 }) {
   const { t } = useTranslation();
   const greeting: TimeGreeting = mounted
@@ -244,7 +251,12 @@ function EmptyConversation({
           </p>
         )}
       </div>
-      {onStarterPick && <EmptyConversationStarters onPick={onStarterPick} />}
+      {onStarterPick && (
+        <EmptyConversationStarters
+          onPick={onStarterPick}
+          grounded={groundedSuggestions ?? []}
+        />
+      )}
     </div>
   );
 }
@@ -258,32 +270,52 @@ function EmptyConversation({
  * account, connected or not (see `lib/chat-starters`). The full catalogue stays
  * one link away in the FAQ, whose examples became clickable in W1.
  */
-function EmptyConversationStarters({ onPick }: { onPick: (text: string) => void }) {
+function EmptyConversationStarters({
+  onPick,
+  grounded,
+}: {
+  onPick: (text: string) => void;
+  /** Suggestions the server could back with cached evidence (may be empty). */
+  grounded: readonly ChatSuggestion[];
+}) {
   const { t } = useTranslation();
+  const rail = composeStarterRail(grounded, t);
+  const anyGrounded = rail.some(entry => entry.grounded);
+
   return (
     <div className="mt-6 flex w-full max-w-md flex-col items-center gap-2 max-[380px]:mt-4">
       <p className="text-xs uppercase tracking-wide text-muted-foreground/70">
-        {t('chat.starters.label')}
+        {/* The heading tells the truth about what follows: "try for example"
+            when the entries are generic, "from your day" once they name real
+            things. Announcing invented context would be worse than none. */}
+        {t(anyGrounded ? 'chat.suggestions.label' : 'chat.starters.label')}
       </p>
       <div
         role="group"
-        aria-label={t('chat.starters.label')}
-        className="flex flex-wrap justify-center gap-2"
+        aria-label={t(anyGrounded ? 'chat.suggestions.label' : 'chat.starters.label')}
+        // Below `sm` each entry is a full-width 44 px row (one per line);
+        // above it they fall back to the compact centred chips.
+        className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center"
       >
-        {CHAT_STARTER_IDS.map(id => {
-          const text = t(starterTextKey(id));
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => onPick(text)}
-              title={text}
-              className="inline-flex max-w-full items-center rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-foreground/90 transition-colors hover:border-primary/50 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span className="truncate">{text}</span>
-            </button>
-          );
-        })}
+        {rail.map(entry => (
+          <button
+            key={entry.key}
+            type="button"
+            onClick={() => onPick(entry.text)}
+            title={entry.text}
+            className={cn(
+              'inline-flex max-w-full items-center rounded-full border text-xs font-medium',
+              'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              // 44 px touch target on mobile; compact chip from `sm` up.
+              'min-h-11 w-full justify-start px-4 sm:min-h-0 sm:w-auto sm:justify-center sm:px-3 sm:py-1.5',
+              entry.grounded
+                ? 'border-primary/50 bg-primary/10 text-foreground hover:bg-primary/15'
+                : 'border-primary/30 bg-primary/5 text-foreground/90 hover:border-primary/50 hover:bg-primary/10'
+            )}
+          >
+            <span className="truncate">{entry.text}</span>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -346,6 +378,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   hasMoreOlder = false,
   isLoadingOlder = false,
   onLoadOlder,
+  groundedSuggestions,
   searchHighlight,
   onRetry,
   onPrefillComposer,
@@ -758,7 +791,13 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   }
 
   if (messages.length === 0) {
-    return <EmptyConversation mounted={mounted} onStarterPick={onStarterPick} />;
+    return (
+      <EmptyConversation
+        mounted={mounted}
+        onStarterPick={onStarterPick}
+        groundedSuggestions={groundedSuggestions}
+      />
+    );
   }
 
   const lastAssistantId = getLastAssistantMessageId(messages);

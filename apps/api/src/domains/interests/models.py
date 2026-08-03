@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -211,6 +211,22 @@ class InterestNotification(Base, UUIDMixin):
         String(100),
         nullable=False,
         unique=True,
+    )
+
+    # The message the user actually received.
+    #
+    # This table was built for deduplication and kept only the hash, so the
+    # settings panel could show WHEN LIA interrupted the reader and never WHAT
+    # it said — the one thing that lets them judge whether it was worth it. The
+    # text exists at write time and was simply dropped.
+    #
+    # Nullable, and it stays nullable: every row written before 2026-08-03
+    # legitimately has none, and the card renders without its paragraph rather
+    # than inventing one.
+    content: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Message sent to the user; NULL for rows predating the column.",
     )
 
     # Deduplication

@@ -36,6 +36,33 @@ from src.infrastructure.proactive.base import ContentSource, ProactiveTaskResult
 logger = structlog.get_logger(__name__)
 
 
+def _as_uuid(value: str | None) -> UUID | None:
+    """Read a notification identifier, or admit it is not one.
+
+    ``generate_content`` always produces a UUID, so the ``None`` return is
+    reserved for results built elsewhere — older callers and test fakes. It is
+    a real degradation, not a detail: the row then gets a generated id that no
+    archived card points at, so its feedback buttons would resolve to nothing.
+    Hence the warning rather than a silent fallback.
+
+    Args:
+        value: The result's ``target_id``.
+
+    Returns:
+        The parsed UUID, or ``None`` when the value cannot be one.
+    """
+    if value is None:
+        return None
+    try:
+        return UUID(value)
+    except ValueError:
+        logger.warning(
+            "heartbeat_target_id_not_a_uuid",
+            reason="audit row will not be reachable from its archived card",
+        )
+        return None
+
+
 class HeartbeatProactiveTask:
     """Proactive task for heartbeat autonome notifications.
 
@@ -360,7 +387,14 @@ class HeartbeatProactiveTask:
             success=True,
             content=message,
             source=ContentSource.HEARTBEAT,
-            target_id=f"heartbeat_{uuid4().hex[:8]}",
+            # The audit row's primary key, decided HERE because the dispatcher
+            # writes this value into the archived card's `metadata.target_id`
+            # BEFORE `on_notification_sent` gets to insert the row — and the
+            # feedback route (`PATCH /heartbeat/notifications/{id}`) resolves
+            # the notification by exactly that value. A synthetic
+            # `heartbeat_<hex>` string used to live here: parseable by nothing,
+            # it made every vote from the chat a 422 the frontend swallows.
+            target_id=str(uuid4()),
             tokens_in=total_in,
             tokens_out=total_out,
             tokens_cache=total_cache,
@@ -406,13 +440,27 @@ class HeartbeatProactiveTask:
            continuity (write-only v1 — read integration in future iteration)
         """
         # 1. Create audit record via repository
+        #
+        # Identity, and the two joins that depend on it:
+        #  - `id` IS `result.target_id` (a UUID by construction, see
+        #    generate_content): the archived card carries that value, so the
+        #    feedback route and `mark_proactive_feedback_submitted` both land
+        #    on this row instead of matching nothing;
+        #  - `run_id` is the TOKEN-TRACKING run the runner injected into the
+        #    metadata before dispatch. The column documents itself as "Unique
+        #    ID linking to token tracking"; storing the target_id here left
+        #    `message_token_summary` unjoinable for every heartbeat.
+        notification_id = _as_uuid(result.target_id)
         async with get_db_context() as db:
             from src.domains.heartbeat.repository import HeartbeatNotificationRepository
 
             repo = HeartbeatNotificationRepository(db)
             await repo.create(
+                notification_id=notification_id,
                 user_id=user_id,
-                run_id=result.target_id or f"heartbeat_{uuid4().hex[:8]}",
+                # `run_id` is UNIQUE: the fallback must stay unique too, hence
+                # the notification's own identifier rather than a constant.
+                run_id=str(result.metadata.get("run_id") or result.target_id or uuid4()),
                 content=result.content or "",
                 content_hash=hashlib.sha256((result.content or "").encode()).hexdigest(),
                 sources_used=json.dumps(result.metadata.get("sources_used", [])),

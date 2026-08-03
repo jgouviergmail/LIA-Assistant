@@ -67,6 +67,7 @@ import { ChatShortcutsSettings } from '@/components/settings/ChatShortcutsSettin
 import { OpenLoopsSection } from '@/components/settings/OpenLoopsSection';
 import { PeerConnectionsSettings } from '@/components/settings/PeerConnectionsSettings';
 import { CardsDisplaySettings } from '@/components/settings/CardsDisplaySettings';
+import { HapticsSettings } from '@/components/settings/HapticsSettings';
 import { SettingsGroupLabel } from '@/components/settings/SettingsGroupLabel';
 import { SettingsTabsBar } from '@/components/settings/SettingsTabsBar';
 import { SecuritySettings } from '@/components/settings/SecuritySettings';
@@ -410,6 +411,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <ThemeSelector lng={lng} />
               <FontSettings lng={lng} />
               <CardsDisplaySettings lng={lng} />
+              <HapticsSettings lng={lng} />
               <BriefingGridSettings lng={lng} />
               <ChatShortcutsSettings lng={lng} />
 
@@ -593,6 +595,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <ThemeSelector lng={lng} />
               <FontSettings lng={lng} />
               <CardsDisplaySettings lng={lng} />
+              <HapticsSettings lng={lng} />
               <BriefingGridSettings lng={lng} />
               <ChatShortcutsSettings lng={lng} />
 

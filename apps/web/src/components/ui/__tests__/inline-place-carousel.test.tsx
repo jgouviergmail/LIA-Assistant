@@ -98,3 +98,67 @@ describe('InlinePlaceCarousel — keyboard scoping', () => {
     expect(solo.hasAttribute('tabindex')).toBe(false);
   });
 });
+
+describe('InlinePlaceCarousel — keyboard reach and announcement (item 10b)', () => {
+  const IMAGES = ['a.png', 'b.png', 'c.png', 'd.png'];
+
+  it('jumps to the first and last photo with Home and End', () => {
+    // Arrowing through a long gallery to reach its end is a chore the
+    // platform already has an answer for.
+    const { getByRole, getByText } = render(<InlinePlaceCarousel images={IMAGES} alt="Lieu" />);
+
+    fireEvent.keyDown(getByRole('group'), { key: 'End' });
+    expect(getByText(`${IMAGES.length} / ${IMAGES.length}`)).toBeInTheDocument();
+
+    fireEvent.keyDown(getByRole('group'), { key: 'Home' });
+    expect(getByText(`1 / ${IMAGES.length}`)).toBeInTheDocument();
+  });
+
+  it('announces the position so it is not visual-only', () => {
+    // The counter badge is text on screen; a screen-reader user needs the
+    // change spoken, not merely rendered.
+    const { getByRole } = render(<InlinePlaceCarousel images={IMAGES} alt="Lieu" />);
+
+    fireEvent.keyDown(getByRole('group'), { key: 'ArrowRight' });
+
+    expect(getByRole('status')).toHaveTextContent('gallery.photo_counter');
+  });
+
+  it('announces nothing when there is nothing to navigate', () => {
+    const { queryByRole } = render(<InlinePlaceCarousel images={['only.png']} alt="Lieu" />);
+
+    expect(queryByRole('status')).not.toBeInTheDocument();
+  });
+});
+
+describe('InlinePlaceCarousel — opening a photo full screen', () => {
+  const IMAGES = ['a.png', 'b.png', 'c.png'];
+
+  it('opens the lightbox on the photo the reader is looking at', async () => {
+    const { getByRole, findByRole } = render(<InlinePlaceCarousel images={IMAGES} alt="Lieu" />);
+
+    fireEvent.keyDown(getByRole('group'), { key: 'ArrowRight' });
+    fireEvent.click(getByRole('button', { name: 'gallery.expand_photo' }));
+
+    // The dialog shows the CURRENT photo, not the first one.
+    const dialog = await findByRole('dialog');
+    expect(within(dialog).getByRole('img')).toHaveAttribute('src', IMAGES[1]);
+  });
+
+  it('carries the navigation into the lightbox', async () => {
+    const { getByRole, findByRole } = render(<InlinePlaceCarousel images={IMAGES} alt="Lieu" />);
+
+    fireEvent.click(getByRole('button', { name: 'gallery.expand_photo' }));
+    const dialog = await findByRole('dialog');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'common.next' }));
+
+    expect(within(dialog).getByRole('img')).toHaveAttribute('src', IMAGES[1]);
+  });
+
+  it('offers no full-screen entry for a single photo', () => {
+    const { queryByRole } = render(<InlinePlaceCarousel images={['only.png']} alt="Lieu" />);
+
+    expect(queryByRole('button', { name: 'gallery.expand_photo' })).not.toBeInTheDocument();
+  });
+});

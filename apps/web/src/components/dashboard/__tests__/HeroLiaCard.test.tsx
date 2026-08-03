@@ -15,7 +15,10 @@ import { render, fireEvent } from '@testing-library/react';
 import { HeroLiaCard } from '../HeroLiaCard';
 import type { TextSection } from '@/types/briefing';
 
-const { mockToggleGender } = vi.hoisted(() => ({ mockToggleGender: vi.fn() }));
+const { mockToggleGender, mockSetGender } = vi.hoisted(() => ({
+  mockToggleGender: vi.fn(),
+  mockSetGender: vi.fn(),
+}));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'fr' } }),
@@ -30,12 +33,24 @@ vi.mock('next/image', () => ({
   default: ({ alt }: { alt: string }) => <span data-testid="lia-avatar">{alt}</span>,
 }));
 
+// The mock mirrors the hook's full public shape: a partial one would let the
+// hero read `undefined` for a field the real hook always provides, and the
+// suite would stay green on a broken contract.
 vi.mock('@/hooks/useLiaGender', () => ({
-  useLiaGender: () => ({ liaImage: '/lia.png', toggleGender: mockToggleGender }),
+  useLiaGender: () => ({
+    isMale: false,
+    mounted: true,
+    liaImage: '/lia.png',
+    liaBackgroundImage: '/lia_bg.png',
+    liaImageVariants: { female: '/lia_f.png', male: '/lia_m.png' },
+    setGender: mockSetGender,
+    toggleGender: mockToggleGender,
+  }),
 }));
 
 beforeEach(() => {
   mockToggleGender.mockClear();
+  mockSetGender.mockClear();
 });
 
 function makeGreeting(text: string): TextSection {
@@ -95,5 +110,33 @@ describe('HeroLiaCard — avatar toggle is keyboard-accessible (F045)', () => {
     // A <button> must never contain other interactive elements — the CTA
     // buttons are siblings, not descendants.
     expect(toggle.querySelector('button, a, input')).toBeNull();
+  });
+});
+
+describe('HeroLiaCard — the avatar choice is visible', () => {
+  it('offers the two portraits alongside the invisible full-surface toggle', () => {
+    const { getByRole } = render(<HeroLiaCard />);
+
+    expect(getByRole('group', { name: 'dashboard.avatar_picker.group_label' })).toBeInTheDocument();
+  });
+
+  it('selects a variant outright instead of flipping', () => {
+    const { getByRole } = render(<HeroLiaCard />);
+
+    fireEvent.click(getByRole('button', { name: 'dashboard.avatar_picker.male' }));
+
+    expect(mockSetGender).toHaveBeenCalledWith(true);
+    // The blind flip is NOT what a picker press means.
+    expect(mockToggleGender).not.toHaveBeenCalled();
+  });
+
+  it('keeps the picker outside the full-surface button (valid interactive tree)', () => {
+    // The overlay spans the whole card; nesting the picker inside it would be
+    // invalid HTML and unreachable for assistive tech.
+    const { getByLabelText, getByRole } = render(<HeroLiaCard />);
+    const toggle = getByLabelText('dashboard.actions.toggle_avatar');
+    const picker = getByRole('group', { name: 'dashboard.avatar_picker.group_label' });
+
+    expect(toggle.contains(picker)).toBe(false);
   });
 });

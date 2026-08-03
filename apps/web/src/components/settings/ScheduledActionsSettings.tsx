@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
-import { CalendarClock, Plus, Trash2, Pencil, Play, Clock, MoreVertical } from 'lucide-react';
+import { useState, useMemo, useCallback, useRef } from 'react';
+import { CalendarClock, Copy, Plus, Trash2, Pencil, Play, Clock, MoreVertical } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +46,8 @@ import {
   type ScheduledActionUpdate,
   type TriggerKind,
 } from '@/hooks/useScheduledActions';
+import { renderOccurrences } from '@/lib/occurrences';
+import { duplicateTitle } from '@/lib/scheduled-actions';
 import { toast } from 'sonner';
 
 interface ScheduledActionsSettingsProps {
@@ -110,6 +112,27 @@ function buildConditionConfig(form: FormState): ConditionConfig | null {
 }
 
 /**
+ * Read an action into the flattened form state (pure).
+ *
+ * Shared by "edit" and "duplicate" so the two can never drift: a field added
+ * to the form has one place to be copied, and a duplicate that silently
+ * dropped the condition would produce a routine the backend refuses.
+ */
+function formStateFromAction(action: ScheduledAction): FormState {
+  return {
+    title: action.title,
+    action_prompt: action.action_prompt,
+    days_of_week: [...action.days_of_week],
+    trigger_hour: action.trigger_hour,
+    trigger_minute: action.trigger_minute,
+    trigger_kind: action.trigger_kind ?? 'time',
+    condition_type: action.condition_config?.type ?? 'task_overdue',
+    condition_query: action.condition_config?.query ?? '',
+    requires_approval: action.requires_approval ?? false,
+  };
+}
+
+/**
  * Diff the form against the edited action into a minimal update payload
  * (pure — keeps handleSave under the CC cap). Kind + condition travel
  * together (the backend enforces coherence); a changed condition alone also
@@ -166,6 +189,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
   } = useScheduledActions();
 
   // Dialog states
+  const regionRef = useRef<HTMLDivElement>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingAction, setEditingAction] = useState<ScheduledAction | null>(null);
   const [deletingActionId, setDeletingActionId] = useState<string | null>(null);
@@ -223,18 +247,27 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
 
   // Open edit dialog
   const handleOpenEdit = (action: ScheduledAction) => {
-    setForm({
-      title: action.title,
-      action_prompt: action.action_prompt,
-      days_of_week: [...action.days_of_week],
-      trigger_hour: action.trigger_hour,
-      trigger_minute: action.trigger_minute,
-      trigger_kind: action.trigger_kind ?? 'time',
-      condition_type: action.condition_config?.type ?? 'task_overdue',
-      condition_query: action.condition_config?.query ?? '',
-      requires_approval: action.requires_approval ?? false,
-    });
+    setForm(formStateFromAction(action));
     setEditingAction(action);
+  };
+
+  /**
+   * Open the CREATION dialog prefilled from an existing routine.
+   *
+   * Nothing is written yet: the reader lands on a form they can adjust before
+   * saving — the point being to decline a routine (week/weekend,
+   * personal/professional), which almost always means changing a day or an
+   * hour first. Execution state (counters, last error, status) is deliberately
+   * not carried: the creation payload has no place for it, and a copy has run
+   * zero times.
+   */
+  const handleOpenDuplicate = (action: ScheduledAction) => {
+    const source = formStateFromAction(action);
+    setForm({
+      ...source,
+      title: duplicateTitle(source.title, t('scheduled_actions.duplicate_suffix')),
+    });
+    setShowCreateDialog(true);
   };
 
   // N-07: a mail_match condition without its filter cannot be saved.
@@ -291,6 +324,10 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
     try {
       await deleteAction(deletingActionId);
       toast.success(t('scheduled_actions.delete_success'));
+      // Take focus back into the panel: Radix restores it to the trigger the
+      // dialog was opened from, and that trigger is inside the row this
+      // deletion just removed — leaving the keyboard user on <body>.
+      regionRef.current?.focus();
     } catch {
       toast.error(t('scheduled_actions.error_delete'));
     }
@@ -536,6 +573,14 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
       description={t('scheduled_actions.settings.description')}
       icon={CalendarClock}
     >
+      {/* A stable focus anchor for a panel whose rows DISAPPEAR under the
+          reader. Radix returns focus to the trigger the delete dialog opened
+          from; that trigger lived inside the removed row, so focus falls to
+          <body> and the keyboard user restarts at the top of the settings
+          page. `-1` adds no tab stop — it only makes this container a legal
+          destination for a deliberate `.focus()`, and it outlives every row,
+          the empty state included. */}
+      <div ref={regionRef} tabIndex={-1} data-routines-region className="focus:outline-none">
       {/* Header with count and add button */}
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-muted-foreground">
@@ -617,6 +662,18 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
                     size="icon"
                     onClick={e => {
                       e.stopPropagation();
+                      handleOpenDuplicate(action);
+                    }}
+                    aria-label={t('scheduled_actions.duplicate')}
+                    title={t('scheduled_actions.duplicate')}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={e => {
+                      e.stopPropagation();
                       setDeletingActionId(action.id);
                     }}
                     title={t('common.delete')}
@@ -640,10 +697,16 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
                 >
                   <MoreVertical className="h-4 w-4 text-muted-foreground" />
                 </Button>
+                {/* Named, and named with the ROUTINE: a Radix `Switch` is a
+                    `<button role="switch">`, which jsx-a11y cannot see is
+                    anonymous — axe reported it `critical`. On a list of
+                    several, "switch, on" says nothing about what is about to
+                    be turned off. */}
                 <Switch
                   checked={action.is_enabled}
                   onCheckedChange={() => handleToggle(action)}
                   onClick={e => e.stopPropagation()}
+                  aria-label={t('scheduled_actions.toggle_aria', { title: action.title })}
                 />
               </div>
 
@@ -656,10 +719,39 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
                 {formatSchedule(action)}
               </p>
 
-              {/* Next execution */}
-              <p className="text-xs text-muted-foreground">
-                {t('scheduled_actions.next_execution')}: {formatDateTime(action.next_trigger_at)}
-              </p>
+              {/* Upcoming runs. A CONDITION routine gets a different heading:
+                  its cron says when the condition is EVALUATED, and claiming
+                  to know when it will become true would be an invention. */}
+              <div className="text-xs text-muted-foreground">
+                <span>
+                  {t(
+                    (action.trigger_kind ?? 'time') === 'condition'
+                      ? 'scheduled_actions.next_evaluations'
+                      : 'scheduled_actions.next_executions'
+                  )}
+                </span>
+                <ul className="mt-0.5 space-y-0.5" role="list">
+                  {renderOccurrences(
+                    action.next_occurrences ?? [action.next_trigger_at],
+                    action.user_timezone,
+                    intlLocale
+                  ).map(run => (
+                    <li key={run.iso} className="tabular-nums">
+                      <time dateTime={run.iso}>{run.label}</time>
+                      {/* No `opacity-70`: axe measured 2.9:1 against the card
+                          (4.5 required). The zone name is the one thing on
+                          this line that says WHICH clock the hour is read
+                          against — dimming it below legibility defeats it. */}
+                      {run.zone && <span className="ml-1">{run.zone}</span>}
+                      {run.clockChange && (
+                        <span className="ml-1 text-warning">
+                          {t('scheduled_actions.clock_change')}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
 
               {/* Last execution */}
               <p className="text-xs text-muted-foreground">
@@ -681,6 +773,8 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
           ))}
         </div>
       )}
+
+      </div>
 
       {/* Create dialog */}
       {formDialog(showCreateDialog, () => setShowCreateDialog(false), 'scheduled_actions.create')}
@@ -754,6 +848,19 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
             >
               <Pencil className="h-4 w-4" />
               {t('common.edit')}
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3"
+              onClick={() => {
+                if (mobileActionItem) {
+                  handleOpenDuplicate(mobileActionItem);
+                  setMobileActionItem(null);
+                }
+              }}
+            >
+              <Copy className="h-4 w-4" />
+              {t('scheduled_actions.duplicate')}
             </Button>
             <Button
               variant="outline"

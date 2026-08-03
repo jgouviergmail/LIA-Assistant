@@ -408,7 +408,7 @@ def format_agenda_event(
     ``language`` argument drives the locale-aware date / "tomorrow" / "all
     day" rendering.
     """
-    title = raw_event.get("summary") or "Untitled"
+    title = raw_event.get("summary") or V3Messages.get_untitled_event(language)
     location = raw_event.get("location")
     start_local = _format_event_time(raw_event.get("start"), user_tz, language)
     end_field = raw_event.get("end")
@@ -620,6 +620,7 @@ def format_reminder_item(
     """Convert a Reminder ORM model to a UI item with localized time + date format."""
     trigger_local = _format_trigger_at_local(reminder.trigger_at, user_tz, language)
     return ReminderItem(
+        id=str(reminder.id),
         content=reminder.content,
         trigger_at_local=trigger_local,
     )

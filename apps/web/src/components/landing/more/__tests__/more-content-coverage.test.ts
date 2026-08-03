@@ -59,9 +59,9 @@ const STATIC_KEYS = [
 describe('more-data structural contract', () => {
   it('has 35 unique cards across 6 sections', () => {
     expect(MORE_SECTIONS).toHaveLength(6);
-    expect(MORE_CARD_KEYS).toHaveLength(35);
-    expect(new Set(MORE_CARD_KEYS).size).toBe(35);
-    expect(MORE_SECTIONS.map(s => s.cards.length)).toEqual([4, 7, 7, 6, 5, 6]);
+    expect(MORE_CARD_KEYS).toHaveLength(37);
+    expect(new Set(MORE_CARD_KEYS).size).toBe(37);
+    expect(MORE_SECTIONS.map(s => s.cards.length)).toEqual([4, 7, 7, 6, 6, 7]);
   });
 
   it('derives the flat key list from the sections in display order', () => {

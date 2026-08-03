@@ -93,6 +93,15 @@ def _executor_env(
     action.condition_config = None
     action.condition_state = None
     action.requires_approval = False
+    # A real datetime, like the non-nullable column: re-arming compares the
+    # pending due time against now to tell a consumed slot from a manual "run
+    # now" (which must not drop the upcoming run). A MagicMock here would only
+    # prove the mock cannot be compared.
+    action.days_of_week = [1, 2, 3, 4, 5, 6, 7]
+    action.trigger_hour = 8
+    action.trigger_minute = 0
+    action.user_timezone = "Europe/Paris"
+    action.next_trigger_at = datetime(2026, 8, 3, 6, 0, tzinfo=UTC)
 
     # Real UserProfile (not a MagicMock): a MagicMock would trivially carry any
     # attribute, masking the very bug this asserts — the profile schema silently
