@@ -59,6 +59,15 @@ slowapi==0.1.9
 
 # HTTP Client
 httpx==0.28.1
+# aiohttp is purely transitive (edge-tts, geoip2 — both clients, LIA runs no
+# aiohttp server) and is declared here only to carry a security floor.
+# >=3.14.3 clears CVE-2026-69244 (out-of-bounds heap read in the C response
+# parser while formatting an error for a malformed response: an attacker-
+# controlled or merely broken server can crash the client — this is the one
+# that reaches us), plus CVE-2026-59881 (client decompresses RSV1 frames
+# without permessage-deflate) and CVE-2026-69243 (server-side WebSocket
+# upgrade request smuggling, no aiohttp server here). Consumers cap at <4.0.
+aiohttp>=3.14.3
 
 # Web Page Content Extraction (evolution F1 — Web Fetch Tool)
 readability-lxml==0.8.4.1    # Mozilla Readability algorithm (article extraction)
