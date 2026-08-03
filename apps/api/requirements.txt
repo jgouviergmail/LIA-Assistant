@@ -42,7 +42,14 @@ webauthn==2.8.0  # Passkeys (WebAuthn/FIDO2) server-side ceremonies (security pr
 pyotp==2.10.0  # TOTP second factor (security program D1, Lot 2)
 qrcode==8.2  # TOTP enrollment QR (PNG data-URI via existing Pillow; security program D1, Lot 2)
 python-multipart==0.0.31  # CVE-2024-53981, CVE-2026-24486, CVE-2026-53540 fixes (DoS)
-cryptography==48.0.1  # CVE-2024-12797, CVE-2026-26007, GHSA-537c-gmf6-5ccf fixes
+# 48.0.1 -> 50.0.0: CVE-2026-69247 (Bleichenbacher oracle on PKCS#7 decryption,
+# fixed only in 50.0.0), CVE-2026-69248 (a wildcard SAN escapes an intermediate
+# CA's name constraints) and CVE-2026-69249 (exponential chain building on
+# duplicated self-signed certs). LIA imports Fernet only (core/security/utils.py),
+# but webauthn, asyncssh and python-jose all sit on this library. The <50 ceiling
+# came from pyOpenSSL 26.2 (transitive via webauthn); 26.4 lifts it to <51, so the
+# resolver moves both together.
+cryptography==50.0.0  # CVE-2024-12797, CVE-2026-26007, GHSA-537c-gmf6-5ccf fixes
 
 # Observability
 structlog==25.5.0
