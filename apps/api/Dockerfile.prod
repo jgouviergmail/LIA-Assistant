@@ -51,6 +51,16 @@ ARG HF_BASE_URL=https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/reso
 #                cleanly: CANCEL (err 8)` after 3.6 s at 0 byte received).
 #   --http1.1    that reset is an HTTP/2 multiplexing failure against the CDN;
 #                HTTP/1.1 costs nothing on three sequential large downloads.
+#
+# The retry BUDGET matters as much as the count. `--retry 5 --retry-delay 5`
+# gives up after 25 s and, worse, a FIXED delay makes curl ignore the
+# `Retry-After` header a 429 carries — the very thing the host is telling us.
+# Hugging Face rate-limits anonymous CI runners and failed the v1.27.10 release
+# twice that way. Dropping `--retry-delay` restores exponential backoff
+# (1, 2, 4 … s) and honours `Retry-After`; 8 attempts inside a 600 s ceiling is
+# about four minutes of patience, bounded so a genuinely dead host still fails
+# the build instead of hanging it. The User-Agent is not cosmetic: anonymous
+# clients without one are the first bucket a CDN throttles.
 # The size floor is the last line of defence: it catches any short body that still
 # came back with a 200, which --fail cannot see.
 RUN set -eu; \
@@ -58,7 +68,8 @@ RUN set -eu; \
              "decoder.onnx:small-decoder.int8.onnx:1000000" \
              "tokens.txt:small-tokens.txt:1000"; do \
         out="${f%%:*}"; rest="${f#*:}"; src="${rest%%:*}"; min="${rest#*:}"; \
-        curl -fL --http1.1 --retry 5 --retry-all-errors --retry-delay 5 \
+        curl -fL --http1.1 --retry 8 --retry-all-errors --retry-max-time 600 \
+             -A "lia-build (+https://github.com/jgouviergmail/LIA-Assistant)" \
              -o "${out}" "${HF_BASE_URL}/${src}"; \
         size="$(wc -c < "${out}")"; \
         [ "${size}" -ge "${min}" ] || { \
@@ -151,13 +162,13 @@ RUN set -eux; \
       *) echo "ERROR: unsupported architecture: $arch" >&2; exit 1 ;; esac; \
     base="https://nodejs.org/dist/latest-v${NODE_MAJOR}.x"; \
     cd /tmp; \
-    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 \
+    curl -fsSL --retry 8 --retry-all-errors --retry-max-time 600 \
          -o SHASUMS256.txt "${base}/SHASUMS256.txt"; \
     file="$(grep -oE "node-v[0-9]+\.[0-9]+\.[0-9]+-linux-${node_arch}\.tar\.xz" \
             SHASUMS256.txt | head -1)"; \
     [ -n "${file}" ] || { \
       echo "ERROR: no ${node_arch} tarball listed for Node ${NODE_MAJOR}.x" >&2; exit 1; }; \
-    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o "${file}" "${base}/${file}"; \
+    curl -fsSL --retry 8 --retry-all-errors --retry-max-time 600 -o "${file}" "${base}/${file}"; \
     expected="$(grep -F " ${file}" SHASUMS256.txt | awk '{print $1}')"; \
     actual="$(sha256sum "${file}" | awk '{print $1}')"; \
     if [ -z "${expected}" ] || [ "${expected}" != "${actual}" ]; then \
