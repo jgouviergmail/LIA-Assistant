@@ -144,7 +144,6 @@ const adminData: MockRoute[] = [
   },
 ];
 
-
 async function assertNoHorizontalScroll(page: import('@playwright/test').Page) {
   const overflow = await page.evaluate(() => {
     const el = document.scrollingElement ?? document.documentElement;
@@ -235,13 +234,20 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
     ]);
     await page.goto('/en/dashboard/settings?section=scheduled-actions');
     await expect(page.getByText('Revue du matin')).toBeVisible({ timeout: 20_000 });
-    // The transition marker must actually be on screen, or this scans a page
-    // that happens not to contain the thing it was written for.
+    // The later occurrences — and the clock-change marker they carry — fold
+    // behind the per-card "Details" disclosure since ADR-208 (the visible line
+    // is the next run, zone-stamped). Open it: the scan then covers the folded
+    // content too, and the marker must actually be on screen, or this scans a
+    // page that happens not to contain the thing it was written for.
+    await page.locator('summary').filter({ hasText: 'Details' }).first().click();
     await expect(page.getByText('(clocks change)', { exact: false }).first()).toBeVisible();
 
     const { blocking, summary } = await scanPage(page, testInfo, '/dashboard/settings#routines');
-    expect(blocking, `axe violations on the routines list:
-${summary}`).toHaveLength(0);
+    expect(
+      blocking,
+      `axe violations on the routines list:
+${summary}`
+    ).toHaveLength(0);
   });
 
   test('settings search results scan clean', async ({ page, authenticate, mockApi }, testInfo) => {
@@ -408,8 +414,11 @@ ${summary}`).toHaveLength(0);
     await assertNoHorizontalScroll(page);
 
     const { blocking, summary } = await scanPage(page, testInfo, '/dashboard@320');
-    expect(blocking, `axe violations on /dashboard at 320 px:
-${summary}`).toHaveLength(0);
+    expect(
+      blocking,
+      `axe violations on /dashboard at 320 px:
+${summary}`
+    ).toHaveLength(0);
   });
 
   test('space detail page (upload zone) scans clean', async ({

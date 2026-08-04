@@ -21,6 +21,8 @@
     "previous": "Previous",
     "previous_short": "Prev.",
     "pagination": {
+      "label": "Pagination",
+      "page_info": "Page {{current}} / {{total}}",
       "items_per_page": "per page",
       "total_items": "({{count}} results)"
     },
@@ -45,7 +47,16 @@
     "disabled": "Disabled",
     "saving": "Saving...",
     "actions": "Actions",
-    "expand_image": "View image full screen"
+    "expand_image": "View image full screen",
+    "actions_for": "Actions — {{name}}",
+    "more_actions": "More actions",
+    "details": "Details",
+    "show_more": "Show more",
+    "show_less": "Show less",
+    "min_per_day_label": "Minimum per day",
+    "max_per_day_label": "Maximum per day",
+    "start_hour_label": "Start time",
+    "end_hour_label": "End time"
   },
   "broadcast": {
     "modal": {
@@ -1285,22 +1296,22 @@
       "my_connectors": "My Connectors",
       "my_connectors_description": "Connect your accounts to allow LIA to access your data",
       "connected": "Connected",
-      "connected_google": "Connected Google Connectors",
+      "connected_google": "Google services",
       "group_state": {
         "connected": "Connected",
         "attention": "Action required",
         "available": "Not connected"
       },
-      "connected_api_key": "Connected External Connectors",
-      "connected_apple": "Connected Apple Connectors",
-      "connected_microsoft": "Connected Microsoft Connectors",
+      "connected_api_key": "External services",
+      "connected_apple": "Apple services",
+      "connected_microsoft": "Microsoft services",
       "connected_hue": "Connected Smart Home",
       "available_hue": "Available Smart Home Services",
       "connected_on": "Connected on {{date}}",
       "loading": "Loading...",
       "enabled": "✓ Enabled",
-      "available_google": "Google Connectors",
-      "available_external": "External Connectors",
+      "available_google": "Google services",
+      "available_external": "External services",
       "all_connected": "All available connectors are already connected",
       "disconnect_error": "Disconnection error",
       "connected_success": "{{name}} has been connected successfully",
@@ -1405,7 +1416,7 @@
         }
       },
       "apple": {
-        "title": "Apple Connectors",
+        "title": "Apple services",
         "description": "Connect your Apple iCloud services",
         "email": "Apple Mail",
         "email_description": "Read and send emails via iCloud Mail",
@@ -1438,7 +1449,7 @@
         "connecting": "Connecting"
       },
       "microsoft": {
-        "title": "Microsoft Connectors",
+        "title": "Microsoft services",
         "description": "Connect your Microsoft 365 services",
         "outlook": "Microsoft Outlook",
         "outlook_description": "Read and send emails via Outlook",
@@ -2079,6 +2090,7 @@
           "edit": "Edit",
           "updated": "API key updated",
           "deleted": "API key deleted",
+          "deleteKey": "Delete the stored key",
           "error": "Failed to update API key",
           "notConfigured": "Not configured",
           "apiKey": "API Key",
@@ -2429,6 +2441,10 @@
           "calendar_availability": "Calendar — availability",
           "calendar_details": "Calendar — details",
           "task_titles": "Tasks — titles"
+        },
+        "task_level": {
+          "titles": "Shared",
+          "none": "Not shared"
         }
       },
       "blocks": {
@@ -2470,7 +2486,8 @@
         "toggle_label": "Show my email to my connections",
         "toggle_hint": "Off by default. When enabled, people you have ACCEPTED see your real address instead of the masked hint. A pending request never does.",
         "toggle_saved": "Address visibility saved"
-      }
+      },
+      "visibility_title": "My visibility"
     },
     "notifications": {
       "title": "Push Notifications",
@@ -3044,7 +3061,9 @@
         "status_expired": "Expired",
         "too_large": "The archive exceeds the size cap. Contact support or reduce stored files.",
         "failed_hint": "The export failed. Please try again.",
-        "error_generic": "Something went wrong. Please try again."
+        "error_generic": "Something went wrong. Please try again.",
+        "ready_hint": "Archive ready — {{size}} · expires {{date}}",
+        "expired_hint": "Export generated on {{created}}, expired on {{expired}}. Request a new export to download your data."
       },
       "auth": {
         "title": "Strong authentication",
@@ -3123,7 +3142,7 @@
         "security-export": "GDPR, archive, download, portability, backup, personal data, privacy",
         "voice-mode": "microphone, speech, dictation, STT, TTS, wake word, audio, talk",
         "image-generation": "images, pictures, drawing, illustration, generation, art",
-        "connectors": "google, gmail, calendar, contacts, apple, microsoft, outlook, integrations, accounts, oauth, reconnect, disconnected",
+        "connectors": "google, gmail, calendar, contacts, apple, microsoft, outlook, integrations, accounts, oauth, reconnect, disconnected, services",
         "telephony-calls": "phone, telephone, calls, call history, dial",
         "admin-mcp-servers": "MCP, model context protocol, application servers, built-in tools",
         "mcp-servers": "MCP, model context protocol, my servers, tools, extensions",
@@ -3132,10 +3151,10 @@
         "psyche": "emotions, mood, feelings, affect, emotional",
         "memories": "memory, remember, forget, facts, recollection, provenance, why, source, signal, origin, correct",
         "interests": "topics, tastes, subjects, curiosity, preferences, history, recent notifications, provenance, why, weight, explanation, decay, source",
-        "peer-connections": "contacts, friends, family, network, share calendar, availability, block, discover users, connect, my name, copy my name, connection request, access log, relay message, blocked users, peers, social network, discovery, loved ones, relatives, share my address, email visible, my email, 360 overview",
-        "heartbeat": "proactive, spontaneous, initiative, check-in, autonomous messages, notification topics, sources, history, recent notifications, priority, urgency, high, medium, low, colour",
+        "peer-connections": "contacts, friends, family, network, share calendar, availability, block, discover users, connect, my name, copy my name, connection request, access log, relay message, blocked users, peers, social network, discovery, loved ones, relatives, share my address, email visible, my email, 360 overview, visibility, requests",
+        "heartbeat": "proactive, spontaneous, initiative, check-in, autonomous messages, notification topics, sources, history, recent notifications, priority, urgency, high, medium, low, colour, weather, frequency, time window",
         "scheduled-actions": "cron, schedule, recurring, automation, timer, planned",
-        "journals": "diary, logbook, portrait, reflections, notes, provenance, why, source, signal, origin, correct",
+        "journals": "diary, logbook, portrait, reflections, notes, provenance, why, source, signal, origin, correct, configuration, consolidation",
         "health-metrics": "heart rate, steps, sleep, iPhone, Apple Health, fitness, activity",
         "skills": "skills, capabilities, abilities, plugins, extensions",
         "rag-spaces": "documents, RAG, knowledge base, files, upload, indexing, library",
@@ -3889,6 +3908,23 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_27_11": {
+          "title": "v1.27.11 — 🧭 Settings that read like an index",
+          "date": "August 2026",
+          "count": "10",
+          "items": {
+            "i1": "<b>🧲 The gap between a label and its field finally renders</b> — a defect in the label primitive meant every spacing setting was computed but never drawn: all forms lived with ~3 px whatever the code said. Fixed at the root and calibrated on real screenshots — every form now breathes the same way.",
+            "i2": "<b>☰ One grammar for row actions</b> — visible icons from tablet up, delete carrying its red at rest, and on phones a single named “⋮” menu. No more buttons revealed by hover that a keyboard user landed on without seeing anything.",
+            "i3": "<b>📤 Export is back on phones and tablets</b> for long-term memory and interests — it was simply removed below a desktop width — and “+ Add” keeps its label at every size.",
+            "i4": "<b>🗂️ LIA Connections read as five foldable, icon-carrying sections</b> whose badges say what waits inside — pending requests included — and both share directions display as mirrors: yours editable, theirs read-only.",
+            "i5": "<b>📔 Personal journals fold their whole configuration behind one entry</b>, move their buttons below the categories, and long entries clamp to three lines with “Show more”.",
+            "i6": "<b>⏰ A routine says “Weekdays at 08:00”</b> instead of naming five days, shows its next run and folds the rest — its card drops from about eight always-visible lines to three.",
+            "i7": "<b>🔐 Authenticator apps (TOTP) now enroll from a switch</b>, like every other feature — turning it on opens the ceremony, and the thumb only moves once the server confirms.",
+            "i8": "<b>🧭 Connector groups are named “Google / Apple / Microsoft / external services”</b>, and a data export finally explains its state: size and expiry when ready, generation and expiry dates plus what to do when expired.",
+            "i9": "<b>🎛️ Every title carries an icon in the theme colour</b> — notification frequency, travel weather (now foldable), each dashboard card in the customisation list — and grey badges are reserved for the inactive: “Enabled” is green, “pending” is blue.",
+            "i10": "<b>🔔 Push notifications follow your global opt-in automatically</b> — the per-feature duplicate switch that could silently mute proactive notifications is gone."
+          }
+        },
         "v1_27_10": {
           "title": "v1.27.10 — 🎨 Screens you can read at a glance",
           "date": "August 2026",
@@ -6273,7 +6309,7 @@
           },
           "q2": {
             "question": "How do I enable proactive notifications?",
-            "answer": "Enable the feature in just a few clicks:<br><br><strong>⚙️ Access:</strong><br>Settings → \"<em>Proactive Notifications</em>\" section → Enable the toggle<br><br><strong>📝 Available options:</strong><br>• <strong>Min/max per day</strong>: set the minimum (default: 1) and maximum (default: 3) notifications per day (range: 1-8)<br>• <strong>Time window</strong>: configure your own start hour (default: 9 AM) and end hour (default: 10 PM) — independent from interest notification hours<br>• <strong>Push notifications</strong>: enable/disable push (FCM/Telegram) separately<br><br><strong>💡 Silent mode:</strong><br>If you disable push, LIA's messages are archived <strong>silently</strong> in conversation + SSE. You'll see them at your next login without being disturbed."
+            "answer": "Enable the feature in just a few clicks:<br><br><strong>⚙️ Access:</strong><br>Settings → \"<em>Proactive Notifications</em>\" section → Enable the toggle<br><br><strong>📝 Available options:</strong><br>• <strong>Time window</strong>: configure your own start hour (default: 9 AM) and end hour (default: 10 PM) — independent from interest notification hours<br>• <strong>Min/max per day</strong>: set the minimum (default: 1) and maximum (default: 3) notifications per day (range: 1-8)<br>• <strong>Travel weather</strong>: a foldable block to opt in to location-aware weather<br><br><strong>💡 Push delivery:</strong><br>Push (FCM/Telegram) follows your <strong>global notification opt-in</strong> automatically — no separate per-feature switch. Every message is also archived in the conversation, so you'll find it at your next login either way."
           },
           "q3": {
             "question": "What data sources are used?",
@@ -6950,7 +6986,7 @@
       },
       "a11y_care": {
         "title": "The care you never notice",
-        "desc": "Motion preferences honoured, contrast held, everything reachable from the keyboard — and whatever you tap is big enough to tap, including the small crosses that only appeared on hover and were therefore out of a finger's reach."
+        "desc": "Motion preferences honoured, contrast held, everything reachable from the keyboard — and whatever you tap is big enough to tap, including the small crosses that only appeared on hover and were therefore out of a finger's reach. List actions no longer hide behind a hover — the keyboard finds them — and the gap between a label and its field finally renders exactly as written."
       },
       "peer_actions": {
         "title": "Reply from right under the message",
@@ -6994,7 +7030,7 @@
       },
       "readable_at_a_glance": {
         "title": "Readable at a glance",
-        "desc": "An urgent alert does not look like an ordinary one: density separates them, not hue alone. It holds in greyscale too."
+        "desc": "An urgent alert does not look like an ordinary one: density separates them, not hue alone. It holds in greyscale too. And an action has the same shape everywhere: what creates is solid, what deletes carries its red without waiting for a hover, and every title announces itself with an icon."
       }
     },
     "scenes": {
@@ -7355,13 +7391,14 @@
     "delete_all_keep_pinned": "Keep pinned",
     "delete_all_including_pinned": "Delete all",
     "delete_all_keep_pinned_success": "Unpinned memories deleted",
-    "actions_title": "Actions",
     "create": "Add",
     "create_title": "Create a memory",
     "create_description": "Add a new memory to your long-term memory.",
     "create_button": "Create",
     "create_success": "Memory created",
-    "create_error": "Error creating memory"
+    "create_error": "Error creating memory",
+    "count_one": "{{count}} memory",
+    "count_other": "{{count}} memories"
   },
   "interests": {
     "dormant_section": "Dormant",
@@ -7499,8 +7536,6 @@
     "notification_frequency": "Notification frequency",
     "max_per_day": "Maximum per day",
     "per_day": "/ day",
-    "push_enabled": "Push notifications",
-    "push_description": "When disabled, messages are silently archived in conversation",
     "available_sources": "Available data sources",
     "source_calendar": "Calendar",
     "source_emails": "Emails",
@@ -7935,7 +7970,15 @@
     "next_executions": "Next runs",
     "next_evaluations": "Next evaluation windows",
     "clock_change": "(clocks change)",
-    "toggle_aria": "Enable or disable {{title}}"
+    "toggle_aria": "Enable or disable {{title}}",
+    "schedule": {
+      "daily": "Every day at {{time}}",
+      "weekdays": "Weekdays at {{time}}",
+      "weekend": "Weekends at {{time}}",
+      "custom": "{{days}} at {{time}}"
+    },
+    "next_run": "Next run",
+    "next_evaluation": "Next evaluation"
   },
   "landing": {
     "meta": {
@@ -8308,7 +8351,7 @@
       },
       "stack": {
         "title": "Modern stack",
-        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. Strict TypeScript on the frontend, async Python on the backend. Installable PWA: 6 localized manifests, OS share into chat, offline page and smart asset caching — API responses are never cached. Settings are searchable from the keyboard, in all six languages, ignoring case, accents and typographic apostrophes."
+        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. Strict TypeScript on the frontend, async Python on the backend. Installable PWA: 6 localized manifests, OS share into chat, offline page and smart asset caching — API responses are never cached. Settings are searchable from the keyboard, in all six languages, ignoring case, accents and typographic apostrophes. The design system is a contract kept by tests: every colour pair checked across five themes in light and dark, one tone per status, one shape per action altitude."
       },
       "telephony": {
         "title": "Agentic telephony",
@@ -8746,7 +8789,7 @@
     "sizeUsage": "Size usage",
     "lastCost": "Last intervention",
     "lastCostSource": "Source",
-    "create": "New entry",
+    "create": "Add",
     "export": "Export",
     "deleteAll": "Delete all",
     "deleteAllTitle": "Delete all entries?",
@@ -8814,7 +8857,6 @@
     "yesterday": "yesterday",
     "daysAgo": "{{n}}d ago",
     "evidenceTooltip": "Confirmations / contradictions observed",
-    "filterUnused": "Show only entries never used",
     "consolidateNow": "Consolidate",
     "consolidating": "Consolidating…",
     "consolidateNowTooltip": "Force a consolidation right now (dedup, level promotions, confidence updates). Takes a few seconds.",
@@ -8864,7 +8906,8 @@
         "label": "Portrait facet",
         "description": "Trait, current phase, context, contradiction, blind spot — always injected."
       }
-    }
+    },
+    "configuration": "Configuration"
   },
   "blog": {
     "meta": {

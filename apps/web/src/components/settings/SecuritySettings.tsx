@@ -191,7 +191,9 @@ export function SecuritySettings({ collapsible = true }: { collapsible?: boolean
                   <KeyRound className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
                   <span className="text-sm font-medium truncate">{passkeyName(passkey)}</span>
                   {passkey.backed_up && (
-                    <Badge variant="secondary" className="text-[10px]">
+                    // `success`, not grey: a synced passkey is a positive
+                    // state, and grey is reserved for inactive ones.
+                    <Badge variant="success" className="text-[10px]">
                       {t('settings.security.passkeys.synced')}
                     </Badge>
                   )}
@@ -319,11 +321,7 @@ export function SecuritySettings({ collapsible = true }: { collapsible?: boolean
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteBusy}>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleteBusy}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete} disabled={deleteBusy} variant="destructive">
               {t('settings.security.passkeys.revoke_confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>

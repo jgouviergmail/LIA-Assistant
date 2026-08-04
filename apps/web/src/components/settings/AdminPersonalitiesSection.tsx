@@ -485,7 +485,7 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label htmlFor="code">{t('settings.admin.personalities.dialog.code_label')}</Label>
                 <Input
                   id="code"
@@ -495,7 +495,7 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
                   required
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label htmlFor="emoji">
                   {t('settings.admin.personalities.dialog.emoji_label')}
                 </Label>
@@ -511,7 +511,7 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label htmlFor="title">
                   {t('settings.admin.personalities.dialog.title_label')}
                 </Label>
@@ -523,7 +523,7 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
                   required
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label htmlFor="sort_order">
                   {t('settings.admin.personalities.dialog.sort_order_label')}
                 </Label>
@@ -539,7 +539,7 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label htmlFor="description">
                 {t('settings.admin.personalities.dialog.description_label')}
               </Label>
@@ -553,7 +553,7 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label htmlFor="prompt_instruction">
                 {t('settings.admin.personalities.dialog.prompt_label')}
               </Label>

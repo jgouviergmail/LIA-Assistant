@@ -486,11 +486,13 @@ function QuickActions({ detail, lng }: { detail: RelationDetail; lng: string }) 
         <Button
           key={key}
           type="button"
-          // `outline`, which is what an action button looks like in this app:
-          // 137 call sites against a single `softPrimary` (this one, before it
-          // was aligned). Consistency beats the extra emphasis — the reader
-          // recognises an action by its shape everywhere, or nowhere.
-          variant="outline"
+          // SOLID (ADR-207, owner arbitration 2026-08-05): a section's
+          // constructive CTA takes the filled primary, like "+ Add" on
+          // memories, MCP or scheduled actions. The earlier `outline` reading
+          // (ADR-205) counted all 137 outline sites in one bucket — cancels
+          // and filter presets included; at CTA altitude, solid is the
+          // codebase's actual convention.
+          variant="default"
           size="sm"
           onClick={() => openChatDeepLink(chatDraftHref(lng, draft))}
           // `min-h-11`: these read as chips, but they are the card's primary

@@ -1932,7 +1932,7 @@ Content-Type: application/json
 |-------|------|--------|-------------|
 | `heartbeat_enabled` | bool | Non | Activer/desactiver le heartbeat |
 | `heartbeat_max_per_day` | int (1-8) | Non | Nombre max de notifications par jour |
-| `heartbeat_push_enabled` | bool | Non | Activer les push (FCM/Telegram) |
+| `heartbeat_push_enabled` | bool | Non | Accepte pour compatibilite mais ignore depuis v1.27.11 — le push suit l'activation globale des notifications |
 | `heartbeat_notify_start_hour` | int (0-23) | Non | Debut de la fenetre de notification |
 | `heartbeat_notify_end_hour` | int (0-23) | Non | Fin de la fenetre de notification |
 

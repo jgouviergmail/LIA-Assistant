@@ -9,19 +9,23 @@ const badgeVariants = cva(
       variant: {
         default: 'bg-primary/10 text-primary border border-primary/20 shadow-sm',
         secondary: 'bg-secondary text-secondary-foreground border border-border',
-        // Success: solid opaque backgrounds to prevent gradient bleed-through
-        success:
-          'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border border-green-200 dark:border-green-800 shadow-sm',
-        // Destructive: solid opaque backgrounds to prevent gradient bleed-through
-        destructive:
-          'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-200 dark:border-red-800 shadow-sm',
+        // Success and destructive used to paint `green-100` / `red-100`, fixed
+        // values that ignore the five colour themes and sit outside the
+        // contrast guard — which reads `--color-*` pairs only. They were the
+        // last two exceptions, and `lifecycleTone` routes most statuses to
+        // them, so the exception was about to become the rule. The comment
+        // that justified them ("solid opaque backgrounds to prevent gradient
+        // bleed-through") described a risk that no longer exists: measured
+        // 2026-08-05, `Card variant="gradient"` has zero call sites.
+        success: 'bg-success/10 text-success border border-success/20 shadow-sm',
+        destructive: 'bg-destructive/10 text-destructive border border-destructive/20 shadow-sm',
         warning: 'bg-warning/10 text-warning border border-warning/20 shadow-sm',
         // Alert: the only SOLID status ground. `destructive` and `warning` are
-        // both pale tints (red-100 against warning/10), and their tokens sit
-        // 23° apart in OKLCH hue — on screen "high" and "medium" read as one
-        // level. Density is what separates them, and it keeps working for a
-        // reader who cannot tell the two hues apart. Same token pair as
-        // `Button variant="destructive"`, which the contrast guard covers.
+        // both pale tints (destructive/10 against warning/10), and their
+        // tokens sit 23° apart in OKLCH hue — on screen "high" and "medium"
+        // read as one level. Density is what separates them, and it keeps
+        // working for a reader who cannot tell the two hues apart. Same token
+        // pair as `Button variant="destructive"`, which the guard covers.
         alert: 'bg-destructive text-destructive-foreground border border-destructive shadow-sm',
         info: 'bg-primary/10 text-primary border border-primary/20 shadow-sm',
         outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',

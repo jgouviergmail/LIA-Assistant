@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 4.3
+**Version**: 4.4
 **Date**: 2026-08-04
-**Application**: LIA v1.27.10
+**Application**: LIA v1.27.11
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -415,6 +415,8 @@ Second, **what does run, runs in a sealed box**. A skill's code executes in a co
 ---
 
 The same demand applies to what LIA **asserts**. An answer must rest on data actually retrieved, never on the memory of an earlier phrasing; and when a piece of information was never obtained, calling it missing beats reconstructing something plausible. This is a design constraint rather than a matter of style: recently retrieved entities are explicitly re-injected into the response context, and inventing an entity attribute is forbidden at the prompt level. A plausible factual error costs more than an "I don't know".
+
+Visual consistency answers to the same standard. An action has the same shape everywhere or nowhere; a colour code the pointer must reveal is not a code, it is a secret; grey is reserved for what is inactive — a live state carries its colour. These rules are not tastes: each one is written down, tooled and guarded by a test, because the effort of reading belongs to the system, not to the person using it.
 
 ## 9. Radical openness
 

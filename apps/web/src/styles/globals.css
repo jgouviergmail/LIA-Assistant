@@ -62,6 +62,14 @@
   --color-border: oklch(88% 0.01 80);
   --color-input: oklch(88% 0.01 80);
   --color-ring: oklch(47% 0.13 240);
+
+  /* Gap between a focused control and its ring. Eight components already ask
+     for `ring-offset-background`, but the token did not exist, so Tailwind
+     emitted nothing and the offset fell back to its built-in WHITE — a white
+     halo around every focused control on the dark theme's near-black page.
+     Declared as a reference, so it follows whichever background the active
+     theme and mode resolve to. */
+  --color-ring-offset-background: var(--color-background);
 }
 
 @layer theme {

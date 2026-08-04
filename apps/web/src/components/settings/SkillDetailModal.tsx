@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dialog';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { skillPreviewUrl, type Skill } from '@/hooks/useSkills';
+import { skillTraitTone } from '@/lib/status-tone';
 
 /** Translator shape shared with SkillsSettings (react-i18next `t`). */
 export type SkillsTranslator = (key: string, options?: Record<string, string>) => string;
@@ -83,7 +84,7 @@ export function SkillDetailModal({
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             <span className="truncate">{skill.name}</span>
             {skill.category && (
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant={skillTraitTone('category')} className="text-xs">
                 {skill.category}
               </Badge>
             )}
@@ -114,7 +115,7 @@ export function SkillDetailModal({
         <div className="flex items-center gap-2 flex-wrap text-sm">
           <span className="text-muted-foreground">{t('settings.skills.gallery.channels')}</span>
           {channels.map(channel => (
-            <Badge key={channel} variant="outline" className="text-xs">
+            <Badge key={channel} variant={skillTraitTone('channel')} className="text-xs">
               {t(`settings.skills.gallery.channel_${channel}`, { defaultValue: channel })}
             </Badge>
           ))}

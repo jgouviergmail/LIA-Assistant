@@ -1,3 +1,4 @@
+import { LoadingAnnouncement } from '@/components/ui/loading-announcement';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /**
@@ -7,6 +8,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function Loading() {
   return (
     <div className="space-y-6">
+      <LoadingAnnouncement />
+
       {/* Header skeleton */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>

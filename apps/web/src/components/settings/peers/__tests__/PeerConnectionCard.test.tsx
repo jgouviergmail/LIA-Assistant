@@ -19,7 +19,7 @@ const CONNECTION = {
   peer_id: 'p1',
   peer_display_name: 'Marie Dupont',
   peer_email_hint: 'm…@g….com',
-            peer_email: null,
+  peer_email: null,
   status: 'accepted' as const,
   direction: null,
   requested_at: '2026-07-28T08:00:00Z',
@@ -55,26 +55,18 @@ describe('PeerConnectionCard', () => {
     expect(screen.getByText('m…@g….com')).toBeInTheDocument();
   });
 
-  it('my calendar share renders as a labeled native select with the current level', () => {
+  // The calendar share moved from a hand-classed native <select> to the
+  // design-system Select (layout program, 2026-08-05). Radix Select's open
+  // dropdown relies on pointer capture jsdom does not implement, so — same
+  // doctrine as `ui/__tests__/select.test.tsx` — the guarded surface is the
+  // closed trigger: labelled combobox, current level visible, disabled state.
+  it('my calendar share renders as a labelled select showing the current level', () => {
     setup();
-    const select = screen.getByRole('combobox', {
+    const trigger = screen.getByRole('combobox', {
       name: 'settings.peers.shares.calendar_label',
-    }) as HTMLSelectElement;
-    expect(select.value).toBe('availability');
-  });
-
-  it('changing the calendar level calls onSetShare with the new level', async () => {
-    const { props, user } = setup();
-    const select = screen.getByRole('combobox', { name: 'settings.peers.shares.calendar_label' });
-    await user.selectOptions(select, 'details');
-    expect(props.onSetShare).toHaveBeenCalledWith('conn-1', 'calendar', 'details');
-  });
-
-  it('selecting none removes the calendar share (level null)', async () => {
-    const { props, user } = setup();
-    const select = screen.getByRole('combobox', { name: 'settings.peers.shares.calendar_label' });
-    await user.selectOptions(select, 'none');
-    expect(props.onSetShare).toHaveBeenCalledWith('conn-1', 'calendar', null);
+    });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(trigger).toHaveTextContent('settings.peers.shares.calendar_level.availability');
   });
 
   it('the task switch shares titles when turned on and removes when off', async () => {
@@ -84,12 +76,13 @@ describe('PeerConnectionCard', () => {
     expect(props.onSetShare).toHaveBeenCalledWith('conn-1', 'task', 'titles');
   });
 
-  it('their shares render as read-only badges, never controls', () => {
+  it('their shares mirror mine as read-only rows, never controls', () => {
+    // Same two rows on each side (owner arbitration 2026-08-05): theirs shows
+    // VALUES — the task share as shared, the absent calendar share as none.
     setup();
     expect(screen.getByText('settings.peers.shares.their_title')).toBeInTheDocument();
-    expect(
-      screen.getByText('settings.peers.shares.badge.task_titles')
-    ).toBeInTheDocument();
+    expect(screen.getByText('settings.peers.shares.task_level.titles')).toBeInTheDocument();
+    expect(screen.getByText('settings.peers.shares.calendar_level.none')).toBeInTheDocument();
     // Exactly one combobox (mine) and one switch (mine) — none for theirs.
     expect(screen.getAllByRole('combobox')).toHaveLength(1);
     expect(screen.getAllByRole('switch')).toHaveLength(1);

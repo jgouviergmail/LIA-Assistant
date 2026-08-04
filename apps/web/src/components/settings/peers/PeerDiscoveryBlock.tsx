@@ -17,7 +17,7 @@
  */
 
 import { useState } from 'react';
-import { Search, UserPlus } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -75,13 +75,11 @@ export function PeerDiscoveryBlock({
   };
 
   return (
+    // Headerless on purpose: the section shell folds this block behind a
+    // `SettingsDisclosure` whose summary already carries the title.
     <div className="space-y-3">
-      <h4 className="flex items-center gap-2 text-sm font-medium">
-        <Search className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-        {t('settings.peers.discovery.title')}
-      </h4>
       <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:flex-row sm:items-end">
-        <div className="flex-1 space-y-1">
+        <div className="flex-1 space-y-3">
           <Label htmlFor="peers-discovery-search">
             {t('settings.peers.discovery.search_label')}
           </Label>
@@ -106,7 +104,7 @@ export function PeerDiscoveryBlock({
 
       {results !== null && results.length > 0 && (
         <div className="space-y-3">
-          <div className="space-y-1">
+          <div className="space-y-3">
             <Label htmlFor="peers-discovery-context">
               {t('settings.peers.discovery.context_label')}
             </Label>

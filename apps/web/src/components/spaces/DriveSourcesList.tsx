@@ -59,7 +59,6 @@ export function DriveSourcesList({
           <h3 className="text-sm font-medium">{t('spaces.drive.title')}</h3>
         </div>
         <Button
-          variant="outline"
           size="sm"
           className="gap-1.5"
           onClick={() => setPickerOpen(true)}

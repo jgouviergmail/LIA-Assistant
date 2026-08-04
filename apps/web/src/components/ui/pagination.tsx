@@ -1,3 +1,6 @@
+'use client';
+
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -94,12 +97,16 @@ export function Pagination({
   labels = {},
   className,
 }: PaginationProps) {
+  const { t } = useTranslation();
+  // Defaults resolve from the active locale. They used to be French literals —
+  // every call site overrides them today, which is precisely how a hardcoded
+  // language survives unnoticed until one call site forgets.
   const {
-    previous = 'Précédent',
-    next = 'Suivant',
-    pageInfo = (current, total) => `Page ${current} / ${total}`,
-    itemsPerPage = 'par page',
-    totalItems: totalItemsLabel = count => `(${count} résultats)`,
+    previous = t('common.previous'),
+    next = t('common.next'),
+    pageInfo = (current, total) => t('common.pagination.page_info', { current, total }),
+    itemsPerPage = t('common.pagination.items_per_page'),
+    totalItems: totalItemsLabel = (count: number) => t('common.pagination.total_items', { count }),
   } = labels;
 
   const handlePrevious = () => {
@@ -140,7 +147,7 @@ export function Pagination({
           onPageChange(1);
         }}
         disabled={loading}
-        className="h-8 rounded-md border border-input bg-background px-2 py-1 text-xs ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        className="h-8 rounded-md border border-input bg-background px-2 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         aria-label={itemsPerPage}
       >
         {PAGE_SIZE_OPTIONS.map(size => (
@@ -193,7 +200,7 @@ export function Pagination({
     return (
       <nav
         className={cn('flex flex-col gap-2', className)}
-        aria-label="Pagination"
+        aria-label={t('common.pagination.label')}
         role="navigation"
       >
         <div className="flex justify-center items-center gap-2">{navButtons}</div>
@@ -209,7 +216,7 @@ export function Pagination({
   return (
     <nav
       className={cn('flex items-center justify-between text-xs text-muted-foreground', className)}
-      aria-label="Pagination"
+      aria-label={t('common.pagination.label')}
       role="navigation"
     >
       <div className="flex items-center gap-3">

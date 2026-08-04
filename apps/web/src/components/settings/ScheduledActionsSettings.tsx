@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useRef } from 'react';
-import { CalendarClock, Copy, Plus, Trash2, Pencil, Play, Clock, MoreVertical } from 'lucide-react';
+import { CalendarClock, Copy, Info, Plus, Trash2, Pencil, Play, Clock } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { EmptyState } from '@/components/ui/empty-state';
+import { RowActions } from '@/components/ui/row-actions';
 import {
   Select,
   SelectContent,
@@ -37,6 +39,7 @@ import {
 import { useTranslation } from '@/i18n/client';
 import { type Language, getIntlLocale } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
 import {
   useScheduledActions,
   type ConditionConfig,
@@ -47,7 +50,9 @@ import {
   type TriggerKind,
 } from '@/hooks/useScheduledActions';
 import { renderOccurrences } from '@/lib/occurrences';
+import { scheduleShape } from '@/lib/schedule-label';
 import { duplicateTitle } from '@/lib/scheduled-actions';
+import { lifecycleTone, type BadgeTone } from '@/lib/status-tone';
 import { toast } from 'sonner';
 
 interface ScheduledActionsSettingsProps {
@@ -161,13 +166,107 @@ function buildUpdatePayload(
   return update;
 }
 
-function getStatusBadgeVariant(
-  action: ScheduledAction
-): 'default' | 'secondary' | 'destructive' | 'outline' {
+/** One rendered occurrence line (time + zone + clock-change flag). */
+function OccurrenceLine({
+  run,
+  clockChangeLabel,
+}: {
+  run: ReturnType<typeof renderOccurrences>[number];
+  clockChangeLabel: string;
+}) {
+  return (
+    <span className="tabular-nums">
+      <time dateTime={run.iso}>{run.label}</time>
+      {/* No `opacity-70`: axe measured 2.9:1 against the card (4.5 required).
+          The zone name is the one thing on this line that says WHICH clock the
+          hour is read against — dimming it below legibility defeats it. */}
+      {run.zone && <span className="ml-1">{run.zone}</span>}
+      {run.clockChange && <span className="ml-1 text-warning">{clockChangeLabel}</span>}
+    </span>
+  );
+}
+
+/**
+ * The card's execution block: ONE visible line — the next run (or evaluation,
+ * for a condition routine: its cron says when the condition is EVALUATED, and
+ * claiming to know when it will become true would be an invention) — with the
+ * later occurrences, the last execution and the counter folded behind a
+ * disclosure. The card drops from ~8 always-visible lines to 3 (owner
+ * arbitration 2026-08-05).
+ */
+function ActionScheduleBlock({
+  action,
+  intlLocale,
+  t,
+  formatDateTime,
+}: {
+  action: ScheduledAction;
+  intlLocale: string;
+  t: (key: string, options?: Record<string, unknown>) => string;
+  formatDateTime: (iso: string | null) => string;
+}) {
+  const occurrences = renderOccurrences(
+    action.next_occurrences ?? [action.next_trigger_at],
+    action.user_timezone,
+    intlLocale
+  );
+  const [next, ...later] = occurrences;
+  const isCondition = (action.trigger_kind ?? 'time') === 'condition';
+  const clockChangeLabel = t('scheduled_actions.clock_change');
+
+  return (
+    <div className="space-y-1.5 text-xs text-muted-foreground">
+      {next && (
+        <p>
+          {t(isCondition ? 'scheduled_actions.next_evaluation' : 'scheduled_actions.next_run')}
+          {': '}
+          <OccurrenceLine run={next} clockChangeLabel={clockChangeLabel} />
+        </p>
+      )}
+      <SettingsDisclosure icon={Info} title={t('common.details')}>
+        <div className="space-y-1.5 text-xs text-muted-foreground">
+          {later.length > 0 && (
+            <div>
+              <span>
+                {t(
+                  isCondition
+                    ? 'scheduled_actions.next_evaluations'
+                    : 'scheduled_actions.next_executions'
+                )}
+              </span>
+              <ul className="mt-0.5 space-y-0.5" role="list">
+                {later.map(run => (
+                  <li key={run.iso}>
+                    <OccurrenceLine run={run} clockChangeLabel={clockChangeLabel} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <p>
+            {t('scheduled_actions.last_execution')}: {formatDateTime(action.last_executed_at)}
+          </p>
+          {action.execution_count > 0 && (
+            <p>
+              {t('scheduled_actions.execution_count')}: {action.execution_count}
+            </p>
+          )}
+        </div>
+      </SettingsDisclosure>
+    </div>
+  );
+}
+
+/**
+ * Tone of an action's status pill.
+ *
+ * Disabled outranks the status: an action that is switched off is inert. The
+ * rest comes from the shared lifecycle table — `executing` used to be an
+ * `outline`, which read as a neutral chip rather than "running right now".
+ */
+function getStatusBadgeVariant(action: ScheduledAction): BadgeTone {
   if (!action.is_enabled) return 'secondary';
-  if (action.status === 'error') return 'destructive';
-  if (action.status === 'executing') return 'outline';
-  return 'default';
+  return lifecycleTone(action.status);
 }
 
 export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps) {
@@ -194,7 +293,6 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
   const [editingAction, setEditingAction] = useState<ScheduledAction | null>(null);
   const [deletingActionId, setDeletingActionId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [mobileActionItem, setMobileActionItem] = useState<ScheduledAction | null>(null);
 
   // Day labels for the current language
   const dayLabels = useMemo(() => {
@@ -205,15 +303,21 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
     return labels;
   }, [t]);
 
-  // Format schedule for display using i18n day labels (replaces backend schedule_display)
+  // Synthesised schedule line ("Weekdays at 08:00"): the three shapes people
+  // actually schedule get a NAME instead of a five-token day list; only a
+  // genuinely irregular pick still spells its days.
   const formatSchedule = useCallback(
     (action: ScheduledAction) => {
+      const time = `${String(action.trigger_hour).padStart(2, '0')}:${String(action.trigger_minute).padStart(2, '0')}`;
+      const shape = scheduleShape(action.days_of_week);
+      if (shape !== 'custom') {
+        return t(`scheduled_actions.schedule.${shape}`, { time });
+      }
       const sorted = [...action.days_of_week].sort((a, b) => a - b);
       const daysStr = sorted.map(d => dayLabels[d] ?? `${d}`).join(', ');
-      const time = `${String(action.trigger_hour).padStart(2, '0')}:${String(action.trigger_minute).padStart(2, '0')}`;
-      return `${daysStr} - ${time}`;
+      return t('scheduled_actions.schedule.custom', { days: daysStr, time });
     },
-    [dayLabels]
+    [dayLabels, t]
   );
 
   // Format datetime for display
@@ -379,7 +483,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
 
         <div className="space-y-4 py-4">
           {/* Title */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="sa-title">{t('scheduled_actions.field_title')}</Label>
             <Input
               id="sa-title"
@@ -391,7 +495,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
           </div>
 
           {/* Prompt */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="sa-prompt">{t('scheduled_actions.field_prompt')}</Label>
             <Textarea
               id="sa-prompt"
@@ -423,7 +527,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
           </div>
 
           {/* Time */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label>{t('scheduled_actions.field_time')}</Label>
             <div className="flex items-center gap-2">
               <Select
@@ -466,7 +570,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
           </div>
 
           {/* N-07 studio: trigger kind */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="sa-trigger-kind">{t('scheduled_actions.studio.trigger_kind')}</Label>
             <Select
               value={form.trigger_kind}
@@ -486,7 +590,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
 
           {/* N-07 studio: condition config (condition kind only) */}
           {form.trigger_kind === 'condition' && (
-            <div className="space-y-2 rounded-lg border border-border/40 p-3">
+            <div className="space-y-3 rounded-lg border border-border/40 p-3">
               <Label htmlFor="sa-condition-type">
                 {t('scheduled_actions.studio.condition_type')}
               </Label>
@@ -506,7 +610,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
                 </SelectContent>
               </Select>
               {QUERY_CONDITION_TYPES.includes(form.condition_type) && (
-                <div className="space-y-1.5">
+                <div className="space-y-3">
                   <Label htmlFor="sa-condition-query">
                     {t(`scheduled_actions.studio.query_label.${form.condition_type}`)}
                   </Label>
@@ -581,199 +685,113 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
           destination for a deliberate `.focus()`, and it outlives every row,
           the empty state included. */}
       <div ref={regionRef} tabIndex={-1} data-routines-region className="focus:outline-none">
-      {/* Header with count and add button */}
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-muted-foreground">
-          {total > 0 ? `${total} ${t('scheduled_actions.settings.count', { count: total })}` : ''}
-        </p>
-        <Button size="sm" onClick={handleOpenCreate}>
-          <Plus className="h-4 w-4 mr-1" />
-          {t('scheduled_actions.create')}
-        </Button>
-      </div>
-
-      {/* Loading */}
-      {loading && (
-        <div className="flex justify-center py-8">
-          <LoadingSpinner className="h-6 w-6" />
+        {/* Header with count and add button */}
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm text-muted-foreground">
+            {total > 0 ? `${total} ${t('scheduled_actions.settings.count', { count: total })}` : ''}
+          </p>
+          <Button size="sm" onClick={handleOpenCreate}>
+            <Plus className="h-4 w-4 mr-1" />
+            {t('scheduled_actions.create')}
+          </Button>
         </div>
-      )}
 
-      {/* Empty state */}
-      {!loading && actions.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          <CalendarClock className="h-12 w-12 mx-auto mb-3 opacity-30" />
-          <p className="text-sm font-medium">{t('scheduled_actions.empty')}</p>
-          <p className="text-xs mt-1">{t('scheduled_actions.empty_hint')}</p>
-        </div>
-      )}
+        {/* Loading */}
+        {loading && (
+          <div className="flex justify-center py-8">
+            <LoadingSpinner className="h-6 w-6" />
+          </div>
+        )}
 
-      {/* Action cards */}
-      {!loading && actions.length > 0 && (
-        <div className="space-y-3">
-          {actions.map(action => (
-            // role="presentation": the tap-anywhere onClick is a pointer-only
-            // convenience duplicating the dedicated mobile actions button
-            // (audit F012/F045); the card carries no semantics (it contains
-            // interactive children).
-            <div
-              key={action.id}
-              role="presentation"
-              className="rounded-lg border bg-card p-4 space-y-1.5 group cursor-pointer lg:cursor-default"
-              onClick={() => {
-                if (window.innerWidth < 1024) setMobileActionItem(action);
-              }}
-            >
-              {/* Row 1: Title + Status + Actions (hover) + Toggle */}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <span className="font-medium truncate">{action.title}</span>
-                  <Badge variant={getStatusBadgeVariant(action)} className="shrink-0">
-                    {getStatusLabel(action)}
-                  </Badge>
-                </div>
-                {/* Desktop action buttons — hover reveal */}
-                <div className="hidden lg:flex gap-1 shrink-0 opacity-0 group-hover:opacity-100">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={e => {
-                      e.stopPropagation();
-                      handleExecute(action);
-                    }}
-                    disabled={executing}
-                    title={t('scheduled_actions.test_now')}
-                  >
-                    <Play className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={e => {
-                      e.stopPropagation();
-                      handleOpenEdit(action);
-                    }}
-                    title={t('common.edit')}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={e => {
-                      e.stopPropagation();
-                      handleOpenDuplicate(action);
-                    }}
-                    aria-label={t('scheduled_actions.duplicate')}
-                    title={t('scheduled_actions.duplicate')}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={e => {
-                      e.stopPropagation();
-                      setDeletingActionId(action.id);
-                    }}
-                    title={t('common.delete')}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-                {/* Mobile actions button (audit F012/F045): the desktop
-                    buttons above are hidden below lg and the tap-anywhere card
-                    click is pointer-only — this is the keyboard/AT path to the
-                    actions popup. */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="lg:hidden shrink-0"
-                  aria-label={t('common.actions')}
-                  onClick={e => {
-                    e.stopPropagation();
-                    setMobileActionItem(action);
-                  }}
-                >
-                  <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                </Button>
-                {/* Named, and named with the ROUTINE: a Radix `Switch` is a
+        {/* Empty state */}
+        {!loading && actions.length === 0 && (
+          <EmptyState
+            icon={CalendarClock}
+            title={t('scheduled_actions.empty')}
+            description={t('scheduled_actions.empty_hint')}
+          />
+        )}
+
+        {/* Action cards */}
+        {!loading && actions.length > 0 && (
+          <div className="space-y-3">
+            {actions.map(action => (
+              <div key={action.id} className="rounded-lg border bg-card p-4 space-y-1.5">
+                {/* Row 1: Title + Status + Actions + Toggle */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="font-medium truncate">{action.title}</span>
+                    <Badge variant={getStatusBadgeVariant(action)} className="shrink-0">
+                      {getStatusLabel(action)}
+                    </Badge>
+                  </div>
+                  <RowActions
+                    menuLabel={t('common.actions_for', { name: action.title })}
+                    actions={[
+                      {
+                        key: 'execute',
+                        label: t('scheduled_actions.test_now'),
+                        icon: Play,
+                        disabled: executing,
+                        onSelect: () => void handleExecute(action),
+                      },
+                      {
+                        key: 'edit',
+                        label: t('common.edit'),
+                        icon: Pencil,
+                        onSelect: () => handleOpenEdit(action),
+                      },
+                      {
+                        key: 'duplicate',
+                        label: t('scheduled_actions.duplicate'),
+                        icon: Copy,
+                        onSelect: () => handleOpenDuplicate(action),
+                      },
+                      {
+                        key: 'delete',
+                        label: t('common.delete'),
+                        icon: Trash2,
+                        tone: 'destructive',
+                        onSelect: () => setDeletingActionId(action.id),
+                      },
+                    ]}
+                  />
+                  {/* Named, and named with the ROUTINE: a Radix `Switch` is a
                     `<button role="switch">`, which jsx-a11y cannot see is
                     anonymous — axe reported it `critical`. On a list of
                     several, "switch, on" says nothing about what is about to
                     be turned off. */}
-                <Switch
-                  checked={action.is_enabled}
-                  onCheckedChange={() => handleToggle(action)}
-                  onClick={e => e.stopPropagation()}
-                  aria-label={t('scheduled_actions.toggle_aria', { title: action.title })}
-                />
-              </div>
+                  <Switch
+                    checked={action.is_enabled}
+                    onCheckedChange={() => handleToggle(action)}
+                    aria-label={t('scheduled_actions.toggle_aria', { title: action.title })}
+                  />
+                </div>
 
-              {/* Prompt (truncated) */}
-              <p className="text-sm text-muted-foreground line-clamp-1">{action.action_prompt}</p>
+                {/* Prompt (truncated) */}
+                <p className="text-sm text-muted-foreground line-clamp-1">{action.action_prompt}</p>
 
-              {/* Schedule */}
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {formatSchedule(action)}
-              </p>
-
-              {/* Upcoming runs. A CONDITION routine gets a different heading:
-                  its cron says when the condition is EVALUATED, and claiming
-                  to know when it will become true would be an invention. */}
-              <div className="text-xs text-muted-foreground">
-                <span>
-                  {t(
-                    (action.trigger_kind ?? 'time') === 'condition'
-                      ? 'scheduled_actions.next_evaluations'
-                      : 'scheduled_actions.next_executions'
-                  )}
-                </span>
-                <ul className="mt-0.5 space-y-0.5" role="list">
-                  {renderOccurrences(
-                    action.next_occurrences ?? [action.next_trigger_at],
-                    action.user_timezone,
-                    intlLocale
-                  ).map(run => (
-                    <li key={run.iso} className="tabular-nums">
-                      <time dateTime={run.iso}>{run.label}</time>
-                      {/* No `opacity-70`: axe measured 2.9:1 against the card
-                          (4.5 required). The zone name is the one thing on
-                          this line that says WHICH clock the hour is read
-                          against — dimming it below legibility defeats it. */}
-                      {run.zone && <span className="ml-1">{run.zone}</span>}
-                      {run.clockChange && (
-                        <span className="ml-1 text-warning">
-                          {t('scheduled_actions.clock_change')}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Last execution */}
-              <p className="text-xs text-muted-foreground">
-                {t('scheduled_actions.last_execution')}: {formatDateTime(action.last_executed_at)}
-              </p>
-
-              {/* Execution count */}
-              {action.execution_count > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {t('scheduled_actions.execution_count')}: {action.execution_count}
+                {/* Schedule, synthesised ("Weekdays at 08:00") */}
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Clock className="h-3 w-3" aria-hidden="true" />
+                  {formatSchedule(action)}
                 </p>
-              )}
 
-              {/* Error message */}
-              {action.last_error && (
-                <p className="text-xs text-destructive line-clamp-1">{action.last_error}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+                <ActionScheduleBlock
+                  action={action}
+                  intlLocale={intlLocale}
+                  t={t}
+                  formatDateTime={formatDateTime}
+                />
 
+                {/* Error message — a signal, never folded */}
+                {action.last_error && (
+                  <p className="text-xs text-destructive line-clamp-1">{action.last_error}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Create dialog */}
@@ -800,84 +818,12 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete} variant="destructive">
               {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      {/* Mobile actions dialog */}
-      <Dialog
-        open={mobileActionItem !== null}
-        onOpenChange={open => !open && setMobileActionItem(null)}
-      >
-        <DialogContent className="lg:hidden max-w-[90vw] rounded-lg">
-          <DialogHeader>
-            <DialogTitle className="text-base">{mobileActionItem?.title}</DialogTitle>
-            <DialogDescription className="sr-only">
-              {t('scheduled_actions.settings.description')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-2 py-2">
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3"
-              onClick={() => {
-                if (mobileActionItem) {
-                  handleExecute(mobileActionItem);
-                  setMobileActionItem(null);
-                }
-              }}
-              disabled={executing}
-            >
-              <Play className="h-4 w-4" />
-              {t('scheduled_actions.test_now')}
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3"
-              onClick={() => {
-                if (mobileActionItem) {
-                  handleOpenEdit(mobileActionItem);
-                  setMobileActionItem(null);
-                }
-              }}
-            >
-              <Pencil className="h-4 w-4" />
-              {t('common.edit')}
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3"
-              onClick={() => {
-                if (mobileActionItem) {
-                  handleOpenDuplicate(mobileActionItem);
-                  setMobileActionItem(null);
-                }
-              }}
-            >
-              <Copy className="h-4 w-4" />
-              {t('scheduled_actions.duplicate')}
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 text-destructive hover:text-destructive"
-              onClick={() => {
-                if (mobileActionItem) {
-                  setDeletingActionId(mobileActionItem.id);
-                  setMobileActionItem(null);
-                }
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-              {t('common.delete')}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </SettingsSection>
   );
 }

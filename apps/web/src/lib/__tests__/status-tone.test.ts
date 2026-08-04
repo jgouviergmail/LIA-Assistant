@@ -25,7 +25,10 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  callOutcomeTone,
+  skillTraitTone,
   directionTone,
+  lifecycleTone,
   outcomeTone,
   priorityTone,
   type BadgeTone,
@@ -106,6 +109,135 @@ describe('every tone is renderable', () => {
 
     for (const tone of produced) {
       expect(BADGE_VARIANTS).toContain(tone);
+    }
+  });
+});
+
+/**
+ * The lifecycle vocabulary — the half of the problem ADR-205 did not reach.
+ *
+ * `priorityTone` fixed ONE family of statuses. Every other screen kept
+ * deciding on its own, and the same meaning ended up wearing three different
+ * colours: "running fine" was `default` (blue) on MCP servers and scheduled
+ * actions, `success` (green) on Drive sources, documents and spaces, and plain
+ * GREY on recent calls — where `failed` and `completed` were, as a result,
+ * indistinguishable. "In flight" was `info` on Drive, `outline` on actions and
+ * documents, and an inline blue tint on calls.
+ *
+ * Statuses are not per-screen inventions: `error`, `completed`, `active`,
+ * `syncing`, `pending` mean the same thing wherever the backend emits them. So
+ * ONE table maps that shared vocabulary to a tone, and a screen only adds a
+ * mapping when its domain genuinely names something new.
+ */
+describe('lifecycleTone', () => {
+  it('separates a failure from a success — the defect that started this', () => {
+    // Recent calls rendered both as the same grey pill.
+    expect(lifecycleTone('failed')).not.toBe(lifecycleTone('completed'));
+    expect(lifecycleTone('failed')).toBe('destructive');
+    expect(lifecycleTone('completed')).toBe('success');
+  });
+
+  it('gives one tone per semantic family, across every domain', () => {
+    // Succeeded / running.
+    for (const status of ['active', 'completed', 'connected', 'succeeded', 'ready']) {
+      expect(lifecycleTone(status)).toBe('success');
+    }
+    // In flight.
+    for (const status of [
+      'dialing',
+      'in_progress',
+      'executing',
+      'syncing',
+      'processing',
+      'reindexing',
+      'pending',
+    ]) {
+      expect(lifecycleTone(status)).toBe('info');
+    }
+    // Failed.
+    for (const status of ['error', 'failed']) {
+      expect(lifecycleTone(status)).toBe('destructive');
+    }
+    // Needs attention, but not broken.
+    for (const status of ['auth_required', 'partial', 'degraded']) {
+      expect(lifecycleTone(status)).toBe('warning');
+    }
+    // Inert: nothing happened, nothing is wrong.
+    for (const status of ['inactive', 'disabled', 'idle', 'cancelled', 'no_answer', 'voicemail']) {
+      expect(lifecycleTone(status)).toBe('secondary');
+    }
+  });
+
+  it('renders an unknown status NEUTRAL, never alarming', () => {
+    // A status the backend adds later must not arrive shouting.
+    expect(lifecycleTone('quantum_entangled')).toBe('secondary');
+    expect(lifecycleTone('')).toBe('secondary');
+  });
+
+  it('never returns the solid `alert` fill', () => {
+    // `alert` is reserved for the priority hierarchy (ADR-205), where two pale
+    // tints could not be told apart. A lifecycle status is not an alarm.
+    const every = [
+      'active',
+      'completed',
+      'connected',
+      'succeeded',
+      'dialing',
+      'in_progress',
+      'executing',
+      'syncing',
+      'processing',
+      'pending',
+      'error',
+      'failed',
+      'auth_required',
+      'partial',
+      'degraded',
+      'inactive',
+      'disabled',
+      'idle',
+      'cancelled',
+      'no_answer',
+      'voicemail',
+      'unknown',
+    ];
+    for (const status of every) expect(lifecycleTone(status)).not.toBe('alert');
+  });
+});
+
+describe('callOutcomeTone', () => {
+  it('reads a refusal as a fact, not as a failure', () => {
+    // A callee who declines is a normal outcome of a phone call. Painting it
+    // red would tell the reader something went wrong when nothing did.
+    expect(callOutcomeTone('declined')).toBe('secondary');
+    expect(callOutcomeTone('unreachable')).toBe('secondary');
+  });
+
+  it('distinguishes a met objective from a partial one', () => {
+    expect(callOutcomeTone('objective_met')).toBe('success');
+    expect(callOutcomeTone('partial')).toBe('warning');
+  });
+
+  it('renders an unknown outcome NEUTRAL', () => {
+    expect(callOutcomeTone('renegotiated')).toBe('secondary');
+  });
+});
+
+/**
+ * Skill trait badges — the same label was already drifting between the user
+ * gallery and the admin section (`always_loaded` secondary here, outline
+ * there). Traits are typed, so the TYPE decides the tone:
+ *
+ *  - identity (the category)      -> primary tint, follows the theme
+ *  - cost signal (always loaded)  -> warning — it occupies context permanently
+ *  - plain capability             -> neutral
+ */
+describe('skillTraitTone', () => {
+  it('tones by trait type', () => {
+    expect(skillTraitTone('category')).toBe('default');
+    expect(skillTraitTone('always_loaded')).toBe('warning');
+    for (const trait of ['has_scripts', 'dialogue', 'has_plan_template', 'channel'] as const) {
+      expect(skillTraitTone(trait)).toBe('secondary');
     }
   });
 });

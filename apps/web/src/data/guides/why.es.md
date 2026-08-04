@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versión**: 4.3
+**Versión**: 4.4
 **Fecha**: 2026-08-04
-**Aplicación**: LIA v1.27.10
+**Aplicación**: LIA v1.27.11
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -415,6 +415,8 @@ Segundo, **lo que se ejecuta, se ejecuta en una caja sellada**. El código de un
 ---
 
 Esta exigencia vale también para lo que LIA **afirma**. Una respuesta debe apoyarse en datos realmente obtenidos, nunca en el recuerdo de una formulación anterior; y cuando una información nunca se consiguió, declararla ausente vale más que reconstruir algo plausible. Es una restricción de diseño más que una cuestión de estilo: las entidades obtenidas recientemente se reinyectan explícitamente en el contexto de respuesta, y inventar un atributo de entidad está prohibido a nivel de prompt. Un error factual plausible cuesta más que un «no lo sé».
+
+La coherencia visual responde a la misma exigencia. Una acción tiene la misma forma en todas partes o en ninguna; un código de color que el puntero debe revelar no es un código, es un secreto; el gris queda reservado a lo inactivo — un estado vivo lleva su color. Estas reglas no son gustos: cada una está escrita, equipada y custodiada por un test, porque el esfuerzo de lectura pertenece al sistema, no a la persona que lo usa.
 
 ## 9. Apertura radical
 

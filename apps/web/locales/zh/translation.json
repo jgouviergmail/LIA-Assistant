@@ -21,6 +21,8 @@
     "previous": "上一个",
     "previous_short": "上一",
     "pagination": {
+      "label": "分页",
+      "page_info": "第 {{current}} / {{total}} 页",
       "items_per_page": "每页",
       "total_items": "(共 {{count}} 条)"
     },
@@ -45,7 +47,16 @@
     "disabled": "已禁用",
     "saving": "保存中...",
     "actions": "操作",
-    "expand_image": "全屏查看图片"
+    "expand_image": "全屏查看图片",
+    "actions_for": "操作 — {{name}}",
+    "more_actions": "更多操作",
+    "details": "详情",
+    "show_more": "展开",
+    "show_less": "收起",
+    "min_per_day_label": "每日最少",
+    "max_per_day_label": "每日最多",
+    "start_hour_label": "开始时间",
+    "end_hour_label": "结束时间"
   },
   "theme": {
     "toggle": "切换主题"
@@ -1112,22 +1123,22 @@
       "my_connectors": "我的连接器",
       "my_connectors_description": "连接您的账户以允许LIA访问您的数据",
       "connected": "已连接",
-      "connected_google": "已连接的 Google 连接器",
+      "connected_google": "Google 服务",
       "group_state": {
         "connected": "已连接",
         "attention": "需要操作",
         "available": "未连接"
       },
-      "connected_api_key": "已连接的外部连接器",
-      "connected_apple": "已连接的 Apple 连接器",
-      "connected_microsoft": "已连接的 Microsoft 连接器",
+      "connected_api_key": "外部服务",
+      "connected_apple": "Apple 服务",
+      "connected_microsoft": "Microsoft 服务",
       "connected_hue": "已连接的智能家居",
       "available_hue": "可用的智能家居服务",
       "connected_on": "连接于 {{date}}",
       "loading": "加载中...",
       "enabled": "✓ 已启用",
-      "available_google": "Google 连接器",
-      "available_external": "外部连接器",
+      "available_google": "Google 服务",
+      "available_external": "外部服务",
       "all_connected": "所有可用连接器已连接",
       "disconnect_error": "断开连接时出错",
       "connected_success": "{{name}} 已成功连接",
@@ -1232,7 +1243,7 @@
         }
       },
       "apple": {
-        "title": "Apple 连接器",
+        "title": "Apple 服务",
         "description": "连接您的 Apple iCloud 服务",
         "email": "Apple Mail",
         "email_description": "通过 iCloud Mail 阅读和发送电子邮件",
@@ -1265,7 +1276,7 @@
         "connecting": "正在连接"
       },
       "microsoft": {
-        "title": "Microsoft 连接器",
+        "title": "Microsoft 服务",
         "description": "连接您的 Microsoft 365 服务",
         "outlook": "Microsoft Outlook",
         "outlook_description": "通过 Outlook 阅读和发送电子邮件",
@@ -1906,6 +1917,7 @@
           "edit": "编辑",
           "updated": "API 密钥已更新",
           "deleted": "API 密钥已删除",
+          "deleteKey": "删除已保存的密钥",
           "error": "更新密钥时出错",
           "notConfigured": "未配置",
           "apiKey": "API 密钥",
@@ -2415,6 +2427,10 @@
           "calendar_availability": "日历——空闲状态",
           "calendar_details": "日历——详情",
           "task_titles": "任务——标题"
+        },
+        "task_level": {
+          "titles": "已共享",
+          "none": "未共享"
         }
       },
       "blocks": {
@@ -2456,7 +2472,8 @@
         "toggle_label": "向我的连接显示我的邮箱",
         "toggle_hint": "默认关闭。开启后，你已接受的连接会看到你的真实地址，而不是掩码提示。待处理的请求永远看不到。",
         "toggle_saved": "地址可见性已保存"
-      }
+      },
+      "visibility_title": "我的可见性"
     },
     "notifications": {
       "title": "推送通知",
@@ -3030,7 +3047,9 @@
         "status_expired": "已过期",
         "too_large": "存档超过大小上限。请减少存储的文件。",
         "failed_hint": "导出失败,请重试。",
-        "error_generic": "出现错误,请重试。"
+        "error_generic": "出现错误,请重试。",
+        "ready_hint": "归档已就绪 — {{size}} · 有效期至 {{date}}",
+        "expired_hint": "导出生成于 {{created}}，已于 {{expired}} 过期。请重新请求导出以下载您的数据。"
       },
       "auth": {
         "title": "强身份验证",
@@ -3108,7 +3127,7 @@
         "security-export": "GDPR, 数据导出, 归档, 下载, 可携带性, 备份, 个人数据, 隐私",
         "voice-mode": "麦克风, 语音, 听写, STT, TTS, 唤醒词, 音频, 说话",
         "image-generation": "图像, 图片, 绘画, 插图, 生成, 艺术",
-        "connectors": "Google, Gmail, 日历, 联系人, Apple, Microsoft, Outlook, 集成, 账户, OAuth, 重新连接, 已断开",
+        "connectors": "Google, Gmail, 日历, 联系人, Apple, Microsoft, Outlook, 集成, 账户, OAuth, 重新连接, 已断开, 服务",
         "telephony-calls": "电话, 通话, 通话记录, 拨号",
         "admin-mcp-servers": "MCP, 模型上下文协议, 应用服务器, 内置工具",
         "mcp-servers": "MCP, 模型上下文协议, 我的服务器, 工具, 扩展",
@@ -3117,10 +3136,10 @@
         "psyche": "情绪, 心情, 感受, 情感",
         "memories": "记忆, 长期记忆, 记住, 遗忘, 事实, 来源, 为什么, 出处, 信号, 起源, 更正",
         "interests": "兴趣, 话题, 爱好, 主题, 偏好，历史记录，最近的通知, 来源, 为什么, 权重, 解释, 衰减, 出处",
-        "peer-connections": "联系人, 好友, 家人, 网络, 共享日历, 空闲状态, 屏蔽, 查找用户, 连接，我的姓名，复制姓名，连接请求，访问日志，转达消息，已屏蔽用户，亲友，社交网络，peer，可发现性，发现，共享我的地址，邮箱可见，我的邮箱，360 概览",
-        "heartbeat": "主动, 自发, 主动联系, 自主消息, 心跳，通知主题，来源，历史记录，最近的通知, 优先级, 紧急, 高, 中, 低, 颜色",
+        "peer-connections": "联系人, 好友, 家人, 网络, 共享日历, 空闲状态, 屏蔽, 查找用户, 连接，我的姓名，复制姓名，连接请求，访问日志，转达消息，已屏蔽用户，亲友，社交网络，peer，可发现性，发现，共享我的地址，邮箱可见，我的邮箱，360 概览, 可见性",
+        "heartbeat": "主动, 自发, 主动联系, 自主消息, 心跳，通知主题，来源，历史记录，最近的通知, 优先级, 紧急, 高, 中, 低, 颜色, 天气, 频率, 时段",
         "scheduled-actions": "定时任务, cron, 计划, 重复, 自动化, 定时器",
-        "journals": "日记, 日志, 画像, 反思, 笔记, 来源, 为什么, 出处, 信号, 起源, 更正",
+        "journals": "日记, 日志, 画像, 反思, 笔记, 来源, 为什么, 出处, 信号, 起源, 更正, 配置, 整理",
         "health-metrics": "健康, 心率, 步数, 睡眠, iPhone, Apple 健康, 运动",
         "skills": "技能, 能力, 插件, 扩展",
         "rag-spaces": "文档, RAG, 知识库, 文件, 上传, 索引, 资料库",
@@ -3875,6 +3894,23 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_27_11": {
+          "title": "v1.27.11 — 🧭 像索引一样阅读的设置",
+          "date": "2026年8月",
+          "count": "10",
+          "items": {
+            "i1": "<b>🧲 标签与输入框之间的间距终于真正呈现</b> — 标签原语的一个缺陷使每次间距调整都被计算却从未绘制：无论代码怎么写，所有表单都只有约 3 像素的间距。已从根源修复，并在真实截图上校准 — 所有表单如今呼吸一致。",
+            "i2": "<b>☰ 行操作只有一种语法</b> — 平板及以上尺寸图标始终可见，删除在静止时就带红色，手机上则是一个带名称的「⋮」菜单。不再有悬停才显现、键盘用户落上去却什么也看不见的按钮。",
+            "i3": "<b>📤 导出回到了手机和平板</b>（长期记忆与兴趣中心）— 此前在桌面宽度以下被直接移除 — 且「+ 添加」在任何尺寸都保留文字。",
+            "i4": "<b>🗂️ LIA 连接呈现为五个带图标的可折叠区块</b>，徽章直接显示内部有什么在等待 — 包括待处理请求 — 两个方向的共享镜像展示：您的可编辑，对方的只读。",
+            "i5": "<b>📔 个人日志将全部配置折叠到一个入口</b>，按钮移到分类下方，长条目限制为三行并提供「展开」。",
+            "i6": "<b>⏰ 例行任务显示「工作日 08:00」</b>而不再罗列五天，展示下次执行并折叠其余 — 卡片从约八行常显内容缩减为三行。",
+            "i7": "<b>🔐 身份验证应用（TOTP）改用开关激活</b>，与其他功能一致 — 打开即进入配置流程，开关只在服务器确认后才切换。",
+            "i8": "<b>🧭 连接器分组更名为「Google / Apple / Microsoft / 外部服务」</b>，数据导出终于说明自身状态：就绪时显示大小与有效期，过期时显示生成与过期日期及后续操作。",
+            "i9": "<b>🎛️ 每个标题都带有主题色图标</b> — 通知频率、差旅天气（现可折叠）、个性化列表中的每张仪表盘卡片 — 灰色徽章仅保留给非活动状态：「已启用」为绿色，「等待中」为蓝色。",
+            "i10": "<b>🔔 推送通知自动跟随您的全局授权</b> — 每个功能各自的重复开关（可能悄悄静音主动通知）已被移除。"
+          }
+        },
         "v1_27_10": {
           "title": "v1.27.10 — 🎨 一眼就能读懂的界面",
           "date": "2026 年 8 月",
@@ -6259,7 +6295,7 @@
           },
           "q2": {
             "question": "如何启用主动通知？",
-            "answer": "只需几次点击即可启用：<br><br><strong>⚙️ 访问：</strong><br>设置 → \"<em>主动通知</em>\"部分 → 开启开关<br><br><strong>📝 可用选项：</strong><br>• <strong>每日最小/最大数</strong>：设置每天的最小值（默认：1）和最大值（默认：3）通知数（范围：1-8）<br>• <strong>时间窗口</strong>：配置你自己的开始时间（默认：上午9点）和结束时间（默认：晚上10点）——独立于兴趣通知时间<br>• <strong>推送通知</strong>：单独启用/禁用推送（FCM/Telegram）<br><br><strong>💡 静音模式：</strong><br>如果你禁用推送，LIA的消息将<strong>静默</strong>归档到对话 + SSE中。你下次登录时会看到它们，不会被打扰。"
+            "answer": "只需几次点击即可启用：<br><br><strong>⚙️ 访问：</strong><br>设置 → \"<em>主动通知</em>\"部分 → 开启开关<br><br><strong>📝 可用选项：</strong><br>• <strong>时间窗口</strong>：配置你自己的开始时间（默认：上午9点）和结束时间（默认：晚上10点）——独立于兴趣通知时间<br>• <strong>每日最小/最大数</strong>：设置每天的最小值（默认：1）和最大值（默认：3）通知数（范围：1-8）<br>• <strong>差旅天气</strong>：一个可折叠区块，用于启用基于位置的天气<br><br><strong>💡 推送投递：</strong><br>推送（FCM/Telegram）自动跟随你的<strong>全局通知授权</strong>——不再有按功能的独立开关。每条消息也会归档到对话中：无论如何你都会在下次登录时看到它。"
           },
           "q3": {
             "question": "使用了哪些数据源？",
@@ -6936,7 +6972,7 @@
       },
       "a11y_care": {
         "title": "看不见的用心",
-        "desc": "尊重动画偏好，保持对比度，一切都可用键盘操作——而且你要点的东西足够大，包括那些只在鼠标悬停时才出现、因而手指根本够不到的小叉。"
+        "desc": "尊重动画偏好，保持对比度，一切都可用键盘操作——而且你要点的东西足够大，包括那些只在鼠标悬停时才出现、因而手指根本够不到的小叉。 列表操作不再藏在悬停之后 — 键盘能找到它们 — 标签与输入框之间的间距也终于按所写的那样呈现。"
       },
       "peer_actions": {
         "title": "在消息正下方回复",
@@ -6980,7 +7016,7 @@
       },
       "readable_at_a_glance": {
         "title": "一眼可读",
-        "desc": "紧急提示与普通提示不再相像：区分它们的是密度，而不仅是色相。在灰度下同样成立。"
+        "desc": "紧急提示与普通提示不再相像：区分它们的是密度，而不仅是色相。在灰度下同样成立。 而且操作处处同形：创建是实心的，删除无需悬停就带着红色，每个标题都以图标示人。"
       }
     },
     "scenes": {
@@ -7260,7 +7296,6 @@
     "delete_all_keep_pinned": "保留已固定",
     "delete_all_including_pinned": "全部删除",
     "delete_all_keep_pinned_success": "未固定的记忆已删除",
-    "actions_title": "操作",
     "create": "添加",
     "create_title": "创建记忆",
     "create_description": "将新记忆添加到您的长期记忆中。",
@@ -7268,7 +7303,9 @@
     "create_success": "记忆已创建",
     "create_error": "创建记忆时出错",
     "confirm_delete_pinned_description": "此记忆已被固定。您确定要永久删除它吗？",
-    "confirm_delete_pinned_title": "删除此固定记忆？"
+    "confirm_delete_pinned_title": "删除此固定记忆？",
+    "count_one": "{{count}} 条记忆",
+    "count_other": "{{count}} 条记忆"
   },
   "designSystem": {
     "cards": {
@@ -7681,8 +7718,6 @@
     "notification_frequency": "通知频率",
     "max_per_day": "每日最大数量",
     "per_day": "/ 天",
-    "push_enabled": "推送通知",
-    "push_description": "禁用时，消息将在对话中静默存档",
     "available_sources": "可用数据源",
     "source_calendar": "日历",
     "source_emails": "邮件",
@@ -7850,7 +7885,15 @@
     "next_executions": "接下来的执行",
     "next_evaluations": "接下来的评估窗口",
     "clock_change": "（时间变更）",
-    "toggle_aria": "启用或停用{{title}}"
+    "toggle_aria": "启用或停用{{title}}",
+    "schedule": {
+      "daily": "每天 {{time}}",
+      "weekdays": "工作日 {{time}}",
+      "weekend": "周末 {{time}}",
+      "custom": "{{days}} {{time}}"
+    },
+    "next_run": "下次执行",
+    "next_evaluation": "下次评估"
   },
   "landing": {
     "meta": {
@@ -8223,7 +8266,7 @@
       },
       "stack": {
         "title": "现代技术栈",
-        "description": "FastAPI、Next.js、React、TailwindCSS、PostgreSQL、Redis。前端严格 TypeScript，后端异步 Python。可安装 PWA：6 种本地化清单、系统分享到聊天、离线页面和智能资源缓存 — API 响应绝不缓存。设置支持键盘搜索，覆盖六种语言，并忽略大小写、重音符与排印撇号。"
+        "description": "FastAPI、Next.js、React、TailwindCSS、PostgreSQL、Redis。前端严格 TypeScript，后端异步 Python。可安装 PWA：6 种本地化清单、系统分享到聊天、离线页面和智能资源缓存 — API 响应绝不缓存。设置支持键盘搜索，覆盖六种语言，并忽略大小写、重音符与排印撇号。 设计系统是由测试守护的契约：每对颜色都在五套主题的明暗两态下验证，每个状态一个色调，每种操作高度一种形态。"
       },
       "telephony": {
         "title": "智能体电话",
@@ -8661,7 +8704,7 @@
     "sizeUsage": "空间使用",
     "lastCost": "上次干预",
     "lastCostSource": "来源",
-    "create": "新条目",
+    "create": "添加",
     "export": "导出",
     "deleteAll": "全部删除",
     "deleteAllTitle": "删除所有条目？",
@@ -8729,7 +8772,6 @@
     "yesterday": "昨天",
     "daysAgo": "{{n}}天前",
     "evidenceTooltip": "观察到的确认 / 反驳",
-    "filterUnused": "仅显示从未使用的条目",
     "consolidateNow": "整理",
     "consolidating": "整理中…",
     "consolidateNowTooltip": "立即强制整理（去重、层级晋升、置信度更新）。需要几秒钟。",
@@ -8779,7 +8821,8 @@
         "label": "画像层面",
         "description": "特征、当前阶段、情境、矛盾、盲点——始终注入。"
       }
-    }
+    },
+    "configuration": "配置"
   },
   "blog": {
     "meta": {

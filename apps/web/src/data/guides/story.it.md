@@ -2,9 +2,9 @@
 
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
-**Versione**: 1.1
+**Versione**: 1.2
 **Data**: 2026-08-04
-**Applicazione**: LIA v1.27.10
+**Applicazione**: LIA v1.27.11
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -84,6 +84,8 @@ Il livello annunciato in questo documento risulta da un audit tecnico completo: 
 - Prosecuzione della scomposizione dei componenti più densi, ormai guidata dalla misura (complessità, accoppiamento) — i principali monoliti del backend sono trattati.
 
 Il piano d'azione è organizzato in ondate, ciascuna con criteri di uscita misurabili. È il modo di rendere conto di questo progetto: non un livello proclamato, un livello misurato — scarti compresi.
+
+Anche la prova ha il suo episodio più istruttivo: tre ricalibrazioni di una semplice spaziatura, tre «non vedo alcun cambiamento» — e una catena di consegna provata sana fino ai byte serviti al browser. Due false piste plausibili (cache del browser, service worker) sono cadute una dopo l’altra, fino alla misura che non perdona: in un browser pilotato, il margine calcolato era di 16 pixel e lo spazio disegnato di 3. La primitiva di etichetta era rimasta `inline`, e un elemento inline ignora i suoi margini verticali — il difetto precedeva l’intero programma. La correzione è una parola, l’arbitrato è avvenuto su tre schermate reali, e la regola è diventata dottrina: misurare il rendering prima di sospettare della consegna.
 
 ## 7. Convinzioni
 

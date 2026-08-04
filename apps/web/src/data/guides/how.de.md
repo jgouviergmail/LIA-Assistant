@@ -4,9 +4,9 @@
 >
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
-**Version**: 3.8
+**Version**: 3.9
 **Datum**: 2026-08-04
-**Application**: LIA v1.27.10
+**Application**: LIA v1.27.11
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 447 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 204 ADRs, ~18.016 von pytest gesammelte Tests in 983 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 207 ADRs, ~18.016 von pytest gesammelte Tests in 983 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -72,10 +72,10 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~18.016 von pytest gesammelt (von pytest über 983 Testdateien gesammelt) + 4.830 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | ~18.016 von pytest gesammelt (von pytest über 983 Testdateien gesammelt) + 4.925 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 400+ |
-| ADRs (Architecture Decision Records) | 204 |
+| ADRs (Architecture Decision Records) | 207 |
 | Prometheus-Metriken | 447 Definitionen |
 | Grafana-Dashboards | 26 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1194,9 +1194,15 @@ Ein einziges Modul liefert deshalb Funktionen, die eine **Komponentenvariante** 
 
 Formkorollar: Eine Markierung ist für ein **Wort** gemacht. Die Komponente fixiert ihre Höhe, sodass ein dreizeiliger Satz herausläuft und wie durchgestrichen wirkt. Langes wird durch typografisches Gewicht hervorgehoben, das nichts über die Länge annimmt.
 
+### Das Designsystem als geprüfter Vertrag
+
+Drei ADRs (206 bis 208) haben visuelle Konsistenz in einen werkzeuggestützten Vertrag verwandelt statt in eine Review-Disziplin. Ein Status wählt seine Farbe nicht mehr selbst: Er **benennt einen Ton**, und eine einzige Tabelle entscheidet (`status-tone.ts`), abgedeckt vom Kontrast-Guard über fünf Themes in Hell und Dunkel. Eine Aktion wählt ihre Form nicht mehr selbst: ihre **Flughöhe** tut es — gefüllt zum Erstellen, gefüllt rot für Massenlöschung, rot im Ruhezustand für das Löschen einer Zeile, Kontur für die echte Sekundäraktion. Und eine Listenzeile zeigt ihre Aktionen auf **genau eine Weise**, gestützt auf eine gemeinsame Komponente.
+
+Die wertvollste Ingenieurslektion kam von einem unsichtbaren Defekt: Die Label-Primitive blieb `inline`, und vertikale Ränder eines Inline-Elements werden **berechnet, aber nie gezeichnet**. Drei Abstands-Rekalibrierungen änderten den Code, ohne einen Pixel zu bewegen — bei nachweislich gesunder Auslieferungskette bis zum letzten Byte. Der Reflex ist jetzt Doktrin: Wenn eine visuelle Einstellung keine Wirkung zeigt, erst `display` und DOM-Geometrie im echten Browser messen, bevor man die Auslieferung verdächtigt. Der Fix ist ein Wort (`block`), die Kalibrierung wurde auf gesteuerten Screenshots entschieden, und ein Guard verbietet die Regression.
+
 ## 24. Architekturentscheidungen (ADR)
 
-204 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+207 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1250,10 +1256,10 @@ Die Psyche Engine verleiht dem Assistenten einen dynamischen psychologischen Zus
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 204 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~18.016 Tests in 983 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 207 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~18.016 Tests in 983 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 204 ADRs und des Changelogs (v1.0 bis v1.27.10). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 207 ADRs und des Changelogs (v1.0 bis v1.27.11). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

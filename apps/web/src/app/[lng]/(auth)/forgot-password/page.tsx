@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
     return (
       <div className="text-center space-y-6">
         <div className="flex justify-center">
-          <CheckCircle2 className="h-16 w-16 text-green-500" />
+          <CheckCircle2 className="h-16 w-16 text-success" />
         </div>
         <h1 className="text-2xl font-bold">{t('auth.forgot_password.success_title')}</h1>
         <p className="text-muted-foreground">

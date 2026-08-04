@@ -169,6 +169,7 @@ export function AdminUsageLimitsSection({ lng: _lng }: AdminUsageLimitsSectionPr
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
+          aria-label={t('usage_limits.search_placeholder')}
           placeholder={t('usage_limits.search_placeholder')}
           value={searchInput}
           onChange={e => setSearchInput(e.target.value)}

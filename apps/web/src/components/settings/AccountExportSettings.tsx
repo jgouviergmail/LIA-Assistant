@@ -11,6 +11,9 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { StepUpDialog } from '@/components/auth/StepUpDialog';
 import { useStepUpGuard } from '@/hooks/useStepUpGuard';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { formatFileSize } from '@/lib/format';
+import { formatInstant } from '@/lib/format-instant';
+import { lifecycleTone } from '@/lib/status-tone';
 import { logger } from '@/lib/logger';
 
 interface ExportJob {
@@ -23,17 +26,38 @@ interface ExportJob {
   expires_at: string | null;
 }
 
-/** Status badge + failure explanation for the latest export job. */
-function ExportJobStatus({ job }: { job: ExportJob | null | undefined }) {
+/**
+ * Status badge + the detail each state owes the reader (owner arbitration
+ * 2026-08-05: a bare "Expired" chip said nothing — when, and what now?).
+ * The badge takes its tone from the shared lifecycle table: done is green,
+ * running is blue, expired is grey — grey being reserved for the inactive.
+ */
+function ExportJobStatus({ job, locale }: { job: ExportJob | null | undefined; locale: string }) {
   const { t } = useTranslation();
   if (!job) return null;
   return (
     <div className="space-y-1.5">
-      <Badge variant="secondary" className="text-[10px]">
+      <Badge variant={lifecycleTone(job.status)} className="text-[10px]">
         {t(`settings.security.export.status_${job.status}`)}
       </Badge>
+      {job.status === 'done' && (
+        <p className="text-xs text-muted-foreground">
+          {t('settings.security.export.ready_hint', {
+            size: job.file_size_bytes != null ? formatFileSize(job.file_size_bytes) : '—',
+            date: job.expires_at ? formatInstant(job.expires_at, locale) : '—',
+          })}
+        </p>
+      )}
+      {job.status === 'expired' && (
+        <p className="text-xs text-muted-foreground">
+          {t('settings.security.export.expired_hint', {
+            created: formatInstant(job.created_at, locale, 'short'),
+            expired: job.expires_at ? formatInstant(job.expires_at, locale, 'short') : '—',
+          })}
+        </p>
+      )}
       {job.status === 'failed' && (
-        <p className="text-xs text-red-600 dark:text-red-400">
+        <p className="text-xs text-destructive">
           {job.error_code === 'export_too_large'
             ? t('settings.security.export.too_large')
             : t('settings.security.export.failed_hint')}
@@ -52,7 +76,7 @@ function ExportJobStatus({ job }: { job: ExportJob | null | undefined }) {
  * Renders as a collapsible SettingsSection card like every other section.
  */
 export function AccountExportSettings({ collapsible = true }: { collapsible?: boolean } = {}) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [unavailable, setUnavailable] = useState(false);
   const { data: job, refetch } = useApiQuery<ExportJob | null>('/account/export/latest', {
     componentName: 'AccountExportSettings',
@@ -93,7 +117,7 @@ export function AccountExportSettings({ collapsible = true }: { collapsible?: bo
   const content = (
     <div className="space-y-3">
       <div className="flex items-start gap-3">
-        <ExportJobStatus job={job} />
+        <ExportJobStatus job={job} locale={i18n.language} />
         <div className="ml-auto flex flex-col items-end gap-2 shrink-0">
           <Button size="sm" onClick={handleRequest} disabled={busy || inFlight}>
             {inFlight

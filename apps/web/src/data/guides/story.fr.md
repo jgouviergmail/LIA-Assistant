@@ -2,9 +2,9 @@
 
 > Retour d'expérience — un système complet, de la conception à la production.
 
-**Version** : 1.1
+**Version** : 1.2
 **Date** : 2026-08-04
-**Application** : LIA v1.27.10
+**Application** : LIA v1.27.11
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -84,6 +84,8 @@ Le niveau annoncé dans ce document résulte d'un audit technique complet : 24 p
 - Poursuite de la décomposition des composants les plus denses, désormais pilotée par la mesure (complexité, couplage) — les principaux monolithes du backend sont traités.
 
 Le plan d'action est organisé en vagues, chacune avec des critères de sortie mesurables. C'est la façon de rendre compte de ce projet : pas un niveau proclamé, un niveau mesuré — écarts compris.
+
+La preuve a aussi son épisode le plus instructif : trois recalibrages d’un simple espacement, trois « je ne vois aucun changement » — et une chaîne de livraison prouvée saine jusqu’à l’octet servi au navigateur. Deux fausses pistes plausibles (cache navigateur, service worker) sont tombées l’une après l’autre, jusqu’à la mesure qui ne pardonne pas : dans un navigateur piloté, la marge était calculée à 16 pixels et l’écart rendu en faisait 3. La primitive d’étiquette était restée `inline`, et un élément inline ignore ses marges verticales — le défaut précédait tout le chantier. Le correctif tient en un mot, l’arbitrage s’est fait sur trois captures réelles, et la règle est devenue doctrine : mesurer le rendu avant de soupçonner la livraison.
 
 ## 7. Convictions
 

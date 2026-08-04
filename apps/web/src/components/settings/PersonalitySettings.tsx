@@ -65,18 +65,22 @@ export function PersonalitySettings({ lng, collapsible = true }: BaseSettingsPro
                   `}
                   aria-label={personality.title}
                 >
-                  {/* Selection indicator */}
-                  <div
-                    className={`
-                      mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors
-                      ${
-                        isSelected
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-muted-foreground/30'
-                      }
-                    `}
-                  >
-                    {isSelected && <Check className="h-3 w-3" strokeWidth={3} />}
+                  {/* Selection indicator — boxed to the SAME h-8 as the emoji
+                      next to it, so the dot centres on the icon whatever the
+                      description's line count (owner capture 2026-08-05). */}
+                  <div className="mt-0.5 flex h-8 shrink-0 items-center">
+                    <div
+                      className={`
+                        flex h-5 w-5 items-center justify-center rounded-full border-2 transition-colors
+                        ${
+                          isSelected
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-muted-foreground/30'
+                        }
+                      `}
+                    >
+                      {isSelected && <Check className="h-3 w-3" strokeWidth={3} />}
+                    </div>
                   </div>
 
                   {/* Emoji */}

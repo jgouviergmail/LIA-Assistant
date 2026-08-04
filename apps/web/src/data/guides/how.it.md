@@ -4,9 +4,9 @@
 >
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
-**Versione**: 3.8
+**Versione**: 3.9
 **Data**: 2026-08-04
-**Applicazione**: LIA v1.27.10
+**Applicazione**: LIA v1.27.11
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 447 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 204 ADRs, ~18.016 test raccolti da pytest in 983 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 207 ADRs, ~18.016 test raccolti da pytest in 983 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -72,10 +72,10 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~18.016 (raccolti da pytest su 983 file di test) + 4.830 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~18.016 (raccolti da pytest su 983 file di test) + 4.925 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 400+ |
-| ADR (Architecture Decision Record) | 204 |
+| ADR (Architecture Decision Record) | 207 |
 | Metriche Prometheus | 447 definizioni |
 | Dashboard Grafana | 26 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1195,9 +1195,15 @@ Un solo modulo espone quindi funzioni che restituiscono una **variante di compon
 
 Corollario di forma: un'etichetta è fatta per una **parola**. Il componente fissa la propria altezza, così una frase di tre righe ne fuoriesce e si legge come barrata. Ciò che è lungo si evidenzia con il peso tipografico, che non presume nulla sulla lunghezza.
 
+### Il design system come contratto verificato
+
+Tre ADR (dal 206 al 208) hanno trasformato la coerenza visiva in un contratto strumentato invece che in una disciplina di revisione. Uno stato non sceglie più il proprio colore: **nomina un tono** e un’unica tabella decide (`status-tone.ts`), coperta dal controllo di contrasto su cinque temi, in chiaro e in scuro. Un’azione non sceglie più la propria forma: la sceglie la sua **altitudine** — pieno per creare, pieno rosso per la distruzione di massa, rosso a riposo per eliminare una riga, contorno per la vera secondaria. E una riga di elenco espone le sue azioni in **un solo modo**, con un componente condiviso a supporto.
+
+La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la primitiva di etichetta restava `inline`, e i margini verticali di un elemento inline sono **calcolati ma mai disegnati**. Tre ricalibrazioni di spaziatura hanno cambiato il codice senza spostare un pixel — con la catena di consegna provata sana fino al byte servito. Il riflesso è ora dottrina: quando una regolazione visiva non ha effetto, misurare il `display` e la geometria del DOM in un browser reale prima di sospettare della consegna. La correzione è una parola (`block`), la calibrazione è stata arbitrata su schermate pilotate, e una guardia vieta la regressione.
+
 ## 24. Architettura delle decisioni (ADR)
 
-204 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+207 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1251,10 +1257,10 @@ Il Psyche Engine dota l'assistente di uno stato psicologico dinamico che evolve 
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 204 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~18.016 test in 983 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 207 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~18.016 test in 983 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 204 ADRs e del changelog (da v1.0 a v1.27.10). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 207 ADRs e del changelog (da v1.0 a v1.27.11). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

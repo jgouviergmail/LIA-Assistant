@@ -67,15 +67,17 @@ export function PasswordSettings() {
 
   return (
     <section aria-labelledby="security-password-title" className="space-y-3">
-      <div className="flex items-start justify-between gap-3">
+      {/* Stacked on phones, side by side from `sm` up — the passkeys header
+          contract, applied to all three security sub-blocks alike. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <h3
+          <h4
             id="security-password-title"
             className="text-sm font-semibold flex items-center gap-2"
           >
             <LockKeyhole className="h-4 w-4 text-primary" aria-hidden="true" />
             {t('settings.security.password.title')}
-          </h3>
+          </h4>
           <p className="text-sm text-muted-foreground">
             {passwordSet
               ? t('settings.security.password.description_enabled')
@@ -91,7 +93,7 @@ export function PasswordSettings() {
           <Button
             size="sm"
             variant="outline"
-            className="text-destructive shrink-0"
+            className="text-destructive self-start sm:shrink-0"
             onClick={() => setConfirmOpen(true)}
             disabled={!eligible}
           >
@@ -110,11 +112,7 @@ export function PasswordSettings() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDisable}
-              disabled={busy}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDisable} disabled={busy} variant="destructive">
               {t('settings.security.password.disable_confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>

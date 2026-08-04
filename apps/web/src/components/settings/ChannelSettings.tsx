@@ -27,6 +27,7 @@ import {
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { lifecycleTone } from '@/lib/status-tone';
 import {
   useChannelBindings,
   type ChannelBinding,
@@ -194,7 +195,7 @@ export function ChannelSettings({ lng }: ChannelSettingsProps) {
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <span className="font-medium">Telegram</span>
-              <Badge variant={telegramBinding.is_active ? 'default' : 'secondary'}>
+              <Badge variant={lifecycleTone(telegramBinding.is_active ? 'active' : 'inactive')}>
                 {telegramBinding.is_active
                   ? t('settings.channels.status_active')
                   : t('settings.channels.status_inactive')}
@@ -325,11 +326,7 @@ export function ChannelSettings({ lng }: ChannelSettingsProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleUnlink}
-              disabled={unlinking}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleUnlink} disabled={unlinking} variant="destructive">
               {unlinking && <LoadingSpinner className="mr-2 h-4 w-4" />}
               {t('settings.channels.unlink_button')}
             </AlertDialogAction>

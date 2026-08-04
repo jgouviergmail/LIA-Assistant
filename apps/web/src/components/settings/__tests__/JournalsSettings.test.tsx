@@ -148,6 +148,9 @@ describe('JournalsSettings — settings toggles', () => {
     const updateSettings = vi.fn().mockResolvedValue(undefined);
     useJournals.mockReturnValue(hook({ updateSettings }));
     const { user } = render();
+    // The tuning toggles fold behind "Configuration" (owner arbitration
+    // 2026-08-05) — children are unmounted while closed.
+    await user.click(await screen.findByText('journals.configuration'));
     await user.click(await screen.findByRole('switch', { name: 'journals.consolidation' }));
     await waitFor(() =>
       expect(updateSettings).toHaveBeenCalledWith({ journal_consolidation_enabled: false })
@@ -159,6 +162,7 @@ describe('JournalsSettings — settings toggles', () => {
     const updateSettings = vi.fn().mockRejectedValue(new Error('boom'));
     useJournals.mockReturnValue(hook({ updateSettings }));
     const { user } = render();
+    await user.click(await screen.findByText('journals.configuration'));
     await user.click(await screen.findByRole('switch', { name: 'journals.consolidation' }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('journals.settingsError'));
   });
@@ -259,11 +263,12 @@ describe('JournalsSettings — theme grouping and counts', () => {
     expect(trigger?.textContent).toContain('2');
   });
 
-  it('keeps the badge in step with the unused-only filter', async () => {
+  it('derives the badge from the rendered rows', async () => {
     /**
      * The badge used to come from the server-side `by_theme` total while the
-     * rows came from the loaded page filtered client-side, so switching the
-     * filter left a badge contradicting the list right under it.
+     * rows came from the loaded page, so a badge could contradict the list
+     * right under it. (The unused-only filter this test once toggled was
+     * removed on owner arbitration 2026-08-05.)
      */
     useJournals.mockReturnValue(
       hook({
@@ -277,10 +282,7 @@ describe('JournalsSettings — theme grouping and counts', () => {
     await user.click(await screen.findByText('journals.themes.learnings'));
     const label = () => screen.getByText('journals.themes.learnings').closest('button');
     expect(label()?.textContent).toContain('2');
-
-    await user.click(await screen.findByLabelText('journals.filterUnused'));
-    await waitFor(() => expect(label()?.textContent).toContain('1'));
-    expect(screen.queryByText('Used')).not.toBeInTheDocument();
+    expect(screen.getByText('Used')).toBeInTheDocument();
     expect(screen.getByText('Never used')).toBeInTheDocument();
   });
 });

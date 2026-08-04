@@ -135,7 +135,7 @@ export function RegisterForm() {
               <div
                 key={idx}
                 className={`flex items-center gap-1.5 ${
-                  req.met ? 'text-green-600' : 'text-gray-500'
+                  req.met ? 'text-success' : 'text-muted-foreground'
                 }`}
               >
                 {req.met ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}

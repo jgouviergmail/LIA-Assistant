@@ -21,22 +21,15 @@
 import { PhoneCall, Loader2 } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/client';
+import { Badge } from '@/components/ui/badge';
 import { CallDebrief } from '@/components/telephony/CallDebrief';
 import { CallDecisions } from '@/components/telephony/CallDecisions';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useTelephonyCalls } from '@/hooks/useTelephonyCalls';
-import { cn } from '@/lib/utils';
+import { callOutcomeTone, lifecycleTone } from '@/lib/status-tone';
 import { ACTIVE_CALL_STATUSES, type TelephonyCallSummary } from '@/types/telephony';
 import type { BaseSettingsProps } from '@/types/settings';
 import type { Language } from '@/i18n/settings';
-
-/** Tone per outcome — muted by default, never alarming for a normal refusal. */
-const OUTCOME_TONE: Record<string, string> = {
-  objective_met: 'text-emerald-600 dark:text-emerald-400',
-  partial: 'text-amber-600 dark:text-amber-400',
-  declined: 'text-muted-foreground',
-  unreachable: 'text-muted-foreground',
-};
 
 /** `62` → `1 min 2 s`, `48` → `48 s`. */
 function formatDuration(seconds: number): string {
@@ -57,18 +50,18 @@ function CallRow({ call, lng }: { call: TelephonyCallSummary; lng: Language }) {
           <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" aria-hidden="true" />
         )}
         <span className="font-medium">{call.callee_display}</span>
-        <span
-          className={cn(
-            'rounded-full px-2 py-0.5 text-[11px]',
-            isActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-          )}
-        >
+        {/* The status and the outcome are `Badge`s named by `status-tone`
+            (ADR-205/206), not hand-written pills. The previous pill had TWO
+            states — "in flight" or grey — so `completed`, `failed`, `no_answer`
+            and `cancelled` were the same object on screen, and neither pill
+            went through the design-system contrast guard. */}
+        <Badge variant={lifecycleTone(call.status)} size="sm">
           {t(`settings.telephony.calls.status.${call.status}`)}
-        </span>
+        </Badge>
         {call.outcome && (
-          <span className={cn('text-[11px] font-medium', OUTCOME_TONE[call.outcome])}>
+          <Badge variant={callOutcomeTone(call.outcome)} size="sm">
             {t(`settings.telephony.calls.outcome.${call.outcome}`)}
-          </span>
+          </Badge>
         )}
       </div>
       <p className="mt-1 text-sm text-muted-foreground">{call.objective}</p>

@@ -6,8 +6,8 @@ import {
   Trash2,
   Plus,
   Ban,
-  MoreVertical,
   Clock,
+  Gauge,
   Pencil,
   Download,
   Moon,
@@ -22,6 +22,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { InfoBox } from '@/components/ui/info-box';
+import { EmptyState } from '@/components/ui/empty-state';
+import { RowActions } from '@/components/ui/row-actions';
 import {
   Select,
   SelectContent,
@@ -40,7 +42,9 @@ import {
 import { useTranslation } from '@/i18n/client';
 import { type Language, getIntlLocale } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SectionToolbar } from '@/components/settings/SectionToolbar';
 import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
+import { HourWindow, MinMaxPerDay } from '@/components/settings/FrequencyControls';
 import { InterestNotificationHistory } from '@/components/settings/InterestNotificationHistory';
 import { useInterestNotificationHistory } from '@/hooks/useInterestNotificationHistory';
 import {
@@ -62,7 +66,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
   Accordion,
@@ -94,16 +97,6 @@ function formatInterestDate(dateString: string | null | undefined, lng: Language
  */
 function sortInterestsByWeight(interests: Interest[]): Interest[] {
   return [...interests].sort((a, b) => b.weight - a.weight);
-}
-
-/**
- * Generate hour options for select.
- */
-function generateHourOptions() {
-  return Array.from({ length: 24 }, (_, i) => ({
-    value: i.toString(),
-    label: `${i.toString().padStart(2, '0')}:00`,
-  }));
 }
 
 export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps) {
@@ -162,11 +155,8 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
   // State for delete confirmation
   const [pendingDelete, setPendingDelete] = useState<Interest | null>(null);
 
-  // State for mobile action popup
-  const [mobileActionInterest, setMobileActionInterest] = useState<Interest | null>(null);
-
-  // Hour options
-  const hourOptions = useMemo(() => generateHourOptions(), []);
+  // Controlled confirm for the mass deletion (opened from the toolbar).
+  const [confirmDeleteAllOpen, setConfirmDeleteAllOpen] = useState(false);
 
   // Sort interests by weight
   const sortedInterests = useMemo(() => sortInterestsByWeight(interests), [interests]);
@@ -364,171 +354,119 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
             />
           </div>
 
-          {/* Settings Panel */}
+          {/* Settings Panel — shared FrequencyControls (one implementation
+              with Heartbeat, and the selects finally have names). */}
           {settings && (
             <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
-              {/* Time Window */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  {t('interests.notification_hours')}
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Select
-                    value={settings.interests_notify_start_hour.toString()}
-                    onValueChange={v => handleUpdateHours('start', parseInt(v))}
-                  >
-                    <SelectTrigger className="w-24">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {hourOptions.map(opt => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <span className="text-muted-foreground">-</span>
-                  <Select
-                    value={settings.interests_notify_end_hour.toString()}
-                    onValueChange={v => handleUpdateHours('end', parseInt(v))}
-                  >
-                    <SelectTrigger className="w-24">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {hourOptions.map(opt => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-3">
+                <HourWindow
+                  label={
+                    <>
+                      <Clock className="h-4 w-4 text-primary" aria-hidden="true" />
+                      {t('interests.notification_hours')}
+                    </>
+                  }
+                  startAriaLabel={t('common.start_hour_label')}
+                  endAriaLabel={t('common.end_hour_label')}
+                  startHour={settings.interests_notify_start_hour}
+                  endHour={settings.interests_notify_end_hour}
+                  onChange={handleUpdateHours}
+                />
                 <p className="text-xs text-muted-foreground">{t('interests.hours_description')}</p>
               </div>
 
-              {/* Frequency */}
-              <div className="space-y-2">
-                <Label>{t('interests.notification_frequency')}</Label>
-                <div className="flex items-center gap-2">
-                  <Select
-                    value={settings.interests_notify_min_per_day.toString()}
-                    onValueChange={v => handleUpdateFrequency('min', parseInt(v))}
-                  >
-                    <SelectTrigger className="w-20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 10 }, (_, i) => i + 1).map(n => (
-                        <SelectItem key={n} value={n.toString()}>
-                          {n}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <span className="text-muted-foreground">-</span>
-                  <Select
-                    value={settings.interests_notify_max_per_day.toString()}
-                    onValueChange={v => handleUpdateFrequency('max', parseInt(v))}
-                  >
-                    <SelectTrigger className="w-20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 10 }, (_, i) => i + 1).map(n => (
-                        <SelectItem key={n} value={n.toString()}>
-                          {n}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <span className="text-sm text-muted-foreground">{t('interests.per_day')}</span>
-                </div>
-              </div>
+              <MinMaxPerDay
+                label={
+                  <>
+                    <Gauge className="h-4 w-4 text-primary" aria-hidden="true" />
+                    {t('interests.notification_frequency')}
+                  </>
+                }
+                perDayLabel={t('interests.per_day')}
+                minAriaLabel={t('common.min_per_day_label')}
+                maxAriaLabel={t('common.max_per_day_label')}
+                min={settings.interests_notify_min_per_day}
+                max={settings.interests_notify_max_per_day}
+                limit={10}
+                onChange={handleUpdateFrequency}
+              />
             </div>
           )}
 
-          {/* Stats and Actions */}
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              {total} {t('interests.count', { count: total })}
-              <span className="ml-2 text-xs">
-                ({total - dormantCount - blockedCount} {t('interests.active')}
-                {dormantCount > 0 && (
-                  <>
-                    {' · '}
-                    {dormantCount} {t('interests.dormant')}
-                  </>
-                )}
-                {blockedCount > 0 && (
-                  <>
-                    {' · '}
-                    {blockedCount} {t('interests.blocked')}
-                  </>
-                )}
-                )
-              </span>
-            </div>
-            <div className="flex gap-2">
-              {/* Create button */}
-              <Button variant="outline" size="sm" onClick={handleOpenCreate}>
-                <Plus className="h-4 w-4 mr-1" />
-                <span className="hidden sm:inline">{t('interests.create')}</span>
-              </Button>
-              {/* Export button - hidden on mobile */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open('/api/v1/interests/export', '_blank')}
-                disabled={total === 0}
-                className="hidden lg:flex"
-              >
-                <Download className="h-4 w-4 mr-1" />
-                {t('interests.export')}
-              </Button>
-              {/* Delete all button */}
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm" disabled={total === 0 || deletingAll}>
-                    {deletingAll ? (
-                      <LoadingSpinner size="default" className="mr-1" />
-                    ) : (
-                      <Trash2 className="h-4 w-4 mr-1" />
-                    )}
-                    {t('interests.delete_all')}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>{t('interests.confirm_delete_all_title')}</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {t('interests.confirm_delete_all_description')}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleDeleteAll}
-                      className="bg-destructive hover:bg-destructive/90"
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      {t('interests.delete_all_confirm')}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </div>
+          {/* Stats and Actions — unified section toolbar (labelled CTA at
+              every size, export present on phones too). */}
+          <SectionToolbar
+            count={
+              <>
+                {total} {t('interests.count', { count: total })}
+                <span className="ml-2 text-xs">
+                  ({total - dormantCount - blockedCount} {t('interests.active')}
+                  {dormantCount > 0 && (
+                    <>
+                      {' · '}
+                      {dormantCount} {t('interests.dormant')}
+                    </>
+                  )}
+                  {blockedCount > 0 && (
+                    <>
+                      {' · '}
+                      {blockedCount} {t('interests.blocked')}
+                    </>
+                  )}
+                  )
+                </span>
+              </>
+            }
+            menuLabel={t('common.more_actions')}
+            primary={{
+              key: 'create',
+              label: t('interests.create'),
+              icon: Plus,
+              onSelect: handleOpenCreate,
+            }}
+            secondary={[
+              {
+                key: 'export',
+                label: t('interests.export'),
+                icon: Download,
+                disabled: total === 0,
+                onSelect: () => window.open('/api/v1/interests/export', '_blank'),
+              },
+            ]}
+            destructive={{
+              key: 'delete-all',
+              label: t('interests.delete_all'),
+              icon: Trash2,
+              disabled: total === 0 || deletingAll,
+              loading: deletingAll,
+              onSelect: () => setConfirmDeleteAllOpen(true),
+            }}
+          />
+          <AlertDialog open={confirmDeleteAllOpen} onOpenChange={setConfirmDeleteAllOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t('interests.confirm_delete_all_title')}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t('interests.confirm_delete_all_description')}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteAll} variant="destructive">
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  {t('interests.delete_all_confirm')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {/* Interests List */}
           {total === 0 ? (
-            <div className="rounded-lg border border-dashed p-6 text-center text-muted-foreground">
-              <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>{t('interests.empty')}</p>
-              <p className="text-xs mt-1">{t('interests.empty_hint')}</p>
-            </div>
+            <EmptyState
+              icon={Sparkles}
+              title={t('interests.empty')}
+              description={t('interests.empty_hint')}
+            />
           ) : (
             <Accordion type="multiple" defaultValue={[]} className="space-y-2">
               {/* Active Interests by Category */}
@@ -548,20 +486,8 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                   <AccordionContent>
                     <div className="space-y-2">
                       {categoryInterests.map(interest => (
-                        // role="presentation": the tap-anywhere onClick is a
-                        // pointer-only convenience duplicating the dedicated
-                        // mobile actions button (audit F012/F045); the card
-                        // carries no semantics (it contains interactive children).
-                        <div key={interest.id}>
-                          <div
-                            role="presentation"
-                            className="group flex items-center gap-3 rounded-lg border p-3 bg-card hover:bg-accent/50 transition-colors cursor-pointer lg:cursor-default"
-                            onClick={() => {
-                              if (window.innerWidth < 1024) {
-                                setMobileActionInterest(interest);
-                              }
-                            }}
-                          >
+                        <div key={interest.id} className="rounded-lg border p-3 bg-card">
+                          <div className="flex items-center gap-3">
                             {/* Content */}
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium truncate">{interest.topic}</p>
@@ -579,68 +505,37 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                                 )}
                               </div>
                             </div>
-
-                            {/* Action buttons - hidden on mobile */}
-                            <div className="hidden lg:flex gap-1 shrink-0 opacity-0 group-hover:opacity-100">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  handleOpenEdit(interest);
-                                }}
-                                disabled={updating}
-                                title={t('interests.edit')}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  handleFeedback(interest, 'block');
-                                }}
-                                disabled={submittingFeedback}
-                                title={t('interests.block')}
-                              >
-                                <Ban className="h-4 w-4 text-red-500" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  setPendingDelete(interest);
-                                }}
-                                disabled={deleting}
-                                title={t('interests.delete')}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-
-                            {/* Mobile actions button (audit F012/F045): the
-                              desktop buttons above are hidden below lg and the
-                              tap-anywhere card click is pointer-only — this is
-                              the keyboard/AT path to the actions popup. */}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="lg:hidden shrink-0 self-center"
-                              aria-label={t('common.actions')}
-                              onClick={e => {
-                                e.stopPropagation();
-                                setMobileActionInterest(interest);
-                              }}
-                            >
-                              <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                            </Button>
+                            <RowActions
+                              menuLabel={t('common.actions_for', { name: interest.topic })}
+                              actions={[
+                                {
+                                  key: 'edit',
+                                  label: t('interests.edit'),
+                                  icon: Pencil,
+                                  disabled: updating,
+                                  onSelect: () => handleOpenEdit(interest),
+                                },
+                                {
+                                  key: 'block',
+                                  label: t('interests.block'),
+                                  icon: Ban,
+                                  disabled: submittingFeedback,
+                                  onSelect: () => void handleFeedback(interest, 'block'),
+                                },
+                                {
+                                  key: 'delete',
+                                  label: t('interests.delete'),
+                                  icon: Trash2,
+                                  tone: 'destructive',
+                                  disabled: deleting,
+                                  onSelect: () => setPendingDelete(interest),
+                                },
+                              ]}
+                            />
                           </div>
-                          {/* OUTSIDE the card, deliberately: the card carries a
-                              tap-anywhere handler, and a disclosure inside it
-                              would open the mobile action sheet on every
-                              attempt to read the explanation. */}
+                          {/* Back INSIDE the card: the tap-anywhere handler
+                              that once exiled it (it opened the action sheet
+                              on every attempt to read) is gone. */}
                           <InterestExplanation interestId={interest.id} locale={lng} />
                         </div>
                       ))}
@@ -682,35 +577,34 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                               </Badge>
                             </div>
                           </div>
-                          <div className="flex gap-1 shrink-0">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleReactivate(interest)}
-                              disabled={reactivating}
-                              title={t('interests.reactivate')}
-                            >
-                              <RotateCcw className="h-4 w-4 text-primary" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenEdit(interest)}
-                              disabled={updating}
-                              title={t('interests.edit')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setPendingDelete(interest)}
-                              disabled={deleting}
-                              title={t('interests.delete')}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
+                          <RowActions
+                            menuLabel={t('common.actions_for', { name: interest.topic })}
+                            actions={[
+                              {
+                                key: 'reactivate',
+                                label: t('interests.reactivate'),
+                                icon: RotateCcw,
+                                disabled: reactivating,
+                                iconClassName: 'text-primary hover:text-primary',
+                                onSelect: () => void handleReactivate(interest),
+                              },
+                              {
+                                key: 'edit',
+                                label: t('interests.edit'),
+                                icon: Pencil,
+                                disabled: updating,
+                                onSelect: () => handleOpenEdit(interest),
+                              },
+                              {
+                                key: 'delete',
+                                label: t('interests.delete'),
+                                icon: Trash2,
+                                tone: 'destructive',
+                                disabled: deleting,
+                                onSelect: () => setPendingDelete(interest),
+                              },
+                            ]}
+                          />
                         </div>
                       ))}
                     </div>
@@ -744,14 +638,19 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                           <div className="flex-1 min-w-0">
                             <p className="text-sm line-through">{interest.topic}</p>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setPendingDelete(interest)}
-                            disabled={deleting}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <RowActions
+                            menuLabel={t('common.actions_for', { name: interest.topic })}
+                            actions={[
+                              {
+                                key: 'delete',
+                                label: t('interests.delete'),
+                                icon: Trash2,
+                                tone: 'destructive',
+                                disabled: deleting,
+                                onSelect: () => setPendingDelete(interest),
+                              },
+                            ]}
+                          />
                         </div>
                       ))}
                     </div>
@@ -777,7 +676,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                 <DialogDescription>{t('interests.create_description')}</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
+                <div className="grid gap-3">
                   <Label htmlFor="create-topic">{t('interests.field_topic')} *</Label>
                   <Input
                     id="create-topic"
@@ -787,7 +686,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                     autoFocus
                   />
                 </div>
-                <div className="grid gap-2">
+                <div className="grid gap-3">
                   <Label htmlFor="create-category">{t('interests.field_category')}</Label>
                   <Select
                     value={createForm.category}
@@ -828,7 +727,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                 <DialogDescription>{t('interests.edit_description')}</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
+                <div className="grid gap-3">
                   <Label htmlFor="edit-topic">{t('interests.field_topic')} *</Label>
                   <Input
                     id="edit-topic"
@@ -838,7 +737,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                     autoFocus
                   />
                 </div>
-                <div className="grid gap-2">
+                <div className="grid gap-3">
                   <Label htmlFor="edit-category">{t('interests.field_category')}</Label>
                   <Select
                     value={editForm.category}
@@ -859,7 +758,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
+                  <div className="grid gap-3">
                     <Label htmlFor="edit-positive">{t('interests.field_positive_signals')}</Label>
                     <Input
                       id="edit-positive"
@@ -874,7 +773,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                       }
                     />
                   </div>
-                  <div className="grid gap-2">
+                  <div className="grid gap-3">
                     <Label htmlFor="edit-negative">{t('interests.field_negative_signals')}</Label>
                     <Input
                       id="edit-negative"
@@ -900,66 +799,6 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                   {t('interests.edit_button')}
                 </Button>
               </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          {/* Mobile Action Popup */}
-          <Dialog
-            open={mobileActionInterest !== null}
-            onOpenChange={open => !open && setMobileActionInterest(null)}
-          >
-            <DialogContent className="lg:hidden max-w-[90vw] rounded-lg">
-              <DialogHeader>
-                <DialogTitle className="text-base flex items-center gap-2">
-                  {mobileActionInterest && INTEREST_CATEGORY_ICONS[mobileActionInterest.category]}
-                  {mobileActionInterest?.topic}
-                </DialogTitle>
-              </DialogHeader>
-              {/* Note: Feedback (thumbs up/down) only appears on notification cards in chat */}
-              <div className="flex flex-col gap-2 py-2">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-3"
-                  onClick={() => {
-                    if (mobileActionInterest) {
-                      handleOpenEdit(mobileActionInterest);
-                      setMobileActionInterest(null);
-                    }
-                  }}
-                  disabled={updating}
-                >
-                  <Pencil className="h-4 w-4" />
-                  {t('interests.edit')}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-3"
-                  onClick={() => {
-                    if (mobileActionInterest) {
-                      handleFeedback(mobileActionInterest, 'block');
-                      setMobileActionInterest(null);
-                    }
-                  }}
-                  disabled={submittingFeedback}
-                >
-                  <Ban className="h-4 w-4 text-red-500" />
-                  {t('interests.block')}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-3 text-destructive"
-                  onClick={() => {
-                    if (mobileActionInterest) {
-                      setPendingDelete(mobileActionInterest);
-                      setMobileActionInterest(null);
-                    }
-                  }}
-                  disabled={deleting}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  {t('interests.delete')}
-                </Button>
-              </div>
             </DialogContent>
           </Dialog>
 
@@ -990,7 +829,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                     }
                   }}
                   disabled={deleting}
-                  className="bg-destructive hover:bg-destructive/90"
+                  variant="destructive"
                 >
                   {deleting ? <LoadingSpinner size="default" className="mr-1" /> : null}
                   {t('interests.delete')}

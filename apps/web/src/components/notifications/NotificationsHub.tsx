@@ -242,11 +242,12 @@ export function NotificationsHub({ lng }: { lng: string }) {
               {/* `asChild`: a real anchor keeps middle-click, open-in-new-tab
                   and the "link" role, while the palette, the hover and the AA
                   contrast come from the design system rather than from classes
-                  written here that nothing checks. `outline` — these are
-                  SECONDARY routes out of a reading page. */}
-              <Button asChild variant="outline" size="sm" className="min-h-11">
+                  written here that nothing checks. SOLID (ADR-207, owner
+                  arbitration 2026-08-05): these shortcuts are the hub's CTAs,
+                  and a CTA takes the filled primary everywhere in the app. */}
+              <Button asChild variant="default" size="sm" className="min-h-11">
                 <Link href={settingsSectionHref(lng, token)}>
-                {/* Named after the DESTINATION, not after the hub section:
+                  {/* Named after the DESTINATION, not after the hub section:
                     the same words twice on one page, meaning two different
                     things, is how a reader loses track of where a link goes. */}
                   {t(`notifications_hub.advanced_links.${key}`)}

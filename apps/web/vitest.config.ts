@@ -68,7 +68,15 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
-        // Global floor — re-measured 2026-08-04 after the visual-consistency lot
+        // Global floor — re-measured 2026-08-05 after the design-system
+        // consistency lot (the shared field plumbing behind `Input`/`Textarea`,
+        // the localised spinner, the decorative skeletons, the shared
+        // `EmptyState` and its seven call sites, and the focus/`aria-current`
+        // fix on the language and timezone pickers):
+        // statements 70.77 / branches 64.91 / functions 66.61 / lines 71.35.
+        // 68/62/64/69 HOLDS — every axis gained ground, none crosses an integer
+        // step while keeping the 2-point margin, so nothing to raise.
+        // Previous re-measure 2026-08-04 after the visual-consistency lot
         // (`status-tone` and its three call sites, the design-system Button on
         // the relation and hub actions, the tinted hub pill, the coloured
         // contact icons and the clickable memories):

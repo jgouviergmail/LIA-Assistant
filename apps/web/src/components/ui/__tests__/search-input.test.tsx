@@ -45,10 +45,10 @@ describe('SearchInput — clear affordances', () => {
     const { user } = renderWithProviders(<SearchInput onSearchChange={onSearchChange} />);
     const box = screen.getByRole('searchbox');
 
-    expect(screen.queryByRole('button', { name: 'Clear search' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'settings.search.clear' })).not.toBeInTheDocument();
 
     await user.type(box, 'abc');
-    const clear = screen.getByRole('button', { name: 'Clear search' });
+    const clear = screen.getByRole('button', { name: 'settings.search.clear' });
     await user.click(clear);
 
     expect(box).toHaveValue('');
@@ -72,15 +72,15 @@ describe('SearchInput — clear affordances', () => {
       <SearchInput onSearchChange={vi.fn()} clearable={false} />
     );
     await user.type(screen.getByRole('searchbox'), 'abc');
-    expect(screen.queryByRole('button', { name: 'Clear search' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'settings.search.clear' })).not.toBeInTheDocument();
   });
 });
 
 describe('SearchInput — loading', () => {
   it('shows a loading indicator and suppresses the clear button while loading', () => {
     renderWithProviders(<SearchInput onSearchChange={vi.fn()} value="abc" loading />);
-    expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Clear search' })).not.toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'common.loading' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'settings.search.clear' })).not.toBeInTheDocument();
   });
 });
 

@@ -61,11 +61,9 @@ function VerifyEmailContent() {
     return (
       <div className="text-center space-y-6">
         <div className="flex justify-center">
-          <CheckCircle2 className="h-16 w-16 text-green-500" />
+          <CheckCircle2 className="h-16 w-16 text-success" />
         </div>
-        <h1 className="text-2xl font-bold text-green-600">
-          {t('auth.verify_email.success_title')}
-        </h1>
+        <h1 className="text-2xl font-bold text-success">{t('auth.verify_email.success_title')}</h1>
         <p className="text-muted-foreground">{t('auth.verify_email.success_message')}</p>
         <p className="text-sm text-muted-foreground">{t('auth.verify_email.success_hint')}</p>
         <Button asChild className="mt-4">
@@ -95,18 +93,22 @@ function VerifyEmailContent() {
   );
 }
 
+/** Suspense fallback — localised like every other user-facing string. */
+function VerifyEmailFallback() {
+  const { t } = useTranslation();
+  return (
+    <div className="text-center space-y-6">
+      <div className="flex justify-center">
+        <LoadingSpinner size="2xl" />
+      </div>
+      <h1 className="text-2xl font-bold">{t('common.loading')}</h1>
+    </div>
+  );
+}
+
 export default function VerifyEmailPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="text-center space-y-6">
-          <div className="flex justify-center">
-            <LoadingSpinner size="2xl" />
-          </div>
-          <h1 className="text-2xl font-bold">Loading...</h1>
-        </div>
-      }
-    >
+    <Suspense fallback={<VerifyEmailFallback />}>
       <VerifyEmailContent />
     </Suspense>
   );

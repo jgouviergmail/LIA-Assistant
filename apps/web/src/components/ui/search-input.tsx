@@ -1,3 +1,5 @@
+'use client';
+
 import {
   type ChangeEvent,
   type InputHTMLAttributes,
@@ -7,8 +9,11 @@ import {
   useRef,
   useState,
 } from 'react';
+import { Search, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Input } from '@/components/ui/input';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { cn } from '@/lib/utils';
 
 export interface SearchInputProps extends Omit<
@@ -67,11 +72,15 @@ export function SearchInput({
   debounceMs = 300,
   clearable = true,
   loading = false,
-  placeholder = 'Search...',
+  placeholder,
   className,
   value: controlledValue,
   ...props
 }: SearchInputProps) {
+  const { t } = useTranslation();
+  // Every call site passes a translated placeholder; the fallback exists so the
+  // primitive never has to invent an English default of its own.
+  const resolvedPlaceholder = placeholder ?? t('settings.search.placeholder');
   const [inputValue, setInputValue] = useState(controlledValue || '');
   const debouncedValue = useDebounce(inputValue, debounceMs);
 
@@ -124,68 +133,37 @@ export function SearchInput({
       <div className="relative">
         {/* Search icon */}
         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-          <svg
-            className="h-5 w-5 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
+          <Search className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
         </div>
 
         <Input
           type="search"
           role="searchbox"
-          aria-label={typeof placeholder === 'string' ? placeholder : 'Search'}
+          aria-label={
+            typeof resolvedPlaceholder === 'string' ? resolvedPlaceholder : t('common.search')
+          }
           value={inputValue}
           onChange={handleChange}
-          placeholder={placeholder}
+          placeholder={resolvedPlaceholder}
           className={cn('pl-10', clearable && inputValue && 'pr-20', className)}
           {...props}
         />
 
         {/* Right side: Loading + Clear button */}
         <div className="absolute inset-y-0 right-0 flex items-center gap-1 pr-3">
-          {/* Loading spinner */}
-          {loading && (
-            <div
-              className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"
-              role="status"
-              aria-label="Loading"
-            >
-              <span className="sr-only">Loading...</span>
-            </div>
-          )}
+          {/* Reuses the shared spinner: it is already themed and already names
+              itself from the active locale. */}
+          {loading && <LoadingSpinner size="default" spinnerColor="muted" />}
 
           {/* Clear button */}
           {clearable && inputValue && !loading && (
             <button
               type="button"
               onClick={handleClear}
-              className="rounded-md p-1 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              aria-label="Clear search"
+              className="rounded-md p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={t('settings.search.clear')}
             >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           )}
         </div>

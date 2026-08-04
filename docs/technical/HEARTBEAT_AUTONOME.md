@@ -36,7 +36,7 @@ APScheduler (30 min, configurable)
 +----------------------------+
 | NotificationDispatcher     |  <-- Existing (+ conditional push)
 | Archive + SSE (always)     |
-| FCM + Telegram             |  <-- Only if heartbeat_push_enabled
+| FCM + Telegram             |  <-- Follows the global opt-in (v1.27.11)
 +----------------------------+
 ```
 
@@ -82,7 +82,7 @@ APScheduler (30 min, configurable)
 |-------|------|---------|-------------|
 | `heartbeat_enabled` | bool | `false` | Enable proactive notifications |
 | `heartbeat_max_per_day` | int | `3` | Max notifications per day (1-8) |
-| `heartbeat_push_enabled` | bool | `true` | Enable FCM/Telegram push (if false, silent archive only) |
+| `heartbeat_push_enabled` | bool | `true` | Ignored since v1.27.11 (kept for compatibility) — push follows the global opt-in |
 | `heartbeat_notify_start_hour` | int | `9` | Start hour (0-23) for notification window |
 | `heartbeat_notify_end_hour` | int | `22` | End hour (0-23) for notification window |
 | `weather_use_last_known_location` | bool | `false` | Opt-in: use persisted browser geoloc (Phase 3) when traveling (>50 km from home, <24 h old) |
@@ -229,7 +229,7 @@ Privacy: the persisted coordinates are encrypted (Fernet), non-historized (overw
 ### User columns (added)
 - `heartbeat_enabled` (boolean, default false)
 - `heartbeat_max_per_day` (integer, default 3)
-- `heartbeat_push_enabled` (boolean, default true)
+- `heartbeat_push_enabled` (boolean, default true — ignored since v1.27.11, kept for compatibility)
 - `heartbeat_notify_start_hour` (integer, default 9) — Start hour (0-23) for notification window
 - `heartbeat_notify_end_hour` (integer, default 22) — End hour (0-23) for notification window
 

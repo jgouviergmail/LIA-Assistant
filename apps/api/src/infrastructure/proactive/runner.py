@@ -484,14 +484,18 @@ class ProactiveTaskRunner:
         )
 
         # 5. Dispatch notification
-        # Resolve push_enabled by convention: user field "{task_type}_push_enabled"
-        push_enabled = getattr(user, f"{self.task.task_type}_push_enabled", True)
+        # Push follows the GLOBAL notification opt-in only (owner arbitration
+        # 2026-08-05): the dispatcher already gates on FCM/channel availability
+        # and registered devices, and the per-task "{task_type}_push_enabled"
+        # gate this used to read was a redundant second switch that could
+        # silently mute a feature for users who had toggled it off before the
+        # control was removed from the UI.
         notification_result = await self._dispatch_notification(
             user=user,
             result=result,
             target=target,
             db=db,
-            push_enabled=push_enabled,
+            push_enabled=True,
             run_id=run_id,
         )
 

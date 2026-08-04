@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.27.11] - 2026-08-04
+
+**L'écart entre un libellé et son champ existait dans le code, jamais à l'écran.** La primitive d'étiquette restait sur le rendu `inline` du navigateur, et les marges verticales d'un élément inline sont **calculées mais jamais rendues** : trois recalibrages successifs de l'espacement ont changé le code sans changer un seul pixel, et chaque formulaire de l'application vivait depuis toujours avec ~3 px d'écart quel que soit le réglage. Le défaut est corrigé **à la primitive** — une étiquette est un bloc — et l'écart canonique a été arbitré **sur captures réelles** dans un navigateur piloté, mesuré au pixel après coup. Leçon consignée en doctrine : quand un réglage d'espacement n'a aucun effet visible, mesurer le `display` de l'élément avant de soupçonner la chaîne de livraison.
+
+**Une rangée expose ses actions d'une seule façon** (ADR-208). Trois écrans à catégories — mémoire, centres d'intérêt, journaux — avaient trois grammaires : des boutons révélés au survol (sur lesquels un utilisateur clavier **tabulait sans rien voir**), un appui-n'importe-où ouvrant une boîte de dialogue plein écran dupliquée par écran, et des actions permanentes. Désormais : icônes toujours visibles dès la tablette, la suppression portant son rouge **au repos**, et sur téléphone un unique « ⋮ » ouvrant un menu léger — un appui de moins, et le déclencheur **nomme la rangée** pour un lecteur d'écran. Les barres de section suivent la même règle : « + Ajouter » garde son libellé à toutes les tailles, et **Exporter revient sur téléphone et tablette** — il était purement supprimé sous 1024 px.
+
+**Une action a une altitude, et l'altitude choisit la forme** (ADR-207). Le bouton qui crée est plein et thémé partout ; « tout supprimer » est plein, rouge, et à la même taille que ses voisins ; l'icône de suppression d'une ligne porte son rouge sans attendre le pointeur ; le contour ne signifie plus qu'une chose — une vraie secondaire. Les étiquettes de compétences prennent leur couleur d'une table unique, et les cinq cartes « Télécharger CSV » alignent enfin leurs boutons sur une même ligne, côté utilisateur comme côté administration.
+
+**Une primitive porte son contrat** (ADR-206). Un champ nommé l'est par un identifiant stable — plus jamais par le texte de son étiquette, qui change de langue et se répète entre champs homonymes ; une erreur de saisie est **annoncée** (`aria-invalid`, description additive), pas seulement rougie ; les primitives partagées parlent les six langues au lieu d'un anglais codé en dur ; un état vide propose une sortie ; et le halo de focus n'est plus **blanc sur thème sombre** — le jeton d'écart de l'anneau n'existait pas, huit composants le demandaient dans le vide.
+
+**Les réglages se lisent comme un index.** Les Connexions passent de six blocs plats à cinq sections repliables icônées dont les badges disent ce qui attend à l'intérieur — les demandes en attente comprises — et les partages des deux directions s'affichent **en miroir**, les vôtres modifiables, les leurs en lecture seule alignée. Les Journaux replient leur configuration entière derrière une seule entrée et déplacent leurs boutons **sous** les catégories : on lit d'abord, on agit ensuite ; le contenu long se limite à trois lignes avec « Voir plus », les métriques d'expertise se replient, le niveau L0-L3 reste visible. Une routine annonce « **En semaine à 08:00** » au lieu d'énumérer cinq jours, montre sa prochaine exécution et replie le reste : sa carte passe d'environ huit lignes à trois. La météo en déplacement, elle aussi, se replie.
+
+**Et une salve de netteté, écran par écran** : l'authentification par application (TOTP) s'active au **commutateur** comme toute fonctionnalité — l'allumer ouvre la cérémonie, le pouce ne bascule qu'à la confirmation du serveur ; les groupes de connecteurs se nomment « **Services** Google / Apple / Microsoft / externes » ; un export de données expiré dit **quand** il a été généré, quand il a expiré et quoi faire, un export prêt affiche sa taille et sa date limite ; « Déconnecter les autres appareils » porte le plein rouge des destructions de masse ; chaque carte du tableau de bord montre son icône dans la liste de personnalisation ; la puce de sélection d'un style se centre sur son icône ; la psyché s'active dans le même encadré que la mémoire. Deux règles gravées au passage : **un titre porte toujours une icône, à la couleur du thème** ; **un badge gris est réservé à l'inactif** — « Activé » est vert, « en attente » est bleu, « expiré » est gris.
+
+**Les notifications poussées suivent désormais l'accord global, automatiquement.** Le réglage « notifications push » des notifications proactives faisait doublon avec l'activation générale — un second interrupteur qui pouvait rendre une fonctionnalité muette en silence. Il est retiré, et le serveur n'en tient plus compte : si le push est activé et la fonctionnalité active, elle notifie.
+
+### Fixed
+
+- **Au clavier, sur trois écrans, le focus se posait sur des boutons invisibles** : les actions révélées au survol ne se révélaient pas au focus. Le patron est supprimé, pas rafistolé.
+- **Exporter ses mémoires ou ses centres d'intérêt était impossible sur téléphone et tablette** — le bouton était retiré sous 1024 px au lieu d'être replié.
+- **Sept contrôles n'avaient aucun nom accessible** : la suppression d'un intérêt bloqué, l'édition et la suppression d'une entrée de journal, les quatre listes d'heures et de fréquence, l'interrupteur de la psyché.
+- **Une icône passée à un libellé s'empilait au-dessus du texte** au lieu de le précéder — le socle CSS rend les icônes en bloc, le libellé ne les couchait pas en ligne.
+- **Le compteur de mémoires était écrit en français dans le code**, quelle que soit la langue de l'interface ; il passe par les six locales et leurs pluriels.
+- **Sept couleurs écrites à la main** — vert de copie, rouge d'interdiction, ambres d'avertissement, jauges — rejoignent les jetons du thème, couverts par le contrôle de contraste sur les cinq thèmes.
+- **L'identifiant d'un champ dérivait de son étiquette** : deux champs homonymes partageaient un identifiant, qui changeait avec la langue. Il vient désormais d'un générateur stable.
+- **La grille des réglages numériques des journaux et la puce des styles s'alignent** — les cellules mélangeaient deux espacements et la puce s'ancrait en haut.
+
+### Tests
+
+- Frontend 4 925 tests sur 402 fichiers (+95) ; 172 parcours navigateur hermétiques rejoués **contre un build de production**, 23 audits d'accessibilité — dont les scans des contenus repliés désormais ouverts avant l'analyse.
+- Nouvelles gardes : l'étiquette est un bloc (les marges se rendent), les actions de rangée et barres de section (visibles, nommées, rouges au repos), les contrôles de fréquence nommés, la synthèse de planification, les tons `done`/`running`/`expired`, le contrat des champs sur le DOM rendu.
+- Les quatre oracles TOTP réécrits pour le commutateur ; les tests des sections repliables ouvrent le repli avant chaque interaction.
+
+### Documentation
+
+- ADR-206 (une primitive porte son contrat), ADR-207 (une action a une altitude), ADR-208 (une rangée expose ses actions d'une seule façon) ; doctrine frontend enrichie de l'écart canonique, des icônes de titres et des badges gris.
+
 ## [1.27.10] - 2026-08-04
 
 **Les compteurs des Alertes sont là avant que vous ouvriez quoi que ce soit.** Un badge sur un bloc replié existe pour qu'on choisisse quoi ouvrir ; il affichait `—` jusqu'au dépliage, si bien que le seul nombre qui sert à décider ne s'obtenait qu'en décidant. Les cinq totaux arrivent maintenant en **une seule lecture** — des agrégats sur colonnes indexées, pas les lignes elles-mêmes, qui attendent toujours l'ouverture. Une section qu'une instance a désactivée n'est pas comptée du tout : le hub ne l'affiche pas, la compter serait deux requêtes pour un badge invisible.

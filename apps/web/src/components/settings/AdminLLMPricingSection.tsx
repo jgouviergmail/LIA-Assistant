@@ -495,7 +495,6 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <Button
-            variant="outline"
             onClick={handleReloadCache}
             disabled={reloadingCache}
             aria-label={t('settings.admin.llm.reload_cache')}
@@ -694,7 +693,7 @@ function PricingModelFields({
       </legend>
 
       <div>
-        <label htmlFor="provider" className="block text-sm font-medium text-foreground mb-1">
+        <label htmlFor="provider" className="block text-sm font-medium text-foreground mb-3">
           {t('settings.admin.llm.modal.provider_label')}
         </label>
         <select
@@ -719,7 +718,7 @@ function PricingModelFields({
       </div>
 
       <div>
-        <label htmlFor="model-name" className="block text-sm font-medium text-foreground mb-1">
+        <label htmlFor="model-name" className="block text-sm font-medium text-foreground mb-3">
           {t('settings.admin.llm.modal.model_name_label')}
         </label>
         <Input
@@ -747,7 +746,7 @@ function PricingCapabilityFields({ formData, setFormData, t }: PricingSectionPro
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label htmlFor="max-input" className="block text-sm font-medium text-foreground mb-1">
+          <label htmlFor="max-input" className="block text-sm font-medium text-foreground mb-3">
             {t('settings.admin.llm.modal.max_input_tokens_label')}
           </label>
           <Input
@@ -762,7 +761,7 @@ function PricingCapabilityFields({ formData, setFormData, t }: PricingSectionPro
           />
         </div>
         <div>
-          <label htmlFor="max-output" className="block text-sm font-medium text-foreground mb-1">
+          <label htmlFor="max-output" className="block text-sm font-medium text-foreground mb-3">
             {t('settings.admin.llm.modal.max_output_tokens_label')}
           </label>
           <Input
@@ -827,7 +826,7 @@ function PricingCustomReasoningShape({
       <div>
         <label
           htmlFor="reasoning-widget"
-          className="block text-sm font-medium text-foreground mb-1"
+          className="block text-sm font-medium text-foreground mb-3"
         >
           Reasoning widget
         </label>
@@ -851,7 +850,7 @@ function PricingCustomReasoningShape({
         <div>
           <label
             htmlFor="reasoning-enum-values"
-            className="block text-sm font-medium text-foreground mb-1"
+            className="block text-sm font-medium text-foreground mb-3"
           >
             Enum values (comma-separated)
           </label>
@@ -868,7 +867,7 @@ function PricingCustomReasoningShape({
       {isBudget && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label htmlFor="budget-min" className="block text-sm font-medium text-foreground mb-1">
+            <label htmlFor="budget-min" className="block text-sm font-medium text-foreground mb-3">
               Budget min
             </label>
             <Input
@@ -880,7 +879,7 @@ function PricingCustomReasoningShape({
             />
           </div>
           <div>
-            <label htmlFor="budget-max" className="block text-sm font-medium text-foreground mb-1">
+            <label htmlFor="budget-max" className="block text-sm font-medium text-foreground mb-3">
               Budget max
             </label>
             <Input
@@ -892,7 +891,7 @@ function PricingCustomReasoningShape({
             />
           </div>
           <div>
-            <label htmlFor="budget-off" className="block text-sm font-medium text-foreground mb-1">
+            <label htmlFor="budget-off" className="block text-sm font-medium text-foreground mb-3">
               Off sentinel
             </label>
             <Input
@@ -910,7 +909,7 @@ function PricingCustomReasoningShape({
           <div>
             <label
               htmlFor="budget-dynamic"
-              className="block text-sm font-medium text-foreground mb-1"
+              className="block text-sm font-medium text-foreground mb-3"
             >
               Dynamic sentinel
             </label>
@@ -982,7 +981,7 @@ function PricingReasoningFields({
       </legend>
 
       <div>
-        <label htmlFor="kind" className="block text-sm font-medium text-foreground mb-1">
+        <label htmlFor="kind" className="block text-sm font-medium text-foreground mb-3">
           Kind
         </label>
         <select
@@ -1053,7 +1052,7 @@ function PricingReasoningFields({
         <div>
           <label
             htmlFor="reasoning-template"
-            className="block text-sm font-medium text-foreground mb-1"
+            className="block text-sm font-medium text-foreground mb-3"
           >
             Copy reasoning shape from
           </label>
@@ -1084,7 +1083,7 @@ function PricingReasoningFields({
       <div className="border-t border-border pt-3">
         <label
           htmlFor="reasoning-doc-key"
-          className="block text-sm font-medium text-foreground mb-1"
+          className="block text-sm font-medium text-foreground mb-3"
         >
           Reasoning tooltip i18n key (optional)
         </label>
@@ -1113,7 +1112,7 @@ function PricingFields({ formData, setFormData, t }: PricingSectionProps) {
       </legend>
 
       <div>
-        <label htmlFor="pricing-unit" className="block text-sm font-medium text-foreground mb-1">
+        <label htmlFor="pricing-unit" className="block text-sm font-medium text-foreground mb-3">
           {t('settings.admin.llm.modal.pricing_unit_label')}
         </label>
         <select
@@ -1136,7 +1135,7 @@ function PricingFields({ formData, setFormData, t }: PricingSectionProps) {
       </div>
 
       <div>
-        <label htmlFor="input-price" className="block text-sm font-medium text-foreground mb-1">
+        <label htmlFor="input-price" className="block text-sm font-medium text-foreground mb-3">
           {t('settings.admin.llm.modal.input_price_label')}{' '}
           <span className="text-xs text-muted-foreground font-normal">({unitShort})</span>
         </label>
@@ -1155,7 +1154,7 @@ function PricingFields({ formData, setFormData, t }: PricingSectionProps) {
       <div>
         <label
           htmlFor="cached-input-price"
-          className="block text-sm font-medium text-foreground mb-1"
+          className="block text-sm font-medium text-foreground mb-3"
         >
           {t('settings.admin.llm.modal.cached_input_label')}{' '}
           <span className="text-xs text-muted-foreground font-normal">({unitShort})</span>
@@ -1172,7 +1171,7 @@ function PricingFields({ formData, setFormData, t }: PricingSectionProps) {
       </div>
 
       <div>
-        <label htmlFor="output-price" className="block text-sm font-medium text-foreground mb-1">
+        <label htmlFor="output-price" className="block text-sm font-medium text-foreground mb-3">
           {t('settings.admin.llm.modal.output_price_label')}{' '}
           <span className="text-xs text-muted-foreground font-normal">({unitShort})</span>
         </label>

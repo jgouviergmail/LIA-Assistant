@@ -8,8 +8,6 @@
  * is needed, which the hint spells out.
  */
 
-import { ShieldOff } from 'lucide-react';
-
 import { Button } from '@/components/ui/button';
 import type { BlockView } from '@/hooks/usePeerConnections';
 import { useTranslation } from '@/i18n/client';
@@ -22,16 +20,16 @@ export interface PeerBlocksBlockProps {
   onUnblock: (peerId: string) => Promise<boolean>;
 }
 
+/**
+ * Headerless on purpose: the section shell folds this block behind a
+ * `SettingsDisclosure` whose summary already carries the title, the hint and
+ * the count — a second heading inside would say the same thing twice.
+ */
 export function PeerBlocksBlock({ lng, blocks, mutating, onUnblock }: PeerBlocksBlockProps) {
   const { t } = useTranslation(lng);
 
   return (
     <div className="space-y-2">
-      <h4 className="flex items-center gap-2 text-sm font-medium">
-        <ShieldOff className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-        {t('settings.peers.blocks.title')}
-      </h4>
-      <p className="text-xs text-muted-foreground">{t('settings.peers.blocks.hint')}</p>
       {blocks.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t('settings.peers.blocks.empty')}</p>
       ) : (

@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versione**: 4.3
+**Versione**: 4.4
 **Data**: 2026-08-04
-**Applicazione**: LIA v1.27.10
+**Applicazione**: LIA v1.27.11
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -415,6 +415,8 @@ Secondo, **ciò che gira, gira in una scatola sigillata**. Il codice di una skil
 ---
 
 La stessa esigenza vale per ciò che LIA **afferma**. Una risposta deve poggiare su dati realmente recuperati, mai sul ricordo di una formulazione precedente; e quando un’informazione non è mai stata ottenuta, dichiararla mancante vale più che ricostruirne una plausibile. È un vincolo di progettazione più che una questione di stile: le entità recuperate di recente vengono reimmesse esplicitamente nel contesto di risposta, e inventare un attributo di entità è vietato a livello di prompt. Un errore fattuale plausibile costa più di un «non lo so».
+
+La coerenza visiva risponde alla stessa esigenza. Un’azione ha la stessa forma ovunque o da nessuna parte; un codice colore che il puntatore deve rivelare non è un codice, è un segreto; il grigio è riservato a ciò che è inattivo — uno stato vivo porta il suo colore. Queste regole non sono gusti: ognuna è scritta, strumentata e custodita da un test, perché lo sforzo di lettura appartiene al sistema, non alla persona che lo usa.
 
 ## 9. Apertura radicale
 

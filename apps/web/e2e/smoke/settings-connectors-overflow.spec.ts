@@ -48,8 +48,9 @@ for (const width of [320, 360, 390]) {
     await page.goto('/fr/dashboard/settings?section=connectors');
     await awaitStyledPage(page, `/dashboard/settings?section=connectors @${width}px`);
 
-    await expect(page.getByText('Connecteurs Google connectés')).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText('Connecteurs externes connectés')).toBeVisible();
+    // v1.27.11 renamed the group titles to "Services …".
+    await expect(page.getByText('Services Google').first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Services externes').first()).toBeVisible();
 
     await expectNoOverflow(page, `connectors section at ${width}px`);
   });

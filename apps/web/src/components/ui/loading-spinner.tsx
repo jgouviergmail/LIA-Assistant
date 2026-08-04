@@ -5,8 +5,11 @@
  * Built on top of Lucide's Loader2 icon with animation.
  */
 
+'use client';
+
 import * as React from 'react';
 import { Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 
@@ -23,7 +26,10 @@ const spinnerVariants = cva('animate-spin', {
     spinnerColor: {
       default: 'text-primary',
       muted: 'text-muted-foreground',
-      success: 'text-green-500',
+      // The semantic token, not `text-green-500`: a raw palette value ignores
+      // the five colour themes and sits outside the contrast guard, which
+      // only covers `--color-*` pairs.
+      success: 'text-success',
       destructive: 'text-destructive',
       white: 'text-white',
     },
@@ -36,7 +42,11 @@ const spinnerVariants = cva('animate-spin', {
 
 export interface LoadingSpinnerProps
   extends Omit<React.SVGProps<SVGSVGElement>, 'ref'>, VariantProps<typeof spinnerVariants> {
-  /** Optional label for screen readers */
+  /**
+   * Screen-reader label. Defaults to the active locale's `common.loading` —
+   * never to an English literal, which the ~90 call sites that omit this prop
+   * would otherwise announce in every language.
+   */
   label?: string;
 }
 
@@ -64,13 +74,15 @@ export function LoadingSpinner({
   className,
   size,
   spinnerColor,
-  label = 'Loading...',
+  label,
   ...props
 }: LoadingSpinnerProps) {
+  const { t } = useTranslation();
+
   return (
     <Loader2
       className={cn(spinnerVariants({ size, spinnerColor }), className)}
-      aria-label={label}
+      aria-label={label ?? t('common.loading')}
       role="status"
       {...props}
     />

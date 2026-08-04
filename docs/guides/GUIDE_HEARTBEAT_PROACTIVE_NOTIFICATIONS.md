@@ -78,7 +78,7 @@ APScheduler (30 min, configurable)
 +----------------------------+
 | NotificationDispatcher     |  <-- Infrastructure generique
 | Archive + SSE (toujours)   |
-| FCM + Telegram             |  <-- Seulement si heartbeat_push_enabled
+| FCM + Telegram             |  <-- Suit l'opt-in global (v1.27.11)
 +----------------------------+
 ```
 
@@ -190,7 +190,7 @@ Le scheduler job ne s'enregistre que si `HEARTBEAT_ENABLED=true`. Le router API 
 |-------|------|---------|-------------|
 | `heartbeat_enabled` | bool | `false` | Activer les notifications proactives |
 | `heartbeat_max_per_day` | int | `3` | Max notifications par jour (1-8) |
-| `heartbeat_push_enabled` | bool | `true` | Activer push FCM/Telegram (sinon archive silencieuse) |
+| `heartbeat_push_enabled` | bool | `true` | Ignore depuis v1.27.11 (compatibilite) — le push suit l'activation globale |
 | `heartbeat_notify_start_hour` | int | `9` | Heure de debut de la fenetre (0-23) |
 | `heartbeat_notify_end_hour` | int | `22` | Heure de fin de la fenetre (0-23) |
 
@@ -513,7 +513,7 @@ Le runner resout `push_enabled` par convention depuis le modele utilisateur :
 push_enabled = getattr(user, f"{self.task.task_type}_push_enabled", True)
 ```
 
-Pour le heartbeat, cela lit `user.heartbeat_push_enabled`. Quand `False`, seuls archive + SSE sont utilises (mode "silencieux").
+Depuis v1.27.11 le heartbeat n'interroge plus `user.heartbeat_push_enabled` : le push suit l'opt-in global (tokens FCM enregistres, canaux actifs). Archive + SSE restent systematiques.
 
 ### Titres localises
 
@@ -866,7 +866,7 @@ def mock_settings(monkeypatch):
 ### Probleme : les push notifications ne sont pas recues
 
 **Verifications** :
-1. `heartbeat_push_enabled=true` sur l'utilisateur ?
+1. Des notifications push activees globalement (opt-in FCM) ? (`heartbeat_push_enabled` est ignore depuis v1.27.11)
 2. Des tokens FCM sont enregistres pour l'utilisateur ?
 3. Pour Telegram : `CHANNELS_ENABLED=true` et un binding actif existe ?
 

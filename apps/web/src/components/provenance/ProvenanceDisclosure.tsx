@@ -32,10 +32,12 @@ import { useState } from 'react';
 import { HelpCircle, Pencil } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { formatInstant } from '@/lib/format-instant';
+import { outcomeTone } from '@/lib/status-tone';
 
 export interface ProvenanceReference {
   id: string;
@@ -72,12 +74,6 @@ export interface ProvenanceDisclosureProps {
 
 /** Outcomes this build can name. An unknown one renders raw, never as a key. */
 const KNOWN_OUTCOMES = new Set(['origin', 'evidence', 'contradiction']);
-
-const OUTCOME_TONE: Record<string, string> = {
-  origin: 'bg-primary/10 text-primary',
-  evidence: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-  contradiction: 'bg-orange-500/10 text-orange-700 dark:text-orange-300',
-};
 
 export function ProvenanceDisclosure({ endpoint, locale, onCorrect }: ProvenanceDisclosureProps) {
   // NOTE: every read below is optional-chained. This block renders INSIDE
@@ -129,15 +125,14 @@ export function ProvenanceDisclosure({ endpoint, locale, onCorrect }: Provenance
               className="rounded-md border border-border/40 bg-card/40 px-2.5 py-1.5"
             >
               <p className="flex flex-wrap items-center gap-1.5">
-                <span
-                  className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                    OUTCOME_TONE[reference.outcome] ?? OUTCOME_TONE.origin
-                  }`}
-                >
+                {/* `outcomeTone` decides, not a local class map: the copy that
+                    lived here fell back to the `origin` BLUE for an outcome this
+                    build does not know — a claim about a signal nobody made. */}
+                <Badge variant={outcomeTone(reference.outcome)} size="sm">
                   {KNOWN_OUTCOMES.has(reference.outcome)
                     ? t(`provenance.outcome.${reference.outcome}`)
                     : reference.outcome}
-                </span>
+                </Badge>
                 <time
                   dateTime={reference.captured_at}
                   className="text-[11px] tabular-nums text-muted-foreground"

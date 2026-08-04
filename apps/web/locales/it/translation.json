@@ -21,6 +21,8 @@
     "previous": "Precedente",
     "previous_short": "Prec.",
     "pagination": {
+      "label": "Impaginazione",
+      "page_info": "Pagina {{current}} / {{total}}",
       "items_per_page": "per pagina",
       "total_items": "({{count}} risultati)"
     },
@@ -45,7 +47,16 @@
     "disabled": "Disattivato",
     "saving": "Salvataggio...",
     "actions": "Azioni",
-    "expand_image": "Mostra l'immagine a schermo intero"
+    "expand_image": "Mostra l'immagine a schermo intero",
+    "actions_for": "Azioni — {{name}}",
+    "more_actions": "Altre azioni",
+    "details": "Dettagli",
+    "show_more": "Mostra di più",
+    "show_less": "Mostra meno",
+    "min_per_day_label": "Minimo al giorno",
+    "max_per_day_label": "Massimo al giorno",
+    "start_hour_label": "Ora di inizio",
+    "end_hour_label": "Ora di fine"
   },
   "theme": {
     "toggle": "Cambia tema"
@@ -1106,20 +1117,20 @@
       "my_connectors": "I Miei Connettori",
       "my_connectors_description": "Collega i tuoi account per consentire a LIA di accedere ai tuoi dati",
       "connected": "Connessi",
-      "connected_google": "Connettori Google connessi",
+      "connected_google": "Servizi Google",
       "group_state": {
         "connected": "Connesso",
         "attention": "Azione richiesta",
         "available": "Non connesso"
       },
-      "connected_api_key": "Connettori esterni connessi",
-      "connected_apple": "Connettori Apple connessi",
-      "connected_microsoft": "Connettori Microsoft connessi",
+      "connected_api_key": "Servizi esterni",
+      "connected_apple": "Servizi Apple",
+      "connected_microsoft": "Servizi Microsoft",
       "connected_hue": "Casa intelligente connessa",
       "available_hue": "Servizi casa intelligente disponibili",
       "connected_on": "Connesso il {{date}}",
-      "available_google": "Connettori Google",
-      "available_external": "Connettori esterni",
+      "available_google": "Servizi Google",
+      "available_external": "Servizi esterni",
       "all_connected": "Tutti i connettori disponibili sono già connessi",
       "disconnect_error": "Errore durante la disconnessione",
       "connected_success": "{{name}} è stato connesso con successo",
@@ -1224,7 +1235,7 @@
         }
       },
       "apple": {
-        "title": "Connettori Apple",
+        "title": "Servizi Apple",
         "description": "Collega i tuoi servizi Apple iCloud",
         "email": "Apple Mail",
         "email_description": "Leggere e inviare email tramite iCloud Mail",
@@ -1257,7 +1268,7 @@
         "connecting": "Connessione in corso"
       },
       "microsoft": {
-        "title": "Connettori Microsoft",
+        "title": "Servizi Microsoft",
         "description": "Collega i tuoi servizi Microsoft 365",
         "outlook": "Microsoft Outlook",
         "outlook_description": "Leggere e inviare email tramite Outlook",
@@ -1900,6 +1911,7 @@
           "edit": "Modifica",
           "updated": "Chiave API aggiornata",
           "deleted": "Chiave API eliminata",
+          "deleteKey": "Elimina la chiave salvata",
           "error": "Errore durante l'aggiornamento della chiave",
           "notConfigured": "Non configurato",
           "apiKey": "Chiave API",
@@ -2409,6 +2421,10 @@
           "calendar_availability": "Calendario — disponibilità",
           "calendar_details": "Calendario — dettagli",
           "task_titles": "Attività — titoli"
+        },
+        "task_level": {
+          "titles": "Condiviso",
+          "none": "Non condiviso"
         }
       },
       "blocks": {
@@ -2450,7 +2466,8 @@
         "toggle_label": "Mostrare la mia email alle mie connessioni",
         "toggle_hint": "Disattivato per impostazione predefinita. Una volta attivato, le persone che hai ACCETTATO vedono il tuo indirizzo reale invece del suggerimento mascherato. Mai una richiesta in sospeso.",
         "toggle_saved": "Visibilità dell'indirizzo salvata"
-      }
+      },
+      "visibility_title": "La mia visibilità"
     },
     "notifications": {
       "title": "Notifiche push",
@@ -3024,7 +3041,9 @@
         "status_expired": "Scaduta",
         "too_large": "L’archivio supera il limite di dimensione. Riduci i file archiviati.",
         "failed_hint": "L’esportazione non è riuscita. Riprova.",
-        "error_generic": "Qualcosa è andato storto. Riprova."
+        "error_generic": "Qualcosa è andato storto. Riprova.",
+        "ready_hint": "Archivio pronto — {{size}} · scade il {{date}}",
+        "expired_hint": "Esportazione generata il {{created}}, scaduta il {{expired}}. Richiedi una nuova esportazione per scaricare i tuoi dati."
       },
       "auth": {
         "title": "Autenticazione forte",
@@ -3103,7 +3122,7 @@
         "security-export": "GDPR, RGPD, archivio, download, portabilità, backup, dati personali, privacy",
         "voice-mode": "microfono, voce, dettatura, STT, TTS, parola di attivazione, audio, parlare",
         "image-generation": "immagini, foto, disegno, illustrazione, generazione, arte",
-        "connectors": "google, gmail, calendario, contatti, apple, microsoft, outlook, integrazioni, account, oauth, riconnettere, disconnesso",
+        "connectors": "google, gmail, calendario, contatti, apple, microsoft, outlook, integrazioni, account, oauth, riconnettere, disconnesso, servizi",
         "telephony-calls": "telefono, chiamate, cronologia chiamate, comporre",
         "admin-mcp-servers": "MCP, model context protocol, server dell'applicazione, strumenti integrati",
         "mcp-servers": "MCP, model context protocol, i miei server, strumenti, estensioni",
@@ -3112,10 +3131,10 @@
         "psyche": "emozioni, umore, sentimenti, affettività, emotivo",
         "memories": "memoria, ricordi, ricordare, dimenticare, fatti, provenienza, perché, fonte, segnale, origine, correggere",
         "interests": "argomenti, gusti, temi, curiosità, preferenze, cronologia, notifiche recenti, provenienza, perché, peso, spiegazione, decadimento, fonte",
-        "peer-connections": "contatti, amici, famiglia, rete, condividere calendario, disponibilità, bloccare, trovare utenti, connettere, il mio nome, copia il mio nome, richiesta di connessione, registro accessi, trasmettere messaggio, utenti bloccati, persone care, rete sociale, peer, reperibilità, scoperta, condividere il mio indirizzo, email visibile, la mia email, punto 360",
-        "heartbeat": "proattivo, spontaneo, iniziativa, contatto, messaggi autonomi, argomenti delle notifiche, fonti, cronologia, notifiche recenti, priorità, urgenza, alta, media, bassa, colore",
+        "peer-connections": "contatti, amici, famiglia, rete, condividere calendario, disponibilità, bloccare, trovare utenti, connettere, il mio nome, copia il mio nome, richiesta di connessione, registro accessi, trasmettere messaggio, utenti bloccati, persone care, rete sociale, peer, reperibilità, scoperta, condividere il mio indirizzo, email visibile, la mia email, punto 360, visibilità, richieste",
+        "heartbeat": "proattivo, spontaneo, iniziativa, contatto, messaggi autonomi, argomenti delle notifiche, fonti, cronologia, notifiche recenti, priorità, urgenza, alta, media, bassa, colore, meteo, frequenza, fascia oraria",
         "scheduled-actions": "cron, pianificazione, ricorrente, automazione, timer, programmato",
-        "journals": "diario, giornale di bordo, ritratto, riflessioni, note, provenienza, perché, fonte, segnale, origine, correggere",
+        "journals": "diario, giornale di bordo, ritratto, riflessioni, note, provenienza, perché, fonte, segnale, origine, correggere, configurazione, consolidamento",
         "health-metrics": "frequenza cardiaca, passi, sonno, iPhone, Apple Salute, forma fisica, attività",
         "skills": "competenze, capacità, abilità, plugin, estensioni",
         "rag-spaces": "documenti, RAG, base di conoscenza, file, caricamento, indicizzazione, biblioteca",
@@ -3882,6 +3901,23 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_27_11": {
+          "title": "v1.27.11 — 🧭 Impostazioni che si leggono come un indice",
+          "date": "Agosto 2026",
+          "count": "10",
+          "items": {
+            "i1": "<b>🧲 Lo spazio tra un'etichetta e il suo campo finalmente si disegna</b> — un difetto della primitiva di etichetta faceva sì che ogni regolazione di spaziatura fosse calcolata ma mai renderizzata: tutti i moduli vivevano con ~3 px qualunque cosa dicesse il codice. Corretto alla radice e calibrato su schermate reali — tutti i moduli ora respirano allo stesso modo.",
+            "i2": "<b>☰ Una sola grammatica per le azioni di riga</b> — icone visibili dal tablet in su, l'eliminazione porta il suo rosso a riposo, e sul telefono un unico menu «⋮» con nome. Basta pulsanti rivelati al passaggio del mouse su cui un utente da tastiera arrivava senza vedere nulla.",
+            "i3": "<b>📤 Esporta torna su telefono e tablet</b> per la memoria a lungo termine e gli interessi — era semplicemente rimosso sotto una larghezza da desktop — e «+ Aggiungi» conserva la sua etichetta a ogni dimensione.",
+            "i4": "<b>🗂️ Le Connessioni LIA si leggono in cinque sezioni richiudibili con icone</b> i cui badge dicono cosa attende all'interno — richieste in sospeso comprese — e le due direzioni di condivisione si mostrano a specchio: le vostre modificabili, le loro in sola lettura.",
+            "i5": "<b>📔 I diari personali ripiegano tutta la loro configurazione dietro una voce</b>, spostano i pulsanti sotto le categorie, e le voci lunghe si limitano a tre righe con «Mostra di più».",
+            "i6": "<b>⏰ Una routine annuncia «Nei giorni feriali alle 08:00»</b> invece di elencare cinque giorni, mostra la prossima esecuzione e ripiega il resto — la sua scheda passa da circa otto righe sempre visibili a tre.",
+            "i7": "<b>🔐 Le app di autenticazione (TOTP) si attivano con un interruttore</b>, come ogni funzione — accenderlo apre la cerimonia, e la levetta scatta solo alla conferma del server.",
+            "i8": "<b>🧭 I gruppi di connettori si chiamano «Servizi Google / Apple / Microsoft / esterni»</b>, e un'esportazione dei dati spiega finalmente il suo stato: dimensione e scadenza quando è pronta, date di generazione e scadenza più cosa fare quando è scaduta.",
+            "i9": "<b>🎛️ Ogni titolo porta un'icona nel colore del tema</b> — frequenza delle notifiche, meteo in viaggio (ora richiudibile), ogni scheda della dashboard nell'elenco di personalizzazione — e i badge grigi sono riservati all'inattivo: «Attivato» è verde, «in attesa» è blu.",
+            "i10": "<b>🔔 Le notifiche push seguono automaticamente il vostro consenso globale</b> — l'interruttore duplicato per funzione, che poteva silenziare le notifiche proattive senza avvisare, è stato rimosso."
+          }
+        },
         "v1_27_10": {
           "title": "v1.27.10 — 🎨 Schermate che si leggono a colpo d'occhio",
           "date": "Agosto 2026",
@@ -6266,7 +6302,7 @@
           },
           "q2": {
             "question": "Come attivo le notifiche proattive?",
-            "answer": "Attiva la funzione in pochi clic:<br><br><strong>⚙️ Accesso:</strong><br>Impostazioni → Sezione \"<em>Notifiche proattive</em>\" → Attiva l'interruttore<br><br><strong>📝 Opzioni disponibili:</strong><br>• <strong>Min/max al giorno</strong>: imposta il minimo (predefinito: 1) e il massimo (predefinito: 3) di notifiche al giorno (intervallo: 1-8)<br>• <strong>Fascia oraria</strong>: configura la tua ora di inizio (predefinito: 9:00) e ora di fine (predefinito: 22:00) — indipendente dagli orari di notifica degli interessi<br>• <strong>Notifiche push</strong>: attiva/disattiva push (FCM/Telegram) separatamente<br><br><strong>💡 Modalità silenziosa:</strong><br>Se disattivi le push, i messaggi di LIA vengono archiviati <strong>silenziosamente</strong> nella conversazione + SSE. Li vedrai al prossimo login senza essere disturbato."
+            "answer": "Attiva la funzione in pochi clic:<br><br><strong>⚙️ Accesso:</strong><br>Impostazioni → Sezione \"<em>Notifiche proattive</em>\" → Attiva l'interruttore<br><br><strong>📝 Opzioni disponibili:</strong><br>• <strong>Fascia oraria</strong>: configura la tua ora di inizio (predefinito: 9:00) e ora di fine (predefinito: 22:00) — indipendente dagli orari di notifica degli interessi<br>• <strong>Min/max al giorno</strong>: imposta il minimo (predefinito: 1) e il massimo (predefinito: 3) di notifiche al giorno (intervallo: 1-8)<br>• <strong>Meteo in viaggio</strong>: un blocco richiudibile per attivare il meteo legato alla tua posizione<br><br><strong>💡 Consegna push:</strong><br>Le push (FCM/Telegram) seguono automaticamente il tuo <strong>consenso globale alle notifiche</strong> — non c'è più un interruttore separato per funzione. Ogni messaggio è inoltre archiviato nella conversazione: lo ritroverai al prossimo login in ogni caso."
           },
           "q3": {
             "question": "Quali fonti di dati vengono utilizzate?",
@@ -6943,7 +6979,7 @@
       },
       "a11y_care": {
         "title": "La cura che non si vede",
-        "desc": "Preferenze di animazione rispettate, contrasti mantenuti, tutto raggiungibile da tastiera — e ciò che si tocca è abbastanza grande da toccare, comprese le piccole croci che comparivano solo al passaggio del mouse e restavano fuori dalla portata del dito."
+        "desc": "Preferenze di animazione rispettate, contrasti mantenuti, tutto raggiungibile da tastiera — e ciò che si tocca è abbastanza grande da toccare, comprese le piccole croci che comparivano solo al passaggio del mouse e restavano fuori dalla portata del dito. Le azioni di un elenco non si nascondono più dietro il passaggio del mouse — la tastiera le trova — e lo spazio tra un'etichetta e il suo campo si disegna finalmente come è scritto."
       },
       "peer_actions": {
         "title": "Rispondere proprio sotto il messaggio",
@@ -6987,7 +7023,7 @@
       },
       "readable_at_a_glance": {
         "title": "Leggibile a colpo d'occhio",
-        "desc": "Un avviso urgente non somiglia a uno ordinario: a separarli è la densità, non la sola tonalità. Regge anche in scala di grigi."
+        "desc": "Un avviso urgente non somiglia a uno ordinario: a separarli è la densità, non la sola tonalità. Regge anche in scala di grigi. E un'azione ha la stessa forma ovunque: ciò che crea è pieno, ciò che elimina porta il suo rosso senza aspettare il puntatore, e ogni titolo si annuncia con la sua icona."
       }
     },
     "scenes": {
@@ -7267,7 +7303,6 @@
     "delete_all_keep_pinned": "Mantieni le fissate",
     "delete_all_including_pinned": "Elimina tutto",
     "delete_all_keep_pinned_success": "Memorie non fissate eliminate",
-    "actions_title": "Azioni",
     "create": "Aggiungi",
     "create_title": "Crea un ricordo",
     "create_description": "Aggiungi un nuovo ricordo alla tua memoria a lungo termine.",
@@ -7275,7 +7310,9 @@
     "create_success": "Ricordo creato",
     "create_error": "Errore durante la creazione del ricordo",
     "confirm_delete_pinned_description": "Questo ricordo è fissato. Sei sicuro di volerlo eliminare permanentemente?",
-    "confirm_delete_pinned_title": "Eliminare questo ricordo fissato?"
+    "confirm_delete_pinned_title": "Eliminare questo ricordo fissato?",
+    "count_one": "{{count}} ricordo",
+    "count_other": "{{count}} ricordi"
   },
   "designSystem": {
     "cards": {
@@ -7688,8 +7725,6 @@
     "notification_frequency": "Frequenza delle notifiche",
     "max_per_day": "Massimo al giorno",
     "per_day": "/ giorno",
-    "push_enabled": "Notifiche push",
-    "push_description": "Quando disattivato, i messaggi vengono archiviati silenziosamente nella conversazione",
     "available_sources": "Fonti dati disponibili",
     "source_calendar": "Calendario",
     "source_emails": "Email",
@@ -7857,7 +7892,15 @@
     "next_executions": "Prossime esecuzioni",
     "next_evaluations": "Prossime finestre di valutazione",
     "clock_change": "(cambio dell’ora)",
-    "toggle_aria": "Attivare o disattivare {{title}}"
+    "toggle_aria": "Attivare o disattivare {{title}}",
+    "schedule": {
+      "daily": "Ogni giorno alle {{time}}",
+      "weekdays": "Nei giorni feriali alle {{time}}",
+      "weekend": "Nel fine settimana alle {{time}}",
+      "custom": "{{days}} alle {{time}}"
+    },
+    "next_run": "Prossima esecuzione",
+    "next_evaluation": "Prossima valutazione"
   },
   "landing": {
     "meta": {
@@ -8230,7 +8273,7 @@
       },
       "stack": {
         "title": "Stack moderno",
-        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. TypeScript rigoroso sul frontend, Python async sul backend. PWA installabile: 6 manifest localizzati, condivisione di sistema verso la chat, pagina offline e cache intelligente degli asset — le risposte API non vengono mai memorizzate nella cache. Le impostazioni si cercano da tastiera, in tutte e sei le lingue, ignorando maiuscole, accenti e apostrofi tipografici."
+        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. TypeScript rigoroso sul frontend, Python async sul backend. PWA installabile: 6 manifest localizzati, condivisione di sistema verso la chat, pagina offline e cache intelligente degli asset — le risposte API non vengono mai memorizzate nella cache. Le impostazioni si cercano da tastiera, in tutte e sei le lingue, ignorando maiuscole, accenti e apostrofi tipografici. Il design system è un contratto custodito dai test: ogni coppia di colori verificata su cinque temi in chiaro e scuro, un tono per stato, una forma per altitudine d'azione."
       },
       "telephony": {
         "title": "Telefonia agentica",
@@ -8668,7 +8711,7 @@
     "sizeUsage": "Utilizzo dello spazio",
     "lastCost": "Ultimo intervento",
     "lastCostSource": "Fonte",
-    "create": "Nuova voce",
+    "create": "Aggiungi",
     "export": "Esportare",
     "deleteAll": "Elimina tutto",
     "deleteAllTitle": "Eliminare tutte le voci?",
@@ -8736,7 +8779,6 @@
     "yesterday": "ieri",
     "daysAgo": "{{n}}g fa",
     "evidenceTooltip": "Conferme / contraddizioni osservate",
-    "filterUnused": "Mostra solo voci mai usate",
     "consolidateNow": "Consolida",
     "consolidating": "Consolidamento…",
     "consolidateNowTooltip": "Forza una consolidazione ora (deduplicazione, promozioni di livello, aggiornamenti di confidenza). Richiede qualche secondo.",
@@ -8786,7 +8828,8 @@
         "label": "Sfaccettatura del ritratto",
         "description": "Tratto, fase attuale, contesto, contraddizione, zona d'ombra — sempre iniettata."
       }
-    }
+    },
+    "configuration": "Configurazione"
   },
   "blog": {
     "meta": {

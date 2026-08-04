@@ -129,10 +129,13 @@ export function DeviceSessionsSettings({ collapsible = true }: { collapsible?: b
   const content = (
     <div className="space-y-4">
       <div className="flex justify-end">
+        {/* Mass destruction wears the same solid red as every "Delete all"
+            (ADR-207 — owner arbitration 2026-08-05): it signs out every other
+            device at once. */}
         <Button
           size="sm"
-          variant="outline"
-          className="text-destructive shrink-0 gap-1.5"
+          variant="destructive"
+          className="shrink-0 gap-1.5"
           onClick={() => setRevokeAllOpen(true)}
           disabled={sessions.length <= 1}
         >
@@ -229,11 +232,7 @@ export function DeviceSessionsSettings({ collapsible = true }: { collapsible?: b
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleRevoke}
-              disabled={busy}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleRevoke} disabled={busy} variant="destructive">
               {t('settings.security.devices.revoke_confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -253,11 +252,7 @@ export function DeviceSessionsSettings({ collapsible = true }: { collapsible?: b
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleRevokeOthers}
-              disabled={busy}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleRevokeOthers} disabled={busy} variant="destructive">
               {t('settings.security.devices.revoke_others_confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>

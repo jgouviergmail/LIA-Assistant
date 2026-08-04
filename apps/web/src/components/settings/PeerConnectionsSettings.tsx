@@ -1,7 +1,5 @@
 'use client';
 
-import { useState } from 'react';
-
 /**
  * PeerConnectionsSettings — the « Connexions » section shell (peers program).
  *
@@ -14,18 +12,18 @@ import { useState } from 'react';
  * precedent).
  */
 
-import { Check, Copy, Users } from 'lucide-react';
+import { Eye, Handshake, Radar, ShieldOff, Users, UserSearch } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { Label } from '@/components/ui/label';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
+import { EmptyState } from '@/components/ui/empty-state';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
 import { PeerAccessLogBlock } from '@/components/settings/peers/PeerAccessLogBlock';
 import { PeerBlocksBlock } from '@/components/settings/peers/PeerBlocksBlock';
 import { PeerConnectionCard } from '@/components/settings/peers/PeerConnectionCard';
 import { PeerDiscoveryBlock } from '@/components/settings/peers/PeerDiscoveryBlock';
+import { PeerVisibilityCard } from '@/components/settings/peers/PeerVisibilityCard';
 import { PeerRequestsBlock } from '@/components/settings/peers/PeerRequestsBlock';
 import { toastPeersError } from '@/components/settings/peers/peers-error-messages';
 import { useAppConfig } from '@/hooks/useAppConfig';
@@ -38,7 +36,6 @@ import type { BaseSettingsProps } from '@/types/settings';
 export function PeerConnectionsSettings({ lng, collapsible = true }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { user } = useAuth();
-  const [nameCopied, setNameCopied] = useState(false);
   // Instance-flag self-gating (OpenLoopsSection precedent): flag off → no
   // section AND no queries (the /peers router is not even mounted then).
   const { config } = useAppConfig();
@@ -99,124 +96,63 @@ export function PeerConnectionsSettings({ lng, collapsible = true }: BaseSetting
     </div>
   ) : (
     <div className="space-y-6" aria-busy={loading}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="space-y-0.5">
-          <Label htmlFor="peers-discovery-enabled" className="text-sm font-medium">
-            {t('settings.peers.discovery.toggle_label')}
-          </Label>
-          <p className="text-xs text-muted-foreground">
-            {t('settings.peers.discovery.toggle_hint')}
-          </p>
-        </div>
-        {/* `aria-disabled`, not `disabled`: a control disabled while it is
-            focused is blurred by the browser and leaves the tab order, so a
-            keyboard user who toggles this switch is thrown back to the top of
-            the document. The state is still announced, and the guard below —
-            not the attribute — is what actually prevents a double submit. */}
-        <Switch
-          id="peers-discovery-enabled"
-          checked={discoveryEnabled ?? false}
-          aria-disabled={mutating}
-          className={mutating ? 'cursor-not-allowed opacity-50' : undefined}
-          onCheckedChange={value => {
-            if (mutating) return;
-            void settle(setDiscovery(value), 'settings.peers.discovery.toggle_saved');
-          }}
+      {/* Every zone folds (owner arbitration 2026-08-05): the section reads
+          as an INDEX of five titled, icon-carrying entries, and each badge
+          says whether anything waits inside without opening. */}
+      <SettingsDisclosure icon={Radar} title={t('settings.peers.visibility_title')}>
+        <PeerVisibilityCard
+          lng={lng}
+          fullName={user?.full_name ?? null}
+          discoveryEnabled={discoveryEnabled ?? false}
+          emailVisible={emailVisible ?? false}
+          mutating={mutating}
+          onSetDiscovery={value =>
+            void settle(setDiscovery(value), 'settings.peers.discovery.toggle_saved')
+          }
+          onSetEmailVisible={value =>
+            void settle(setEmailVisible(value), 'settings.peers.email_visibility.toggle_saved')
+          }
         />
-      </div>
+      </SettingsDisclosure>
 
-      {/* Lot 7: users could not SEE their own name — the identity peers
-          search for. Shown at the point of need, with one-click copy; empty
-          name = undiscoverable, said plainly. */}
-      <div className="rounded-md border border-border/40 bg-muted/40 px-3 py-2 text-sm">
-        {user?.full_name ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-muted-foreground">{t('settings.peers.my_name.label')}</span>
-            <span className="font-medium">{user.full_name}</span>
-            <button
-              type="button"
-              onClick={() => {
-                void navigator.clipboard.writeText(user.full_name ?? '');
-                setNameCopied(true);
-                setTimeout(() => setNameCopied(false), 2000);
-              }}
-              aria-label={t('settings.peers.my_name.copy')}
-              className="p-1 rounded-md border border-border/30 bg-background/80 hover:bg-background transition-colors"
-            >
-              {nameCopied ? (
-                <Check className="h-3.5 w-3.5 text-green-600" />
-              ) : (
-                <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-              )}
-            </button>
-            <span className="w-full text-xs text-muted-foreground">
-              {t('settings.peers.my_name.hint')}
-            </span>
-          </div>
-        ) : (
-          <p className="text-muted-foreground">{t('settings.peers.my_name.missing')}</p>
-        )}
-      </div>
-
-      {/* ADR-189: a SECOND, independent consent. Being findable and handing
-          your address over are different decisions — and this one only ever
-          reaches people you already accepted. Same aria-disabled treatment as
-          the switch above: disabling a focused control loses the keyboard. */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="space-y-0.5">
-          <Label htmlFor="peers-email-visible" className="text-sm font-medium">
-            {t('settings.peers.email_visibility.toggle_label')}
-          </Label>
-          <p className="text-xs text-muted-foreground">
-            {t('settings.peers.email_visibility.toggle_hint')}
-          </p>
+      {/* "Find someone" groups the search with the requests it produces — a
+          pending incoming request is exactly what the badge must surface. */}
+      <SettingsDisclosure
+        icon={UserSearch}
+        title={t('settings.peers.discovery.title')}
+        badge={requests.length > 0 ? requests.length : undefined}
+      >
+        <div className="space-y-4">
+          <PeerDiscoveryBlock
+            lng={lng}
+            mutating={mutating}
+            search={handleSearch}
+            onSendRequest={(peerId, contextMessage) =>
+              settle(sendRequest(peerId, contextMessage), 'settings.peers.discovery.request_sent')
+            }
+          />
+          <PeerRequestsBlock
+            lng={lng}
+            requests={requests}
+            mutating={mutating}
+            onRespond={(connectionId, accept) =>
+              settle(
+                respond(connectionId, accept),
+                accept ? 'settings.peers.requests.accepted' : 'settings.peers.requests.declined'
+              )
+            }
+            onBlock={peerId => settle(block(peerId), 'settings.peers.blocks.blocked')}
+          />
         </div>
-        <Switch
-          id="peers-email-visible"
-          checked={emailVisible ?? false}
-          aria-disabled={mutating}
-          className={mutating ? 'cursor-not-allowed opacity-50' : undefined}
-          onCheckedChange={value => {
-            if (mutating) return;
-            void settle(setEmailVisible(value), 'settings.peers.email_visibility.toggle_saved');
-          }}
-        />
-      </div>
+      </SettingsDisclosure>
 
-      <Separator />
-
-      <PeerDiscoveryBlock
-        lng={lng}
-        mutating={mutating}
-        search={handleSearch}
-        onSendRequest={(peerId, contextMessage) =>
-          settle(sendRequest(peerId, contextMessage), 'settings.peers.discovery.request_sent')
-        }
-      />
-
-      <Separator />
-
-      <PeerRequestsBlock
-        lng={lng}
-        requests={requests}
-        mutating={mutating}
-        onRespond={(connectionId, accept) =>
-          settle(
-            respond(connectionId, accept),
-            accept ? 'settings.peers.requests.accepted' : 'settings.peers.requests.declined'
-          )
-        }
-        onBlock={peerId => settle(block(peerId), 'settings.peers.blocks.blocked')}
-      />
-
-      <Separator />
-
-      <div className="space-y-2">
-        <h4 className="text-sm font-medium">{t('settings.peers.connections.title')}</h4>
+      <SettingsDisclosure
+        icon={Handshake}
+        title={t('settings.peers.connections.title')}
+        badge={connections.length > 0 ? connections.length : undefined}
+      >
         {connections.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {t('settings.peers.connections.empty')}
-          </p>
+          <EmptyState description={t('settings.peers.connections.empty')} />
         ) : (
           <div className="space-y-3">
             {connections.map(connection => (
@@ -236,20 +172,31 @@ export function PeerConnectionsSettings({ lng, collapsible = true }: BaseSetting
             ))}
           </div>
         )}
-      </div>
+      </SettingsDisclosure>
 
-      <Separator />
+      {/* Blocks and the access log, folded like their new neighbours. */}
+      <SettingsDisclosure
+        icon={ShieldOff}
+        title={t('settings.peers.blocks.title')}
+        description={t('settings.peers.blocks.hint')}
+        badge={blocks.length > 0 ? blocks.length : undefined}
+      >
+        <PeerBlocksBlock
+          lng={lng}
+          blocks={blocks}
+          mutating={mutating}
+          onUnblock={peerId => settle(unblock(peerId), 'settings.peers.blocks.unblocked')}
+        />
+      </SettingsDisclosure>
 
-      <PeerBlocksBlock
-        lng={lng}
-        blocks={blocks}
-        mutating={mutating}
-        onUnblock={peerId => settle(unblock(peerId), 'settings.peers.blocks.unblocked')}
-      />
-
-      <Separator />
-
-      <PeerAccessLogBlock lng={lng} entries={accessLog} />
+      <SettingsDisclosure
+        icon={Eye}
+        title={t('settings.peers.access_log.title')}
+        description={t('settings.peers.access_log.hint')}
+        badge={accessLog.length > 0 ? accessLog.length : undefined}
+      >
+        <PeerAccessLogBlock lng={lng} entries={accessLog} />
+      </SettingsDisclosure>
     </div>
   );
 

@@ -25,11 +25,13 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useTranslation } from '@/i18n/client';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useSkills, type Skill } from '@/hooks/useSkills';
 import { toast } from 'sonner';
 import type { Language } from '@/i18n/settings';
+import { skillTraitTone } from '@/lib/status-tone';
 
 interface AdminSkillsSectionProps {
   lng: Language;
@@ -242,10 +244,7 @@ export function AdminSkillsSection({ lng }: AdminSkillsSectionProps) {
 
       {/* Empty state */}
       {!loading && !error && adminSkills.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          <Blocks className="h-12 w-12 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">{t('settings.skills.empty')}</p>
-        </div>
+        <EmptyState icon={Blocks} description={t('settings.skills.empty')} />
       )}
 
       {/* Skill cards */}
@@ -257,26 +256,30 @@ export function AdminSkillsSection({ lng }: AdminSkillsSectionProps) {
                 {/* Name + badges */}
                 <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
                   <span className="font-medium">{skill.name}</span>
-                  <Badge variant="default" className="text-xs">
+                  {/* NEUTRAL, not the primary tint: every row of this section
+                      carries this marker, and the primary now belongs to the
+                      category (skillTraitTone). Two adjacent primary-tinted
+                      badges would read as two categories. */}
+                  <Badge variant="secondary" className="text-xs">
                     {t('settings.skills.scope_admin')}
                   </Badge>
                   {skill.category && (
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant={skillTraitTone('category')} className="text-xs">
                       {skill.category}
                     </Badge>
                   )}
                   {skill.always_loaded && (
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant={skillTraitTone('always_loaded')} className="text-xs">
                       {t('settings.skills.always_loaded')}
                     </Badge>
                   )}
                   {skill.has_scripts && (
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant={skillTraitTone('has_scripts')} className="text-xs">
                       {t('settings.skills.has_scripts')}
                     </Badge>
                   )}
                   {skill.has_plan_template && (
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant={skillTraitTone('has_plan_template')} className="text-xs">
                       {t('settings.skills.has_plan_template')}
                     </Badge>
                   )}
@@ -374,10 +377,7 @@ export function AdminSkillsSection({ lng }: AdminSkillsSectionProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete} variant="destructive">
               {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>

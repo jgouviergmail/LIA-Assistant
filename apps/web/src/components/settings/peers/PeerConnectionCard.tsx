@@ -11,10 +11,18 @@
  * Remove and block go through the house confirm dialog.
  */
 
+import { ArrowDownLeft, ArrowUpRight, Calendar, ListTodo } from 'lucide-react';
+
 import { Avatar } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useConfirm } from '@/components/ui/use-confirm';
 import type { ConnectionView } from '@/hooks/usePeerConnections';
@@ -46,6 +54,9 @@ export function PeerConnectionCard({
   const calendarLevel =
     connection.my_shares.find(share => share.domain === 'calendar')?.level ?? 'none';
   const taskShared = connection.my_shares.some(share => share.domain === 'task');
+  const theirCalendarLevel =
+    connection.their_shares.find(share => share.domain === 'calendar')?.level ?? 'none';
+  const theirTaskShared = connection.their_shares.some(share => share.domain === 'task');
 
   const handleCalendarChange = (value: string) => {
     void onSetShare(connection.id, 'calendar', value === 'none' ? null : value);
@@ -102,29 +113,43 @@ export function PeerConnectionCard({
         </div>
       </div>
 
+      {/* Both directions read the SAME way (owner arbitration 2026-08-05):
+          the same two icon-carrying rows on each side — mine editable, theirs
+          the read-only values. The old badge soup made the two columns look
+          like two different features. */}
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-2">
-          <p className="text-xs font-medium uppercase text-muted-foreground">
+        <div className="space-y-3">
+          <p className="flex items-center gap-1.5 text-xs font-medium uppercase text-muted-foreground">
+            <ArrowUpRight className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
             {t('settings.peers.shares.my_title')}
           </p>
-          <div className="space-y-1">
-            <Label htmlFor={calendarSelectId}>{t('settings.peers.shares.calendar_label')}</Label>
-            <select
-              id={calendarSelectId}
-              value={calendarLevel}
-              disabled={mutating}
-              onChange={event => handleCalendarChange(event.target.value)}
-              className="h-9 w-full rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {CALENDAR_LEVELS.map(level => (
-                <option key={level} value={level}>
-                  {t(`settings.peers.shares.calendar_level.${level}`)}
-                </option>
-              ))}
-            </select>
+          <div className="space-y-3">
+            <Label htmlFor={calendarSelectId} className="flex items-center gap-1.5">
+              <Calendar className="h-4 w-4 text-primary" aria-hidden="true" />
+              {t('settings.peers.shares.calendar_label')}
+            </Label>
+            {/* The design-system Select, like every other dropdown in the app:
+                this was the last hand-classed native <select> on a user
+                surface, and its bespoke class string drifted from the theme. */}
+            <Select value={calendarLevel} onValueChange={handleCalendarChange} disabled={mutating}>
+              <SelectTrigger id={calendarSelectId} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CALENDAR_LEVELS.map(level => (
+                  <SelectItem key={level} value={level}>
+                    {t(`settings.peers.shares.calendar_level.${level}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex items-center justify-between gap-2">
-            <Label htmlFor={`peers-share-task-${connection.id}`}>
+            <Label
+              htmlFor={`peers-share-task-${connection.id}`}
+              className="flex items-center gap-1.5"
+            >
+              <ListTodo className="h-4 w-4 text-primary" aria-hidden="true" />
               {t('settings.peers.shares.task_label')}
             </Label>
             <Switch
@@ -136,31 +161,46 @@ export function PeerConnectionCard({
           </div>
         </div>
 
-        <div className="space-y-2">
-          <p className="text-xs font-medium uppercase text-muted-foreground">
+        <div className="space-y-3">
+          <p className="flex items-center gap-1.5 text-xs font-medium uppercase text-muted-foreground">
+            <ArrowDownLeft className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
             {t('settings.peers.shares.their_title')}
           </p>
-          {connection.their_shares.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {t('settings.peers.shares.their_empty')}
+          <div className="space-y-3">
+            <p className="flex items-center gap-1.5 text-sm font-medium">
+              <Calendar className="h-4 w-4 text-primary" aria-hidden="true" />
+              {t('settings.peers.shares.calendar_label')}
             </p>
-          ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {connection.their_shares.map(share => (
-                <Badge key={`${share.domain}-${share.level}`} variant="secondary">
-                  {t(`settings.peers.shares.badge.${share.domain}_${share.level}`)}
-                </Badge>
-              ))}
-            </div>
-          )}
+            {/* `h-10 items-center`: the read-only value mirrors the Select's
+                height on my side, so the task rows of BOTH columns sit on the
+                same line (owner capture 2026-08-05). */}
+            <p className="flex h-10 items-center text-sm text-muted-foreground">
+              {t(`settings.peers.shares.calendar_level.${theirCalendarLevel}`)}
+            </p>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <p className="flex items-center gap-1.5 text-sm font-medium">
+              <ListTodo className="h-4 w-4 text-primary" aria-hidden="true" />
+              {t('settings.peers.shares.task_label')}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {theirTaskShared
+                ? t('settings.peers.shares.task_level.titles')
+                : t('settings.peers.shares.task_level.none')}
+            </p>
+          </div>
         </div>
       </div>
 
+      {/* Both actions end something, and both said nothing about it: two grey
+          buttons. They carry their red at rest now (ADR-207 — a colour the
+          pointer must reveal is not a code), remove outweighing block. */}
       <div className="flex flex-wrap gap-2 border-t pt-3">
         <Button
           type="button"
           size="sm"
           variant="outline"
+          className="text-destructive hover:text-destructive"
           disabled={mutating}
           onClick={() => void handleRemove()}
         >
@@ -170,6 +210,7 @@ export function PeerConnectionCard({
           type="button"
           size="sm"
           variant="ghost"
+          className="text-destructive hover:text-destructive"
           disabled={mutating}
           onClick={() => void handleBlock()}
         >

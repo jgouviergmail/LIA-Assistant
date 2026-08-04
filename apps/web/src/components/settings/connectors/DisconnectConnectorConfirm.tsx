@@ -56,10 +56,7 @@ export function DisconnectConnectorConfirm({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-          <AlertDialogAction
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            onClick={onConfirm}
-          >
+          <AlertDialogAction variant="destructive" onClick={onConfirm}>
             {t('settings.connectors.disconnect')}
           </AlertDialogAction>
         </AlertDialogFooter>

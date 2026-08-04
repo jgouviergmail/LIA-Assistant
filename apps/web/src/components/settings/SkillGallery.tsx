@@ -12,27 +12,32 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import type { Skill } from '@/hooks/useSkills';
 import type { SkillsTranslator } from '@/components/settings/SkillDetailModal';
+import { skillTraitTone } from '@/lib/status-tone';
 
 function CardBadges({ skill, t }: { skill: Skill; t: SkillsTranslator }) {
   return (
     <>
+      {/* Toned by TYPE through `skillTraitTone` (ADR-207): identity in the
+          theme's primary, the permanent context cost in amber, plain
+          capabilities neutral. These same labels had already drifted between
+          this gallery and the admin section. */}
       {skill.category && (
-        <Badge variant="secondary" className="text-xs">
+        <Badge variant={skillTraitTone('category')} className="text-xs">
           {skill.category}
         </Badge>
       )}
       {skill.always_loaded && (
-        <Badge variant="secondary" className="shrink-0 text-xs">
+        <Badge variant={skillTraitTone('always_loaded')} className="shrink-0 text-xs">
           {t('settings.skills.always_loaded')}
         </Badge>
       )}
       {skill.has_scripts && (
-        <Badge variant="outline" className="shrink-0 text-xs">
+        <Badge variant={skillTraitTone('has_scripts')} className="shrink-0 text-xs">
           {t('settings.skills.has_scripts')}
         </Badge>
       )}
       {skill.dialogue && (
-        <Badge variant="outline" className="shrink-0 text-xs">
+        <Badge variant={skillTraitTone('dialogue')} className="shrink-0 text-xs">
           {t('settings.skills.gallery.dialogue_badge')}
         </Badge>
       )}

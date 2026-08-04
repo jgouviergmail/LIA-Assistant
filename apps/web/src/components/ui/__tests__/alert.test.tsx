@@ -34,7 +34,7 @@ describe('Alert — structure', () => {
 describe('Alert — dismiss affordances', () => {
   it('shows no dismiss button unless dismissible', () => {
     renderWithProviders(<Alert variant="warning">msg</Alert>);
-    expect(screen.queryByRole('button', { name: 'Dismiss notification' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'common.close' })).not.toBeInTheDocument();
   });
 
   it('dismisses on button click, hiding itself and notifying the caller', async () => {
@@ -44,7 +44,7 @@ describe('Alert — dismiss affordances', () => {
         msg
       </Alert>
     );
-    await user.click(screen.getByRole('button', { name: 'Dismiss notification' }));
+    await user.click(screen.getByRole('button', { name: 'common.close' }));
     expect(onDismiss).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });

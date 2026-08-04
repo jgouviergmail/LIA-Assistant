@@ -1,5 +1,8 @@
+'use client';
+
 import { type ReactNode, useEffect, useState } from 'react';
 import { CheckCircle2, XCircle, AlertTriangle, Info, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
 export type AlertVariant = 'success' | 'error' | 'warning' | 'info';
@@ -37,6 +40,7 @@ export function Alert({
   autoDismiss,
   className,
 }: AlertProps) {
+  const { t } = useTranslation();
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
@@ -101,9 +105,8 @@ export function Alert({
                 variant === 'warning' && 'text-warning hover:bg-warning/20',
                 variant === 'info' && 'text-primary hover:bg-primary/20'
               )}
-              aria-label="Dismiss notification"
+              aria-label={t('common.close')}
             >
-              <span className="sr-only">Dismiss</span>
               <X className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>

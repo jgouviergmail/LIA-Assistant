@@ -3803,7 +3803,7 @@ async with TrackingContext(user_id, run_id) as tracker:
 
 - **Détection changements météo** : début/fin pluie, chute température, alerte vent (seuils configurables)
 - **Anti-redondance** : historique récent + cross-type dedup heartbeat ↔ intérêts
-- **Push conditionnel** : `heartbeat_push_enabled` contrôle FCM/Telegram (archive + SSE toujours)
+- **Push aligné sur l'opt-in global** (v1.27.11) : le runner n'interroge plus `heartbeat_push_enabled` — FCM/Telegram suivent l'activation générale des notifications (archive + SSE toujours). Le champ reste en base et dans l'API pour compatibilité, sans effet.
 - **Plages horaires dédiées** : `heartbeat_notify_start_hour` / `heartbeat_notify_end_hour` (indépendantes des intérêts)
 - **Early-exit** : skip si utilisateur inactif > N jours (économie tokens)
 - **Continuité conversationnelle** : résumé stocké dans LangGraph Store (write-only v1)

@@ -11,7 +11,7 @@
  * Errors are inline text (role=alert), never color or toast alone.
  */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Check, Pencil, TerminalSquare, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -44,30 +44,41 @@ function ShortcutRow({
     <li className="flex items-center gap-3 rounded-lg border border-border/40 bg-card/60 px-3 py-2">
       <code className="shrink-0 text-sm font-semibold text-primary">/{shortcut.id}</code>
       <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{shortcut.text}</span>
-      <button
+      {/* Row actions follow the passkeys pattern (ADR-207): design-system
+          ghost icon buttons, and the DELETE one carries its red at rest — the
+          hand-written pills here were grey until hovered, so the two actions
+          had no colour code at all before the pointer reached them. */}
+      <Button
         type="button"
+        variant="ghost"
+        size="icon"
         onClick={onEdit}
         disabled={saving}
         aria-label={t('settings.chat_shortcuts.edit', { id: shortcut.id })}
-        className="p-1.5 rounded-md border border-border/30 bg-background/80 hover:bg-background text-muted-foreground hover:text-primary disabled:opacity-50"
       >
-        <Pencil className="h-3.5 w-3.5" aria-hidden />
-      </button>
-      <button
+        <Pencil className="h-4 w-4" aria-hidden />
+      </Button>
+      <Button
         type="button"
+        variant="ghost"
+        size="icon"
+        className="text-destructive hover:text-destructive"
         onClick={onRemove}
         disabled={saving}
         aria-label={t('settings.chat_shortcuts.remove', { id: shortcut.id })}
-        className="p-1.5 rounded-md border border-border/30 bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive disabled:opacity-50"
       >
-        <Trash2 className="h-3.5 w-3.5" aria-hidden />
-      </button>
+        <Trash2 className="h-4 w-4" aria-hidden />
+      </Button>
     </li>
   );
 }
 
 export function ChatShortcutsSettings({ lng, collapsible = true }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
+  // Focus parks here after a row deletion: the delete button vanishes with its
+  // row, so without a deliberate destination the keyboard user lands on <body>
+  // (same pattern as the routines list — see ScheduledActionsSettings).
+  const listRegionRef = useRef<HTMLDivElement>(null);
   const { shortcuts, maxCount, loading, save, saving } = useChatShortcuts();
   const [draftId, setDraftId] = useState('');
   const [draftText, setDraftText] = useState('');
@@ -146,10 +157,15 @@ export function ChatShortcutsSettings({ lng, collapsible = true }: BaseSettingsP
   const handleRemove = async (id: string) => {
     const ok = await save(shortcuts.filter(s => s.id !== id));
     if (!ok) toast.error(t('common.error'));
+    else listRegionRef.current?.focus();
   };
 
   const content = loading ? null : (
-    <div className="space-y-4">
+    // `tabIndex={-1}` adds no tab stop — it only makes this container a legal
+    // destination for the deliberate post-deletion `.focus()`, and it outlives
+    // every row, the empty state included (a ref on the <ul> would be null the
+    // moment the LAST shortcut is removed).
+    <div ref={listRegionRef} tabIndex={-1} className="space-y-4 focus:outline-none">
       <p className="text-xs text-muted-foreground">{t('settings.chat_shortcuts.description')}</p>
 
       {shortcuts.length === 0 ? (
@@ -235,7 +251,7 @@ export function ChatShortcutsSettings({ lng, collapsible = true }: BaseSettingsP
         </p>
       ) : (
         <div className="space-y-3 rounded-lg border border-border/40 p-3">
-          <div className="space-y-1.5">
+          <div className="space-y-3">
             <Label htmlFor="chat-shortcut-id">{t('settings.chat_shortcuts.id_label')}</Label>
             <Input
               id="chat-shortcut-id"
@@ -248,7 +264,7 @@ export function ChatShortcutsSettings({ lng, collapsible = true }: BaseSettingsP
               }}
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-3">
             <Label htmlFor="chat-shortcut-text">{t('settings.chat_shortcuts.text_label')}</Label>
             <Textarea
               id="chat-shortcut-text"

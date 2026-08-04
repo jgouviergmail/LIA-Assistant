@@ -10,7 +10,6 @@ import {
   Save,
   X,
   Clock,
-  MoreVertical,
   Pin,
   PinOff,
   RefreshCw,
@@ -23,6 +22,7 @@ import { ProvenanceDisclosure } from '@/components/provenance/ProvenanceDisclosu
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { InfoBox } from '@/components/ui/info-box';
+import { RowActions } from '@/components/ui/row-actions';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
@@ -44,6 +44,7 @@ import {
 import { useTranslation } from '@/i18n/client';
 import { type Language, getIntlLocale } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SectionToolbar } from '@/components/settings/SectionToolbar';
 import {
   useMemories,
   getEmotionalEmoji,
@@ -62,7 +63,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
   Accordion,
@@ -151,8 +151,8 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
   // State for pin toggle loading
   const [togglingPin, setTogglingPin] = useState<string | null>(null);
 
-  // State for mobile action popup
-  const [mobileActionMemory, setMobileActionMemory] = useState<Memory | null>(null);
+  // Controlled confirm for the mass deletion (opened from the toolbar).
+  const [confirmDeleteAllOpen, setConfirmDeleteAllOpen] = useState(false);
 
   // State for pinned memory delete confirmation
   const [memoryPendingDelete, setMemoryPendingDelete] = useState<Memory | null>(null);
@@ -384,86 +384,74 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
               checked={user?.memory_enabled ?? true}
               onCheckedChange={handleToggleMemoryEnabled}
               disabled={updatingMemoryEnabled}
+              aria-label={t('memories.enable_memory')}
             />
           </div>
 
-          {/* Stats and Actions */}
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              {total} {total === 1 ? 'mémoire' : 'mémoires'}
-            </div>
-            <div className="flex gap-2">
-              {/* Create button */}
-              <Button variant="outline" size="sm" onClick={handleOpenCreate}>
-                <Plus className="h-4 w-4 mr-1" />
-                <span className="hidden sm:inline">{t('memories.create')}</span>
-              </Button>
-              {/* Export button - hidden on mobile */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExport}
-                disabled={total === 0}
-                className="hidden lg:flex"
-              >
-                <Download className="h-4 w-4 mr-1" />
-                {t('memories.export')}
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm" disabled={total === 0 || deletingAll}>
-                    {deletingAll ? (
-                      <LoadingSpinner size="default" className="mr-1" />
-                    ) : (
+          {/* Stats and Actions — the unified section toolbar: labelled CTA at
+              every size, export present on phones too (it was `hidden lg:flex`
+              — amputated on mobile AND tablet). */}
+          <SectionToolbar
+            count={t('memories.count', { count: total })}
+            menuLabel={t('common.more_actions')}
+            primary={{
+              key: 'create',
+              label: t('memories.create'),
+              icon: Plus,
+              onSelect: handleOpenCreate,
+            }}
+            secondary={[
+              {
+                key: 'export',
+                label: t('memories.export'),
+                icon: Download,
+                disabled: total === 0,
+                onSelect: handleExport,
+              },
+            ]}
+            destructive={{
+              key: 'delete-all',
+              label: t('memories.delete_all'),
+              icon: Trash2,
+              disabled: total === 0 || deletingAll,
+              loading: deletingAll,
+              onSelect: () => setConfirmDeleteAllOpen(true),
+            }}
+          />
+          <AlertDialog open={confirmDeleteAllOpen} onOpenChange={setConfirmDeleteAllOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t('memories.confirm_delete_all_title')}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {pinnedCount > 0 ? (
+                    <>{t('memories.confirm_delete_all_with_pinned', { count: pinnedCount })}</>
+                  ) : (
+                    <>{t('memories.confirm_delete_all_description')}</>
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                {pinnedCount > 0 ? (
+                  <div className="flex flex-col-reverse sm:flex-row gap-2">
+                    <AlertDialogAction onClick={() => handleDeleteAll(true)} variant="warning">
+                      <Pin className="h-4 w-4 mr-1" />
+                      {t('memories.delete_all_keep_pinned')}
+                    </AlertDialogAction>
+                    <AlertDialogAction onClick={() => handleDeleteAll(false)} variant="destructive">
                       <Trash2 className="h-4 w-4 mr-1" />
-                    )}
-                    {t('memories.delete_all')}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>{t('memories.confirm_delete_all_title')}</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {pinnedCount > 0 ? (
-                        <>{t('memories.confirm_delete_all_with_pinned', { count: pinnedCount })}</>
-                      ) : (
-                        <>{t('memories.confirm_delete_all_description')}</>
-                      )}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                    {pinnedCount > 0 ? (
-                      <div className="flex flex-col-reverse sm:flex-row gap-2">
-                        <AlertDialogAction
-                          onClick={() => handleDeleteAll(true)}
-                          className="bg-orange-600 hover:bg-orange-700"
-                        >
-                          <Pin className="h-4 w-4 mr-1" />
-                          {t('memories.delete_all_keep_pinned')}
-                        </AlertDialogAction>
-                        <AlertDialogAction
-                          onClick={() => handleDeleteAll(false)}
-                          className="bg-destructive hover:bg-destructive/90"
-                        >
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          {t('memories.delete_all_including_pinned')}
-                        </AlertDialogAction>
-                      </div>
-                    ) : (
-                      <AlertDialogAction
-                        onClick={() => handleDeleteAll(false)}
-                        className="bg-destructive hover:bg-destructive/90"
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        {t('memories.delete_all_including_pinned')}
-                      </AlertDialogAction>
-                    )}
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </div>
+                      {t('memories.delete_all_including_pinned')}
+                    </AlertDialogAction>
+                  </div>
+                ) : (
+                  <AlertDialogAction onClick={() => handleDeleteAll(false)} variant="destructive">
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    {t('memories.delete_all_including_pinned')}
+                  </AlertDialogAction>
+                )}
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {/* Memories List */}
           {total === 0 ? (
@@ -490,33 +478,21 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   <AccordionContent>
                     <div className="space-y-2">
                       {categoryMemories.map(memory => (
-                        // role="presentation": the tap-anywhere onClick is a
-                        // pointer-only convenience duplicating the dedicated
-                        // mobile actions button below (audit F012/F045) — the
-                        // card itself carries no semantics and must not (it
-                        // contains interactive children).
                         <div
                           key={memory.id}
-                          role="presentation"
-                          className="group flex items-start gap-3 rounded-lg border p-3 bg-card hover:bg-accent/50 transition-colors cursor-pointer lg:cursor-default"
-                          onClick={() => {
-                            // On mobile/tablet, open action popup
-                            if (window.innerWidth < 1024) {
-                              setMobileActionMemory(memory);
-                            }
-                          }}
+                          className="flex items-start gap-3 rounded-lg border p-3 bg-card"
                         >
-                          {/* Emotional indicator + Pinned icon (mobile/tablet) */}
-                          {/* FIX 2025-12-29: self-center on mobile for vertical centering */}
-                          <div className="flex flex-col items-center shrink-0 gap-0.5 self-center lg:self-start">
+                          {/* Emotional indicator + pinned state (phone: the pin
+                              button lives in the ⋮ menu, so the state needs its
+                              own always-visible mark) */}
+                          <div className="flex flex-col items-center shrink-0 gap-0.5 self-center sm:self-start">
                             <span
                               className="text-lg"
                               title={`${t('memories.field_emotional_weight')}: ${memory.emotional_weight}`}
                             >
                               {getEmotionalEmoji(memory.emotional_weight)}
                             </span>
-                            {/* Pinned indicator - visible on mobile/tablet only */}
-                            {memory.pinned && <Pin className="h-3 w-3 text-primary lg:hidden" />}
+                            {memory.pinned && <Pin className="h-3 w-3 text-primary sm:hidden" />}
                           </div>
 
                           {/* Content */}
@@ -530,7 +506,10 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                             {/* Trigger topic badge */}
                             {memory.trigger_topic && (
                               <div className="mt-1">
-                                <Badge variant="secondary" className="text-xs">
+                                {/* Theme-coloured, not grey: an active trigger
+                                    topic is not an inactive element (owner
+                                    rule 2026-08-05). */}
+                                <Badge variant="default" className="text-xs">
                                   {memory.trigger_topic}
                                 </Badge>
                               </div>
@@ -545,31 +524,20 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                               locale={lng}
                               onCorrect={() => handleOpenEdit(memory)}
                             />
-                            {/* Metadata: dates, usage count, importance */}
+                            {/* Metadata, ONE line worth reading: created date,
+                                usage, importance, purge risk. The update and
+                                last-access dates (two more full timestamps,
+                                glyph-prefixed) said little and doubled the
+                                row's footprint — a 390px screen wrapped this
+                                into three lines of fragments. */}
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
                               {memory.created_at && (
                                 <span
                                   className="text-xs text-muted-foreground flex items-center gap-1"
                                   title={t('memories.created_at')}
                                 >
-                                  <Clock className="h-3 w-3" />
+                                  <Clock className="h-3 w-3" aria-hidden="true" />
                                   {formatMemoryDate(memory.created_at, lng)}
-                                </span>
-                              )}
-                              {memory.updated_at && memory.updated_at !== memory.created_at && (
-                                <span
-                                  className="text-xs text-muted-foreground flex items-center gap-1"
-                                  title={t('memories.updated_at')}
-                                >
-                                  ✏️ {formatMemoryDate(memory.updated_at, lng)}
-                                </span>
-                              )}
-                              {memory.last_accessed_at && (
-                                <span
-                                  className="text-xs text-muted-foreground flex items-center gap-1"
-                                  title={t('memories.last_accessed')}
-                                >
-                                  👁️ {formatMemoryDate(memory.last_accessed_at, lng)}
                                 </span>
                               )}
                               {typeof memory.usage_count === 'number' && memory.usage_count > 0 && (
@@ -577,7 +545,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                                   className="text-xs text-muted-foreground flex items-center gap-1"
                                   title={t('memories.usage_count')}
                                 >
-                                  <RefreshCw className="h-3 w-3" />
+                                  <RefreshCw className="h-3 w-3" aria-hidden="true" />
                                   {memory.usage_count}×
                                 </span>
                               )}
@@ -595,11 +563,11 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                                     'text-xs flex items-center gap-1 ' +
                                     (memory.purge_risk === 'imminent'
                                       ? 'text-destructive'
-                                      : 'text-amber-600 dark:text-amber-500')
+                                      : 'text-warning')
                                   }
                                   title={t('memories.purge_risk_tooltip')}
                                 >
-                                  <AlertTriangle className="h-3 w-3" />
+                                  <AlertTriangle className="h-3 w-3" aria-hidden="true" />
                                   {memory.purge_risk === 'imminent'
                                     ? t('memories.purge_risk_badge_imminent')
                                     : t('memories.purge_risk_badge_at_risk')}
@@ -608,71 +576,43 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                             </div>
                           </div>
 
-                          {/* Action buttons - hidden on mobile/tablet (use popup instead) */}
-                          <div className="hidden lg:flex gap-1 shrink-0">
-                            {/* Pin button - always visible when pinned */}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleTogglePin(memory)}
-                              disabled={togglingPin === memory.id}
-                              title={memory.pinned ? t('memories.unpin') : t('memories.pin')}
-                              className={
-                                memory.pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                              }
-                            >
-                              {togglingPin === memory.id ? (
-                                <LoadingSpinner size="default" />
-                              ) : memory.pinned ? (
-                                <Pin className="h-4 w-4 text-primary" />
-                              ) : (
-                                <PinOff className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                              )}
-                            </Button>
-                            {/* Edit button */}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenEdit(memory)}
-                              disabled={updating}
-                              title={t('memories.edit')}
-                              className="opacity-0 group-hover:opacity-100"
-                            >
-                              <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                            </Button>
-                            {/* Delete button */}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteClick(memory)}
-                              disabled={deleting}
-                              title={t('memories.delete')}
-                              className="opacity-0 group-hover:opacity-100"
-                            >
-                              {deleting ? (
-                                <LoadingSpinner size="default" />
-                              ) : (
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              )}
-                            </Button>
-                          </div>
-
-                          {/* Mobile actions button (audit F012/F045): the
-                              desktop buttons above are hidden below lg and the
-                              tap-anywhere card click is pointer-only — this is
-                              the keyboard/AT path to the actions popup. */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="lg:hidden shrink-0 self-center"
-                            aria-label={t('common.actions')}
-                            onClick={e => {
-                              e.stopPropagation();
-                              setMobileActionMemory(memory);
-                            }}
-                          >
-                            <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                          </Button>
+                          <RowActions
+                            // Truncated: a memory's content is a paragraph, and
+                            // an accessible name is an utterance, not a document.
+                            menuLabel={t('common.actions_for', {
+                              name:
+                                memory.content.length > 60
+                                  ? `${memory.content.slice(0, 60)}…`
+                                  : memory.content,
+                            })}
+                            actions={[
+                              {
+                                key: 'pin',
+                                label: memory.pinned ? t('memories.unpin') : t('memories.pin'),
+                                icon: memory.pinned ? Pin : PinOff,
+                                loading: togglingPin === memory.id,
+                                iconClassName: memory.pinned
+                                  ? 'text-primary hover:text-primary'
+                                  : undefined,
+                                onSelect: () => void handleTogglePin(memory),
+                              },
+                              {
+                                key: 'edit',
+                                label: t('memories.edit'),
+                                icon: Pencil,
+                                disabled: updating,
+                                onSelect: () => handleOpenEdit(memory),
+                              },
+                              {
+                                key: 'delete',
+                                label: t('memories.delete'),
+                                icon: Trash2,
+                                tone: 'destructive',
+                                loading: deleting,
+                                onSelect: () => handleDeleteClick(memory),
+                              },
+                            ]}
+                          />
                         </div>
                       ))}
                     </div>
@@ -702,7 +642,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 {/* Content */}
-                <div className="grid gap-2">
+                <div className="grid gap-3">
                   <Label htmlFor="edit-content">{t('memories.field_content')}</Label>
                   <Textarea
                     id="edit-content"
@@ -713,7 +653,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   />
                 </div>
                 {/* Category */}
-                <div className="grid gap-2">
+                <div className="grid gap-3">
                   <Label htmlFor="edit-category">{t('memories.field_category')}</Label>
                   <Select
                     value={editForm.category}
@@ -747,7 +687,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   </Select>
                 </div>
                 {/* Usage Nuance */}
-                <div className="grid gap-2">
+                <div className="grid gap-3">
                   <Label htmlFor="edit-nuance">{t('memories.field_usage_nuance')}</Label>
                   <Input
                     id="edit-nuance"
@@ -758,7 +698,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   <p className="text-xs text-muted-foreground">{t('memories.nuance_help')}</p>
                 </div>
                 {/* Trigger Topic */}
-                <div className="grid gap-2">
+                <div className="grid gap-3">
                   <Label htmlFor="edit-trigger">{t('memories.field_trigger_topic')}</Label>
                   <Input
                     id="edit-trigger"
@@ -841,7 +781,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 {/* Content */}
-                <div className="grid gap-2">
+                <div className="grid gap-3">
                   <Label htmlFor="create-content">{t('memories.field_content')} *</Label>
                   <Textarea
                     id="create-content"
@@ -853,7 +793,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   />
                 </div>
                 {/* Category */}
-                <div className="grid gap-2">
+                <div className="grid gap-3">
                   <Label htmlFor="create-category">{t('memories.field_category')}</Label>
                   <Select
                     value={createForm.category}
@@ -887,7 +827,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   </Select>
                 </div>
                 {/* Usage Nuance */}
-                <div className="grid gap-2">
+                <div className="grid gap-3">
                   <Label htmlFor="create-nuance">{t('memories.field_usage_nuance')}</Label>
                   <Input
                     id="create-nuance"
@@ -898,7 +838,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   <p className="text-xs text-muted-foreground">{t('memories.nuance_help')}</p>
                 </div>
                 {/* Trigger Topic */}
-                <div className="grid gap-2">
+                <div className="grid gap-3">
                   <Label htmlFor="create-trigger">{t('memories.field_trigger_topic')}</Label>
                   <Input
                     id="create-trigger"
@@ -975,78 +915,6 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
             </DialogContent>
           </Dialog>
 
-          {/* Mobile/Tablet Action Popup */}
-          <Dialog
-            open={mobileActionMemory !== null}
-            onOpenChange={open => !open && setMobileActionMemory(null)}
-          >
-            <DialogContent className="lg:hidden max-w-[90vw] rounded-lg">
-              <DialogHeader>
-                <DialogTitle className="text-base flex items-center gap-2">
-                  {mobileActionMemory && getEmotionalEmoji(mobileActionMemory.emotional_weight)}
-                  {t('memories.actions_title')}
-                </DialogTitle>
-                <DialogDescription className="text-sm line-clamp-2">
-                  {mobileActionMemory?.content}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex flex-col gap-2 py-2">
-                {/* Pin/Unpin button */}
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-3"
-                  onClick={() => {
-                    if (mobileActionMemory) {
-                      handleTogglePin(mobileActionMemory);
-                      setMobileActionMemory(null);
-                    }
-                  }}
-                  disabled={togglingPin === mobileActionMemory?.id}
-                >
-                  {togglingPin === mobileActionMemory?.id ? (
-                    <LoadingSpinner size="default" />
-                  ) : mobileActionMemory?.pinned ? (
-                    <PinOff className="h-4 w-4" />
-                  ) : (
-                    <Pin className="h-4 w-4" />
-                  )}
-                  {mobileActionMemory?.pinned ? t('memories.unpin') : t('memories.pin')}
-                </Button>
-
-                {/* Edit button */}
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-3"
-                  onClick={() => {
-                    if (mobileActionMemory) {
-                      handleOpenEdit(mobileActionMemory);
-                      setMobileActionMemory(null);
-                    }
-                  }}
-                >
-                  <Pencil className="h-4 w-4" />
-                  {t('memories.edit')}
-                </Button>
-
-                {/* Delete button */}
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-3 text-destructive hover:text-destructive"
-                  onClick={() => {
-                    if (mobileActionMemory) {
-                      handleDeleteClick(mobileActionMemory);
-                      setMobileActionMemory(null);
-                    }
-                  }}
-                  disabled={deleting}
-                >
-                  {deleting ? <LoadingSpinner size="default" /> : <Trash2 className="h-4 w-4" />}
-                  {t('memories.delete')}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-
           {/* Pinned Memory Delete Confirmation */}
           <AlertDialog
             open={memoryPendingDelete !== null}
@@ -1077,7 +945,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                 <AlertDialogAction
                   onClick={handleConfirmDeletePinned}
                   disabled={deleting}
-                  className="bg-destructive hover:bg-destructive/90"
+                  variant="destructive"
                 >
                   {deleting ? (
                     <LoadingSpinner size="default" className="mr-1" />

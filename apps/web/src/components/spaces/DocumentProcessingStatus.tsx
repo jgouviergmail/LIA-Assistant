@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { CheckCircle, XCircle, Loader2, RefreshCw, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { RAGDocumentStatus } from '@/types/rag-spaces';
+import { lifecycleTone } from '@/lib/status-tone';
 
 interface DocumentProcessingStatusProps {
   status: RAGDocumentStatus;
@@ -16,7 +17,7 @@ export function DocumentProcessingStatus({ status, errorMessage }: DocumentProce
   switch (status) {
     case 'pending':
       return (
-        <Badge variant="outline" className="gap-1.5">
+        <Badge variant={lifecycleTone('pending')} className="gap-1.5">
           <Clock className="h-3 w-3" />
           {t('spaces.documents.status.pending')}
         </Badge>
@@ -24,7 +25,7 @@ export function DocumentProcessingStatus({ status, errorMessage }: DocumentProce
 
     case 'processing':
       return (
-        <Badge variant="outline" className="gap-1.5">
+        <Badge variant={lifecycleTone('processing')} className="gap-1.5">
           <Loader2 className="h-3 w-3 animate-spin" />
           {t('spaces.documents.status.processing')}
         </Badge>
@@ -32,7 +33,7 @@ export function DocumentProcessingStatus({ status, errorMessage }: DocumentProce
 
     case 'ready':
       return (
-        <Badge variant="success" icon={<CheckCircle className="h-3 w-3" />}>
+        <Badge variant={lifecycleTone('ready')} icon={<CheckCircle className="h-3 w-3" />}>
           {t('spaces.documents.status.ready')}
         </Badge>
       );
@@ -40,7 +41,7 @@ export function DocumentProcessingStatus({ status, errorMessage }: DocumentProce
     case 'error':
       return (
         <Badge
-          variant="destructive"
+          variant={lifecycleTone('error')}
           icon={<XCircle className="h-3 w-3" />}
           title={errorMessage || undefined}
         >
@@ -50,7 +51,7 @@ export function DocumentProcessingStatus({ status, errorMessage }: DocumentProce
 
     case 'reindexing':
       return (
-        <Badge variant="outline" className="gap-1.5">
+        <Badge variant={lifecycleTone('reindexing')} className="gap-1.5">
           <RefreshCw className="h-3 w-3 animate-spin" />
           {t('spaces.documents.status.reindexing')}
         </Badge>

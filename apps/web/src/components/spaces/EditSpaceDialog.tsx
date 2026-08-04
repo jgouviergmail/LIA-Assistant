@@ -80,7 +80,7 @@ export function EditSpaceDialog({
           <DialogDescription>{t('spaces.edit_description')}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="edit-space-name">{t('spaces.name_label')}</Label>
             <Input
               id="edit-space-name"
@@ -92,7 +92,7 @@ export function EditSpaceDialog({
             />
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="edit-space-description">
               {t('spaces.description_label')}{' '}
               <span className="text-muted-foreground">({t('common.optional')})</span>

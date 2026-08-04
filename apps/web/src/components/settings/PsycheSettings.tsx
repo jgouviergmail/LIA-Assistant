@@ -117,10 +117,12 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
       icon={Brain}
     >
       <div className="space-y-6">
-        {/* Master toggle */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <Label>{t('psyche.enable', 'Enable Psyche Engine')}</Label>
+        {/* Master toggle — framed like the long-term memory one (owner
+            arbitration 2026-08-05): the switch that turns the whole feature
+            on reads as a card, not as one row among the settings below. */}
+        <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
+          <div className="flex-1">
+            <p className="text-sm font-medium">{t('psyche.enable', 'Enable Psyche Engine')}</p>
             <p className="text-xs text-muted-foreground">
               {t(
                 'psyche.enableDescription',
@@ -132,6 +134,7 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
             checked={settings?.psyche_enabled ?? false}
             onCheckedChange={v => handleToggle('psyche_enabled', v)}
             disabled={isUpdatingSettings}
+            aria-label={t('psyche.enable', 'Enable Psyche Engine')}
           />
         </div>
 
@@ -347,7 +350,7 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
                             <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={() => handleReset('full')}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              variant="destructive"
                             >
                               {t('psyche.fullReset', 'Reset everything')}
                             </AlertDialogAction>

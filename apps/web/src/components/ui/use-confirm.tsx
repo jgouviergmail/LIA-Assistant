@@ -104,12 +104,11 @@ export function useConfirm(): UseConfirmReturn {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={() => settle(false)}>{t('common.cancel')}</AlertDialogCancel>
+          {/* The variant, not a class rewrite: `AlertDialogAction` now resolves
+              it through `buttonVariants`, so this button sits inside the
+              design-system contrast guard like every other one. */}
           <AlertDialogAction
-            className={
-              options?.destructive === false
-                ? undefined
-                : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-            }
+            variant={options?.destructive === false ? 'default' : 'destructive'}
             onClick={() => settle(true)}
           >
             {options?.confirmLabel ?? t('common.confirm')}

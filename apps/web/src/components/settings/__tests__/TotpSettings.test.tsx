@@ -43,13 +43,14 @@ beforeEach(() => {
 });
 
 describe('TotpSettings — inactive state', () => {
-  it('offers enabling and hides management actions', () => {
+  it('offers enabling through the feature switch and hides management actions', () => {
+    // A switch like every other feature toggle (owner arbitration 2026-08-05),
+    // CONTROLLED by the server state: unchecked here, and no regenerate yet.
     renderWithProviders(<TotpSettings />);
+    const toggle = screen.getByRole('switch', { name: 'settings.security.totp.title' });
+    expect(toggle).not.toBeChecked();
     expect(
-      screen.getByRole('button', { name: 'settings.security.totp.enable' })
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'settings.security.totp.disable' })
+      screen.queryByRole('button', { name: 'settings.security.totp.regenerate' })
     ).not.toBeInTheDocument();
   });
 
@@ -59,7 +60,7 @@ describe('TotpSettings — inactive state', () => {
     const user = userEvent.setup();
     renderWithProviders(<TotpSettings />);
 
-    await user.click(screen.getByRole('button', { name: 'settings.security.totp.enable' }));
+    await user.click(screen.getByRole('switch', { name: 'settings.security.totp.title' }));
 
     // QR + manual secret are displayed.
     expect(await screen.findByAltText('settings.security.totp.qr_alt')).toBeInTheDocument();
@@ -81,7 +82,7 @@ describe('TotpSettings — inactive state', () => {
     const user = userEvent.setup();
     renderWithProviders(<TotpSettings />);
 
-    await user.click(screen.getByRole('button', { name: 'settings.security.totp.enable' }));
+    await user.click(screen.getByRole('switch', { name: 'settings.security.totp.title' }));
     await user.type(
       await screen.findByLabelText('settings.security.totp.enroll_code_label'),
       '000000'
@@ -119,7 +120,9 @@ describe('TotpSettings — active state', () => {
     const user = userEvent.setup();
     renderWithProviders(<TotpSettings />);
 
-    await user.click(screen.getByRole('button', { name: 'settings.security.totp.disable' }));
+    // Turning the switch OFF asks the house confirm first — the thumb only
+    // moves once the server confirms the deactivation.
+    await user.click(screen.getByRole('switch', { name: 'settings.security.totp.title' }));
     await user.click(
       screen.getByRole('button', { name: 'settings.security.totp.disable_confirm' })
     );

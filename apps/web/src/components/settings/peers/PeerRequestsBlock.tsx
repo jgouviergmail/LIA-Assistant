@@ -13,6 +13,7 @@ import { Inbox } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { lifecycleTone } from '@/lib/status-tone';
 import type { ConnectionView } from '@/hooks/usePeerConnections';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
@@ -36,8 +37,11 @@ export function PeerRequestsBlock({
 
   return (
     <div className="space-y-2">
+      {/* Sub-title inside the "find someone" fold — icon in theme colour,
+          never grey (owner rule 2026-08-05: a title always carries an icon,
+          and a title icon is never muted). */}
       <h4 className="flex items-center gap-2 text-sm font-medium">
-        <Inbox className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+        <Inbox className="h-4 w-4 text-primary" aria-hidden="true" />
         {t('settings.peers.requests.title')}
       </h4>
       {requests.length === 0 ? (
@@ -52,7 +56,12 @@ export function PeerRequestsBlock({
                   <p className="text-xs text-muted-foreground">{request.peer_email_hint}</p>
                 </div>
                 {request.direction === 'outgoing' && (
-                  <Badge variant="secondary">{t('settings.peers.requests.outgoing_badge')}</Badge>
+                  // A pending request is a LIVE state, so it takes its tone
+                  // from the shared lifecycle table — grey badges are
+                  // reserved for inactive elements (owner rule 2026-08-05).
+                  <Badge variant={lifecycleTone('pending')}>
+                    {t('settings.peers.requests.outgoing_badge')}
+                  </Badge>
                 )}
               </div>
               {request.direction === 'incoming' && request.context_message && (

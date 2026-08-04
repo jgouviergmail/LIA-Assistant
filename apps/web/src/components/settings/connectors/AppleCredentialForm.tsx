@@ -120,7 +120,7 @@ export function AppleCredentialForm({
       </div>
 
       {/* Apple ID input */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <Label htmlFor="apple-id">{t('settings.connectors.apple.apple_id_label')}</Label>
         <Input
           id="apple-id"
@@ -133,7 +133,7 @@ export function AppleCredentialForm({
       </div>
 
       {/* App-specific password input */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <Label htmlFor="app-password">{t('settings.connectors.apple.app_password_label')}</Label>
         <div className="relative">
           <Input

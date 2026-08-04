@@ -329,7 +329,6 @@ export default function AdminRAGSpacesSection({ lng, collapsible = true }: BaseS
             </div>
           </div>
           <Button
-            variant="outline"
             onClick={() => setShowReindexConfirm(true)}
             disabled={reindexing || reindexStatus?.in_progress}
             className="shrink-0"

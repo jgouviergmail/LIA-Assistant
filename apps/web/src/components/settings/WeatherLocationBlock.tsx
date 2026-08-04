@@ -199,7 +199,13 @@ export function WeatherLocationBlock({ lng }: WeatherLocationBlockProps) {
                   </p>
                 )}
                 <div className="pt-2">
-                  <Button variant="outline" size="sm" onClick={handleClearNow} disabled={updating}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={handleClearNow}
+                    disabled={updating}
+                  >
                     <Trash2 className="mr-2 h-3 w-3" />
                     {t('heartbeat.weather_location.clear_button')}
                   </Button>

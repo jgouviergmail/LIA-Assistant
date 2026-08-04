@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { useTotp, type TotpEnrollment } from '@/hooks/useTotp';
 import { StepUpDialog } from '@/components/auth/StepUpDialog';
 import { useStepUpGuard } from '@/hooks/useStepUpGuard';
@@ -125,18 +126,23 @@ export function TotpSettings() {
 
   return (
     <section aria-labelledby="security-totp-title" className="space-y-4">
-      <div className="flex items-start justify-between gap-3">
+      {/* Stacked on phones, side by side from `sm` up — the same header
+          contract as the passkeys block above it: the fixed row squeezed the
+          description against a column of two buttons on 390px. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <h3 id="security-totp-title" className="text-sm font-semibold flex items-center gap-2">
+          <h4 id="security-totp-title" className="text-sm font-semibold flex items-center gap-2">
             <Smartphone className="h-4 w-4 text-primary" aria-hidden="true" />
             {t('settings.security.totp.title')}
             {active && (
-              <Badge variant="secondary" className="gap-1 text-[10px]">
+              // `success`, not grey: grey badges are reserved for INACTIVE
+              // states (owner rule 2026-08-05), and this one says "enabled".
+              <Badge variant="success" className="gap-1 text-[10px]">
                 <ShieldCheck className="h-3 w-3" aria-hidden="true" />
                 {t('settings.security.totp.status_active')}
               </Badge>
             )}
-          </h3>
+          </h4>
           <p className="text-sm text-muted-foreground">{t('settings.security.totp.description')}</p>
           {active && (
             <p className="text-xs text-muted-foreground">
@@ -146,24 +152,24 @@ export function TotpSettings() {
             </p>
           )}
         </div>
-        <div className="flex flex-col items-end gap-2 shrink-0">
-          {active ? (
-            <>
-              <Button size="sm" variant="outline" onClick={() => setRegenerateOpen(true)}>
-                {t('settings.security.totp.regenerate')}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-destructive"
-                onClick={() => setDisableOpen(true)}
-              >
-                {t('settings.security.totp.disable')}
-              </Button>
-            </>
-          ) : (
-            <Button size="sm" onClick={handleEnroll} disabled={busy}>
-              {t('settings.security.totp.enable')}
+        {/* A switch, like every other feature toggle (owner arbitration
+            2026-08-05). CONTROLLED by the server state on purpose: turning it
+            on starts the enrollment ceremony (QR + code) and the thumb only
+            moves once the server confirms; turning it off asks the house
+            confirm first. */}
+        <div className="flex flex-wrap items-center gap-2 self-start sm:shrink-0 sm:flex-col sm:items-end">
+          <Switch
+            checked={active}
+            disabled={busy}
+            aria-label={t('settings.security.totp.title')}
+            onCheckedChange={value => {
+              if (value) void handleEnroll();
+              else setDisableOpen(true);
+            }}
+          />
+          {active && (
+            <Button size="sm" variant="outline" onClick={() => setRegenerateOpen(true)}>
+              {t('settings.security.totp.regenerate')}
             </Button>
           )}
         </div>
@@ -258,11 +264,7 @@ export function TotpSettings() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDisable}
-              disabled={busy}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDisable} disabled={busy} variant="destructive">
               {t('settings.security.totp.disable_confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>

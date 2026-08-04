@@ -38,19 +38,26 @@ function OAuthCallbackContent() {
   }, [searchParams, router, t]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    // Theme tokens, not a fixed grey: this page used `bg-gray-50` on a
+    // full-height container with no `dark:` variant, so a user returning from
+    // Google in dark mode got a light-grey screen mid-sign-in.
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-center">
         {error ? (
-          <div>
-            <div className="text-red-600 text-lg mb-4">{error}</div>
-            <div className="text-sm text-gray-600">{t('auth.oauth_callback.redirecting')}</div>
+          <div role="alert">
+            <div className="text-destructive text-lg mb-4">{error}</div>
+            <div className="text-sm text-muted-foreground">
+              {t('auth.oauth_callback.redirecting')}
+            </div>
           </div>
         ) : (
-          <div>
-            <div className="animate-pulse text-lg text-gray-600 mb-4">
+          <div role="status">
+            <div className="animate-pulse text-lg text-muted-foreground mb-4">
               {t('auth.oauth_callback.authenticating')}
             </div>
-            <div className="text-sm text-gray-500">{t('auth.oauth_callback.please_wait')}</div>
+            <div className="text-sm text-muted-foreground">
+              {t('auth.oauth_callback.please_wait')}
+            </div>
           </div>
         )}
       </div>
@@ -58,15 +65,21 @@ function OAuthCallbackContent() {
   );
 }
 
+/** Suspense fallback — localised, and on the same surface as the page itself. */
+function OAuthCallbackFallback() {
+  const { t } = useTranslation();
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="animate-pulse text-lg text-muted-foreground" role="status">
+        {t('common.loading')}
+      </div>
+    </div>
+  );
+}
+
 export default function OAuthCallbackPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="animate-pulse text-lg text-gray-600">Loading...</div>
-        </div>
-      }
-    >
+    <Suspense fallback={<OAuthCallbackFallback />}>
       <OAuthCallbackContent />
     </Suspense>
   );

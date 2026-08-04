@@ -1,19 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Bell, Clock, History, SlidersHorizontal } from 'lucide-react';
+import { useState } from 'react';
+import { Bell, Clock, Gauge, History, MapPin, SlidersHorizontal } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useTranslation } from '@/i18n/client';
 import { getIntlLocale } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { HourWindow, MinMaxPerDay } from '@/components/settings/FrequencyControls';
 import { useHeartbeatHistory } from '@/hooks/useHeartbeatHistory';
 import { useHeartbeatSettings } from '@/hooks/useHeartbeatSettings';
 import { HeartbeatHistory } from '@/components/settings/HeartbeatHistory';
@@ -24,29 +18,20 @@ import { toast } from 'sonner';
 import type { BaseSettingsProps } from '@/types/settings';
 
 /**
- * Generate hour options for select (00:00 to 23:00).
- */
-function generateHourOptions() {
-  return Array.from({ length: 24 }, (_, i) => ({
-    value: i.toString(),
-    label: `${i.toString().padStart(2, '0')}:00`,
-  }));
-}
-
-/**
  * HeartbeatSettings component for managing proactive notification preferences.
  *
  * Displays:
  * - Master toggle (enable/disable heartbeat)
- * - Max notifications per day selector
- * - Notification time window (start/end hour)
- * - Push notification toggle (FCM/Telegram vs silent)
+ * - Notification time window (start/end hour), then min/max per day
+ * - Folded weather-location opt-in
  * - Per-source permission switches (what may interrupt the reader)
+ *
+ * No push toggle: push delivery follows the global notification opt-in
+ * (owner arbitration 2026-08-05).
  */
 export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { settings, loading, updating, updateSettings } = useHeartbeatSettings();
-  const hourOptions = useMemo(() => generateHourOptions(), []);
   const intlLocale = getIntlLocale(lng);
   // Called BEFORE the early return below — hooks may not sit behind a
   // conditional. Fetching is gated by the argument instead: the history block
@@ -66,16 +51,6 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
     const result = await updateSettings({ heartbeat_enabled: newValue });
     if (result) {
       toast.success(newValue ? t('heartbeat.enabled_success') : t('heartbeat.disabled_success'));
-    } else {
-      toast.error(t('heartbeat.settings_error'));
-    }
-  };
-
-  const handleTogglePush = async () => {
-    const newValue = !settings.heartbeat_push_enabled;
-    const result = await updateSettings({ heartbeat_push_enabled: newValue });
-    if (result) {
-      toast.success(t('heartbeat.settings_updated'));
     } else {
       toast.error(t('heartbeat.settings_error'));
     }
@@ -141,116 +116,51 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
       {/* Conditional settings panel */}
       {settings.heartbeat_enabled && (
         <div className="space-y-5 pl-1">
-          {/* Notification frequency (min - max per day) */}
-          <div className="space-y-2">
-            <Label className="text-sm">{t('heartbeat.notification_frequency')}</Label>
-            <div className="flex items-center gap-2">
-              <Select
-                value={String(settings.heartbeat_min_per_day)}
-                onValueChange={v => handleUpdateFrequency('min', parseInt(v))}
-                disabled={updating}
-              >
-                <SelectTrigger className="w-20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: 8 }, (_, i) => i + 1).map(n => (
-                    <SelectItem key={n} value={String(n)}>
-                      {n}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-muted-foreground">-</span>
-              <Select
-                value={String(settings.heartbeat_max_per_day)}
-                onValueChange={v => handleUpdateFrequency('max', parseInt(v))}
-                disabled={updating}
-              >
-                <SelectTrigger className="w-20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: 8 }, (_, i) => i + 1).map(n => (
-                    <SelectItem key={n} value={String(n)}>
-                      {n}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-sm text-muted-foreground">{t('heartbeat.per_day')}</span>
-            </div>
-          </div>
+          {/* Shared with Interests (FrequencyControls): one implementation of
+              the hour-window and min/max pair, with named selects — the four
+              inline copies here were anonymous comboboxes. Window FIRST, then
+              frequency (owner arbitration 2026-08-05): "when may LIA speak"
+              frames "how often". No push toggle any more — push follows the
+              global notification opt-in automatically; a second per-feature
+              gate was a duplicate that could silently mute the heartbeat. */}
+          <HourWindow
+            label={
+              <>
+                <Clock className="h-4 w-4 text-primary" aria-hidden="true" />
+                {t('heartbeat.notification_hours')}
+              </>
+            }
+            startAriaLabel={t('common.start_hour_label')}
+            endAriaLabel={t('common.end_hour_label')}
+            startHour={settings.heartbeat_notify_start_hour}
+            endHour={settings.heartbeat_notify_end_hour}
+            disabled={updating}
+            onChange={handleUpdateHours}
+          />
 
-          {/* Notification time window */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2 text-sm">
-              <Clock className="h-4 w-4" />
-              {t('heartbeat.notification_hours')}
-            </Label>
-            <div className="flex items-center gap-2">
-              <Select
-                value={settings.heartbeat_notify_start_hour.toString()}
-                onValueChange={v => handleUpdateHours('start', parseInt(v))}
-                disabled={updating}
-              >
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {hourOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-muted-foreground">-</span>
-              <Select
-                value={settings.heartbeat_notify_end_hour.toString()}
-                onValueChange={v => handleUpdateHours('end', parseInt(v))}
-                disabled={updating}
-              >
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {hourOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <MinMaxPerDay
+            label={
+              <>
+                <Gauge className="h-4 w-4 text-primary" aria-hidden="true" />
+                {t('heartbeat.notification_frequency')}
+              </>
+            }
+            perDayLabel={t('heartbeat.per_day')}
+            minAriaLabel={t('common.min_per_day_label')}
+            maxAriaLabel={t('common.max_per_day_label')}
+            min={settings.heartbeat_min_per_day}
+            max={settings.heartbeat_max_per_day}
+            limit={8}
+            disabled={updating}
+            onChange={handleUpdateFrequency}
+          />
 
-          {/* Push notifications toggle */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="heartbeat-push" className="text-sm font-medium">
-                {t('heartbeat.push_enabled')}
-              </Label>
-              <p className="text-xs text-muted-foreground">{t('heartbeat.push_description')}</p>
-            </div>
-            <Switch
-              id="heartbeat-push"
-              checked={settings.heartbeat_push_enabled}
-              onCheckedChange={handleTogglePush}
-              disabled={updating || loading}
-            />
-          </div>
-
-          {/* Per-source permission (ADR-197).
-              Replaces the old availability strip, which showed seven
-              hard-coded names against the eight the backend computed — health
-              signals were never displayed at all — and offered no decision:
-              the documented way to stop being interrupted by a source was to
-              disconnect its connector, losing the tool with it. */}
-          {/* Weather location cascade (Phase 3 — ADR-073) */}
-          <div className="space-y-2 border-t pt-4">
-            <Label className="text-sm">{t('heartbeat.weather_location.section_label')}</Label>
-            <WeatherLocationBlock lng={lng} />
+          {/* Weather location cascade (Phase 3 — ADR-073), folded like its
+              neighbours: an occasional opt-in, not a daily dial. */}
+          <div className="border-t pt-4">
+            <SettingsDisclosure icon={MapPin} title={t('heartbeat.weather_location.section_label')}>
+              <WeatherLocationBlock lng={lng} />
+            </SettingsDisclosure>
           </div>
 
           {/* What the configuration above actually produced. The endpoint had

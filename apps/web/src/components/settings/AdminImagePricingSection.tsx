@@ -289,7 +289,7 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
           />
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={handleReloadCache} disabled={reloadingCache}>
+          <Button onClick={handleReloadCache} disabled={reloadingCache}>
             <RefreshCw className={`h-4 w-4 mr-2 ${reloadingCache ? 'animate-spin' : ''}`} />
             {t('settings.admin.image_pricing.reload_cache')}
           </Button>
@@ -540,7 +540,7 @@ function ImagePricingModal({ lng, entry, onClose, onSubmit }: ImagePricingModalP
           <div>
             <label
               htmlFor="img-provider"
-              className="block text-sm font-medium text-foreground mb-1"
+              className="block text-sm font-medium text-foreground mb-3"
             >
               {t('settings.admin.image_pricing.modal.provider_label')}
             </label>
@@ -568,7 +568,7 @@ function ImagePricingModal({ lng, entry, onClose, onSubmit }: ImagePricingModalP
           </div>
 
           <div>
-            <label htmlFor="img-model" className="block text-sm font-medium text-foreground mb-1">
+            <label htmlFor="img-model" className="block text-sm font-medium text-foreground mb-3">
               {t('settings.admin.image_pricing.modal.model_label')}
             </label>
             <Input
@@ -582,7 +582,7 @@ function ImagePricingModal({ lng, entry, onClose, onSubmit }: ImagePricingModalP
           </div>
 
           <div>
-            <label htmlFor="img-quality" className="block text-sm font-medium text-foreground mb-1">
+            <label htmlFor="img-quality" className="block text-sm font-medium text-foreground mb-3">
               {t('settings.admin.image_pricing.modal.quality_label')}
             </label>
             <Input
@@ -596,7 +596,7 @@ function ImagePricingModal({ lng, entry, onClose, onSubmit }: ImagePricingModalP
           </div>
 
           <div>
-            <label htmlFor="img-size" className="block text-sm font-medium text-foreground mb-1">
+            <label htmlFor="img-size" className="block text-sm font-medium text-foreground mb-3">
               {t('settings.admin.image_pricing.modal.size_label')}
             </label>
             <Input
@@ -610,7 +610,7 @@ function ImagePricingModal({ lng, entry, onClose, onSubmit }: ImagePricingModalP
           </div>
 
           <div>
-            <label htmlFor="img-cost" className="block text-sm font-medium text-foreground mb-1">
+            <label htmlFor="img-cost" className="block text-sm font-medium text-foreground mb-3">
               {t('settings.admin.image_pricing.modal.cost_label')}
             </label>
             <Input

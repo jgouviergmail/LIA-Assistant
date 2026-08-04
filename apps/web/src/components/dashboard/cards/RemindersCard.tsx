@@ -171,10 +171,7 @@ function RemindersContent({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => void confirmCancel()}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={() => void confirmCancel()} variant="destructive">
               {t('common.confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>

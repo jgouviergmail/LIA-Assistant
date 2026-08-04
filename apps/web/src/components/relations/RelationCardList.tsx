@@ -36,6 +36,7 @@ import { cn } from '@/lib/utils';
 import { timeAgoLabel } from '@/lib/briefing-utils';
 import { RelationAvatar } from '@/components/relations/RelationAvatar';
 import type { RelationSummary } from '@/hooks/useRelations';
+import { EmptyState } from '@/components/ui/empty-state';
 
 /** Show the toolbar once the list stops fitting one glance. */
 const FILTER_THRESHOLD = 9;
@@ -336,12 +337,7 @@ export function RelationCardList({
   const [onlyDormant, setOnlyDormant] = useState(false);
 
   if (relations.length === 0) {
-    return (
-      <div className="flex flex-col items-center gap-2 py-12 text-center">
-        <Users className="h-8 w-8 text-muted-foreground/50" aria-hidden="true" />
-        <p className="text-sm text-muted-foreground">{t('relations.empty')}</p>
-      </div>
-    );
+    return <EmptyState icon={Users} description={t('relations.empty')} />;
   }
 
   const needle = filter.trim().toLowerCase();
@@ -371,9 +367,7 @@ export function RelationCardList({
       )}
 
       {visible.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          {t('relations.filter_no_match')}
-        </p>
+        <EmptyState reason="no-match" description={t('relations.filter_no_match')} />
       ) : (
         <>
           {favorites.length > 0 && (

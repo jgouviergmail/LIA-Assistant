@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 4.3
+**Version** : 4.4
 **Date** : 2026-08-04
-**Application** : LIA v1.27.10
+**Application** : LIA v1.27.11
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -415,6 +415,8 @@ Ensuite, **ce qui s'exécute s'exécute dans une boîte scellée**. Le code d'un
 ---
 
 Cette exigence vaut aussi pour ce que LIA **affirme**. Une réponse doit s’appuyer sur des données réellement récupérées, jamais sur le souvenir d’une formulation antérieure ; et lorsqu’une information n’a jamais été obtenue, la dire manquante vaut mieux que la reconstituer de façon plausible. C’est une contrainte de conception plutôt qu’une consigne de style : les entités récemment récupérées sont réinjectées explicitement dans le contexte de réponse, et l’invention d’un attribut d’entité est proscrite au niveau du prompt. Une erreur factuelle plausible coûte plus cher qu’un « je ne sais pas ».
+
+La cohérence visuelle relève de la même exigence. Une action a la même forme partout ou nulle part ; un code couleur que le pointeur doit révéler n’est pas un code, c’est un secret ; le gris est réservé à ce qui est inactif — un état vivant porte sa couleur. Ces règles ne sont pas des goûts : chacune est écrite, outillée et gardée par un test, parce que l’effort de lecture appartient au système, pas à la personne qui l’utilise.
 
 ## 9. Ouverture radicale
 

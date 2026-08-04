@@ -2,9 +2,9 @@
 
 > Field report — a complete system, from design to production.
 
-**Version**: 1.1
+**Version**: 1.2
 **Date**: 2026-08-04
-**Application**: LIA v1.27.10
+**Application**: LIA v1.27.11
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -84,6 +84,8 @@ The level claimed in this document comes from a complete technical audit: 24 are
 - Continuing the decomposition of the densest components, now driven by measurement (complexity, coupling) — the backend's main monoliths are done.
 
 The action plan is organized in waves, each with measurable exit criteria. That is how this project reports on itself: not a proclaimed level, a measured one — gaps included.
+
+The proof also has its most instructive episode: three recalibrations of a simple spacing, three "I see no change" — and a delivery chain proven healthy down to the bytes served to the browser. Two plausible false leads (browser cache, service worker) fell one after the other, until the measurement that forgives nothing: in a driven browser, the margin computed to 16 pixels while the rendered gap was 3. The label primitive had stayed `inline`, and an inline element ignores its vertical margins — the defect predated the whole programme. The fix is one word, the arbitration happened on three real screenshots, and the rule became doctrine: measure the rendering before suspecting the delivery.
 
 ## 7. Convictions
 

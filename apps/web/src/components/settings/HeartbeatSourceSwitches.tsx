@@ -158,10 +158,7 @@ export function HeartbeatSourceSwitches({
                 {t(`heartbeat.source_${source}`)}
               </Label>
               {!connected.has(source) && (
-                <span
-                  id={`${id}-note`}
-                  className="block truncate text-xs text-muted-foreground"
-                >
+                <span id={`${id}-note`} className="block truncate text-xs text-muted-foreground">
                   {t('heartbeat.source_not_connected')}
                 </span>
               )}
@@ -169,7 +166,7 @@ export function HeartbeatSourceSwitches({
                 // Not truncated: this one names OTHER switches on the same
                 // screen, and a reader who cannot read which ones is left
                 // exactly where they started.
-                <span id={`${id}-requires`} className="block text-xs text-amber-600 dark:text-amber-500">
+                <span id={`${id}-requires`} className="block text-xs text-warning">
                   {t('heartbeat.source_requires', {
                     sources: missing.map(name => t(`heartbeat.source_${name}`)).join(', '),
                   })}

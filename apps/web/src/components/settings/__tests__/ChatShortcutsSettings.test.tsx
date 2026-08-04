@@ -45,6 +45,12 @@ beforeEach(() => {
 
 const MAX_ID = 32;
 
+/** Render with the default single-shortcut hook value. */
+function useChatShortcutsMock() {
+  useChatShortcuts.mockReturnValue(hookValue());
+  renderWithProviders(<ChatShortcutsSettings lng="fr" collapsible={false} />);
+}
+
 describe('validateShortcutId (pure)', () => {
   it('accepts a fresh valid slug', () => {
     expect(validateShortcutId('meteo-eze', ['other'], MAX_ID)).toBeNull();
@@ -117,6 +123,30 @@ describe('ChatShortcutsSettings', () => {
     expect(save).toHaveBeenCalledWith([]);
   });
 
+  it('parks focus on the section after a removal — never on <body>', async () => {
+    // The delete button vanishes with its row, so without a deliberate
+    // destination the browser drops focus to <body> and a keyboard user
+    // restarts from the top of the settings page. A focus oracle, not a
+    // snapshot: this regression is invisible to rendered-output assertions.
+    useChatShortcuts.mockReturnValue(hookValue());
+    const { user } = renderWithProviders(<ChatShortcutsSettings lng="fr" collapsible={false} />);
+
+    await user.click(screen.getByRole('button', { name: 'settings.chat_shortcuts.remove' }));
+
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it('colour-codes the row actions: delete carries its red at rest', () => {
+    // The passkeys pattern (ADR-207): the destructive row action is tinted
+    // before the pointer reaches it — a colour revealed only on hover is not
+    // a code.
+    useChatShortcutsMock();
+    const remove = screen.getByRole('button', { name: 'settings.chat_shortcuts.remove' });
+    const edit = screen.getByRole('button', { name: 'settings.chat_shortcuts.edit' });
+    expect(remove.className).toContain('text-destructive');
+    expect(edit.className).not.toContain('text-destructive');
+  });
+
   it('replaces the form with an explanation at capacity', () => {
     useChatShortcuts.mockReturnValue(
       hookValue({
@@ -148,12 +178,12 @@ describe('ChatShortcutsSettings — editing an existing shortcut', () => {
   it('opens an editor pre-filled with the current values', async () => {
     await openEditor();
 
-    expect(screen.getByRole('textbox', { name: 'settings.chat_shortcuts.edit_id_label' })).toHaveValue(
-      'meteo'
-    );
-    expect(screen.getByRole('textbox', { name: 'settings.chat_shortcuts.edit_text_label' })).toHaveValue(
-      'Quelle est la météo ?'
-    );
+    expect(
+      screen.getByRole('textbox', { name: 'settings.chat_shortcuts.edit_id_label' })
+    ).toHaveValue('meteo');
+    expect(
+      screen.getByRole('textbox', { name: 'settings.chat_shortcuts.edit_text_label' })
+    ).toHaveValue('Quelle est la météo ?');
   });
 
   it('saves the edited text through the full-replace save', async () => {
@@ -201,9 +231,7 @@ describe('ChatShortcutsSettings — editing an existing shortcut', () => {
       })
     );
     const { user } = renderWithProviders(<ChatShortcutsSettings lng="fr" collapsible={false} />);
-    await user.click(
-      screen.getAllByRole('button', { name: 'settings.chat_shortcuts.edit' })[0]!
-    );
+    await user.click(screen.getAllByRole('button', { name: 'settings.chat_shortcuts.edit' })[0]!);
 
     const id = screen.getByRole('textbox', { name: 'settings.chat_shortcuts.edit_id_label' });
     await user.clear(id);
@@ -235,13 +263,17 @@ describe('ChatShortcutsSettings — editing an existing shortcut', () => {
     await user.click(screen.getByRole('button', { name: /settings.chat_shortcuts.cancel/ }));
 
     expect(save).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'settings.chat_shortcuts.edit' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'settings.chat_shortcuts.edit' })
+    ).toBeInTheDocument();
   });
 
   it('blocks saving an emptied field', async () => {
     const { user } = await openEditor();
 
-    await user.clear(screen.getByRole('textbox', { name: 'settings.chat_shortcuts.edit_text_label' }));
+    await user.clear(
+      screen.getByRole('textbox', { name: 'settings.chat_shortcuts.edit_text_label' })
+    );
 
     expect(screen.getByRole('button', { name: /settings.chat_shortcuts.save/ })).toBeDisabled();
   });

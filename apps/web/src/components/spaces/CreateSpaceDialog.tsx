@@ -83,7 +83,7 @@ export function CreateSpaceDialog({
           <DialogDescription>{t('spaces.create_description')}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="space-name">{t('spaces.name_label')}</Label>
             <Input
               id="space-name"
@@ -95,7 +95,7 @@ export function CreateSpaceDialog({
             />
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="space-description">
               {t('spaces.description_label')}{' '}
               <span className="text-muted-foreground">({t('common.optional')})</span>

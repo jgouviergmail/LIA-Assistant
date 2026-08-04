@@ -6,6 +6,7 @@ import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useSpaces } from '@/hooks/useSpaces';
 import { Library, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { SpaceCard } from '@/components/spaces/SpaceCard';
 import { CreateSpaceDialog } from '@/components/spaces/CreateSpaceDialog';
 import { EditSpaceDialog } from '@/components/spaces/EditSpaceDialog';
@@ -113,15 +114,17 @@ export default function SpacesPage() {
             ))}
           </div>
         ) : spaces.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-12 text-center">
-            <Library className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">{t('spaces.empty_title')}</h3>
-            <p className="text-sm text-muted-foreground mb-4">{t('spaces.empty_description')}</p>
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              {t('spaces.create_button')}
-            </Button>
-          </div>
+          <EmptyState
+            variant="page"
+            icon={Library}
+            title={t('spaces.empty_title')}
+            description={t('spaces.empty_description')}
+            action={{
+              label: t('spaces.create_button'),
+              onClick: () => setCreateOpen(true),
+              icon: Plus,
+            }}
+          />
         ) : (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {spaces.map(space => (

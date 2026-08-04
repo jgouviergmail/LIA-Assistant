@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -180,6 +180,7 @@ export function AdminUsageLimitsEditModal({
             </div>
             {blocked && (
               <Textarea
+                aria-label={t('usage_limits.edit.block_reason_placeholder')}
                 placeholder={t('usage_limits.edit.block_reason_placeholder')}
                 value={blockReason}
                 onChange={e => setBlockReason(e.target.value)}
@@ -227,6 +228,10 @@ function LimitField({
   t,
 }: LimitFieldProps) {
   const isUnlimited = value === null;
+  // One instance per limit row, so the ids must be per-instance: a literal id
+  // would be duplicated across every row of the modal.
+  const fieldId = useId();
+  const labelId = `${fieldId}-label`;
 
   const formatUsage = (v: number | string) => {
     const n = typeof v === 'string' ? parseFloat(v) : v;
@@ -240,10 +245,19 @@ function LimitField({
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-3">
-        <Label className="text-xs w-24 shrink-0">{label}</Label>
-        <Switch checked={!isUnlimited} onCheckedChange={checked => onChange(checked ? 0 : null)} />
+        <Label id={labelId} className="text-xs w-24 shrink-0" htmlFor={fieldId}>
+          {label}
+        </Label>
+        {/* The switch toggles the very limit the label names, so it borrows that
+            name rather than introducing a second wording to translate. */}
+        <Switch
+          aria-labelledby={labelId}
+          checked={!isUnlimited}
+          onCheckedChange={checked => onChange(checked ? 0 : null)}
+        />
         {!isUnlimited && (
           <Input
+            id={fieldId}
             type="number"
             min={0}
             step={step}

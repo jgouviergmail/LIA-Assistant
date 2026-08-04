@@ -206,7 +206,7 @@ export function TimezoneSelector({ lng, collapsible = true }: BaseSettingsProps)
           )}
 
           {/* Search input */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="timezone-search">{t('settings.timezone.search_label')}</Label>
             <Input
               id="timezone-search"
@@ -239,8 +239,17 @@ export function TimezoneSelector({ lng, collapsible = true }: BaseSettingsProps)
                         <button
                           key={timezone}
                           type="button"
-                          onClick={() => handleTimezoneChange(timezone)}
-                          disabled={updating || isSelected}
+                          // The guard — not `disabled` — stops the re-select.
+                          // Disabling the button the click just landed on blurs
+                          // it and drops it from the tab order, throwing a
+                          // keyboard user back to <body>. `aria-current` states
+                          // the selection while keeping the option reachable.
+                          onClick={() => {
+                            if (updating || isSelected) return;
+                            handleTimezoneChange(timezone);
+                          }}
+                          disabled={updating}
+                          aria-current={isSelected ? 'true' : undefined}
                           className={`
                             relative flex items-start gap-3 rounded-lg border-2 p-3 text-left transition-all
                             hover:bg-accent hover:shadow-sm
@@ -251,7 +260,6 @@ export function TimezoneSelector({ lng, collapsible = true }: BaseSettingsProps)
                                 : 'border-border bg-card'
                             }
                           `}
-                          aria-label={`Select ${displayName}`}
                         >
                           {/* Selection indicator */}
                           <div

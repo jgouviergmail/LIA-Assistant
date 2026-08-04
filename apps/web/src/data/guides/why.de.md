@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 4.3
+**Version**: 4.4
 **Datum**: 2026-08-04
-**Anwendung**: LIA v1.27.10
+**Anwendung**: LIA v1.27.11
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -415,6 +415,8 @@ Zweitens: **Was läuft, läuft in einer versiegelten Box**. Der Code einer Skill
 ---
 
 Derselbe Anspruch gilt für das, was LIA **behauptet**. Eine Antwort muss auf tatsächlich abgerufenen Daten beruhen, nie auf der Erinnerung an eine frühere Formulierung; und wurde eine Information nie erhalten, ist es besser, sie als fehlend zu benennen, als etwas Plausibles zu rekonstruieren. Das ist eine Konstruktionsvorgabe, keine Stilfrage: kürzlich abgerufene Entitäten werden ausdrücklich in den Antwortkontext eingespeist, und das Erfinden eines Entitätsattributs ist auf Prompt-Ebene untersagt. Ein plausibler Sachfehler kostet mehr als ein „Ich weiß es nicht“.
+
+Visuelle Konsistenz unterliegt demselben Anspruch. Eine Aktion hat überall dieselbe Form oder nirgends; ein Farbcode, den erst der Mauszeiger enthüllt, ist kein Code, sondern ein Geheimnis; Grau ist dem Inaktiven vorbehalten — ein lebendiger Zustand trägt seine Farbe. Diese Regeln sind kein Geschmack: Jede ist niedergeschrieben, mit Werkzeugen versehen und durch einen Test bewacht, denn die Lesearbeit gehört dem System, nicht dem Menschen, der es benutzt.
 
 ## 9. Radikale Offenheit
 

@@ -256,12 +256,20 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
             <AccordionContent>
               <div className="space-y-6 pb-2">
                 {/* URLs — one per kind */}
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                <div className="space-y-3">
+                  <Label
+                    className="text-xs uppercase tracking-wide text-muted-foreground"
+                    htmlFor="health-ingest-steps-url"
+                  >
                     {t('healthMetrics.ingestion.stepsUrlLabel', 'URL pas (POST)')}
                   </Label>
                   <div className="flex gap-2">
-                    <Input value={ingestStepsUrl} readOnly className="font-mono text-xs" />
+                    <Input
+                      id="health-ingest-steps-url"
+                      value={ingestStepsUrl}
+                      readOnly
+                      className="font-mono text-xs"
+                    />
                     <Button
                       type="button"
                       variant="outline"
@@ -279,14 +287,23 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                  <Label
+                    className="text-xs uppercase tracking-wide text-muted-foreground"
+                    htmlFor="health-ingest-heart-rate-url"
+                  >
                     {t(
                       'healthMetrics.ingestion.heartRateUrlLabel',
                       'URL fréquence cardiaque (POST)'
                     )}
                   </Label>
                   <div className="flex gap-2">
-                    <Input value={ingestHeartRateUrl} readOnly className="font-mono text-xs" />
+                    <Input
+                      id="health-ingest-heart-rate-url"
+                      aria-describedby="health-ingest-payload-hint"
+                      value={ingestHeartRateUrl}
+                      readOnly
+                      className="font-mono text-xs"
+                    />
                     <Button
                       type="button"
                       variant="outline"
@@ -302,7 +319,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p id="health-ingest-payload-hint" className="text-xs text-muted-foreground">
                     {t(
                       'healthMetrics.ingestion.payloadHint',
                       'Corps JSON : tableau de mesures [{"date_start":"…","date_end":"…","steps":1234,"o":"iphone"}]. En-tête Authorization: Bearer <votre_jeton>.'
@@ -315,7 +332,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                   <div className="rounded-lg border border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 p-4 space-y-2">
                     <div className="flex items-center gap-2">
                       <ShieldAlert className="h-4 w-4 text-amber-600" />
-                      <span className="font-medium text-sm">
+                      <span id="health-just-created-token-label" className="font-medium text-sm">
                         {t(
                           'healthMetrics.tokens.justCreated',
                           'Copiez ce jeton — il ne sera plus affiché.'
@@ -323,7 +340,11 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                       </span>
                     </div>
                     <div className="flex gap-2 items-center">
+                      {/* Named by the banner heading above rather than a new key:
+                          the sentence already says what this field holds, and it
+                          is already translated in the six locales. */}
                       <Input
+                        aria-labelledby="health-just-created-token-label"
                         type={showJustCreated ? 'text' : 'password'}
                         value={justCreatedToken}
                         readOnly
@@ -369,12 +390,16 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                 )}
 
                 {/* Token creation */}
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                <div className="space-y-3">
+                  <Label
+                    className="text-xs uppercase tracking-wide text-muted-foreground"
+                    htmlFor="health-new-token-label"
+                  >
                     {t('healthMetrics.tokens.newLabel', 'Nouveau jeton (libellé optionnel)')}
                   </Label>
                   <div className="flex gap-2">
                     <Input
+                      id="health-new-token-label"
                       value={newTokenLabel}
                       onChange={e => setNewTokenLabel(e.target.value)}
                       placeholder={t('healthMetrics.tokens.labelPlaceholder', 'iPhone perso')}
@@ -670,7 +695,7 @@ function DeleteTile({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{t('common.cancel', 'Annuler')}</AlertDialogCancel>
-          <AlertDialogAction onClick={() => void onConfirm()}>
+          <AlertDialogAction variant="destructive" onClick={() => void onConfirm()}>
             {t('common.confirm', 'Confirmer')}
           </AlertDialogAction>
         </AlertDialogFooter>

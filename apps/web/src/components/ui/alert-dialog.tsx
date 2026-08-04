@@ -4,6 +4,20 @@ import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
+import type { VariantProps } from 'class-variance-authority';
+
+/**
+ * The confirm and dismiss buttons take a `variant`, like every other button.
+ *
+ * Without it, `AlertDialogAction` rendered the primary blue whatever it was
+ * confirming — including an irreversible deletion — and the only way to change
+ * that was to re-write the classes at the call site. Eight sites did, and three
+ * of them dropped the foreground token while doing so; one reached for a raw
+ * `bg-orange-600`. Passing the variant through `buttonVariants` puts those
+ * buttons back inside the design-system contrast guard.
+ */
+type AlertDialogButtonProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Close> &
+  Pick<VariantProps<typeof buttonVariants>, 'variant' | 'size'>;
 
 const AlertDialog = DialogPrimitive.Root;
 
@@ -88,19 +102,23 @@ AlertDialogDescription.displayName = DialogPrimitive.Description.displayName;
 
 const AlertDialogAction = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Close>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Close>
->(({ className, ...props }, ref) => (
-  <DialogPrimitive.Close ref={ref} className={cn(buttonVariants(), className)} {...props} />
+  AlertDialogButtonProps
+>(({ className, variant, size, ...props }, ref) => (
+  <DialogPrimitive.Close
+    ref={ref}
+    className={cn(buttonVariants({ variant, size }), className)}
+    {...props}
+  />
 ));
 AlertDialogAction.displayName = 'AlertDialogAction';
 
 const AlertDialogCancel = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Close>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Close>
->(({ className, ...props }, ref) => (
+  AlertDialogButtonProps
+>(({ className, variant = 'outline', size, ...props }, ref) => (
   <DialogPrimitive.Close
     ref={ref}
-    className={cn(buttonVariants({ variant: 'outline' }), 'mt-2 sm:mt-0', className)}
+    className={cn(buttonVariants({ variant, size }), 'mt-2 sm:mt-0', className)}
     {...props}
   />
 ));

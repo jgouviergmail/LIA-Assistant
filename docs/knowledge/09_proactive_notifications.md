@@ -25,12 +25,12 @@ Enable the feature in just a few clicks:
 Settings → "*Proactive Notifications*" section → Enable the toggle
 
 **📝 Available options:**
-• **Min/max per day**: set the minimum (default: 1) and maximum (default: 3) notifications per day (range: 1-8)
 • **Time window**: configure your own start hour (default: 9 AM) and end hour (default: 10 PM) — independent from interest notification hours
-• **Push notifications**: enable/disable push (FCM/Telegram) separately
+• **Min/max per day**: set the minimum (default: 1) and maximum (default: 3) notifications per day (range: 1-8)
+• **Travel weather**: a foldable block to opt in to location-aware weather
 
-**💡 Silent mode:**
-If you disable push, LIA's messages are archived **silently** in conversation + SSE. You'll see them at your next login without being disturbed.
+**💡 Push delivery:**
+Push (FCM/Telegram) follows your **global notification opt-in** automatically — there is no separate per-feature switch. Every message is also archived in the conversation, so you will find it at your next login either way.
 
 ## What data sources are used?
 LIA aggregates **8 data sources** in parallel to decide whether to notify you:

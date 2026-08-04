@@ -2,9 +2,9 @@
 
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
-**Version**: 1.1
+**Version**: 1.2
 **Datum**: 2026-08-04
-**Anwendung**: LIA v1.27.10
+**Anwendung**: LIA v1.27.11
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -84,6 +84,8 @@ Das in diesem Dokument beanspruchte Niveau stammt aus einem vollständigen techn
 - Fortsetzung der Zerlegung der dichtesten Komponenten, nun messgetrieben (Komplexität, Kopplung) — die wichtigsten Monolithen des Backends sind behandelt.
 
 Der Maßnahmenplan ist in Wellen organisiert, jede mit messbaren Abschlusskriterien. So legt dieses Projekt Rechenschaft ab: kein proklamiertes Niveau, ein gemessenes — Lücken inklusive.
+
+Auch der Beweis hat seine lehrreichste Episode: drei Rekalibrierungen eines simplen Abstands, dreimal „ich sehe keine Veränderung" — und eine Auslieferungskette, die bis zu den an den Browser gelieferten Bytes nachweislich gesund war. Zwei plausible falsche Fährten (Browser-Cache, Service Worker) fielen nacheinander, bis zur Messung, die nichts verzeiht: Im gesteuerten Browser betrug der berechnete Rand 16 Pixel, der gezeichnete Abstand 3. Die Label-Primitive war `inline` geblieben, und ein Inline-Element ignoriert seine vertikalen Ränder — der Defekt war älter als das ganze Programm. Der Fix ist ein Wort, die Entscheidung fiel auf drei echten Screenshots, und die Regel wurde Doktrin: erst das Rendering messen, dann die Auslieferung verdächtigen.
 
 ## 7. Überzeugungen
 

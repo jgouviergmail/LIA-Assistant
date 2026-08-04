@@ -120,6 +120,10 @@ function ProviderKeyRow({
   const [keyValue, setKeyValue] = useState('');
   const [showKey, setShowKey] = useState(false);
   const isOllama = provider.provider === 'ollama';
+  // One row per provider, so the name must be per-instance. The heading already
+  // reads "<Provider> (API key)" in the active locale — the field borrows it
+  // rather than adding a seventh translation of the same words.
+  const headingId = useId();
 
   const handleSave = async () => {
     if (!keyValue.trim()) return;
@@ -147,7 +151,7 @@ function ProviderKeyRow({
       <div className="flex items-center gap-3">
         <Key className="h-4 w-4 text-muted-foreground" />
         <div>
-          <div className="font-medium text-sm">
+          <div id={headingId} className="font-medium text-sm">
             {provider.display_name}
             <span className="ml-1.5 text-xs font-normal text-muted-foreground">
               (
@@ -174,6 +178,7 @@ function ProviderKeyRow({
           <>
             <div className="relative">
               <Input
+                aria-labelledby={headingId}
                 type={isOllama || showKey ? 'text' : 'password'}
                 value={keyValue}
                 onChange={e => setKeyValue(e.target.value)}
@@ -208,7 +213,14 @@ function ProviderKeyRow({
               {t('settings.admin.llmConfig.providers.edit')}
             </Button>
             {provider.has_db_key && (
-              <Button size="sm" variant="outline" onClick={handleDelete} disabled={updating}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                onClick={handleDelete}
+                disabled={updating}
+                aria-label={t('settings.admin.llmConfig.providers.deleteKey')}
+              >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             )}
@@ -413,6 +425,8 @@ function NumberField({
   onValueChange: (raw: string) => void;
   t: (key: string) => string;
 }) {
+  // Accessible name = the visible label (F012), unique per instance.
+  const labelId = useId();
   return (
     <div className="space-y-1.5">
       <OverridableFieldLabel
@@ -420,8 +434,10 @@ function NumberField({
         tooltipKey={tooltipKey}
         modified={modified}
         t={t}
+        labelId={labelId}
       />
       <Input
+        aria-labelledby={labelId}
         type="number"
         min="1"
         value={value ?? ''}
@@ -451,9 +467,12 @@ function TtsVoicePicker({
   onChange: (voiceId: string) => void;
   t: (key: string) => string;
 }) {
+  // Accessible name = the visible label (F012): the label names whichever
+  // control the branch below renders — the catalogue select or the free input.
+  const labelId = useId();
   return (
-    <div className="space-y-1.5">
-      <Label>{t(labelKey)}</Label>
+    <div className="space-y-3">
+      <Label id={labelId}>{t(labelKey)}</Label>
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground py-1.5">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -475,6 +494,7 @@ function TtsVoicePicker({
         </Select>
       ) : (
         <Input
+          aria-labelledby={labelId}
           value={value}
           onChange={e => onChange(e.target.value)}
           placeholder={t('settings.admin.llmConfig.voiceTts.voiceIdPlaceholder')}
@@ -498,30 +518,58 @@ function EdgeTuning({
 }) {
   return (
     <div className="grid grid-cols-3 gap-2">
-      <div className="space-y-1.5">
-        <Label className="text-xs">{t('settings.admin.llmConfig.voiceTts.rate')}</Label>
-        <Input
-          value={providerConfig.rate ?? ''}
-          onChange={e => setKey('rate', e.target.value)}
-          placeholder="+10%"
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label className="text-xs">{t('settings.admin.llmConfig.voiceTts.pitch')}</Label>
-        <Input
-          value={providerConfig.pitch ?? ''}
-          onChange={e => setKey('pitch', e.target.value)}
-          placeholder="+0Hz"
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label className="text-xs">{t('settings.admin.llmConfig.voiceTts.volume')}</Label>
-        <Input
-          value={providerConfig.volume ?? ''}
-          onChange={e => setKey('volume', e.target.value)}
-          placeholder="+0%"
-        />
-      </div>
+      <EdgeTuningField
+        labelKey="settings.admin.llmConfig.voiceTts.rate"
+        value={providerConfig.rate}
+        onChange={raw => setKey('rate', raw)}
+        placeholder="+10%"
+        t={t}
+      />
+      <EdgeTuningField
+        labelKey="settings.admin.llmConfig.voiceTts.pitch"
+        value={providerConfig.pitch}
+        onChange={raw => setKey('pitch', raw)}
+        placeholder="+0Hz"
+        t={t}
+      />
+      <EdgeTuningField
+        labelKey="settings.admin.llmConfig.voiceTts.volume"
+        value={providerConfig.volume}
+        onChange={raw => setKey('volume', raw)}
+        placeholder="+0%"
+        t={t}
+      />
+    </div>
+  );
+}
+
+/** One Edge TTS prosody field — the three share this exact layout. */
+function EdgeTuningField({
+  labelKey,
+  value,
+  onChange,
+  placeholder,
+  t,
+}: {
+  labelKey: string;
+  value: string | undefined;
+  onChange: (raw: string) => void;
+  placeholder: string;
+  t: (key: string) => string;
+}) {
+  // Three instances side by side, so the id must be per-instance.
+  const fieldId = useId();
+  return (
+    <div className="space-y-3">
+      <Label className="text-xs" htmlFor={fieldId}>
+        {t(labelKey)}
+      </Label>
+      <Input
+        id={fieldId}
+        value={value ?? ''}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+      />
     </div>
   );
 }
@@ -540,7 +588,7 @@ function OpenAITuning({
   const speedLabelId = useId();
   return (
     <>
-      <div className="space-y-1.5">
+      <div className="space-y-3">
         <Label id={speedLabelId}>{t('settings.admin.llmConfig.voiceTts.speed')}</Label>
         <div className="flex items-center gap-3">
           <input
@@ -558,7 +606,7 @@ function OpenAITuning({
           </span>
         </div>
       </div>
-      <div className="space-y-1.5">
+      <div className="space-y-3">
         <Label>{t('settings.admin.llmConfig.voiceTts.responseFormat')}</Label>
         <Select
           value={providerConfig.response_format ?? 'mp3'}
@@ -596,7 +644,7 @@ function VoiceSettingSlider({
   // Accessible name = the visible label (F012), unique per instance.
   const labelId = useId();
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-3">
       <Label id={labelId}>{t(labelKey)}</Label>
       <div className="flex items-center gap-3">
         <input
@@ -637,7 +685,7 @@ function ElevenLabsTuning({
   const boostInputId = useId();
   return (
     <>
-      <div className="space-y-1.5">
+      <div className="space-y-3">
         <Label>{t('settings.admin.llmConfig.voiceTts.outputFormat')}</Label>
         <Select
           value={providerConfig.output_format ?? 'mp3_44100_128'}
@@ -850,12 +898,16 @@ function ModelField({
   onFreeTextModel: (raw: string) => void;
   t: (key: string) => string;
 }) {
+  // Accessible name = the visible label (F012). The label names whichever
+  // control this branch renders — the catalogue select or the free-text input.
+  const labelId = useId();
   return (
     <div className="space-y-1.5">
       <OverridableFieldLabel
         labelKey="settings.admin.llmConfig.fields.model"
         modified={modified}
         t={t}
+        labelId={labelId}
       />
       {form.provider === 'ollama' && ollamaLoading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground py-1.5">
@@ -881,6 +933,7 @@ function ModelField({
         </p>
       ) : (
         <Input
+          aria-labelledby={labelId}
           value={form.model ?? ''}
           onChange={e => onFreeTextModel(e.target.value)}
           placeholder="model-name"

@@ -1011,6 +1011,7 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
                         <div className="flex gap-2">
                           <Input
                             type="password"
+                            aria-label={t('settings.connectors.api_key.key_placeholder')}
                             placeholder={t('settings.connectors.api_key.key_placeholder')}
                             value={apiKeyInputs[connector.type] || ''}
                             onChange={e =>

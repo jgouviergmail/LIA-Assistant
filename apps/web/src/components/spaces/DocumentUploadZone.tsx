@@ -112,11 +112,7 @@ export function DocumentUploadZone({
   return (
     <div className="space-y-3">
       {/* Mobile: button only */}
-      <Button
-        variant="outline"
-        className="w-full sm:hidden"
-        onClick={() => fileInputRef.current?.click()}
-      >
+      <Button className="w-full sm:hidden" onClick={() => fileInputRef.current?.click()}>
         <Upload className="h-4 w-4 mr-2" />
         {t('spaces.documents.upload_button')}
       </Button>

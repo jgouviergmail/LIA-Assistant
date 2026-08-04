@@ -85,9 +85,9 @@ function ResetPasswordForm() {
     return (
       <div className="text-center space-y-6">
         <div className="flex justify-center">
-          <CheckCircle2 className="h-16 w-16 text-green-500" />
+          <CheckCircle2 className="h-16 w-16 text-success" />
         </div>
-        <h1 className="text-2xl font-bold text-green-600">
+        <h1 className="text-2xl font-bold text-success">
           {t('auth.reset_password.success_title')}
         </h1>
         <p className="text-muted-foreground">{t('auth.reset_password.success_message')}</p>
@@ -143,7 +143,7 @@ function ResetPasswordForm() {
                 <div
                   key={idx}
                   className={`flex items-center gap-1.5 ${
-                    req.met ? 'text-green-600' : 'text-muted-foreground'
+                    req.met ? 'text-success' : 'text-muted-foreground'
                   }`}
                 >
                   {req.met ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
@@ -196,16 +196,20 @@ function ResetPasswordForm() {
   );
 }
 
+/** Suspense fallback — localised like every other user-facing string. */
+function ResetPasswordFallback() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col items-center justify-center space-y-4 py-8">
+      <LoadingSpinner size="xl" />
+      <p className="text-muted-foreground">{t('common.loading')}</p>
+    </div>
+  );
+}
+
 export default function ResetPasswordPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex flex-col items-center justify-center space-y-4 py-8">
-          <LoadingSpinner size="xl" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      }
-    >
+    <Suspense fallback={<ResetPasswordFallback />}>
       <ResetPasswordForm />
     </Suspense>
   );

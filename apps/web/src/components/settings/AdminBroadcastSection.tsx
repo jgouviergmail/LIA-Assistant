@@ -235,6 +235,10 @@ export default function AdminBroadcastSection({ lng, collapsible = true }: BaseS
               <div className="relative" ref={dropdownRef}>
                 <Input
                   ref={inputRef}
+                  // Named by the same string as the placeholder: a placeholder
+                  // vanishes as soon as the user types, so it cannot be the
+                  // field's name (WCAG 3.3.2).
+                  aria-label={t('settings.admin.broadcast.search_users')}
                   type="text"
                   value={searchQuery}
                   onChange={e => {
@@ -296,7 +300,7 @@ export default function AdminBroadcastSection({ lng, collapsible = true }: BaseS
         </div>
 
         {/* Message Input */}
-        <div className="space-y-2">
+        <div className="space-y-3">
           <Label htmlFor="broadcast-message">{t('settings.admin.broadcast.message_label')}</Label>
           <Textarea
             id="broadcast-message"

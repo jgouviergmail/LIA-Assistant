@@ -56,6 +56,7 @@ import {
   type TestConnectionResponse,
 } from '@/hooks/useUserMCPServers';
 import { toast } from 'sonner';
+import { lifecycleTone, type BadgeTone } from '@/lib/status-tone';
 
 interface MCPServersSettingsProps {
   lng: Language;
@@ -91,13 +92,19 @@ const EMPTY_FORM: FormState = {
   iterative_mode: false,
 };
 
-function getStatusBadgeVariant(
-  server: UserMCPServer
-): 'default' | 'secondary' | 'destructive' | 'outline' {
+/**
+ * Tone of a server's status pill.
+ *
+ * Being switched OFF outranks whatever the last probe reported: a disabled
+ * server is inert, not healthy and not broken. Everything else comes from the
+ * shared lifecycle table, so `active` and `error` look the same here as on
+ * scheduled actions, Drive sources, documents and calls — they did not before
+ * (`active` was blue here, green there, and `auth_required` was an outline
+ * rather than the warning it is).
+ */
+function getStatusBadgeVariant(server: UserMCPServer): BadgeTone {
   if (!server.is_enabled) return 'secondary';
-  if (server.status === 'error') return 'destructive';
-  if (server.status === 'auth_required') return 'outline';
-  return 'default';
+  return lifecycleTone(server.status);
 }
 
 function getStatusLabel(server: UserMCPServer, t: (key: string) => string): string {
@@ -388,7 +395,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
         </DialogHeader>
         <div className="space-y-4 py-4">
           {/* Name */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="mcp-name">{t('settings.mcp.field_name')}</Label>
             <Input
               id="mcp-name"
@@ -400,7 +407,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
           </div>
 
           {/* URL */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="mcp-url">{t('settings.mcp.field_url')}</Label>
             <Input
               id="mcp-url"
@@ -412,7 +419,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
           </div>
 
           {/* Domain Description */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="mcp-domain-description">
               {t('settings.mcp.field_domain_description')}{' '}
               <span className="text-xs text-muted-foreground">({t('common.optional')})</span>
@@ -451,7 +458,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
           </div>
 
           {/* Auth Type */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label>{t('settings.mcp.field_auth_type')}</Label>
             <Select
               value={form.auth_type}
@@ -472,7 +479,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
           {/* Conditional credential fields */}
           {form.auth_type === 'api_key' && (
             <>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label htmlFor="mcp-api-key">{t('settings.mcp.field_api_key')}</Label>
                 <Input
                   id="mcp-api-key"
@@ -493,7 +500,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
                   </p>
                 )}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label htmlFor="mcp-header-name">{t('settings.mcp.field_header_name')}</Label>
                 <Input
                   id="mcp-header-name"
@@ -506,7 +513,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
           )}
 
           {form.auth_type === 'bearer' && (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label htmlFor="mcp-bearer-token">{t('settings.mcp.field_bearer_token')}</Label>
               <Input
                 id="mcp-bearer-token"
@@ -531,7 +538,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
 
           {form.auth_type === 'oauth2' && (
             <>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label htmlFor="mcp-oauth-client-id">
                   {t('settings.mcp.field_oauth_client_id')}{' '}
                   <span className="text-xs text-muted-foreground">({t('common.optional')})</span>
@@ -552,7 +559,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
                   </p>
                 )}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label htmlFor="mcp-oauth-client-secret">
                   {t('settings.mcp.field_oauth_client_secret')}{' '}
                   <span className="text-xs text-muted-foreground">({t('common.optional')})</span>
@@ -574,7 +581,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
                   </p>
                 )}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label htmlFor="mcp-oauth-scopes">
                   {t('settings.mcp.field_oauth_scopes')}{' '}
                   <span className="text-xs text-muted-foreground">({t('common.optional')})</span>
@@ -593,7 +600,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
           )}
 
           {/* Timeout */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="mcp-timeout">{t('settings.mcp.field_timeout')}</Label>
             <Input
               id="mcp-timeout"
@@ -901,11 +908,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} variant="destructive">
               {deleting && <LoadingSpinner className="mr-2 h-4 w-4" />}
               {t('common.delete')}
             </AlertDialogAction>

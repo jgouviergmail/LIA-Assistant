@@ -9,8 +9,6 @@
  * and browser timezone (the display-timezone doctrine).
  */
 
-import { Eye } from 'lucide-react';
-
 import type { AccessLogEntry } from '@/hooks/usePeerConnections';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
@@ -27,16 +25,16 @@ function formatInstant(lng: string, iso: string): string {
   );
 }
 
+/**
+ * Headerless on purpose: the section shell folds this block behind a
+ * `SettingsDisclosure` whose summary already carries the title, the hint and
+ * the count — a second heading inside would say the same thing twice.
+ */
 export function PeerAccessLogBlock({ lng, entries }: PeerAccessLogBlockProps) {
   const { t } = useTranslation(lng);
 
   return (
     <div className="space-y-2">
-      <h4 className="flex items-center gap-2 text-sm font-medium">
-        <Eye className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-        {t('settings.peers.access_log.title')}
-      </h4>
-      <p className="text-xs text-muted-foreground">{t('settings.peers.access_log.hint')}</p>
       {entries.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t('settings.peers.access_log.empty')}</p>
       ) : (

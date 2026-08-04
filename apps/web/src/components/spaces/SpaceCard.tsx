@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { SpaceActivationToggle } from './SpaceActivationToggle';
 import { formatFileSize } from '@/lib/format';
 import type { RAGSpace } from '@/types/rag-spaces';
+import { lifecycleTone } from '@/lib/status-tone';
 
 interface SpaceCardProps {
   space: RAGSpace;
@@ -64,7 +65,7 @@ export function SpaceCard({
         {/* Stats + Actions */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <Badge variant={space.is_active ? 'success' : 'outline'}>
+            <Badge variant={lifecycleTone(space.is_active ? 'active' : 'inactive')}>
               {space.is_active ? t('common.active') : t('common.inactive')}
             </Badge>
             <span>

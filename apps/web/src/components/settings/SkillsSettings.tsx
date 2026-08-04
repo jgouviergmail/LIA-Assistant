@@ -14,6 +14,7 @@ import { Blocks, BookOpen, ChevronDown, Link2, ShieldCheck, Upload } from 'lucid
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -245,12 +246,13 @@ function UserScopeSection(props: {
             own `pb-4 sm:pb-6`: what sits under these buttons is the card's
             bottom padding, so matching it at the top is what actually centres
             them between the line and the edge, at both breakpoints. */}
-        <div className="flex items-center gap-2 flex-wrap border-t pt-4 sm:pt-6">
+        {/* Right-aligned (owner arbitration 2026-08-05), like the section
+            toolbars everywhere else: count/summary left, actions right. */}
+        <div className="flex items-center justify-end gap-2 flex-wrap border-t pt-4 sm:pt-6">
           <Button
-            variant="outline"
             size="sm"
             onClick={onShowGuide}
-            className="gap-1.5 text-primary border-primary/30 hover:bg-primary/5 hover:border-primary/50"
+            className="gap-1.5"
             title={t('settings.skills.guide_toggle')}
           >
             <BookOpen className="h-3.5 w-3.5" />
@@ -264,7 +266,7 @@ function UserScopeSection(props: {
             onChange={onImportFile}
             aria-label={t('settings.skills.import_button')}
           />
-          <Button variant="outline" size="sm" onClick={onShowUrlImport} className="gap-1.5">
+          <Button size="sm" onClick={onShowUrlImport}>
             <Link2 className="h-3.5 w-3.5" />
             {t('settings.skills.url_import.button')}
           </Button>
@@ -283,9 +285,7 @@ function UserScopeSection(props: {
           it carries the same gap the card's padding provides when collapsed —
           the row keeps one balanced band in both states. */}
       {open && skills.length === 0 && (
-        <div className="mt-4 text-center py-6 text-muted-foreground sm:mt-6">
-          <p className="text-sm">{t('settings.skills.empty')}</p>
-        </div>
+        <EmptyState className="mt-4 sm:mt-6" description={t('settings.skills.empty')} />
       )}
       {open && skills.length > 0 && (
         <div className="mt-4 sm:mt-6">
@@ -427,11 +427,7 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} variant="destructive">
               {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>

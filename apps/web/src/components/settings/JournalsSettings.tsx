@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   BookOpen,
   Trash2,
@@ -8,12 +8,14 @@ import {
   Pencil,
   Download,
   AlertTriangle,
+  Info,
   Settings2,
   RefreshCw,
   Flag,
   UserSquare2,
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { RowActions } from '@/components/ui/row-actions';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ProvenanceDisclosure } from '@/components/provenance/ProvenanceDisclosure';
@@ -45,7 +47,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
   Accordion,
@@ -56,6 +57,8 @@ import {
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SectionToolbar } from '@/components/settings/SectionToolbar';
+import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
 import {
   useJournals,
   type JournalEntry,
@@ -78,6 +81,14 @@ const MOOD_EMOJI: Record<string, string> = {
 };
 
 /** Source emoji mapping */
+/**
+ * Above this many characters the clamped entry very likely hides text, so the
+ * "show more" toggle appears. A character count, not a layout measurement:
+ * `line-clamp` truncation cannot be read back without a resize observer, and
+ * an occasionally superfluous toggle is harmless.
+ */
+const CONTENT_CLAMP_THRESHOLD = 240;
+
 const SOURCE_EMOJI: Record<string, string> = {
   conversation: '\u{1F4AC}',
   consolidation: '\u{1F504}',
@@ -85,14 +96,22 @@ const SOURCE_EMOJI: Record<string, string> = {
   user_correction: '\u{1F6A9}', // \uD83D\uDEA9
 };
 
-/** Confidence visual style \u2014 distinguishes hypothesis from validated directive */
+/**
+ * Confidence visual style \u2014 distinguishes hypothesis from validated directive.
+ * Theme tokens, not raw palette: low is a caution, high a confirmation, and
+ * medium takes the house "info" ground (primary tint, like Badge `info`).
+ */
 const CONFIDENCE_DOT: Record<JournalEntryConfidence, string> = {
-  low: 'bg-amber-500',
-  medium: 'bg-blue-500',
-  high: 'bg-emerald-500',
+  low: 'bg-warning',
+  medium: 'bg-primary',
+  high: 'bg-success',
 };
 
-/** Level visual style \u2014 cognitive stratification (L0 raw \u2192 L3 portrait) */
+/**
+ * Level visual style \u2014 cognitive stratification (L0 raw \u2192 L3 portrait).
+ * Still raw palette: four ORDINAL hues have no semantic tokens to map to;
+ * this table belongs to the deferred raw-colour ratchet, not this lot.
+ */
 const LEVEL_BADGE: Record<JournalEntryLevel, string> = {
   L0: 'bg-slate-100 text-slate-700 border-slate-300',
   L1: 'bg-indigo-50 text-indigo-700 border-indigo-300',
@@ -155,6 +174,22 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
 
   // Dialog states
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
+  // Controlled confirm for the mass deletion (opened from the toolbar).
+  const [confirmDeleteAllOpen, setConfirmDeleteAllOpen] = useState(false);
+  // Entries the reader unclamped ("show more").
+  const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
+
+  const toggleEntryExpanded = (id: string) => {
+    setExpandedEntries(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  // Focus anchor for the post-deletion return (rows vanish under the reader).
+  const entriesRegionRef = useRef<HTMLDivElement>(null);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const [createForm, setCreateForm] = useState<JournalEntryCreate>({
     theme: 'self_reflection',
@@ -163,7 +198,6 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
     mood: 'reflective',
   });
   const [editForm, setEditForm] = useState<JournalEntryUpdate>({});
-  const [showOnlyUnused, setShowOnlyUnused] = useState(false);
   const [groupBy, setGroupBy] = useState<'theme' | 'level'>('theme');
   const [portraitFormat, setPortraitFormat] = useState<'full' | 'brief'>('full');
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -369,7 +403,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
       )}
       icon={BookOpen}
     >
-      <div className="space-y-6">
+      <div ref={entriesRegionRef} tabIndex={-1} className="space-y-6 focus:outline-none">
         {/* Master toggle */}
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
@@ -399,7 +433,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
               <div className="rounded-lg border bg-card p-3 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <UserSquare2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <UserSquare2 className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                     <div className="min-w-0">
                       <div className="text-sm font-medium">
                         {t('journals.portraitTitle', 'How LIA sees you')}
@@ -461,187 +495,242 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
               </div>
             )}
 
-            {/* Consolidation Toggle */}
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="consolidation-enabled" className="text-sm">
-                  {t('journals.consolidation', 'Periodic consolidation')}
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  {t(
-                    'journals.consolidationDescription',
-                    'Assistant periodically reviews and organizes its notes'
+            {/* Configuration, folded (owner arbitration 2026-08-05): two
+                toggles, a gauge and four numeric dials are TUNING, not
+                reading — the reader came for the portrait and the entries. */}
+            <div className="border-t pt-4">
+              <SettingsDisclosure
+                icon={Settings2}
+                title={t('journals.configuration', 'Configuration')}
+              >
+                <div className="space-y-5 pt-1">
+                  {/* Consolidation Toggle — the cost warning lives IN the row it
+                warns about (it used to float as an orphan badge between two
+                toggles, glued back with a -mt-3 hack). */}
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="consolidation-enabled" className="text-sm">
+                        {t('journals.consolidation', 'Periodic consolidation')}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        {t(
+                          'journals.consolidationDescription',
+                          'Assistant periodically reviews and organizes its notes'
+                        )}
+                      </p>
+                      <p className="flex items-center gap-1 text-xs text-warning">
+                        <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                        {t('journals.higherCost', 'Higher cost')}
+                      </p>
+                    </div>
+                    <Switch
+                      id="consolidation-enabled"
+                      checked={journalSettings?.journal_consolidation_enabled ?? true}
+                      onCheckedChange={v => handleToggle('journal_consolidation_enabled', v)}
+                      disabled={isUpdatingSettings}
+                    />
+                  </div>
+
+                  {/* History Analysis Toggle */}
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="history-enabled" className="text-sm">
+                        {t('journals.historyAnalysis', 'Analyze conversation history')}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        {t(
+                          'journals.historyDescription',
+                          'Consolidation also reviews recent conversations'
+                        )}
+                      </p>
+                    </div>
+                    <Switch
+                      id="history-enabled"
+                      checked={journalSettings?.journal_consolidation_with_history ?? false}
+                      onCheckedChange={v => handleToggle('journal_consolidation_with_history', v)}
+                      disabled={isUpdatingSettings}
+                    />
+                  </div>
+
+                  {/* Size Gauge */}
+                  {sizeInfo && (
+                    <div className="space-y-2 rounded-lg border p-3">
+                      <div className="flex flex-col sm:flex-row sm:justify-between text-sm gap-0.5">
+                        <span className="text-muted-foreground">
+                          {t('journals.sizeUsage', 'Size usage')}
+                        </span>
+                        <span className="font-mono text-xs">
+                          {sizeInfo.total_chars.toLocaleString()} /{' '}
+                          {sizeInfo.max_total_chars.toLocaleString()}
+                          <span className="text-muted-foreground ml-1">
+                            ({sizeInfo.usage_pct}%)
+                          </span>
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            sizeInfo.usage_pct > 80 ? 'bg-warning' : 'bg-primary'
+                          }`}
+                          style={{ width: `${Math.min(sizeInfo.usage_pct, 100)}%` }}
+                        />
+                      </div>
+                    </div>
                   )}
-                </p>
-              </div>
-              <Switch
-                id="consolidation-enabled"
-                checked={journalSettings?.journal_consolidation_enabled ?? true}
-                onCheckedChange={v => handleToggle('journal_consolidation_enabled', v)}
-                disabled={isUpdatingSettings}
-              />
-            </div>
 
-            {/* Higher cost warning */}
-            <Badge variant="outline" className="text-yellow-600 text-[10px] px-1.5 py-0 w-fit">
-              <AlertTriangle className="h-3 w-3 mr-0.5" />
-              {t('journals.higherCost', 'Higher cost')}
-            </Badge>
+                  {/* Numeric Settings — every cell is the ExportCard shape (ADR-207:
+                a grid aligns its actions): label and hint at the top, the
+                input pushed to the cell's bottom with `mt-auto`, so the four
+                boxes sit on the same line whatever the hint's length. The old
+                cells mixed space-y-3 and space-y-1.5 and let the longest hint
+                push its input out of line with its neighbour. */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Max Total Chars */}
+                    <div className="flex flex-col gap-3">
+                      <Label className="text-sm" htmlFor="journal-max-total-chars">
+                        {t('journals.maxTotalChars', 'Max journal size')}
+                      </Label>
+                      <p
+                        id="journal-max-total-chars-hint"
+                        className="text-[11px] text-muted-foreground"
+                      >
+                        {t(
+                          'journals.maxTotalCharsDescription',
+                          'Cannot be set below current usage.'
+                        )}
+                      </p>
+                      <Input
+                        id="journal-max-total-chars"
+                        aria-describedby="journal-max-total-chars-hint"
+                        type="number"
+                        min={sizeInfo?.total_chars ?? 5000}
+                        max={200000}
+                        step={5000}
+                        value={localMaxTotalChars}
+                        onChange={e => setLocalMaxTotalChars(parseInt(e.target.value) || 0)}
+                        onBlur={() =>
+                          handleNumericSave(
+                            'journal_max_total_chars',
+                            localMaxTotalChars,
+                            setLocalMaxTotalChars,
+                            journalSettings!.journal_max_total_chars
+                          )
+                        }
+                        className="mt-auto w-full font-mono text-sm"
+                        disabled={isUpdatingSettings}
+                      />
+                    </div>
 
-            {/* History Analysis Toggle */}
-            <div className="flex items-center justify-between -mt-3">
-              <div className="space-y-0.5">
-                <Label htmlFor="history-enabled" className="text-sm">
-                  {t('journals.historyAnalysis', 'Analyze conversation history')}
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  {t(
-                    'journals.historyDescription',
-                    'Consolidation also reviews recent conversations'
-                  )}
-                </p>
-              </div>
-              <Switch
-                id="history-enabled"
-                checked={journalSettings?.journal_consolidation_with_history ?? false}
-                onCheckedChange={v => handleToggle('journal_consolidation_with_history', v)}
-                disabled={isUpdatingSettings}
-              />
-            </div>
+                    {/* Context Max Chars */}
+                    <div className="flex flex-col gap-3">
+                      <Label className="text-sm" htmlFor="journal-context-max-chars">
+                        {t('journals.contextMaxChars', 'Prompt injection budget')}
+                      </Label>
+                      <p
+                        id="journal-context-max-chars-hint"
+                        className="text-[11px] text-muted-foreground"
+                      >
+                        {t(
+                          'journals.contextMaxCharsDescription',
+                          'Max characters injected into prompts'
+                        )}
+                      </p>
+                      <Input
+                        id="journal-context-max-chars"
+                        aria-describedby="journal-context-max-chars-hint"
+                        type="number"
+                        min={200}
+                        max={10000}
+                        step={100}
+                        value={localContextMaxChars}
+                        onChange={e => setLocalContextMaxChars(parseInt(e.target.value) || 0)}
+                        onBlur={() =>
+                          handleNumericSave(
+                            'journal_context_max_chars',
+                            localContextMaxChars,
+                            setLocalContextMaxChars,
+                            journalSettings!.journal_context_max_chars
+                          )
+                        }
+                        className="mt-auto w-full font-mono text-sm"
+                        disabled={isUpdatingSettings}
+                      />
+                    </div>
 
-            {/* Size Gauge */}
-            {sizeInfo && (
-              <div className="space-y-2 rounded-lg border p-3">
-                <div className="flex flex-col sm:flex-row sm:justify-between text-sm gap-0.5">
-                  <span className="text-muted-foreground">
-                    {t('journals.sizeUsage', 'Size usage')}
-                  </span>
-                  <span className="font-mono text-xs">
-                    {sizeInfo.total_chars.toLocaleString()} /{' '}
-                    {sizeInfo.max_total_chars.toLocaleString()}
-                    <span className="text-muted-foreground ml-1">({sizeInfo.usage_pct}%)</span>
-                  </span>
+                    {/* Max Entry Chars */}
+                    <div className="flex flex-col gap-3">
+                      <Label className="text-sm" htmlFor="journal-max-entry-chars">
+                        {t('journals.maxEntryChars', 'Max entry size')}
+                      </Label>
+                      <p
+                        id="journal-max-entry-chars-hint"
+                        className="text-[11px] text-muted-foreground"
+                      >
+                        {t(
+                          'journals.maxEntryCharsDescription',
+                          'Max characters per individual entry.'
+                        )}
+                      </p>
+                      <Input
+                        id="journal-max-entry-chars"
+                        aria-describedby="journal-max-entry-chars-hint"
+                        type="number"
+                        min={100}
+                        max={5000}
+                        step={100}
+                        value={localMaxEntryChars}
+                        onChange={e => setLocalMaxEntryChars(parseInt(e.target.value) || 0)}
+                        onBlur={() =>
+                          handleNumericSave(
+                            'journal_max_entry_chars',
+                            localMaxEntryChars,
+                            setLocalMaxEntryChars,
+                            journalSettings!.journal_max_entry_chars
+                          )
+                        }
+                        className="mt-auto w-full font-mono text-sm"
+                        disabled={isUpdatingSettings}
+                      />
+                    </div>
+
+                    {/* Context Max Results */}
+                    <div className="flex flex-col gap-3">
+                      <Label className="text-sm" htmlFor="journal-context-max-results">
+                        {t('journals.contextMaxResults', 'Max search results')}
+                      </Label>
+                      <p
+                        id="journal-context-max-results-hint"
+                        className="text-[11px] text-muted-foreground"
+                      >
+                        {t(
+                          'journals.contextMaxResultsDescription',
+                          'Max entries for context injection'
+                        )}
+                      </p>
+                      <Input
+                        id="journal-context-max-results"
+                        aria-describedby="journal-context-max-results-hint"
+                        type="number"
+                        min={1}
+                        max={30}
+                        step={1}
+                        value={localContextMaxResults}
+                        onChange={e => setLocalContextMaxResults(parseInt(e.target.value) || 0)}
+                        onBlur={() =>
+                          handleNumericSave(
+                            'journal_context_max_results',
+                            localContextMaxResults,
+                            setLocalContextMaxResults,
+                            journalSettings!.journal_context_max_results
+                          )
+                        }
+                        className="mt-auto w-full font-mono text-sm"
+                        disabled={isUpdatingSettings}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${
-                      sizeInfo.usage_pct > 80 ? 'bg-yellow-500' : 'bg-primary'
-                    }`}
-                    style={{ width: `${Math.min(sizeInfo.usage_pct, 100)}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Numeric Settings */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Max Total Chars */}
-              <div className="space-y-1.5">
-                <Label className="text-sm">{t('journals.maxTotalChars', 'Max journal size')}</Label>
-                <p className="text-[11px] text-muted-foreground">
-                  {t('journals.maxTotalCharsDescription', 'Cannot be set below current usage.')}
-                </p>
-                <Input
-                  type="number"
-                  min={sizeInfo?.total_chars ?? 5000}
-                  max={200000}
-                  step={5000}
-                  value={localMaxTotalChars}
-                  onChange={e => setLocalMaxTotalChars(parseInt(e.target.value) || 0)}
-                  onBlur={() =>
-                    handleNumericSave(
-                      'journal_max_total_chars',
-                      localMaxTotalChars,
-                      setLocalMaxTotalChars,
-                      journalSettings!.journal_max_total_chars
-                    )
-                  }
-                  className="w-full font-mono text-sm"
-                  disabled={isUpdatingSettings}
-                />
-              </div>
-
-              {/* Context Max Chars */}
-              <div className="space-y-1.5">
-                <Label className="text-sm">
-                  {t('journals.contextMaxChars', 'Prompt injection budget')}
-                </Label>
-                <p className="text-[11px] text-muted-foreground">
-                  {t('journals.contextMaxCharsDescription', 'Max characters injected into prompts')}
-                </p>
-                <Input
-                  type="number"
-                  min={200}
-                  max={10000}
-                  step={100}
-                  value={localContextMaxChars}
-                  onChange={e => setLocalContextMaxChars(parseInt(e.target.value) || 0)}
-                  onBlur={() =>
-                    handleNumericSave(
-                      'journal_context_max_chars',
-                      localContextMaxChars,
-                      setLocalContextMaxChars,
-                      journalSettings!.journal_context_max_chars
-                    )
-                  }
-                  className="w-full font-mono text-sm"
-                  disabled={isUpdatingSettings}
-                />
-              </div>
-
-              {/* Max Entry Chars */}
-              <div className="space-y-1.5">
-                <Label className="text-sm">{t('journals.maxEntryChars', 'Max entry size')}</Label>
-                <p className="text-[11px] text-muted-foreground">
-                  {t('journals.maxEntryCharsDescription', 'Max characters per individual entry.')}
-                </p>
-                <Input
-                  type="number"
-                  min={100}
-                  max={5000}
-                  step={100}
-                  value={localMaxEntryChars}
-                  onChange={e => setLocalMaxEntryChars(parseInt(e.target.value) || 0)}
-                  onBlur={() =>
-                    handleNumericSave(
-                      'journal_max_entry_chars',
-                      localMaxEntryChars,
-                      setLocalMaxEntryChars,
-                      journalSettings!.journal_max_entry_chars
-                    )
-                  }
-                  className="w-full font-mono text-sm"
-                  disabled={isUpdatingSettings}
-                />
-              </div>
-
-              {/* Context Max Results */}
-              <div className="space-y-1.5">
-                <Label className="text-sm">
-                  {t('journals.contextMaxResults', 'Max search results')}
-                </Label>
-                <p className="text-[11px] text-muted-foreground">
-                  {t('journals.contextMaxResultsDescription', 'Max entries for context injection')}
-                </p>
-                <Input
-                  type="number"
-                  min={1}
-                  max={30}
-                  step={1}
-                  value={localContextMaxResults}
-                  onChange={e => setLocalContextMaxResults(parseInt(e.target.value) || 0)}
-                  onBlur={() =>
-                    handleNumericSave(
-                      'journal_context_max_results',
-                      localContextMaxResults,
-                      setLocalContextMaxResults,
-                      journalSettings!.journal_context_max_results
-                    )
-                  }
-                  className="w-full font-mono text-sm"
-                  disabled={isUpdatingSettings}
-                />
-              </div>
+              </SettingsDisclosure>
             </div>
 
             {/* Last Cost Info */}
@@ -698,89 +787,10 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-9"
-                onClick={() => setIsCreateOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                {t('journals.create', 'New entry')}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-9"
-                onClick={() => handleExport('json')}
-              >
-                <Download className="h-4 w-4 mr-1" />
-                {t('journals.export', 'Export')}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-9"
-                onClick={handleConsolidateNow}
-                disabled={isConsolidating}
-                title={t(
-                  'journals.consolidateNowTooltip',
-                  'Force a consolidation right now (dedup, level promotions, confidence updates). Takes a few seconds.'
-                )}
-              >
-                <RefreshCw className={`h-4 w-4 mr-1 ${isConsolidating ? 'animate-spin' : ''}`} />
-                {isConsolidating
-                  ? t('journals.consolidating', 'Consolidating…')
-                  : t('journals.consolidateNow', 'Consolidate now')}
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="h-9"
-                    disabled={entryList.length === 0}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    {t('journals.deleteAll', 'Delete all')}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      {t('journals.deleteAllTitle', 'Delete all entries?')}
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {t(
-                        'journals.deleteAllDescription',
-                        'This will permanently delete all journal entries. This action cannot be undone.'
-                      )}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteAll}>
-                      {t('common.delete', 'Delete')}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-
-            {/* Filter + Group toggles */}
+            {/* Group toggle (the never-used filter was removed on owner
+                arbitration 2026-08-05: a maintenance view, not a reading one) */}
             {entryList.length > 0 && (
               <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="filter-unused" className="text-xs text-muted-foreground">
-                    {t('journals.filterUnused', 'Show only entries never used')}
-                  </Label>
-                  <Switch
-                    id="filter-unused"
-                    checked={showOnlyUnused}
-                    onCheckedChange={setShowOnlyUnused}
-                  />
-                </div>
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">
                     {t('journals.groupBy.label', 'Group by')}
@@ -824,8 +834,8 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                 };
                 // No `count` on the group: it is derived from the rows actually
                 // rendered, below. Theme badges used to carry the server-side
-                // total while the list was paginated and filtered by
-                // `showOnlyUnused`, so a badge could claim 12 over three rows.
+                // total while the list was paginated, so a badge could claim
+                // 12 over three rows.
                 const groups: Group[] =
                   groupBy === 'theme'
                     ? themeKeys.map(theme => ({
@@ -857,10 +867,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                     )}
                     <Accordion type="multiple" className="w-full">
                       {groups.map(g => {
-                        const baseEntries = entryList.filter(g.filter);
-                        const groupEntries = showOnlyUnused
-                          ? baseEntries.filter(e => e.injection_count === 0)
-                          : baseEntries;
+                        const groupEntries = entryList.filter(g.filter);
                         return (
                           <AccordionItem key={g.key} value={g.key}>
                             <AccordionTrigger className="text-sm">
@@ -905,75 +912,120 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                                               {entry.title}
                                             </span>
                                           </div>
-                                          <Badge variant="outline" className="text-xs w-fit">
-                                            {SOURCE_EMOJI[entry.source] ?? ''} {entry.source}
-                                          </Badge>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground whitespace-pre-wrap">
-                                          {entry.content}
-                                        </p>
-                                        {entry.search_hints && entry.search_hints.length > 0 && (
-                                          <div className="flex flex-wrap gap-1 mt-1">
-                                            {entry.search_hints.map((hint, idx) => (
-                                              <Badge
-                                                key={idx}
-                                                variant="outline"
-                                                className="text-[10px] px-1.5 py-0 font-normal text-muted-foreground"
-                                              >
-                                                {hint}
-                                              </Badge>
-                                            ))}
-                                          </div>
-                                        )}
-                                        {/* Epistemic + lifecycle metrics row (commit 1) */}
-                                        <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px] text-muted-foreground">
-                                          <span
-                                            className="flex items-center gap-1"
-                                            title={t(
-                                              `journals.confidence.${entry.confidence}`,
-                                              entry.confidence
-                                            )}
-                                          >
-                                            <span
-                                              className={`inline-block h-2 w-2 rounded-full ${CONFIDENCE_DOT[entry.confidence]}`}
-                                            />
-                                            {t(
-                                              `journals.confidence.${entry.confidence}`,
-                                              entry.confidence
-                                            )}
-                                          </span>
-                                          <Badge
-                                            variant="outline"
-                                            className={`text-[10px] px-1.5 py-0 font-mono ${LEVEL_BADGE[entry.level]}`}
-                                            title={t(
-                                              `journals.levels.${entry.level}.description`,
-                                              entry.level
-                                            )}
-                                          >
-                                            {entry.level}
-                                          </Badge>
-                                          <span title={t('journals.injectionCount', 'Times used')}>
-                                            ✨ {entry.injection_count}
-                                          </span>
-                                          <span title={t('journals.lastInjected', 'Last used')}>
-                                            {t('journals.lastUsed', 'last')}:{' '}
-                                            {formatRelativeDate(entry.last_injected_at)}
-                                          </span>
-                                          {(entry.evidence_count > 0 ||
-                                            entry.contradiction_count > 0) && (
-                                            <span
+                                          <div className="flex items-center gap-1.5">
+                                            <Badge variant="outline" className="text-xs w-fit">
+                                              {SOURCE_EMOJI[entry.source] ?? ''} {entry.source}
+                                            </Badge>
+                                            {/* The level stays VISIBLE: grouped
+                                                by theme it is the only thing
+                                                telling an L1 note from an L3
+                                                synthesis. */}
+                                            <Badge
+                                              variant="outline"
+                                              className={`text-[10px] px-1.5 py-0 font-mono ${LEVEL_BADGE[entry.level]}`}
                                               title={t(
-                                                'journals.evidenceTooltip',
-                                                'Confirmations / contradictions'
+                                                `journals.levels.${entry.level}.description`,
+                                                entry.level
                                               )}
                                             >
-                                              ✓{entry.evidence_count} / ✗{entry.contradiction_count}
-                                            </span>
-                                          )}
-                                          <span>
-                                            · {new Date(entry.created_at).toLocaleDateString()}
-                                          </span>
+                                              {entry.level}
+                                            </Badge>
+                                          </div>
                                         </div>
+                                        {/* Clamped: a long reflection used to
+                                            render in FULL inside the list,
+                                            turning ten entries into a wall.
+                                            The toggle appears only when there
+                                            is actually more to read. */}
+                                        <p
+                                          className={`text-xs text-muted-foreground whitespace-pre-wrap ${
+                                            expandedEntries.has(entry.id) ? '' : 'line-clamp-3'
+                                          }`}
+                                        >
+                                          {entry.content}
+                                        </p>
+                                        {entry.content.length > CONTENT_CLAMP_THRESHOLD && (
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 px-1 text-xs text-muted-foreground"
+                                            aria-expanded={expandedEntries.has(entry.id)}
+                                            onClick={() => toggleEntryExpanded(entry.id)}
+                                          >
+                                            {expandedEntries.has(entry.id)
+                                              ? t('common.show_less', 'Show less')
+                                              : t('common.show_more', 'Show more')}
+                                          </Button>
+                                        )}
+                                        {/* Epistemic metrics + search hints,
+                                            FOLDED: five 10px chips under every
+                                            entry answered questions nobody was
+                                            asking while scanning (owner
+                                            arbitration 2026-08-05). */}
+                                        <SettingsDisclosure
+                                          icon={Info}
+                                          title={t('common.details', 'Details')}
+                                          className="mt-1"
+                                        >
+                                          <div className="space-y-1.5">
+                                            {entry.search_hints &&
+                                              entry.search_hints.length > 0 && (
+                                                <div className="flex flex-wrap gap-1">
+                                                  {entry.search_hints.map((hint, idx) => (
+                                                    <Badge
+                                                      key={idx}
+                                                      variant="outline"
+                                                      className="text-[10px] px-1.5 py-0 font-normal text-muted-foreground"
+                                                    >
+                                                      {hint}
+                                                    </Badge>
+                                                  ))}
+                                                </div>
+                                              )}
+                                            <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                                              <span
+                                                className="flex items-center gap-1"
+                                                title={t(
+                                                  `journals.confidence.${entry.confidence}`,
+                                                  entry.confidence
+                                                )}
+                                              >
+                                                <span
+                                                  className={`inline-block h-2 w-2 rounded-full ${CONFIDENCE_DOT[entry.confidence]}`}
+                                                />
+                                                {t(
+                                                  `journals.confidence.${entry.confidence}`,
+                                                  entry.confidence
+                                                )}
+                                              </span>
+                                              <span
+                                                title={t('journals.injectionCount', 'Times used')}
+                                              >
+                                                ✨ {entry.injection_count}
+                                              </span>
+                                              <span title={t('journals.lastInjected', 'Last used')}>
+                                                {t('journals.lastUsed', 'last')}:{' '}
+                                                {formatRelativeDate(entry.last_injected_at)}
+                                              </span>
+                                              {(entry.evidence_count > 0 ||
+                                                entry.contradiction_count > 0) && (
+                                                <span
+                                                  title={t(
+                                                    'journals.evidenceTooltip',
+                                                    'Confirmations / contradictions'
+                                                  )}
+                                                >
+                                                  ✓{entry.evidence_count} / ✗
+                                                  {entry.contradiction_count}
+                                                </span>
+                                              )}
+                                              <span>
+                                                · {new Date(entry.created_at).toLocaleDateString()}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </SettingsDisclosure>
                                         {/* The counters above answer HOW MANY
                                             signals; this answers WHICH. A
                                             conclusion nobody can examine is one
@@ -986,50 +1038,27 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                                           onCorrect={() => openEdit(entry)}
                                         />
                                       </div>
-                                      <div className="flex gap-1 ml-2">
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          className="h-7 w-7"
-                                          onClick={() => openEdit(entry)}
-                                        >
-                                          <Pencil className="h-3 w-3" />
-                                        </Button>
-                                        <AlertDialog>
-                                          <AlertDialogTrigger asChild>
-                                            <Button
-                                              size="icon"
-                                              variant="ghost"
-                                              className="h-7 w-7 text-destructive"
-                                            >
-                                              <Trash2 className="h-3 w-3" />
-                                            </Button>
-                                          </AlertDialogTrigger>
-                                          <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                              <AlertDialogTitle>
-                                                {t('journals.deleteTitle', 'Delete entry?')}
-                                              </AlertDialogTitle>
-                                              <AlertDialogDescription>
-                                                {t(
-                                                  'journals.deleteDescription',
-                                                  'This entry will be permanently deleted.'
-                                                )}
-                                              </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                              <AlertDialogCancel>
-                                                {t('common.cancel', 'Cancel')}
-                                              </AlertDialogCancel>
-                                              <AlertDialogAction
-                                                onClick={() => handleDelete(entry.id)}
-                                              >
-                                                {t('common.delete', 'Delete')}
-                                              </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                          </AlertDialogContent>
-                                        </AlertDialog>
-                                      </div>
+                                      <RowActions
+                                        className="ml-2"
+                                        menuLabel={t('common.actions_for', {
+                                          name: entry.title,
+                                        })}
+                                        actions={[
+                                          {
+                                            key: 'edit',
+                                            label: t('common.edit', 'Edit'),
+                                            icon: Pencil,
+                                            onSelect: () => openEdit(entry),
+                                          },
+                                          {
+                                            key: 'delete',
+                                            label: t('common.delete', 'Delete'),
+                                            icon: Trash2,
+                                            tone: 'destructive',
+                                            onSelect: () => setDeletingEntryId(entry.id),
+                                          },
+                                        ]}
+                                      />
                                     </div>
                                   ))}
                                 </div>
@@ -1050,9 +1079,101 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                 )}
               </p>
             )}
+
+            {/* Action Buttons — BELOW the categories (owner arbitration
+                2026-08-05): the reader scans first, acts after. Unified
+                section toolbar: no four stacked full-width buttons on a
+                phone. */}
+            <SectionToolbar
+              menuLabel={t('common.more_actions', 'More actions')}
+              primary={{
+                key: 'create',
+                label: t('journals.create', 'Add'),
+                icon: Plus,
+                onSelect: () => setIsCreateOpen(true),
+              }}
+              secondary={[
+                {
+                  key: 'export',
+                  label: t('journals.export', 'Export'),
+                  icon: Download,
+                  onSelect: () => void handleExport('json'),
+                },
+                {
+                  key: 'consolidate',
+                  label: isConsolidating
+                    ? t('journals.consolidating', 'Consolidating…')
+                    : t('journals.consolidateNow', 'Consolidate now'),
+                  icon: RefreshCw,
+                  loading: isConsolidating,
+                  onSelect: () => void handleConsolidateNow(),
+                },
+              ]}
+              destructive={{
+                key: 'delete-all',
+                label: t('journals.deleteAll', 'Delete all'),
+                icon: Trash2,
+                disabled: entryList.length === 0,
+                onSelect: () => setConfirmDeleteAllOpen(true),
+              }}
+            />
+            <AlertDialog open={confirmDeleteAllOpen} onOpenChange={setConfirmDeleteAllOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {t('journals.deleteAllTitle', 'Delete all entries?')}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t(
+                      'journals.deleteAllDescription',
+                      'This will permanently delete all journal entries. This action cannot be undone.'
+                    )}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+                  <AlertDialogAction variant="destructive" onClick={handleDeleteAll}>
+                    {t('common.delete', 'Delete')}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         )}
       </div>
+
+      {/* Entry delete confirmation — ONE controlled dialog for the whole list
+          (the old per-row inline AlertDialog rendered a dialog per entry and
+          returned focus into the row it had just removed). */}
+      <AlertDialog
+        open={deletingEntryId !== null}
+        onOpenChange={open => !open && setDeletingEntryId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('journals.deleteTitle', 'Delete entry?')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('journals.deleteDescription', 'This entry will be permanently deleted.')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (deletingEntryId) void handleDelete(deletingEntryId);
+                setDeletingEntryId(null);
+                // The trigger row is gone with the deletion: park focus on the
+                // surviving container instead of letting it fall to <body>
+                // (ScheduledActionsSettings precedent).
+                entriesRegionRef.current?.focus();
+              }}
+            >
+              {t('common.delete', 'Delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Portrait feedback dialog (lever 2 of ADR-079) */}
       <Dialog open={feedbackOpen} onOpenChange={setFeedbackOpen}>
@@ -1069,11 +1190,12 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div>
-              <Label>
+            <div className="space-y-3">
+              <Label htmlFor="journal-feedback-highlight">
                 {t('journals.portraitFeedbackHighlightLabel', 'Highlighted passage (optional)')}
               </Label>
               <Input
+                id="journal-feedback-highlight"
                 value={feedbackHighlight}
                 onChange={e => setFeedbackHighlight(e.target.value)}
                 placeholder={t(
@@ -1083,9 +1205,12 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                 maxLength={500}
               />
             </div>
-            <div>
-              <Label>{t('journals.portraitFeedbackCommentLabel', 'Your correction')}</Label>
+            <div className="space-y-3">
+              <Label htmlFor="journal-feedback-comment">
+                {t('journals.portraitFeedbackCommentLabel', 'Your correction')}
+              </Label>
               <Textarea
+                id="journal-feedback-comment"
                 value={feedbackComment}
                 onChange={e => setFeedbackComment(e.target.value)}
                 placeholder={t(
@@ -1134,7 +1259,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
+            <div className="space-y-3">
               <Label>{t('journals.theme', 'Theme')}</Label>
               <Select
                 value={createForm.theme}
@@ -1160,24 +1285,26 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>{t('journals.entryTitle', 'Title')}</Label>
+            <div className="space-y-3">
+              <Label htmlFor="journal-create-title">{t('journals.entryTitle', 'Title')}</Label>
               <Input
+                id="journal-create-title"
                 value={createForm.title}
                 onChange={e => setCreateForm({ ...createForm, title: e.target.value })}
                 maxLength={200}
               />
             </div>
-            <div>
-              <Label>{t('journals.content', 'Content')}</Label>
+            <div className="space-y-3">
+              <Label htmlFor="journal-create-content">{t('journals.content', 'Content')}</Label>
               <Textarea
+                id="journal-create-content"
                 value={createForm.content}
                 onChange={e => setCreateForm({ ...createForm, content: e.target.value })}
                 maxLength={2000}
                 rows={5}
               />
             </div>
-            <div>
+            <div className="space-y-3">
               <Label>{t('journals.mood', 'Mood')}</Label>
               <Select
                 value={createForm.mood}
@@ -1212,7 +1339,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
               onClick={handleCreate}
               disabled={isCreating || !createForm.title || !createForm.content}
             >
-              {isCreating ? <LoadingSpinner /> : t('journals.create', 'Create')}
+              {isCreating ? <LoadingSpinner /> : t('journals.create', 'Add')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1225,24 +1352,26 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
             <DialogTitle>{t('journals.editTitle', 'Edit journal entry')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>{t('journals.entryTitle', 'Title')}</Label>
+            <div className="space-y-3">
+              <Label htmlFor="journal-edit-title">{t('journals.entryTitle', 'Title')}</Label>
               <Input
+                id="journal-edit-title"
                 value={editForm.title ?? ''}
                 onChange={e => setEditForm({ ...editForm, title: e.target.value })}
                 maxLength={200}
               />
             </div>
-            <div>
-              <Label>{t('journals.content', 'Content')}</Label>
+            <div className="space-y-3">
+              <Label htmlFor="journal-edit-content">{t('journals.content', 'Content')}</Label>
               <Textarea
+                id="journal-edit-content"
                 value={editForm.content ?? ''}
                 onChange={e => setEditForm({ ...editForm, content: e.target.value })}
                 maxLength={2000}
                 rows={5}
               />
             </div>
-            <div>
+            <div className="space-y-3">
               <Label>{t('journals.mood', 'Mood')}</Label>
               <Select
                 value={editForm.mood}
@@ -1268,15 +1397,22 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>{t('journals.searchHints', 'Search hints')}</Label>
-              <p className="text-[11px] text-muted-foreground mb-1">
+            <div className="space-y-3">
+              <Label htmlFor="journal-edit-search-hints">
+                {t('journals.searchHints', 'Search hints')}
+              </Label>
+              <p
+                id="journal-edit-search-hints-hint"
+                className="text-[11px] text-muted-foreground mb-1"
+              >
                 {t(
                   'journals.searchHintsDescription',
                   'Keywords for semantic search (comma-separated)'
                 )}
               </p>
               <Input
+                id="journal-edit-search-hints"
+                aria-describedby="journal-edit-search-hints-hint"
                 value={(editForm.search_hints ?? []).join(', ')}
                 onChange={e =>
                   setEditForm({
@@ -1291,7 +1427,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                 maxLength={500}
               />
             </div>
-            <div>
+            <div className="space-y-3">
               <Label>{t('journals.confidenceLabel', 'Confidence')}</Label>
               <p className="text-[11px] text-muted-foreground mb-1">
                 {t(
@@ -1322,7 +1458,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div>
+            <div className="space-y-3">
               <Label>{t('journals.levelLabel', 'Level')}</Label>
               <p className="text-[11px] text-muted-foreground mb-1">
                 {t(

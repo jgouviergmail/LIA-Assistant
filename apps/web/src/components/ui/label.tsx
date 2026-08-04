@@ -11,7 +11,12 @@ const Label = React.forwardRef<
   <LabelPrimitive.Root
     ref={ref}
     className={cn(
-      'text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
+      // `block`, never inline: vertical margins are ignored on inline elements,
+      // so every `space-y-*` label->control gap silently rendered ~3px whatever
+      // its value (measured in-browser 2026-08-05). Flex/grid rows are safe:
+      // their items are blockified by the container, and tailwind-merge lets a
+      // caller's `flex` win over this base.
+      'block text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
       className
     )}
     {...props}

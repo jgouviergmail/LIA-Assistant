@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import type { RAGDriveSource, RAGDriveSyncStatus } from '@/types/rag-spaces';
+import { lifecycleTone } from '@/lib/status-tone';
 
 interface DriveSourceCardProps {
   source: RAGDriveSource;
@@ -30,30 +31,38 @@ interface DriveSourceCardProps {
 }
 
 /** Map sync status to badge variant and icon. */
+/**
+ * Icon and label per sync status; the TONE comes from the shared table.
+ *
+ * The icon is domain knowledge — a spinner for a sync in flight, a clock for an
+ * idle source — but the colour is not: `idle` used to be an `outline` here and
+ * `secondary` elsewhere, for the same "nothing is happening" meaning.
+ */
 function getSyncStatusDisplay(status: RAGDriveSyncStatus) {
+  const tone = lifecycleTone(status);
   switch (status) {
     case 'syncing':
       return {
-        variant: 'info' as const,
+        variant: tone,
         icon: <Loader2 className="h-3 w-3 animate-spin" />,
         key: 'spaces.drive.status_syncing',
       };
     case 'completed':
       return {
-        variant: 'success' as const,
+        variant: tone,
         icon: <CheckCircle className="h-3 w-3" />,
         key: 'spaces.drive.status_completed',
       };
     case 'error':
       return {
-        variant: 'destructive' as const,
+        variant: tone,
         icon: <AlertCircle className="h-3 w-3" />,
         key: 'spaces.drive.status_error',
       };
     case 'idle':
     default:
       return {
-        variant: 'outline' as const,
+        variant: tone,
         icon: <Clock className="h-3 w-3" />,
         key: 'spaces.drive.status_idle',
       };

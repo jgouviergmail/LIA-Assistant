@@ -323,7 +323,6 @@ export default function AdminGoogleApiPricingSection({
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <Button
-            variant="outline"
             onClick={handleReloadCache}
             disabled={reloadingCache}
             aria-label={t('settings.admin.google_api.reload_cache')}
@@ -587,7 +586,7 @@ function GoogleApiPricingModal({ lng, entry, onClose, onSubmit }: GoogleApiPrici
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* API Name - editable even in edit mode */}
           <div>
-            <label htmlFor="api-name" className="block text-sm font-medium text-foreground mb-1">
+            <label htmlFor="api-name" className="block text-sm font-medium text-foreground mb-3">
               {t('settings.admin.google_api.modal.api_name_label')}
             </label>
             <Input
@@ -604,7 +603,7 @@ function GoogleApiPricingModal({ lng, entry, onClose, onSubmit }: GoogleApiPrici
 
           {/* Endpoint - editable even in edit mode */}
           <div>
-            <label htmlFor="endpoint" className="block text-sm font-medium text-foreground mb-1">
+            <label htmlFor="endpoint" className="block text-sm font-medium text-foreground mb-3">
               {t('settings.admin.google_api.modal.endpoint_label')}
             </label>
             <Input
@@ -619,7 +618,7 @@ function GoogleApiPricingModal({ lng, entry, onClose, onSubmit }: GoogleApiPrici
 
           {/* SKU Name */}
           <div>
-            <label htmlFor="sku-name" className="block text-sm font-medium text-foreground mb-1">
+            <label htmlFor="sku-name" className="block text-sm font-medium text-foreground mb-3">
               {t('settings.admin.google_api.modal.sku_name_label')}
             </label>
             <Input
@@ -634,7 +633,7 @@ function GoogleApiPricingModal({ lng, entry, onClose, onSubmit }: GoogleApiPrici
 
           {/* Cost per 1000 */}
           <div>
-            <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-1">
+            <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-3">
               {t('settings.admin.google_api.modal.cost_label')}
             </label>
             <Input

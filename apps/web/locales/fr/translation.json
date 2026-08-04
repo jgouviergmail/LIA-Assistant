@@ -21,6 +21,8 @@
     "previous": "Précédent",
     "previous_short": "Préc.",
     "pagination": {
+      "label": "Pagination",
+      "page_info": "Page {{current}} / {{total}}",
       "items_per_page": "par page",
       "total_items": "({{count}} résultats)"
     },
@@ -45,7 +47,16 @@
     "disabled": "Désactivé",
     "saving": "Enregistrement...",
     "actions": "Actions",
-    "expand_image": "Afficher l'image en plein écran"
+    "expand_image": "Afficher l'image en plein écran",
+    "actions_for": "Actions — {{name}}",
+    "more_actions": "Plus d'actions",
+    "details": "Détails",
+    "show_more": "Voir plus",
+    "show_less": "Voir moins",
+    "min_per_day_label": "Minimum par jour",
+    "max_per_day_label": "Maximum par jour",
+    "start_hour_label": "Heure de début",
+    "end_hour_label": "Heure de fin"
   },
   "broadcast": {
     "modal": {
@@ -1436,6 +1447,10 @@
           "calendar_availability": "Calendrier — disponibilités",
           "calendar_details": "Calendrier — détails",
           "task_titles": "Tâches — titres"
+        },
+        "task_level": {
+          "titles": "Partagé",
+          "none": "Non partagé"
         }
       },
       "blocks": {
@@ -1477,7 +1492,8 @@
         "toggle_label": "Montrer mon email à mes connexions",
         "toggle_hint": "Désactivé par défaut. Une fois activé, les personnes que vous avez ACCEPTÉES voient votre adresse réelle au lieu de l'indice masqué. Jamais une demande en attente.",
         "toggle_saved": "Visibilité de l'adresse enregistrée"
-      }
+      },
+      "visibility_title": "Ma visibilité"
     },
     "notifications": {
       "title": "Notifications push",
@@ -1554,22 +1570,22 @@
       "my_connectors": "Mes Connecteurs",
       "my_connectors_description": "Connectez vos comptes pour permettre à LIA d'accéder à vos données",
       "connected": "Connectés",
-      "connected_google": "Connecteurs Google connectés",
+      "connected_google": "Services Google",
       "group_state": {
         "connected": "Connecté",
         "attention": "Action requise",
         "available": "Non connecté"
       },
-      "connected_api_key": "Connecteurs externes connectés",
-      "connected_apple": "Connecteurs Apple connectés",
-      "connected_microsoft": "Connecteurs Microsoft connectés",
+      "connected_api_key": "Services externes",
+      "connected_apple": "Services Apple",
+      "connected_microsoft": "Services Microsoft",
       "connected_hue": "Maison connectée",
       "available_hue": "Services maison connectée disponibles",
       "connected_on": "Connecté le {{date}}",
       "loading": "Chargement...",
       "enabled": "✓ Activé",
-      "available_google": "Connecteurs Google",
-      "available_external": "Connecteurs externes",
+      "available_google": "Services Google",
+      "available_external": "Services externes",
       "all_connected": "Tous les connecteurs disponibles sont déjà connectés",
       "disconnect_error": "Erreur lors de la déconnexion",
       "connected_success": "{{name}} a été connecté avec succès",
@@ -1674,7 +1690,7 @@
         }
       },
       "apple": {
-        "title": "Connecteurs Apple",
+        "title": "Services Apple",
         "description": "Connectez vos services Apple iCloud",
         "email": "Apple Mail",
         "email_description": "Lire et envoyer des emails via iCloud Mail",
@@ -1707,7 +1723,7 @@
         "connecting": "Connexion en cours"
       },
       "microsoft": {
-        "title": "Connecteurs Microsoft",
+        "title": "Services Microsoft",
         "description": "Connectez vos services Microsoft 365",
         "outlook": "Microsoft Outlook",
         "outlook_description": "Lire et envoyer des emails via Outlook",
@@ -2348,6 +2364,7 @@
           "edit": "Modifier",
           "updated": "Clé API mise à jour",
           "deleted": "Clé API supprimée",
+          "deleteKey": "Supprimer la clé enregistrée",
           "error": "Erreur lors de la mise à jour de la clé",
           "notConfigured": "Non configuré",
           "apiKey": "Clé API",
@@ -3049,7 +3066,9 @@
         "status_expired": "Expiré",
         "too_large": "L'archive dépasse le plafond de taille. Réduisez les fichiers stockés.",
         "failed_hint": "L'export a échoué. Veuillez réessayer.",
-        "error_generic": "Une erreur s'est produite. Veuillez réessayer."
+        "error_generic": "Une erreur s'est produite. Veuillez réessayer.",
+        "ready_hint": "Archive prête — {{size}} · expire le {{date}}",
+        "expired_hint": "Export généré le {{created}}, expiré le {{expired}}. Demandez un nouvel export pour télécharger vos données."
       },
       "auth": {
         "title": "Authentification forte",
@@ -3113,12 +3132,12 @@
       "admin_not_indexed": "L'onglet Administration n'est pas couvert par cette recherche.",
       "unavailable": "« {{section}} » ne s’affiche pas ici — cette section n’est peut-être pas disponible sur votre compte.",
       "keywords": {
-        "language": "locale, traduction, langue de l'interface, idiome",
+        "language": "locale, traduction, langue de l’interface, idiome",
         "timezone": "UTC, GMT, horloge, heure, décalage, région, fuseau",
         "theme": "thème, mode sombre, mode clair, nuit, couleurs, contraste, apparence",
         "font": "police, typographie, taille du texte, lisibilité, caractères",
         "display-mode": "cartes, rendu, format des réponses, mise en page, markdown, texte brut",
-        "briefing-grid": "accueil, page d'accueil, tableau de bord, widgets, cartes, briefing, ordre des sections",
+        "briefing-grid": "accueil, page d’accueil, tableau de bord, widgets, cartes, briefing, ordre des sections",
         "chat-shortcuts": "slash, raccourci, commande, demande rapide, macro, /commande, modèle de message, modifier, renommer",
         "open-loops": "engagements, boucles ouvertes, en attente, suivi, promesses, non terminé, relances",
         "notifications": "push, alertes, bannières, mobile, rappels, FCM",
@@ -3126,21 +3145,21 @@
         "security-auth": "2FA, MFA, TOTP, passkey, mot de passe, sécurité, connexion, authentification, double facteur",
         "security-devices": "sessions, déconnexion, révoquer, navigateurs, appareils, sécurité",
         "security-export": "RGPD, archive, téléchargement, portabilité, sauvegarde, données personnelles, confidentialité",
-        "voice-mode": "micro, microphone, parole, dictée, STT, TTS, mot d'activation, audio, vocal",
+        "voice-mode": "micro, microphone, parole, dictée, STT, TTS, mot d’activation, audio, vocal",
         "image-generation": "images, photos, dessin, illustration, génération, art",
-        "connectors": "google, gmail, agenda, calendrier, contacts, apple, microsoft, outlook, intégrations, comptes, oauth, reconnecter, déconnecté",
+        "connectors": "google, gmail, agenda, calendrier, contacts, apple, microsoft, outlook, intégrations, comptes, oauth, reconnecter, déconnecté, services",
         "telephony-calls": "téléphone, appels, historique des appels, composer",
-        "admin-mcp-servers": "MCP, model context protocol, serveurs de l'application, outils intégrés",
+        "admin-mcp-servers": "MCP, model context protocol, serveurs de l’application, outils intégrés",
         "mcp-servers": "MCP, model context protocol, mes serveurs, outils, extensions",
         "debug-panel": "développeur, diagnostic, traces, technique, dépannage",
         "personality": "ton, style, caractère, comportement, persona, voix",
         "psyche": "émotions, humeur, sentiments, affect, émotionnel",
         "memories": "mémoire, souvenirs, se souvenir, oublier, faits, provenance, pourquoi, source, signal, origine, corriger",
         "interests": "sujets, goûts, thèmes, curiosité, préférences, historique, notifications récentes, provenance, pourquoi, poids, explication, décroissance, source",
-        "peer-connections": "contacts, amis, famille, réseau, partager calendrier, disponibilités, bloquer, découvrir utilisateurs, connecter, mon nom, copier mon nom, demande de connexion, journal des accès, relayer un message, utilisateurs bloqués, proches, réseau social, peer, découverte, se connecter à un proche, partager mon adresse, email visible, mon email, point 360",
-        "heartbeat": "proactif, spontané, initiative, prise de contact, messages autonomes, sujets des notifications, sources, historique, notifications récentes, priorité, urgence, haute, moyenne, basse, couleur",
+        "peer-connections": "contacts, amis, famille, réseau, partager calendrier, disponibilités, bloquer, découvrir utilisateurs, connecter, mon nom, copier mon nom, demande de connexion, journal des accès, relayer un message, utilisateurs bloqués, proches, réseau social, peer, découverte, se connecter à un proche, partager mon adresse, email visible, mon email, point 360, visibilité, demandes",
+        "heartbeat": "proactif, spontané, initiative, prise de contact, messages autonomes, sujets des notifications, sources, historique, notifications récentes, priorité, urgence, haute, moyenne, basse, couleur, météo, fréquence, plage horaire",
         "scheduled-actions": "cron, planification, récurrent, automatisation, minuterie, programmé",
-        "journals": "journal intime, carnet, portrait, réflexions, notes, provenance, pourquoi, source, signal, origine, corriger",
+        "journals": "journal intime, carnet, portrait, réflexions, notes, provenance, pourquoi, source, signal, origine, corriger, configuration, consolidation",
         "health-metrics": "fréquence cardiaque, pas, sommeil, iPhone, Apple Santé, forme, activité",
         "skills": "compétences, capacités, aptitudes, plugins, extensions",
         "rag-spaces": "documents, RAG, base de connaissances, fichiers, téléversement, indexation, bibliothèque",
@@ -3894,6 +3913,23 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_27_11": {
+          "title": "v1.27.11 — 🧭 Des réglages qui se lisent comme un index",
+          "date": "Août 2026",
+          "count": "10",
+          "items": {
+            "i1": "<b>🧲 L’écart entre un libellé et son champ se rend enfin à l’écran</b> — un défaut de la primitive d’étiquette faisait que chaque réglage d’espacement était calculé mais jamais dessiné : tous les formulaires vivaient avec ~3 px quel que soit le code. Corrigé à la racine et calibré sur captures réelles — tous les formulaires respirent désormais pareil.",
+            "i2": "<b>☰ Une seule grammaire pour les actions d’une ligne</b> — icônes visibles dès la tablette, la suppression portant son rouge au repos, et sur téléphone un unique menu « ⋮ » nommé. Fini les boutons révélés au survol sur lesquels un utilisateur clavier arrivait sans rien voir.",
+            "i3": "<b>📤 Exporter revient sur téléphone et tablette</b> pour la mémoire long terme et les centres d’intérêt — il était purement retiré sous une largeur d’écran de bureau — et « + Ajouter » garde son libellé à toutes les tailles.",
+            "i4": "<b>🗂️ Les Connexions LIA se lisent en cinq sections repliables icônées</b> dont les badges disent ce qui attend à l’intérieur — demandes en attente comprises — et les deux directions de partage s’affichent en miroir : les vôtres modifiables, les leurs en lecture seule.",
+            "i5": "<b>📔 Les journaux personnels replient toute leur configuration derrière une entrée</b>, déplacent leurs boutons sous les catégories, et les entrées longues se limitent à trois lignes avec « Voir plus ».",
+            "i6": "<b>⏰ Une routine annonce « En semaine à 08:00 »</b> au lieu d’énumérer cinq jours, montre sa prochaine exécution et replie le reste — sa carte passe d’environ huit lignes toujours visibles à trois.",
+            "i7": "<b>🔐 Les applications d’authentification (TOTP) s’activent au commutateur</b>, comme toute fonctionnalité — l’allumer ouvre la cérémonie, et le pouce ne bascule qu’une fois le serveur confirmé.",
+            "i8": "<b>🧭 Les groupes de connecteurs se nomment « Services Google / Apple / Microsoft / externes »</b>, et un export de données explique enfin son état : taille et expiration quand il est prêt, dates de génération et d’expiration plus la marche à suivre quand il a expiré.",
+            "i9": "<b>🎛️ Chaque titre porte une icône à la couleur du thème</b> — fréquence des notifications, météo en déplacement (désormais repliable), chaque carte du tableau de bord dans la liste de personnalisation — et les badges gris sont réservés à l’inactif : « Activé » est vert, « en attente » est bleu.",
+            "i10": "<b>🔔 Les notifications poussées suivent automatiquement votre accord global</b> — le second interrupteur par fonctionnalité, qui pouvait rendre muettes les notifications proactives en silence, est retiré."
+          }
+        },
         "v1_27_10": {
           "title": "v1.27.10 — 🎨 Des écrans qui se lisent d'un coup d'œil",
           "date": "Août 2026",
@@ -6278,7 +6314,7 @@
           },
           "q2": {
             "question": "Comment activer les notifications proactives ?",
-            "answer": "Active la fonctionnalité en quelques clics :<br><br><strong>⚙️ Accès :</strong><br>Paramètres → Section \"<em>Notifications proactives</em>\" → Activer le switch<br><br><strong>📝 Options disponibles :</strong><br>• <strong>Min/max par jour</strong> : définis le minimum (défaut : 1) et le maximum (défaut : 3) de notifications par jour (plage : 1-8)<br>• <strong>Plage horaire</strong> : configure ton propre heure de début (défaut : 9h) et heure de fin (défaut : 22h) — indépendante des heures de notification des centres d'intérêt<br>• <strong>Notifications push</strong> : active/désactive les push (FCM/Telegram) séparément<br><br><strong>💡 Mode silencieux :</strong><br>Si tu désactives les push, les messages de LIA sont archivés <strong>silencieusement</strong> en conversation + SSE. Tu les verras au prochain login sans être dérangé."
+            "answer": "Active la fonctionnalité en quelques clics :<br><br><strong>⚙️ Accès :</strong><br>Paramètres → Section \"<em>Notifications proactives</em>\" → Activer le switch<br><br><strong>📝 Options disponibles :</strong><br>• <strong>Plage horaire</strong> : configure ton propre heure de début (défaut : 9h) et heure de fin (défaut : 22h) — indépendante des heures de notification des centres d’intérêt<br>• <strong>Min/max par jour</strong> : définis le minimum (défaut : 1) et le maximum (défaut : 3) de notifications par jour (plage : 1-8)<br>• <strong>Météo en déplacement</strong> : un bloc repliable pour activer la météo liée à ta position<br><br><strong>💡 Livraison push :</strong><br>Les push (FCM/Telegram) suivent automatiquement ton <strong>accord global de notifications</strong> — plus d’interrupteur séparé par fonctionnalité. Chaque message est aussi archivé dans la conversation : tu le retrouveras au prochain login dans tous les cas."
           },
           "q3": {
             "question": "Quelles sources de données sont utilisées ?",
@@ -6955,7 +6991,7 @@
       },
       "a11y_care": {
         "title": "Le soin qu’on ne voit pas",
-        "desc": "Préférences d’animation respectées, contrastes tenus, tout accessible au clavier — et ce qu’on touche est assez grand pour être touché, y compris les petites croix qui n’apparaissaient qu’au survol et restaient donc hors d’atteinte au doigt."
+        "desc": "Préférences d’animation respectées, contrastes tenus, tout accessible au clavier — et ce qu’on touche est assez grand pour être touché, y compris les petites croix qui n’apparaissaient qu’au survol et restaient donc hors d’atteinte au doigt. Les actions d’une liste ne se cachent plus derrière le survol — le clavier les trouve — et l’espace entre un libellé et son champ se rend enfin tel qu’il est écrit."
       },
       "peer_actions": {
         "title": "Répondre juste sous le message",
@@ -6999,7 +7035,7 @@
       },
       "readable_at_a_glance": {
         "title": "Lisible d’un coup d’œil",
-        "desc": "Une alerte urgente ne ressemble pas à une alerte ordinaire : c’est la densité qui les sépare, pas seulement la teinte. Ça tient aussi en niveaux de gris."
+        "desc": "Une alerte urgente ne ressemble pas à une alerte ordinaire : c’est la densité qui les sépare, pas seulement la teinte. Ça tient aussi en niveaux de gris. Et une action a la même forme partout : ce qui crée est plein, ce qui supprime porte son rouge sans attendre le survol, et chaque titre s’annonce par son icône."
       }
     },
     "scenes": {
@@ -7281,13 +7317,14 @@
     "delete_all_keep_pinned": "Conserver les épinglées",
     "delete_all_including_pinned": "Tout supprimer",
     "delete_all_keep_pinned_success": "Mémoires non épinglées supprimées",
-    "actions_title": "Actions",
     "create": "Ajouter",
     "create_title": "Créer un souvenir",
     "create_description": "Ajoutez un nouveau souvenir à votre mémoire long terme.",
     "create_button": "Créer",
     "create_success": "Souvenir créé",
-    "create_error": "Erreur lors de la création"
+    "create_error": "Erreur lors de la création",
+    "count_one": "{{count}} mémoire",
+    "count_other": "{{count}} mémoires"
   },
   "interests": {
     "dormant_section": "En sommeil",
@@ -7425,8 +7462,6 @@
     "notification_frequency": "Fréquence des notifications",
     "max_per_day": "Maximum par jour",
     "per_day": "/ jour",
-    "push_enabled": "Notifications push",
-    "push_description": "Quand désactivé, les messages sont archivés silencieusement en conversation",
     "available_sources": "Sources de données disponibles",
     "source_calendar": "Calendrier",
     "source_emails": "Emails",
@@ -7861,7 +7896,15 @@
     "next_executions": "Prochaines exécutions",
     "next_evaluations": "Prochaines fenêtres d’évaluation",
     "clock_change": "(changement d’heure)",
-    "toggle_aria": "Activer ou désactiver {{title}}"
+    "toggle_aria": "Activer ou désactiver {{title}}",
+    "schedule": {
+      "daily": "Tous les jours à {{time}}",
+      "weekdays": "En semaine à {{time}}",
+      "weekend": "Le week-end à {{time}}",
+      "custom": "{{days}} à {{time}}"
+    },
+    "next_run": "Prochaine exécution",
+    "next_evaluation": "Prochaine évaluation"
   },
   "landing": {
     "meta": {
@@ -8234,7 +8277,7 @@
       },
       "stack": {
         "title": "Stack moderne",
-        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. TypeScript strict côté frontend, Python async côté backend. PWA installable : 6 manifests localisés, partage système vers le chat, page hors-ligne et cache intelligent des assets — les réponses API ne sont jamais mises en cache. Les réglages se cherchent au clavier, dans les six langues, casse, accents et apostrophes typographiques ignorés."
+        "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. TypeScript strict côté frontend, Python async côté backend. PWA installable : 6 manifests localisés, partage système vers le chat, page hors-ligne et cache intelligent des assets — les réponses API ne sont jamais mises en cache. Les réglages se cherchent au clavier, dans les six langues, casse, accents et apostrophes typographiques ignorés. Le design system est un contrat gardé par des tests : chaque paire de couleurs vérifiée sur cinq thèmes en clair et en sombre, un ton par statut, une forme par altitude d’action."
       },
       "telephony": {
         "title": "Téléphonie agentique",
@@ -8672,7 +8715,7 @@
     "sizeUsage": "Utilisation de l'espace",
     "lastCost": "Dernière intervention",
     "lastCostSource": "Source",
-    "create": "Nouvelle entrée",
+    "create": "Ajouter",
     "export": "Exporter",
     "deleteAll": "Tout supprimer",
     "deleteAllTitle": "Supprimer toutes les entrées ?",
@@ -8740,7 +8783,6 @@
     "yesterday": "hier",
     "daysAgo": "il y a {{n}}j",
     "evidenceTooltip": "Confirmations / contradictions observées",
-    "filterUnused": "N'afficher que les entrées jamais utilisées",
     "consolidateNow": "Consolider",
     "consolidating": "Consolidation…",
     "consolidateNowTooltip": "Forcer une consolidation maintenant (déduplication, promotions de niveau, mises à jour de confiance). Prend quelques secondes.",
@@ -8790,7 +8832,8 @@
         "label": "Facette du portrait",
         "description": "Trait, phase actuelle, contexte, contradiction, zone d'ombre du portrait — toujours injectée."
       }
-    }
+    },
+    "configuration": "Configuration"
   },
   "blog": {
     "meta": {

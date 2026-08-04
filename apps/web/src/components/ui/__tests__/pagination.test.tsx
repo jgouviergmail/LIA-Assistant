@@ -29,34 +29,34 @@ describe('Pagination — rendering guards', () => {
         onPageSizeChange={vi.fn()}
       />
     );
-    expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'common.pagination.label' })).toBeInTheDocument();
   });
 
-  it('exposes a navigation landmark labelled "Pagination"', () => {
+  it('exposes a navigation landmark named from the active locale', () => {
     renderWithProviders(<Pagination currentPage={2} totalPages={5} onPageChange={vi.fn()} />);
-    expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'common.pagination.label' })).toBeInTheDocument();
   });
 });
 
 describe('Pagination — boundary disabling', () => {
   it('disables Previous on the first page', () => {
     renderWithProviders(<Pagination currentPage={1} totalPages={5} onPageChange={vi.fn()} />);
-    expect(screen.getByRole('button', { name: /Précédent/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Suivant/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /common.previous/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /common.next/ })).toBeEnabled();
   });
 
   it('disables Next on the last page', () => {
     renderWithProviders(<Pagination currentPage={5} totalPages={5} onPageChange={vi.fn()} />);
-    expect(screen.getByRole('button', { name: /Suivant/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Précédent/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /common.next/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /common.previous/ })).toBeEnabled();
   });
 
   it('disables both navigation buttons while loading', () => {
     renderWithProviders(
       <Pagination currentPage={3} totalPages={5} onPageChange={vi.fn()} loading />
     );
-    expect(screen.getByRole('button', { name: /Précédent/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Suivant/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /common.previous/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /common.next/ })).toBeDisabled();
   });
 });
 
@@ -66,7 +66,7 @@ describe('Pagination — navigation callbacks', () => {
     const { user } = renderWithProviders(
       <Pagination currentPage={3} totalPages={5} onPageChange={onPageChange} />
     );
-    await user.click(screen.getByRole('button', { name: /Précédent/ }));
+    await user.click(screen.getByRole('button', { name: /common.previous/ }));
     expect(onPageChange).toHaveBeenCalledWith(2);
   });
 
@@ -75,7 +75,7 @@ describe('Pagination — navigation callbacks', () => {
     const { user } = renderWithProviders(
       <Pagination currentPage={3} totalPages={5} onPageChange={onPageChange} />
     );
-    await user.click(screen.getByRole('button', { name: /Suivant/ }));
+    await user.click(screen.getByRole('button', { name: /common.next/ }));
     expect(onPageChange).toHaveBeenCalledWith(4);
   });
 
@@ -84,7 +84,7 @@ describe('Pagination — navigation callbacks', () => {
     const { user } = renderWithProviders(
       <Pagination currentPage={1} totalPages={5} onPageChange={onPageChange} />
     );
-    await user.click(screen.getByRole('button', { name: /Précédent/ }));
+    await user.click(screen.getByRole('button', { name: /common.previous/ }));
     expect(onPageChange).not.toHaveBeenCalled();
   });
 });
@@ -149,6 +149,6 @@ describe('Pagination — labels and variants', () => {
     renderWithProviders(
       <Pagination currentPage={2} totalPages={5} onPageChange={vi.fn()} variant="centered" />
     );
-    expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'common.pagination.label' })).toBeInTheDocument();
   });
 });

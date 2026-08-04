@@ -14,6 +14,7 @@ import { useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, GripVertical, LayoutDashboard } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { BRIEFING_CARD_ICONS } from '@/components/dashboard/briefing-card-icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -75,6 +76,7 @@ export function BriefingGridSettings({ lng, collapsible = true }: BaseSettingsPr
       <ul className="space-y-1" role="list">
         {preferences.order.map((name, index) => {
           const visible = !preferences.hidden.includes(name);
+          const CardIcon = BRIEFING_CARD_ICONS[name];
           return (
             <li
               key={name}
@@ -87,6 +89,10 @@ export function BriefingGridSettings({ lng, collapsible = true }: BaseSettingsPr
               className="flex items-center gap-2 rounded-lg border border-border/40 bg-card/60 px-3 py-2"
             >
               <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground/60" aria-hidden />
+              {/* The card's own icon, theme-coloured (owner rule 2026-08-05:
+                  a title never goes without one) — the reader recognises the
+                  card here by the same mark it carries on the dashboard. */}
+              <CardIcon className="h-4 w-4 shrink-0 text-primary" aria-hidden />
               <span className="flex-1 truncate text-sm font-medium">{cardTitle(name)}</span>
               <button
                 type="button"

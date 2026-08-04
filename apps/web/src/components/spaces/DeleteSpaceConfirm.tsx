@@ -38,10 +38,7 @@ export function DeleteSpaceConfirm({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-          <AlertDialogAction
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            onClick={onConfirm}
-          >
+          <AlertDialogAction variant="destructive" onClick={onConfirm}>
             {t('common.delete')}
           </AlertDialogAction>
         </AlertDialogFooter>

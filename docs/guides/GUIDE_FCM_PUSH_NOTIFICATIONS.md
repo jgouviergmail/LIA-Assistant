@@ -779,7 +779,7 @@ HEARTBEAT_ENABLED=true
 Chaque utilisateur peut controler independamment :
 - **Push notifications** (FCM) : activable/desactivable dans Parametres
 - **Telegram notifications** : activable/desactivable dans Parametres > Telegram
-- **Heartbeat push** : activable/desactivable separement (`heartbeat_push_enabled`)
+- **Heartbeat push** : suit l'activation globale depuis v1.27.11 (`heartbeat_push_enabled` conserve pour compatibilite, sans effet)
 
 > Voir [CHANNELS_INTEGRATION.md](../technical/CHANNELS_INTEGRATION.md) pour la documentation Telegram complete.
 > Voir [HEARTBEAT_AUTONOME.md](../technical/HEARTBEAT_AUTONOME.md) pour la documentation Heartbeat complete.

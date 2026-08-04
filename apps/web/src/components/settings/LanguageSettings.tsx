@@ -231,8 +231,18 @@ export function LanguageSettings({ lng, collapsible = true }: BaseSettingsProps)
                   <button
                     key={language}
                     type="button"
-                    onClick={() => handleLanguageChange(language)}
-                    disabled={updating || isSelected}
+                    // The guard — not `disabled` — is what stops the re-select.
+                    // Disabling the button the click just landed on blurs it
+                    // (the browser drops a disabled control from the tab order),
+                    // so a keyboard user is thrown back to <body> and loses
+                    // their place. `aria-current` states the selection instead,
+                    // and the option stays focusable and reachable.
+                    onClick={() => {
+                      if (updating || isSelected) return;
+                      handleLanguageChange(language);
+                    }}
+                    disabled={updating}
+                    aria-current={isSelected ? 'true' : undefined}
                     className={`
                       relative flex items-start gap-3 rounded-lg border-2 p-3 text-left transition-all
                       hover:bg-accent hover:shadow-sm
@@ -243,7 +253,6 @@ export function LanguageSettings({ lng, collapsible = true }: BaseSettingsProps)
                           : 'border-border bg-card'
                       }
                     `}
-                    aria-label={`Select ${native}`}
                   >
                     {/* Selection indicator */}
                     <div
