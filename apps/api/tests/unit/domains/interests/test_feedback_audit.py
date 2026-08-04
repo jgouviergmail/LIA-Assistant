@@ -176,13 +176,74 @@ class TestSubmitFeedbackRoute:
             )
 
             conv_cls.return_value.mark_proactive_feedback_submitted.assert_awaited_once_with(
-                user_id=user.id, target_id=interest_id, feedback_value="thumbs_up"
+                user_id=user.id,
+                target_id=interest_id,
+                feedback_value="thumbs_up",
+                # No card behind this verdict (settings list): the historical
+                # breadth applies, which is what `None` selects.
+                run_id=None,
+            )
+
+    async def test_a_verdict_from_a_card_locks_only_that_card(self) -> None:
+        """The card's run_id decides the BREADTH of the archived-card write.
+
+        An interest card's `target_id` is the INTEREST, so without the run_id
+        one verdict marks every notification that interest ever produced —
+        measured at NINE cards for a single interest on 2026-08-03. Those
+        cards then show as answered while the audit trail holds one verdict,
+        so they read "no feedback" in the history with no way left to answer
+        them.
+        """
+        user = _user()
+        interest_id = uuid.uuid4()
+
+        with (
+            patch("src.domains.interests.router.InterestRepository") as repo_cls,
+            patch("src.domains.interests.router.InterestNotificationRepository") as notif_cls,
+            patch("src.domains.conversations.repository.ConversationRepository") as conv_cls,
+        ):
+            repo_cls.return_value.get_by_id = AsyncMock(return_value=_interest_of(user.id))
+            repo_cls.return_value.apply_feedback = AsyncMock()
+            notif_cls.return_value.update_feedback_by_run_id = AsyncMock(return_value=True)
+            conv_cls.return_value.mark_proactive_feedback_submitted = AsyncMock(return_value=1)
+
+            await submit_feedback(
+                interest_id=interest_id,
+                data=InterestFeedbackRequest(feedback="block", run_id="proactive_interest_a_1"),
+                user=user,
+                db=AsyncMock(),
+            )
+
+            conv_cls.return_value.mark_proactive_feedback_submitted.assert_awaited_once_with(
+                user_id=user.id,
+                target_id=interest_id,
+                feedback_value="block",
+                run_id="proactive_interest_a_1",
             )
 
 
 class TestSchema:
     def test_the_run_id_is_optional(self) -> None:
         assert InterestFeedbackRequest(feedback="thumbs_up").run_id is None
+
+    def test_a_blank_run_id_reads_as_absent(self) -> None:
+        """An empty string identifies nothing — it must not travel as a value.
+
+        Both consumers branch on the run_id: the audit write already uses
+        truthiness, while the archived-card write compares against NULL. Left
+        as `""` the two would disagree — the audit skipped, the card write
+        narrowed to a run_id no row carries, so the verdict would reach the
+        interest and NOTHING else, silently. Normalising once here keeps every
+        consumer honest without each remembering to write `or None`.
+        """
+        assert InterestFeedbackRequest(feedback="thumbs_up", run_id="").run_id is None
+        assert InterestFeedbackRequest(feedback="thumbs_up", run_id="   ").run_id is None
+
+    def test_a_real_run_id_keeps_its_exact_value(self) -> None:
+        """Normalisation must never rewrite an identifier it did not create."""
+        request = InterestFeedbackRequest(feedback="block", run_id="proactive_interest_a_1")
+
+        assert request.run_id == "proactive_interest_a_1"
 
     def test_an_oversized_run_id_is_rejected(self) -> None:
         # The column is varchar(100); a longer value would fail at the database

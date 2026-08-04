@@ -158,10 +158,8 @@ describe('BriefingSetupHint — key path resolves against real locales', () => {
   const LOCALES = ['en', 'fr', 'de', 'es', 'it', 'zh'] as const;
   for (const lng of LOCALES) {
     it(`every card title the hint can render exists in ${lng}`, async () => {
-      const bundle = (await import(`../../../../locales/${lng}/translation.json`)).default as Record<
-        string,
-        unknown
-      >;
+      const bundle = (await import(`../../../../locales/${lng}/translation.json`))
+        .default as Record<string, unknown>;
       const cards = ((bundle.dashboard as Record<string, Record<string, Record<string, unknown>>>)
         ?.briefing?.cards ?? {}) as Record<string, { title?: unknown }>;
       for (const section of BRIEFING_SECTION_NAMES) {

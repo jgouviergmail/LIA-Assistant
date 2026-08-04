@@ -143,6 +143,42 @@ describe('buildNotificationFromFcm', () => {
     });
   });
 
+  // The push half of a card must describe the same notification as the
+  // archived half. Without the run_id, a verdict given on a push-built card
+  // names no notification: it records nothing in the audit trail, and — since
+  // an interest card's target_id is the INTEREST — it would lock every other
+  // card of that interest instead of just this one.
+  it('carries the run_id of a proactive push so its verdict can name the notification', () => {
+    const n = buildNotificationFromFcm(
+      fcm({
+        type: 'proactive_interest',
+        target_id: 't1',
+        feedback_enabled: 'true',
+        run_id: 'proactive_interest_abc_deadbeef',
+      })
+    );
+    expect(n.metadata).toEqual({
+      type: 'proactive_interest',
+      target_id: 't1',
+      feedback_enabled: true,
+      run_id: 'proactive_interest_abc_deadbeef',
+    });
+  });
+
+  // Absent, never an empty string: `proactiveFeedbackProps` reads `run_id`
+  // as a string and would forward '' as if it identified a notification.
+  it('omits the run_id when the push carried none', () => {
+    const n = buildNotificationFromFcm(
+      fcm({ type: 'proactive_heartbeat', target_id: 't1', feedback_enabled: 'false' })
+    );
+    expect(n.metadata).toEqual({
+      type: 'proactive_heartbeat',
+      target_id: 't1',
+      feedback_enabled: false,
+    });
+    expect(n.metadata && 'run_id' in n.metadata).toBe(false);
+  });
+
   it('rebuilds scheduled_action metadata, and leaves other types without metadata', () => {
     const sched = buildNotificationFromFcm(
       fcm({ type: 'scheduled_action', action_id: 'a1', title: 'Run' })

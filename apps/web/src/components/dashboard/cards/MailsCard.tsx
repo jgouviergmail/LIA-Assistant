@@ -4,7 +4,7 @@ import { Mail, Reply, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
-import { CardItemActions } from './CardItemActions';
+import { CardItemRow } from './CardItemRow';
 import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 import type { CardSection, MailsData } from '@/types/briefing';
@@ -80,37 +80,33 @@ function MailsContent({
             subject: mail.subject,
             sender,
           });
+          const from = mail.sender_email || mail.sender_name || '—';
           return (
-            // QW-24: the action chips are SIBLINGS of the main button — a
-            // button inside a button is invalid HTML and unreachable by AT.
-            <li key={index} className="flex items-start gap-1">
-              <button
-                type="button"
-                onClick={() => onOpenChat(intent)}
-                aria-label={intent}
-                className="min-w-0 flex-1 text-left flex flex-col gap-0.5 leading-tight rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 tabular-nums">
-                  {mail.received_local}
-                </span>
-                <span className="text-sm font-medium text-foreground/90 truncate">
-                  {mail.subject}
-                </span>
-                <span className="text-xs text-muted-foreground truncate">
-                  {mail.sender_email || mail.sender_name || '—'}
-                </span>
-              </button>
-              <CardItemActions
-                actions={[
-                  {
-                    icon: Sparkles,
-                    label: summarizeIntent,
-                    onSelect: () => onExecute(summarizeIntent),
-                  },
-                  { icon: Reply, label: replyIntent, onSelect: () => onExecute(replyIntent) },
-                ]}
-              />
-            </li>
+            <CardItemRow
+              key={index}
+              ariaLabel={intent}
+              // Subject AND sender: two truncated lines, and a subject alone
+              // rarely says which conversation this is.
+              tooltip={`${mail.subject}\n${from}`}
+              onSelect={() => onOpenChat(intent)}
+              contentClassName="flex flex-col gap-0.5 leading-tight"
+              actions={[
+                {
+                  icon: Sparkles,
+                  label: summarizeIntent,
+                  onSelect: () => onExecute(summarizeIntent),
+                },
+                { icon: Reply, label: replyIntent, onSelect: () => onExecute(replyIntent) },
+              ]}
+            >
+              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 tabular-nums">
+                {mail.received_local}
+              </span>
+              <span className="text-sm font-medium text-foreground/90 truncate">
+                {mail.subject}
+              </span>
+              <span className="text-xs text-muted-foreground truncate">{from}</span>
+            </CardItemRow>
           );
         })}
       </ul>

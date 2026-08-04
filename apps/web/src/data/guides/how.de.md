@@ -4,9 +4,9 @@
 >
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
-**Version**: 3.6
-**Datum**: 2026-08-03
-**Application**: LIA v1.27.8
+**Version**: 3.7
+**Datum**: 2026-08-04
+**Application**: LIA v1.27.9
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 447 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 199 ADRs, ~17.925 von pytest gesammelte Tests in 968 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 203 ADRs, ~18.002 von pytest gesammelte Tests in 981 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -72,10 +72,10 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~17.925 von pytest gesammelt (von pytest über 968 Testdateien gesammelt) + 4.690 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | ~18.002 von pytest gesammelt (von pytest über 981 Testdateien gesammelt) + 4.808 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 400+ |
-| ADRs (Architecture Decision Records) | 189 |
+| ADRs (Architecture Decision Records) | 203 |
 | Prometheus-Metriken | 447 Definitionen |
 | Grafana-Dashboards | 26 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1152,9 +1152,32 @@ Eine Destination kann dennoch berechtigterweise fehlen: Mehrere Bereiche rendern
 
 ---
 
+### 23.15. Begrenzte Herkunft: ein Verweis, niemals eine Kopie
+
+Eine Schlussfolgerung, die das System bildet — eine Erinnerung, ein Journaleintrag, ein Interesse — muss die eine Frage beantworten können, die sie korrigierbar macht: Woher kommt sie? Zwei naive Antworten stehen bereit, und beide sind falsch. Die Ursprungsnachricht in die Schlussfolgerung zu kopieren macht sie zu einem dauerhaften Archiv: Das Löschen der Unterhaltung löscht nichts mehr, da ihr Inhalt anderswo überlebt. Die Erklärung vom Modell neu erzeugen zu lassen liefert eine plausible Rekonstruktion, also eine Erfindung.
+
+Die Tabelle `provenance_references` speichert nur einen **Zeiger und einen Zeitstempel**: die Subjekt-ID, die Unterhaltungs- und Nachrichten-ID sowie ein `outcome` aus `origin`, `evidence`, `contradiction`. Die Asymmetrie der Fremdschlüssel trägt die gesamte Doktrin:
+
+| Verknüpfung | Regel | Grund |
+|-------------|-------|-------|
+| zum Subjekt (Erinnerung, Journal, Interesse) | `CASCADE` | ein Verweis auf eine gelöschte Schlussfolgerung hat kein Subjekt mehr |
+| zu Unterhaltung und Nachricht | `SET NULL` | das Löschen einer Unterhaltung **leert den Verweis und lässt die Zeile stehen**, mit Datum: das ist der Grabstein |
+
+`CASCADE` auf der Quellseite hätte selbst den Hinweis getilgt, dass eine Quelle existierte — was sich genau wie „das System hat das erfunden“ liest. Die Spur ist auf fünf Verweise je Subjekt begrenzt, beim Schreiben gekappt, und diese Grenze wird in der Antwort **veröffentlicht**: Was das System durchsetzt, sagt es auch. Eine `CHECK`-Bedingung erzwingt genau ein Subjekt je Zeile, denn ein polymorphes Paar `(kind, id)` kann kein Fremdschlüssel sein — und ohne Fremdschlüssel wäre der Grabstein durch gar nichts garantiert.
+
+Der Schreibvorgang ist **best-effort und in einem Sicherungspunkt isoliert**. Best-effort allein genügt nicht: Ein fehlgeschlagenes `flush` hinterlässt die Sitzung in einem Fehlerzustand, sodass das Verschlucken der Ausnahme den Tod des Aufrufers nur auf dessen nächste Anweisung verschiebt. Der Sicherungspunkt macht das Verschlucken ehrlich — Herkunft erklärt eine Schlussfolgerung, sie bedingt sie nie.
+
+### 23.16. Fähigkeitenkarte: ein Durchgang, drei Zustände, keine Punktzahl
+
+Zu wissen, was der Assistent für ein Konto leisten kann, wurde bisher clientseitig abgefragt, ein Hook je Subsystem: ein Dutzend Anfragen beim Mounten und ebenso viele Gelegenheiten, dass zwei Antworten derselben Tatsache widersprechen. Die Auflösung geschieht nun in **einem serverseitigen Durchgang**, einem `asyncio.gather` unabhängiger Sonden, **jede auf eigener Sitzung** — eine `AsyncSession` ist bei nebenläufiger Nutzung nicht sicher. Eine fehlschlagende Sonde fällt auf „nicht bereit“ zurück: Eine Karte, die sich nicht zeichnet, weil eine Tabelle unerreichbar war, ist schlimmer als eine Karte mit einem dunklen Knoten.
+
+Drei Zustände, und die Unterscheidung der letzten beiden trägt den Sinn: **nicht verfügbar** (die Instanz hat das Subsystem deaktiviert — der Knoten ist *abwesend*, niemals ausgegraut: ein Bedienelement, das das Produkt nicht einlösen kann, ist schlimmer als gar keines), **ruhend** (verfügbar, nichts eingerichtet — es trägt den nächsten Schritt), **aktiv** (wirklich nutzbar, mit der Zahl, die es belegt).
+
+Nichts Veröffentlichtes ist ein Level, ein Fortschrittsprozentsatz oder ein Vergleich, und ein Test formuliert das als Schemabedingung. Die Darstellung folgt derselben Regel: Die Zeichnung ist dekorativ und für assistive Technologien verborgen, während alles Erreichbare ein benannter Link ist — ein `<circle>` mit `onClick` sähe identisch aus und wäre ohne Maus unbrauchbar. Die Figur verbindet die aktiven Fähigkeiten in **Winkelreihenfolge**, der einzigen Reihenfolge, die sich um einen inneren Punkt nicht selbst schneiden kann.
+
 ## 24. Architekturentscheidungen (ADR)
 
-199 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+203 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1208,10 +1231,10 @@ Die Psyche Engine verleiht dem Assistenten einen dynamischen psychologischen Zus
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 199 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~17.925 Tests in 968 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 203 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~18.002 Tests in 981 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 199 ADRs und des Changelogs (v1.0 bis v1.27.8). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 203 ADRs und des Changelogs (v1.0 bis v1.27.9). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

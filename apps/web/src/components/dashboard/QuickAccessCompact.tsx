@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ChevronRight, HelpCircle, Settings, Users } from 'lucide-react';
+import { ChevronRight, HelpCircle, Settings, Sparkles, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
@@ -56,6 +56,16 @@ export function QuickAccessCompact({ lng }: QuickAccessCompactProps) {
         label={t('dashboard.quick_access_compact.relations')}
         sublabel={t('dashboard.quick_access_compact.relations_sub')}
         tone="success"
+      />
+      {/* The constellation earns a door here rather than a sixth nav slot:
+          the header row is already at its widest (six destinations, icons only
+          below `xl`), and this is a place you visit, not a place you live. */}
+      <QuickAccessAction
+        href={`/${lng}/dashboard/capabilities`}
+        icon={Sparkles}
+        label={t('dashboard.quick_access_compact.capabilities')}
+        sublabel={t('dashboard.quick_access_compact.capabilities_sub')}
+        tone="primary"
       />
       <QuickAccessAction
         href={`/${lng}/dashboard/settings`}

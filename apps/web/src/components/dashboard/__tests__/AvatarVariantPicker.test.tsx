@@ -49,7 +49,9 @@ describe('AvatarVariantPicker — choosing rather than flipping', () => {
     expect(
       screen.getByRole('button', { name: 'dashboard.avatar_picker.female' })
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'dashboard.avatar_picker.male' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'dashboard.avatar_picker.male' })
+    ).toBeInTheDocument();
   });
 
   it('announces which variant is active', () => {

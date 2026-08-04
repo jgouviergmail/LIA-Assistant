@@ -3,8 +3,8 @@
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
 **Version**: 1.1
-**Datum**: 2026-08-03
-**Anwendung**: LIA v1.27.8
+**Datum**: 2026-08-04
+**Anwendung**: LIA v1.27.9
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Codezeilen (ohne Tests) — 36 Fachdomänen | **505.000** |
-| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **22.200+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **194** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **194** |
+| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **22.800+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **203** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **196** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 

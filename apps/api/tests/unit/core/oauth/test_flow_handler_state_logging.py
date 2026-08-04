@@ -10,17 +10,26 @@ non-reversible fingerprint.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from structlog.testing import capture_logs
 
+from src.core.oauth import flow_handler
 from src.core.oauth.exceptions import OAuthStateValidationError
 from src.core.oauth.flow_handler import OAuthFlowHandler
 from src.infrastructure.observability.pii_filter import fingerprint_secret
+from tests.support.structlog_capture import fresh_module_logger
 
 # A high-entropy value shaped like a real state token (secrets.token_urlsafe(32)).
 _STATE = "Zx8QpLmv3NrTfKe1Ab9YsWc7Hd2Gj5Uo0Vi4Rt6Bn"
+
+
+@pytest.fixture(autouse=True)
+def _fresh_module_logger() -> Iterator[None]:
+    """Keep `capture_logs` reliable under xdist — see `tests/support`."""
+    yield from fresh_module_logger(flow_handler)
 
 
 @pytest.fixture

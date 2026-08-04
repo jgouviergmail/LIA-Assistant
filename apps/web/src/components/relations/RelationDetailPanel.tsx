@@ -4,10 +4,10 @@
  * RelationDetailPanel — the 360° view of one relationship (N-09, restyled).
  *
  * Identity header (large avatar, peers badge, star), a row of quick actions,
- * the LIA connection block when one exists, then sectioned CARDS — open loops
- * with an age pill, dated calls, relayed peer messages, memories as bordered
- * notes. Every section shows a preview and reveals the rest on demand, with
- * its EXACT total on the pill.
+ * then sectioned CARDS — open loops with an age pill, dated calls, relayed peer
+ * messages, memories as bordered notes — and the LIA connection block last,
+ * when one exists. Every section shows a preview and reveals the rest on
+ * demand, with its EXACT total on the pill.
  *
  * Read-only aggregation, with two chat deep links whose difference is
  * load-bearing:
@@ -176,6 +176,9 @@ function PeerMessageItem({ message }: { message: RelationPeerMessage }) {
  * settings. Both directions are shown — stating only what the user set up
  * would describe half of a two-sided arrangement. Share labels reuse the
  * settings table so one wording serves both screens.
+ *
+ * Rendered below the grid rather than inside a column, so it closes the sheet
+ * at every width instead of only on a desktop (2026-08-03).
  */
 function PeerLinkSection({ link }: { link: RelationPeerLink | null }) {
   const { t } = useTranslation();
@@ -587,10 +590,14 @@ function RelationHeader({
  * The sections, in the order the reader asked for.
  *
  * Contact card first — who this person IS — then what is open with them, what
- * LIA remembers, then the exchanges (calls, mail, meetings), and finally the
- * LIA-specific material. The provider-backed ones are INTERLEAVED rather than
- * appended: they arrive later than the database-local ones, but they belong
- * where the reader expects them, not where the network happens to put them.
+ * LIA remembers, then the exchanges (calls, mail, meetings). The
+ * provider-backed ones are INTERLEAVED rather than appended: they arrive later
+ * than the database-local ones, but they belong where the reader expects them,
+ * not where the network happens to put them.
+ *
+ * The LIA connection closes the sheet, below the grid and at full width, for
+ * every viewport — see the comment at its call site for why the left column
+ * could not hold it.
  *
  * Extracted so the panel above reads as what it is — an order — and stays
  * under the frontend complexity ratchet.
@@ -631,13 +638,16 @@ function RelationSections({
       />
       {/* Two columns from `lg`, one below — and the ORDER carries meaning.
           LEFT is the person: who they are (address book), then what the two of
-          you owe each other, then what LIA remembers, and finally the LIA link
-          as a footnote about the relationship itself. RIGHT is what connected
-          accounts happen to know. A single stack of ten cards of equal weight
-          made the human part indistinguishable from the plumbing; the DOM order
-          still reads person-first for a screen reader, since the grid never
-          reorders. Sections render nothing when empty, so the order holds
-          whatever the account actually has. */}
+          you owe each other, then what LIA remembers, then the exchanges.
+          RIGHT is what connected accounts happen to know. A single stack of ten
+          cards of equal weight made the human part indistinguishable from the
+          plumbing; the DOM order still reads person-first for a screen reader,
+          since the grid never reorders. Sections render nothing when empty, so
+          the order holds whatever the account actually has.
+
+          Nothing that must be LAST on a phone can live in either column: below
+          `lg` the columns stack, so the left one's tail sits in the middle of
+          the page. Such a block goes below the grid — see `PeerLinkSection`. */}
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-4">
           {/* First, always: the address book answers "which person is this?",
@@ -656,8 +666,6 @@ function RelationSections({
           <MemoriesSection memories={detail.memories} total={detail.memories_total} />
           <CallsSection calls={detail.recent_calls} total={detail.recent_calls_total} />
           <PeerMessagesSection messages={detail.peer_messages} total={detail.peer_messages_total} />
-          {/* Last, always: a note ABOUT the relationship, not one of its contents. */}
-          <PeerLinkSection link={detail.peer_link} />
         </div>
         <div className="flex flex-col gap-4">
           <ProviderEmailsSection
@@ -677,6 +685,19 @@ function RelationSections({
         </div>
       </div>
       <ProviderNote noteKey={providerNoteKey(context)} />
+      {/* Last of the sheet, at every width: a note ABOUT the relationship, not
+          one of its contents.
+
+          It used to close the LEFT column, which read correctly on a desktop
+          and wrongly on a phone: below `lg` the two columns stack, so the block
+          landed in the MIDDLE of the page, between the relayed messages and the
+          mail. No `order-*` class can move it — it was a child of the left
+          column, never a sibling of the right one's sections.
+
+          A full-width band under the grid is therefore ONE DOM for every width.
+          The alternative, a `hidden lg:block` pair, would hand assistive
+          technology two headings for one block. */}
+      <PeerLinkSection link={detail.peer_link} />
     </>
   );
 }

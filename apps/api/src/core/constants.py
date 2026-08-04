@@ -2429,6 +2429,28 @@ INTEREST_PRIOR_BETA_DEFAULT = 1
 INTEREST_DORMANT_THRESHOLD_DAYS_DEFAULT = 15  # Aligned from .env.prod (was 30)
 INTEREST_DELETION_THRESHOLD_DAYS_DEFAULT = 30  # Aligned from .env.prod (was 90)
 INTEREST_DECAY_RATE_PER_DAY_DEFAULT = 0.005  # Aligned from .env.prod (was 0.01)
+
+# =============================================================================
+# Provenance (why LIA thinks something)
+# =============================================================================
+
+# How many source references one belief keeps.
+#
+# Bounded on purpose: a journal entry reinforced a hundred times is explained by
+# its latest handful plus an honest count, not by a hundred rows growing beside
+# data that is itself bounded. Five is what a reader can actually read before
+# deciding whether to correct the entry.
+PROVENANCE_MAX_REFERENCES_PER_SUBJECT = 5
+
+# Floor under the temporal decay of an interest's weight.
+#
+# A design invariant rather than a tuning knob: without it an interest that has
+# not been mentioned for long enough would reach zero and become unrankable —
+# it would never be notified again, and therefore never be mentioned again. The
+# floor keeps a forgotten interest reachable while letting a fresh one outrank
+# it. Extracted from `calculate_effective_weight`, where it was a bare literal,
+# so the explanation shown to the reader quotes the value the code applies.
+INTEREST_DECAY_FLOOR = 0.1
 INTEREST_CONTENT_MAX_LENGTH_DEFAULT = 500
 INTEREST_CONTENT_LOOKBACK_DAYS_DEFAULT = 7  # Aligned from .env.prod (was 30)
 INTEREST_DEDUP_SEARCH_LIMIT_DEFAULT = 20

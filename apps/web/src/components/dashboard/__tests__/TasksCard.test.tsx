@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { renderWithProviders, screen, fireEvent } from '@/__tests__/test-utils';
 
 import { TasksCard } from '../cards/TasksCard';
 import type { CardSection, TasksData } from '@/types/briefing';
@@ -73,7 +73,7 @@ describe('TasksCard', () => {
   });
 
   it('renders overdue tasks with reschedule intent and overdue badge', () => {
-    render(<TasksCard {...cardProps} section={section(fullData)} />);
+    renderWithProviders(<TasksCard {...cardProps} section={section(fullData)} />);
 
     const overdue = screen.getByRole('button', {
       name: /intents\.task_reschedule\|subject=Payer la facture EDF/,
@@ -87,7 +87,7 @@ describe('TasksCard', () => {
   });
 
   it('renders pending tasks with progress intent and due-today badge', () => {
-    render(<TasksCard {...cardProps} section={section(fullData)} />);
+    renderWithProviders(<TasksCard {...cardProps} section={section(fullData)} />);
 
     expect(
       screen.getByRole('button', {
@@ -98,7 +98,7 @@ describe('TasksCard', () => {
   });
 
   it('renders undated tasks without a due badge', () => {
-    render(<TasksCard {...cardProps} section={section(fullData)} />);
+    renderWithProviders(<TasksCard {...cardProps} section={section(fullData)} />);
 
     const undated = screen.getByRole('button', {
       name: /intents\.task_progress\|subject=Relancer Paul/,
@@ -110,12 +110,12 @@ describe('TasksCard', () => {
   });
 
   it('shows the empty state when the section is empty', () => {
-    render(<TasksCard {...cardProps} section={section(null, 'empty')} />);
+    renderWithProviders(<TasksCard {...cardProps} section={section(null, 'empty')} />);
     expect(screen.getByText('dashboard.briefing.cards.tasks.empty')).toBeInTheDocument();
   });
 
   it('is hidden entirely when the section is not configured', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <TasksCard {...cardProps} section={section(null, 'not_configured')} />
     );
     expect(container.firstChild).toBeNull();

@@ -57,6 +57,30 @@ export function isPhoneCallDebrief(value: unknown): value is PhoneCallDebrief {
   );
 }
 
+/**
+ * The typed facts the post-call synthesis extracted, as the backend publishes
+ * them.
+ *
+ * All optional: a call may yield none of them. Everything here is what the
+ * OTHER party said or proposed — a date, a place, a price, an option left
+ * open. None of it is a decision the assistant took, and none of it may become
+ * one without the user saying so.
+ */
+export interface StructuredCallData {
+  /** Did the callee agree to the ask? Null when the call did not settle it. */
+  agreed?: boolean | null;
+  /** ISO-8601 datetime PROPOSED on the call — never one that was booked. */
+  proposed_datetime?: string | null;
+  /** Place proposed or agreed. */
+  location?: string | null;
+  /** Short free-text note. */
+  notes?: string | null;
+  /** Any extra cost, surcharge or fee mentioned, with its amount. */
+  additional_costs?: string | null;
+  /** What the assistant deliberately did NOT accept, left for the user. */
+  pending_user_decision?: string | null;
+}
+
 /** One call, as `GET /telephony/calls` returns it (newest first). */
 export interface TelephonyCallSummary {
   id: string;
@@ -70,6 +94,8 @@ export interface TelephonyCallSummary {
   summary: string | null;
   /** T01 structured debrief; null before T01 and once purged. */
   debrief: PhoneCallDebrief | null;
+  /** Typed facts extracted from the call; null before completion and once purged. */
+  structured_data?: StructuredCallData | null;
   call_seconds: number | null;
   created_at: string;
   completed_at: string | null;

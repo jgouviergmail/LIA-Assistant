@@ -253,9 +253,9 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
                   contentStyle={{
                     fontSize: 11,
                     borderRadius: 8,
-                    border: '1px solid hsl(var(--border))',
-                    background: 'hsl(var(--popover))',
-                    color: 'hsl(var(--popover-foreground))',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-popover)',
+                    color: 'var(--color-popover-foreground)',
                   }}
                   formatter={(value, name) => {
                     const padLabels: Record<string, string> = {
@@ -312,9 +312,9 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
                   contentStyle={{
                     fontSize: 11,
                     borderRadius: 8,
-                    border: '1px solid hsl(var(--border))',
-                    background: 'hsl(var(--popover))',
-                    color: 'hsl(var(--popover-foreground))',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-popover)',
+                    color: 'var(--color-popover-foreground)',
                   }}
                   formatter={(value, name) => {
                     const emoName = String(name ?? '').replace('emo_', '');
@@ -375,9 +375,9 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
                   contentStyle={{
                     fontSize: 11,
                     borderRadius: 8,
-                    border: '1px solid hsl(var(--border))',
-                    background: 'hsl(var(--popover))',
-                    color: 'hsl(var(--popover-foreground))',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-popover)',
+                    color: 'var(--color-popover-foreground)',
                   }}
                   formatter={(value, name) => {
                     const labels: Record<string, string> = {
@@ -452,9 +452,9 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
                   contentStyle={{
                     fontSize: 11,
                     borderRadius: 8,
-                    border: '1px solid hsl(var(--border))',
-                    background: 'hsl(var(--popover))',
-                    color: 'hsl(var(--popover-foreground))',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-popover)',
+                    color: 'var(--color-popover-foreground)',
                   }}
                   formatter={(value, name) => {
                     const labels: Record<string, string> = {

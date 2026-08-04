@@ -68,7 +68,14 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
-        // Global floor — re-measured 2026-08-03 after the review pass (the
+        // Global floor — re-measured 2026-08-04 (the capability constellation:
+        // the angular figure, the deterministic backdrop, the token-scope
+        // guard that would have caught the black SVG, and the "no invented
+        // tally" helper shared by the chart and the list):
+        // statements 70.72 / branches 64.78 / functions 66.53 / lines 71.29.
+        // 68/62/64/69 HOLDS — every axis gained ground but none crosses an
+        // integer step while keeping the 2-point margin, so nothing to raise.
+        // Previous re-measure 2026-08-03 after the review pass (the
         // dependency publication, the atomic results aggregate, ownership at
         // the service layer, the localized untitled event, the surrogate-safe
         // trim, the unknown-priority and unknown-suggestion guards, and their

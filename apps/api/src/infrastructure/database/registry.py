@@ -48,6 +48,7 @@ def import_all_models() -> None:
     import src.domains.relations.models  # noqa: F401
     import src.domains.reminders.models  # noqa: F401
     import src.domains.scheduled_actions.models  # noqa: F401
+    import src.domains.shared.provenance  # noqa: F401
     import src.domains.skills.models  # noqa: F401
 
     # ADR-083 Phase 2 cleanup: sub_agents.models removed (table dropped).

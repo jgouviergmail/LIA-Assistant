@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.field_names import (
     FIELD_FEEDBACK_ENABLED,
+    FIELD_RUN_ID,
     FIELD_TARGET_ID,
 )
 from src.domains.agents.display.plain_text import strip_html_if_markup
@@ -326,7 +327,7 @@ class NotificationDispatcher:
             **metadata,
         }
         if run_id:
-            full_metadata["run_id"] = run_id
+            full_metadata[FIELD_RUN_ID] = run_id
 
         # CRITICAL: Order of operations matters for race condition prevention!
         # Archive FIRST (persists to DB), then external notifications (FCM/SSE)
@@ -371,6 +372,7 @@ class NotificationDispatcher:
                     task_type=task_type,
                     target_id=target_id,
                     db=db,
+                    run_id=run_id,
                 )
                 result.fcm_success = fcm_result.get("success", 0)
                 result.fcm_failed = fcm_result.get("failed", 0)
@@ -451,9 +453,15 @@ class NotificationDispatcher:
         task_type: str,
         target_id: str,
         db: AsyncSession,
+        run_id: str | None = None,
     ) -> dict[str, int]:
         """
         Send FCM push notification.
+
+        The data payload must describe the SAME card as the archived message:
+        the client rebuilds the card's metadata from whichever road arrived
+        first, so a field present on one side and absent (or different) on the
+        other produces two cards for one notification.
 
         Args:
             user: User model instance
@@ -462,6 +470,12 @@ class NotificationDispatcher:
             task_type: Task type for data payload
             target_id: Target ID for tracking
             db: Database session
+            run_id: Token-tracking run of this notification. Carried so a
+                verdict given on a push-built card can name the notification it
+                is about — both to record it in the audit trail and to lock
+                only that card. Omitted from the payload when absent rather
+                than sent empty: an empty string is a value the client would
+                forward as a run_id.
 
         Returns:
             Dict with success/failed counts
@@ -470,16 +484,24 @@ class NotificationDispatcher:
 
         fcm_service = FCMNotificationService(db)
 
+        # FCM data values must be strings — a transport constraint, not a
+        # licence to answer differently from the archive. `feedback_enabled`
+        # was hardcoded "true" here while the archived metadata read the
+        # setting, so a disabled product feature still shipped its buttons.
+        data: dict[str, str] = {
+            "type": f"proactive_{task_type}",
+            FIELD_TARGET_ID: target_id,
+            FIELD_FEEDBACK_ENABLED: str(settings.proactive_feedback_enabled).lower(),
+            "click_action": "OPEN_CHAT",
+        }
+        if run_id:
+            data[FIELD_RUN_ID] = run_id
+
         fcm_result = await fcm_service.send_to_user(
             user_id=user.id,
             title=title,
             body=body,
-            data={
-                "type": f"proactive_{task_type}",
-                FIELD_TARGET_ID: target_id,
-                FIELD_FEEDBACK_ENABLED: "true",  # FCM data values must be strings
-                "click_action": "OPEN_CHAT",
-            },
+            data=data,
         )
 
         return {

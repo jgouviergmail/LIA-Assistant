@@ -17,6 +17,15 @@ from src.infrastructure.browser.security import (
     BrowserSecurityPolicy,
     _HostVerdictCache,
 )
+from tests.support.structlog_capture import fresh_module_logger
+
+
+@pytest.fixture(autouse=True)
+def _fresh_module_logger():
+    """Keep `capture_logs` reliable under xdist — see `tests/support`."""
+    from src.infrastructure.browser import security
+
+    yield from fresh_module_logger(security)
 
 
 def _force_verdict(monkeypatch: pytest.MonkeyPatch, *, valid: bool) -> list[str]:

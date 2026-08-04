@@ -3,8 +3,8 @@
 > Retour d'expérience — un système complet, de la conception à la production.
 
 **Version** : 1.1
-**Date** : 2026-08-03
-**Application** : LIA v1.27.8
+**Date** : 2026-08-04
+**Application** : LIA v1.27.9
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
 | Lignes de code (hors tests) — 36 domaines fonctionnels | **505 000** |
-| Tests automatisés, exécutés à chaque commit et livraison | **22 200+** |
-| Décisions d'architecture documentées (ADR) | **194** |
-| Versions livrées à rythme régulier | **194** |
+| Tests automatisés, exécutés à chaque commit et livraison | **22 800+** |
+| Décisions d'architecture documentées (ADR) | **203** |
+| Versions livrées à rythme régulier | **196** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 

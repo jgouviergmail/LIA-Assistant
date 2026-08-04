@@ -644,7 +644,24 @@ class InterestProactiveTask:
                             embedding_dim=len(content_embedding),
                         )
 
-                run_id = f"interest_{target.id}_{uuid.uuid4().hex[:8]}"
+                # The TOKEN-TRACKING run the runner injected into the result
+                # metadata before dispatch — the SAME value the archived card
+                # carries, which is what makes this row reachable from it.
+                #
+                # These two used to be generated independently (here, and in
+                # `runner.py` for the card), so `update_feedback_by_run_id`
+                # matched zero rows forever and in silence: measured on the
+                # development database on 2026-08-03, 182 notifications and not
+                # one verdict, while the interest itself was updated correctly
+                # so nothing looked broken. The heartbeat task already read the
+                # injected value; the asymmetry between the two WAS the defect.
+                #
+                # The fallback keeps the historical form for callers outside the
+                # runner (no injected run_id). It must stay unique: the column
+                # is UNIQUE, so a constant would break the second insert.
+                run_id = str(
+                    result.metadata.get("run_id") or f"interest_{target.id}_{uuid.uuid4().hex[:8]}"
+                )
 
                 await notif_repo.create(
                     user_id=user_id,

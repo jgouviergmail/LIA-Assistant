@@ -3,8 +3,8 @@
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
 **Versión**: 1.1
-**Fecha**: 2026-08-03
-**Aplicación**: LIA v1.27.8
+**Fecha**: 2026-08-04
+**Aplicación**: LIA v1.27.9
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
 | Líneas de código (sin tests) — 36 dominios funcionales | **505.000** |
-| Tests automatizados, ejecutados en cada commit y entrega | **22.200+** |
-| Decisiones de arquitectura documentadas (ADR) | **194** |
-| Versiones entregadas a ritmo regular | **194** |
+| Tests automatizados, ejecutados en cada commit y entrega | **22.800+** |
+| Decisiones de arquitectura documentadas (ADR) | **203** |
+| Versiones entregadas a ritmo regular | **196** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 

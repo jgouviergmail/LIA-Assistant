@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.27.9] - 2026-08-04
+
+**« Pourquoi LIA pense cela ? »** Un souvenir affirmait « vous préférez les réunions le matin » sans que personne — pas même vous — puisse savoir d'où cela venait. Sous chaque souvenir et chaque entrée de journal, un bloc replié montre désormais les signaux qui ont produit la conclusion, leur date, leur rôle, et un bouton **Corriger** qui ouvre l'édition. Ce qui est conservé est un **renvoi, jamais une copie** : le texte reste là où vous l'avez écrit. Supprimer une conversation ne fait donc pas revenir son contenu ici — le renvoi se vide et la ligne reste, datée : « ce signal a été supprimé ». L'inverse aurait fait disparaître jusqu'à la mention qu'une source ait existé, ce qui se lit comme « LIA a inventé cela ». La trace est **bornée à cinq signaux** par conclusion, et cette borne est **affichée** plutôt qu'appliquée en silence.
+
+**Une destination « Alertes », pour ce qui vous a été adressé.** Messages relayés entre pairs, notifications proactives, notifications d'intérêt, rappels en attente, routines programmées : cinq flux qui vivaient repliés dans cinq panneaux de réglages différents. Savoir ce que LIA vous avait dit demandait donc d'ouvrir les réglages, de trouver le bon panneau parmi une trentaine et de déplier le bon bloc — cinq fois. Consulter était devenu une opération de configuration. Les cinq sections sont repliées à l'arrivée, paginées par dix, et **une section fermée ne coûte aucune requête**. Les écrans de réglages restent la configuration détaillée et **tous leurs liens profonds restent valides** : rien n'est déplacé, rien n'est remplacé.
+
+**Une carte du ciel de ce que LIA sait faire pour vous.** Chaque capacité est une étoile : pleine quand elle est active, en contour quand elle attend d'être allumée, et sa taille dit ce qu'elle contient. Le tracé qui les relie ne joint que les capacités actives, donc **sa forme est votre configuration** — personne d'autre n'a la même. Aucun niveau, aucun pourcentage d'avancement, aucune comparaison : « trois connecteurs reliés » est un fait, « 62 % » serait une compétition que personne n'a demandée. Le dessin est décoratif ; tout ce qui s'atteint est un vrai lien, nommé et utilisable au clavier. Un téléphone, ou une demande d'immobilité, reçoit la même carte en liste — mêmes données, même ordre, mêmes destinations : demander l'immobilité n'est pas demander moins d'information.
+
+**Le poids d'un centre d'intérêt s'explique au lieu de se noter.** Le signal d'origine, la dernière mention, la dernière notification, les coefficients du calcul et le nombre de jours écoulés : de quoi refaire l'opération. Expliquer une incertitude est plus utile que d'en faire un score.
+
+**Une option proposée au téléphone ne s'accepte plus toute seule.** Les suites d'un débrief d'appel **préremplissaient et envoyaient** le message d'un seul clic : un appel où l'interlocuteur avait avancé une date, un lieu ou un supplément tarifaire produisait donc un bouton qui vous engageait sur sa proposition. Elles préparent désormais le message sans l'envoyer, et ce que l'interlocuteur a réellement proposé est **affiché avant** les suites possibles — il était produit depuis des mois et n'était publié nulle part.
+
+**Une seule gâchette d'action par ligne, et le libellé complet en bulle.** Les cartes du tableau de bord alignaient jusqu'à quatre pastilles d'action par ligne, prenant un quart à un tiers d'une largeur utile de 330 pixels — et le titre de l'élément était tronqué pour les payer. Un déclencheur unique réserve la même largeur quel que soit le nombre d'actions, donc **toutes les lignes de toutes les cartes ont enfin la même colonne de texte**.
+
+**Aussi** : la section « Connexion LIA » d'une fiche de relation est désormais la dernière sur mobile, comme sur grand écran, et n'existe qu'une fois dans la page.
+
+### Fixed
+
+- **Votre avis sur une notification d'intérêt n'était jamais enregistré** : la carte archivée et la route d'enregistrement utilisaient deux identifiants différents pour la même notification. Corrigé aussi dans l'autre sens — un vote sur une carte marquait jusqu'ici **toutes** les cartes de la conversation comme jugées.
+- **Le classement des centres d'intérêt et le poids affiché divergeaient** : deux fonctions portaient chacune leur propre taux de décroissance par défaut. Une seule source désormais.
+- **Une écriture de provenance en échec empoisonnait la session** : l'exception était avalée mais l'appelant mourait sur l'instruction suivante. L'écriture est isolée dans un point de reprise — l'extraction qu'elle décrit survit intacte.
+- **Un identifiant de souvenir mal formé répondait « le serveur a cassé »** au lieu de « cela n'existe pas », contrairement aux quatre routes voisines.
+- **Une capacité sans décompte s'affichait « Active — 0 élément »**, ce qui se lit comme une capacité vide. La personnalité et la proactivité sont des interrupteurs : ils ne comptent rien, et le disent.
+- **Trente et un endroits de l'interface ne peignaient rien, ou peignaient du noir.** Les infobulles des graphiques de santé et de personnalité, six dégradés et deux animations utilisaient une écriture de couleur héritée d'une version antérieure de Tailwind, invalide depuis la migration : un remplissage invalide retombe sur le noir, une déclaration invalide disparaît. Aucun test ne pouvait le voir — une étoile noire porte le même nom qu'une étoile bleue. Une garde lit désormais la feuille de style et refuse l'écriture morte.
+
+### Tests
+
+- Backend 18 002 tests collectés, frontend 4 808 ; 172 parcours navigateur, dont la carte des capacités, et 23 audits d'accessibilité.
+- Nouvelles gardes : jetons de couleur Tailwind v4 sur toute l'interface, portée des jetons de la landing, géométrie de la constellation, isolation par point de reprise d'une écriture best-effort, et cohérence du taux de décroissance entre le classement et l'affichage.
+- La provenance est vérifiée contre un PostgreSQL réel, pierre tombale comprise : dix scénarios, dont la suppression d'une conversation et celle d'un compte.
+
+### Documentation
+
+- ADR-201 (provenance bornée et pierre tombale), ADR-202 (ce qui se lit a sa propre destination), ADR-203 (aucune option acceptée à votre place), ADR-204 (expliquer vaut mieux que noter).
+
 ## [1.27.8] - 2026-08-03
 
 **Votre pouce levé sur une notification proactive ne servait à rien.** La carte archivée dans le chat portait un identifiant fabriqué — `heartbeat_a3f2c1d8` — quand la route d'enregistrement attend un identifiant réel. Chaque vote partait donc en erreur, silencieusement avalée pour ne pas déranger. Résultat mesuré : **aucun retour n'avait jamais été enregistré**, et un tableau de bord lisant cette table en aurait conclu que personne ne jugeait jamais rien. L'identité est désormais décidée **avant l'envoi** et la même des deux côtés. Les cartes déjà archivées portent un identifiant qu'aucune route ne peut résoudre : leur bouton n'est plus affiché du tout, plutôt que d'offrir un geste qui n'enregistrerait rien.

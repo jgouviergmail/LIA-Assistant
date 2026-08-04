@@ -37,10 +37,12 @@ test.describe('mobile navigation', () => {
     });
     await trigger.click();
 
-    // The five destinations of the desktop nav (R01 added Knowledge spaces),
-    // none missing.
+    // Every destination of the desktop nav, none missing. Six since
+    // 2026-08-04, when the notifications hub joined the table — the phone menu
+    // and the desktop row render the SAME list, so a divergence here means one
+    // of the two drifted.
     const items = page.getByRole('menuitem');
-    await expect(items).toHaveCount(5);
+    await expect(items).toHaveCount(6);
 
     // And the journey actually completes.
     await page.getByRole('menuitem', { name: /Réglages/i }).click();
@@ -138,6 +140,6 @@ test.describe('mobile navigation', () => {
     expect(headerTop).toBeGreaterThanOrEqual(0);
 
     // And the menu is still usable from there.
-    await expect(page.getByRole('menuitem')).toHaveCount(5);
+    await expect(page.getByRole('menuitem')).toHaveCount(6);
   });
 });

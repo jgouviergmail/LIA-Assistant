@@ -21,6 +21,15 @@ from src.infrastructure.mcp.oauth_flow import (
     MCPOAuthFlowHandler,
     _safe_oauth_error_code,
 )
+from tests.support.structlog_capture import fresh_module_logger
+
+
+@pytest.fixture(autouse=True)
+def _fresh_module_logger():
+    """Keep `capture_logs` reliable under xdist — see `tests/support`."""
+    from src.infrastructure.mcp import oauth_flow
+
+    yield from fresh_module_logger(oauth_flow)
 
 
 @pytest.fixture

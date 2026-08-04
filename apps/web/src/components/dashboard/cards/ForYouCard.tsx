@@ -6,7 +6,8 @@ import { Check, CircleSlash, Pencil, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { BriefingCard } from '../BriefingCard';
-import { CardItemActions, type CardItemAction } from './CardItemActions';
+import type { CardItemAction } from './CardItemActions';
+import { CardItemRow } from './CardItemRow';
 import { CommitmentEditor } from '@/components/commitments/CommitmentEditor';
 import { haptic } from '@/lib/haptics';
 import { useOpenLoops, type OpenLoopPatch } from '@/hooks/useOpenLoops';
@@ -192,24 +193,21 @@ function ForYouContent({
                 },
               ];
               return (
-                <li key={loop.id} className="flex items-start gap-1">
-                  {/* The chips are SIBLINGS of this button, never inside it:
-                      nested buttons are invalid HTML and unreachable by AT. */}
-                  <button
-                    type="button"
-                    onClick={() => onOpenChat(intent)}
-                    aria-label={intent}
-                    className="min-w-0 flex-1 text-left flex items-baseline justify-between gap-2 text-sm rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <span className="text-foreground/90 truncate font-medium">{loop.subject}</span>
-                    <span className="shrink-0 text-xs text-fuchsia-600 dark:text-fuchsia-300 tabular-nums">
-                      {t('dashboard.briefing.cards.for_you.days_open', {
-                        count: loop.days_open,
-                      })}
-                    </span>
-                  </button>
-                  <CardItemActions actions={actions} />
-                </li>
+                <CardItemRow
+                  key={loop.id}
+                  ariaLabel={intent}
+                  tooltip={loop.subject}
+                  onSelect={() => onOpenChat(intent)}
+                  contentClassName="flex items-baseline justify-between gap-2 text-sm"
+                  actions={actions}
+                >
+                  <span className="text-foreground/90 truncate font-medium">{loop.subject}</span>
+                  <span className="shrink-0 text-xs text-fuchsia-600 dark:text-fuchsia-300 tabular-nums">
+                    {t('dashboard.briefing.cards.for_you.days_open', {
+                      count: loop.days_open,
+                    })}
+                  </span>
+                </CardItemRow>
               );
             })}
           </ul>

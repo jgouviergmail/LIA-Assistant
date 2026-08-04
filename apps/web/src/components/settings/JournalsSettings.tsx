@@ -16,6 +16,7 @@ import {
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ProvenanceDisclosure } from '@/components/provenance/ProvenanceDisclosure';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -973,6 +974,17 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                                             · {new Date(entry.created_at).toLocaleDateString()}
                                           </span>
                                         </div>
+                                        {/* The counters above answer HOW MANY
+                                            signals; this answers WHICH. A
+                                            conclusion nobody can examine is one
+                                            nobody can argue with — and the
+                                            correction is offered right where
+                                            the reason is read. */}
+                                        <ProvenanceDisclosure
+                                          endpoint={`/journals/${entry.id}/provenance`}
+                                          locale={lng}
+                                          onCorrect={() => openEdit(entry)}
+                                        />
                                       </div>
                                       <div className="flex gap-1 ml-2">
                                         <Button

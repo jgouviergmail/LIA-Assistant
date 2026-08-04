@@ -6,7 +6,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { openCardActions } from '../cards/__tests__/card-actions-harness';
 
 import { DocumentsCard } from '../cards/DocumentsCard';
 import type { CardSection, DocumentsData } from '@/types/briefing';
@@ -75,39 +76,52 @@ describe('DocumentsCard', () => {
     openChat.mockClear();
   });
 
-  it('opens the chat with a summarize intent on row click', () => {
-    render(<DocumentsCard {...cardProps} section={section(fullData)} />);
+  it('opens the chat with a summarize intent on row click', async () => {
+    const { user } = renderWithProviders(
+      <DocumentsCard {...cardProps} section={section(fullData)} />
+    );
 
     const row = screen.getByRole('button', {
       name: /intents\.document_summarize\|subject=Devis plomberie\.pdf/,
     });
-    fireEvent.click(row);
+    await user.click(row);
     expect(openChat).toHaveBeenCalledWith(expect.stringContaining('/fr/dashboard/chat?draft='));
     expect(openChat.mock.calls[0][0]).toContain(encodeURIComponent('Devis plomberie.pdf'));
     expect(screen.getByText('14:30')).toBeInTheDocument();
   });
 
-  it('renders a safe external Drive link only when a link exists', () => {
-    render(<DocumentsCard {...cardProps} section={section(fullData)} />);
+  it('renders a safe external Drive link only when a link exists', async () => {
+    // The link moved INTO the actions menu (2026-08-03): as a fourth icon it
+    // was the widest row of the grid. It stays an anchor, with the same safe
+    // attributes — only its home changed.
+    const { user } = renderWithProviders(
+      <DocumentsCard {...cardProps} section={section(fullData)} />
+    );
 
-    const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(1);
-    expect(links[0]).toHaveAttribute('href', 'https://drive.google.com/file/d/f1/view');
-    expect(links[0]).toHaveAttribute('target', '_blank');
-    expect(links[0]).toHaveAttribute('rel', 'noopener noreferrer');
-    // The linkless row still renders its content
+    await openCardActions(user, 0);
+    const link = screen.getByRole('menuitem', { name: /cards\.documents\.open_external/ });
+    expect(link).toHaveAttribute('href', 'https://drive.google.com/file/d/f1/view');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    await user.keyboard('{Escape}');
+
+    // The linkless row still renders its content, and offers no Drive entry.
     expect(screen.getByText('Notes réunion')).toBeInTheDocument();
+    await openCardActions(user, 1);
+    expect(screen.queryByRole('menuitem', { name: /cards\.documents\.open_external/ })).toBeNull();
   });
 
   it('shows the empty state when the section is empty', () => {
-    render(<DocumentsCard {...cardProps} section={section(null, 'empty')} />);
+    renderWithProviders(<DocumentsCard {...cardProps} section={section(null, 'empty')} />);
     expect(screen.getByText('dashboard.briefing.cards.documents.empty')).toBeInTheDocument();
   });
 
   it('is hidden entirely when the section is not configured', () => {
-    const { container } = render(
-      <DocumentsCard {...cardProps} section={section(null, 'not_configured')} />
-    );
-    expect(container.firstChild).toBeNull();
+    // The card's own named region is the oracle, not `container.firstChild`:
+    // the providers wrap the tree, so "nothing rendered" is about the CARD.
+    renderWithProviders(<DocumentsCard {...cardProps} section={section(null, 'not_configured')} />);
+
+    expect(screen.queryByRole('region')).toBeNull();
+    expect(screen.queryByText('dashboard.briefing.cards.documents.empty')).toBeNull();
   });
 });

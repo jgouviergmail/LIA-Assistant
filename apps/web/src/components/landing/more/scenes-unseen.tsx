@@ -340,7 +340,83 @@ function HapticsScene({ active }: SceneProps) {
   );
 }
 
+type SkyPhase = 'dark' | 'lighting' | 'traced';
+const SKY_STEPS: readonly TimelineStep<SkyPhase>[] = [
+  { at: 0, state: 'dark' },
+  { at: 700, state: 'lighting' },
+  { at: 1900, state: 'traced' },
+];
+
+/** Where the stars sit, and which of them are lit — fixed, like the real map. */
+const SKY_STARS = [
+  { x: 50, y: 16, lit: true },
+  { x: 80, y: 38, lit: true },
+  { x: 72, y: 74, lit: false },
+  { x: 28, y: 74, lit: true },
+  { x: 20, y: 38, lit: true },
+] as const;
+const LIT_FIGURE = SKY_STARS.filter(star => star.lit)
+  .map(star => `${star.x},${star.y}`)
+  .join(' ');
+
+/**
+ * The capability constellation: stars resolve in order, then the figure draws
+ * itself between the lit ones. Same idea as the real chart, at postcard size.
+ */
+function CapabilityMapScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(SKY_STEPS, { active });
+
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="relative aspect-square w-full max-w-[150px] overflow-hidden rounded-xl border border-border bg-[radial-gradient(circle_at_50%_45%,var(--capability-glow-blue),transparent_65%)]">
+        <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" aria-hidden="true">
+          <circle
+            cx="50"
+            cy="50"
+            r="34"
+            fill="none"
+            stroke="var(--capability-star)"
+            strokeOpacity="0.15"
+            strokeWidth="0.4"
+            strokeDasharray="1.5 2.5"
+          />
+          <polygon
+            points={LIT_FIGURE}
+            fill="var(--capability-star)"
+            fillOpacity={phase === 'traced' ? 0.08 : 0}
+            stroke="var(--capability-accent)"
+            strokeWidth="1"
+            strokeLinejoin="round"
+            pathLength={100}
+            strokeDasharray="100"
+            strokeDashoffset={phase === 'traced' ? 0 : 100}
+            className="transition-all duration-[1200ms] ease-out"
+          />
+          {SKY_STARS.map((star, index) => (
+            <circle
+              key={index}
+              cx={star.x}
+              cy={star.y}
+              r={star.lit ? 3 : 2}
+              fill={star.lit ? 'var(--capability-star)' : 'none'}
+              stroke={star.lit ? 'none' : 'var(--capability-ink-dim)'}
+              strokeWidth="0.8"
+              className="transition-opacity duration-500"
+              style={{
+                opacity: phase === 'dark' ? 0.15 : 1,
+                transitionDelay: `${index * 120}ms`,
+              }}
+            />
+          ))}
+          <circle cx="50" cy="50" r="2" fill="var(--capability-star)" fillOpacity="0.9" />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
+  capability_map: CapabilityMapScene,
   background_response: BackgroundResponseScene,
   widgets_travel: WidgetsTravelScene,
   cost_transparency: CostTransparencyScene,

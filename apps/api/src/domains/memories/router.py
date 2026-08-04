@@ -46,6 +46,8 @@ from src.domains.memories.schemas import (
     MemoryUpdate,
 )
 from src.domains.memories.service import MemoryService
+from src.domains.shared.provenance_repository import ProvenanceRepository
+from src.domains.shared.schemas import ProvenanceResponse
 from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
@@ -551,3 +553,51 @@ async def delete_all_memories(
             operation="delete_all",
             detail=APIMessages.failed_to_delete_all_memories(),
         )
+
+
+@router.get(
+    "/{memory_id}/provenance",
+    response_model=ProvenanceResponse,
+    summary="Why LIA thinks this",
+    description=(
+        "The bounded signals behind one memory, resolved LIVE. A reference "
+        "whose conversation the reader has since deleted comes back as a "
+        "tombstone: dated, sourceless and textless — a deletion elsewhere is "
+        "never undone here."
+    ),
+)
+async def get_memory_provenance(
+    memory_id: str,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> ProvenanceResponse:
+    """The signals behind one memory.
+
+    Args:
+        memory_id: The memory being questioned.
+        user: Authenticated session owner.
+        db: Request-scoped session.
+
+    Returns:
+        The references, newest first, and the cap the trail is kept at.
+
+    Raises:
+        ResourceNotFoundError: Unknown memory, or one belonging to another
+            account — the two answer identically, so the route cannot be used
+            to probe for someone else's memories.
+    """
+    # Guarded like the four routes above it: a malformed identifier means "no
+    # such memory", not "the server broke". Bare `UUID(...)` raised ValueError
+    # and surfaced as a 500 — a different answer, from a different code path,
+    # for the same client mistake.
+    try:
+        identifier = UUID(memory_id)
+    except ValueError:
+        raise_memory_not_found(memory_id)
+
+    memory = await MemoryRepository(db).get_by_id_for_user(identifier, user.id)
+    if not memory:
+        raise_memory_not_found(memory_id)
+
+    references = await ProvenanceRepository(db).resolve_for(user_id=user.id, memory_id=identifier)
+    return ProvenanceResponse.from_references(references)

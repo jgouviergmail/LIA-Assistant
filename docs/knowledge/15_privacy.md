@@ -260,3 +260,19 @@ Seven families of trap are recognised across the app's six languages: fake syste
 
 **✋ What LIA does not do:**
 It **never** rewrites your content. An email stays exactly what its author wrote; only a note is added beside it. Cleaning the text would give the illusion of a guarantee that the next bypass would deny — and would alter a message you may have wanted to read as-is.
+
+## What does LIA keep to explain its conclusions?
+A pointer and a timestamp — never your words. When LIA forms a conclusion (a
+memory, a journal entry, an interest), it records **which conversation and
+which turn** produced it, along with a role: origin, evidence or contradiction.
+
+That design has a direct consequence for deletion. Delete a conversation and
+the reference **empties while the dated row stays**: LIA can say a signal
+existed, and can never bring its content back. Copying the source text into the
+conclusion would have made your deletion meaningless, since the words would
+survive elsewhere.
+
+The trail is bounded — five references per conclusion, oldest pruned — and the
+bound is published alongside the list, so "five signals" never reads as "all of
+them". Deleting your account removes these references explicitly, before the
+conclusions they point at.

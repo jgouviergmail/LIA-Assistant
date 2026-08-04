@@ -27,22 +27,21 @@
  *   the two ADR-194/195 counters (planner_fabricated_parameters_restored_total,
  *   semantic_validation_for_each_demand_dropped_total) over the 464 of v1.27.4.
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured at v1.27.8: backend 17,925 collected (+122 over v1.27.7 — the
- *   proactivity source registry and its dependency publication, the reminder
- *   ownership guards, the occurrence/DST helpers, the interest-notification
- *   history and the grounded-suggestion sources), frontend 4,690 (+203 — the
- *   folded settings blocks, the shared history card, the peer share menu and
- *   the commitment quick actions) = 22,615 → 22,600. The rounding step
- *   moved from the thousand to the hundred so a real gain stops being erased
- *   by the rounding itself; it stays a strict round-DOWN either way.
+ *   Re-measured at v1.27.9: backend 18,002 collected (+77 over v1.27.8 — the
+ *   bounded provenance and its tombstone, the capability probes, the interest
+ *   explanation, the savepoint isolation and the route guards), frontend
+ *   4,808 (+118 — the constellation geometry, the Tailwind v4 colour guard,
+ *   the notifications hub, the single action menu and the three new /more
+ *   scenes) = 22,810 → 22,800, a strict round-DOWN to the hundred.
+ *   Previous re-measure at v1.27.8: backend 17,925, frontend 4,690 = 22,615.
  *   Re-measure every release: the value carried the backend count alone
  *   until v1.25.9.
- * - adrs: docs/architecture/ ADR files (199 files, numbered up to ADR-200 —
- *   ADR-008 has no separate file, so 200 numbers map to 199 files). Was
+ * - adrs: docs/architecture/ ADR files (203 files, numbered up to ADR-204 —
+ *   ADR-008 has no separate file, so 204 numbers map to 203 files). Was
  *   stranded at 183 from v1.27.0 to v1.27.4: recount it, never carry it over.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   195 headings at v1.27.8, no Unreleased pending.
+ *   196 headings at v1.27.9, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -58,9 +57,9 @@ export const LANDING_STATS = {
   voiceLanguages: 99,
   metrics: 466,
   uiLanguages: 6,
-  tests: 22600,
-  adrs: 199,
-  releases: 195,
+  tests: 22800,
+  adrs: 203,
+  releases: 196,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

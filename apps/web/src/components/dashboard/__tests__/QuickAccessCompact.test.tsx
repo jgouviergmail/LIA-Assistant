@@ -26,16 +26,30 @@ const HELP_SUB = 'dashboard.quick_access_compact.help_sub';
 const RELATIONS = 'dashboard.quick_access_compact.relations';
 const SETTINGS = 'dashboard.quick_access_compact.settings';
 const SETTINGS_SUB = 'dashboard.quick_access_compact.settings_sub';
+const CAPABILITIES = 'dashboard.quick_access_compact.capabilities';
 
 describe('QuickAccessCompact', () => {
-  it('offers three destinations: help, relations, settings', () => {
+  it('offers four destinations: help, relations, capabilities, settings', () => {
+    // The constellation earns a door here rather than a sixth nav slot: the
+    // header row is already at its widest, and this is a place you visit
+    // rather than a place you live.
     renderWithProviders(<QuickAccessCompact lng="fr" />);
 
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(3);
+    expect(links).toHaveLength(4);
     expect(links[0]).toHaveAccessibleName(new RegExp(HELP));
     expect(links[1]).toHaveAccessibleName(new RegExp(RELATIONS));
-    expect(links[2]).toHaveAccessibleName(new RegExp(SETTINGS));
+    expect(links[2]).toHaveAccessibleName(new RegExp(CAPABILITIES));
+    expect(links[3]).toHaveAccessibleName(new RegExp(SETTINGS));
+  });
+
+  it('sends the capabilities entry to the constellation', () => {
+    renderWithProviders(<QuickAccessCompact lng="fr" />);
+
+    expect(screen.getByRole('link', { name: new RegExp(CAPABILITIES) })).toHaveAttribute(
+      'href',
+      '/fr/dashboard/capabilities'
+    );
   });
 
   it('links to the localized FAQ, relations and settings pages', () => {
@@ -99,10 +113,11 @@ describe('QuickAccessCompact', () => {
     const { container } = renderWithProviders(<QuickAccessCompact lng="fr" />);
 
     const links = Array.from(container.querySelectorAll('a'));
-    expect(links).toHaveLength(3);
-    // Same parent: that is what makes it a bar rather than a grid of cards.
-    expect(links[0].parentElement).toBe(links[1].parentElement);
-    expect(links[1].parentElement).toBe(links[2].parentElement);
+    expect(links).toHaveLength(4);
+    // ONE parent for all of them: that is what makes it a bar rather than a
+    // grid of cards, whatever the number of destinations.
+    const parents = new Set(links.map(link => link.parentElement));
+    expect(parents.size).toBe(1);
     // And that parent is the component root — no intermediate card wrapper.
     expect(links[0].parentElement).toBe(container.firstElementChild);
   });

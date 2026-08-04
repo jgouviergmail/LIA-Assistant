@@ -9,6 +9,7 @@ cannot exercise (same rationale as conversations/test_feedback_persistence).
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
@@ -670,3 +671,84 @@ class TestMessageRetention:
         assert row.status == PeerMessageStatus.CANCELLED.value
         assert row.content == "jamais parti"
         assert row.last_error == "cancelled_blocked"
+
+
+class TestTheGlobalTimelineIsPageable:
+    """The notifications hub reads relayed messages the way it reads the rest.
+
+    Every other section of that hub answers "the last N of M": a bounded page
+    plus the EXACT total behind it (ADR-185). The peers bridge could only
+    answer "the newest N", with no offset and no count — so a hub built on it
+    would either show one page forever or state a total it had inferred from
+    the length of that page.
+
+    The count reuses the SAME predicate skeleton as the page
+    (``_delivered_with_peer``), so a row excluded from one is excluded from the
+    other. A total assembled from a different filter is worse than no total.
+    """
+
+    async def _deliver_many(self, repo, async_session, connection, sender, recipient, count):
+        base = datetime.now(UTC)
+        for index in range(count):
+            message = await repo.enqueue_message(connection.id, sender.id, recipient.id, "hello")
+            await async_session.commit()
+            await repo.claim_pending_messages()
+            await async_session.commit()
+            assert await repo.mark_message_delivered(
+                message.id,
+                now=base - timedelta(minutes=count - index),
+                delivered_text="rendu",
+            )
+            await async_session.commit()
+
+    async def test_the_offset_walks_the_timeline_without_repeating_a_row(
+        self, async_session: AsyncSession, accepted_pair
+    ):
+        connection, user_a, user_b = accepted_pair
+        repo = PeersRepository(async_session)
+        await self._deliver_many(repo, async_session, connection, user_a, user_b, 5)
+
+        first = await repo.list_delivered_message_activity(user_a.id, limit=2, offset=0)
+        second = await repo.list_delivered_message_activity(user_a.id, limit=2, offset=2)
+        rest = await repo.list_delivered_message_activity(user_a.id, limit=2, offset=4)
+
+        assert [len(first), len(second), len(rest)] == [2, 2, 1]
+        ids = [item.message_id for item in (*first, *second, *rest)]
+        assert len(set(ids)) == 5, "a page boundary must not repeat or drop a row"
+
+    async def test_the_total_counts_the_whole_set_not_the_page(
+        self, async_session: AsyncSession, accepted_pair
+    ):
+        connection, user_a, user_b = accepted_pair
+        repo = PeersRepository(async_session)
+        await self._deliver_many(repo, async_session, connection, user_a, user_b, 5)
+
+        page = await repo.list_delivered_message_activity(user_a.id, limit=2)
+        total = await repo.count_delivered_messages(user_a.id)
+
+        assert len(page) == 2
+        assert total == 5
+
+    async def test_the_count_applies_the_same_exclusions_as_the_page(
+        self, async_session: AsyncSession, accepted_pair
+    ):
+        """A blocked peer disappears from BOTH, or the total contradicts the list."""
+        connection, user_a, user_b = accepted_pair
+        repo = PeersRepository(async_session)
+        await self._deliver_many(repo, async_session, connection, user_a, user_b, 3)
+        assert await repo.count_delivered_messages(user_a.id) == 3
+
+        await repo.create_block(user_a.id, user_b.id)
+        await async_session.commit()
+
+        assert await repo.list_delivered_message_activity(user_a.id, limit=10) == []
+        assert await repo.count_delivered_messages(user_a.id) == 0
+
+    async def test_a_stranger_sees_nothing_of_that_timeline(
+        self, async_session: AsyncSession, accepted_pair
+    ):
+        connection, user_a, user_b = accepted_pair
+        repo = PeersRepository(async_session)
+        await self._deliver_many(repo, async_session, connection, user_a, user_b, 2)
+
+        assert await repo.count_delivered_messages(uuid4()) == 0

@@ -48,6 +48,7 @@ from src.domains.shared.extraction_targets import (
     find_last_user_message,
     is_synthetic_message,
 )
+from src.domains.shared.provenance_capture import record_origin
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.embedding_context import (
     clear_embedding_context,
@@ -652,7 +653,7 @@ async def extract_memories_background(
                 for action in actions:
                     try:
                         if action.action == "create" and action.content and action.category:
-                            await service.create_memory(
+                            created = await service.create_memory(
                                 user_id=UUID(user_id),
                                 content=action.content,
                                 category=action.category,
@@ -661,6 +662,18 @@ async def extract_memories_background(
                                 usage_nuance=action.usage_nuance or "",
                                 importance=action.importance or 0.7,
                                 context_biometric=action.context_biometric,
+                            )
+                            # Where this memory came from, as a BOUNDED pointer
+                            # (never a copy of the turn). A memory carried NO
+                            # provenance at all, so "why do you think I am
+                            # allergic to shellfish?" had no answer and a wrong
+                            # one could not be argued with. Best-effort: the
+                            # memory is already true without it.
+                            await record_origin(
+                                db,
+                                user_id=UUID(user_id),
+                                source=conversation_id,
+                                memory_id=created.id,
                             )
                             applied_count += 1
                             # No PII at INFO: memory content/topic are contents (DEBUG only)

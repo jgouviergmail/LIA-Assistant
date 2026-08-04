@@ -15,6 +15,7 @@ from src.domains.auth.router import router as auth_router
 from src.domains.auth.sessions_router import router as sessions_router
 from src.domains.auth.step_up_router import router as step_up_router
 from src.domains.briefing.router import router as briefing_router
+from src.domains.capabilities.router import router as capabilities_router
 from src.domains.chat.router import router as chat_router
 from src.domains.connectors.router import router as connectors_router
 from src.domains.conversations.router import router as conversations_router
@@ -22,6 +23,9 @@ from src.domains.google_api.router import router as google_api_admin_router
 from src.domains.google_api.user_export_router import router as user_export_router
 from src.domains.image_generation.options_router import router as image_options_router
 from src.domains.image_generation.router import router as image_pricing_admin_router
+from src.domains.interests.explainability_router import (
+    router as interests_explainability_router,
+)
 from src.domains.interests.notifications_router import (
     router as interests_notifications_router,
 )
@@ -56,12 +60,18 @@ api_router.include_router(chat_router)
 # Reminders expose exactly ONE action (cancel by id) — the domain has no
 # management surface by design (discrete, ephemeral, chat-created).
 api_router.include_router(reminders_router)
+# The capability map: read-only, always mounted. Its own gate-keeping is
+# per-node — a subsystem the instance disabled is absent from the payload.
+api_router.include_router(capabilities_router)
 api_router.include_router(memories_router)
 api_router.include_router(interests_router)
 # Same prefix, separate module: the history is an audit surface, and
 # `interests/router.py` sits at its frozen size ceiling (ADR doctrine: extract,
 # never bump the cap).
 api_router.include_router(interests_notifications_router)
+# Same reason, same prefix: "why does this weigh what it weighs" is a distinct
+# concern from "which interests exist", and the main router is at its ceiling.
+api_router.include_router(interests_explainability_router)
 api_router.include_router(notifications_router)
 api_router.include_router(scheduled_actions_router)
 api_router.include_router(briefing_router)  # Today dashboard

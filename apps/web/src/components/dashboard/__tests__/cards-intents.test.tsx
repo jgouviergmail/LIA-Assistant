@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { renderWithProviders, screen, fireEvent } from '@/__tests__/test-utils';
 
 import { MailsCard } from '../cards/MailsCard';
 import { AgendaCard } from '../cards/AgendaCard';
@@ -61,7 +61,7 @@ describe('briefing cards — actionable items (QW-9)', () => {
   });
 
   it('mail item opens the chat prefilled with the summarize intent', () => {
-    render(
+    renderWithProviders(
       <MailsCard
         {...cardProps}
         section={section({
@@ -89,7 +89,7 @@ describe('briefing cards — actionable items (QW-9)', () => {
   });
 
   it('agenda item opens the chat prefilled with the prepare intent', () => {
-    render(
+    renderWithProviders(
       <AgendaCard
         {...cardProps}
         section={section({
@@ -108,7 +108,7 @@ describe('briefing cards — actionable items (QW-9)', () => {
   });
 
   it('birthday item opens the chat prefilled with the birthday intent', () => {
-    render(
+    renderWithProviders(
       <BirthdaysCard
         {...cardProps}
         section={section({
@@ -125,7 +125,7 @@ describe('briefing cards — actionable items (QW-9)', () => {
   });
 
   it('reminder item opens the chat plainly (no draft)', () => {
-    render(
+    renderWithProviders(
       <RemindersCard
         {...cardProps}
         section={section({

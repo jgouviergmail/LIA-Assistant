@@ -31,6 +31,7 @@ from uuid import UUID
 from src.core.config import settings
 from src.domains.agents.utils.extraction_guards import enforce_delete_cap
 from src.domains.interests.models import InterestStatus
+from src.domains.shared.provenance_capture import record_origin
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_extractions import (
     extraction_action_rejected_total,
@@ -270,6 +271,7 @@ async def _apply_create(
     extracted: ExtractedInterest,
     user_id: str,
     existing_interests: list[UserInterest],
+    conversation_id: str | None = None,
 ) -> int:
     """Create a new interest, or consolidate the one it duplicates.
 
@@ -319,6 +321,16 @@ async def _apply_create(
     # deduplicated against this one: the list was snapshotted before the loop,
     # so without this two near-identical topics both land.
     existing_interests.append(new_interest)
+    # Where this interest came from, as a BOUNDED pointer. An interest IS a
+    # belief LIA formed — "you seem to care about X" — and it stated that
+    # belief, its weight and its status without ever saying what produced it.
+    # Best-effort: the interest is already valid without its explanation.
+    await record_origin(
+        repo.db,
+        user_id=UUID(user_id),
+        source=conversation_id,
+        interest_id=new_interest.id,
+    )
     logger.info(
         "interest_created",
         user_id=user_id,
@@ -336,6 +348,7 @@ async def apply_interest_actions(
     user_id: str,
     actions: list[ExtractedInterest],
     existing_interests: list[UserInterest],
+    conversation_id: str | None = None,
 ) -> int:
     """Apply every action an extraction proposed, guarded.
 
@@ -348,6 +361,10 @@ async def apply_interest_actions(
         user_id: Owner of the interests, as a string.
         actions: Parsed actions, already filtered by the confidence floor.
         existing_interests: Deduplication candidates, ALL statuses included.
+        conversation_id: The conversation the extraction ran on, recorded as
+            the ORIGIN of anything it creates. Optional: an interest created
+            outside a conversation simply carries no origin, rather than one
+            that was invented.
 
     Returns:
         Number of actions actually applied.
@@ -367,7 +384,9 @@ async def apply_interest_actions(
             elif extracted.action == "update":
                 applied += await _apply_update(repo, extracted, user_id, known_ids)
             else:
-                applied += await _apply_create(repo, extracted, user_id, existing_interests)
+                applied += await _apply_create(
+                    repo, extracted, user_id, existing_interests, conversation_id
+                )
         except Exception as e:
             logger.warning(
                 "interest_storage_failed",

@@ -31,6 +31,16 @@ export interface SettingsDisclosureProps {
   title: string;
   /** Usually the exact total; rendered inside the summary, next to the title. */
   badge?: ReactNode;
+  /**
+   * One line under the title, visible WHILE FOLDED.
+   *
+   * A folded block is an index entry: what it holds has to be readable before
+   * opening it, or the reader opens each one to find out — which is exactly
+   * the scanning the fold exists to spare them. Outside the `<summary>` it
+   * would be unmounted with the children and only appear once open, i.e. once
+   * it is no longer needed.
+   */
+  description?: string;
   /** Open on arrival. Default false, deliberately. */
   defaultOpen?: boolean;
   /** Notified on every state change, so a caller can enable its query. */
@@ -43,6 +53,7 @@ export function SettingsDisclosure({
   icon: Icon,
   title,
   badge,
+  description,
   defaultOpen = false,
   onOpenChange,
   className,
@@ -76,7 +87,12 @@ export function SettingsDisclosure({
         )}
       >
         <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-        <span className="min-w-0 flex-1 truncate">{title}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate">{title}</span>
+          {description && (
+            <span className="block text-xs font-normal text-muted-foreground">{description}</span>
+          )}
+        </span>
         {badge !== undefined && badge !== null && (
           <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
             {badge}

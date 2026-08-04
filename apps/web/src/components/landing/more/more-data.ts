@@ -16,6 +16,9 @@
 
 import type { LucideIcon } from 'lucide-react';
 import {
+  Orbit,
+  BellRing,
+  Search,
   ChevronsDownUp,
   Vibrate,
   Accessibility,
@@ -85,6 +88,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'followup_chips',
       'scroll_return',
       'bubble_actions',
+      'provenance_why',
       'selection_actions',
       'peer_actions',
       'share_export',
@@ -128,6 +132,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
     cards: [
       'briefing_custom',
       'card_actions',
+      'alerts_hub',
       'folded_settings',
       'starter_checklist',
       'empty_starters',
@@ -141,6 +146,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
     tinted: true,
     cards: [
       'background_response',
+      'capability_map',
       'widgets_travel',
       'cost_transparency',
       'haptics',
@@ -192,6 +198,9 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   haptics: Vibrate,
   folded_settings: ChevronsDownUp,
   frosted_glass: PanelTop,
+  provenance_why: Search,
+  alerts_hub: BellRing,
+  capability_map: Orbit,
   narrow_screens: Smartphone,
 };
 
@@ -237,5 +246,8 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   folded_settings: [],
   a11y_care: [],
   frosted_glass: [],
+  provenance_why: [],
+  alerts_hub: [],
+  capability_map: [],
   narrow_screens: [],
 };

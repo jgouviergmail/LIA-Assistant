@@ -21,11 +21,12 @@ Usage:
         language: str | None = None
 """
 
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from src.core.config import settings
 from src.core.constants import (
@@ -435,3 +436,81 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     def set_font_family_default(cls, v: str | None) -> str:
         """Ensure font_family defaults to 'system' if None."""
         return v if v is not None else "system"
+
+
+class ProvenanceItem(BaseModel):
+    """One resolved provenance reference, as the API publishes it.
+
+    ``excerpt`` is read LIVE from the source turn and capped for display; it is
+    never stored. A tombstone (``is_tombstone``) carries a date and nothing
+    else: the reader deleted that conversation, and undoing their deletion here
+    would make it not a deletion.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID = Field(description="The reference row.")
+    outcome: str = Field(description="`origin`, `evidence` or `contradiction`.")
+    captured_at: datetime = Field(
+        description="When the signal was observed — survives the source being deleted."
+    )
+    conversation_id: UUID | None = Field(
+        default=None, description="The live conversation, or None once it is gone."
+    )
+    excerpt: str | None = Field(
+        default=None,
+        description="Short live quotation of the turn; None for a tombstone.",
+    )
+    is_tombstone: bool = Field(
+        description="True when the source no longer exists — dated, but sourceless."
+    )
+
+
+class ProvenanceResponse(BaseModel):
+    """The bounded trail behind one belief, and the bound itself."""
+
+    references: list[ProvenanceItem]
+    total: int = Field(ge=0, description="How many references are kept right now.")
+    kept_at_most: int = Field(
+        ge=1,
+        description=(
+            "Cap on the trail. Published rather than applied silently: an "
+            "enforced bound the reader cannot see is a trap (ADR-184)."
+        ),
+    )
+
+    @classmethod
+    def from_references(cls, references: Sequence[Any]) -> "ProvenanceResponse":
+        """Build the payload from resolved references.
+
+        Three routes answer "why does LIA think this?" — one per subject — and
+        every one of them was assembling this payload by hand, including the
+        published cap. Three copies is two chances for one of them to forget
+        that the trail is capped, and to read as complete when it is not.
+
+        Args:
+            references: ``ResolvedReference`` values, newest first. Typed
+                loosely to keep this schema module free of a repository import
+                (the repository already imports this one).
+
+        Returns:
+            The references, their exact count, and the published cap.
+        """
+        from src.core.constants import PROVENANCE_MAX_REFERENCES_PER_SUBJECT
+
+        items = [
+            ProvenanceItem(
+                id=reference.id,
+                outcome=reference.outcome,
+                captured_at=reference.captured_at,
+                conversation_id=reference.conversation_id,
+                excerpt=reference.excerpt,
+                is_tombstone=reference.is_tombstone,
+            )
+            for reference in references
+        ]
+        return cls(
+            references=items,
+            total=len(items),
+            kept_at_most=PROVENANCE_MAX_REFERENCES_PER_SUBJECT,
+        )

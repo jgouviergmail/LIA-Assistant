@@ -20,6 +20,13 @@ import pytest
 
 from src.core.constants import RAG_DRIVE_REGULAR_FILE_MAP
 from src.domains.rag_spaces import drive_sync
+from tests.support.structlog_capture import fresh_module_logger
+
+
+@pytest.fixture(autouse=True)
+def _fresh_module_logger():
+    """Keep `capture_logs` reliable under xdist — see `tests/support`."""
+    yield from fresh_module_logger(drive_sync)
 
 
 @contextlib.asynccontextmanager

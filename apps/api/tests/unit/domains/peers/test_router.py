@@ -133,6 +133,11 @@ class TestRouteTable:
             "/peers/access-log",
             "/peers/blocks",
             "/peers/blocks/{peer_id}",
+            # Added 2026-08-03 for the notifications hub: the relayed-message
+            # timeline had no pageable read with an exact total, so the hub
+            # could only have shown one page forever or inferred a total from
+            # its length. Read-only — the relay itself is untouched.
+            "/peers/messages",
         }
 
     def test_discovery_search_carries_the_rate_limit_dependency(self):

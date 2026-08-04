@@ -120,3 +120,17 @@ Journal operations use **background LLM calls**:
 Yes. That was not the case before: a conversation held from an external messenger fed neither your logbooks nor LIA's emotional state, even with those features switched on. Your setting was saved correctly — it simply was not passed along when the message was processed.
 
 Now whatever you switched on applies identically wherever you write from: long-term memory, logbooks and mood. If you had turned them off, they stay off everywhere — it is your setting that travels, not a default value. With no identified account, nothing is written at all.
+
+## Why did LIA write that in my journal?
+Every entry carries a folded "**Why does LIA think this?**" block listing the
+signals behind the conclusion: the conversation, the date, and the signal's
+role — **origin** (what produced it), **evidence** (what confirmed it) or
+**contradiction** (what cast doubt on it). A **Correct** button opens the entry
+for editing, so you fix the conclusion rather than the trace.
+
+What is kept is a **reference, never a copy** of your words. If you delete the
+source conversation, the reference empties and the dated row stays, saying the
+signal was deleted — a tombstone. Your deletion stays a deletion.
+
+The trail is capped at the five most recent signals per entry, and that cap is
+stated under the list rather than applied in silence.

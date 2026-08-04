@@ -57,6 +57,7 @@ import {
   BookOpen,
   Bot,
   Monitor,
+  Orbit,
   ImageIcon,
   UserCheck,
   Filter,
@@ -119,6 +120,7 @@ const sections = [
  * releases. `__tests__/changelog-wiring.test.ts` now fails on any drift in either direction.
  */
 export const changelogVersionKeys = [
+  'v1_27_9',
   'v1_27_8',
   'v1_27_7',
   'v1_27_6',
@@ -320,6 +322,8 @@ export const featureIcons = {
   telephony: PhoneCall,
   peers: Handshake,
   relations: Users,
+  provenance: Search,
+  capabilityMap: Orbit,
 };
 
 /**
@@ -375,6 +379,8 @@ export const featureKeys = [
   'peers',
   'relations',
   'richResponses',
+  'provenance',
+  'capabilityMap',
 ];
 
 export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FAQContentProps) {

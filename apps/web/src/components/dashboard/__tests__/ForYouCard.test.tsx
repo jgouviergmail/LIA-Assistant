@@ -7,8 +7,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '@/__tests__/test-utils';
+import { openCardActions, runCardAction } from '../cards/__tests__/card-actions-harness';
 
 import { ForYouCard } from '../cards/ForYouCard';
 import { settingsSectionHref } from '@/lib/settings-sections';
@@ -125,7 +126,7 @@ describe('ForYouCard', () => {
   });
 
   it('renders loops with direction-aware intents and opens the chat on click', () => {
-    render(<ForYouCard {...cardProps} section={section(fullData)} />);
+    renderWithProviders(<ForYouCard {...cardProps} section={section(fullData)} />);
 
     const owed = screen.getByRole('button', {
       name: /intents\.loop_owed\|subject=rappeler le plombier/,
@@ -145,7 +146,7 @@ describe('ForYouCard', () => {
     // reader at the top of ~30 collapsed accordions. `open-loops` is a
     // declared token, so the page activates the right tab, expands the
     // section and scrolls it clear of the sticky chrome.
-    render(<ForYouCard {...cardProps} section={section(fullData)} />);
+    renderWithProviders(<ForYouCard {...cardProps} section={section(fullData)} />);
 
     const heading = screen.getByRole('link', {
       name: 'dashboard.briefing.cards.for_you.loops_title',
@@ -154,7 +155,7 @@ describe('ForYouCard', () => {
   });
 
   it('shows only the UPCOMING automation — past runs are not displayed', () => {
-    render(<ForYouCard {...cardProps} section={section(fullData)} />);
+    renderWithProviders(<ForYouCard {...cardProps} section={section(fullData)} />);
 
     // Past executions (owner arbitration 2026-07-30): present in the payload,
     // absent from the card.
@@ -169,7 +170,7 @@ describe('ForYouCard', () => {
   });
 
   it('renders no automations block at all when only past runs exist', () => {
-    render(
+    renderWithProviders(
       <ForYouCard {...cardProps} section={section({ ...fullData, next_automation: null })} />
     );
     expect(
@@ -188,20 +189,20 @@ describe('ForYouCard', () => {
         next_trigger_local: null,
       },
     };
-    render(<ForYouCard {...cardProps} section={section(data)} />);
+    renderWithProviders(<ForYouCard {...cardProps} section={section(data)} />);
 
     expect(screen.getByText('dashboard.briefing.cards.for_you.next_up')).toBeInTheDocument();
   });
 
   it('is hidden entirely when the section is not configured', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ForYouCard {...cardProps} section={section(null, 'not_configured')} />
     );
     expect(container.firstChild).toBeNull();
   });
 
   it('shows the empty state when the section is empty', () => {
-    render(<ForYouCard {...cardProps} section={section(null, 'empty')} />);
+    renderWithProviders(<ForYouCard {...cardProps} section={section(null, 'empty')} />);
     expect(screen.getByText('dashboard.briefing.cards.for_you.empty')).toBeInTheDocument();
   });
 });
@@ -247,9 +248,7 @@ describe('acting on a commitment where the reader is looking at it', () => {
   it('marks a commitment done without leaving the dashboard', async () => {
     const { user } = renderCard();
 
-    await user.click(
-      await screen.findByRole('button', { name: 'dashboard.briefing.actions.loop_done' })
-    );
+    await runCardAction(user, 'dashboard.briefing.actions.loop_done');
 
     expect(close).toHaveBeenCalledWith('l1', 'done');
   });
@@ -257,9 +256,7 @@ describe('acting on a commitment where the reader is looking at it', () => {
   it('dismisses one that is no longer relevant', async () => {
     const { user } = renderCard();
 
-    await user.click(
-      await screen.findByRole('button', { name: 'dashboard.briefing.actions.loop_dismiss' })
-    );
+    await runCardAction(user, 'dashboard.briefing.actions.loop_dismiss');
 
     // A distinct verdict, not a second "done": the ledger records WHY a
     // commitment left, and collapsing the two would erase that.
@@ -269,9 +266,7 @@ describe('acting on a commitment where the reader is looking at it', () => {
   it('opens the ledger editor rather than a second implementation', async () => {
     const { user } = renderCard();
 
-    await user.click(
-      await screen.findByRole('button', { name: 'dashboard.briefing.actions.loop_edit' })
-    );
+    await runCardAction(user, 'dashboard.briefing.actions.loop_edit');
 
     // The subject arrives prefilled — a correction starts from what is wrong,
     // never from an empty field.
@@ -281,16 +276,17 @@ describe('acting on a commitment where the reader is looking at it', () => {
   it('saves a correction through the same hook the ledger uses', async () => {
     const { user } = renderCard();
 
-    await user.click(
-      await screen.findByRole('button', { name: 'dashboard.briefing.actions.loop_edit' })
-    );
+    await runCardAction(user, 'dashboard.briefing.actions.loop_edit');
     const field = await screen.findByDisplayValue('Rendre la perceuse');
     await user.clear(field);
     await user.type(field, 'Rendre la scie');
     await user.click(screen.getByRole('button', { name: 'settings.open_loops.edit_save' }));
 
     await waitFor(() =>
-      expect(update).toHaveBeenCalledWith('l1', expect.objectContaining({ subject: 'Rendre la scie' }))
+      expect(update).toHaveBeenCalledWith(
+        'l1',
+        expect.objectContaining({ subject: 'Rendre la scie' })
+      )
     );
   });
 
@@ -312,9 +308,7 @@ describe('acting on a commitment where the reader is looking at it', () => {
       <ForYouCard {...cardProps} onRefresh={onRefresh} section={section(oneLoop)} />
     );
 
-    await user.click(
-      await screen.findByRole('button', { name: 'dashboard.briefing.actions.loop_done' })
-    );
+    await runCardAction(user, 'dashboard.briefing.actions.loop_done');
 
     await waitFor(() => expect(onRefresh).toHaveBeenCalled());
   });
@@ -327,9 +321,7 @@ describe('acting on a commitment where the reader is looking at it', () => {
       <ForYouCard {...cardProps} onRefresh={onRefresh} section={section(oneLoop)} />
     );
 
-    await user.click(
-      await screen.findByRole('button', { name: 'dashboard.briefing.actions.loop_dismiss' })
-    );
+    await runCardAction(user, 'dashboard.briefing.actions.loop_dismiss');
 
     await waitFor(() => expect(close).toHaveBeenCalled());
     expect(onRefresh).not.toHaveBeenCalled();
@@ -341,9 +333,7 @@ describe('acting on a commitment where the reader is looking at it', () => {
       <ForYouCard {...cardProps} onRefresh={onRefresh} section={section(oneLoop)} />
     );
 
-    await user.click(
-      await screen.findByRole('button', { name: 'dashboard.briefing.actions.loop_edit' })
-    );
+    await runCardAction(user, 'dashboard.briefing.actions.loop_edit');
     const field = await screen.findByDisplayValue('Rendre la perceuse');
     await user.clear(field);
     await user.type(field, 'Rendre la scie');
@@ -360,9 +350,7 @@ describe('acting on a commitment where the reader is looking at it', () => {
     close.mockResolvedValueOnce(false);
     const { user } = renderCard();
 
-    await user.click(
-      await screen.findByRole('button', { name: 'dashboard.briefing.actions.loop_done' })
-    );
+    await runCardAction(user, 'dashboard.briefing.actions.loop_done');
 
     await waitFor(() => expect(toast.error).toHaveBeenCalled());
   });
@@ -376,11 +364,14 @@ describe('acting on a commitment where the reader is looking at it', () => {
     close.mockImplementationOnce(() => new Promise<boolean>(resolve => (release = resolve)));
     const { user } = renderCard();
 
-    const done = await screen.findByRole('button', {
+    await openCardActions(user);
+    const done = await screen.findByRole('menuitem', {
       name: 'dashboard.briefing.actions.loop_done',
     });
     await user.click(done);
-    await user.click(done);
+    // The menu closes on select, so the second press goes through it again —
+    // exactly what an impatient reader does.
+    await runCardAction(user, 'dashboard.briefing.actions.loop_done');
 
     expect(close).toHaveBeenCalledTimes(1);
     release(true);
@@ -393,11 +384,14 @@ describe('acting on a commitment where the reader is looking at it', () => {
     close.mockImplementationOnce(() => new Promise<boolean>(resolve => (release = resolve)));
     const { user } = renderCard();
 
-    const done = await screen.findByRole('button', {
+    await runCardAction(user, 'dashboard.briefing.actions.loop_done');
+
+    // Re-opened: the entry states the in-flight write without leaving the
+    // keyboard's reach.
+    await openCardActions(user);
+    const done = await screen.findByRole('menuitem', {
       name: 'dashboard.briefing.actions.loop_done',
     });
-    await user.click(done);
-
     await waitFor(() => expect(done).toHaveAttribute('aria-disabled', 'true'));
     expect(done).not.toBeDisabled();
     release(true);
@@ -409,9 +403,7 @@ describe('acting on a commitment where the reader is looking at it', () => {
     // reminders card and the routines panel.
     const { user } = renderCard();
 
-    await user.click(
-      await screen.findByRole('button', { name: 'dashboard.briefing.actions.loop_done' })
-    );
+    await runCardAction(user, 'dashboard.briefing.actions.loop_done');
 
     await waitFor(() => {
       expect(document.activeElement).not.toBe(document.body);

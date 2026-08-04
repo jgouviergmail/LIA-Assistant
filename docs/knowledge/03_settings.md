@@ -442,3 +442,35 @@ is not showing here.
 
 The Administration tab is not covered by this search; a superuser is told so
 below the results.
+
+## Where can I see everything LIA sent me?
+The **Alerts** destination in the navigation bar gathers five streams in one
+screen:
+
+• **Relayed messages** exchanged with your accepted peers
+• **Proactive notifications** LIA sent on its own initiative
+• **Interest notifications** about the subjects you follow
+• **Pending reminders** — what is still to come
+• **Scheduled routines** and their next runs
+
+Each section arrives folded, paginates by ten and shows its exact total. A
+closed section costs no request at all; opening it costs exactly one.
+
+The settings panels remain the detailed configuration for each of those
+streams, and every deep link you had saved keeps working. Reminders are the one
+section that can never be a history: a reminder is deleted the instant it
+fires, so what you see there is the future.
+
+## Where do I see what LIA can do for me?
+**Home → Capabilities** draws a star chart of your account. Each capability is
+a star: **filled** when it is genuinely usable, **outlined** when it is waiting
+to be set up, and its size comes from what it holds. The figure joins only the
+live ones, so its shape is your configuration and nobody else's.
+
+A capability your instance disabled is **absent** rather than greyed out — a
+control the product cannot honour is worse than an absent one. Nothing there is
+a level, a percentage of completion or a comparison with anyone.
+
+Every star is a real link that takes you to where that capability is set up. On
+a phone, or if you asked your system to minimise motion, the same map arrives
+as a list: same data, same order, same destinations.

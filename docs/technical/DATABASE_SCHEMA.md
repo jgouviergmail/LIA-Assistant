@@ -2716,6 +2716,7 @@ Per-user usage quota configuration. One record per user (1:1 relationship with `
 | `admin_broadcasts` / `user_broadcast_reads` | `src/domains/notifications/models.py` | Diffusions admin + accusés de lecture (traductions JSONB persistées) |
 | `user_fcm_tokens` | `src/domains/notifications/models.py` | Tokens FCM push par appareil |
 | `phone_calls` | `src/domains/telephony/models.py` | Appels sortants (un par appel). Le numéro appelé (`callee_phone`) est **chiffré** par le service — PII. |
+| `provenance_references` | `src/domains/shared/provenance.py` | Renvois **bornés** d'une conclusion (souvenir, entrée de journal, centre d'intérêt) vers le signal qui l'a produite. Pointeur et horodatage uniquement — jamais le texte. Clés vers le sujet en `CASCADE`, clés vers la conversation et le message en **`SET NULL`** : une suppression laisse une **pierre tombale** datée, jamais une résurrection. Contrainte `CHECK` : exactement un sujet par ligne (ADR-201). |
 
 ---
 

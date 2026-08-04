@@ -19,6 +19,7 @@ from sqlalchemy.orm import selectinload
 from src.core.config import settings
 from src.core.constants import (
     INTEREST_ACTIVE_LIST_LIMIT,
+    INTEREST_DECAY_FLOOR,
     INTEREST_INITIAL_NEGATIVE_SIGNALS,
     INTEREST_INITIAL_POSITIVE_SIGNALS,
     INTEREST_USER_LIST_LIMIT,
@@ -311,26 +312,37 @@ class InterestRepository:
     def calculate_effective_weight(
         self,
         interest: UserInterest,
-        decay_rate_per_day: float = 0.01,
+        decay_rate_per_day: float | None = None,
         now: datetime | None = None,
     ) -> float:
         """
         Calculate effective weight with temporal decay.
 
+        The rate defaults to ``INTEREST_DECAY_RATE_PER_DAY``, never to a
+        literal. It used to default to 0.01 while the setting was 0.005, and
+        the one caller that omitted the argument — the notification RANKING —
+        therefore applied a decay twice as fast as the one the API displayed:
+        0.083 against 0.458 for an interest last mentioned 90 days ago. Every
+        call site passes the setting today, so this fallback is unreachable in
+        production; it exists so that omitting the argument can never again
+        mean "some other rate".
+
         Args:
             interest: UserInterest instance
-            decay_rate_per_day: Decay rate per day (default 1%)
+            decay_rate_per_day: Decay rate per day. None reads the setting.
             now: Current datetime (defaults to UTC now)
 
         Returns:
             Effective weight with decay applied
         """
         now = now or datetime.now(UTC)
+        if decay_rate_per_day is None:
+            decay_rate_per_day = settings.interest_decay_rate_per_day
         base_weight = self.calculate_weight(interest)
 
         # Calculate days since last mention
         days_since = (now - interest.last_mentioned_at).days
-        decay = max(0.1, 1.0 - (days_since * decay_rate_per_day))
+        decay = max(INTEREST_DECAY_FLOOR, 1.0 - (days_since * decay_rate_per_day))
 
         return base_weight * decay
 
@@ -342,9 +354,23 @@ class InterestRepository:
         exclude_in_cooldown: bool = True,
         cooldown_hours: int = 24,
         now: datetime | None = None,
+        decay_rate_per_day: float | None = None,
     ) -> list[tuple[UserInterest, float]]:
         """
         Get top N% weighted interests for notification selection.
+
+        The decay rate defaults to the SETTING, not to
+        ``calculate_effective_weight``'s signature default. This is the one
+        path that decides which interest gets notified, and it was the only one
+        of four taking the hardcoded 0.01 while the API, the extraction and the
+        cleanup job all read ``INTEREST_DECAY_RATE_PER_DAY`` (0.005 in `.env`
+        and `.env.example`). The reader was therefore shown a weight the ranking
+        did not use — 0.458 displayed against 0.083 applied at 90 days without
+        a mention — and ``top_percent`` cut a distribution nobody could see.
+
+        Resolved in the BODY rather than as a default expression: a default is
+        evaluated at import time and would freeze whatever the settings held
+        then, which no test could change and no reload could refresh.
 
         Args:
             user_id: User UUID
@@ -353,11 +379,16 @@ class InterestRepository:
             exclude_in_cooldown: Exclude recently notified
             cooldown_hours: Cooldown period in hours
             now: Current datetime
+            decay_rate_per_day: Override the configured decay. Left to callers
+                that own a different horizon (none today) — the default is the
+                setting, so display and selection cannot drift again.
 
         Returns:
             List of (interest, effective_weight) tuples sorted by weight
         """
         now = now or datetime.now(UTC)
+        if decay_rate_per_day is None:
+            decay_rate_per_day = settings.interest_decay_rate_per_day
 
         # Get all active interests
         interests = await self.get_active_for_user(user_id)
@@ -375,7 +406,9 @@ class InterestRepository:
                 if interest.last_notified_at > cooldown_threshold:
                     continue
 
-            weight = self.calculate_effective_weight(interest, now=now)
+            weight = self.calculate_effective_weight(
+                interest, decay_rate_per_day=decay_rate_per_day, now=now
+            )
             weighted.append((interest, weight))
 
         # Sort by weight descending

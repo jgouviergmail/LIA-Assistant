@@ -121,6 +121,31 @@ class ReminderService:
         """List pending reminders for a user."""
         return await self.repository.get_pending_for_user(user_id)
 
+    async def list_pending_page(
+        self, user_id: UUID, *, limit: int, offset: int
+    ) -> tuple[list[Reminder], int]:
+        """One page of the reminders still waiting, and the exact total.
+
+        Both halves come from the same session and the same instant, so a
+        reminder firing between two reads cannot leave a total the page
+        contradicts.
+
+        Read-only by design: a reminder is a temporary post-it, deleted once
+        notified. This lists what is still COMING — it is not, and cannot
+        become, a history of what was sent.
+
+        Args:
+            user_id: Owner — scopes both reads.
+            limit: Page size.
+            offset: Page offset.
+
+        Returns:
+            Tuple of (page, exact total).
+        """
+        reminders = await self.repository.get_pending_for_user(user_id, limit=limit, offset=offset)
+        total = await self.repository.count_pending_for_user(user_id)
+        return reminders, total
+
     async def list_all_for_user(
         self,
         user_id: UUID,

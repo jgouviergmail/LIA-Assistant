@@ -16,7 +16,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { BriefingCard } from '../BriefingCard';
-import { CardItemActions, type CardItemAction } from './CardItemActions';
+import type { CardItemAction } from './CardItemActions';
+import { CardItemRow } from './CardItemRow';
 import { chatDraftHref } from '@/lib/briefing-utils';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 import { haptic } from '@/lib/haptics';
@@ -131,26 +132,25 @@ function RemindersContent({
               ]
             : [];
           return (
-            <li key={reminder.id ?? index} className="flex items-start gap-1">
-              {/* QW-9: reminders open the chat plainly (product decision — the
-                  reminder will fire on its own; no prefilled intent needed).
-                  The action chips are SIBLINGS of this button, never inside
-                  it: nested buttons are invalid HTML and unreachable by AT. */}
-              <button
-                type="button"
-                onClick={onOpenChat}
-                aria-label={t('dashboard.briefing.intents.reminder_aria')}
-                className="min-w-0 flex-1 text-left flex flex-col gap-0.5 leading-tight rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <span className="text-xs font-semibold text-amber-700 dark:text-amber-300 tabular-nums">
-                  {reminder.trigger_at_local}
-                </span>
-                <span className="text-sm text-foreground/90 line-clamp-2 leading-snug">
-                  {reminder.content}
-                </span>
-              </button>
-              {actions.length > 0 && <CardItemActions actions={actions} />}
-            </li>
+            // QW-9: reminders open the chat plainly (product decision — the
+            // reminder will fire on its own; no prefilled intent needed).
+            <CardItemRow
+              key={reminder.id ?? index}
+              ariaLabel={t('dashboard.briefing.intents.reminder_aria')}
+              // `line-clamp-2` cuts at two lines; the bubble carries the whole
+              // sentence, which is the one thing a reminder IS.
+              tooltip={reminder.content}
+              onSelect={onOpenChat}
+              contentClassName="flex flex-col gap-0.5 leading-tight"
+              actions={actions}
+            >
+              <span className="text-xs font-semibold text-amber-700 dark:text-amber-300 tabular-nums">
+                {reminder.trigger_at_local}
+              </span>
+              <span className="text-sm text-foreground/90 line-clamp-2 leading-snug">
+                {reminder.content}
+              </span>
+            </CardItemRow>
           );
         })}
       </ul>

@@ -19,6 +19,7 @@ import {
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ProvenanceDisclosure } from '@/components/provenance/ProvenanceDisclosure';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { InfoBox } from '@/components/ui/info-box';
@@ -534,6 +535,16 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                                 </Badge>
                               </div>
                             )}
+                            {/* A memory carried NO provenance at all: "why do
+                                you think I am allergic to shellfish?" had no
+                                answer, and a wrong one could not be argued
+                                with. The correction is offered right where the
+                                reason is read. */}
+                            <ProvenanceDisclosure
+                              endpoint={`/memories/${memory.id}/provenance`}
+                              locale={lng}
+                              onCorrect={() => handleOpenEdit(memory)}
+                            />
                             {/* Metadata: dates, usage count, importance */}
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
                               {memory.created_at && (

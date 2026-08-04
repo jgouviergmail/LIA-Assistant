@@ -465,7 +465,9 @@ tasks:
     # The CI command, verbatim — including the 64% floor (raised from 63 on
     # 2026-08-01; measured 66.54% after ADR-194 and its follow-up lots, so the
     # floor stays at 64: 65 would leave 1.54 pt of headroom, under the >=2 pt
-    # rule).
+    # rule. Re-measured 2026-08-04 after ADR-201→204 (provenance, the reading
+    # hub's two read-only routes, interest explainability and the capability
+    # map): 66.87% — still 64, since 65 would leave 1.87 pt).
     # `test:backend:unit:fast`
     # trades coverage for xdist parallelism because the pre-commit hook has a
     # 5-minute budget; that makes it the right gate for a commit and the wrong

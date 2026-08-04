@@ -4,9 +4,9 @@
 >
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
-**Version** : 3.6
-**Date** : 2026-08-03
-**Application** : LIA v1.27.8
+**Version** : 3.7
+**Date** : 2026-08-04
+**Application** : LIA v1.27.9
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 447 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 199 ADRs, ~17 925 tests collectés par pytest sur 968 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 203 ADRs, ~18 002 tests collectés par pytest sur 981 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -72,10 +72,10 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~17 925 (collectés par pytest sur 968 fichiers de test) + 4 690 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | ~18 002 (collectés par pytest sur 981 fichiers de test) + 4 808 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures réutilisables | 170+ |
 | Documents de documentation | 400+ |
-| ADRs (Architecture Decision Records) | 189 |
+| ADRs (Architecture Decision Records) | 203 |
 | Métriques Prometheus | 447 définitions |
 | Dashboards Grafana | 26 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1157,9 +1157,32 @@ Reste qu'une destination peut légitimement ne pas exister : plusieurs sections 
 
 ---
 
+### 23.15. Provenance bornée : une référence, jamais une copie
+
+Une conclusion que le système forme — un souvenir, une entrée de journal, un centre d'intérêt — doit pouvoir répondre à la question qui la rend corrigeable : d'où vient-elle ? Deux réponses naïves sont disponibles et toutes deux sont mauvaises. Recopier le message d'origine dans la conclusion en fait une archive permanente : supprimer la conversation ne supprime plus rien, puisque son contenu survit ailleurs. Régénérer l'explication par le modèle produit une reconstruction plausible, c'est-à-dire une invention.
+
+La table `provenance_references` ne stocke qu'un **pointeur et un horodatage** : identifiant du sujet, identifiant de la conversation et du message, et un `outcome` parmi `origin`, `evidence`, `contradiction`. L'asymétrie des clés étrangères porte toute la doctrine :
+
+| Lien | Politique | Raison |
+|------|-----------|--------|
+| vers le sujet (souvenir, journal, intérêt) | `CASCADE` | une référence à une conclusion supprimée n'a plus d'objet |
+| vers la conversation et le message | `SET NULL` | supprimer une conversation **vide la référence et laisse la ligne**, datée : c'est la pierre tombale |
+
+`CASCADE` côté source aurait fait disparaître jusqu'à la mention qu'une source ait existé — ce qui se lit exactement comme « le système a inventé cela ». La trace est bornée à cinq références par sujet, élaguées à l'écriture, et cette borne est **publiée** dans la réponse : ce que le système applique, il le dit. Une contrainte `CHECK` impose exactement un sujet par ligne, car une provenance polymorphe `(kind, id)` ne peut pas être une clé étrangère — et sans clé étrangère, la pierre tombale ne serait garantie par rien.
+
+L'écriture est **best-effort et isolée dans un savepoint**. Best-effort seul ne suffit pas : un `flush` en échec laisse la session dans un état d'erreur, si bien qu'avaler l'exception ne fait que déplacer la mort de l'appelant à son instruction suivante. Le savepoint est ce qui rend l'avalement honnête — la provenance explique une conclusion, elle ne la conditionne jamais.
+
+### 23.16. Carte des capacités : une passe, trois états, aucun score
+
+Savoir ce que l'assistant sait faire pour un compte se sondait côté client, à raison d'un hook par sous-système : une douzaine de requêtes au montage et autant d'occasions pour deux réponses de se contredire sur le même fait. La résolution se fait désormais **en une passe côté serveur**, par `asyncio.gather` de sondes indépendantes, **chacune sur sa propre session** — une `AsyncSession` n'étant pas sûre en usage concurrent. Une sonde qui échoue dégrade en « pas prête » : une carte qui refuse de se dessiner parce qu'une table était injoignable est pire qu'une carte avec un nœud éteint.
+
+Trois états, et la distinction entre les deux derniers porte tout le sens : **indisponible** (l'instance a désactivé le sous-système — le nœud est *absent*, jamais grisé : un contrôle que le produit ne peut pas honorer est pire qu'un contrôle absent), **dormant** (disponible, rien de configuré — il porte l'action suivante), **actif** (réellement utilisable, avec le décompte qui le prouve).
+
+Rien de ce qui est publié n'est un niveau, un pourcentage d'avancement ou une comparaison, et un test l'énonce comme contrainte de schéma. Le rendu suit la même règle : le dessin est décoratif et masqué aux technologies d'assistance, tandis que chaque élément atteignable est un lien nommé — un `<circle>` porteur d'un `onClick` aurait le même rendu et serait inutilisable sans souris. La figure joint les capacités actives **en ordre angulaire**, seul ordre qui ne peut pas s'auto-intersecter autour d'un point intérieur.
+
 ## 24. Architecture des décisions (ADR)
 
-199 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+203 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1249,10 +1272,10 @@ Le contexte psyché est injecté dans **tous** les points de génération utilis
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 199 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~17 925 tests sur 968 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 203 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~18 002 tests sur 981 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 199 ADRs, et du changelog (v1.0 à v1.27.8). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 203 ADRs, et du changelog (v1.0 à v1.27.9). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

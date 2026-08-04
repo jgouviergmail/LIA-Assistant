@@ -176,6 +176,12 @@ TABLE_RULES: dict[str, TableRule] = {
     ),
     "memories": _PURGED_FULL,
     "journal_entries": _PURGED_FULL,
+    # Bounded pointers from a belief to the turn behind it — never a copy of
+    # that turn (the source columns are FKs with ON DELETE SET NULL, so a
+    # deleted conversation leaves a dated tombstone). Exported in full: it is
+    # the only thing that lets the reader see WHY LIA concluded something, and
+    # the export resolves nothing the account does not already own.
+    "provenance_references": _PURGED_FULL,
     "psyche_states": _PURGED_FULL,
     "psyche_history": _PURGED_FULL,
     "user_interests": _PURGED_FULL,

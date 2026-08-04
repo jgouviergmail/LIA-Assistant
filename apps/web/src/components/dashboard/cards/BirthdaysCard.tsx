@@ -3,7 +3,7 @@
 import { Cake, Gift } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
-import { CardItemActions } from './CardItemActions';
+import { CardItemRow } from './CardItemRow';
 import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 import type { BirthdaysData, CardSection } from '@/types/briefing';
@@ -65,36 +65,33 @@ function BirthdaysContent({
           name: birthday.contact_name,
         });
         return (
-          // QW-24: action chip as a SIBLING (nested buttons are invalid HTML).
-          <li key={index} className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => onOpenChat(intent)}
-              aria-label={intent}
-              className="min-w-0 flex-1 text-left flex items-baseline justify-between gap-2 text-sm rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span className="text-foreground/90 truncate font-medium">
-                {birthday.contact_name}
-                {birthday.age_at_next !== null && (
-                  <span className="text-muted-foreground font-normal ml-1">
-                    ({birthday.age_at_next})
-                  </span>
-                )}
-              </span>
-              <span className="shrink-0 text-xs font-semibold text-rose-600 dark:text-rose-300 tabular-nums">
-                {birthday.days_until === 0
-                  ? t('dashboard.briefing.cards.birthdays.today')
-                  : t('dashboard.briefing.cards.birthdays.in_days', {
-                      count: birthday.days_until,
-                    })}
-              </span>
-            </button>
-            <CardItemActions
-              actions={[
-                { icon: Gift, label: messageIntent, onSelect: () => onExecute(messageIntent) },
-              ]}
-            />
-          </li>
+          <CardItemRow
+            key={index}
+            ariaLabel={intent}
+            tooltip={birthday.contact_name}
+            onSelect={() => onOpenChat(intent)}
+            align="center"
+            contentClassName="flex items-baseline justify-between gap-2 text-sm"
+            actions={[
+              { icon: Gift, label: messageIntent, onSelect: () => onExecute(messageIntent) },
+            ]}
+          >
+            <span className="text-foreground/90 truncate font-medium">
+              {birthday.contact_name}
+              {birthday.age_at_next !== null && (
+                <span className="text-muted-foreground font-normal ml-1">
+                  ({birthday.age_at_next})
+                </span>
+              )}
+            </span>
+            <span className="shrink-0 text-xs font-semibold text-rose-600 dark:text-rose-300 tabular-nums">
+              {birthday.days_until === 0
+                ? t('dashboard.briefing.cards.birthdays.today')
+                : t('dashboard.briefing.cards.birthdays.in_days', {
+                    count: birthday.days_until,
+                  })}
+            </span>
+          </CardItemRow>
         );
       })}
     </ul>

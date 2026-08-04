@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
@@ -30,17 +30,52 @@ class ReminderRepository(BaseRepository[Reminder]):
         self,
         user_id: UUID,
         limit: int = 50,
+        offset: int = 0,
     ) -> list[Reminder]:
-        """Get pending reminders for a user."""
+        """Get pending reminders for a user, soonest first.
+
+        Args:
+            user_id: Owner — scopes the read.
+            limit: Page size.
+            offset: How many of the soonest to skip. The secondary sort on the
+                primary key gives a TOTAL order, without which two reminders
+                sharing a trigger instant could repeat or vanish across a page
+                boundary.
+
+        Returns:
+            The page, soonest first.
+        """
         stmt = (
             select(Reminder)
             .where(Reminder.user_id == user_id)
             .where(Reminder.status == ReminderStatus.PENDING.value)
-            .order_by(Reminder.trigger_at.asc())
+            .order_by(Reminder.trigger_at.asc(), Reminder.id.asc())
             .limit(limit)
+            .offset(offset)
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def count_pending_for_user(self, user_id: UUID) -> int:
+        """How many reminders are still waiting to fire.
+
+        An aggregate over the whole set, never the length of a page: a count
+        shown to the reader is a claim, and it is exact or it does not exist
+        (ADR-185).
+
+        Args:
+            user_id: Owner — scopes the read.
+
+        Returns:
+            Exact number of pending reminders.
+        """
+        stmt = (
+            select(func.count())
+            .select_from(Reminder)
+            .where(Reminder.user_id == user_id)
+            .where(Reminder.status == ReminderStatus.PENDING.value)
+        )
+        return int((await self.db.execute(stmt)).scalar() or 0)
 
     async def get_all_for_user(
         self,

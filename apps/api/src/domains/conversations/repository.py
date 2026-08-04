@@ -816,8 +816,9 @@ class ConversationRepository(BaseRepository[Conversation]):
         user_id: UUID,
         target_id: UUID,
         feedback_value: str,
+        run_id: str | None = None,
     ) -> int:
-        """Persist proactive feedback state on all related messages.
+        """Persist proactive feedback state on the related message(s).
 
         Updates ``message_metadata`` JSONB on every ConversationMessage whose
         metadata references this ``target_id`` — an interest for a
@@ -828,11 +829,31 @@ class ConversationRepository(BaseRepository[Conversation]):
         Scoped by ``user_id`` via conversation join to prevent cross-tenant
         writes. Uses ``jsonb_set`` with ``coalesce`` to handle NULL metadata.
 
+        **``run_id`` narrows the write to ONE card.** An interest card carries
+        the INTEREST as its ``target_id``, so target_id alone marks every
+        notification that interest ever produced. Measured on the development
+        database on 2026-08-03, one interest carried nine archived cards: a
+        single verdict disabled the buttons on eight notifications the audit
+        trail knew nothing about, leaving them unanswerable and permanently
+        listed as "no feedback" in the history. The card carries the
+        notification's ``run_id``, which is the granularity
+        ``update_feedback_by_run_id`` already uses — passing it here makes both
+        writes agree on what "this notification" means.
+
+        Omitting it keeps the historical breadth, which is what the settings
+        list (no notification behind the verdict) and heartbeat cards (whose
+        ``target_id`` IS the notification) need.
+
         Args:
-            user_id: Owner of the messages (security filter).
+            user_id: Owner of the messages (security filter — never replaced by
+                the run_id, which travels in a client payload and is not a
+                secret).
             target_id: Identifier referenced as ``target_id`` in message metadata
                 (interest id, heartbeat notification id, ...).
             feedback_value: One of "thumbs_up", "thumbs_down", "block".
+            run_id: When given, only the card carrying this exact run_id is
+                marked. An unknown value marks NOTHING rather than falling back
+                to every card — the fallback would restore the over-reach.
 
         Returns:
             Number of messages updated (0 if no matching proactive messages).
@@ -847,12 +868,19 @@ class ConversationRepository(BaseRepository[Conversation]):
             conv_ids_subq = select(Conversation.id).where(Conversation.user_id == user_id)
             empty_jsonb = cast("{}", JSONB)
 
+            predicates = [
+                ConversationMessage.conversation_id.in_(conv_ids_subq),
+                ConversationMessage.message_metadata[FIELD_TARGET_ID].astext == str(target_id),
+            ]
+            if run_id is not None:
+                # ADDED to the owner scope, never substituted for it.
+                predicates.append(
+                    ConversationMessage.message_metadata[FIELD_RUN_ID].astext == run_id
+                )
+
             stmt = (
                 update(ConversationMessage)
-                .where(
-                    ConversationMessage.conversation_id.in_(conv_ids_subq),
-                    ConversationMessage.message_metadata[FIELD_TARGET_ID].astext == str(target_id),
-                )
+                .where(*predicates)
                 .values(
                     message_metadata=func.jsonb_set(
                         func.jsonb_set(
@@ -876,6 +904,9 @@ class ConversationRepository(BaseRepository[Conversation]):
                 user_id=str(user_id),
                 target_id=str(target_id),
                 feedback_value=feedback_value,
+                # Stated because it decides the BREADTH of the write: without
+                # it the verdict lands on every card of the target.
+                scoped_to_run=run_id is not None,
                 messages_updated=count,
             )
 

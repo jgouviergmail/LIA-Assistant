@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 3.6
-**Date**: 2026-08-03
-**Application**: LIA v1.27.8
+**Version**: 3.7
+**Date**: 2026-08-04
+**Application**: LIA v1.27.9
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 447 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 199 ADRs, ~17,925 pytest-collected tests across 968 files, native observability, 6-level HITL |
+| Production reliability | 203 ADRs, ~18,002 pytest-collected tests across 981 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -72,10 +72,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~17,925 (collected by pytest across 968 test files) + 4,690 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~18,002 (collected by pytest across 981 test files) + 4,808 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 400+ |
-| ADRs (Architecture Decision Records) | 189 |
+| ADRs (Architecture Decision Records) | 203 |
 | Prometheus metrics | 447 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1150,9 +1150,32 @@ A destination may still legitimately not exist: several sections only render whe
 
 ---
 
+### 23.15. Bounded provenance: a reference, never a copy
+
+A conclusion the system forms — a memory, a journal entry, an interest — must be able to answer the one question that makes it correctable: where did it come from? Two naive answers are available and both are wrong. Copying the source message into the conclusion turns it into a permanent archive: deleting the conversation no longer deletes anything, since its content survives elsewhere. Regenerating the explanation with the model produces a plausible reconstruction, which is to say an invention.
+
+The `provenance_references` table stores only a **pointer and a timestamp**: the subject id, the conversation and message ids, and an `outcome` among `origin`, `evidence`, `contradiction`. The asymmetry of the foreign keys carries the whole doctrine:
+
+| Link | Policy | Reason |
+|------|--------|--------|
+| to the subject (memory, journal, interest) | `CASCADE` | a reference to a deleted conclusion has no subject left |
+| to the conversation and the message | `SET NULL` | deleting a conversation **empties the reference and leaves the row**, dated: that is the tombstone |
+
+`CASCADE` on the source side would have erased even the mention that a source existed — which reads exactly like "the system made this up". The trail is capped at five references per subject, pruned on write, and that cap is **published** in the response: what the system enforces, it states. A `CHECK` constraint enforces exactly one subject per row, because a polymorphic `(kind, id)` pair cannot be a foreign key — and without a foreign key, the tombstone would be guaranteed by nothing at all.
+
+The write is **best-effort and isolated in a savepoint**. Best-effort alone is not enough: a failing `flush` leaves the session in an error state, so swallowing the exception merely moves the caller's death to its next statement. The savepoint is what makes the swallow honest — provenance explains a conclusion, it never gates one.
+
+### 23.16. Capability map: one pass, three states, no score
+
+Knowing what the assistant can do for an account used to be probed client-side, one hook per subsystem: a dozen requests at mount and as many chances for two answers to disagree about the same fact. Resolution now happens in **one server-side pass**, an `asyncio.gather` of independent probes, **each on its own session** — an `AsyncSession` is not safe for concurrent use. A probe that fails degrades to "not ready": a map that refuses to draw because one table was unreachable is worse than a map with one dim node.
+
+Three states, and the distinction between the last two carries the meaning: **unavailable** (the instance disabled the subsystem — the node is *absent*, never greyed out: a control the product cannot honour is worse than an absent one), **dormant** (available, nothing set up — it carries the next step), **live** (genuinely usable, with the count that proves it).
+
+Nothing published is a level, a percentage of completion or a comparison, and a test states that as a schema constraint. The rendering follows the same rule: the drawing is decorative and hidden from assistive technology, while everything reachable is a named link — a `<circle>` carrying an `onClick` would look identical and be unusable without a mouse. The figure joins the live capabilities in **angular order**, the one ordering that cannot self-intersect around an interior point.
+
 ## 24. Architecture Decision Records (ADR)
 
-199 ADRs in MADR format document the major architectural decisions. Some representative examples:
+203 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1235,10 +1258,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 199 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~17,925 tests across 968 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 203 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,002 tests across 981 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 199 ADRs, and the changelog (v1.0 to v1.27.8). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 203 ADRs, and the changelog (v1.0 to v1.27.9). All metrics, versions, and patterns cited are verifiable in the codebase.*

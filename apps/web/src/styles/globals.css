@@ -544,15 +544,15 @@
 
   /* Gradient utilities for subtle backgrounds */
   .bg-gradient-primary {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(217 91% 70%) 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, hsl(217 91% 70%) 100%);
   }
 
   .bg-gradient-accent {
-    background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(45 90% 92%) 100%);
+    background: linear-gradient(135deg, var(--color-accent) 0%, hsl(45 90% 92%) 100%);
   }
 
   .bg-gradient-card {
-    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--muted)) 100%);
+    background: linear-gradient(135deg, var(--color-card) 0%, var(--color-muted) 100%);
   }
 
   /* Radial gradient utility for profile photos glow effect */
@@ -617,11 +617,11 @@
     border-radius: 0.75rem;
     background: linear-gradient(
       135deg,
-      hsl(var(--muted)) 0%,
-      hsl(var(--muted-foreground) / 0.2) 100%
+      var(--color-muted) 0%,
+      color-mix(in oklab, var(--color-muted-foreground) 20%, transparent) 100%
     );
     font-size: 4rem;
-    color: hsl(var(--muted-foreground));
+    color: var(--color-muted-foreground);
     /* Subtle vignette - elliptical to follow rectangular edges */
     -webkit-mask-image: radial-gradient(
       ellipse 90% 85% at center,
@@ -640,8 +640,8 @@
   .dark .contact-photo-placeholder {
     background: linear-gradient(
       135deg,
-      hsl(var(--muted)) 0%,
-      hsl(var(--muted-foreground) / 0.3) 100%
+      var(--color-muted) 0%,
+      color-mix(in oklab, var(--color-muted-foreground) 30%, transparent) 100%
     );
   }
 
@@ -1266,10 +1266,10 @@
   @keyframes voice-ptt-spotlight {
     0%,
     100% {
-      box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+      box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-primary) 0%, transparent);
     }
     50% {
-      box-shadow: 0 0 0 5px hsl(var(--primary) / 0.45);
+      box-shadow: 0 0 0 5px color-mix(in oklab, var(--color-primary) 45%, transparent);
     }
   }
   .voice-ptt-spotlight {
@@ -2403,6 +2403,153 @@ html:not(.dark) .cosmos.cosmos-calm {
     filter: none;
   }
   .cosmos-track {
+    transform: none;
+  }
+}
+
+/* ============================================
+   Capability constellation (dashboard)
+   ============================================
+
+   The star chart of what LIA can do for this account. Built from the app's
+   OWN cosmic tokens (`--cosmos-glow-*`), not a second celestial palette: the
+   landing already taught the reader what "cosmos" looks like here.
+
+   ONE rotation for the whole field, not one per ring. Differential rates would
+   read better as orbital mechanics, but the constellation FIGURE joins stars
+   across rings — under two speeds it would have to be redrawn every frame,
+   and the figure is the stronger idea. Each star counter-rotates at the same
+   rate, so labels never tilt.
+
+   240s per turn: 1.5°/s, invisible frame to frame, alive over a minute. */
+
+/* The chart's OWN tokens, declared at document scope on purpose. The landing's
+   `--cosmos-*` palette lives under `.cosmos`, a class the dashboard does not
+   carry: reading one here resolves to nothing and the gradient simply does not
+   paint (measured 2026-08-04, alongside a `var(--color-primary)` that rendered
+   the whole figure BLACK — Tailwind v3 idiom, v4 codebase). Same hues as the
+   landing, in scope where they are used.
+
+   The scene keeps its NIGHT in both themes, and these tokens are therefore
+   theme-independent on purpose. Measured in light mode first: the star bloom
+   became a smudge of blue on white and the dust read as dirt. A star chart is
+   a nocturnal instrument — the landing already taught this reader that a dark
+   field means "the cosmos", and the page around it still follows the theme. */
+:root {
+  --capability-accent: rgb(167 139 250);
+  --capability-glow-violet: rgb(139 92 246 / 0.26);
+  --capability-glow-blue: rgb(79 141 253 / 0.3);
+  --capability-bloom: rgb(96 165 250 / 0.75);
+  --capability-sky: #090c1e;
+  --capability-sky-2: #12162e;
+  /* Scene text. Fixed, like the night: ~15:1 and ~9:1 on the sky above. */
+  --capability-ink: rgb(244 246 255);
+  --capability-ink-dim: rgb(176 187 222);
+  --capability-star: rgb(96 165 250);
+  --capability-focus: rgb(147 197 253);
+}
+
+/* The scene's own night, so the chart never depends on whatever card colour
+   sits behind it. */
+.capability-scene {
+  background:
+    radial-gradient(circle at 50% 42%, var(--capability-glow-blue), transparent 62%),
+    linear-gradient(160deg, var(--capability-sky), var(--capability-sky-2));
+}
+
+.capability-field {
+  animation: capability-drift 240s linear infinite;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+.capability-star-upright {
+  /* Same duration, opposite direction — the label stays readable while the
+     field turns under it. */
+  animation: capability-drift-reverse 240s linear infinite;
+  transform-origin: 50% 50%;
+}
+
+.capability-halo {
+  background:
+    radial-gradient(closest-side, var(--capability-glow-violet), transparent 70%),
+    radial-gradient(closest-side, var(--capability-glow-blue), transparent 78%);
+  animation: capability-breathe 14s ease-in-out infinite;
+}
+
+/* The figure draws ITSELF once, after the stars have resolved: the perimeter
+   is normalised to 100 by `pathLength`, so one dash pattern draws every
+   possible shape at the same speed. `both` holds the final state — a figure
+   that snapped back to invisible would be a flicker, not an arrival. */
+.capability-trace {
+  animation: capability-trace 1800ms cubic-bezier(0.65, 0, 0.35, 1) 900ms both;
+}
+
+/* Stars resolve in ring order, like a long exposure developing. The delay is
+   set inline per star (`--capability-delay`) so the order is the layout's,
+   not a guess. */
+.capability-emerge {
+  animation: capability-emerge 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--capability-delay, 0ms);
+}
+
+@keyframes capability-drift {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes capability-drift-reverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes capability-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes capability-emerge {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes capability-trace {
+  from {
+    stroke-dasharray: 0 100;
+    fill-opacity: 0;
+  }
+  to {
+    stroke-dasharray: 100 0;
+    fill-opacity: 0.06;
+  }
+}
+
+/* The map is INFORMATION; the motion is the flourish. A reader who asked for
+   stillness keeps the chart and loses only the movement — silencing the
+   animation is the whole answer, no separate markup. */
+@media (prefers-reduced-motion: reduce) {
+  .capability-field,
+  .capability-star-upright,
+  .capability-halo,
+  .capability-emerge,
+  .capability-trace {
+    animation: none !important;
+    opacity: 1;
     transform: none;
   }
 }

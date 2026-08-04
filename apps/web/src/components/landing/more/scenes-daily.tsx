@@ -6,11 +6,11 @@
 
 'use client';
 
-import { Check, CheckCircle2, ChevronDown, Circle, EyeOff, FileText, Sparkles } from 'lucide-react';
+import { Star, MessageSquare, CalendarClock, Bell, Check, CheckCircle2, ChevronDown, Circle, EyeOff, FileText, Sparkles } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
-import { Cursor, MiniChip, PhoneFrame, SkeletonLine, STAGE } from './primitives';
+import { Cursor, MiniChip, MiniSettingRow, PhoneFrame, SkeletonLine, STAGE } from './primitives';
 import type { SceneComponent, SceneProps } from './scene-types';
 import { useLoopedTimeline, type TimelineStep } from './useLoopedTimeline';
 
@@ -306,7 +306,44 @@ function FoldedSettingsScene({ active }: SceneProps) {
   );
 }
 
+type AlertsPhase = 'folded' | 'hover' | 'open';
+const ALERTS_STEPS: readonly TimelineStep<AlertsPhase>[] = [
+  { at: 0, state: 'folded' },
+  { at: 1100, state: 'hover' },
+  { at: 1700, state: 'open' },
+];
+
+/** Five folded streams; one opens, and only that one loads. */
+function AlertsHubScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(ALERTS_STEPS, { active });
+  const rows = [MessageSquare, Sparkles, Star, Bell, CalendarClock];
+
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="w-full max-w-[210px] space-y-1">
+        {rows.map((Icon, index) => (
+          <div key={index} className="space-y-1">
+            <MiniSettingRow icon={Icon} highlighted={index === 1 && phase !== 'folded'} />
+            {index === 1 && (
+              <div
+                className={cn(
+                  'ml-3 space-y-1 overflow-hidden transition-all duration-500 ease-out',
+                  phase === 'open' ? 'max-h-12 opacity-100' : 'max-h-0 opacity-0'
+                )}
+              >
+                <SkeletonLine w="w-4/5" />
+                <SkeletonLine w="w-3/5" />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
+  alerts_hub: AlertsHubScene,
   briefing_custom: BriefingCustomScene,
   card_actions: CardActionsScene,
   folded_settings: FoldedSettingsScene,

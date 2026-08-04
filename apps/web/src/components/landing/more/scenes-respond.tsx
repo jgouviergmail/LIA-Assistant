@@ -7,7 +7,7 @@
 
 'use client';
 
-import {
+import { Trash2, HelpCircle, ChevronDown,
   ArrowDown,
   Check,
   ChevronRight,
@@ -369,7 +369,71 @@ function PeerActionsScene({ active, labels }: SceneProps) {
   );
 }
 
+type ProvenancePhase = 'shut' | 'opening' | 'signals' | 'tombstone';
+const PROVENANCE_STEPS: readonly TimelineStep<ProvenancePhase>[] = [
+  { at: 0, state: 'shut' },
+  { at: 900, state: 'opening' },
+  { at: 1600, state: 'signals' },
+  { at: 2900, state: 'tombstone' },
+];
+
+/**
+ * Why LIA thinks that: a folded block opens onto its signals, and the last one
+ * becomes a tombstone — the source was deleted, and the trace stays dated.
+ */
+function ProvenanceWhyScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(PROVENANCE_STEPS, { active });
+  const open = phase !== 'shut';
+  const shown = phase === 'signals' || phase === 'tombstone';
+
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="w-full max-w-[210px] space-y-1.5">
+        <div className="rounded-md border border-border bg-background px-2 py-1.5">
+          <SkeletonLine w="w-4/5" />
+          <SkeletonLine w="w-1/2" className="mt-1" />
+        </div>
+
+        <div className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1">
+          <HelpCircle className="h-3 w-3 shrink-0 text-primary" />
+          <SkeletonLine w="w-2/5" />
+          <ChevronDown
+            className={cn(
+              'ml-auto h-3 w-3 text-muted-foreground transition-transform duration-500',
+              open && 'rotate-180'
+            )}
+          />
+        </div>
+
+        <div
+          className={cn(
+            'space-y-1 overflow-hidden transition-all duration-500 ease-out',
+            shown ? 'max-h-24 opacity-100' : 'max-h-0 opacity-0'
+          )}
+        >
+          <div className="flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2 py-1">
+            <span className="rounded bg-primary/15 px-1 py-px text-[8px] font-medium uppercase tracking-wide text-primary">
+              ●
+            </span>
+            <SkeletonLine w="w-3/5" />
+          </div>
+          <div
+            className={cn(
+              'flex items-center gap-1.5 rounded-md border border-dashed border-border/60 px-2 py-1 transition-opacity duration-500',
+              phase === 'tombstone' ? 'opacity-100' : 'opacity-40'
+            )}
+          >
+            <Trash2 className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+            <SkeletonLine w="w-2/5" className="opacity-60" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
+  provenance_why: ProvenanceWhyScene,
   followup_chips: FollowupChipsScene,
   scroll_return: ScrollReturnScene,
   bubble_actions: BubbleActionsScene,

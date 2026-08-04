@@ -17,6 +17,7 @@ import {
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { InterestExplanation } from '@/components/interests/InterestExplanation';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -551,90 +552,96 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                         // pointer-only convenience duplicating the dedicated
                         // mobile actions button (audit F012/F045); the card
                         // carries no semantics (it contains interactive children).
-                        <div
-                          key={interest.id}
-                          role="presentation"
-                          className="group flex items-center gap-3 rounded-lg border p-3 bg-card hover:bg-accent/50 transition-colors cursor-pointer lg:cursor-default"
-                          onClick={() => {
-                            if (window.innerWidth < 1024) {
-                              setMobileActionInterest(interest);
-                            }
-                          }}
-                        >
-                          {/* Content */}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{interest.topic}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge
-                                variant={getWeightBadgeVariant(interest.weight)}
-                                className="text-xs"
-                              >
-                                {(interest.weight * 100).toFixed(0)}%
-                              </Badge>
-                              {interest.last_mentioned_at && (
-                                <span className="text-xs text-muted-foreground hidden sm:inline">
-                                  {formatInterestDate(interest.last_mentioned_at, lng)}
-                                </span>
-                              )}
+                        <div key={interest.id}>
+                          <div
+                            role="presentation"
+                            className="group flex items-center gap-3 rounded-lg border p-3 bg-card hover:bg-accent/50 transition-colors cursor-pointer lg:cursor-default"
+                            onClick={() => {
+                              if (window.innerWidth < 1024) {
+                                setMobileActionInterest(interest);
+                              }
+                            }}
+                          >
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{interest.topic}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge
+                                  variant={getWeightBadgeVariant(interest.weight)}
+                                  className="text-xs"
+                                >
+                                  {(interest.weight * 100).toFixed(0)}%
+                                </Badge>
+                                {interest.last_mentioned_at && (
+                                  <span className="text-xs text-muted-foreground hidden sm:inline">
+                                    {formatInterestDate(interest.last_mentioned_at, lng)}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          </div>
 
-                          {/* Action buttons - hidden on mobile */}
-                          <div className="hidden lg:flex gap-1 shrink-0 opacity-0 group-hover:opacity-100">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={e => {
-                                e.stopPropagation();
-                                handleOpenEdit(interest);
-                              }}
-                              disabled={updating}
-                              title={t('interests.edit')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={e => {
-                                e.stopPropagation();
-                                handleFeedback(interest, 'block');
-                              }}
-                              disabled={submittingFeedback}
-                              title={t('interests.block')}
-                            >
-                              <Ban className="h-4 w-4 text-red-500" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={e => {
-                                e.stopPropagation();
-                                setPendingDelete(interest);
-                              }}
-                              disabled={deleting}
-                              title={t('interests.delete')}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
+                            {/* Action buttons - hidden on mobile */}
+                            <div className="hidden lg:flex gap-1 shrink-0 opacity-0 group-hover:opacity-100">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  handleOpenEdit(interest);
+                                }}
+                                disabled={updating}
+                                title={t('interests.edit')}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  handleFeedback(interest, 'block');
+                                }}
+                                disabled={submittingFeedback}
+                                title={t('interests.block')}
+                              >
+                                <Ban className="h-4 w-4 text-red-500" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  setPendingDelete(interest);
+                                }}
+                                disabled={deleting}
+                                title={t('interests.delete')}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
 
-                          {/* Mobile actions button (audit F012/F045): the
+                            {/* Mobile actions button (audit F012/F045): the
                               desktop buttons above are hidden below lg and the
                               tap-anywhere card click is pointer-only — this is
                               the keyboard/AT path to the actions popup. */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="lg:hidden shrink-0 self-center"
-                            aria-label={t('common.actions')}
-                            onClick={e => {
-                              e.stopPropagation();
-                              setMobileActionInterest(interest);
-                            }}
-                          >
-                            <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                          </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="lg:hidden shrink-0 self-center"
+                              aria-label={t('common.actions')}
+                              onClick={e => {
+                                e.stopPropagation();
+                                setMobileActionInterest(interest);
+                              }}
+                            >
+                              <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </div>
+                          {/* OUTSIDE the card, deliberately: the card carries a
+                              tap-anywhere handler, and a disclosure inside it
+                              would open the mobile action sheet on every
+                              attempt to read the explanation. */}
+                          <InterestExplanation interestId={interest.id} locale={lng} />
                         </div>
                       ))}
                     </div>

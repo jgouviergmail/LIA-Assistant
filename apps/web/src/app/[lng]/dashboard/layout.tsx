@@ -23,6 +23,7 @@ import { DASHBOARD_DESTINATIONS, destinationPath } from '@/lib/dashboard-nav';
 import type { DashboardDestination } from '@/lib/dashboard-nav';
 import { useTranslation } from '@/i18n/client';
 import {
+  Bell,
   LayoutDashboard,
   Users,
   MessageSquare,
@@ -42,6 +43,7 @@ const DESTINATION_ICONS: Record<DashboardDestination['segment'], typeof LayoutDa
   '': LayoutDashboard,
   chat: MessageSquare,
   relations: Users,
+  notifications: Bell,
   settings: Settings,
   faq: HelpCircle,
 };
@@ -80,7 +82,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
 
   // Nav link classes based on active state (route = 'chat', 'settings', 'faq', or '' for home)
   const navLinkClass = (route: string) =>
-    `inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-primary/10 hover:text-primary hover:shadow-sm ${
+    `inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-all hover:bg-primary/10 hover:text-primary hover:shadow-sm ${
       isActiveRoute(route)
         ? 'bg-primary/15 text-primary shadow-sm border border-primary/20'
         : // muted-foreground is the AA-proven de-emphasis token; an alpha of
@@ -178,9 +180,17 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                       href={buildLocalizedPath(destinationPath(segment), pathLng)}
                       className={navLinkClass(segment)}
                       aria-current={isActiveRoute(segment) ? 'page' : undefined}
+                      aria-label={t(labelKey)}
+                      title={t(labelKey)}
                     >
-                      <Icon className="hidden h-4 w-4 xl:block" />
-                      <span>{t(labelKey)}</span>
+                      {/* Below `xl` the row shows ICONS only. Six labels are
+                          163 px wider than five in German (measured in the
+                          app's font), and five already clipped between 768 and
+                          1024 px — the reason this nav starts at `lg` at all.
+                          The label stays the accessible name, so nothing is
+                          lost for assistive technology or on hover. */}
+                      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span className="hidden xl:inline">{t(labelKey)}</span>
                     </Link>
                   );
                 })}
@@ -199,8 +209,12 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                 <ExecutionModeToggle lng={lng} />
                 <VoiceToggle lng={lng} />
                 {/* Token counters are observation, not action: they only earn
-                    their width once the row has room for the labels (`xl`). */}
-                <div className="hidden xl:block">
+                    their width once the row has room to spare. That moved from
+                    `xl` to `2xl` when a SIXTH destination joined the nav —
+                    measured at 1280 px in German, the last nav link and the
+                    first control overlapped, and the counters are the one
+                    element in the row nobody navigates with. */}
+                <div className="hidden 2xl:block">
                   <TokensDisplayToggle lng={lng} />
                 </div>
                 <ThemeToggle />

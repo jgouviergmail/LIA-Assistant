@@ -195,3 +195,13 @@ answers with an HTTP success even when it refuses: the refusal is inside the
 response body. Until that was read, the call was recorded as ringing, and the
 "one call at a time" rule then blocked every further attempt for a quarter of an
 hour. The message you get now says which of the two situations you are in.
+
+## Can LIA accept a date or an extra charge proposed during the call?
+No, never automatically. The call summary first shows **what the other party
+actually proposed** — date, place, extra cost, pending decision — and then,
+separately, the possible follow-ups: create a reminder, make a commitment, plan
+a meeting.
+
+Each follow-up **prepares** the message in the composer instead of sending it,
+and every action that writes to an external service keeps its own confirmation
+prompt. No path turns "the other party proposed X" into "you accepted X".

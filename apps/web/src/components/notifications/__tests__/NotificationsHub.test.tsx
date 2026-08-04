@@ -1,0 +1,130 @@
+/**
+ * The notifications hub — five folded sections, and nothing fetched until one
+ * is opened.
+ *
+ * The rules that matter here are the ones a reader would notice being broken:
+ *
+ *  - arriving costs ZERO requests (five sections, all folded, children
+ *    unmounted). A hub that fires five queries to show five closed headings
+ *    would be worse than the four settings pages it replaces;
+ *  - a section disabled on this instance is ABSENT, never greyed out
+ *    (gate-keeper, ADR-061);
+ *  - reminders and routines announce that they list the FUTURE — a reminder is
+ *    deleted the moment it fires, so a reader hunting for a history there
+ *    would find an empty list and no reason for it;
+ *  - the advanced links keep the existing settings deep links intact.
+ */
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { settingsSectionHref } from '@/lib/settings-sections';
+
+const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
+vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
+
+const { useAppConfig } = vi.hoisted(() => ({ useAppConfig: vi.fn() }));
+vi.mock('@/hooks/useAppConfig', () => ({ useAppConfig }));
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, opts?: Record<string, unknown>) =>
+      opts ? `${key}|${JSON.stringify(opts)}` : key,
+    i18n: { language: 'fr' },
+  }),
+}));
+
+import { NotificationsHub } from '../NotificationsHub';
+
+function flags(over: Record<string, boolean> = {}) {
+  useAppConfig.mockReturnValue({
+    config: { features: { peers_enabled: true, heartbeat_enabled: true, ...over } },
+  });
+}
+
+/**
+ * Which DISTINCT endpoints were asked for with `enabled: true`.
+ *
+ * Deduplicated on purpose: the mock records one call per render, so a single
+ * open section appears several times and the oracle would count re-renders
+ * instead of requests.
+ */
+function fetched(): string[] {
+  return [
+    ...new Set(
+      useApiQuery.mock.calls
+        .filter(([, options]) => (options as { enabled?: boolean }).enabled)
+        .map(([endpoint]) => endpoint as string)
+    ),
+  ];
+}
+
+beforeEach(() => {
+  useApiQuery.mockReset();
+  useApiQuery.mockReturnValue({ data: undefined, loading: false, error: null, refetch: vi.fn() });
+  useAppConfig.mockReset();
+  flags();
+});
+
+describe('NotificationsHub', () => {
+  it('shows the five sections folded, and fetches nothing', () => {
+    renderWithProviders(<NotificationsHub lng="fr" />);
+
+    for (const key of ['peer_messages', 'proactive', 'interests', 'reminders', 'scheduled']) {
+      expect(screen.getByText(`notifications_hub.sections.${key}.title`)).toBeInTheDocument();
+    }
+    expect(fetched()).toEqual([]);
+  });
+
+  it('fetches only the section the reader opened', async () => {
+    const { user } = renderWithProviders(<NotificationsHub lng="fr" />);
+
+    await user.click(screen.getByText('notifications_hub.sections.interests.title'));
+
+    await waitFor(() => expect(fetched()).toHaveLength(1));
+    expect(fetched()[0]).toContain('/interests/notifications/history');
+    expect(fetched()[0]).toContain('limit=10');
+  });
+
+  it('omits a section the instance has disabled, rather than greying it out', () => {
+    flags({ peers_enabled: false, heartbeat_enabled: false });
+
+    renderWithProviders(<NotificationsHub lng="fr" />);
+
+    expect(screen.queryByText('notifications_hub.sections.peer_messages.title')).toBeNull();
+    expect(screen.queryByText('notifications_hub.sections.proactive.title')).toBeNull();
+    // The three that do not depend on an instance flag are still there.
+    expect(screen.getByText('notifications_hub.sections.interests.title')).toBeInTheDocument();
+  });
+
+  it('says under each title what the section holds', () => {
+    // Load-bearing for reminders and routines: they list the FUTURE, and a
+    // reader looking there for what they were notified of would find nothing
+    // with no explanation.
+    renderWithProviders(<NotificationsHub lng="fr" />);
+
+    expect(screen.getByText('notifications_hub.sections.reminders.subtitle')).toBeInTheDocument();
+    expect(screen.getByText('notifications_hub.sections.scheduled.subtitle')).toBeInTheDocument();
+  });
+
+  it('keeps the existing settings deep links as the advanced route', () => {
+    renderWithProviders(<NotificationsHub lng="fr" />);
+
+    // Named after the DESTINATION, not after the hub section: the same words
+    // twice on one page, meaning two different things, is how a reader loses
+    // track of where a link goes.
+    expect(
+      screen.getByRole('link', { name: 'notifications_hub.advanced_links.proactive' })
+    ).toHaveAttribute('href', settingsSectionHref('fr', 'heartbeat'));
+    expect(
+      screen.getByRole('link', { name: 'notifications_hub.advanced_links.device' })
+    ).toHaveAttribute('href', settingsSectionHref('fr', 'notifications'));
+  });
+
+  it('shows a dash rather than a zero before a section has ever been read', () => {
+    // "0" is a claim; nobody has counted anything yet.
+    renderWithProviders(<NotificationsHub lng="fr" />);
+
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(5);
+  });
+});

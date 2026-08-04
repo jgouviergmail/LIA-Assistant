@@ -25,6 +25,7 @@ from uuid import UUID
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 if TYPE_CHECKING:
+
     from src.domains.journals.models import JournalEntry
 
 from src.core.config import settings
@@ -45,6 +46,7 @@ from src.domains.shared.extraction_targets import (
     find_last_user_message,
     is_synthetic_message,
 )
+from src.domains.shared.provenance_capture import record_origin
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
 from src.infrastructure.observability.logging import get_logger
@@ -975,7 +977,7 @@ async def extract_journal_entry_background(
                                 and action.title
                                 and action.content
                             ):
-                                await service.create_entry(
+                                created = await service.create_entry(
                                     user_id=UUID(user_id),
                                     theme=action.theme.value,
                                     title=action.title,
@@ -994,6 +996,20 @@ async def extract_journal_entry_background(
                                         action.confidence.value if action.confidence else "medium"
                                     ),
                                     level=(action.level.value if action.level else "L1"),
+                                )
+                                # Where this belief came from, as a BOUNDED
+                                # pointer (never a copy of the turn): the
+                                # entry could state a conclusion and never
+                                # what produced it, which is precisely what
+                                # makes a wrong one uncorrectable. The
+                                # conversation is nulled if the user later
+                                # deletes it, leaving a dated tombstone
+                                # instead of resurrected content.
+                                await record_origin(
+                                    db,
+                                    user_id=UUID(user_id),
+                                    source=session_id,
+                                    journal_entry_id=created.id,
                                 )
                                 applied_count += 1
 

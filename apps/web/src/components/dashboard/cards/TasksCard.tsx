@@ -3,7 +3,7 @@
 import { CalendarClock, Check, ListTodo } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
-import { CardItemActions } from './CardItemActions';
+import { CardItemRow } from './CardItemRow';
 import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 import type { CardSection, TaskItem, TasksData } from '@/types/briefing';
@@ -101,38 +101,35 @@ function TasksContent({
           subject: task.title,
         });
         return (
-          // QW-24: action chips as SIBLINGS (nested buttons are invalid HTML).
           // "Terminé" is an external write — the pipeline's task_update HITL
           // draft still gates the actual provider call (ADR-173).
-          <li key={index} className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => onOpenChat(intent)}
-              aria-label={intent}
-              className="min-w-0 flex-1 text-left flex items-baseline justify-between gap-2 text-sm rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          <CardItemRow
+            key={index}
+            ariaLabel={intent}
+            tooltip={task.title}
+            onSelect={() => onOpenChat(intent)}
+            align="center"
+            contentClassName="flex items-baseline justify-between gap-2 text-sm"
+            actions={[
+              { icon: Check, label: completeIntent, onSelect: () => onExecute(completeIntent) },
+              {
+                icon: CalendarClock,
+                label: postponeIntent,
+                onSelect: () => onExecute(postponeIntent),
+              },
+            ]}
+          >
+            <span
+              className={
+                task.overdue
+                  ? 'truncate font-medium text-rose-600 dark:text-rose-300'
+                  : 'truncate font-medium text-foreground/90'
+              }
             >
-              <span
-                className={
-                  task.overdue
-                    ? 'truncate font-medium text-rose-600 dark:text-rose-300'
-                    : 'truncate font-medium text-foreground/90'
-                }
-              >
-                {task.title}
-              </span>
-              <DueBadge task={task} />
-            </button>
-            <CardItemActions
-              actions={[
-                { icon: Check, label: completeIntent, onSelect: () => onExecute(completeIntent) },
-                {
-                  icon: CalendarClock,
-                  label: postponeIntent,
-                  onSelect: () => onExecute(postponeIntent),
-                },
-              ]}
-            />
-          </li>
+              {task.title}
+            </span>
+            <DueBadge task={task} />
+          </CardItemRow>
         );
       })}
     </ul>

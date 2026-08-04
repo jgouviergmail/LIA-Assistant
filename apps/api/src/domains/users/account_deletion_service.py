@@ -127,6 +127,11 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         by_either_side("peer_access_log", "accessor_id", "owner_id"),
         by_either_side("peer_blocks", "blocker_id", "blocked_id"),
         by_either_side("peer_connections", "user_a_id", "user_b_id"),
+        # BEFORE its subjects: a reference row points at a journal entry or a
+        # memory, and deleting those first would leave the DELETE below with
+        # nothing to remove — the CASCADE would already have fired. Purging it
+        # first keeps this statement meaningful rather than incidentally empty.
+        by_user("provenance_references"),
         # Group 2 — Main tables (FK directly to users)
         by_user("relation_favorites"),
         by_user("relation_aliases"),

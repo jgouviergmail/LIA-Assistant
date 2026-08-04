@@ -187,3 +187,16 @@ of subjects; beyond that the whole batch is refused and recorded.
 **📊 Measured:**
 On real conversations, half of the exchanges that should have produced nothing
 were creating an interest. None do now, and the genuine ones are still caught.
+
+## Why does this topic come up more than another?
+Under each interest, a block explains the weight without turning it into a
+score: the **originating signal**, the **last mention**, the **last
+notification**, the coefficients of the calculation and the number of days
+since the last mention. A topic nobody mentions loses weight gradually, down to
+a floor — it never disappears entirely. You can redo the arithmetic yourself.
+
+There is no level, no ranking and no comparison with other accounts. Explaining
+uncertainty is more useful than turning it into a competition.
+
+The same interest also carries its own "Why does LIA think this?" block, with
+the conversations that first raised the subject.

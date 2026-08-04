@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 4.1
-**Date** : 2026-08-03
-**Application** : LIA v1.27.8
+**Version** : 4.2
+**Date** : 2026-08-04
+**Application** : LIA v1.27.9
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -292,6 +292,16 @@ Le même principe vaut pour les protections elles-mêmes. Une sécurité annonc�
 Un test qui ne tourne pas non plus — et c'est la découverte la moins confortable de ce projet. Dix fichiers de tests s'étaient désactivés eux-mêmes dès qu'une clé de fournisseur manquait, et plus rien ne le signalait : un test sauté est compté vert, la couverture mesure les lignes atteintes et non les assertions exécutées, et une revue voit un fichier de tests et en conclut que la surface est protégée. Deux cent dix-neuf tests n'avaient jamais été exécutés une seule fois ; en les rallumant, quatre défauts bien réels sont apparus — dont une voix qui coupait tous les nombres en deux, et un rappel perdu définitivement quand le quota s'épuisait à la mauvaise minute. L'absence de signal rouge n'est pas une preuve de santé : c'est parfois seulement l'absence de mesure. Une garde d'intégration continue interdit désormais qu'un module de test puisse s'éteindre en silence.
 
 Le même principe s'applique à ce qui est **annoncé**. Une interface affichait un interrupteur « recherche hybride » pour la mémoire ; le moteur correspondant n'existait plus depuis plusieurs versions, et l'interrupteur ne commandait rien. Le code mort et l'affichage ont été retirés ensemble, et le fonctionnement réel écrit à leur place. Une capacité annoncée mais absente n'est pas une imprécision de documentation : c'est une promesse faite à un utilisateur qui n'a aucun moyen de la vérifier. Afficher un réglage qui ne commande rien est pire que de ne rien afficher.
+
+### 6.5. Pourquoi LIA pense cela
+
+Un assistant qui retient des choses finit par en affirmer. « Vous préférez les réunions le matin », « ce sujet vous intéresse » : des conclusions utiles, mais invérifiables tant qu'on ne peut pas remonter à ce qui les a produites.
+
+Sous chaque souvenir, chaque entrée de journal et chaque centre d'intérêt, LIA montre donc les signaux qui l'ont amenée là : la conversation, la date, et le rôle du signal — ce qui a fait naître la conclusion, ce qui l'a confirmée, ce qui l'a mise en doute. Un bouton permet de corriger la conclusion à sa source.
+
+Ce qui est conservé est un **renvoi, jamais une copie**. Le texte reste là où vous l'avez écrit, et si vous supprimez la conversation, il ne revient nulle part : le renvoi se vide, la ligne reste datée, et LIA dit simplement que le signal a été supprimé. Une suppression doit rester une suppression — autrement, ce que vous effacez d'un côté vous serait resservi de l'autre.
+
+Le même principe s'applique au poids d'un centre d'intérêt : il s'explique au lieu de se noter. Le signal d'origine, la dernière mention, le calcul lui-même — de quoi refaire l'opération. Transformer cette incertitude en score inviterait à une compétition que personne n'a demandée, alors qu'elle n'apprend rien de plus.
 
 ## 7. Profondeur émotionnelle
 

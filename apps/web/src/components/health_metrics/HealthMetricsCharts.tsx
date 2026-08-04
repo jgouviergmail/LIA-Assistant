@@ -48,17 +48,17 @@ type ChartRow = {
  * mode and low-contrast in light mode.
  */
 const TOOLTIP_CONTENT_STYLE: React.CSSProperties = {
-  backgroundColor: 'hsl(var(--popover))',
-  borderColor: 'hsl(var(--border))',
+  backgroundColor: 'var(--color-popover)',
+  borderColor: 'var(--color-border)',
   borderRadius: '6px',
-  color: 'hsl(var(--popover-foreground))',
+  color: 'var(--color-popover-foreground)',
 };
 const TOOLTIP_LABEL_STYLE: React.CSSProperties = {
-  color: 'hsl(var(--popover-foreground))',
+  color: 'var(--color-popover-foreground)',
   fontWeight: 500,
 };
 const TOOLTIP_ITEM_STYLE: React.CSSProperties = {
-  color: 'hsl(var(--popover-foreground))',
+  color: 'var(--color-popover-foreground)',
 };
 
 function formatBucket(iso: string, period: HealthMetricsPeriod, lng: Language): string {
@@ -123,7 +123,7 @@ export function HealthMetricsCharts({ lng, aggregate, period }: HealthMetricsCha
                 contentStyle={TOOLTIP_CONTENT_STYLE}
                 labelStyle={TOOLTIP_LABEL_STYLE}
                 itemStyle={TOOLTIP_ITEM_STYLE}
-                cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeOpacity: 0.3 }}
+                cursor={{ stroke: 'var(--color-muted-foreground)', strokeOpacity: 0.3 }}
                 formatter={value =>
                   value == null
                     ? '—'
@@ -185,7 +185,7 @@ export function HealthMetricsCharts({ lng, aggregate, period }: HealthMetricsCha
                 contentStyle={TOOLTIP_CONTENT_STYLE}
                 labelStyle={TOOLTIP_LABEL_STYLE}
                 itemStyle={TOOLTIP_ITEM_STYLE}
-                cursor={{ fill: 'hsl(var(--muted-foreground))', fillOpacity: 0.1 }}
+                cursor={{ fill: 'var(--color-muted-foreground)', fillOpacity: 0.1 }}
                 formatter={value =>
                   value == null
                     ? '—'

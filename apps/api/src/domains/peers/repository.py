@@ -853,8 +853,40 @@ class PeersRepository(BaseRepository[PeerConnection]):
             for row in rows
         ]
 
+    async def count_delivered_messages(self, user_id: UUID) -> int:
+        """How many relayed messages the caller's timeline actually holds.
+
+        The notifications hub states "the last N of M" like every other section
+        it shows, and M is a CLAIM: it is exact or it does not exist (ADR-185).
+        Measuring the length of a capped page would under-report the moment the
+        exchange outgrew it.
+
+        Shares ``_delivered_with_peer`` with the page, so a row excluded from
+        one is excluded from the other — a total assembled from a different
+        filter is worse than no total at all.
+
+        Args:
+            user_id: The caller.
+
+        Returns:
+            Exact number of delivered messages, in both directions.
+        """
+        counterpart, clauses = self._delivered_with_peer(user_id)
+        stmt = (
+            select(func.count())
+            .select_from(PeerMessage)
+            .join(User, User.id == counterpart)
+            .where(*clauses)
+        )
+        return int((await self.db.execute(stmt)).scalar() or 0)
+
     async def list_delivered_message_activity(
-        self, user_id: UUID, *, limit: int, peer_names: list[str] | None = None
+        self,
+        user_id: UUID,
+        *,
+        limit: int,
+        offset: int = 0,
+        peer_names: list[str] | None = None,
     ) -> list[PeerMessageActivity]:
         """List the caller's DELIVERED relayed messages, both directions.
 
@@ -876,6 +908,9 @@ class PeersRepository(BaseRepository[PeerConnection]):
         Args:
             user_id: The caller — ``direction`` is expressed relative to them.
             limit: Cap on returned rows, newest delivery first.
+            offset: How many of the newest rows to skip. The ordering is a
+                strict `delivered_at DESC` over rows that never change once
+                delivered, so walking the pages neither repeats nor drops one.
             peer_names: When given, restrict to these EXACT stored spellings.
                 A page for ONE person must be narrowed in SQL, not sliced out
                 of a global page afterwards: the caller would otherwise show a
@@ -905,8 +940,9 @@ class PeersRepository(BaseRepository[PeerConnection]):
             )
             .join(User, User.id == counterpart)
             .where(*narrowed)
-            .order_by(PeerMessage.delivered_at.desc())
+            .order_by(PeerMessage.delivered_at.desc(), PeerMessage.id.desc())
             .limit(limit)
+            .offset(offset)
         )
         activity: list[PeerMessageActivity] = []
         for row in (await self.db.execute(stmt)).all():

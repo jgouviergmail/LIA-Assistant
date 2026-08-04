@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versión**: 4.1
-**Fecha**: 2026-08-03
-**Aplicación**: LIA v1.27.8
+**Versión**: 4.2
+**Fecha**: 2026-08-04
+**Aplicación**: LIA v1.27.9
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -292,6 +292,16 @@ El mismo principio se aplica a las propias protecciones. Una seguridad anunciada
 Tampoco una prueba que nunca se ejecuta — y ese es el descubrimiento más incómodo de este proyecto. Diez archivos de pruebas se habían desactivado a sí mismos en cuanto faltaba una clave de proveedor, y ya nada lo señalaba: una prueba omitida cuenta como verde, la cobertura mide líneas alcanzadas y no aserciones ejecutadas, y una revisión ve un archivo de pruebas y concluye que la superficie está protegida. Doscientas diecinueve pruebas no se habían ejecutado ni una sola vez; al volver a encenderlas aparecieron cuatro defectos bien reales — entre ellos una voz que partía en dos todos los números, y un recordatorio perdido definitivamente cuando la cuota se agotaba en el minuto equivocado. La ausencia de señal roja no es una prueba de salud: a veces es solo la ausencia de medición. Una guarda de integración continua impide ahora que un módulo de pruebas se apague en silencio.
 
 El mismo principio se aplica a lo que se **anuncia**. Un panel mostraba un interruptor «búsqueda híbrida» para la memoria; el motor correspondiente ya no existía desde varias versiones, y el interruptor no mandaba nada. El código muerto y la visualización se retiraron juntos, y el funcionamiento real se escribió en su lugar. Una capacidad anunciada pero ausente no es una imprecisión de documentación: es una promesa hecha a un usuario que no tiene forma de verificarla. Mostrar un ajuste que no controla nada es peor que no mostrar nada.
+
+### 6.5. Por qué LIA piensa eso
+
+Un asistente que retiene cosas acaba por afirmarlas. «Prefiere las reuniones por la mañana», «este tema le interesa»: conclusiones útiles, pero inverificables mientras no se pueda remontar a lo que las produjo.
+
+Bajo cada recuerdo, cada entrada de diario y cada interés, LIA muestra por tanto las señales que la llevaron allí: la conversación, la fecha y el papel de la señal — lo que originó la conclusión, lo que la confirmó, lo que la puso en duda. Un botón permite corregir la conclusión en su origen.
+
+Lo que se conserva es una **referencia, nunca una copia**. Su texto se queda donde lo escribió y, si borra la conversación, no reaparece en ninguna parte: la referencia se vacía, la fila permanece fechada, y LIA dice simplemente que la señal fue eliminada. Un borrado debe seguir siendo un borrado — de lo contrario, lo que usted elimina por un lado se le devolvería por el otro.
+
+El mismo principio se aplica al peso de un interés: se explica en lugar de puntuarse. La señal de origen, la última mención, el cálculo mismo — lo suficiente para rehacer la operación. Convertir esa incertidumbre en una puntuación invitaría a una competición que nadie pidió, sin enseñar nada más.
 
 ## 7. Profundidad emocional
 

@@ -269,3 +269,37 @@ class AccessLogEntry(BaseModel):
     domain: str = Field(description="Domain that was read.")
     tool_name: str = Field(description="Tool that performed the read.")
     created_at: datetime = Field(description="UTC instant of the read.")
+
+
+class RelayedMessageItem(BaseModel):
+    """One relayed message, as the notifications hub shows it.
+
+    A read-only projection of ``PeerMessageActivity``: the hub lists what
+    reached the reader, it never re-opens the relay. ``content`` is the
+    CALLER's own side of the exchange — their directive when they sent it,
+    their assistant's rendering when they received it — never the other
+    person's words, and None once the retention horizon cleared it (ADR-186).
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str = Field(description="PeerMessage id — the stable key of the row.")
+    peer_display_name: str = Field(description="The other participant's live name.")
+    direction: str = Field(description="`received` or `sent`, relative to the caller.")
+    content: str | None = Field(
+        default=None,
+        description="The caller's own side of the exchange; None once retention cleared it.",
+    )
+    occurred_at: datetime = Field(description="UTC instant of the delivery.")
+
+
+class RelayedMessagePage(BaseModel):
+    """One page of relayed messages, and the EXACT total behind it.
+
+    The total counts the whole timeline, never the length of this page
+    (ADR-185): a figure shown to the reader is a claim, and "10 of 10" on an
+    account with 200 exchanges is a false one.
+    """
+
+    messages: list[RelayedMessageItem]
+    total: int = Field(ge=0, description="Exact count over the whole timeline.")

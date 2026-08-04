@@ -158,6 +158,14 @@ function buildFcmMetadata(
       type: fcmType,
       target_id: d.target_id,
       feedback_enabled: d.feedback_enabled === 'true',
+      // The push half of a card must describe the same notification as the
+      // archived half. Without it, a verdict given here names no notification:
+      // nothing reaches the audit trail, and — an interest card's `target_id`
+      // being the INTEREST — the backend would lock every other card of that
+      // interest rather than this one. Spread so an absent run_id leaves no
+      // key at all: `proactiveFeedbackProps` reads it as a string and would
+      // forward '' as though it identified something.
+      ...(d.run_id ? { run_id: d.run_id } : {}),
     };
   }
   if (fcmType === 'scheduled_action') {

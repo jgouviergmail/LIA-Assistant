@@ -19,6 +19,7 @@ from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
 from src.domains.auth.dependencies import create_user_rate_limiter
 from src.domains.peers.notifications import dispatch_peer_events
+from src.domains.peers.repository import PeersRepository
 from src.domains.peers.schemas import (
     AccessLogEntry,
     BlockCreate,
@@ -31,6 +32,8 @@ from src.domains.peers.schemas import (
     DiscoverySearchRequest,
     DiscoveryStateResponse,
     DiscoveryStateUpdate,
+    RelayedMessageItem,
+    RelayedMessagePage,
     ShareUpdate,
 )
 from src.domains.peers.service import PeersService
@@ -317,3 +320,57 @@ async def list_blocks(
     """List the caller's blocks."""
     service = PeersService(db)
     return await service.list_blocks(user.id)
+
+
+# =============================================================================
+# Relayed messages — the notifications hub's peers section
+# =============================================================================
+
+
+@router.get(
+    "/messages",
+    response_model=RelayedMessagePage,
+    summary="Relayed messages, newest first",
+    description=(
+        "One page of the caller's relayed messages, both directions, with the "
+        "EXACT total behind it. Read-only: the hub lists what reached the "
+        "reader, it never re-opens the relay."
+    ),
+)
+async def list_relayed_messages(
+    limit: int = Query(default=10, ge=1, le=100, description="Page size."),
+    offset: int = Query(default=0, ge=0, description="Page offset."),
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> RelayedMessagePage:
+    """One page of relayed messages, and the exact total behind it.
+
+    Both halves come from ONE session so a delivery landing between two reads
+    cannot produce a total the page contradicts.
+
+    Args:
+        limit: Page size.
+        offset: Page offset.
+        user: Authenticated session owner.
+        db: Request-scoped session.
+
+    Returns:
+        The page and the EXACT total (ADR-185) — the hub states its cap rather
+        than applying it in silence.
+    """
+    repo = PeersRepository(db)
+    activity = await repo.list_delivered_message_activity(user.id, limit=limit, offset=offset)
+    total = await repo.count_delivered_messages(user.id)
+    return RelayedMessagePage(
+        messages=[
+            RelayedMessageItem(
+                id=str(item.message_id),
+                peer_display_name=item.peer_display_name,
+                direction=item.direction,
+                content=item.text,
+                occurred_at=item.occurred_at,
+            )
+            for item in activity
+        ],
+        total=total,
+    )

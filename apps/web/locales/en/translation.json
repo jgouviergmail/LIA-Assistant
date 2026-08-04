@@ -182,7 +182,9 @@
       "relations": "Relationships",
       "help_sub": "FAQ and support",
       "settings_sub": "Connectors and preferences",
-      "relations_sub": "Your contacts at a glance"
+      "relations_sub": "Your contacts at a glance",
+      "capabilities": "Capabilities",
+      "capabilities_sub": "Your constellation"
     },
     "briefing": {
       "section_title": "My dashboard",
@@ -207,6 +209,7 @@
         "retry": "Retry"
       },
       "actions": {
+        "more": "More actions",
         "reconnect": "Reconnect",
         "retry": "Retry",
         "retry_later": "Try again later",
@@ -3057,6 +3060,7 @@
         "uncertainties": "To double-check",
         "draft": "Follow-up draft",
         "use_draft": "Use this draft in the chat",
+        "prefill_aria": "Prepare in the chat: {{sentence}}",
         "draft_prefill": "Send this follow-up message: {{draft}}",
         "intent_task": "Create a task: {{item}}",
         "intent_reminder": "Create a reminder: {{item}}"
@@ -3080,6 +3084,16 @@
           "declined": "Declined",
           "unreachable": "Unreachable"
         }
+      },
+      "decisions": {
+        "title": "To decide",
+        "proposed": "Proposed: {{when}} — {{where}}",
+        "no_date": "no date given",
+        "no_place": "no place given",
+        "extra_cost": "Extra cost mentioned: {{cost}}. Nothing was accepted.",
+        "pending": "Left for you to decide: {{question}}",
+        "plan_meeting": "Prepare the meeting",
+        "meeting_draft": "Schedule a meeting “{{subject}}” with {{invitee}}, on {{when}}, at {{where}}."
       }
     },
     "search": {
@@ -3116,12 +3130,12 @@
         "debug-panel": "developer, diagnostics, traces, technical, troubleshooting",
         "personality": "tone, style, character, behaviour, behavior, persona, voice",
         "psyche": "emotions, mood, feelings, affect, emotional",
-        "memories": "memory, remember, forget, facts, recollection",
-        "interests": "topics, tastes, subjects, curiosity, preferences, history, recent notifications",
+        "memories": "memory, remember, forget, facts, recollection, provenance, why, source, signal, origin, correct",
+        "interests": "topics, tastes, subjects, curiosity, preferences, history, recent notifications, provenance, why, weight, explanation, decay, source",
         "peer-connections": "contacts, friends, family, network, share calendar, availability, block, discover users, connect, my name, copy my name, connection request, access log, relay message, blocked users, peers, social network, discovery, loved ones, relatives, share my address, email visible, my email, 360 overview",
         "heartbeat": "proactive, spontaneous, initiative, check-in, autonomous messages, notification topics, sources, history, recent notifications",
         "scheduled-actions": "cron, schedule, recurring, automation, timer, planned",
-        "journals": "diary, logbook, portrait, reflections, notes",
+        "journals": "diary, logbook, portrait, reflections, notes, provenance, why, source, signal, origin, correct",
         "health-metrics": "heart rate, steps, sleep, iPhone, Apple Health, fitness, activity",
         "skills": "skills, capabilities, abilities, plugins, extensions",
         "rag-spaces": "documents, RAG, knowledge base, files, upload, indexing, library",
@@ -3358,7 +3372,8 @@
     "logout": "Sign out",
     "profile": "Profile",
     "faq": "Help",
-    "relations": "Relations"
+    "relations": "Relations",
+    "notifications": "Alerts"
   },
   "errors": {
     "generic": "An error occurred",
@@ -3858,6 +3873,14 @@
         "relations": {
           "title": "⭐ Personal CRM — Relations",
           "description": "A <b>lens, not a database</b>: the Relations page aggregates what LIA already knows per person — open commitments, calls, memories, relayed messages — with an identity resolved by accent/case folding and a confidence that is <b>shown</b> (exact vs normalized). Every section carries its <b>exact</b> total, from an aggregate over the whole set rather than the length of a page. Three sections come from the connected accounts — address-book entry, mail, meetings — found by <b>address</b> and not by name, with a per-section cache and a stated window instead of a total no provider page can prove. Two things are persisted: the favorites star and the <b>360° scope</b>, which the tool reads instead of guessing it from a sentence. Launching a 360° from the card no longer sends prose alone: the <b>invoked capability</b> travels as data, so the tool is in the plan on the right person, and the generic lookups that tool already covers are dropped — an unrelated answer next to a stated gap would contradict it. A connected user absent from the address book finally brings their own address, but <b>only if they shared it</b>: their setting stays the only thing that decides."
+        },
+        "provenance": {
+          "title": "🔍 Provenance of conclusions",
+          "description": "A memory claims “prefers morning meetings”; a journal entry concludes on a mood. Each now carries a <b>bounded</b> reference to the signals that produced it: conversation, precise turn, date, and one of three roles — <b>origin</b>, <b>evidence</b>, <b>contradiction</b>. What is stored is a pointer and a timestamp, <b>never the words</b>: a copy would be a second permanent home for content the user can delete elsewhere, and their deletion would stop being one. The keys to the conversation and the message are therefore <code>SET NULL</code>: deleting a conversation <b>empties the reference and leaves the row</b>, dated — a tombstone, which says a signal existed without ever bringing it back. The trail is capped at five references per conclusion, oldest pruned on write, and that cap is <b>published</b> in the response: a bound applied in silence is not a contract. A schema constraint enforces exactly one subject per row, and the write is isolated in a savepoint — it explains a conclusion, it never gates one."
+        },
+        "capabilityMap": {
+          "title": "🌌 Capability map",
+          "description": "A star chart of what the assistant can actually do for <b>this account</b>. Each capability is a star: <b>filled</b> when genuinely usable, <b>outlined</b> when waiting to be set up, and its size comes from what it holds — four hundred memories shine brighter than three. The figure joins only the live capabilities, in <b>angular order</b>: its shape is therefore this account's configuration and nobody else's. A capability the instance disabled is <b>absent</b>, never greyed out — a control the product cannot honour is worse than an absent one. State is resolved in <b>one server-side pass</b>, each probe on its own session, a failing probe degrading to “not ready” rather than blanking the whole map. Nothing published is a level, a percentage of completion or a comparison: “three connectors linked” is a fact, “62 %” would be a competition. The drawing is decorative; everything reachable is a named link, operable from the keyboard. A narrow screen, or a request for stillness, gets the same map as a list — same data, same order, same destinations."
         }
       },
       "diagram_alt": "LIA architecture diagram"
@@ -3866,6 +3889,23 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_27_9": {
+          "title": "v1.27.9 — 🔭 Why LIA thinks that, and what it can do",
+          "date": "August 2026",
+          "count": "10",
+          "items": {
+            "i1": "<b>🔍 “Why does LIA think that?” under every memory and journal entry</b> — a folded block shows the signals behind the conclusion, their date and their role, with a <b>Correct</b> button. What is kept is a <b>reference, never a copy</b>: your text stays where you wrote it. Delete the conversation and the reference empties while the dated row stays — the content never comes back. Settings → Memories, or Settings → Journals.",
+            "i2": "<b>🔔 An “Alerts” destination for everything addressed to you</b> — relayed peer messages, proactive notifications, interest notifications, pending reminders and scheduled routines, in one screen instead of five different settings panels. Sections arrive folded, paginate by ten, and a closed section costs no request. Your usual settings links keep working.",
+            "i3": "<b>🌌 A star chart of your capabilities</b> — each capability is a star: filled when active, outlined when waiting to be lit, its size saying what it holds. The figure joins only the live ones, so its shape is your configuration. No level, no percentage, no comparison with anyone. Home → Capabilities.",
+            "i4": "<b>📈 An interest's weight explains itself</b> — the originating signal, the last mention, the last notification and the calculation itself. Explaining uncertainty is more useful than turning it into a score. Settings → Interests, under each topic.",
+            "i5": "<b>📞 No option raised on a call is accepted on your behalf</b> — debrief follow-ups now <b>prepare</b> the message instead of sending it, and what the other party actually proposed (date, place, extra cost) is shown <b>before</b> the possible follow-ups.",
+            "i6": "<b>✍️ Your card titles are no longer truncated</b> — up to four action chips per row ate a third of the width. One trigger now opens the action menu, so every row of every card has the same text width. The full label appears on hover.",
+            "i7": "<b>👍 Your feedback on an interest notification is finally recorded</b> — the archived card and the recording route used two different identifiers. One vote also marked <b>every</b> other card in the conversation as judged: fixed in both directions.",
+            "i8": "<b>🎨 Thirty-one places in the interface painted nothing, or painted black</b> — health and personality chart tooltips, gradients, animations: a colour syntax inherited from an earlier version of the styling engine, invalid since the migration.",
+            "i9": "<b>🧮 Your interest ranking and the displayed weight no longer disagree</b> — two calculations each carried their own default value; there is now only one.",
+            "i10": "<b>🔗 “LIA connection” is the last section of a relationship card on mobile</b> — as on a wide screen, and only once in the page."
+          }
+        },
         "v1_27_8": {
           "title": "v1.27.8 — 🧭 What LIA produced, and what may interrupt you",
           "date": "August 2026",
@@ -5685,7 +5725,7 @@
       "settings": {
         "title": "Settings",
         "description": "Account configuration and preferences",
-        "count": "19",
+        "count": "20",
         "questions": {
           "q1": {
             "question": "How do I change my timezone?",
@@ -5762,6 +5802,10 @@
           "q19": {
             "question": "How do I find a setting quickly?",
             "answer": "<p>The settings page stacks some thirty collapsed sections across several tabs. The <strong>\"Search a setting\"</strong> field, below the tabs, saves you from walking through them.</p><strong>What the search understands:</strong><br>• The <strong>title</strong> and <strong>description</strong> of every section<br>• Translated <strong>synonyms</strong>: \"dark\" for Appearance, \"2FA\" or \"TOTP\" for Strong authentication, \"GDPR\" for your data export, \"cron\" for Scheduled actions<br>• Accents and apostrophes are ignored — \"theme\" finds \"Thème\"<br><br><strong>When you pick a result:</strong><br>LIA switches to the right tab, opens the section and brings the cursor to it. Everything works from the keyboard — arrows to walk, Enter to open, Escape to dismiss — and the number of matches is announced to screen readers.<br><br>Some sections only exist when the feature is active on your account: LIA then tells you so, rather than leaving you in front of a page that did not move."
+          },
+          "q20": {
+            "question": "Where can I see everything LIA sent me, without digging through settings?",
+            "answer": "The <b>Alerts</b> destination in the navigation bar gathers five streams in one screen: relayed peer messages, proactive notifications, interest notifications, pending reminders and scheduled routines. Each section arrives folded, paginates by ten and shows its exact total. A closed section costs no request; opening it costs exactly one. The settings panels remain the detailed configuration for each of those streams, and every link you had saved keeps working."
           }
         }
       },
@@ -5831,7 +5875,7 @@
       "telephony": {
         "title": "Phone Calls",
         "description": "LIA can place real phone calls on your behalf. Complete setup guide (Twilio + ElevenLabs) and everyday use.",
-        "count": "13",
+        "count": "14",
         "questions": {
           "q1": {
             "question": "What can LIA do on the phone?",
@@ -5884,6 +5928,10 @@
           "q13": {
             "question": "Can I follow a call while it is happening?",
             "answer": "Yes. As soon as LIA starts dialling, a banner appears above the conversation: who she is calling, and where the call stands. It disappears the moment the call ends.<br><br><strong>📒 Afterwards:</strong><br>The history lives in <b>Settings → Preferences → Recent calls</b>: name, objective, status, outcome and recap. Never the number — the API does not expose it. The section does not appear at all if you have never placed a call.<br><br><strong>⚠️ If the call is refused:</strong><br>The message says so plainly, and distinguishes two cases: a transient failure (retrying makes sense) and a refusal from the carrier — unverified source number, exhausted credit — where retrying changes nothing until it is fixed on their side.<br><br><strong>🔎 The facts, too:</strong> the debrief also lists the concrete findings the call produced — opening hours, availability, the answer you were waiting for — even when nothing needs doing afterwards."
+          },
+          "q14": {
+            "question": "Can LIA accept a date or an extra charge proposed during the call?",
+            "answer": "No, never automatically. The call summary first shows <b>what the other party actually proposed</b> — date, place, extra cost, pending decision — then, separately, the possible follow-ups: create a reminder, make a commitment, plan a meeting. Each one <b>prepares</b> the message in the composer instead of sending it, and every action that writes externally keeps its own confirmation prompt. No path turns “the other party proposed X” into “you accepted X”."
           }
         }
       },
@@ -6157,7 +6205,7 @@
       "interests": {
         "title": "Interests",
         "description": "Personalized proactive suggestions on your favorite topics",
-        "count": "8",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "How does LIA learn my interests?",
@@ -6190,6 +6238,10 @@
           "q8": {
             "question": "Why does LIA create fewer new interests than before? (v1.25.29)",
             "answer": "Because a subject you merely asked about is not a taste. Asking <em>what is photosynthesis</em> used to create a lasting interest, and the proactive engine then came back to you about it for weeks.<br><br><strong>🎯 What it takes now:</strong> a creation requires one of four grounds, and LIA must quote your own words for it:<br>• You say you like or follow the subject<br>• You report practising it yourself<br>• You show you already know it (vocabulary, an opinion you defend)<br>• You dig into the same subject several times in one exchange<br><br><strong>🚪 Never an interest:</strong> the subject of a request, a remark about LIA itself, someone else's taste, something tried once, a daily action (mail, calendar, weather), or anything LIA brought up on its own.<br><br><strong>📊 Measured:</strong> on real conversations, half of the exchanges that should have produced nothing were creating an interest. None do now, and the genuine ones are still caught."
+          },
+          "q9": {
+            "question": "Why does this topic come up more than another?",
+            "answer": "Under each interest, a block explains the weight without turning it into a score: the <b>originating signal</b>, the <b>last mention</b>, the <b>last notification</b>, the coefficients of the calculation and the number of days since the last mention. A topic nobody mentions loses weight gradually, down to a floor — it never disappears entirely. So you can redo the arithmetic yourself. There is no level, no ranking and no comparison with other accounts: explaining uncertainty is more useful than turning it into a competition."
           }
         }
       },
@@ -6434,7 +6486,7 @@
       "journals": {
         "title": "Personal Journals",
         "description": "Assistant's personal logbooks for reflections and learnings",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "What are personal journals?",
@@ -6471,6 +6523,10 @@
           "q9": {
             "question": "Do my logbooks fill up if I chat from Telegram? (v1.25.28)",
             "answer": "<p>Yes. That was not the case before: a conversation held from an external messenger fed neither your logbooks nor LIA's emotional state, even with those features switched on. Your setting was saved correctly — it simply was not passed along when the message was processed.</p><p>Now whatever you switched on applies identically wherever you write from: long-term memory, logbooks and mood. If you had turned them off, they stay off everywhere — it is your setting that travels, not a default value.</p>"
+          },
+          "q10": {
+            "question": "Why did LIA write that in my journal?",
+            "answer": "Every entry carries a folded “<b>Why does LIA think this?</b>” block listing the signals behind the conclusion: the conversation, the date, and the signal's role — origin, evidence or contradiction. A <b>Correct</b> button opens the entry for editing. What is kept is a reference, never a copy of your words: if you delete the source conversation, the reference empties and the dated row stays, saying the signal was deleted. The trail is limited to the five most recent signals, and that limit is stated under the list."
           }
         }
       },
@@ -6760,8 +6816,8 @@
         "desc": "Highlight a passage of a reply to explain, rephrase, translate, or turn it into a task."
       },
       "card_actions": {
-        "title": "Act straight from a card",
-        "desc": "Summarize, reply, mark done, reschedule — right on the briefing card."
+        "title": "Act from the card",
+        "desc": "Summarize, reply, complete, postpone — behind a single trigger, so the title keeps all its room."
       },
       "honest_freshness": {
         "title": "Fresh, or honestly stale",
@@ -6902,6 +6958,18 @@
       "folded_settings": {
         "title": "Settings, folded",
         "desc": "The eleven notification topics and the histories stay closed. You open what you came to change — and a closed block loads nothing."
+      },
+      "provenance_why": {
+        "title": "Why LIA thinks that",
+        "desc": "Under a memory or a journal entry, the signals behind it: the conversation, the date, the role. A reference, never a copy — delete the source and only a dated trace remains."
+      },
+      "alerts_hub": {
+        "title": "Everything addressed to you",
+        "desc": "Relayed messages, notifications, reminders and routines in one screen instead of as many panels. Each section arrives folded — and a closed one loads nothing."
+      },
+      "capability_map": {
+        "title": "Your constellation",
+        "desc": "Each capability is a star: filled when active, outlined when waiting. The figure joins only the live ones — its shape is your configuration, and nobody else's."
       }
     },
     "scenes": {
@@ -7381,6 +7449,19 @@
       "source_brave": "Brave Search",
       "source_rss": "RSS feed",
       "source_web": "Web"
+    },
+    "explanation": {
+      "title": "Why this subject?",
+      "error": "Could not read the explanation.",
+      "summary": "{{positives}} positive signal(s), {{negatives}} negative, last mentioned {{days}} day(s) ago — applied weight {{weight}}.",
+      "low_confidence": "Few signals: this is still a hypothesis, not a certainty.",
+      "signals": "Signals",
+      "signals_value": "+{{positives}} / −{{negatives}}",
+      "last_mention": "Last mention",
+      "last_notification": "Last notification",
+      "never_notified": "never",
+      "base_weight": "Weight before decay",
+      "formula": "Computed as: beta mean (prior {{alpha}}/{{beta}}) reduced by {{rate}} % per day without a mention, never below {{floor}}."
     }
   },
   "heartbeat": {
@@ -9372,6 +9453,107 @@
       "operations": "Operations",
       "proof": "The proof",
       "convictions": "Convictions"
+    }
+  },
+  "notifications_hub": {
+    "title": "Notifications",
+    "subtitle": "What LIA sent you, and what is coming.",
+    "page_info": "Page {{current}} / {{total}}",
+    "total_items": "({{count}} in total)",
+    "advanced_title": "Advanced settings",
+    "advanced_hint": "Each section is tuned in detail in the settings.",
+    "sections": {
+      "peer_messages": {
+        "title": "Relayed messages",
+        "subtitle": "Messages exchanged with your LIA connections, newest first.",
+        "empty": "No relayed message yet.",
+        "error": "Could not read the relayed messages."
+      },
+      "proactive": {
+        "title": "Proactive notifications",
+        "subtitle": "What LIA chose to tell you of its own accord.",
+        "empty": "No proactive notification yet.",
+        "error": "Could not read the proactive notifications."
+      },
+      "interests": {
+        "title": "Interests",
+        "subtitle": "What LIA sent you about the topics you follow.",
+        "empty": "No interest notification yet.",
+        "error": "Could not read the interest notifications."
+      },
+      "reminders": {
+        "title": "Reminders",
+        "subtitle": "Upcoming reminders. A reminder is deleted once it fires: this lists the future, not a history.",
+        "empty": "No pending reminder.",
+        "error": "Could not read the reminders."
+      },
+      "scheduled": {
+        "title": "Scheduled actions",
+        "subtitle": "Your routines and their next run.",
+        "empty": "No scheduled action.",
+        "error": "Could not read the scheduled actions."
+      }
+    },
+    "direction_received": "Received",
+    "direction_sent": "Sent",
+    "message_no_content": "The content is no longer kept.",
+    "reminder_at": "On {{when}}",
+    "next_run": "Next run: {{when}}",
+    "next_run_unknown": "Next run unknown",
+    "routine_disabled": "Disabled",
+    "advanced_links": {
+      "peer_messages": "LIA connections",
+      "proactive": "Proactivity",
+      "interests": "Interests",
+      "scheduled": "Routines",
+      "device": "Device notifications"
+    }
+  },
+  "provenance": {
+    "title": "Why does LIA think this?",
+    "empty": "No source signal recorded for this conclusion.",
+    "error": "Could not read the source signals.",
+    "source_deleted": "The source conversation was deleted — only its date remains.",
+    "count": "{{total}} signal(s) kept — at most {{cap}} per conclusion.",
+    "correct": "Correct this",
+    "outcome": {
+      "origin": "Origin",
+      "evidence": "Confirmation",
+      "contradiction": "Contradiction"
+    }
+  },
+  "capabilities": {
+    "title": "LIA’s capabilities",
+    "subtitle": "What your assistant can do, and what is waiting to light up.",
+    "map_title": "Your constellation",
+    "map_eyebrow": "Capability chart",
+    "magnitude": "{{count}} item(s)",
+    "map_count": "{{live}} capability(ies) active out of {{total}} available.",
+    "legend_active": "Filled: active",
+    "legend_dormant": "Outlined: waiting for you",
+    "legend_size": "Size: what it holds",
+    "state_active": "Active — {{count}} item(s)",
+    "state_active_plain": "Active",
+    "state_dormant": "To set up",
+    "node_active": "{{name}} — active, {{count}} item(s)",
+    "node_active_plain": "{{name}} — active",
+    "node_dormant": "{{name}} — to set up",
+    "error": "Could not read your capabilities.",
+    "empty": "No capability available on this instance.",
+    "nodes": {
+      "connectors": "Connectors",
+      "memory": "Memory",
+      "personality": "Personality",
+      "voice": "Voice",
+      "proactivity": "Proactivity",
+      "interests": "Interests",
+      "routines": "Routines",
+      "relations": "Relationships",
+      "peers": "LIA connections",
+      "channels": "Channels",
+      "spaces": "Spaces",
+      "journals": "Journals",
+      "skills": "Skills"
     }
   }
 }

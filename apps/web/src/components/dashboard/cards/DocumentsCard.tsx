@@ -3,10 +3,9 @@
 import { ExternalLink, FileText, MessageCircleQuestion, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
-import { CardItemActions, CARD_ITEM_ACTION_CLASS } from './CardItemActions';
+import { CardItemRow } from './CardItemRow';
 import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
-import { cn } from '@/lib/utils';
 import type { CardSection, DocumentsData } from '@/types/briefing';
 
 interface DocumentsCardProps {
@@ -77,58 +76,49 @@ function DocumentsContent({
           subject: doc.name,
         });
         return (
-          // items-center: the icon actions share one vertical centre line with
-          // the single-line item text (baseline alignment left the icons off).
-          <li key={index} className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => onOpenChat(intent)}
-              aria-label={intent}
-              className="min-w-0 flex-1 text-left flex items-baseline justify-between gap-2 text-sm rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span className="truncate font-medium text-foreground/90">{doc.name}</span>
-              <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                {doc.modified_local}
-              </span>
-            </button>
-            <CardItemActions
-              actions={[
-                {
-                  icon: Sparkles,
-                  label: summarizeIntent,
-                  onSelect: () => onExecute(summarizeIntent),
-                },
-                {
-                  icon: MessageCircleQuestion,
-                  label: t('dashboard.briefing.intents_exec.document_ask_label', {
-                    subject: doc.name,
-                  }),
-                  onSelect: () => onOpenChat(askDraft),
-                },
-              ]}
-              // The Drive-open link rides in the SAME icon cluster (one gap,
-              // one centre line, same box) — its indigo hover keeps it
-              // distinct without breaking the alignment.
-              trailing={
-                doc.web_view_link ? (
-                  <a
-                    href={doc.web_view_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={t('dashboard.briefing.cards.documents.open_external', {
-                      subject: doc.name,
-                    })}
-                    className={cn(
-                      CARD_ITEM_ACTION_CLASS,
-                      'hover:text-indigo-600 dark:hover:text-indigo-300'
-                    )}
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                  </a>
-                ) : null
-              }
-            />
-          </li>
+          <CardItemRow
+            key={index}
+            ariaLabel={intent}
+            tooltip={doc.name}
+            onSelect={() => onOpenChat(intent)}
+            align="center"
+            contentClassName="flex items-baseline justify-between gap-2 text-sm"
+            actions={[
+              {
+                icon: Sparkles,
+                label: summarizeIntent,
+                onSelect: () => onExecute(summarizeIntent),
+              },
+              {
+                icon: MessageCircleQuestion,
+                label: t('dashboard.briefing.intents_exec.document_ask_label', {
+                  subject: doc.name,
+                }),
+                onSelect: () => onOpenChat(askDraft),
+              },
+              // Opening the file in Drive joins the menu as a real anchor
+              // (`href`) rather than sitting beside it as a fourth icon: it was
+              // the widest row of the grid, and navigation deserves the
+              // browser's own affordances — middle-click, context menu,
+              // status-bar preview.
+              ...(doc.web_view_link
+                ? [
+                    {
+                      icon: ExternalLink,
+                      label: t('dashboard.briefing.cards.documents.open_external', {
+                        subject: doc.name,
+                      }),
+                      href: doc.web_view_link,
+                    },
+                  ]
+                : []),
+            ]}
+          >
+            <span className="truncate font-medium text-foreground/90">{doc.name}</span>
+            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+              {doc.modified_local}
+            </span>
+          </CardItemRow>
         );
       })}
     </ul>

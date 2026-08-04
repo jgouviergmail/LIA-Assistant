@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.domains.interests.models import InterestCategory, InterestFeedback, InterestStatus
 
@@ -96,11 +96,38 @@ class InterestFeedbackRequest(BaseModel):
         description=(
             "Run identifier of the notification card the verdict came from, as "
             "carried in its archived metadata. When present the audit trail "
-            "records the verdict on that exact notification; when absent (older "
-            "cards, or feedback given from the settings list) only the interest "
-            "itself is updated — the audit is never attributed by guesswork."
+            "records the verdict on that exact notification, and only that "
+            "card is marked as answered; when absent (older cards, or feedback "
+            "given from the settings list) only the interest itself is updated "
+            "— the audit is never attributed by guesswork."
         ),
     )
+
+    @field_validator("run_id")
+    @classmethod
+    def blank_run_id_is_absent(cls, value: str | None) -> str | None:
+        """Read a blank run_id as no run_id at all.
+
+        An empty (or whitespace-only) string identifies nothing, and the two
+        consumers of this field branch on it differently: the audit write tests
+        truthiness, the archived-card write compares the value against stored
+        metadata. Left as ``""`` they would disagree — the audit skipped, the
+        card write narrowed to a run_id no row carries — and the verdict would
+        reach the interest and nothing else, in silence.
+
+        Normalising at the boundary keeps every consumer honest without each
+        one remembering to write ``or None``.
+
+        Args:
+            value: The raw run_id, if the client sent one.
+
+        Returns:
+            The trimmed identifier, or None when it carries no information.
+        """
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped or None
 
 
 class InterestListResponse(BaseModel):
@@ -282,4 +309,47 @@ class InterestNotificationHistoryResponse(BaseModel):
             "Exact count over the whole set, never the page length (ADR-185): "
             "the panel states the cap instead of applying it in silence."
         )
+    )
+
+
+class InterestExplanation(BaseModel):
+    """Why an interest weighs what it weighs — inputs AND coefficients.
+
+    Published rather than summarised: the reader can recompute the number the
+    ranking applies, which is the difference between an explanation and a
+    reassurance. Deliberately carries no rank, no level and no comparison —
+    a Beta mean IS an uncertainty estimate, and "two signals, so this is a
+    guess" helps someone deciding whether to block a subject in a way no score
+    ever could.
+    """
+
+    positive_signals: int = Field(ge=0, description="Reinforcements observed.")
+    negative_signals: int = Field(ge=0, description="Rejections observed.")
+    prior_alpha: float = Field(gt=0, description="Beta prior alpha (optimistic start).")
+    prior_beta: float = Field(gt=0, description="Beta prior beta.")
+    base_weight: float = Field(ge=0.0, le=1.0, description="Beta mean before any temporal decay.")
+    decay_rate_per_day: float = Field(
+        gt=0, description="Fraction of weight lost per day without a mention."
+    )
+    decay_floor: float = Field(
+        gt=0,
+        description=(
+            "Floor under the decay. Without it a long-unmentioned interest "
+            "would reach zero, never be notified, and therefore never be "
+            "mentioned again."
+        ),
+    )
+    days_since_last_mention: int = Field(ge=0, description="Days since the last mention.")
+    effective_weight: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="What the ranking actually applies — base weight times decay.",
+    )
+    last_mentioned_at: datetime = Field(description="Last time the subject came up.")
+    last_notified_at: datetime | None = Field(
+        default=None, description="Last time LIA wrote about it; None if never."
+    )
+    status: str = Field(description="active / dormant / blocked.")
+    dormant_since: datetime | None = Field(
+        default=None, description="When it went dormant, if it did."
     )

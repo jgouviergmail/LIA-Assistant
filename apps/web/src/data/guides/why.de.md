@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 4.1
-**Datum**: 2026-08-03
-**Anwendung**: LIA v1.27.8
+**Version**: 4.2
+**Datum**: 2026-08-04
+**Anwendung**: LIA v1.27.9
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -292,6 +292,16 @@ Dasselbe Prinzip gilt für die Schutzmaßnahmen selbst. Sicherheit, die angekün
 Ein Test, der nie läuft, ebenso wenig — und das ist die unbequemste Entdeckung dieses Projekts. Zehn Testdateien hatten sich selbst abgeschaltet, sobald ein Provider-Schlüssel fehlte, und nichts meldete es mehr: ein übersprungener Test zählt als grün, Coverage misst erreichte Zeilen statt ausgeführter Zusicherungen, und eine Review sieht eine Testdatei und schließt daraus, die Fläche sei geschützt. Zweihundertneunzehn Tests waren kein einziges Mal gelaufen; beim Wiedereinschalten kamen vier echte Defekte zum Vorschein — darunter eine Stimme, die jede Zahl in zwei Teile zerschnitt, und eine Erinnerung, die endgültig verloren ging, wenn das Nutzungsbudget in der falschen Minute aufgebraucht war. Das Fehlen eines roten Signals ist kein Gesundheitsnachweis: manchmal ist es nur das Fehlen der Messung. Eine CI-Wache verhindert nun, dass ein Testmodul stillschweigend verstummt.
 
 Dasselbe Prinzip gilt für das, was **angekündigt** wird. Eine Oberfläche zeigte einen Schalter „hybride Suche" für das Gedächtnis; die zugehörige Maschinerie existierte seit mehreren Versionen nicht mehr, und der Schalter steuerte nichts. Toter Code und Anzeige wurden gemeinsam entfernt und das tatsächliche Verhalten an ihre Stelle geschrieben. Eine angekündigte, aber abwesende Fähigkeit ist keine Ungenauigkeit der Dokumentation: Sie ist ein Versprechen an einen Nutzer, der es nicht überprüfen kann. Eine Einstellung anzuzeigen, die nichts steuert, ist schlimmer, als nichts anzuzeigen.
+
+### 6.5. Warum LIA das denkt
+
+Ein Assistent, der sich Dinge merkt, behauptet sie am Ende auch. „Sie bevorzugen Vormittagstermine“, „dieses Thema interessiert Sie“: nützliche Schlussfolgerungen, aber unüberprüfbar, solange man nicht zurückverfolgen kann, was sie hervorgebracht hat.
+
+Unter jeder Erinnerung, jedem Journaleintrag und jedem Interesse zeigt LIA deshalb die Signale, die dorthin geführt haben: die Unterhaltung, das Datum und die Rolle des Signals — was die Schlussfolgerung hervorgebracht, was sie bestätigt, was sie in Zweifel gezogen hat. Eine Schaltfläche erlaubt es, die Schlussfolgerung an ihrer Quelle zu korrigieren.
+
+Aufbewahrt wird ein **Verweis, niemals eine Kopie**. Ihr Text bleibt dort, wo Sie ihn geschrieben haben, und wenn Sie die Unterhaltung löschen, kehrt er nirgends zurück: Der Verweis leert sich, die Zeile bleibt datiert, und LIA sagt schlicht, das Signal sei gelöscht worden. Eine Löschung muss eine Löschung bleiben — sonst würde Ihnen auf der einen Seite wieder vorgesetzt, was Sie auf der anderen getilgt haben.
+
+Dasselbe Prinzip gilt für das Gewicht eines Interesses: Es erklärt sich, statt sich zu benoten. Das ursprüngliche Signal, die letzte Erwähnung, die Berechnung selbst — genug, um die Rechnung nachzuvollziehen. Diese Unsicherheit in eine Punktzahl zu verwandeln lüde zu einem Wettbewerb ein, den niemand verlangt hat, und lehrte dabei nichts weiter.
 
 ## 7. Emotionale Tiefe
 

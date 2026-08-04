@@ -9,7 +9,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
-import type { RelationDetail, RelationPeerLink, RelationPeerMessage } from '@/hooks/useRelations';
+import type {
+  ContextSection,
+  RelationContext,
+  RelationDetail,
+  RelationPeerLink,
+  RelationPeerMessage,
+} from '@/hooks/useRelations';
 
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
@@ -698,13 +704,87 @@ describe('acting on a commitment from the sheet', () => {
   });
 });
 
+/** A section carrying real payload — the provider blocks self-hide otherwise. */
+function section(over: Partial<ContextSection> = {}): ContextSection {
+  return {
+    status: 'ok',
+    from_cache: false,
+    generated_at: '2026-08-03T09:00:00Z',
+    contact: null,
+    emails: [],
+    events: [],
+    ...over,
+  };
+}
+
+/** Contact + mail + meetings, so all three provider sections actually render. */
+function providerContext(): RelationContext {
+  return {
+    contact: section({
+      contact: {
+        display_name: 'Marie Client',
+        nickname: null,
+        organization: 'Atelier',
+        occupation: 'Menuisière',
+        birthday: null,
+        biography: null,
+        emails: [{ value: 'marie@client.fr', label: null }],
+        phones: [],
+        addresses: [],
+        relations: [],
+        links: [],
+        important_dates: [],
+        messaging: [],
+      },
+    }),
+    emails: section({
+      emails: [
+        {
+          id: 'm1',
+          direction: 'received',
+          subject: 'Devis atelier',
+          occurred_at: '2026-08-01T08:00:00Z',
+          excerpt: 'Bonjour,',
+        },
+      ],
+    }),
+    events: section({
+      events: [
+        {
+          id: 'e1',
+          summary: 'Point chantier',
+          starts_at: '2026-08-10T09:00:00Z',
+          ends_at: null,
+          is_past: false,
+          role: 'attendee',
+          organizer_known: true,
+        },
+      ],
+    }),
+    addresses_used: 1,
+    window_days: 30,
+    email_window_days: 30,
+  };
+}
+
+/** True when `first` really precedes `second` in tree order. */
+function precedes(first: HTMLElement, second: HTMLElement): boolean {
+  return Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
+}
+
+/**
+ * The HEADING of a foldable section, not any occurrence of its label.
+ *
+ * The scope selector lists the same section names as checkbox labels, so a
+ * bare `getByText` matches two nodes and the ordering oracle would silently
+ * read the wrong one.
+ */
+function sectionHeading(labelKey: string): HTMLElement {
+  return screen.getByRole('button', { name: new RegExp(`^${labelKey}`) });
+}
+
 describe('the order of the sheet is a contract, not a coincidence', () => {
-  it('opens with the address book and ends the left column with the LIA link', async () => {
-    // Explicit request (2026-08-02): the contact sheet is the answer to "which
-    // person is this?", so it leads; the LIA link is a note ABOUT the
-    // relationship rather than one of its contents, so it trails. Asserting on
-    // DOM ORDER rather than CSS: the grid never reorders, so this is also what
-    // a screen reader announces.
+  beforeEach(() => {
     useRelationDetail.mockReturnValue({
       detail: detail({
         is_peer: true,
@@ -719,47 +799,64 @@ describe('the order of the sheet is a contract, not a coincidence', () => {
       refetch: vi.fn(),
     });
     useRelationContext.mockReturnValue({
-      context: {
-        contact: {
-          status: 'ok',
-          contact: {
-            nickname: null,
-            organization: 'Atelier',
-            occupation: 'Menuisière',
-            birthday: null,
-            biography: null,
-            emails: [{ value: 'marie@client.fr', label: null }],
-            phones: [],
-            addresses: [],
-            relations: [],
-            links: [],
-            important_dates: [],
-            messaging: [],
-          },
-        },
-        // `providerNoteKey` reads `.status` on all three sections — a null here
-        // is not a lighter fixture, it is a different scenario.
-        emails: { status: 'empty', items: [] },
-        events: { status: 'empty', items: [] },
-        window_days: 30,
-        email_window_days: 30,
-      },
+      context: providerContext(),
       loading: false,
       refreshing: [],
       error: false,
       refreshSections: vi.fn(),
     });
+  });
+
+  it('opens with the address book', () => {
+    // Explicit request (2026-08-02): the contact sheet is the answer to "which
+    // person is this?", so it leads. Asserting on DOM ORDER rather than CSS:
+    // the grid never reorders, so this is also what a screen reader announces.
     renderPanel();
 
-    const headings = screen
-      .getAllByRole('button')
-      .map(node => node.textContent ?? '')
-      .filter(text => /relations\.section_/.test(text));
+    expect(
+      precedes(
+        sectionHeading('relations.section_contact'),
+        sectionHeading('relations.section_open_loops')
+      )
+    ).toBe(true);
+  });
 
-    const contact = headings.findIndex(text => text.includes('relations.section_contact'));
-    const peerLink = headings.findIndex(text => text.includes('relations.section_peer_link'));
+  // Explicit request (2026-08-03): on a phone the two columns stack, so the LIA
+  // link — last of the LEFT column — landed in the MIDDLE of the page, between
+  // the relayed messages and the mail. No `order-*` class can fix that: the
+  // block is a child of the left column, not a sibling of the right one's
+  // sections. It now sits below the whole grid, in ONE DOM for every width —
+  // a duplicated `hidden lg:block` pair would give assistive technology two
+  // headings for one block.
+  //
+  // The previous version of this test was VACUOUS: it looked for
+  // `relations.section_peer_link` (a key that does not exist; the real one is
+  // `relations.peer_link_title`) among elements with role `button` (the block
+  // is a plain `<h3>`, not a disclosure). The index was therefore always -1 and
+  // the assertion sat behind `if (peerLink >= 0)`, so it never ran.
+  it('ends the sheet with the LIA link, after the provider sections', () => {
+    renderPanel();
 
-    expect(contact).toBeGreaterThanOrEqual(0);
-    if (peerLink >= 0) expect(peerLink).toBeGreaterThan(contact);
+    const peerLink = screen.getByText('relations.peer_link_title');
+
+    for (const earlier of [
+      'relations.section_contact',
+      'relations.section_open_loops',
+      'relations.section_emails',
+      'relations.section_events',
+    ]) {
+      expect(precedes(sectionHeading(earlier), peerLink)).toBe(true);
+    }
+  });
+
+  it('keeps the merge tool below it — a correction, not a section', () => {
+    renderPanel();
+
+    expect(
+      precedes(
+        screen.getByText('relations.peer_link_title'),
+        screen.getByText('relations.merge_title')
+      )
+    ).toBe(true);
   });
 });

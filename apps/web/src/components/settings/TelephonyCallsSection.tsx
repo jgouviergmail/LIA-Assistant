@@ -22,6 +22,7 @@ import { PhoneCall, Loader2 } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/client';
 import { CallDebrief } from '@/components/telephony/CallDebrief';
+import { CallDecisions } from '@/components/telephony/CallDecisions';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useTelephonyCalls } from '@/hooks/useTelephonyCalls';
 import { cn } from '@/lib/utils';
@@ -74,6 +75,16 @@ function CallRow({ call, lng }: { call: TelephonyCallSummary; lng: Language }) {
       {call.summary && <p className="mt-1 text-sm">{call.summary}</p>}
       {/* T01: the structured debrief, ACTIONABLE here — each follow-up can be
           sent to the chat as an executable intent (ADR-173). */}
+      {/* Decisions BEFORE the debrief: a surcharge or an option left open is
+          what the reader has to answer, while the lists below are what the
+          call produced. Reading order follows what has to be acted on. */}
+      <CallDecisions
+        data={call.structured_data}
+        calleeDisplay={call.callee_display}
+        objective={call.objective}
+        lng={lng}
+        actionable
+      />
       {call.debrief && <CallDebrief debrief={call.debrief} lng={lng} actionable />}
       <p className="mt-1 text-[11px] text-muted-foreground/80">
         {Number.isNaN(started.getTime())

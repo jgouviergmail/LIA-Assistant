@@ -81,9 +81,7 @@ describe('ResultsSummary — outcomes first', () => {
 
 describe('ResultsSummary — states', () => {
   it('shows a loading indicator on FIRST load only', () => {
-    renderWithProviders(
-      <ResultsSummary {...makeProps({ results: undefined, firstLoad: true })} />
-    );
+    renderWithProviders(<ResultsSummary {...makeProps({ results: undefined, firstLoad: true })} />);
 
     expect(screen.getByRole('status')).toBeInTheDocument();
   });

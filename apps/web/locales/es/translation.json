@@ -174,7 +174,9 @@
       "relations": "Relaciones",
       "help_sub": "FAQ y soporte",
       "settings_sub": "Conectores y preferencias",
-      "relations_sub": "Tus contactos de un vistazo"
+      "relations_sub": "Tus contactos de un vistazo",
+      "capabilities": "Capacidades",
+      "capabilities_sub": "Tu constelación"
     },
     "briefing": {
       "section_title": "Mi panel",
@@ -199,6 +201,7 @@
         "retry": "Reintentar"
       },
       "actions": {
+        "more": "Más acciones",
         "reconnect": "Reconectar",
         "retry": "Reintentar",
         "retry_later": "Intentar más tarde",
@@ -3035,6 +3038,7 @@
         "uncertainties": "Por verificar",
         "draft": "Borrador de seguimiento",
         "use_draft": "Usar este borrador en el chat",
+        "prefill_aria": "Preparar en el chat: {{sentence}}",
         "draft_prefill": "Envía este mensaje de seguimiento: {{draft}}",
         "intent_task": "Crea una tarea: {{item}}",
         "intent_reminder": "Crea un recordatorio: {{item}}"
@@ -3058,6 +3062,16 @@
           "declined": "Rechazada",
           "unreachable": "Ilocalizable"
         }
+      },
+      "decisions": {
+        "title": "Por decidir",
+        "proposed": "Propuesto: {{when}} — {{where}}",
+        "no_date": "sin fecha indicada",
+        "no_place": "sin lugar indicado",
+        "extra_cost": "Coste adicional mencionado: {{cost}}. No se aceptó nada.",
+        "pending": "Queda a tu decisión: {{question}}",
+        "plan_meeting": "Preparar la reunión",
+        "meeting_draft": "Programa una reunión «{{subject}}» con {{invitee}}, el {{when}}, en {{where}}."
       }
     },
     "search": {
@@ -3094,12 +3108,12 @@
         "debug-panel": "desarrollador, diagnóstico, trazas, técnico, solución de problemas",
         "personality": "tono, estilo, carácter, comportamiento, persona, voz",
         "psyche": "emociones, estado de ánimo, sentimientos, afecto, emocional",
-        "memories": "memoria, recuerdos, recordar, olvidar, hechos",
-        "interests": "temas, gustos, materias, curiosidad, preferencias, historial, notificaciones recientes",
+        "memories": "memoria, recuerdos, recordar, olvidar, hechos, procedencia, por qué, fuente, señal, origen, corregir",
+        "interests": "temas, gustos, materias, curiosidad, preferencias, historial, notificaciones recientes, procedencia, por qué, peso, explicación, decaimiento, fuente",
         "peer-connections": "contactos, amigos, familia, red, compartir calendario, disponibilidad, bloquear, descubrir usuarios, conectar, mi nombre, copiar mi nombre, solicitud de conexión, historial de accesos, transmitir mensaje, usuarios bloqueados, allegados, red social, peer, descubrimiento, visibilidad, compartir mi dirección, email visible, mi correo, resumen 360",
         "heartbeat": "proactivo, espontáneo, iniciativa, contacto, mensajes autónomos, temas de las notificaciones, fuentes, historial, notificaciones recientes",
         "scheduled-actions": "cron, programación, recurrente, automatización, temporizador, planificado",
-        "journals": "diario, bitácora, retrato, reflexiones, notas",
+        "journals": "diario, bitácora, retrato, reflexiones, notas, procedencia, por qué, fuente, señal, origen, corregir",
         "health-metrics": "frecuencia cardíaca, pasos, sueño, iPhone, Apple Salud, forma física, actividad",
         "skills": "habilidades, capacidades, competencias, plugins, extensiones",
         "rag-spaces": "documentos, RAG, base de conocimiento, archivos, subida, indexación, biblioteca",
@@ -3336,7 +3350,8 @@
     "logout": "Cerrar sesión",
     "profile": "Perfil",
     "faq": "Ayuda",
-    "relations": "Relaciones"
+    "relations": "Relaciones",
+    "notifications": "Avisos"
   },
   "errors": {
     "generic": "Ocurrió un error",
@@ -3849,6 +3864,14 @@
         "relations": {
           "title": "⭐ CRM personal — Relaciones",
           "description": "Una <b>lente, no una base de datos</b>: la página Relaciones reúne lo que LIA ya sabe de cada persona — compromisos abiertos, llamadas, recuerdos, mensajes retransmitidos — con una identidad resuelta plegando acentos y mayúsculas y una confianza que se <b>muestra</b> (exacta o normalizada). Cada sección lleva su total <b>exacto</b>, salido de un agregado sobre todo el conjunto y no del largo de una página. Tres secciones vienen de las cuentas conectadas — ficha de la libreta, correos, reuniones — localizadas por <b>dirección</b> y no por nombre, con caché por sección y periodo indicado en vez de un total que ninguna página de proveedor demuestra. Se guardan dos cosas: la estrella de favoritos y el <b>alcance del resumen 360°</b>, que la herramienta lee en lugar de adivinarlo. Lanzar un 360° desde la ficha ya no envía solo una frase: la <b>capacidad invocada</b> viaja como datos, de modo que la herramienta figura en el plan sobre la persona correcta, y las búsquedas genéricas que esa herramienta ya cubre se retiran — una respuesta sin relación junto a una carencia declarada la contradiría. Un usuario conectado ausente de la agenda aporta por fin su propia dirección, pero <b>solo si la ha compartido</b>: su ajuste sigue siendo lo único que decide."
+        },
+        "provenance": {
+          "title": "🔍 Procedencia de las conclusiones",
+          "description": "Un recuerdo afirma «prefiere las reuniones por la mañana»; una entrada de diario concluye sobre un estado de ánimo. Cada uno lleva ahora una referencia <b>acotada</b> a las señales que lo produjeron: conversación, turno preciso, fecha y uno de tres papeles — <b>origen</b>, <b>confirmación</b>, <b>contradicción</b>. Lo que se almacena es un puntero y una marca de tiempo, <b>nunca el texto</b>: una copia sería un segundo domicilio permanente para contenido que el usuario puede borrar en otro sitio, y su borrado dejaría de serlo. Las claves hacia la conversación y el mensaje son por eso <code>SET NULL</code>: borrar una conversación <b>vacía la referencia y deja la fila</b>, fechada — una lápida, que dice que una señal existió sin devolverla jamás. El rastro está acotado a cinco referencias por conclusión, podando las más antiguas al escribir, y ese límite se <b>publica</b> en la respuesta: un límite aplicado en silencio no es un contrato. Una restricción de esquema impone exactamente un sujeto por fila, y la escritura queda aislada en un punto de guardado — explica una conclusión, nunca la condiciona."
+        },
+        "capabilityMap": {
+          "title": "🌌 Mapa de capacidades",
+          "description": "Una carta celeste de lo que el asistente sabe hacer realmente por <b>esta cuenta</b>. Cada capacidad es una estrella: <b>llena</b> cuando es verdaderamente utilizable, <b>en contorno</b> cuando espera a ser configurada, y su tamaño viene de lo que contiene — cuatrocientos recuerdos brillan más que tres. La figura une solo las capacidades activas, en <b>orden angular</b>: su forma es por tanto la configuración de esta cuenta y de ninguna otra. Una capacidad que la instancia ha desactivado está <b>ausente</b>, nunca atenuada — un control que el producto no puede honrar es peor que uno ausente. El estado se resuelve en <b>una sola pasada del servidor</b>, cada sonda en su propia sesión, y una sonda fallida degrada a «no lista» en vez de vaciar todo el mapa. Nada de lo publicado es un nivel, un porcentaje de avance o una comparación: «tres conectores enlazados» es un hecho, «62 %» sería una competición. El dibujo es decorativo; todo lo alcanzable es un enlace con nombre, manejable con teclado. Una pantalla estrecha, o una petición de quietud, recibe el mismo mapa en lista — mismos datos, mismo orden, mismos destinos."
         }
       },
       "diagram_alt": "Diagrama de arquitectura de LIA"
@@ -3857,6 +3880,23 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_27_9": {
+          "title": "v1.27.9 — 🔭 Por qué LIA piensa eso, y qué sabe hacer",
+          "date": "Agosto 2026",
+          "count": "10",
+          "items": {
+            "i1": "<b>🔍 «¿Por qué LIA piensa eso?» bajo cada recuerdo y cada entrada de diario</b> — un bloque plegado muestra las señales que originaron la conclusión, su fecha y su papel, con un botón <b>Corregir</b>. Lo que se guarda es una <b>referencia, nunca una copia</b>: su texto se queda donde lo escribió. Elimine la conversación y la referencia se vacía mientras la fila fechada permanece: el contenido nunca vuelve. Ajustes → Recuerdos, o Ajustes → Diarios.",
+            "i2": "<b>🔔 Un destino «Alertas» para todo lo que se le ha dirigido</b> — mensajes retransmitidos entre pares, notificaciones proactivas, notificaciones de intereses, recordatorios pendientes y rutinas programadas, en una sola pantalla en lugar de cinco paneles de ajustes distintos. Las secciones llegan plegadas, se paginan de diez en diez, y una sección cerrada no cuesta ninguna petición. Sus enlaces de ajustes habituales siguen funcionando.",
+            "i3": "<b>🌌 Una carta celeste de sus capacidades</b> — cada capacidad es una estrella: llena cuando está activa, en contorno cuando espera a encenderse, y su tamaño dice lo que contiene. La figura une solo las activas, así que su forma es su configuración. Sin niveles, sin porcentajes, sin comparación con nadie. Inicio → Capacidades.",
+            "i4": "<b>📈 El peso de un interés se explica</b> — la señal de origen, la última mención, la última notificación y el propio cálculo. Explicar una incertidumbre es más útil que convertirla en una puntuación. Ajustes → Intereses, bajo cada tema.",
+            "i5": "<b>📞 Ninguna opción propuesta por teléfono se acepta en su lugar</b> — las acciones de un resumen de llamada ahora <b>preparan</b> el mensaje en vez de enviarlo, y lo que la otra parte propuso realmente (fecha, lugar, coste adicional) aparece <b>antes</b> de las acciones posibles.",
+            "i6": "<b>✍️ Los títulos de sus tarjetas ya no se truncan</b> — hasta cuatro botones de acción por fila se comían un tercio del ancho. Ahora un único disparador abre el menú de acciones, de modo que todas las filas de todas las tarjetas tienen el mismo ancho de texto. La etiqueta completa aparece al pasar el cursor.",
+            "i7": "<b>👍 Su opinión sobre una notificación de interés por fin se registra</b> — la tarjeta archivada y la ruta de registro usaban dos identificadores distintos. Un voto también marcaba <b>todas</b> las demás tarjetas de la conversación como juzgadas: corregido en ambos sentidos.",
+            "i8": "<b>🎨 Treinta y un lugares de la interfaz no pintaban nada, o pintaban negro</b> — información sobre herramientas de los gráficos de salud y personalidad, degradados, animaciones: una sintaxis de color heredada de una versión anterior del motor de estilos, inválida desde la migración.",
+            "i9": "<b>🧮 Su clasificación de intereses y el peso mostrado ya no discrepan</b> — dos cálculos llevaban cada uno su propio valor por defecto; ahora solo hay uno.",
+            "i10": "<b>🔗 «Conexión LIA» es la última sección de una ficha de relación en móvil</b> — igual que en pantalla grande, y una sola vez en la página."
+          }
+        },
         "v1_27_8": {
           "title": "v1.27.8 — 🧭 Lo que LIA produjo, y lo que puede interrumpirte",
           "date": "Agosto de 2026",
@@ -5676,7 +5716,7 @@
       "settings": {
         "title": "Configuración",
         "description": "Configuración de cuenta y preferencias",
-        "count": "19",
+        "count": "20",
         "questions": {
           "q1": {
             "question": "¿Cómo cambio mi zona horaria?",
@@ -5753,6 +5793,10 @@
           "q19": {
             "question": "¿Cómo encuentro un ajuste rápidamente?",
             "answer": "<p>La página de ajustes apila una treintena de secciones plegadas en varias pestañas. El campo <strong>«Buscar un ajuste»</strong>, bajo las pestañas, evita recorrerlas una a una.</p><strong>Lo que entiende la búsqueda:</strong><br>• El <strong>título</strong> y la <strong>descripción</strong> de cada sección<br>• <strong>Sinónimos</strong> traducidos: «modo oscuro» para la apariencia, «2FA» o «TOTP» para la autenticación fuerte, «RGPD» para la exportación de datos, «cron» para las acciones programadas<br>• Los acentos y los apóstrofos se ignoran — «theme» encuentra «Thème»<br><br><strong>Cuando eliges un resultado:</strong><br>LIA cambia a la pestaña correcta, despliega la sección y lleva allí el cursor. Todo funciona con el teclado — flechas para recorrer, Intro para abrir, Escape para cerrar — y el número de resultados se anuncia a los lectores de pantalla.<br><br>Algunas secciones solo existen si la función está activa en tu cuenta: LIA te lo indica en ese caso, en lugar de dejarte ante una página que no ha cambiado."
+          },
+          "q20": {
+            "question": "¿Dónde veo todo lo que LIA me ha enviado, sin rebuscar en los ajustes?",
+            "answer": "El destino <b>Alertas</b> de la barra de navegación reúne cinco flujos en una sola pantalla: mensajes retransmitidos entre pares, notificaciones proactivas, notificaciones de intereses, recordatorios pendientes y rutinas programadas. Cada sección llega plegada, se pagina de diez en diez y muestra su total exacto. Una sección cerrada no cuesta ninguna petición; abrirla cuesta exactamente una. Los paneles de ajustes siguen siendo la configuración detallada de cada uno de esos flujos, y todos los enlaces que había guardado siguen funcionando."
           }
         }
       },
@@ -5822,7 +5866,7 @@
       "telephony": {
         "title": "Llamadas telefónicas",
         "description": "LIA puede hacer llamadas telefónicas reales por ti. Guía de configuración completa (Twilio + ElevenLabs) y uso diario.",
-        "count": "13",
+        "count": "14",
         "questions": {
           "q1": {
             "question": "¿Qué puede hacer LIA por teléfono?",
@@ -5875,6 +5919,10 @@
           "q13": {
             "question": "¿Puedo seguir una llamada mientras ocurre?",
             "answer": "Sí. En cuanto LIA marca, aparece un aviso sobre la conversación: a quién llama y en qué punto está la llamada. Desaparece en el momento en que la llamada termina.<br><br><strong>📒 Después:</strong><br>El historial está en <b>Ajustes → Preferencias → Llamadas recientes</b>: nombre, objetivo, estado, resultado y resumen. Nunca el número — la API no lo expone. La sección no aparece si nunca has hecho una llamada.<br><br><strong>⚠️ Si la llamada es rechazada:</strong><br>El mensaje lo dice claramente y distingue dos casos: una avería pasajera (reintentar tiene sentido) y un rechazo del operador — número emisor sin verificar, saldo agotado — donde reintentar no cambia nada mientras no se resuelva de su lado.<br><br><strong>🔎 También los hechos:</strong> el debrief lista igualmente la información concreta obtenida durante la llamada — horarios, disponibilidad, la respuesta esperada — incluso cuando no hay nada que hacer después."
+          },
+          "q14": {
+            "question": "¿Puede LIA aceptar una fecha o un suplemento propuesto durante la llamada?",
+            "answer": "No, nunca automáticamente. El resumen de la llamada muestra primero <b>lo que la otra parte propuso realmente</b> — fecha, lugar, coste adicional, decisión pendiente — y luego, por separado, las acciones posibles: crear un recordatorio, asumir un compromiso, planificar un encuentro. Cada una <b>prepara</b> el mensaje en el redactor en lugar de enviarlo, y toda acción que escribe hacia fuera conserva su propia confirmación. Ningún camino convierte «la otra parte propuso X» en «usted aceptó X»."
           }
         }
       },
@@ -6148,7 +6196,7 @@
       "interests": {
         "title": "Intereses",
         "description": "Sugerencias proactivas personalizadas sobre sus temas favoritos",
-        "count": "8",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "¿Cómo aprende LIA mis intereses?",
@@ -6181,6 +6229,10 @@
           "q8": {
             "question": "¿Por qué LIA crea menos intereses nuevos que antes? (v1.25.29)",
             "answer": "Porque un tema que solo has consultado no es un gusto. Preguntar <em>qué es la fotosíntesis</em> creaba un interés duradero, y el motor proactivo volvía sobre ello durante semanas.<br><br><strong>🎯 Lo que hace falta ahora:</strong> una creación exige uno de los cuatro fundamentos, y LIA debe citar tus propias palabras que lo sostienen:<br>• Dices que te gusta o que sigues el tema<br>• Cuentas que lo practicas tú mismo<br>• Demuestras que ya lo conoces (vocabulario, una opinión que defiendes)<br>• Profundizas en el mismo tema varias veces en un intercambio<br><br><strong>🚪 Nunca un interés:</strong> el tema de una petición, un comentario sobre la propia LIA, el gusto de otra persona, algo probado una vez, una acción cotidiana (correo, agenda, tiempo) o cualquier cosa que LIA haya introducido por su cuenta.<br><br><strong>📊 Medido:</strong> en conversaciones reales, una de cada dos que no debía producir nada creaba un interés. Hoy ninguna, sin perder los auténticos."
+          },
+          "q9": {
+            "question": "¿Por qué este tema aparece más que otro?",
+            "answer": "Bajo cada interés, un bloque explica el peso sin convertirlo en una puntuación: la <b>señal de origen</b>, la <b>última mención</b>, la <b>última notificación</b>, los coeficientes del cálculo y los días transcurridos desde la última mención. Un tema del que ya nadie habla pierde peso gradualmente, hasta un mínimo — nunca desaparece del todo. Así que puede rehacer la operación usted mismo. No hay niveles, ni clasificación, ni comparación con otras cuentas: explicar una incertidumbre es más útil que convertirla en una competición."
           }
         }
       },
@@ -6425,7 +6477,7 @@
       "journals": {
         "title": "Diarios personales",
         "description": "Cuadernos de bitácora personales del asistente para sus reflexiones y aprendizajes",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "¿Qué son los diarios personales?",
@@ -6462,6 +6514,10 @@
           "q9": {
             "question": "¿Se llenan mis cuadernos si converso desde Telegram? (v1.25.28)",
             "answer": "<p>Sí. Antes no era así: una conversación mantenida desde una mensajería externa no alimentaba ni sus cuadernos de bitácora ni el estado emocional de LIA, aunque tuviera activadas esas funciones. Su ajuste estaba bien guardado — simplemente no se transmitía al procesar el mensaje.</p><p>Ahora, lo que hayas activado se aplica de forma idéntica escriba desde donde escriba: memoria a largo plazo, cuadernos de bitácora y estado de ánimo. Si los había desactivado, siguen desactivados en todas partes — lo que viaja es su ajuste, no un valor por defecto.</p>"
+          },
+          "q10": {
+            "question": "¿Por qué LIA escribió eso en mi diario?",
+            "answer": "Cada entrada lleva un bloque plegado «<b>¿Por qué LIA piensa esto?</b>» que enumera las señales tras la conclusión: la conversación, la fecha y el papel de la señal — origen, confirmación o contradicción. Un botón <b>Corregir</b> abre la entrada para editarla. Lo que se conserva es una referencia, nunca una copia de sus palabras: si elimina la conversación de origen, la referencia se vacía y la fila fechada permanece, indicando que la señal fue eliminada. El rastro se limita a las cinco señales más recientes, y ese límite aparece bajo la lista."
           }
         }
       },
@@ -6752,7 +6808,7 @@
       },
       "card_actions": {
         "title": "Actúa desde la tarjeta",
-        "desc": "Resumir, responder, completar, posponer — en la propia tarjeta del resumen."
+        "desc": "Resumir, responder, completar, posponer — tras un único disparador, para que el título conserve todo su espacio."
       },
       "honest_freshness": {
         "title": "Reciente, u honestamente antigua",
@@ -6893,6 +6949,18 @@
       "folded_settings": {
         "title": "Los ajustes, plegados",
         "desc": "Los once temas de notificación y los historiales siguen cerrados. Abres lo que venías a cambiar — y un bloque cerrado no carga nada."
+      },
+      "provenance_why": {
+        "title": "Por qué LIA piensa eso",
+        "desc": "Bajo un recuerdo o una entrada de diario, las señales que lo produjeron: la conversación, la fecha, el papel. Una referencia, nunca una copia — borra el origen y solo queda un rastro fechado."
+      },
+      "alerts_hub": {
+        "title": "Todo lo que se te ha dirigido",
+        "desc": "Mensajes retransmitidos, notificaciones, recordatorios y rutinas en una sola pantalla en vez de en otros tantos paneles. Cada sección llega plegada — y una cerrada no carga nada."
+      },
+      "capability_map": {
+        "title": "Tu constelación",
+        "desc": "Cada capacidad es una estrella: llena cuando está activa, en contorno cuando espera. La figura une solo las activas — su forma es tu configuración, y la de nadie más."
       }
     },
     "scenes": {
@@ -7568,6 +7636,19 @@
       "source_brave": "Brave Search",
       "source_rss": "Fuente RSS",
       "source_web": "Web"
+    },
+    "explanation": {
+      "title": "¿Por qué este tema?",
+      "error": "No se ha podido leer la explicación.",
+      "summary": "{{positives}} señal(es) positiva(s), {{negatives}} negativa(s), última mención hace {{days}} día(s) — peso aplicado {{weight}}.",
+      "low_confidence": "Pocas señales: sigue siendo una hipótesis, no una certeza.",
+      "signals": "Señales",
+      "signals_value": "+{{positives}} / −{{negatives}}",
+      "last_mention": "Última mención",
+      "last_notification": "Última notificación",
+      "never_notified": "nunca",
+      "base_weight": "Peso antes del decaimiento",
+      "formula": "Cálculo: media beta (previa {{alpha}}/{{beta}}) reducida un {{rate}} % por día sin mención, nunca por debajo de {{floor}}."
     }
   },
   "heartbeat": {
@@ -9371,6 +9452,107 @@
       "operations": "La explotación",
       "proof": "La prueba",
       "convictions": "Convicciones"
+    }
+  },
+  "notifications_hub": {
+    "title": "Notificaciones",
+    "subtitle": "Lo que LIA te ha enviado y lo que está por llegar.",
+    "page_info": "Página {{current}} / {{total}}",
+    "total_items": "({{count}} en total)",
+    "advanced_title": "Ajustes avanzados",
+    "advanced_hint": "Cada sección se configura en detalle en los ajustes.",
+    "sections": {
+      "peer_messages": {
+        "title": "Mensajes retransmitidos",
+        "subtitle": "Mensajes intercambiados con tus conexiones LIA, del más reciente al más antiguo.",
+        "empty": "Todavía no hay mensajes retransmitidos.",
+        "error": "No se han podido leer los mensajes retransmitidos."
+      },
+      "proactive": {
+        "title": "Notificaciones proactivas",
+        "subtitle": "Lo que LIA ha decidido decirte por iniciativa propia.",
+        "empty": "Todavía no hay notificaciones proactivas.",
+        "error": "No se han podido leer las notificaciones proactivas."
+      },
+      "interests": {
+        "title": "Intereses",
+        "subtitle": "Lo que LIA te ha enviado sobre los temas que sigues.",
+        "empty": "Todavía no hay notificaciones de intereses.",
+        "error": "No se han podido leer las notificaciones de intereses."
+      },
+      "reminders": {
+        "title": "Recordatorios",
+        "subtitle": "Recordatorios próximos. Un recordatorio se elimina al activarse: esta lista muestra el futuro, no el historial.",
+        "empty": "No hay recordatorios pendientes.",
+        "error": "No se han podido leer los recordatorios."
+      },
+      "scheduled": {
+        "title": "Acciones programadas",
+        "subtitle": "Tus rutinas y su próxima ejecución.",
+        "empty": "No hay acciones programadas.",
+        "error": "No se han podido leer las acciones programadas."
+      }
+    },
+    "direction_received": "Recibido",
+    "direction_sent": "Enviado",
+    "message_no_content": "El contenido ya no se conserva.",
+    "reminder_at": "El {{when}}",
+    "next_run": "Próxima ejecución: {{when}}",
+    "next_run_unknown": "Próxima ejecución desconocida",
+    "routine_disabled": "Desactivada",
+    "advanced_links": {
+      "peer_messages": "Conexiones LIA",
+      "proactive": "Proactividad",
+      "interests": "Intereses",
+      "scheduled": "Rutinas",
+      "device": "Notificaciones del dispositivo"
+    }
+  },
+  "provenance": {
+    "title": "¿Por qué LIA piensa esto?",
+    "empty": "No hay ninguna señal de origen registrada para esta conclusión.",
+    "error": "No se han podido leer las señales de origen.",
+    "source_deleted": "La conversación de origen se eliminó — solo queda su fecha.",
+    "count": "{{total}} señal(es) conservada(s) — como máximo {{cap}} por conclusión.",
+    "correct": "Corregir",
+    "outcome": {
+      "origin": "Origen",
+      "evidence": "Confirmación",
+      "contradiction": "Contradicción"
+    }
+  },
+  "capabilities": {
+    "title": "Capacidades de LIA",
+    "subtitle": "Lo que tu asistente sabe hacer y lo que solo espera encenderse.",
+    "map_title": "Tu constelación",
+    "map_eyebrow": "Carta de capacidades",
+    "magnitude": "{{count}} elemento(s)",
+    "map_count": "{{live}} capacidad(es) activa(s) de {{total}} disponibles.",
+    "legend_active": "Relleno: activa",
+    "legend_dormant": "Contorno: por activar",
+    "legend_size": "Tamaño: lo que contiene",
+    "state_active": "Activa — {{count}} elemento(s)",
+    "state_active_plain": "Activa",
+    "state_dormant": "Por configurar",
+    "node_active": "{{name}} — activa, {{count}} elemento(s)",
+    "node_active_plain": "{{name}} — activa",
+    "node_dormant": "{{name}} — por configurar",
+    "error": "No se han podido leer tus capacidades.",
+    "empty": "No hay ninguna capacidad disponible en esta instancia.",
+    "nodes": {
+      "connectors": "Conectores",
+      "memory": "Memoria",
+      "personality": "Personalidad",
+      "voice": "Voz",
+      "proactivity": "Proactividad",
+      "interests": "Intereses",
+      "routines": "Rutinas",
+      "relations": "Relaciones",
+      "peers": "Conexiones LIA",
+      "channels": "Canales",
+      "spaces": "Spaces",
+      "journals": "Diarios",
+      "skills": "Habilidades"
     }
   }
 }

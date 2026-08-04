@@ -860,6 +860,7 @@ async def extract_interests_background(
                 user_id=user_id,
                 actions=analysis.extracted_interests,
                 existing_interests=existing_interests,
+                conversation_id=conversation_id,
             )
 
             await db.commit()

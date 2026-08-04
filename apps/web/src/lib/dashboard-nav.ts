@@ -20,16 +20,30 @@
 /** A destination of the dashboard shell. */
 export interface DashboardDestination {
   /** Path suffix appended to the localized `/dashboard` root ('' = the root). */
-  segment: '' | 'chat' | 'relations' | 'settings' | 'faq';
+  segment: '' | 'chat' | 'relations' | 'notifications' | 'settings' | 'faq';
   /** i18n key of the visible label. */
   labelKey: string;
 }
 
-/** Display order, shared by the desktop nav and the mobile menu. */
+/**
+ * Display order, shared by the desktop nav and the mobile menu.
+ *
+ * 2026-08-03: `notifications` joins the table, to the right of `relations` —
+ * what LIA sends the reader was scattered across four settings sections
+ * (device notifications, proactivity, interests, channels) with no single
+ * place answering "what reached me, and what is coming?".
+ *
+ * SIX labels is the widest this row has ever been, and five already clipped
+ * between 768 and 1024 px (the reason the nav starts at `lg`). Measured in the
+ * app's own font: the German row goes from 443 px to 606 px with
+ * "Benachrichtigungen". The label is therefore deliberately SHORT in every
+ * locale, and the renderer drops to icons below `xl` — see the layout.
+ */
 export const DASHBOARD_DESTINATIONS: readonly DashboardDestination[] = [
   { segment: '', labelKey: 'navigation.dashboard' },
   { segment: 'chat', labelKey: 'navigation.chat' },
   { segment: 'relations', labelKey: 'navigation.relations' },
+  { segment: 'notifications', labelKey: 'navigation.notifications' },
   { segment: 'settings', labelKey: 'navigation.settings' },
   { segment: 'faq', labelKey: 'navigation.faq' },
 ];

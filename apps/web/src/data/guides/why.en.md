@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 4.1
-**Date**: 2026-08-03
-**Application**: LIA v1.27.8
+**Version**: 4.2
+**Date**: 2026-08-04
+**Application**: LIA v1.27.9
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -292,6 +292,16 @@ The same principle applies to the protections themselves. Security that is annou
 Nor does a test that never runs — and that is the least comfortable discovery this project has made. Ten test files had switched themselves off whenever a provider key was missing, and nothing reported it any more: a skipped test counts as green, coverage measures lines reached rather than assertions executed, and a review sees a test file and concludes the surface is protected. Two hundred and nineteen tests had never run once; switching them back on surfaced four genuine defects — among them a voice that split every number in two, and a reminder lost for good when the usage budget ran out in the wrong minute. The absence of a red signal is not proof of health: sometimes it is only the absence of measurement. A continuous-integration guard now refuses to let a test module go quiet.
 
 The same principle applies to what is **advertised**. A panel showed a "hybrid search" switch for memory; the matching engine had not existed for several versions, and the switch commanded nothing. The dead code and the display were removed together, and the real behaviour written in their place. A capability advertised but absent is not a documentation imprecision: it is a promise made to a user who has no way of checking it. Showing a setting that controls nothing is worse than showing nothing.
+
+### 6.5. Why LIA thinks that
+
+An assistant that remembers things ends up asserting them. “You prefer morning meetings”, “this topic interests you”: useful conclusions, but unverifiable as long as you cannot trace back to what produced them.
+
+Under every memory, every journal entry and every interest, LIA therefore shows the signals that led it there: the conversation, the date, and the signal's role — what gave rise to the conclusion, what confirmed it, what cast doubt on it. A button lets you correct the conclusion at its source.
+
+What is kept is a **reference, never a copy**. Your text stays where you wrote it, and if you delete the conversation it comes back nowhere: the reference empties, the row stays dated, and LIA simply says the signal was deleted. A deletion must remain a deletion — otherwise what you erase on one side would be served back to you on the other.
+
+The same principle applies to an interest's weight: it explains itself instead of scoring itself. The originating signal, the last mention, the calculation itself — enough to redo the arithmetic. Turning that uncertainty into a score would invite a competition nobody asked for, while teaching nothing more.
 
 ## 7. Emotional depth
 

@@ -212,6 +212,18 @@ class TelephonyCallSummary(BaseModel):
             "draft, uncertainties). Null before T01 calls and once purged."
         ),
     )
+    structured_data: StructuredCallData | None = Field(
+        default=None,
+        description=(
+            "Minimal typed outcome extracted from the call: what was agreed, "
+            "what date and place were PROPOSED, what it would cost, and what "
+            "was left for the user to decide. Persisted since D-8 and shown "
+            "since the debrief became actionable — a surcharge or an option "
+            "the callee offered is a decision the user has to make, and one "
+            "they could not make while the field stayed invisible. Null before "
+            "the call completed, and again once retention purged it."
+        ),
+    )
     call_seconds: float | None = Field(default=None, description="Call duration in seconds.")
     created_at: datetime = Field(..., description="When the call was created.")
     completed_at: datetime | None = Field(default=None, description="When the call ended.")

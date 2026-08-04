@@ -692,13 +692,21 @@ async def submit_feedback(
                 feedback=data.feedback,
             )
 
-        # Persist feedback state on all associated proactive messages so that
+        # Persist feedback state on the associated proactive message(s) so that
         # the frontend feedback buttons stay hidden across reloads and devices.
+        #
+        # Scoped to the card that was actually voted on when we know which one
+        # it was. A card's `target_id` is the INTEREST, so without the run_id
+        # this marks EVERY notification that interest ever produced — nine of
+        # them for a single interest on the development database — leaving
+        # eight cards answered-looking, unanswerable, and permanently listed as
+        # "no feedback" in the history the audit trail feeds.
         conv_repo = ConversationRepository(db)
         messages_updated = await conv_repo.mark_proactive_feedback_submitted(
             user_id=user.id,
             target_id=interest_id,
             feedback_value=data.feedback,
+            run_id=data.run_id,
         )
 
         await db.commit()

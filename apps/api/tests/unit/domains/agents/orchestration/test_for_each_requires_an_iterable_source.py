@@ -43,11 +43,21 @@ def _catalogue_loaded() -> None:
     ``tool_is_mutation``). Left empty, every tool looks unknown and the
     conservative branch fires — which would make this suite measure the fallback
     instead of the rule.
+
+    IDEMPOTENT on purpose. The registry is global to the PROCESS, and
+    ``register_agent_manifest`` raises ``AgentManifestAlreadyRegistered`` on a
+    second registration. Under ``pytest-xdist`` the worker that runs this module
+    may already have run another test that initialised the same registry, so the
+    unconditional call raised at SETUP — an intermittent error that depends
+    purely on how the workers were partitioned, and therefore reappears whenever
+    the suite's size changes.
     """
     from src.domains.agents.registry.agent_registry import get_global_registry
     from src.domains.agents.registry.catalogue_loader import initialize_catalogue
 
-    initialize_catalogue(get_global_registry())
+    registry = get_global_registry()
+    if not registry.list_agent_manifests():
+        initialize_catalogue(registry)
 
 
 def _step(step_id: str, tool_name: str) -> ExecutionStep:

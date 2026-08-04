@@ -49,6 +49,8 @@ from src.domains.journals.schemas import (
     ThemeCount,
 )
 from src.domains.journals.service import JournalService
+from src.domains.shared.provenance_repository import ProvenanceRepository
+from src.domains.shared.schemas import ProvenanceResponse
 from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
@@ -675,3 +677,39 @@ async def portrait_feedback(
         actions_applied=actions_applied,
         duration_ms=duration_ms,
     )
+
+
+@router.get("/{entry_id}/provenance", response_model=ProvenanceResponse)
+async def get_entry_provenance(
+    entry_id: UUID,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> ProvenanceResponse:
+    """Why LIA thinks this — the signals behind one entry.
+
+    Bounded references, resolved LIVE. A reference whose conversation the
+    reader has since deleted comes back as a TOMBSTONE: dated, sourceless and
+    textless. Nothing here reproduces content the user removed elsewhere; that
+    would turn their deletion into a copy.
+
+    Args:
+        entry_id: The entry being questioned.
+        user: Authenticated session owner.
+        db: Request-scoped session.
+
+    Returns:
+        The references, newest first, and how many are kept.
+
+    Raises:
+        ResourceNotFoundError: Unknown entry, or one belonging to another
+            account — the two answer identically, so the route cannot be used
+            to probe for someone else's journal.
+    """
+    entry = await JournalService(db).get_entry_for_user(entry_id, user.id)
+    if not entry:
+        raise ResourceNotFoundError(resource_type="journal_entry", resource_id=entry_id)
+
+    references = await ProvenanceRepository(db).resolve_for(
+        user_id=user.id, journal_entry_id=entry_id
+    )
+    return ProvenanceResponse.from_references(references)

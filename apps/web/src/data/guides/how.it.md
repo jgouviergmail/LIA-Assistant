@@ -4,9 +4,9 @@
 >
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
-**Versione**: 3.6
-**Data**: 2026-08-03
-**Applicazione**: LIA v1.27.8
+**Versione**: 3.7
+**Data**: 2026-08-04
+**Applicazione**: LIA v1.27.9
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 447 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 199 ADRs, ~17.925 test raccolti da pytest in 968 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 203 ADRs, ~18.002 test raccolti da pytest in 981 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -72,10 +72,10 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~17.925 (raccolti da pytest su 968 file di test) + 4.690 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~18.002 (raccolti da pytest su 981 file di test) + 4.808 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 400+ |
-| ADR (Architecture Decision Record) | 189 |
+| ADR (Architecture Decision Record) | 203 |
 | Metriche Prometheus | 447 definizioni |
 | Dashboard Grafana | 26 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1153,9 +1153,32 @@ Resta che una destinazione può legittimamente non esistere: diverse sezioni si 
 
 ---
 
+### 23.15. Provenienza limitata: un rimando, mai una copia
+
+Una conclusione che il sistema forma — un ricordo, una voce di diario, un interesse — deve poter rispondere all'unica domanda che la rende correggibile: da dove viene? Due risposte ingenue sono disponibili e sono entrambe sbagliate. Copiare il messaggio d'origine dentro la conclusione la trasforma in un archivio permanente: eliminare la conversazione non elimina più nulla, poiché il suo contenuto sopravvive altrove. Rigenerare la spiegazione con il modello produce una ricostruzione plausibile, cioè un'invenzione.
+
+La tabella `provenance_references` memorizza solo un **puntatore e un orario**: l'identificativo del soggetto, quelli della conversazione e del messaggio, e un `outcome` tra `origin`, `evidence`, `contradiction`. L'asimmetria delle chiavi esterne porta l'intera dottrina:
+
+| Legame | Politica | Ragione |
+|--------|----------|---------|
+| verso il soggetto (ricordo, diario, interesse) | `CASCADE` | un rimando a una conclusione eliminata non ha più soggetto |
+| verso la conversazione e il messaggio | `SET NULL` | eliminare una conversazione **svuota il rimando e lascia la riga**, datata: è la lapide |
+
+`CASCADE` sul lato origine avrebbe cancellato perfino la menzione che una fonte sia esistita — il che si legge esattamente come «il sistema se l'è inventato». La traccia è limitata a cinque riferimenti per soggetto, potati in scrittura, e questo limite è **pubblicato** nella risposta: ciò che il sistema impone, lo dichiara. Un vincolo `CHECK` impone esattamente un soggetto per riga, perché una coppia polimorfica `(kind, id)` non può essere una chiave esterna — e senza chiave esterna la lapide non sarebbe garantita da nulla.
+
+La scrittura è **best-effort e isolata in un punto di ripristino**. Il best-effort da solo non basta: un `flush` fallito lascia la sessione in stato di errore, cosicché inghiottire l'eccezione sposta soltanto la morte del chiamante alla sua istruzione successiva. Il punto di ripristino è ciò che rende onesto quel silenzio — la provenienza spiega una conclusione, non la condiziona mai.
+
+### 23.16. Mappa delle capacità: una passata, tre stati, nessun punteggio
+
+Sapere cosa l'assistente sa fare per un account veniva sondato lato client, con un hook per sottosistema: una dozzina di richieste al montaggio e altrettante occasioni perché due risposte si contraddicano sullo stesso fatto. La risoluzione avviene ora in **una sola passata lato server**, un `asyncio.gather` di sonde indipendenti, **ciascuna sulla propria sessione** — una `AsyncSession` non è sicura in uso concorrente. Una sonda che fallisce degrada a «non pronta»: una mappa che si rifiuta di disegnarsi perché una tabella era irraggiungibile è peggio di una mappa con un nodo spento.
+
+Tre stati, e la distinzione fra gli ultimi due porta tutto il senso: **non disponibile** (l'istanza ha disattivato il sottosistema — il nodo è *assente*, mai in grigio: un comando che il prodotto non può onorare è peggio di un comando assente), **dormiente** (disponibile, nulla di configurato — porta il passo successivo), **attiva** (realmente utilizzabile, con il conteggio che lo prova).
+
+Nulla di ciò che viene pubblicato è un livello, una percentuale di avanzamento o un confronto, e un test lo enuncia come vincolo di schema. Il rendering segue la stessa regola: il disegno è decorativo e nascosto alle tecnologie assistive, mentre tutto ciò che si raggiunge è un collegamento nominato — un `<circle>` con un `onClick` apparirebbe identico e sarebbe inutilizzabile senza mouse. La figura unisce le capacità attive in **ordine angolare**, l'unico ordine che non può auto-intersecarsi attorno a un punto interno.
+
 ## 24. Architettura delle decisioni (ADR)
 
-199 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+203 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1209,10 +1232,10 @@ Il Psyche Engine dota l'assistente di uno stato psicologico dinamico che evolve 
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 199 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~17.925 test in 968 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 203 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~18.002 test in 981 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 199 ADRs e del changelog (da v1.0 a v1.27.8). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 203 ADRs e del changelog (da v1.0 a v1.27.9). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

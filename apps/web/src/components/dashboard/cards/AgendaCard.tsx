@@ -4,7 +4,8 @@ import { Calendar, MapPin, Navigation, NotebookPen } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
-import { CardItemActions, type CardItemAction } from './CardItemActions';
+import type { CardItemAction } from './CardItemActions';
+import { CardItemRow } from './CardItemRow';
 import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 import type { AgendaData, CardSection } from '@/types/briefing';
@@ -79,38 +80,39 @@ function AgendaContent({
           });
         }
         return (
-          // QW-24: action chips as SIBLINGS (nested buttons are invalid HTML).
-          <li key={index} className="flex items-start gap-1">
-            <button
-              type="button"
-              onClick={() => onOpenChat(intent)}
-              aria-label={intent}
-              className="min-w-0 flex-1 text-left flex items-start gap-2.5 rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {/* Time column: start (bold) + end (smaller, dimmed) */}
-              <span className="flex flex-col items-start tabular-nums shrink-0 leading-tight">
-                <span className="text-sm font-bold text-violet-700 dark:text-violet-300">
-                  {event.start_local}
-                </span>
-                {event.end_local && (
-                  <span className="text-[11px] text-muted-foreground">{event.end_local}</span>
-                )}
+          <CardItemRow
+            key={index}
+            ariaLabel={intent}
+            // The event's own words, which the row truncates: the title, and
+            // the place when there is one — that pair is what the reader
+            // recognises the meeting by.
+            tooltip={event.location ? `${event.title}\n${event.location}` : event.title}
+            onSelect={() => onOpenChat(intent)}
+            actions={actions}
+            contentClassName="flex items-start gap-2.5"
+          >
+            {/* Time column: start (bold) + end (smaller, dimmed) */}
+            <span className="flex flex-col items-start tabular-nums shrink-0 leading-tight">
+              <span className="text-sm font-bold text-violet-700 dark:text-violet-300">
+                {event.start_local}
               </span>
-              {/* Title + optional location */}
-              <span className="flex-1 min-w-0 flex flex-col gap-0.5">
-                <span className="text-sm text-foreground/90 truncate leading-tight">
-                  {event.title}
-                </span>
-                {event.location && (
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground truncate">
-                    <MapPin className="h-3 w-3 shrink-0" />
-                    {event.location}
-                  </span>
-                )}
+              {event.end_local && (
+                <span className="text-[11px] text-muted-foreground">{event.end_local}</span>
+              )}
+            </span>
+            {/* Title + optional location */}
+            <span className="flex-1 min-w-0 flex flex-col gap-0.5">
+              <span className="text-sm text-foreground/90 truncate leading-tight">
+                {event.title}
               </span>
-            </button>
-            <CardItemActions actions={actions} />
-          </li>
+              {event.location && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground truncate">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  {event.location}
+                </span>
+              )}
+            </span>
+          </CardItemRow>
         );
       })}
     </ul>

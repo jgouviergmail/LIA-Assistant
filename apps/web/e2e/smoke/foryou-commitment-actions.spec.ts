@@ -95,9 +95,15 @@ test('a closed commitment leaves the card instead of 404-ing on the next click',
   });
 
   await page.goto('/fr/dashboard');
-  const done = page.getByRole('button', { name: 'Marquer comme fait' });
-  await expect(done).toBeVisible({ timeout: 25_000 });
+  // The per-item actions moved behind ONE trigger per row (2026-08-03): a row
+  // of chips took a quarter to a third of the line and truncated the
+  // commitment's own words. What the action DOES is unchanged.
+  const trigger = page.getByRole('button', { name: 'Autres actions' }).first();
+  await expect(trigger).toBeVisible({ timeout: 25_000 });
+  await trigger.click();
 
+  const done = page.getByRole('menuitem', { name: 'Marquer comme fait' });
+  await expect(done).toBeVisible();
   await done.click();
 
   // The row must GO — that is what stops the second click from hitting a

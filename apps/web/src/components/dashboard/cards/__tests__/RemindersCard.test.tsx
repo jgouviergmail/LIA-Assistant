@@ -12,6 +12,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { openCardActions, runCardAction } from './card-actions-harness';
 
 const { mutate } = vi.hoisted(() => ({ mutate: vi.fn(async () => {}) }));
 vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation: () => ({ mutate }) }));
@@ -50,10 +51,13 @@ const CANCEL = 'dashboard.briefing.actions.cancel_reminder';
 beforeEach(() => vi.clearAllMocks());
 
 describe('RemindersCard — cancelling', () => {
-  it('offers a named cancel action per reminder', () => {
-    renderWithProviders(<RemindersCard {...props} section={section([reminder()])} />);
+  it('offers a named cancel action per reminder', async () => {
+    const { user } = renderWithProviders(
+      <RemindersCard {...props} section={section([reminder()])} />
+    );
 
-    expect(screen.getByRole('button', { name: CANCEL })).toBeInTheDocument();
+    await openCardActions(user);
+    expect(screen.getByRole('menuitem', { name: CANCEL })).toBeInTheDocument();
   });
 
   it('asks before deleting, and deletes nothing on the first press', async () => {
@@ -61,7 +65,7 @@ describe('RemindersCard — cancelling', () => {
       <RemindersCard {...props} section={section([reminder()])} />
     );
 
-    await user.click(screen.getByRole('button', { name: CANCEL }));
+    await runCardAction(user, CANCEL);
 
     expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
     expect(mutate).not.toHaveBeenCalled();
@@ -73,7 +77,7 @@ describe('RemindersCard — cancelling', () => {
       <RemindersCard {...props} onRefresh={onRefresh} section={section([reminder()])} />
     );
 
-    await user.click(screen.getByRole('button', { name: CANCEL }));
+    await runCardAction(user, CANCEL);
     await user.click(await screen.findByRole('button', { name: 'common.confirm' }));
 
     await waitFor(() => expect(mutate).toHaveBeenCalledWith(`/reminders/${REMINDER_ID}`));
@@ -86,7 +90,7 @@ describe('RemindersCard — cancelling', () => {
       <RemindersCard {...props} section={section([reminder()])} />
     );
 
-    await user.click(screen.getByRole('button', { name: CANCEL }));
+    await runCardAction(user, CANCEL);
     await user.click(await screen.findByRole('button', { name: 'common.cancel' }));
 
     expect(mutate).not.toHaveBeenCalled();
@@ -99,7 +103,7 @@ describe('RemindersCard — cancelling', () => {
       <RemindersCard {...props} section={section([reminder()])} />
     );
 
-    await user.click(screen.getByRole('button', { name: CANCEL }));
+    await runCardAction(user, CANCEL);
     await user.click(await screen.findByRole('button', { name: 'common.confirm' }));
 
     await waitFor(() => expect(toast.error).toHaveBeenCalled());
@@ -122,7 +126,9 @@ describe('RemindersCard — reading', () => {
       <RemindersCard {...props} section={section([reminder()])} />
     );
 
-    await user.click(screen.getByRole('button', { name: 'dashboard.briefing.intents.reminder_aria' }));
+    await user.click(
+      screen.getByRole('button', { name: 'dashboard.briefing.intents.reminder_aria' })
+    );
 
     expect(openChat).toHaveBeenCalled();
   });
@@ -146,9 +152,7 @@ describe('where the keyboard lands once the reminder is gone', () => {
       />
     );
 
-    await user.click(
-      screen.getAllByRole('button', { name: 'dashboard.briefing.actions.cancel_reminder' })[0]
-    );
+    await runCardAction(user, 'dashboard.briefing.actions.cancel_reminder');
     await user.click(screen.getByText('common.confirm'));
 
     await waitFor(() => expect(onRefresh).toHaveBeenCalled());
