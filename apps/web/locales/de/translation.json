@@ -2527,7 +2527,7 @@
       "title": "LIA-Kompetenzen (Skills)",
       "description": "Skills erweitern die Fähigkeiten des Assistenten mit Expertenanweisungen und spezialisierten Workflows.",
       "empty": "Keine importierten Skills. Importieren Sie SKILL.md-Dateien, um neue Fähigkeiten hinzuzufügen.",
-      "import_button": "Skill importieren",
+      "import_button": "Importieren",
       "import_success": "Skill \"{{name}}\" erfolgreich importiert.",
       "import_error": "Fehler beim Importieren der Skill.",
       "delete_button": "Löschen",
@@ -2830,7 +2830,7 @@
         "dialogue_badge": "Dialog"
       },
       "url_import": {
-        "button": "Von URL",
+        "button": "URL",
         "title": "Skill von einer URL installieren",
         "description": "Lädt eine SKILL.md-Datei oder ein .zip-Paket von einer https-Adresse. Es durchläuft exakt dieselbe Validierung wie ein Datei-Import.",
         "input_label": "https-URL der Skill",
@@ -3192,11 +3192,11 @@
     "sort_volume": "Aktivste",
     "only_peers": "Auf LIA",
     "only_dormant": "Ruhend",
-    "action_message": "Nachricht schreiben",
+    "action_message": "Schreiben",
     "action_message_prefill": "Übermittle {{name}} eine Nachricht: ",
     "action_call": "Anrufen",
     "action_call_prefill": "Rufe {{name}} an, um: ",
-    "action_loop": "Zusage verfolgen",
+    "action_loop": "Zusage",
     "action_loop_prefill": "Notiere eine Zusage mit {{name}}: ",
     "favorites_title": "Favoriten",
     "others_title": "Weitere Beziehungen",
@@ -3902,7 +3902,7 @@
         "v1_27_11": {
           "title": "v1.27.11 — 🧭 Einstellungen, die sich wie ein Index lesen",
           "date": "August 2026",
-          "count": "10",
+          "count": "11",
           "items": {
             "i1": "<b>🧲 Der Abstand zwischen Beschriftung und Feld wird endlich gezeichnet</b> — ein Fehler in der Label-Primitive führte dazu, dass jede Abstandseinstellung berechnet, aber nie dargestellt wurde: Alle Formulare lebten mit ~3 px, egal was der Code sagte. An der Wurzel behoben und auf echten Screenshots kalibriert — alle Formulare atmen jetzt gleich.",
             "i2": "<b>☰ Eine einzige Grammatik für Zeilenaktionen</b> — sichtbare Symbole ab Tablet, Löschen trägt sein Rot im Ruhezustand, und auf dem Telefon ein einziges benanntes „⋮“-Menü. Schluss mit Schaltflächen, die erst beim Überfahren erscheinen und auf denen Tastaturnutzer landeten, ohne etwas zu sehen.",
@@ -3913,7 +3913,8 @@
             "i7": "<b>🔐 Authentifizierungs-Apps (TOTP) werden per Schalter aktiviert</b>, wie jede andere Funktion — das Einschalten öffnet die Zeremonie, und der Schalter kippt erst nach Bestätigung durch den Server.",
             "i8": "<b>🧭 Die Konnektor-Gruppen heißen „Google- / Apple- / Microsoft- / Externe Dienste“</b>, und ein Datenexport erklärt endlich seinen Zustand: Größe und Ablaufdatum wenn bereit, Erstellungs- und Ablaufdatum plus das weitere Vorgehen wenn abgelaufen.",
             "i9": "<b>🎛️ Jeder Titel trägt ein Symbol in der Themenfarbe</b> — Benachrichtigungsfrequenz, Reisewetter (jetzt einklappbar), jede Dashboard-Karte in der Anpassungsliste — und graue Badges sind dem Inaktiven vorbehalten: „Aktiviert“ ist grün, „ausstehend“ blau.",
-            "i10": "<b>🔔 Push-Benachrichtigungen folgen automatisch Ihrer globalen Zustimmung</b> — der doppelte Schalter pro Funktion, der proaktive Benachrichtigungen lautlos stummschalten konnte, ist entfernt."
+            "i10": "<b>🔔 Push-Benachrichtigungen folgen automatisch Ihrer globalen Zustimmung</b> — der doppelte Schalter pro Funktion, der proaktive Benachrichtigungen lautlos stummschalten konnte, ist entfernt.",
+            "i11": "<b>🫧 Was von LIA kommt, ist erkennbar</b> — im Verlauf trägt eine proaktive Benachrichtigung einen leichten roten Grund, der sie von einer Antwort unterscheidet; eine angepinnte Erinnerung ist in der Themenfarbe hinterlegt, die Nadel direkt vor dem Text. Auf dem Telefon werden die Aktionsleisten kompakt — „Hinzufügen“, „Leeren“, „Importieren“, „URL“ — damit sie in eine Zeile passen, und eine Verbindungskarte rahmt „was ich teile“ und „was er oder sie teilt“ getrennt ein."
           }
         },
         "v1_27_10": {
@@ -7242,7 +7243,7 @@
     "empty": "Noch keine Erinnerungen",
     "empty_hint": "Erinnerungen werden automatisch während Ihrer Gespräche erstellt.",
     "export": "Exportieren",
-    "delete_all": "Alles löschen",
+    "delete_all": "Leeren",
     "delete_success": "Erinnerung gelöscht",
     "delete_error": "Fehler beim Löschen der Erinnerung",
     "delete_all_success": "Alle Erinnerungen gelöscht",
@@ -7626,7 +7627,7 @@
     "create_success": "Interesse hinzugefügt",
     "create_title": "Interesse hinzufügen",
     "delete": "Löschen",
-    "delete_all": "Alle löschen",
+    "delete_all": "Leeren",
     "delete_all_confirm": "Alle löschen",
     "delete_all_error": "Fehler beim Löschen",
     "delete_all_success": "Alle Interessen wurden gelöscht",

@@ -2549,7 +2549,7 @@
       "title": "LIA Capabilities (skills)",
       "description": "Skills extend the assistant's capabilities with expert instructions and specialized workflows.",
       "empty": "No imported skills. Import SKILL.md files to add new capabilities.",
-      "import_button": "Import skill",
+      "import_button": "Import",
       "import_success": "Skill \"{{name}}\" imported successfully.",
       "import_error": "Error importing skill.",
       "delete_button": "Delete",
@@ -2852,7 +2852,7 @@
         "dialogue_badge": "dialogue"
       },
       "url_import": {
-        "button": "From URL",
+        "button": "URL",
         "title": "Install a skill from a URL",
         "description": "Fetch a SKILL.md file or .zip package from an https address. It goes through the exact same validation as a file import.",
         "input_label": "Skill https URL",
@@ -3214,11 +3214,11 @@
     "sort_volume": "Most active",
     "only_peers": "On LIA",
     "only_dormant": "Dormant",
-    "action_message": "Write a message",
+    "action_message": "Write",
     "action_message_prefill": "Pass a message to {{name}}: ",
     "action_call": "Call",
     "action_call_prefill": "Call {{name}} to: ",
-    "action_loop": "Track a commitment",
+    "action_loop": "Commitment",
     "action_loop_prefill": "Note a commitment with {{name}}: ",
     "favorites_title": "Favorites",
     "others_title": "Other relations",
@@ -3911,7 +3911,7 @@
         "v1_27_11": {
           "title": "v1.27.11 — 🧭 Settings that read like an index",
           "date": "August 2026",
-          "count": "10",
+          "count": "11",
           "items": {
             "i1": "<b>🧲 The gap between a label and its field finally renders</b> — a defect in the label primitive meant every spacing setting was computed but never drawn: all forms lived with ~3 px whatever the code said. Fixed at the root and calibrated on real screenshots — every form now breathes the same way.",
             "i2": "<b>☰ One grammar for row actions</b> — visible icons from tablet up, delete carrying its red at rest, and on phones a single named “⋮” menu. No more buttons revealed by hover that a keyboard user landed on without seeing anything.",
@@ -3922,7 +3922,8 @@
             "i7": "<b>🔐 Authenticator apps (TOTP) now enroll from a switch</b>, like every other feature — turning it on opens the ceremony, and the thumb only moves once the server confirms.",
             "i8": "<b>🧭 Connector groups are named “Google / Apple / Microsoft / external services”</b>, and a data export finally explains its state: size and expiry when ready, generation and expiry dates plus what to do when expired.",
             "i9": "<b>🎛️ Every title carries an icon in the theme colour</b> — notification frequency, travel weather (now foldable), each dashboard card in the customisation list — and grey badges are reserved for the inactive: “Enabled” is green, “pending” is blue.",
-            "i10": "<b>🔔 Push notifications follow your global opt-in automatically</b> — the per-feature duplicate switch that could silently mute proactive notifications is gone."
+            "i10": "<b>🔔 Push notifications follow your global opt-in automatically</b> — the per-feature duplicate switch that could silently mute proactive notifications is gone.",
+            "i11": "<b>🫧 What comes from LIA stands out</b> — in the thread, a proactive notification carries a light red wash that tells it apart from an answer; a pinned memory is framed in the theme colour, its pin set right before the text. On phones the action bars get compact — “Add”, “Clear”, “Import”, “URL” — to fit on one line, and a connection card frames “what I share” and “what they share” separately."
           }
         },
         "v1_27_10": {
@@ -7330,7 +7331,7 @@
     "empty": "No memories yet",
     "empty_hint": "Memories are created automatically during your conversations.",
     "export": "Export",
-    "delete_all": "Clear all",
+    "delete_all": "Clear",
     "delete_success": "Memory deleted",
     "delete_error": "Error deleting memory",
     "delete_all_success": "All memories deleted",
@@ -7495,7 +7496,7 @@
       "thanks": "Thanks!"
     },
     "export": "Export",
-    "delete_all": "Delete all",
+    "delete_all": "Clear",
     "delete_all_success": "All interests have been deleted",
     "delete_all_error": "Error deleting interests",
     "confirm_delete_all_title": "Delete all interests?",

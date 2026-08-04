@@ -2529,7 +2529,7 @@
       "title": "Competenze LIA (skills)",
       "description": "Le skills estendono le capacità dell'assistente con istruzioni esperte e flussi di lavoro specializzati.",
       "empty": "Nessuna skill importata. Importa file SKILL.md per aggiungere nuove competenze.",
-      "import_button": "Importa skill",
+      "import_button": "Importa",
       "import_success": "Skill \"{{name}}\" importata con successo.",
       "import_error": "Errore durante l'importazione della skill.",
       "delete_button": "Elimina",
@@ -2832,7 +2832,7 @@
         "dialogue_badge": "dialogo"
       },
       "url_import": {
-        "button": "Da URL",
+        "button": "URL",
         "title": "Installare una skill da un URL",
         "description": "Recupera un file SKILL.md o un pacchetto .zip da un indirizzo https. Passa esattamente per la stessa validazione di un'importazione da file.",
         "input_label": "URL https della skill",
@@ -3194,11 +3194,11 @@
     "sort_volume": "Più attive",
     "only_peers": "Su LIA",
     "only_dormant": "In pausa",
-    "action_message": "Scrivere un messaggio",
+    "action_message": "Scrivere",
     "action_message_prefill": "Fai avere un messaggio a {{name}}: ",
     "action_call": "Chiamare",
     "action_call_prefill": "Chiama {{name}} per: ",
-    "action_loop": "Seguire un impegno",
+    "action_loop": "Impegno",
     "action_loop_prefill": "Annota un impegno con {{name}}: ",
     "favorites_title": "Preferiti",
     "others_title": "Altre relazioni",
@@ -3904,7 +3904,7 @@
         "v1_27_11": {
           "title": "v1.27.11 — 🧭 Impostazioni che si leggono come un indice",
           "date": "Agosto 2026",
-          "count": "10",
+          "count": "11",
           "items": {
             "i1": "<b>🧲 Lo spazio tra un'etichetta e il suo campo finalmente si disegna</b> — un difetto della primitiva di etichetta faceva sì che ogni regolazione di spaziatura fosse calcolata ma mai renderizzata: tutti i moduli vivevano con ~3 px qualunque cosa dicesse il codice. Corretto alla radice e calibrato su schermate reali — tutti i moduli ora respirano allo stesso modo.",
             "i2": "<b>☰ Una sola grammatica per le azioni di riga</b> — icone visibili dal tablet in su, l'eliminazione porta il suo rosso a riposo, e sul telefono un unico menu «⋮» con nome. Basta pulsanti rivelati al passaggio del mouse su cui un utente da tastiera arrivava senza vedere nulla.",
@@ -3915,7 +3915,8 @@
             "i7": "<b>🔐 Le app di autenticazione (TOTP) si attivano con un interruttore</b>, come ogni funzione — accenderlo apre la cerimonia, e la levetta scatta solo alla conferma del server.",
             "i8": "<b>🧭 I gruppi di connettori si chiamano «Servizi Google / Apple / Microsoft / esterni»</b>, e un'esportazione dei dati spiega finalmente il suo stato: dimensione e scadenza quando è pronta, date di generazione e scadenza più cosa fare quando è scaduta.",
             "i9": "<b>🎛️ Ogni titolo porta un'icona nel colore del tema</b> — frequenza delle notifiche, meteo in viaggio (ora richiudibile), ogni scheda della dashboard nell'elenco di personalizzazione — e i badge grigi sono riservati all'inattivo: «Attivato» è verde, «in attesa» è blu.",
-            "i10": "<b>🔔 Le notifiche push seguono automaticamente il vostro consenso globale</b> — l'interruttore duplicato per funzione, che poteva silenziare le notifiche proattive senza avvisare, è stato rimosso."
+            "i10": "<b>🔔 Le notifiche push seguono automaticamente il vostro consenso globale</b> — l'interruttore duplicato per funzione, che poteva silenziare le notifiche proattive senza avvisare, è stato rimosso.",
+            "i11": "<b>🫧 Ciò che arriva da LIA si riconosce</b> — nel filo, una notifica proattiva porta un leggero sfondo rosso che la distingue da una risposta; una memoria fissata è incorniciata nel colore del tema, con la puntina proprio davanti al testo. Sul telefono le barre delle azioni si compattano — «Aggiungi», «Svuota», «Importa», «URL» — per stare su una riga, e una scheda di connessione incornicia separatamente «ciò che condivido» e «ciò che condivide l'altra persona»."
           }
         },
         "v1_27_10": {
@@ -7244,7 +7245,7 @@
     "empty": "Nessuna memoria ancora",
     "empty_hint": "Le memorie vengono create automaticamente durante le tue conversazioni.",
     "export": "Esporta",
-    "delete_all": "Cancella tutto",
+    "delete_all": "Svuota",
     "delete_success": "Memoria eliminata",
     "delete_error": "Errore durante l'eliminazione della memoria",
     "delete_all_success": "Tutte le memorie eliminate",
@@ -7628,7 +7629,7 @@
     "create_success": "Interesse aggiunto",
     "create_title": "Aggiungi un interesse",
     "delete": "Elimina",
-    "delete_all": "Elimina tutto",
+    "delete_all": "Svuota",
     "delete_all_confirm": "Elimina tutto",
     "delete_all_error": "Errore durante l'eliminazione",
     "delete_all_success": "Tutti gli interessi sono stati eliminati",

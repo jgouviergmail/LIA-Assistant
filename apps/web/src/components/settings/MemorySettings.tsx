@@ -480,24 +480,41 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                       {categoryMemories.map(memory => (
                         <div
                           key={memory.id}
-                          className="flex items-start gap-3 rounded-lg border p-3 bg-card"
+                          // A pinned memory wears the theme tint (owner request
+                          // 2026-08-05) — the peer-bubble pair, solid enough
+                          // against the plain bg-card of its neighbours.
+                          className={
+                            memory.pinned
+                              ? 'flex items-start gap-3 rounded-lg border p-3 bg-primary/10 border-primary/25'
+                              : 'flex items-start gap-3 rounded-lg border p-3 bg-card'
+                          }
                         >
-                          {/* Emotional indicator + pinned state (phone: the pin
-                              button lives in the ⋮ menu, so the state needs its
-                              own always-visible mark) */}
-                          <div className="flex flex-col items-center shrink-0 gap-0.5 self-center sm:self-start">
+                          <div className="flex shrink-0 items-center self-center sm:self-start">
                             <span
                               className="text-lg"
                               title={`${t('memories.field_emotional_weight')}: ${memory.emotional_weight}`}
                             >
                               {getEmotionalEmoji(memory.emotional_weight)}
                             </span>
-                            {memory.pinned && <Pin className="h-3 w-3 text-primary sm:hidden" />}
                           </div>
 
                           {/* Content */}
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm">{memory.content}</p>
+                            {/* The pin sits IN FRONT of the content, on the
+                                emoji's line (owner request 2026-08-05) —
+                                inline, so wrapped text flows under it instead
+                                of opening a gutter. Every size: the ⋮ menu
+                                hides the pin BUTTON on phones, and on sm+ the
+                                tinted action alone was a state easy to miss. */}
+                            <p className="text-sm">
+                              {memory.pinned && (
+                                <Pin
+                                  className="mr-1 inline-block h-3.5 w-3.5 align-text-bottom text-primary"
+                                  aria-hidden="true"
+                                />
+                              )}
+                              {memory.content}
+                            </p>
                             {memory.usage_nuance && (
                               <p className="text-xs text-muted-foreground mt-1 italic">
                                 {memory.usage_nuance}

@@ -80,7 +80,12 @@ function ToolbarButton({
         // announcing "loading" would prefix (and break) that name.
         <LoadingSpinner size="default" className="mr-1" aria-hidden="true" />
       ) : (
-        <Icon className="h-4 w-4 mr-1" aria-hidden="true" />
+        // Hidden on phones (owner request 2026-08-05): the label alone is the
+        // control there — three labelled buttons must fit a 390px toolbar, and
+        // the glyph was the width that pushed the third one off. The state
+        // spinner above stays at every size: it carries information the label
+        // does not.
+        <Icon className="hidden h-4 w-4 sm:mr-1 sm:block" aria-hidden="true" />
       )}
       {action.label}
     </Button>

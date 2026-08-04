@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Les notifications poussées suivent désormais l'accord global, automatiquement.** Le réglage « notifications push » des notifications proactives faisait doublon avec l'activation générale — un second interrupteur qui pouvait rendre une fonctionnalité muette en silence. Il est retiré, et le serveur n'en tient plus compte : si le push est activé et la fonctionnalité active, elle notifie.
 
+**Ce qui vient d'elle se voit, et ce qui doit tenir sur un téléphone y tient.** Dans le fil de conversation, une notification proactive porte un **léger fond rouge** — LIA qui prend la parole ne se lit plus comme LIA qui répond ; les messages relayés entre pairs gardent leur teinte bleue, la bulle d'erreur son verre neutre. Un souvenir épinglé s'encadre à la **couleur du thème**, l'épingle posée devant le texte sur la ligne de son icône — l'état se voit à toutes les tailles, plus seulement dans le menu d'actions. Les barres de section masquent l'icône de leurs boutons sur téléphone et raccourcissent leurs libellés — « Ajouter », « Effacer », « Importer », « URL », « Écrire », « Engagement » — pour que les trois actions d'une barre tiennent sur une ligne de 390 px. Les rangées d'engagements rejoignent la grammaire commune (icônes dès la tablette, « ⋮ » nommé sur téléphone), abandonnant quatre boutons artisanaux dont les couleurs de survol vivaient hors des jetons. Et une fiche de connexion encadre séparément « **ce que je partage** » et « **ce qu'il ou elle partage** », le côté du pair sur le lavis neutre des surfaces en lecture seule — les deux colonnes se lisaient comme une seule liste.
+
 ### Fixed
 
 - **Au clavier, sur trois écrans, le focus se posait sur des boutons invisibles** : les actions révélées au survol ne se révélaient pas au focus. Le patron est supprimé, pas rafistolé.
@@ -34,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
-- Frontend 4 925 tests sur 402 fichiers (+95) ; 172 parcours navigateur hermétiques rejoués **contre un build de production**, 23 audits d'accessibilité — dont les scans des contenus repliés désormais ouverts avant l'analyse.
+- Frontend 4 929 tests sur 402 fichiers (+99) ; 172 parcours navigateur hermétiques rejoués **contre un build de production**, 23 audits d'accessibilité — dont les scans des contenus repliés désormais ouverts avant l'analyse.
 - Nouvelles gardes : l'étiquette est un bloc (les marges se rendent), les actions de rangée et barres de section (visibles, nommées, rouges au repos), les contrôles de fréquence nommés, la synthèse de planification, les tons `done`/`running`/`expired`, le contrat des champs sur le DOM rendu.
 - Les quatre oracles TOTP réécrits pour le commutateur ; les tests des sections repliables ouvrent le repli avant chaque interaction.
 

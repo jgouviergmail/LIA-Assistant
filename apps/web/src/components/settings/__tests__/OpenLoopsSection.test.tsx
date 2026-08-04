@@ -1,7 +1,8 @@
 /**
  * OpenLoopsSection (UXR Lot 7, B5) — flag/availability gating, direction
  * groups, and the three one-tap actions (done / relaunch prefill /
- * dismissed). Actions are named with the loop subject (a11y).
+ * dismissed). Rows expose their actions through `RowActions` (ADR-208): short
+ * per-action labels, the phone "⋮" menu named with the loop subject (a11y).
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -114,21 +115,32 @@ describe('OpenLoopsSection', () => {
   it('closes as done through the hook', async () => {
     renderSection();
     // The i18n stub echoes keys without interpolation — index 0 is loop l-1.
-    fireEvent.click(screen.getAllByRole('button', { name: 'settings.open_loops.done' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'settings.open_loops.done_label' })[0]);
     await waitFor(() => expect(close).toHaveBeenCalledWith('l-1', 'done'));
   });
 
   it('dismisses as no-longer-relevant through the hook', async () => {
     renderSection();
-    fireEvent.click(screen.getAllByRole('button', { name: 'settings.open_loops.dismiss' })[1]);
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'settings.open_loops.dismiss_label' })[1]
+    );
     await waitFor(() => expect(close).toHaveBeenCalledWith('l-2', 'dismissed'));
   });
 
   it('relaunches into a prefilled chat — never a send', () => {
     renderSection();
-    fireEvent.click(screen.getAllByRole('button', { name: 'settings.open_loops.relaunch' })[0]);
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'settings.open_loops.relaunch_label' })[0]
+    );
     expect(openChat).toHaveBeenCalledWith(expect.stringContaining('/fr/dashboard/chat?draft='));
     expect(close).not.toHaveBeenCalled();
+  });
+
+  it('names each row menu with its loop subject — never an anonymous "⋮"', () => {
+    renderSection();
+    // The i18n stub echoes keys, so both rows read `common.actions_for`; the
+    // per-row uniqueness contract lives in the interpolated name parameter.
+    expect(screen.getAllByRole('button', { name: 'common.actions_for' })).toHaveLength(2);
   });
 
   it('shows the automatic-ledger empty state', () => {
@@ -138,13 +150,12 @@ describe('OpenLoopsSection', () => {
   });
 });
 
-
 describe('correcting a commitment the extractor got wrong', () => {
   // The i18n stub echoes KEYS without interpolation, so controls are addressed
   // by their key — the same convention as the suite above.
   const openEditor = () => {
     renderSection();
-    fireEvent.click(screen.getAllByRole('button', { name: 'settings.open_loops.edit' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'settings.open_loops.edit_label' })[0]);
   };
 
   it('opens an editor seeded with the current wording', async () => {

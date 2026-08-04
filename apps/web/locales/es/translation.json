@@ -2527,7 +2527,7 @@
       "title": "Competencias LIA (skills)",
       "description": "Las skills amplían las capacidades del asistente con instrucciones expertas y flujos de trabajo especializados.",
       "empty": "Sin skills importadas. Importe archivos SKILL.md para agregar nuevas capacidades.",
-      "import_button": "Importar skill",
+      "import_button": "Importar",
       "import_success": "Skill \"{{name}}\" importada con éxito.",
       "import_error": "Error al importar la skill.",
       "delete_button": "Eliminar",
@@ -2830,7 +2830,7 @@
         "dialogue_badge": "diálogo"
       },
       "url_import": {
-        "button": "Desde URL",
+        "button": "URL",
         "title": "Instalar una skill desde una URL",
         "description": "Obtiene un archivo SKILL.md o un paquete .zip desde una dirección https. Pasa exactamente por la misma validación que una importación de archivo.",
         "input_label": "URL https de la skill",
@@ -3192,11 +3192,11 @@
     "sort_volume": "Más activas",
     "only_peers": "En LIA",
     "only_dormant": "Inactivas",
-    "action_message": "Escribir un mensaje",
+    "action_message": "Escribir",
     "action_message_prefill": "Hazle llegar un mensaje a {{name}}: ",
     "action_call": "Llamar",
     "action_call_prefill": "Llama a {{name}} para: ",
-    "action_loop": "Seguir un compromiso",
+    "action_loop": "Compromiso",
     "action_loop_prefill": "Anota un compromiso con {{name}}: ",
     "favorites_title": "Favoritos",
     "others_title": "Otras relaciones",
@@ -3902,7 +3902,7 @@
         "v1_27_11": {
           "title": "v1.27.11 — 🧭 Ajustes que se leen como un índice",
           "date": "Agosto 2026",
-          "count": "10",
+          "count": "11",
           "items": {
             "i1": "<b>🧲 El espacio entre una etiqueta y su campo por fin se dibuja</b> — un defecto de la primitiva de etiqueta hacía que cada ajuste de espaciado se calculara pero nunca se renderizara: todos los formularios vivían con ~3 px dijera lo que dijera el código. Corregido en la raíz y calibrado sobre capturas reales — todos los formularios respiran ahora igual.",
             "i2": "<b>☰ Una sola gramática para las acciones de fila</b> — iconos visibles desde tableta, la eliminación lleva su rojo en reposo, y en el teléfono un único menú «⋮» con nombre. Se acabaron los botones revelados al pasar el cursor sobre los que un usuario de teclado aterrizaba sin ver nada.",
@@ -3913,7 +3913,8 @@
             "i7": "<b>🔐 Las aplicaciones de autenticación (TOTP) se activan con un interruptor</b>, como cualquier función — encenderlo abre la ceremonia, y el pulgar solo bascula cuando el servidor confirma.",
             "i8": "<b>🧭 Los grupos de conectores se llaman «Servicios de Google / Apple / Microsoft / externos»</b>, y una exportación de datos por fin explica su estado: tamaño y caducidad cuando está lista, fechas de generación y caducidad más qué hacer cuando ha caducado.",
             "i9": "<b>🎛️ Cada título lleva un icono del color del tema</b> — frecuencia de notificaciones, meteorología en desplazamiento (ahora plegable), cada tarjeta del panel en la lista de personalización — y las insignias grises quedan reservadas a lo inactivo: «Activado» es verde, «pendiente» es azul.",
-            "i10": "<b>🔔 Las notificaciones push siguen automáticamente su consentimiento global</b> — el interruptor duplicado por función, que podía silenciar las notificaciones proactivas sin avisar, ha sido retirado."
+            "i10": "<b>🔔 Las notificaciones push siguen automáticamente su consentimiento global</b> — el interruptor duplicado por función, que podía silenciar las notificaciones proactivas sin avisar, ha sido retirado.",
+            "i11": "<b>🫧 Lo que viene de LIA se distingue</b> — en el hilo, una notificación proactiva lleva un fondo rojo suave que la separa de una respuesta; una memoria fijada se enmarca con el color del tema, con su pin justo delante del texto. En el teléfono, las barras de acciones se compactan — «Añadir», «Borrar», «Importar», «URL» — para caber en una línea, y una tarjeta de conexión enmarca por separado «lo que comparto» y «lo que comparte la otra persona»."
           }
         },
         "v1_27_10": {
@@ -7242,7 +7243,7 @@
     "empty": "No hay memorias todavía",
     "empty_hint": "Las memorias se crean automáticamente durante tus conversaciones.",
     "export": "Exportar",
-    "delete_all": "Borrar todo",
+    "delete_all": "Borrar",
     "delete_success": "Memoria eliminada",
     "delete_error": "Error al eliminar la memoria",
     "delete_all_success": "Todas las memorias eliminadas",
@@ -7626,7 +7627,7 @@
     "create_success": "Interés agregado",
     "create_title": "Agregar un interés",
     "delete": "Eliminar",
-    "delete_all": "Eliminar todo",
+    "delete_all": "Borrar",
     "delete_all_confirm": "Eliminar todo",
     "delete_all_error": "Error al eliminar",
     "delete_all_success": "Todos los intereses han sido eliminados",

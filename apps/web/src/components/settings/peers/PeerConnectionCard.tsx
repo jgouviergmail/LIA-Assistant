@@ -4,11 +4,12 @@
  * PeerConnectionCard — one accepted connection (peers program, spec §10).
  *
  * Identity keeps the masked email PERMANENTLY pinned (spec §12.8 — the
- * anti-impersonation anchor). MY shares are editable: calendar as a native
- * labeled select (none/availability/details — native form controls are the
- * house preference and stay testable), task as a switch (titles). THEIR
- * shares render as read-only badges — the both-directions requirement.
- * Remove and block go through the house confirm dialog.
+ * anti-impersonation anchor). The two share directions render as MIRRORED
+ * bordered panels (owner arbitration 2026-08-05): mine editable — calendar
+ * through the design-system Select (none/availability/details), task as a
+ * switch (titles) — theirs the same icon-carrying rows in read-only, on the
+ * muted wash every read-only surface wears. Remove and block go through the
+ * house confirm dialog.
  */
 
 import { ArrowDownLeft, ArrowUpRight, Calendar, ListTodo } from 'lucide-react';
@@ -116,9 +117,13 @@ export function PeerConnectionCard({
       {/* Both directions read the SAME way (owner arbitration 2026-08-05):
           the same two icon-carrying rows on each side — mine editable, theirs
           the read-only values. The old badge soup made the two columns look
-          like two different features. */}
+          like two different features. Each direction is its own bordered
+          panel (owner request 2026-08-05): side by side they sat one `gap-3`
+          apart and read as one list — the frame is what says where "what I
+          share" ends and "what they share" begins; the peer side wears the
+          muted wash the identity box uses for every read-only surface. */}
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-3">
+        <div className="space-y-3 rounded-md border border-border/40 p-3">
           <p className="flex items-center gap-1.5 text-xs font-medium uppercase text-muted-foreground">
             <ArrowUpRight className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
             {t('settings.peers.shares.my_title')}
@@ -161,7 +166,7 @@ export function PeerConnectionCard({
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3 rounded-md border border-border/40 bg-muted/30 p-3">
           <p className="flex items-center gap-1.5 text-xs font-medium uppercase text-muted-foreground">
             <ArrowDownLeft className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
             {t('settings.peers.shares.their_title')}

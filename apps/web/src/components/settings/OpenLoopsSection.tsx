@@ -23,6 +23,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { CommitmentEditor } from '@/components/commitments/CommitmentEditor';
+import { RowActions } from '@/components/ui/row-actions';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { haptic } from '@/lib/haptics';
 import { useAppConfig } from '@/hooks/useAppConfig';
@@ -195,42 +196,40 @@ function LoopGroup({
                     })}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setEditingId(loop.id)}
-                  aria-label={t('settings.open_loops.edit', { subject: loop.subject })}
-                  title={t('settings.open_loops.edit_label')}
-                  className="p-1.5 rounded-md border border-border/30 bg-background/80 hover:bg-background hover:text-primary"
-                >
-                  <Pencil className="h-3.5 w-3.5" aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleClose(loop, 'done')}
-                  aria-label={t('settings.open_loops.done', { subject: loop.subject })}
-                  title={t('settings.open_loops.done_label')}
-                  className="p-1.5 rounded-md border border-border/30 bg-background/80 hover:bg-background hover:text-green-600"
-                >
-                  <Check className="h-3.5 w-3.5" aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => relaunch(loop)}
-                  aria-label={t('settings.open_loops.relaunch', { subject: loop.subject })}
-                  title={t('settings.open_loops.relaunch_label')}
-                  className="p-1.5 rounded-md border border-border/30 bg-background/80 hover:bg-background hover:text-primary"
-                >
-                  <Send className="h-3.5 w-3.5" aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleClose(loop, 'dismissed')}
-                  aria-label={t('settings.open_loops.dismiss', { subject: loop.subject })}
-                  title={t('settings.open_loops.dismiss_label')}
-                  className="p-1.5 rounded-md border border-border/30 bg-background/80 hover:bg-background hover:text-orange-600"
-                >
-                  <CircleSlash className="h-3.5 w-3.5" aria-hidden />
-                </button>
+                {/* ADR-208 (owner request 2026-08-05): the ONE row-action
+                    grammar — ghost icons from `sm` up, a right-aligned named
+                    "⋮" menu on phones, like the interests rows. The four
+                    hand-rolled bordered buttons (with their raw green/orange
+                    hover codes) predated the pattern and crowded a 390px row. */}
+                <RowActions
+                  menuLabel={t('common.actions_for', { name: loop.subject })}
+                  actions={[
+                    {
+                      key: 'edit',
+                      label: t('settings.open_loops.edit_label'),
+                      icon: Pencil,
+                      onSelect: () => setEditingId(loop.id),
+                    },
+                    {
+                      key: 'done',
+                      label: t('settings.open_loops.done_label'),
+                      icon: Check,
+                      onSelect: () => void handleClose(loop, 'done'),
+                    },
+                    {
+                      key: 'relaunch',
+                      label: t('settings.open_loops.relaunch_label'),
+                      icon: Send,
+                      onSelect: () => relaunch(loop),
+                    },
+                    {
+                      key: 'dismiss',
+                      label: t('settings.open_loops.dismiss_label'),
+                      icon: CircleSlash,
+                      onSelect: () => void handleClose(loop, 'dismissed'),
+                    },
+                  ]}
+                />
               </>
             )}
           </li>

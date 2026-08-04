@@ -322,15 +322,23 @@ function AssistantActionRow({
  * Assistant bubble surface classes (module-level — CC discipline).
  *
  * Peers program (Lot 7): peer notifications (`proactive_peer_*` metadata)
- * carry a subtle distinct tint so relayed messages and connection events read
- * at a glance among answers; every other bubble keeps the default card glass.
+ * carry a subtle primary tint so relayed messages and connection events read
+ * at a glance among answers. Every OTHER proactive notification (interest,
+ * heartbeat, phone-call debrief…) carries a light red tint (owner request
+ * 2026-08-05): LIA speaking first is a different event from LIA answering,
+ * and the history must show it without reading. Ordinary answers — error
+ * bubbles included, whose `metadata.type` is `error` — keep the card glass.
  */
 function assistantBubbleSurface(metadata: Record<string, unknown> | undefined): string {
-  const isPeer =
-    typeof metadata?.type === 'string' && (metadata.type as string).startsWith('proactive_peer');
-  return isPeer
-    ? 'bg-primary/10 border-primary/25 hover:bg-primary/15'
-    : 'bg-card/70 border-border/20 hover:bg-card/80';
+  const rawType = metadata?.type;
+  const type = typeof rawType === 'string' ? rawType : '';
+  if (type.startsWith('proactive_peer')) {
+    return 'bg-primary/10 border-primary/25 hover:bg-primary/15';
+  }
+  if (type.startsWith('proactive_')) {
+    return 'bg-destructive/10 border-destructive/25 hover:bg-destructive/15';
+  }
+  return 'bg-card/70 border-border/20 hover:bg-card/80';
 }
 
 /**

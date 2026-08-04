@@ -353,7 +353,7 @@ test.describe('relations CRM (N-09)', () => {
     // ADR-192 the one-shot param really leaves the URL as soon as it is
     // consumed, so `?draft=` is gone by the time anyone could read it — and a
     // test that waited for it was passing on a defect.
-    await page.getByRole('button', { name: 'Écrire un message' }).click();
+    await page.getByRole('button', { name: 'Écrire', exact: true }).click();
     await page.waitForURL(/\/dashboard\/chat/, { timeout: 30_000 });
     await expect(page.getByRole('textbox').first()).toHaveValue(new RegExp(NAME), {
       timeout: 30_000,

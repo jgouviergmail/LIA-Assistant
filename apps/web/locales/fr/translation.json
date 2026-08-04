@@ -2554,7 +2554,7 @@
       "title": "Compétences LIA (skills)",
       "description": "Les skills étendent les capacités de l'assistant avec des instructions expertes et des workflows spécialisés.",
       "empty": "Aucune skill importée. Importez des fichiers SKILL.md pour ajouter de nouvelles compétences.",
-      "import_button": "Importer une skill",
+      "import_button": "Importer",
       "import_success": "Skill \"{{name}}\" importée avec succès.",
       "import_error": "Erreur lors de l'import de la skill.",
       "delete_button": "Supprimer",
@@ -2857,7 +2857,7 @@
         "dialogue_badge": "dialogue"
       },
       "url_import": {
-        "button": "Depuis une URL",
+        "button": "URL",
         "title": "Installer une skill depuis une URL",
         "description": "Récupère un fichier SKILL.md ou un paquet .zip depuis une adresse https. Il passe exactement par la même validation qu'un import de fichier.",
         "input_label": "URL https de la skill",
@@ -3219,11 +3219,11 @@
     "sort_volume": "Plus actifs",
     "only_peers": "Sur LIA",
     "only_dormant": "En sommeil",
-    "action_message": "Écrire un message",
+    "action_message": "Écrire",
     "action_message_prefill": "Fais passer un message à {{name}} : ",
     "action_call": "Appeler",
     "action_call_prefill": "Appelle {{name}} pour : ",
-    "action_loop": "Suivre un engagement",
+    "action_loop": "Engagement",
     "action_loop_prefill": "Note un engagement avec {{name}} : ",
     "favorites_title": "Favoris",
     "others_title": "Autres relations",
@@ -3916,7 +3916,7 @@
         "v1_27_11": {
           "title": "v1.27.11 — 🧭 Des réglages qui se lisent comme un index",
           "date": "Août 2026",
-          "count": "10",
+          "count": "11",
           "items": {
             "i1": "<b>🧲 L’écart entre un libellé et son champ se rend enfin à l’écran</b> — un défaut de la primitive d’étiquette faisait que chaque réglage d’espacement était calculé mais jamais dessiné : tous les formulaires vivaient avec ~3 px quel que soit le code. Corrigé à la racine et calibré sur captures réelles — tous les formulaires respirent désormais pareil.",
             "i2": "<b>☰ Une seule grammaire pour les actions d’une ligne</b> — icônes visibles dès la tablette, la suppression portant son rouge au repos, et sur téléphone un unique menu « ⋮ » nommé. Fini les boutons révélés au survol sur lesquels un utilisateur clavier arrivait sans rien voir.",
@@ -3927,7 +3927,8 @@
             "i7": "<b>🔐 Les applications d’authentification (TOTP) s’activent au commutateur</b>, comme toute fonctionnalité — l’allumer ouvre la cérémonie, et le pouce ne bascule qu’une fois le serveur confirmé.",
             "i8": "<b>🧭 Les groupes de connecteurs se nomment « Services Google / Apple / Microsoft / externes »</b>, et un export de données explique enfin son état : taille et expiration quand il est prêt, dates de génération et d’expiration plus la marche à suivre quand il a expiré.",
             "i9": "<b>🎛️ Chaque titre porte une icône à la couleur du thème</b> — fréquence des notifications, météo en déplacement (désormais repliable), chaque carte du tableau de bord dans la liste de personnalisation — et les badges gris sont réservés à l’inactif : « Activé » est vert, « en attente » est bleu.",
-            "i10": "<b>🔔 Les notifications poussées suivent automatiquement votre accord global</b> — le second interrupteur par fonctionnalité, qui pouvait rendre muettes les notifications proactives en silence, est retiré."
+            "i10": "<b>🔔 Les notifications poussées suivent automatiquement votre accord global</b> — le second interrupteur par fonctionnalité, qui pouvait rendre muettes les notifications proactives en silence, est retiré.",
+            "i11": "<b>🫧 Ce qui vient de LIA se voit</b> — dans le fil, une notification proactive porte un léger fond rouge qui la distingue d’une réponse ; un souvenir épinglé s’encadre à la couleur du thème, l’épingle posée devant le texte. Sur téléphone, les barres d’actions se compactent — « Ajouter », « Effacer », « Importer », « URL » — pour tenir sur une ligne, et une fiche de connexion encadre séparément « ce que je partage » et « ce qu’il ou elle partage »."
           }
         },
         "v1_27_10": {
@@ -7256,7 +7257,7 @@
     "empty": "Aucune mémoire pour l'instant",
     "empty_hint": "Les mémoires sont créées automatiquement lors de vos conversations.",
     "export": "Exporter",
-    "delete_all": "Tout effacer",
+    "delete_all": "Effacer",
     "delete_success": "Mémoire supprimée",
     "delete_error": "Erreur lors de la suppression",
     "delete_all_success": "Toutes les mémoires supprimées",
@@ -7421,7 +7422,7 @@
       "thanks": "Merci !"
     },
     "export": "Exporter",
-    "delete_all": "Tout supprimer",
+    "delete_all": "Effacer",
     "delete_all_success": "Tous les centres d'intérêt ont été supprimés",
     "delete_all_error": "Erreur lors de la suppression",
     "confirm_delete_all_title": "Supprimer tous les centres d'intérêt ?",

@@ -725,6 +725,9 @@ describe('ChatMessage — peer bubble (peers Lot 7)', () => {
     renderAssistantWith(peerMessage(), { onPrefillComposer: vi.fn() });
     const bubble = screen.getByText('Marie te fait dire bonjour').closest('.message-bubble');
     expect(bubble).toHaveClass('bg-primary/10');
+    // A peer type also matches the generic `proactive_` prefix: the peer tint
+    // must win, never the red proactive one.
+    expect(bubble).not.toHaveClass('bg-destructive/10');
     expect(screen.getByRole('button', { name: /chat\.peer\.reply/ })).toBeInTheDocument();
   });
 
@@ -740,6 +743,36 @@ describe('ChatMessage — peer bubble (peers Lot 7)', () => {
     renderMessage(makeMessage({ content: 'Réponse ordinaire' }));
     const bubble = screen.getByText('Réponse ordinaire').closest('.message-bubble');
     expect(bubble).not.toHaveClass('bg-primary/10');
+    expect(bubble).not.toHaveClass('bg-destructive/10');
     expect(screen.queryByRole('button', { name: /chat\.peer\.reply/ })).toBeNull();
+  });
+});
+
+describe('ChatMessage — proactive bubble tint (owner request 2026-08-05)', () => {
+  it('tints a proactive notification light red so it reads apart from answers', () => {
+    renderMessage(
+      makeMessage({
+        content: 'Un article sur les fusées',
+        metadata: { type: 'proactive_interest', target_id: '11111111-1111-4111-8111-111111111111' },
+      })
+    );
+    const bubble = screen.getByText('Un article sur les fusées').closest('.message-bubble');
+    expect(bubble).toHaveClass('bg-destructive/10');
+    expect(bubble).not.toHaveClass('bg-primary/10');
+  });
+
+  it('tints every proactive family the same way (heartbeat)', () => {
+    renderMessage(
+      makeMessage({ content: 'Votre journée commence', metadata: { type: 'proactive_heartbeat' } })
+    );
+    const bubble = screen.getByText('Votre journée commence').closest('.message-bubble');
+    expect(bubble).toHaveClass('bg-destructive/10');
+  });
+
+  it('keeps the error bubble on the default glass — red is the proactive code here', () => {
+    renderMessage(makeMessage({ content: 'Une erreur est survenue', metadata: { type: 'error' } }));
+    const bubble = screen.getByText('Une erreur est survenue').closest('.message-bubble');
+    expect(bubble).not.toHaveClass('bg-destructive/10');
+    expect(bubble).toHaveClass('bg-card/70');
   });
 });
