@@ -3133,7 +3133,7 @@
         "memories": "memory, remember, forget, facts, recollection, provenance, why, source, signal, origin, correct",
         "interests": "topics, tastes, subjects, curiosity, preferences, history, recent notifications, provenance, why, weight, explanation, decay, source",
         "peer-connections": "contacts, friends, family, network, share calendar, availability, block, discover users, connect, my name, copy my name, connection request, access log, relay message, blocked users, peers, social network, discovery, loved ones, relatives, share my address, email visible, my email, 360 overview",
-        "heartbeat": "proactive, spontaneous, initiative, check-in, autonomous messages, notification topics, sources, history, recent notifications",
+        "heartbeat": "proactive, spontaneous, initiative, check-in, autonomous messages, notification topics, sources, history, recent notifications, priority, urgency, high, medium, low, colour",
         "scheduled-actions": "cron, schedule, recurring, automation, timer, planned",
         "journals": "diary, logbook, portrait, reflections, notes, provenance, why, source, signal, origin, correct",
         "health-metrics": "heart rate, steps, sleep, iPhone, Apple Health, fitness, activity",
@@ -3889,13 +3889,30 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_27_10": {
+          "title": "v1.27.10 — 🎨 Screens you can read at a glance",
+          "date": "August 2026",
+          "count": "10",
+          "items": {
+            "i1": "<b>🔴 A “high” notification no longer looks like a “medium” one</b> — both rendered on a pale ground in two very close hues: on a real account, 89 high and 113 medium notifications were indistinguishable. Urgency is now carried by <b>density</b>, not hue alone: high fills, medium tints, low stays neutral. The difference holds in greyscale too.",
+            "i2": "<b>🔢 The Alerts counts show before you open anything</b> — the number that decides which section to open could only be had by opening it. The five totals now arrive with the page; the lists still wait for the fold.",
+            "i3": "<b>🔘 Action buttons look alike everywhere</b> — the relationship-card actions and the Alerts shortcuts adopt the outlined style used throughout the app.",
+            "i4": "<b>🧠 A memory shown on a relationship card is now clickable</b> — it was dead text: correcting it meant finding Settings, then the right section, by hand.",
+            "i5": "<b>👤 A peer connection carries the app's own initials avatar</b>, with its name in bold — a list of connections was told apart by reading, not by looking.",
+            "i6": "<b>🎯 Contact-card icons take one colour per family</b> — reach, dates, ties. The card already answered three questions; colour makes that structure visible.",
+            "i7": "<b>📨 “Sent” and “received” each have their own colour</b> — on relayed messages, on a relationship card's messages, and on exchanged emails. Only a small arrow separated them.",
+            "i8": "<b>📅 Shared meetings and exchanged emails finally have a count</b>, like their five neighbours — and every count in the app now wears the same colour.",
+            "i9": "<b>📞 A call's objective is told apart from its summary</b> — and a long objective no longer spills out of its tag: a tag is sized for a word, not a sentence.",
+            "i10": "<b>📱 On a phone, two dense blocks are no longer shown</b> — “Why does LIA think this?” and the interest-weight explanation pushed what you came to read off the screen. They stay whole on a wide screen."
+          }
+        },
         "v1_27_9": {
           "title": "v1.27.9 — 🔭 Why LIA thinks that, and what it can do",
           "date": "August 2026",
           "count": "10",
           "items": {
             "i1": "<b>🔍 “Why does LIA think that?” under every memory and journal entry</b> — a folded block shows the signals behind the conclusion, their date and their role, with a <b>Correct</b> button. What is kept is a <b>reference, never a copy</b>: your text stays where you wrote it. Delete the conversation and the reference empties while the dated row stays — the content never comes back. Settings → Memories, or Settings → Journals.",
-            "i2": "<b>🔔 An “Alerts” destination for everything addressed to you</b> — relayed peer messages, proactive notifications, interest notifications, pending reminders and scheduled routines, in one screen instead of five different settings panels. Sections arrive folded, paginate by ten, and a closed section costs no request. Your usual settings links keep working.",
+            "i2": "<b>🔔 An “Alerts” destination for everything addressed to you</b> — relayed peer messages, proactive notifications, interest notifications, pending reminders and scheduled routines, in one screen instead of five different settings panels. Each section arrives folded <b>with its count already shown</b>, and paginates by ten: you choose what to open without having to open it to find out. No list is fetched until something is unfolded. Your usual settings links keep working.",
             "i3": "<b>🌌 A star chart of your capabilities</b> — each capability is a star: filled when active, outlined when waiting to be lit, its size saying what it holds. The figure joins only the live ones, so its shape is your configuration. No level, no percentage, no comparison with anyone. Home → Capabilities.",
             "i4": "<b>📈 An interest's weight explains itself</b> — the originating signal, the last mention, the last notification and the calculation itself. Explaining uncertainty is more useful than turning it into a score. Settings → Interests, under each topic.",
             "i5": "<b>📞 No option raised on a call is accepted on your behalf</b> — debrief follow-ups now <b>prepare</b> the message instead of sending it, and what the other party actually proposed (date, place, extra cost) is shown <b>before</b> the possible follow-ups.",
@@ -5805,7 +5822,7 @@
           },
           "q20": {
             "question": "Where can I see everything LIA sent me, without digging through settings?",
-            "answer": "The <b>Alerts</b> destination in the navigation bar gathers five streams in one screen: relayed peer messages, proactive notifications, interest notifications, pending reminders and scheduled routines. Each section arrives folded, paginates by ten and shows its exact total. A closed section costs no request; opening it costs exactly one. The settings panels remain the detailed configuration for each of those streams, and every link you had saved keeps working."
+            "answer": "The <b>Alerts</b> destination in the navigation bar gathers five streams in one screen: relayed peer messages, proactive notifications, interest notifications, pending reminders and scheduled routines. Each section arrives folded <b>already showing its exact count</b> — you choose what to open without having to open it to find out — and paginates by ten. No list is fetched until something is unfolded: only the counts are, in a single read. The settings panels remain the detailed configuration for each of those streams, and every link you had saved keeps working."
           }
         }
       },
@@ -6248,7 +6265,7 @@
       "heartbeat": {
         "title": "Proactive Notifications",
         "description": "LIA takes the initiative to keep you informed",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "What are proactive notifications?",
@@ -6285,6 +6302,10 @@
           "q9": {
             "question": "Can LIA tell me when to leave for a meeting? (v1.25.13)",
             "answer": "Yes. When your next calendar event has a <strong>location</strong> and starts within a few hours, LIA checks <strong>real traffic</strong> (Google Routes) from your effective position and can notify you: « Leave by 13:30 — 30 min drive to your 14:00 appointment », combined with weather when it matters (« rain expected at 14:30 »).<br><br>One route check at most per cycle, cached per event — and the same notification is never sent twice for one event.<br><br><strong>⚙️ Admin:</strong> off by default (<code>HEARTBEAT_DEPARTURE_ENABLED</code>); requires a configured home location."
+          },
+          "q10": {
+            "question": "How do I read a notification's urgency at a glance?",
+            "answer": "Every proactive notification carries its level: <b>high</b> renders on a solid ground, <b>medium</b> on a light tint, <b>low</b> stays neutral. What separates them is not colour alone but <b>density</b> — two neighbouring hues merge on a phone, in bright sunlight, or for someone who tells them apart poorly, whereas a solid ground against a tint stays legible even in black and white. The word is always shown next to it: colour speeds up reading, it never replaces it. A level LIA does not know yet renders neutral rather than red, because presenting it as urgent would be a claim nobody made."
           }
         }
       },
@@ -6965,11 +6986,15 @@
       },
       "alerts_hub": {
         "title": "Everything addressed to you",
-        "desc": "Relayed messages, notifications, reminders and routines in one screen instead of as many panels. Each section arrives folded — and a closed one loads nothing."
+        "desc": "Relayed messages, notifications, reminders and routines in one screen instead of as many panels. Each section arrives folded with its count already shown — you choose what to open without opening it to find out."
       },
       "capability_map": {
         "title": "Your constellation",
         "desc": "Each capability is a star: filled when active, outlined when waiting. The figure joins only the live ones — its shape is your configuration, and nobody else's."
+      },
+      "readable_at_a_glance": {
+        "title": "Readable at a glance",
+        "desc": "An urgent alert does not look like an ordinary one: density separates them, not hue alone. It holds in greyscale too."
       }
     },
     "scenes": {

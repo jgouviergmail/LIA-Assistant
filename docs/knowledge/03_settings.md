@@ -453,8 +453,10 @@ screen:
 • **Pending reminders** — what is still to come
 • **Scheduled routines** and their next runs
 
-Each section arrives folded, paginates by ten and shows its exact total. A
-closed section costs no request at all; opening it costs exactly one.
+Each section arrives folded, **already showing its exact total**, and
+paginates by ten — so you choose what to open rather than opening it to find
+out. No list is fetched until something is unfolded: only the five counts are,
+in a single read, and opening a section costs exactly one more.
 
 The settings panels remain the detailed configuration for each of those
 streams, and every deep link you had saved keeps working. Reminders are the one
@@ -474,3 +476,12 @@ a level, a percentage of completion or a comparison with anyone.
 Every star is a real link that takes you to where that capability is set up. On
 a phone, or if you asked your system to minimise motion, the same map arrives
 as a list: same data, same order, same destinations.
+
+## Do I have to open a section to know whether it holds anything?
+No. Every section of the **Alerts** destination shows its exact count while
+still folded, so you choose what to open rather than opening it to find out.
+The counts arrive in a single read when the page loads; the lists themselves
+still wait for you to unfold a section.
+
+A section your instance has disabled is not counted at all — it is absent from
+the page, so counting it would be work for a badge nobody can see.

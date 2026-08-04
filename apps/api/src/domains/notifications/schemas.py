@@ -130,3 +130,25 @@ class UnreadBroadcastsResponse(BaseModel):
 
 # Rebuild models for forward references
 UserTokensResponse.model_rebuild()
+
+
+class HubCountsResponse(BaseModel):
+    """One exact total per section of the notifications hub.
+
+    Resolved in a single pass so a folded section can be CHOSEN from rather
+    than opened to find out whether it holds anything. Every field is a
+    cardinality, hence ``ge=0``; a section whose read failed reports 0 rather
+    than taking the hub down with it.
+    """
+
+    peer_messages: int = Field(ge=0, description="Relayed messages delivered, both directions.")
+    proactive: int = Field(ge=0, description="Proactive notifications ever sent.")
+    interests: int = Field(ge=0, description="Interest notifications ever sent.")
+    reminders: int = Field(
+        ge=0,
+        description=(
+            "Reminders still WAITING. Not a history: a reminder is deleted the "
+            "instant it fires, so this counts the future."
+        ),
+    )
+    scheduled: int = Field(ge=0, description="Scheduled routines the account owns.")

@@ -4,9 +4,9 @@
 >
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
-**Version** : 3.7
+**Version** : 3.8
 **Date** : 2026-08-04
-**Application** : LIA v1.27.9
+**Application** : LIA v1.27.10
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 447 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 203 ADRs, ~18 002 tests collectés par pytest sur 981 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 204 ADRs, ~18 016 tests collectés par pytest sur 983 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -72,10 +72,10 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~18 002 (collectés par pytest sur 981 fichiers de test) + 4 808 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | ~18 016 (collectés par pytest sur 983 fichiers de test) + 4 830 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures réutilisables | 170+ |
 | Documents de documentation | 400+ |
-| ADRs (Architecture Decision Records) | 203 |
+| ADRs (Architecture Decision Records) | 204 |
 | Métriques Prometheus | 447 définitions |
 | Dashboards Grafana | 26 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1180,9 +1180,28 @@ Trois états, et la distinction entre les deux derniers porte tout le sens : **i
 
 Rien de ce qui est publié n'est un niveau, un pourcentage d'avancement ou une comparaison, et un test l'énonce comme contrainte de schéma. Le rendu suit la même règle : le dessin est décoratif et masqué aux technologies d'assistance, tandis que chaque élément atteignable est un lien nommé — un `<circle>` porteur d'un `onClick` aurait le même rendu et serait inutilisable sans souris. La figure joint les capacités actives **en ordre angulaire**, seul ordre qui ne peut pas s'auto-intersecter autour d'un point intérieur.
 
+### 23.17. Un statut nomme un ton, il n'écrit pas ses couleurs
+
+Rendre une étiquette d'état — une priorité, un sens de circulation, un rôle — semble trivial, et c'est précisément pour cela que chaque écran finit par écrire ses propres classes. Trois composants portaient ainsi leur propre table de correspondances pour le même travail, avec trois conséquences.
+
+**La distinction promise peut ne pas exister.** Deux niveaux rendus à 10 % d'opacité sur des jetons séparés de 23° de teinte en OKLCH sont, à l'écran, le même niveau. Aucune revue de code ne l'attrape : les deux lignes se lisent différemment dans le source et identiquement sur l'écran.
+
+**Des classes écrites à la main échappent au contrôle de contraste.** La garde du design system vérifie chaque paire réellement produite par les composants, sur cinq thèmes en clair et en sombre. Ce qui est écrit ailleurs n'y figure pas.
+
+**Un statut inconnu tombe sur ce que le repli du dictionnaire donne**, ce qui peut afficher en rouge une valeur dont personne n'a dit qu'elle était urgente.
+
+Un module unique expose donc des fonctions qui renvoient un **variant de composant**, jamais une classe. Deux règles en découlent :
+
+| Règle | Raison |
+|-------|--------|
+| La hiérarchie est portée par la **densité**, pas par la teinte seule | Un fond plein contre une teinte reste lisible pour qui confond les deux couleurs, et en niveaux de gris |
+| Une valeur inconnue est **neutre** | Afficher un niveau non reconnu comme urgent est une affirmation que personne n'a faite |
+
+Corollaire de forme : une étiquette est faite pour un **mot**. Le composant fixe sa hauteur, si bien qu'une phrase de trois lignes en déborde et se lit comme du texte barré. Ce qui est long se met en valeur par le poids typographique, qui ne suppose rien de la longueur.
+
 ## 24. Architecture des décisions (ADR)
 
-203 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+204 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1272,10 +1291,10 @@ Le contexte psyché est injecté dans **tous** les points de génération utilis
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 203 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~18 002 tests sur 981 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 204 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~18 016 tests sur 983 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 203 ADRs, et du changelog (v1.0 à v1.27.9). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 204 ADRs, et du changelog (v1.0 à v1.27.10). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

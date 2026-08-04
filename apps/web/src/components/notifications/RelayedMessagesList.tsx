@@ -16,7 +16,9 @@
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { Badge } from '@/components/ui/badge';
 import { formatInstant } from '@/lib/format-instant';
+import { directionTone } from '@/lib/status-tone';
 
 export interface RelayedMessage {
   id: string;
@@ -46,12 +48,19 @@ export function RelayedMessagesList({
             className="space-y-1 rounded-lg border border-border/40 bg-card/40 px-3 py-2"
           >
             <p className="flex flex-wrap items-baseline gap-2">
-              <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
-                <DirectionIcon className="h-3.5 w-3.5" aria-hidden="true" />
+              {/* A TONE per direction, not one colour for both: sent and
+                  received were the same primary blue, so the only thing that
+                  separated them was a 14 px arrow. The word stays — the tone
+                  is what makes the two sides legible while scanning. */}
+              <Badge
+                variant={directionTone(message.direction)}
+                size="sm"
+                icon={<DirectionIcon className="h-3 w-3" aria-hidden="true" />}
+              >
                 {received
                   ? t('notifications_hub.direction_received')
                   : t('notifications_hub.direction_sent')}
-              </span>
+              </Badge>
               <span className="text-sm font-medium text-foreground/90">
                 {message.peer_display_name}
               </span>

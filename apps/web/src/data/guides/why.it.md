@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versione**: 4.2
+**Versione**: 4.3
 **Data**: 2026-08-04
-**Applicazione**: LIA v1.27.9
+**Applicazione**: LIA v1.27.10
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -302,6 +302,16 @@ Sotto ogni ricordo, ogni voce di diario e ogni interesse, LIA mostra dunque i se
 Ciò che si conserva è un **rimando, mai una copia**. Il suo testo resta dove l'ha scritto e, se elimina la conversazione, non ritorna da nessuna parte: il rimando si svuota, la riga resta datata, e LIA dice semplicemente che il segnale è stato eliminato. Un'eliminazione deve restare un'eliminazione — altrimenti ciò che cancella da un lato le verrebbe riproposto dall'altro.
 
 Lo stesso principio vale per il peso di un interesse: si spiega invece di valutarsi. Il segnale d'origine, l'ultima menzione, il calcolo stesso — quanto basta per rifare il conto. Trasformare quell'incertezza in un punteggio inviterebbe a una competizione che nessuno ha chiesto, senza insegnare nulla di più.
+
+### 6.6. Leggibile senza sforzo
+
+La trasparenza non si ferma a ciò che il sistema mostra: riguarda anche il modo in cui lo mostra. Una schermata in cui tutto ha lo stesso peso chiede al lettore di fare la cernita da sé, e non c'è ragione perché quel lavoro tocchi a lui.
+
+Un avviso urgente non somiglia dunque a uno ordinario — e non è solo questione di colore. Due tonalità vicine si confondono su uno schermo, a maggior ragione su un telefono, in pieno sole, o per chi le distingue male. Ciò che separa i livelli qui è la **densità**: uno sfondo pieno contro una sfumatura leggera, una differenza che regge anche in bianco e nero.
+
+Lo stesso principio vale ovunque: un contatore porta il colore degli altri contatori, un pulsante d'azione ha la stessa forma da una schermata all'altra, un messaggio inviato non si distingue da uno ricevuto per una sola piccola freccia. Nulla di tutto ciò aggiunge informazione — tutto ciò fa guadagnare tempo su quanto è già lì.
+
+E il colore non porta mai da solo il significato: ogni etichetta conserva la sua parola. Un'interfaccia che funziona solo a colori non funziona per tutti.
 
 ## 7. Profondità emotiva
 

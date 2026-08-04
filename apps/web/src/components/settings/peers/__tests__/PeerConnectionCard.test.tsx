@@ -127,3 +127,19 @@ describe('PeerConnectionCard', () => {
     ).toBeDisabled();
   });
 });
+
+describe('how a connection is presented', () => {
+  it('names the peer with the app’s own avatar, and in bold', () => {
+    // A row of connections was told apart by reading, not by looking: every
+    // one carried the same generic person glyph. The house avatar hashes a
+    // colour from the name, so two connections differ at a glance.
+    setup();
+
+    expect(screen.getByText('Marie Dupont')).toHaveClass('font-semibold');
+
+    // Initials, not a photo: this domain publishes no picture for a peer, and
+    // adding one would put a personal datum on a surface built to keep the
+    // other side unobservable.
+    expect(screen.getByText('MD')).toBeInTheDocument();
+  });
+});

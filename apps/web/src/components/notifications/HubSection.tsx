@@ -15,11 +15,15 @@
  *   cap is stated rather than applied in silence (ADR-185).
  *
  * Folded by design, and folded means UNMOUNTED: `SettingsDisclosure` renders
- * children only while open, which is what lets five sections cost zero
- * requests on arrival. `onOpenChange` gates the query.
+ * children only while open, so no PAGE of rows is fetched for a section nobody
+ * opened. `onOpenChange` gates that query.
+ *
+ * The badge is the exception, and the reason it exists: its total arrives with
+ * the hub's single count read, so a folded section is chosen from rather than
+ * opened to find out whether it holds anything.
  */
 
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -45,8 +49,15 @@ export interface HubSectionProps {
   emptyLabel: string;
   /** Already translated — shown in place of the list when the fetch failed. */
   errorLabel: string;
-  /** EXACT total over the whole set; also the folded badge. */
-  total: number;
+  /**
+   * EXACT total over the whole set; also the folded badge.
+   *
+   * `undefined` means NOT KNOWN YET — the badge then says "—" rather than
+   * "0", which would be a claim nobody has verified. It stops being undefined
+   * as soon as the hub's single count read lands, so a folded section is
+   * choosable without opening it.
+   */
+  total: number | undefined;
   page: number;
   totalPages: number;
   onPageChange: (page: number) => void;
@@ -79,27 +90,32 @@ export function HubSection({
   children,
 }: HubSectionProps) {
   const { t } = useTranslation();
-  // Mirrored locally so the badge can say "—" before the first read rather
-  // than "0", which would be a claim nobody has verified yet.
-  const [opened, setOpened] = useState(false);
 
   return (
     <SettingsDisclosure
       icon={icon}
       title={title}
-      badge={
-        <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
-          {opened && !firstLoad ? total : '—'}
-        </span>
+      // The NUMBER only: `SettingsDisclosure` already wraps whatever it is
+      // given in the house pill, and a second styled span nested one pill
+      // inside another. "—" while NOTHING is known yet — never "0", which
+      // would be a claim nobody has verified.
+      badge={total === undefined ? '—' : total}
+      // Every COUNT wears the primary tint, like every other badge in the app
+      // (owner call, 2026-08-04) — a count is information, and a grey pill read
+      // as decoration. Zero included: an empty section is a fact, not a
+      // different kind of thing.
+      //
+      // The one exception is the UNKNOWN state, which is not a count at all:
+      // "—" stays neutral so it cannot be mistaken for "there is something
+      // here".
+      badgeClassName={
+        total === undefined ? undefined : 'border border-primary/20 bg-primary/10 text-primary'
       }
       // Visible WHILE FOLDED: it is what the reader chooses from, and it is
       // the only thing telling them that reminders and routines list the
       // FUTURE rather than a history.
       description={subtitle}
-      onOpenChange={open => {
-        if (open) setOpened(true);
-        onOpenChange(open);
-      }}
+      onOpenChange={onOpenChange}
     >
       {firstLoad ? (
         <div className="flex justify-center py-6">
@@ -120,7 +136,7 @@ export function HubSection({
               currentPage={page}
               totalPages={totalPages}
               onPageChange={onPageChange}
-              totalItems={total}
+              totalItems={total ?? 0}
               loading={loading}
               variant="centered"
               labels={{

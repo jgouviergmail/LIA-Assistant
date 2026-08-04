@@ -3,8 +3,9 @@
 import { AlertCircle, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { cn } from '@/lib/utils';
+import type { BadgeTone } from '@/lib/status-tone';
 
 /**
  * The shared card of a delivered-notification history.
@@ -33,8 +34,15 @@ export interface NotificationHistoryRow {
   createdAt: string;
   /** The message, when it was kept. Absent renders no paragraph, never a blank. */
   content: string | null;
-  /** Emphasised marker (a priority, a state) — at most one. */
-  badge?: { label: string; className: string } | null;
+  /**
+   * Emphasised marker (a priority, a state) — at most one.
+   *
+   * Carries a TONE, not classes: `Badge` renders it, so the marker inherits
+   * the design-system contrast guard instead of hand-written Tailwind that
+   * nothing checks. Density is what separates the levels — a solid fill reads
+   * as more urgent than a tint even when the two hues are close.
+   */
+  badge?: { label: string; tone: BadgeTone } | null;
   /** Neutral chips: the sources used, the interest, the provider. */
   chips: { key: string; label: string }[];
   /** `thumbs_up` | `thumbs_down` | anything else, or null when never rated. */
@@ -116,14 +124,9 @@ export function NotificationHistoryList({
                 {formatDate(row.createdAt)}
               </time>
               {row.badge && (
-                <span
-                  className={cn(
-                    'rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide',
-                    row.badge.className
-                  )}
-                >
+                <Badge variant={row.badge.tone} size="sm" className="uppercase tracking-wide">
                   {row.badge.label}
-                </span>
+                </Badge>
               )}
               <FeedbackMark verdict={row.feedback} />
             </div>

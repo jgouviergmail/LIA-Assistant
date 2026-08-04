@@ -18,8 +18,15 @@
  * explanation. The line under each title states which of the two it is
  * (owner arbitration 2026-08-03: five flat sections, no visual grouping).
  *
- * Every section is folded on arrival and unmounted while folded, so the page
- * costs ZERO requests until the reader opens something.
+ * Every section is folded on arrival and UNMOUNTED while folded, so no page of
+ * rows is ever fetched for a section nobody opened.
+ *
+ * The badges are the exception, and deliberately so: a badge on a folded block
+ * exists to be CHOSEN from, and it said "—" until the section was opened —
+ * the one number that decides whether to open a section could only be had by
+ * opening it. The five totals therefore come from ONE count read at mount
+ * (`useHubCounts`), aggregates over indexed columns rather than rows. The
+ * page, with its joins, still waits for the fold.
  */
 
 import { useState } from 'react';
@@ -33,7 +40,9 @@ import { HubSection } from '@/components/notifications/HubSection';
 import { PendingRemindersList } from '@/components/notifications/PendingRemindersList';
 import { RelayedMessagesList } from '@/components/notifications/RelayedMessagesList';
 import { ScheduledActionsList } from '@/components/notifications/ScheduledActionsList';
+import { Button } from '@/components/ui/button';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { useHubCounts, type HubCounts } from '@/hooks/useHubCounts';
 import { usePagedSection, type PagedSection } from '@/hooks/usePagedSection';
 import { getIntlLocale, type Language } from '@/i18n/settings';
 import { settingsSectionHref, type SettingsSectionToken } from '@/lib/settings-sections';
@@ -60,6 +69,9 @@ const ADVANCED: readonly { key: string; token: SettingsSectionToken }[] = [
  */
 function useHubSections() {
   const { config } = useAppConfig();
+  // ONE read for the five badges, so a folded section can be chosen from
+  // rather than opened to find out whether it holds anything.
+  const { counts } = useHubCounts();
 
   // One open-state per section: `SettingsDisclosure` unmounts its children
   // when closed, and these flags are what gate each query.
@@ -116,7 +128,7 @@ function useHubSections() {
     enabled: isOpen('scheduled'),
   });
 
-  return { config, track, peers, proactive, interests, reminders, scheduled };
+  return { config, counts, track, peers, proactive, interests, reminders, scheduled };
 }
 
 /**
@@ -129,14 +141,19 @@ function sectionShell<TItem>(
   key: string,
   section: PagedSection<TItem>,
   t: (key: string) => string,
-  onOpenChange: (open: boolean) => void
+  onOpenChange: (open: boolean) => void,
+  /** The hub's own count, known before the section is ever opened. */
+  knownTotal: number | undefined
 ) {
   return {
     title: t(`notifications_hub.sections.${key}.title`),
     subtitle: t(`notifications_hub.sections.${key}.subtitle`),
     emptyLabel: t(`notifications_hub.sections.${key}.empty`),
     errorLabel: t(`notifications_hub.sections.${key}.error`),
-    total: section.total,
+    // The section's own total once it has data — it is the one that follows a
+    // deletion — and the hub's count until then. Two sources for one figure
+    // would be a contradiction; this is one figure with two moments.
+    total: section.items === undefined ? knownTotal : section.total,
     page: section.page,
     totalPages: section.totalPages,
     onPageChange: section.setPage,
@@ -151,9 +168,10 @@ function sectionShell<TItem>(
 export function NotificationsHub({ lng }: { lng: string }) {
   const { t, i18n } = useTranslation();
   const locale = getIntlLocale(i18n.language as Language);
-  const { config, track, peers, proactive, interests, reminders, scheduled } = useHubSections();
-  const shell = <TItem,>(key: string, section: PagedSection<TItem>) =>
-    sectionShell(key, section, t, track(key));
+  const { config, counts, track, peers, proactive, interests, reminders, scheduled } =
+    useHubSections();
+  const shell = <TItem,>(key: string, section: PagedSection<TItem>, countKey: keyof HubCounts) =>
+    sectionShell(key, section, t, track(key), counts?.[countKey]);
 
   return (
     <div className="space-y-6">
@@ -167,13 +185,13 @@ export function NotificationsHub({ lng }: { lng: string }) {
 
       <div className="space-y-2">
         {config?.features?.peers_enabled && (
-          <HubSection icon={MessageSquare} {...shell('peer_messages', peers)}>
+          <HubSection icon={MessageSquare} {...shell('peer_messages', peers, 'peer_messages')}>
             <RelayedMessagesList messages={peers.items ?? []} locale={locale} />
           </HubSection>
         )}
 
         {config?.features?.heartbeat_enabled && (
-          <HubSection icon={Sparkles} {...shell('proactive', proactive)}>
+          <HubSection icon={Sparkles} {...shell('proactive', proactive, 'proactive')}>
             {/* The settings card, reused verbatim: two surfaces answering the
                 same question must not drift into two visual languages. It owns
                 its own count line, so the page below it stays the pager.
@@ -193,7 +211,7 @@ export function NotificationsHub({ lng }: { lng: string }) {
           </HubSection>
         )}
 
-        <HubSection icon={Star} {...shell('interests', interests)}>
+        <HubSection icon={Star} {...shell('interests', interests, 'interests')}>
           <InterestNotificationHistory
             notifications={interests.items}
             total={interests.total}
@@ -204,11 +222,11 @@ export function NotificationsHub({ lng }: { lng: string }) {
           />
         </HubSection>
 
-        <HubSection icon={Bell} {...shell('reminders', reminders)}>
+        <HubSection icon={Bell} {...shell('reminders', reminders, 'reminders')}>
           <PendingRemindersList reminders={reminders.items ?? []} locale={locale} />
         </HubSection>
 
-        <HubSection icon={CalendarClock} {...shell('scheduled', scheduled)}>
+        <HubSection icon={CalendarClock} {...shell('scheduled', scheduled, 'scheduled')}>
           <ScheduledActionsList actions={scheduled.items ?? []} locale={locale} />
         </HubSection>
       </div>
@@ -221,15 +239,19 @@ export function NotificationsHub({ lng }: { lng: string }) {
         <ul className="mt-2 flex flex-wrap gap-2" role="list">
           {ADVANCED.map(({ key, token }) => (
             <li key={key}>
-              <Link
-                href={settingsSectionHref(lng, token)}
-                className="inline-flex min-h-11 items-center rounded-lg border border-border/60 px-3 text-xs font-medium text-foreground/90 transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
+              {/* `asChild`: a real anchor keeps middle-click, open-in-new-tab
+                  and the "link" role, while the palette, the hover and the AA
+                  contrast come from the design system rather than from classes
+                  written here that nothing checks. `outline` — these are
+                  SECONDARY routes out of a reading page. */}
+              <Button asChild variant="outline" size="sm" className="min-h-11">
+                <Link href={settingsSectionHref(lng, token)}>
                 {/* Named after the DESTINATION, not after the hub section:
                     the same words twice on one page, meaning two different
                     things, is how a reader loses track of where a link goes. */}
-                {t(`notifications_hub.advanced_links.${key}`)}
-              </Link>
+                  {t(`notifications_hub.advanced_links.${key}`)}
+                </Link>
+              </Button>
             </li>
           ))}
         </ul>

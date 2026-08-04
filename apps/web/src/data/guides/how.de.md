@@ -4,9 +4,9 @@
 >
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
-**Version**: 3.7
+**Version**: 3.8
 **Datum**: 2026-08-04
-**Application**: LIA v1.27.9
+**Application**: LIA v1.27.10
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 447 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 203 ADRs, ~18.002 von pytest gesammelte Tests in 981 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 204 ADRs, ~18.016 von pytest gesammelte Tests in 983 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -72,10 +72,10 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~18.002 von pytest gesammelt (von pytest über 981 Testdateien gesammelt) + 4.808 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | ~18.016 von pytest gesammelt (von pytest über 983 Testdateien gesammelt) + 4.830 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 400+ |
-| ADRs (Architecture Decision Records) | 203 |
+| ADRs (Architecture Decision Records) | 204 |
 | Prometheus-Metriken | 447 Definitionen |
 | Grafana-Dashboards | 26 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1175,9 +1175,28 @@ Drei Zustände, und die Unterscheidung der letzten beiden trägt den Sinn: **nic
 
 Nichts Veröffentlichtes ist ein Level, ein Fortschrittsprozentsatz oder ein Vergleich, und ein Test formuliert das als Schemabedingung. Die Darstellung folgt derselben Regel: Die Zeichnung ist dekorativ und für assistive Technologien verborgen, während alles Erreichbare ein benannter Link ist — ein `<circle>` mit `onClick` sähe identisch aus und wäre ohne Maus unbrauchbar. Die Figur verbindet die aktiven Fähigkeiten in **Winkelreihenfolge**, der einzigen Reihenfolge, die sich um einen inneren Punkt nicht selbst schneiden kann.
 
+### 23.17. Ein Status benennt einen Ton, er schreibt seine Farben nicht selbst
+
+Eine Statusmarkierung zu rendern — eine Priorität, eine Richtung, eine Rolle — wirkt trivial, und genau deshalb schreibt am Ende jeder Bildschirm seine eigenen Klassen. Drei Komponenten trugen so ihre eigene Zuordnungstabelle für dieselbe Aufgabe, mit drei Folgen.
+
+**Die versprochene Unterscheidung kann fehlen.** Zwei Stufen, bei 10 % Deckkraft über Tokens gerendert, die in OKLCH 23° auseinanderliegen, sind auf dem Bildschirm dieselbe Stufe. Kein Code-Review fängt das ab: Die beiden Zeilen lesen sich im Quelltext verschieden und auf dem Schirm gleich.
+
+**Handgeschriebene Klassen umgehen die Kontrastprüfung.** Die Prüfung des Designsystems verifiziert jedes Paar, das die Komponenten tatsächlich erzeugen, über fünf Themes in Hell und Dunkel. Was anderswo steht, ist nicht darin.
+
+**Ein unbekannter Status fällt auf den Rückfallwert der Tabelle**, was einen Wert rot darstellen kann, den niemand je dringend genannt hat.
+
+Ein einziges Modul liefert deshalb Funktionen, die eine **Komponentenvariante** zurückgeben, niemals eine Klasse. Daraus folgen zwei Regeln:
+
+| Regel | Grund |
+|-------|-------|
+| Die Hierarchie trägt die **Dichte**, nicht der Farbton allein | Ein voller Grund gegen eine Tönung bleibt lesbar für jemanden, der die beiden Farben verwechselt, und in Graustufen |
+| Ein unbekannter Wert ist **neutral** | Eine unerkannte Stufe als dringend darzustellen ist eine Behauptung, die niemand aufgestellt hat |
+
+Formkorollar: Eine Markierung ist für ein **Wort** gemacht. Die Komponente fixiert ihre Höhe, sodass ein dreizeiliger Satz herausläuft und wie durchgestrichen wirkt. Langes wird durch typografisches Gewicht hervorgehoben, das nichts über die Länge annimmt.
+
 ## 24. Architekturentscheidungen (ADR)
 
-203 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+204 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1231,10 +1250,10 @@ Die Psyche Engine verleiht dem Assistenten einen dynamischen psychologischen Zus
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 203 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~18.002 Tests in 981 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 204 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~18.016 Tests in 983 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 203 ADRs und des Changelogs (v1.0 bis v1.27.9). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 204 ADRs und des Changelogs (v1.0 bis v1.27.10). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

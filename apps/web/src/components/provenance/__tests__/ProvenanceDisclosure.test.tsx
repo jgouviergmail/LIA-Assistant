@@ -223,3 +223,20 @@ describe('ProvenanceDisclosure', () => {
     expect(screen.queryByText('provenance.outcome.reinforcement')).toBeNull();
   });
 });
+
+describe('where the block is offered', () => {
+  it('is withheld below the `sm` breakpoint', () => {
+    // Owner call: on a phone this block — a list of dated signals — pushed the
+    // memory or the journal entry the reader came for off the screen. CSS, not
+    // an unmount: the disclosure already renders nothing while closed, and a
+    // JS-driven variant would make the server and the first client paint
+    // disagree.
+    const { container } = renderWithProviders(
+      <ProvenanceDisclosure endpoint="/memories/abc/provenance" locale="fr" />
+    );
+
+    const root = container.querySelector('details');
+    expect(root).toHaveClass('hidden');
+    expect(root).toHaveClass('sm:block');
+  });
+});

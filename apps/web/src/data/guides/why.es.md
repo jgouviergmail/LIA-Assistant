@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versión**: 4.2
+**Versión**: 4.3
 **Fecha**: 2026-08-04
-**Aplicación**: LIA v1.27.9
+**Aplicación**: LIA v1.27.10
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -302,6 +302,16 @@ Bajo cada recuerdo, cada entrada de diario y cada interés, LIA muestra por tant
 Lo que se conserva es una **referencia, nunca una copia**. Su texto se queda donde lo escribió y, si borra la conversación, no reaparece en ninguna parte: la referencia se vacía, la fila permanece fechada, y LIA dice simplemente que la señal fue eliminada. Un borrado debe seguir siendo un borrado — de lo contrario, lo que usted elimina por un lado se le devolvería por el otro.
 
 El mismo principio se aplica al peso de un interés: se explica en lugar de puntuarse. La señal de origen, la última mención, el cálculo mismo — lo suficiente para rehacer la operación. Convertir esa incertidumbre en una puntuación invitaría a una competición que nadie pidió, sin enseñar nada más.
+
+### 6.6. Legible sin esfuerzo
+
+La transparencia no se detiene en lo que el sistema muestra: alcanza también a cómo lo muestra. Una pantalla en la que todo tiene el mismo peso pide al lector que haga la criba él mismo, y no hay razón para que ese trabajo le corresponda.
+
+Una alerta urgente no se parece, pues, a una alerta corriente — y no es solo cuestión de color. Dos tonos vecinos se confunden en una pantalla, más aún en un móvil, a pleno sol o para quien los distingue mal. Lo que separa los niveles aquí es la **densidad**: un fondo lleno frente a un matiz ligero, una diferencia que se mantiene incluso en blanco y negro.
+
+El mismo principio vale en todas partes: un contador lleva el color de los demás contadores, un botón de acción tiene la misma forma de una pantalla a otra, un mensaje enviado no se distingue de uno recibido por una sola flechita. Nada de esto añade información — todo ello ahorra tiempo sobre lo que ya está ahí.
+
+Y el color nunca lleva solo el significado: cada etiqueta conserva su palabra. Una interfaz que solo funciona en color no funciona para todo el mundo.
 
 ## 7. Profundidad emocional
 

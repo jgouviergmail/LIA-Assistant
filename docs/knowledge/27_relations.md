@@ -67,3 +67,17 @@ you already know who the person is — and the **LIA connection**, when there is
 one, always closes it: that is a note *about* the relationship, not one of its
 contents. The address-book details themselves read as three groups: how to reach
 the person, which dates matter, and who they are tied to.
+
+## Can I act on what a relationship card shows me?
+Yes, in three ways:
+
+• **The quick actions** — write a message, call, follow a commitment — prepare
+  the request in the composer; nothing is sent without you.
+• **A memory** shown on the card is a link into the long-term memory section,
+  where you can correct or delete it. The link leads to the section, not to the
+  row: the list is paginated and filterable, so promising to land on that exact
+  memory would be false as soon as it sits on page two.
+• **Exchanged emails** can be selected and summarized together.
+
+Sent and received items each carry their own colour, on relayed messages as on
+emails — the direction used to be told apart by a small arrow alone.

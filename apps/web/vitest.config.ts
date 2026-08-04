@@ -68,7 +68,21 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
-        // Global floor — re-measured 2026-08-04 (the capability constellation:
+        // Global floor — re-measured 2026-08-04 after the visual-consistency lot
+        // (`status-tone` and its three call sites, the design-system Button on
+        // the relation and hub actions, the tinted hub pill, the coloured
+        // contact icons and the clickable memories):
+        // statements 70.76 / branches 64.88 / functions 66.60 / lines 71.33.
+        // 68/62/64/69 HOLDS — branches gained again but no axis crosses an
+        // integer step while keeping the 2-point margin.
+        // Previous re-measure 2026-08-04 after the hub-counts lot (the
+        // aggregated badge read and its gate-keeper, the two repository
+        // counters now delegating to ONE filter, the peer avatar and the two
+        // mobile-withheld blocks):
+        // statements 70.76 / branches 64.86 / functions 66.60 / lines 71.33.
+        // 68/62/64/69 HOLDS — every axis gained ground but none crosses an
+        // integer step while keeping the 2-point margin.
+        // Previous re-measure 2026-08-04 (the capability constellation:
         // the angular figure, the deterministic backdrop, the token-scope
         // guard that would have caught the black SVG, and the "no invented
         // tally" helper shared by the chart and the list):

@@ -37,6 +37,8 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { cn } from '@/lib/utils';
+
 import { partialDateLabel } from '@/lib/briefing-utils';
 import type { ContactCard, ContactValue } from '@/hooks/useRelations';
 
@@ -202,12 +204,14 @@ export function ContactCardBody({ card, locale }: { card: ContactCard; locale: s
           questions — how do I reach them, which dates matter, who and what are
           they tied to. One flat stack of rows made the reader scan for the
           boundary between them; a bordered group per question shows it. */}
-      <ContactGroup show={hasReach}>
+      {/* Reach: the primary accent — these are the actions of the card. */}
+      <ContactGroup show={hasReach} tone="[&_svg]:text-primary">
         <ContactBlock icon={AtSign} values={card.emails} />
         <ContactBlock icon={Phone} values={card.phones} />
         <ContactBlock icon={MapPin} values={card.addresses} />
       </ContactGroup>
-      <ContactGroup show={hasDates}>
+      {/* Dates: warm, and distinct from both neighbours. */}
+      <ContactGroup show={hasDates} tone="[&_svg]:text-warning">
         {card.birthday && (
           <ContactValueRow
             icon={Cake}
@@ -217,7 +221,8 @@ export function ContactCardBody({ card, locale }: { card: ContactCard; locale: s
         )}
         <ContactBlock icon={CalendarHeart} values={card.important_dates} format={date} />
       </ContactGroup>
-      <ContactGroup show={hasTies}>
+      {/* Ties: people and links — the third question the card answers. */}
+      <ContactGroup show={hasTies} tone="[&_svg]:text-success">
         <ContactBlock icon={Users} values={card.relations} />
         <ContactBlock icon={Link2} values={card.links} linkify />
         <ContactBlock icon={MessageCircle} values={card.messaging} />
@@ -241,10 +246,37 @@ export function ContactCardBody({ card, locale }: { card: ContactCard; locale: s
  * `show` is computed by the caller from the SAME lists it renders: a group whose
  * blocks all return null would otherwise draw an empty bordered box.
  */
-function ContactGroup({ show, children }: { show: boolean; children: React.ReactNode }) {
+function ContactGroup({
+  show,
+  tone,
+  children,
+}: {
+  show: boolean;
+  /**
+   * Icon colour for the whole group, as a theme token class.
+   *
+   * Carried by the GROUP rather than by each row: the card already answers
+   * three different questions — how to reach them, which dates matter, who
+   * they are tied to — and the grouping is what shows the boundary. One tone
+   * per question turns that structure into something the eye finds before it
+   * reads, instead of eleven identical grey glyphs.
+   *
+   * Applied through a descendant selector, so no row has to thread a prop it
+   * does not otherwise care about. Decorative only (`aria-hidden` icons next
+   * to their own labelled value), so this carries no meaning colour alone
+   * would have to convey.
+   */
+  tone: string;
+  children: React.ReactNode;
+}) {
   if (!show) return null;
   return (
-    <div className="divide-y divide-border/40 overflow-hidden rounded-lg border border-border/40 bg-muted/10">
+    <div
+      className={cn(
+        'divide-y divide-border/40 overflow-hidden rounded-lg border border-border/40 bg-muted/10',
+        tone
+      )}
+    >
       {children}
     </div>
   );

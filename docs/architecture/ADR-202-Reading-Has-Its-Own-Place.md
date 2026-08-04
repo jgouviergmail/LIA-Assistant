@@ -37,6 +37,20 @@ favori le garde.
 d'écriture. Un domaine qui ne savait qu'écrire ne se met pas à muter depuis un
 écran de consultation.
 
+**Le badge d'une section repliée porte son total, et le porte AVANT l'ouverture.**
+Un badge sur un bloc fermé existe pour qu'on CHOISISSE quoi ouvrir. Il affichait
+`—` jusqu'au dépliage : le seul nombre qui sert à décider d'ouvrir ne
+s'obtenait qu'en ouvrant. Les cinq totaux viennent donc d'une **lecture de
+comptage unique** au montage (`GET /notifications/hub-counts`), même forme que
+la carte des capacités — sondes indépendantes rassemblées par `asyncio.gather`,
+**chacune sur sa propre session**, chacune dégradant à 0 plutôt que de vider le
+hub. Chaque compte réutilise le repository de la page qu'il décrit : un total
+assemblé depuis un autre filtre serait pire que pas de total (ADR-185).
+
+« Une section fermée ne coûte rien » n'a jamais porté sur l'arithmétique mais
+sur les LIGNES : un agrégat sur colonne indexée n'est pas une page avec ses
+jointures, et la page, elle, attend toujours le dépliage.
+
 **Chaque section publie son total exact à côté de sa page** (ADR-185) : le
 compte vient d'un agrégat sur l'ensemble, jamais de la longueur de la page
 affichée. `count_delivered_messages` et `count_pending_for_user` existent pour

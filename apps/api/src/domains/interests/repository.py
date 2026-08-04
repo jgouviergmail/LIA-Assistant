@@ -696,6 +696,27 @@ class InterestNotificationRepository:
         """Initialize repository with database session."""
         self.db = db
 
+    async def count_history_for_user(self, user_id: UUID) -> int:
+        """Exact number of notifications this account's history holds.
+
+        The ONE implementation of "how many are there": ``get_history``
+        delegates its own total here rather than repeating the filter, so the
+        hub badge and the page it describes cannot drift apart (ADR-185). It
+        also lets the badge be answered without paying for a page of rows.
+
+        Args:
+            user_id: Owner.
+
+        Returns:
+            Exact count.
+        """
+        result = await self.db.execute(
+            select(func.count())
+            .select_from(InterestNotification)
+            .where(InterestNotification.user_id == user_id)
+        )
+        return int(result.scalar() or 0)
+
     async def get_history(
         self,
         user_id: UUID,
@@ -720,10 +741,10 @@ class InterestNotificationRepository:
         Returns:
             Tuple of (notifications, exact total).
         """
-        base_filter = InterestNotification.user_id == user_id
-
-        count_result = await self.db.execute(select(func.count()).where(base_filter))
-        total = count_result.scalar() or 0
+        # The total comes from `count_history_for_user`, never from a second
+        # copy of the filter: the hub badge and this page describe one set, and
+        # two filters for one figure is how they start disagreeing (ADR-185).
+        total = await self.count_history_for_user(user_id)
 
         result = await self.db.execute(
             select(InterestNotification)
@@ -732,7 +753,7 @@ class InterestNotificationRepository:
             # returned raises `MissingGreenlet` — a 500 on a page that looks
             # perfectly fine in a mocked test.
             .options(selectinload(InterestNotification.interest))
-            .where(base_filter)
+            .where(InterestNotification.user_id == user_id)
             .order_by(InterestNotification.created_at.desc())
             .limit(limit)
             .offset(offset)

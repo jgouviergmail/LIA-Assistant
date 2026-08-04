@@ -3111,7 +3111,7 @@
         "memories": "Gedächtnis, Erinnerungen, erinnern, vergessen, Fakten, Herkunft, warum, Quelle, Signal, Ursprung, korrigieren",
         "interests": "Themen, Vorlieben, Geschmack, Neugier, Präferenzen, Verlauf, letzte Benachrichtigungen, Herkunft, warum, Gewicht, Erklärung, Abklingen, Quelle",
         "peer-connections": "kontakte, freunde, familie, netzwerk, kalender teilen, verfügbarkeit, blockieren, nutzer finden, verbinden, mein Name, meinen Namen kopieren, Verbindungsanfrage, Zugriffsprotokoll, Nachricht weiterleiten, blockierte Nutzer, Nahestehende, soziales Netzwerk, Peer, Auffindbarkeit, Entdeckung, meine Adresse teilen, E-Mail sichtbar, meine E-Mail, 360°-Überblick",
-        "heartbeat": "proaktiv, spontan, Initiative, Kontaktaufnahme, autonome Nachrichten, Benachrichtigungsthemen, Quellen, Verlauf, letzte Benachrichtigungen",
+        "heartbeat": "proaktiv, spontan, Initiative, Kontaktaufnahme, autonome Nachrichten, Benachrichtigungsthemen, Quellen, Verlauf, letzte Benachrichtigungen, Priorität, Dringlichkeit, hoch, mittel, niedrig, Farbe",
         "scheduled-actions": "Cron, Zeitplan, wiederkehrend, Automatisierung, Timer, geplant",
         "journals": "Tagebuch, Logbuch, Porträt, Reflexionen, Notizen, Herkunft, warum, Quelle, Signal, Ursprung, korrigieren",
         "health-metrics": "Herzfrequenz, Schritte, Schlaf, iPhone, Apple Health, Fitness, Aktivität",
@@ -3880,13 +3880,30 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_27_10": {
+          "title": "v1.27.10 — 🎨 Bildschirme, die man auf einen Blick liest",
+          "date": "August 2026",
+          "count": "10",
+          "items": {
+            "i1": "<b>🔴 Eine „hohe“ Benachrichtigung sieht nicht mehr aus wie eine „mittlere“</b> — beide erschienen auf blassem Grund in zwei sehr nahen Farbtönen: auf einem echten Konto waren 89 hohe und 113 mittlere Benachrichtigungen nicht zu unterscheiden. Die Dringlichkeit trägt nun die <b>Dichte</b>, nicht der Farbton allein: hoch füllt, mittel tönt, niedrig bleibt neutral. Der Unterschied hält auch in Graustufen.",
+            "i2": "<b>🔢 Die Zahlen der Hinweise erscheinen, bevor Sie etwas öffnen</b> — die Zahl, die entscheidet, welchen Abschnitt man öffnet, war nur durch Öffnen zu bekommen. Die fünf Gesamtzahlen kommen jetzt mit der Seite; die Listen warten weiterhin auf das Ausklappen.",
+            "i3": "<b>🔘 Aktionsschaltflächen sehen überall gleich aus</b> — die Aktionen einer Beziehungskarte und die Verknüpfungen der Hinweise übernehmen den umrandeten Stil, der in der ganzen App verwendet wird.",
+            "i4": "<b>🧠 Eine auf einer Beziehungskarte gezeigte Erinnerung ist anklickbar</b> — sie war toter Text: sie zu korrigieren hieß, die Einstellungen und dann den richtigen Bereich von Hand zu suchen.",
+            "i5": "<b>👤 Eine Peer-Verbindung trägt den Initialen-Kreis der App</b>, mit fettem Namen — eine Verbindungsliste unterschied man durch Lesen, nicht durch Hinsehen.",
+            "i6": "<b>🎯 Die Symbole einer Kontaktkarte erhalten eine Farbe je Familie</b> — erreichen, Daten, Verknüpfungen. Die Karte beantwortete bereits drei Fragen; die Farbe macht diese Struktur sichtbar.",
+            "i7": "<b>📨 „Gesendet“ und „empfangen“ haben je eine eigene Farbe</b> — bei weitergeleiteten Nachrichten, bei den Nachrichten einer Beziehungskarte und bei ausgetauschten E-Mails. Nur ein kleiner Pfeil trennte sie.",
+            "i8": "<b>📅 Geteilte Termine und ausgetauschte E-Mails haben endlich eine Anzahl</b>, wie ihre fünf Nachbarn — und jede Anzahl in der App trägt nun dieselbe Farbe.",
+            "i9": "<b>📞 Das Ziel eines Anrufs unterscheidet sich von seiner Zusammenfassung</b> — und ein langes Ziel läuft nicht mehr aus seiner Markierung heraus: eine Markierung ist für ein Wort gemacht, nicht für einen Satz.",
+            "i10": "<b>📱 Auf dem Handy werden zwei dichte Blöcke nicht mehr angezeigt</b> — „Warum denkt LIA das?“ und die Erklärung des Interessengewichts schoben das, wofür man kam, aus dem Bild. Auf breitem Schirm bleiben sie vollständig."
+          }
+        },
         "v1_27_9": {
           "title": "v1.27.9 — 🔭 Warum LIA das denkt, und was sie kann",
           "date": "August 2026",
           "count": "10",
           "items": {
             "i1": "<b>🔍 „Warum denkt LIA das?“ unter jeder Erinnerung und jedem Journaleintrag</b> — ein eingeklappter Block zeigt die Signale hinter der Schlussfolgerung, ihr Datum und ihre Rolle, mit einer Schaltfläche <b>Korrigieren</b>. Gespeichert wird ein <b>Verweis, niemals eine Kopie</b>: Ihr Text bleibt dort, wo Sie ihn geschrieben haben. Löschen Sie die Unterhaltung, leert sich der Verweis und die datierte Zeile bleibt — der Inhalt kehrt nie zurück. Einstellungen → Erinnerungen oder Einstellungen → Journale.",
-            "i2": "<b>🔔 Ein Ziel „Hinweise“ für alles, was an Sie gerichtet war</b> — weitergeleitete Peer-Nachrichten, proaktive Benachrichtigungen, Interessen-Benachrichtigungen, offene Erinnerungen und geplante Routinen in einem Bildschirm statt in fünf verschiedenen Einstellungsbereichen. Die Abschnitte kommen eingeklappt, blättern zu zehnt, und ein geschlossener Abschnitt kostet keine Anfrage. Ihre gewohnten Einstellungslinks funktionieren weiter.",
+            "i2": "<b>🔔 Ein Ziel „Hinweise“ für alles, was an Sie gerichtet war</b> — weitergeleitete Peer-Nachrichten, proaktive Benachrichtigungen, Interessen-Benachrichtigungen, offene Erinnerungen und geplante Routinen in einem Bildschirm statt in fünf verschiedenen Einstellungsbereichen. Jeder Abschnitt kommt eingeklappt <b>mit bereits sichtbarer Anzahl</b> und blättert zu zehnt: Sie wählen, was Sie öffnen, ohne zum Nachsehen öffnen zu müssen. Keine Liste wird geladen, solange nichts ausgeklappt ist. Ihre gewohnten Einstellungslinks funktionieren weiter.",
             "i3": "<b>🌌 Eine Sternkarte Ihrer Fähigkeiten</b> — jede Fähigkeit ist ein Stern: gefüllt, wenn sie aktiv ist, als Umriss, wenn sie darauf wartet, entzündet zu werden, und ihre Größe sagt, was sie enthält. Die Figur verbindet nur die aktiven, also ist ihre Form Ihre Konfiguration. Kein Level, kein Prozentsatz, kein Vergleich mit irgendwem. Start → Fähigkeiten.",
             "i4": "<b>📈 Das Gewicht eines Interesses erklärt sich selbst</b> — das ursprüngliche Signal, die letzte Erwähnung, die letzte Benachrichtigung und die Berechnung selbst. Unsicherheit zu erklären ist nützlicher, als daraus eine Punktzahl zu machen. Einstellungen → Interessen, unter jedem Thema.",
             "i5": "<b>📞 Keine am Telefon vorgeschlagene Option wird für Sie angenommen</b> — die Folgeaktionen einer Anrufzusammenfassung <b>bereiten</b> die Nachricht jetzt vor, statt sie zu senden, und was das Gegenüber tatsächlich vorgeschlagen hat (Datum, Ort, Aufpreis), erscheint <b>vor</b> den möglichen Folgeaktionen.",
@@ -5796,7 +5813,7 @@
           },
           "q20": {
             "question": "Wo sehe ich alles, was LIA mir geschickt hat, ohne die Einstellungen zu durchsuchen?",
-            "answer": "Das Ziel <b>Hinweise</b> in der Navigationsleiste bündelt fünf Ströme in einem Bildschirm: weitergeleitete Peer-Nachrichten, proaktive Benachrichtigungen, Interessen-Benachrichtigungen, offene Erinnerungen und geplante Routinen. Jeder Abschnitt kommt eingeklappt, blättert zu zehnt und zeigt seine exakte Gesamtzahl. Ein geschlossener Abschnitt kostet keine Anfrage; ihn zu öffnen kostet genau eine. Die Einstellungsbereiche bleiben die detaillierte Konfiguration jedes dieser Ströme, und jeder gespeicherte Link funktioniert weiter."
+            "answer": "Das Ziel <b>Hinweise</b> in der Navigationsleiste bündelt fünf Ströme in einem Bildschirm: weitergeleitete Peer-Nachrichten, proaktive Benachrichtigungen, Interessen-Benachrichtigungen, offene Erinnerungen und geplante Routinen. Jeder Abschnitt kommt eingeklappt <b>und zeigt bereits seine genaue Anzahl</b> — Sie wählen, was Sie öffnen, ohne zum Nachsehen öffnen zu müssen — und blättert zu zehnt. Keine Liste wird geladen, solange nichts ausgeklappt ist: nur die Zahlen, in einer einzigen Abfrage. Die Einstellungsbereiche bleiben die detaillierte Konfiguration jedes dieser Ströme, und jeder gespeicherte Link funktioniert weiter."
           }
         }
       },
@@ -6239,7 +6256,7 @@
       "heartbeat": {
         "title": "Proaktive Benachrichtigungen",
         "description": "LIA ergreift die Initiative, Sie zu informieren",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "Was sind proaktive Benachrichtigungen?",
@@ -6276,6 +6293,10 @@
           "q9": {
             "question": "Kann LIA mir sagen, wann ich zu einem Termin losfahren muss? (v1.25.13)",
             "answer": "Ja. Wenn dein nächster Kalendertermin einen <strong>Ort</strong> hat und in wenigen Stunden beginnt, prüft LIA den <strong>echten Verkehr</strong> (Google Routes) von deiner effektiven Position aus und kann dich benachrichtigen: „Fahr um 13:30 los — 30 Min Fahrt zu deinem 14:00-Termin“, kombiniert mit dem Wetter, wenn es relevant ist („Regen um 14:30 erwartet“).<br><br>Höchstens eine Routenprüfung pro Zyklus, pro Termin zwischengespeichert — und dieselbe Benachrichtigung wird für einen Termin nie zweimal gesendet.<br><br><strong>⚙️ Admin:</strong> standardmäßig aus (<code>HEARTBEAT_DEPARTURE_ENABLED</code>); erfordert eine konfigurierte Heimatadresse."
+          },
+          "q10": {
+            "question": "Wie erkenne ich die Dringlichkeit einer Benachrichtigung auf einen Blick?",
+            "answer": "Jede proaktive Benachrichtigung trägt ihre Stufe: <b>hoch</b> erscheint auf vollem Grund, <b>mittel</b> auf leichter Tönung, <b>niedrig</b> bleibt neutral. Was sie trennt, ist nicht die Farbe allein, sondern die <b>Dichte</b> — zwei benachbarte Farbtöne verschmelzen auf dem Handy, in praller Sonne oder für jemanden, der sie schlecht unterscheidet, während ein voller Grund gegen eine Tönung selbst in Schwarzweiß lesbar bleibt. Das Wort steht immer daneben: Farbe beschleunigt das Lesen, sie ersetzt es nie. Eine Stufe, die LIA noch nicht kennt, erscheint neutral statt rot, denn sie als dringend darzustellen wäre eine Behauptung, die niemand aufgestellt hat."
           }
         }
       },
@@ -6956,11 +6977,15 @@
       },
       "alerts_hub": {
         "title": "Alles, was an dich gerichtet war",
-        "desc": "Weitergeleitete Nachrichten, Benachrichtigungen, Erinnerungen und Routinen in einem Bildschirm statt in ebenso vielen Bereichen. Jeder Abschnitt kommt eingeklappt — und ein geschlossener lädt nichts."
+        "desc": "Weitergeleitete Nachrichten, Benachrichtigungen, Erinnerungen und Routinen in einem Bildschirm statt in ebenso vielen Bereichen. Jeder Abschnitt kommt eingeklappt, seine Anzahl schon sichtbar — du wählst, was du öffnest, ohne zum Nachsehen öffnen zu müssen."
       },
       "capability_map": {
         "title": "Deine Konstellation",
         "desc": "Jede Fähigkeit ist ein Stern: gefüllt, wenn aktiv, als Umriss, wenn sie wartet. Die Figur verbindet nur die aktiven — ihre Form ist deine Konfiguration und die von niemandem sonst."
+      },
+      "readable_at_a_glance": {
+        "title": "Auf einen Blick lesbar",
+        "desc": "Ein dringender Hinweis sieht nicht aus wie ein gewöhnlicher: die Dichte trennt sie, nicht der Farbton allein. Das hält auch in Graustufen."
       }
     },
     "scenes": {

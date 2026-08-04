@@ -67,6 +67,7 @@ vi.mock('@/hooks/useRelations', async importOriginal => ({
   useOverviewScope,
 }));
 
+import { settingsSectionHref } from '@/lib/settings-sections';
 import { RelationDetailPanel } from '../RelationDetailPanel';
 
 function detail(over: Partial<RelationDetail> = {}): RelationDetail {
@@ -858,5 +859,40 @@ describe('the order of the sheet is a contract, not a coincidence', () => {
         screen.getByText('relations.merge_title')
       )
     ).toBe(true);
+  });
+});
+
+describe('a memory on the card leads to where memories live', () => {
+  it('makes each memory a real link into the long-term memory section', async () => {
+    // Reading "you dislike open-plan offices" on a relationship card and having
+    // no way to reach it was the gap: the text was a dead `<p>`, so correcting
+    // or deleting it meant finding Settings, then the right section, by hand.
+    useRelationDetail.mockReturnValue({
+      detail: detail({ memories: [{ id: 'mem-1', content: 'Préfère les réunions le matin' }] }),
+      loading: false,
+      error: false,
+    });
+    const { user } = renderPanel();
+    // Sections start FOLDED — the panel is an index the reader opens.
+    await openSection(user, 'relations.section_memories');
+
+    const link = await screen.findByRole('link', { name: /Préfère les réunions le matin/ });
+    expect(link).toHaveAttribute('href', settingsSectionHref('fr', 'memories'));
+  });
+
+  it('does not claim to scroll to the memory itself', async () => {
+    // The list is paginated and filterable, so a link promising to land ON one
+    // memory would be false the moment it sits on page three. The honest
+    // destination is the section that holds it.
+    useRelationDetail.mockReturnValue({
+      detail: detail({ memories: [{ id: 'mem-1', content: 'Préfère les réunions le matin' }] }),
+      loading: false,
+      error: false,
+    });
+    const { user } = renderPanel();
+    await openSection(user, 'relations.section_memories');
+
+    const link = screen.getByRole('link', { name: /Préfère les réunions le matin/ });
+    expect(link.getAttribute('href')).not.toContain('mem-1');
   });
 });

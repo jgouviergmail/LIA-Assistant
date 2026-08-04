@@ -70,7 +70,9 @@ export function InterestNotificationHistory({
     // Absent when the interest has since been deleted: a fact about the
     // account, and not a reason to hide the row from an audit.
     badge: item.topic
-      ? { label: item.topic, className: 'bg-primary/10 text-primary' }
+      // The subject, not a level: an interest notification carries no
+              // priority (ADR-200), so its marker is informative, never urgent.
+              ? { label: item.topic, tone: 'info' as const }
       : null,
     chips: [
       {

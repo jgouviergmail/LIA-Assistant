@@ -164,6 +164,27 @@ class HeartbeatNotificationRepository:
         )
         return result.scalar_one_or_none()
 
+    async def count_history_for_user(self, user_id: UUID) -> int:
+        """Exact number of notifications this account's history holds.
+
+        The ONE implementation of "how many are there": ``get_history``
+        delegates its own total here rather than repeating the filter, so the
+        hub badge and the page it describes cannot drift apart (ADR-185). It
+        also lets the badge be answered without paying for a page of rows.
+
+        Args:
+            user_id: Owner.
+
+        Returns:
+            Exact count.
+        """
+        result = await self.db.execute(
+            select(func.count())
+            .select_from(HeartbeatNotification)
+            .where(HeartbeatNotification.user_id == user_id)
+        )
+        return int(result.scalar() or 0)
+
     async def get_recent_by_user(
         self,
         user_id: UUID,
@@ -209,16 +230,14 @@ class HeartbeatNotificationRepository:
         Returns:
             Tuple of (notifications, total_count).
         """
-        base_filter = HeartbeatNotification.user_id == user_id
+        # The total comes from `count_history_for_user`, never from a second
+        # copy of the filter: the hub badge and this page describe one set, and
+        # two filters for one figure is how they start disagreeing (ADR-185).
+        total = await self.count_history_for_user(user_id)
 
-        # Total count
-        count_result = await self.db.execute(select(func.count()).where(base_filter))
-        total = count_result.scalar() or 0
-
-        # Paginated results
         result = await self.db.execute(
             select(HeartbeatNotification)
-            .where(base_filter)
+            .where(HeartbeatNotification.user_id == user_id)
             .order_by(HeartbeatNotification.created_at.desc())
             .limit(limit)
             .offset(offset)

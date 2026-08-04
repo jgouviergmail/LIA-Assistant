@@ -86,10 +86,19 @@ export function CollapsibleSection({
   );
 }
 
-/** The count pill shared by every section that has an exact total. */
+/**
+ * The count pill shared by every section that has an exact total.
+ *
+ * The primary tint, like every other badge in the app: grey read as
+ * decoration next to headings that are themselves grey, and a count is
+ * information — it is what tells the reader whether a folded section is worth
+ * opening. Same ground and border as `Badge variant="default"`, kept as a
+ * local span because this one lives inside a `<summary>` and must not inherit
+ * the badge's own height.
+ */
 export function SectionBadge({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded-full bg-muted px-2 py-px text-[11px] font-medium tabular-nums text-muted-foreground">
+    <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-px text-[11px] font-medium tabular-nums text-primary">
       {children}
     </span>
   );

@@ -101,7 +101,13 @@ export function ProvenanceDisclosure({ endpoint, locale, onCorrect }: Provenance
       icon={HelpCircle}
       title={t('provenance.title')}
       onOpenChange={setOpen}
-      className="mt-2"
+      // A phone does not get this block: it is dense by nature — a list of
+      // dated signals, or the six coefficients behind a weight — and it pushed
+      // the thing the reader came for off a small screen. Hidden in CSS rather
+      // than unmounted: the disclosure renders its children only when open, so
+      // a closed one already costs no request, and a JS-driven variant would
+      // make the server and the first client paint disagree.
+      className="mt-2 hidden sm:block"
     >
       {firstLoad ? (
         <div className="flex justify-center py-4">

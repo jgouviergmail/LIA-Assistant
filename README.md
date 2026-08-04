@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.27.9</strong> — <strong>“Why does LIA think that?”</strong> A memory claimed you prefer morning meetings, and nothing could say where that came from. Every memory and journal entry now folds open onto the signals behind it — their date, their role, and a <strong>Correct</strong> button. What is kept is a <strong>reference, never a copy</strong>: delete the conversation and the reference empties while the row stays, dated — a tombstone, not a resurrection. The trail is <strong>capped at five signals</strong>, and the cap is stated rather than applied in silence (ADR-201). <strong>Everything addressed to you now has one place:</strong> relayed peer messages, proactive and interest notifications, pending reminders and scheduled routines lived folded inside five different settings panels, so reading them was a configuration exercise. Five folded, paginated sections — and a closed one costs no request at all; every settings deep link still works (ADR-202). <strong>A star chart of what LIA can actually do for you:</strong> filled stars are active, outlined ones are waiting, size is what they hold, and the figure joins only the live ones — so its shape is your configuration and nobody else's. No level, no percentage, no comparison (ADR-204). <strong>And no option raised on a call is accepted on your behalf:</strong> debrief actions prefill instead of sending, and what the other party actually proposed is shown before the follow-ups (ADR-203). <strong>18,002 backend</strong> + <strong>4,808 frontend</strong> tests, <strong>172</strong> hermetic browser journeys, <strong>23</strong> accessibility audits, all six languages. — 4 August 2026.
+  <strong>Version 1.27.10</strong> — <strong>A “high” priority no longer looks like a “medium” one.</strong> Both rendered on a pale ground, and their two tokens sit <strong>23° apart</strong> in OKLCH hue: on a real account — 89 high and 113 medium rows — the reader could not tell them apart. Hierarchy is now carried by <strong>density</strong>, not hue: high fills, medium tints, low stays neutral — a distinction that survives two hues the eye reads as one, and still works in greyscale (ADR-205). <strong>A status names a tone now, it no longer writes its own colours:</strong> three screens each carried their own table of hand-written classes for the same job, and hand-written classes bypass the contrast guard that checks every design-system pair across five themes × light and dark. One function decides, and a status the backend adds later renders <strong>neutral</strong> rather than red — showing an unknown level as urgent would be a claim nobody made. <strong>The Alerts counts are there before you open anything:</strong> a badge on a folded block exists to be chosen from, and it read “—” until unfolded — so the one number that decides whether to open a section could only be had by opening it. Five totals, <strong>one read</strong>, aggregates over indexed columns; the rows still wait for the fold. <strong>And action buttons finally look alike:</strong> the count settled it — the outlined style is used 137 times in the app, so the relationship-card actions and the Alerts shortcuts adopt it. <strong>18,016 backend</strong> + <strong>4,830 frontend</strong> tests, <strong>172</strong> hermetic browser journeys, <strong>23</strong> accessibility audits, all six languages. — 4 August 2026.
 
 </p>
 
@@ -115,8 +115,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **36** functional domains | **505,000** lines of code (excl. tests) | **22,800+** automated tests | **203** ADRs                                                           |
-| **196** versions shipped  | **6 languages**, parity enforced in CI  | **466** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **36** functional domains | **505,000** lines of code (excl. tests) | **22,800+** automated tests | **204** ADRs                                                           |
+| **197** versions shipped  | **6 languages**, parity enforced in CI  | **466** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -914,12 +914,12 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md)   | Complete development workflow                             |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent                                 |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md)   | How to create a new tool                                  |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~18,002 backend tests across 981 files) |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~18,016 backend tests across 983 files) |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md)           | LangGraph and log debugging                               |
 
 ### Architecture Decision Records (ADR)
 
-203 ADR files (ADR-001 through ADR-204 — ADR-008 has no separate file) documenting major architectural decisions:
+204 ADR files (ADR-001 through ADR-205 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

@@ -23,9 +23,11 @@ from src.core.exceptions import (
 )
 from src.core.session_dependencies import get_current_active_session, get_current_superuser_session
 from src.domains.notifications.broadcast_service import BroadcastService
+from src.domains.notifications.hub_counts import resolve_hub_counts
 from src.domains.notifications.schemas import (
     BroadcastMessageRequest,
     BroadcastMessageResponse,
+    HubCountsResponse,
     TokenInfo,
     TokenRegisterRequest,
     TokenRegisterResponse,
@@ -500,3 +502,35 @@ async def send_test_notification(
             for r in result.results
         ],
     }
+
+
+@router.get(
+    "/hub-counts",
+    response_model=HubCountsResponse,
+    summary="The five totals the notifications hub badges",
+    description=(
+        "One exact total per hub section, resolved in a single pass. Lets a "
+        "folded section be chosen from rather than opened to find out whether "
+        "it holds anything. Read-only and cheap: aggregates over indexed "
+        "columns, never the rows themselves."
+    ),
+)
+async def get_hub_counts(
+    user: User = Depends(get_current_active_session),
+) -> HubCountsResponse:
+    """Every hub badge for the authenticated account.
+
+    Args:
+        user: Authenticated session owner.
+
+    Returns:
+        The five totals; 0 for any section whose read failed.
+    """
+    counts = await resolve_hub_counts(user)
+    return HubCountsResponse(
+        peer_messages=counts.peer_messages,
+        proactive=counts.proactive,
+        interests=counts.interests,
+        reminders=counts.reminders,
+        scheduled=counts.scheduled,
+    )

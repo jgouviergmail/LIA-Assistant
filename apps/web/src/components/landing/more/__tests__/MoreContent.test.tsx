@@ -16,7 +16,7 @@ import { MORE_CARD_KEYS, MORE_SECTIONS } from '../more-data';
 import { MoreContent } from '../MoreContent';
 
 describe('MoreContent', () => {
-  it('renders the full heading hierarchy: 1 h1, 8 h2, 40 h3', () => {
+  it('renders the full heading hierarchy: 1 h1, 8 h2, 41 h3', () => {
     render(<MoreContent lng="fr" />);
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     // 6 moment sections + the craft band + the CTA block reusing landing.cta.

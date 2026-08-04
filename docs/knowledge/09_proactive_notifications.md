@@ -135,3 +135,19 @@ Yes. When your next calendar event has a **location** and starts within a few ho
 At most one route check per cycle, cached per event — and the same notification is never sent twice for one event.
 
 **⚙️ Admin:** off by default (`HEARTBEAT_DEPARTURE_ENABLED`); requires a configured home location.
+
+## How do I read a notification's urgency at a glance?
+Every proactive notification carries its level, and the levels are told apart
+by **density** rather than by hue alone:
+
+• **High** renders on a solid ground
+• **Medium** renders on a light tint
+• **Low** stays neutral
+
+Two neighbouring hues merge on a phone, in bright sunlight, or for a reader who
+tells them apart poorly. A solid ground against a light tint stays legible even
+in black and white.
+
+The word is always shown next to the colour: colour speeds up reading, it never
+replaces it. A level LIA does not know yet renders neutral rather than red —
+presenting an unrecognised level as urgent would be a claim nobody made.

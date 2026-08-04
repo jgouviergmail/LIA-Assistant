@@ -32,6 +32,16 @@ export interface SettingsDisclosureProps {
   /** Usually the exact total; rendered inside the summary, next to the title. */
   badge?: ReactNode;
   /**
+   * Palette of the badge pill, as theme-token classes.
+   *
+   * Defaults to the neutral muted pill. A caller passes this when the count
+   * itself carries meaning — "this section holds something" reads at a glance
+   * when it is tinted and its empty neighbour is not. Classes rather than a
+   * nested `<Badge>`: this component already IS the pill, and wrapping one in
+   * the other nested two backgrounds (measured 2026-08-04).
+   */
+  badgeClassName?: string;
+  /**
    * One line under the title, visible WHILE FOLDED.
    *
    * A folded block is an index entry: what it holds has to be readable before
@@ -53,6 +63,7 @@ export function SettingsDisclosure({
   icon: Icon,
   title,
   badge,
+  badgeClassName,
   description,
   defaultOpen = false,
   onOpenChange,
@@ -94,7 +105,12 @@ export function SettingsDisclosure({
           )}
         </span>
         {badge !== undefined && badge !== null && (
-          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
+          <span
+            className={cn(
+              'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium tabular-nums',
+              badgeClassName ?? 'bg-muted text-muted-foreground'
+            )}
+          >
             {badge}
           </span>
         )}

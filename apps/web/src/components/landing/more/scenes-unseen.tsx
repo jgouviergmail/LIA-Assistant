@@ -415,7 +415,61 @@ function CapabilityMapScene({ active }: SceneProps) {
   );
 }
 
+type GlancePhase = 'flat' | 'ranked';
+const GLANCE_STEPS: readonly TimelineStep<GlancePhase>[] = [
+  { at: 0, state: 'flat' },
+  { at: 1400, state: 'ranked' },
+];
+
+/**
+ * Three status pills that start as one pale wash and separate by DENSITY —
+ * the same move the app makes: a filled ground for the urgent one, a tint for
+ * the middle, neutral for the rest.
+ */
+function ReadableAtAGlanceScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(GLANCE_STEPS, { active });
+  const ranked = phase === 'ranked';
+
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="w-full max-w-[190px] space-y-2">
+        {[
+          {
+            key: 'high',
+            width: 'w-4/5',
+            flat: 'bg-destructive/10 text-destructive border-destructive/20',
+            lit: 'bg-destructive text-destructive-foreground border-destructive',
+          },
+          {
+            key: 'medium',
+            width: 'w-3/5',
+            flat: 'bg-destructive/10 text-destructive border-destructive/20',
+            lit: 'bg-warning/10 text-warning border-warning/20',
+          },
+          {
+            key: 'low',
+            width: 'w-2/5',
+            flat: 'bg-destructive/10 text-destructive border-destructive/20',
+            lit: 'bg-secondary text-secondary-foreground border-border',
+          },
+        ].map(row => (
+          <div key={row.key} className="flex items-center gap-2">
+            <span
+              className={cn(
+                'h-3 w-8 shrink-0 rounded-full border transition-colors duration-700',
+                ranked ? row.lit : row.flat
+              )}
+            />
+            <SkeletonLine w={row.width} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
+  readable_at_a_glance: ReadableAtAGlanceScene,
   capability_map: CapabilityMapScene,
   background_response: BackgroundResponseScene,
   widgets_travel: WidgetsTravelScene,

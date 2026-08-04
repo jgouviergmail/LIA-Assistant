@@ -59,6 +59,21 @@ function fetched(): string[] {
   ];
 }
 
+/**
+ * Make the hub's single count read answer, leaving every paged read empty.
+ *
+ * Keyed on the endpoint rather than on call order: the five sections and the
+ * counts share one mocked hook, and an order-based stub would silently drift
+ * the day a section moves.
+ */
+function answerHubCounts(counts: Record<string, number>) {
+  useApiQuery.mockImplementation((endpoint: string) =>
+    endpoint === '/notifications/hub-counts'
+      ? { data: counts, loading: false, error: null, refetch: vi.fn() }
+      : { data: undefined, loading: false, error: null, refetch: vi.fn() }
+  );
+}
+
 beforeEach(() => {
   useApiQuery.mockReset();
   useApiQuery.mockReturnValue({ data: undefined, loading: false, error: null, refetch: vi.fn() });
@@ -67,13 +82,45 @@ beforeEach(() => {
 });
 
 describe('NotificationsHub', () => {
-  it('shows the five sections folded, and fetches nothing', () => {
+  it('shows the five sections folded, and fetches no PAGE', () => {
     renderWithProviders(<NotificationsHub lng="fr" />);
 
     for (const key of ['peer_messages', 'proactive', 'interests', 'reminders', 'scheduled']) {
       expect(screen.getByText(`notifications_hub.sections.${key}.title`)).toBeInTheDocument();
     }
+    // No page of rows. The badge counts are a separate, cheap read — asserted
+    // below — and they are what makes a folded section choosable at all.
     expect(fetched()).toEqual([]);
+  });
+
+  it('badges every folded section with its exact total, before any unfold', () => {
+    // The defect this pins: the badge read "—" until the section was opened,
+    // so the one number that decides whether to open a section could only be
+    // obtained by opening it.
+    answerHubCounts({
+      peer_messages: 3,
+      proactive: 12,
+      interests: 0,
+      reminders: 7,
+      scheduled: 2,
+    });
+
+    renderWithProviders(<NotificationsHub lng="fr" />);
+
+    for (const total of ['3', '12', '7', '2']) {
+      expect(screen.getByText(total)).toBeInTheDocument();
+    }
+    // Zero is a REAL answer: an empty section reads as empty, never as unknown.
+    expect(screen.getByText('0')).toBeInTheDocument();
+    expect(screen.queryByText('—')).toBeNull();
+  });
+
+  it('says "—" rather than "0" while the counts are still unknown', () => {
+    // "0" would be a claim nobody has verified yet; an em dash is the honest
+    // shape of "not known".
+    renderWithProviders(<NotificationsHub lng="fr" />);
+
+    expect(screen.getAllByText('—')).toHaveLength(5);
   });
 
   it('fetches only the section the reader opened', async () => {
@@ -126,5 +173,40 @@ describe('NotificationsHub', () => {
     renderWithProviders(<NotificationsHub lng="fr" />);
 
     expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(5);
+  });
+});
+
+describe('what the badge colour says', () => {
+  it('tints the pill of a section that holds something', () => {
+    // "How many" is the second question. The first is "is there anything
+    // here?", and a grey pill on both an empty and a full section answered
+    // only the second.
+    answerHubCounts({ peer_messages: 0, proactive: 12, interests: 0, reminders: 7, scheduled: 0 });
+
+    renderWithProviders(<NotificationsHub lng="fr" />);
+
+    expect(screen.getByText('12').className).toMatch(/bg-primary/);
+    expect(screen.getByText('7').className).toMatch(/bg-primary/);
+  });
+
+  it('tints a zero too — an empty section is a fact, not another kind of thing', () => {
+    // Owner call (2026-08-04): every count wears the app's badge colour. The
+    // earlier rule tinted only non-empty sections, which made one pill look
+    // like a different component.
+    answerHubCounts({ peer_messages: 0, proactive: 0, interests: 0, reminders: 0, scheduled: 0 });
+
+    renderWithProviders(<NotificationsHub lng="fr" />);
+
+    for (const pill of screen.getAllByText('0')) {
+      expect(pill.className).toMatch(/bg-primary/);
+    }
+  });
+
+  it('leaves the UNKNOWN state neutral — it is not a count', () => {
+    renderWithProviders(<NotificationsHub lng="fr" />);
+
+    for (const pill of screen.getAllByText('—')) {
+      expect(pill.className).not.toMatch(/bg-primary/);
+    }
   });
 });

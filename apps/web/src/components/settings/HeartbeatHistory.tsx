@@ -2,6 +2,8 @@
 
 import { useTranslation } from 'react-i18next';
 
+import { priorityTone } from '@/lib/status-tone';
+
 import {
   NotificationHistoryList,
   type NotificationHistoryRow,
@@ -54,15 +56,11 @@ const KNOWN_SOURCES = new Set([
   'DEPARTURE_ADVICE',
 ]);
 
-const PRIORITY_CLASSES: Record<string, string> = {
-  high: 'bg-destructive/10 text-destructive',
-  medium: 'bg-warning/10 text-warning',
-  low: 'bg-muted text-muted-foreground',
-};
-
 /** The three the column is documented to hold — it is a plain string, not an
- *  enum, so a fourth is possible and must not surface as a missing i18n key. */
-const KNOWN_PRIORITIES = new Set(Object.keys(PRIORITY_CLASSES));
+ *  enum, so a fourth is possible and must not surface as a missing i18n key.
+ *  Its TONE is decided by `priorityTone`, which stays neutral for an unknown
+ *  level rather than guessing at its urgency. */
+const KNOWN_PRIORITIES = new Set(['high', 'medium', 'low']);
 
 export function HeartbeatHistory({
   notifications,
@@ -85,7 +83,7 @@ export function HeartbeatHistory({
       label: KNOWN_PRIORITIES.has(item.priority)
         ? t(`heartbeat.history.priority_${item.priority}`)
         : item.priority,
-      className: PRIORITY_CLASSES[item.priority] ?? PRIORITY_CLASSES.low,
+      tone: priorityTone(item.priority),
     },
     chips: item.sources_used.map(source => ({
       key: source,

@@ -174,3 +174,40 @@ pas un endroit où l'on vit. Sa porte est la barre d'accès rapide du tableau de
 bord (`QuickAccessCompact`), visible sans défilement ; un test de parcours
 navigateur garde cette porte, parce qu'une carte que personne n'atteint est une
 carte qui n'existe pas.
+
+---
+
+## 3. Étiquettes de statut — `lib/status-tone.ts`
+
+Toute étiquette d'état de l'application (priorité d'une notification, rôle d'un
+signal de provenance, sens d'un message) **nomme un ton** et laisse `Badge` le
+rendre. Trois composants portaient auparavant leur propre table de classes pour
+ce même travail — voir **ADR-205** pour la décision complète.
+
+| Fonction | Entrée | Tons |
+| --- | --- | --- |
+| `priorityTone` | `low` / `medium` / `high` | `secondary` / `warning` / **`alert`** |
+| `outcomeTone` | `origin` / `evidence` / `contradiction` | `info` / `success` / `warning` |
+| `directionTone` | `sent` / `received` | `info` / `success` |
+
+Deux règles portent la conception :
+
+- **la hiérarchie vient de la DENSITÉ, pas de la teinte seule.** `alert` est le
+  seul fond *solide* des statuts. Mesuré au navigateur : son fond est à L=32
+  avec un texte à L=98, quand `warning` reste une teinte à 10 % d'opacité. Les
+  jetons `--color-destructive` (27°) et `--color-warning` (50°) ne sont séparés
+  que de 23° en OKLCH — à opacité égale, l'œil les confond ;
+- **une valeur inconnue est neutre.** Un statut ajouté plus tard par le backend
+  ne doit pas arriver en criant.
+
+`alert` réutilise la paire `bg-destructive` / `text-destructive-foreground`,
+celle que `Button variant="destructive"` emploie déjà et que
+`design-contrast.guard.test.ts` couvre sur 5 thèmes × clair/sombre.
+
+**Une étiquette est faite pour un mot.** `Badge` fixe sa hauteur (`size="sm"`
+vaut 16 px) : une phrase de trois lignes en déborde et se lit comme du texte
+barré. Ce qui est long se met en valeur par le poids typographique.
+
+**Un bouton d'action se reconnaît à sa forme.** Le style bordé (`outline`) est
+employé 137 fois dans l'application ; toute nouvelle action l'adopte, plutôt que
+d'introduire une variante qui n'existerait qu'à un seul endroit.

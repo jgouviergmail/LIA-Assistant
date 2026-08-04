@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 3.7
+**Version**: 3.8
 **Date**: 2026-08-04
-**Application**: LIA v1.27.9
+**Application**: LIA v1.27.10
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 447 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 203 ADRs, ~18,002 pytest-collected tests across 981 files, native observability, 6-level HITL |
+| Production reliability | 204 ADRs, ~18,016 pytest-collected tests across 983 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -72,10 +72,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~18,002 (collected by pytest across 981 test files) + 4,808 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~18,016 (collected by pytest across 983 test files) + 4,830 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 400+ |
-| ADRs (Architecture Decision Records) | 203 |
+| ADRs (Architecture Decision Records) | 204 |
 | Prometheus metrics | 447 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1173,9 +1173,28 @@ Three states, and the distinction between the last two carries the meaning: **un
 
 Nothing published is a level, a percentage of completion or a comparison, and a test states that as a schema constraint. The rendering follows the same rule: the drawing is decorative and hidden from assistive technology, while everything reachable is a named link — a `<circle>` carrying an `onClick` would look identical and be unusable without a mouse. The figure joins the live capabilities in **angular order**, the one ordering that cannot self-intersect around an interior point.
 
+### 23.17. A status names a tone, it does not write its own colours
+
+Rendering a status label — a priority, a direction, a role — looks trivial, which is exactly why every screen ends up writing its own classes. Three components carried their own lookup table for the same job, with three consequences.
+
+**The promised distinction may not exist.** Two levels rendered at 10 % opacity over tokens 23° apart in OKLCH hue are, on screen, the same level. No code review catches it: the two lines read differently in the source and identically on the display.
+
+**Hand-written classes bypass the contrast guard.** The design system's guard checks every pair the components actually produce, across five themes in light and dark. What is written elsewhere is not in it.
+
+**An unknown status falls through to whatever the map's default happens to be**, which can render in red a value nobody ever called urgent.
+
+A single module therefore exposes functions that return a **component variant**, never a class. Two rules follow:
+
+| Rule | Reason |
+|------|--------|
+| Hierarchy is carried by **density**, not hue alone | A solid ground against a tint stays legible for a reader who confuses the two colours, and in greyscale |
+| An unknown value is **neutral** | Rendering an unrecognised level as urgent is a claim nobody made |
+
+A corollary about shape: a label is made for a **word**. The component pins its height, so a three-line sentence spills out of it and reads as struck through. What is long is emphasised by typographic weight, which assumes nothing about length.
+
 ## 24. Architecture Decision Records (ADR)
 
-203 ADRs in MADR format document the major architectural decisions. Some representative examples:
+204 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1258,10 +1277,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 203 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,002 tests across 981 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 204 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,016 tests across 983 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 203 ADRs, and the changelog (v1.0 to v1.27.9). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 204 ADRs, and the changelog (v1.0 to v1.27.10). All metrics, versions, and patterns cited are verifiable in the codebase.*

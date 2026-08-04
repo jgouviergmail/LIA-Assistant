@@ -3111,7 +3111,7 @@
         "memories": "memoria, recuerdos, recordar, olvidar, hechos, procedencia, por qué, fuente, señal, origen, corregir",
         "interests": "temas, gustos, materias, curiosidad, preferencias, historial, notificaciones recientes, procedencia, por qué, peso, explicación, decaimiento, fuente",
         "peer-connections": "contactos, amigos, familia, red, compartir calendario, disponibilidad, bloquear, descubrir usuarios, conectar, mi nombre, copiar mi nombre, solicitud de conexión, historial de accesos, transmitir mensaje, usuarios bloqueados, allegados, red social, peer, descubrimiento, visibilidad, compartir mi dirección, email visible, mi correo, resumen 360",
-        "heartbeat": "proactivo, espontáneo, iniciativa, contacto, mensajes autónomos, temas de las notificaciones, fuentes, historial, notificaciones recientes",
+        "heartbeat": "proactivo, espontáneo, iniciativa, contacto, mensajes autónomos, temas de las notificaciones, fuentes, historial, notificaciones recientes, prioridad, urgencia, alta, media, baja, color",
         "scheduled-actions": "cron, programación, recurrente, automatización, temporizador, planificado",
         "journals": "diario, bitácora, retrato, reflexiones, notas, procedencia, por qué, fuente, señal, origen, corregir",
         "health-metrics": "frecuencia cardíaca, pasos, sueño, iPhone, Apple Salud, forma física, actividad",
@@ -3880,13 +3880,30 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_27_10": {
+          "title": "v1.27.10 — 🎨 Pantallas que se leen de un vistazo",
+          "date": "Agosto 2026",
+          "count": "10",
+          "items": {
+            "i1": "<b>🔴 Una notificación «alta» ya no se parece a una «media»</b> — ambas aparecían sobre un fondo pálido en dos tonos muy próximos: en una cuenta real, 89 notificaciones altas y 113 medias eran indistinguibles. La urgencia la lleva ahora la <b>densidad</b>, no solo el tono: alta rellena, media matiza, baja queda neutra. La diferencia se mantiene incluso en escala de grises.",
+            "i2": "<b>🔢 Los contadores de Alertas se muestran antes de que abra nada</b> — el número que decide qué sección abrir solo se obtenía abriéndola. Los cinco totales llegan ahora con la página; las listas siguen esperando al despliegue.",
+            "i3": "<b>🔘 Los botones de acción se parecen en todas partes</b> — las acciones de una ficha de relación y los accesos directos de Alertas adoptan el estilo con borde usado en toda la aplicación.",
+            "i4": "<b>🧠 Un recuerdo mostrado en una ficha de relación se puede pulsar</b> — era texto muerto: corregirlo obligaba a buscar los ajustes y luego la sección correcta, a mano.",
+            "i5": "<b>👤 Una conexión entre pares lleva el círculo de iniciales de la aplicación</b>, con su nombre en negrita — una lista de conexiones se distinguía leyendo, no mirando.",
+            "i6": "<b>🎯 Los iconos de una ficha de contacto toman un color por familia</b> — contactar, fechas, vínculos. La ficha ya respondía a tres preguntas; el color hace visible esa estructura.",
+            "i7": "<b>📨 «Enviado» y «recibido» tienen cada uno su color</b> — en los mensajes retransmitidos, en los mensajes de una ficha de relación y en los correos intercambiados. Solo una pequeña flecha los separaba.",
+            "i8": "<b>📅 Las citas compartidas y los correos intercambiados por fin tienen contador</b>, como sus cinco vecinas — y todos los contadores de la aplicación llevan ahora el mismo color.",
+            "i9": "<b>📞 El objetivo de una llamada se distingue de su resumen</b> — y un objetivo largo ya no se desborda de su etiqueta: una etiqueta está hecha para una palabra, no para una frase.",
+            "i10": "<b>📱 En el móvil ya no se muestran dos bloques densos</b> — «¿Por qué LIA piensa esto?» y la explicación del peso de un interés empujaban fuera de la pantalla lo que uno venía a leer. En pantalla ancha siguen enteros."
+          }
+        },
         "v1_27_9": {
           "title": "v1.27.9 — 🔭 Por qué LIA piensa eso, y qué sabe hacer",
           "date": "Agosto 2026",
           "count": "10",
           "items": {
             "i1": "<b>🔍 «¿Por qué LIA piensa eso?» bajo cada recuerdo y cada entrada de diario</b> — un bloque plegado muestra las señales que originaron la conclusión, su fecha y su papel, con un botón <b>Corregir</b>. Lo que se guarda es una <b>referencia, nunca una copia</b>: su texto se queda donde lo escribió. Elimine la conversación y la referencia se vacía mientras la fila fechada permanece: el contenido nunca vuelve. Ajustes → Recuerdos, o Ajustes → Diarios.",
-            "i2": "<b>🔔 Un destino «Alertas» para todo lo que se le ha dirigido</b> — mensajes retransmitidos entre pares, notificaciones proactivas, notificaciones de intereses, recordatorios pendientes y rutinas programadas, en una sola pantalla en lugar de cinco paneles de ajustes distintos. Las secciones llegan plegadas, se paginan de diez en diez, y una sección cerrada no cuesta ninguna petición. Sus enlaces de ajustes habituales siguen funcionando.",
+            "i2": "<b>🔔 Un destino «Alertas» para todo lo que se le ha dirigido</b> — mensajes retransmitidos entre pares, notificaciones proactivas, notificaciones de intereses, recordatorios pendientes y rutinas programadas, en una sola pantalla en lugar de cinco paneles de ajustes distintos. Cada sección llega plegada <b>con su número ya visible</b> y se pagina de diez en diez: usted elige qué abrir sin tener que abrirlo para saberlo. No se carga ninguna lista mientras no se despliegue nada. Sus enlaces de ajustes habituales siguen funcionando.",
             "i3": "<b>🌌 Una carta celeste de sus capacidades</b> — cada capacidad es una estrella: llena cuando está activa, en contorno cuando espera a encenderse, y su tamaño dice lo que contiene. La figura une solo las activas, así que su forma es su configuración. Sin niveles, sin porcentajes, sin comparación con nadie. Inicio → Capacidades.",
             "i4": "<b>📈 El peso de un interés se explica</b> — la señal de origen, la última mención, la última notificación y el propio cálculo. Explicar una incertidumbre es más útil que convertirla en una puntuación. Ajustes → Intereses, bajo cada tema.",
             "i5": "<b>📞 Ninguna opción propuesta por teléfono se acepta en su lugar</b> — las acciones de un resumen de llamada ahora <b>preparan</b> el mensaje en vez de enviarlo, y lo que la otra parte propuso realmente (fecha, lugar, coste adicional) aparece <b>antes</b> de las acciones posibles.",
@@ -5796,7 +5813,7 @@
           },
           "q20": {
             "question": "¿Dónde veo todo lo que LIA me ha enviado, sin rebuscar en los ajustes?",
-            "answer": "El destino <b>Alertas</b> de la barra de navegación reúne cinco flujos en una sola pantalla: mensajes retransmitidos entre pares, notificaciones proactivas, notificaciones de intereses, recordatorios pendientes y rutinas programadas. Cada sección llega plegada, se pagina de diez en diez y muestra su total exacto. Una sección cerrada no cuesta ninguna petición; abrirla cuesta exactamente una. Los paneles de ajustes siguen siendo la configuración detallada de cada uno de esos flujos, y todos los enlaces que había guardado siguen funcionando."
+            "answer": "El destino <b>Alertas</b> de la barra de navegación reúne cinco flujos en una sola pantalla: mensajes retransmitidos entre pares, notificaciones proactivas, notificaciones de intereses, recordatorios pendientes y rutinas programadas. Cada sección llega plegada <b>mostrando ya su total exacto</b> — usted elige qué abrir sin tener que abrirlo para saberlo — y se pagina de diez en diez. No se carga ninguna lista mientras no se despliegue nada: solo los contadores, en una única lectura. Los paneles de ajustes siguen siendo la configuración detallada de cada uno de esos flujos, y todos los enlaces que había guardado siguen funcionando."
           }
         }
       },
@@ -6239,7 +6256,7 @@
       "heartbeat": {
         "title": "Notificaciones proactivas",
         "description": "LIA toma la iniciativa de informarle",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "¿Qué son las notificaciones proactivas?",
@@ -6276,6 +6293,10 @@
           "q9": {
             "question": "¿Puede LIA decirme cuándo salir hacia una cita? (v1.25.13)",
             "answer": "Sí. Cuando tu próximo evento de calendario tiene <strong>ubicación</strong> y empieza en pocas horas, LIA consulta el <strong>tráfico real</strong> (Google Routes) desde tu posición efectiva y puede notificarte: «Sal hacia las 13:30 — 30 min de trayecto hasta tu cita de las 14:00», combinando la meteorología cuando importa («lluvia prevista a las 14:30»).<br><br>Como máximo una consulta de ruta por ciclo, en caché por evento — y la misma notificación nunca se envía dos veces para una misma cita.<br><br><strong>⚙️ Admin:</strong> desactivado por defecto (<code>HEARTBEAT_DEPARTURE_ENABLED</code>); requiere una dirección de casa configurada."
+          },
+          "q10": {
+            "question": "¿Cómo leo la urgencia de una notificación de un vistazo?",
+            "answer": "Cada notificación proactiva lleva su nivel: <b>alta</b> aparece sobre un fondo lleno, <b>media</b> sobre un matiz ligero, <b>baja</b> queda neutra. Lo que las separa no es solo el color sino la <b>densidad</b> — dos tonos vecinos se confunden en un móvil, a pleno sol o para quien los distingue mal, mientras que un fondo lleno frente a un matiz sigue siendo legible incluso en blanco y negro. La palabra se muestra siempre al lado: el color acelera la lectura, nunca la sustituye. Un nivel que LIA aún no conozca aparece en neutro en vez de rojo, porque presentarlo como urgente sería una afirmación que nadie ha hecho."
           }
         }
       },
@@ -6956,11 +6977,15 @@
       },
       "alerts_hub": {
         "title": "Todo lo que se te ha dirigido",
-        "desc": "Mensajes retransmitidos, notificaciones, recordatorios y rutinas en una sola pantalla en vez de en otros tantos paneles. Cada sección llega plegada — y una cerrada no carga nada."
+        "desc": "Mensajes retransmitidos, notificaciones, recordatorios y rutinas en una sola pantalla en vez de en otros tantos paneles. Cada sección llega plegada con su número ya visible — eliges qué abrir sin abrirlo para saberlo."
       },
       "capability_map": {
         "title": "Tu constelación",
         "desc": "Cada capacidad es una estrella: llena cuando está activa, en contorno cuando espera. La figura une solo las activas — su forma es tu configuración, y la de nadie más."
+      },
+      "readable_at_a_glance": {
+        "title": "Legible de un vistazo",
+        "desc": "Una alerta urgente no se parece a una corriente: las separa la densidad, no solo el tono. Se mantiene también en escala de grises."
       }
     },
     "scenes": {

@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 4.2
+**Version**: 4.3
 **Date**: 2026-08-04
-**Application**: LIA v1.27.9
+**Application**: LIA v1.27.10
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -302,6 +302,16 @@ Under every memory, every journal entry and every interest, LIA therefore shows 
 What is kept is a **reference, never a copy**. Your text stays where you wrote it, and if you delete the conversation it comes back nowhere: the reference empties, the row stays dated, and LIA simply says the signal was deleted. A deletion must remain a deletion — otherwise what you erase on one side would be served back to you on the other.
 
 The same principle applies to an interest's weight: it explains itself instead of scoring itself. The originating signal, the last mention, the calculation itself — enough to redo the arithmetic. Turning that uncertainty into a score would invite a competition nobody asked for, while teaching nothing more.
+
+### 6.6. Legible without effort
+
+Transparency does not stop at what the system shows: it also covers how it shows it. A screen where everything carries the same weight asks the reader to do the sorting, and there is no reason that work should fall to them.
+
+An urgent alert therefore does not look like an ordinary one — and that is not only a matter of colour. Two neighbouring hues merge on a screen, all the more so on a phone, in bright sunlight, or for someone who tells them apart poorly. What separates the levels here is **density**: a solid ground against a light tint, a difference that holds even in black and white.
+
+The same principle applies throughout: a count wears the colour of the other counts, an action button has the same shape from one screen to the next, a sent message is not told apart from a received one by a single small arrow. None of this adds information — all of it saves time on what is already there.
+
+And colour never carries meaning on its own: every label keeps its word. An interface that only works in colour does not work for everyone.
 
 ## 7. Emotional depth
 

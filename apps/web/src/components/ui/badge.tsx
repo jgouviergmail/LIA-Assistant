@@ -16,6 +16,13 @@ const badgeVariants = cva(
         destructive:
           'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-200 dark:border-red-800 shadow-sm',
         warning: 'bg-warning/10 text-warning border border-warning/20 shadow-sm',
+        // Alert: the only SOLID status ground. `destructive` and `warning` are
+        // both pale tints (red-100 against warning/10), and their tokens sit
+        // 23° apart in OKLCH hue — on screen "high" and "medium" read as one
+        // level. Density is what separates them, and it keeps working for a
+        // reader who cannot tell the two hues apart. Same token pair as
+        // `Button variant="destructive"`, which the contrast guard covers.
+        alert: 'bg-destructive text-destructive-foreground border border-destructive shadow-sm',
         info: 'bg-primary/10 text-primary border border-primary/20 shadow-sm',
         outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
         ghost: 'hover:bg-accent hover:text-accent-foreground',

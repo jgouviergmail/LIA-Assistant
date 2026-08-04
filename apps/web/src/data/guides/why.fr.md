@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 4.2
+**Version** : 4.3
 **Date** : 2026-08-04
-**Application** : LIA v1.27.9
+**Application** : LIA v1.27.10
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -302,6 +302,16 @@ Sous chaque souvenir, chaque entrée de journal et chaque centre d'intérêt, LI
 Ce qui est conservé est un **renvoi, jamais une copie**. Le texte reste là où vous l'avez écrit, et si vous supprimez la conversation, il ne revient nulle part : le renvoi se vide, la ligne reste datée, et LIA dit simplement que le signal a été supprimé. Une suppression doit rester une suppression — autrement, ce que vous effacez d'un côté vous serait resservi de l'autre.
 
 Le même principe s'applique au poids d'un centre d'intérêt : il s'explique au lieu de se noter. Le signal d'origine, la dernière mention, le calcul lui-même — de quoi refaire l'opération. Transformer cette incertitude en score inviterait à une compétition que personne n'a demandée, alors qu'elle n'apprend rien de plus.
+
+### 6.6. Lisible sans effort
+
+La transparence ne s'arrête pas à ce que le système montre : elle porte aussi sur la façon dont il le montre. Un écran où tout a le même poids demande au lecteur de faire le tri lui-même, et ce travail-là n'a aucune raison de lui revenir.
+
+Une alerte urgente ne ressemble donc pas à une alerte ordinaire — et ce n'est pas seulement affaire de couleur. Deux teintes voisines se confondent sur un écran, à plus forte raison sur un téléphone, en plein soleil, ou pour qui les distingue mal. Ce qui sépare les niveaux ici, c'est la **densité** : un fond plein contre une teinte légère, une différence qui tient même en noir et blanc.
+
+Le même principe vaut partout : un compteur porte la couleur des autres compteurs, un bouton d'action a la même forme d'un écran à l'autre, un message envoyé ne se distingue pas d'un message reçu par une seule petite flèche. Rien de tout cela n'ajoute d'information — tout cela fait gagner du temps sur ce qui est déjà là.
+
+Et la couleur ne porte jamais seule le sens : chaque étiquette garde son mot. Une interface qui ne fonctionne qu'en couleurs ne fonctionne pas pour tout le monde.
 
 ## 7. Profondeur émotionnelle
 

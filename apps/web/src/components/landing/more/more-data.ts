@@ -16,6 +16,7 @@
 
 import type { LucideIcon } from 'lucide-react';
 import {
+  Contrast,
   Orbit,
   BellRing,
   Search,
@@ -150,6 +151,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'widgets_travel',
       'cost_transparency',
       'haptics',
+      'readable_at_a_glance',
       'a11y_care',
       'frosted_glass',
       'narrow_screens',
@@ -194,6 +196,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   background_response: Radio,
   widgets_travel: AppWindow,
   cost_transparency: Coins,
+  readable_at_a_glance: Contrast,
   a11y_care: Accessibility,
   haptics: Vibrate,
   folded_settings: ChevronsDownUp,
@@ -244,6 +247,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   cost_transparency: [],
   haptics: [],
   folded_settings: [],
+  readable_at_a_glance: [],
   a11y_care: [],
   frosted_glass: [],
   provenance_why: [],

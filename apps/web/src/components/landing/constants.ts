@@ -27,21 +27,21 @@
  *   the two ADR-194/195 counters (planner_fabricated_parameters_restored_total,
  *   semantic_validation_for_each_demand_dropped_total) over the 464 of v1.27.4.
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured at v1.27.9: backend 18,002 collected (+77 over v1.27.8 — the
- *   bounded provenance and its tombstone, the capability probes, the interest
- *   explanation, the savepoint isolation and the route guards), frontend
- *   4,808 (+118 — the constellation geometry, the Tailwind v4 colour guard,
- *   the notifications hub, the single action menu and the three new /more
- *   scenes) = 22,810 → 22,800, a strict round-DOWN to the hundred.
+ *   Re-measured at v1.27.10: backend 18,016 collected (+14 over v1.27.9 —
+ *   the hub-count probes and their gate-keeper, the two repository
+ *   counters now sharing ONE filter, and the provenance route guards),
+ *   frontend 4,830 (+22 — the status-tone module, the priority density
+ *   oracle, the tinted count pill and the clickable memories) = 22,846 →
+ *   22,800, a strict round-DOWN to the hundred.
  *   Previous re-measure at v1.27.8: backend 17,925, frontend 4,690 = 22,615.
  *   Re-measure every release: the value carried the backend count alone
  *   until v1.25.9.
- * - adrs: docs/architecture/ ADR files (203 files, numbered up to ADR-204 —
- *   ADR-008 has no separate file, so 204 numbers map to 203 files). Was
+ * - adrs: docs/architecture/ ADR files (204 files, numbered up to ADR-205 —
+ *   ADR-008 has no separate file, so 205 numbers map to 204 files). Was
  *   stranded at 183 from v1.27.0 to v1.27.4: recount it, never carry it over.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   196 headings at v1.27.9, no Unreleased pending.
+ *   197 headings at v1.27.10, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -58,8 +58,8 @@ export const LANDING_STATS = {
   metrics: 466,
   uiLanguages: 6,
   tests: 22800,
-  adrs: 203,
-  releases: 196,
+  adrs: 204,
+  releases: 197,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

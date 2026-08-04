@@ -5,11 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.27.10] - 2026-08-04
+
+**Les compteurs des Alertes sont là avant que vous ouvriez quoi que ce soit.** Un badge sur un bloc replié existe pour qu'on choisisse quoi ouvrir ; il affichait `—` jusqu'au dépliage, si bien que le seul nombre qui sert à décider ne s'obtenait qu'en décidant. Les cinq totaux arrivent maintenant en **une seule lecture** — des agrégats sur colonnes indexées, pas les lignes elles-mêmes, qui attendent toujours l'ouverture. Une section qu'une instance a désactivée n'est pas comptée du tout : le hub ne l'affiche pas, la compter serait deux requêtes pour un badge invisible.
+
+**Une priorité « haute » ne ressemble plus à une « moyenne ».** Les deux s'affichaient sur un fond pâle, et leurs deux teintes ne sont séparées que de **23 degrés** : sur un compte réel — 89 notifications hautes, 113 moyennes — le lecteur ne pouvait pas les distinguer. Ce n'est plus la teinte qui porte la hiérarchie mais la **densité** : « haute » est un fond plein, « moyenne » une teinte, « basse » reste neutre. La distinction tient même pour qui ne différencie pas les deux rouges, et même en niveaux de gris.
+
+**Un statut nomme désormais une couleur, il ne l'écrit plus.** Trois écrans portaient chacun leur propre table de classes pour la même chose — une étiquette d'état. Écrites à la main, elles échappaient au contrôle de contraste qui vérifie chaque paire du système sur cinq thèmes en clair et en sombre. Une seule fonction décide maintenant, et un état que le serveur ajouterait plus tard s'affiche **neutre** plutôt qu'en rouge : afficher un niveau inconnu comme urgent serait une affirmation que personne n'a faite.
+
+**Les boutons d'action se ressemblent enfin partout.** Le comptage a tranché : le style bordé est utilisé 137 fois dans l'application. Les actions d'une fiche de relation et les raccourcis des Alertes l'adoptent — un lecteur reconnaît une action à sa forme partout, ou nulle part.
+
+**Un souvenir affiché sur une fiche de relation se clique.** Il y était en texte mort : le corriger ou le supprimer demandait de retrouver les réglages, puis la bonne section, à la main. Le lien mène à la section qui le contient — jamais à la ligne : la liste est paginée et filtrable, promettre d'atterrir sur ce souvenir précis serait faux dès qu'il est en deuxième page.
+
+**Aussi** : les connexions entre pairs portent le rond à initiales du reste de l'application et leur nom en gras ; les icônes d'une fiche contact prennent une teinte par famille — joindre, dates, liens — ce qui rend visible une structure qui existait déjà ; l'objectif d'un appel se distingue de sa synthèse ; « envoyé » et « reçu » ont chacun leur couleur sur les messages relayés, les messages d'une fiche et les courriels ; les rendez-vous partagés et les courriels échangés ont enfin un compteur, comme leurs cinq voisines ; et tous les compteurs portent la couleur des autres badges de l'application.
+
+**Sur un téléphone**, les blocs « Pourquoi LIA pense cela ? » et l'explication du poids d'un centre d'intérêt ne s'affichent plus : denses par nature, ils repoussaient hors de l'écran ce qu'on venait y lire.
+
+### Fixed
+
+- **Un objectif d'appel long se lisait comme du texte barré** : présenté en étiquette, il débordait d'une capsule dont la hauteur est fixe. Une étiquette est un mot, pas une phrase.
+- **Le badge d'une section portait deux fonds superposés** — le composant qui l'accueille l'enveloppait déjà.
+- **Le total d'un historique et le compteur qui le résume venaient de deux requêtes distinctes** écrivant deux fois le même filtre. Une seule implémentation désormais : la page délègue son total au compteur, et les deux ne peuvent plus diverger.
+- **Une écriture de provenance sur un identifiant mal formé répondait « le serveur a cassé »** au lieu de « cela n'existe pas ».
+- **Quatre suites de tests dépendaient de l'état global du processus** et rougissaient selon la répartition des workers : un registre d'agents réenregistré, et un journal figé avant sa capture — l'assertion se lisait « rien n'a été écrit », ce qui ressemble à un défaut de production sans en être un.
+
+### Tests
+
+- Backend 18 016 tests collectés sur 983 fichiers, frontend 4 830 ; 172 parcours navigateur, 23 audits d'accessibilité.
+- Nouvelles gardes : distinction des trois priorités par la densité, teinte des compteurs, lien profond d'un souvenir, isolation des sondes de comptage et gate-keeper d'un sous-système désactivé.
+- Le compteur d'un historique et le total de sa page sont vérifiés **contre un PostgreSQL réel** : même ensemble, même portée par compte, historique vide compris.
+
+### Documentation
+
+- ADR-205 (un statut nomme un ton, il n'écrit pas ses couleurs), et ADR-202 complété de la décision sur les compteurs repliés.
+
 ## [1.27.9] - 2026-08-04
 
 **« Pourquoi LIA pense cela ? »** Un souvenir affirmait « vous préférez les réunions le matin » sans que personne — pas même vous — puisse savoir d'où cela venait. Sous chaque souvenir et chaque entrée de journal, un bloc replié montre désormais les signaux qui ont produit la conclusion, leur date, leur rôle, et un bouton **Corriger** qui ouvre l'édition. Ce qui est conservé est un **renvoi, jamais une copie** : le texte reste là où vous l'avez écrit. Supprimer une conversation ne fait donc pas revenir son contenu ici — le renvoi se vide et la ligne reste, datée : « ce signal a été supprimé ». L'inverse aurait fait disparaître jusqu'à la mention qu'une source ait existé, ce qui se lit comme « LIA a inventé cela ». La trace est **bornée à cinq signaux** par conclusion, et cette borne est **affichée** plutôt qu'appliquée en silence.
 
-**Une destination « Alertes », pour ce qui vous a été adressé.** Messages relayés entre pairs, notifications proactives, notifications d'intérêt, rappels en attente, routines programmées : cinq flux qui vivaient repliés dans cinq panneaux de réglages différents. Savoir ce que LIA vous avait dit demandait donc d'ouvrir les réglages, de trouver le bon panneau parmi une trentaine et de déplier le bon bloc — cinq fois. Consulter était devenu une opération de configuration. Les cinq sections sont repliées à l'arrivée, paginées par dix, et **une section fermée ne coûte aucune requête**. Les écrans de réglages restent la configuration détaillée et **tous leurs liens profonds restent valides** : rien n'est déplacé, rien n'est remplacé.
+**Une destination « Alertes », pour ce qui vous a été adressé.** Messages relayés entre pairs, notifications proactives, notifications d'intérêt, rappels en attente, routines programmées : cinq flux qui vivaient repliés dans cinq panneaux de réglages différents. Savoir ce que LIA vous avait dit demandait donc d'ouvrir les réglages, de trouver le bon panneau parmi une trentaine et de déplier le bon bloc — cinq fois. Consulter était devenu une opération de configuration. Les cinq sections arrivent repliées **en affichant déjà leur nombre exact** — on choisit quoi ouvrir sans avoir à ouvrir pour le savoir — et se paginent par dix. Aucune liste n'est chargée tant que rien n'est déplié : seuls les cinq compteurs le sont, en une seule lecture. Les écrans de réglages restent la configuration détaillée et **tous leurs liens profonds restent valides** : rien n'est déplacé, rien n'est remplacé.
 
 **Une carte du ciel de ce que LIA sait faire pour vous.** Chaque capacité est une étoile : pleine quand elle est active, en contour quand elle attend d'être allumée, et sa taille dit ce qu'elle contient. Le tracé qui les relie ne joint que les capacités actives, donc **sa forme est votre configuration** — personne d'autre n'a la même. Aucun niveau, aucun pourcentage d'avancement, aucune comparaison : « trois connecteurs reliés » est un fait, « 62 % » serait une compétition que personne n'a demandée. Le dessin est décoratif ; tout ce qui s'atteint est un vrai lien, nommé et utilisable au clavier. Un téléphone, ou une demande d'immobilité, reçoit la même carte en liste — mêmes données, même ordre, mêmes destinations : demander l'immobilité n'est pas demander moins d'information.
 

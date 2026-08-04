@@ -24,7 +24,10 @@ import { useState } from 'react';
 import { CalendarDays, Contact, Mail, RefreshCw, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { CollapsibleSection } from '@/components/relations/CollapsibleSection';
+import { Badge } from '@/components/ui/badge';
+import { directionTone } from '@/lib/status-tone';
+
+import { CollapsibleSection, SectionBadge } from '@/components/relations/CollapsibleSection';
 import { ContactCardBody } from '@/components/relations/ContactCardBody';
 import { chatIntentHref, dateTimeRangeLabel, timeAgoLabel } from '@/lib/briefing-utils';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
@@ -174,6 +177,11 @@ export function ProviderEmailsSection({
     <CollapsibleSection
       icon={Mail}
       title={t('relations.section_emails')}
+      // Counted like every other section: without it, a folded block gave the
+      // reader nothing to choose from. The number is what the section HOLDS
+      // right now — these come from a live provider read, not from a stored
+      // aggregate, so it describes exactly what unfolding will show.
+      badge={<SectionBadge>{emails.length}</SectionBadge>}
       action={
         <RefreshButton label={t('relations.refresh_section')} busy={busy} onRefresh={onRefresh} />
       }
@@ -202,9 +210,12 @@ export function ProviderEmailsSection({
               aria-label={t('relations.emails_select', { subject: email.subject })}
               className="h-4 w-4 shrink-0 accent-primary"
             />
-            <span className="text-xs font-medium text-primary">
+            {/* One tone per direction — sent and received were both primary
+                blue, so nothing but the wording separated them while
+                scanning. */}
+            <Badge variant={directionTone(email.direction)} size="sm">
               {received ? t('relations.peer_message_received') : t('relations.peer_message_sent')}
-            </span>
+            </Badge>
             {email.occurred_at && (
               <span className="text-[11px] text-muted-foreground">
                 {timeAgoLabel(t, email.occurred_at)}
@@ -220,7 +231,11 @@ export function ProviderEmailsSection({
                 {absolute(email.occurred_at)}
               </span>
             )}
-            <span className="w-full text-sm text-foreground/90">{email.subject}</span>
+            {/* The SUBJECT is the row's own title and sat at the same weight
+                as its excerpt. Emphasised rather than badged: a tag around a
+                whole subject line would wrap into a coloured block, and this
+                one has to stay readable at any length. */}
+            <span className="w-full text-sm font-semibold text-foreground">{email.subject}</span>
             {/* The subject alone rarely says what an exchange was about
                 ("Re: Re: point"). Two lines at most: the excerpt informs the
                 row, it must not become it. Full `text-muted-foreground` — the
@@ -271,16 +286,20 @@ function EventRow({ event, showRole }: { event: SharedEvent; showRole: boolean }
             know whether they can be there, not only how far off it is. */}
         {slot && <span className="text-[11px] tabular-nums text-muted-foreground">{slot}</span>}
         {showRole && (
-          <span className="rounded-full bg-muted px-2 py-px text-[10px] font-medium text-muted-foreground">
+          // The house badge rather than a grey inline span: a role is a fact
+          // about the meeting, and it sat next to an "upcoming" pill that was
+          // already tinted — two markers on one line, one of them looking
+          // disabled.
+          <Badge variant="default" size="sm">
             {event.role === 'organizer'
               ? t('relations.event_role_organizer')
               : t('relations.event_role_attendee')}
-          </span>
+          </Badge>
         )}
         {!event.is_past && (
-          <span className="rounded-full border border-primary/25 bg-primary/10 px-2 py-px text-[10px] font-medium text-primary">
+          <Badge variant="info" size="sm">
             {t('relations.event_upcoming')}
-          </span>
+          </Badge>
         )}
       </p>
     </div>
@@ -309,6 +328,7 @@ export function ProviderEventsSection({
     <CollapsibleSection
       icon={CalendarDays}
       title={t('relations.section_events')}
+      badge={<SectionBadge>{events.length}</SectionBadge>}
       action={
         <RefreshButton label={t('relations.refresh_section')} busy={busy} onRefresh={onRefresh} />
       }

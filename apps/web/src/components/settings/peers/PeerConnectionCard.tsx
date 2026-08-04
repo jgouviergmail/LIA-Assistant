@@ -11,8 +11,7 @@
  * Remove and block go through the house confirm dialog.
  */
 
-import { UserRound } from 'lucide-react';
-
+import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -77,10 +76,22 @@ export function PeerConnectionCard({
   return (
     <div className="space-y-3 rounded-md border p-3">
       {confirmDialog}
-      <div className="flex items-center gap-2">
-        <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <div className="flex items-center gap-3">
+        {/* The app's own avatar, as everywhere a person is named: initials on
+            a colour hashed from the name, so two connections are told apart at
+            a glance rather than by reading. NO `src` on purpose — a peer's
+            profile picture is not published by this domain, and exposing one
+            would add a personal datum to a surface whose whole design keeps
+            the other side unobservable. */}
+        <Avatar
+          name={connection.peer_display_name}
+          size="sm"
+          variant="circular"
+          disableHover
+          className="shrink-0"
+        />
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{connection.peer_display_name}</p>
+          <p className="truncate text-sm font-semibold">{connection.peer_display_name}</p>
           {/* The real address when its owner opened it to their connections
               (ADR-189), the masked hint otherwise — never both, which would
               read as two different pieces of information about one person.

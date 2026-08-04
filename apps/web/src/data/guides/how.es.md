@@ -4,9 +4,9 @@
 >
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
-**Versión**: 3.7
+**Versión**: 3.8
 **Fecha**: 2026-08-04
-**Aplicación**: LIA v1.27.9
+**Aplicación**: LIA v1.27.10
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 447 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 203 ADRs, ~18.002 tests recogidos por pytest en 981 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 204 ADRs, ~18.016 tests recogidos por pytest en 983 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -72,10 +72,10 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | ~18.002 (recopilados por pytest en 981 archivos de prueba) + 4.808 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | ~18.016 (recopilados por pytest en 983 archivos de prueba) + 4.830 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures reutilizables | 170+ |
 | Documentos de documentación | 400+ |
-| ADRs (Architecture Decision Records) | 203 |
+| ADRs (Architecture Decision Records) | 204 |
 | Métricas Prometheus | 447 definiciones |
 | Dashboards Grafana | 26 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1176,9 +1176,28 @@ Tres estados, y la distinción entre los dos últimos lleva todo el sentido: **n
 
 Nada de lo publicado es un nivel, un porcentaje de avance o una comparación, y un test lo enuncia como restricción de esquema. La representación sigue la misma regla: el dibujo es decorativo y está oculto a las tecnologías de asistencia, mientras que todo lo alcanzable es un enlace con nombre — un `<circle>` con un `onClick` se vería idéntico y sería inutilizable sin ratón. La figura une las capacidades activas en **orden angular**, el único orden que no puede auto-intersecarse alrededor de un punto interior.
 
+### 23.17. Un estado nombra un tono, no escribe sus colores
+
+Representar una etiqueta de estado — una prioridad, un sentido, un papel — parece trivial, y precisamente por eso cada pantalla acaba escribiendo sus propias clases. Tres componentes llevaban así su propia tabla de correspondencias para el mismo trabajo, con tres consecuencias.
+
+**La distinción prometida puede no existir.** Dos niveles representados al 10 % de opacidad sobre tokens separados 23° de tono en OKLCH son, en pantalla, el mismo nivel. Ninguna revisión de código lo detecta: las dos líneas se leen distintas en el código e idénticas en la pantalla.
+
+**Las clases escritas a mano eluden el control de contraste.** La guarda del sistema de diseño verifica cada par que los componentes producen realmente, en cinco temas en claro y oscuro. Lo que se escribe en otro sitio no figura en ella.
+
+**Un estado desconocido cae en el valor por defecto de la tabla**, lo que puede mostrar en rojo un valor que nadie ha llamado urgente.
+
+Por eso un único módulo expone funciones que devuelven una **variante de componente**, nunca una clase. De ahí dos reglas:
+
+| Regla | Razón |
+|-------|-------|
+| La jerarquía la lleva la **densidad**, no el tono solo | Un fondo lleno frente a un matiz sigue siendo legible para quien confunde los dos colores, y en escala de grises |
+| Un valor desconocido es **neutro** | Mostrar un nivel no reconocido como urgente es una afirmación que nadie ha hecho |
+
+Corolario de forma: una etiqueta está hecha para una **palabra**. El componente fija su altura, de modo que una frase de tres líneas se desborda y se lee como tachada. Lo largo se destaca con el peso tipográfico, que no supone nada sobre la longitud.
+
 ## 24. Arquitectura de decisiones (ADR)
 
-203 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+204 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1232,10 +1251,10 @@ El Psyche Engine dota al asistente de un estado psicológico dinámico que evolu
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 203 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~18.002 tests en 981 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 204 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~18.016 tests en 983 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (400+ documentos), de los 203 ADRs y del changelog (v1.0 a v1.27.9). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (400+ documentos), de los 204 ADRs y del changelog (v1.0 a v1.27.10). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

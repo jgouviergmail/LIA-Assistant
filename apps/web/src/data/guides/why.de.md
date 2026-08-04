@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 4.2
+**Version**: 4.3
 **Datum**: 2026-08-04
-**Anwendung**: LIA v1.27.9
+**Anwendung**: LIA v1.27.10
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -302,6 +302,16 @@ Unter jeder Erinnerung, jedem Journaleintrag und jedem Interesse zeigt LIA desha
 Aufbewahrt wird ein **Verweis, niemals eine Kopie**. Ihr Text bleibt dort, wo Sie ihn geschrieben haben, und wenn Sie die Unterhaltung löschen, kehrt er nirgends zurück: Der Verweis leert sich, die Zeile bleibt datiert, und LIA sagt schlicht, das Signal sei gelöscht worden. Eine Löschung muss eine Löschung bleiben — sonst würde Ihnen auf der einen Seite wieder vorgesetzt, was Sie auf der anderen getilgt haben.
 
 Dasselbe Prinzip gilt für das Gewicht eines Interesses: Es erklärt sich, statt sich zu benoten. Das ursprüngliche Signal, die letzte Erwähnung, die Berechnung selbst — genug, um die Rechnung nachzuvollziehen. Diese Unsicherheit in eine Punktzahl zu verwandeln lüde zu einem Wettbewerb ein, den niemand verlangt hat, und lehrte dabei nichts weiter.
+
+### 6.6. Mühelos lesbar
+
+Transparenz endet nicht bei dem, was das System zeigt: Sie betrifft auch, wie es das zeigt. Ein Bildschirm, auf dem alles dasselbe Gewicht hat, verlangt vom Lesenden das Sortieren — und es gibt keinen Grund, warum diese Arbeit bei ihm liegen sollte.
+
+Ein dringender Hinweis sieht deshalb nicht aus wie ein gewöhnlicher — und das ist nicht nur eine Frage der Farbe. Zwei benachbarte Farbtöne verschmelzen auf einem Bildschirm, erst recht auf dem Handy, in praller Sonne oder für jemanden, der sie schlecht unterscheidet. Was die Stufen hier trennt, ist die **Dichte**: ein voller Grund gegen eine leichte Tönung, ein Unterschied, der selbst in Schwarzweiß hält.
+
+Dasselbe Prinzip gilt überall: Eine Anzahl trägt die Farbe der anderen Anzahlen, eine Aktionsschaltfläche hat von Bildschirm zu Bildschirm dieselbe Form, eine gesendete Nachricht unterscheidet sich von einer empfangenen nicht durch einen einzigen kleinen Pfeil. Nichts davon fügt Information hinzu — alles davon spart Zeit bei dem, was ohnehin da ist.
+
+Und Farbe trägt die Bedeutung nie allein: Jede Markierung behält ihr Wort. Eine Oberfläche, die nur in Farbe funktioniert, funktioniert nicht für alle.
 
 ## 7. Emotionale Tiefe
 

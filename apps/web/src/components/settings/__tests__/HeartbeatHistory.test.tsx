@@ -178,3 +178,48 @@ describe('rendering values the frontend was not told about', () => {
     expect(screen.getByText('heartbeat.history.priority_high')).toBeInTheDocument();
   });
 });
+
+describe('how the three priorities are told apart', () => {
+  /** The rendered marker of the first row. */
+  function marker(): HTMLElement {
+    const badge = document.querySelector('[data-slot="badge"], .rounded-full');
+    if (!badge) throw new Error('no priority marker rendered');
+    return badge as HTMLElement;
+  }
+
+  it('fills for `high` and only tints for `medium`', () => {
+    // Hue alone cannot carry this: `--color-destructive` sits at 27° and
+    // `--color-warning` at 50° in OKLCH — 23° apart, indistinguishable at the
+    // 10 % opacity both markers used to share. DENSITY is what separates them,
+    // and it still works for a reader who cannot tell the two hues apart.
+    const { unmount } = renderWithProviders(
+      <HeartbeatHistory {...makeProps({ notifications: [notification({ priority: 'high' })] })} />
+    );
+    const high = marker().className;
+    unmount();
+
+    renderWithProviders(
+      <HeartbeatHistory {...makeProps({ notifications: [notification({ priority: 'medium' })] })} />
+    );
+    const medium = marker().className;
+
+    expect(high).not.toBe(medium);
+    // The solid fill is the loud one; the tint is the quiet one.
+    // A SOLID ground for `high`, a tint for `medium`. `bg-destructive` without
+    // a slash is the whole point: `bg-destructive/10` would be another tint.
+    expect(high).toMatch(/bg-destructive(?!\/)/);
+    expect(medium).toMatch(/bg-warning\/10/);
+  });
+
+  it('leaves an unknown priority neutral rather than alarming', () => {
+    // A level the backend adds later must not arrive shouting: rendering it
+    // red because it is unrecognised would be a claim nobody made.
+    renderWithProviders(
+      <HeartbeatHistory {...makeProps({ notifications: [notification({ priority: 'critical' })] })} />
+    );
+
+    expect(marker().className).not.toMatch(/destructive|red/);
+    // And its raw value is shown, never a missing i18n key.
+    expect(screen.getByText('critical')).toBeInTheDocument();
+  });
+});

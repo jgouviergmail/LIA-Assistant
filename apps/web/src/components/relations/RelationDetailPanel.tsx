@@ -45,6 +45,12 @@ import {
 import { Children, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import Link from 'next/link';
+import { settingsSectionHref } from '@/lib/settings-sections';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { directionTone } from '@/lib/status-tone';
+
 import { toast } from 'sonner';
 
 import { CommitmentEditor } from '@/components/commitments/CommitmentEditor';
@@ -148,10 +154,17 @@ function PeerMessageItem({ message }: { message: RelationPeerMessage }) {
   return (
     <div className="border-l-2 border-primary/40 pl-3">
       <p className="flex flex-wrap items-baseline gap-2">
-        <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
-          <DirectionIcon className="h-3.5 w-3.5" aria-hidden="true" />
+        {/* One tone per direction. Both sides used to be the same primary
+            blue, so a reader scanning the timeline had only the arrow to go
+            on. The word stays — the tone is what makes the two sides legible
+            at a glance. */}
+        <Badge
+          variant={directionTone(message.direction)}
+          size="sm"
+          icon={<DirectionIcon className="h-3 w-3" aria-hidden="true" />}
+        >
           {received ? t('relations.peer_message_received') : t('relations.peer_message_sent')}
-        </span>
+        </Badge>
         <span className="text-[11px] text-muted-foreground">
           {timeAgoLabel(t, message.occurred_at)}
         </span>
@@ -375,14 +388,30 @@ function CallsSection({ calls, total }: { calls: RelationDetail['recent_calls'];
   return (
     <SectionCard icon={PhoneCall} title={t('relations.section_calls')} total={total}>
       {calls.map(call => (
-        <div key={call.id} className="border-l-2 border-sky-500/40 pl-3">
-          <p className="flex flex-wrap items-baseline gap-2 text-sm text-foreground/90">
-            {call.objective}
-            <span className="text-[11px] text-muted-foreground">
+        <div key={call.id} className="border-l-2 border-primary/40 pl-3">
+          {/* The OBJECTIVE is what the call was for and the summary is what
+              came of it. Rendered as one paragraph they read as a single grey
+              block; the objective becomes a tag so the eye finds "why" before
+              "what happened". `border-primary` rather than a raw sky-500: the
+              palette is the theme's, not a colour picked here. */}
+          <p className="flex flex-wrap items-baseline gap-2">
+            {/* NOT a badge. A call objective is a full instruction — "ask her
+                why she does not use LIA, in three or four questions" — and a
+                pill is sized for a word: `Badge` pins its height, so three
+                lines of text spilled out of a 16 px capsule and read as struck
+                through (measured on a real card, 2026-08-04). The hierarchy is
+                carried by WEIGHT instead, which costs no layout assumption:
+                the objective is the strong line, the summary the quiet one. */}
+            <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
+              {call.objective}
+            </span>
+            <span className="shrink-0 text-[11px] text-muted-foreground">
               {timeAgoLabel(t, call.created_at)}
             </span>
           </p>
-          {call.summary && <p className="mt-0.5 text-xs text-muted-foreground">{call.summary}</p>}
+          {call.summary && (
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{call.summary}</p>
+          )}
         </div>
       ))}
     </SectionCard>
@@ -454,18 +483,24 @@ function QuickActions({ detail, lng }: { detail: RelationDetail; lng: string }) 
   return (
     <div className="flex flex-wrap gap-2">
       {actions.map(({ key, icon: Icon, label, draft }) => (
-        <button
+        <Button
           key={key}
           type="button"
+          // `outline`, which is what an action button looks like in this app:
+          // 137 call sites against a single `softPrimary` (this one, before it
+          // was aligned). Consistency beats the extra emphasis — the reader
+          // recognises an action by its shape everywhere, or nowhere.
+          variant="outline"
+          size="sm"
           onClick={() => openChatDeepLink(chatDraftHref(lng, draft))}
           // `min-h-11`: these read as chips, but they are the card's primary
           // actions and were 30 px tall on a phone — wide enough to look
           // clickable, too short to hit reliably (measured 2026-08-01).
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-border/60 bg-card px-2.5 py-1.5 text-xs font-medium text-foreground/90 transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="min-h-11"
         >
           <Icon className="h-3.5 w-3.5" aria-hidden="true" />
           {label}
-        </button>
+        </Button>
       ))}
     </div>
   );
@@ -475,21 +510,33 @@ function QuickActions({ detail, lng }: { detail: RelationDetail; lng: string }) 
 function MemoriesSection({
   memories,
   total,
+  lng,
 }: {
   memories: RelationDetail['memories'];
   total: number;
+  lng: string;
 }) {
   const { t } = useTranslation();
   if (memories.length === 0) return null;
   return (
     <SectionCard icon={StickyNote} title={t('relations.section_memories')} total={total}>
       {memories.map(memory => (
-        <p
+        // A LINK, not a dead paragraph. Reading "prefers morning meetings" here
+        // and having no way to reach it meant finding Settings and the right
+        // section by hand to correct or delete it.
+        //
+        // The destination is the SECTION, never the row: the memory list is
+        // paginated and filterable, so a link promising to land on this exact
+        // memory would be false the moment it sits on page three. `<Link>`
+        // rather than a click handler — middle-click, open-in-new-tab and the
+        // "link" role are what a navigation owes its reader.
+        <Link
           key={memory.id}
-          className="rounded-lg border border-border/40 bg-muted/30 px-3 py-2 text-sm text-foreground/90"
+          href={settingsSectionHref(lng, 'memories')}
+          className="block rounded-lg border border-border/40 bg-muted/30 px-3 py-2 text-sm text-foreground/90 transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {memory.content}
-        </p>
+        </Link>
       ))}
     </SectionCard>
   );
@@ -663,7 +710,7 @@ function RelationSections({
             lng={lng}
             onChanged={onCommitmentChanged}
           />
-          <MemoriesSection memories={detail.memories} total={detail.memories_total} />
+          <MemoriesSection memories={detail.memories} total={detail.memories_total} lng={lng} />
           <CallsSection calls={detail.recent_calls} total={detail.recent_calls_total} />
           <PeerMessagesSection messages={detail.peer_messages} total={detail.peer_messages_total} />
         </div>
