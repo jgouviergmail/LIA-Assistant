@@ -6,7 +6,7 @@
 
 **Versione**: 3.9
 **Data**: 2026-08-05
-**Applicazione**: LIA v1.27.13
+**Applicazione**: LIA v1.27.14
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,8 +53,8 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Auto-hosting ARM64 | Docker multi-arch, embeddings semantici (multilingue), Playwright chromium cross-platform |
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
-| Trasparenza totale | 447 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 209 ADRs, ~18.041 test raccolti da pytest in 985 file, osservabilità nativa, HITL a 6 livelli |
+| Trasparenza totale | 466 metriche Prometheus, debug panel integrato, tracciamento token per token |
+| Affidabilità in produzione | 212 ADRs, ~18.041 test raccolti da pytest in 985 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -76,7 +76,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 400+ |
 | ADR (Architecture Decision Record) | 209 |
-| Metriche Prometheus | 447 definizioni |
+| Metriche Prometheus | 466 definizioni |
 | Dashboard Grafana | 26 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -864,7 +864,7 @@ La provenienza è dunque una proprietà del **dato**: i 24 tipi del registro son
 
 | Tecnologia | Ruolo |
 |------------|-------|
-| Prometheus | 447 metriche custom (RED pattern) |
+| Prometheus | 466 metriche custom (RED pattern) |
 | Grafana | 26 dashboard production-ready |
 | Loki | Log strutturati JSON aggregati |
 | Tempo | Trace distribuite cross-service (OTLP gRPC) |
@@ -885,6 +885,43 @@ Le metriche debug persistono in `sessionStorage` (50 voci massime).
 ### 20.3. DevOps Claude CLI (solo admin)
 
 Gli amministratori possono interagire con Claude Code CLI direttamente dalla conversazione LIA per diagnosticare problemi del server in linguaggio naturale. Claude CLI è installato all'interno del container Docker dell'API e viene eseguito localmente via subprocess, con accesso al Docker socket per ispezionare tutti i container. I permessi sono configurabili per ambiente e l'accesso è limitato ai superuser.
+### 20.4. Un'etichetta è un moltiplicatore di flussi, non un campo di ricerca
+
+Una pipeline di aggregazione invita naturalmente a promuovere a etichetta
+indicizzata tutto ciò su cui si potrebbe filtrare: il nome dell'evento, il modulo
+emittente, l'identificativo di traccia. L'intuizione è sbagliata, e costosa. In
+Loki un **flusso** è una combinazione unica di valori di etichetta, e l'insieme
+dei flussi tenuti in memoria è il **prodotto cartesiano** di quei valori.
+Promuovere un campo con un insieme di valori aperto — un nome di evento libero,
+peggio ancora un identificativo per richiesta — non rende nulla più ricercabile:
+programma una saturazione di memoria.
+
+La regola è quindi posizionale e non funzionale: **solo un campo il cui insieme di
+valori sia piccolo e chiuso diventa un'etichetta** (la gravità, quattro valori).
+Tutto il resto si filtra al momento della lettura, dove il costo si paga per
+interrogazione invece di essere permanente e condiviso:
+
+```
+{container="lia-api-prod"} |= "chat_run_started" | json | event="chat_run_started"
+```
+
+Il filtro di riga precede deliberatamente l'analisi JSON: permette al motore di
+saltare interi blocchi senza decodificarli.
+
+Due guardie accompagnano la regola, perché la si infrange in silenzio. La prima
+vieta che un campo a cardinalità aperta torni a essere etichetta. La seconda
+**deriva** l'insieme vietato dalla configurazione della pipeline e verifica che
+nessun cruscotto selezioni un flusso su uno di essi: un selettore su una
+non-etichetta non fallisce, semplicemente non corrisponde ad alcun flusso, e il
+pannello resta vuoto pur sembrando perfettamente sano.
+
+Lo stesso principio governa il trasporto: una pipeline non riscrive il carico che
+trasporta. È stata rimossa una fase che sostituiva la riga con il contenuto di un
+singolo campo: privava l'analisi del JSON strutturato che l'applicazione aveva
+invece emesso.
+
+---
+
 ## 21. Performance: ottimizzazioni e metriche
 
 ### 21.1. Metriche chiave (P95)
@@ -993,6 +1030,31 @@ esistere, portare la variante Tailwind della soglia dichiarata, e una superficie
 che interroga o scandisce dev'essere **montata condizionalmente**, non solo
 nascosta: `display:none` monta comunque il componente, che continua a consumare
 rete e batteria per qualcosa che nessuno vedrà.
+
+### 22.6. Un deployment non disturba lo stack che sta servendo
+
+Ricostruire la directory di deployment **sul posto** sembra innocuo: si cancella,
+si copia, si ricreano i container. Questo ragionamento ignora come funziona un
+bind mount. Docker lo risolve verso un **inode** quando il container viene
+creato, non verso un percorso rivalutato a ogni lettura. Cancellare il contenuto
+della directory non sostituisce quindi ciò che vede un container in esecuzione:
+distrugge gli inode sotto di lui. Per tutta la durata del build, una decina di
+minuti, l'applicazione che sta ancora rispondendo vede le sue directory montate
+come **vuote**.
+
+Il progetto sposta il problema anziché accorciarlo. Il bundle viene depositato in
+una directory di attesa separata che nessun container monta, e il build avviene
+interamente lì. La commutazione finale è una **rinomina**, ed è lì che si gioca
+tutto: rinominare preserva l'inode, quindi i container ancora vivi continuano a
+leggere esattamente ciò che hanno montato, fino alla loro ricreazione deliberata
+qualche secondo dopo. La shell che esegue lo script di deployment conserva il suo
+descrittore aperto per la stessa ragione.
+
+Due generazioni precedenti restano su disco, il che rende un ritorno indietro
+questione di secondi anziché una ricostruzione. Il corollario è scritto nello
+script: **i backup del database vivono fuori dall'albero distribuito**. Un dump
+che un deployment può raggiungere non è un dump, e l'unica garanzia affidabile è
+posizionale, non una promessa di non toccarlo.
 
 ## 23. Pattern di ingegneria trasversali
 
@@ -1203,7 +1265,7 @@ La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la 
 
 ## 24. Architettura delle decisioni (ADR)
 
-209 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+212 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1257,10 +1319,10 @@ Il Psyche Engine dota l'assistente di uno stato psicologico dinamico che evolve 
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 209 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~18.041 test in 985 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 212 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~18.041 test in 985 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 209 ADRs e del changelog (da v1.0 a v1.27.13). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 212 ADRs e del changelog (da v1.0 a v1.27.14). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

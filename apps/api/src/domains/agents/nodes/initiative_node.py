@@ -448,9 +448,13 @@ def _format_execution_summary(
     if registry:
         for _item_id, item in registry.items():
             # Registry items reach this node in two shapes: plain dicts in the
-            # pipeline (after a checkpoint serialization round-trip) and Pydantic
-            # RegistryItem objects in ReAct (built in-memory by react_execute_tools,
-            # no round-trip). Normalize both — mirrors the dual-format handling in
+            # pipeline (`_execute_tool` stores `item.model_dump(mode="json")` to
+            # inject turn_id/step_id into meta) and Pydantic RegistryItem objects
+            # in ReAct (built in-memory by react_execute_tools). The checkpoint
+            # round-trip is NO LONGER a third source — RegistryItem was added to
+            # the serializer allowlist, so a resumed turn now returns the typed
+            # object; before that it degraded to a dict here too.
+            # Normalize both — mirrors the dual-format handling in
             # react_tool_wrapper and generate_data_for_filtering. Without this, ReAct
             # items were skipped and the summary collapsed to "No execution results.",
             # blinding the initiative LLM to the data the loop had just fetched.

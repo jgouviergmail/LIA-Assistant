@@ -2622,7 +2622,7 @@
           },
           "editorMode": "code",
           "queryType": "instant",
-          "expr": "quantile_over_time(0.50, {job=\"api\", event=\"token_tracking_callback_tokens_recorded\"} | json | unwrap duration_ms [$__range]) by (node_name)"
+          "expr": "quantile_over_time(0.50, {job=\"api\"} |= \"token_tracking_callback_tokens_recorded\" | json | event=\"token_tracking_callback_tokens_recorded\" | unwrap duration_ms [$__range]) by (node_name)"
         },
         {
           "refId": "B",
@@ -2632,7 +2632,7 @@
           },
           "editorMode": "code",
           "queryType": "instant",
-          "expr": "quantile_over_time(0.95, {job=\"api\", event=\"token_tracking_callback_tokens_recorded\"} | json | unwrap duration_ms [$__range]) by (node_name)"
+          "expr": "quantile_over_time(0.95, {job=\"api\"} |= \"token_tracking_callback_tokens_recorded\" | json | event=\"token_tracking_callback_tokens_recorded\" | unwrap duration_ms [$__range]) by (node_name)"
         },
         {
           "refId": "C",
@@ -2642,7 +2642,7 @@
           },
           "editorMode": "code",
           "queryType": "instant",
-          "expr": "max_over_time({job=\"api\", event=\"token_tracking_callback_tokens_recorded\"} | json | unwrap duration_ms [$__range]) by (node_name)"
+          "expr": "max_over_time({job=\"api\"} |= \"token_tracking_callback_tokens_recorded\" | json | event=\"token_tracking_callback_tokens_recorded\" | unwrap duration_ms [$__range]) by (node_name)"
         },
         {
           "refId": "D",
@@ -2652,7 +2652,7 @@
           },
           "editorMode": "code",
           "queryType": "instant",
-          "expr": "sum by (node_name) (count_over_time({job=\"api\", event=\"token_tracking_callback_tokens_recorded\"} [$__range]))"
+          "expr": "sum by (node_name) (count_over_time({job=\"api\"} |= \"token_tracking_callback_tokens_recorded\" | json | event=\"token_tracking_callback_tokens_recorded\" [$__range]))"
         }
       ],
       "transformations": [
@@ -2730,7 +2730,7 @@
           "editorMode": "code",
           "instant": true,
           "queryType": "instant",
-          "expr": "quantile_over_time(0.95, {job=\"api\", event=\"token_tracking_callback_tokens_recorded\"} | json | unwrap duration_ms [$__range]) by (node_name)",
+          "expr": "quantile_over_time(0.95, {job=\"api\"} |= \"token_tracking_callback_tokens_recorded\" | json | event=\"token_tracking_callback_tokens_recorded\" | unwrap duration_ms [$__range]) by (node_name)",
           "legendFormat": "{{node_name}}"
         }
       ],
@@ -2773,7 +2773,7 @@
           },
           "editorMode": "code",
           "queryType": "instant",
-          "expr": "quantile_over_time(0.50, {job=\"api\", event=\"new_service_architecture_stream_completed\"} | json | unwrap ttft [$__range])",
+          "expr": "quantile_over_time(0.50, {job=\"api\"} |= \"new_service_architecture_stream_completed\" | json | event=\"new_service_architecture_stream_completed\" | unwrap ttft [$__range])",
           "legendFormat": "TTFT p50"
         },
         {
@@ -2784,7 +2784,7 @@
           },
           "editorMode": "code",
           "queryType": "instant",
-          "expr": "quantile_over_time(0.95, {job=\"api\", event=\"new_service_architecture_stream_completed\"} | json | unwrap ttft [$__range])",
+          "expr": "quantile_over_time(0.95, {job=\"api\"} |= \"new_service_architecture_stream_completed\" | json | event=\"new_service_architecture_stream_completed\" | unwrap ttft [$__range])",
           "legendFormat": "TTFT p95"
         }
       ],
@@ -2829,7 +2829,7 @@
           },
           "editorMode": "code",
           "queryType": "instant",
-          "expr": "quantile_over_time(0.50, {job=\"api\", event=\"new_service_architecture_stream_completed\"} | json | unwrap duration [$__range])",
+          "expr": "quantile_over_time(0.50, {job=\"api\"} |= \"new_service_architecture_stream_completed\" | json | event=\"new_service_architecture_stream_completed\" | unwrap duration [$__range])",
           "legendFormat": "Total p50"
         },
         {
@@ -2840,7 +2840,7 @@
           },
           "editorMode": "code",
           "queryType": "instant",
-          "expr": "quantile_over_time(0.95, {job=\"api\", event=\"new_service_architecture_stream_completed\"} | json | unwrap duration [$__range])",
+          "expr": "quantile_over_time(0.95, {job=\"api\"} |= \"new_service_architecture_stream_completed\" | json | event=\"new_service_architecture_stream_completed\" | unwrap duration [$__range])",
           "legendFormat": "Total p95"
         }
       ],

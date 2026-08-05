@@ -3765,8 +3765,8 @@
           "description": "Voller Stack: Prometheus-Metriken (Tokens, Latenz, Fehler, Kosten), 26 Grafana-Dashboards, verteiltes Tracing mit Tempo, zentralisierte Logs mit Loki, aktives E-Mail-Alerting mit verlinktem Runbook an jedem Alarm. Das 26. Dashboard ist ein Produkt-Cockpit: Es zählt validierte Ergebnisse — Dein explizites 👍 (E1) oder eine einen ganzen Tag unkorrigiert gebliebene Aktion (E2) — und leitet daraus North Star, Aktivierungs-Funnel, Retention und Kosten pro nützlichem Ergebnis ab. Die exakte Zählung lebt in PostgreSQL (ein Zustand kann sich ändern, ein Zähler nicht zurückzählen); Grafana liest sie über eine Nur-Lese-Rolle, die ausschließlich Aggregat-Views sieht, nie Rohtabellen."
         },
         "tools": {
-          "title": "🔧 89 typisierte Werkzeuge",
-          "description": "89 native Werkzeuge mit JSON-Schemata, automatisch aus Python/Pydantic erzeugt, unbegrenzt erweiterbar über MCP-Server und Skills. Deklarative Manifeste mit semantic_keywords für intelligentes Routing und veröffentlichten Grenzen: Was ein Validator ablehnen kann, kann der Planer lesen. Der Katalog wird pro Domäne gefiltert — eine Domäne mit ausschließlich schreibenden Werkzeugen drängt daher zum Schreiben, weshalb jede Domäne nun auch ihre Lesefähigkeiten trägt."
+          "title": "🔧 88 typisierte Werkzeuge",
+          "description": "88 native Werkzeuge mit JSON-Schemata, automatisch aus Python/Pydantic erzeugt, unbegrenzt erweiterbar über MCP-Server und Skills. Deklarative Manifeste mit semantic_keywords für intelligentes Routing und veröffentlichten Grenzen: Was ein Validator ablehnen kann, kann der Planer lesen. Der Katalog wird pro Domäne gefiltert — eine Domäne mit ausschließlich schreibenden Werkzeugen drängt daher zum Schreiben, weshalb jede Domäne nun auch ihre Lesefähigkeiten trägt."
         },
         "costTransparency": {
           "title": "💰 Kostentransparenz",
@@ -3899,6 +3899,19 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_27_14": {
+          "title": "v1.27.14 — 🛡️ Updates, die die App laufen lassen",
+          "date": "August 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🛡️ Ein Update beeinträchtigt die App während der Installation nicht mehr</b> — während einer Auslieferung funktionierten Push-Benachrichtigungen, die FAQ und die Skills kurzzeitig nicht: das Update ersetzte die Dateien unter der laufenden Anwendung. Auslieferungen bereiten nun alles daneben vor und schalten in einem einzigen Schritt um, sodass während des Builds der neuen Version nichts fehlt.",
+            "i2": "<b>💬 Ein laufendes Gespräch wird von einem Update nicht mehr abgeschnitten</b> — ein gerade entstehender Austausch wurde beim Installieren einer neuen Version unterbrochen. Die Anwendung beendet jetzt, was sie begonnen hat, bevor sie stoppt.",
+            "i3": "<b>💾 Datenbank-Sicherungen bleiben tatsächlich erhalten</b> — die geplanten Sicherungen lagen in dem Ordner, den jedes Update ersetzte, und wurden daher jedes Mal gelöscht. Sie liegen nun außerhalb seiner Reichweite. Wenn du eine Instanz betreibst, prüfe, dass dein Sicherungspfad außerhalb des Deployment-Ordners zeigt.",
+            "i4": "<b>🌍 Nachrichten des Assistenten kommen in deiner Sprache zurück</b> — manche Antworten und Werkzeug-Ergebnisse fielen unabhängig von der gewählten Sprache auf ihren englischen Quelltext zurück. Die Übersetzungskataloge werden jetzt mit der Anwendung ausgeliefert.",
+            "i5": "<b>⏳ Ein Konto, das auf Freischaltung wartet, sieht die erklärende Seite</b> — eine neue Anmeldung, deren Konto noch nicht freigeschaltet war, landete in einer App, die kaputt aussah, weil jeder Bildschirm das Laden verweigerte. Sie wird nun direkt auf die Seite geführt, die den nächsten Schritt beschreibt.",
+            "i6": "<b>🔔 Push-Benachrichtigungen verfolgen kein Gerät mehr, das es nicht mehr gibt</b> — nach einer Deinstallation oder einem Wechsel der Benachrichtigungserlaubnis versuchte der Assistent tagelang weiter, es zu erreichen. Ein solches Gerät wird jetzt bei seiner ersten endgültigen Ablehnung stillgelegt."
+          }
+        },
         "v1_27_13": {
           "title": "v1.27.13 — 🔁 Eine Aktion wiederholt sich nicht von selbst",
           "date": "August 2026",
@@ -5653,7 +5666,7 @@
       "getting_started": {
         "title": "Erste Schritte",
         "description": "Wie Sie mit LIA beginnen",
-        "count": "8",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "Was ist LIA?",
@@ -5686,6 +5699,10 @@
           "q8": {
             "question": "Kann ich LIA wie eine App auf Handy oder Computer installieren? (v1.25.16)",
             "answer": "<p>Ja. LIA ist eine <strong>PWA</strong>: auf Android/Desktop-Chrome « Installieren » (LIA schlägt es nach einigen Besuchen dezent vor); auf iOS Safari « Teilen → Zum Home-Bildschirm ». Du erhältst ein Icon, Shortcuts (Chat, Briefing) und — einmal installiert — kann das <strong>Teilen-Menü</strong> des Systems Text oder Links direkt in einen LIA-Chat-Entwurf senden. Alles in den 6 Sprachen lokalisiert. Seit dem vereinheitlichten Service Worker zeigt LIA zudem eine echte Offline-Seite und lädt dank intelligentem Asset-Caching schneller — Deine persönlichen Daten werden nie auf der Festplatte zwischengespeichert.</p>"
+          },
+          "q9": {
+            "question": "Mein Konto wartet auf Freischaltung — was soll ich tun?",
+            "answer": "Die Registrierung legt dein Konto an, aber eine Administratorin oder ein Administrator muss es freischalten, bevor du LIA nutzen kannst. Bis dahin landest du auf einer Seite, die deinen Stand erklärt, und der Rest der Anwendung bleibt geschlossen.<br><br>• <strong>Du erhältst eine E-Mail</strong>, sobald dein Konto freigeschaltet ist. Sieh im Spam-Ordner nach, wenn nach einer Weile nichts ankommt — das ist der häufigste Grund für den Eindruck, es sei nichts passiert.<br><br>• <strong>In der Zwischenzeit geht nichts verloren.</strong> Dein Konto existiert bereits; die Freischaltung öffnet nur die Tür.<br><br>• <strong>Vergehen mehrere Tage ohne E-Mail</strong>, wende dich an die Administration deiner Organisation, die das Konto direkt freischalten kann.<br><br>Vor v1.27.14 war dieses Warten unsichtbar: Die Anwendung lud und verweigerte dann jeden Bildschirm, was eher nach einer Störung als nach einem offenen Schritt aussah."
           }
         }
       },
@@ -6244,7 +6261,7 @@
       "rappels": {
         "title": "Erinnerungen & Benachrichtigungen",
         "description": "Erstelle persönliche Erinnerungen und erhalte Push-Benachrichtigungen",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "Wie erstelle ich eine Erinnerung?",
@@ -6269,6 +6286,10 @@
           "q6": {
             "question": "Was ist der Unterschied zwischen Erinnerungen und Google Tasks?",
             "answer": "Erinnerungen und Aufgaben haben unterschiedliche Verwendungszwecke:<br><br><strong>🔔 LIA-Erinnerungen:</strong><br>• <strong>Einmalige Benachrichtigung</strong> zu einer bestimmten Zeit<br>• Keine Persistenz nach dem Senden<br>• Ideal für: \"<em>Erinnere mich, Johann um 15 Uhr anzurufen</em>\"<br>• Nachricht personalisiert mit deiner LIA-Persönlichkeit<br>• Push-Benachrichtigung auf allen deinen Geräten<br>• Keine Statusverfolgung (erledigt/nicht erledigt)<br><br><strong>✅ Google Tasks:</strong><br>• <strong>Dauerhafte Aufgabenliste</strong><br>• Bleibt sichtbar bis zur Fertigstellung<br>• Ideal für: \"<em>Füge 'Einkaufen gehen' zu meiner Liste hinzu</em>\"<br>• Synchronisiert mit Google Tasks<br>• Statusverfolgung (zu erledigen/erledigt)<br>• Organisation in Listen<br><br><strong>💡 Zusammenfassend:</strong><br>• <strong>Erinnerung</strong> = \"<em>Benachrichtige mich zu einer bestimmten Zeit</em>\" (einmalige Benachrichtigung)<br>• <strong>Aufgabe</strong> = \"<em>Ich muss das tun</em>\" (Liste von Dingen zu erledigen)<br><br><strong>🔗 Mögliche Kombination:</strong><br>du kannst beides verwenden: eine Aufgabe zur Nachverfolgung erstellen und eine Erinnerung, um sie nicht zu vergessen."
+          },
+          "q7": {
+            "question": "Ich erhalte seit der Neuinstallation keine Benachrichtigungen mehr — warum?",
+            "answer": "Eine Benachrichtigungserlaubnis hängt an einem bestimmten Browser oder einer bestimmten Installation. Die App neu zu installieren, Website-Daten zu löschen oder das Gerät zu wechseln erzeugt eine <strong>neue Erlaubnis</strong>, und die alte funktioniert endgültig nicht mehr.<br><br>• <strong>Aktiviere Benachrichtigungen erneut</strong> in den Einstellungen auf dem Gerät, auf dem du erreichbar sein willst. Damit wird die neue Erlaubnis registriert.<br><br>• <strong>Das alte Gerät wird automatisch stillgelegt.</strong> Seit v1.27.14 wird eine Erlaubnis, die der Benachrichtigungsdienst als endgültig ungültig meldet, bei ihrer ersten endgültigen Ablehnung deaktiviert, statt tagelang erneut versucht zu werden.<br><br>• <strong>Mehrere Geräte können gleichzeitig registriert sein</strong> — jedes behält seine eigene Erlaubnis, und eines stillzulegen betrifft die anderen nicht.<br><br>Kommen auf einem frisch aktivierten Gerät weiterhin keine Benachrichtigungen an, prüfe, ob dein Browser sie auf Systemebene blockiert."
           }
         }
       },

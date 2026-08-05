@@ -7,6 +7,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager, suppress
 
 import structlog
+from sqlalchemy.exc import DBAPIError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import QueuePool
@@ -21,6 +22,42 @@ from src.infrastructure.observability.metrics_database import (
 )
 
 logger = structlog.get_logger(__name__)
+
+
+def _log_session_exception(exc: BaseException, *, endpoint: str) -> None:
+    """Report a session-scoped failure at the level its ORIGIN deserves.
+
+    Both session helpers wrap the entire request/task body, so every exception
+    raised inside travels through their ``except`` clause on the way out. Logging
+    all of them as ``database_session_error`` at ERROR level fabricated database
+    incidents that never happened: measured over 7 days in production, 45 such
+    entries and NOT ONE involved the database — connector-not-configured (the
+    documented contract of ``domains/briefing/fetchers``), an expired Google
+    token, a Gemini 500, a DNS failure reaching a provider.
+
+    Classified on the exception TYPE, never on its message, consistent with the
+    doctrine applied to tools (``ToolErrorCode``) and to FCM token invalidation.
+    A pass-through exception is not silenced: it keeps a DEBUG line, so the
+    rollback stays observable while investigating, and the caller logs it where
+    it belongs.
+    """
+    if isinstance(exc, SQLAlchemyError | DBAPIError):
+        logger.error(
+            "database_session_error",
+            error=str(exc),
+            error_type=type(exc).__name__,
+            endpoint=endpoint,
+            exc_info=True,
+        )
+        return
+
+    logger.debug(
+        "session_rollback_on_passthrough_error",
+        error=str(exc),
+        error_type=type(exc).__name__,
+        endpoint=endpoint,
+    )
+
 
 # Create async engine with production-grade connection pooling
 # Reference: https://docs.sqlalchemy.org/en/20/core/pooling.html
@@ -74,7 +111,7 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
                 db_transaction_rollback_total.labels(
                     endpoint="fastapi", reason=type(exc).__name__
                 ).inc()
-            logger.error("database_session_error", error=str(exc), exc_info=True)
+            _log_session_exception(exc, endpoint="fastapi")
             raise
         finally:
             with suppress(Exception):
@@ -133,12 +170,7 @@ async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
                 db_transaction_rollback_total.labels(
                     endpoint="background", reason=type(exc).__name__
                 ).inc()
-            logger.error(
-                "database_session_error",
-                error=str(exc),
-                error_type=type(exc).__name__,
-                exc_info=True,
-            )
+            _log_session_exception(exc, endpoint="background")
             raise
         finally:
             with suppress(Exception):

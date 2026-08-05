@@ -726,7 +726,7 @@
                 "type": "loki",
                 "uid": "$datasource_loki"
               },
-              "expr": "{job=\"api\", event=~\"router_(high|medium)_confidence|router_very_low_confidence_fallback\"} | json | line_format \"Intention: {{.intention}} | Confidence: {{.confidence}} | TraceID: {{.trace_id}}\""
+              "expr": "{job=\"api\"} |~ \"router_(high|medium)_confidence|router_very_low_confidence_fallback\" | json | event=~\"router_(high|medium)_confidence|router_very_low_confidence_fallback\" | line_format \"Intention: {{.intention}} | Confidence: {{.confidence}} | TraceID: {{.trace_id}}\""
             }
           ],
           "options": {
@@ -1000,7 +1000,7 @@
                 "type": "loki",
                 "uid": "$datasource_loki"
               },
-              "expr": "{job=\"api\", logger=~\".*agents.*\", level=~\"$log_level\"} | json | line_format \"{{.timestamp}} [{{.level}}] {{.logger}} | {{.event}} | run_id={{.run_id}} | {{.message}}\""
+              "expr": "{job=\"api\", level=~\"$log_level\"} | json | logger=~\".*agents.*\" | line_format \"{{.timestamp}} [{{.level}}] {{.logger}} | {{.event}} | run_id={{.run_id}} | {{.message}}\""
             }
           ],
           "options": {

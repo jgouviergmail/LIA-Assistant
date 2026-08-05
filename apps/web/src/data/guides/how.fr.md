@@ -6,7 +6,7 @@
 
 **Version** : 3.9
 **Date** : 2026-08-05
-**Application** : LIA v1.27.13
+**Application** : LIA v1.27.14
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -53,8 +53,8 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Auto-hébergement ARM64 | Docker multi-arch, embeddings sémantiques (multilingues), Playwright chromium cross-platform |
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
-| Transparence totale | 447 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 209 ADRs, ~18 041 tests collectés par pytest sur 985 fichiers, observabilité native, HITL à 6 niveaux |
+| Transparence totale | 466 métriques Prometheus, debug panel embarqué, suivi token par token |
+| Fiabilité en production | 212 ADRs, ~18 041 tests collectés par pytest sur 985 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -76,7 +76,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Fixtures réutilisables | 170+ |
 | Documents de documentation | 400+ |
 | ADRs (Architecture Decision Records) | 209 |
-| Métriques Prometheus | 447 définitions |
+| Métriques Prometheus | 466 définitions |
 | Dashboards Grafana | 26 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -863,7 +863,7 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 
 | Technologie | Rôle |
 |-------------|------|
-| Prometheus | 447 métriques custom (RED pattern) |
+| Prometheus | 466 métriques custom (RED pattern) |
 | Grafana | 26 dashboards production-ready |
 | Loki | Logs structurés JSON agrégés |
 | Tempo | Traces distribuées cross-service (OTLP gRPC) |
@@ -882,6 +882,41 @@ Les métriques debug persistent dans `sessionStorage` (50 entrées max).
 ### 20.3. DevOps Claude CLI (admin uniquement)
 
 Les administrateurs peuvent interagir avec Claude Code CLI directement depuis la conversation LIA pour diagnostiquer les problèmes serveur en langage naturel : *"Regarde les logs pour voir si tout fonctionne"*, *"Vérifie l'espace disque"*, *"Quel container utilise le plus de RAM ?"*. Claude CLI est installé dans le container Docker API et exécuté localement via subprocess, avec accès au Docker socket pour inspecter tous les containers. Les permissions sont configurables par environnement (`--allowedTools`/`--disallowedTools`) et l'accès est restreint aux superusers via un check DB direct. Les sessions sont persistantes pour permettre des investigations multi-tours.
+
+### 20.4. Un label est un multiplicateur de flux, pas un champ de recherche
+
+Un pipeline d'agrégation invite naturellement à promouvoir en label indexé tout
+ce qui servira à filtrer : le nom de l'événement, le module émetteur,
+l'identifiant de trace. L'intuition est fausse, et elle coûte cher. Dans Loki, un
+**flux** est une combinaison unique de valeurs de labels : l'ensemble des flux
+conservés en mémoire est le **produit cartésien** de ces valeurs. Promouvoir un
+champ dont l'ensemble de valeurs est ouvert — un nom d'événement libre, pire
+encore un identifiant unique par requête — ne rend rien plus cherchable ; cela
+programme une saturation mémoire.
+
+La règle retenue est donc positionnelle et non fonctionnelle : **seul un champ
+dont l'ensemble de valeurs est petit et fermé devient un label** (le niveau de
+gravité, quatre valeurs). Tout le reste se filtre au moment de la lecture, où le
+coût est payé par requête au lieu d'être permanent et partagé :
+
+```
+{container="lia-api-prod"} |= "chat_run_started" | json | event="chat_run_started"
+```
+
+Le filtre de ligne précède volontairement l'analyse JSON : il permet au moteur
+d'écarter des blocs entiers sans les décoder.
+
+Deux garde-fous accompagnent la règle, parce qu'elle se transgresse sans bruit.
+Le premier interdit qu'un champ à cardinalité ouverte redevienne un label. Le
+second **dérive** de la configuration du pipeline la liste des champs interdits
+et vérifie qu'aucun tableau de bord ne sélectionne un flux sur l'un d'eux — un
+sélecteur portant un non-label n'échoue pas, il ne correspond simplement à
+aucun flux, et le panneau reste vide en ayant l'air parfaitement sain.
+
+Le même principe gouverne le transport : un pipeline ne réécrit pas la charge
+utile qu'il achemine. Une étape qui remplaçait la ligne par le contenu d'un seul
+champ a été supprimée — elle privait l'analyse du JSON structuré que
+l'application avait pourtant émis.
 
 ---
 
@@ -993,6 +1028,33 @@ porter la variante Tailwind du seuil annoncé, et une surface qui requête ou
 minute doit être **montée conditionnellement**, pas simplement masquée :
 `display:none` monte quand même le composant, qui continue de consommer réseau
 et batterie pour un affichage que personne ne verra.
+
+### 22.6. Un déploiement ne dérange pas la pile qui sert
+
+Reconstruire le répertoire de déploiement **en place** paraît anodin : on
+supprime, on recopie, on recrée les conteneurs. Ce raisonnement ignore la façon
+dont un montage lié fonctionne. Docker résout un bind mount vers un **inode** au
+moment où le conteneur est créé, pas vers un chemin réévalué à chaque lecture.
+Supprimer le contenu du répertoire ne remplace donc pas ce que voit le conteneur
+en cours d'exécution : cela détruit les inodes sous ses pieds. Pendant toute la
+durée du build — une dizaine de minutes — l'application qui répond encore aux
+utilisateurs voit ses répertoires montés comme **vides**.
+
+La conception retenue déplace le problème plutôt que d'en réduire la durée. Le
+bundle est déposé dans un répertoire d'attente distinct, qu'aucun conteneur ne
+monte ; le build s'y déroule intégralement. La bascule finale est un
+**renommage**, et c'est là que tout se joue : un rename préserve l'inode, donc
+les conteneurs encore vivants continuent de lire exactement ce qu'ils ont monté,
+jusqu'à leur recréation délibérée quelques secondes plus tard. Le shell qui
+exécute le script de déploiement conserve lui aussi son descripteur ouvert, pour
+la même raison.
+
+Deux générations précédentes restent sur disque, ce qui fait du retour arrière
+une opération de quelques secondes plutôt qu'une reconstruction. Le corollaire
+est écrit dans le script : **les sauvegardes de base de données vivent hors de
+l'arborescence déployée**. Un dump qu'un déploiement peut atteindre n'est pas un
+dump, et la seule garantie fiable est positionnelle — pas une promesse de ne pas
+y toucher.
 
 ## 23. Patterns d'ingénierie transversaux
 
@@ -1207,7 +1269,7 @@ La leçon d’ingénierie la plus précieuse est venue d’un défaut invisible 
 
 ## 24. Architecture des décisions (ADR)
 
-209 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+212 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1297,10 +1359,10 @@ Le contexte psyché est injecté dans **tous** les points de génération utilis
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 209 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~18 041 tests sur 985 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 212 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~18 041 tests sur 985 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 209 ADRs, et du changelog (v1.0 à v1.27.13). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 212 ADRs, et du changelog (v1.0 à v1.27.14). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

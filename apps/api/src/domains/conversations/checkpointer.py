@@ -81,6 +81,13 @@ _CHECKPOINT_ALLOWED_MODULES: list[tuple[str, str]] = [
     ("src.domains.agents.services.smart_catalogue_service", "FilteredCatalogue"),
     # --- Graph state: tools & references ---
     ("src.domains.agents.tools.common", "ToolErrorCode"),
+    # The ITEM as well as its type enum. `registry` is a dict at the root of a
+    # channel, so its VALUES are not re-validated by any parent model: without
+    # this entry every RegistryItem came back as a plain dict (production
+    # 2026-07-30 → 2026-08-03). Consumers happen to handle both shapes, which is
+    # exactly why it stayed invisible. Derived guard:
+    # TestAllowlistCompletenessIsDerived.
+    ("src.domains.agents.data_registry.models", "RegistryItem"),
     ("src.domains.agents.data_registry.models", "RegistryItemType"),
     ("src.domains.agents.services.reference_resolver", "ResolvedContext"),
 ]

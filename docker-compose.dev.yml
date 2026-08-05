@@ -161,6 +161,11 @@ services:
       - api_venv:/app/.venv
       - ./.git:/app/.git:ro  # Mount .git for prompt versioning (read-only)
       - ./docs/knowledge:/app/docs/knowledge:ro  # System RAG knowledge files
+      # Reference content for a fresh install. Mounted in dev for PARITY: the
+      # seed gate was dead code precisely because nothing exercised it locally,
+      # the same asymmetry that hid the missing gettext catalogues in prod.
+      # Inert unless APPLY_SEEDS=true (the seed files delete before inserting).
+      - ./infrastructure/database/seeds:/app/infrastructure/database/seeds:ro
       - ssl_certs:/certs:ro  # Shared SSL certificates (kept for future use)
       # Persistent storage for file attachments (images, PDF)
       - attachments_data:/app/data/attachments

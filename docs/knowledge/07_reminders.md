@@ -150,3 +150,13 @@ Reminders and tasks have different uses:
 
 **🔗 Possible combination:**
 You can use both: create a task for tracking, and a reminder so you don't forget to do it.
+
+
+## I stopped receiving notifications after reinstalling the app — why?
+A notification permit is tied to **one browser or one installation**. Reinstalling the app, clearing site data or switching device issues a **new permit**, and the old one stops working for good.
+
+• **Re-enable notifications** from Settings on the device you want to be reached on. That registers the new permit.
+• **The old device is retired automatically.** Since v1.27.14, a permit the notification service reports as permanently invalid is deactivated on its first definitive refusal, instead of being retried for days.
+• **Several devices can be registered at once** — each keeps its own permit, and retiring one does not affect the others.
+
+If notifications still do not arrive on a freshly enabled device, check that your browser has not blocked them at the system level.

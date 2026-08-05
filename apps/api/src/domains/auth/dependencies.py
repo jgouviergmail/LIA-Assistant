@@ -15,6 +15,7 @@ from collections.abc import Awaitable, Callable
 import structlog
 from fastapi import Depends, HTTPException, Request
 
+from src.core.client_ip import resolve_client_ip
 from src.core.constants import (
     RATE_LIMIT_AUTH_LOGIN_PER_MINUTE,
     RATE_LIMIT_AUTH_REGISTER_PER_MINUTE,
@@ -29,13 +30,20 @@ logger = structlog.get_logger(__name__)
 
 def _get_client_ip(request: Request) -> str:
     """
-    Extract client IP from request.
+    Extract client IP from request, through the single resolution chokepoint.
 
-    Proxy handling is delegated to uvicorn (``--proxy-headers`` in
-    production): ``request.client.host`` already carries the validated
-    X-Forwarded-For value when the peer is trusted. Reading the raw
-    X-Forwarded-For header here would reopen IP spoofing (any direct
-    client could forge it to bypass per-IP auth rate limits).
+    This used to return ``request.client.host`` and document that delegating to
+    uvicorn kept the value trustworthy. The measurement says otherwise: under
+    ``--proxy-headers --forwarded-allow-ips "*"`` uvicorn rewrites that peer from
+    the LEFTMOST ``X-Forwarded-For`` entry, and Cloudflare APPENDS the real
+    address instead of replacing the header — so the leftmost entry is the one
+    the visitor wrote. Reproduced 2026-08-05: a request declaring
+    ``X-Forwarded-For: 127.0.0.1, 198.51.100.42`` resolved to ``127.0.0.1``.
+
+    The per-IP auth limiter was therefore keyed on a value the caller chooses.
+    ``resolve_client_ip`` prefers ``CF-Connecting-IP``, which Cloudflare writes
+    and overwrites; see ``src/core/client_ip.py`` for why trusting it is sound
+    here.
 
     Args:
         request: FastAPI request object
@@ -43,7 +51,7 @@ def _get_client_ip(request: Request) -> str:
     Returns:
         Client IP address string
     """
-    return request.client.host if request.client else "unknown"
+    return resolve_client_ip(request)
 
 
 def create_auth_rate_limiter(

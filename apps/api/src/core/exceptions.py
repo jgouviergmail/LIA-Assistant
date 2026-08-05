@@ -96,18 +96,34 @@ if TYPE_CHECKING:
 
 
 class AuthenticationError(BaseAPIException):
-    """Authentication failed - invalid credentials or token."""
+    """Authentication failed - invalid credentials or token.
+
+    ``log_level`` exists because a 401 covers two very different situations, and
+    reporting both at WARNING made the loud one unreadable. Measured over 7 days
+    in production: 465 ``authentication_failed`` entries, **438 of them on
+    ``GET /api/v1/auth/me``** — the endpoint the frontend polls to learn whether
+    a session is still valid, where answering "no" is the nominal outcome for any
+    expired cookie.
+
+    The severity follows the ORIGIN, never the status code:
+
+    * a session that is absent or expired is a lifecycle event -> ``info``;
+    * a credential rejected, a token replayed, a bearer refused is a security
+      signal -> ``warning`` (the default, so a new raiser stays loud until
+      somebody decides otherwise).
+    """
 
     def __init__(
         self,
         detail: str = "Invalid credentials",
         headers: dict[str, str] | None = None,
+        log_level: str = "warning",
         **log_context: Any,
     ) -> None:
         super().__init__(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=detail,
-            log_level="warning",
+            log_level=log_level,
             log_event="authentication_failed",
             headers=headers,
             **log_context,
@@ -535,20 +551,28 @@ def raise_session_invalid() -> NoReturn:
     """
     Raise authentication error for invalid or expired session.
 
+    Logged at INFO: a session reaching its end is the nominal outcome of
+    ``GET /auth/me``, which the frontend polls precisely to find out. It
+    accounted for 438 of the 465 weekly ``authentication_failed`` warnings in
+    production, burying the real ones. The 401 answer is unchanged.
+
     Raises:
         AuthenticationError: 401 Unauthorized
     """
-    raise AuthenticationError(detail="Session invalid or expired")
+    raise AuthenticationError(detail="Session invalid or expired", log_level="info")
 
 
 def raise_user_not_authenticated() -> NoReturn:
     """
     Raise authentication error when user is not authenticated.
 
+    Logged at INFO: an anonymous visitor hitting a protected route is expected
+    behaviour, not a security event.
+
     Raises:
         AuthenticationError: 401 Unauthorized
     """
-    raise AuthenticationError(detail="Authentication required")
+    raise AuthenticationError(detail="Authentication required", log_level="info")
 
 
 def raise_bearer_auth_failed(detail: str, **context: Any) -> NoReturn:

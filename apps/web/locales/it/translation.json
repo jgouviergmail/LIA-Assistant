@@ -3767,8 +3767,8 @@
           "description": "Stack completo: metriche Prometheus (token, latenza, errori, costi), 26 dashboard Grafana, tracing distribuito Tempo, log centralizzati Loki, alerting e-mail attivo con runbook collegato a ogni allarme. Il 26° dashboard è un cockpit prodotto: conta i risultati validati — il tuo 👍 esplicito (E1) o un'azione rimasta senza correzioni per un giorno intero (E2) — e ne deriva la North Star, il funnel di attivazione, la retention e il costo per risultato utile. Il conteggio esatto vive in PostgreSQL (uno stato può cambiare, un contatore non si de-conta); Grafana lo legge tramite un ruolo in sola lettura che vede solo viste aggregate, mai tabelle grezze."
         },
         "tools": {
-          "title": "🔧 89 strumenti tipizzati",
-          "description": "89 strumenti nativi con schemi JSON generati automaticamente da Python/Pydantic, estendibili all'infinito tramite server MCP e Skills. Manifest dichiarativi con semantic_keywords per l'instradamento intelligente e limiti pubblicati: ciò che un validatore può rifiutare, il pianificatore può leggerlo. Il catalogo è filtrato per dominio, quindi un dominio che porta solo strumenti di scrittura spinge a scrivere — per questo ogni dominio porta ora anche le proprie capacità di lettura."
+          "title": "🔧 88 strumenti tipizzati",
+          "description": "88 strumenti nativi con schemi JSON generati automaticamente da Python/Pydantic, estendibili all'infinito tramite server MCP e Skills. Manifest dichiarativi con semantic_keywords per l'instradamento intelligente e limiti pubblicati: ciò che un validatore può rifiutare, il pianificatore può leggerlo. Il catalogo è filtrato per dominio, quindi un dominio che porta solo strumenti di scrittura spinge a scrivere — per questo ogni dominio porta ora anche le proprie capacità di lettura."
         },
         "costTransparency": {
           "title": "💰 Trasparenza dei Costi",
@@ -3901,6 +3901,19 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_27_14": {
+          "title": "v1.27.14 — 🛡️ Aggiornamenti che lasciano l'app in piedi",
+          "date": "Agosto 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🛡️ Un aggiornamento non degrada più l'app mentre si installa</b> — durante un rilascio, le notifiche push, le FAQ e le skill smettevano brevemente di funzionare: l'aggiornamento sostituiva i file sotto l'applicazione in esecuzione. Ora i rilasci preparano tutto a lato e commutano in un solo gesto, così non manca nulla mentre si costruisce la nuova versione.",
+            "i2": "<b>💬 Una conversazione in corso non viene più troncata da un aggiornamento</b> — uno scambio che si stava scrivendo veniva interrotto installando una nuova versione. L'applicazione ora finisce ciò che ha iniziato prima di fermarsi.",
+            "i3": "<b>💾 I backup del database vengono davvero conservati</b> — i backup pianificati finivano nella cartella che ogni aggiornamento sostituiva, quindi venivano cancellati ogni volta. Ora vivono fuori dalla sua portata. Se amministri un'istanza, verifica che il percorso dei backup punti fuori dalla cartella di deployment.",
+            "i4": "<b>🌍 I messaggi dell'assistente tornano nella tua lingua</b> — alcune risposte e alcuni risultati degli strumenti ricadevano sul testo originale in inglese, qualunque lingua avessi scelto. I cataloghi di traduzione ora vengono consegnati con l'applicazione.",
+            "i5": "<b>⏳ Un account in attesa di attivazione vede la pagina che spiega l'attesa</b> — una nuova iscrizione il cui account non era ancora attivo arrivava su un'applicazione che sembrava rotta, con ogni schermata che rifiutava di caricarsi. Ora viene portata direttamente alla pagina che descrive il passo successivo.",
+            "i6": "<b>🔔 Le notifiche push smettono di inseguire un dispositivo che non esiste più</b> — dopo una disinstallazione o un rinnovo del permesso di notifica, l'assistente continuava a provare a raggiungerlo per giorni. Un dispositivo simile viene ora ritirato al suo primo rifiuto definitivo."
+          }
+        },
         "v1_27_13": {
           "title": "v1.27.13 — 🔁 Un'azione non si ripete da sola",
           "date": "Agosto 2026",
@@ -5655,7 +5668,7 @@
       "getting_started": {
         "title": "Primi passi",
         "description": "Come iniziare con LIA",
-        "count": "8",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "Cos'è LIA?",
@@ -5688,6 +5701,10 @@
           "q8": {
             "question": "Posso installare LIA come un'app su telefono o computer? (v1.25.16)",
             "answer": "<p>Sì. LIA è una <strong>PWA</strong>: su Android/Chrome desktop usa « Installa » (LIA lo suggerisce con discrezione dopo alcune visite); su iOS Safari, « Condividi → Aggiungi a Home ». Ottieni un'icona, scorciatoie (chat, briefing) e — una volta installata — il <strong>menu di condivisione</strong> di sistema può inviare testo o link direttamente in una bozza di chat LIA. Tutto localizzato nelle 6 lingue. Dall’arrivo del service worker unificato, LIA mostra anche una vera pagina offline e si carica più velocemente grazie alla cache intelligente degli asset — i tuoi dati personali non vengono mai memorizzati nella cache su disco.</p>"
+          },
+          "q9": {
+            "question": "Il mio account è in attesa di attivazione, cosa devo fare?",
+            "answer": "La registrazione crea il tuo account, ma una persona amministratrice deve attivarlo prima che tu possa usare LIA. Nel frattempo arrivi su una pagina che spiega a che punto sei, e il resto dell'applicazione resta chiuso.<br><br>• <strong>Riceverai un'email</strong> non appena il tuo account sarà attivato. Controlla la posta indesiderata se dopo un po' non arriva nulla: è il motivo più frequente per cui si crede che non sia successo niente.<br><br>• <strong>Nel frattempo nulla va perduto.</strong> Il tuo account esiste già; l'attivazione si limita ad aprire la porta.<br><br>• <strong>Se passano più giorni senza email</strong>, contatta l'amministrazione della tua organizzazione, che può attivare l'account direttamente.<br><br>Prima della v1.27.14 questa attesa era invisibile: l'applicazione si caricava e poi rifiutava ogni schermata, il che sembrava un guasto anziché un passaggio in corso."
           }
         }
       },
@@ -6246,7 +6263,7 @@
       "rappels": {
         "title": "Promemoria e Notifiche",
         "description": "Crea promemoria personali e ricevi notifiche push",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "Come creo un promemoria?",
@@ -6271,6 +6288,10 @@
           "q6": {
             "question": "Qual è la differenza tra promemoria e Google Tasks?",
             "answer": "Promemoria e attività hanno usi diversi:<br><br><strong>🔔 Promemoria LIA:</strong><br>• <strong>Notifica una tantum</strong> a un'ora specifica<br>• Nessuna persistenza dopo l'invio<br>• Ideale per: \"<em>Ricordami di chiamare Giovanni alle 15</em>\"<br>• Messaggio personalizzato con la tua personalità LIA<br>• Notifica push su tutti i tuoi dispositivi<br>• Nessun tracciamento dello stato (fatto/non fatto)<br><br><strong>✅ Google Tasks:</strong><br>• <strong>Lista di attività persistente</strong><br>• Rimane visibile fino al completamento<br>• Ideale per: \"<em>Aggiungi 'Fare la spesa' alla mia lista</em>\"<br>• Sincronizzato con Google Tasks<br>• Tracciamento dello stato (da fare/completato)<br>• Organizzazione in liste<br><br><strong>💡 In sintesi:</strong><br>• <strong>Promemoria</strong> = \"<em>Avvisami a un'ora specifica</em>\" (notifica una tantum)<br>• <strong>Attività</strong> = \"<em>Devo fare questo</em>\" (lista di cose da fare)<br><br><strong>🔗 Combinazione possibile:</strong><br>Puoi usare entrambi: crea un'attività per il tracciamento e un promemoria per non dimenticare di farla."
+          },
+          "q7": {
+            "question": "Non ricevo più notifiche da quando ho reinstallato l'applicazione, perché?",
+            "answer": "Un permesso di notifica è legato a un browser o a un'installazione precisa. Reinstallare l'applicazione, cancellare i dati del sito o cambiare dispositivo genera un <strong>nuovo permesso</strong>, e quello precedente smette definitivamente di funzionare.<br><br>• <strong>Riattiva le notifiche</strong> dalle Impostazioni, sul dispositivo su cui vuoi essere raggiunto. In questo modo viene registrato il nuovo permesso.<br><br>• <strong>Il vecchio dispositivo viene ritirato automaticamente.</strong> Dalla v1.27.14, un permesso che il servizio di notifica dichiara definitivamente non valido viene disattivato al primo rifiuto definitivo, invece di essere ritentato per giorni.<br><br>• <strong>Più dispositivi possono essere registrati insieme</strong>: ognuno mantiene il proprio permesso, e ritirarne uno non tocca gli altri.<br><br>Se le notifiche continuano a non arrivare su un dispositivo appena attivato, verifica che il browser non le stia bloccando a livello di sistema."
           }
         }
       },

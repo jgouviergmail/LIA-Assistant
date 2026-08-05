@@ -68,7 +68,14 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
-        // Global floor — re-measured 2026-08-05 after the intent-replay lot
+        // Global floor — re-measured 2026-08-05 after the production-log
+        // remediation (the dashboard shell no longer mounts for an account
+        // awaiting activation, which is what kept two EventSources retrying a
+        // 403 five times each):
+        // statements 73.33 / branches 69.4 / functions 69.5 / lines 73.93.
+        // Raised 70/67/67/71 -> 71/67/67/71 (floor(measured - 2) per axis —
+        // only statements crosses an integer step this time).
+        // Previous re-measure 2026-08-05 after the intent-replay lot
         // (ADR-210: the consumed-intent ledger, the replay branch of
         // useDeepLinkParams, the extracted resolveInitialMessage, the
         // UsageStatistics disclosure test):
@@ -207,7 +214,7 @@ export default defineConfig({
         // other lanes: App Router pages (hermetic E2E) and the WASM/Web-Audio
         // modules `sherpaKws` / `audio-queue`, which jsdom cannot simulate
         // without the test degenerating into a test of its own mocks.
-        statements: 70,
+        statements: 71,
         branches: 67,
         functions: 67,
         lines: 71,

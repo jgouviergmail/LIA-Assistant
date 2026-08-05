@@ -22,6 +22,7 @@ from fastapi.responses import JSONResponse
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from src.core.client_ip import UNKNOWN_CLIENT_IP, resolve_client_ip
 from src.core.config import settings
 from src.core.constants import (
     GEOIP_COUNTRY_LOCAL,
@@ -105,9 +106,11 @@ class RateLimitMiddleware:
       deployment, failing closed converts a Redis outage into a total outage —
       a self-inflicted denial of service worse than the abuse it prevents. The
       blind window is made visible by ``http_rate_limit_degraded_total``.
-    - **Keyed on the client address** as uvicorn resolved it (``--proxy-headers``
-      with a trusted peer), never on a cookie: a cookie-derived key is rotatable
-      by the very client we are trying to bound.
+    - **Keyed on the client address resolved by ``core.client_ip``**, never on a
+      cookie: a cookie-derived key is rotatable by the very client we are trying
+      to bound. That chokepoint prefers ``CF-Connecting-IP`` precisely because
+      the peer uvicorn resolves is ALSO rotatable — it is rewritten from the
+      leftmost ``X-Forwarded-For`` entry, which the visitor writes (ADR-213).
     - **Probes exempt**, or Docker's healthcheck and Prometheus would rate-limit
       the platform's own supervision and read it back as an outage.
     - **SSE is charged once**, at admission. Only the request direction is
@@ -156,15 +159,16 @@ class RateLimitMiddleware:
     def _client_key(scope: Scope) -> str:
         """Build the bucket key for a request.
 
-        Uses the peer address as uvicorn resolved it. Behind the reverse proxy
-        that is the real client (``--proxy-headers``, trusted peer); reading
-        ``X-Forwarded-For`` here instead would let any direct caller forge it and
-        mint themselves a fresh budget per request — the same reasoning already
-        documented in ``auth/dependencies._get_client_ip``.
+        Resolution goes through the single chokepoint ``resolve_client_ip``,
+        which prefers ``CF-Connecting-IP`` — the one address the caller cannot
+        author. This used to read the peer address as uvicorn resolved it, which
+        looked safe but is not: under ``--forwarded-allow-ips "*"`` uvicorn
+        rewrites that peer from the LEFTMOST ``X-Forwarded-For`` entry, i.e. the
+        value the visitor supplied (Cloudflare appends, it does not replace).
+        Rotating that value therefore minted a fresh budget per request —
+        reproduced 2026-08-05.
         """
-        client = scope.get("client")
-        host = client[0] if client else "unknown"
-        return f"http:global:{host}"
+        return f"http:global:{resolve_client_ip(scope)}"
 
     async def _is_allowed(self, scope: Scope) -> bool:
         """Consume one token, allowing the request when Redis is unavailable."""
@@ -506,8 +510,12 @@ class LoggingMiddleware:
         start_time = time.time()
         path = scope.get("path", "")
         method = scope.get("method", "")
-        client = scope.get("client")
-        client_host: str | None = client[0] if client else None
+        # Same chokepoint as the rate limiter: GeoIP must enrich the REAL caller.
+        # Reading the uvicorn-resolved peer let a scanner declaring itself as
+        # loopback be recorded as `geo_country=local` — all 2600 rate-limit
+        # warnings of the 2026-07-30 scan carry that value.
+        resolved_ip = resolve_client_ip(scope)
+        client_host: str | None = None if resolved_ip == UNKNOWN_CLIENT_IP else resolved_ip
 
         should_log = not _is_excluded(path)
 

@@ -125,7 +125,21 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
     );
   }
 
-  if (!user) {
+  // Nothing is rendered while a redirect is in flight. For an account awaiting
+  // activation this is not cosmetic: the shell below mounts the broadcast
+  // provider and the navbar, which each open an EventSource on
+  // /notifications/stream, plus the pages' polling hooks and the avatar proxy.
+  // The server answers 403 to every one of them, and EventSource cannot read a
+  // status — a 403 reaches `onerror` bare, so the hook replays a permanent
+  // verdict as if it were a dropped connection, five times.
+  //
+  // Measured over 7 days in production for five verified-but-not-yet-activated
+  // accounts (225 calls in one day for one of them): 82 on /notifications/stream,
+  // 57 on /agents/runs/active, 56 on the avatar proxy, 40 on broadcasts/unread,
+  // 35 on /personalities. Four of the five had signed up in the previous three
+  // days — this is the standard entry path, and it looks like a broken app.
+  // A component that never mounts cannot poll.
+  if (!user || !user.is_active) {
     return null;
   }
 

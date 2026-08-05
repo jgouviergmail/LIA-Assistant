@@ -8,8 +8,15 @@
  *   agents.py, ADR-123) + MCP iterative agent + sub-agents = 20. Re-measured
  *   2026-07-25: `grep -c 'register_agent(' agents.py` — the telephony agent
  *   had landed without this counter following it.
- * - tools: ToolManifest entries across src/domains/agents/{domain}/catalogue_manifests.py.
- *   Re-measured 2026-08-02 (v1.27.6) = 89: the three CRM read capabilities
+ * - tools: tool manifests the running catalogue actually EXPOSES, not the count
+ *   of `X = ToolManifest(` declarations. Re-measured 2026-08-05 (v1.27.14) = 88,
+ *   down from the 89 carried since v1.27.6 — the grep and the runtime had drifted
+ *   apart and stopped measuring the same thing: production registers 88, while
+ *   the grep returns 89 by counting five browser manifests that no call site in
+ *   catalogue_loader.py ever registers, and missing four skill tools built by a
+ *   factory rather than assigned at module level. The tile renders a raw number
+ *   with no "+", so the runtime figure is the only one that cannot over-claim.
+ *   Historical note — Re-measured 2026-08-02 (v1.27.6) = 89: the three CRM read capabilities
  *   (get_calls, get_open_loops, get_peer_messages), each registered in the
  *   domain whose catalogue had none (ADR-193).
  *   Previous measurement 2026-07-31 (v1.27.3) = 86. This tile renders the raw number
@@ -33,18 +40,20 @@
  *   frontend 4,830 (+22 — the status-tone module, the priority density
  *   oracle, the tinted count pill and the clickable memories) = 22,846 →
  *   22,800, a strict round-DOWN to the hundred.
- *   Re-measured at v1.27.12: backend 18,041 (pytest --collect-only, 985
- *   files) + frontend 4,987 (vitest) = 23,028 → 23000 (rounded down, the
- *   only stat where "+" stays legitimate by contract).
+ *   Re-measured at v1.27.14: backend 18,128 (pytest --collect-only) +
+ *   frontend 5,018 (vitest) = 23,146 → 23100 (rounded down, the only stat
+ *   where "+" stays legitimate by contract).
+ *   Previous re-measure at v1.27.12: backend 18,041 (985 files) + frontend
+ *   4,987 = 23,028.
  *   Previous re-measure at v1.27.8: backend 17,925, frontend 4,690 = 22,615.
  *   Re-measure every release: the value carried the backend count alone
  *   until v1.25.9.
- * - adrs: docs/architecture/ ADR files (209 files, numbered up to ADR-210 —
- *   ADR-008 has no separate file, so 210 numbers map to 209 files). Was
+ * - adrs: docs/architecture/ ADR files (212 files, numbered up to ADR-213 —
+ *   ADR-008 has no separate file, so 213 numbers map to 212 files). Was
  *   stranded at 183 from v1.27.0 to v1.27.4: recount it, never carry it over.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   200 headings at v1.27.13, no Unreleased pending.
+ *   201 headings at v1.27.14, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -55,14 +64,14 @@
 
 export const LANDING_STATS = {
   agents: 20,
-  tools: 89,
+  tools: 88,
   providers: 7,
   voiceLanguages: 99,
   metrics: 466,
   uiLanguages: 6,
-  tests: 23000,
-  adrs: 209,
-  releases: 200,
+  tests: 23100,
+  adrs: 212,
+  releases: 201,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

@@ -6,7 +6,7 @@
 
 **Version**: 3.9
 **Date**: 2026-08-05
-**Application**: LIA v1.27.13
+**Application**: LIA v1.27.14
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,8 +53,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 447 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 209 ADRs, ~18,041 pytest-collected tests across 985 files, native observability, 6-level HITL |
+| Full transparency | 466 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 212 ADRs, ~18,041 pytest-collected tests across 985 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -76,7 +76,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Reusable fixtures | 170+ |
 | Documentation documents | 400+ |
 | ADRs (Architecture Decision Records) | 209 |
-| Prometheus metrics | 447 definitions |
+| Prometheus metrics | 466 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -864,7 +864,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 447 custom metrics (RED pattern) |
+| Prometheus | 466 custom metrics (RED pattern) |
 | Grafana | 26 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -885,6 +885,42 @@ Debug metrics persist in `sessionStorage` (50 entries max).
 ### 20.3. DevOps Claude CLI (admin only)
 
 Administrators can interact with Claude Code CLI directly from the LIA conversation to diagnose server issues in natural language: *"Check the logs to see if everything is working"*, *"Check disk space"*, *"Which container uses the most RAM?"*. Claude CLI is installed inside the API Docker container and executed locally via subprocess, with Docker socket access to inspect all containers. Permissions are configurable per environment (`--allowedTools`/`--disallowedTools`) and access is restricted to superusers via a direct DB check. Sessions are persistent for multi-turn investigations.
+### 20.4. A label is a stream multiplier, not a search field
+
+An aggregation pipeline naturally invites promoting to an indexed label anything
+one might filter on: the event name, the emitting module, the trace id. The
+intuition is wrong, and expensive. In Loki a **stream** is a unique combination
+of label values, and the set of streams held in memory is the **cartesian
+product** of those values. Promoting a field with an open value set — a free-form
+event name, worse still a per-request identifier — makes nothing more searchable;
+it schedules an out-of-memory.
+
+The rule is therefore positional rather than functional: **only a field whose
+value set is small and closed becomes a label** (severity, four values).
+Everything else is filtered at read time, where the cost is paid per query
+instead of being permanent and shared:
+
+```
+{container="lia-api-prod"} |= "chat_run_started" | json | event="chat_run_started"
+```
+
+The line filter deliberately precedes the JSON parsing: it lets the engine skip
+whole blocks without decoding them.
+
+Two guards accompany the rule, because it is broken silently. The first forbids
+an open-cardinality field from becoming a label again. The second **derives** the
+forbidden set from the pipeline configuration and checks that no dashboard
+selects a stream on one of them — a selector naming a non-label does not fail, it
+simply matches no stream, and the panel stays empty while looking perfectly
+healthy.
+
+The same principle governs transport: a pipeline does not rewrite the payload it
+carries. A stage that replaced the line with the content of a single field was
+removed — it deprived analysis of the structured JSON the application had
+actually emitted.
+
+---
+
 ## 21. Performance: optimizations and metrics
 
 ### 21.1. Key metrics (P95)
@@ -990,6 +1026,29 @@ against the code — the location must exist, carry the Tailwind variant of its
 declared threshold, and a surface that fetches or ticks must be **conditionally
 mounted**, not merely hidden: `display:none` still mounts the component, which
 keeps spending network and battery on something nobody will see.
+
+### 22.6. A deployment does not disturb the stack that is serving
+
+Rebuilding the deployment directory **in place** looks harmless: delete, copy,
+recreate the containers. That reasoning ignores how a bind mount works. Docker
+resolves a bind mount to an **inode** when the container is created, not to a
+path re-evaluated on every read. Deleting the directory's contents therefore does
+not replace what a running container sees — it destroys the inodes underneath it.
+For the whole duration of the build, some ten minutes, the application still
+answering users sees its mounted directories as **empty**.
+
+The design moves the problem rather than shortening it. The bundle is staged in a
+separate directory that no container mounts, and the build happens entirely
+there. The final switch is a **rename**, and that is where it all turns: a rename
+preserves the inode, so containers still alive keep reading exactly what they
+mounted, until they are deliberately recreated seconds later. The shell running
+the deployment script keeps its open descriptor for the same reason.
+
+Two previous generations stay on disk, which turns a rollback into a matter of
+seconds rather than a rebuild. The corollary is written into the script:
+**database backups live outside the deployed tree**. A dump a deployment can
+reach is not a dump, and the only reliable guarantee is positional — not a
+promise to leave it alone.
 
 ## 23. Cross-cutting engineering patterns
 
@@ -1200,7 +1259,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-209 ADRs in MADR format document the major architectural decisions. Some representative examples:
+212 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1283,10 +1342,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 209 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,041 tests across 985 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 212 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,041 tests across 985 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 209 ADRs, and the changelog (v1.0 to v1.27.13). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 212 ADRs, and the changelog (v1.0 to v1.27.14). All metrics, versions, and patterns cited are verifiable in the codebase.*

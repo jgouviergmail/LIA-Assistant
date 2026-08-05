@@ -6,7 +6,7 @@
 
 **Version**: 3.9
 **Datum**: 2026-08-05
-**Application**: LIA v1.27.13
+**Application**: LIA v1.27.14
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,8 +53,8 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 447 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 209 ADRs, ~18.041 von pytest gesammelte Tests in 985 Dateien, native Observability, HITL auf 6 Ebenen |
+| Vollständige Transparenz | 466 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
+| Produktionszuverlässigkeit | 212 ADRs, ~18.041 von pytest gesammelte Tests in 985 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -76,7 +76,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 400+ |
 | ADRs (Architecture Decision Records) | 209 |
-| Prometheus-Metriken | 447 Definitionen |
+| Prometheus-Metriken | 466 Definitionen |
 | Grafana-Dashboards | 26 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -864,7 +864,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 
 | Technologie | Rolle |
 |-------------|------|
-| Prometheus | 447 benutzerdefinierte Metriken (RED Pattern) |
+| Prometheus | 466 benutzerdefinierte Metriken (RED Pattern) |
 | Grafana | 26 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
@@ -885,6 +885,42 @@ Die Debug-Metriken werden in `sessionStorage` persistiert (maximal 50 Einträge)
 ### 20.3. DevOps Claude CLI (nur Admin)
 
 Administratoren können über die LIA-Konversation direkt mit Claude Code CLI interagieren, um Serverprobleme in natürlicher Sprache zu diagnostizieren. Claude CLI ist im API-Docker-Container installiert und wird lokal via Subprocess ausgeführt, mit Docker-Socket-Zugriff auf alle Container. Berechtigungen sind pro Umgebung konfigurierbar und der Zugriff ist auf Superuser beschränkt.
+### 20.4. Ein Label ist ein Stream-Multiplikator, kein Suchfeld
+
+Eine Aggregations-Pipeline lädt dazu ein, alles zum indizierten Label zu machen,
+wonach man filtern könnte: den Ereignisnamen, das sendende Modul, die Trace-ID.
+Die Intuition ist falsch und teuer. In Loki ist ein **Stream** eine eindeutige
+Kombination von Labelwerten, und die Menge der im Speicher gehaltenen Streams ist
+das **kartesische Produkt** dieser Werte. Ein Feld mit offener Wertemenge zu
+promoten — ein freier Ereignisname, schlimmer noch eine ID pro Anfrage — macht
+nichts besser durchsuchbar; es plant einen Speicherüberlauf ein.
+
+Die Regel ist daher positionell statt funktional: **nur ein Feld mit kleiner,
+geschlossener Wertemenge wird ein Label** (der Schweregrad, vier Werte). Alles
+andere wird beim Lesen gefiltert, wo die Kosten pro Abfrage anfallen statt
+dauerhaft und geteilt zu sein:
+
+```
+{container="lia-api-prod"} |= "chat_run_started" | json | event="chat_run_started"
+```
+
+Der Zeilenfilter steht bewusst vor dem JSON-Parsing: So kann die Engine ganze
+Blöcke überspringen, ohne sie zu dekodieren.
+
+Zwei Wächter begleiten die Regel, weil sie lautlos gebrochen wird. Der erste
+verbietet, dass ein Feld mit offener Kardinalität wieder Label wird. Der zweite
+**leitet** die verbotene Menge aus der Pipeline-Konfiguration ab und prüft, dass
+kein Dashboard einen Stream über eines davon auswählt — ein Selektor auf einem
+Nicht-Label schlägt nicht fehl, er trifft schlicht keinen Stream, und das Panel
+bleibt leer, während es völlig gesund aussieht.
+
+Dasselbe Prinzip gilt für den Transport: Eine Pipeline schreibt die Nutzlast, die
+sie befördert, nicht um. Eine Stufe, die die Zeile durch den Inhalt eines
+einzelnen Feldes ersetzte, wurde entfernt — sie nahm der Auswertung genau das
+strukturierte JSON, das die Anwendung ausgegeben hatte.
+
+---
+
 ## 21. Performance: Optimierungen und Metriken
 
 ### 21.1. Schlüsselmetriken (P95)
@@ -992,6 +1028,31 @@ Code: Der Ort muss existieren, die Tailwind-Variante der angegebenen Schwelle
 tragen, und eine Fläche, die Daten holt oder tickt, muss **bedingt gemountet**
 werden statt nur versteckt: `display:none` mountet die Komponente trotzdem, die
 weiter Netz und Akku für etwas verbraucht, das niemand sehen wird.
+
+### 22.6. Ein Deployment stört den laufenden Stack nicht
+
+Das Deployment-Verzeichnis **an Ort und Stelle** neu aufzubauen wirkt harmlos:
+löschen, kopieren, Container neu erstellen. Diese Überlegung übergeht, wie ein
+Bind Mount funktioniert. Docker löst ihn beim Erstellen des Containers zu einem
+**Inode** auf, nicht zu einem Pfad, der bei jedem Lesen neu ausgewertet wird. Den
+Verzeichnisinhalt zu löschen ersetzt also nicht, was ein laufender Container
+sieht — es zerstört die Inodes unter ihm. Während des gesamten Builds, rund zehn
+Minuten, sieht die Anwendung, die noch antwortet, ihre eingehängten Verzeichnisse
+als **leer**.
+
+Der Entwurf verschiebt das Problem, statt seine Dauer zu verkürzen. Das Bundle
+wird in einem separaten Wartebereich abgelegt, den kein Container einhängt; der
+Build läuft vollständig dort. Der abschließende Wechsel ist ein **Umbenennen**,
+und daran hängt alles: Umbenennen erhält den Inode, also lesen noch lebende
+Container weiterhin genau das, was sie eingehängt haben, bis sie Sekunden später
+bewusst neu erstellt werden. Die Shell, die das Deployment-Skript ausführt,
+behält aus demselben Grund ihren offenen Deskriptor.
+
+Zwei vorherige Generationen bleiben auf der Platte, wodurch ein Rollback Sekunden
+statt eines Neuaufbaus kostet. Die Folgerung steht im Skript:
+**Datenbanksicherungen liegen außerhalb des ausgelieferten Baums**. Ein Dump, den
+ein Deployment erreichen kann, ist kein Dump, und die einzig verlässliche Garantie
+ist die Position — kein Versprechen, ihn in Ruhe zu lassen.
 
 ## 23. Übergreifende Engineering-Patterns
 
@@ -1202,7 +1263,7 @@ Die wertvollste Ingenieurslektion kam von einem unsichtbaren Defekt: Die Label-P
 
 ## 24. Architekturentscheidungen (ADR)
 
-209 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+212 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1256,10 +1317,10 @@ Die Psyche Engine verleiht dem Assistenten einen dynamischen psychologischen Zus
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 209 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~18.041 Tests in 985 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 212 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~18.041 Tests in 985 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 209 ADRs und des Changelogs (v1.0 bis v1.27.13). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 212 ADRs und des Changelogs (v1.0 bis v1.27.14). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

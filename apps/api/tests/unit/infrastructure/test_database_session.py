@@ -96,8 +96,14 @@ class TestGetDbSession:
         mock_session.commit.assert_not_awaited()
         mock_session.close.assert_awaited_once()  # finally: asyncio.shield(session.close())
 
-        mock_logger.error.assert_called_once()
-        assert "database_session_error" in str(mock_logger.error.call_args)
+        # The rollback above is the invariant, and it holds for EVERY exception.
+        # The report is classified though: a ValueError never touched the
+        # database, it merely crossed the session on its way out, so it is not
+        # renamed `database_session_error` (45 such fabricated database incidents
+        # measured in 7 days of production). It stays traceable at DEBUG.
+        mock_logger.error.assert_not_called()
+        mock_logger.debug.assert_called_once()
+        assert "session_rollback_on_passthrough_error" in str(mock_logger.debug.call_args)
 
     @pytest.mark.asyncio
     @patch("src.infrastructure.database.session.AsyncSessionLocal")
@@ -173,11 +179,15 @@ class TestGetDbContext:
         mock_session.rollback.assert_called_once()
         mock_session.close.assert_called_once()
 
-        # Verify enhanced logging (includes error_type)
-        mock_logger.error.assert_called_once()
-        call_kwargs = mock_logger.error.call_args[1]
+        # A ConnectionError reaching a provider is not a database failure: it
+        # only travels through this context manager. The rollback above still
+        # happens (correctness never depended on the classification), but the
+        # report is demoted to DEBUG instead of fabricating a database incident.
+        mock_logger.error.assert_not_called()
+        mock_logger.debug.assert_called_once()
+        call_kwargs = mock_logger.debug.call_args[1]
         assert call_kwargs["error_type"] == "ConnectionError"
-        assert "database_session_error" in str(mock_logger.error.call_args)
+        assert call_kwargs["endpoint"] == "background"
 
     @pytest.mark.asyncio
     @patch("src.infrastructure.database.session.AsyncSessionLocal")

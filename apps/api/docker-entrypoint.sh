@@ -18,23 +18,52 @@ echo "Running database migrations..."
 alembic upgrade head
 echo "Database migrations completed successfully"
 
-# Run SQL seeds if available (only if APPLY_SEEDS=true or personalities table is empty)
+# Reference content for a FRESH install (personalities, LLM pricing).
+#
+# The seed files DELETE before they insert (personalities_seed.sql wipes
+# personality_translations and personalities), and the schema propagates that:
+# users.personality_id is ON DELETE SET NULL, so an unwanted run resets the
+# personality every user has chosen.
+#
+# TWO independent conditions must therefore hold, and both fail CLOSED:
+#   1. INTENT   - APPLY_SEEDS=true, an explicit operator decision;
+#   2. TARGET   - the personalities table is verifiably EMPTY.
+# The row count is a VETO only. It used to be the trigger ("count == 0 means
+# fresh install"), which fired on every psql failure too, since the code read an
+# unreadable answer as "0". Reversing its role is what makes it safe: no answer
+# now means refuse, never proceed.
+#
+# See docs/GETTING_STARTED.md ("Reference Content on a Fresh Production Install")
+# for the procedure, and tests/unit/test_entrypoint_seed_gate_guard.py for the
+# contract this must keep satisfying.
 SEEDS_DIR="/app/infrastructure/database/seeds"
 if [ -d "$SEEDS_DIR" ]; then
-    # Check if personalities table is empty (first deployment)
-    PERSONALITIES_COUNT=$(PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -t -c "SELECT COUNT(*) FROM personalities;" 2>/dev/null | tr -d ' ' || echo "0")
-
-    if [ "${APPLY_SEEDS:-false}" = "true" ] || [ "$PERSONALITIES_COUNT" = "0" ]; then
-        echo "Applying SQL seeds..."
-        for seed_file in "$SEEDS_DIR"/*.sql; do
-            if [ -f "$seed_file" ]; then
-                echo "  -> Applying $(basename $seed_file)..."
-                PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -f "$seed_file"
-            fi
-        done
-        echo "SQL seeds applied successfully"
+    if [ "${APPLY_SEEDS:-false}" = "true" ]; then
+        # Second, INDEPENDENT condition: the target must actually be empty.
+        # Intent alone is not enough, because `APPLY_SEEDS` reaches compose through
+        # `${APPLY_SEEDS:-false}`, which interpolates from the shell AND from .env
+        # (measured) - a value left behind in an env file would otherwise re-arm the
+        # deletion on every subsequent deploy. Used only as a VETO, never as a
+        # trigger: an unreadable count refuses, exactly like a populated one.
+        EXISTING_PERSONALITIES=$(PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -t -c "SELECT COUNT(*) FROM personalities;" 2>/dev/null | tr -d ' ')
+        if [ -z "$EXISTING_PERSONALITIES" ]; then
+            echo "ERROR: APPLY_SEEDS=true but the personalities count could not be read - SQL seeds SKIPPED (fail-closed)"
+        elif [ "$EXISTING_PERSONALITIES" != "0" ]; then
+            echo "ERROR: APPLY_SEEDS=true but personalities already holds $EXISTING_PERSONALITIES row(s) - SQL seeds SKIPPED"
+            echo "       The seeds delete before inserting; applying them here would reset every user's chosen personality."
+            echo "       For a genuine fresh install, start from an empty database."
+        else
+            echo "APPLY_SEEDS=true and database empty - applying SQL seeds (DESTRUCTIVE: each file deletes its table before re-inserting)"
+            for seed_file in "$SEEDS_DIR"/*.sql; do
+                if [ -f "$seed_file" ]; then
+                    echo "  -> Applying $(basename $seed_file)..."
+                    PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -f "$seed_file"
+                fi
+            done
+            echo "SQL seeds applied successfully"
+        fi
     else
-        echo "Skipping SQL seeds (personalities table has $PERSONALITIES_COUNT entries, use APPLY_SEEDS=true to force)"
+        echo "Skipping SQL seeds (set APPLY_SEEDS=true for a fresh install only)"
     fi
 fi
 

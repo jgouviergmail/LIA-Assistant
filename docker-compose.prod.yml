@@ -78,7 +78,14 @@ services:
     volumes:
       # Host bind mount (not a named volume): keeps dumps directly reachable
       # for off-site sync (rclone, phase 2) and host-level chmod 700.
-      - ${POSTGRES_BACKUP_HOST_DIR:-./backups/postgres}:/backups
+      #
+      # The default resolves OUTSIDE the deployed directory, on purpose. It used
+      # to be `./backups/postgres`, i.e. inside the tree the deployment
+      # replaces, so every deploy erased every dump taken since the previous one
+      # (measured 2026-08-05: the directory was empty and stamped at the exact
+      # deploy time). A backup a deployment can reach is not a backup.
+      # Guarded by apps/api/tests/unit/test_backup_dir_outside_deploy_guard.py.
+      - ${POSTGRES_BACKUP_HOST_DIR:-../lia-data/postgres-backups}:/backups
     depends_on:
       postgres:
         condition: service_healthy
@@ -154,6 +161,11 @@ services:
       # interpreter and installed packages match exactly. Pinned here rather
       # than left to a default so the two can never drift apart.
       - SKILLS_SCRIPT_SANDBOX_IMAGE=lia-api:local
+      # Reference-content seeding, OFF unless explicitly requested for a fresh
+      # install (`APPLY_SEEDS=true docker compose -f docker-compose.prod.yml up -d`).
+      # Declared here rather than left to `env_file`, so the default is visible
+      # and a stale value in .env cannot silently arm a destructive operation.
+      - APPLY_SEEDS=${APPLY_SEEDS:-false}
     # tmpfs mount for tiktoken and other libs that need writable temp directory
     # Increased to 500M to handle model operations
     tmpfs:
@@ -165,6 +177,11 @@ services:
       - attachments_data:/app/data/attachments
       # System knowledge files for FAQ RAG indexation (read-only)
       - ./docs/knowledge:/app/docs/knowledge:ro
+      # Reference content for a FRESH install (personalities, LLM pricing).
+      # Read-only, and inert unless APPLY_SEEDS=true is set explicitly: the
+      # entrypoint never infers "fresh install" from the database, because these
+      # files DELETE before they insert. Procedure: docs/GETTING_STARTED.md.
+      - ./infrastructure/database/seeds:/app/infrastructure/database/seeds:ro
       # System skills (read-only, shipped with the app)
       - ./data/skills/system:/app/data/skills/system:ro
       # User-imported skills (persisted across deploys)

@@ -588,31 +588,62 @@ async def process_scheduled_actions() -> dict[str, Any]:
                 count=len(action_refs),
             )
 
-            # 3. Process each action sequentially
-            # Each call opens its own DB session and handles success/failure marking
-            for action_id, action_user_id in action_refs:
+            # 3. Process the batch with BOUNDED concurrency.
+            #
+            # Each call opens its own DB session and handles its own
+            # success/failure marking, so running several at once respects the
+            # rule that an AsyncSession is never shared across tasks. Executing
+            # them one at a time made the tick cost the SUM of the batch: 373
+            # ticks measured in production with a 0.01s median but a tail at
+            # 26s, 51s, 81s and 187s, and 34 ticks dropped by APScheduler
+            # (max_instances=1) because the previous one was still running —
+            # every action due inside that window fired late.
+            #
+            # The bound is a setting, not a constant: unbounded fan-out would
+            # replace a scheduling delay with a burst against the LLM provider
+            # and the connection pool. Setting it to 1 restores the old
+            # behaviour exactly.
+            semaphore = asyncio.Semaphore(settings.scheduled_actions_max_concurrency)
+
+            async def _run_one(action_id: uuid.UUID, action_user_id: uuid.UUID) -> str:
+                """Execute one action and return its outcome for the counters."""
+                async with semaphore:
+                    try:
+                        response = await execute_single_action(
+                            action_id=action_id,
+                            user_id=action_user_id,
+                        )
+                        return "success" if response else "skipped"
+                    except Exception as e:
+                        logger.error(
+                            "scheduled_action_process_error",
+                            action_id=str(action_id),
+                            error=str(e),
+                        )
+                        # execute_single_action handles its own failure marking.
+                        # If it raises unexpectedly, the action stays in
+                        # 'executing' and recover_stale_executing resets it.
+                        return "failed"
+
+            # return_exceptions=True so one sibling can never cancel the batch;
+            # _run_one already converts every failure into an outcome, this is
+            # the belt to that pair of braces.
+            outcomes = await asyncio.gather(
+                *(_run_one(action_id, user_id) for action_id, user_id in action_refs),
+                return_exceptions=True,
+            )
+
+            for outcome in outcomes:
                 stats["processed"] += 1
-
-                try:
-                    response = await execute_single_action(
-                        action_id=action_id,
-                        user_id=action_user_id,
-                    )
-                    if response:
-                        stats["success"] += 1
-                    else:
-                        stats["skipped"] += 1
-
-                except Exception as e:
+                if isinstance(outcome, BaseException):
                     stats["failed"] += 1
                     logger.error(
-                        "scheduled_action_process_error",
-                        action_id=str(action_id),
-                        error=str(e),
+                        "scheduled_action_batch_task_error",
+                        error=str(outcome),
+                        error_type=type(outcome).__name__,
                     )
-                    # execute_single_action handles its own failure marking.
-                    # If it raises unexpectedly, the action stays in 'executing'
-                    # and will be recovered by recover_stale_executing.
+                else:
+                    stats[outcome] += 1
 
         # Track duration
         duration = time.perf_counter() - start_time

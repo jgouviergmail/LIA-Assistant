@@ -41,8 +41,14 @@ Key choices, each with its evidence or rationale:
    `--schema=public` filter; pinning the options in our compose closes that
    class of silent under-backup.
 3. **Prod storage = host bind mount** (`POSTGRES_BACKUP_HOST_DIR`, default
-   `./backups/postgres`, `chmod 700` created by the generated `deploy.sh`
-   *before* `up`, so Docker never auto-creates it 755). A bind (not a named
+   `../lia-data/postgres-backups`, `chmod 700` created by the generated
+   `deploy.sh` *before* `up`, so Docker never auto-creates it 755). The default
+   resolves **outside the deployed directory**, which is not cosmetic: it was
+   `./backups/postgres` until 2026-08-05, i.e. inside the tree every deployment
+   replaces, so each deploy erased every dump taken since the previous one — the
+   directory was measured empty and stamped at the exact deploy time. Retention
+   was effectively zero while the sidecar reported success. `deploy.sh` now warns
+   when the configured value sits inside the deployed tree. A bind (not a named
    volume) keeps dumps directly reachable for the planned off-site `rclone`
    sync and host-level permission control. **Dev storage = named volume**
    (`postgres_backups`): the image's rotation uses hardlinks/symlinks, which

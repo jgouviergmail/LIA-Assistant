@@ -277,4 +277,13 @@ ENTRYPOINT ["/app/docker-entrypoint.sh"]
 # is safe ONLY because the published port is loopback-bound in
 # docker-compose.prod.yml: every peer that can reach uvicorn (cloudflared via
 # docker-proxy, the in-container healthcheck, compose-internal services) is trusted.
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--limit-max-requests", "10000", "--limit-max-requests-jitter", "1000", "--proxy-headers", "--forwarded-allow-ips", "*"]
+#
+# --timeout-graceful-shutdown: bounds the FIRST of uvicorn's two sequential
+# shutdown phases (Server.shutdown waits for in-flight connections, THEN runs the
+# lifespan shutdown where ADR-117 drains chat producers). An SSE stream never ends
+# on its own, so without this bound the wait is infinite and the drain is never
+# reached: 31 of ~42 production stops over 7 days ended in SIGKILL. The budgets
+# add up — 20s here + 60s of drain + margin must stay under the 90s
+# stop_grace_period, an invariant held by
+# tests/unit/test_graceful_shutdown_budget_guard.py.
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--limit-max-requests", "10000", "--limit-max-requests-jitter", "1000", "--proxy-headers", "--forwarded-allow-ips", "*", "--timeout-graceful-shutdown", "20"]

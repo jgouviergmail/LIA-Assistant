@@ -42,42 +42,18 @@ scrape_configs:
       - docker: {}
 
       # Stage 2: Parsing JSON (logs structlog de l'API)
+      #
+      # On extrait UNIQUEMENT ce que les stages suivants consomment : l'horodatage
+      # (stage 3) et le niveau (seul label promu, stage 4). Extraire un champ qui
+      # ne devient ni label ni timestamp coutait du CPU par ligne sur le Pi sans
+      # rien apporter : la ligne complete est transmise telle quelle, donc TOUT le
+      # payload reste interrogeable a la lecture via `| json` — y compris les
+      # champs qui etaient extraits ici (run_id, user_id, trace_id, cost_usd,
+      # error, exception...).
       - json:
           expressions:
-            # Extraction des champs JSON structlog
             timestamp: timestamp
             level: level
-            logger: logger
-            event: event
-            message: message
-
-            # Champs contextuels
-            run_id: run_id
-            user_id: user_id
-            session_id: session_id
-
-            # OpenTelemetry distributed tracing context
-            trace_id: trace_id
-            span_id: span_id
-            trace_flags: trace_flags
-
-            # Métriques agents
-            intention: intention
-            confidence: confidence
-            next_node: next_node
-            node_name: node_name
-            duration_ms: duration_ms
-
-            # Tokens & coûts
-            prompt_tokens: prompt_tokens
-            completion_tokens: completion_tokens
-            total_tokens: total_tokens
-            cost_usd: cost_usd
-
-            # Erreurs
-            error: error
-            error_type: error_type
-            exception: exception
 
       # Stage 3: Extraction du timestamp ISO8601
       - timestamp:
@@ -87,30 +63,39 @@ scrape_configs:
             - RFC3339
             - "2006-01-02T15:04:05.999999999Z07:00"
 
-      # Stage 4: Création des labels Loki (indexés)
+      # Stage 4: Labels Loki (INDEXES — a garder bornes)
+      #
+      # Un label multiplie les STREAMS que Loki garde en memoire : les streams
+      # sont le produit cartesien des valeurs de labels. Promouvoir un champ dont
+      # l'ensemble de valeurs est ouvert n'est pas « plus cherchable », c'est un
+      # OOM differe. Mesure prod 2026-08-05 avant ce correctif :
+      #   event    -> 1416 valeurs distinctes
+      #   logger   ->  140
+      #   trace_id ->  107, et une par requete : non borne par construction
+      #   loki_ingester_memory_streams -> 771, en croissance
+      # avec QUATRE OOM kernel du conteneur Loki sur la semaine auditee, dont
+      # deux declenches par une seule requete de 7 jours : l'outil s'effondrait
+      # au moment precis ou l'on en avait besoin.
+      #
+      # Ces champs restent parfaitement interrogeables au moment de la LECTURE,
+      # sans creer de stream :
+      #   {container="lia-api-prod"} | json | event="chat_run_started"
+      #   {container="lia-api-prod"} | json | logger=~".*agents.*"
+      #
+      # Politique tenue par apps/api/tests/unit/test_promtail_label_cardinality_guard.py.
       - labels:
-          # Labels essentiels pour filtrage
+          # Seul champ du payload promu : 4 valeurs, ensemble ferme.
           level: level
-          logger: logger
-          event: event
-
-          # Labels agents
-          node_name: node_name
-          intention: intention
-
-          # Labels erreur
-          error_type: error_type
-
-          # OpenTelemetry trace context (for correlation)
-          trace_id: trace_id
 
       # Stage 5: Ajout de labels statiques
       - static_labels:
           job: api
 
-      # Stage 6: Output final (message formaté)
-      - output:
-          source: message
+      # Pas de stage `output` : il REMPLACE la ligne par un seul champ. Avec
+      # `source: message`, toute entree structlog portant une cle `message`
+      # arrivait dans Loki depouillee de son JSON — l'audit les a d'abord prises
+      # pour des `print()` egares dans le code. Un pipeline ne detruit pas la
+      # charge utile qu'il transporte.
 
     # Relabeling pour enrichissement
     relabel_configs:

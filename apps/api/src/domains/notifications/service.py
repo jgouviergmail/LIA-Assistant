@@ -20,6 +20,30 @@ from src.domains.notifications.repository import FCMTokenRepository
 logger = structlog.get_logger(__name__)
 
 
+def _is_permanently_invalid_token(exc: BaseException) -> bool:
+    """Whether Firebase told us this token will never accept a message again.
+
+    Classified on the exception TYPE, which is the contract Firebase publishes,
+    never on the message text. The previous check searched the message for
+    ``"unregistered"``, but ``messaging.UnregisteredError`` renders as
+    ``NotRegistered`` — and ``"unregistered" not in "notregistered"``. The
+    deactivation branch therefore never ran: production retried the SAME dead
+    token 44 times over three days (2026-07-29 → 2026-08-05).
+
+    Both cases are permanent and mean the same thing for us:
+
+    * ``UnregisteredError`` — the app was uninstalled, or the token was rotated;
+    * ``SenderIdMismatchError`` — the token belongs to another Firebase project,
+      so it can never be delivered to by this sender.
+
+    Everything else (quota, deadline, transport) is transient: treating it as
+    permanent would silently mute a live device.
+    """
+    from firebase_admin import messaging
+
+    return isinstance(exc, messaging.UnregisteredError | messaging.SenderIdMismatchError)
+
+
 @dataclass
 class FCMSendResult:
     """Result of sending an FCM notification."""
@@ -28,6 +52,10 @@ class FCMSendResult:
     message_id: str | None = None
     error: str | None = None
     token: str | None = None
+    #: Set when the failure means the token must be deactivated. Carried as a
+    #: verdict rather than re-derived by the caller, so the classification has a
+    #: single implementation (see ``_is_permanently_invalid_token``).
+    token_invalid: bool = False
 
 
 @dataclass
@@ -252,7 +280,7 @@ class FCMNotificationService:
             # Update token status
             if result.success:
                 await self.repository.update_last_used(token.id)
-            elif result.error and "unregistered" in result.error.lower():
+            elif result.token_invalid:
                 await self.repository.deactivate_token(token.token, result.error)
 
         success_count = sum(1 for r in results if r.success)
@@ -396,17 +424,31 @@ class FCMNotificationService:
 
         except Exception as e:
             error_msg = str(e)
+            token_invalid = _is_permanently_invalid_token(e)
 
-            logger.error(
-                "fcm_send_failed",
-                error=error_msg,
-                token_prefix=token[:20],
-            )
+            # A dead token is an expected end of life, not an incident: it is
+            # recorded once at INFO, and the token is deactivated right after, so
+            # it never comes back. Only genuine failures stay at ERROR.
+            if token_invalid:
+                logger.info(
+                    "fcm_token_permanently_invalid",
+                    error=error_msg,
+                    error_type=type(e).__name__,
+                    token_prefix=token[:20],
+                )
+            else:
+                logger.error(
+                    "fcm_send_failed",
+                    error=error_msg,
+                    error_type=type(e).__name__,
+                    token_prefix=token[:20],
+                )
 
             return FCMSendResult(
                 success=False,
                 error=error_msg,
                 token=token,
+                token_invalid=token_invalid,
             )
 
     # =========================================================================
@@ -481,6 +523,10 @@ class FCMNotificationService:
 
         total_sent = 0
         total_failed = 0
+        # Dead tokens met during a broadcast. This path used to merely SKIP their
+        # log line, so a token the per-user path would have deactivated stayed
+        # active here and was re-tried at every broadcast, forever.
+        invalid_tokens: list[str] = []
 
         for token in tokens:
             try:
@@ -498,21 +544,41 @@ class FCMNotificationService:
 
             except Exception as e:
                 total_failed += 1
-                error_msg = str(e).lower()
 
-                # Log only if not a known "unregistered" error
-                if "unregistered" not in error_msg:
+                # Same classification as the per-user path, via the single
+                # predicate: a dead token is an expected outcome, anything else
+                # is a real failure worth a warning.
+                if _is_permanently_invalid_token(e):
+                    invalid_tokens.append(token)
+                else:
                     logger.warning(
                         "fcm_send_failed",
                         token_prefix=token[:20] if token else "none",
                         error=str(e),
+                        error_type=type(e).__name__,
                     )
+
+        # Deactivate outside the send loop: one pass, and a repository failure
+        # cannot cost a delivery that already succeeded. The failure is reported
+        # rather than swallowed — a token that stays active is retried at every
+        # broadcast, which is the defect this block exists to end.
+        for dead_token in invalid_tokens:
+            try:
+                await self.repository.deactivate_token(dead_token, "permanently invalid token")
+            except Exception as exc:
+                logger.warning(
+                    "fcm_token_deactivation_failed",
+                    token_prefix=dead_token[:20] if dead_token else "none",
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
 
         logger.debug(
             "fcm_multicast_completed",
             total_tokens=len(tokens),
             success=total_sent,
             failed=total_failed,
+            deactivated=len(invalid_tokens),
         )
 
         return total_sent, total_failed

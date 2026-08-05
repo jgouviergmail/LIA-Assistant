@@ -170,9 +170,10 @@ if ([string]::IsNullOrWhiteSpace($SshUser) -or $SshUser -match '[;|&`$\s]') {
     Write-Err "SshUser invalide: '$SshUser'"
     exit 1
 }
-# SEC-038 — RemoteDir is interpolated into `sudo rm -rf ~/$RemoteDir/*` (step 6)
-# and into `cp -r ~/$RemoteDir` (step 5). It is therefore validated HERE, before
-# the first interpolation, and not next to the destructive command as it was:
+# SEC-038 — RemoteDir is interpolated into `cp -r ~/$RemoteDir` (step 5) and,
+# through the $StagingDir derived from it below, into `sudo rm -rf ~/$StagingDir`
+# (step 6). It is therefore validated HERE, before the first interpolation and
+# before that derivation, and not next to the destructive command as it was:
 # the backup step ran unguarded, and the denylist it used ('[;|&`$]' plus an
 # all-whitespace check) accepted values that need no metacharacter to be
 # catastrophic. `..` yielded `sudo rm -rf ~/../*` — every home directory on the
@@ -188,6 +189,20 @@ if ($RemoteDir -notmatch '\A[A-Za-z0-9][A-Za-z0-9._-]*\z') {
     Write-Err "RemoteDir invalide: '$RemoteDir' (attendu: un seul segment, ex. 'lia')"
     exit 1
 }
+
+# Le bundle est depose dans un repertoire de STAGING, jamais dans le repertoire
+# vivant. Un bind mount est resolu vers un INODE a la creation du conteneur :
+# `rm -rf ~/lia/*` casse donc tous les montages de repertoire des conteneurs QUI
+# SERVENT ENCORE, pendant toute la duree du build distant (~10 min). Constate en
+# direct le 2026-08-05, en plein deploiement : l'API en production voyait
+# /app/config, /app/docs/knowledge et /app/data/skills/system VIDES alors que
+# l'hote etait peuple — d'ou les `firebase_init_failed` et
+# `system_rag_startup_error` recurrents. La bascule finale se fait par `mv`
+# (renommage), qui preserve l'inode : les conteneurs encore vivants gardent des
+# montages valides jusqu'a leur recreation deliberee.
+# Derive du parametre DEJA valide ci-dessus : le suffixe ne peut pas introduire
+# de segment de chemin ni de metacaractere shell.
+$StagingDir = "$RemoteDir.staging"
 
 Write-Host ""
 Write-Host "========================================================" -ForegroundColor Magenta
@@ -363,7 +378,7 @@ Write-Step "Suppression des anciens fichiers sur le serveur..."
 # on the SERVER (observed in CI as `chown -R runner:runner`). The account that
 # owns the files is the account we connect as, which PowerShell already knows
 # and which the parameter validation above has already constrained.
-$sshCmd = "sudo rm -rf ~/$RemoteDir/* ~/$RemoteDir/.[!.]* 2>/dev/null; mkdir -p ~/$RemoteDir && sudo chown -R ${SshUser}:${SshUser} ~/$RemoteDir"
+$sshCmd = "sudo rm -rf ~/$StagingDir/* ~/$StagingDir/.[!.]* 2>/dev/null; mkdir -p ~/$StagingDir && sudo chown -R ${SshUser}:${SshUser} ~/$StagingDir"
 
 Write-Info "Commande: $sshCmd"
 
@@ -381,7 +396,7 @@ if (-not $DryRun) {
 Write-Step "Copie des fichiers vers le serveur..."
 
 Write-Info "Source: $ProdDir"
-Write-Info "Destination: $sshTarget`:~/$RemoteDir/"
+Write-Info "Destination: $sshTarget`:~/$StagingDir/"
 
 # Detecter si rsync est disponible (preferable pour gros fichiers, peut reprendre)
 # Verifier d'abord rsync natif Windows, sinon rsync via WSL
@@ -415,7 +430,7 @@ if (-not $DryRun) {
         # arbitrary output. `accept-new` keeps first-run bootstrap frictionless
         # (no manual known_hosts seeding) while closing the substitution case.
         $rsyncSshOpts = "ssh -p $SshPort -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -o StrictHostKeyChecking=accept-new"
-        $rsyncDst = "${sshTarget}:$RemoteDir/"
+        $rsyncDst = "${sshTarget}:$StagingDir/"
 
         if ($rsyncMode -eq "wsl") {
             # Convertir le chemin Windows en format WSL (/mnt/c/... ou /mnt/d/...)
@@ -485,7 +500,7 @@ if (-not $DryRun) {
         # On copie d'abord les fichiers normaux, puis explicitement les dotfiles
 
         Write-Info "Copie des fichiers (scp avec retry)..."
-        $scpCmd = "scp -P $SshPort $SshOptionsStr -r -C `"$ProdDir/*`" `"${sshTarget}:~/$RemoteDir/`""
+        $scpCmd = "scp -P $SshPort $SshOptionsStr -r -C `"$ProdDir/*`" `"${sshTarget}:~/$StagingDir/`""
         Invoke-WithRetry -Command $scpCmd -OperationName "SCP fichiers" -MaxAttempts 5
 
         # Copier explicitement les dotfiles (.env, etc.)
@@ -495,7 +510,7 @@ if (-not $DryRun) {
             foreach ($dotfile in $dotfiles) {
                 $dotfilePath = $dotfile.FullName
                 $dotfileName = $dotfile.Name
-                $scpDotfileCmd = "scp -P $SshPort $SshOptionsStr -C `"$dotfilePath`" `"${sshTarget}:~/$RemoteDir/`""
+                $scpDotfileCmd = "scp -P $SshPort $SshOptionsStr -C `"$dotfilePath`" `"${sshTarget}:~/$StagingDir/`""
                 Invoke-WithRetry -Command $scpDotfileCmd -OperationName "SCP $dotfileName" -MaxAttempts 3
                 Write-Info "  + $dotfileName"
             }
@@ -506,11 +521,11 @@ if (-not $DryRun) {
     if ($rsyncMode -eq "wsl") {
         $driveLetter = $ProdDir.Substring(0, 1).ToLower()
         $wslPath = "/mnt/$driveLetter" + ($ProdDir.Substring(2) -replace '\\', '/')
-        Write-Info "[DRY RUN] wsl rsync -avz --partial --progress `"$wslPath/`" `"${sshTarget}:~/$RemoteDir/`""
+        Write-Info "[DRY RUN] wsl rsync -avz --partial --progress `"$wslPath/`" `"${sshTarget}:~/$StagingDir/`""
     } elseif ($rsyncMode -eq "native") {
-        Write-Info "[DRY RUN] rsync -avz --partial --progress `"$ProdDir/`" `"${sshTarget}:~/$RemoteDir/`""
+        Write-Info "[DRY RUN] rsync -avz --partial --progress `"$ProdDir/`" `"${sshTarget}:~/$StagingDir/`""
     } else {
-        Write-Info "[DRY RUN] scp -P $SshPort $SshOptionsStr -r -C `"$ProdDir/*`" `"${sshTarget}:~/$RemoteDir/`""
+        Write-Info "[DRY RUN] scp -P $SshPort $SshOptionsStr -r -C `"$ProdDir/*`" `"${sshTarget}:~/$StagingDir/`""
         Write-Info "[DRY RUN] + copie explicite des dotfiles (.env, etc.)"
     }
 }
@@ -604,9 +619,9 @@ if (-not $DryRun) {
     # remote shell would receive a literal `PERMS_ENV=missing`: the hardening
     # check would fail every deployment from a Unix host while passing from
     # Windows. Nothing below is expanded by either shell.
-    $statEnv = "printf 'PERMS_ENV='; stat -c '%a' ~/$RemoteDir/.env 2>/dev/null || echo missing"
-    $statDir = "printf 'PERMS_DIR='; stat -c '%a' ~/$RemoteDir 2>/dev/null || echo missing"
-    $hardenCmd = "chmod 700 ~/$RemoteDir 2>/dev/null; [ -f ~/$RemoteDir/.env ] && chmod 600 ~/$RemoteDir/.env; [ -d ~/.claude ] && chmod 700 ~/.claude; [ -f ~/.claude/.credentials.json ] && chmod 600 ~/.claude/.credentials.json; [ -d ~/$RemoteDir/apps/api/config ] && chmod 700 ~/$RemoteDir/apps/api/config; find ~/$RemoteDir/apps/api/config -maxdepth 1 -type f -name '*.json' -exec chmod 600 {} + 2>/dev/null; $statEnv; $statDir"
+    $statEnv = "printf 'PERMS_ENV='; stat -c '%a' ~/$StagingDir/.env 2>/dev/null || echo missing"
+    $statDir = "printf 'PERMS_DIR='; stat -c '%a' ~/$StagingDir 2>/dev/null || echo missing"
+    $hardenCmd = "chmod 700 ~/$StagingDir 2>/dev/null; [ -f ~/$StagingDir/.env ] && chmod 600 ~/$StagingDir/.env; [ -d ~/.claude ] && chmod 700 ~/.claude; [ -f ~/.claude/.credentials.json ] && chmod 600 ~/.claude/.credentials.json; [ -d ~/$StagingDir/apps/api/config ] && chmod 700 ~/$StagingDir/apps/api/config; find ~/$StagingDir/apps/api/config -maxdepth 1 -type f -name '*.json' -exec chmod 600 {} + 2>/dev/null; $statEnv; $statDir"
     $hardenSsh = "ssh -p $SshPort $SshOptionsStr $sshTarget `"$hardenCmd`""
     $hardenResult = Invoke-WithRetry -Command $hardenSsh -OperationName "Harden secret permissions" -MaxAttempts 2
 
@@ -616,15 +631,15 @@ if (-not $DryRun) {
 
     if ($envMode -ne "600" -or $dirMode -ne "700") {
         Write-Err "Durcissement des permissions ECHOUE (SEC-013)"
-        Write-Err "  ~/$RemoteDir/.env attendu 600, obtenu: $envMode"
-        Write-Err "  ~/$RemoteDir    attendu 700, obtenu: $dirMode"
+        Write-Err "  ~/$StagingDir/.env attendu 600, obtenu: $envMode"
+        Write-Err "  ~/$StagingDir    attendu 700, obtenu: $dirMode"
         Write-Err "Le .env de production contient tous les secrets applicatifs."
         Write-Err "Deploiement interrompu avant 'docker compose up'."
         exit 1
     }
     Write-Success "Permissions secrets durcies et verifiees (.env $envMode, dossier $dirMode)"
 } else {
-    Write-Info "[DRY RUN] ssh chmod 700 ~/$RemoteDir ; chmod 600 ~/$RemoteDir/.env ; chmod 700 ~/.claude ; chmod 600 ~/.claude/.credentials.json ; chmod 700 apps/api/config ; chmod 600 apps/api/config/*.json"
+    Write-Info "[DRY RUN] ssh chmod 700 ~/$StagingDir ; chmod 600 ~/$StagingDir/.env ; chmod 700 ~/.claude ; chmod 600 ~/.claude/.credentials.json ; chmod 700 apps/api/config ; chmod 600 apps/api/config/*.json"
 }
 
 # ============================================================================
@@ -632,7 +647,7 @@ if (-not $DryRun) {
 # ============================================================================
 Write-Step "Execution du deploiement sur le serveur..."
 
-$deployCmd = "cd ~/$RemoteDir && chmod +x deploy.sh && ./deploy.sh"
+$deployCmd = "cd ~/$StagingDir && chmod +x deploy.sh && ./deploy.sh"
 
 Write-Info "Commande: $deployCmd"
 

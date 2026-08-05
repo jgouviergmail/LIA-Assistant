@@ -6,7 +6,7 @@
 
 **Versión**: 3.9
 **Fecha**: 2026-08-05
-**Aplicación**: LIA v1.27.13
+**Aplicación**: LIA v1.27.14
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,8 +53,8 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Auto-hospedaje ARM64 | Docker multi-arch, embeddings semánticos (multilingües), Playwright chromium cross-platform |
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
-| Transparencia total | 447 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 209 ADRs, ~18.041 tests recogidos por pytest en 985 archivos, observabilidad nativa, HITL de 6 niveles |
+| Transparencia total | 466 métricas Prometheus, debug panel integrado, seguimiento token por token |
+| Fiabilidad en producción | 212 ADRs, ~18.041 tests recogidos por pytest en 985 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -76,7 +76,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Fixtures reutilizables | 170+ |
 | Documentos de documentación | 400+ |
 | ADRs (Architecture Decision Records) | 209 |
-| Métricas Prometheus | 447 definiciones |
+| Métricas Prometheus | 466 definiciones |
 | Dashboards Grafana | 26 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -864,7 +864,7 @@ La procedencia es por tanto una propiedad del **dato**: los 24 tipos del registr
 
 | Tecnología | Rol |
 |-------------|------|
-| Prometheus | 447 métricas custom (RED pattern) |
+| Prometheus | 466 métricas custom (RED pattern) |
 | Grafana | 26 dashboards production-ready |
 | Loki | Logs estructurados JSON agregados |
 | Tempo | Trazas distribuidas cross-service (OTLP gRPC) |
@@ -885,6 +885,42 @@ Las métricas debug persisten en `sessionStorage` (50 entradas máx.).
 ### 20.3. DevOps Claude CLI (solo admin)
 
 Los administradores pueden interactuar con Claude Code CLI directamente desde la conversación de LIA para diagnosticar problemas del servidor en lenguaje natural. Claude CLI está instalado dentro del contenedor Docker de la API y se ejecuta localmente via subprocess, con acceso al Docker socket para inspeccionar todos los contenedores. Los permisos son configurables por entorno y el acceso está restringido a superusuarios.
+### 20.4. Una etiqueta es un multiplicador de flujos, no un campo de búsqueda
+
+Una tubería de agregación invita a promover a etiqueta indexada todo aquello por
+lo que se podría filtrar: el nombre del evento, el módulo emisor, el
+identificador de traza. La intuición es falsa, y cara. En Loki un **flujo** es una
+combinación única de valores de etiqueta, y el conjunto de flujos mantenidos en
+memoria es el **producto cartesiano** de esos valores. Promover un campo con un
+conjunto de valores abierto —un nombre de evento libre, peor aún un identificador
+por petición— no hace nada más buscable: programa una saturación de memoria.
+
+La regla es por tanto posicional y no funcional: **solo un campo cuyo conjunto de
+valores sea pequeño y cerrado se convierte en etiqueta** (la gravedad, cuatro
+valores). Todo lo demás se filtra en el momento de la lectura, donde el coste se
+paga por consulta en lugar de ser permanente y compartido:
+
+```
+{container="lia-api-prod"} |= "chat_run_started" | json | event="chat_run_started"
+```
+
+El filtro de línea precede deliberadamente al análisis JSON: permite al motor
+descartar bloques enteros sin decodificarlos.
+
+Dos guardas acompañan la regla, porque se incumple en silencio. El primero
+prohíbe que un campo de cardinalidad abierta vuelva a ser etiqueta. El segundo
+**deriva** el conjunto prohibido de la configuración de la tubería y comprueba
+que ningún panel seleccione un flujo por uno de ellos: un selector sobre un
+no-etiqueta no falla, simplemente no coincide con ningún flujo, y el panel se
+queda vacío con aspecto perfectamente sano.
+
+El mismo principio rige el transporte: una tubería no reescribe la carga útil que
+transporta. Se eliminó una etapa que sustituía la línea por el contenido de un
+solo campo: privaba al análisis del JSON estructurado que la aplicación sí había
+emitido.
+
+---
+
 ## 21. Rendimiento: optimizaciones y métricas
 
 ### 21.1. Métricas clave (P95)
@@ -993,6 +1029,30 @@ existir, llevar la variante Tailwind del umbral declarado, y una superficie que
 consulta o temporiza debe estar **montada condicionalmente**, no solo oculta:
 `display:none` monta igualmente el componente, que sigue gastando red y batería
 en algo que nadie verá.
+
+### 22.6. Un despliegue no molesta a la pila que está sirviendo
+
+Reconstruir el directorio de despliegue **en su sitio** parece inofensivo:
+borrar, copiar, recrear los contenedores. Ese razonamiento ignora cómo funciona
+un bind mount. Docker lo resuelve a un **inodo** cuando se crea el contenedor, no
+a una ruta reevaluada en cada lectura. Borrar el contenido del directorio, por
+tanto, no reemplaza lo que ve un contenedor en marcha: destruye los inodos bajo
+sus pies. Durante todo el build, unos diez minutos, la aplicación que sigue
+respondiendo ve sus directorios montados como **vacíos**.
+
+El diseño desplaza el problema en lugar de acortarlo. El paquete se deposita en
+un directorio de espera aparte que ningún contenedor monta, y el build ocurre
+íntegramente allí. La conmutación final es un **renombrado**, y ahí se juega
+todo: renombrar preserva el inodo, así que los contenedores aún vivos siguen
+leyendo exactamente lo que montaron, hasta que se recrean deliberadamente unos
+segundos después. El shell que ejecuta el script de despliegue conserva su
+descriptor abierto por la misma razón.
+
+Dos generaciones anteriores permanecen en disco, lo que convierte una vuelta
+atrás en cuestión de segundos en vez de una reconstrucción. El corolario está
+escrito en el script: **las copias de la base de datos viven fuera del árbol
+desplegado**. Un volcado que un despliegue puede alcanzar no es un volcado, y la
+única garantía fiable es posicional, no una promesa de no tocarlo.
 
 ## 23. Patrones de ingeniería transversales
 
@@ -1203,7 +1263,7 @@ La lección de ingeniería más valiosa vino de un defecto invisible: la primiti
 
 ## 24. Arquitectura de decisiones (ADR)
 
-209 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+212 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1257,10 +1317,10 @@ El Psyche Engine dota al asistente de un estado psicológico dinámico que evolu
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 209 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~18.041 tests en 985 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 212 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~18.041 tests en 985 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (400+ documentos), de los 209 ADRs y del changelog (v1.0 a v1.27.13). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (400+ documentos), de los 212 ADRs y del changelog (v1.0 a v1.27.14). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

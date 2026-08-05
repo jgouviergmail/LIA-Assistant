@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-05
-**Compatibility**: LIA v1.27.13
+**Compatibility**: LIA v1.27.14
 
 ## Table of Contents
 
@@ -271,7 +271,7 @@ task db:create-admin -- --email you@example.com --password YourSecurePassword123
 
 > **Important**: Change the default admin password after first login (Settings > Account).
 
-> **Note**: `task db:seed:sql` populates assistant personalities and LLM pricing data. Without it, the assistant has no personality and cost tracking cannot price calls.
+> **Note**: `task db:seed:sql` populates assistant personalities and LLM pricing data. Without it, the assistant has no personality and cost tracking cannot price calls. This task targets the **dev** database directly; the production equivalent is the explicit `APPLY_SEEDS=true` procedure described in [Reference Content on a Fresh Production Install](#reference-content-on-a-fresh-production-install).
 
 > **Note**: The built-in FAQ knowledge base (200+ Q/A) is automatically indexed at app startup. Manual re-indexation: `task db:seed:system-rag`.
 
@@ -1128,7 +1128,7 @@ POSTGRES_BACKUP_KEEP_DAYS=7
 POSTGRES_BACKUP_KEEP_WEEKS=4
 POSTGRES_BACKUP_KEEP_MONTHS=6
 POSTGRES_BACKUP_EXTRA_OPTS=-Z6 --clean --if-exists
-POSTGRES_BACKUP_HOST_DIR=./backups/postgres    # prod only (dev uses a named volume)
+POSTGRES_BACKUP_HOST_DIR=../lia-data/postgres-backups  # prod only, OUTSIDE the deployed dir (dev uses a named volume)
 ```
 
 ```bash
@@ -1472,6 +1472,39 @@ task deploy:prepare        # prepare the PROD/ bundle only
 ```
 
 `task deploy:prod` runs `scripts/deploy/deploy-prod.ps1`, which prepares a `PROD/` bundle (compose file, configs, `requirements.lock.txt`, generated `deploy.sh`), ships it to the server and **rebuilds the images on the target** before `up --force-recreate`. The production stack is the 15-service compose described [above](#launched-docker-services).
+
+### Reference Content on a Fresh Production Install
+
+A brand-new production database has **no assistant personalities and no LLM pricing table** — the assistant cannot take a personality, and cost tracking cannot price a single call. The reference content lives in `infrastructure/database/seeds/` and is mounted read-only into the API container.
+
+It is applied **only** when you ask for it, on a **fresh install or a restore onto an empty database**:
+
+```bash
+# On the server, from the deployed directory (~/lia)
+APPLY_SEEDS=true docker compose -f docker-compose.prod.yml up -d --force-recreate api
+
+# Then remove the flag: the next normal deploy must NOT carry it
+docker compose -f docker-compose.prod.yml up -d --force-recreate api
+```
+
+> **Warning — these files are destructive by design.** Each one empties its table before re-inserting the reference rows, and `personalities` cascades: `users.personality_id` is `ON DELETE SET NULL`, so applying the seeds to a **populated** database would reset the personality every user has chosen.
+
+Two **independent** conditions must hold, and both fail closed:
+
+| Condition | Meaning | If it cannot be established |
+|-----------|---------|-----------------------------|
+| Intent | `APPLY_SEEDS=true` | absent by default → seeds skipped |
+| Target | the `personalities` table is verifiably **empty** | unreadable **or** non-empty → seeds refused |
+
+The second one is what protects a live installation. `APPLY_SEEDS` is interpolated by Compose from the shell **and** from the project `.env`, so a value left behind in an env file would otherwise re-arm the deletion on every later deploy — the emptiness check makes that stale value harmless. The row count is used strictly as a **veto**: it used to be the *trigger* (`count == 0` meant "fresh install"), which also fired whenever the count could not be read, because a failed query yielded `0`.
+
+Verify afterwards — the deploy log prints one of three unambiguous lines:
+
+- `APPLY_SEEDS=true and database empty - applying SQL seeds ...` followed by one line per file, then the personalities appear in **Settings > Administration**;
+- `ERROR: APPLY_SEEDS=true but personalities already holds N row(s) - SQL seeds SKIPPED` — the database was not empty, nothing was touched;
+- `Skipping SQL seeds (set APPLY_SEEDS=true for a fresh install only)` — the normal line on every ordinary deploy.
+
+In development the equivalent is `task db:seed:sql` (or `task db:reset`), which targets the dev database directly and does not go through this gate.
 
 ### Post-Deploy Operations
 

@@ -18,7 +18,7 @@
 | **Format** | Plain SQL, gzip level 6, `--clean --if-exists` (self-cleaning restore) |
 | **Schedule** | `POSTGRES_BACKUP_SCHEDULE` (default `@daily`, evaluated in `POSTGRES_BACKUP_TZ`, default UTC) |
 | **Rotation** | `daily/` × `POSTGRES_BACKUP_KEEP_DAYS` (7) · `weekly/` × 4 · `monthly/` × 6 + `last/` |
-| **Location (prod)** | Host bind mount `POSTGRES_BACKUP_HOST_DIR` (default `./backups/postgres`, chmod 700, created by `deploy.sh`) |
+| **Location (prod)** | Host bind mount `POSTGRES_BACKUP_HOST_DIR` (default `../lia-data/postgres-backups`, chmod 700, created by `deploy.sh`). It resolves **outside** the deployed directory on purpose: the previous default `./backups/postgres` sat inside the tree each deployment replaces, so every deploy erased every dump (measured 2026-08-05). `deploy.sh` warns if the configured value is inside the deployed tree. |
 | **Location (dev)** | Named volume `postgres_backups` (Windows bind mounts break the image's hardlink/symlink rotation) |
 | **RPO** | = backup interval (default **24 h**) |
 | **RTO** | Minutes (single-command restore; see below) |

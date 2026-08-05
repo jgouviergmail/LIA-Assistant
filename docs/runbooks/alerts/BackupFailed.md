@@ -28,7 +28,7 @@ blackbox-exporter probes the healthcheck webhook baked into the `prodrigestivill
 
 ### What Ops See
 - `probe_success{job="blackbox-backup"} == 0` in Prometheus.
-- No fresh file in the backup directory (prod: `POSTGRES_BACKUP_HOST_DIR`, default `./backups/postgres`, on the RPi5).
+- No fresh file in the backup directory (prod: `POSTGRES_BACKUP_HOST_DIR`, default `../lia-data/postgres-backups` — resolved from the compose file, deliberately OUTSIDE the deployed directory — on the RPi5).
 
 ---
 

@@ -511,6 +511,14 @@ SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS = 30  # Delay between retry attempts
 SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES = 10
 SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES = 5
 SCHEDULED_ACTIONS_BATCH_SIZE = 50
+#: How many actions of one batch may run at the same time. Each action is an LLM
+#: call, so a strictly sequential batch made the tick cost their SUM: measured in
+#: production, 373 ticks with a 0.01s median but a tail at 26s, 51s, 81s and
+#: 187s, and 34 ticks dropped by APScheduler (max_instances=1) because the
+#: previous one was still running. Bounded rather than unbounded: fanning the
+#: whole batch out at once would trade a scheduling delay for a burst against
+#: the LLM provider and the connection pool.
+SCHEDULED_ACTIONS_MAX_CONCURRENCY = 4
 # Payload cap for the scheduled-action SSE preview. Not an env setting: its only
 # consumer is the frontend toast, which slices to 100 chars — this is headroom,
 # not a user-tunable threshold. The FCM push body uses the real user-facing

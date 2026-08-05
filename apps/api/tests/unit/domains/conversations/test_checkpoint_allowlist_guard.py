@@ -35,11 +35,12 @@ recreates its members by itself. See the dedicated test class below.
 from __future__ import annotations
 
 import importlib
-from typing import Any
+from typing import Any, get_args, get_origin
 
 import pytest
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 
+from src.domains.agents.models import MessagesState
 from src.domains.agents.orchestration.validation_models import (
     CriticalityLevel,
     SemanticIssue,
@@ -314,3 +315,70 @@ class TestCheckpointedVerdictsSurviveResume:
         )
         assert isinstance(restored.errors[0], ValidationIssue)
         assert restored.errors[0].code is ToolErrorCode.INVALID_INPUT
+
+
+class TestAllowlistCompletenessIsDerived:
+    """The classes above are hand-picked; this oracle is not.
+
+    Every test in this file so far names the types it checks, so it verifies the
+    types somebody remembered. That is the very failure mode the allowlist has:
+    ``RegistryItem`` sat outside it from the start and came back from every
+    resume as a plain ``dict`` (production, 2026-07-30 → 2026-08-03), while a
+    ``RegistryItemType`` entry — the *enum*, not the item — gave the list a
+    reassuring look. No hand-written test missed it on purpose; nobody thought
+    of it.
+
+    So this one derives its expectation from ``MessagesState`` itself: whatever
+    custom class the graph state DECLARES must be allowlisted, whether or not a
+    human remembered to write a test for it.
+
+    Known limit, stated rather than hidden: 37 of the 85 state fields are typed
+    ``Any`` (``semantic_validation`` among them), and no annotation scan can see
+    through that. Those types stay covered by the explicit round-trips above —
+    the two oracles are complementary, not redundant.
+    """
+
+    @staticmethod
+    def _declared_custom_types() -> dict[str, str]:
+        """{class name: defining module} for the app classes MessagesState names."""
+        found: dict[str, str] = {}
+
+        def walk(annotation: Any, depth: int = 0) -> None:
+            if depth > 6:  # generics nest, but not that deep
+                return
+            if isinstance(annotation, type):
+                module = getattr(annotation, "__module__", "")
+                if module.startswith("src."):
+                    found[annotation.__name__] = module
+            for argument in get_args(annotation):
+                walk(argument, depth + 1)
+            origin = get_origin(annotation)
+            if origin is not None:
+                walk(origin, depth + 1)
+
+        for annotation in MessagesState.__annotations__.values():
+            walk(annotation)
+        return found
+
+    def test_every_declared_state_type_is_allowlisted(self) -> None:
+        declared = self._declared_custom_types()
+        allowed = {(module, name) for module, name in _CHECKPOINT_ALLOWED_MODULES}
+
+        missing = sorted(
+            f"{module}.{name}" for name, module in declared.items() if (module, name) not in allowed
+        )
+
+        assert not missing, (
+            f"types declared in MessagesState but absent from the checkpoint allowlist: "
+            f"{missing}. Each comes back from a resume as a plain dict/str instead of its "
+            f"type, silently. Add ('<defining module>', '<class>') to "
+            f"_CHECKPOINT_ALLOWED_MODULES — naming the module where the class is DEFINED, "
+            f"never one that re-exports it."
+        )
+
+    def test_the_scan_still_sees_something(self) -> None:
+        """A scan that silently returns nothing would make the test above vacuous."""
+        assert self._declared_custom_types(), (
+            "the MessagesState annotation scan found no application type at all — "
+            "the completeness assertion above would pass without checking anything."
+        )

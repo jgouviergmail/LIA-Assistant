@@ -120,6 +120,19 @@ if (Test-Path $apiSrcDir) {
     Write-Host "  + apps/api/src/" -ForegroundColor DarkGray
 }
 
+# Copier les catalogues gettext compiles (i18n backend, 6 langues).
+# Sans eux, `core.i18n` renvoie le msgid brut pour chaque traduction, dans
+# toutes les langues, en silence : le dev ne le voit jamais (il monte
+# ./apps/api en entier), la prod l'a subi jusqu'au 2026-08-05.
+# Exigence tenue par apps/api/tests/unit/test_prepare_prod_api_runtime_dirs_guard.py.
+$localesDir = Join-Path $SourceDir "apps\api\locales"
+if (Test-Path $localesDir) {
+    Copy-Item $localesDir -Destination $apiDir -Recurse
+    Write-Host "  + apps/api/locales/" -ForegroundColor DarkGray
+} else {
+    throw "apps/api/locales introuvable : l'i18n backend serait muette en production."
+}
+
 # Copier les migrations Alembic
 $alembicDir = Join-Path $SourceDir "apps\api\alembic"
 if (Test-Path $alembicDir) {
@@ -296,36 +309,51 @@ echo "============================================"
 # Verifier si .env existe, sinon decrypter
 if [ ! -f ".env" ]; then
     if [ -f ".env.prod.encrypted" ] && [ -f "keys/age-key-prod.txt" ]; then
-        echo "[1/6] Decryptage des secrets..."
+        echo "[1/7] Decryptage des secrets..."
         export SOPS_AGE_KEY_FILE=./keys/age-key-prod.txt
         sops --decrypt --input-type dotenv --output-type dotenv .env.prod.encrypted > .env
         echo "  -> .env cree depuis .env.prod.encrypted"
     elif [ -f ".env.prod" ]; then
-        echo "[1/6] Copie de .env.prod vers .env..."
+        echo "[1/7] Copie de .env.prod vers .env..."
         cp .env.prod .env
     else
         echo "ERREUR: Aucun fichier .env trouve!"
         exit 1
     fi
 else
-    echo "[1/6] .env existe deja"
+    echo "[1/7] .env existe deja"
 fi
 
 # Fixer les permissions des scripts (CRLF -> LF deja gere dans Dockerfile)
-echo "[2/6] Verification des permissions..."
+echo "[2/7] Verification des permissions..."
 chmod +x apps/api/docker-entrypoint.sh 2>/dev/null || true
 
 # Repertoire des backups PostgreSQL (ADR-109) : cree AVANT le up pour eviter
 # qu'un bind mount cree par Docker (root, 755) n'expose les dumps.
-echo "[3/6] Preparation du repertoire de backups PostgreSQL..."
+echo "[3/7] Preparation du repertoire de backups PostgreSQL..."
 BACKUP_DIR=$(grep -E '^POSTGRES_BACKUP_HOST_DIR=' .env | tail -1 | cut -d= -f2- | awk '{print $1}')
-BACKUP_DIR=${BACKUP_DIR:-./backups/postgres}
+BACKUP_DIR=${BACKUP_DIR:-../lia-data/postgres-backups}
 mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
 echo "  -> $BACKUP_DIR (chmod 700)"
 
+# Un repertoire de dumps situe DANS l'arborescence deployee est efface a chaque
+# deploiement (l'ancien defaut `./backups/postgres` l'etait : constate le
+# 2026-08-05, repertoire vide et horodate a l'heure exacte du deploiement). On
+# ne corrige pas le .env de l'exploitant en silence, mais le deploiement le dit.
+case "$BACKUP_DIR" in
+    /*|~/*) ;;                      # chemin absolu: hors de portee du deploiement
+    ../*)   ;;                      # remonte au-dessus du repertoire deploye
+    *)
+        echo "  -> ATTENTION: '$BACKUP_DIR' est DANS le repertoire deploye." >&2
+        echo "     Chaque deploiement remplace cette arborescence: les dumps n'y survivent pas." >&2
+        echo "     Corrigez POSTGRES_BACKUP_HOST_DIR dans .env.prod (ex. ../lia-data/postgres-backups)," >&2
+        echo "     puis relancez le deploiement. Voir docs/runbooks/DATABASE_BACKUP_RESTORE.md." >&2
+        ;;
+esac
+
 # Install/update logwatch configuration
-echo "[4/6] Installation de la configuration logwatch..."
+echo "[4/7] Installation de la configuration logwatch..."
 if [ -d "infrastructure/logwatch" ]; then
     # Install logwatch if not present
     if ! command -v logwatch &> /dev/null; then
@@ -379,13 +407,56 @@ fi
 # Capture the CURRENT images as a rollback point BEFORE the build overwrites them.
 command -v capture_rollback_point >/dev/null 2>&1 && capture_rollback_point
 
-# Build des images
-echo "[5/6] Build des images Docker..."
+# Build des images. Il tourne depuis le repertoire de STAGING : le repertoire
+# vivant est intact pendant ces ~10 minutes, donc les conteneurs qui servent
+# encore gardent tous leurs bind mounts valides.
+echo "[5/7] Build des images Docker..."
 docker compose -f docker-compose.prod.yml build
+
+# ---- SWAP_MARKER : bascule atomique staging -> vivant ----
+# Un bind mount est resolu vers un INODE a la creation du conteneur. `mv` est un
+# RENOMMAGE : il preserve l'inode, donc les conteneurs encore en vie continuent
+# de lire le contenu qu'ils ont monte jusqu'a leur recreation deliberee, juste
+# apres. C'est ce qui remplace le `rm -rf` qui, lui, detruisait les inodes sous
+# les conteneurs en service (constate le 2026-08-05 : /app/config,
+# /app/docs/knowledge et /app/data/skills/system vides en pleine production).
+# Le shell garde un descripteur ouvert sur ce script : le renommage ne l'invalide
+# pas non plus, l'inode etant inchange.
+echo "[6/7] Bascule atomique du repertoire de deploiement..."
+STAGING_DIR="$(pwd)"
+LIVE_DIR="${STAGING_DIR%.staging}"
+if [ "$STAGING_DIR" = "$LIVE_DIR" ]; then
+    # Execution hors pipeline (relance manuelle depuis le repertoire vivant, par
+    # exemple pour redemarrer les services). Il n'y a alors rien a basculer :
+    # echouer ici priverait l'exploitant de la relance la plus simple, au pire
+    # moment. On enchaine directement sur le demarrage.
+    echo "  -> pas de repertoire de staging (execution directe): aucune bascule"
+else
+    PREV_DIR="${LIVE_DIR}.prev.$(date +%Y%m%d-%H%M%S)"
+    if [ -d "$LIVE_DIR" ]; then
+        if ! mv "$LIVE_DIR" "$PREV_DIR"; then
+            echo "ERREUR: impossible d'ecarter le repertoire vivant -- deploiement interrompu." >&2
+            exit 1
+        fi
+    fi
+    if ! mv "$STAGING_DIR" "$LIVE_DIR"; then
+        echo "ERREUR: bascule interrompue -- restauration du repertoire precedent." >&2
+        [ -d "$PREV_DIR" ] && mv "$PREV_DIR" "$LIVE_DIR"
+        exit 1
+    fi
+    cd "$LIVE_DIR" || exit 1
+    echo "  -> $LIVE_DIR bascule (precedent conserve: $PREV_DIR)"
+
+    # Retention: on garde les 2 generations les plus recentes pour un rollback
+    # manuel; au-dela le disque de la carte SD se remplit en silence.
+    ls -1dt "${LIVE_DIR}".prev.* 2>/dev/null | tail -n +3 | while IFS= read -r old; do
+        [ -n "$old" ] && sudo rm -rf "$old" && echo "  -> purge de $old"
+    done
+fi
 
 # Demarrage des services (force-recreate pour recharger les volumes).
 # --wait bloque jusqu'a ce que les healthchecks compose passent (ou echoue).
-echo "[6/6] Demarrage des services..."
+echo "[7/7] Demarrage des services..."
 docker compose -f docker-compose.prod.yml up -d --force-recreate --wait
 
 # Readiness gate with operational rollback + release manifest (F008). Prefer the

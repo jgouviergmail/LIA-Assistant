@@ -3774,8 +3774,8 @@
           "description": "Full stack: Prometheus metrics (tokens, latency, errors, costs), 26 Grafana dashboards, Tempo distributed tracing, Loki centralized logs, active email alerting with a linked runbook on every alert. The 26th dashboard is a product cockpit: it counts validated outcomes — your explicit 👍 (E1) or an action left uncorrected for a full day (E2) — and derives the North Star, activation funnel, retention and cost per useful result. The exact counting lives in PostgreSQL (states can change, counters cannot un-count); Grafana reads it through a read-only role that can only see aggregate views, never raw tables."
         },
         "tools": {
-          "title": "🔧 89 Typed Tools",
-          "description": "89 native tools with JSON schemas auto-generated from Python/Pydantic, infinitely extensible via MCP servers and Skills. Declarative manifests with semantic_keywords for intelligent routing, and published bounds: whatever a validator can reject, the planner can read. The catalogue is filtered per domain, so a domain carrying only write tools pushes the planner to write — which is why every domain now carries its read capabilities too."
+          "title": "🔧 88 Typed Tools",
+          "description": "88 native tools with JSON schemas auto-generated from Python/Pydantic, infinitely extensible via MCP servers and Skills. Declarative manifests with semantic_keywords for intelligent routing, and published bounds: whatever a validator can reject, the planner can read. The catalogue is filtered per domain, so a domain carrying only write tools pushes the planner to write — which is why every domain now carries its read capabilities too."
         },
         "costTransparency": {
           "title": "💰 Cost Transparency",
@@ -3908,6 +3908,19 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_27_14": {
+          "title": "v1.27.14 — 🛡️ Updates that leave the app running",
+          "date": "August 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🛡️ An update no longer degrades the app while it installs</b> — during a release, push notifications, the FAQ and the skills briefly stopped working: the update replaced the files underneath the running application. Updates now prepare everything aside and switch over in one move, so nothing is missing while the new version is being built.",
+            "i2": "<b>💬 A conversation in progress is no longer cut off by an update</b> — a chat being streamed was interrupted when a new version was installed. The application now finishes what it started before it stops.",
+            "i3": "<b>💾 Database backups are actually kept</b> — the scheduled dumps were stored inside the folder each update replaced, so they were erased every time. They now live outside its reach. If you administer an instance, check that your backup path points outside the deployment folder.",
+            "i4": "<b>🌍 Messages from the assistant come back in your language</b> — some replies and tool results fell back to their English source text whatever language you had chosen. The translation catalogues are now shipped with the application.",
+            "i5": "<b>⏳ An account awaiting activation sees the page that explains the wait</b> — a new sign-up whose account had not been activated yet landed on an application that looked broken, with every screen refusing to load. It now goes straight to the page describing the next step.",
+            "i6": "<b>🔔 Push notifications stop chasing a device that no longer exists</b> — when an app was uninstalled or its notification permit rotated, the assistant kept trying to reach it for days. Such a device is now retired on its first definitive refusal."
+          }
+        },
         "v1_27_13": {
           "title": "v1.27.13 — 🔁 An action never replays itself",
           "date": "August 2026",
@@ -5662,7 +5675,7 @@
       "getting_started": {
         "title": "Getting Started",
         "description": "How to get started with LIA",
-        "count": "8",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "What is LIA?",
@@ -5695,6 +5708,10 @@
           "q8": {
             "question": "Can I install LIA like an app on my phone or computer? (v1.25.16)",
             "answer": "<p>Yes. LIA is a <strong>PWA</strong>: on Android/desktop Chrome, use « Install » (LIA suggests it discreetly after a few visits); on iOS Safari, « Share → Add to Home Screen ». You get a home-screen icon, shortcuts (chat, briefing) and — once installed — the system <strong>share menu</strong> can send text or links straight into a LIA chat draft. Everything is localized in the 6 languages. Since the unified service worker landed, LIA also shows a proper branded page when you are offline and loads faster thanks to smart asset caching — your personal data is never cached on disk.</p>"
+          },
+          "q9": {
+            "question": "My account says it is awaiting activation — what should I do?",
+            "answer": "Signing up creates your account, but an administrator has to activate it before you can use LIA. Until then you land on a page that explains where you stand, and the rest of the application stays closed.<br><br>• <strong>You will receive an email</strong> as soon as your account is activated. Check your spam folder if you do not see it after a while — it is the most common reason people think nothing happened.<br><br>• <strong>Nothing is lost in the meantime.</strong> Your account already exists; activation only opens the door.<br><br>• <strong>If several days pass with no email</strong>, contact the administrator of your organisation, who can activate the account directly.<br><br>Before v1.27.14 this wait was invisible: the application loaded and then refused every screen, which looked like a breakdown rather than a pending step."
           }
         }
       },
@@ -6253,7 +6270,7 @@
       "rappels": {
         "title": "Reminders & Notifications",
         "description": "Create personal reminders and receive push notifications",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "How do I create a reminder?",
@@ -6278,6 +6295,10 @@
           "q6": {
             "question": "What's the difference between reminders and Google Tasks?",
             "answer": "Reminders and tasks have different uses:<br><br><strong>🔔 LIA Reminders:</strong><br>• <strong>One-time notification</strong> at a specific time<br>• No persistence after sending<br>• Ideal for: \"<em>Remind me to call John at 3pm</em>\"<br>• Message personalized with your LIA personality<br>• Push notification on all your devices<br>• No state tracking (done/not done)<br><br><strong>✅ Google Tasks:</strong><br>• <strong>Persistent task list</strong><br>• Remains visible until completion<br>• Ideal for: \"<em>Add 'Go shopping' to my list</em>\"<br>• Synced with Google Tasks<br>• State tracking (to do/completed)<br>• Organization in lists<br><br><strong>💡 In summary:</strong><br>• <strong>Reminder</strong> = \"<em>Notify me at a specific time</em>\" (one-shot notification)<br>• <strong>Task</strong> = \"<em>I need to do this</em>\" (list of things to accomplish)<br><br><strong>🔗 Possible combination:</strong><br>You can use both: create a task for tracking, and a reminder so you don't forget to do it."
+          },
+          "q7": {
+            "question": "I stopped receiving notifications after reinstalling the app — why?",
+            "answer": "A notification permit is tied to one browser or one installation. Reinstalling the app, clearing site data or switching device issues a <strong>new permit</strong>, and the old one stops working for good.<br><br>• <strong>Re-enable notifications</strong> from Settings on the device you want to be reached on. That registers the new permit.<br><br>• <strong>The old device is retired automatically.</strong> Since v1.27.14, a permit the notification service reports as permanently invalid is deactivated on its first definitive refusal, instead of being retried for days.<br><br>• <strong>Several devices can be registered at once</strong> — each one keeps its own permit, and retiring one does not affect the others.<br><br>If notifications still do not arrive on a freshly enabled device, check that your browser has not blocked them at the system level."
           }
         }
       },

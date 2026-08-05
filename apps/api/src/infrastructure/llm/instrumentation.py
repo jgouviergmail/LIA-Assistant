@@ -63,6 +63,41 @@ from src.infrastructure.llm.callback_factory import get_callback_factory
 
 logger = structlog.get_logger(__name__)
 
+# Whether this process has already stated that Langfuse is off. Process-wide
+# rather than per llm_type: the fact reported is a SETTING, and it is the same
+# one whatever the caller.
+_langfuse_disabled_notice_emitted = False
+
+
+def _note_langfuse_disabled(*, llm_type: str, factory_exists: bool) -> None:
+    """State a steady configuration once per process, then stop shouting.
+
+    This ran for every LLM call of every turn, at WARNING, while reporting a
+    deliberate setting that had not changed and was not a fault: 828 occurrences
+    over 7 days in production (627 on ``POST /api/v1/agents/chat/stream``), the
+    platform's second most frequent warning. A warning that fires on a nominal
+    path trains its readers to ignore warnings.
+
+    The state is announced once, at INFO, so it stays discoverable at boot; every
+    repeat keeps a DEBUG line, so the per-call detail remains reachable when
+    investigating.
+    """
+    global _langfuse_disabled_notice_emitted
+
+    if not _langfuse_disabled_notice_emitted:
+        _langfuse_disabled_notice_emitted = True
+        logger.info(
+            "langfuse_disabled",
+            factory_exists=factory_exists,
+            detail="LLM tracing is off for this process; instrumentation is skipped",
+        )
+
+    logger.debug(
+        "langfuse_disabled_skipping_instrumentation",
+        llm_type=llm_type,
+        factory_exists=factory_exists,
+    )
+
 
 # =============================================================================
 # CALLBACK MERGING HELPERS (Extracted for reduced complexity)
@@ -373,11 +408,7 @@ def create_instrumented_config(
     )
 
     if not factory or not factory.is_enabled():
-        logger.warning(
-            "langfuse_disabled_skipping_instrumentation",
-            llm_type=llm_type,
-            factory_exists=factory is not None,
-        )
+        _note_langfuse_disabled(llm_type=llm_type, factory_exists=factory is not None)
         return config
 
     try:

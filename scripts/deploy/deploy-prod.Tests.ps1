@@ -80,6 +80,12 @@ BeforeAll {
         Set-Content (Join-Path $proj "apps/api/Dockerfile.prod") "FROM scratch"
         Set-Content (Join-Path $proj "apps/api/docker-entrypoint.sh") "#!/bin/sh"
         Set-Content (Join-Path $proj "apps/api/requirements.txt") "fastapi"
+        # Compiled gettext catalogues. The fixture must satisfy every
+        # precondition prepare-prod.ps1 enforces, or the bundle is never
+        # generated and the whole suite fails on a missing deploy.sh instead of
+        # on the behaviour under test.
+        New-Item -ItemType Directory (Join-Path $proj "apps/api/locales/fr/LC_MESSAGES") -Force | Out-Null
+        Set-Content (Join-Path $proj "apps/api/locales/fr/LC_MESSAGES/messages.mo") "LOCALE_SENTINEL"
         New-Item -ItemType Directory (Join-Path $proj "apps/web/src") -Force | Out-Null
         Set-Content (Join-Path $proj "apps/web/src/page.tsx") "// WEB_SENTINEL"
         Set-Content (Join-Path $proj "apps/web/Dockerfile.prod") "FROM scratch"
@@ -844,5 +850,94 @@ Describe "generated deploy.sh to readiness-gate wiring (bash)" {
         $r.ExitCode | Should -Be 1
         $r.Output | Should -Match "ERREUR CRITIQUE"
         (Join-Path $prod "release-manifest.json") | Should -Not -Exist
+    }
+}
+
+# ============================================================================
+# A2 — the live directory must survive the build
+#
+# Bind mounts resolve to an INODE at container creation. `rm -rf ~/lia/*`
+# therefore breaks every directory mount of the CONTAINERS THAT ARE STILL
+# SERVING, for the whole duration of the remote build (~10 min): the running
+# API loses /app/config (Firebase credentials), /app/docs/knowledge (system RAG)
+# and /app/data/skills/system. Observed live on 2026-08-05, mid-deployment:
+#
+#   docker exec lia-api-prod ls /app/config        -> empty
+#   docker exec lia-api-prod ls /app/docs/knowledge -> empty
+#
+# while the host directories were fully populated. They came back only at
+# `up --force-recreate`. This is the mechanism behind the recurring
+# `firebase_init_failed` and `system_rag_startup_error` entries.
+#
+# The fix stages into a SEPARATE directory and swaps with `mv`: a rename keeps
+# the inode alive, so the running containers hold valid mounts until they are
+# recreated on purpose.
+# ============================================================================
+Describe "deploy-prod.ps1 keeps the live directory intact during the build (A2)" {
+    BeforeAll {
+        $proj = New-DeploySandbox (Join-Path $TestDrive "atomic")
+        $bin = New-ShimSet $TestDrive
+        $log = Join-Path $TestDrive "shim-atomic.log"
+        $script:r = Invoke-DeployProd -Proj $proj -ShimBin $bin `
+            -Arguments @("-SkipEncrypt", "-RetryDelaySeconds", "0", "-MaxRetries", "1") `
+            -EnvOverrides @{ SHIM_LOG = $log; SSH_MODE = "fail_deploy" }
+        $script:prod = Join-Path $proj "PROD"
+        $script:shimLog = if (Test-Path $log) { Get-Content $log -Raw } else { "" }
+        $script:deploySh = Get-Content (Join-Path $script:prod "deploy.sh") -Raw
+    }
+
+    It "never wipes the live directory" {
+        # The wipe is legitimate, but only against the staging directory that no
+        # container mounts.
+        $shimLog | Should -Not -Match ([regex]::Escape("rm -rf ~/lia/*"))
+        $shimLog | Should -Not -Match ([regex]::Escape("rm -rf ~/lia/.[!.]*"))
+    }
+
+    It "wipes and fills a staging directory instead" {
+        $shimLog | Should -Match ([regex]::Escape("rm -rf ~/lia.staging"))
+        $shimLog | Should -Match ([regex]::Escape("lia.staging"))
+    }
+
+    It "runs the remote deploy from the staging directory" {
+        $shimLog | Should -Match ([regex]::Escape("cd ~/lia.staging && chmod +x deploy.sh && ./deploy.sh"))
+    }
+
+    It "swaps by renaming, never by deleting the live directory" {
+        # `mv` preserves the inode of the directory being replaced, which is what
+        # keeps the still-running containers' mounts valid. The paths are DERIVED
+        # from the working directory rather than hard-coded, so the swap follows
+        # a custom -RemoteDir automatically; the assertions match that derivation.
+        $deploySh | Should -Match ([regex]::Escape('LIVE_DIR="${STAGING_DIR%.staging}"'))
+        $deploySh | Should -Match ([regex]::Escape('mv "$STAGING_DIR" "$LIVE_DIR"'))
+        $deploySh | Should -Not -Match "rm -rf .*LIVE_DIR"
+    }
+
+    It "runs unchanged outside the pipeline (manual relaunch)" {
+        # A manual `./deploy.sh` from the live directory has nothing to swap.
+        # Failing there would deny the operator the simplest restart, at the
+        # worst possible moment.
+        $deploySh | Should -Match ([regex]::Escape('aucune bascule'))
+    }
+
+    It "swaps AFTER the build and BEFORE the services are recreated" {
+        $iBuild = $deploySh.IndexOf("docker compose -f docker-compose.prod.yml build")
+        $iSwap = $deploySh.IndexOf("SWAP_MARKER")
+        $iUp = $deploySh.IndexOf("up -d --force-recreate --wait")
+        $iBuild | Should -BeGreaterThan 0
+        $iSwap | Should -BeGreaterThan $iBuild
+        $iUp | Should -BeGreaterThan $iSwap
+    }
+
+    It "warns when the dumps sit inside the tree the deploy replaces" {
+        # The operator's .env overrides the compose default, so shipping a safe
+        # default is not enough — the deployment itself has to say it.
+        $deploySh | Should -Match ([regex]::Escape('est DANS le repertoire deploye'))
+        $deploySh | Should -Match ([regex]::Escape('../lia-data/postgres-backups'))
+    }
+
+    It "keeps the previous directory for rollback, with retention" {
+        $deploySh | Should -Match ([regex]::Escape('PREV_DIR="${LIVE_DIR}.prev.'))
+        # Unbounded generations would silently fill the SD card of the Pi.
+        $deploySh | Should -Match ([regex]::Escape('tail -n +3'))
     }
 }

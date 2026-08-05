@@ -17,6 +17,7 @@ from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS,
+    SCHEDULED_ACTIONS_MAX_CONCURRENCY,
     SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES,
 )
 
@@ -39,6 +40,22 @@ class SchedulerSettings(BaseSettings):
             "Symptom if too low: legitimate actions (long LLM-bound prompts) "
             "fail with TIMEOUT. Symptom if too high: a stuck action keeps a "
             "worker slot busy, delaying subsequent triggers."
+        ),
+    )
+
+    scheduled_actions_max_concurrency: int = Field(
+        default=SCHEDULED_ACTIONS_MAX_CONCURRENCY,
+        ge=1,
+        le=20,
+        description=(
+            "How many actions of one batch the executor may run at the same "
+            "time. Each action is an LLM call and opens its OWN database "
+            "session, so concurrency is safe here. "
+            "Symptom if too low: a long batch serialises past the 60s tick and "
+            "APScheduler drops the following ticks (max_instances=1), delaying "
+            "actions that were due. Symptom if too high: a batch bursts against "
+            "the LLM provider and the connection pool. Set to 1 to restore the "
+            "strictly sequential behaviour."
         ),
     )
 

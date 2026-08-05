@@ -3779,8 +3779,8 @@
           "description": "Stack complète : métriques Prometheus (tokens, latence, erreurs, coûts), 26 dashboards Grafana, tracing distribué Tempo, logs centralisés Loki, alerting e-mail actif avec runbook lié sur chaque alerte. Le 26e dashboard est un cockpit produit : il compte les résultats validés — ton 👍 explicite (E1) ou une action restée non corrigée une journée entière (E2) — et en dérive la North Star, le funnel d'activation, la rétention et le coût par résultat utile. Le comptage exact vit dans PostgreSQL (un état peut changer, un compteur ne se dé-compte pas) ; Grafana le lit via un rôle en lecture seule qui ne voit que des vues agrégées, jamais les tables brutes."
         },
         "tools": {
-          "title": "🔧 89 Outils Typés",
-          "description": "89 outils natifs avec schémas JSON auto-générés depuis Python/Pydantic, extensibles à l’infini via les serveurs MCP et les Skills. Manifestes déclaratifs avec semantic_keywords pour le routage intelligent, et bornes publiées : ce qu’un validateur peut refuser, le planificateur peut le lire. Le catalogue est filtré par domaine, si bien qu’un domaine ne portant que des outils d’écriture pousse à écrire — chaque domaine porte donc aussi ses capacités de lecture."
+          "title": "🔧 88 Outils Typés",
+          "description": "88 outils natifs avec schémas JSON auto-générés depuis Python/Pydantic, extensibles à l’infini via les serveurs MCP et les Skills. Manifestes déclaratifs avec semantic_keywords pour le routage intelligent, et bornes publiées : ce qu’un validateur peut refuser, le planificateur peut le lire. Le catalogue est filtré par domaine, si bien qu’un domaine ne portant que des outils d’écriture pousse à écrire — chaque domaine porte donc aussi ses capacités de lecture."
         },
         "costTransparency": {
           "title": "💰 Transparence des Coûts",
@@ -3913,6 +3913,19 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_27_14": {
+          "title": "v1.27.14 — 🛡️ Des mises à jour qui laissent l'application debout",
+          "date": "Août 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🛡️ Une mise à jour ne dégrade plus l'application pendant son installation</b> — pendant une livraison, les notifications push, la FAQ et les skills cessaient brièvement de fonctionner : la mise à jour remplaçait les fichiers sous l'application en cours d'exécution. Les livraisons préparent désormais tout à côté puis basculent d'un seul geste, si bien que rien ne manque pendant la construction de la nouvelle version.",
+            "i2": "<b>💬 Une conversation en cours n'est plus coupée par une mise à jour</b> — un échange en train de s'écrire était interrompu lors de l'installation d'une nouvelle version. L'application termine maintenant ce qu'elle a commencé avant de s'arrêter.",
+            "i3": "<b>💾 Les sauvegardes de la base de données sont réellement conservées</b> — les sauvegardes programmées étaient déposées dans le dossier que chaque mise à jour remplaçait : elles étaient donc effacées à chaque fois. Elles vivent désormais hors de sa portée. Si vous administrez une instance, vérifiez que votre chemin de sauvegarde pointe en dehors du dossier de déploiement.",
+            "i4": "<b>🌍 Les messages de l'assistant reviennent dans votre langue</b> — certaines réponses et certains retours d'outils retombaient sur leur texte source en anglais, quelle que soit la langue choisie. Les catalogues de traduction sont maintenant livrés avec l'application.",
+            "i5": "<b>⏳ Un compte en attente d'activation voit la page qui explique l'attente</b> — une nouvelle inscription dont le compte n'était pas encore activé arrivait sur une application qui semblait cassée, chaque écran refusant de se charger. Elle est désormais dirigée directement vers la page qui décrit la suite.",
+            "i6": "<b>🔔 Les notifications push cessent de poursuivre un appareil qui n'existe plus</b> — après une désinstallation ou un renouvellement de l'autorisation de notification, l'assistant continuait d'essayer de le joindre pendant des jours. Un tel appareil est maintenant retiré dès son premier refus définitif."
+          }
+        },
         "v1_27_13": {
           "title": "v1.27.13 — 🔁 Une action ne se rejoue pas toute seule",
           "date": "Août 2026",
@@ -5667,7 +5680,7 @@
       "getting_started": {
         "title": "Démarrage",
         "description": "Comment commencer avec LIA",
-        "count": "8",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "Qu'est-ce que LIA ?",
@@ -5700,6 +5713,10 @@
           "q8": {
             "question": "Puis-je installer LIA comme une application sur mon téléphone ou ordinateur ? (v1.25.16)",
             "answer": "<p>Oui. LIA est une <strong>PWA</strong> : sur Android/Chrome desktop, utilise « Installer » (LIA le suggère discrètement après quelques visites) ; sur iOS Safari, « Partager → Sur l'écran d'accueil ». Tu obtiens une icône sur l'écran d'accueil, des raccourcis (chat, briefing) et — une fois installée — le <strong>menu de partage</strong> du système peut envoyer texte ou liens directement dans un brouillon de chat LIA. Le tout localisé dans les 6 langues. Depuis l’arrivée du service worker unifié, LIA affiche aussi une vraie page hors connexion et se charge plus vite grâce au cache intelligent des assets — tes données personnelles ne sont jamais mises en cache sur disque.</p>"
+          },
+          "q9": {
+            "question": "Mon compte est en attente d'activation, que dois-je faire ?",
+            "answer": "L'inscription crée ton compte, mais un administrateur doit l'activer avant que tu puisses utiliser LIA. En attendant, tu arrives sur une page qui explique où tu en es, et le reste de l'application reste fermé.<br><br>• <strong>Tu recevras un e-mail</strong> dès que ton compte sera activé. Pense à regarder tes courriers indésirables si rien n'arrive : c'est la raison la plus fréquente de croire qu'il ne s'est rien passé.<br><br>• <strong>Rien n'est perdu entre-temps.</strong> Ton compte existe déjà ; l'activation ne fait qu'ouvrir la porte.<br><br>• <strong>Si plusieurs jours passent sans e-mail</strong>, contacte l'administrateur de ton organisation, qui peut activer le compte directement.<br><br>Avant la v1.27.14, cette attente était invisible : l'application se chargeait puis refusait chaque écran, ce qui ressemblait à une panne plutôt qu'à une étape en cours."
           }
         }
       },
@@ -6258,7 +6275,7 @@
       "rappels": {
         "title": "Rappels & Notifications",
         "description": "Crée des rappels personnels et reçois des notifications push",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "Comment créer un rappel ?",
@@ -6283,6 +6300,10 @@
           "q6": {
             "question": "Quelle est la différence entre rappels et tâches Google Tasks ?",
             "answer": "Rappels et tâches ont des usages différents :<br><br><strong>🔔 Rappels LIA :</strong><br>• <strong>Notification ponctuelle</strong> à une heure précise<br>• Pas de persistance après l'envoi<br>• Idéal pour : \"<em>Rappelle-moi d'appeler Jean à 15h</em>\"<br>• Message personnalisé avec ta personnalité LIA<br>• Notification push sur tous tes appareils<br>• Pas de suivi d'état (fait/pas fait)<br><br><strong>✅ Google Tasks :</strong><br>• <strong>Liste de tâches persistante</strong><br>• Reste visible jusqu'à complétion<br>• Idéal pour : \"<em>Ajoute 'Faire les courses' à ma liste</em>\"<br>• Synchronisé avec Google Tasks<br>• Suivi d'état (à faire/terminé)<br>• Organisation en listes<br><br><strong>💡 En résumé :</strong><br>• <strong>Rappel</strong> = \"<em>Préviens-moi à un moment précis</em>\" (notification one-shot)<br>• <strong>Tâche</strong> = \"<em>Je dois faire ceci</em>\" (liste de choses à accomplir)<br><br><strong>🔗 Combinaison possible :</strong><br>Tu peux utiliser les deux : crée une tâche pour le suivi, et un rappel pour ne pas oublier de la faire."
+          },
+          "q7": {
+            "question": "Je ne reçois plus de notifications depuis que j'ai réinstallé l'application, pourquoi ?",
+            "answer": "Une autorisation de notification est liée à un navigateur ou à une installation précise. Réinstaller l'application, effacer les données du site ou changer d'appareil délivre une <strong>nouvelle autorisation</strong>, et l'ancienne cesse définitivement de fonctionner.<br><br>• <strong>Réactive les notifications</strong> depuis les Paramètres, sur l'appareil où tu veux être joint. Cela enregistre la nouvelle autorisation.<br><br>• <strong>L'ancien appareil est retiré automatiquement.</strong> Depuis la v1.27.14, une autorisation que le service de notification déclare définitivement invalide est désactivée dès son premier refus définitif, au lieu d'être réessayée pendant des jours.<br><br>• <strong>Plusieurs appareils peuvent être enregistrés en même temps</strong> — chacun garde son autorisation, et en retirer un n'affecte pas les autres.<br><br>Si les notifications n'arrivent toujours pas sur un appareil fraîchement activé, vérifie que ton navigateur ne les bloque pas au niveau du système."
           }
         }
       },

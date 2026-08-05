@@ -278,3 +278,13 @@ The full story — method, trade-offs, operations and what remains to be done �
 
 ## Can I install LIA like an app on my phone or computer?
 Yes. LIA is a **PWA**: on Android/desktop Chrome, use "Install" (LIA suggests it discreetly after a few visits); on iOS Safari, "Share → Add to Home Screen". You get a home-screen icon, shortcuts (chat, briefing) and — once installed — the system **share menu** can send text or links straight into a LIA chat draft. Everything is localized in the 6 languages.
+
+
+## My account says it is awaiting activation — what should I do?
+Signing up creates your account, but an administrator has to **activate** it before you can use LIA. Until then you land on a page that explains where you stand, and the rest of the application stays closed.
+
+• **You will receive an email** as soon as your account is activated. Check your spam folder if nothing arrives after a while — it is the most common reason people think nothing happened.
+• **Nothing is lost in the meantime.** Your account already exists; activation only opens the door.
+• **If several days pass with no email**, contact the administrator of your organisation, who can activate the account directly.
+
+Before v1.27.14 this wait was invisible: the application loaded and then refused every screen, which looked like a breakdown rather than a pending step.
