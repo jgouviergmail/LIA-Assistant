@@ -186,6 +186,13 @@ TABLE_RULES: dict[str, TableRule] = {
     "psyche_history": _PURGED_FULL,
     "user_interests": _PURGED_FULL,
     "interest_notifications": _PURGED_FULL,
+    # Habits (ADR-214): derived rhythm profile + discrete learned habits.
+    # Hours and domain names only — never message content.
+    "user_habit_profiles": _PURGED_FULL,
+    "user_habits": _PURGED_FULL,
+    # Per-day hour counts only (no content) — survives conversation resets
+    # by design, purged with the account and by "forget everything".
+    "user_activity_days": _PURGED_FULL,
     "heartbeat_notifications": _PURGED_FULL,
     "reminders": _PURGED_FULL,
     "scheduled_actions": _PURGED_FULL,
@@ -435,6 +442,7 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "theme": _PREFERENCE,
     "color_theme": _PREFERENCE,
     "font_family": _PREFERENCE,
+    "habits_enabled": _PREFERENCE,
     "interests_enabled": _PREFERENCE,
     "interests_notify_start_hour": _PREFERENCE,
     "interests_notify_end_hour": _PREFERENCE,

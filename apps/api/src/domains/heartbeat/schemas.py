@@ -36,6 +36,7 @@ HeartbeatSourceLabel = Literal[
     "UPCOMING_BIRTHDAYS",
     "OPEN_LOOPS",
     "DEPARTURE_ADVICE",
+    "HABITS",
 ]
 """Canonical source labels for the decision structured output (ADR-135).
 
@@ -158,6 +159,12 @@ class HeartbeatContext:
     # the post-notification cooldown bump.
     open_loops: list[dict[str, Any]] | None = None
 
+    # Learned habits block (ADR-214) — {"rhythm": {class: [window labels]},
+    # "missed_routine": {habit_id, signature, shape, trigger_label, weekday}}.
+    # The habit_id travels to proactive_task for the post-notification offer
+    # bookkeeping (cooldown + stop rule), open_loops precedent.
+    habits: dict[str, Any] | None = None
+
     # Activity
     last_interaction_at: datetime | None = None
     hours_since_last_interaction: float | None = None
@@ -196,6 +203,9 @@ class HeartbeatContext:
                 self.upcoming_birthdays,
                 self.open_loops,
                 self.departure_advice,
+                # Rhythm alone is context, not news: only a missed routine
+                # makes the habits block a reason to notify by itself.
+                (self.habits or {}).get("missed_routine"),
             )
         )
 
@@ -337,6 +347,32 @@ class HeartbeatContext:
             sections.append(
                 "OPEN LOOPS (commitments being tracked for the user):\n" + "\n".join(loop_lines)
             )
+
+        if self.habits:
+            rhythm = self.habits.get("rhythm") or {}
+            if rhythm:
+                windows = "; ".join(
+                    f"{name}: {', '.join(labels)}" for name, labels in rhythm.items()
+                )
+                sections.append(
+                    "USER RHYTHM (learned activity windows — prefer notifying inside "
+                    "them; the user's configured hour bounds always prevail): " + windows
+                )
+            missed = self.habits.get("missed_routine")
+            if missed:
+                schedule = (
+                    f"weekly (weekday {missed.get('weekday')})"
+                    if missed.get("shape") == "weekly"
+                    else str(missed.get("shape", "?"))
+                )
+                sections.append(
+                    "MISSED ROUTINE (learned recurring request whose usual slot passed "
+                    f"today with no ask): '{missed.get('signature', '?')}' — usually "
+                    f"{schedule} around {missed.get('trigger_label', '?')}. You may "
+                    "offer ONCE to run it now, framed as a service ('want me to "
+                    "prepare it?'), never as surveillance. Skip it whenever anything "
+                    "else in this context is more valuable."
+                )
 
         if self.hours_since_last_interaction is not None:
             sections.append(f"LAST INTERACTION: {self.hours_since_last_interaction:.1f} hours ago")

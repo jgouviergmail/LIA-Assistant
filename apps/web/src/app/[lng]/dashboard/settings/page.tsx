@@ -64,6 +64,7 @@ import { ImageGenerationSettings } from '@/components/settings/ImageGenerationSe
 import { UserDebugSettings } from '@/components/settings/UserDebugSettings';
 import { BriefingGridSettings } from '@/components/settings/BriefingGridSettings';
 import { ChatShortcutsSettings } from '@/components/settings/ChatShortcutsSettings';
+import { HabitsSettings } from '@/components/settings/HabitsSettings';
 import { OpenLoopsSection } from '@/components/settings/OpenLoopsSection';
 import { PeerConnectionsSettings } from '@/components/settings/PeerConnectionsSettings';
 import { CardsDisplaySettings } from '@/components/settings/CardsDisplaySettings';
@@ -172,12 +173,14 @@ export default function SettingsPage({ params }: SettingsPageProps) {
       // `/config` is in flight the section is genuinely absent, and the index
       // rebuilds by itself when the answer lands.
       openLoopsEnabled: !!config?.features?.open_loops_enabled,
+      habitsEnabled: !!config?.features?.habits_enabled,
       peersEnabled: !!config?.features?.peers_enabled,
       debugUserAccess: userAccessAvailable,
     }),
     [
       user?.is_superuser,
       config?.features?.open_loops_enabled,
+      config?.features?.habits_enabled,
       config?.features?.peers_enabled,
       userAccessAvailable,
     ]
@@ -493,6 +496,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
                 <MemorySettings lng={lng} />
               </FeatureErrorBoundary>
               <InterestsSettings lng={lng} />
+              <FeatureErrorBoundary feature="habits">
+                <HabitsSettings lng={lng} />
+              </FeatureErrorBoundary>
               <OpenLoopsSection lng={lng} />
               <FeatureErrorBoundary feature="peer-connections">
                 <PeerConnectionsSettings lng={lng} />
@@ -678,6 +684,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
                 <MemorySettings lng={lng} />
               </FeatureErrorBoundary>
               <InterestsSettings lng={lng} />
+              <FeatureErrorBoundary feature="habits">
+                <HabitsSettings lng={lng} />
+              </FeatureErrorBoundary>
               <OpenLoopsSection lng={lng} />
               <FeatureErrorBoundary feature="peer-connections">
                 <PeerConnectionsSettings lng={lng} />

@@ -682,6 +682,8 @@ class ProactiveTaskRunner:
             "heartbeat_push_enabled",
             "heartbeat_notify_start_hour",
             "heartbeat_notify_end_hour",
+            # Habits preference (tick scoring gate, ADR-214)
+            "habits_enabled",
         ]:
             if hasattr(user, field_name):
                 settings[field_name] = getattr(user, field_name)

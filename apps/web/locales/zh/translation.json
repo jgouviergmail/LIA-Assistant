@@ -2937,6 +2937,77 @@
       "edit_save": "保存",
       "edit_saved": "承诺已更新"
     },
+    "habits": {
+      "title": "习惯",
+      "description": "LIA 学到的你的节奏和重复请求——在这里可以查看、纠正和删除。",
+      "enabled_label": "学习我的习惯",
+      "enabled_hint": "活动节奏和重复请求，每晚根据你自己的消息计算。任何数据都不会离开你的账户。",
+      "rhythm_title": "活动节奏",
+      "computed_at": "更新于 {{date}}",
+      "recompute_label": "立即重新计算",
+      "recompute_done": "已根据你的历史记录重新计算档案。",
+      "progress_caption": "已累计 {{observed}}/{{required}} 个观察日",
+      "progress_aria": "首批习惯解锁前的学习进度",
+      "observing_title": "观察中",
+      "candidate_caption": "{{observed}}/{{required}} 个不同的日子",
+      "candidate_forming": "规律性确认中",
+      "candidate_aria": "重复请求的观察进度",
+      "heatmap_aria": "按小时的活动分布（00-23）",
+      "active_days_caption": "{{percent}}% 活跃日",
+      "candidates_more_one": "另有 {{count}} 项观察中",
+      "candidates_more_other": "另有 {{count}} 项观察中",
+      "weekday_label": "工作日",
+      "weekend_label": "周末",
+      "verdict": {
+        "diffuse": "全天都很活跃——没有固定时段习惯",
+        "none": "未检测到稳定的时段习惯",
+        "insufficient": "学习中——还需要几周的历史记录",
+        "sparse": "偶尔使用——时段窗口不适用；重复请求仍会被检测"
+      },
+      "rows_title": "已学习的习惯",
+      "row": {
+        "active_window": "{{dayClass}} · {{part}}（{{windows}}）",
+        "recurring_request": "{{domains}} — {{schedule}} {{time}}"
+      },
+      "class": {
+        "weekday": "工作日",
+        "weekend": "周末"
+      },
+      "part": {
+        "morning": "上午",
+        "afternoon": "下午",
+        "evening": "晚上",
+        "night": "夜间"
+      },
+      "shape": {
+        "daily": "每天",
+        "workdays": "周一至周五",
+        "weekly": "每{{day}}"
+      },
+      "signals_caption": "{{positive}} 次确认 · {{negative}} 次拒绝",
+      "status": {
+        "active": "启用",
+        "paused": "已暂停",
+        "blocked": "已屏蔽"
+      },
+      "pause_label": "暂停",
+      "resume_label": "恢复",
+      "block_label": "永不再学习",
+      "delete_label": "删除",
+      "forget_all_label": "全部忘记",
+      "forget_all_title": "忘记所有已学习的习惯？",
+      "forget_all_description": "所有已学习的习惯和节奏档案都将被删除。LIA 将从头开始重新学习（除非你关闭学习）。",
+      "forget_all_confirm": "全部忘记",
+      "forget_all_done": "所有习惯均已忘记。",
+      "explanation": {
+        "title": "为什么有这个习惯？",
+        "error": "无法加载说明。",
+        "observed_label": "观察到的发生日期（此习惯的确切依据）",
+        "thresholds_label": "应用的阈值：",
+        "more_days_one": "另有 {{count}} 天",
+        "more_days_other": "另有 {{count}} 天"
+      }
+    },
     "security": {
       "passkeys": {
         "title": "通行密钥",
@@ -3120,6 +3191,7 @@
         "briefing-grid": "首页, 主页, 仪表板, 小组件, 卡片, 简报, 板块顺序",
         "chat-shortcuts": "斜杠, 快捷指令, 命令, 快速请求, 宏, /命令, 消息模板, 编辑, 重命名",
         "open-loops": "承诺, 待办承诺, 待处理, 跟进, 未完成",
+        "habits": "习惯, 节奏, 例行, 时间表, 学习, 活动时段, 重复请求, 自动化建议",
         "notifications": "推送, 提醒, 通知, 手机, FCM",
         "channels": "WhatsApp, Telegram, 短信, 邮件, 消息渠道, 集成",
         "security-auth": "2FA, MFA, TOTP, 通行密钥, 密码, 安全, 登录, 身份验证, 双因素",
@@ -3703,6 +3775,10 @@
           "title": "✨ 智能兴趣学习",
           "description": "兴趣从对话中习得，但询问一个话题是任务，不是喜好：创建需要四个具名依据之一 — 明确表达的热情、亲身实践、既有知识，或在同一次交流中反复深入同一主题 — 并且模型必须引用支撑它的原话。有六类内容永远不算兴趣，包括请求的对象以及任何由 LIA 自己提出的内容。去重会读取所有状态，因此被屏蔽的主题无法以相近的名称回来；对破坏性操作的上限则防止一次回答清空整份档案。兴趣通过批量 LLM 聚类归入主题，选择采用两级稀有度抽取（主题冷却 + 优先服务最少出现的主题）— 一种爱好永远不会独占。内容来自 Perplexity、Brave、维基百科或 AI 思考，并附可点击的来源。贝叶斯加权配合时间衰减，夜间合并近似重复项。"
         },
+        "habits": {
+          "title": "🧭 习惯学习",
+          "description": "LIA 通过校准的确定性统计学习你的活动节奏（工作日/周末的 2-4 小时时间窗）和重复请求——按天出勤、99% Wilson 下界、split-half 一致性、滞回——绝不使用不透明模型。四个持久来源合并（消息、运行摘要、重置记录、每日活动银行），并经过人类会话白名单过滤。一切公开：应用的阈值、观察到的日期、解锁进度。默认关闭，完全可控（暂停、屏蔽、遗忘、追溯重算）。"
+        },
         "summarization": {
           "title": "📝 自动摘要",
           "description": "长对话的智能摘要系统，在不超过 token 限制的情况下维护上下文。关键信息提取、语义压缩，以及上下文注入到提示词中以保持对话连续性。"
@@ -3894,6 +3970,19 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_28_0": {
+          "title": "v1.28.0 — 🧭 LIA 学习你的习惯，一切由你掌控",
+          "date": "2026年8月",
+          "count": "6",
+          "items": {
+            "i1": "<b>🧭 LIA 可以学习你的习惯——前提是你开启它</b>——你的活动节奏（工作日与周末的常用时段）和重复请求（「每周一早上看邮件」）通过透明的统计方法学习，绝不使用不透明的模型。默认全部关闭，一切都在 设置 → 学习我的习惯 中。任何数据都不会离开你的账户。",
+            "i2": "<b>📊 一个展示一切的面板</b>——带小时轴的 24 小时热力图、活跃日百分比、检测到的时间窗——当没有稳定习惯时，面板会诚实地说明，而不是凭空捏造。",
+            "i3": "<b>⏳ 学习进度始终可见</b>——进度条显示已积累与所需的观察天数，观察中的重复请求也会显示进度（「3/4 个不同的日子」），在确认之前就能看到。",
+            "i4": "<b>🔍 「为什么有这个习惯？」</b>——每个习惯都能自我解释：真实的观察日期和检测器应用的确切阈值。显示的习惯必然经过证明，否则就不存在。",
+            "i5": "<b>🕰️ 恰到好处的提醒，绝不纠缠</b>——LIA 可以注意到被错过的例行安排（每天最多一次，被忽略两次后永久沉默），并优先在你的常用时段发送通知——绝不超出你设定的时间范围。",
+            "i6": "<b>🧹 完全且即时的控制</b>——暂停某个习惯、永久屏蔽（不再重新学习）、全部删除，或一键在历史数据上重新学习：「立即重新计算」立刻且追溯地生效。"
+          }
+        },
         "v1_27_14": {
           "title": "v1.27.14 — 🛡️ 更新期间应用照常运行",
           "date": "2026年8月",
@@ -7803,6 +7892,7 @@
     "source_health_signals": "健康",
     "source_birthdays": "生日",
     "source_open_loops": "承诺事项",
+    "source_habits": "习惯",
     "source_departure": "出发时间",
     "source_not_connected": "未连接",
     "sources_permission_title": "通知主题",
@@ -8113,6 +8203,10 @@
       "interests": {
         "title": "兴趣追踪",
         "description": "关注你真正在意的主题 — 只是问过一次的话题永远不会变成兴趣。LIA 自动搜索相关内容并以通知推送，主题轮换以保持多样性，每条通知都附上来源链接，被你屏蔽的主题不会再回来。"
+      },
+      "habits": {
+        "title": "习惯学习",
+        "description": "LIA 通过透明的统计方法学习你的节奏和重复请求——绝不使用不透明的模型。一切可见：24 小时热力图、解锁进度、真实观察到的日期和应用的阈值。显示的习惯必然经过证明，否则就不存在——而且一切都可以一键暂停、屏蔽或遗忘。默认关闭。"
       },
       "telephony": {
         "title": "LIA 可以替你打电话",
@@ -9169,7 +9263,8 @@
       "patterns": "横切模式",
       "adr": "架构决策",
       "extensibility": "可扩展性",
-      "psyche": "心理引擎"
+      "psyche": "心理引擎",
+      "habits": "习惯学习"
     }
   },
   "healthMetrics": {

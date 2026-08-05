@@ -296,6 +296,16 @@ async def submit_heartbeat_feedback(
         feedback_value=data.feedback,
     )
 
+    # ADR-214 — close the habit feedback loop: a verdict on a notification
+    # that carried a missed-routine offer is a verdict on the habit itself.
+    row = await repo.get_by_id(notification_id)
+    if row is not None and row.habit_offer_id is not None:
+        from src.domains.habits.repository import HabitsRepository
+
+        await HabitsRepository(db).record_feedback(
+            row.habit_offer_id, user.id, positive=(data.feedback == "thumbs_up")
+        )
+
     await db.commit()
 
     logger.info(

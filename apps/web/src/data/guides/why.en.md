@@ -4,7 +4,7 @@
 
 **Version**: 4.4
 **Date**: 2026-08-05
-**Application**: LIA v1.27.14
+**Application**: LIA v1.28.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -312,6 +312,10 @@ An urgent alert therefore does not look like an ordinary one — and that is not
 The same principle applies throughout: a count wears the colour of the other counts, an action button has the same shape from one screen to the next, a sent message is not told apart from a received one by a single small arrow. None of this adds information — all of it saves time on what is already there.
 
 And colour never carries meaning on its own: every label keeps its word. An interface that only works in colour does not work for everyone.
+
+### 6.4. Even what LIA learns about you is inspectable
+
+The same transparency covers habit learning: what LIA believes about your rhythm and your recurring requests sits in a dedicated panel — a 24-hour heat map, your active-day percentage, a progress bar toward the first claims, and for every habit the real days it was observed plus the exact thresholds the detector applied. When there is no stable habit, the panel says so instead of inventing one. Pause, permanent block, total deletion, instant retroactive recompute — and the whole feature is off until you turn it on.
 
 ## 7. Emotional depth
 

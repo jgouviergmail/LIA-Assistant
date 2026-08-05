@@ -1,5 +1,5 @@
 -- Google API Pricing Seed Data
--- Generated: 2026-03-12
+-- Generated: 2026-08-05
 -- Source: Production database extraction
 -- Prices in USD per 1000 requests
 
@@ -22,45 +22,14 @@ INSERT INTO google_api_pricing (
     created_at,
     updated_at
 ) VALUES
-    -- ========================================================================
-    -- GEOCODING API
-    -- ========================================================================
-    (gen_random_uuid(), 'geocoding', '/geocode/json', 'Geocoding', 5.0000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'geocoding', '/geocode/json', 'Geocoding', 5.0000, '2026-02-04T15:12:22.027282+00:00', true, NOW(), NOW()),
+    (gen_random_uuid(), 'places', '/{photo}/media', 'Place Photos', 7.0000, '2026-02-04T15:12:22.027282+00:00', true, NOW(), NOW()),
+    (gen_random_uuid(), 'places', '/places:autocomplete', 'Autocomplete', 2.8300, '2026-02-04T15:12:22.027282+00:00', true, NOW(), NOW()),
+    (gen_random_uuid(), 'places', '/places/{id}', 'Place Details Pro', 17.0000, '2026-02-04T15:12:22.027282+00:00', true, NOW(), NOW()),
+    (gen_random_uuid(), 'places', '/places:searchNearby', 'Nearby Search Pro', 32.0000, '2026-02-04T15:12:22.027282+00:00', true, NOW(), NOW()),
+    (gen_random_uuid(), 'places', '/places:searchText', 'Text Search Pro', 32.0000, '2026-02-04T15:12:22.027282+00:00', true, NOW(), NOW()),
+    (gen_random_uuid(), 'routes', '/directions/v2:computeRoutes', 'Compute Routes', 5.0000, '2026-02-04T15:12:22.027282+00:00', true, NOW(), NOW()),
+    (gen_random_uuid(), 'routes', '/distanceMatrix/v2:computeRouteMatrix', 'Route Matrix', 5.0000, '2026-02-04T15:12:22.027282+00:00', true, NOW(), NOW()),
+    (gen_random_uuid(), 'static_maps', '/staticmap', 'Static Maps', 2.0000, '2026-02-04T15:12:22.027282+00:00', true, NOW(), NOW());
 
-    -- ========================================================================
-    -- PLACES API (New)
-    -- ========================================================================
-    (gen_random_uuid(), 'places', '/{photo}/media', 'Place Photos', 7.0000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'places', '/places:autocomplete', 'Autocomplete', 2.8300, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'places', '/places/{id}', 'Place Details Pro', 17.0000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'places', '/places:searchNearby', 'Nearby Search Pro', 32.0000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'places', '/places:searchText', 'Text Search Pro', 32.0000, NOW(), true, NOW(), NOW()),
-
-    -- ========================================================================
-    -- ROUTES API
-    -- ========================================================================
-    (gen_random_uuid(), 'routes', '/directions/v2:computeRoutes', 'Compute Routes', 5.0000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'routes', '/distanceMatrix/v2:computeRouteMatrix', 'Route Matrix', 5.0000, NOW(), true, NOW(), NOW()),
-
-    -- ========================================================================
-    -- STATIC MAPS API
-    -- ========================================================================
-    (gen_random_uuid(), 'static_maps', '/staticmap', 'Static Maps', 2.0000, NOW(), true, NOW(), NOW());
-
--- Re-enable triggers
 SET session_replication_role = DEFAULT;
-
--- Verification query
-DO $$
-DECLARE
-    pricing_count INTEGER;
-BEGIN
-    SELECT COUNT(*) INTO pricing_count FROM google_api_pricing WHERE is_active = true;
-
-    RAISE NOTICE 'Google API Pricing seed completed successfully:';
-    RAISE NOTICE '  - % active pricing entries', pricing_count;
-
-    IF pricing_count < 9 THEN
-        RAISE WARNING 'Expected at least 9 pricing entries, but found %', pricing_count;
-    END IF;
-END $$;

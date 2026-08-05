@@ -24,6 +24,7 @@ import structlog
 from src.core.config import get_settings
 from src.core.constants import HEARTBEAT_ENRICHMENT_CONTEXT_ID
 from src.domains.heartbeat.context_aggregator import ContextAggregator
+from src.domains.heartbeat.habit_context import should_defer_tick_for_rhythm
 from src.domains.heartbeat.prompts import (
     generate_heartbeat_message,
     get_heartbeat_decision,
@@ -84,9 +85,18 @@ class HeartbeatProactiveTask:
         """Check task-specific eligibility.
 
         Common checks (time window, quota, cooldown) are handled by
-        EligibilityChecker. This only checks heartbeat-specific conditions.
+        EligibilityChecker. This checks heartbeat-specific conditions, then
+        the deterministic tick scoring (ADR-214 §11.2, own flag, default
+        OFF): a tick outside the learned rhythm defers ONLY when a later
+        same-day tick can land inside a learned window within the user's
+        bounds — anti-starvation is the rule's core, and every failure path
+        fails open to the current behavior.
         """
-        return bool(user_settings.get("heartbeat_enabled", False))
+        if not user_settings.get("heartbeat_enabled", False):
+            return False
+        if await should_defer_tick_for_rhythm(user_id, user_settings, get_settings()):
+            return False
+        return True
 
     async def select_target(
         self,
@@ -410,6 +420,11 @@ class HeartbeatProactiveTask:
                 "open_loop_ids": [
                     ol["id"] for ol in (target.context.open_loops or []) if ol.get("id")
                 ],
+                # ADR-214 — the missed-routine candidate surfaced this cycle,
+                # consumed by the post-notification offer bookkeeping.
+                "habit_offer_id": (
+                    ((target.context.habits or {}).get("missed_routine") or {}).get("habit_id")
+                ),
             },
         )
 
@@ -469,6 +484,8 @@ class HeartbeatProactiveTask:
                 tokens_in=result.tokens_in,
                 tokens_out=result.tokens_out,
                 model_name=result.model_name,
+                # ADR-214: persisted so the feedback route can bump the habit.
+                habit_offer_id=_as_uuid(result.metadata.get("habit_offer_id")),
             )
 
             # Unified mention ledger (ADR-135): an interest-centered heartbeat
@@ -515,6 +532,11 @@ class HeartbeatProactiveTask:
             # used the OPEN_LOOPS source (fetch-time bumping would suppress
             # loops the decision LLM chose to skip).
             await _bump_used_open_loops(db, user_id, result.metadata)
+
+            # ADR-214 — offer bookkeeping: only when the delivered notification
+            # actually used the HABITS source (same doctrine — exposing a
+            # candidate the LLM skipped must not burn its cooldown).
+            await _bump_offered_habit(db, user_id, result.metadata)
 
             await db.commit()
 
@@ -597,6 +619,57 @@ class HeartbeatProactiveTask:
                 error=str(e),
             )
             return None
+
+
+async def _bump_offered_habit(db: Any, user_id: UUID, metadata: dict[str, Any]) -> None:
+    """Stamp the offer bookkeeping of the habit a delivered offer surfaced.
+
+    ADR-214 stop rule: the offer date joins ``payload.offer_dates`` (bounded),
+    and when the trailing offers reach the ignored threshold with no later
+    occurrence, ``muted_until_reproof`` silences further offers until the
+    routine re-occurs (a fresh promotion resets it). Only runs when the
+    decision actually used the HABITS source.
+    """
+    habit_id = metadata.get("habit_offer_id")
+    if "HABITS" not in metadata.get("sources_used", []) or not habit_id:
+        return
+    from src.core.config import settings as app_settings
+    from src.domains.habits.models import UserHabit
+    from src.domains.heartbeat.habit_context import (
+        _ledger_occurrence_days,
+        ignored_offer_count,
+    )
+
+    try:
+        habit = await db.get(UserHabit, UUID(str(habit_id)))
+    except ValueError:
+        return
+    if habit is None or habit.user_id != user_id:
+        return
+    # UTC calendar date on purpose: offer dates are compared against the
+    # ledger's LOCAL dates and against a 7-day cooldown — the worst skew is
+    # one day near midnight on an advisory bound, not worth a user fetch here.
+    today_iso = datetime.now(UTC).date().isoformat()
+    offer_dates = [str(d) for d in (habit.payload or {}).get("offer_dates") or []]
+    offer_dates = sorted({*offer_dates, today_iso})[-5:]
+    # New dict — never mutate JSONB in place.
+    habit.payload = {**(habit.payload or {}), "offer_dates": offer_dates}
+    # The stop rule counts offers with NO occurrence after them: an uptake
+    # between two offers resets the run (the routine re-proved itself), so
+    # the real ledger occurrences must weigh in, not an empty set.
+    occurrences = await _ledger_occurrence_days(user_id, habit.key)
+    if (
+        ignored_offer_count(offer_dates, occurrences)
+        >= app_settings.habits_deviation_stop_after_ignored
+    ):
+        habit.muted_until_reproof = True
+    logger.info(
+        "habit_offer_stamped",
+        user_id=str(user_id),
+        habit_id=str(habit_id),
+        offers=len(offer_dates),
+        muted=habit.muted_until_reproof,
+    )
 
 
 async def _bump_used_open_loops(db: Any, user_id: UUID, metadata: dict[str, Any]) -> None:

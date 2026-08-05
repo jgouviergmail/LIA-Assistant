@@ -2951,6 +2951,77 @@
       "edit_save": "Save",
       "edit_saved": "Commitment updated"
     },
+    "habits": {
+      "title": "Habits",
+      "description": "What LIA has learned about your rhythm and recurring requests — visible, correctable and deletable here.",
+      "enabled_label": "Learn my habits",
+      "enabled_hint": "Activity rhythm and recurring requests, computed nightly from your own messages. Nothing leaves your account.",
+      "rhythm_title": "Activity rhythm",
+      "computed_at": "Updated {{date}}",
+      "recompute_label": "Recompute now",
+      "recompute_done": "Profile recomputed from your history.",
+      "progress_caption": "{{observed}}/{{required}} observation days banked",
+      "progress_aria": "Learning progress before habit claims",
+      "observing_title": "Under observation",
+      "candidate_caption": "{{observed}}/{{required}} distinct days",
+      "candidate_forming": "regularity being confirmed",
+      "candidate_aria": "Observation progress of a recurring request",
+      "heatmap_aria": "Hourly activity distribution (00-23)",
+      "active_days_caption": "{{percent}}% active days",
+      "candidates_more_one": "+{{count}} more under observation",
+      "candidates_more_other": "+{{count}} more under observation",
+      "weekday_label": "Weekdays",
+      "weekend_label": "Weekend",
+      "verdict": {
+        "diffuse": "active throughout the day — no time habit",
+        "none": "no stable time habit detected",
+        "insufficient": "still learning — a few more weeks of history are needed",
+        "sparse": "occasional usage — time windows don't apply; recurring requests are still detected"
+      },
+      "rows_title": "Learned habits",
+      "row": {
+        "active_window": "{{dayClass}} · {{part}} ({{windows}})",
+        "recurring_request": "{{domains}} — {{schedule}} {{time}}"
+      },
+      "class": {
+        "weekday": "Weekdays",
+        "weekend": "Weekend"
+      },
+      "part": {
+        "morning": "morning",
+        "afternoon": "afternoon",
+        "evening": "evening",
+        "night": "night"
+      },
+      "shape": {
+        "daily": "every day",
+        "workdays": "Mon–Fri",
+        "weekly": "every {{day}}"
+      },
+      "signals_caption": "{{positive}} confirmed · {{negative}} declined",
+      "status": {
+        "active": "Active",
+        "paused": "Paused",
+        "blocked": "Blocked"
+      },
+      "pause_label": "Pause",
+      "resume_label": "Resume",
+      "block_label": "Never relearn",
+      "delete_label": "Delete",
+      "forget_all_label": "Forget everything",
+      "forget_all_title": "Forget all learned habits?",
+      "forget_all_description": "Every learned habit and the rhythm profile will be deleted. LIA will start learning again from scratch (unless you disable learning).",
+      "forget_all_confirm": "Forget everything",
+      "forget_all_done": "All habits forgotten.",
+      "explanation": {
+        "title": "Why this habit?",
+        "error": "The explanation could not be loaded.",
+        "observed_label": "Observed occurrence days (the exact basis of this habit)",
+        "thresholds_label": "Thresholds applied:",
+        "more_days_one": "and {{count}} more day",
+        "more_days_other": "and {{count}} more days"
+      }
+    },
     "security": {
       "passkeys": {
         "title": "Passkeys",
@@ -3135,6 +3206,7 @@
         "briefing-grid": "home, homepage, dashboard, widgets, cards, briefing, section order",
         "chat-shortcuts": "slash, shortcut, command, quick request, macro, /command, snippet, edit, rename",
         "open-loops": "commitments, open loops, pending, follow-up, promises, unfinished, nudges",
+        "habits": "habits, rhythm, routines, schedule, learned, activity windows, recurring requests, automation suggestions",
         "notifications": "push, alerts, banners, mobile, reminders, FCM",
         "channels": "whatsapp, telegram, sms, email, messaging, integrations",
         "security-auth": "2FA, MFA, TOTP, passkey, password, security, login, authenticator, two-factor",
@@ -3717,6 +3789,10 @@
           "title": "✨ Smart Interest Learning",
           "description": "Interests are learned from conversation, but asking about a subject is a task, not a taste: a creation requires one of four named grounds — stated passion, own practice, prior knowledge, or digging into the same subject across an exchange — and the model must quote the words that carry it. Six classes are never interests, including the subject of a request and anything LIA raised itself. Deduplication reads every status, so a blocked subject cannot return under a neighbouring name, and a cap on destructive actions keeps one answer from emptying a profile. Interests are grouped into subjects by batch LLM clustering, and selection draws with two-level rarity (subject cooldown + priority to the least-served) — one passion never monopolizes. Content via Perplexity, Brave, Wikipedia or AI reflection, with clickable sources. Bayesian weighting with temporal decay, nightly merge of near-duplicates."
         },
+        "habits": {
+          "title": "🧭 Habit Learning",
+          "description": "LIA learns your activity rhythm (2-4h windows, weekday/weekend) and recurring requests through calibrated deterministic statistics — day-level presence, Wilson 99% bounds, split-half consistency, hysteresis — never an opaque model. Four durable sources merged (messages, run summaries, resets, daily bank) behind a human-session whitelist. Everything is published: applied thresholds, observed days, unlock progress. Off by default, full control (pause, block, forget, retroactive recompute)."
+        },
         "summarization": {
           "title": "📝 Automatic Summarization",
           "description": "Intelligent summarization system for long conversations to maintain context without exceeding token limits. Key information extraction, semantic compression, and contextual injection into prompts to preserve conversational continuity."
@@ -3908,6 +3984,19 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_28_0": {
+          "title": "v1.28.0 — 🧭 LIA learns your habits, under your control",
+          "date": "August 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🧭 LIA can learn your habits — if you turn it on</b> — your activity rhythm (your usual weekday and weekend slots) and your recurring requests (\"every Monday morning, the emails\") are learned through transparent statistics, never an opaque model. Everything is off by default, and everything lives in Settings → Learn my habits. Nothing leaves your account.",
+            "i2": "<b>📊 A panel that shows everything</b> — a heat map of your 24 hours with an hour axis, your active-day percentage, your detected windows — and when there is no stable habit, the panel says so honestly instead of inventing one.",
+            "i3": "<b>⏳ You always know where learning stands</b> — a progress bar shows observation days acquired versus required, and recurring requests under observation appear with their progress (\"3/4 distinct days\") before they are even confirmed.",
+            "i4": "<b>🔍 \"Why this habit?\"</b> — every habit explains itself: the real days it was observed and the exact thresholds the detector applies. A displayed habit is proven, or it does not exist.",
+            "i5": "<b>🕰️ Notifications at the right moment, without nagging</b> — LIA can notice a missed routine (at most once a day, and it goes permanently quiet after two ignored remarks) and prefer your usual slots for its notifications — never exceeding the hours YOU set.",
+            "i6": "<b>🧹 Total, immediate control</b> — pause a habit, block it forever (never relearned), delete everything, or relaunch learning over your history in one click: the \"Recompute now\" button acts immediately and retroactively."
+          }
+        },
         "v1_27_14": {
           "title": "v1.27.14 — 🛡️ Updates that leave the app running",
           "date": "August 2026",
@@ -7621,6 +7710,7 @@
     "source_health_signals": "Health",
     "source_birthdays": "Birthdays",
     "source_open_loops": "Commitments",
+    "source_habits": "Habits",
     "source_departure": "Leave-by advice",
     "source_not_connected": "Not connected",
     "sources_permission_title": "Notification topics",
@@ -8198,6 +8288,10 @@
       "interests": {
         "title": "Interest tracking",
         "description": "Follow topics you actually care about — a subject you merely asked about never becomes one. LIA searches relevant content and pushes it as notifications, themes rotate for variety, every notification links to its sources, and a topic you block never comes back."
+      },
+      "habits": {
+        "title": "Habit learning",
+        "description": "LIA learns your rhythm and recurring requests through transparent statistics — never an opaque model. Everything is visible: a heat map of your 24 hours, unlock progress, the days actually observed and the thresholds applied. A displayed habit is proven, or it does not exist — and everything can be paused, blocked or forgotten in one click. Off by default."
       },
       "telephony": {
         "title": "LIA can call for you",
@@ -9254,7 +9348,8 @@
       "patterns": "Cross-cutting patterns",
       "adr": "Architecture decisions",
       "extensibility": "Extensibility",
-      "psyche": "Psyche Engine"
+      "psyche": "Psyche Engine",
+      "habits": "Habit learning"
     }
   },
   "psyche": {

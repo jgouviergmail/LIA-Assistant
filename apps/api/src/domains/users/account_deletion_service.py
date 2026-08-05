@@ -163,6 +163,10 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         # reference users with ondelete=CASCADE that never fires.
         by_user("open_loops"),
         by_user("phone_calls"),
+        # Habits (ADR-214): learned rhythm profile + discrete habits.
+        by_user("user_habit_profiles"),
+        by_user("user_habits"),
+        by_user("user_activity_days"),
         by_user("account_export_jobs"),
         # Product analytics (ADR-178): plain user_id columns, no CASCADE.
         by_user("product_outcomes"),

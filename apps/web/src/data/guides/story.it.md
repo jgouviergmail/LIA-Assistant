@@ -4,7 +4,7 @@
 
 **Versione**: 1.2
 **Data**: 2026-08-05
-**Applicazione**: LIA v1.27.14
+**Applicazione**: LIA v1.28.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -86,6 +86,8 @@ Il livello annunciato in questo documento risulta da un audit tecnico completo: 
 Il piano d'azione è organizzato in ondate, ciascuna con criteri di uscita misurabili. È il modo di rendere conto di questo progetto: non un livello proclamato, un livello misurato — scarti compresi.
 
 Anche la prova ha il suo episodio più istruttivo: tre ricalibrazioni di una semplice spaziatura, tre «non vedo alcun cambiamento» — e una catena di consegna provata sana fino ai byte serviti al browser. Due false piste plausibili (cache del browser, service worker) sono cadute una dopo l’altra, fino alla misura che non perdona: in un browser pilotato, il margine calcolato era di 16 pixel e lo spazio disegnato di 3. La primitiva di etichetta era rimasta `inline`, e un elemento inline ignora i suoi margini verticali — il difetto precedeva l’intero programma. La correzione è una parola, l’arbitrato è avvenuto su tre schermate reali, e la regola è diventata dottrina: misurare il rendering prima di sospettare della consegna.
+
+Il rilevatore di abitudini si è guadagnato la fiducia allo stesso modo: eseguito sui dati reali di produzione prima di essere creduto — e colto in fallo. Un'azione pianificata quotidiana scriveva da sessantasei giorni un messaggio «utente» alle 07:00; il rilevatore ha rivendicato l'orario del pianificatore stesso come abitudine umana. La confutazione è diventata una lista bianca di sessioni umane, la finestra fabbricata è scomparsa e i verdetti onesti sono arrivati. La regola resta: provare contro il reale prima di credere al progetto.
 
 ## 7. Convinzioni
 

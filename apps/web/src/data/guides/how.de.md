@@ -6,7 +6,7 @@
 
 **Version**: 3.9
 **Datum**: 2026-08-05
-**Application**: LIA v1.27.14
+**Application**: LIA v1.28.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -39,6 +39,7 @@
 24. [Architekturentscheidungen (ADR)](#24-architekturentscheidungen-adr)
 25. [Evolutionspotenzial und Erweiterbarkeit](#25-evolutionspotenzial-und-erweiterbarkeit)
 26. [Psyche Engine: Dynamische emotionale Intelligenz](#26-psyche-engine-dynamische-emotionale-intelligenz)
+27. [Deterministisches Gewohnheitslernen](#27-deterministisches-gewohnheitslernen)
 
 ---
 
@@ -54,7 +55,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 466 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 212 ADRs, ~18.041 von pytest gesammelte Tests in 985 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 213 ADRs, ~18.276 von pytest gesammelte Tests in 990 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -72,7 +73,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~18.041 von pytest gesammelt (von pytest über 985 Testdateien gesammelt) + 5.014 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | ~18.276 von pytest gesammelt (von pytest über 990 Testdateien gesammelt) + 5.048 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 400+ |
 | ADRs (Architecture Decision Records) | 209 |
@@ -405,7 +406,7 @@ Was ihn stimmen lässt, ist ein **Vertrag**: Jedes Werkzeug-Manifest veröffentl
 
 Der Vertrag ist bewusst **asymmetrisch**: Alles Veröffentlichte muss produziert werden, nie umgekehrt. Ein Manifest listet *Beispiele*, keine vollständige Aufzählung — `events[0].summary` ist real, ob jemand daran gedacht hat, es aufzuschreiben, oder nicht; die Umkehrung zu verlangen würde legitime Pfade ablehnen.
 
-Die Abdeckung wird genannt statt angenommen: 36 der 59 Werkzeuge, die Pfade veröffentlichen. Was sich aufgrund der Bauform eines Werkzeugs schwer ansteuern lässt, wird in einer Schuldenakte beziffert und datiert, statt implizit zu bleiben. Zur Laufzeit ist das Netz `ReferenceResolver`, der einen expliziten Fehler wirft, statt ins Leere aufzulösen.
+Die Abdeckung wird genannt statt angenommen: Bei der Annotationskampagne deckten 36 der damals 59 pfadveröffentlichenden Werkzeuge sie ab. Was sich aufgrund der Bauform eines Werkzeugs schwer ansteuern lässt, wird in einer Schuldenakte beziffert und datiert, statt implizit zu bleiben. Zur Laufzeit ist das Netz `ReferenceResolver`, der einen expliziten Fehler wirft, statt ins Leere aufzulösen.
 
 ### 6.6. Adaptiver Re-Planner (Panic Mode)
 
@@ -1263,7 +1264,7 @@ Die wertvollste Ingenieurslektion kam von einem unsichtbaren Defekt: Die Label-P
 
 ## 24. Architekturentscheidungen (ADR)
 
-212 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+213 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1313,14 +1314,24 @@ Die Psyche Engine verleiht dem Assistenten einen dynamischen psychologischen Zus
 
 ---
 
+## 27. Deterministisches Gewohnheitslernen
+
+LIA lernt den Aktivitätsrhythmus (2-4h-Fenster pro Wochentags-/Wochenendklasse) und wiederkehrende Anfragen („jeden Montagmorgen die E-Mails“) ohne trainiertes Modell. Drei Gründe, jeder für sich ausreichend: Die Produktion läuft auf einem Raspberry Pi 5 (kein Trainingsbudget), die Interessen-Doktrin verlangt eine dem Nutzer publizierbare Formel, und bei Pro-Nutzer-Volumina würde ein Modell Rauschen lernen, wo kalibrierte statistische Tests Fehlalarme präzise kontrollieren.
+
+Die statistische Einheit ist der **Tag**, nie die Nachricht — Zählung pro Nachricht wird durch Tagesschübe verfälscht (eine in Simulation gemessene Fehlalarmquote von 83-100 %). Ein Fenster wird nur beansprucht, wenn Tagespräsenz, eine Wilson-99%-Untergrenze, Split-Half-Konsistenz, Aktualität und ein Selektivitätskriterium alle halten, mit Ein-/Austritts-Hysterese gegen Flattern. Die Kalibrierung stammt aus einem Simulationsharnisch: 0-0,3 % Fehlalarme bei musterlosem Verhalten, 98-100 % Erkennung in 21-28 Tagen, Verlernen in ~9 Tagen.
+
+Das härteste Problem war nicht der Detektor, sondern die **Daten**: Unterhaltungen sind konzeptbedingt flüchtig (jederzeit zurücksetzbar), Aktivität aggregiert daher über vier dauerhafte Quellen, per Stundenmaximum fusioniert — lebende Nachrichten, Run-Zusammenfassungen, das Audit-Journal der Zurücksetzungen (eine menschliche Geste per Konstruktion) und eine tägliche Aktivitätsbank. Jede Quelle durchläuft eine **Whitelist menschlicher Sitzungen**: Beim ersten Lauf gegen echte Produktionsdaten beanspruchte der Detektor die 07:00-Nachricht einer täglichen geplanten Aktion — den Fahrplan des Schedulers selbst — als Nutzergewohnheit. Die Whitelist versagt in Richtung langsameren Lernens (sichtbar), nie in Richtung einer erfundenen Gewohnheit (unsichtbar).
+
+Der Konsum ist bewusst zurückhaltend: Umgebungskontext für Antworten und Briefing, höchstens ein Hinweis auf eine verpasste Routine pro Tag mit endgültigem Stopp nach zwei ignorierten Hinweisen, und ein Benachrichtigungs-Timing, das gelernte Fenster bevorzugt, ohne je die vom Nutzer gesetzten Grenzen zu erweitern — eine Anti-Aushungerungs-Regel garantiert, dass eine leere Schnittmenge nichts ändert. Jeder angewandte Schwellenwert wird im Panel publiziert: Eine angezeigte Gewohnheit ist bewiesen, oder sie existiert nicht.
+
 ## Fazit
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 212 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~18.041 Tests in 985 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 213 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~18.276 Tests in 990 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 212 ADRs und des Changelogs (v1.0 bis v1.27.14). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 213 ADRs und des Changelogs (v1.0 bis v1.28.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

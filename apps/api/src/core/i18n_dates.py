@@ -267,3 +267,22 @@ def _extract_language(locale: str | None) -> Language:
     # left "zh" untouched, missed DAY_NAMES/MONTH_NAMES and silently served
     # FRENCH day names to a Chinese user.
     return normalize_language(locale)
+
+
+def format_half_hour_label(hour: float) -> str:
+    """``9.4`` → ``"09:30"``: round a fractional hour to the nearest half hour.
+
+    Single authority for the learned-habits surfaces (suggestion text,
+    heartbeat offers) — the same rounding used to exist in two copies, which
+    is one drift away from a suggestion and its offer disagreeing on the
+    same learned hour. Lives beside the other date/time wordings this
+    feature renders with (``get_day_name``).
+
+    Args:
+        hour: Fractional hour in [0, 24).
+
+    Returns:
+        Zero-padded ``HH:MM`` label, wrapping past midnight.
+    """
+    total_minutes = int(round(hour * 60 / 30.0) * 30) % (24 * 60)
+    return f"{total_minutes // 60:02d}:{total_minutes % 60:02d}"

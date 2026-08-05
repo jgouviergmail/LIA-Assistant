@@ -274,6 +274,11 @@ class StreamingService:
         # Skill name activated during this turn (from plan metadata)
         # Used by service.py to include in done SSE metadata for frontend badge
         self.activated_skill_name: str | None = None
+        # Primary domain resolved by the CURRENT turn's query intelligence.
+        # Read by api/service.py at finalization for the product-outcome seam
+        # (habits Lot 0): the local state dict there is the PRE-run checkpoint,
+        # so this capture is the only current-turn source off the debug path.
+        self.primary_domain: str | None = None
         # Track checkpoint agent_results to detect when task_orchestrator has run
         # CRITICAL: current_turn_registry persists in state from previous turn until
         # task_orchestrator updates it. task_orchestrator ALSO updates agent_results.
@@ -997,6 +1002,23 @@ class StreamingService:
             # (on the first new router decision) ensures the indicator is cleared before
             # any new planning_result is processed for the current turn.
             self.activated_skill_name = None
+
+        # 3b. Capture the CURRENT turn's primary domain (product seam, habits
+        # Lot 0). Gated on routing_history_changed: the first values chunk
+        # replays the checkpoint, whose query_intelligence is the PREVIOUS
+        # turn's — the router always runs after query_analyzer, so a fresh
+        # routing entry proves the QI seen here belongs to this turn. HITL
+        # resumptions may never flip the gate and simply keep None (recorded
+        # as "unknown" downstream — absent, never wrong). The vocabulary is
+        # enforced HERE, at the producer: product_outcomes.domain is a bounded
+        # column, and product importing DOMAIN_REGISTRY would create the
+        # agents<->product cycle the coupling ratchet forbids.
+        if routing_history_changed:
+            from src.domains.agents.registry.domain_taxonomy import DOMAIN_REGISTRY
+
+            qi_state = chunk.get("query_intelligence")
+            if isinstance(qi_state, dict) and qi_state.get("primary_domain") in DOMAIN_REGISTRY:
+                self.primary_domain = str(qi_state["primary_domain"])
 
         # 4. Cache debug panel data (query_intelligence, tool_scores, filtered_catalogue)
         self._cache_debug_data(chunk)

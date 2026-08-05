@@ -61,15 +61,17 @@ async def _resolve_recurrence_suggestion(
         user_tz = ZoneInfo(state.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE))
     except (KeyError, ValueError, TypeError):
         user_tz = ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
+    # v2 (ADR-214): domain-only signature; the user's local date anchors the
+    # observation window for the shape locks.
     signature = build_signature(
         str(qi_primary),
         list(get_qi_attr(state, "secondary_domains", default=[]) or []),
-        local_hour=datetime.now(user_tz).hour,
     )
     return await evaluate_suggestion(
         user_id,
         signature,
         language=state.get("user_language", settings.default_language),
+        local_today=datetime.now(user_tz).date(),
         settings=settings,
     )
 

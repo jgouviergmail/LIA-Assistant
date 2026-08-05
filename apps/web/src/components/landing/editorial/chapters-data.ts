@@ -52,6 +52,7 @@ import {
   Sunrise,
   Terminal,
   Users,
+  Repeat,
 } from 'lucide-react';
 
 export type ChapterId = 'act' | 'know' | 'anticipate' | 'control' | 'grow' | 'connect';
@@ -119,7 +120,7 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     num: '03',
     mood: '😏',
     benefits: 3,
-    catalog: ['proactive', 'interests', 'reminders_scheduling', 'health_metrics'],
+    catalog: ['proactive', 'interests', 'habits', 'reminders_scheduling', 'health_metrics'],
     tinted: false,
   },
   {
@@ -208,6 +209,7 @@ export const REQUIRED_FEATURE_KEYS: readonly string[] = [
   'briefing',
   'proactive',
   'interests',
+  'habits',
   'reminders_scheduling',
   'telephony',
   'skills',
@@ -254,6 +256,7 @@ export const FEATURE_ICONS: Record<string, LucideIcon> = {
   briefing: Sunrise,
   proactive: BellRing,
   interests: Star,
+  habits: Repeat,
   reminders_scheduling: CalendarClock,
   telephony: PhoneCall,
   skills: Blocks,

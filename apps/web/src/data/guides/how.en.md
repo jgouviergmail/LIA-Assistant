@@ -6,7 +6,7 @@
 
 **Version**: 3.9
 **Date**: 2026-08-05
-**Application**: LIA v1.27.14
+**Application**: LIA v1.28.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -39,6 +39,7 @@
 24. [Architecture Decision Records (ADR)](#24-architecture-decision-records-adr)
 25. [Evolution potential and extensibility](#25-evolution-potential-and-extensibility)
 26. [Psyche Engine: Dynamic Emotional Intelligence](#26-psyche-engine-dynamic-emotional-intelligence)
+27. [Deterministic habit learning](#27-deterministic-habit-learning)
 
 ---
 
@@ -54,7 +55,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 466 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 212 ADRs, ~18,041 pytest-collected tests across 985 files, native observability, 6-level HITL |
+| Production reliability | 213 ADRs, ~18,276 pytest-collected tests across 990 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -72,7 +73,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~18,041 (collected by pytest across 985 test files) + 5,014 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~18,276 (collected by pytest across 990 test files) + 5,048 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 400+ |
 | ADRs (Architecture Decision Records) | 209 |
@@ -405,7 +406,7 @@ What makes it right is a **contract**: every tool manifest publishes the paths i
 
 The contract is deliberately **asymmetric**: everything published must be produced, never the reverse. A manifest lists *examples*, not an exhaustive enumeration — `events[0].summary` is real whether or not anyone thought to write it down, and demanding the converse would reject legitimate paths.
 
-Coverage is stated rather than assumed: 36 of the 59 tools that publish paths. What a tool's shape makes hard to drive is costed and dated in a debt file instead of being left implicit. At runtime the net is `ReferenceResolver`, which raises an explicit error rather than resolving to nothing.
+Coverage is stated rather than assumed: at annotation-campaign time, 36 of the then-59 path-publishing tools carried it. What a tool's shape makes hard to drive is costed and dated in a debt file instead of being left implicit. At runtime the net is `ReferenceResolver`, which raises an explicit error rather than resolving to nothing.
 
 ### 6.6. Adaptive Re-Planner (Panic Mode)
 
@@ -1259,7 +1260,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-212 ADRs in MADR format document the major architectural decisions. Some representative examples:
+213 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1338,14 +1339,24 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 ---
 
+## 27. Deterministic habit learning
+
+LIA learns the user's activity rhythm (2-4h windows per weekday/weekend class) and recurring requests ("every Monday morning, the emails") without any trained model. Three reasons, each sufficient: production runs on a Raspberry Pi 5 (no training budget), the interests doctrine demands a formula that can be published to the user, and at per-user volumes a model would learn noise where calibrated statistical tests control false positives precisely.
+
+The statistical unit is the **day**, never the message — per-message counting is corrupted by within-day bursts (a measured 83-100% false-positive factory in simulation). A window is claimed only when day-level presence, a Wilson 99% lower bound, split-half consistency, recency and a selectivity gate all hold, with entry/exit hysteresis against flapping. Calibration comes from a simulation harness: 0-0.3% false positives on patternless usage, 98-100% detection within 21-28 days, unlearning in ~9 days.
+
+The hardest problem was not the detector but the **data**: conversations are ephemeral by design (resettable at will), so activity aggregates over four durable sources merged by per-hour maximum — live messages, per-run summaries, the reset audit trail (a human gesture by construction), and a daily activity bank. Every source passes a **human-session whitelist**: when the detector first ran against real production data, it claimed a daily scheduled action's 07:00 message — the scheduler's own timetable — as a user habit. The whitelist fails toward slower learning (visible), never toward a fabricated habit (invisible).
+
+Consumption is deliberately restrained: ambient context for responses and briefings, at most one missed-routine offer per day with a hard stop after two ignored ones, and notification tick scoring that prefers learned windows without ever widening the user's configured bounds — an anti-starvation rule guarantees an empty intersection changes nothing. Every threshold the detectors apply is published in the panel: a displayed habit is proven, or it does not exist.
+
 ## Conclusion
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 212 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,041 tests across 985 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 213 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,276 tests across 990 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 212 ADRs, and the changelog (v1.0 to v1.27.14). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 213 ADRs, and the changelog (v1.0 to v1.28.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

@@ -205,6 +205,13 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'open-loops',
     declaredIn: 'components/settings/OpenLoopsSection.tsx',
   },
+  // Learned habits (ADR-214): a capability like open-loops, self-gated on the
+  // instance flag `features.habits_enabled`.
+  habits: {
+    tab: 'features',
+    accordionValue: 'habits',
+    declaredIn: 'components/settings/HabitsSettings.tsx',
+  },
   // Renders nothing when the instance flag `features.peers_enabled` is off
   // (self-gating, OpenLoopsSection precedent) — a deep link then legitimately
   // resolves to an absent section, like the other capability-gated entries.

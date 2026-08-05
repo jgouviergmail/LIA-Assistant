@@ -99,6 +99,17 @@ class HeartbeatNotification(Base, UUIDMixin):
         comment="User feedback: thumbs_up or thumbs_down.",
     )
 
+    # ADR-214 — the learned habit whose missed-routine offer this notification
+    # carried, if any. Closes the feedback loop: a 👍/👎 on the notification
+    # bumps the habit's Bayesian signals. SET NULL keeps the audit row honest
+    # when the habit is later deleted (tombstone doctrine).
+    habit_offer_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("user_habits.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="Habit surfaced as a missed-routine offer, if any.",
+    )
+
     # Token tracking
     tokens_in: Mapped[int] = mapped_column(
         Integer,

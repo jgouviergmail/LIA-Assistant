@@ -297,28 +297,43 @@ def _compute_time_of_day(user_tz: ZoneInfo) -> str:
 
 
 async def _resolve_user_model_block(user: User) -> str:
-    """Compiled-portrait brief for the synthesis prompt (P15, best-effort).
+    """Compiled-portrait brief + rhythm block for the synthesis prompt.
 
     Ambient diffusion of the journal portrait (ADR-079 pattern, same as the
     response/heartbeat flows): the synthesis tone and priorities follow what
-    the assistant has learned about the user. Empty string when journals are
-    disabled for the user or on any failure.
+    the assistant has learned about the user. The learned rhythm (ADR-214,
+    habits Lot 4) rides in the SAME field, self-labelled — the exact pairing
+    the response flow uses. Empty string on any failure; each block gates
+    itself.
     """
-    if not getattr(user, "journals_enabled", False):
-        return ""
-    try:
-        from src.domains.journals.portrait_builder import build_journal_user_model_block
+    portrait = ""
+    if getattr(user, "journals_enabled", False):
+        try:
+            from src.domains.journals.portrait_builder import build_journal_user_model_block
 
-        return await build_journal_user_model_block(
-            user_id=str(user.id), format="brief", flow="briefing"
-        )
-    except Exception as exc:  # noqa: BLE001 — portrait is a bonus, never a blocker
+            portrait = await build_journal_user_model_block(
+                user_id=str(user.id), format="brief", flow="briefing"
+            )
+        except Exception as exc:  # noqa: BLE001 — portrait is a bonus, never a blocker
+            logger.warning(
+                "briefing_portrait_block_failed",
+                user_id=str(user.id),
+                error=str(exc),
+            )
+    rhythm = ""
+    try:
+        from src.domains.habits.ambient import build_habits_rhythm_block
+
+        rhythm = await build_habits_rhythm_block(user.id, flow="briefing")
+    except Exception as exc:  # noqa: BLE001 — rhythm is a bonus, never a blocker
         logger.warning(
-            "briefing_portrait_block_failed",
+            "briefing_rhythm_block_failed",
             user_id=str(user.id),
             error=str(exc),
         )
-        return ""
+    if portrait and rhythm:
+        return f"{portrait}\n{rhythm}"
+    return portrait or rhythm
 
 
 async def _resolve_personality(user_id: UUID) -> str:

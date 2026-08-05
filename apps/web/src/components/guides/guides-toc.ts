@@ -36,6 +36,7 @@ import {
   UserCheck,
   Users,
   Zap,
+  CalendarClock,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -90,6 +91,7 @@ export const HOW_TOC_SECTIONS: readonly GuideTocSection[] = [
   { id: 'adr', icon: FileText },
   { id: 'extensibility', icon: Rocket },
   { id: 'psyche', icon: HeartPulse },
+  { id: 'habits', icon: CalendarClock },
 ] as const;
 
 export const WHY_TOC_SECTIONS: readonly GuideTocSection[] = [

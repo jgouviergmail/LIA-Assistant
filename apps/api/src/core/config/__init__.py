@@ -37,6 +37,7 @@ from .channels import ChannelsSettings
 from .connectors import ConnectorsSettings
 from .database import DatabaseSettings
 from .devops import DevOpsSettings
+from .habits import HabitsSettings
 from .health_metrics import HealthMetricsSettings
 from .image_generation import ImageGenerationSettings
 from .journals import JournalsSettings
@@ -114,6 +115,7 @@ class Settings(
     DevOpsSettings,
     HealthMetricsSettings,
     AutomationSettings,
+    HabitsSettings,
     OpenLoopsSettings,
     PeersSettings,
     SchedulerSettings,

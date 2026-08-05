@@ -38,6 +38,7 @@ class TestSubmitHeartbeatFeedback:
             patch("src.domains.conversations.repository.ConversationRepository") as conv_cls,
         ):
             repo_cls.return_value.update_feedback = AsyncMock(return_value=True)
+            repo_cls.return_value.get_by_id = AsyncMock(return_value=MagicMock(habit_offer_id=None))
             conv_cls.return_value.mark_proactive_feedback_submitted = AsyncMock(return_value=1)
 
             await submit_heartbeat_feedback(
@@ -61,6 +62,7 @@ class TestSubmitHeartbeatFeedback:
             patch("src.domains.conversations.repository.ConversationRepository") as conv_cls,
         ):
             repo_cls.return_value.update_feedback = AsyncMock(return_value=True)
+            repo_cls.return_value.get_by_id = AsyncMock(return_value=MagicMock(habit_offer_id=None))
             conv_cls.return_value.mark_proactive_feedback_submitted = AsyncMock(return_value=1)
 
             await submit_heartbeat_feedback(
@@ -103,3 +105,36 @@ class TestSubmitHeartbeatFeedback:
 
             conv_cls.return_value.mark_proactive_feedback_submitted.assert_not_awaited()
             db.commit.assert_not_awaited()
+
+    async def test_a_habit_offer_verdict_bumps_the_habit_signals(self) -> None:
+        """ADR-214: a verdict on a notification that carried a missed-routine
+        offer is a verdict on the habit itself — thumbs_up bumps positive,
+        thumbs_down bumps negative, in the SAME transaction."""
+        user = _user()
+        notification_id = uuid.uuid4()
+        habit_id = uuid.uuid4()
+        db = AsyncMock()
+
+        with (
+            patch("src.domains.heartbeat.router.HeartbeatNotificationRepository") as repo_cls,
+            patch("src.domains.conversations.repository.ConversationRepository") as conv_cls,
+            patch("src.domains.habits.repository.HabitsRepository") as habits_cls,
+        ):
+            repo_cls.return_value.update_feedback = AsyncMock(return_value=True)
+            repo_cls.return_value.get_by_id = AsyncMock(
+                return_value=MagicMock(habit_offer_id=habit_id)
+            )
+            conv_cls.return_value.mark_proactive_feedback_submitted = AsyncMock(return_value=1)
+            habits_cls.return_value.record_feedback = AsyncMock()
+
+            await submit_heartbeat_feedback(
+                notification_id=notification_id,
+                data=HeartbeatFeedbackRequest(feedback="thumbs_down"),
+                user=user,
+                db=db,
+            )
+
+            habits_cls.return_value.record_feedback.assert_awaited_once_with(
+                habit_id, user.id, positive=False
+            )
+            db.commit.assert_awaited_once()

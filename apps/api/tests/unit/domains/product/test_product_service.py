@@ -116,6 +116,66 @@ async def test_produced_records_outcome_and_event(stub_db: MagicMock, flag_on: N
     stub_db.commit.assert_awaited_once()
 
 
+async def test_produced_passes_bounded_domain(stub_db: MagicMock, flag_on: None) -> None:
+    """A DOMAIN_REGISTRY key reaches the row verbatim (seam closed)."""
+    await record_outcome_produced(
+        user_id=uuid4(),
+        run_id="run-dom",
+        session_id="web-session",
+        intention="actionable",
+        execution_mode="pipeline",
+        user_language="fr",
+        user_agent=None,
+        latency_ms=5,
+        domain="email",
+    )
+    repo = _StubRepo.last
+    assert repo is not None
+    assert repo.calls[0][1]["domain"] == "email"
+
+
+async def test_produced_empty_domain_falls_back_to_unknown(
+    stub_db: MagicMock, flag_on: None
+) -> None:
+    """Absence defaults to 'unknown'. The VOCABULARY invariant is enforced at
+    the producer (the streaming capture filters against DOMAIN_REGISTRY —
+    see test_streaming_service) because importing the registry here would
+    create the agents<->product runtime cycle the coupling ratchet forbids."""
+    await record_outcome_produced(
+        user_id=uuid4(),
+        run_id="run-dom-bad",
+        session_id=None,
+        intention=None,
+        execution_mode="pipeline",
+        user_language=None,
+        user_agent=None,
+        latency_ms=None,
+        domain="",
+    )
+    repo = _StubRepo.last
+    assert repo is not None
+    assert repo.calls[0][1]["domain"] == "unknown"
+
+
+async def test_produced_missing_domain_defaults_to_unknown(
+    stub_db: MagicMock, flag_on: None
+) -> None:
+    """Callers that predate the seam closure keep the historical value."""
+    await record_outcome_produced(
+        user_id=uuid4(),
+        run_id="run-dom-none",
+        session_id=None,
+        intention=None,
+        execution_mode="pipeline",
+        user_language=None,
+        user_agent=None,
+        latency_ms=None,
+    )
+    repo = _StubRepo.last
+    assert repo is not None
+    assert repo.calls[0][1]["domain"] == "unknown"
+
+
 async def test_repository_failure_is_swallowed(stub_db: MagicMock, flag_on: None) -> None:
     # Force the failure path through a stub that raises on upsert.
     class _Boom(_StubRepo):

@@ -292,6 +292,15 @@ class User(BaseModel):
         comment="Admin-provided reason for account deletion.",
     )
 
+    # Habit learning system preference (ADR-214) — gated by the global
+    # HABITS_ENABLED flag; the user toggle covers learning AND consumption.
+    habits_enabled: Mapped[bool] = mapped_column(
+        default=True,
+        nullable=False,
+        server_default="true",
+        comment="Enable learned-habits profile and consumption.",
+    )
+
     # Interest learning system preferences
     interests_enabled: Mapped[bool] = mapped_column(
         default=True,

@@ -515,6 +515,38 @@ async def fetch_response_context(
         psyche, peer = await asyncio.gather(_inject_psyche(), _inject_peer_context())
         return psyche, peer
 
+    async def _inject_habits_rhythm() -> str:
+        """Ambient rhythm block (ADR-214, Lot 5) — portrait's sibling.
+
+        Self-labelled ``<UserRhythmContext>`` XML, so it travels appended to
+        the existing ``user_model_block`` field: no bundle change, no
+        response-node change (that file is frozen). Own gates + graceful ""
+        live inside the builder.
+        """
+        try:
+            _uid = config.get("configurable", {}).get("langgraph_user_id")
+            if not _uid:
+                return ""
+            from src.domains.habits.ambient import build_habits_rhythm_block
+
+            return await build_habits_rhythm_block(_uid, flow="response")
+        except Exception as e:
+            logger.warning(
+                "habits_rhythm_block_failed_response",
+                run_id=run_id,
+                error=str(e),
+            )
+            return ""
+
+    async def _inject_portrait_and_rhythm() -> str:
+        """Portrait + rhythm, launched together (same six-slot pairing trick
+        as psyche+peer). Both are ambient user-model diffusion; the rhythm
+        block rides in the same prompt field."""
+        portrait, rhythm = await asyncio.gather(_inject_portrait(), _inject_habits_rhythm())
+        if portrait and rhythm:
+            return f"{portrait}\n{rhythm}"
+        return portrait or rhythm
+
     (
         (psychological_profile, memory_injection_debug),
         (rag_context, rag_injection_debug),
@@ -527,7 +559,7 @@ async def fetch_response_context(
         _inject_user_rag(),
         _inject_system_rag(),
         _inject_journal(),
-        _inject_portrait(),
+        _inject_portrait_and_rhythm(),
         _inject_psyche_and_peer(),
     )
 

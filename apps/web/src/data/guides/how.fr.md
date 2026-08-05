@@ -6,7 +6,7 @@
 
 **Version** : 3.9
 **Date** : 2026-08-05
-**Application** : LIA v1.27.14
+**Application** : LIA v1.28.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -39,6 +39,7 @@
 24. [Architecture des décisions (ADR)](#24-architecture-des-décisions-adr)
 25. [Potentiel d'évolution et extensibilité](#25-potentiel-dévolution-et-extensibilité)
 26. [Psyche Engine : intelligence émotionnelle dynamique](#26-psyche-engine--intelligence-émotionnelle-dynamique)
+27. [Apprentissage déterministe des habitudes](#27-apprentissage-déterministe-des-habitudes)
 
 ---
 
@@ -54,7 +55,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 466 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 212 ADRs, ~18 041 tests collectés par pytest sur 985 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 213 ADRs, ~18 276 tests collectés par pytest sur 990 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -72,7 +73,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~18 041 (collectés par pytest sur 985 fichiers de test) + 5 014 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | ~18 276 (collectés par pytest sur 990 fichiers de test) + 5 048 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures réutilisables | 170+ |
 | Documents de documentation | 400+ |
 | ADRs (Architecture Decision Records) | 209 |
@@ -404,7 +405,7 @@ Ce qui le rend juste est un **contrat** : chaque manifeste d'outil publie les ch
 
 Le contrat est délibérément **asymétrique** : tout ce qui est publié doit être produit, jamais l'inverse. Un manifeste liste des *exemples*, pas une énumération exhaustive — `events[0].summary` est réel que quelqu'un ait pensé ou non à l'écrire, et exiger la réciproque reviendrait à refuser des chemins légitimes.
 
-La couverture est annoncée plutôt que supposée : 36 des 59 outils qui publient des chemins. Ce que la forme d'un outil rend difficile à piloter est chiffré et daté dans un dossier de dette, plutôt que laissé implicite. À l'exécution, le filet est `ReferenceResolver`, qui lève une erreur explicite au lieu de résoudre vers le vide.
+La couverture est annoncée plutôt que supposée : lors de la campagne d'annotation, 36 des 59 outils publiant alors des chemins la portaient. Ce que la forme d'un outil rend difficile à piloter est chiffré et daté dans un dossier de dette, plutôt que laissé implicite. À l'exécution, le filet est `ReferenceResolver`, qui lève une erreur explicite au lieu de résoudre vers le vide.
 
 ### 6.6. Re-Planner Adaptatif (Panic Mode)
 
@@ -1269,7 +1270,7 @@ La leçon d’ingénierie la plus précieuse est venue d’un défaut invisible 
 
 ## 24. Architecture des décisions (ADR)
 
-212 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+213 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1355,14 +1356,24 @@ Le contexte psyché est injecté dans **tous** les points de génération utilis
 
 ---
 
+## 27. Apprentissage déterministe des habitudes
+
+LIA apprend le rythme d'activité de l'utilisateur (fenêtres de 2-4 h par classe semaine/week-end) et ses demandes récurrentes (« chaque lundi matin, les e-mails ») sans aucun modèle entraîné. Trois raisons, chacune suffisante : la production tourne sur un Raspberry Pi 5 (aucun budget d'entraînement), la doctrine des intérêts exige une formule publiable à l'utilisateur, et aux volumes par utilisateur un modèle apprendrait le bruit là où des tests statistiques calibrés contrôlent précisément les faux positifs.
+
+L'unité statistique est le **jour**, jamais le message — le comptage par message est corrompu par les rafales intra-journée (une fabrique de faux positifs mesurée à 83-100 % en simulation). Une fenêtre n'est revendiquée que si la présence par jour, une borne inférieure de Wilson à 99 %, la cohérence split-half, la récence et un critère de sélectivité tiennent tous, avec une hystérésis d'entrée/sortie contre le clignotement. La calibration vient d'un harnais de simulation : 0-0,3 % de faux positifs sur un usage sans motif, détection à 98-100 % en 21-28 jours, désapprentissage en ~9 jours.
+
+Le problème le plus dur n'était pas le détecteur mais les **données** : la conversation est éphémère par conception (réinitialisable à volonté), l'activité s'agrège donc sur quatre sources durables fusionnées par maximum horaire — messages vivants, résumés par run, journal d'audit des réinitialisations (un geste humain par construction) et banque quotidienne d'activité. Chaque source passe une **liste blanche de sessions humaines** : à sa première exécution sur les données réelles de production, le détecteur a revendiqué le message de 07:00 d'une action programmée quotidienne — le propre planning du planificateur — comme habitude d'un utilisateur. La liste blanche échoue vers un apprentissage plus lent (visible), jamais vers une habitude fabriquée (invisible).
+
+La consommation est volontairement retenue : contexte ambiant pour les réponses et le briefing, au plus une offre de routine manquée par jour avec arrêt définitif après deux offres ignorées, et un scoring du minutage des notifications qui préfère les fenêtres apprises sans jamais élargir les bornes configurées par l'utilisateur — une règle anti-famine garantit qu'une intersection vide ne change rien. Chaque seuil appliqué par les détecteurs est publié dans le panneau : une habitude affichée est prouvée, ou elle n'existe pas.
+
 ## Conclusion
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 212 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~18 041 tests sur 985 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 213 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~18 276 tests sur 990 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 212 ADRs, et du changelog (v1.0 à v1.27.14). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (400+ documents), des 213 ADRs, et du changelog (v1.0 à v1.28.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

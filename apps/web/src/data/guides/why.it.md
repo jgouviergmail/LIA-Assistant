@@ -4,7 +4,7 @@
 
 **Versione**: 4.4
 **Data**: 2026-08-05
-**Applicazione**: LIA v1.27.14
+**Applicazione**: LIA v1.28.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -312,6 +312,10 @@ Un avviso urgente non somiglia dunque a uno ordinario — e non è solo question
 Lo stesso principio vale ovunque: un contatore porta il colore degli altri contatori, un pulsante d'azione ha la stessa forma da una schermata all'altra, un messaggio inviato non si distingue da uno ricevuto per una sola piccola freccia. Nulla di tutto ciò aggiunge informazione — tutto ciò fa guadagnare tempo su quanto è già lì.
 
 E il colore non porta mai da solo il significato: ogni etichetta conserva la sua parola. Un'interfaccia che funziona solo a colori non funziona per tutti.
+
+### 6.4. Anche ciò che LIA impara di te è ispezionabile
+
+La stessa trasparenza copre l'apprendimento delle abitudini: ciò che LIA crede di sapere del tuo ritmo e delle tue richieste ricorrenti vive in un pannello dedicato — mappa di calore delle tue 24 ore, percentuale di giorni attivi, barra di avanzamento verso i primi rilevamenti, e per ogni abitudine i giorni reali in cui è stata osservata più le soglie esatte applicate dal rilevatore. Quando non c'è un'abitudine stabile, il pannello lo dice invece di inventarla. Pausa, blocco definitivo, cancellazione totale, ricalcolo retroattivo immediato — e l'intera funzione resta spenta finché non la attivi.
 
 ## 7. Profondità emotiva
 

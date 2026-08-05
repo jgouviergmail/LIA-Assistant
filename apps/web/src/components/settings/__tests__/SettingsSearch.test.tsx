@@ -24,6 +24,7 @@ import { SettingsSearch } from '../SettingsSearch';
 const AVAILABLE: SettingsSearchAvailability = {
   isSuperuser: false,
   openLoopsEnabled: true,
+  habitsEnabled: true,
   peersEnabled: true,
   debugUserAccess: true,
 };

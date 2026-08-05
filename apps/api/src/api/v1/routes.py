@@ -96,6 +96,11 @@ if getattr(settings, "open_loops_enabled", False):
 
     api_router.include_router(open_loops_router)
 
+if getattr(settings, "habits_enabled", False):
+    from src.domains.habits.router import router as habits_router
+
+    api_router.include_router(habits_router)  # Learned habits control surface (ADR-214)
+
 if getattr(settings, "product_analytics_enabled", False):
     from src.domains.product.router import router as product_router
 
@@ -257,6 +262,8 @@ async def get_client_config() -> dict:
             "heartbeat_enabled": getattr(settings, "heartbeat_enabled", False),
             "skills_enabled": getattr(settings, "skills_enabled", False),
             "open_loops_enabled": getattr(settings, "open_loops_enabled", False),
+            # Habits program (ADR-214): gates the « Habitudes » settings section.
+            "habits_enabled": getattr(settings, "habits_enabled", False),
             # Peers program: gates the « Connexions » settings section.
             "peers_enabled": getattr(settings, "peers_enabled", False),
         },

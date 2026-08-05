@@ -507,13 +507,21 @@ def _schedule_post_response_extractions(
                 user_tz = ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
             from datetime import datetime
 
+            # v2 (ADR-214): the signature is the domains only — the local
+            # date and hour are recorded as DATA for the shape locks.
+            now_local = datetime.now(user_tz)
             signature = build_signature(
                 str(qi_primary),
                 list(get_qi_attr(state, "secondary_domains", default=[]) or []),
-                local_hour=datetime.now(user_tz).hour,
             )
             safe_fire_and_forget(
-                record_occurrence(user_id, signature, settings=settings),
+                record_occurrence(
+                    user_id,
+                    signature,
+                    local_date=now_local.date(),
+                    local_hour=now_local.hour + now_local.minute / 60.0,
+                    settings=settings,
+                ),
                 name=f"recurrence_record_{user_id}",
                 run_id=run_id,
             )

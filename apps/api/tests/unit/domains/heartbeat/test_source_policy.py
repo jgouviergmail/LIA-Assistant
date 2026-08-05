@@ -43,7 +43,7 @@ def _user(disabled: object = None) -> SimpleNamespace:
 
 
 class TestRegistry:
-    def test_covers_the_eleven_sources_a_notification_can_come_from(self) -> None:
+    def test_covers_the_twelve_sources_a_notification_can_come_from(self) -> None:
         assert HEARTBEAT_SOURCE_KEYS == frozenset(
             {
                 "calendar",
@@ -57,6 +57,9 @@ class TestRegistry:
                 "birthdays",
                 "open_loops",
                 "departure",
+                # ADR-214: learned habits (rhythm context + missed-routine
+                # offers) — gated like any interruption source.
+                "habits",
             }
         )
 

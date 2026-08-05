@@ -48,7 +48,7 @@
  *   Previous re-measure at v1.27.8: backend 17,925, frontend 4,690 = 22,615.
  *   Re-measure every release: the value carried the backend count alone
  *   until v1.25.9.
- * - adrs: docs/architecture/ ADR files (212 files, numbered up to ADR-213 —
+ * - adrs: docs/architecture/ ADR files (213 files, numbered up to ADR-214 —
  *   ADR-008 has no separate file, so 213 numbers map to 212 files). Was
  *   stranded at 183 from v1.27.0 to v1.27.4: recount it, never carry it over.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
@@ -69,9 +69,9 @@ export const LANDING_STATS = {
   voiceLanguages: 99,
   metrics: 466,
   uiLanguages: 6,
-  tests: 23100,
-  adrs: 212,
-  releases: 201,
+  tests: 23300,
+  adrs: 213,
+  releases: 202,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

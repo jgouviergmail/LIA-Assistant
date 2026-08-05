@@ -39,6 +39,7 @@ def schedule_outcome_recording(
     user_language: str | None,
     user_agent: str | None,
     duration_seconds: float,
+    domain: str | None = None,
 ) -> None:
     """Fire-and-forget the outcome recording for a finalized run.
 
@@ -56,6 +57,8 @@ def schedule_outcome_recording(
         user_language: Raw user language (normalized downstream).
         user_agent: Raw request User-Agent (reduced downstream, ADR-144).
         duration_seconds: Request-to-presentation duration.
+        domain: Primary domain resolved by query intelligence, if any —
+            validated downstream against ``DOMAIN_REGISTRY``.
     """
     if archived_message_id is None:
         return
@@ -71,6 +74,7 @@ def schedule_outcome_recording(
             user_language=user_language,
             user_agent=user_agent,
             latency_ms=int(duration_seconds * 1000),
+            domain=domain,
         ),
         name="product_outcome_record",
     )
@@ -88,6 +92,7 @@ async def record_outcome_produced(
     latency_ms: int | None,
     turn_count: int | None = None,
     app_version: str | None = None,
+    domain: str | None = None,
 ) -> None:
     """Record a produced outcome (E3) for a finalized run — best-effort.
 
@@ -104,7 +109,12 @@ async def record_outcome_produced(
             value is never stored.
         latency_ms: Request-to-presentation latency, if measured.
         turn_count: Turns consumed, if known.
-        app_version: Backend version string, if known.
+        app_version: Backend string version, if known.
+        domain: Primary domain, if any. The bounded-vocabulary invariant is
+            enforced at the single PRODUCER (the streaming capture filters
+            against ``DOMAIN_REGISTRY`` — importing the registry here would
+            create the agents<->product runtime cycle the coupling ratchet
+            forbids); this seam only defaults absence to ``unknown``.
     """
     if not getattr(settings, "product_analytics_enabled", False):
         return
@@ -119,6 +129,7 @@ async def record_outcome_produced(
         _, os_family = parse_user_agent(user_agent)
         device_class = derive_device_class(os_family)
         locale = normalize_language(user_language) if user_language else DEFAULT_LANGUAGE
+        bounded_domain = domain if domain and isinstance(domain, str) else "unknown"
 
         async with get_db_context() as db:
             repo = ProductRepository(db)
@@ -126,7 +137,7 @@ async def record_outcome_produced(
                 user_id=user_id,
                 run_id=run_id,
                 result_type=result_type,
-                domain="unknown",
+                domain=bounded_domain,
                 execution_mode=execution_mode,
                 channel=channel,
                 device_class=device_class,

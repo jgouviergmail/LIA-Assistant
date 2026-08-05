@@ -52,6 +52,7 @@ const TOKENS = Object.keys(SETTINGS_SECTIONS) as SettingsSectionToken[];
 const ALL_AVAILABLE: SettingsSearchAvailability = {
   isSuperuser: false,
   openLoopsEnabled: true,
+  habitsEnabled: true,
   peersEnabled: true,
   debugUserAccess: true,
 };
@@ -83,8 +84,9 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     expect(Object.keys(SETTINGS_SEARCH_META).sort()).toEqual([...TOKENS].sort());
     // 30 at ADR-172, +1 chat-shortcuts (UX Actions program, SLASH admin lot),
     // +1 peer-connections (peers program, Lot 2), +1 haptics (its own sensory
-    // control — `prefers-reduced-motion` is about animation, not touch).
-    expect(TOKENS).toHaveLength(33);
+    // control — `prefers-reduced-motion` is about animation, not touch),
+    // +1 habits (learned-habits control surface, ADR-214).
+    expect(TOKENS).toHaveLength(34);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

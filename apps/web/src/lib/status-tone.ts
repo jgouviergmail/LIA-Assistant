@@ -113,6 +113,12 @@ const LIFECYCLE: Record<string, BadgeTone> = {
   no_answer: NEUTRAL,
   voicemail: NEUTRAL,
   expired: NEUTRAL,
+  // Habits (ADR-214): a paused habit is dormant and a blocked one is the
+  // user's never-relearn tombstone — both INACTIVE by the owner rule, told
+  // apart by their label, never by an alarm colour (a refusal is not an
+  // incident).
+  paused: NEUTRAL,
+  blocked: NEUTRAL,
 };
 
 /** What a finished call achieved. */

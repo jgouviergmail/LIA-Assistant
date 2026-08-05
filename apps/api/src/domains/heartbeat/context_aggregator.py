@@ -52,6 +52,7 @@ from src.domains.heartbeat.context_sources import (
 from src.domains.heartbeat.context_sources import (
     resolve_user_tz as _resolve_user_tz,
 )
+from src.domains.heartbeat.habit_context import fetch_habits_context
 from src.domains.heartbeat.health_context import fetch_health_signals
 from src.domains.heartbeat.repository import HeartbeatNotificationRepository
 from src.domains.heartbeat.schemas import HeartbeatContext, WeatherChange
@@ -222,6 +223,7 @@ class ContextAggregator:
             ("health_signals", fetch_health_signals, common, False),
             ("birthdays", self._fetch_birthdays, common, False),
             ("open_loops", fetch_open_loops_context, common, True),
+            ("habits", fetch_habits_context, (user_id, user, settings), True),
         )
         planned = [
             (name, self._with_fresh_session(fetch, *args) if scoped else fetch(*args))
@@ -388,6 +390,10 @@ class ContextAggregator:
         elif name == "open_loops" and result:
             context.open_loops = result
             context.available_sources.append("open_loops")
+
+        elif name == "habits" and result:
+            context.habits = result
+            context.available_sources.append("habits")
 
     # ------------------------------------------------------------------
     # Time context (synchronous, always succeeds)

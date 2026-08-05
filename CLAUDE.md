@@ -122,7 +122,7 @@ The backend follows Domain-Driven Design. Entry point: `apps/api/src/main.py`.
 - `src/core/config/` — Modular settings composed via multiple inheritance into a single `Settings` class. Access via `from src.core.config import settings`. Each domain module (agents, llm, database, security, etc.) is a separate Pydantic `BaseSettings` subclass.
 - `src/core/constants.py` — Global constants and default values used by config modules.
 - `src/domains/agents/` — The main domain. Contains the LangGraph graph, nodes, tools, services, and orchestration.
-- `src/domains/` — Other bounded contexts: `auth/`, `connectors/`, `voice/`, `interests/`, `heartbeat/`, `user_mcp/`, `users/`, `conversations/`, `reminders/`, etc.
+- `src/domains/` — Other bounded contexts: `auth/`, `connectors/`, `voice/`, `interests/`, `habits/`, `heartbeat/`, `user_mcp/`, `users/`, `conversations/`, `reminders/`, etc.
 - `src/infrastructure/` — Cross-cutting: Redis cache, LLM factory/providers, MCP client pool, rate limiting, observability.
 - `src/infrastructure/startup/` — Lifespan step modules (ADR-123): one module per subsystem (registries, caches, agents, integrations, schedulers, observability, shutdown), one typed function per contiguous boot segment. The `lifespan` in `main.py` remains the single orchestration point — a new startup step means a function in the matching module AND a call in the lifespan, in the position dictated by the order-dependency header comment.
 - `src/api/v1/routes.py` — FastAPI route definitions.
@@ -423,6 +423,6 @@ When working with settings-driven thresholds in tests (e.g. `mcp_user_max_server
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
-- ADR index (212 ADR files, ADR-213 latest — ADR-008 has no separate file): `docs/architecture/ADR_INDEX.md`
+- ADR index (213 ADR files, ADR-214 latest — ADR-008 has no separate file): `docs/architecture/ADR_INDEX.md`
 - CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
 - 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`

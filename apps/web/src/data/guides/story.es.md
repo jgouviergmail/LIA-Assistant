@@ -4,7 +4,7 @@
 
 **Versión**: 1.2
 **Fecha**: 2026-08-05
-**Aplicación**: LIA v1.27.14
+**Aplicación**: LIA v1.28.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -86,6 +86,8 @@ El nivel anunciado en este documento resulta de una auditoría técnica completa
 El plan de acción está organizado en olas, cada una con criterios de salida medibles. Es la forma de rendir cuentas de este proyecto: no un nivel proclamado, un nivel medido — desviaciones incluidas.
 
 La prueba también tiene su episodio más instructivo: tres recalibraciones de un simple espaciado, tres «no veo ningún cambio» — y una cadena de entrega probada sana hasta los bytes servidos al navegador. Dos pistas falsas plausibles (caché del navegador, service worker) cayeron una tras otra, hasta la medición que no perdona: en un navegador dirigido, el margen calculado era de 16 píxeles y el espacio dibujado, de 3. La primitiva de etiqueta seguía `inline`, y un elemento inline ignora sus márgenes verticales — el defecto precedía a todo el programa. El arreglo es una palabra, el arbitraje se hizo sobre tres capturas reales, y la regla se volvió doctrina: medir el renderizado antes de sospechar de la entrega.
+
+El detector de hábitos se ganó la confianza del mismo modo: ejecutado sobre datos reales de producción antes de ser creído — y pillado en falta. Una acción programada diaria llevaba sesenta y seis días escribiendo un mensaje «de usuario» a las 07:00; el detector reivindicó el propio horario del planificador como hábito humano. La refutación se convirtió en una lista blanca de sesiones humanas, la ventana fabricada desapareció y los veredictos honestos cayeron por su peso. La regla permanece: probar contra lo real antes de creer el diseño.
 
 ## 7. Convicciones
 

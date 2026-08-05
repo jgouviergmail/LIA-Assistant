@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.28.0] - 2026-08-05
+
+**LIA apprend vos habitudes — sans modèle entraîné, sans boîte noire, et sous votre contrôle total** (ADR-214). Le rythme d'activité (fenêtres horaires par classe de jour semaine/week-end) et les demandes récurrentes (« chaque lundi vers 9 h, les e-mails ») sont désormais appris par des **statistiques déterministes calibrées par simulation** : présence par jour (jamais par message — le comptage par message fabrique des faux positifs mesurés à 83-100 %), borne de Wilson à 99 %, cohérence split-half, hystérésis anti-clignotement. Résultat mesuré : **0 à 0,3 % de faux positifs** sur un usage sans habitude, détection à 98-100 % en 21-28 jours, désapprentissage en 9 jours. Chaque seuil appliqué est publié à l'utilisateur (doctrine ADR-184) : une habitude affichée est prouvée, ou elle n'existe pas.
+
+**La validation ne s'est pas faite sur des données de synthèse : le détecteur a été exécuté sur les données réelles de production, et il a été pris en défaut avant d'être cru.** Une action programmée quotidienne écrivait un message « utilisateur » à 07:00 depuis 66 jours — le détecteur revendiquait « 06:00-08:00 » : le planning du planificateur de LIA, pas l'habitude de la personne. Toutes les sources d'activité passent désormais par une **liste blanche des sessions humaines** ; le métronome a disparu, les verdicts honnêtes sont tombés. Deuxième réfutation : la conversation étant éphémère (réinitialisable à volonté), les messages ne sont pas une source durable — l'activité s'agrège désormais sur l'union de **quatre sources durables** (messages vivants, résumés de runs, journal des réinitialisations — un geste humain par construction, 124 jours de présence retrouvés sur le compte principal — et une banque quotidienne qui survit à tout).
+
+**Tout est visible, quantifié et réversible.** Le panneau Habitudes montre le profil par classe de jour avec une **répartition horaire sur 24 créneaux** (axe des heures, intensités normalisées), le **pourcentage de jours actifs**, une **barre de progression du déblocage** (jours d'observation acquis sur requis — le seuil affiché est le seuil appliqué), les **candidats en observation** (« 3/4 jours distincts » avant qu'une récurrence ne soit prouvée), et pour chaque habitude un bloc « Pourquoi ? » avec les **jours d'occurrence réels** et les seuils du détecteur. Pause, blocage définitif (jamais réappris), suppression unitaire ou totale, recalcul rétroactif immédiat — et un interrupteur maître, éteint par défaut.
+
+**L'assistant s'en sert avec retenue.** Le rythme appris contextualise les réponses et le briefing, le heartbeat peut signaler une routine manquée (au plus une offre par jour, arrêt définitif après deux offres ignorées), et le minutage des notifications peut préférer vos fenêtres apprises — **sans jamais élargir vos bornes** : intersection vide, comportement inchangé, garanti par une règle anti-famine testée en géométrie complète.
+
+### Added
+
+- **Domaine `habits`** : détecteur de rythme pur (fenêtres 2-4 h par classe de jour, verdicts honnêtes `windows`/`diffuse`/`none`/`insufficient`/`sparse`), récurrences v2 (signature par domaines, verrous quotidien/jours-ouvrés/hebdomadaire à moyenne circulaire), promotion en habitudes persistées, job nightly avec saut de delta (ADR-214).
+- **Panneau Habitudes** complet dans les réglages : profil, heatmap 24 créneaux avec axe des heures, progression de déblocage quantifiée, candidats en observation (plafond énoncé, jamais silencieux), explication par habitude (jours réels + seuils appliqués par type de détecteur), actions par ligne, recalcul immédiat, oubli total — six langues.
+- **Sources durables** : agrégation par union max (messages ∪ résumés de runs ∪ réinitialisations ∪ banque quotidienne `user_activity_days`) — l'apprentissage est **rétroactif** dès l'activation et survit aux réinitialisations de conversation.
+- **Réactions mesurées aux écarts** : routine manquée (offre de service, jamais une remarque de surveillance), heure inhabituelle, retour d'absence **relatif au rythme propre** de chacun — budgets ≤ 1/jour, cooldown 7 jours, arrêt après 2 non-adhésions.
+- **Scoring déterministe du minutage** (drapeau dédié, éteint par défaut) : un tick de notification hors fenêtre apprise attend seulement s'il reste une occasion le jour même dans vos bornes — anti-famine garanti.
+- **Reconstruction du registre de récurrences** depuis la vérité durable (`product_outcomes`) après toute perte Redis — même liste blanche humaine, écriture uniquement sur registre vide.
+- **Boucle de retour** : le pouce sur une notification issue d'une habitude ajuste ses signaux — deux retours négatifs la mettent en sourdine.
+
+### Changed
+
+- **Le format du registre de récurrences** descend en infrastructure partagée (`recurrence_store`) — trois domaines lisaient la même clé Redis par littéraux dupliqués, plus aucun.
+- **Le domaine du tour courant** est capturé au streaming et validé au producteur (`product_outcomes.domain` n'est plus `unknown`) — la télémétrie produit et l'apprentissage des récurrences partagent le même seam.
+- **Les seeds SQL du dépôt reflètent l'état actuel de la production** (tarifs, catalogue de 122 modèles, configuration LLM, personnalités) — extraction en lecture seule, formats et clauses d'origine préservés.
+- **`_extract_user_settings` du runner proactif** expose la préférence habitudes ; le gabarit d'environnement documente 24 nouveaux réglages calibrés (`HABITS_*`, `RECURRENCE_*`).
+
+### Fixed
+
+- **Les messages injectés par les actions programmées passaient pour de l'activité humaine** dans l'historique antérieur au marqueur — corrigé par la liste blanche de sessions sur toutes les sources, faux positif prouvé puis éliminé sur données réelles de production.
+- **Le bouton « Recalculer maintenant » pouvait être un non-événement silencieux** : le saut de delta ne voyait pas un historique étendu vers l'arrière — le recalcul manuel force désormais le passage complet.
+- **L'heure minuit (0) était lue comme une borne absente** par le scoring de minutage — un utilisateur en bornes nocturnes aurait vu ses notifications différées vers une fenêtre inatteignable.
+- **L'explication d'une habitude récurrente publiait les seuils du détecteur de rythme** — des nombres que l'évaluation des verrous n'applique jamais ; chaque type publie désormais ses propres seuils (ADR-184).
+- **Un échec de lecture pendant la reconstruction du registre n'empoisonne plus la transaction** du recalcul (savepoint).
+- **La légende de progression disait « jours d'activité » pour un compte de jours d'observation** — reformulée dans les six langues.
+
+### Tests
+
+- **18 276 tests backend** et **5 048 tests frontend** : détecteur de rythme table-driven (géométrie des fenêtres, wrap minuit, hystérésis, clipping nouveau compte), récurrences v2 (verrous, split-half, promotion plafonnée), contrat de clé du registre épinglé sur ses trois lecteurs, sources durables (union max, banque alimentée avant tout saut), scoring de minutage (10 cas de géométrie, anti-famine, fail-open), candidats (plafond compté, tombstones exclus, Redis absent), seed (NX, caps, savepoint, liste blanche), panneau (23 cas dont axe des heures, progression, candidats, explication) — plus quatre gardes AST/CI reconduites.
+
 ## [1.27.14] - 2026-08-05
 
 **Un déploiement ne dérange plus la pile qui sert** (ADR-211). Sept jours de logs de production relus ligne à ligne, et le défaut le plus grave n'était pas dans la liste de départ : le déploiement reconstruisait son répertoire **en place**, or un montage lié est résolu vers un **inode** à la création du conteneur. Supprimer le contenu du répertoire ne remplace donc pas les fichiers vus par les conteneurs en cours — cela détruit les inodes sous leurs pieds. Constaté **en direct, en plein déploiement** : l'API qui répondait aux utilisateurs voyait ses identifiants Firebase, sa base de connaissances et ses skills comme des **répertoires vides**, pendant les dix minutes du build. Les notifications push échouaient, la FAQ ne répondait plus, et rien ne reliait ces symptômes à leur cause. Le bundle est désormais déposé dans un répertoire d'attente puis basculé par **renommage** : un renommage préserve l'inode, donc les conteneurs encore vivants gardent des montages valides jusqu'à leur recréation délibérée. Les deux générations précédentes restent sur disque, prêtes pour un retour arrière immédiat.

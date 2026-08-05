@@ -50,6 +50,7 @@ class HeartbeatNotificationRepository:
         tokens_out: int = 0,
         model_name: str | None = None,
         notification_id: UUID | None = None,
+        habit_offer_id: UUID | None = None,
     ) -> HeartbeatNotification:
         """Create an audit record for a sent heartbeat notification.
 
@@ -70,6 +71,9 @@ class HeartbeatNotificationRepository:
                 same value — the feedback route resolves the card by that id.
                 ``None`` falls back to the model default, which is only safe
                 when no card will ever point at the row.
+            habit_offer_id: Habit surfaced as a missed-routine offer (ADR-214)
+                — lets a later 👍/👎 on this notification bump that habit's
+                signals. None when the decision used no habit offer.
 
         Returns:
             Created HeartbeatNotification instance.
@@ -89,6 +93,7 @@ class HeartbeatNotificationRepository:
             tokens_in=tokens_in,
             tokens_out=tokens_out,
             model_name=model_name,
+            habit_offer_id=habit_offer_id,
         )
         self.db.add(notification)
         await self.db.flush()

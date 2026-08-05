@@ -4,7 +4,7 @@
 
 **Version**: 1.2
 **Date**: 2026-08-05
-**Application**: LIA v1.27.14
+**Application**: LIA v1.28.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -86,6 +86,8 @@ The level claimed in this document comes from a complete technical audit: 24 are
 The action plan is organized in waves, each with measurable exit criteria. That is how this project reports on itself: not a proclaimed level, a measured one — gaps included.
 
 The proof also has its most instructive episode: three recalibrations of a simple spacing, three "I see no change" — and a delivery chain proven healthy down to the bytes served to the browser. Two plausible false leads (browser cache, service worker) fell one after the other, until the measurement that forgives nothing: in a driven browser, the margin computed to 16 pixels while the rendered gap was 3. The label primitive had stayed `inline`, and an inline element ignores its vertical margins — the defect predated the whole programme. The fix is one word, the arbitration happened on three real screenshots, and the rule became doctrine: measure the rendering before suspecting the delivery.
+
+The habit-learning detector earned its trust the same way: it was executed against real production data before being believed — and it was caught. A daily scheduled action had been writing a "user" message at 07:00 for sixty-six days; the detector claimed the scheduler's own timetable as a human habit. The refutation became a whitelist of human sessions, the fabricated window disappeared, and the honest verdicts fell into place. The rule stands: prove against reality before believing the design.
 
 ## 7. Convictions
 

@@ -2931,6 +2931,77 @@
       "edit_save": "Salva",
       "edit_saved": "Impegno aggiornato"
     },
+    "habits": {
+      "title": "Abitudini",
+      "description": "Ciò che LIA ha imparato del tuo ritmo e delle tue richieste ricorrenti — visibile, correggibile ed eliminabile qui.",
+      "enabled_label": "Imparare le mie abitudini",
+      "enabled_hint": "Ritmo di attività e richieste ricorrenti, calcolati ogni notte dai tuoi stessi messaggi. Nulla lascia il tuo account.",
+      "rhythm_title": "Ritmo di attività",
+      "computed_at": "Aggiornato {{date}}",
+      "recompute_label": "Ricalcola ora",
+      "recompute_done": "Profilo ricalcolato dalla tua cronologia.",
+      "progress_caption": "{{observed}}/{{required}} giorni di osservazione acquisiti",
+      "progress_aria": "Avanzamento dell'apprendimento prima delle prime abitudini",
+      "observing_title": "In osservazione",
+      "candidate_caption": "{{observed}}/{{required}} giorni distinti",
+      "candidate_forming": "regolarità in conferma",
+      "candidate_aria": "Avanzamento dell'osservazione di una richiesta ricorrente",
+      "heatmap_aria": "Distribuzione dell'attività per ora (00-23)",
+      "active_days_caption": "{{percent}} % di giorni attivi",
+      "candidates_more_one": "+{{count}} altra in osservazione",
+      "candidates_more_other": "+{{count}} altre in osservazione",
+      "weekday_label": "Feriali",
+      "weekend_label": "Weekend",
+      "verdict": {
+        "diffuse": "attivo per tutta la giornata — nessuna abitudine oraria",
+        "none": "nessuna abitudine oraria stabile rilevata",
+        "insufficient": "ancora in apprendimento — servono alcune settimane in più di cronologia",
+        "sparse": "uso occasionale — le fasce orarie non si applicano; le richieste ricorrenti restano rilevate"
+      },
+      "rows_title": "Abitudini apprese",
+      "row": {
+        "active_window": "{{dayClass}} · {{part}} ({{windows}})",
+        "recurring_request": "{{domains}} — {{schedule}} {{time}}"
+      },
+      "class": {
+        "weekday": "Feriali",
+        "weekend": "Weekend"
+      },
+      "part": {
+        "morning": "mattina",
+        "afternoon": "pomeriggio",
+        "evening": "sera",
+        "night": "notte"
+      },
+      "shape": {
+        "daily": "tutti i giorni",
+        "workdays": "Lun–Ven",
+        "weekly": "ogni {{day}}"
+      },
+      "signals_caption": "{{positive}} confermata/e · {{negative}} rifiutata/e",
+      "status": {
+        "active": "Attiva",
+        "paused": "In pausa",
+        "blocked": "Bloccata"
+      },
+      "pause_label": "Metti in pausa",
+      "resume_label": "Riattiva",
+      "block_label": "Non imparare mai più",
+      "delete_label": "Elimina",
+      "forget_all_label": "Dimentica tutto",
+      "forget_all_title": "Dimenticare tutte le abitudini apprese?",
+      "forget_all_description": "Tutte le abitudini apprese e il profilo del ritmo saranno eliminati. LIA ricomincerà ad apprendere da zero (a meno che tu non disattivi l'apprendimento).",
+      "forget_all_confirm": "Dimentica tutto",
+      "forget_all_done": "Tutte le abitudini sono state dimenticate.",
+      "explanation": {
+        "title": "Perché questa abitudine?",
+        "error": "Impossibile caricare la spiegazione.",
+        "observed_label": "Giorni di occorrenza osservati (la base esatta di questa abitudine)",
+        "thresholds_label": "Soglie applicate:",
+        "more_days_one": "e {{count}} altro giorno",
+        "more_days_other": "e {{count}} altri giorni"
+      }
+    },
     "security": {
       "passkeys": {
         "title": "Passkeys",
@@ -3115,6 +3186,7 @@
         "briefing-grid": "home, pagina iniziale, cruscotto, widget, schede, briefing, ordine delle sezioni",
         "chat-shortcuts": "slash, scorciatoia, comando, richiesta rapida, macro, /comando, modello di messaggio, modificare, rinominare",
         "open-loops": "impegni, questioni aperte, in sospeso, follow-up, promesse, incompiuto",
+        "habits": "abitudini, ritmo, routine, orari, appreso, finestre di attività, richieste ricorrenti, suggerimenti di automazione",
         "notifications": "push, avvisi, notifiche, mobile, promemoria, FCM",
         "channels": "whatsapp, telegram, sms, email, messaggistica, integrazioni",
         "security-auth": "2FA, MFA, TOTP, passkey, password, sicurezza, accesso, autenticazione, due fattori",
@@ -3710,6 +3782,10 @@
           "title": "✨ Apprendimento Intelligente degli Interessi",
           "description": "Gli interessi si apprendono dalla conversazione, ma chiedere di un argomento è un compito, non un gusto: una creazione richiede uno dei quattro fondamenti nominati — passione dichiarata, pratica personale, conoscenza pregressa o approfondimento dello stesso argomento nello scambio — e il modello deve citare le parole che lo sostengono. Sei classi non sono mai interessi, tra cui l'oggetto di una richiesta e tutto ciò che LIA ha introdotto da sé. La deduplicazione legge ogni stato, così un argomento bloccato non può tornare con un nome simile, e un tetto sulle azioni distruttive impedisce a una risposta di svuotare un profilo. Gli interessi sono raggruppati in argomenti tramite clustering LLM batch, e la selezione estrae con rarità a due livelli (cooldown per argomento + priorità ai meno serviti) — una passione non monopolizza mai. Contenuti via Perplexity, Brave, Wikipedia o riflessione IA, con fonti cliccabili. Ponderazione bayesiana con decadimento temporale, fusione notturna dei quasi-duplicati."
         },
+        "habits": {
+          "title": "🧭 Apprendimento delle Abitudini",
+          "description": "LIA apprende il tuo ritmo di attività (finestre di 2-4 ore, feriale/weekend) e le tue richieste ricorrenti con statistiche deterministiche calibrate — presenza giornaliera, limiti di Wilson al 99 %, coerenza split-half, isteresi — mai con un modello opaco. Quattro fonti durevoli fuse (messaggi, riepiloghi di esecuzione, azzeramenti, banca giornaliera) dietro una lista bianca di sessioni umane. Tutto è pubblicato: soglie applicate, giorni osservati, avanzamento dello sblocco. Spento per impostazione predefinita, controllo totale (pausa, blocco, oblio, ricalcolo retroattivo)."
+        },
         "summarization": {
           "title": "📝 Riassunto Automatico",
           "description": "Sistema di riassunto intelligente per conversazioni lunghe per mantenere il contesto senza superare i limiti di token. Estrazione delle informazioni chiave, compressione semantica e iniezione contestuale nei prompt per preservare la continuità conversazionale."
@@ -3901,6 +3977,19 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_28_0": {
+          "title": "v1.28.0 — 🧭 LIA impara le tue abitudini, sotto il tuo controllo",
+          "date": "Agosto 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🧭 LIA può imparare le tue abitudini — se lo attivi</b> — il tuo ritmo di attività (le tue fasce abituali nei giorni feriali e nel fine settimana) e le tue richieste ricorrenti («ogni lunedì mattina, le e-mail») vengono appresi con statistiche trasparenti, mai con un modello opaco. Tutto è disattivato per impostazione predefinita, e tutto vive in Impostazioni → Impara le mie abitudini. Nulla lascia il tuo account.",
+            "i2": "<b>📊 Un pannello che mostra tutto</b> — una mappa di calore delle tue 24 ore con l'asse delle ore, la tua percentuale di giorni attivi, le tue finestre rilevate — e quando non c'è un'abitudine stabile, il pannello lo dice onestamente invece di inventarne una.",
+            "i3": "<b>⏳ Sai sempre a che punto è l'apprendimento</b> — una barra di avanzamento mostra i giorni di osservazione acquisiti rispetto a quelli richiesti, e le richieste ricorrenti in osservazione appaiono con il loro avanzamento («3/4 giorni distinti») prima ancora di essere confermate.",
+            "i4": "<b>🔍 «Perché questa abitudine?»</b> — ogni abitudine si spiega: i giorni reali in cui è stata osservata e le soglie esatte applicate dal rilevatore. Un'abitudine mostrata è provata, o non esiste.",
+            "i5": "<b>🕰️ Notifiche al momento giusto, senza insistenza</b> — LIA può notare una routine mancata (al massimo una volta al giorno, e tace definitivamente dopo due osservazioni ignorate) e preferire le tue fasce abituali per le notifiche — senza mai superare gli orari che TU hai fissato.",
+            "i6": "<b>🧹 Controllo totale e immediato</b> — metti in pausa un'abitudine, bloccala per sempre (mai riappresa), cancella tutto o rilancia l'apprendimento sulla tua cronologia con un clic: «Ricalcola ora» agisce subito e retroattivamente."
+          }
+        },
         "v1_27_14": {
           "title": "v1.27.14 — 🛡️ Aggiornamenti che lasciano l'app in piedi",
           "date": "Agosto 2026",
@@ -7810,6 +7899,7 @@
     "source_health_signals": "Salute",
     "source_birthdays": "Compleanni",
     "source_open_loops": "Impegni",
+    "source_habits": "Abitudini",
     "source_departure": "Ora di partenza",
     "source_not_connected": "Non connesso",
     "sources_permission_title": "Argomenti delle notifiche",
@@ -8120,6 +8210,10 @@
       "interests": {
         "title": "Centri di interesse",
         "description": "Segui gli argomenti che ti stanno davvero a cuore — un argomento su cui hai solo fatto una domanda non lo diventa mai. LIA cerca contenuti pertinenti e te li invia come notifiche, i temi si alternano per varietà, ogni notifica cita le sue fonti, e un argomento che blocchi non torna più."
+      },
+      "habits": {
+        "title": "Apprendimento delle abitudini",
+        "description": "LIA impara il tuo ritmo e le tue richieste ricorrenti con statistiche trasparenti — mai un modello opaco. Tutto è visibile: una mappa di calore delle tue 24 ore, l'avanzamento dello sblocco, i giorni realmente osservati e le soglie applicate. Un'abitudine mostrata è provata, o non esiste — e tutto si mette in pausa, si blocca o si dimentica con un clic. Spento per impostazione predefinita."
       },
       "telephony": {
         "title": "LIA telefona per te",
@@ -9176,7 +9270,8 @@
       "patterns": "Pattern trasversali",
       "adr": "Decisioni architetturali",
       "extensibility": "Estensibilità",
-      "psyche": "Psyche Engine"
+      "psyche": "Psyche Engine",
+      "habits": "Apprendimento delle abitudini"
     }
   },
   "healthMetrics": {

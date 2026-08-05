@@ -41,13 +41,19 @@ API_ROOT = REPO_ROOT / "apps" / "api"
 PREPARE_SCRIPT = REPO_ROOT / "scripts" / "deploy" / "prepare-prod.ps1"
 DOCKERIGNORE = API_ROOT / ".dockerignore"
 
-# Directories that legitimately never reach the production image, each with the
-# reason. A directory excluded by .dockerignore is detected automatically and
-# does not need an entry here.
-EXEMPT: dict[str, str] = {
-    "data": "runtime state, provided by named volumes and bind mounts in compose",
-    "docs": "API-local documentation, not read at runtime",
-}
+# Directories that are git-tracked yet legitimately never reach the production
+# image, each with the reason.
+#
+# Currently empty, and that is not an oversight. The scan below considers only
+# directories holding git-tracked files, so anything that exists purely as local
+# runtime state (``data/``, ``docs/`` — both untracked, both absent from a fresh
+# checkout) never reaches the scan and needs no exemption. Listing them here was
+# the reverse defect of the one this guard exists to catch: an exemption for a
+# path CI never sees is dead weight that fails on the clean checkout it was
+# supposed to describe.
+#
+# Add an entry only for a TRACKED directory the image must not carry.
+EXEMPT: dict[str, str] = {}
 
 
 def _dockerignored_dirs() -> set[str]:
@@ -131,8 +137,18 @@ class TestApiRuntimeDirectoriesReachTheImage:
             "every backend translation silently degrades to its msgid, in all six languages."
         )
 
-    def test_exempt_entries_still_exist(self) -> None:
-        """An exemption for a deleted directory is stale documentation."""
-        stale = sorted(name for name in EXEMPT if not (API_ROOT / name).is_dir())
+    def test_exempt_entries_are_still_needed(self) -> None:
+        """An exemption the scan never consults is stale documentation.
 
-        assert not stale, f"EXEMPT names directories that no longer exist: {stale}"
+        Checked against what git tracks, not against the local filesystem — the
+        same reason the scan is git-aware. Testing ``(API_ROOT / name).is_dir()``
+        passed on any developer machine and failed on the CI checkout for the two
+        untracked runtime directories that used to be listed here.
+        """
+        stale = sorted(set(EXEMPT) - _api_source_dirs())
+
+        assert not stale, (
+            f"EXEMPT names directories the scan never sees: {stale}. Either they hold no "
+            f"git-tracked file (so they cannot reach the build context and need no "
+            f"exemption), or they were deleted. Remove the entry."
+        )

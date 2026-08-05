@@ -66,9 +66,10 @@ class TestInitiativeRecurrenceWrapper:
             update = await initiative_node(_state(), _config())
 
         assert update[STATE_KEY_INITIATIVE_SUGGESTION] == "Veux-tu automatiser cela ?"
-        # Signature built from QI shape (positional arg 2 is the signature)
+        # Signature built from QI shape (positional arg 2 is the signature).
+        # v2 (ADR-214): domains only — the hour is data, never part of the key.
         signature = eval_mock.await_args.args[1]
-        assert signature.startswith("web_search@h")
+        assert signature == "web_search"
 
     async def test_core_suggestion_never_overridden(self):
         with (

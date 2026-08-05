@@ -66,6 +66,90 @@ async def test_process_values_chunk_extracts_router_decision(streaming_service):
 
 
 @pytest.mark.asyncio
+async def test_process_values_chunk_captures_current_turn_primary_domain(streaming_service):
+    """The primary domain is captured only once routing proves the turn is fresh.
+
+    The first values chunk replays the checkpoint: its query_intelligence is
+    the PREVIOUS turn's and must NOT be captured (recording it against the
+    current run would be actively wrong data, not merely "unknown").
+    """
+    mock_routing = MagicMock()
+    mock_routing.intention = "actionable"
+    mock_routing.confidence = 0.9
+    mock_routing.context_label = "email"
+    mock_routing.next_node = "planner"
+    mock_routing.reasoning = "r"
+
+    assert streaming_service.primary_domain is None
+
+    # Checkpoint replay: stale QI from the previous turn — ignored.
+    streaming_service._process_values_chunk(
+        {
+            "routing_history": [],
+            "messages": [],
+            "query_intelligence": {"primary_domain": "contact"},
+        },
+        last_sent_routing=None,
+    )
+    assert streaming_service.primary_domain is None
+
+    # Router ran: the state now carries the CURRENT turn's QI.
+    streaming_service._process_values_chunk(
+        {
+            "routing_history": [mock_routing],
+            "messages": [],
+            "query_intelligence": {"primary_domain": "email"},
+        },
+        last_sent_routing=None,
+    )
+    assert streaming_service.primary_domain == "email"
+
+    # A later chunk without QI keeps the captured value.
+    streaming_service._process_values_chunk(
+        {"routing_history": [mock_routing], "messages": []},
+        last_sent_routing=None,
+    )
+    assert streaming_service.primary_domain == "email"
+
+
+@pytest.mark.asyncio
+async def test_process_values_chunk_primary_domain_tolerates_malformed_qi(streaming_service):
+    """A non-dict QI or a QI without primary_domain never breaks nor captures."""
+    mock_routing = MagicMock()
+    mock_routing.intention = "conversation"
+    mock_routing.confidence = 0.9
+    mock_routing.context_label = "general"
+    mock_routing.next_node = "response"
+    mock_routing.reasoning = "r"
+
+    streaming_service._process_values_chunk(
+        {"routing_history": [], "messages": []}, last_sent_routing=None
+    )
+    streaming_service._process_values_chunk(
+        {"routing_history": [mock_routing], "messages": [], "query_intelligence": "oops"},
+        last_sent_routing=None,
+    )
+    assert streaming_service.primary_domain is None
+    streaming_service._process_values_chunk(
+        {"routing_history": [mock_routing], "messages": [], "query_intelligence": {}},
+        last_sent_routing=None,
+    )
+    assert streaming_service.primary_domain is None
+    # Out-of-vocabulary domains are rejected at THIS producer: the
+    # product_outcomes.domain column is bounded, and product cannot import
+    # DOMAIN_REGISTRY without creating an agents<->product cycle.
+    streaming_service._process_values_chunk(
+        {
+            "routing_history": [mock_routing],
+            "messages": [],
+            "query_intelligence": {"primary_domain": "martian_polka"},
+        },
+        last_sent_routing=None,
+    )
+    assert streaming_service.primary_domain is None
+
+
+@pytest.mark.asyncio
 async def test_process_values_chunk_avoids_duplicate_router_decisions(streaming_service):
     """Test that duplicate router decisions are not emitted."""
     # Mock RouterOutput

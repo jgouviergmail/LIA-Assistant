@@ -492,6 +492,18 @@ SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS = 60
 SCHEDULED_ACTIONS_MAX_PER_USER = 20
 SCHEDULED_ACTIONS_SESSION_PREFIX = "scheduled_action_"  # Session ID prefix for automated sources
 
+# Session-id shapes of HUMAN chat runs in message_token_summary (ADR-214).
+# The rhythm learner reads the token summaries as its DURABLE retroactive
+# source (conversation messages die on reset), and background jobs run at
+# FIXED hours — a missed exclusion would teach LIA her own schedule as a
+# user habit. A WHITELIST fails toward slower learning (visible), never
+# toward a fabricated habit (invisible): web = ``session_{user_id}``,
+# channels = ``channel_{type}_{user_id}``, legacy web = a bare UUID.
+HUMAN_CHAT_SESSION_PREFIXES: tuple[str, ...] = ("session_", "channel_")
+HUMAN_CHAT_SESSION_UUID_REGEX = (
+    "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
+
 
 #: How many upcoming runs of a routine the interfaces preview.
 #:
@@ -1901,12 +1913,77 @@ OPEN_LOOPS_NUDGE_COOLDOWN_DAYS_DEFAULT = 3
 OPEN_LOOPS_EXPIRY_DAYS_DEFAULT = 21
 
 # ---------------------------------------------------------------------------
-# Recurrence detection — automation suggestion (P12, ADR-140)
+# Recurrence detection — automation suggestion (P12, ADR-140; v2 ADR-214)
 # ---------------------------------------------------------------------------
-RECURRENCE_WINDOW_DAYS_DEFAULT = 14
-RECURRENCE_MIN_DISTINCT_DAYS_DEFAULT = 3
+# v2 (ADR-214): the 14-day window could mathematically never contain the 3
+# same-weekday occurrences a weekly habit needs — measured 0% weekly
+# detection. The ledger now stores PER-DAY entries (the 20-occurrence cap
+# kept only ~7 days of history for a multi-daily domain, making the
+# spread>=10d lock unreachable), and a user-facing suggestion fires only
+# when a shape LOCK holds (0% false suggestions measured on spread/sporadic
+# usage — simulation harness of the habits plan §4.2).
+RECURRENCE_WINDOW_DAYS_DEFAULT = 28
+RECURRENCE_MIN_DISTINCT_DAYS_DEFAULT = 4
 RECURRENCE_SUGGESTION_COOLDOWN_DAYS_DEFAULT = 30
-RECURRENCE_LEDGER_MAX_ENTRIES_DEFAULT = 20
+RECURRENCE_LEDGER_MAX_ENTRIES_DEFAULT = 28  # day entries (= window days)
+RECURRENCE_DAY_HOURS_CAP_DEFAULT = 5
+RECURRENCE_LOCK_MIN_OCCURRENCES_DEFAULT = 8
+RECURRENCE_LOCK_MIN_SPREAD_DAYS_DEFAULT = 10
+RECURRENCE_LOCK_R_MIN_DEFAULT = 0.8
+RECURRENCE_LOCK_HALF_R_MIN_DEFAULT = 0.7
+RECURRENCE_LOCK_HALF_AGREE_HOURS_DEFAULT = 2.0
+RECURRENCE_SHAPE_MIN_DAYS_DEFAULT = 14
+RECURRENCE_WEEKEND_TOLERANCE_DEFAULT = 1
+RECURRENCE_WEEKLY_MIN_SAME_DOW_DEFAULT = 4
+RECURRENCE_WEEKLY_DOW_FRACTION_DEFAULT = 0.75
+
+# ---------------------------------------------------------------------------
+# Habits — learned user rhythm and recurring requests (ADR-214)
+# ---------------------------------------------------------------------------
+# Rhythm detector thresholds. Calibrated by the simulation harness of the
+# habits program plan (docs/plans/2026-08-05-habitudes-utilisateur-programme.md
+# §4.1 — 300 trials/scenario: FP 0-0.3% on uniform usage, 98-100% detection at
+# 21-28 days). Recalibrating any of them requires replaying that harness.
+HABITS_WINDOW_DAYS_DEFAULT = 56
+HABITS_HALF_LIFE_DAYS_DEFAULT = 14.0
+HABITS_PRESENCE_MIN_DEFAULT = 0.55
+HABITS_WILSON_FLOOR_DEFAULT = 0.35
+HABITS_HALF_PRESENCE_MIN_DEFAULT = 0.45
+HABITS_CAPTURE_MIN_DEFAULT = 0.60
+HABITS_SELECTIVITY_MIN_DEFAULT = 1.9
+# Hysteresis exit thresholds: a previously claimed window is RETAINED at these
+# relaxed values (anti-flapping — 0.18% claim loss measured vs 5.5% without).
+HABITS_EXIT_PRESENCE_DEFAULT = 0.45
+HABITS_EXIT_CAPTURE_DEFAULT = 0.50
+HABITS_EXIT_SELECTIVITY_DEFAULT = 1.6
+HABITS_MIN_NEFF_WEEKDAY_DEFAULT = 12.0
+HABITS_MIN_NEFF_WEEKEND_DEFAULT = 6.0
+HABITS_RECENT_DAYS_DEFAULT = 14
+HABITS_RECENT_MIN_DEFAULT = 0.30
+HABITS_MAX_CLAIMED_HOURS_DEFAULT = 6
+HABITS_WAKING_HOURS_DEFAULT = 16.0
+# Below this weighted fraction of active days the profile verdict is `sparse`:
+# window claims would be factually false for an occasional user (plan §5.6).
+HABITS_SPARSE_ACTIVE_DAYS_MIN_DEFAULT = 0.30
+HABITS_MAX_HABITS_PER_KIND_DEFAULT = 8
+# Recurrence candidates shown "under observation" in the settings panel;
+# the remainder is counted, never silently dropped (ADR-185 doctrine).
+HABITS_CANDIDATES_DISPLAY_MAX_DEFAULT = 5
+# Nightly profile job (leader-elected; per-user delta skip).
+HABITS_PROFILE_JOB_HOUR_UTC_DEFAULT = 4
+SCHEDULER_JOB_ID_HABIT_PROFILE = "habit_profile_recompute"
+# Deviation offers (missed locked routine — plan §5.4). The k rule is
+# shape-aware: a daily habit needs 2 consecutive missed scheduled days
+# (k=1 at p̂=0.85 would produce ~1 false remark/week), a weekly habit
+# offers on the first miss (the offer at the slot has immediate value).
+HABITS_DEVIATION_OFFER_COOLDOWN_DAYS_DEFAULT = 7
+HABITS_DEVIATION_STOP_AFTER_IGNORED_DEFAULT = 2
+HABITS_DEVIATION_GRACE_HOURS_DEFAULT = 1.0
+# Return-after-absence (type 3) is RELATIVE to the user's own typical gap
+# (derived from their active-day fraction) — an occasional user must never
+# get a patronizing "welcome back" for a perfectly normal interval.
+HABITS_ABSENCE_GAP_FACTOR_DEFAULT = 3.0
+HABITS_ABSENCE_MIN_DAYS_DEFAULT = 3
 
 # Context aggregation
 HEARTBEAT_CONTEXT_CALENDAR_HOURS_DEFAULT = 4

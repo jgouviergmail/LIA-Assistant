@@ -576,6 +576,31 @@ async def init_scheduler(scheduler: "AsyncIOScheduler") -> SchedulerLeaderElecto
             )
             logger.info("attachment_cleanup_job_scheduled", interval_hours=6)
 
+        # Schedule nightly habit-profile recompute (ADR-214). One aggregate
+        # query + one upsert per enabled user; per-user sessions and error
+        # boundaries live inside the job.
+        if getattr(settings, "habits_enabled", False):
+            from src.core.constants import SCHEDULER_JOB_ID_HABIT_PROFILE
+            from src.infrastructure.scheduler.habit_profile_job import (
+                run_habit_profile_job,
+            )
+
+            scheduler.add_job(
+                run_habit_profile_job,
+                trigger="cron",
+                hour=settings.habits_profile_job_hour_utc,
+                minute=10,
+                id=SCHEDULER_JOB_ID_HABIT_PROFILE,
+                name="Recompute learned habit profiles",
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=3600,
+            )
+            logger.info(
+                "habit_profile_job_scheduled",
+                hour_utc=settings.habits_profile_job_hour_utc,
+            )
+
         # Acquire leadership and start scheduler (or start background re-election).
         # All jobs are registered above — scheduler.start() is called inside the elector.
         await leader_elector.start()

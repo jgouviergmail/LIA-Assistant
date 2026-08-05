@@ -4,7 +4,7 @@
 
 **Version**: 4.4
 **Datum**: 2026-08-05
-**Anwendung**: LIA v1.27.14
+**Anwendung**: LIA v1.28.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -312,6 +312,10 @@ Ein dringender Hinweis sieht deshalb nicht aus wie ein gewöhnlicher — und das
 Dasselbe Prinzip gilt überall: Eine Anzahl trägt die Farbe der anderen Anzahlen, eine Aktionsschaltfläche hat von Bildschirm zu Bildschirm dieselbe Form, eine gesendete Nachricht unterscheidet sich von einer empfangenen nicht durch einen einzigen kleinen Pfeil. Nichts davon fügt Information hinzu — alles davon spart Zeit bei dem, was ohnehin da ist.
 
 Und Farbe trägt die Bedeutung nie allein: Jede Markierung behält ihr Wort. Eine Oberfläche, die nur in Farbe funktioniert, funktioniert nicht für alle.
+
+### 6.4. Selbst was LIA über dich lernt, ist einsehbar
+
+Dieselbe Transparenz gilt für das Gewohnheitslernen: Was LIA über deinen Rhythmus und deine wiederkehrenden Anfragen zu wissen glaubt, lebt in einem eigenen Panel — eine Heatmap deiner 24 Stunden, dein Anteil aktiver Tage, ein Fortschrittsbalken bis zu den ersten Erkennungen, und für jede Gewohnheit die realen Beobachtungstage plus die exakten Schwellenwerte des Detektors. Gibt es keine stabile Gewohnheit, sagt das Panel das, statt eine zu erfinden. Pause, endgültige Blockierung, vollständige Löschung, sofortige rückwirkende Neuberechnung — und die ganze Funktion bleibt aus, bis du sie aktivierst.
 
 ## 7. Emotionale Tiefe
 

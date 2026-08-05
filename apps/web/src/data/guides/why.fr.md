@@ -4,7 +4,7 @@
 
 **Version** : 4.4
 **Date** : 2026-08-05
-**Application** : LIA v1.27.14
+**Application** : LIA v1.28.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -312,6 +312,10 @@ Une alerte urgente ne ressemble donc pas à une alerte ordinaire — et ce n'est
 Le même principe vaut partout : un compteur porte la couleur des autres compteurs, un bouton d'action a la même forme d'un écran à l'autre, un message envoyé ne se distingue pas d'un message reçu par une seule petite flèche. Rien de tout cela n'ajoute d'information — tout cela fait gagner du temps sur ce qui est déjà là.
 
 Et la couleur ne porte jamais seule le sens : chaque étiquette garde son mot. Une interface qui ne fonctionne qu'en couleurs ne fonctionne pas pour tout le monde.
+
+### 6.4. Même ce que LIA apprend de toi est inspectable
+
+La même transparence couvre l'apprentissage des habitudes : ce que LIA croit savoir de ton rythme et de tes demandes récurrentes vit dans un panneau dédié — carte de chaleur de tes 24 heures, pourcentage de jours actifs, barre de progression vers les premières détections, et pour chaque habitude les jours réels où elle a été observée plus les seuils exacts appliqués par le détecteur. Quand il n'y a pas d'habitude stable, le panneau le dit au lieu d'en inventer une. Pause, blocage définitif, suppression totale, recalcul rétroactif immédiat — et toute la fonction est éteinte tant que tu ne l'actives pas.
 
 ## 7. Profondeur émotionnelle
 

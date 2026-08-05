@@ -74,7 +74,7 @@ export type SettingsGroupKey =
  */
 export type SettingsSectionGate =
   | { kind: 'always' }
-  | { kind: 'instanceFlag'; flag: 'openLoopsEnabled' | 'peersEnabled' }
+  | { kind: 'instanceFlag'; flag: 'openLoopsEnabled' | 'peersEnabled' | 'habitsEnabled' }
   | { kind: 'userDebugPanel' }
   | { kind: 'runtime'; reason: string };
 
@@ -169,6 +169,16 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     keywordsKey: `${KEYWORDS_PREFIX}.open-loops`,
     group: 'identity_memory',
     gate: { kind: 'instanceFlag', flag: 'openLoopsEnabled' },
+  },
+  // Learned habits (ADR-214): capability, rendered right after interests in
+  // the Features tab — indexed in the same group for the same reason as
+  // open-loops (index and render must agree on where the section lives).
+  habits: {
+    titleKey: 'settings.habits.title',
+    descriptionKey: 'settings.habits.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.habits`,
+    group: 'identity_memory',
+    gate: { kind: 'instanceFlag', flag: 'habitsEnabled' },
   },
 
   // ---- Preferences / Notifications & Communication
@@ -372,6 +382,8 @@ export interface SettingsSearchAvailability {
   isSuperuser: boolean;
   /** `/config` → `features.open_loops_enabled`. */
   openLoopsEnabled: boolean;
+  /** `/config` → `features.habits_enabled` (habits program, ADR-214). */
+  habitsEnabled: boolean;
   /** `/config` → `features.peers_enabled` (peers program). */
   peersEnabled: boolean;
   /** `useDebugPanelEnabled()` → `userAccessAvailable`. */

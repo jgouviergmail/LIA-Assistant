@@ -54,6 +54,7 @@ HEARTBEAT_SOURCE_KEYS: frozenset[str] = frozenset(
         "birthdays",
         "open_loops",
         "departure",
+        "habits",
     }
 )
 
@@ -72,6 +73,7 @@ HEARTBEAT_SOURCE_ORDER: tuple[str, ...] = (
     "birthdays",
     "open_loops",
     "departure",
+    "habits",
 )
 
 

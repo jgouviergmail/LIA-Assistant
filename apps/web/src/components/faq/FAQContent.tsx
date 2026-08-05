@@ -120,6 +120,7 @@ const sections = [
  * releases. `__tests__/changelog-wiring.test.ts` now fails on any drift in either direction.
  */
 export const changelogVersionKeys = [
+  'v1_28_0',
   'v1_27_14',
   'v1_27_13',
   'v1_27_12',
@@ -291,6 +292,7 @@ export const featureIcons = {
   semanticValidation: ShieldCheck,
   memory: Brain,
   interests: Sparkles,
+  habits: CalendarClock,
   security: Lock,
   hitl: UserCheck,
   semanticLeakDefense: Filter,
@@ -344,6 +346,7 @@ export const featureKeys = [
   'semanticValidation',
   'memory',
   'interests',
+  'habits',
   'security',
   // Three cards shipped complete in the six locales and were never listed here,
   // so they rendered nowhere: `hitl` (rewritten at v1.25.7 for a surface nobody
