@@ -6,7 +6,7 @@ import { useConversation, ConversationTotals } from '@/hooks/useConversation';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { useSearchParams, type ReadonlyURLSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Message } from '@/types/chat';
 import { RegistryProvider } from '@/lib/registry-context';
 import { mergeRegistryWithHistory } from '@/lib/message-widgets';
@@ -48,25 +48,12 @@ import { useChatShortcuts } from '@/hooks/useChatShortcuts';
 import { useChatSuggestions } from '@/hooks/useChatSuggestions';
 import { useAutoSendIntent } from '@/hooks/useAutoSendIntent';
 import { useDeepLinkParams } from '@/hooks/useDeepLinkParams';
+import { resolveInitialMessage } from '@/lib/chat-initial-message';
 import type { CapabilityDirectiveWire } from '@/types/directive';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UsageBanners } from '@/components/usage/UsageBanners';
 import { ActiveCallBanner } from '@/components/telephony/ActiveCallBanner';
 import { ActiveSpacesIndicator } from '@/components/spaces/ActiveSpacesIndicator';
-
-/**
- * Resolve the chat input's initial text: the `?draft=` deep link (onboarding
- * volet B / briefing intents) wins over the persisted per-user draft
- * (UXR Lot 2, A7). Returns undefined when neither exists so the input keeps
- * its default empty state. Never auto-sent.
- */
-function resolveInitialMessage(
-  searchParams: ReadonlyURLSearchParams | null,
-  storedDraft: string | undefined
-): string | undefined {
-  const draft = searchParams?.get('draft');
-  return draft && draft.trim() ? draft : storedDraft;
-}
 
 /** Short locale of an i18n language tag ("fr-FR" → "fr"; default "fr"). */
 function shortLang(language: string | undefined): string {
@@ -132,10 +119,10 @@ export default function ChatPage() {
   // page only once the user is resolved, so the one-shot read is reliable.
   const { initialDraft, saveDraft } = useInputDraft(user);
 
-  // QW-9 / UXR Lot 2 (A7) / N-13 / QW-24 (ADR-173): the one-shot deep links,
-  // read live and cleared through the router. Both rules and the production
-  // defect that paid for them are documented in the hook.
-  const { spotlightVoice, pendingIntent, pendingDirective, clearIntent } =
+  // QW-9 / UXR Lot 2 (A7) / N-13 / QW-24 (ADR-173) / ADR-210: the one-shot
+  // deep links, read live and cleared through the History API. The four rules
+  // and the production defects that paid for them are documented in the hook.
+  const { spotlightVoice, pendingIntent, pendingDirective, replayedIntent, clearIntent } =
     useDeepLinkParams(saveDraft);
 
   // True once the mount history load has SETTLED (loaded, empty, or failed).
@@ -891,12 +878,17 @@ export default function ChatPage() {
                   </div>
 
                   {/* Centre (in flow, shrink-0): Voice Mode Badge — single
-                  instance, always mounted to preserve KWS state — and, beside
-                  it, the active-spaces pill. `shrink-0` keeps them intact while
-                  the flex-1 sides absorb the width; equal sides keep them
-                  visually centred and let them SHIFT rather than overlap when a
-                  side grows. Discreet, homogeneous pill styling on the
-                  indicator. */}
+                  instance, always mounted to preserve KWS state — the
+                  active-spaces pill and, at its right, the context-usage pill
+                  (owner arbitration 2026-08-05: observation it may be, it
+                  earns its place at EVERY width — it was `hidden` below
+                  `mobile` on the right side and users missed it; its ~52 px
+                  fit a 360 px row, and tap toggles the tooltip touch-side).
+                  Hidden until the first turn completes (no data yet);
+                  conversation totals ride its tooltip (QW-12). `shrink-0`
+                  keeps the group intact while the flex-1 sides absorb the
+                  width; equal sides keep it visually centred and let it SHIFT
+                  rather than overlap when a side grows. */}
                   <div className="flex shrink-0 items-center gap-2">
                     <VoiceModeBadge
                       onTranscription={(text, meta) =>
@@ -905,36 +897,23 @@ export default function ChatPage() {
                       disabled={!apiAvailable || isTyping || isUsageBlocked}
                     />
                     <ActiveSpacesIndicator />
+                    {contextUsage && (
+                      <ContextUsagePill
+                        usage={contextUsage}
+                        totals={
+                          user?.tokens_display_enabled &&
+                          (combinedTotals.tokensIn > 0 || combinedTotals.tokensOut > 0)
+                            ? { ...combinedTotals, userMessageCount }
+                            : null
+                        }
+                      />
+                    )}
                   </div>
 
-                  {/* Right side: context-usage pill + Delete/New chat, in flow.
-                  `min-w-0 flex-1` mirrors the left side so the centre stays
-                  centred; `justify-end` keeps these pinned to the right edge. */}
+                  {/* Right side: Delete/New chat, in flow. `min-w-0 flex-1`
+                  mirrors the left side so the centre stays centred;
+                  `justify-end` keeps it pinned to the right edge. */}
                   <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-                    {/* Context-usage pill — shows tokens vs compaction threshold.
-                    Hidden until the first turn completes (no data yet).
-                    Desktop order on this side: [Pill] [Delete]. Conversation
-                    totals ride its tooltip (QW-12) — the dedicated banner
-                    line is gone.
-
-                    Below `mobile` (880 px) it steps aside: it is OBSERVATION,
-                    and the row must keep room for the search toggle, the
-                    spaces indicator and the destructive action. Its tooltip is
-                    a hover affordance anyway — unavailable on touch — and the
-                    same totals live on the dashboard usage tile. */}
-                    {contextUsage && (
-                      <div className="hidden mobile:block">
-                        <ContextUsagePill
-                          usage={contextUsage}
-                          totals={
-                            user?.tokens_display_enabled &&
-                            (combinedTotals.tokensIn > 0 || combinedTotals.tokensOut > 0)
-                              ? { ...combinedTotals, userMessageCount }
-                              : null
-                          }
-                        />
-                      </div>
-                    )}
                     {/* Delete/New chat button. Below `sm` the label steps aside —
                     the row cannot carry it next to the spaces indicator — so
                     the accessible name is carried explicitly: a bare trash
@@ -1067,7 +1046,7 @@ export default function ChatPage() {
                   at this level). This wrapper is positioning only. */}
               <div className="shadow-sm">
                 <ChatInput
-                  initialMessage={resolveInitialMessage(searchParams, initialDraft)}
+                  initialMessage={resolveInitialMessage(searchParams, initialDraft, replayedIntent)}
                   sentHistory={sentHistory}
                   prefill={chipPrefill}
                   slashCommands={slashCommands}

@@ -25,10 +25,12 @@ export function UsageStatistics() {
 
   return (
     // A native <details>: the disclosure semantics, the keyboard behaviour and
-    // the open/closed announcement come from the platform. Closed by default —
-    // these are the administration figures, and the results block above is now
-    // what leads. `group` drives the chevron rotation only.
-    <details className="group">
+    // the open/closed announcement come from the platform. OPEN by default
+    // (owner arbitration 2026-08-05): the figures are consulted often enough
+    // that the extra click cost more than the visual quiet it bought — the
+    // results block above still leads, and the reader can fold this one.
+    // `group` drives the chevron rotation only.
+    <details className="group" open>
       <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg py-2 text-base font-semibold tracking-tight text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-lg">
         <BarChart3 className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
         {t('dashboard.statistics.consumption_title')}

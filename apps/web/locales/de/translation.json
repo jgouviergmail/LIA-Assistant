@@ -3127,12 +3127,12 @@
         "debug-panel": "Entwickler, Diagnose, Traces, technisch, Fehlersuche, Wasserfall, Anomalien, Zeitachse, Pipeline",
         "personality": "Ton, Stil, Charakter, Verhalten, Persona, Stimme",
         "psyche": "Emotionen, Stimmung, Gefühle, Affekt, emotional",
-        "memories": "Gedächtnis, Erinnerungen, erinnern, vergessen, Fakten, Herkunft, warum, Quelle, Signal, Ursprung, korrigieren",
-        "interests": "Themen, Vorlieben, Geschmack, Neugier, Präferenzen, Verlauf, letzte Benachrichtigungen, Herkunft, warum, Gewicht, Erklärung, Abklingen, Quelle",
+        "memories": "Gedächtnis, Erinnerungen, erinnern, vergessen, Fakten, Herkunft, warum, Quelle, Signal, Ursprung, korrigieren, exportieren",
+        "interests": "Themen, Vorlieben, Geschmack, Neugier, Präferenzen, Verlauf, letzte Benachrichtigungen, Herkunft, warum, Gewicht, Erklärung, Abklingen, Quelle, exportieren",
         "peer-connections": "kontakte, freunde, familie, netzwerk, kalender teilen, verfügbarkeit, blockieren, nutzer finden, verbinden, mein Name, meinen Namen kopieren, Verbindungsanfrage, Zugriffsprotokoll, Nachricht weiterleiten, blockierte Nutzer, Nahestehende, soziales Netzwerk, Peer, Auffindbarkeit, Entdeckung, meine Adresse teilen, E-Mail sichtbar, meine E-Mail, 360°-Überblick, Sichtbarkeit, Anfragen",
         "heartbeat": "proaktiv, spontan, Initiative, Kontaktaufnahme, autonome Nachrichten, Benachrichtigungsthemen, Quellen, Verlauf, letzte Benachrichtigungen, Priorität, Dringlichkeit, hoch, mittel, niedrig, Farbe, Wetter, Frequenz, Zeitfenster",
         "scheduled-actions": "Cron, Zeitplan, wiederkehrend, Automatisierung, Timer, geplant",
-        "journals": "Tagebuch, Logbuch, Porträt, Reflexionen, Notizen, Herkunft, warum, Quelle, Signal, Ursprung, korrigieren, Konfiguration, Konsolidierung",
+        "journals": "Tagebuch, Logbuch, Porträt, Reflexionen, Notizen, Herkunft, warum, Quelle, Signal, Ursprung, korrigieren, Konfiguration, Konsolidierung, exportieren",
         "health-metrics": "Herzfrequenz, Schritte, Schlaf, iPhone, Apple Health, Fitness, Aktivität",
         "skills": "Fähigkeiten, Kompetenzen, Skills, Plugins, Erweiterungen",
         "rag-spaces": "Dokumente, RAG, Wissensdatenbank, Dateien, Upload, Indexierung, Bibliothek",
@@ -3899,6 +3899,18 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_27_13": {
+          "title": "v1.27.13 — 🔁 Eine Aktion wiederholt sich nicht von selbst",
+          "date": "August 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔁 Eine angeklickte Aktion startet bei der Rückkehr in den Chat nicht mehr erneut</b> — „Bereite eine Antwort auf die E-Mail vor…“ konnte erneut ausgeführt werden, wenn der Browser die Adresse des Klicks wiederbelebte (Verlauf, Sitzungswiederherstellung). Jeder Klick trägt jetzt eine Einmal-Kennung: Eine erneut aufgerufene Adresse füllt nur den Eingabebereich vor, und du entscheidest über das Senden. „Jetzt ausführen“-Links vorgeschlagener Routinen bleiben bewusst wiederholbar — dort ist jeder Klick eine Zustimmung.",
+            "i2": "<b>📥 Rich-HTML-Antworten zerquetschen ihre Schlüssel-Wert-Listen nicht mehr</b> — eine lange Beschriftung (der Betreff einer E-Mail) presste die Wertespalte zu einem unlesbaren Streifen, der aus der Blase lief. Das Layout ist korrigiert, und bereits erhaltene Antworten werden wieder korrekt angezeigt — ohne dein Zutun.",
+            "i3": "<b>⭕ Die Kontextanzeige ist auf dem Handy sichtbar</b> — die Pille, die den Füllstand der Unterhaltung zeigt (mit ihren Summen im Tooltip, per Tipp), rückt in die Mitte der Chat-Leiste, rechts neben den Wissensräume-Indikator, in jeder Bildschirmgröße.",
+            "i4": "<b>📊 Der Verbrauch im Dashboard öffnet sich ausgeklappt</b> — Nachrichten, Tokens, Google-Anfragen und Kosten sind ohne zusätzlichen Klick lesbar; der Bereich lässt sich weiterhin einklappen.",
+            "i5": "<b>📤 Exportieren ist auf dem Handy eine sichtbare Schaltfläche</b> — Langzeitgedächtnis, Interessen und Persönliche Journale zeigen Exportieren jetzt direkt in der Leiste, statt es im „⋯“-Menü zu verstecken; die Leiste bricht auf kleinen Bildschirmen sauber um."
+          }
+        },
         "v1_27_12": {
           "title": "v1.27.12 — 🔬 Das Debug-Panel liest sich wie der Lauf selbst",
           "date": "August 2026",

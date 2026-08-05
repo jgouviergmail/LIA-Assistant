@@ -112,8 +112,13 @@ test.describe('mobile substitutes', () => {
     }
   });
 
-  /** `chat-context-pill`: observation, dropped below 880 px. */
-  test('the context pill steps aside below 880 px and returns above', async ({
+  /**
+   * The context pill renders at EVERY width (owner arbitration 2026-08-05,
+   * v1.27.13): it left the mobile-visibility table when it joined the
+   * header's centred group — desktop-only it read as absent on phones, and
+   * tap toggles its totals tooltip where hover does not exist.
+   */
+  test('the context pill stays visible at every width', async ({
     page,
     authenticate,
     mockApi,
@@ -125,10 +130,9 @@ test.describe('mobile substitutes', () => {
 
     const pill = page.getByRole('button', { name: /Contexte de la conversation/ });
 
-    await page.setViewportSize({ width: 1024, height: 800 });
-    await expect(pill, 'the pill belongs to the wide layout').toBeVisible();
-
-    await page.setViewportSize({ width: 390, height: 800 });
-    await expect(pill, 'the pill must yield its width on a phone').toBeHidden();
+    for (const width of [1024, 390, 360] as const) {
+      await page.setViewportSize({ width, height: 800 });
+      await expect(pill, `the pill must stay visible at ${width}px`).toBeVisible();
+    }
   });
 });

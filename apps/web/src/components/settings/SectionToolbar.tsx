@@ -13,7 +13,11 @@
  * The contract:
  * - the PRIMARY CTA is solid and ALWAYS labelled (ADR-207 altitude);
  * - SECONDARY actions render inline from `sm` up and fold into a "⋯" menu
- *   below — present at every size, never amputated;
+ *   below — present at every size, never amputated; a `pinned` secondary
+ *   stays INLINE at every size instead (owner arbitration 2026-08-05: Export
+ *   on the memory, interests and journals bars — a menu holding one item is
+ *   a tap tax, and the folded export read as absent), and the "⋯" menu only
+ *   renders when something foldable remains;
  * - the DESTRUCTIVE action stays visible at every size, same geometry as its
  *   neighbours, red saying what it is.
  *
@@ -44,6 +48,12 @@ export interface ToolbarAction {
   disabled?: boolean;
   /** Replaces the icon with a spinner and disables the control. */
   loading?: boolean;
+  /**
+   * Secondary only: render inline at EVERY size instead of folding into the
+   * phone "⋯" menu. For actions the reader reaches for often enough that the
+   * fold read as absence (Export, per owner arbitration 2026-08-05).
+   */
+  pinned?: boolean;
 }
 
 export interface SectionToolbarProps {
@@ -99,17 +109,26 @@ export function SectionToolbar({
   destructive,
   menuLabel,
 }: SectionToolbarProps) {
-  const hasSecondary = (secondary?.length ?? 0) > 0;
+  const pinned = secondary?.filter(action => action.pinned) ?? [];
+  const foldable = secondary?.filter(action => !action.pinned) ?? [];
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
       {/* Empty string still reserves the slot so the buttons keep their edge. */}
       <div className="text-sm text-muted-foreground">{count}</div>
-      <div className="flex items-center gap-2">
+      {/* `flex-wrap justify-end`: with Export pinned, the four controls
+          outgrow a 360px card by ~15px — the destructive one then wraps to a
+          right-aligned second row instead of bleeding past the card edge
+          (measured 2026-08-05; the parent's wrap cannot help, it only wraps
+          the count line against this whole group). */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <ToolbarButton action={primary} variant="default" />
-        {hasSecondary && (
+        {pinned.map(action => (
+          <ToolbarButton key={action.key} action={action} variant="default" />
+        ))}
+        {foldable.length > 0 && (
           <>
             <div className="hidden items-center gap-2 sm:flex">
-              {secondary!.map(action => (
+              {foldable.map(action => (
                 <ToolbarButton key={action.key} action={action} variant="default" />
               ))}
             </div>
@@ -126,7 +145,7 @@ export function SectionToolbar({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {secondary!.map(action => {
+                {foldable.map(action => {
                   const Icon = action.icon;
                   return (
                     <DropdownMenuItem

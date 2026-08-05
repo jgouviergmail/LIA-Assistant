@@ -10,6 +10,7 @@ import {
   ERROR_CODE_CONNECTOR_RATE_LIMIT,
 } from '@/types/briefing';
 import type { CapabilityDirectiveWire } from '@/types/directive';
+import { newIntentId } from '@/lib/intent-replay-guard';
 
 // =============================================================================
 // Relative time helper for "updated X ago" labels
@@ -165,6 +166,12 @@ export function chatDraftHref(lng: string, draft?: string): string {
  * run. Actions whose meaning is fully carried by their text pass nothing and
  * behave exactly as before.
  *
+ * Every call also mints a one-shot `iid` (ADR-210): the URL is a replayable
+ * carrier (browser history, omnibox, session restore), and the chat page
+ * refuses to auto-send an iid it has already consumed. Fresh per CALL, so two
+ * clicks on the same action remain two executions. Backend-emitted intent
+ * links carry no iid and keep their click-is-consent semantics.
+ *
  * @param lng - Current URL locale segment.
  * @param intent - The full localized request to send.
  * @param directive - Capability the click invoked, when the action has one.
@@ -179,6 +186,7 @@ export function chatIntentHref(
   // `+`, which would rewrite every existing briefing deep link. Both decode
   // identically, but a change nobody asked for is a change nobody tested.
   const parts = [`intent=${encodeURIComponent(intent)}`];
+  parts.push(`iid=${newIntentId()}`);
   if (directive) {
     parts.push(`capability=${encodeURIComponent(directive.capability)}`);
     parts.push(`subject=${encodeURIComponent(directive.subject)}`);

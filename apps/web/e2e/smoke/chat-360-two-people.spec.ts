@@ -23,15 +23,10 @@
  * Hermetic: one dispatcher serves the whole `/relations` family, and the chat
  * POST bodies are captured so the assertions are about WHAT was sent.
  */
-import { test, expect, type MockRoute } from '../fixtures';
+import { test, expect, chatRoutes, type ChatBody, type MockRoute } from '../fixtures';
 
 const FIRST = 'Marie Dupont';
 const SECOND = 'Paul Martin';
-
-interface ChatBody {
-  message?: string;
-  directive?: { capability?: string; subject?: string };
-}
 
 const SCOPE = {
   sections: ['contact', 'open_loops', 'calls', 'memories', 'peer_messages', 'emails', 'events'],
@@ -118,40 +113,6 @@ function relationsRoutes(): MockRoute[] {
         if (path === '/overview-scope') return json(SCOPE);
         if (path.endsWith('/context')) return json(CONTEXT);
         return json(detailFor(path.replace(/^\//, '')));
-      },
-    },
-  ];
-}
-
-function chatRoutes(bodies: ChatBody[]): MockRoute[] {
-  return [
-    { url: '**/api/v1/conversations/me/totals', json: {} },
-    {
-      url: '**/api/v1/conversations/me/messages*',
-      json: {
-        messages: [],
-        conversation_id: '00000000-0000-4000-8000-0000000000ff',
-        total_count: 0,
-        has_more: false,
-        next_cursor: null,
-      },
-    },
-    { url: '**/api/v1/agents/health', json: { status: 'healthy', graph_compiled: true } },
-    { url: '**/api/v1/agents/runs/active', json: { active: false } },
-    { url: '**/api/v1/agents/hitl/pending', json: null },
-    { url: '**/api/v1/usage/**', json: {} },
-    {
-      url: '**/api/v1/agents/chat/stream',
-      method: 'POST',
-      handler: async route => {
-        bodies.push((route.request().postDataJSON() ?? {}) as ChatBody);
-        await route.fulfill({
-          status: 200,
-          contentType: 'text/event-stream',
-          body:
-            'data: {"type":"token","content":"Voici le point.","metadata":null}\n\n' +
-            'data: {"type":"done","content":"","metadata":null}\n\n',
-        });
       },
     },
   ];

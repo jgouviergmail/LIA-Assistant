@@ -34,18 +34,33 @@
  * — the App Router restores the search params of the entry it already holds —
  * and rule 2 above is the fix. The two are one defect seen from two sides.
  *
+ * 4. **Refuse an `iid` that was already consumed** (ADR-210, paid for on
+ *    2026-08-05). Rules 1-3 all police the CARRIER, and the carrier is
+ *    replayable by design: the real navigation of ADR-192 records the intent
+ *    URL as a browser-history VISIT, which `replaceState` cannot reach — the
+ *    omnibox, a most-visited tile or a session restore resurrects it and the
+ *    request re-executes ("Prépare une réponse au mail…" sent twice, 27 s
+ *    apart, each cancelled by the user). Every click now travels with a
+ *    one-shot `iid` (`chatIntentHref`) whose consumption is recorded in the
+ *    ledger (`intent-replay-guard`); a resurrected URL carries a consumed iid
+ *    and degrades to a VISIBLE draft — never a send, never a silent drop.
+ *    Backend-emitted intent links carry no iid on purpose: each click on a
+ *    durable "Run it now" link is a consent, replay across days included.
+ *
  * The "act only once" latch is NOT here — it belongs to the consumer
  * (`useAutoSendIntent`), keyed on the VALUE, so that clearing the param is what
  * re-arms it and asking twice for the same person still counts twice.
  *
  * `?capability=`/`?subject=` (ADR-191) travel WITH `?intent=` and are cleared
  * in the same breath: they are one request, and a directive outliving its
- * sentence would attach this subject to the next, unrelated intent.
+ * sentence would attach this subject to the next, unrelated intent. The `iid`
+ * is part of the same breath.
  */
 
 import { useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 
+import { isIntentConsumed, markIntentConsumed } from '@/lib/intent-replay-guard';
 import type { CapabilityDirectiveWire } from '@/types/directive';
 
 /**
@@ -84,9 +99,18 @@ export interface DeepLinkParams {
    */
   pendingDirective: CapabilityDirectiveWire | undefined;
   /**
-   * Drop `?intent=` AND its directive from the URL. Call it once the request
-   * has been acted on — the two are one request and must never outlive each
-   * other, or a later prose-only intent would inherit this subject.
+   * A resurrected `?intent=` whose iid was already consumed (rule 4,
+   * ADR-210) — '' when the arrival is genuine. Exposed so the page can show
+   * it in the composer immediately: the persisted draft is read once at
+   * mount, BEFORE the arrival effect saves this text, so without this field
+   * the replay would visibly do nothing at all.
+   */
+  replayedIntent: string;
+  /**
+   * Drop `?intent=`, its directive AND its iid from the URL, and record the
+   * iid as consumed. Call it once the request has been acted on — the params
+   * are one request and must never outlive each other, or a later prose-only
+   * intent would inherit this subject.
    */
   clearIntent: () => void;
 }
@@ -126,15 +150,37 @@ export function useDeepLinkParams(saveDraft: (text: string) => void): DeepLinkPa
     window.history.replaceState(null, '', query ? `${livePath}?${query}` : livePath);
   }, []);
 
+  // Rule 4 (ADR-210): an iid already in the consumed ledger marks this URL as
+  // a RESURRECTION (omnibox, session restore, router bookkeeping), not a
+  // click. Memoized on the iid so the ledger is read once per arrival, not on
+  // every streaming re-render — and never at all when no iid is present.
+  const intentValue = searchParams?.get('intent') ?? '';
+  const intentId = searchParams?.get('iid') ?? '';
+  const replayed = useMemo(() => (intentId ? isIntentConsumed(intentId) : false), [intentId]);
+
   useEffect(() => {
     // `?draft=` and `?voice=` are consumed during RENDER, so they can go as
     // soon as they arrive. `?intent=` must NOT: its consumer waits for auth.
     const draft = searchParams?.get('draft');
     if (draft?.trim()) saveDraft(draft);
     drop(['draft', 'voice']);
-  }, [searchParams, drop, saveDraft]);
+    // A replayed intent is consumed HERE, as a draft: persisting the sentence
+    // (never the directive — the user did not re-confirm a guaranteed tool
+    // call) keeps it across a reload, and dropping the params closes this
+    // resurrection. The composer shows it via `replayedIntent` meanwhile.
+    if (replayed && intentValue) {
+      saveDraft(intentValue);
+      drop(['intent', 'capability', 'subject', 'iid']);
+    }
+  }, [searchParams, drop, saveDraft, replayed, intentValue]);
 
-  const clearIntent = useCallback(() => drop(['intent', 'capability', 'subject']), [drop]);
+  const clearIntent = useCallback(() => {
+    // Read the iid from the ADDRESS BAR, like `drop`: it is what a replay
+    // would re-present, so it is the value the ledger must hold.
+    const liveIntentId = new URLSearchParams(window.location.search).get('iid');
+    if (liveIntentId) markIntentConsumed(liveIntentId);
+    drop(['intent', 'capability', 'subject', 'iid']);
+  }, [drop]);
 
   const capability = searchParams?.get('capability');
   const subject = searchParams?.get('subject')?.trim();
@@ -145,17 +191,20 @@ export function useDeepLinkParams(saveDraft: (text: string) => void): DeepLinkPa
   // that only works because something downstream absorbs the churn is a defect
   // waiting for its next consumer.
   const pendingDirective = useMemo(() => {
-    if (!known || !subject) return undefined;
+    if (!known || !subject || replayed) return undefined;
     if (subject.length < SUBJECT_MIN_LENGTH || subject.length > SUBJECT_MAX_LENGTH) {
       return undefined;
     }
     return { capability: known, subject };
-  }, [known, subject]);
+  }, [known, subject, replayed]);
 
   return {
     spotlightVoice: searchParams?.get('voice') === '1',
-    pendingIntent: searchParams?.get('intent') ?? '',
+    // Never exposed for even one render when replayed: the auto-send effect
+    // fires on the value, and an instant of exposure is an execution.
+    pendingIntent: replayed ? '' : intentValue,
     pendingDirective,
+    replayedIntent: replayed ? intentValue : '',
     clearIntent,
   };
 }

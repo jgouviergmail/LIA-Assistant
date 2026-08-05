@@ -189,18 +189,10 @@ export const MOBILE_SURFACES: readonly MobileSurface[] = [
     substitute: null,
     reason: 'Voice-cost telemetry; the 🎤 marker itself stays visible at every width.',
   },
-  {
-    id: 'chat-context-pill',
-    location: 'app/[lng]/dashboard/chat/page',
-    kind: 'observation',
-    tier: 'desktop-only',
-    minWidth: 880,
-    substitute: 'The dashboard usage tile carries the same cycle totals.',
-    reason:
-      'Context-vs-compaction telemetry whose detail lives in a hover tooltip — an affordance ' +
-      'touch does not have. The row needs the width for the search toggle, the spaces ' +
-      'indicator and the destructive action (measured: 2 px short at 320 px, causing an overlap).',
-  },
+  // `chat-context-pill` left this table on 2026-08-05 (owner arbitration,
+  // v1.27.13): the pill now renders in the header's CENTRED group at every
+  // width — its ~52 px fit the 360 px row and tap toggles the tooltip on
+  // touch. A surface visible everywhere is not a conditional surface.
   {
     id: 'header-token-toggle',
     location: 'app/[lng]/dashboard/layout',

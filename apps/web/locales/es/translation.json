@@ -3127,12 +3127,12 @@
         "debug-panel": "desarrollador, diagnóstico, trazas, técnico, solución de problemas, waterfall, anomalías, cronología, pipeline",
         "personality": "tono, estilo, carácter, comportamiento, persona, voz",
         "psyche": "emociones, estado de ánimo, sentimientos, afecto, emocional",
-        "memories": "memoria, recuerdos, recordar, olvidar, hechos, procedencia, por qué, fuente, señal, origen, corregir",
-        "interests": "temas, gustos, materias, curiosidad, preferencias, historial, notificaciones recientes, procedencia, por qué, peso, explicación, decaimiento, fuente",
+        "memories": "memoria, recuerdos, recordar, olvidar, hechos, procedencia, por qué, fuente, señal, origen, corregir, exportar",
+        "interests": "temas, gustos, materias, curiosidad, preferencias, historial, notificaciones recientes, procedencia, por qué, peso, explicación, decaimiento, fuente, exportar",
         "peer-connections": "contactos, amigos, familia, red, compartir calendario, disponibilidad, bloquear, descubrir usuarios, conectar, mi nombre, copiar mi nombre, solicitud de conexión, historial de accesos, transmitir mensaje, usuarios bloqueados, allegados, red social, peer, descubrimiento, visibilidad, compartir mi dirección, email visible, mi correo, resumen 360, solicitudes",
         "heartbeat": "proactivo, espontáneo, iniciativa, contacto, mensajes autónomos, temas de las notificaciones, fuentes, historial, notificaciones recientes, prioridad, urgencia, alta, media, baja, color, meteorología, frecuencia, franja horaria",
         "scheduled-actions": "cron, programación, recurrente, automatización, temporizador, planificado",
-        "journals": "diario, bitácora, retrato, reflexiones, notas, procedencia, por qué, fuente, señal, origen, corregir, configuración, consolidación",
+        "journals": "diario, bitácora, retrato, reflexiones, notas, procedencia, por qué, fuente, señal, origen, corregir, configuración, consolidación, exportar",
         "health-metrics": "frecuencia cardíaca, pasos, sueño, iPhone, Apple Salud, forma física, actividad",
         "skills": "habilidades, capacidades, competencias, plugins, extensiones",
         "rag-spaces": "documentos, RAG, base de conocimiento, archivos, subida, indexación, biblioteca",
@@ -3899,6 +3899,18 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_27_13": {
+          "title": "v1.27.13 — 🔁 Una acción no se repite sola",
+          "date": "Agosto 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔁 Una acción pulsada ya no se relanza al volver al chat</b> — «Prepara una respuesta al correo…» podía ejecutarse de nuevo cuando el navegador resucitaba la dirección del clic (historial, restauración de sesión). Cada clic lleva ahora un identificador de un solo uso: una dirección repetida solo prerrellena el compositor, y tú decides si enviar. Los enlaces «Ejecutar ahora» de las rutinas propuestas siguen siendo deliberadamente repetibles — ahí, cada clic es un consentimiento.",
+            "i2": "<b>📥 Las respuestas en HTML enriquecido ya no aplastan sus listas clave-valor</b> — una etiqueta larga (el asunto de un correo) reducía la columna de valores a una franja ilegible que desbordaba la burbuja. La maquetación está corregida, y las respuestas ya recibidas vuelven a mostrarse bien — sin hacer nada por tu parte.",
+            "i3": "<b>⭕ El indicador de contexto es visible en el móvil</b> — la píldora que muestra cuán llena está la conversación (con sus totales en la burbuja de ayuda, al tocar) pasa al centro de la barra del chat, a la derecha del indicador de espacios de conocimiento, en todos los tamaños de pantalla.",
+            "i4": "<b>📊 El Consumo del panel se abre desplegado</b> — mensajes, tokens, peticiones a Google y coste se consultan sin un clic más; la sección sigue siendo plegable.",
+            "i5": "<b>📤 Exportar es un botón visible en el teléfono</b> — Memoria a largo plazo, Centros de interés y Diarios personales muestran ahora Exportar en la propia barra en lugar de plegarlo en el menú «⋯»; la barra se reorganiza limpiamente en pantallas pequeñas."
+          }
+        },
         "v1_27_12": {
           "title": "v1.27.12 — 🔬 El panel de depuración se lee como la ejecución",
           "date": "Agosto 2026",

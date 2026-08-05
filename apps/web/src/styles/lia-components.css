@@ -7366,10 +7366,17 @@ a:focus-visible {
   margin: 0.6em 1em;
 }
 
-/* Key-value list */
+/* Key-value list.
+   Sized so LLM output can never crush the value column (prod 2026-08-05):
+   - fit-content(40%) caps the key track by its content, never by free space
+     (minmax(6em, max-content) let one long <dt> take the whole row, and
+     fit-content() is invalid inside minmax());
+   - explicit grid-column pins every <dd> to the value track — multiple <dd>
+     per <dt> is valid HTML and used to auto-flow into the key column,
+     inflating its max-content to the full bubble width (value track = 0px). */
 .lia-response .lia-kv {
   display: grid;
-  grid-template-columns: minmax(6em, max-content) 1fr;
+  grid-template-columns: fit-content(40%) 1fr;
   gap: 0.35em 1.25em;
   margin: 0.8em 0;
 }
@@ -7377,15 +7384,25 @@ a:focus-visible {
   color: var(--lia-text-secondary);
   font-size: 0.9em;
   overflow-wrap: anywhere;
+  grid-column: 1;
+  /* floor of the former minmax(6em, …) track, resolved in dt's 0.9em font */
+  min-width: 6em;
 }
 .lia-response .lia-kv dd {
   margin: 0;
   min-width: 0;
+  grid-column: 2;
+  overflow-wrap: anywhere;
 }
 @media (max-width: 479px) {
   .lia-response .lia-kv {
     grid-template-columns: 1fr;
     gap: 0.1em;
+  }
+  .lia-response .lia-kv dt,
+  .lia-response .lia-kv dd {
+    /* forced columns would recreate a phantom 2nd track in the 1fr stack */
+    grid-column: auto;
   }
   .lia-response .lia-kv dd {
     margin-bottom: 0.5em;

@@ -190,3 +190,17 @@ describe('MemorySettings — memory switch', () => {
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('common.error'));
   });
 });
+
+/**
+ * Export stays a VISIBLE button at every size (owner request 2026-08-05):
+ * folded into the phone "⋯" menu it read as absent. With export pinned and
+ * nothing else foldable, the "⋯" trigger must not render at all.
+ */
+describe('MemorySettings — pinned export', () => {
+  it('keeps Export inline with no size gating and no "⋯" menu', async () => {
+    render();
+    const exportBtn = await screen.findByRole('button', { name: 'memories.export' });
+    expect(exportBtn.closest('.hidden')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'common.more_actions' })).toBeNull();
+  });
+});

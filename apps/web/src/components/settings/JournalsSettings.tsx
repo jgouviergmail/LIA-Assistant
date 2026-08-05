@@ -1098,6 +1098,9 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                   label: t('journals.export', 'Export'),
                   icon: Download,
                   onSelect: () => void handleExport('json'),
+                  // Visible on phones too (owner request 2026-08-05); the
+                  // consolidation below stays foldable — it is occasional.
+                  pinned: true,
                 },
                 {
                   key: 'consolidate',

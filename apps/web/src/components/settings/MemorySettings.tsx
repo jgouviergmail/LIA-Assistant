@@ -407,6 +407,9 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                 icon: Download,
                 disabled: total === 0,
                 onSelect: handleExport,
+                // Visible on phones too (owner request 2026-08-05): folded
+                // into "⋯" it read as absent.
+                pinned: true,
               },
             ]}
             destructive={{

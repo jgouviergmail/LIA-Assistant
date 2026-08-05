@@ -3129,12 +3129,12 @@
         "debug-panel": "sviluppatore, diagnostica, tracce, tecnico, risoluzione dei problemi, waterfall, anomalie, cronologia, pipeline",
         "personality": "tono, stile, carattere, comportamento, persona, voce",
         "psyche": "emozioni, umore, sentimenti, affettività, emotivo",
-        "memories": "memoria, ricordi, ricordare, dimenticare, fatti, provenienza, perché, fonte, segnale, origine, correggere",
-        "interests": "argomenti, gusti, temi, curiosità, preferenze, cronologia, notifiche recenti, provenienza, perché, peso, spiegazione, decadimento, fonte",
+        "memories": "memoria, ricordi, ricordare, dimenticare, fatti, provenienza, perché, fonte, segnale, origine, correggere, esportare",
+        "interests": "argomenti, gusti, temi, curiosità, preferenze, cronologia, notifiche recenti, provenienza, perché, peso, spiegazione, decadimento, fonte, esportare",
         "peer-connections": "contatti, amici, famiglia, rete, condividere calendario, disponibilità, bloccare, trovare utenti, connettere, il mio nome, copia il mio nome, richiesta di connessione, registro accessi, trasmettere messaggio, utenti bloccati, persone care, rete sociale, peer, reperibilità, scoperta, condividere il mio indirizzo, email visibile, la mia email, punto 360, visibilità, richieste",
         "heartbeat": "proattivo, spontaneo, iniziativa, contatto, messaggi autonomi, argomenti delle notifiche, fonti, cronologia, notifiche recenti, priorità, urgenza, alta, media, bassa, colore, meteo, frequenza, fascia oraria",
         "scheduled-actions": "cron, pianificazione, ricorrente, automazione, timer, programmato",
-        "journals": "diario, giornale di bordo, ritratto, riflessioni, note, provenienza, perché, fonte, segnale, origine, correggere, configurazione, consolidamento",
+        "journals": "diario, giornale di bordo, ritratto, riflessioni, note, provenienza, perché, fonte, segnale, origine, correggere, configurazione, consolidamento, esportare",
         "health-metrics": "frequenza cardiaca, passi, sonno, iPhone, Apple Salute, forma fisica, attività",
         "skills": "competenze, capacità, abilità, plugin, estensioni",
         "rag-spaces": "documenti, RAG, base di conoscenza, file, caricamento, indicizzazione, biblioteca",
@@ -3901,6 +3901,18 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_27_13": {
+          "title": "v1.27.13 — 🔁 Un'azione non si ripete da sola",
+          "date": "Agosto 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔁 Un'azione cliccata non riparte più al ritorno nella chat</b> — «Prepara una risposta all'e-mail…» poteva essere eseguita di nuovo quando il browser resuscitava l'indirizzo del clic (cronologia, ripristino della sessione). Ogni clic porta ora un identificatore monouso: un indirizzo ripresentato si limita a precompilare il compositore, e sei tu a decidere se inviare. I link «Esegui ora» delle routine proposte restano volutamente ripetibili — lì ogni clic è un consenso.",
+            "i2": "<b>📥 Le risposte in HTML arricchito non schiacciano più le loro liste chiave-valore</b> — un'etichetta lunga (l'oggetto di un'e-mail) riduceva la colonna dei valori a una striscia illeggibile che sbordava dal fumetto. L'impaginazione è corretta, e le risposte già ricevute tornano a mostrarsi bene — senza fare nulla.",
+            "i3": "<b>⭕ L'indicatore di contesto è visibile su mobile</b> — la pillola che mostra quanto è piena la conversazione (con i totali nel tooltip, al tocco) passa al centro della barra della chat, a destra dell'indicatore degli spazi di conoscenza, a ogni dimensione di schermo.",
+            "i4": "<b>📊 Il Consumo della dashboard si apre espanso</b> — messaggi, token, richieste Google e costo si consultano senza un clic in più; la sezione resta richiudibile.",
+            "i5": "<b>📤 Esporta è un pulsante visibile sul telefono</b> — Memoria a lungo termine, Interessi e Diari personali mostrano ora Esporta direttamente nella barra invece di ripiegarlo nel menu «⋯»; la barra si riorganizza in modo pulito sugli schermi piccoli."
+          }
+        },
         "v1_27_12": {
           "title": "v1.27.12 — 🔬 Il pannello di debug si legge come l'esecuzione",
           "date": "Agosto 2026",

@@ -431,6 +431,9 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                 icon: Download,
                 disabled: total === 0,
                 onSelect: () => window.open('/api/v1/interests/export', '_blank'),
+                // Visible on phones too (owner request 2026-08-05): folded
+                // into "⋯" it read as absent.
+                pinned: true,
               },
             ]}
             destructive={{

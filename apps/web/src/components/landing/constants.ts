@@ -39,12 +39,12 @@
  *   Previous re-measure at v1.27.8: backend 17,925, frontend 4,690 = 22,615.
  *   Re-measure every release: the value carried the backend count alone
  *   until v1.25.9.
- * - adrs: docs/architecture/ ADR files (208 files, numbered up to ADR-209 —
- *   ADR-008 has no separate file, so 209 numbers map to 208 files). Was
+ * - adrs: docs/architecture/ ADR files (209 files, numbered up to ADR-210 —
+ *   ADR-008 has no separate file, so 210 numbers map to 209 files). Was
  *   stranded at 183 from v1.27.0 to v1.27.4: recount it, never carry it over.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   199 headings at v1.27.12, no Unreleased pending.
+ *   200 headings at v1.27.13, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -61,8 +61,8 @@ export const LANDING_STATS = {
   metrics: 466,
   uiLanguages: 6,
   tests: 23000,
-  adrs: 208,
-  releases: 199,
+  adrs: 209,
+  releases: 200,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

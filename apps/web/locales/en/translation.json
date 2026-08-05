@@ -3149,12 +3149,12 @@
         "debug-panel": "developer, diagnostics, traces, technical, troubleshooting, waterfall, anomalies, timeline, pipeline",
         "personality": "tone, style, character, behaviour, behavior, persona, voice",
         "psyche": "emotions, mood, feelings, affect, emotional",
-        "memories": "memory, remember, forget, facts, recollection, provenance, why, source, signal, origin, correct",
-        "interests": "topics, tastes, subjects, curiosity, preferences, history, recent notifications, provenance, why, weight, explanation, decay, source",
+        "memories": "memory, remember, forget, facts, recollection, provenance, why, source, signal, origin, correct, export",
+        "interests": "topics, tastes, subjects, curiosity, preferences, history, recent notifications, provenance, why, weight, explanation, decay, source, export",
         "peer-connections": "contacts, friends, family, network, share calendar, availability, block, discover users, connect, my name, copy my name, connection request, access log, relay message, blocked users, peers, social network, discovery, loved ones, relatives, share my address, email visible, my email, 360 overview, visibility, requests",
         "heartbeat": "proactive, spontaneous, initiative, check-in, autonomous messages, notification topics, sources, history, recent notifications, priority, urgency, high, medium, low, colour, weather, frequency, time window",
         "scheduled-actions": "cron, schedule, recurring, automation, timer, planned",
-        "journals": "diary, logbook, portrait, reflections, notes, provenance, why, source, signal, origin, correct, configuration, consolidation",
+        "journals": "diary, logbook, portrait, reflections, notes, provenance, why, source, signal, origin, correct, configuration, consolidation, export",
         "health-metrics": "heart rate, steps, sleep, iPhone, Apple Health, fitness, activity",
         "skills": "skills, capabilities, abilities, plugins, extensions",
         "rag-spaces": "documents, RAG, knowledge base, files, upload, indexing, library",
@@ -3908,6 +3908,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_27_13": {
+          "title": "v1.27.13 — 🔁 An action never replays itself",
+          "date": "August 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔁 A clicked action no longer re-runs when you return to the chat</b> — “Prepare a reply to the email…” could execute again when the browser resurrected the click's address (history, session restore). Every click now carries a one-shot id: a replayed address only prefills the composer, and you decide whether to send. “Run it now” links on proposed routines stay deliberately replayable — there, each click is a consent.",
+            "i2": "<b>📥 Rich-HTML answers no longer crush their key-value lists</b> — a long label (an email subject) squeezed the value column into an unreadable sliver overflowing the bubble. The layout is fixed, and answers already received display correctly again — nothing to do on your side.",
+            "i3": "<b>⭕ The context gauge is visible on mobile</b> — the pill showing how full the conversation is (with its totals tooltip on tap) joins the centre of the chat header, right of the knowledge-spaces indicator, at every screen size.",
+            "i4": "<b>📊 The dashboard's Consumption opens expanded</b> — messages, tokens, Google requests and cost are readable without an extra click; the section still folds if you prefer it quiet.",
+            "i5": "<b>📤 Export is a visible button on phones</b> — Long-term memory, Interests and Personal journals now show Export right in the toolbar instead of folding it into the “⋯” menu; the bar wraps cleanly on small screens."
+          }
+        },
         "v1_27_12": {
           "title": "v1.27.12 — 🔬 The debug panel reads like the run",
           "date": "August 2026",

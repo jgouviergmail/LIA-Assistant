@@ -2,12 +2,11 @@
  * ContextUsagePill — discreet progress indicator showing how close the
  * conversation is to triggering an automatic compaction.
  *
- * Rendered in the chat header bar (between the voice-mode badge and the
- * delete-conversation button). Refreshes on every `done` SSE event.
- *
- * Variants:
- *  - >= 360 px viewport: ring + percentage label + tooltip.
- *  - <  360 px viewport: ring only; tap to reveal percentage + tooltip.
+ * Rendered in the chat header's CENTRED group, at the right of the
+ * active-spaces (RAG) indicator, at every viewport width (owner arbitration
+ * 2026-08-05 — it was desktop-only for a while and users missed it on
+ * phones). Refreshes on every `done` SSE event; tap toggles the tooltip on
+ * touch screens.
  *
  * Coloring:
  *  - ratio <= 0.50  → green

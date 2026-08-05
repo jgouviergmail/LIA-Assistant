@@ -308,3 +308,22 @@ describe('JournalsSettings — truncated list', () => {
     expect(screen.queryByTestId('journals-truncated-notice')).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Export stays a VISIBLE button at every size (owner request 2026-08-05):
+ * folded into the phone "⋯" menu it read as absent. Consolidation stays
+ * foldable — occasional — so the "⋯" menu remains, without Export in it.
+ */
+describe('JournalsSettings — pinned export', () => {
+  it('keeps Export inline and out of the "⋯" menu, which keeps consolidation', async () => {
+    const { user } = render();
+    const exportBtn = await screen.findByRole('button', { name: 'journals.export' });
+    expect(exportBtn.closest('.hidden')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'common.more_actions' }));
+    expect(
+      await screen.findByRole('menuitem', { name: /journals.consolidateNow/ })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'journals.export' })).toBeNull();
+  });
+});

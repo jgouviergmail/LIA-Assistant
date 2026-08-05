@@ -3154,12 +3154,12 @@
         "debug-panel": "développeur, diagnostic, traces, technique, dépannage, waterfall, anomalies, chronologie, pipeline",
         "personality": "ton, style, caractère, comportement, persona, voix",
         "psyche": "émotions, humeur, sentiments, affect, émotionnel",
-        "memories": "mémoire, souvenirs, se souvenir, oublier, faits, provenance, pourquoi, source, signal, origine, corriger",
-        "interests": "sujets, goûts, thèmes, curiosité, préférences, historique, notifications récentes, provenance, pourquoi, poids, explication, décroissance, source",
+        "memories": "mémoire, souvenirs, se souvenir, oublier, faits, provenance, pourquoi, source, signal, origine, corriger, exporter",
+        "interests": "sujets, goûts, thèmes, curiosité, préférences, historique, notifications récentes, provenance, pourquoi, poids, explication, décroissance, source, exporter",
         "peer-connections": "contacts, amis, famille, réseau, partager calendrier, disponibilités, bloquer, découvrir utilisateurs, connecter, mon nom, copier mon nom, demande de connexion, journal des accès, relayer un message, utilisateurs bloqués, proches, réseau social, peer, découverte, se connecter à un proche, partager mon adresse, email visible, mon email, point 360, visibilité, demandes",
         "heartbeat": "proactif, spontané, initiative, prise de contact, messages autonomes, sujets des notifications, sources, historique, notifications récentes, priorité, urgence, haute, moyenne, basse, couleur, météo, fréquence, plage horaire",
         "scheduled-actions": "cron, planification, récurrent, automatisation, minuterie, programmé",
-        "journals": "journal intime, carnet, portrait, réflexions, notes, provenance, pourquoi, source, signal, origine, corriger, configuration, consolidation",
+        "journals": "journal intime, carnet, portrait, réflexions, notes, provenance, pourquoi, source, signal, origine, corriger, configuration, consolidation, exporter",
         "health-metrics": "fréquence cardiaque, pas, sommeil, iPhone, Apple Santé, forme, activité",
         "skills": "compétences, capacités, aptitudes, plugins, extensions",
         "rag-spaces": "documents, RAG, base de connaissances, fichiers, téléversement, indexation, bibliothèque",
@@ -3913,6 +3913,18 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_27_13": {
+          "title": "v1.27.13 — 🔁 Une action ne se rejoue pas toute seule",
+          "date": "Août 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔁 Une action cliquée ne se relance plus au retour sur le chat</b> — « Prépare une réponse au mail… » pouvait se ré-exécuter quand le navigateur ressuscitait l'adresse du clic (historique, restauration de session). Chaque clic porte désormais un identifiant à usage unique : une adresse rejouée ne fait que préremplir le composer, et c'est toi qui décides d'envoyer. Les liens « Lancer maintenant » des routines proposées restent volontairement rejouables — là, chaque clic est un consentement.",
+            "i2": "<b>📥 Les réponses en HTML enrichi n'écrasent plus leurs listes clé-valeur</b> — un libellé long (le sujet d'un e-mail) réduisait la colonne des valeurs à un filet illisible qui débordait de la bulle. La mise en page est corrigée, et les réponses déjà reçues se réaffichent correctement — rien à faire de ton côté.",
+            "i3": "<b>⭕ La jauge de contexte est visible sur mobile</b> — la pastille qui montre le remplissage de la conversation (avec ses totaux en infobulle, au tap) rejoint le centre du bandeau du chat, à droite de l'indicateur d'espaces de connaissances, à toutes les tailles d'écran.",
+            "i4": "<b>📊 La Consommation du tableau de bord s'ouvre dépliée</b> — messages, tokens, requêtes Google et coût se consultent sans un clic de plus ; la section reste repliable si tu la préfères discrète.",
+            "i5": "<b>📤 Exporter est un bouton visible sur téléphone</b> — Mémoire à long terme, Centres d'intérêt et Journaux personnels affichent désormais Exporter en pleine barre au lieu de le replier dans le menu « ⋯ » ; la barre se réorganise proprement sur les petits écrans."
+          }
+        },
         "v1_27_12": {
           "title": "v1.27.12 — 🔬 Le panneau de debug se lit comme l'exécution",
           "date": "Août 2026",

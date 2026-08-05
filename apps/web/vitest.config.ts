@@ -68,7 +68,14 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
-        // Global floor — re-measured 2026-08-05 after the debug-panel
+        // Global floor — re-measured 2026-08-05 after the intent-replay lot
+        // (ADR-210: the consumed-intent ledger, the replay branch of
+        // useDeepLinkParams, the extracted resolveInitialMessage, the
+        // UsageStatistics disclosure test):
+        // statements 72.79 / branches 69.12 / functions 69.11 / lines 73.35.
+        // Raised 70/66/66/71 -> 70/67/67/71 (floor(measured - 2) per axis —
+        // only branches and functions cross an integer step this time).
+        // Previous re-measure 2026-08-05 after the debug-panel
         // overhaul (ADR-209: the tone foundation and its node families, the
         // shared ScoreBar/legend, the 30 execution-ordered sections, the
         // presence/anomaly derivations, the entry header and pipeline strip,
@@ -201,8 +208,8 @@ export default defineConfig({
         // modules `sherpaKws` / `audio-queue`, which jsdom cannot simulate
         // without the test degenerating into a test of its own mocks.
         statements: 70,
-        branches: 66,
-        functions: 66,
+        branches: 67,
+        functions: 67,
         lines: 71,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {
