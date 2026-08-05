@@ -234,9 +234,10 @@ AUDIT_SECURITE_CODEBASE*
 
 # Debug and temporary scripts
 debug_*.py
-# Exception: production module (debug-panel metrics builder extracted from
-# streaming/service.py), not a scratch debug script — must be tracked.
-!/apps/api/src/domains/agents/services/streaming/debug_metrics_builder.py
+# Exception: production debug-panel modules under src/ are NOT scratch
+# scripts — the blanket pattern silently dropped debug_metrics_stages.py
+# from the v1.27.12 release commit (mypy CI: 1068 files vs 1069 locally).
+!/apps/api/src/**/debug_*.py
 fix_*.py
 tmpclaude-*
 test_*.sh
