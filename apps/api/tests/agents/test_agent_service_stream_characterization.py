@@ -212,6 +212,11 @@ class FakeStreamingService:
         from src.domains.agents.services.streaming.trace_capture import TraceCapture
 
         self.trace_capture = TraceCapture(max_steps=100)
+        # Production contract (ADR-214): the archive path reads the CURRENT
+        # turn's primary domain captured by the streaming service (None until
+        # the query-intelligence delta lands) — same attribute-for-attribute
+        # rationale as persistable_widgets above.
+        self.primary_domain: str | None = None
         FakeStreamingService.instances.append(self)
 
     async def stream_sse_chunks(self, graph_stream, conversation_id, run_id):
