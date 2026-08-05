@@ -1,21 +1,18 @@
 /**
  * Unit tests for the debug-panel formatters.
  *
- * Pure display helpers: percentages, token/byte/duration humanization, the
- * polymorphic `formatValue`, confidence badges, truncation and relative-time.
- * Every non-finite / boundary branch is exercised so the debug panel never
- * renders `NaN`/`Infinity`. `formatTimeAgo` reads `Date.now()`, so those cases
- * run under fake timers for determinism.
+ * Pure display helpers: percentages, token/duration humanization, the
+ * polymorphic `formatValue`, truncation, wall-clock formatting and the
+ * emotional-weight buckets. Every non-finite / boundary branch is
+ * exercised so the debug panel never renders `NaN`/`Infinity`.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
-  formatBytes,
+  formatClockTime,
   formatCost,
   formatDuration,
   formatPercent,
-  formatScoreWithConfidence,
-  formatTimeAgo,
   formatTokenCount,
   formatValue,
   getEmotionalLabel,
@@ -116,14 +113,6 @@ describe('formatValue (polymorphic)', () => {
   });
 });
 
-describe('formatScoreWithConfidence', () => {
-  it('maps confidence level to a badge color', () => {
-    expect(formatScoreWithConfidence(0.85, 'high')).toEqual({ text: '85%', color: 'green' });
-    expect(formatScoreWithConfidence(0.5, 'medium')).toEqual({ text: '50%', color: 'yellow' });
-    expect(formatScoreWithConfidence(0.1, 'low')).toEqual({ text: '10%', color: 'red' });
-  });
-});
-
 describe('truncateText', () => {
   it('truncates with an ellipsis only past maxLength', () => {
     expect(truncateText('Hello world', 8)).toBe('Hello...');
@@ -136,55 +125,35 @@ describe('truncateText', () => {
   });
 });
 
-describe('formatBytes', () => {
-  it('humanizes byte sizes with unit escalation', () => {
-    expect(formatBytes(0)).toBe('0 B');
-    expect(formatBytes(500)).toBe('500.0 B');
-    expect(formatBytes(1024)).toBe('1.0 KB');
-    expect(formatBytes(1536)).toBe('1.5 KB');
-    expect(formatBytes(1_048_576)).toBe('1.0 MB');
+describe('formatClockTime', () => {
+  it('renders a deterministic 24h HH:MM:SS whatever the runtime locale', () => {
+    expect(formatClockTime(new Date(2026, 0, 5, 9, 7, 3))).toBe('09:07:03');
+    expect(formatClockTime(new Date(2026, 5, 15, 23, 59, 59))).toBe('23:59:59');
+    expect(formatClockTime(new Date(2026, 5, 15, 0, 0, 0))).toBe('00:00:00');
   });
 
-  it('returns a dash for invalid input', () => {
-    expect(formatBytes(NaN)).toBe('-');
-  });
-});
-
-describe('formatTimeAgo', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2025-01-15T12:00:00.000Z'));
-  });
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('buckets seconds / minutes / hours / days', () => {
-    expect(formatTimeAgo(new Date(Date.now() - 2_000))).toBe('2s ago');
-    expect(formatTimeAgo(new Date(Date.now() - 65_000))).toBe('1m ago');
-    expect(formatTimeAgo(new Date(Date.now() - 3 * 3600_000))).toBe('3h ago');
-    expect(formatTimeAgo(new Date(Date.now() - 2 * 86400_000))).toBe('2d ago');
-  });
-
-  it('accepts an ISO string', () => {
-    expect(formatTimeAgo(new Date(Date.now() - 5_000).toISOString())).toBe('5s ago');
+  it('returns a dash for an invalid date', () => {
+    expect(formatClockTime(new Date('nonsense'))).toBe('-');
   });
 });
 
 describe('getEmotionalLabel', () => {
-  it('maps -10..+10 weight to a label bucket', () => {
+  it('maps -10..+10 weight to an English label bucket', () => {
     expect(getEmotionalLabel(-8).label).toBe('TRAUMA');
     expect(getEmotionalLabel(-7).label).toBe('TRAUMA');
     expect(getEmotionalLabel(-4).label).toBe('NEG');
     expect(getEmotionalLabel(-3).label).toBe('NEG');
     expect(getEmotionalLabel(0).label).toBe('NEU');
     expect(getEmotionalLabel(3).label).toBe('POS');
-    expect(getEmotionalLabel(7).label).toBe('TRES+');
-    expect(getEmotionalLabel(10).label).toBe('TRES+');
+    expect(getEmotionalLabel(7).label).toBe('STRONG+');
+    expect(getEmotionalLabel(10).label).toBe('STRONG+');
   });
 
-  it('carries Tailwind badge classes', () => {
-    expect(getEmotionalLabel(-8).className).toContain('red');
-    expect(getEmotionalLabel(5).className).toContain('green');
+  it('carries a semantic tone, not raw palette classes', () => {
+    expect(getEmotionalLabel(-8).tone).toBe('alert');
+    expect(getEmotionalLabel(-4).tone).toBe('destructive');
+    expect(getEmotionalLabel(0).tone).toBe('neutral');
+    expect(getEmotionalLabel(5).tone).toBe('success');
+    expect(getEmotionalLabel(8).tone).toBe('success');
   });
 });

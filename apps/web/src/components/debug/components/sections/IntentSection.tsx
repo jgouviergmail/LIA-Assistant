@@ -6,8 +6,15 @@
  */
 
 import React from 'react';
-import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { MetricRow, ThresholdRow, SectionBadge } from '../shared';
+import { Target } from 'lucide-react';
+import {
+  DebugChip,
+  DebugSection,
+  MetricRow,
+  SectionBadge,
+  SubSectionHeader,
+  ThresholdRow,
+} from '../shared';
 import { DEFAULT_THRESHOLDS } from '../../utils/constants';
 import type { DebugMetrics, IntelligentMechanisms } from '@/types/chat';
 
@@ -36,61 +43,51 @@ export const IntentSection = React.memo(function IntentSection({
   const isLLMBased = mechanisms?.llm_query_analysis?.applied ?? false;
 
   return (
-    <AccordionItem value="intent">
-      <AccordionTrigger className="py-2 text-sm">
-        <div className="flex items-center gap-2">
-          <span>Intent Detection</span>
-          {isLLMBased && (
-            <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded font-medium border border-primary/30">
-              LLM
-            </span>
-          )}
+    <DebugSection
+      value="intent"
+      title="Intent Detection"
+      icon={Target}
+      badge={
+        <>
+          {isLLMBased && <DebugChip tone="info">LLM</DebugChip>}
           <SectionBadge passed={passed} value={data.confidence} />
-        </div>
-      </AccordionTrigger>
-      <AccordionContent>
-        <div className="space-y-3">
-          {/* Main result */}
-          <div className="space-y-1">
-            <div className="text-xs text-muted-foreground font-medium mb-1">Classification</div>
-            <MetricRow label="Action détectée" value={data.detected_intent} highlight />
-            <MetricRow label="Confiance" value={data.confidence} highlight />
-          </div>
+        </>
+      }
+    >
+      {/* Main result */}
+      <div className="space-y-1">
+        <SubSectionHeader label="Classification" />
+        <MetricRow label="Detected action" value={data.detected_intent} highlight />
+        <MetricRow label="Confidence" value={data.confidence} highlight />
+      </div>
 
-          {/* Objectif utilisateur */}
-          <div className="border-t pt-2 space-y-1">
-            <div className="text-xs text-muted-foreground font-medium mb-1">Analyse du besoin</div>
-            <MetricRow label="Objectif utilisateur" value={data.user_goal} />
-            {data.goal_reasoning && (
-              <div className="mt-1.5 p-2 bg-muted/30 rounded text-xs text-muted-foreground">
-                <span className="font-medium">Raisonnement :</span>{' '}
-                <span className="italic">{data.goal_reasoning}</span>
-              </div>
-            )}
+      {/* User goal */}
+      <div className="space-y-1">
+        <SubSectionHeader label="Need analysis" borderTop />
+        <MetricRow label="User goal" value={data.user_goal} />
+        {data.goal_reasoning && (
+          <div className="mt-1.5 rounded bg-muted/30 p-2 text-xs text-muted-foreground">
+            <span className="font-medium">Reasoning:</span>{' '}
+            <span className="italic">{data.goal_reasoning}</span>
           </div>
+        )}
+      </div>
 
-          {/* Decision thresholds */}
-          {(data.thresholds.high_threshold || data.thresholds.fallback_threshold) && (
-            <div className="border-t pt-2">
-              <div className="text-xs text-muted-foreground font-medium mb-1.5">
-                Seuils de décision
-              </div>
-              {data.thresholds.high_threshold && (
-                <ThresholdRow
-                  label="Confiance haute (validation)"
-                  check={data.thresholds.high_threshold}
-                />
-              )}
-              {data.thresholds.fallback_threshold && (
-                <ThresholdRow
-                  label="Seuil de fallback"
-                  check={data.thresholds.fallback_threshold}
-                />
-              )}
-            </div>
+      {/* Decision thresholds */}
+      {(data.thresholds.high_threshold || data.thresholds.fallback_threshold) && (
+        <div>
+          <SubSectionHeader label="Decision thresholds" borderTop />
+          {data.thresholds.high_threshold && (
+            <ThresholdRow
+              label="High confidence (validation)"
+              check={data.thresholds.high_threshold}
+            />
+          )}
+          {data.thresholds.fallback_threshold && (
+            <ThresholdRow label="Fallback threshold" check={data.thresholds.fallback_threshold} />
           )}
         </div>
-      </AccordionContent>
-    </AccordionItem>
+      )}
+    </DebugSection>
   );
 });

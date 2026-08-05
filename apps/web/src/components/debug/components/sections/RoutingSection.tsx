@@ -5,8 +5,18 @@
  */
 
 import React from 'react';
-import { MetricRow, ThresholdRow, InfoRow, SectionBadge, DebugSection } from '../shared';
+import { Route } from 'lucide-react';
+import {
+  DebugSection,
+  InfoRow,
+  MetricRow,
+  SectionBadge,
+  SubSectionHeader,
+  ThresholdRow,
+} from '../shared';
 import { DEFAULT_THRESHOLDS } from '../../utils/constants';
+import { nodeChipClasses } from '../../utils/tones';
+import { cn } from '@/lib/utils';
 import type { DebugMetrics } from '@/types/chat';
 
 export interface RoutingSectionProps {
@@ -33,26 +43,30 @@ export const RoutingSection = React.memo(function RoutingSection({ data }: Routi
     <DebugSection
       value="routing"
       title="Routing Decision"
+      icon={Route}
       badge={<SectionBadge passed={passed} value={data.confidence} />}
     >
       {/* Routing decision */}
       <div className="space-y-1">
-        <div className="text-xs text-muted-foreground font-medium mb-1">Destination</div>
+        <SubSectionHeader label="Destination" />
         <MetricRow
-          label="Route vers"
-          value={isPlanner ? 'Planner (outils)' : 'Chat (conversation)'}
+          label="Routed to"
+          value={isPlanner ? 'Planner (tools)' : 'Chat (conversation)'}
           highlight
-          valueClassName={isPlanner ? 'text-blue-400 font-bold' : 'text-purple-400 font-bold'}
+          valueClassName={cn(
+            'inline-flex rounded-full border px-1.5 font-medium',
+            nodeChipClasses(isPlanner ? 'planner' : 'response')
+          )}
         />
-        <MetricRow label="Confiance" value={data.confidence} highlight />
-        <MetricRow label="LLM bypassé" value={data.bypass_llm ? 'Oui (règles)' : 'Non'} />
+        <MetricRow label="Confidence" value={data.confidence} highlight />
+        <MetricRow label="LLM bypassed" value={data.bypass_llm ? 'Yes (rules)' : 'No'} />
       </div>
 
-      {/* Raisonnement */}
+      {/* Reasoning */}
       {(data.reasoning_trace ?? []).length > 0 && (
-        <div className="border-t pt-2">
-          <div className="text-xs text-muted-foreground font-medium mb-1">Raisonnement</div>
-          <div className="p-2 bg-muted/30 rounded text-xs text-muted-foreground">
+        <div>
+          <SubSectionHeader label="Reasoning" borderTop />
+          <div className="rounded bg-muted/30 p-2 text-xs text-muted-foreground">
             {(data.reasoning_trace ?? []).map((step, i) => (
               <span key={i}>
                 {i > 0 && <span className="mx-1 text-muted-foreground">→</span>}
@@ -64,22 +78,22 @@ export const RoutingSection = React.memo(function RoutingSection({ data }: Routi
       )}
 
       {/* Decision thresholds */}
-      <div className="border-t pt-2">
-        <div className="text-xs text-muted-foreground font-medium mb-1.5">Seuils de décision</div>
+      <div>
+        <SubSectionHeader label="Decision thresholds" borderTop />
         {data.thresholds.chat_semantic_threshold && (
-          <ThresholdRow label="Seuil chat (bas)" check={data.thresholds.chat_semantic_threshold} />
+          <ThresholdRow label="Chat threshold (low)" check={data.thresholds.chat_semantic_threshold} />
         )}
         {data.thresholds.high_semantic_threshold && (
           <ThresholdRow
-            label="Seuil planner (haut)"
+            label="Planner threshold (high)"
             check={data.thresholds.high_semantic_threshold}
           />
         )}
         {data.thresholds.min_confidence && (
-          <ThresholdRow label="Confiance minimum" check={data.thresholds.min_confidence} />
+          <ThresholdRow label="Minimum confidence" check={data.thresholds.min_confidence} />
         )}
         {data.thresholds.chat_override_threshold && (
-          <InfoRow label="Override chat" check={data.thresholds.chat_override_threshold} />
+          <InfoRow label="Chat override" check={data.thresholds.chat_override_threshold} />
         )}
       </div>
     </DebugSection>

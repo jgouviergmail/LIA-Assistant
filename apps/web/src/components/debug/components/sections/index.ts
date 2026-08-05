@@ -58,3 +58,13 @@ export {
 export { SkillsSection, type SkillsSectionProps } from './SkillsSection';
 // LLM Pipeline (v3.3 - chronological reconciliation)
 export { LLMPipelineSection, type LLMPipelineSectionProps } from './LLMPipelineSection';
+// v3.4 stage sections — the stages the panel could not see
+export {
+  SemanticValidatorSection,
+  type SemanticValidatorSectionProps,
+} from './SemanticValidatorSection';
+export { ReactExecutionSection, type ReactExecutionSectionProps } from './ReactExecutionSection';
+export { ImageGenerationSection, type ImageGenerationSectionProps } from './ImageGenerationSection';
+export { HitlSection, type HitlSectionProps } from './HitlSection';
+export { VoiceSection, type VoiceSectionProps } from './VoiceSection';
+export { CompactionSection, type CompactionSectionProps } from './CompactionSection';

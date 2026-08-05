@@ -3126,7 +3126,7 @@
         "telephony-calls": "telefono, chiamate, cronologia chiamate, comporre",
         "admin-mcp-servers": "MCP, model context protocol, server dell'applicazione, strumenti integrati",
         "mcp-servers": "MCP, model context protocol, i miei server, strumenti, estensioni",
-        "debug-panel": "sviluppatore, diagnostica, tracce, tecnico, risoluzione dei problemi",
+        "debug-panel": "sviluppatore, diagnostica, tracce, tecnico, risoluzione dei problemi, waterfall, anomalie, cronologia, pipeline",
         "personality": "tono, stile, carattere, comportamento, persona, voce",
         "psyche": "emozioni, umore, sentimenti, affettività, emotivo",
         "memories": "memoria, ricordi, ricordare, dimenticare, fatti, provenienza, perché, fonte, segnale, origine, correggere",
@@ -3901,6 +3901,19 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_27_12": {
+          "title": "v1.27.12 — 🔬 Il pannello di debug si legge come l'esecuzione",
+          "date": "Agosto 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🧭 La traccia segue l'ordine di esecuzione</b> — sette fasi numerate (richiesta, analisi del router, pianificazione, esecuzione, contesto di risposta, estrazioni in background, bilancio) sostituiscono un ordine accumulato in cui la richiesta appariva dopo la decisione di instradamento.",
+            "i2": "<b>🌊 Un waterfall sulla linea temporale dell'esecuzione</b> — ogni chiamata al modello è posizionata dal suo avvio reale, condiviso tra pipeline e attività in background: cosa è andato in parallelo e cosa in serie si legge a colpo d'occhio.",
+            "i3": "<b>🔍 Le tappe invisibili hanno ora la loro sezione</b> — il verdetto del validatore di piani (informativo: un piano respinto viene comunque eseguito), il ciclo ReAct rispetto al suo limite di iterazioni pubblicato, i gate di approvazione, la compattazione del contesto, la spesa di generazione immagini e di sintesi vocale.",
+            "i4": "<b>⚠️ Le anomalie emergono sull'intestazione della richiesta</b> — passi falliti, pianificazione in modalità panico, zone critiche di token e derive di payload sono contati su ogni voce dello storico, accanto a una striscia scansionabile (rotta, motore, durata, token, costo): confronta le richieste senza aprirle.",
+            "i5": "<b>🧹 Le sezioni vuote si ripiegano</b> — in un turno conversazionale, due terzi delle sezioni non portano dati; si ripiegano dietro un discreto espansore per fase invece di impilare righe N/A.",
+            "i6": "<b>🎨 Leggibile in entrambi i temi</b> — gli stati prendono i token del design system dei cinque temi, i nodi della pipeline vestono famiglie di identità bi-tema, e una tappa semplicemente non eseguita appare neutra invece di un FAIL rosso."
+          }
+        },
         "v1_27_11": {
           "title": "v1.27.11 — 🧭 Impostazioni che si leggono come un indice",
           "date": "Agosto 2026",

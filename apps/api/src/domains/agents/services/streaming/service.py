@@ -232,6 +232,9 @@ class StreamingService:
         # Flag to track if HITL interrupt occurred during streaming
         # Used by service.py to determine appropriate archiving metadata
         self.hitl_interrupt_detected = False
+        # Debug panel: what the interrupt was about ({action_type, tool_name}),
+        # captured by _handle_hitl_interrupt for the `hitl` section.
+        self.hitl_interrupt_info: dict[str, Any] | None = None
         # Duplicate-display fix: track whether the response node streamed token deltas
         # (AIMessageChunk). LangGraph "messages" mode also emits the complete AIMessage the
         # node returns to the ``messages`` channel; emitting it after the deltas duplicates
@@ -796,76 +799,14 @@ class StreamingService:
                         db_aggregated=db_aggregated,
                     )
 
-                    # =============================================================
-                    # Interest Detection: Analyze current message for interests
-                    # =============================================================
-                    # Uses analyze_interests_for_debug() to detect interests in the
-                    # current user message. Shows what interests are being extracted.
-                    # Results are cached in Redis (reused by background extraction).
-                    if self.user_id and state:
-                        try:
-                            from src.domains.interests.services.extraction_service import (
-                                analyze_interests_for_debug,
-                            )
+                    # Interest + memory detection sections (extracted to the
+                    # stages module — file-size ratchet; behavior unchanged).
+                    from src.domains.agents.services.streaming import (
+                        debug_metrics_stages as stages,
+                    )
 
-                            messages = state.get("messages", [])
-                            user_language = state.get("user_language", settings.default_language)
-
-                            interest_detection = await analyze_interests_for_debug(
-                                user_id=self.user_id,
-                                messages=messages,
-                                session_id=run_id,
-                                user_language=user_language,
-                            )
-                            debug_metrics["interest_profile"] = interest_detection
-
-                            logger.debug(
-                                "debug_metrics_interest_detection_added",
-                                run_id=run_id,
-                                enabled=interest_detection.get("enabled", False),
-                                analyzed=interest_detection.get("analyzed", False),
-                                extracted_count=len(
-                                    interest_detection.get("extracted_interests", [])
-                                ),
-                            )
-                        except (ImportError, ValueError, RuntimeError) as interest_err:
-                            logger.debug(
-                                "debug_metrics_interest_detection_failed",
-                                run_id=run_id,
-                                error=str(interest_err),
-                                error_type=type(interest_err).__name__,
-                            )
-
-                    # =============================================================
-                    # Memory Detection: Show memories extracted from this message
-                    # =============================================================
-                    # Retrieves debug data cached by extract_memories_background()
-                    # which has already completed (awaited via await_run_id_tasks).
-                    if run_id:
-                        try:
-                            from src.domains.agents.services.memory_extractor import (
-                                get_memory_extraction_debug,
-                            )
-
-                            memory_detection = get_memory_extraction_debug(run_id)
-                            if memory_detection:
-                                debug_metrics["memory_detection"] = memory_detection
-
-                                logger.debug(
-                                    "debug_metrics_memory_detection_added",
-                                    run_id=run_id,
-                                    enabled=memory_detection.get("enabled", False),
-                                    extracted_count=len(
-                                        memory_detection.get("extracted_memories", [])
-                                    ),
-                                )
-                        except (ImportError, ValueError, RuntimeError) as mem_det_err:
-                            logger.debug(
-                                "debug_metrics_memory_detection_failed",
-                                run_id=run_id,
-                                error=str(mem_det_err),
-                                error_type=type(mem_det_err).__name__,
-                            )
+                    await stages.add_interest_detection(debug_metrics, self.user_id, state, run_id)
+                    stages.add_memory_detection(debug_metrics, run_id)
 
                     logger.debug(
                         "debug_metrics_sections_added",
@@ -2131,6 +2072,11 @@ class StreamingService:
         # Extract action metadata
         first_action = action_requests[0]
         action_type = first_action.get("type", "unknown")
+        # Debug panel (`hitl` section): remember what this run stopped on.
+        self.hitl_interrupt_info = {
+            "action_type": action_type,
+            "tool_name": first_action.get("name"),
+        }
         # One SSE message per interrupt: replay-safe HITL loops (ADR-092) emit a
         # NEW interrupt per user decision within the SAME run, so the message_id
         # must be unique per interrupt — the frontend keys the assistant bubble
@@ -2474,4 +2420,10 @@ class StreamingService:
             cached_filtered_catalogue=self._cached_filtered_catalogue,
             cached_tool_scores=self._cached_tool_scores,
             skill_name_resolver=self.resolve_activated_skill_name,
-        ).build(debug_metrics, state, run_id, db_aggregated)
+        ).build(
+            debug_metrics,
+            state,
+            run_id,
+            db_aggregated,
+            hitl_interrupt=self.hitl_interrupt_info,
+        )

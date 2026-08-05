@@ -20,6 +20,15 @@ from src.infrastructure.observability.logging import get_logger
 logger = get_logger(__name__)
 
 
+def _chrono_key(call: dict[str, Any]) -> tuple[float, int]:
+    """Chronological sort key for an LLM call dict.
+
+    The run-anchored ``started_offset_ms`` leads; ``sequence`` breaks ties
+    (parallel same-instant starts, and legacy records without offsets).
+    """
+    return (float(call.get("started_offset_ms") or 0.0), int(call.get("sequence") or 0))
+
+
 class DebugMetricsBuilder:
     """Assemble the debug-panel sections into a debug_metrics dict in place.
 
@@ -50,6 +59,7 @@ class DebugMetricsBuilder:
         state: dict[str, Any],
         run_id: str,
         db_aggregated: Any | None = None,
+        hitl_interrupt: dict[str, Any] | None = None,
     ) -> None:
         """Add all debug metrics sections to ``debug_metrics`` (in place).
 
@@ -62,11 +72,15 @@ class DebugMetricsBuilder:
             state: Final state dict with all data.
             run_id: Run ID for logging.
             db_aggregated: Optional DB-aggregated token summary (includes prior HITL requests).
+            hitl_interrupt: ``{action_type, tool_name}`` when THIS run ended on
+                a HITL interrupt, else None (see ``debug_metrics_stages.build_hitl``).
         """
         from src.core.config import get_settings
+        from src.domains.agents.services.streaming import debug_metrics_stages as stages
 
         settings = get_settings()
 
+        stages.build_execution_mode(debug_metrics, state)
         self._build_token_budget(debug_metrics, state, settings)
         self._build_planner_intelligence(debug_metrics, state)
         self._build_execution_timeline(debug_metrics, state, run_id)
@@ -83,6 +97,10 @@ class DebugMetricsBuilder:
         self._build_journal_injection(debug_metrics, state, run_id)
         self._build_journal_planner_injection(debug_metrics, state, run_id)
         self._build_skills(debug_metrics, state, run_id)
+        stages.build_semantic_validation(debug_metrics, state)
+        stages.build_react_execution(debug_metrics, state)
+        stages.build_hitl(debug_metrics, state, hitl_interrupt)
+        stages.build_compaction(debug_metrics, state)
 
     def _build_token_budget(
         self, debug_metrics: dict[str, Any], state: dict[str, Any], settings: Any
@@ -457,7 +475,11 @@ class DebugMetricsBuilder:
                                 "cost_eur": ig_call["cost_eur"],
                                 "duration_ms": ig_call.get("duration_ms", 0),
                                 "call_type": "image_generation",
-                                "sequence": 9999,  # After all LLM calls
+                                # v3.4: real position on the run timeline; the
+                                # sequence sentinel only orders legacy records
+                                # that carry no offset.
+                                "started_offset_ms": ig_call.get("started_offset_ms", 0.0),
+                                "sequence": 9999,
                             }
                         )
 
@@ -501,11 +523,16 @@ class DebugMetricsBuilder:
         # Request Lifecycle: Pipeline node progression (v3.2)
         # SYNC: Pure data transformation from already-collected llm_calls
         # Now includes duration_ms per node for execution time tracking
+        # v3.4: nodes are ordered by their FIRST chronological appearance
+        # (run-anchored started_offset_ms, sequence as legacy fallback) —
+        # the old hardcoded node list appended react_*/compaction/extraction
+        # nodes AFTER response, a false chronology.
         # =================================================================
         if "llm_calls" in debug_metrics:
             try:
                 llm_calls_data = debug_metrics["llm_calls"]
                 nodes_data: dict[str, dict[str, Any]] = {}
+                first_seen: dict[str, tuple[float, int]] = {}
 
                 for call in llm_calls_data:
                     node_name = call.get("node_name", "unknown")
@@ -526,21 +553,13 @@ class DebugMetricsBuilder:
                     nodes_data[node_name]["cost_eur"] += call.get("cost_eur", 0.0)
                     nodes_data[node_name]["calls_count"] += 1
                     nodes_data[node_name]["duration_ms"] += call.get("duration_ms", 0.0)
+                    key = _chrono_key(call)
+                    if node_name not in first_seen or key < first_seen[node_name]:
+                        first_seen[node_name] = key
 
-                # Order by pipeline progression
-                from src.core.constants import DEBUG_PIPELINE_NODE_ORDER
-
-                ordered_nodes: list[dict[str, Any]] = []
-
-                # First add nodes in pipeline order
-                for node_name in DEBUG_PIPELINE_NODE_ORDER:
-                    if node_name in nodes_data:
-                        ordered_nodes.append(nodes_data[node_name])
-
-                # Then add any remaining nodes not in pipeline order
-                for node_name, node_data in nodes_data.items():
-                    if node_name not in DEBUG_PIPELINE_NODE_ORDER:
-                        ordered_nodes.append(node_data)
+                ordered_nodes: list[dict[str, Any]] = [
+                    nodes_data[name] for name in sorted(nodes_data, key=lambda n: first_seen[n])
+                ]
 
                 # v3.2: Calculate total duration across all nodes
                 total_duration_ms = sum(node.get("duration_ms", 0.0) for node in ordered_nodes)
@@ -566,10 +585,11 @@ class DebugMetricsBuilder:
         # =================================================================
         if "llm_calls" in debug_metrics:
             try:
-                sorted_calls = sorted(
-                    debug_metrics["llm_calls"],
-                    key=lambda c: c.get("sequence", 0),
-                )
+                # v3.4: run-anchored chronology. `sequence` alone collides
+                # across the TrackingContexts sharing the run (each context
+                # restarts at 1), so the offset leads and sequence only
+                # breaks ties within one context (and legacy records).
+                sorted_calls = sorted(debug_metrics["llm_calls"], key=_chrono_key)
                 chat_calls = [c for c in sorted_calls if c.get("call_type", "chat") == "chat"]
                 embedding_calls = [c for c in sorted_calls if c.get("call_type") == "embedding"]
                 debug_metrics["llm_pipeline"] = {

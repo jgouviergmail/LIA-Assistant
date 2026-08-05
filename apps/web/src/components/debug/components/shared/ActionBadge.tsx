@@ -1,49 +1,24 @@
 /**
- * ActionBadge - Displays create/update/delete action with color coding.
+ * ActionBadge — create/update/delete action chip.
  *
- * Used across Memory, Journal, and Interest extraction sections
- * for consistent action display.
+ * Used across Memory, Journal, and Interest extraction sections for
+ * consistent action display. Unknown actions render as-is on a neutral
+ * chip — never a silent fallback to CREATE, which claimed an action
+ * nobody took.
  */
 
 import React from 'react';
-import { cn } from '@/lib/utils';
+import { DebugChip } from './DebugChip';
+import type { DebugTone } from '../../utils/tones';
 
 export type ActionType = 'create' | 'update' | 'delete' | 'consolidate' | 'create_new';
 
-const ACTION_STYLES: Record<
-  ActionType,
-  { bg: string; text: string; border: string; label: string }
-> = {
-  create: {
-    bg: 'bg-emerald-500/20',
-    text: 'text-emerald-400',
-    border: 'border-emerald-400/30',
-    label: 'CREATE',
-  },
-  create_new: {
-    bg: 'bg-emerald-500/20',
-    text: 'text-emerald-400',
-    border: 'border-emerald-400/30',
-    label: 'CREATE',
-  },
-  update: {
-    bg: 'bg-amber-500/20',
-    text: 'text-amber-400',
-    border: 'border-amber-400/30',
-    label: 'UPDATE',
-  },
-  consolidate: {
-    bg: 'bg-blue-500/20',
-    text: 'text-blue-400',
-    border: 'border-blue-400/30',
-    label: 'MERGE',
-  },
-  delete: {
-    bg: 'bg-red-500/20',
-    text: 'text-red-400',
-    border: 'border-red-400/30',
-    label: 'DELETE',
-  },
+const ACTION_STYLE: Record<ActionType, { tone: DebugTone; label: string }> = {
+  create: { tone: 'success', label: 'CREATE' },
+  create_new: { tone: 'success', label: 'CREATE' },
+  update: { tone: 'warning', label: 'UPDATE' },
+  consolidate: { tone: 'info', label: 'MERGE' },
+  delete: { tone: 'destructive', label: 'DELETE' },
 };
 
 export interface ActionBadgeProps {
@@ -51,23 +26,19 @@ export interface ActionBadgeProps {
   className?: string;
 }
 
+/** Action chip with semantic tone; unknown actions stay neutral. */
 export const ActionBadge = React.memo(function ActionBadge({
   action,
   className,
 }: ActionBadgeProps) {
-  const style = ACTION_STYLES[action as ActionType] ?? ACTION_STYLES.create;
+  const style = ACTION_STYLE[action as ActionType] ?? {
+    tone: 'neutral' as const,
+    label: action.toUpperCase(),
+  };
 
   return (
-    <span
-      className={cn(
-        'text-[9px] font-bold px-1.5 py-0.5 rounded border flex-shrink-0 uppercase tracking-wider',
-        style.bg,
-        style.text,
-        style.border,
-        className
-      )}
-    >
+    <DebugChip tone={style.tone} className={className}>
       {style.label}
-    </span>
+    </DebugChip>
   );
 });

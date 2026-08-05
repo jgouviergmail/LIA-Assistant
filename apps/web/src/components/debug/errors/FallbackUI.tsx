@@ -20,7 +20,7 @@ export interface FallbackUIProps {
  * Fallback UI displayed when the debug panel encounters an error
  *
  * Design:
- * - Non-alarming colors (orange/yellow) since this is a debug panel, not the app
+ * - Warning tokens (theme-aware) — a debug-panel failure is not an app alarm
  * - Reassuring message for the user
  * - Technical details in accordion for debugging
  * - Optional retry button
@@ -37,15 +37,15 @@ export function FallbackUI({ error, onRetry }: FallbackUIProps) {
   const [showDetails, setShowDetails] = React.useState(false);
 
   return (
-    <div className="p-4 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
+    <div className="p-4 bg-warning/10 border border-warning/30 rounded-lg">
       {/* Header with icon */}
       <div className="flex items-start gap-3 mb-3">
         <div className="flex-shrink-0 mt-0.5">
-          <AlertCircle className="h-5 w-5 text-yellow-500" />
+          <AlertCircle className="h-5 w-5 text-warning" />
         </div>
         <div className="flex-1">
-          <h3 className="text-sm font-semibold text-yellow-300 mb-1">Debug Panel Error</h3>
-          <p className="text-xs text-yellow-200/90 leading-relaxed">
+          <h3 className="text-sm font-semibold text-warning mb-1">Debug Panel Error</h3>
+          <p className="text-xs text-foreground/90 leading-relaxed">
             The debug panel encountered an error while rendering metrics. This does not affect the
             main application functionality. Debug metrics may be unavailable or incomplete for this
             conversation turn.
@@ -55,7 +55,7 @@ export function FallbackUI({ error, onRetry }: FallbackUIProps) {
 
       {/* Error message (if available and short) */}
       {error?.message && error.message.length < 150 && (
-        <div className="mb-3 p-2 bg-yellow-900/30 rounded text-xs text-yellow-200 font-mono">
+        <div className="mb-3 p-2 bg-warning/15 rounded text-xs text-foreground font-mono">
           {error.message}
         </div>
       )}
@@ -74,7 +74,7 @@ export function FallbackUI({ error, onRetry }: FallbackUIProps) {
         {error && (
           <button
             onClick={() => setShowDetails(!showDetails)}
-            className="text-xs text-yellow-300 hover:text-yellow-100 underline"
+            className="text-xs text-warning hover:opacity-80 underline"
           >
             {showDetails ? 'Hide' : 'Show'} technical details
           </button>
@@ -84,13 +84,13 @@ export function FallbackUI({ error, onRetry }: FallbackUIProps) {
       {/* Technical details (accordion) */}
       {showDetails && error && (
         <details open className="mt-3">
-          <summary className="text-xs font-medium text-yellow-300 cursor-pointer mb-2">
+          <summary className="text-xs font-medium text-warning cursor-pointer mb-2">
             Error Details
           </summary>
-          <div className="p-3 bg-muted/30 rounded border border-yellow-700/50">
+          <div className="p-3 bg-muted/30 rounded border border-warning/30">
             {/* Error name */}
             <div className="mb-2">
-              <span className="text-[10px] font-semibold text-yellow-400 uppercase">
+              <span className="text-[10px] font-semibold text-warning uppercase">
                 Error Type
               </span>
               <div className="text-xs font-mono text-foreground">{error.name || 'Error'}</div>
@@ -98,7 +98,7 @@ export function FallbackUI({ error, onRetry }: FallbackUIProps) {
 
             {/* Error message */}
             <div className="mb-2">
-              <span className="text-[10px] font-semibold text-yellow-400 uppercase">Message</span>
+              <span className="text-[10px] font-semibold text-warning uppercase">Message</span>
               <div className="text-xs text-foreground break-words">
                 {error.message || 'No message'}
               </div>
@@ -107,7 +107,7 @@ export function FallbackUI({ error, onRetry }: FallbackUIProps) {
             {/* Stack trace */}
             {error.stack && (
               <div>
-                <span className="text-[10px] font-semibold text-yellow-400 uppercase">
+                <span className="text-[10px] font-semibold text-warning uppercase">
                   Stack Trace
                 </span>
                 <pre className="mt-1 p-2 bg-muted/30 rounded text-[10px] text-muted-foreground overflow-auto max-h-40 leading-tight">
@@ -120,8 +120,8 @@ export function FallbackUI({ error, onRetry }: FallbackUIProps) {
       )}
 
       {/* Instructions for the user */}
-      <div className="mt-3 pt-3 border-t border-yellow-700/50">
-        <p className="text-[10px] text-yellow-200/80 leading-relaxed">
+      <div className="mt-3 pt-3 border-t border-warning/30">
+        <p className="text-[10px] text-muted-foreground leading-relaxed">
           <strong>What to do:</strong> You can continue using the application normally. Debug
           metrics will resume on the next conversation turn. If this error persists, please report
           it to the development team with the technical details above.
@@ -136,10 +136,10 @@ export function FallbackUI({ error, onRetry }: FallbackUIProps) {
  */
 export function FallbackUICompact({ error }: { error: Error | null }) {
   return (
-    <div className="p-3 bg-yellow-900/20 border border-yellow-700/50 rounded text-center">
-      <AlertCircle className="h-4 w-4 text-yellow-500 mx-auto mb-2" />
-      <p className="text-xs text-yellow-300 font-medium mb-1">Debug Panel Unavailable</p>
-      <p className="text-[10px] text-yellow-200/80">
+    <div className="p-3 bg-warning/10 border border-warning/30 rounded text-center">
+      <AlertCircle className="h-4 w-4 text-warning mx-auto mb-2" />
+      <p className="text-xs text-warning font-medium mb-1">Debug Panel Unavailable</p>
+      <p className="text-[10px] text-muted-foreground">
         {error?.message || 'An error occurred while loading debug metrics'}
       </p>
     </div>

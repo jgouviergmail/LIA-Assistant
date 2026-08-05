@@ -235,6 +235,54 @@ async def apply_extraction(
     return {"opened": opened, "closed": closed, "skipped": skipped}
 
 
+def _build_debug_payload(
+    extraction: OpenLoopExtraction,
+    *,
+    stats: dict[str, int],
+    model_name: str,
+    token_capture: Any | None,
+    max_items: int,
+) -> dict[str, Any]:
+    """Compose the debug-panel payload for this extraction run.
+
+    Includes the extraction's LLM spend (``llm_metadata``): every other
+    extraction family shows model + tokens in the panel, this one was the
+    invisible exception.
+
+    Args:
+        extraction: Structured LLM output (all proposed items).
+        stats: Applied counters ``{opened, closed, skipped}``.
+        model_name: LLM model that produced the extraction.
+        token_capture: Token accumulator of the call (None → no metadata).
+        max_items: Cap on the items detailed in the payload.
+
+    Returns:
+        The payload stored for the ``open_loop_extraction`` panel section.
+    """
+    payload: dict[str, Any] = {
+        "items_parsed": len(extraction.items),
+        **stats,
+        "items": [
+            {
+                "action": item.action,
+                "subject": item.subject[:120],
+                "direction": item.direction,
+                "counterparty": item.counterparty,
+                "due_hint_iso": item.due_hint_iso,
+            }
+            for item in extraction.items[:max_items]
+        ],
+    }
+    if token_capture is not None:
+        payload["llm_metadata"] = {
+            "model": model_name,
+            "input_tokens": token_capture.tokens_in,
+            "output_tokens": token_capture.tokens_out,
+            "cached_tokens": token_capture.tokens_cache,
+        }
+    return payload
+
+
 async def _run_extraction(
     user_id: str,
     messages: list[BaseMessage],
@@ -310,20 +358,13 @@ async def _run_extraction(
 
     _store_extraction_debug(
         run_id,
-        {
-            "items_parsed": len(extraction.items),
-            **stats,
-            "items": [
-                {
-                    "action": item.action,
-                    "subject": item.subject[:120],
-                    "direction": item.direction,
-                    "counterparty": item.counterparty,
-                    "due_hint_iso": item.due_hint_iso,
-                }
-                for item in extraction.items[: settings.open_loops_extraction_max_items]
-            ],
-        },
+        _build_debug_payload(
+            extraction,
+            stats=stats,
+            model_name=config.model,
+            token_capture=token_capture,
+            max_items=settings.open_loops_extraction_max_items,
+        ),
     )
     logger.info(
         "open_loop_extraction_completed",

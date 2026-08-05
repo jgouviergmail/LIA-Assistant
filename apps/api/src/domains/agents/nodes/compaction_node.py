@@ -312,6 +312,13 @@ async def compaction_node(state: MessagesState, config: RunnableConfig) -> dict[
         "messages": new_messages,
         "compaction_summary": result.summary,
         "compaction_count": compacted_count,
+        # Debug panel (`compaction` section): the strategy and savings only
+        # existed in logs/SSE events — the panel needs them in state.
+        "compaction_debug": {
+            "strategy": result.strategy,
+            "tokens_saved": result.tokens_saved,
+            "messages_removed": len(to_remove),
+        },
     }
 
 

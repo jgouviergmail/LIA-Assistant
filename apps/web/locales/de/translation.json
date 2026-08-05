@@ -3124,7 +3124,7 @@
         "telephony-calls": "Telefon, Anrufe, Anrufverlauf, wählen",
         "admin-mcp-servers": "MCP, Model Context Protocol, Anwendungsserver, integrierte Werkzeuge",
         "mcp-servers": "MCP, Model Context Protocol, meine Server, Werkzeuge, Erweiterungen",
-        "debug-panel": "Entwickler, Diagnose, Traces, technisch, Fehlersuche",
+        "debug-panel": "Entwickler, Diagnose, Traces, technisch, Fehlersuche, Wasserfall, Anomalien, Zeitachse, Pipeline",
         "personality": "Ton, Stil, Charakter, Verhalten, Persona, Stimme",
         "psyche": "Emotionen, Stimmung, Gefühle, Affekt, emotional",
         "memories": "Gedächtnis, Erinnerungen, erinnern, vergessen, Fakten, Herkunft, warum, Quelle, Signal, Ursprung, korrigieren",
@@ -3899,6 +3899,19 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_27_12": {
+          "title": "v1.27.12 — 🔬 Das Debug-Panel liest sich wie der Lauf selbst",
+          "date": "August 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🧭 Die Spur folgt der Ausführungsreihenfolge</b> — sieben nummerierte Phasen (Anfrage, Router-Analyse, Planung, Ausführung, Antwortkontext, Hintergrund-Extraktionen, Bilanz) ersetzen eine gewachsene Ordnung, in der die Anfrage nach der Routing-Entscheidung erschien.",
+            "i2": "<b>🌊 Ein Wasserfall auf der Zeitachse des Laufs</b> — jeder Modellaufruf ist nach seinem realen Start positioniert, geteilt zwischen Pipeline und Hintergrundaufgaben: Was parallel lief und was seriell, liest sich auf einen Blick.",
+            "i3": "<b>🔍 Die unsichtbaren Etappen haben jetzt ihre Sektion</b> — das Urteil des Plan-Validators (informativ: ein abgelehnter Plan wird trotzdem ausgeführt), die ReAct-Schleife gegen ihre veröffentlichte Iterationsgrenze, Freigabe-Gates, Kontext-Kompaktierung, Bildgenerierungs- und Sprachsynthese-Kosten.",
+            "i4": "<b>⚠️ Anomalien erscheinen im Kopf der Anfrage</b> — fehlgeschlagene Schritte, Panik-Planung, kritische Token-Zonen und Payload-Abweichungen werden pro Verlaufseintrag gezählt, neben einer scannbaren Leiste (Route, Engine, Dauer, Tokens, Kosten): Anfragen vergleichen, ohne sie aufzuklappen.",
+            "i5": "<b>🧹 Leere Sektionen klappen sich weg</b> — bei einem Konversationszug tragen zwei Drittel der Sektionen keine Daten; sie falten sich hinter einem dezenten Aufklapper pro Phase, statt N/A-Zeilen zu stapeln.",
+            "i6": "<b>🎨 Lesbar in beiden Themes</b> — Status nehmen die Design-System-Token der fünf Themes, Pipeline-Knoten tragen Bi-Theme-Identitätsfamilien, und eine schlicht nicht gelaufene Etappe zeigt sich neutral statt als rotes FAIL."
+          }
+        },
         "v1_27_11": {
           "title": "v1.27.11 — 🧭 Einstellungen, die sich wie ein Index lesen",
           "date": "August 2026",

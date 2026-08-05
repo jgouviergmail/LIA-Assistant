@@ -459,3 +459,58 @@ class TestExtractionDebugCache:
             mod._store_extraction_debug("run-new", {"items_parsed": 1})
             assert "run-old" not in mod._extraction_debug_results
             assert mod.pop_extraction_debug("run-new") == {"items_parsed": 1}
+
+
+@pytest.mark.unit
+class TestDebugPayload:
+    """Debug payload composition (panel section), incl. LLM metadata."""
+
+    def test_payload_includes_llm_metadata_and_items(self):
+        from src.domains.agents.services.open_loop_extractor import _build_debug_payload
+
+        extraction = OpenLoopExtraction(
+            items=[
+                OpenLoopItem(action="open", subject="envoyer le devis à Marie"),
+                OpenLoopItem(action="close", subject="rappeler le plombier"),
+            ]
+        )
+        token_capture = SimpleNamespace(tokens_in=1200, tokens_out=80, tokens_cache=300)
+
+        payload = _build_debug_payload(
+            extraction,
+            stats={"opened": 1, "closed": 1, "skipped": 0},
+            model_name="gpt-4.1-mini",
+            token_capture=token_capture,
+            max_items=10,
+        )
+
+        assert payload["items_parsed"] == 2
+        assert payload["opened"] == 1
+        assert [i["action"] for i in payload["items"]] == ["open", "close"]
+        # The extraction's LLM spend was invisible in the panel: every other
+        # extraction family shows model + tokens, this one now does too.
+        assert payload["llm_metadata"] == {
+            "model": "gpt-4.1-mini",
+            "input_tokens": 1200,
+            "output_tokens": 80,
+            "cached_tokens": 300,
+        }
+
+    def test_payload_caps_items_to_max(self):
+        from src.domains.agents.services.open_loop_extractor import _build_debug_payload
+
+        extraction = OpenLoopExtraction(
+            items=[OpenLoopItem(action="open", subject=f"loop {i}") for i in range(5)]
+        )
+
+        payload = _build_debug_payload(
+            extraction,
+            stats={"opened": 5, "closed": 0, "skipped": 0},
+            model_name="m",
+            token_capture=None,
+            max_items=3,
+        )
+
+        assert payload["items_parsed"] == 5
+        assert len(payload["items"]) == 3
+        assert "llm_metadata" not in payload

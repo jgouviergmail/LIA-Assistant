@@ -5,8 +5,8 @@
  */
 
 import React from 'react';
-import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { MetricRow, InfoRow } from '../shared';
+import { Link2 } from 'lucide-react';
+import { DebugChip, DebugSection, InfoRow, MetricRow, SubSectionHeader } from '../shared';
 import type { DebugMetrics } from '@/types/chat';
 
 export interface ContextSectionProps {
@@ -26,89 +26,72 @@ export const ContextSection = React.memo(function ContextSection({ data }: Conte
   const isReference = data.is_reference;
 
   return (
-    <AccordionItem value="context">
-      <AccordionTrigger className="py-2 text-sm">
-        <div className="flex items-center gap-2">
-          <span>Context Resolution</span>
-          {isReference && (
-            <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded font-medium border border-primary/30">
-              REF
-            </span>
-          )}
+    <DebugSection
+      value="context"
+      title="Context Resolution"
+      icon={Link2}
+      badge={isReference ? <DebugChip tone="info">REF</DebugChip> : undefined}
+    >
+      {/* Context state */}
+      <div className="space-y-1">
+        <SubSectionHeader label="Conversational state" />
+        <MetricRow
+          label="Turn type"
+          value={data.turn_type === 'initial' ? 'Initial' : data.turn_type}
+          highlight
+        />
+        <MetricRow
+          label="Contextual reference"
+          value={isReference ? 'Yes' : 'No'}
+          highlight
+          valueClassName={isReference ? 'text-primary font-medium' : undefined}
+        />
+      </div>
+
+      {/* Reference source */}
+      {isReference && (
+        <div className="space-y-1">
+          <SubSectionHeader label="Reference source" borderTop />
+          <MetricRow
+            label="Source turn"
+            value={data.source_turn_id !== null ? `#${data.source_turn_id}` : 'N/A'}
+            mono
+          />
+          <MetricRow label="Source domain" value={data.source_domain || 'N/A'} />
         </div>
-      </AccordionTrigger>
-      <AccordionContent>
-        <div className="space-y-3">
-          {/* Context state */}
+      )}
+
+      {/* Resolved references */}
+      {data.resolved_references && Object.keys(data.resolved_references).length > 0 && (
+        <div>
+          <SubSectionHeader label="Resolved references" borderTop />
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground font-medium mb-1">
-              État conversationnel
-            </div>
-            <MetricRow
-              label="Type de tour"
-              value={data.turn_type === 'initial' ? 'Initial' : data.turn_type}
-              highlight
-            />
-            <MetricRow
-              label="Référence contextuelle"
-              value={isReference ? 'Oui' : 'Non'}
-              highlight
-              valueClassName={isReference ? 'text-primary font-medium' : undefined}
-            />
+            {Object.entries(data.resolved_references).map(([key, value]) => (
+              <div
+                key={key}
+                className="flex items-center gap-2 rounded border border-border/50 bg-muted/50 p-1.5 text-xs"
+              >
+                <span className="font-medium text-primary">{key}</span>
+                <span className="text-muted-foreground">→</span>
+                <span className="truncate font-mono text-[11px] text-foreground/80">{value}</span>
+              </div>
+            ))}
           </div>
+        </div>
+      )}
 
-          {/* Reference source */}
-          {isReference && (
-            <div className="border-t border-border/50 pt-2 space-y-1">
-              <div className="text-xs text-muted-foreground font-medium mb-1">
-                Source de la référence
-              </div>
-              <MetricRow
-                label="Tour source"
-                value={data.source_turn_id !== null ? `#${data.source_turn_id}` : 'N/A'}
-                mono
-              />
-              <MetricRow label="Domaine source" value={data.source_domain || 'N/A'} />
-            </div>
+      {/* Configuration */}
+      {(data.thresholds.confidence_threshold || data.thresholds.active_window_turns) && (
+        <div>
+          <SubSectionHeader label="Configuration" borderTop />
+          {data.thresholds.confidence_threshold && (
+            <InfoRow label="Confidence threshold" check={data.thresholds.confidence_threshold} />
           )}
-
-          {/* Resolved references */}
-          {data.resolved_references && Object.keys(data.resolved_references).length > 0 && (
-            <div className="border-t border-border/50 pt-2">
-              <div className="text-xs text-muted-foreground font-medium mb-1.5">
-                Références résolues
-              </div>
-              <div className="space-y-1">
-                {Object.entries(data.resolved_references).map(([key, value]) => (
-                  <div
-                    key={key}
-                    className="flex items-center gap-2 text-xs p-1.5 bg-muted/50 rounded border border-border/50"
-                  >
-                    <span className="text-primary font-medium">{key}</span>
-                    <span className="text-muted-foreground">→</span>
-                    <span className="font-mono text-[11px] text-foreground/80 truncate">
-                      {value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Configuration */}
-          {(data.thresholds.confidence_threshold || data.thresholds.active_window_turns) && (
-            <div className="border-t border-border/50 pt-2">
-              <div className="text-xs text-muted-foreground font-medium mb-1.5">Configuration</div>
-              {data.thresholds.confidence_threshold && (
-                <InfoRow label="Seuil de confiance" check={data.thresholds.confidence_threshold} />
-              )}
-              {data.thresholds.active_window_turns && (
-                <InfoRow label="Fenêtre de contexte" check={data.thresholds.active_window_turns} />
-              )}
-            </div>
+          {data.thresholds.active_window_turns && (
+            <InfoRow label="Context window" check={data.thresholds.active_window_turns} />
           )}
         </div>
-      </AccordionContent>
-    </AccordionItem>
+      )}
+    </DebugSection>
   );
 });

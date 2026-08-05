@@ -11,12 +11,12 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { formatPercent } from '../../utils/formatters';
 import {
-  SCORE_BAR_MAX_WIDTH_PX,
   MAX_SCORES_DISPLAY,
-  DEFAULT_DOMAIN_THRESHOLD,
+  DEFAULT_THRESHOLDS,
   DEBUG_TEXT_SIZES,
   DEBUG_WIDTHS,
 } from '../../utils/constants';
+import { TONE_BAR, TONE_TEXT } from '../../utils/tones';
 
 export interface ScoresListProps {
   /** Confidence scores (domain/tool name -> score) */
@@ -62,7 +62,7 @@ export interface ScoresListProps {
 export const ScoresList = React.memo(function ScoresList({
   scores,
   label = 'Scores',
-  passThreshold = DEFAULT_DOMAIN_THRESHOLD,
+  passThreshold = DEFAULT_THRESHOLDS.domain.primary_min,
   selectedItems,
   maxDisplay = MAX_SCORES_DISPLAY,
   className,
@@ -101,7 +101,7 @@ export const ScoresList = React.memo(function ScoresList({
   if (sortedEntries.length === 0) {
     return (
       <div className={cn('text-xs text-muted-foreground italic', className)}>
-        Aucun score disponible
+        No scores available
       </div>
     );
   }
@@ -116,7 +116,7 @@ export const ScoresList = React.memo(function ScoresList({
         // If selectedItems provided, use that to determine "passed"
         // Otherwise, use the classic threshold logic
         const passed = selectedSet ? selectedSet.has(name) : score >= passThreshold;
-        const barWidth = (score / maxScore) * SCORE_BAR_MAX_WIDTH_PX;
+        const barWidth = (score / maxScore) * 100;
 
         return (
           <div key={name} className="flex items-center gap-2 text-xs">
@@ -139,7 +139,7 @@ export const ScoresList = React.memo(function ScoresList({
                 <div
                   className={cn(
                     'absolute left-0 top-0 h-full rounded-full transition-all',
-                    passed ? 'bg-green-500' : 'bg-red-400'
+                    passed ? TONE_BAR.success : TONE_BAR.destructive
                   )}
                   style={{ width: `${barWidth}%` }}
                   aria-label={`Score: ${formatPercent(score)}`}
@@ -150,7 +150,7 @@ export const ScoresList = React.memo(function ScoresList({
               <span
                 className={cn(
                   `font-mono ${DEBUG_TEXT_SIZES.mono} ${DEBUG_WIDTHS.scoreValue} text-right`,
-                  passed ? 'text-green-400 font-semibold' : 'text-red-400'
+                  passed ? cn(TONE_TEXT.success, 'font-semibold') : TONE_TEXT.destructive
                 )}
               >
                 {formatPercent(score)}
@@ -163,7 +163,7 @@ export const ScoresList = React.memo(function ScoresList({
       {/* Indicator if more scores available */}
       {Object.keys(scores).length > maxDisplay && (
         <div className={`${DEBUG_TEXT_SIZES.small} text-muted-foreground italic pt-0.5`}>
-          + {Object.keys(scores).length - maxDisplay} autres
+          + {Object.keys(scores).length - maxDisplay} more
         </div>
       )}
     </div>

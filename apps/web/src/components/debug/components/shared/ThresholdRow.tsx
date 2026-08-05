@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { Check, X } from 'lucide-react';
 import { formatValue } from '../../utils/formatters';
 import { DEBUG_TEXT_SIZES } from '../../utils/constants';
+import { TONE_TEXT } from '../../utils/tones';
 
 export interface ThresholdCheck {
   /** Threshold value */
@@ -78,7 +79,7 @@ export const ThresholdRow = React.memo(function ThresholdRow({
         <span
           className={cn(
             `font-mono ${DEBUG_TEXT_SIZES.mono}`,
-            passed ? 'text-green-700' : 'text-red-700'
+            passed ? TONE_TEXT.success : TONE_TEXT.destructive
           )}
         >
           {formatValue(actual)} vs {formatValue(value)}
@@ -86,9 +87,9 @@ export const ThresholdRow = React.memo(function ThresholdRow({
 
         {/* Icon */}
         {passed ? (
-          <Check className="h-3 w-3 text-green-600 flex-shrink-0" strokeWidth={3} />
+          <Check className={cn('h-3 w-3 flex-shrink-0', TONE_TEXT.success)} strokeWidth={3} />
         ) : (
-          <X className="h-3 w-3 text-red-600 flex-shrink-0" strokeWidth={3} />
+          <X className={cn('h-3 w-3 flex-shrink-0', TONE_TEXT.destructive)} strokeWidth={3} />
         )}
       </div>
     </div>

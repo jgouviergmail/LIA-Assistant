@@ -1,13 +1,14 @@
 /**
- * Planner Intelligence Section Component
+ * Planner Section Component
  *
- * Displays planner intelligence metrics (optional).
+ * Displays planner strategy and token-economy metrics (optional).
  */
 
 import React from 'react';
-import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { MetricRow, StrategyBadge, EmptySection } from '../shared';
+import { ClipboardList } from 'lucide-react';
+import { DebugSection, EmptySection, MetricRow, StrategyBadge, SubSectionHeader } from '../shared';
 import { formatTokenCount, formatCost, formatPercent } from '../../utils/formatters';
+import { TONE_TEXT } from '../../utils/tones';
 import type { DebugMetrics } from '@/types/chat';
 
 export interface PlannerSectionProps {
@@ -16,7 +17,7 @@ export interface PlannerSectionProps {
 }
 
 /**
- * Planner Intelligence Section
+ * Planner Section
  *
  * Displays:
  * - Strategy used (template/filtered/generative/panic)
@@ -24,82 +25,80 @@ export interface PlannerSectionProps {
  * - Plan details (steps count, tools, estimated cost)
  * - Usage flags (template/panic/generative)
  * - Success/error
- *
- * Not displayed if data is undefined (query routed to chat).
  */
 export const PlannerSection = React.memo(function PlannerSection({ data }: PlannerSectionProps) {
   if (!data) {
-    return <EmptySection value="planner" title="Planner Intelligence" />;
+    return (
+      <EmptySection
+        value="planner"
+        title="Planner"
+        icon={ClipboardList}
+        message="No plan was generated (query routed to chat)."
+      />
+    );
   }
 
   const { strategy, tokens, plan, flags, success, error } = data;
 
   return (
-    <AccordionItem value="planner">
-      <AccordionTrigger className="py-2 text-sm">
-        <div className="flex items-center">
-          <span>Planner Intelligence</span>
-          <StrategyBadge strategy={strategy} size="xs" className="ml-2" />
-        </div>
-      </AccordionTrigger>
-      <AccordionContent>
-        <div className="space-y-3">
-          {/* Status */}
-          <div>
-            <MetricRow
-              label="Success"
-              value={success}
-              highlight
-              valueClassName={success ? 'text-green-700' : 'text-red-700'}
-            />
-            {error && <MetricRow label="Error" value={error} valueClassName="text-red-700" />}
-          </div>
+    <DebugSection
+      value="planner"
+      title="Planner"
+      icon={ClipboardList}
+      badge={<StrategyBadge strategy={strategy} />}
+    >
+      {/* Status */}
+      <div>
+        <MetricRow
+          label="Success"
+          value={success}
+          highlight
+          valueClassName={success ? TONE_TEXT.success : TONE_TEXT.destructive}
+        />
+        {error && <MetricRow label="Error" value={error} valueClassName={TONE_TEXT.destructive} />}
+      </div>
 
-          {/* Strategy */}
-          <div className="border-t pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-1.5">Strategy</div>
-            <MetricRow label="Selected" value={strategy} highlight />
-            <MetricRow label="Used Template" value={flags.used_template} />
-            <MetricRow label="Used Panic Mode" value={flags.used_panic_mode} />
-            <MetricRow label="Used Generative" value={flags.used_generative} />
-          </div>
+      {/* Strategy */}
+      <div>
+        <SubSectionHeader label="Strategy" borderTop />
+        <MetricRow label="Selected" value={strategy} highlight />
+        <MetricRow label="Used template" value={flags.used_template} />
+        <MetricRow label="Used panic mode" value={flags.used_panic_mode} />
+        <MetricRow label="Used generative" value={flags.used_generative} />
+      </div>
 
-          {/* Token Economics */}
-          <div className="border-t pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-1.5">Token Economics</div>
-            <MetricRow label="Tokens Used" value={formatTokenCount(tokens.used)} highlight />
-            <MetricRow
-              label="Tokens Saved"
-              value={formatTokenCount(tokens.saved)}
-              valueClassName="text-green-600 font-semibold"
-            />
-            <MetricRow
-              label="Full Catalogue Est."
-              value={formatTokenCount(tokens.full_catalogue_estimate)}
-              valueClassName="text-muted-foreground"
-            />
-            <MetricRow
-              label="Reduction"
-              value={formatPercent(tokens.reduction_percentage / 100)}
-              valueClassName="text-green-600 font-semibold"
-            />
-          </div>
+      {/* Token Economics */}
+      <div>
+        <SubSectionHeader label="Token economics" borderTop />
+        <MetricRow label="Tokens used" value={formatTokenCount(tokens.used)} highlight />
+        <MetricRow
+          label="Tokens saved"
+          value={formatTokenCount(tokens.saved)}
+          valueClassName={`${TONE_TEXT.success} font-semibold`}
+        />
+        <MetricRow
+          label="Full catalogue est."
+          value={formatTokenCount(tokens.full_catalogue_estimate)}
+          valueClassName="text-muted-foreground"
+        />
+        <MetricRow
+          label="Reduction"
+          value={formatPercent(tokens.reduction_percentage / 100)}
+          valueClassName={`${TONE_TEXT.success} font-semibold`}
+        />
+      </div>
 
-          {/* Plan Details */}
-          <div className="border-t pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-1.5">Plan Details</div>
-            {plan.steps_count !== undefined && (
-              <MetricRow label="Steps Count" value={plan.steps_count} />
-            )}
-            {plan.tools_used && plan.tools_used.length > 0 && (
-              <MetricRow label="Tools Used" value={plan.tools_used.join(', ')} truncate />
-            )}
-            {plan.estimated_cost_usd !== undefined && plan.estimated_cost_usd !== null && (
-              <MetricRow label="Estimated Cost" value={formatCost(plan.estimated_cost_usd)} mono />
-            )}
-          </div>
-        </div>
-      </AccordionContent>
-    </AccordionItem>
+      {/* Plan Details */}
+      <div>
+        <SubSectionHeader label="Plan details" borderTop />
+        {plan.steps_count !== undefined && <MetricRow label="Steps count" value={plan.steps_count} />}
+        {plan.tools_used && plan.tools_used.length > 0 && (
+          <MetricRow label="Tools used" value={plan.tools_used.join(', ')} truncate />
+        )}
+        {plan.estimated_cost_usd !== undefined && plan.estimated_cost_usd !== null && (
+          <MetricRow label="Estimated cost" value={formatCost(plan.estimated_cost_usd)} mono />
+        )}
+      </div>
+    </DebugSection>
   );
 });

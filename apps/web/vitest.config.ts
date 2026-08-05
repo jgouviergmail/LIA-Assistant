@@ -68,7 +68,15 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
-        // Global floor — re-measured 2026-08-05 after the design-system
+        // Global floor — re-measured 2026-08-05 after the debug-panel
+        // overhaul (ADR-209: the tone foundation and its node families, the
+        // shared ScoreBar/legend, the 30 execution-ordered sections, the
+        // presence/anomaly derivations, the entry header and pipeline strip,
+        // and the schema detector):
+        // statements 72.66 / branches 68.76 / functions 68.98 / lines 73.22.
+        // Raised 68/62/64/69 -> 70/66/66/71 (floor(measured - 2) on every
+        // axis — the ~110 debug-panel tests moved all four floors at once).
+        // Previous re-measure 2026-08-05 after the design-system
         // consistency lot (the shared field plumbing behind `Input`/`Textarea`,
         // the localised spinner, the decorative skeletons, the shared
         // `EmptyState` and its seven call sites, and the focus/`aria-current`
@@ -192,10 +200,10 @@ export default defineConfig({
         // other lanes: App Router pages (hermetic E2E) and the WASM/Web-Audio
         // modules `sherpaKws` / `audio-queue`, which jsdom cannot simulate
         // without the test degenerating into a test of its own mocks.
-        statements: 68,
-        branches: 62,
-        functions: 64,
-        lines: 69,
+        statements: 70,
+        branches: 66,
+        functions: 66,
+        lines: 71,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {
           statements: 100,

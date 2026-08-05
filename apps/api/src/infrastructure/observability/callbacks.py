@@ -617,6 +617,9 @@ class TokenTrackingCallback(AsyncCallbackHandler):
                 completion_tokens=usage_data.output_tokens,
                 cached_tokens=usage_data.cached_tokens,
                 duration_ms=duration_ms,
+                # v3.4 waterfall: real start stamp when the per-call context
+                # captured one (0.0 means the on_llm_start pairing was lost).
+                started_at=start_time if start_time > 0 else None,
             )
 
             # DEBUG: Confirm tokens recorded

@@ -1,16 +1,24 @@
 /**
  * LLM Calls Section Component
  *
- * Displays LLM calls and cost summary.
- * Dark mode compatible with detailed token breakdown.
+ * Displays LLM calls and cost summary with per-node detail.
  */
 
 import React from 'react';
-import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { MetricRow, EmptySection } from '../shared';
-import { getNodeColor, MODEL_NAME_TRUNCATE_LENGTH } from '../../utils/constants';
+import { Cpu } from 'lucide-react';
+import {
+  DebugChip,
+  DebugSection,
+  EmptySection,
+  MetricRow,
+  NodeChip,
+  SubSectionHeader,
+} from '../shared';
+import { MODEL_NAME_TRUNCATE_LENGTH } from '../../utils/constants';
 import { formatTokenCount, formatCost, truncateText } from '../../utils/formatters';
+import { TONE_TEXT } from '../../utils/tones';
 import { cn } from '@/lib/utils';
+import type { DebugTone } from '../../utils/tones';
 import type { DebugMetrics } from '@/types/chat';
 
 export interface LLMCallsSectionProps {
@@ -20,6 +28,12 @@ export interface LLMCallsSectionProps {
   summary: DebugMetrics['llm_summary'];
 }
 
+const CALL_TYPE_CHIP: Record<string, { label: string; tone: DebugTone }> = {
+  chat: { label: 'CHAT', tone: 'info' },
+  embedding: { label: 'EMB', tone: 'neutral' },
+  image_generation: { label: 'IMG', tone: 'warning' },
+};
+
 /**
  * Section LLM Calls
  *
@@ -28,151 +42,133 @@ export interface LLMCallsSectionProps {
  * - Detailed list of calls per node (router, planner, response)
  * - Tokens and costs per call
  * - Cache efficiency (percentage)
- *
- * Not displayed if calls/summary is undefined (no LLM calls).
  */
 export const LLMCallsSection = React.memo(function LLMCallsSection({
   calls,
   summary,
 }: LLMCallsSectionProps) {
   if (!calls || !summary || calls.length === 0) {
-    return <EmptySection value="llm" title="LLM Calls" />;
+    return (
+      <EmptySection
+        value="llm"
+        title="LLM Calls"
+        icon={Cpu}
+        message="No LLM call was recorded on this request."
+      />
+    );
   }
 
-  // Calculate cache efficiency
+  // Cache efficiency
   const totalInputTokens = summary.total_tokens_in + summary.total_tokens_cache;
   const cacheEfficiency =
     totalInputTokens > 0 ? Math.round((summary.total_tokens_cache / totalInputTokens) * 100) : 0;
 
   return (
-    <AccordionItem value="llm">
-      <AccordionTrigger className="py-2 text-sm">
-        <div className="flex items-center gap-2">
-          <span>LLM Calls</span>
-          <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded border border-border">
-            {summary.total_calls} calls
-          </span>
-          <span className="text-xs text-primary font-mono">
+    <DebugSection
+      value="llm"
+      title="LLM Calls"
+      icon={Cpu}
+      badge={
+        <>
+          <DebugChip tone="neutral">{summary.total_calls} calls</DebugChip>
+          <span className="font-mono text-xs text-primary">
             {formatCost(summary.total_cost_eur)}
           </span>
+        </>
+      }
+    >
+      {/* Global summary */}
+      <div className="rounded border border-border/50 bg-muted/30 p-2">
+        <SubSectionHeader label="Summary" />
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+          <MetricRow label="Tokens in" value={formatTokenCount(summary.total_tokens_in)} />
+          <MetricRow label="Tokens out" value={formatTokenCount(summary.total_tokens_out)} />
+          <MetricRow
+            label="Tokens cache"
+            value={formatTokenCount(summary.total_tokens_cache)}
+            valueClassName={TONE_TEXT.success}
+          />
+          <MetricRow
+            label="Cache efficiency"
+            value={`${cacheEfficiency}%`}
+            valueClassName={
+              cacheEfficiency > 50 ? `${TONE_TEXT.success} font-medium` : 'text-muted-foreground'
+            }
+          />
         </div>
-      </AccordionTrigger>
-      <AccordionContent>
-        <div className="space-y-3">
-          {/* Global summary */}
-          <div className="p-2 bg-muted/30 rounded border border-border/50">
-            <div className="text-xs text-muted-foreground font-medium mb-1.5">Résumé</div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-              <MetricRow label="Tokens In" value={formatTokenCount(summary.total_tokens_in)} />
-              <MetricRow label="Tokens Out" value={formatTokenCount(summary.total_tokens_out)} />
-              <MetricRow
-                label="Tokens Cache"
-                value={formatTokenCount(summary.total_tokens_cache)}
-                valueClassName="text-green-400"
-              />
-              <MetricRow
-                label="Efficacité cache"
-                value={`${cacheEfficiency}%`}
-                valueClassName={
-                  cacheEfficiency > 50 ? 'text-green-400 font-medium' : 'text-muted-foreground'
-                }
-              />
-            </div>
-            <div className="mt-2 pt-2 border-t border-border/30">
-              <MetricRow
-                label="Coût total"
-                value={formatCost(summary.total_cost_eur)}
-                highlight
-                mono
-                valueClassName="text-primary font-semibold"
-              />
-            </div>
-          </div>
+        <div className="mt-2 border-t border-border/30 pt-2">
+          <MetricRow
+            label="Total cost"
+            value={formatCost(summary.total_cost_eur)}
+            highlight
+            mono
+            valueClassName="text-primary font-semibold"
+          />
+        </div>
+      </div>
 
-          {/* Detailed calls list */}
-          <div className="border-t border-border/50 pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-2">Détail par node</div>
-            <div className="space-y-2">
-              {calls.map((call, index) => {
-                const nodeColorClass = getNodeColor(call.node_name);
-                const callType = call.call_type ?? 'chat';
-                const isEmbedding = callType === 'embedding';
+      {/* Detailed calls list */}
+      <div>
+        <SubSectionHeader label="Detail per call" borderTop />
+        <div className="space-y-2">
+          {calls.map((call, index) => {
+            const callType = call.call_type ?? 'chat';
+            const typeChip = CALL_TYPE_CHIP[callType] ?? CALL_TYPE_CHIP.chat;
 
-                // Calculate per-call cache efficiency
-                const callInputTokens = call.tokens_in + call.tokens_cache;
-                const callCachePercent =
-                  callInputTokens > 0 ? Math.round((call.tokens_cache / callInputTokens) * 100) : 0;
+            // Per-call cache efficiency
+            const callInputTokens = call.tokens_in + call.tokens_cache;
+            const callCachePercent =
+              callInputTokens > 0 ? Math.round((call.tokens_cache / callInputTokens) * 100) : 0;
 
-                return (
-                  <div
-                    key={`${call.node_name}-${index}`}
-                    className="border-l-2 border-border pl-3 pb-1"
+            return (
+              <div key={`${call.node_name}-${index}`} className="border-l-2 border-border pl-3 pb-1">
+                {/* Header: type chip + node + model */}
+                <div className="mb-1 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1">
+                    <DebugChip tone={typeChip.tone}>{typeChip.label}</DebugChip>
+                    <NodeChip nodeName={call.node_name} />
+                  </div>
+                  <span
+                    className="ml-2 truncate font-mono text-[10px] text-muted-foreground"
+                    title={call.model_name}
                   >
-                    {/* Header: type badge + node + model */}
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <div className="flex items-center gap-1">
-                        <span
-                          className={cn(
-                            'text-[10px] px-1 py-0.5 rounded uppercase font-medium border',
-                            isEmbedding
-                              ? 'bg-teal-500/20 text-teal-400 border-teal-500/30'
-                              : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                          )}
-                        >
-                          {isEmbedding ? 'EMB' : 'CHAT'}
-                        </span>
-                        <span
-                          className={cn(
-                            'text-[10px] px-1.5 py-0.5 rounded uppercase font-medium border',
-                            nodeColorClass
-                          )}
-                        >
-                          {call.node_name}
-                        </span>
-                      </div>
-                      <span
-                        className="font-mono text-[10px] text-muted-foreground truncate ml-2"
-                        title={call.model_name}
-                      >
-                        {truncateText(call.model_name, MODEL_NAME_TRUNCATE_LENGTH)}
+                    {truncateText(call.model_name, MODEL_NAME_TRUNCATE_LENGTH)}
+                  </span>
+                </div>
+
+                {/* Call metrics */}
+                <div className="space-y-0.5 text-[10px] text-muted-foreground">
+                  <div className="flex justify-between">
+                    <span>In:</span>
+                    <span className="font-mono">{formatTokenCount(call.tokens_in)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Out:</span>
+                    <span className="font-mono">
+                      {callType !== 'chat' && call.tokens_out === 0
+                        ? '—'
+                        : formatTokenCount(call.tokens_out)}
+                    </span>
+                  </div>
+                  {call.tokens_cache > 0 && (
+                    <div className={cn('flex justify-between', TONE_TEXT.success)}>
+                      <span>Cache:</span>
+                      <span className="font-mono">
+                        {formatTokenCount(call.tokens_cache)}
+                        <span className="ml-1 opacity-70">({callCachePercent}%)</span>
                       </span>
                     </div>
-
-                    {/* Call metrics */}
-                    <div className="text-[10px] text-muted-foreground space-y-0.5">
-                      <div className="flex justify-between">
-                        <span>In:</span>
-                        <span className="font-mono">{formatTokenCount(call.tokens_in)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Out:</span>
-                        <span className="font-mono">
-                          {isEmbedding && call.tokens_out === 0
-                            ? '—'
-                            : formatTokenCount(call.tokens_out)}
-                        </span>
-                      </div>
-                      {call.tokens_cache > 0 && (
-                        <div className="flex justify-between text-green-400">
-                          <span>Cache:</span>
-                          <span className="font-mono">
-                            {formatTokenCount(call.tokens_cache)}
-                            <span className="text-green-400/70 ml-1">({callCachePercent}%)</span>
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex justify-between font-medium text-foreground pt-0.5 border-t border-border/30">
-                        <span>Coût:</span>
-                        <span className="font-mono text-primary">{formatCost(call.cost_eur)}</span>
-                      </div>
-                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-border/30 pt-0.5 font-medium text-foreground">
+                    <span>Cost:</span>
+                    <span className="font-mono text-primary">{formatCost(call.cost_eur)}</span>
                   </div>
-                );
-              })}
-            </div>
-          </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
-      </AccordionContent>
-    </AccordionItem>
+      </div>
+    </DebugSection>
   );
 });

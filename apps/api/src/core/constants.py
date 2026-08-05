@@ -1786,25 +1786,11 @@ FOR_EACH_PREVIEW_FIELDS: dict[str, list[tuple[str, str | None]]] = {
 
 
 # ============================================================================
-# DEBUG METRICS (v3.1)
+# DEBUG METRICS
 # ============================================================================
-# Constants for debug panel metrics and visualization
-# Reference: services/streaming/service.py, frontend debug panel
-
-# Pipeline node order for Request Lifecycle visualization
-# Must match the actual LangGraph pipeline execution order
-DEBUG_PIPELINE_NODE_ORDER: tuple[str, ...] = (
-    "router",
-    "planner",
-    "semantic_validator",
-    "task_orchestrator",
-    "parallel_executor",
-    "response",
-    # Auxiliary: embedding operations (variable timing during pipeline)
-    "embedding_embed_query",
-    "embedding_embed_documents",
-)
-
+# The v3.1 DEBUG_PIPELINE_NODE_ORDER list was deleted in v3.4: the request
+# lifecycle now orders nodes by their first run-anchored appearance
+# (started_offset_ms), so a hand-maintained order list has no consumer.
 # Note: CARDINALITY_ALL = 999 is already defined in the FOR_EACH section above
 # Frontend uses CARDINALITY_ALL_VALUE with same value in its own constants.ts
 

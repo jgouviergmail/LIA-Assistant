@@ -1,16 +1,17 @@
 /**
  * Validation Functions for Debug Metrics
  *
- * v3.1 LLM-based: Simplified validation.
- * No more CAL/RAW distinction - the LLM directly produces confidence scores.
+ * v3.1 LLM-based: the LLM directly produces confidence scores.
+ * v3.4: Zod runs as a DETECTOR — `validateSectionSchemas` feeds the anomaly
+ * channel (a drifted payload surfaces as a warning; no section ever
+ * disappears or crashes because of it).
  */
 
 import { logger } from '@/lib/logger';
 import {
-  DebugMetricsSchema,
   DomainSelectionMetricsSchema,
+  SECTION_SCHEMAS,
   ToolSelectionMetricsSchema,
-  type ValidatedDebugMetrics,
 } from './schemas';
 import type { DebugMetrics } from '@/types/chat';
 
@@ -30,47 +31,68 @@ export interface ValidationResult<T = unknown> {
   warning?: string;
 }
 
+/** One schema mismatch found on a present section. */
+export interface SectionSchemaMismatch {
+  /** Accordion value of the drifted section. */
+  section: string;
+  /** Human-readable summary of the first mismatch. */
+  label: string;
+}
+
 /**
- * Validate complete debug metrics
+ * Map from payload keys to accordion values where they differ.
  *
- * Uses Zod to validate the structure and detect anomalies.
- *
- * @param rawMetrics - Raw metrics received from the backend
- * @returns Validation result with validated data or errors
- *
- * @example
- * ```typescript
- * const result = validateDebugMetrics(rawData);
- * if (!result.success) {
- *   console.error('Validation failed:', result.errors);
- *   return;
- * }
- * const metrics = result.data; // Type-safe validated metrics
- * ```
+ * `SECTION_SCHEMAS` is keyed by DebugMetrics payload key; the anomaly
+ * channel targets accordion section values.
  */
-export function validateDebugMetrics(rawMetrics: unknown): ValidationResult<ValidatedDebugMetrics> {
-  // Zod validation
-  const result = DebugMetricsSchema.safeParse(rawMetrics);
+const PAYLOAD_KEY_TO_SECTION: Record<string, string> = {
+  intent_detection: 'intent',
+  domain_selection: 'domain',
+  routing_decision: 'routing',
+  context_resolution: 'context',
+  query_info: 'query',
+  tool_selection: 'tools',
+  planner_intelligence: 'planner',
+  execution_timeline: 'execution',
+  intelligent_mechanisms: 'mechanisms',
+  llm_calls: 'llm',
+  llm_summary: 'llm',
+  image_generation_calls: 'image_generation',
+  image_generation_summary: 'image_generation',
+};
 
-  if (!result.success) {
-    const errors = result.error.issues.map(e => `${e.path.join('.')}: ${e.message}`);
-
-    logger.error('debug_metrics_validation_failed', undefined, {
-      errors: result.error.issues,
-      rawData: rawMetrics,
-    });
-
-    return {
-      success: false,
-      errors,
-    };
+/**
+ * Run every PRESENT section through its schema, fail-soft.
+ *
+ * Args mirror the panel's per-entry pass: absent sections are skipped
+ * (absence is presence's business, not validation's).
+ *
+ * @param metrics - One request's debug metrics.
+ * @returns One mismatch per drifted section (empty when all conform).
+ */
+export function validateSectionSchemas(metrics: DebugMetrics): SectionSchemaMismatch[] {
+  const mismatches: SectionSchemaMismatch[] = [];
+  // Indexed read over the registry keys: DebugMetrics has no index
+  // signature, so the registry lookup goes through unknown on purpose.
+  const payload: Record<string, unknown> = { ...metrics };
+  for (const [key, schema] of Object.entries(SECTION_SCHEMAS)) {
+    const value = payload[key];
+    if (value === undefined || value === null) continue;
+    const result = schema.safeParse(value);
+    if (!result.success) {
+      const first = result.error.issues[0];
+      const path = first?.path.join('.') || key;
+      mismatches.push({
+        section: PAYLOAD_KEY_TO_SECTION[key] ?? key,
+        label: `Payload mismatch in ${key} (${path}: ${first?.message ?? 'invalid'})`,
+      });
+      logger.warn('debug_section_schema_mismatch', {
+        section: key,
+        issues: result.error.issues.slice(0, 3),
+      });
+    }
   }
-
-  // Validation succeeded
-  return {
-    success: true,
-    data: result.data,
-  };
+  return mismatches;
 }
 
 /**
@@ -81,15 +103,6 @@ export function validateDebugMetrics(rawMetrics: unknown): ValidationResult<Vali
  *
  * @param domainSelection - Domain selection metrics
  * @returns Result with validated scores
- *
- * @example
- * ```typescript
- * const result = validateDomainScores(metrics.domain_selection);
- * if (!result.success) {
- *   return <ErrorDisplay message={result.errors[0]} />;
- * }
- * return <ScoresList scores={result.data} />;
- * ```
  */
 export function validateDomainScores(
   domainSelection: DebugMetrics['domain_selection']
@@ -140,22 +153,8 @@ export function validateDomainScores(
  * The planner selects tools directly (no more CAL/RAW).
  *
  * @param toolSelection - Tool selection metrics (can be undefined)
- * @returns Result with validated scores or null if section absent
- *
- * @example
- * ```typescript
- * const result = validateToolScores(metrics.tool_selection);
- *
- * if (result.success === false && result.errors?.[0] === 'SECTION_ABSENT') {
- *   return <InfoMessage>Tool selection not performed</InfoMessage>;
- * }
- *
- * if (!result.success) {
- *   return <ErrorDisplay message={result.errors[0]} />;
- * }
- *
- * return <ScoresList scores={result.data} />;
- * ```
+ * @returns Result with validated scores or SECTION_ABSENT when the query
+ *     was not routed to the planner.
  */
 export function validateToolScores(
   toolSelection: DebugMetrics['tool_selection']
@@ -203,248 +202,4 @@ export function validateToolScores(
     success: false,
     errors: ['No tool scores available.'],
   };
-}
-
-/**
- * Validate intent detection metrics
- *
- * @param intentDetection - Intent metrics
- * @returns Validation result
- */
-export function validateIntentDetection(
-  intentDetection: DebugMetrics['intent_detection']
-): ValidationResult<DebugMetrics['intent_detection']> {
-  if (!intentDetection) {
-    return {
-      success: false,
-      errors: ['Intent detection metrics missing'],
-    };
-  }
-
-  // Basic checks
-  if (intentDetection.confidence < 0 || intentDetection.confidence > 1) {
-    logger.warn('intent_detection_invalid_confidence', {
-      confidence: intentDetection.confidence,
-    });
-
-    return {
-      success: false,
-      errors: ['Confidence must be between 0 and 1'],
-    };
-  }
-
-  return {
-    success: true,
-    data: intentDetection,
-  };
-}
-
-/**
- * Validate routing decision metrics
- *
- * @param routingDecision - Routing metrics
- * @returns Validation result
- */
-export function validateRoutingDecision(
-  routingDecision: DebugMetrics['routing_decision']
-): ValidationResult<DebugMetrics['routing_decision']> {
-  if (!routingDecision) {
-    return {
-      success: false,
-      errors: ['Routing decision metrics missing'],
-    };
-  }
-
-  // Check valid route_to
-  if (!['chat', 'planner'].includes(routingDecision.route_to)) {
-    logger.error('routing_decision_invalid_route', undefined, {
-      route_to: routingDecision.route_to,
-    });
-
-    return {
-      success: false,
-      errors: [`Invalid route_to value: ${routingDecision.route_to}`],
-    };
-  }
-
-  // Check confidence
-  if (routingDecision.confidence < 0 || routingDecision.confidence > 1) {
-    logger.warn('routing_decision_invalid_confidence', {
-      confidence: routingDecision.confidence,
-    });
-
-    return {
-      success: false,
-      errors: ['Confidence must be between 0 and 1'],
-    };
-  }
-
-  return {
-    success: true,
-    data: routingDecision,
-  };
-}
-
-/**
- * Validate token budget
- *
- * Checks that thresholds are consistent (safe < warning < critical < max)
- *
- * @param tokenBudget - Token budget metrics (can be undefined)
- * @returns Validation result
- */
-export function validateTokenBudget(
-  tokenBudget: DebugMetrics['token_budget']
-): ValidationResult<NonNullable<DebugMetrics['token_budget']>> {
-  if (!tokenBudget) {
-    return {
-      success: false,
-      errors: ['SECTION_ABSENT'],
-    };
-  }
-
-  const { current_tokens, thresholds } = tokenBudget;
-
-  // Check threshold consistency
-  const { safe, warning, critical, max } = thresholds;
-
-  if (!(safe < warning && warning < critical && critical <= max)) {
-    logger.error('token_budget_invalid_thresholds', undefined, {
-      thresholds,
-      message: 'Thresholds must be: safe < warning < critical <= max',
-    });
-
-    return {
-      success: false,
-      errors: ['Invalid token budget thresholds (not monotonic)'],
-    };
-  }
-
-  // Check that current_tokens is valid
-  if (current_tokens < 0) {
-    logger.warn('token_budget_negative_current', {
-      current_tokens,
-    });
-
-    return {
-      success: false,
-      errors: ['Current tokens cannot be negative'],
-    };
-  }
-
-  return {
-    success: true,
-    data: tokenBudget,
-  };
-}
-
-/**
- * Validate planner intelligence
- *
- * @param plannerIntelligence - Planner metrics (can be undefined)
- * @returns Validation result
- */
-export function validatePlannerIntelligence(
-  plannerIntelligence: DebugMetrics['planner_intelligence']
-): ValidationResult<NonNullable<DebugMetrics['planner_intelligence']>> {
-  if (!plannerIntelligence) {
-    return {
-      success: false,
-      errors: ['SECTION_ABSENT'],
-    };
-  }
-
-  // Check token consistency
-  const { tokens } = plannerIntelligence;
-
-  if (tokens.used < 0 || tokens.saved < 0 || tokens.full_catalogue_estimate < 0) {
-    logger.warn('planner_intelligence_invalid_tokens', {
-      tokens,
-    });
-
-    return {
-      success: false,
-      errors: ['Token counts cannot be negative'],
-    };
-  }
-
-  // Check reduction_percentage consistency
-  if (tokens.reduction_percentage < 0 || tokens.reduction_percentage > 100) {
-    logger.warn('planner_intelligence_invalid_reduction', {
-      reduction_percentage: tokens.reduction_percentage,
-    });
-
-    return {
-      success: false,
-      errors: ['Reduction percentage must be between 0 and 100'],
-    };
-  }
-
-  return {
-    success: true,
-    data: plannerIntelligence,
-  };
-}
-
-/**
- * Sanitize and validate a numeric value
- *
- * Handles NaN, Infinity, negative values based on context
- *
- * @param value - Value to validate
- * @param options - Validation options
- * @returns Sanitized value or null if invalid
- */
-export function sanitizeNumericValue(
-  value: unknown,
-  options: {
-    min?: number;
-    max?: number;
-    allowNegative?: boolean;
-    defaultValue?: number;
-  } = {}
-): number | null {
-  const { min = -Infinity, max = Infinity, allowNegative = true, defaultValue = null } = options;
-
-  if (typeof value !== 'number') {
-    return defaultValue;
-  }
-
-  if (!isFinite(value)) {
-    logger.warn('sanitize_numeric_non_finite', { value });
-    return defaultValue;
-  }
-
-  if (!allowNegative && value < 0) {
-    logger.warn('sanitize_numeric_negative', { value });
-    return defaultValue;
-  }
-
-  if (value < min || value > max) {
-    logger.warn('sanitize_numeric_out_of_range', { value, min, max });
-    return defaultValue;
-  }
-
-  return value;
-}
-
-/**
- * Validate that a score is within the [0, 1] range
- *
- * @param score - Score to validate
- * @param context - Context for logging (e.g., "domain_score", "tool_score")
- * @returns true if valid
- */
-export function validateScoreRange(score: number, context: string = 'score'): boolean {
-  if (!isFinite(score)) {
-    logger.warn('validate_score_non_finite', { score, context });
-    return false;
-  }
-
-  if (score < 0 || score > 1) {
-    logger.warn('validate_score_out_of_range', { score, context });
-    return false;
-  }
-
-  return true;
 }

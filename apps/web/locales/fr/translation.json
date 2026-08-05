@@ -3151,7 +3151,7 @@
         "telephony-calls": "téléphone, appels, historique des appels, composer",
         "admin-mcp-servers": "MCP, model context protocol, serveurs de l’application, outils intégrés",
         "mcp-servers": "MCP, model context protocol, mes serveurs, outils, extensions",
-        "debug-panel": "développeur, diagnostic, traces, technique, dépannage",
+        "debug-panel": "développeur, diagnostic, traces, technique, dépannage, waterfall, anomalies, chronologie, pipeline",
         "personality": "ton, style, caractère, comportement, persona, voix",
         "psyche": "émotions, humeur, sentiments, affect, émotionnel",
         "memories": "mémoire, souvenirs, se souvenir, oublier, faits, provenance, pourquoi, source, signal, origine, corriger",
@@ -3913,6 +3913,19 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_27_12": {
+          "title": "v1.27.12 — 🔬 Le panneau de debug se lit comme l'exécution",
+          "date": "Août 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🧭 La trace suit l'ordre d'exécution</b> — sept phases numérotées (requête, analyse du routeur, planification, exécution, contexte de réponse, extractions d'arrière-plan, bilan) remplacent un ordre accumulé où la requête s'affichait après la décision de routage.",
+            "i2": "<b>🌊 Un waterfall sur la ligne de temps du run</b> — chaque appel de modèle est positionné par son départ réel, partagé entre le pipeline et ses tâches d'arrière-plan : ce qui s'est exécuté en parallèle ou en série se lit d'un coup d'œil.",
+            "i3": "<b>🔍 Les étapes invisibles ont désormais leur section</b> — le verdict du validateur de plan (informatif : un plan rejeté s'exécute quand même), la boucle ReAct face à son plafond d'itérations publié, les portes d'approbation, la compaction de contexte, la dépense de génération d'images et de synthèse vocale.",
+            "i4": "<b>⚠️ Les anomalies remontent sur l'en-tête de la requête</b> — étapes ratées, planification en mode panique, zones de budget critiques et dérives de payload sont comptées sur chaque entrée d'historique, à côté d'un bandeau scannable (route, moteur, durée, tokens, coût) : comparez les requêtes sans les déplier.",
+            "i5": "<b>🧹 Les sections vides se replient</b> — sur un tour conversationnel, deux tiers des sections n'ont pas de données ; elles se replient derrière un discret dépliant par phase au lieu d'empiler des lignes N/A.",
+            "i6": "<b>🎨 Lisible dans les deux thèmes</b> — les statuts prennent les jetons du design system des cinq thèmes, les nœuds du pipeline portent des familles d'identité bi-thèmes, et une étape simplement non exécutée s'affiche en neutre au lieu d'un FAIL rouge."
+          }
+        },
         "v1_27_11": {
           "title": "v1.27.11 — 🧭 Des réglages qui se lisent comme un index",
           "date": "Août 2026",

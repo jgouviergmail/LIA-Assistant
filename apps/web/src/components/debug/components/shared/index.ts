@@ -4,21 +4,26 @@
  * Centralizes all shared component exports for simplified imports.
  */
 
-// Badges
+// Badges & chips
 export * from './badges';
 export { ActionBadge, type ActionBadgeProps, type ActionType } from './ActionBadge';
+export { DebugChip, type DebugChipProps } from './DebugChip';
+export { NodeChip, type NodeChipProps } from './NodeChip';
 
 // Row components
 export { MetricRow, type MetricRowProps } from './MetricRow';
 export { ThresholdRow, type ThresholdRowProps, type ThresholdCheck } from './ThresholdRow';
 export { InfoRow, type InfoRowProps, type ThresholdInfo } from './InfoRow';
 
+// Score visualization
+export { ScoreBar, type ScoreBarProps } from './ScoreBar';
+export { ScoreLegend, type ScoreLegendProps } from './ScoreLegend';
+
 // List components
 export { ScoresList, type ScoresListProps } from './ScoresList';
 export { ToolMatchRow, type ToolMatchRowProps, type ToolMatch } from './ToolMatchRow';
 
-// Section wrapper
+// Section wrappers
 export { DebugSection, type DebugSectionProps } from './DebugSection';
-
-// Empty state placeholder
 export { EmptySection, type EmptySectionProps } from './EmptySection';
+export { SubSectionHeader, type SubSectionHeaderProps } from './SubSectionHeader';

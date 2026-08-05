@@ -22,10 +22,15 @@ def _families() -> list[tuple[str, Any]]:
 
     Resolved lazily so importing this module never drags the extraction
     stacks (LLM clients) into contexts that only type-check or route.
+
+    ``voice`` is a non-destructive READ, not a pop: the TTS records are still
+    needed by the archive backfill, and ``cleanup_run_records`` releases them
+    once the panel is done.
     """
     from src.domains.agents.services.open_loop_extractor import (
         pop_extraction_debug as pop_open_loops,
     )
+    from src.domains.chat.run_records import get_tts_debug
     from src.domains.journals.extraction_service import (
         pop_extraction_debug as pop_journals,
     )
@@ -33,6 +38,7 @@ def _families() -> list[tuple[str, Any]]:
     return [
         ("journal_extraction", pop_journals),
         ("open_loop_extraction", pop_open_loops),
+        ("voice", get_tts_debug),
     ]
 
 

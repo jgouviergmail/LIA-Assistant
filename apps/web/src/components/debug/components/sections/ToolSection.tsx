@@ -8,21 +8,21 @@
  */
 
 import React from 'react';
-import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
+import { Wrench } from 'lucide-react';
 import { validateToolScores } from '../../validation/validators';
 import {
-  MetricRow,
-  ThresholdRow,
+  DebugSection,
+  EmptySection,
   InfoRow,
+  MetricRow,
   ScoresList,
-  ToolMatchRow,
   SectionBadge,
+  SubSectionHeader,
+  ThresholdRow,
+  ToolMatchRow,
 } from '../shared';
-import {
-  ERROR_SECTION_CLASSES,
-  INFO_SECTION_CLASSES,
-  DEFAULT_THRESHOLDS,
-} from '../../utils/constants';
+import { DEFAULT_THRESHOLDS } from '../../utils/constants';
+import { TONE_TEXT } from '../../utils/tones';
 import { formatPercent } from '../../utils/formatters';
 import type { DebugMetrics } from '@/types/chat';
 
@@ -42,20 +42,12 @@ export const ToolSection = React.memo(function ToolSection({ data }: ToolSection
   // Case: no selection (routed to chat)
   if (!data) {
     return (
-      <AccordionItem value="tools">
-        <AccordionTrigger className="py-2 text-sm">
-          <div className="flex items-center gap-2">
-            <span>Tool Selection</span>
-            <SectionBadge passed={false} label="N/A" />
-          </div>
-        </AccordionTrigger>
-        <AccordionContent>
-          <div className={INFO_SECTION_CLASSES}>
-            <strong>Non exécuté :</strong> La requête a été routée vers le chat (conversation
-            simple) ou aucun outil ne correspond.
-          </div>
-        </AccordionContent>
-      </AccordionItem>
+      <EmptySection
+        value="tools"
+        title="Tool Selection"
+        icon={Wrench}
+        message="Routed to chat (simple conversation) — no tool selection ran."
+      />
     );
   }
 
@@ -64,78 +56,65 @@ export const ToolSection = React.memo(function ToolSection({ data }: ToolSection
   const passed = data.top_score >= primaryMin;
 
   return (
-    <AccordionItem value="tools">
-      <AccordionTrigger className="py-2 text-sm">
-        <div className="flex items-center gap-2">
-          <span>Tool Selection</span>
-          <SectionBadge passed={passed} value={data.top_score} />
-        </div>
-      </AccordionTrigger>
-      <AccordionContent>
-        <div className="space-y-3">
-          {/* Selection summary */}
+    <DebugSection
+      value="tools"
+      title="Tool Selection"
+      icon={Wrench}
+      badge={<SectionBadge passed={passed} value={data.top_score} />}
+    >
+      {/* Selection summary */}
+      <div className="space-y-1">
+        <SubSectionHeader label="Selection outcome" />
+        <MetricRow label="Tools selected" value={(data.selected_tools ?? []).length} highlight />
+        <MetricRow
+          label="Confidence"
+          value={formatPercent(data.top_score)}
+          highlight
+          valueClassName={passed ? `${TONE_TEXT.success} font-semibold` : TONE_TEXT.destructive}
+        />
+        <MetricRow label="Uncertainty" value={data.has_uncertainty ? 'Yes' : 'No'} />
+      </div>
+
+      {/* Detailed tools list */}
+      {(data.selected_tools ?? []).length > 0 && (
+        <div>
+          <SubSectionHeader label="Selected tools" borderTop />
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground font-medium mb-1">
-              Résultat de la sélection
-            </div>
-            <MetricRow
-              label="Nombre d'outils"
-              value={(data.selected_tools ?? []).length}
-              highlight
-            />
-            <MetricRow
-              label="Confiance"
-              value={formatPercent(data.top_score)}
-              highlight
-              valueClassName={passed ? 'text-green-400 font-semibold' : 'text-red-400'}
-            />
-            <MetricRow label="Incertitude" value={data.has_uncertainty ? 'Oui' : 'Non'} />
+            {(data.selected_tools ?? []).map((tool, index) => (
+              <ToolMatchRow key={`${tool.tool_name}-${index}`} tool={tool} />
+            ))}
           </div>
-
-          {/* Detailed tools list */}
-          {(data.selected_tools ?? []).length > 0 && (
-            <div className="border-t pt-2">
-              <div className="text-xs text-muted-foreground font-medium mb-1.5">
-                Outils sélectionnés
-              </div>
-              <div className="space-y-1">
-                {(data.selected_tools ?? []).map((tool, index) => (
-                  <ToolMatchRow key={`${tool.tool_name}-${index}`} tool={tool} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Configuration */}
-          <div className="border-t pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-1.5">Seuils</div>
-            {data.thresholds.primary_min && (
-              <ThresholdRow label="Confiance minimum" check={data.thresholds.primary_min} />
-            )}
-            {data.thresholds.max_tools && (
-              <InfoRow label="Maximum d'outils" check={data.thresholds.max_tools} />
-            )}
-          </div>
-
-          {/* Score details */}
-          {scoresValidation.success && (
-            <div className="border-t pt-2">
-              <ScoresList
-                scores={scoresValidation.data!}
-                label="Confiance par outil"
-                passThreshold={primaryMin}
-              />
-            </div>
-          )}
-
-          {/* Error if no scores */}
-          {!scoresValidation.success && scoresValidation.errors?.[0] !== 'SECTION_ABSENT' && (
-            <div className={ERROR_SECTION_CLASSES}>
-              <strong>Erreur :</strong> {scoresValidation.errors?.[0] || 'Aucun score disponible'}
-            </div>
-          )}
         </div>
-      </AccordionContent>
-    </AccordionItem>
+      )}
+
+      {/* Configuration */}
+      <div>
+        <SubSectionHeader label="Thresholds" borderTop />
+        {data.thresholds.primary_min && (
+          <ThresholdRow label="Minimum confidence" check={data.thresholds.primary_min} />
+        )}
+        {data.thresholds.max_tools && (
+          <InfoRow label="Maximum tools" check={data.thresholds.max_tools} />
+        )}
+      </div>
+
+      {/* Score details */}
+      {scoresValidation.success && (
+        <div className="border-t border-border/50 pt-2">
+          <ScoresList
+            scores={scoresValidation.data!}
+            label="Confidence per tool"
+            passThreshold={primaryMin}
+          />
+        </div>
+      )}
+
+      {/* Error if no scores */}
+      {!scoresValidation.success && scoresValidation.errors?.[0] !== 'SECTION_ABSENT' && (
+        <div className="rounded border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
+          <strong>Error:</strong> {scoresValidation.errors?.[0] || 'No scores available'}
+        </div>
+      )}
+    </DebugSection>
   );
 });

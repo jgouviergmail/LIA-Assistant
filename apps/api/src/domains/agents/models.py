@@ -428,6 +428,8 @@ class MessagesState(TypedDict):
     # summarizes old messages preserving critical identifiers (UUIDs, URLs, IDs).
     compaction_summary: str | None  # Last compaction summary (for debug/audit)
     compaction_count: int  # Number of compactions performed in this session
+    # Debug panel: strategy/tokens_saved/messages_removed of the LAST compaction
+    compaction_debug: dict[str, Any] | None
 
     # Initiative Phase: Post-execution proactive enrichment (ADR-062)
     # The initiative node evaluates execution results and may execute read-only
@@ -627,6 +629,7 @@ def create_initial_state(
         # Context Compaction (F4)
         compaction_summary=None,  # Last compaction summary
         compaction_count=0,  # Compactions performed
+        compaction_debug=None,  # Debug panel: last compaction details
         # Initiative Phase (ADR-062)
         initiative_iteration=0,
         initiative_results=[],

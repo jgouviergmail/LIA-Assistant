@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 3.9
-**Date**: 2026-08-04
-**Application**: LIA v1.27.11
+**Date**: 2026-08-05
+**Application**: LIA v1.27.12
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 447 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 207 ADRs, ~18,016 pytest-collected tests across 983 files, native observability, 6-level HITL |
+| Production reliability | 208 ADRs, ~18,041 pytest-collected tests across 985 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -72,10 +72,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~18,016 (collected by pytest across 983 test files) + 4,925 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~18,041 (collected by pytest across 985 test files) + 4,987 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 400+ |
-| ADRs (Architecture Decision Records) | 207 |
+| ADRs (Architecture Decision Records) | 208 |
 | Prometheus metrics | 447 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1200,7 +1200,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-207 ADRs in MADR format document the major architectural decisions. Some representative examples:
+208 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1283,10 +1283,10 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 207 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,016 tests across 983 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 208 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,041 tests across 985 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 207 ADRs, and the changelog (v1.0 to v1.27.11). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 208 ADRs, and the changelog (v1.0 to v1.27.12). All metrics, versions, and patterns cited are verifiable in the codebase.*

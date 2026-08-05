@@ -62,7 +62,10 @@ export const DomainSelectionMetricsSchema = z.object({
  * Schema for routing decision metrics
  */
 export const RoutingDecisionMetricsSchema = z.object({
-  route_to: z.enum(['chat', 'planner']),
+  // Free string on purpose: the router emits 'planner', 'chat' AND 'response'
+  // (direct-to-response conversational route) — the old two-value enum never
+  // matched reality and only became visible once the detector was wired.
+  route_to: z.string(),
   confidence: z.number().min(0).max(1),
   bypass_llm: z.boolean(),
   reasoning_trace: z.array(z.string()).default([]),
@@ -229,8 +232,9 @@ const LLMCallSchema = z.object({
   tokens_cache: z.number().min(0),
   cost_eur: z.number().min(0),
   duration_ms: z.number().optional(), // v3.2
-  call_type: z.enum(['chat', 'embedding']).optional(), // v3.3
+  call_type: z.enum(['chat', 'embedding', 'image_generation']).optional(), // v3.3/v3.4
   sequence: z.number().optional(), // v3.3
+  started_offset_ms: z.number().min(0).optional(), // v3.4 waterfall
 });
 
 /**
@@ -307,10 +311,14 @@ const SemanticExpansionSchema = z
  */
 const ChatOverrideSchema = z
   .object({
+    // Aligned with the REAL producer (router mechanism): it emits
+    // applied/original_domains/intent/confidence/override_threshold/reason —
+    // the old original_top_score/intent_confidence fields never existed in
+    // the payload and fired the detector on every chat-override turn.
     applied: z.boolean(),
     original_domains: z.array(z.string()),
-    original_top_score: z.number(),
-    intent_confidence: z.number().min(0).max(1),
+    intent: z.string().optional(),
+    confidence: z.number().optional(),
     override_threshold: z.number().min(0).max(1),
     reason: z.string(),
   })
@@ -385,52 +393,129 @@ export const RequestLifecycleSchema = z
   })
   .optional();
 
+// ============================================================================
+// v3.4 sections — the stages the panel could not see
+// ============================================================================
+
+/** Schema for one semantic-validator issue */
+const SemanticValidationIssueSchema = z.object({
+  issue_type: z.string(),
+  description: z.string().nullable(),
+  severity: z.string(),
+  step_index: z.number().nullable(),
+  suggested_fix: z.string().nullable(),
+});
+
+/** Schema for the semantic-validator verdict (informative, ADR-184) */
+export const SemanticValidationSchema = z.object({
+  is_valid: z.boolean(),
+  confidence: z.number().min(0).max(1),
+  criticality: z.string().nullable(),
+  requires_clarification: z.boolean(),
+  clarification_questions: z.array(z.string()),
+  validation_duration_seconds: z.number().min(0),
+  used_fallback: z.boolean(),
+  fallback_reason: z.string().nullable(),
+  issues: z.array(SemanticValidationIssueSchema),
+});
+
+/** Schema for the ReAct loop details */
+export const ReactExecutionSchema = z.object({
+  iterations: z.number().min(0),
+  max_iterations: z.number().min(1),
+  elapsed_seconds: z.number().min(0),
+  tool_names: z.array(z.string()),
+  executed_tool_calls: z.number().min(0),
+});
+
+/** Schema for the human-in-the-loop trace */
+export const HitlSchema = z.object({
+  interrupted: z.boolean(),
+  interrupt_action_type: z.string().nullable(),
+  interrupt_tool_name: z.string().nullable(),
+  plan_approved: z.boolean(),
+  clarification_response: z.string().nullable(),
+  clarification_field: z.string().nullable(),
+  for_each_cancelled: z.boolean(),
+  cancellation_reason: z.string().nullable(),
+});
+
+/** Schema for context-compaction details */
+export const CompactionSchema = z.object({
+  count: z.number().min(0),
+  strategy: z.string().nullable(),
+  tokens_saved: z.number().nullable(),
+  duration_ms: z.number().nullable(),
+  messages_removed: z.number().nullable(),
+  summary_preview: z.string(),
+});
+
+/** Schema for one paid image-generation call */
+const ImageGenerationCallSchema = z.object({
+  model: z.string(),
+  quality: z.string(),
+  size: z.string(),
+  image_count: z.number().min(0),
+  cost_usd: z.number().min(0),
+  cost_eur: z.number().min(0),
+  duration_ms: z.number().min(0),
+  started_offset_ms: z.number().min(0).optional(),
+  prompt_preview: z.string(),
+});
+
+/** Schema for the image-generation aggregate */
+export const ImageGenerationSummarySchema = z.object({
+  total_calls: z.number().min(0),
+  total_images: z.number().min(0),
+  total_cost_usd: z.number().min(0),
+  total_cost_eur: z.number().min(0),
+});
+
+/** Schema for the voice (TTS) spend of the turn */
+export const VoiceMetricsSchema = z.object({
+  total_calls: z.number().min(0),
+  total_characters: z.number().min(0),
+  total_cost_eur: z.number().min(0),
+  calls: z.array(
+    z.object({
+      provider: z.string(),
+      model: z.string(),
+      characters: z.number().min(0),
+      cost_eur: z.number().min(0),
+      duration_ms: z.number().min(0),
+    })
+  ),
+});
+
 /**
- * Main schema for all debug metrics
+ * Per-section schema registry for fail-soft validation.
+ *
+ * `collectAnomalies` runs each PRESENT section through its schema and
+ * surfaces mismatches on the anomaly channel — validation is a DETECTOR,
+ * never a gatekeeper: no section disappears because a payload drifted.
  */
-export const DebugMetricsSchema = z.object({
-  // Required sections (always present)
+export const SECTION_SCHEMAS: Record<string, z.ZodTypeAny> = {
   intent_detection: IntentDetectionMetricsSchema,
   domain_selection: DomainSelectionMetricsSchema,
   routing_decision: RoutingDecisionMetricsSchema,
   context_resolution: ContextResolutionMetricsSchema,
   query_info: QueryInfoMetricsSchema,
-
-  // Sections optionnelles (conditionnelles)
   tool_selection: ToolSelectionMetricsSchema,
   token_budget: TokenBudgetSchema,
   planner_intelligence: PlannerIntelligenceSchema,
   execution_timeline: ExecutionTimelineSchema,
-  llm_calls: z.array(LLMCallSchema).optional(),
-  llm_summary: LLMSummarySchema,
-  llm_pipeline: LLMPipelineSchema, // v3.3
-  intelligent_mechanisms: IntelligentMechanismsSchema,
-  // v3.1 Debug Panel Enrichments
   for_each_analysis: ForEachAnalysisSchema,
   execution_waves: ExecutionWavesSchema,
   request_lifecycle: RequestLifecycleSchema,
-});
-
-/**
- * Inferred type from the schema (for TypeScript)
- */
-export type ValidatedDebugMetrics = z.infer<typeof DebugMetricsSchema>;
-
-/**
- * Helper to check score type
- *
- * v3.1 LLM-based: No more CAL/RAW distinction.
- * The LLM directly produces confidence scores.
- * This function is kept for backward compatibility.
- *
- * @param scores - Scores dictionary
- * @returns Always 'calibrated' in v3.1
- * @deprecated In v3.1, scores are always of LLM confidence type
- */
-export function detectScoreType(scores: Record<string, number>): 'calibrated' | 'raw' | 'unknown' {
-  const values = Object.values(scores);
-  if (values.length === 0) return 'unknown';
-
-  // v3.1: LLM confidence scores are always "calibrated" (no softmax/embeddings)
-  return 'calibrated';
-}
+  llm_calls: z.array(LLMCallSchema),
+  llm_summary: LLMSummarySchema,
+  llm_pipeline: LLMPipelineSchema,
+  intelligent_mechanisms: IntelligentMechanismsSchema,
+  semantic_validation: SemanticValidationSchema,
+  react_execution: ReactExecutionSchema,
+  hitl: HitlSchema,
+  compaction: CompactionSchema,
+  image_generation_calls: z.array(ImageGenerationCallSchema),
+  image_generation_summary: ImageGenerationSummarySchema,
+  voice: VoiceMetricsSchema,
+};

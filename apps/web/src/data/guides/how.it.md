@@ -5,8 +5,8 @@
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
 **Versione**: 3.9
-**Data**: 2026-08-04
-**Applicazione**: LIA v1.27.11
+**Data**: 2026-08-05
+**Applicazione**: LIA v1.27.12
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 447 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 207 ADRs, ~18.016 test raccolti da pytest in 983 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 208 ADRs, ~18.041 test raccolti da pytest in 985 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -72,10 +72,10 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~18.016 (raccolti da pytest su 983 file di test) + 4.925 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~18.041 (raccolti da pytest su 985 file di test) + 4.987 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 400+ |
-| ADR (Architecture Decision Record) | 207 |
+| ADR (Architecture Decision Record) | 208 |
 | Metriche Prometheus | 447 definizioni |
 | Dashboard Grafana | 26 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1203,7 +1203,7 @@ La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la 
 
 ## 24. Architettura delle decisioni (ADR)
 
-207 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+208 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1257,10 +1257,10 @@ Il Psyche Engine dota l'assistente di uno stato psicologico dinamico che evolve 
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 207 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~18.016 test in 983 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 208 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~18.041 test in 985 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 207 ADRs e del changelog (da v1.0 a v1.27.11). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (400+ documenti), dei 208 ADRs e del changelog (da v1.0 a v1.27.12). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

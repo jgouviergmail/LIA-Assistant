@@ -79,7 +79,7 @@ export const InfoRow = React.memo(function InfoRow({
 
         {/* Info icon with tooltip */}
         {showIcon && info && (
-          <Info className="h-3 w-3 text-blue-500 flex-shrink-0" aria-label={info} />
+          <Info className="h-3 w-3 text-primary flex-shrink-0" aria-label={info} />
         )}
       </div>
     </div>

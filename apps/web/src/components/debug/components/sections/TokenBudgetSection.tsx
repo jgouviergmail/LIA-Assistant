@@ -6,14 +6,17 @@
  */
 
 import React from 'react';
-import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { MetricRow, ZoneBadge, EmptySection } from '../shared';
+import { Gauge } from 'lucide-react';
 import {
-  getZoneColor,
-  TOKEN_BAR_HEIGHT,
-  FALLBACK_STRATEGY_LABELS,
-  FALLBACK_STRATEGY_COLORS,
-} from '../../utils/constants';
+  DebugChip,
+  DebugSection,
+  EmptySection,
+  MetricRow,
+  SubSectionHeader,
+  ZoneBadge,
+} from '../shared';
+import { FALLBACK_STRATEGY_LABELS } from '../../utils/constants';
+import { TONE_BAR, TONE_TEXT, fallbackLevelTone, zoneTone } from '../../utils/tones';
 import { formatTokenCount } from '../../utils/formatters';
 import { cn } from '@/lib/utils';
 import type { DebugMetrics } from '@/types/chat';
@@ -23,20 +26,12 @@ export interface TokenBudgetSectionProps {
   data: DebugMetrics['token_budget'];
 }
 
-/** French labels for zones */
+/** English display labels for zones */
 const ZONE_LABELS: Record<string, string> = {
-  safe: 'Sûr',
-  warning: 'Attention',
-  critical: 'Critique',
-  emergency: 'Urgence',
-};
-
-/** Dark mode compatible classes for zones */
-const ZONE_TEXT_COLORS: Record<string, string> = {
-  safe: 'text-green-400',
-  warning: 'text-yellow-400',
-  critical: 'text-orange-400',
-  emergency: 'text-red-400',
+  safe: 'Safe',
+  warning: 'Warning',
+  critical: 'Critical',
+  emergency: 'Emergency',
 };
 
 /**
@@ -53,7 +48,7 @@ export const TokenBudgetSection = React.memo(function TokenBudgetSection({
   data,
 }: TokenBudgetSectionProps) {
   if (!data) {
-    return <EmptySection value="token_budget" title="Token Budget" />;
+    return <EmptySection value="token_budget" title="Token Budget" icon={Gauge} />;
   }
 
   const {
@@ -71,146 +66,116 @@ export const TokenBudgetSection = React.memo(function TokenBudgetSection({
   const progressPercentage =
     thresholds.max > 0 ? Math.min((current_tokens / thresholds.max) * 100, 100) : 0;
 
-  // Get strategy label and color
   const strategyLabel = strategy ? FALLBACK_STRATEGY_LABELS[strategy] || strategy : null;
-  const strategyColor = strategy
-    ? FALLBACK_STRATEGY_COLORS[strategy] || 'bg-muted text-muted-foreground border-border'
-    : null;
 
   return (
-    <AccordionItem value="token_budget">
-      <AccordionTrigger className="py-2 text-sm">
-        <div className="flex items-center gap-2">
-          <span>Token Budget</span>
-          <ZoneBadge zone={zone} size="xs" />
+    <DebugSection value="token_budget" title="Token Budget" icon={Gauge} badge={<ZoneBadge zone={zone} />}>
+      {/* Catalogue strategy — the PLANNING input this section governs */}
+      {strategy && (
+        <div className="space-y-1">
+          <SubSectionHeader label="Catalogue strategy" />
+          <div className="flex items-center gap-2">
+            <DebugChip tone={fallbackLevelTone(strategy)}>{strategyLabel}</DebugChip>
+            {fallback_active && (
+              <span className={cn('text-[10px] italic', TONE_TEXT.warning)}>(degraded mode)</span>
+            )}
+          </div>
         </div>
-      </AccordionTrigger>
-      <AccordionContent>
-        <div className="space-y-3">
-          {/* Actual total consumed (v3.1 - includes response) */}
-          {total_consumed !== undefined && (
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground font-medium mb-1">
-                Total consommé (réel)
-              </div>
-              <MetricRow
-                label="Total"
-                value={formatTokenCount(total_consumed)}
-                highlight
-                valueClassName="text-primary font-bold"
-              />
-              <div className="grid grid-cols-3 gap-1 text-[10px]">
-                <div className="flex flex-col items-center p-1 rounded bg-muted/30">
-                  <span className="text-muted-foreground">Input</span>
-                  <span className="font-medium text-foreground">
-                    {formatTokenCount(tokens_input || 0)}
-                  </span>
-                </div>
-                <div className="flex flex-col items-center p-1 rounded bg-muted/30">
-                  <span className="text-muted-foreground">Output</span>
-                  <span className="font-medium text-foreground">
-                    {formatTokenCount(tokens_output || 0)}
-                  </span>
-                </div>
-                <div className="flex flex-col items-center p-1 rounded bg-muted/30">
-                  <span className="text-muted-foreground">Cache</span>
-                  <span className="font-medium text-green-400">
-                    {formatTokenCount(tokens_cache || 0)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
+      )}
 
-          {/* Current context (for zone calculation) */}
-          <div className="space-y-1 border-t border-border/50 pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-1">Taille du contexte</div>
-            <MetricRow
-              label="Tokens contexte"
-              value={`${formatTokenCount(current_tokens)} / ${formatTokenCount(thresholds.max)}`}
-            />
-            <MetricRow
-              label="Zone"
-              value={ZONE_LABELS[zone] || zone}
-              valueClassName={cn(ZONE_TEXT_COLORS[zone] || 'text-foreground', 'font-medium')}
+      {/* Current context (for zone calculation) */}
+      <div className="space-y-1">
+        <SubSectionHeader label="Context size" borderTop={Boolean(strategy)} />
+        <MetricRow
+          label="Context tokens"
+          value={`${formatTokenCount(current_tokens)} / ${formatTokenCount(thresholds.max)}`}
+        />
+        <MetricRow
+          label="Zone"
+          value={ZONE_LABELS[zone] || zone}
+          valueClassName={cn(TONE_TEXT[zoneTone(zone)], 'font-medium')}
+        />
+      </div>
+
+      {/* Visual progress bar */}
+      <div>
+        <SubSectionHeader label="Budget progression" borderTop />
+        <div className="relative">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn('h-full transition-all', TONE_BAR[zoneTone(zone)])}
+              style={{ width: `${progressPercentage}%` }}
             />
           </div>
-
-          {/* Fallback strategy */}
-          {strategy && (
-            <div className="border-t border-border/50 pt-2 space-y-1">
-              <div className="text-xs text-muted-foreground font-medium mb-1">
-                Stratégie catalogue
-              </div>
-              <div className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    'text-[10px] px-2 py-0.5 rounded border font-medium',
-                    strategyColor
-                  )}
-                >
-                  {strategyLabel}
-                </span>
-                {fallback_active && (
-                  <span className="text-[10px] text-yellow-400 italic">(mode dégradé)</span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Visual progress bar */}
-          <div className="border-t border-border/50 pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-2">
-              Progression du budget
-            </div>
-            <div className="relative">
-              <div
-                className="w-full bg-muted rounded-full overflow-hidden"
-                style={{ height: TOKEN_BAR_HEIGHT }}
-              >
-                <div
-                  className={`h-full transition-all ${getZoneColor(zone, 'bar')}`}
-                  style={{ width: `${progressPercentage}%` }}
-                />
-              </div>
-              <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
-                <span>0</span>
-                <span className={cn('font-medium', ZONE_TEXT_COLORS[zone])}>
-                  {Math.round(progressPercentage)}%
-                </span>
-                <span>{formatTokenCount(thresholds.max)}</span>
-              </div>
-            </div>
+          <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+            <span>0</span>
+            <span className={cn('font-medium', TONE_TEXT[zoneTone(zone)])}>
+              {Math.round(progressPercentage)}%
+            </span>
+            <span>{formatTokenCount(thresholds.max)}</span>
           </div>
+        </div>
+      </div>
 
-          {/* Zone thresholds */}
-          <div className="border-t border-border/50 pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-1.5">Seuils des zones</div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-              <MetricRow
-                label="Sûr"
-                value={`< ${formatTokenCount(thresholds.safe)}`}
-                valueClassName="text-green-400"
-              />
-              <MetricRow
-                label="Attention"
-                value={`< ${formatTokenCount(thresholds.warning)}`}
-                valueClassName="text-yellow-400"
-              />
-              <MetricRow
-                label="Critique"
-                value={`< ${formatTokenCount(thresholds.critical)}`}
-                valueClassName="text-orange-400"
-              />
-              <MetricRow
-                label="Maximum"
-                value={formatTokenCount(thresholds.max)}
-                valueClassName="text-red-400"
-              />
+      {/* Zone thresholds */}
+      <div>
+        <SubSectionHeader label="Zone thresholds" borderTop />
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+          <MetricRow
+            label="Safe"
+            value={`< ${formatTokenCount(thresholds.safe)}`}
+            valueClassName={TONE_TEXT.success}
+          />
+          <MetricRow
+            label="Warning"
+            value={`< ${formatTokenCount(thresholds.warning)}`}
+            valueClassName={TONE_TEXT.warning}
+          />
+          <MetricRow
+            label="Critical"
+            value={`< ${formatTokenCount(thresholds.critical)}`}
+            valueClassName={TONE_TEXT.destructive}
+          />
+          <MetricRow
+            label="Maximum"
+            value={formatTokenCount(thresholds.max)}
+            valueClassName={TONE_TEXT.destructive}
+          />
+        </div>
+      </div>
+
+      {/* Actual total consumed (v3.1 - includes response) */}
+      {total_consumed !== undefined && (
+        <div className="space-y-1">
+          <SubSectionHeader label="Total consumed (actual)" borderTop />
+          <MetricRow
+            label="Total"
+            value={formatTokenCount(total_consumed)}
+            highlight
+            valueClassName="text-primary font-bold"
+          />
+          <div className="grid grid-cols-3 gap-1 text-[10px]">
+            <div className="flex flex-col items-center rounded bg-muted/30 p-1">
+              <span className="text-muted-foreground">Input</span>
+              <span className="font-medium text-foreground">
+                {formatTokenCount(tokens_input || 0)}
+              </span>
+            </div>
+            <div className="flex flex-col items-center rounded bg-muted/30 p-1">
+              <span className="text-muted-foreground">Output</span>
+              <span className="font-medium text-foreground">
+                {formatTokenCount(tokens_output || 0)}
+              </span>
+            </div>
+            <div className="flex flex-col items-center rounded bg-muted/30 p-1">
+              <span className="text-muted-foreground">Cache</span>
+              <span className={cn('font-medium', TONE_TEXT.success)}>
+                {formatTokenCount(tokens_cache || 0)}
+              </span>
             </div>
           </div>
         </div>
-      </AccordionContent>
-    </AccordionItem>
+      )}
+    </DebugSection>
   );
 });

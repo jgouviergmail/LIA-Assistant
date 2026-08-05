@@ -1,7 +1,7 @@
 {
   "_comment": "Frontend cyclomatic-complexity ratchet (audit F011). Shrink-only: `over` (functions >= CC 15), `max` (worst function) and each per-file {count, max} fingerprint may only DECREASE; a regression, a new offending file, or a function growing inside an offending file fails CI. Regenerate with --update ONLY after decomposing a hotspot, never to absorb a regression.",
-  "over": 50,
-  "max": 60,
+  "over": 48,
+  "max": 59,
   "threshold": 15,
   "perFile": {
     "src/app/[lng]/dashboard/chat/page.tsx": {
@@ -42,27 +42,19 @@
     },
     "src/components/debug/components/sections/InterestProfileSection.tsx": {
       "count": 1,
-      "max": 22
+      "max": 19
     },
     "src/components/debug/components/sections/JournalExtractionSection.tsx": {
       "count": 1,
       "max": 17
     },
-    "src/components/debug/components/sections/KnowledgeEnrichmentSection.tsx": {
-      "count": 1,
-      "max": 23
-    },
     "src/components/debug/components/sections/MemoryDetectionSection.tsx": {
       "count": 1,
-      "max": 21
+      "max": 18
     },
     "src/components/debug/components/sections/ToolSection.tsx": {
       "count": 1,
       "max": 18
-    },
-    "src/components/debug/utils/constants.ts": {
-      "count": 1,
-      "max": 19
     },
     "src/components/faq/FAQContent.tsx": {
       "count": 1,
@@ -126,11 +118,11 @@
     },
     "src/components/settings/InterestsSettings.tsx": {
       "count": 1,
-      "max": 23
+      "max": 20
     },
     "src/components/settings/JournalsSettings.tsx": {
       "count": 1,
-      "max": 60
+      "max": 59
     },
     "src/components/settings/MCPServersSettings.tsx": {
       "count": 3,
@@ -138,7 +130,7 @@
     },
     "src/components/settings/MemorySettings.tsx": {
       "count": 2,
-      "max": 28
+      "max": 17
     },
     "src/components/settings/NotificationSettings.tsx": {
       "count": 1,

@@ -635,8 +635,9 @@ export interface LLMCall {
   tokens_cache: number; // Cached input tokens
   cost_eur: number; // Cost in EUR for this call
   duration_ms?: number; // v3.2: LLM call duration in milliseconds
-  call_type?: 'chat' | 'embedding'; // v3.3: Type of LLM call
-  sequence?: number; // v3.3: Chronological order number
+  call_type?: 'chat' | 'embedding' | 'image_generation'; // v3.3/v3.4: call category
+  sequence?: number; // v3.3: Chronological order number (per tracking context)
+  started_offset_ms?: number; // v3.4: Start position on the run timeline (waterfall)
 }
 
 /**
@@ -1007,6 +1008,18 @@ export interface OpenLoopExtractionMetrics {
   closed: number; // Existing loops closed conversationally
   skipped: number; // Proposals refused (duplicate, cap, invalid target)
   items: OpenLoopExtractionItem[];
+  // v3.4: the extraction's LLM spend (model + tokens), like the other families
+  llm_metadata?: OpenLoopLLMMetadata | null;
+}
+
+/**
+ * OpenLoopLLMMetadata - Token and model info from the open-loop extraction call
+ */
+export interface OpenLoopLLMMetadata {
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  cached_tokens: number;
 }
 
 /**
@@ -1065,6 +1078,120 @@ export interface MemoryDetectionMetrics {
 }
 
 /**
+ * SemanticValidationIssue - One issue the semantic validator raised
+ */
+export interface SemanticValidationIssue {
+  issue_type: string; // Seven Deadly Sins taxonomy value (scope_underflow, …)
+  description: string;
+  severity: string; // low | medium | high
+  step_index: number | null;
+  suggested_fix: string | null;
+}
+
+/**
+ * SemanticValidationMetrics - The validator's verdict (v3.4)
+ *
+ * ADR-184: a verdict is informative, never a blocker — a rejected plan still
+ * executes. This section exists so that outcome can be UNDERSTOOD.
+ */
+export interface SemanticValidationMetrics {
+  is_valid: boolean;
+  confidence: number;
+  criticality: string | null; // LOW | MEDIUM | HIGH
+  requires_clarification: boolean;
+  clarification_questions: string[];
+  validation_duration_seconds: number;
+  used_fallback: boolean;
+  fallback_reason: string | null;
+  issues: SemanticValidationIssue[];
+}
+
+/**
+ * ReactExecutionMetrics - The ReAct loop of the turn (v3.4, ADR-070)
+ */
+export interface ReactExecutionMetrics {
+  iterations: number;
+  max_iterations: number; // Published enforced bound (settings)
+  elapsed_seconds: number;
+  tool_names: string[]; // Tools available to the loop
+  executed_tool_calls: number; // Distinct tool calls actually executed
+}
+
+/**
+ * HitlMetrics - Human-in-the-loop trace of the turn (v3.4)
+ */
+export interface HitlMetrics {
+  interrupted: boolean; // THIS run ended waiting for the user
+  interrupt_action_type: string | null;
+  interrupt_tool_name: string | null;
+  plan_approved: boolean; // Resumed run: user approved
+  clarification_response: string | null;
+  clarification_field: string | null;
+  for_each_cancelled: boolean;
+  cancellation_reason: string | null;
+}
+
+/**
+ * CompactionMetrics - Context compaction of the session (v3.4)
+ */
+export interface CompactionMetrics {
+  count: number; // Compactions performed in this session
+  strategy: string | null; // llm_summary | truncation
+  tokens_saved: number | null;
+  duration_ms: number | null;
+  messages_removed: number | null;
+  summary_preview: string; // Bounded preview of the last summary
+}
+
+/**
+ * ImageGenerationCall - One paid image-generation API call (v3.4)
+ */
+export interface ImageGenerationCall {
+  model: string;
+  quality: string;
+  size: string;
+  image_count: number;
+  cost_usd: number;
+  cost_eur: number;
+  duration_ms: number;
+  started_offset_ms?: number; // Position on the run timeline
+  prompt_preview: string; // Truncated to 200 chars backend-side
+}
+
+/**
+ * ImageGenerationSummary - Aggregate of the run's image generations (v3.4)
+ */
+export interface ImageGenerationSummary {
+  total_calls: number;
+  total_images: number;
+  total_cost_usd: number;
+  total_cost_eur: number;
+}
+
+/**
+ * VoiceCall - One paid TTS synthesis call (v3.4)
+ */
+export interface VoiceCall {
+  provider: string; // openai | elevenlabs (Edge TTS is free, never recorded)
+  model: string;
+  characters: number;
+  cost_eur: number;
+  duration_ms: number;
+}
+
+/**
+ * VoiceMetrics - Voice synthesis spend of the turn (v3.4)
+ * Arrives via debug_metrics_update (the sync-fallback TTS path finishes
+ * after the main debug_metrics chunk).
+ */
+export interface VoiceMetrics {
+  total_calls: number;
+  total_characters: number;
+  total_cost_eur: number;
+  calls: VoiceCall[];
+}
+
+/**
  * DebugMetrics - Complete debug metrics from QueryIntelligence
  * Emitted via SSE when DEBUG=true in backend
  */
@@ -1111,6 +1238,15 @@ export interface DebugMetrics {
   open_loop_extraction?: OpenLoopExtractionMetrics; // Optional: loops opened/closed after this turn
   // Skills activation
   skills?: SkillsMetrics; // Optional: skill activated for this turn
+  // ── v3.4: the stages the panel could not see ──
+  execution_mode?: string; // 'pipeline' | 'react' — which engine ran the turn
+  semantic_validation?: SemanticValidationMetrics; // Optional: validator verdict (informative)
+  react_execution?: ReactExecutionMetrics; // Optional: ReAct loop details
+  hitl?: HitlMetrics; // Optional: human-in-the-loop trace
+  compaction?: CompactionMetrics; // Optional: context compaction details
+  image_generation_calls?: ImageGenerationCall[]; // Optional: paid image generations
+  image_generation_summary?: ImageGenerationSummary; // Optional: image-gen aggregate
+  voice?: VoiceMetrics; // Optional: TTS spend (via debug_metrics_update)
 }
 
 /**

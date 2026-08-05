@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { formatPercent } from '../../utils/formatters';
 import { ConfidenceBadge } from './badges';
 import { DEBUG_TEXT_SIZES } from '../../utils/constants';
+import { TONE_TEXT, confidenceTone } from '../../utils/tones';
 
 export interface ToolMatch {
   /** Tool name */
@@ -73,16 +74,15 @@ export const ToolMatchRow = React.memo(function ToolMatchRow({
         <span
           className={cn(
             `font-mono ${DEBUG_TEXT_SIZES.mono}`,
-            confidence === 'high' && 'text-green-700 font-semibold',
-            confidence === 'medium' && 'text-yellow-700',
-            confidence === 'low' && 'text-red-600'
+            TONE_TEXT[confidenceTone(confidence)],
+            confidence === 'high' && 'font-semibold'
           )}
         >
           {formatPercent(score)}
         </span>
 
         {/* Confidence badge */}
-        <ConfidenceBadge confidence={confidence} size="xs" />
+        <ConfidenceBadge confidence={confidence} />
       </div>
     </div>
   );

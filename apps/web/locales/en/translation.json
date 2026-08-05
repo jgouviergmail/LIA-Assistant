@@ -3146,7 +3146,7 @@
         "telephony-calls": "phone, telephone, calls, call history, dial",
         "admin-mcp-servers": "MCP, model context protocol, application servers, built-in tools",
         "mcp-servers": "MCP, model context protocol, my servers, tools, extensions",
-        "debug-panel": "developer, diagnostics, traces, technical, troubleshooting",
+        "debug-panel": "developer, diagnostics, traces, technical, troubleshooting, waterfall, anomalies, timeline, pipeline",
         "personality": "tone, style, character, behaviour, behavior, persona, voice",
         "psyche": "emotions, mood, feelings, affect, emotional",
         "memories": "memory, remember, forget, facts, recollection, provenance, why, source, signal, origin, correct",
@@ -3908,6 +3908,19 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_27_12": {
+          "title": "v1.27.12 — 🔬 The debug panel reads like the run",
+          "date": "August 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🧭 The trace follows the execution order</b> — seven numbered phases (request, router analysis, planning, execution, response context, background extraction, totals) replace an accumulated ordering where the query appeared after the routing decision.",
+            "i2": "<b>🌊 A waterfall on the run's own timeline</b> — every model call is positioned by its real start, shared between the pipeline and its background tasks: what ran in parallel and what serialized is read at a glance.",
+            "i3": "<b>🔍 The invisible stages now have a section</b> — the plan validator's verdict (informative: a rejected plan still executes), the ReAct loop against its published iteration cap, approval gates, context compaction, image-generation and voice-synthesis spend.",
+            "i4": "<b>⚠️ Anomalies surface on the request header</b> — failed steps, panic planning, critical token zones and payload drift are counted on each history entry, next to a scannable strip (route, engine, duration, tokens, cost): compare requests without unfolding them.",
+            "i5": "<b>🧹 Idle sections fold away</b> — on a conversational turn, two thirds of the sections carry no data; they collapse behind one per-phase disclosure instead of stacking N/A rows.",
+            "i6": "<b>🎨 Readable in both themes</b> — statuses take the design-system tokens of the five themes, pipeline nodes wear bi-theme identity families, and a stage that simply did not run shows neutral instead of a red FAIL."
+          }
+        },
         "v1_27_11": {
           "title": "v1.27.11 — 🧭 Settings that read like an index",
           "date": "August 2026",

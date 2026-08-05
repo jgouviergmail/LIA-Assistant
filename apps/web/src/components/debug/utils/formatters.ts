@@ -6,6 +6,7 @@
  */
 
 import { formatNumber as libFormatNumber, formatEuro as libFormatEuro } from '@/lib/format';
+import type { DebugTone } from './tones';
 
 /**
  * Formats a decimal number as a percentage
@@ -179,38 +180,6 @@ export function formatValue(value: unknown): string {
 }
 
 /**
- * Formats a score with confidence badge
- *
- * @param score - Score (0-1)
- * @param confidence - Confidence level ('high', 'medium', 'low')
- * @returns Object with formatted score and color
- *
- * @example
- * formatScoreWithConfidence(0.85, 'high')
- * // { text: "85%", color: "green" }
- */
-export function formatScoreWithConfidence(
-  score: number,
-  confidence: 'high' | 'medium' | 'low'
-): {
-  text: string;
-  color: 'green' | 'yellow' | 'red';
-} {
-  const text = formatPercent(score);
-
-  const colorMap: Record<typeof confidence, 'green' | 'yellow' | 'red'> = {
-    high: 'green',
-    medium: 'yellow',
-    low: 'red',
-  };
-
-  return {
-    text,
-    color: colorMap[confidence],
-  };
-}
-
-/**
  * Truncates text with ellipsis
  *
  * @param text - Text to truncate
@@ -240,77 +209,43 @@ export function truncateText(
 }
 
 /**
- * Formats a size in bytes with units
+ * Formats a wall-clock time as a deterministic 24h "HH:MM:SS".
  *
- * @param bytes - Size in bytes
- * @returns Formatted string (e.g., "1.2 KB", "3.4 MB")
+ * Locale-independent on purpose: request timestamps in the debug panel are
+ * technical identifiers scanned across entries, so their shape must never
+ * change with the runtime locale (the previous implementation pinned
+ * 'fr-FR', which violated the active-locale rule in the other direction).
  *
- * @example
- * formatBytes(1024) // "1.0 KB"
- * formatBytes(1536) // "1.5 KB"
- * formatBytes(1048576) // "1.0 MB"
- * formatBytes(500) // "500 B"
+ * @param date - Date to format
+ * @returns "HH:MM:SS", or "-" for an invalid date
  */
-export function formatBytes(bytes: number): string {
-  if (typeof bytes !== 'number' || !isFinite(bytes)) {
+export function formatClockTime(date: Date): string {
+  const time = date.getTime();
+  if (!isFinite(time)) {
     return '-';
   }
-
-  if (bytes === 0) return '0 B';
-
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const k = 1024;
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${units[i]}`;
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 /**
- * Formats an ISO timestamp as relative time
+ * Emotional weight label with tone.
  *
- * @param timestamp - ISO timestamp or Date
- * @returns Relative time string (e.g., "2s ago", "1m ago")
- *
- * @example
- * formatTimeAgo(new Date(Date.now() - 2000)) // "2s ago"
- * formatTimeAgo(new Date(Date.now() - 65000)) // "1m ago"
- */
-export function formatTimeAgo(timestamp: Date | string): string {
-  try {
-    const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
-    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-
-    if (seconds < 60) return `${seconds}s ago`;
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    return `${Math.floor(seconds / 86400)}d ago`;
-  } catch {
-    return '-';
-  }
-}
-
-/**
- * Emotional weight label with color.
- *
- * Maps a -10..+10 emotional weight to a human-readable label and
- * Tailwind badge classes. Used by both Memory Injection and Memory Detection
- * sections.
+ * Maps a -10..+10 emotional weight to an English label bucket and a
+ * semantic tone (single colour authority: `utils/tones.ts`). Used by both
+ * Memory Injection and Memory Extraction sections.
  *
  * @param weight Emotional weight value (-10 to +10)
- * @returns Object with label string and className for badge styling
+ * @returns Object with label string and semantic tone
  *
  * @example
- * getEmotionalLabel(-8) // { label: "TRAUMA", className: "bg-red-500/30 ..." }
- * getEmotionalLabel(5)  // { label: "POS",    className: "bg-green-500/20 ..." }
+ * getEmotionalLabel(-8) // { label: "TRAUMA", tone: "alert" }
+ * getEmotionalLabel(5)  // { label: "POS",    tone: "success" }
  */
-export function getEmotionalLabel(weight: number): { label: string; className: string } {
-  if (weight <= -7)
-    return { label: 'TRAUMA', className: 'bg-red-500/30 text-red-300 border-red-500/40' };
-  if (weight <= -3)
-    return { label: 'NEG', className: 'bg-red-500/20 text-red-400 border-red-500/30' };
-  if (weight >= 7)
-    return { label: 'TRES+', className: 'bg-green-500/30 text-green-300 border-green-500/40' };
-  if (weight >= 3)
-    return { label: 'POS', className: 'bg-green-500/20 text-green-400 border-green-500/30' };
-  return { label: 'NEU', className: 'bg-muted/50 text-muted-foreground border-border/50' };
+export function getEmotionalLabel(weight: number): { label: string; tone: DebugTone } {
+  if (weight <= -7) return { label: 'TRAUMA', tone: 'alert' };
+  if (weight <= -3) return { label: 'NEG', tone: 'destructive' };
+  if (weight >= 7) return { label: 'STRONG+', tone: 'success' };
+  if (weight >= 3) return { label: 'POS', tone: 'success' };
+  return { label: 'NEU', tone: 'neutral' };
 }

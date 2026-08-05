@@ -48,3 +48,40 @@ class TestPopBackgroundExtractionDebug:
             pairs = pop_background_extraction_debug("run-agg-2")
 
         assert [k for k, _ in pairs] == ["open_loop_extraction"]
+
+    def test_voice_family_reads_tts_records(self):
+        """TTS spend is tracked but was invisible in the panel — the voice
+        family surfaces it through the same debug_metrics_update channel."""
+        from decimal import Decimal
+
+        from src.domains.chat.service import TTSUsageRecord, _run_tts_records
+
+        _run_tts_records["run-agg-voice"] = [
+            TTSUsageRecord(
+                provider="openai",
+                model="tts-1",
+                characters=420,
+                cost_usd=Decimal("0.0063"),
+                cost_eur=Decimal("0.0058"),
+                usd_to_eur_rate=Decimal("0.92"),
+                duration_ms=850.0,
+            )
+        ]
+        try:
+            pairs = pop_background_extraction_debug("run-agg-voice")
+        finally:
+            _run_tts_records.pop("run-agg-voice", None)
+
+        assert [k for k, _ in pairs] == ["voice"]
+        voice = pairs[0][1]
+        assert voice["total_calls"] == 1
+        assert voice["total_characters"] == 420
+        assert voice["total_cost_eur"] == 0.0058
+        call = voice["calls"][0]
+        assert call["provider"] == "openai"
+        assert call["model"] == "tts-1"
+        assert call["characters"] == 420
+        assert call["duration_ms"] == 850.0
+
+    def test_voice_family_absent_without_tts_records(self):
+        assert pop_background_extraction_debug("run-agg-novoice") == []

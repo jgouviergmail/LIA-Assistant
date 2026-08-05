@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.27.12] - 2026-08-05
+
+**Le panneau de debug se lit désormais comme l'exécution elle-même** (ADR-209). Construit par itérations, il mentait sur la chronologie : la requête s'affichait après la décision de routage, les vagues *prévues* après l'exécution *réelle*, et une liste de nœuds entretenue à la main rangeait tout nœud inconnu **après la réponse** — en mode ReAct, la boucle du modèle semblait s'exécuter après la réponse qu'elle avait produite. Chaque appel LLM (et chaque génération d'image) porte désormais une **position de départ ancrée sur la ligne de temps du run**, partagée entre le pipeline et ses tâches d'arrière-plan : la trace s'ordonne d'elle-même par ce qui s'est réellement passé, et un **waterfall** rend lisible d'un coup d'œil ce qui s'est exécuté en série ou en parallèle.
+
+**La lecture suit sept phases numérotées, dans l'ordre du run** : requête, analyse du routeur, planification, exécution, contexte de la réponse, extractions d'arrière-plan, bilan transversal. Sur un tour conversationnel, les deux tiers des sections sont vides — elles se replient derrière un discret « N idle sections » par phase au lieu d'empiler des lignes mortes. Et chaque étape jusqu'ici invisible a gagné sa section : le **verdict du validateur sémantique** (informatif — un plan rejeté s'exécute quand même, la doctrine ADR-184 est écrite dans le panneau), la **boucle ReAct** face à sa borne d'itérations **publiée**, les portes **HITL** (interrompu / repris, avec la décision), la **compaction de contexte** (stratégie, tokens économisés), la **génération d'images** (que le backend émettait depuis longtemps sans aucun consommateur), la **dépense de synthèse vocale**, et le coût LLM de l'extraction d'engagements.
+
+**Une seule grammaire de présentation remplace trois langues mélangées et une palette mono-thème.** Les statuts prennent leurs couleurs des jetons du design system — héritant de la garde de contraste des cinq thèmes en clair comme en sombre — quand l'ancien panneau mêlait des verts « sombre seulement » à des gris « clair seulement » ; les nœuds du pipeline portent des **familles d'identité bi-thèmes** (analyse, planification, exécution, ReAct, médias, extractions…) ; une barre de score unique dessine **son seuil de décision sur la barre** ; et une étape simplement non exécutée s'affiche en neutre — l'ancien badge rouge « FAIL N/A » accusait une absence.
+
+**Identifier un problème prend cinq secondes.** Un canal d'anomalies collecte les signaux d'échec — étape ratée, planification en mode panique, zone de budget critique, plafond ReAct atteint, erreurs d'extraction — et **Zod y joue en détecteur** : un payload qui dévie de son contrat devient une alerte visible, jamais une section masquée. Le tout remonte sur l'en-tête de chaque requête, avec un **bandeau de synthèse scannable** (route, moteur, durée, tokens, coût total) qui permet de comparer les requêtes de l'historique sans en déplier une seule.
+
+### Fixed
+
+- **« Execution Times » plaçait les nœuds ReAct après la réponse** : l'ordre venait d'une liste manuelle qui apposait tout nœud inconnu à la fin — supprimée au profit de la chronologie ancrée au run.
+- **Le tri chronologique du pipeline entrait en collision entre contextes** : le compteur `sequence` repart à 1 dans chaque tâche d'arrière-plan, l'appel n° 1 d'une extraction se mélangeait à celui du routeur.
+- **Deux faux positifs du détecteur de schémas, trouvés en conditions réelles** : l'énumération de routage ignorait la route directe `response`, et deux champs jamais émis par le mécanisme de bascule conversation étaient exigés — un tour nominal s'affichait avec trois anomalies au lieu d'une.
+- **Une action d'extraction inconnue s'affichait « CREATE »** : le repli silencieux inventait une action ; elle s'affiche désormais telle quelle, en neutre.
+- **L'horodatage des requêtes était figé en `fr-FR`** ; il est désormais un « HH:MM:SS » 24 h déterministe, insensible à la locale du navigateur.
+- **Le bouton de dépliage d'une requête n'exposait pas `aria-expanded`** ; l'état est annoncé.
+- **Le panneau d'erreur du debug était illisible en thème clair** (jaunes calibrés sombre uniquement) ; il parle désormais les jetons `warning`.
+- Purge du code mort accumulé : palettes de couleurs héritées, constantes sans consommateur, validateurs jamais branchés, liste de nœuds backend orpheline.
+
+### Tests
+
+- **18 041 tests backend collectés** (985 fichiers) et **4 987 tests frontend** — dont ~110 nouveaux sur le panneau : fondation des tons et familles de nœuds, barres de score, les 30 sections en ordre d'exécution, dérivations presence/anomalies, orchestrateur, détecteur de schémas rejoué sur un payload de production réel.
+- **Planchers de couverture frontend relevés sur les quatre axes** : 68/62/64/69 → **70/66/66/71** (mesuré 72,66 / 68,76 / 68,98 / 73,22). Ratchet de complexité resserré : 50 → 48 hotspots. `chat/service.py` décroît de 39 SLOC (extraction `run_records.py`).
+- Preuve runtime en conteneurs dev : requête réelle tracée de bout en bout, waterfall et compteur d'anomalies vérifiés dans les deux thèmes.
+
 ## [1.27.11] - 2026-08-04
 
 **L'écart entre un libellé et son champ existait dans le code, jamais à l'écran.** La primitive d'étiquette restait sur le rendu `inline` du navigateur, et les marges verticales d'un élément inline sont **calculées mais jamais rendues** : trois recalibrages successifs de l'espacement ont changé le code sans changer un seul pixel, et chaque formulaire de l'application vivait depuis toujours avec ~3 px d'écart quel que soit le réglage. Le défaut est corrigé **à la primitive** — une étiquette est un bloc — et l'écart canonique a été arbitré **sur captures réelles** dans un navigateur piloté, mesuré au pixel après coup. Leçon consignée en doctrine : quand un réglage d'espacement n'a aucun effet visible, mesurer le `display` de l'élément avant de soupçonner la chaîne de livraison.

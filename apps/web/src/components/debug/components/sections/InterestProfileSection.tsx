@@ -10,11 +10,16 @@
  */
 
 import React from 'react';
-import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { cn } from '@/lib/utils';
-import { ActionBadge, SectionBadge } from '../shared';
-import { DEBUG_TEXT_SIZES, INFO_SECTION_CLASSES } from '../../utils/constants';
-import { formatPercent } from '../../utils/formatters';
+import { Star } from 'lucide-react';
+import {
+  ActionBadge,
+  DebugChip,
+  DebugSection,
+  EmptySection,
+  ScoreBar,
+  SubSectionHeader,
+} from '../shared';
+import { ExtractionLLMFooter } from './MemoryDetectionSection';
 import type { InterestProfileMetrics, ExtractedInterest, MatchingDecision } from '@/types/chat';
 
 export interface InterestProfileSectionProps {
@@ -33,53 +38,24 @@ function ExtractedInterestRow({
 }) {
   const action = interest.action ?? decision?.action ?? 'create';
   const confidence = interest.confidence ?? 0;
-  const barWidth = confidence * 100;
 
   return (
-    <div className="flex flex-col gap-1 text-xs py-2 px-2 bg-muted/10 rounded">
+    <div className="flex flex-col gap-1 rounded bg-muted/10 px-2 py-2 text-xs">
       <div className="flex items-center gap-2">
         {/* Action badge */}
         <ActionBadge action={action} />
 
         {/* Topic */}
-        <span className="flex-shrink-0 font-medium text-foreground truncate" title={interest.topic}>
+        <span className="flex-shrink-0 truncate font-medium text-foreground" title={interest.topic}>
           {interest.topic || '(deleted)'}
         </span>
 
         {/* Category badge */}
-        {interest.category && (
-          <span
-            className={cn(
-              'text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0',
-              'bg-primary/10 text-primary/90 border-primary/20'
-            )}
-          >
-            {interest.category}
-          </span>
-        )}
+        {interest.category && <DebugChip tone="info">{interest.category}</DebugChip>}
 
         {/* Confidence bar (only for create/consolidate) */}
         {action !== 'delete' && confidence > 0 && (
-          <div className="flex-1 flex items-center gap-2 min-w-0">
-            <div className="relative h-1.5 bg-muted/30 rounded-full flex-1 max-w-[60px]">
-              <div
-                className={cn(
-                  'absolute left-0 top-0 h-full rounded-full transition-all',
-                  confidence >= 0.8
-                    ? 'bg-green-500'
-                    : confidence >= 0.5
-                      ? 'bg-yellow-500'
-                      : 'bg-orange-500'
-                )}
-                style={{ width: `${barWidth}%` }}
-              />
-            </div>
-            <span
-              className={`font-mono ${DEBUG_TEXT_SIZES.mono} w-10 text-right text-muted-foreground`}
-            >
-              {formatPercent(confidence)}
-            </span>
-          </div>
+          <ScoreBar score={confidence} space="confidence" className="ml-auto" />
         )}
       </div>
 
@@ -88,7 +64,7 @@ function ExtractedInterestRow({
         <div className="pl-4 text-[10px] text-muted-foreground">
           {decision.matched_interest ? (
             <>
-              <span className="text-blue-400">{decision.matched_interest}</span>
+              <span className="text-primary">{decision.matched_interest}</span>
               <span> — {decision.reason}</span>
             </>
           ) : (
@@ -108,45 +84,27 @@ export const InterestProfileSection = React.memo(function InterestProfileSection
 }: InterestProfileSectionProps) {
   if (!data || !data.enabled) {
     return (
-      <AccordionItem value="interest-profile">
-        <AccordionTrigger className="py-2 text-sm">
-          <div className="flex items-center gap-2">
-            <span>Interest Extraction</span>
-            <SectionBadge passed={false} label={data?.enabled === false ? 'OFF' : 'N/A'} />
-          </div>
-        </AccordionTrigger>
-        <AccordionContent>
-          <div className={INFO_SECTION_CLASSES}>
-            {data?.enabled === false ? (
-              <>
-                <strong>Disabled:</strong> Interest extraction is globally disabled.
-              </>
-            ) : (
-              <>
-                <strong>Not available:</strong> No extraction data.
-              </>
-            )}
-          </div>
-        </AccordionContent>
-      </AccordionItem>
+      <EmptySection
+        value="interest-profile"
+        title="Interest Extraction"
+        icon={Star}
+        message={
+          data?.enabled === false
+            ? 'Interest extraction is globally disabled.'
+            : 'No extraction data for this request.'
+        }
+      />
     );
   }
 
   if (!data.analyzed) {
     return (
-      <AccordionItem value="interest-profile">
-        <AccordionTrigger className="py-2 text-sm">
-          <div className="flex items-center gap-2">
-            <span>Interest Extraction</span>
-            <SectionBadge passed={false} label="SKIP" />
-          </div>
-        </AccordionTrigger>
-        <AccordionContent>
-          <div className={INFO_SECTION_CLASSES}>
-            <strong>Skipped:</strong> {data.analysis_skipped_reason ?? 'Not analyzed'}
-          </div>
-        </AccordionContent>
-      </AccordionItem>
+      <EmptySection
+        value="interest-profile"
+        title="Interest Extraction"
+        icon={Star}
+        message={`Skipped: ${data.analysis_skipped_reason ?? 'not analyzed'}`}
+      />
     );
   }
 
@@ -169,92 +127,50 @@ export const InterestProfileSection = React.memo(function InterestProfileSection
   const deletes = decisions.filter(d => d.action === 'delete').length;
 
   return (
-    <AccordionItem value="interest-profile">
-      <AccordionTrigger className="py-2 text-sm">
-        <div className="flex items-center gap-2">
-          <span>Interest Extraction</span>
-          <span
-            className={cn(
-              'text-xs px-1.5 py-0.5 rounded font-medium border',
-              hasActions
-                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                : 'bg-muted/50 text-muted-foreground border-border/50'
-            )}
-          >
-            {interests.length}
-          </span>
-          {/* Action type summary badges */}
+    <DebugSection
+      value="interest-profile"
+      title="Interest Extraction"
+      icon={Star}
+      badge={
+        <>
+          <DebugChip tone={hasActions ? 'success' : 'neutral'}>{interests.length}</DebugChip>
           {creates + consolidates > 0 && (
-            <span className="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400">
-              +{creates + consolidates}
-            </span>
+            <DebugChip tone="success">+{creates + consolidates}</DebugChip>
           )}
-          {updates > 0 && (
-            <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-400">
-              ~{updates}
-            </span>
-          )}
-          {deletes > 0 && (
-            <span className="text-[9px] px-1 py-0.5 rounded bg-red-500/15 text-red-400">
-              -{deletes}
-            </span>
-          )}
+          {updates > 0 && <DebugChip tone="warning">~{updates}</DebugChip>}
+          {deletes > 0 && <DebugChip tone="destructive">-{deletes}</DebugChip>}
+        </>
+      }
+    >
+      {hasActions ? (
+        <div className="space-y-1">
+          <SubSectionHeader label={`Actions (${interests.length})`} />
+          <div className="space-y-1.5">
+            {interests.map((interest, index) => (
+              <ExtractedInterestRow
+                key={`${interest.topic}-${index}`}
+                interest={interest}
+                decision={
+                  decisionsByTopic.get(interest.topic) ??
+                  (interest.interest_id ? decisionsByInterestId.get(interest.interest_id) : undefined)
+                }
+              />
+            ))}
+          </div>
         </div>
-      </AccordionTrigger>
-      <AccordionContent>
-        <div className="space-y-3">
-          {hasActions ? (
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground font-medium mb-1">
-                Actions ({interests.length})
-              </div>
-              <div className="space-y-1.5 space-y-1.5">
-                {interests.map((interest, index) => (
-                  <ExtractedInterestRow
-                    key={`${interest.topic}-${index}`}
-                    interest={interest}
-                    decision={
-                      decisionsByTopic.get(interest.topic) ??
-                      (interest.interest_id
-                        ? decisionsByInterestId.get(interest.interest_id)
-                        : undefined)
-                    }
-                  />
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="text-xs text-muted-foreground italic p-2 bg-muted/20 rounded">
-              No interest actions for this message.
-            </div>
-          )}
-
-          {data.llm_metadata && (
-            <div className="border-t pt-2 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
-              <span>
-                <strong>Model:</strong> {data.llm_metadata.model}
-              </span>
-              <span>
-                <strong>IN:</strong> {data.llm_metadata.input_tokens}
-              </span>
-              <span>
-                <strong>OUT:</strong> {data.llm_metadata.output_tokens}
-              </span>
-              {data.llm_metadata.cached_tokens > 0 && (
-                <span>
-                  <strong>CACHE:</strong> {data.llm_metadata.cached_tokens}
-                </span>
-              )}
-            </div>
-          )}
-
-          {data.error && (
-            <div className="border-t pt-2 text-xs text-red-400">
-              <strong>Error:</strong> {data.error}
-            </div>
-          )}
+      ) : (
+        <div className="rounded bg-muted/20 p-2 text-xs italic text-muted-foreground">
+          No interest actions for this message.
         </div>
-      </AccordionContent>
-    </AccordionItem>
+      )}
+
+      {data.llm_metadata && <ExtractionLLMFooter metadata={data.llm_metadata} />}
+
+      {data.error && (
+        <div className="border-t border-border/50 pt-2 text-xs text-destructive">
+          <strong>Error:</strong> {data.error}
+        </div>
+      )}
+    </DebugSection>
   );
 });

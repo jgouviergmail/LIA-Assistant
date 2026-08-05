@@ -1,57 +1,26 @@
 /**
  * Zone Badge Component
  *
- * Displays a colored badge for token budget zones (safe/warning/critical/emergency).
+ * Colored badge for token-budget zones. `emergency` is the only SOLID
+ * fill (ADR-205 doctrine: density, not hue alone, carries the top level).
  */
 
 import React from 'react';
-import { cn } from '@/lib/utils';
-import { ZONE_COLORS, BADGE_SIZES } from '../../../utils/constants';
+import { DebugChip } from '../DebugChip';
+import { zoneTone } from '../../../utils/tones';
 
 export interface ZoneBadgeProps {
   /** Budget zone */
   zone: 'safe' | 'warning' | 'critical' | 'emergency';
-  /** Badge size (default: 'sm') */
-  size?: keyof typeof BADGE_SIZES;
   /** Additional CSS classes */
   className?: string;
 }
 
-/**
- * Budget zone badge with semantic color
- *
- * Colors:
- * - safe: green (below safe limit)
- * - warning: yellow (approaching the limit)
- * - critical: orange (critical limit reached)
- * - emergency: red (maximum limit exceeded/near)
- *
- * @example
- * ```tsx
- * <ZoneBadge zone="safe" />
- * <ZoneBadge zone="warning" size="md" />
- * <ZoneBadge zone="emergency" className="ml-2" />
- * ```
- */
-export const ZoneBadge = React.memo(function ZoneBadge({
-  zone,
-  size = 'sm',
-  className,
-}: ZoneBadgeProps) {
-  const colorClass = ZONE_COLORS[zone];
-  const sizeClass = BADGE_SIZES[size];
-
+/** Budget zone badge with severity tone. */
+export const ZoneBadge = React.memo(function ZoneBadge({ zone, className }: ZoneBadgeProps) {
   return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-full font-medium uppercase tracking-wide',
-        colorClass,
-        sizeClass,
-        className
-      )}
-      aria-label={`Zone: ${zone}`}
-    >
+    <DebugChip tone={zoneTone(zone)} aria-label={`Zone: ${zone}`} className={className}>
       {zone}
-    </span>
+    </DebugChip>
   );
 });

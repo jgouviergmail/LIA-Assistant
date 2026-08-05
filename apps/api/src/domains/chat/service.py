@@ -32,6 +32,22 @@ from src.core.field_names import (
 from src.domains.chat.models import (
     UserStatistics,
 )
+
+# Run-level record collectors live in ``run_records`` (one timeline + one
+# unified view per run across every TrackingContext). The private dicts are
+# re-exported so historical import sites
+# (`from src.domains.chat.service import _run_records`) keep resolving to the
+# SAME shared dicts.
+from src.domains.chat.run_records import (
+    _run_google_api_records,
+    _run_image_generation_records,
+    _run_records,
+    _run_tts_records,
+    anchor_run_start,
+    cleanup_run,
+    evict_excess_runs,
+    run_offset_ms,
+)
 from src.domains.chat.schemas import TokenSummaryDTO, UserStatisticsResponse
 from src.infrastructure.database import get_db_context
 
@@ -59,6 +75,10 @@ class TokenUsageRecord(NamedTuple):
     call_type: str = "chat"  # "chat" | "embedding"
     # Monotonic sequence counter for chronological ordering (v3.3)
     sequence: int = 0
+    # Start position on the RUN timeline in ms (v3.4 debug-panel waterfall).
+    # Anchored on the run-level t0 shared by every TrackingContext of the
+    # run — the per-context `sequence` cannot order calls across contexts.
+    started_offset_ms: float = 0.0
 
 
 class ImageGenerationRecord(NamedTuple):
@@ -88,6 +108,8 @@ class ImageGenerationRecord(NamedTuple):
     usd_to_eur_rate: Decimal
     prompt_preview: str
     duration_ms: float = 0.0
+    # Start position on the run timeline in ms (debug-panel waterfall).
+    started_offset_ms: float = 0.0
 
 
 class GoogleApiRecord(NamedTuple):
@@ -123,29 +145,6 @@ class TTSUsageRecord(NamedTuple):
     cost_eur: Decimal
     usd_to_eur_rate: Decimal
     duration_ms: float = 0.0
-
-
-# =============================================================================
-# Run-level record collector
-# =============================================================================
-# All TrackingContext instances sharing the same run_id publish their committed
-# records here.  This allows the debug panel to show EVERY LLM call (pipeline +
-# background tasks like memory/interest/journal extraction) in a single view.
-#
-# Lifecycle:
-#   - Populated by TrackingContext._persist_to_database() after each commit
-#   - Read by TrackingContext.get_llm_calls_breakdown() / get_total_tokens()
-#   - Cleaned up by TrackingContext.cleanup_run_records(run_id)
-#     (called in service.py after the debug panel has been emitted)
-# =============================================================================
-# Safety: these module-level dicts are safe under asyncio's single-threaded
-# cooperative model (no yield point between dict mutation operations).
-# If the server moves to multi-threaded workers, these MUST be replaced
-# with thread-safe structures (e.g. threading.Lock or per-request storage).
-_run_records: dict[str, list[TokenUsageRecord]] = {}
-_run_google_api_records: dict[str, list[GoogleApiRecord]] = {}
-_run_image_generation_records: dict[str, list[ImageGenerationRecord]] = {}
-_run_tts_records: dict[str, list[TTSUsageRecord]] = {}
 
 
 class TrackingContext:
@@ -236,6 +235,10 @@ class TrackingContext:
 
         # ContextVar token for cleanup in __aexit__
         self._context_token: Any = None
+
+        # Anchor the run-level t0 (first context of the run wins) so every
+        # started_offset_ms lands on one timeline (debug-panel waterfall).
+        anchor_run_start(run_id)
 
         logger.debug(
             "tracking_context_initialized",
@@ -334,6 +337,7 @@ class TrackingContext:
         usd_to_eur_rate: Decimal | None = None,
         duration_ms: float = 0.0,
         call_type: str = "chat",
+        started_at: float | None = None,
     ) -> None:
         """
         Record token usage for a single LLM node call.
@@ -354,6 +358,9 @@ class TrackingContext:
             duration_ms: LLM call duration in milliseconds (v3.2 debug panel)
             call_type: Type of LLM call ("chat" for completions, "embedding" for
                 vector embeddings). Used by debug panel to distinguish call categories.
+            started_at: Epoch seconds when the call started (v3.4 waterfall).
+                When absent, the offset is derived as now − duration — exact
+                enough for sequential background calls that lack a start stamp.
         """
         # Auto-calculate costs if not provided (modern callback path)
         # Use sync-safe pricing cache to avoid event loop issues in LangChain callbacks
@@ -378,6 +385,8 @@ class TrackingContext:
             # Get USD/EUR rate from cache (with built-in fallback to settings)
             usd_to_eur_rate = Decimal(str(get_cached_usd_eur_rate()))
 
+        started_offset_ms = self._run_offset_ms(started_at, duration_ms)
+
         # Phase 5.2B: Thread-safe append for parallel execution
         # v3.3: Sequence counter incremented under lock for chronological ordering
         async with self._lock:
@@ -394,6 +403,7 @@ class TrackingContext:
                 duration_ms=duration_ms,
                 call_type=call_type,
                 sequence=self._sequence_counter,
+                started_offset_ms=started_offset_ms,
             )
             self._node_records.append(record)
 
@@ -407,6 +417,10 @@ class TrackingContext:
             cached_tokens=cached_tokens,
             cost_eur=cost_eur,
         )
+
+    def _run_offset_ms(self, started_at: float | None, duration_ms: float) -> float:
+        """Position a call's start on this run's timeline (see ``run_records``)."""
+        return run_offset_ms(self.run_id, started_at, duration_ms)
 
     async def increment_message_count(self) -> None:
         """
@@ -521,6 +535,7 @@ class TrackingContext:
             usd_to_eur_rate=usd_to_eur_rate,
             prompt_preview=prompt_preview[:200],
             duration_ms=duration_ms,
+            started_offset_ms=self._run_offset_ms(None, duration_ms),
         )
         self._image_generation_records.append(record)
 
@@ -727,10 +742,7 @@ class TrackingContext:
         Args:
             run_id: The pipeline run_id to clean up.
         """
-        _run_records.pop(run_id, None)
-        _run_google_api_records.pop(run_id, None)
-        _run_image_generation_records.pop(run_id, None)
-        _run_tts_records.pop(run_id, None)
+        cleanup_run(run_id)
 
     def _get_all_run_records(self) -> list[TokenUsageRecord]:
         """Return all LLM call records for this run_id from the run-level collector.
@@ -762,6 +774,7 @@ class TrackingContext:
                 - duration_ms: LLM call duration in milliseconds (v3.2)
                 - call_type: "chat" or "embedding" (v3.3)
                 - sequence: Chronological order number (v3.3)
+                - started_offset_ms: Start position on the run timeline (v3.4)
         """
         return [
             {
@@ -774,6 +787,7 @@ class TrackingContext:
                 "duration_ms": r.duration_ms,
                 "call_type": r.call_type,
                 "sequence": r.sequence,
+                "started_offset_ms": r.started_offset_ms,
             }
             for r in self._get_all_run_records()
         ]
@@ -845,6 +859,7 @@ class TrackingContext:
                 "cost_usd": float(r.cost_usd),
                 "cost_eur": float(r.cost_eur),
                 "duration_ms": r.duration_ms,
+                "started_offset_ms": r.started_offset_ms,
                 "prompt_preview": r.prompt_preview,
             }
             for r in records
@@ -1194,15 +1209,11 @@ class TrackingContext:
 
         # Leak guard (F23, 2026-07): runs that never reach
         # cleanup_run_records (errors, abandoned HITL interrupts) used to
-        # accumulate forever on a long-running server. Evict the OLDEST
-        # run_ids (insertion order) beyond the cap — cleanup_run_records
-        # pops the run from all four collector dicts at once.
-        while len(_run_records) > RUN_RECORDS_MAX_RUNS:
-            oldest_run_id = next(iter(_run_records))
-            TrackingContext.cleanup_run_records(oldest_run_id)
+        # accumulate forever on a long-running server.
+        for evicted_run_id in evict_excess_runs():
             logger.warning(
                 "run_records_evicted",
-                evicted_run_id=oldest_run_id,
+                evicted_run_id=evicted_run_id,
                 max_runs=RUN_RECORDS_MAX_RUNS,
             )
 
