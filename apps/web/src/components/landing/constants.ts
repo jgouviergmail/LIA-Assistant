@@ -29,11 +29,21 @@
  *   send_peer_message), which had never been carried into this tile.
  * - providers: ProviderType Literal in infrastructure/llm/providers/adapter.py
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
- * - metrics: Prometheus metric definitions across src/ — re-measured 2026-08-02
- *   (v1.27.7): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 466,
- *   the two ADR-194/195 counters (planner_fabricated_parameters_restored_total,
- *   semantic_validation_for_each_demand_dropped_total) over the 464 of v1.27.4.
+ * - metrics: Prometheus metric definitions across src/ — re-measured 2026-08-08
+ *   (v1.29.0): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 471,
+ *   the five counters of the instance ceiling, the administrable capabilities
+ *   and the demonstrator envelope (ADR-216/217/218) over the 466 of v1.27.7.
+ *   Previous measurement 2026-08-02 (v1.27.7) = 466.
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured at v1.29.0: backend 18,206 collected across 987 files
+ *   (`pytest tests/unit tests/agents --collect-only -q --no-cov`) + frontend
+ *   5,446 (vitest, 440 files) = 23,652 → 23,600. The backend figure is LOWER
+ *   than v1.28.0's 18,276 and that is correct, not a regression: the isolated
+ *   agentic-demonstrator prototype (44 modules, 35 unit suites, 244 tests) was
+ *   deleted in favour of running the STANDARD image inside an isolated Compose
+ *   envelope — the product demonstrates itself rather than a reduction of
+ *   itself. Two POSIX-only suites do not collect on the Windows measurement
+ *   host (989 files exist, 987 yield tests), so CI collects marginally more.
  *   Re-measured at v1.27.10: backend 18,016 collected (+14 over v1.27.9 —
  *   the hub-count probes and their gate-keeper, the two repository
  *   counters now sharing ONE filter, and the provenance route guards),
@@ -48,12 +58,13 @@
  *   Previous re-measure at v1.27.8: backend 17,925, frontend 4,690 = 22,615.
  *   Re-measure every release: the value carried the backend count alone
  *   until v1.25.9.
- * - adrs: docs/architecture/ ADR files (213 files, numbered up to ADR-214 —
- *   ADR-008 has no separate file, so 213 numbers map to 212 files). Was
- *   stranded at 183 from v1.27.0 to v1.27.4: recount it, never carry it over.
+ * - adrs: docs/architecture/ ADR files — recount every release, never carry it
+ *   over (it was stranded at 183 from v1.27.0 to v1.27.4). 217 files at
+ *   v1.29.0, numbered up to ADR-218: ADR-008 has no separate file, so the
+ *   highest number is always one above the file count.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   201 headings at v1.27.14, no Unreleased pending.
+ *   203 headings at v1.29.0, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -67,11 +78,11 @@ export const LANDING_STATS = {
   tools: 88,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 466,
+  metrics: 471,
   uiLanguages: 6,
-  tests: 23300,
-  adrs: 213,
-  releases: 202,
+  tests: 23600,
+  adrs: 217,
+  releases: 203,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

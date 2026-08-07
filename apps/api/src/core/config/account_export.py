@@ -19,7 +19,7 @@ class AccountExportSettings(BaseSettings):
     """Full-account export settings."""
 
     account_export_enabled: bool = Field(
-        default=False,
+        default=True,
         description="Master switch for full-account exports (router + executor).",
     )
 

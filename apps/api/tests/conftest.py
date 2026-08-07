@@ -545,7 +545,7 @@ def test_settings(test_database_url: str) -> Settings:
         database_url=test_database_url,
         redis_url="redis://localhost:6379/15",  # Use DB 15 for tests to avoid conflicts
         secret_key="test-secret-key-minimum-32-characters-long-for-testing-purposes",
-        fernet_key="test-fernet-key-32-bytes-base64==",
+        fernet_key="MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
         access_token_expire_minutes=15,
         refresh_token_expire_days=7,
         cors_origins=["http://localhost:3000"],

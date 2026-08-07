@@ -1,14 +1,29 @@
 name: Release
 
+# Two NON-OVERLAPPING graphs (ADR-215, B02/B15):
+# - a tag push builds CANDIDATE artifacts (digest-addressed, unqualified) and
+#   publishes their hashes — it can never qualify or promote them;
+# - only a later manual dispatch, carrying the exact candidate and
+#   qualification run IDs, verifies the hash-bound disposable evidence and
+#   promotes the SAME digests to semver tags without any rebuild.
+
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: "Run ID of the candidate build (this workflow, tag push)"
+        required: true
+      qualification_run_id:
+        description: "Run ID of the approved installer-disposable-smoke run"
+        required: true
 
 permissions:
   contents: write
   packages: write
-  actions: read # require-green-ci reads the CI workflow's conclusion for this SHA
+  actions: read # require-green-ci + evidence verification read workflow runs
 
 env:
   REGISTRY: ghcr.io
@@ -19,6 +34,7 @@ jobs:
   # for the tagged SHA to have concluded 'success' before anything is built.
   require-green-ci:
     name: Require green CI for the tagged commit
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Verify ci.yml succeeded for this SHA
@@ -37,9 +53,10 @@ jobs:
             exit 1
           fi
 
-  build-and-push:
-    name: Build & Push Docker Images
+  build-candidates:
+    name: Build candidate images (digest-addressed)
     needs: require-green-ci
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -79,36 +96,107 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
-        with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.app }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=raw,value=latest
-
-      - name: Build and push
+      # Candidate tags are registry STAGING handles only (sha-<commit>).
+      # Semver tags are attached exclusively by promote-images, from the
+      # already-qualified digests, without rebuilding (B02).
+      - name: Build and push candidate
+        id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.app }}:sha-${{ github.sha }}
+          # Host-neutral release artifacts (B03/ADR-215): explicit empty API
+          # URL = same-origin contract; no app URL is ever baked. API
+          # provenance args come from the release context (B02).
+          # NEXT_PUBLIC_SHOWROOM_PROOF_SHA is github.sha on purpose: on a tag
+          # push that IS the commit the tag points at, so the proof links are
+          # automatically immutable and correct — no manual step, and no way
+          # to bake an annotated-tag object SHA by mistake. The variant stays
+          # a deliberate repository setting (default: legacy).
+          build-args: |
+            NEXT_PUBLIC_API_URL=
+            NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT=${{ vars.PUBLIC_SHOWROOM_VARIANT || 'legacy' }}
+            NEXT_PUBLIC_SHOWROOM_PROOF_SHA=${{ github.sha }}
+            APP_VERSION=${{ github.ref_name }}
+            GIT_COMMIT_SHA=${{ github.sha }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  generate-sbom:
-    name: Generate SBOM
-    needs: require-green-ci
-    runs-on: ubuntu-latest
+      - name: Record candidate digest identity
+        run: |
+          set -euo pipefail
+          repo="${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.app }}"
+          digest="${{ steps.build.outputs.digest }}"
+          raw="$(docker buildx imagetools inspect --raw "${repo}@${digest}")"
+          amd64_manifest="$(echo "$raw" | jq -r '.manifests[] | select(.platform.architecture=="amd64" and .platform.os=="linux") | .digest')"
+          arm64_manifest="$(echo "$raw" | jq -r '.manifests[] | select(.platform.architecture=="arm64" and .platform.os=="linux") | .digest')"
+          amd64_config="$(docker buildx imagetools inspect --raw "${repo}@${amd64_manifest}" | jq -r '.config.digest')"
+          arm64_config="$(docker buildx imagetools inspect --raw "${repo}@${arm64_manifest}" | jq -r '.config.digest')"
+          jq -n \
+            --arg reference "${repo}@${digest}" \
+            --arg am "$amd64_manifest" --arg ac "$amd64_config" \
+            --arg bm "$arm64_manifest" --arg bc "$arm64_config" \
+            '{reference: $reference, platforms: [
+               {platform: "linux/amd64", manifest_digest: $am, config_digest: $ac},
+               {platform: "linux/arm64", manifest_digest: $bm, config_digest: $bc}]}' \
+            > "candidate-digests-${{ matrix.app }}.json"
+          cat "candidate-digests-${{ matrix.app }}.json"
 
+      - name: Upload candidate digest record
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: candidate-digests-${{ matrix.app }}
+          path: candidate-digests-${{ matrix.app }}.json
+
+  assemble-self-host-release:
+    name: Assemble candidate manifest, bundle, and SBOMs
+    needs: build-candidates
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Download candidate digest records
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: candidate-digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Resolve dependency digests (index + per-platform child/config)
+        run: |
+          set -euo pipefail
+          echo "[]" > dependency-digests.json
+          while IFS= read -r entry; do
+            service="$(echo "$entry" | jq -r '.service')"
+            reference="$(echo "$entry" | jq -r '.reference')"
+            raw="$(docker buildx imagetools inspect --raw "$reference")"
+            index_digest="$(docker buildx imagetools inspect "$reference" --format '{{json .Manifest}}' | jq -r '.digest')"
+            repo="${reference%%:*}"
+            repo="${repo%%@*}"
+            amd64_manifest="$(echo "$raw" | jq -r '[.manifests[] | select(.platform.architecture=="amd64" and .platform.os=="linux")][0].digest')"
+            arm64_manifest="$(echo "$raw" | jq -r '[.manifests[] | select(.platform.architecture=="arm64" and .platform.os=="linux")][0].digest')"
+            if [ "$amd64_manifest" = "null" ] || [ "$arm64_manifest" = "null" ]; then
+              echo "::error::dependency ${service} (${reference}) lacks a required architecture — qualification blocked" >&2
+              exit 1
+            fi
+            amd64_config="$(docker buildx imagetools inspect --raw "${repo}@${amd64_manifest}" | jq -r '.config.digest')"
+            arm64_config="$(docker buildx imagetools inspect --raw "${repo}@${arm64_manifest}" | jq -r '.config.digest')"
+            jq --arg service "$service" --arg reference "${repo}@${index_digest}" \
+               --arg am "$amd64_manifest" --arg ac "$amd64_config" \
+               --arg bm "$arm64_manifest" --arg bc "$arm64_config" \
+               '. += [{service: $service, reference: $reference, platforms: [
+                  {platform: "linux/amd64", manifest_digest: $am, config_digest: $ac},
+                  {platform: "linux/arm64", manifest_digest: $bm, config_digest: $bc}]}]' \
+               dependency-digests.json > tmp.json && mv tmp.json dependency-digests.json
+          done < <(jq -c '.[]' scripts/release/self_host_dependencies.json)
+          jq length dependency-digests.json
 
       - name: Set up Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
@@ -120,65 +208,240 @@ jobs:
         run: |
           pip install cyclonedx-bom
           # SBOM from the lockfile: exact versions actually shipped, transitives included
-          python -m cyclonedx_py requirements requirements.lock.txt --of json -o ../../sbom-backend.json
+          python -m cyclonedx_py requirements requirements.lock.txt --of json -o ../../sbom-api.cdx.json
 
-      - name: Upload SBOM artifact
+      - name: Set up pnpm
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+        with:
+          version: 9
+
+      - name: Generate frontend SBOM
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile --prod --ignore-scripts
+          pnpm --dir apps/web licenses list --prod --json > pnpm-licenses.json
+          python -m scripts.release.frontend_sbom < pnpm-licenses.json > sbom-web.cdx.json
+
+      - name: Assemble candidate bundle and manifest
+        run: |
+          set -euo pipefail
+          python -m scripts.release.assemble_candidate \
+            --version "${{ github.ref_name }}" \
+            --source-sha "${{ github.sha }}" \
+            --built-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --app-digests api=candidate-digests-api.json \
+            --app-digests web=candidate-digests-web.json \
+            --dependency-digests dependency-digests.json \
+            --sbom api=sbom-api.cdx.json \
+            --sbom web=sbom-web.cdx.json \
+            --out-dir dist/
+          cp sbom-api.cdx.json sbom-web.cdx.json dist/
+
+      - name: Upload candidate release assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: sbom
-          path: sbom-backend.json
+          name: self-host-candidate
+          path: dist/
+
+  publish-candidate-summary:
+    name: Publish candidate hashes (no runtime is invoked)
+    needs: assemble-self-host-release
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download candidate assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: self-host-candidate
+          path: dist/
+
+      - name: Print candidate identity
+        run: |
+          set -euo pipefail
+          {
+            echo "## Self-host candidate (UNQUALIFIED)"
+            echo ""
+            echo "| Asset | SHA-256 |"
+            echo "|---|---|"
+            for f in dist/*; do
+              echo "| $(basename "$f") | $(sha256sum "$f" | cut -d' ' -f1) |"
+            done
+            echo ""
+            echo "Qualify through the manually-approved installer-disposable-smoke"
+            echo "workflow, then dispatch THIS workflow with both run IDs to promote."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # Promotion graph — manual dispatch ONLY, never reachable from a tag push.
+  # ---------------------------------------------------------------------------
+
+  verify-qualified-evidence:
+    name: Verify hash-bound qualification evidence
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download and verify both runs' artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run_id in "${{ inputs.candidate_run_id }}" "${{ inputs.qualification_run_id }}"; do
+            case "$run_id" in (*[!0-9]*|'') echo "::error::run id must be decimal" >&2; exit 1;; esac
+          done
+          check_run() {
+            local run_id="$1" expected_workflow="$2"
+            local info
+            info="$(gh api "repos/${{ github.repository }}/actions/runs/${run_id}" \
+              --jq '{workflow: .path, conclusion: .conclusion, repo: .repository.full_name}')"
+            echo "$info"
+            [ "$(echo "$info" | jq -r '.conclusion')" = "success" ] || { echo "::error::run ${run_id} did not succeed" >&2; exit 1; }
+            [ "$(echo "$info" | jq -r '.repo')" = "${{ github.repository }}" ] || { echo "::error::run ${run_id} belongs to another repository" >&2; exit 1; }
+            echo "$info" | jq -r '.workflow' | grep -q "$expected_workflow" || { echo "::error::run ${run_id} is not ${expected_workflow}" >&2; exit 1; }
+          }
+          check_run "${{ inputs.candidate_run_id }}" "release.yml"
+          check_run "${{ inputs.qualification_run_id }}" "installer-disposable-smoke.yml"
+          gh run download "${{ inputs.candidate_run_id }}" -R "${{ github.repository }}" -n self-host-candidate -D dist/
+          gh run download "${{ inputs.qualification_run_id }}" -R "${{ github.repository }}" -n qualification-evidence -D evidence/
+          candidate_sha="$(sha256sum dist/lia-self-host-manifest.json | cut -d' ' -f1)"
+          bound_sha="$(jq -r '.candidate_sha256' evidence/qualification-evidence.json)"
+          if [ "$candidate_sha" != "$bound_sha" ]; then
+            echo "::error::qualification evidence does not bind this candidate manifest" >&2
+            exit 1
+          fi
+
+      - name: Upload verified inputs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verified-promotion-inputs
+          path: |
+            dist/
+            evidence/
+
+  finalize-qualified-manifest:
+    name: Flip candidate to passed (fields byte-identical)
+    needs: verify-qualified-evidence
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Download verified inputs
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: verified-promotion-inputs
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Promote the manifest
+        run: |
+          set -euo pipefail
+          python -m scripts.release.self_host_manifest \
+            --candidate dist/lia-self-host-manifest.json \
+            --evidence evidence/qualification-evidence.json \
+            --output dist/lia-self-host-manifest.json
+      - name: Upload promoted assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: promoted-release-assets
+          path: dist/
+
+  promote-images:
+    name: Attach semver tags to the qualified digests (no rebuild)
+    needs: finalize-qualified-manifest
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Download promoted assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: promoted-release-assets
+          path: dist/
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Tag the exact qualified digests
+        run: |
+          set -euo pipefail
+          version="$(jq -r '.release_version' dist/lia-self-host-manifest.json)"
+          version="${version#v}"
+          major="${version%%.*}"
+          minor="${version%.*}"
+          python -m scripts.release.self_host_manifest --print-images dist/lia-self-host-manifest.json |
+          while read -r app reference; do
+            repo="${reference%@*}"
+            for tag in "$version" "$minor" "$major" latest; do
+              docker buildx imagetools create --tag "${repo}:${tag}" "$reference"
+            done
+          done
 
   create-release:
-    name: Create GitHub Release
+    name: Create GitHub Release (qualified assets only)
+    needs: promote-images
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    needs: [build-and-push, generate-sbom]
-
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
-
-      - name: Download SBOM
+      - name: Download promoted assets
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: sbom
-
-      - name: Generate changelog
-        id: changelog
+          name: promoted-release-assets
+          path: dist/
+      - name: Resolve release identity
+        id: identity
         run: |
-          # Get previous tag
-          PREV_TAG=$(git tag --sort=-version:refname | head -2 | tail -1)
-          if [ -z "$PREV_TAG" ]; then
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" HEAD)
-          else
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${PREV_TAG}..HEAD)
-          fi
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
+          set -euo pipefail
+          echo "version=$(jq -r '.release_version' dist/lia-self-host-manifest.json)" >> "$GITHUB_OUTPUT"
+          echo "api_ref=$(python -m scripts.release.self_host_manifest --print-images dist/lia-self-host-manifest.json | awk '$1=="api"{print $2}')" >> "$GITHUB_OUTPUT"
+          echo "web_ref=$(python -m scripts.release.self_host_manifest --print-images dist/lia-self-host-manifest.json | awk '$1=="web"{print $2}')" >> "$GITHUB_OUTPUT"
       - name: Create Release
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
+          tag_name: ${{ steps.identity.outputs.version }}
           generate_release_notes: true
-          files: sbom-backend.json
+          files: |
+            dist/lia-self-host-manifest.json
+            dist/lia-self-host-bundle.tar.gz
+            dist/lia-self-host-bundle.tar.gz.sha256
+            dist/sbom-api.cdx.json
+            dist/sbom-web.cdx.json
           body: |
-            ## Changes
-
-            ${{ steps.changelog.outputs.changelog }}
-
-            ## Docker Images
+            ## Docker Images (immutable digests — the qualified artifacts)
 
             ```bash
-            docker pull ${{ env.REGISTRY }}/${{ github.repository }}/api:${{ github.ref_name }}
-            docker pull ${{ env.REGISTRY }}/${{ github.repository }}/web:${{ github.ref_name }}
+            docker pull ${{ steps.identity.outputs.api_ref }}
+            docker pull ${{ steps.identity.outputs.web_ref }}
             ```
 
-            ## Quick Start
+            Semver tags point at these exact digests; the digest form above is
+            the reproducible reference.
+
+            ## Guided self-host installation
+
+            OpenAI and DeepSeek are required for the current core.
 
             ```bash
-            git clone https://github.com/${{ github.repository }}.git
-            cd LIA-Assistant
-            cp .env.example .env
-            docker compose up -d
+            # Download lia-self-host-bundle.tar.gz, its .sha256, and
+            # lia-self-host-manifest.json into ONE directory, then:
+            sha256sum --check lia-self-host-bundle.tar.gz.sha256
+            tar -xzf lia-self-host-bundle.tar.gz
+            ./install.sh
             ```
+
+            The adjacent passed manifest makes `./install.sh` resolve to the
+            qualified prebuilt images; `./install.sh --local-build` builds from
+            the embedded, manifest-verified source context instead. A complete
+            source checkout always defaults to a local build. Upgrades and
+            destructive reinstalls are outside v1 — see
+            `docs/architecture/ADR-215-Self-Host-Installer.md`.

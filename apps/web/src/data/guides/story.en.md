@@ -2,9 +2,9 @@
 
 > Field report — a complete system, from design to production.
 
-**Version**: 1.2
-**Date**: 2026-08-05
-**Application**: LIA v1.28.0
+**Version**: 1.3
+**Date**: 2026-08-08
+**Application**: LIA v1.29.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Lines of code (excluding tests) — 36 functional domains | **505,000** |
-| Automated tests, run on every commit and release | **22,800+** |
-| Documented architecture decisions (ADR) | **204** |
-| Versions shipped at a steady pace | **197** |
+| Lines of code (excluding tests) — 39 functional domains | **548,000** |
+| Automated tests, run on every commit and release | **23,600+** |
+| Documented architecture decisions (ADR) | **217** |
+| Versions shipped at a steady pace | **203** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -88,6 +88,8 @@ The action plan is organized in waves, each with measurable exit criteria. That 
 The proof also has its most instructive episode: three recalibrations of a simple spacing, three "I see no change" — and a delivery chain proven healthy down to the bytes served to the browser. Two plausible false leads (browser cache, service worker) fell one after the other, until the measurement that forgives nothing: in a driven browser, the margin computed to 16 pixels while the rendered gap was 3. The label primitive had stayed `inline`, and an inline element ignores its vertical margins — the defect predated the whole programme. The fix is one word, the arbitration happened on three real screenshots, and the rule became doctrine: measure the rendering before suspecting the delivery.
 
 The habit-learning detector earned its trust the same way: it was executed against real production data before being believed — and it was caught. A daily scheduled action had been writing a "user" message at 07:00 for sixty-six days; the detector claimed the scheduler's own timetable as a human habit. The refutation became a whitelist of human sessions, the fabricated window disappeared, and the honest verdicts fell into place. The rule stands: prove against reality before believing the design.
+
+The 1.29.0 cycle added a third episode, and this one is about the tests themselves. Every protection in the programme had shipped with its own, all green — and all of the same shape: they pinned what the code did on the day it was delivered. A hand-written list does not describe a system; it describes what its author knew about the system. So three guards were rewritten to **recalculate** the protection from the source of truth instead of restating it. They found three faults no existing test could see: speech synthesis billed and never counted against the spend ceiling, a provider sign-in that bypassed the newly mandatory terms acceptance entirely, and eleven connector paths that bound a real credential with no guard at all. Then each guard was deliberately broken, to check that it goes red — because a guard nobody has ever seen fail is just one more promise.
 
 ## 7. Convictions
 

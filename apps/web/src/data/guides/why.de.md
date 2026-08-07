@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 4.4
-**Datum**: 2026-08-05
-**Anwendung**: LIA v1.28.0
+**Version**: 4.5
+**Datum**: 2026-08-08
+**Anwendung**: LIA v1.29.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -41,6 +41,8 @@ LIA geht einen anderen Weg. Kein direkter Konkurrent der Großen — sondern ein
 Self-Hosting hat einen schlechten Ruf. LIA behauptet nicht, jeden technischen Schritt zu eliminieren: Die anfängliche Einrichtung — Konfiguration der API-Schlüssel, Einrichtung der OAuth-Konnektoren, Wahl der Infrastruktur — erfordert etwas Zeit und grundlegende Kenntnisse. Jeder Schritt ist jedoch in einer Schritt-für-Schritt-Anleitung **ausführlich dokumentiert**.
 
 Sobald diese Installationsphase abgeschlossen ist, **lässt sich der gesamte Alltag über eine intuitive Weboberfläche verwalten**. Kein Terminal, keine Konfigurationsdateien mehr nötig.
+
+Seit v1.29.0 ist diese erste Phase selbst geführt: `./install.sh` im Wurzelverzeichnis stellt dir einen kurzen Fragebogen in deiner Sprache — wie du die Instanz erreichen willst, welche Anbieterschlüssel du hast —, baut dann die Images aus der Quelle, die du geklont hast, spielt die Referenzdaten in einer einzigen Transaktion ein, legt dein Administratorkonto an, ohne je ein Geheimnis auf die Kommandozeile zu schreiben, und prüft schließlich, ob die Installation wirklich funktioniert, statt nur zu antworten. Scheitert ein Schritt, setzt die Wiederaufnahme genau dort wieder an.
 
 ### 2.2. Was jeder Benutzer konfigurieren kann
 
@@ -81,6 +83,8 @@ Der Administrator hat Zugriff auf eine dritte Registerkarte zur Verwaltung der I
 - **Nutzungslimits**: Quoten je Benutzer festlegen (LLM-Tokens, API-Aufrufe, Bildgenerierungen) mit Echtzeit-Tracking und automatischer Sperrung
 - **Broadcast-Nachrichten**: Wichtige Nachrichten an alle oder ausgewählte Benutzer senden, mit optionalem Ablaufdatum
 - **Globaler Verbrauchsexport**: Verbrauch aller Benutzer als CSV exportieren
+- **Tagesbudget der Instanz**: begrenze, was die GESAMTE Instanz an einem Tag ausgeben darf, in Euro — nicht nur, was jedes Konto verbraucht. Das Panel zeigt die heutigen Ausgaben, die Anzahl der Läufe, das tatsächlich geltende Limit und den Rest; der Betreiberwert kann die Deployment-Schranke nur verschärfen, nie erweitern. Ist das Budget erschöpft, erfahren die Nutzenden, dass die Installation pausiert, und bekommen die genaue Uhrzeit der Rücksetzung — keine falsche Meldung über ihr persönliches Kontingent
+- **Plattformfähigkeiten**: schalte zehn Fähigkeiten sofort ein oder aus, ohne neues Deployment — Diktat, Sprachausgabe, Bilder, Uploads, Dokumentenräume, Websuche, Browsen, Skills, MCP, Telefonie. Eine abgeschaltete Fähigkeit verschwindet auch aus dem Katalog, der dem Planer angeboten wird, sodass LIA nicht mehr vorschlägt, was die Routen ablehnen würden; jede Zeile zeigt, was das Deployment erlaubt, was du gewählt hast und was tatsächlich gilt
 
 **KI und Konnektoren:**
 
@@ -221,6 +225,7 @@ Der Administrator behält die Kontrolle über den Verbrauch:
 - **Nutzungslimits** pro Benutzer konfigurierbar: Nachrichtenanzahl, Tokens, Maximalkosten — täglich, wöchentlich, monatlich oder als Gesamtlimit
 - **Visuelle Kontingente**: Jeder Benutzer sieht seinen Verbrauch in Echtzeit mit übersichtlichen Anzeigen
 - **Konnektoren aktivieren/deaktivieren**: Der Administrator aktiviert oder deaktiviert Integrationen (Google, Microsoft, Hue...) auf Instanzebene
+- **Ein Limit für die ganze Instanz**, über den Nutzerlimits: N Konten × ihr Kontingent ist unbegrenzte Ausgabe, also begrenzt ein tägliches Euro-Limit das Deployment selbst. Wer zuerst kommt, mahlt zuerst — und wo ein Nutzerlimit offen scheitert, scheitert eine unbekannte Instanzausgabe geschlossen
 
 ### 4.3. Deine Familien-KI
 

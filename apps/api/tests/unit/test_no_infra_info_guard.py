@@ -106,17 +106,30 @@ def _compile(tokens: list[str]) -> list[tuple[str, re.Pattern[str]]]:
 
 
 def _tracked_text_files() -> list[str]:
-    """Repo-relative paths of tracked files with a scanned extension."""
-    out = subprocess.run(
+    """Repo-relative paths of committable files with a scanned extension.
+
+    Tracked files AND untracked ones git does not ignore, because a leak is
+    introduced in a file that is new. Scanning only ``ls-files`` meant the
+    guard went green on a session that had written the deployment account's
+    home directory into three brand-new files; they were caught by hand
+    (2026-08-07). ``--others --exclude-standard`` adds exactly what a ``git
+    add .`` would sweep in, and nothing that is gitignored — so a secrets file
+    stays out of the scan, as it must.
+    """
+    listings = (
         ["git", "-C", str(REPO_ROOT), "ls-files", "-z"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
+        ["git", "-C", str(REPO_ROOT), "ls-files", "-z", "--others", "--exclude-standard"],
+    )
     files = []
-    for rel in out.split("\0"):
-        if rel and Path(rel).suffix in SCANNED_SUFFIXES and rel not in EXCLUDED_RELPATHS:
-            files.append(rel)
+    seen: set[str] = set()
+    for command in listings:
+        out = subprocess.run(command, capture_output=True, text=True, check=True).stdout
+        for rel in out.split("\0"):
+            if not rel or rel in seen:
+                continue
+            if Path(rel).suffix in SCANNED_SUFFIXES and rel not in EXCLUDED_RELPATHS:
+                seen.add(rel)
+                files.append(rel)
     return files
 
 

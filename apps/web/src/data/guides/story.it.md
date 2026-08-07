@@ -2,9 +2,9 @@
 
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
-**Versione**: 1.2
-**Data**: 2026-08-05
-**Applicazione**: LIA v1.28.0
+**Versione**: 1.3
+**Data**: 2026-08-08
+**Applicazione**: LIA v1.29.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Indicatore | Valore |
 | --- | --- |
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
-| Righe di codice (esclusi i test) — 36 domini funzionali | **505.000** |
-| Test automatizzati, eseguiti a ogni commit e rilascio | **22.800+** |
-| Decisioni di architettura documentate (ADR) | **204** |
-| Versioni rilasciate a ritmo regolare | **197** |
+| Righe di codice (esclusi i test) — 39 domini funzionali | **548.000** |
+| Test automatizzati, eseguiti a ogni commit e rilascio | **23.600+** |
+| Decisioni di architettura documentate (ADR) | **217** |
+| Versioni rilasciate a ritmo regolare | **203** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
 
@@ -88,6 +88,8 @@ Il piano d'azione è organizzato in ondate, ciascuna con criteri di uscita misur
 Anche la prova ha il suo episodio più istruttivo: tre ricalibrazioni di una semplice spaziatura, tre «non vedo alcun cambiamento» — e una catena di consegna provata sana fino ai byte serviti al browser. Due false piste plausibili (cache del browser, service worker) sono cadute una dopo l’altra, fino alla misura che non perdona: in un browser pilotato, il margine calcolato era di 16 pixel e lo spazio disegnato di 3. La primitiva di etichetta era rimasta `inline`, e un elemento inline ignora i suoi margini verticali — il difetto precedeva l’intero programma. La correzione è una parola, l’arbitrato è avvenuto su tre schermate reali, e la regola è diventata dottrina: misurare il rendering prima di sospettare della consegna.
 
 Il rilevatore di abitudini si è guadagnato la fiducia allo stesso modo: eseguito sui dati reali di produzione prima di essere creduto — e colto in fallo. Un'azione pianificata quotidiana scriveva da sessantasei giorni un messaggio «utente» alle 07:00; il rilevatore ha rivendicato l'orario del pianificatore stesso come abitudine umana. La confutazione è diventata una lista bianca di sessioni umane, la finestra fabbricata è scomparsa e i verdetti onesti sono arrivati. La regola resta: provare contro il reale prima di credere al progetto.
+
+Il ciclo 1.29.0 ha aggiunto un terzo episodio, e questo riguarda i test stessi. Ogni protezione del programma era stata consegnata con i propri, tutti verdi — e tutti della stessa forma: fissavano ciò che il codice faceva il giorno della consegna. Un elenco scritto a mano non descrive un sistema, descrive ciò che il suo autore ne sapeva. Sono quindi state riscritte tre guardie per **ricalcolare** la protezione dalla fonte di verità invece di ripeterla. Hanno trovato tre difetti che nessun test esistente poteva vedere: una sintesi vocale fatturata e mai conteggiata contro il tetto di spesa, un accesso tramite provider che saltava del tutto l'accettazione ormai obbligatoria delle condizioni, e undici percorsi dei connettori che collegavano una credenziale reale senza alcuna protezione. Poi ogni guardia è stata messa in difetto di proposito, per verificare che diventi rossa — perché una guardia che nessuno ha mai visto fallire è solo un'altra promessa.
 
 ## 7. Convinzioni
 

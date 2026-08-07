@@ -97,3 +97,29 @@ Yes. Go to **Settings > Features > My Consumption Export** to download your pers
 - **My Summary** — aggregated totals (tokens, calls, costs)
 
 Use date presets (current month, last month, last 30 days) or custom ranges. You can only export your own data — other users' data is never accessible.
+
+## Is there a limit on the whole instance, not just my account?
+Yes, and it answers a different question. Per-user limits bound what **one
+account** consumes; they cannot bound what the **whole deployment** spends,
+because N accounts multiplied by their quota is unbounded.
+
+An administrator can set an **instance daily budget** in euros. It is
+first come, first served: once the deployment reaches its budget for the
+day, LIA stops answering until the ledger rolls over at midnight UTC — and
+it tells you the exact time it starts again.
+
+Two things follow that are worth knowing:
+
+- **The message is different from a personal quota message.** When the
+  deployment is paused, LIA does not tell you that *you* reached *your*
+  limit or that you should contact your administrator — both would be
+  false. It says the instance has reached its daily budget.
+- **This check behaves the opposite way from per-user limits.** Per-user
+  limits fail *open*: if the database hiccups, one message too many gets
+  through. An unknown instance spend fails *closed*, because the worst case
+  on that side is the entire budget rather than one message.
+
+The administrator panel shows today's spend, the number of runs, the
+ceiling that actually applies, and what remains. Where both a deployment
+setting and an administrator setting exist, the **smaller** one applies:
+an operator can tighten what the deployment allows, never widen it.

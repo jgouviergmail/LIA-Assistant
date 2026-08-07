@@ -68,7 +68,14 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
-        // Global floor — re-measured 2026-08-05 after the production-log
+        // Global floor — re-measured 2026-08-07 after the demonstrator's
+        // security audit and the removal of the legacy live showroom (the
+        // server-side proxy routes, its adapter and its hook: code the suite
+        // covered thinly and that no longer exists):
+        // statements 73.77 / branches 69.83 / functions 70.33 / lines 74.41.
+        // Raised 71/67/67/71 -> 71/67/68/72 (floor(measured - 2) per axis —
+        // functions and lines cross an integer step this time).
+        // Previous re-measure 2026-08-05 after the production-log
         // remediation (the dashboard shell no longer mounts for an account
         // awaiting activation, which is what kept two EventSources retrying a
         // 403 five times each):
@@ -216,8 +223,8 @@ export default defineConfig({
         // without the test degenerating into a test of its own mocks.
         statements: 71,
         branches: 67,
-        functions: 67,
-        lines: 71,
+        functions: 68,
+        lines: 72,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {
           statements: 100,

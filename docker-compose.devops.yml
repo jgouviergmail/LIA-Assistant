@@ -1,0 +1,10 @@
+# Maintainer-only overlay for the reference production host (ADR-215).
+#
+# NOT part of a standard self-hosted install: it wires the in-container
+# DevOps Claude CLI (infrastructure/claude-cli/). Deployed by the driver via
+# the colon-separated COMPOSE_FILE chain (deploy_readiness_gate.sh).
+services:
+  api:
+    volumes:
+      - ~/.claude:/home/appuser/.claude
+      - ./infrastructure/claude-cli/CLAUDE.server.md:/opt/claude-workspace/CLAUDE.md:ro

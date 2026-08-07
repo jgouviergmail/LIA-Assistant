@@ -53,6 +53,28 @@ Ce guide fournit une approche complète pour **déployer LIA** en local et en pr
 - **Accès cloud** : AWS/GCP/Azure (production)
 - **Connaissances** : Docker, Kubernetes (optionnel), CI/CD
 
+### Installateur self-host guidé (`./install.sh`)
+
+L'installateur guidé (ADR-215) couvre le déploiement production complet sur
+machine vierge. Sa règle de mode est conditionnelle et reste vraie avant et
+après la qualification d'une release :
+
+- un **checkout source complet** installe par défaut en **build local** ;
+- un **répertoire de release officiel** installe par défaut en **digests
+  prébuilts** uniquement quand son `lia-self-host-manifest.json` adjacent
+  est qualifié (`qualification="passed"`) ; manifest absent ou candidat →
+  build local ;
+- `./install.sh --local-build` dans un répertoire de release construit
+  depuis le **contexte source embarqué vérifié** de la release ;
+- sans checkout complet ni contexte embarqué valide, l'échec survient
+  **avant toute mutation** avec le nom exact de l'asset de release qualifié
+  à télécharger.
+
+Reprise : `./install.sh --resume` (seuls les secrets éphémères sont
+redemandés si le bootstrap n'était pas terminé) ; ajustements réseau/
+capacités : `./install.sh --reconfigure` (jamais de re-seed ni de rotation
+de secrets).
+
 ---
 
 ## Architecture de Déploiement

@@ -33,6 +33,9 @@ class UsageLimitStatus(str, Enum):
     BLOCKED_LIMIT = "blocked_limit"
     BLOCKED_MANUAL = "blocked_manual"
     BLOCKED_ACCOUNT = "blocked_account"
+    # The INSTANCE exhausted its daily spend ceiling: nothing is wrong with
+    # this account, the whole deployment is paused until the next UTC day.
+    BLOCKED_INSTANCE_BUDGET = "blocked_instance_budget"
 
 
 # ============================================================================
@@ -210,3 +213,83 @@ class WebSocketTicketResponse(BaseModel):
 
     ticket: str = Field(description="Single-use WebSocket authentication ticket.")
     ttl_seconds: int = Field(description="Ticket time-to-live in seconds.")
+
+
+# =============================================================================
+# INSTANCE DAILY SPEND CEILING
+# =============================================================================
+
+
+class InstanceDailyBudgetResponse(BaseModel):
+    """
+    Response for the instance-wide daily spend ceiling.
+
+    Per-user limits bound what ONE account consumes; this bounds what the
+    whole instance may spend in a UTC day. Both configured bounds are
+    returned, because an enforced constraint the operator cannot see is a
+    trap rather than a contract.
+    """
+
+    ceiling_eur: Decimal | None = Field(
+        default=None,
+        description="Operator ceiling in euros (admin setting); None when unset",
+    )
+    deployment_ceiling_eur: Decimal | None = Field(
+        default=None,
+        description="Deployment ceiling in euros (environment); None when unset",
+    )
+    effective_ceiling_eur: Decimal | None = Field(
+        default=None,
+        description=(
+            "What the runtime actually enforces: the smallest configured bound. "
+            "None means no ceiling at all."
+        ),
+    )
+    spent_today_eur: Decimal = Field(
+        default=Decimal("0"),
+        description=(
+            "What the instance already spent in the current UTC day. A ceiling "
+            "without the consumption next to it cannot be piloted."
+        ),
+    )
+    runs_today: int = Field(
+        default=0,
+        description="Runs charged to the current UTC day",
+    )
+    updated_by: UUID | None = Field(
+        default=None,
+        description="Admin user ID who last changed the setting",
+    )
+    updated_at: datetime | None = Field(
+        default=None,
+        description="Timestamp of last setting change",
+    )
+    is_default: bool = Field(
+        default=False,
+        description="True if no operator ceiling is stored",
+    )
+
+    model_config = {"from_attributes": True}
+
+
+class InstanceDailyBudgetUpdate(BaseModel):
+    """
+    Request to update the operator daily spend ceiling.
+
+    Only administrators can change this setting. The operator may only LOWER
+    the deployment bound: a value above it is stored but never applies.
+    """
+
+    ceiling_eur: Decimal | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "New ceiling in euros, strictly positive. None clears the operator "
+            "value and leaves only the deployment bound in force."
+        ),
+    )
+    change_reason: str | None = Field(
+        default=None,
+        max_length=500,
+        description="Optional reason for the change (for audit trail)",
+    )

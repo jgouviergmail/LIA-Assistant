@@ -21,6 +21,12 @@ import {
 
 export interface AuthFeatures {
   mfa_enabled: boolean;
+  /** Whether this instance offers signing in with an identity provider. */
+  federated_signin_enabled: boolean;
+  /** Whether registration requires accepting the terms (public demonstrator). */
+  terms_required: boolean;
+  /** Version of the terms being accepted. */
+  terms_version: string;
 }
 
 export interface PasskeyCredential {

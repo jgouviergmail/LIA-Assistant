@@ -13,12 +13,13 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, DEMO_SIGNUP_LIMIT_ERROR_CODE
 from src.core.exceptions import (
     raise_email_already_exists,
     raise_invalid_credentials,
     raise_invalid_input,
     raise_oauth_flow_failed,
+    raise_rate_limit_exceeded,
     raise_user_not_found,
 )
 from src.core.field_names import FIELD_IS_ACTIVE
@@ -32,6 +33,7 @@ from src.core.security import (
     verify_password,
     verify_single_use_token,
 )
+from src.domains.auth.demo_signup_ceiling import reserve_demo_signup
 from src.domains.auth.repository import AuthRepository
 from src.domains.auth.schemas import (
     # Removed: AuthResponse, TokenResponse (BFF Pattern migration v0.3.0)
@@ -66,6 +68,44 @@ class AuthService:
         Raises:
             HTTPException: If email already exists
         """
+        # A demonstrator hands an account to anyone who asks, so it asks for
+        # the terms first. The rule lives here rather than in the schema
+        # because it depends on the DEPLOYMENT, not on the payload.
+        if settings.demo_mode_enabled and not data.terms_accepted:
+            raise_invalid_input(
+                "terms_not_accepted",
+                field="terms_accepted",
+                terms_version=settings.demo_terms_version,
+            )
+
+        # ... and it RESERVES one of today's slots before doing any work. The
+        # per-address limiter bounds one caller; it cannot bound an instance,
+        # because its bucket key comes from a header the caller supplies
+        # (measured 2026-08-07: thirty accounts in 6,4 seconds, no refusal).
+        # Every account costs one verification email against the operator's
+        # smarthost quota, which the daily SPEND ceiling does not see.
+        #
+        # A reservation, not a count: counting rows here and inserting below
+        # let forty simultaneous registrations through a ceiling of five.
+        if settings.demo_mode_enabled:
+            signup = await reserve_demo_signup(self.db, limit=settings.demo_daily_signup_limit)
+            if not signup.allowed:
+                raise_rate_limit_exceeded(
+                    limit=signup.limit or 0,
+                    window_seconds=signup.retry_after_seconds,
+                    retry_after=signup.retry_after_seconds,
+                    # Structured data, never a pre-translated string: the
+                    # interface resolves `error` against the active locale.
+                    # The first version shipped an English sentence, which a
+                    # French visitor would have read in English — and which the
+                    # form discarded anyway.
+                    detail={
+                        "error": DEMO_SIGNUP_LIMIT_ERROR_CODE,
+                        "retry_after_seconds": signup.retry_after_seconds,
+                    },
+                    headers={"Retry-After": str(signup.retry_after_seconds)},
+                )
+
         # Check if user already exists
         existing_user = await self.repository.get_by_email(data.email)
         if existing_user:
@@ -74,8 +114,10 @@ class AuthService:
         # Hash password
         hashed_password = get_password_hash(data.password)
 
-        # Create user
-        user_data = {
+        # Create user. Annotated because the literal alone infers a narrower
+        # value type than the column set it describes (BaseRepository.create
+        # takes dict[str, Any]).
+        user_data: dict[str, Any] = {
             "email": data.email,
             "hashed_password": hashed_password,
             "full_name": data.full_name,
@@ -87,6 +129,12 @@ class AuthService:
             "memory_enabled": True,  # Long-term memory enabled by default
             "response_display_mode": "cards",  # Default display mode: HTML data cards
         }
+
+        if data.terms_accepted:
+            # Both columns travel together: a consent with no version cannot
+            # be defended once the terms change.
+            user_data["terms_accepted_at"] = datetime.now(UTC)
+            user_data["terms_version"] = settings.demo_terms_version
 
         user = await self.repository.create(user_data)
         await self.db.commit()
@@ -200,13 +248,31 @@ class AuthService:
 
         # Mark email as verified (but account still inactive until admin activates)
         user.is_verified = True
+
+        # On a demonstrator the verified mail IS the approval: nobody is
+        # watching at 2am, and queuing the account would make the whole
+        # journey a dead end. The mail step itself is what remains as the
+        # barrier against scripted signups.
+        if settings.demo_mode_enabled:
+            user.is_active = True
+
         await self.db.commit()
 
         # Blacklist token after successful verification (PROD only)
         if jti:
             await mark_token_used(jti, "email_verification")
 
-        logger.info("email_verified", user_id=str(user.id), email=user.email)
+        logger.info(
+            "email_verified",
+            user_id=str(user.id),
+            email=user.email,
+            auto_activated=settings.demo_mode_enabled,
+        )
+
+        if settings.demo_mode_enabled:
+            # No admin to notify, and no "pending activation" notice for an
+            # account that is already active.
+            return UserResponse.model_validate(user)
 
         # Now that email is verified, notify admins to activate the account
         await self._notify_admins_of_new_registration(

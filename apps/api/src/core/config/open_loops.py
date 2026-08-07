@@ -30,7 +30,7 @@ class OpenLoopsSettings(BaseSettings):
     """Env-overridable settings for the open-loops commitments ledger."""
 
     open_loops_enabled: bool = Field(
-        default=False,
+        default=True,
         description="Enable the open-loops commitments ledger (extraction + nudging).",
     )
     open_loops_max_open_per_user: int = Field(

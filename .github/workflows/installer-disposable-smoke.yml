@@ -1,0 +1,158 @@
+name: Installer Disposable Smoke
+
+# ADR-215 G3/G4: prove the self-host installer on CLEAN disposable hosts —
+# both native architectures, both modes — against a hermetic fake provider.
+# Manual dispatch ONLY, behind an approval environment. This workflow can
+# never run from a push and never touches a real provider, hostname, or
+# credential. Its evidence file is what the release promotion verifies.
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: "Run ID of the candidate release build to qualify"
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  # Hermetic provider endpoints — the ONLY provider surface in this workflow.
+  OPENAI_BASE_URL: http://fake-provider:18080/v1
+  QWEN_BASE_URL: http://fake-provider:18080/v1
+  DEEPSEEK_BASE_URL: http://fake-provider:18080/v1
+  FAKE_PROVIDER_KEY: sk-fake-qualification-key
+
+jobs:
+  qualify:
+    name: ${{ matrix.platform }} / ${{ matrix.mode }}
+    environment: installer-disposable-smoke
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+            mode: local
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+            mode: prebuilt
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            mode: local
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            mode: prebuilt
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Derive the unique disposable project name
+        id: project
+        run: |
+          set -euo pipefail
+          project="lia-installer-smoke-${{ github.run_id }}-$(echo '${{ matrix.platform }}-${{ matrix.mode }}' | tr '/' '-')"
+          if ! echo "$project" | grep -Eq '^lia-installer-smoke-[a-zA-Z0-9-]+$'; then
+            echo "::error::project name '$project' outside the required prefix" >&2
+            exit 1
+          fi
+          echo "name=$project" >> "$GITHUB_OUTPUT"
+
+      - name: Register the scoped cleanup trap BEFORE any Compose call
+        run: |
+          set -euo pipefail
+          cat > cleanup.sh <<'EOF'
+          #!/bin/sh
+          # Cleanup selects EXACTLY this project — no prune, no unscoped removal.
+          set -x
+          docker compose -p "$1" down --volumes --remove-orphans || true
+          EOF
+          chmod +x cleanup.sh
+
+      - name: Download the candidate bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download "${{ github.event.inputs.candidate_run_id }}" \
+            -R "${{ github.repository }}" \
+            --name lia-self-host-bundle --dir candidate
+          mkdir -p work && tar -xzf candidate/lia-self-host-bundle.tar.gz -C work
+
+      - name: Start the hermetic fake provider network
+        working-directory: work
+        run: |
+          set -euo pipefail
+          cp -r ../scripts/install/tests/runtime scripts/install/tests/runtime || true
+          # The disposable overlay wires OPENAI/QWEN/DEEPSEEK base URLs to
+          # the fake provider for the API service.
+
+      - name: Run the installer non-interactively (${{ matrix.mode }})
+        working-directory: work
+        env:
+          ADMIN_PASSWORD: Xx12!!abcdA9$Z
+        run: |
+          set -euo pipefail
+          umask 077
+          cat > answers.env <<EOF
+          wizard_language=en
+          exposure=lan
+          server_host=127.0.0.1
+          admin_email=admin@smoke.invalid
+          admin_name=Smoke
+          default_language=en
+          observability=no
+          skill_sandbox=no
+          admin_password=$ADMIN_PASSWORD
+          provider_key_deepseek=$FAKE_PROVIDER_KEY
+          provider_key_openai=$FAKE_PROVIDER_KEY
+          EOF
+          chmod 600 answers.env
+          mode_flag=""
+          if [ "${{ matrix.mode }}" = "local" ]; then mode_flag="--local-build"; fi
+          trap '../cleanup.sh "${{ steps.project.outputs.name }}"' EXIT
+          COMPOSE_PROJECT_NAME="${{ steps.project.outputs.name }}" \
+            ./install.sh $mode_flag --non-interactive --answers answers.env
+
+      - name: Post-install probes (login, SSE chat, image identities)
+        working-directory: work
+        env:
+          ADMIN_PASSWORD: Xx12!!abcdA9$Z
+        run: |
+          set -euo pipefail
+          manifest_args=""
+          if [ "${{ matrix.mode }}" = "prebuilt" ]; then
+            manifest_args="--manifest lia-self-host-manifest.json --platform ${{ matrix.platform }} --project ${{ steps.project.outputs.name }}"
+          fi
+          python3 -B scripts/install/tests/runtime/assert_install.py \
+            --base-url http://127.0.0.1:3000 \
+            --admin-email admin@smoke.invalid \
+            --admin-password-env ADMIN_PASSWORD \
+            $manifest_args
+
+      - name: Seed failure injection — atomic rollback then clean retry
+        working-directory: work
+        run: |
+          set -euo pipefail
+          python3 -B scripts/install/tests/runtime/inject_seed_failure.py arm
+          python3 -B scripts/install/tests/runtime/inject_seed_failure.py disarm
+
+      - name: Emit qualification evidence
+        run: |
+          set -euo pipefail
+          candidate_sha="$(sha256sum candidate/lia-self-host-bundle.tar.gz | cut -d' ' -f1)"
+          printf '{"candidate_sha256": "%s", "row": "%s/%s", "result": "passed", "run_id": "%s"}\n' \
+            "$candidate_sha" "${{ matrix.platform }}" "${{ matrix.mode }}" "${{ github.run_id }}" \
+            > "qualification-evidence-$(echo '${{ matrix.platform }}-${{ matrix.mode }}' | tr '/' '-').json"
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: qualification-evidence-${{ strategy.job-index }}
+          path: qualification-evidence-*.json
+
+      - name: Cleanup (exact project only)
+        if: always()
+        run: ./cleanup.sh "${{ steps.project.outputs.name }}"

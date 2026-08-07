@@ -28,6 +28,8 @@ from src.core.constants import (
     SCHEDULER_JOB_ACCOUNT_EXPORT,
     SCHEDULER_JOB_ATTACHMENT_CLEANUP,
     SCHEDULER_JOB_CURRENCY_SYNC,
+    SCHEDULER_JOB_DEMO_ACCOUNT_PURGE,
+    SCHEDULER_JOB_DEMO_DAILY_REPORT,
     SCHEDULER_JOB_HEARTBEAT_NOTIFICATION,
     SCHEDULER_JOB_INTEREST_CLEANUP,
     SCHEDULER_JOB_INTEREST_NOTIFICATION,
@@ -599,6 +601,58 @@ async def init_scheduler(scheduler: "AsyncIOScheduler") -> SchedulerLeaderElecto
             logger.info(
                 "habit_profile_job_scheduled",
                 hour_utc=settings.habits_profile_job_hour_utc,
+            )
+
+        # Daily operator report — public demonstrator only, and registered
+        # BEFORE the purge below because it must RUN before it: the database
+        # lives in tmpfs and the purge drops what the report describes. The
+        # ordering is enforced by the settings, not by this position; see
+        # tests/unit/infrastructure/scheduler/test_demo_daily_report.py.
+        if settings.demo_mode_enabled and settings.demo_daily_report_recipient:
+            from src.infrastructure.scheduler.demo_daily_report import (
+                run_demo_daily_report,
+            )
+
+            scheduler.add_job(
+                run_demo_daily_report,
+                trigger="cron",
+                hour=settings.demo_daily_report_hour,
+                minute=settings.demo_daily_report_minute,
+                id=SCHEDULER_JOB_DEMO_DAILY_REPORT,
+                name="Mail the demonstrator's daily report (before the purge)",
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=600,
+            )
+            logger.info(
+                "demo_daily_report_scheduled",
+                hour=settings.demo_daily_report_hour,
+                minute=settings.demo_daily_report_minute,
+            )
+
+        # Nightly visitor-account wipe — public demonstrator only. The job
+        # itself re-checks the flag: a schedule left behind by a config change
+        # must not be able to empty a private instance.
+        if settings.demo_mode_enabled:
+            from src.infrastructure.scheduler.demo_account_purge import (
+                purge_demo_accounts,
+            )
+
+            scheduler.add_job(
+                purge_demo_accounts,
+                trigger="cron",
+                hour=settings.demo_account_purge_hour,
+                minute=settings.demo_account_purge_minute,
+                id=SCHEDULER_JOB_DEMO_ACCOUNT_PURGE,
+                name="Wipe demonstrator visitor accounts (nightly reset)",
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=3600,
+            )
+            logger.info(
+                "demo_account_purge_scheduled",
+                hour_utc=settings.demo_account_purge_hour,
+                minute=settings.demo_account_purge_minute,
             )
 
         # Acquire leadership and start scheduler (or start background re-election).

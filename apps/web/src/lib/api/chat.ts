@@ -42,6 +42,41 @@ export class ChatStreamError extends Error {
   }
 }
 
+/**
+ * Turn a 429 into the right error: a personal quota, or an instance pause.
+ *
+ * Two different refusals share this status. A personal quota keeps the
+ * historical plain-string detail; an instance-wide pause ships a structured
+ * one (same shape as the 409 active-run contract), because "contact your
+ * administrator" is wrong when the whole deployment is paused until the next
+ * UTC day and nothing anyone does today changes it.
+ *
+ * An unreadable body (proxy page, empty response) falls back to the personal
+ * mapping rather than losing the 429.
+ */
+async function usageLimitError(response: Response): Promise<ChatStreamError> {
+  let isInstancePause = false;
+  try {
+    const body = (await response.json()) as { detail?: { error_code?: string } | string };
+    isInstancePause =
+      typeof body?.detail === 'object' && body.detail?.error_code === 'instance_budget_exhausted';
+  } catch {
+    isInstancePause = false;
+  }
+  return isInstancePause
+    ? new ChatStreamError(
+        'InstanceBudgetExhaustedError',
+        'errors.chat.instance_budget_exhausted',
+        'The demo reached its daily budget. Please come back tomorrow.'
+      )
+    : new ChatStreamError(
+        'UsageLimitExceededError',
+        'errors.chat.usage_limit_exceeded',
+        'You have reached your usage limit. Contact your administrator.'
+      );
+}
+
+
 /** Active background run of the user's conversation (ADR-117 Lot 2). */
 export interface ActiveRunStatus {
   active: boolean;
@@ -203,12 +238,7 @@ export class ChatSSEClient {
             'Your account is disabled. Check your emails for more information or contact an administrator.'
           );
         } else if (response.status === 429) {
-          // Usage limit exceeded
-          throw new ChatStreamError(
-            'UsageLimitExceededError',
-            'errors.chat.usage_limit_exceeded',
-            'You have reached your usage limit. Contact your administrator.'
-          );
+          throw await usageLimitError(response);
         } else if (response.status === 409) {
           // A background run is already in flight for this conversation
           // (ADR-117 Lot 2) — surface its stream id so the caller reattaches.

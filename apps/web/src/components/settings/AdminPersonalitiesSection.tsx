@@ -27,6 +27,7 @@ import { PersonalityResponse, PersonalityCreate, PersonalityUpdate } from '@/typ
 import { Plus, Pencil, Trash2, Languages, GripVertical, Star, Sparkles } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { logger } from '@/lib/logger';
+import { usePersonalityStore } from '@/stores/personalityStore';
 import { useTranslation } from '@/i18n/client';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { fallbackLng, languages } from '@/i18n/settings';
@@ -86,6 +87,20 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  /**
+   * Re-read this panel's list AND the catalogue users pick from.
+   *
+   * The header selector and the settings panel read a shared store that caches
+   * for the session, so a style created or removed here would exist nowhere a
+   * user can choose it until a full page reload. Deliberately not folded into
+   * `fetchData`, which also runs on mount: that would double the requests of
+   * every settings page load for a change that has not happened.
+   */
+  const reloadAfterChange = useCallback(async () => {
+    await fetchData();
+    await usePersonalityStore.getState().refetch();
   }, [fetchData]);
 
   const openCreateDialog = () => {
@@ -171,7 +186,7 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
           toast.success(t('settings.admin.personalities.success.created'));
         }
         setDialogOpen(false);
-        fetchData();
+        void reloadAfterChange();
       } catch (error) {
         logger.error('personality_save_failed', error instanceof Error ? error : undefined, {
           component: 'AdminPersonalitiesSection',
@@ -201,7 +216,7 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
       try {
         await deletePersonality(personality.id);
         toast.success(t('settings.admin.personalities.success.deleted'));
-        fetchData();
+        void reloadAfterChange();
       } catch (error) {
         logger.error('personality_delete_failed', error instanceof Error ? error : undefined, {
           component: 'AdminPersonalitiesSection',
@@ -224,7 +239,7 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
             ? t('settings.admin.personalities.success.deactivated')
             : t('settings.admin.personalities.success.activated')
         );
-        fetchData();
+        void reloadAfterChange();
       } catch (error) {
         logger.error('personality_toggle_failed', error instanceof Error ? error : undefined, {
           component: 'AdminPersonalitiesSection',
@@ -241,7 +256,7 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
       try {
         await translatePersonality(personality.id);
         toast.success(t('settings.admin.personalities.success.translated'));
-        fetchData();
+        void reloadAfterChange();
       } catch (error) {
         logger.error('personality_translate_failed', error instanceof Error ? error : undefined, {
           component: 'AdminPersonalitiesSection',
@@ -264,7 +279,7 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
       try {
         await updatePersonality(personality.id, { is_default: true });
         toast.success(t('settings.admin.personalities.success.set_default'));
-        fetchData();
+        void reloadAfterChange();
       } catch (error) {
         logger.error('personality_set_default_failed', error instanceof Error ? error : undefined, {
           component: 'AdminPersonalitiesSection',

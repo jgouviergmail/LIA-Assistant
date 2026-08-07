@@ -1,0 +1,102 @@
+# Public demonstrator edge — the API is an ALLOWLIST, everything else is the
+# web application, and no other API route exists as far as the Internet is
+# concerned.
+#
+# Why the asymmetry: the risk lives on the API. A page render cannot link a
+# Google account or flip an admin switch; an endpoint can. So `/api/*` is
+# closed by default and opened path by path, while the localized front
+# (`/fr/...`, `/en/...`, `/_next/...`, assets) is served as a whole — its
+# surface is the pages themselves, which are public by nature.
+#
+# The application still refuses on its own (connector linking is closed in
+# demo mode, switched-off capabilities answer 403, admin routes sit behind a
+# superuser dependency). This file makes those routes unreachable in the
+# first place, so a route added tomorrow lands closed rather than open.
+#
+# The allowlist is pinned by `tests/unit/test_demo_instance_edge_allowlist.py`,
+# which reads this file: widening the surface of a public instance is a
+# decision that shows up in review, not an edit.
+#
+# Access logging stays off: visitor paths are personal data, and a throwaway
+# instance has no business keeping them.
+{
+	admin off
+	# No automatic HTTPS: this edge never faces the Internet directly.
+	auto_https off
+}
+
+# Plain HTTP, on purpose. The public TLS termination is Cloudflare's job: the
+# tunnel opens an OUTBOUND encrypted connection and reaches this edge over the
+# private `demo-instance-ingress` network, which no host port publishes.
+#
+# The previous `:443 { tls internal }` looked safer and served nothing at all:
+# with no site name, Caddy has no subject to issue a certificate for and
+# answers `tls alert internal error` to every client, whatever the SNI
+# (measured 2026-08-06 — the instance would have been unreachable). A
+# self-signed certificate between two containers of the same private network
+# buys nothing anyway; what it costs is a handshake nobody can complete.
+:80 {
+
+	# --------------------------------------------------------------------
+	# The ONLY API surface a visitor may reach.
+	#
+	# The demonstrator shows the REAL product, so the allowlist covers the
+	# product: getting in, the conversation, and every feature a visitor's own
+	# account can reach — personalities, psyche, journals, memories,
+	# interests, habits, relations, briefing, reminders, skills, spaces,
+	# attachments, voice, settings.
+	#
+	# A narrower list is not "safer", it is broken: with only seven prefixes
+	# the personality picker, the timezone list, psyche, journals and skills
+	# all answered 404 and the screens came up empty (measured 2026-08-07).
+	# What protects this instance is the switches inside it and the four
+	# refusals below — not a surface so small the product cannot run.
+	#
+	# Deliberately ABSENT: /api/v1/connectors/* (nobody links a real Google
+	# account to an instance wiped every night), /api/v1/admin/*,
+	# /api/v1/usage-limits/admin/*, /metrics, and federated sign-in — each
+	# refused above or simply never listed here.
+	#
+	# `tests/unit/test_demo_instance_exposed_routes.py` freezes the resulting
+	# route list: widening this line shows every route it opens, in review.
+	# --------------------------------------------------------------------
+	# Federated sign-in is closed BEFORE the allowlist opens /auth/*: creating
+	# an account from a real Google identity would skip the terms — which are
+	# enforced on the registration path only, and are what tell a visitor the
+	# instance is wiped nightly — and would spend the operator's OAuth client
+	# on strangers. The application refuses it too (core/demo_mode.py); this
+	# block means the request never gets there. Order is load-bearing: after
+	# the allowlist it would never match.
+	# A regexp, not a `*` wildcard: the shape "exactly one provider segment
+	# between auth and the verb" is what separates /auth/google/login from
+	# /auth/login, the password form this instance depends on. A protection
+	# must not rest on a wildcard whose reading is arguable.
+	@federated_signin path_regexp ^/api/v1/auth/[^/]+/(login|callback)/?$
+	handle @federated_signin {
+		respond 404
+	}
+
+	@allowed path /api/v1/auth/* /api/v1/agents/* /api/v1/conversations* /api/v1/users/* /api/v1/usage-limits/me* /api/v1/usage/* /api/v1/capabilities /api/v1/config /api/v1/system-settings/* /api/v1/personalities* /api/v1/psyche/* /api/v1/journals* /api/v1/memories* /api/v1/interests* /api/v1/habits/* /api/v1/relations/* /api/v1/open-loops* /api/v1/briefing/* /api/v1/heartbeat/* /api/v1/notifications* /api/v1/reminders* /api/v1/scheduled-actions* /api/v1/skills* /api/v1/rag-spaces* /api/v1/attachments* /api/v1/mcp/* /api/v1/voice/* /api/v1/health-metrics/* /api/v1/image-generation /api/v1/chat/* /api/v1/account/* /api/v1/product/* /health /ready
+	handle @allowed {
+		reverse_proxy demo-instance-api:8000
+	}
+
+	# Any other API path does not exist from the Internet. This block MUST
+	# stay between the allowlist and the web fallback: without it the front
+	# would receive — and 404 — API calls, which is a different, confusing
+	# failure, and any future /api route would silently land in the web app.
+	#
+	# `/metrics` is named explicitly because it does NOT live under /api: it
+	# would otherwise reach the web fallback and answer 404 by accident rather
+	# than by decision — and stop doing so the day the front serves a catch-all
+	# (measured 2026-08-06: it was already being forwarded).
+	@other_api path /api/* /metrics
+	handle @other_api {
+		respond 404
+	}
+
+	# The localized web application: pages, assets, static files.
+	handle {
+		reverse_proxy demo-instance-web:3000
+	}
+}

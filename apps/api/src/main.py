@@ -21,7 +21,10 @@ from src.core.constants import API_VERSION
 from src.core.field_names import FIELD_STATUS
 from src.core.middleware import setup_middleware
 from src.infrastructure.observability.logging import configure_logging
-from src.infrastructure.observability.metrics import PrometheusMiddleware, metrics_endpoint
+from src.infrastructure.observability.metrics import (
+    PrometheusMiddleware,
+    metrics_endpoint,
+)
 from src.infrastructure.observability.tracing import configure_tracing
 from src.infrastructure.startup import (
     agents,

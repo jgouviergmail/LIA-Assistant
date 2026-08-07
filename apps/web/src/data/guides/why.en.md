@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 4.4
-**Date**: 2026-08-05
-**Application**: LIA v1.28.0
+**Version**: 4.5
+**Date**: 2026-08-08
+**Application**: LIA v1.29.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -41,6 +41,8 @@ LIA takes a different path. Not a head-on competitor to the giants — a **perso
 Self-hosting has a bad reputation. LIA doesn't pretend to eliminate every technical step: the initial setup — configuring API keys, setting up OAuth connectors, choosing your infrastructure — takes some time and basic skills. But every step is **documented in detail** in a step-by-step deployment guide.
 
 Once this installation phase is complete, **day-to-day management is handled entirely through an intuitive web interface**. No more terminal, no more configuration files.
+
+Since v1.29.0 that first phase is itself guided: `./install.sh` at the repository root asks a short questionnaire in your language — how you want to reach the instance, which provider keys you hold — then builds the images from the source you cloned, applies the reference data in a single transaction, creates your administrator account without ever putting a secret on the command line, and finally verifies that the installation genuinely works rather than merely answering. If a step fails, resuming picks up exactly where it stopped.
 
 ### 2.2. What each user can configure
 
@@ -81,6 +83,8 @@ The administrator accesses a third tab dedicated to instance management:
 - **Usage limits**: set per-user quotas (LLM tokens, API calls, image generations) with real-time monitoring and automatic blocking
 - **Broadcast messages**: send important messages to all users or a selection, with optional expiration date
 - **Global consumption export**: export all-users consumption in CSV
+- **Instance daily budget**: cap what the WHOLE instance may spend in a day, in euros — not just what each account consumes. The panel shows today's spend, the run count, the ceiling that actually applies and what remains; the operator value may only tighten the deployment bound, never widen it. When the budget is exhausted, users are told the deployment is paused and given the exact time it resets, not a false message about their personal quota
+- **Platform capabilities**: turn ten capabilities on or off instantly, with no redeploy — dictation, speech synthesis, images, uploads, document spaces, web search, browsing, skills, MCP, telephony. A disabled capability also disappears from the catalogue offered to the planner, so LIA stops proposing what the routes would refuse; each row shows what the deployment allows, what you chose, and what is actually enforced
 
 **AI and connectors:**
 
@@ -221,6 +225,7 @@ The administrator maintains control over consumption:
 - **Usage limits** configurable per user: message count, tokens, maximum cost — per day, week, month, or as a global cumulative cap
 - **Visual quotas**: each user sees their consumption in real time with clear gauges
 - **Connector activation/deactivation**: the administrator enables or disables integrations (Google, Microsoft, Hue...) at the instance level
+- **An instance-wide ceiling**, on top of the per-user ones: N accounts × their quota is unbounded spend, so a daily euro ceiling bounds the deployment itself. It is first come, first served — and where a per-user limit fails open, an unknown instance spend fails closed
 
 ### 4.3. Your family AI
 

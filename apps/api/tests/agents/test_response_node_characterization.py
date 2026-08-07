@@ -16,7 +16,9 @@ embedding model, background fire-and-forget scheduling) are patched to run the
 node end-to-end deterministically, mirroring ``test_response_node.py``.
 """
 
+from collections.abc import Coroutine
 from contextlib import ExitStack
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -38,6 +40,17 @@ from src.domains.agents.nodes.response_node import (
 from src.domains.agents.prompts import get_error_fallback_message
 
 _RESP = "src.domains.agents.nodes.response_node"
+
+
+def _close_scheduled_coroutine(coro: Coroutine[Any, Any, Any], **_kwargs: Any) -> None:
+    """Stand in for ``safe_fire_and_forget`` without leaking its coroutine.
+
+    Args:
+        coro: The coroutine the production code scheduled.
+        **_kwargs: ``name`` / ``run_id``, irrelevant to a double.
+    """
+    coro.close()
+
 
 # Exact key set written by the nominal LLM-synthesis return path (no ReAct
 # passthrough, no skill registry). Extraction MUST preserve this set verbatim.
@@ -82,8 +95,19 @@ def _patch_collaborators(
     mock_get_prompt.return_value = "system"
     mock_get_llm.return_value = Mock()
 
+    # A fire-and-forget double OWNS the coroutine it is handed. A bare Mock
+    # drops it, and "coroutine 'extract_open_loops_background' was never
+    # awaited" then fires at the next collection — which the autouse finalizer
+    # in conftest deliberately forces at teardown, so the warning lands on a
+    # PASSING test and rots there. Closing is the honest no-op: nothing runs,
+    # nothing leaks. `test_response_node.py` solves the same problem by making
+    # each extractor a sync Mock; closing at the boundary also covers whatever
+    # extractor is scheduled next.
     stack.enter_context(
-        patch("src.domains.agents.nodes.post_response_extractions.safe_fire_and_forget")
+        patch(
+            "src.domains.agents.nodes.post_response_extractions.safe_fire_and_forget",
+            side_effect=_close_scheduled_coroutine,
+        )
     )
     stack.enter_context(
         patch(

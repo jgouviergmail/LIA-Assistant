@@ -134,6 +134,23 @@ def run_failfast_validations() -> None:
         logger.error("registry_trust_classification_incomplete", error=str(exc), exc_info=True)
         raise RuntimeError(f"Registry trust classification incomplete: {exc}") from exc
 
+    # Validate the system-settings registry (ADR-085 pattern: fail-fast if a
+    # SystemSettingKey has been added without declaring its codec, default and
+    # cache — reading it would silently return a hardcoded fallback nobody
+    # can administer).
+    try:
+        # Importing the capability registry declares its settings specs (one
+        # per switchable capability). It must happen BEFORE the assert below,
+        # which is exactly what makes a missing declaration a boot failure
+        # instead of a silent fallback.
+        import src.domains.feature_switches.registry  # noqa: F401
+        from src.domains.system_settings.registry import assert_registry_completeness
+
+        assert_registry_completeness()
+    except RuntimeError as exc:
+        logger.error("system_settings_registry_incomplete", error=str(exc), exc_info=True)
+        raise
+
     # Enforce the PostgreSQL connection budget (F004): fail-fast in production,
     # warn in development. The shipped prod profile fits (168 ≤ 195 usable), so an
     # overcommit in production is a genuinely mis-sized deployment — booting it

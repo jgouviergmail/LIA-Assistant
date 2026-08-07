@@ -34,7 +34,8 @@ OUTCOME_STATES: frozenset[str] = frozenset({"produced", "validated", "rejected"}
 #: v1 channels derivable server-side without new capture. ``voice`` / ``pwa`` /
 #: ``channel`` (Telegram) join when their entry points carry attribution
 #: (program spec, correction #4 dropped the nonexistent ``direct``).
-CHANNELS: frozenset[str] = frozenset({"web", "scheduler", "unknown"})
+#: ``web_showroom`` marks credential-less public-showroom rows (P0 program).
+CHANNELS: frozenset[str] = frozenset({"web", "scheduler", "unknown", "web_showroom"})
 
 DEVICE_CLASSES: frozenset[str] = frozenset({"mobile", "desktop", "unknown"})
 
@@ -69,6 +70,36 @@ class ProductEventType(StrEnum):
     DEMO_COMPLETED = "demo_completed"
     PWA_INSTALL_PROMPT = "pwa_install_prompt"
     PWA_INSTALLED = "pwa_installed"
+    # Public showroom funnel (P0 program) — credential-less collector ONLY.
+    # DEMO_COMPLETED moved to this vocabulary: it was declared on the ordinary
+    # route but never emitted there (audited 2026-08-06), so the move breaks no
+    # producer while keeping the two vocabularies strictly disjoint.
+    DEMO_VIEWED = "demo_viewed"
+    DEMO_MISSION_STARTED = "demo_mission_started"
+    DEMO_FIRST_HITL_DECIDED = "demo_first_hitl_decided"
+    DEMO_HITL_CONFIRM = "demo_hitl_confirm"
+    DEMO_HITL_EDIT = "demo_hitl_edit"
+    DEMO_HITL_CANCEL = "demo_hitl_cancel"
+    DEMO_FIRST_PROOF_OPENED = "demo_first_proof_opened"
+    DEMO_SOURCE_CLICKED = "demo_source_clicked"
+    DEMO_RELEASE_CLICKED = "demo_release_clicked"
+    DEMO_INSTALL_GUIDE_CLICKED = "demo_install_guide_clicked"
+    # Per-mission breakdown (multi-mission showroom): which mission engages
+    # and which converts. Aggregate DEMO_MISSION_STARTED / DEMO_COMPLETED
+    # keep firing unchanged; these add the bounded mission dimension without
+    # a free-text property (the collector stays enum-only by construction).
+    DEMO_MISSION_STARTED_OVERLOADED_MORNING = "demo_mission_started_overloaded_morning"
+    DEMO_MISSION_STARTED_PROACTIVE_ALERT = "demo_mission_started_proactive_alert"
+    DEMO_MISSION_STARTED_MEMORY_DINNER = "demo_mission_started_memory_dinner"
+    DEMO_MISSION_STARTED_PHONE_BOOKING = "demo_mission_started_phone_booking"
+    DEMO_MISSION_STARTED_DAILY_BRIEFING = "demo_mission_started_daily_briefing"
+    DEMO_MISSION_STARTED_CONFIG_TOUR = "demo_mission_started_config_tour"
+    DEMO_COMPLETED_OVERLOADED_MORNING = "demo_completed_overloaded_morning"
+    DEMO_COMPLETED_PROACTIVE_ALERT = "demo_completed_proactive_alert"
+    DEMO_COMPLETED_MEMORY_DINNER = "demo_completed_memory_dinner"
+    DEMO_COMPLETED_PHONE_BOOKING = "demo_completed_phone_booking"
+    DEMO_COMPLETED_DAILY_BRIEFING = "demo_completed_daily_briefing"
+    DEMO_COMPLETED_CONFIG_TOUR = "demo_completed_config_tour"
 
 
 #: Human descriptions per event type — completeness asserted at import
@@ -80,19 +111,67 @@ PRODUCT_EVENT_DESCRIPTIONS: dict[ProductEventType, str] = {
     ProductEventType.LANDING_VIEW: "Public landing page viewed (anonymous allowed).",
     ProductEventType.SIGNUP_STARTED: "Signup form interaction started (anonymous allowed).",
     ProductEventType.DEMO_STARTED: "Public demo started (anonymous allowed).",
-    ProductEventType.DEMO_COMPLETED: "Public demo watched to the end (anonymous allowed).",
+    ProductEventType.DEMO_COMPLETED: "Guided mission first reached its receipt (showroom).",
     ProductEventType.PWA_INSTALL_PROMPT: "PWA install prompt shown (arbitration c).",
     ProductEventType.PWA_INSTALLED: "PWA installed (arbitration c).",
+    ProductEventType.DEMO_VIEWED: "Showroom demo page mounted (non-attributed attempt).",
+    ProductEventType.DEMO_MISSION_STARTED: "Guided mission explicitly started (per run).",
+    ProductEventType.DEMO_FIRST_HITL_DECIDED: "First accepted HITL decision of a run.",
+    ProductEventType.DEMO_HITL_CONFIRM: "A showroom decision was confirmed (action mix).",
+    ProductEventType.DEMO_HITL_EDIT: "The showroom email decision was edited (action mix).",
+    ProductEventType.DEMO_HITL_CANCEL: "A showroom decision was refused (action mix).",
+    ProductEventType.DEMO_FIRST_PROOF_OPENED: "Proof drawer first opened after completion.",
+    ProductEventType.DEMO_SOURCE_CLICKED: "Source CTA outbound attempt after completion.",
+    ProductEventType.DEMO_RELEASE_CLICKED: "Release CTA outbound attempt after completion.",
+    ProductEventType.DEMO_INSTALL_GUIDE_CLICKED: "Install-guide CTA outbound attempt.",
+    ProductEventType.DEMO_MISSION_STARTED_OVERLOADED_MORNING: (
+        "Overloaded-morning mission started (per-mission breakdown)."
+    ),
+    ProductEventType.DEMO_MISSION_STARTED_PROACTIVE_ALERT: (
+        "Proactive-alert mission started (per-mission breakdown)."
+    ),
+    ProductEventType.DEMO_MISSION_STARTED_MEMORY_DINNER: (
+        "Memory-dinner mission started (per-mission breakdown)."
+    ),
+    ProductEventType.DEMO_MISSION_STARTED_PHONE_BOOKING: (
+        "Phone-booking mission started (per-mission breakdown)."
+    ),
+    ProductEventType.DEMO_MISSION_STARTED_DAILY_BRIEFING: (
+        "Daily-briefing mission started (per-mission breakdown)."
+    ),
+    ProductEventType.DEMO_MISSION_STARTED_CONFIG_TOUR: (
+        "Config-tour mission started (per-mission breakdown)."
+    ),
+    ProductEventType.DEMO_COMPLETED_OVERLOADED_MORNING: (
+        "Overloaded-morning mission reached its receipt (per-mission breakdown)."
+    ),
+    ProductEventType.DEMO_COMPLETED_PROACTIVE_ALERT: (
+        "Proactive-alert mission reached its receipt (per-mission breakdown)."
+    ),
+    ProductEventType.DEMO_COMPLETED_MEMORY_DINNER: (
+        "Memory-dinner mission reached its receipt (per-mission breakdown)."
+    ),
+    ProductEventType.DEMO_COMPLETED_PHONE_BOOKING: (
+        "Phone-booking mission reached its receipt (per-mission breakdown)."
+    ),
+    ProductEventType.DEMO_COMPLETED_DAILY_BRIEFING: (
+        "Daily-briefing mission reached its receipt (per-mission breakdown)."
+    ),
+    ProductEventType.DEMO_COMPLETED_CONFIG_TOUR: (
+        "Config-tour mission reached its receipt (per-mission breakdown)."
+    ),
 }
 
 #: Client-ingestable event types (the ONLY values POST /product/events accepts
 #: as funnel events — outcome lifecycle events are server-emitted only).
+#: DEMO_COMPLETED left this registry for SHOWROOM_EVENT_TYPES (P0 program):
+#: it was declared here but never emitted, and the two vocabularies must stay
+#: disjoint so the showroom funnel cannot be polluted through this route.
 CLIENT_EVENT_TYPES: frozenset[ProductEventType] = frozenset(
     {
         ProductEventType.LANDING_VIEW,
         ProductEventType.SIGNUP_STARTED,
         ProductEventType.DEMO_STARTED,
-        ProductEventType.DEMO_COMPLETED,
         ProductEventType.PWA_INSTALL_PROMPT,
         ProductEventType.PWA_INSTALLED,
     }
@@ -104,8 +183,40 @@ ANONYMOUS_EVENT_TYPES: frozenset[ProductEventType] = frozenset(
         ProductEventType.LANDING_VIEW,
         ProductEventType.SIGNUP_STARTED,
         ProductEventType.DEMO_STARTED,
-        ProductEventType.DEMO_COMPLETED,
     }
+)
+
+#: Showroom funnel accepted ONLY by the credential-less collector
+#: (POST /product/showroom-events). Guarded disjoint from the two ordinary
+#: registries by test_showroom_telemetry.py.
+#: Bounded mission identifiers of the multi-mission guided showroom. The
+#: frontend registry mirrors this tuple (guarded on both sides); a mission id
+#: exists here IFF its two per-mission events exist in the vocabulary below.
+SHOWROOM_MISSION_IDS: tuple[str, ...] = (
+    "overloaded_morning",
+    "proactive_alert",
+    "memory_dinner",
+    "phone_booking",
+    "daily_briefing",
+    "config_tour",
+)
+
+SHOWROOM_EVENT_TYPES: frozenset[ProductEventType] = frozenset(
+    {
+        ProductEventType.DEMO_VIEWED,
+        ProductEventType.DEMO_MISSION_STARTED,
+        ProductEventType.DEMO_FIRST_HITL_DECIDED,
+        ProductEventType.DEMO_HITL_CONFIRM,
+        ProductEventType.DEMO_HITL_EDIT,
+        ProductEventType.DEMO_HITL_CANCEL,
+        ProductEventType.DEMO_COMPLETED,
+        ProductEventType.DEMO_FIRST_PROOF_OPENED,
+        ProductEventType.DEMO_SOURCE_CLICKED,
+        ProductEventType.DEMO_RELEASE_CLICKED,
+        ProductEventType.DEMO_INSTALL_GUIDE_CLICKED,
+    }
+    | {ProductEventType(f"demo_mission_started_{m}") for m in SHOWROOM_MISSION_IDS}
+    | {ProductEventType(f"demo_completed_{m}") for m in SHOWROOM_MISSION_IDS}
 )
 
 #: Bounded Web Vitals vocabulary (Phase 4). Seconds-valued vs ratio-valued

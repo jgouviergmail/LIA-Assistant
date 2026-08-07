@@ -12,6 +12,7 @@ Created: 2026-03-21
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Annotated, Any
 
 from pydantic import BeforeValidator, Field
@@ -51,6 +52,9 @@ def _empty_str_to_none(v: Any) -> Any:
 # Type aliases with BeforeValidator for empty-string-to-None conversion
 OptionalInt = Annotated[int | None, BeforeValidator(_empty_str_to_none)]
 OptionalFloat = Annotated[float | None, BeforeValidator(_empty_str_to_none)]
+#: Money is Decimal, never float: the ceiling is compared to a Numeric(12,6)
+#: column and a binary-float drift would make the bound approximate.
+OptionalDecimal = Annotated[Decimal | None, BeforeValidator(_empty_str_to_none)]
 
 
 class UsageLimitsSettings(BaseSettings):
@@ -65,6 +69,24 @@ class UsageLimitsSettings(BaseSettings):
         description=(
             "Global feature flag for usage limits enforcement. "
             "When false, no usage limit checks are performed and the router is not registered."
+        ),
+    )
+
+    # ========================================================================
+    # Instance-wide daily spend ceiling (live-demonstrator programme)
+    # ========================================================================
+
+    instance_daily_budget_eur: OptionalDecimal = Field(
+        default=None,
+        gt=0,
+        description=(
+            "DEPLOYMENT ceiling on what this instance may spend per UTC day, "
+            "in euros, every cost family included (LLM, Google API, images). "
+            "None = no deployment ceiling. An administrator may LOWER it from "
+            "the admin settings but never raise it: the effective ceiling is "
+            "the smallest configured value. Required for any public "
+            "demonstrator, where each visitor holds their own account and "
+            "per-user limits cannot bound the total."
         ),
     )
 

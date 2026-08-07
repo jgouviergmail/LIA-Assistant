@@ -13,7 +13,7 @@ from __future__ import annotations
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.dependencies import get_db
@@ -22,9 +22,12 @@ from src.core.session_dependencies import (
     get_current_active_session,
     get_current_superuser_session,
 )
+from src.domains.usage_limits.instance_budget_admin import InstanceBudgetAdminService
 from src.domains.usage_limits.schemas import (
     AdminUserUsageLimitListResponse,
     AdminUserUsageLimitResponse,
+    InstanceDailyBudgetResponse,
+    InstanceDailyBudgetUpdate,
     UsageBlockUpdate,
     UsageLimitUpdate,
     UserUsageLimitResponse,
@@ -202,4 +205,68 @@ async def toggle_user_block(
         user_id=user_id,
         data=data,
         admin_id=current_user.id,
+    )
+
+
+# =============================================================================
+# INSTANCE DAILY SPEND CEILING
+# =============================================================================
+
+
+@router.get(
+    "/admin/instance-daily-budget",
+    response_model=InstanceDailyBudgetResponse,
+    summary="Get the instance-wide daily spend ceiling",
+    description=(
+        "Get the daily spend ceiling in euros, both as configured by the "
+        "operator and as bounded by the deployment. Admin only."
+    ),
+)
+async def get_instance_daily_budget(
+    current_user: User = Depends(get_current_superuser_session),
+    db: AsyncSession = Depends(get_db),
+) -> InstanceDailyBudgetResponse:
+    """
+    Get the current daily spend ceiling.
+
+    Returns the operator value, the deployment bound, and the effective
+    ceiling actually enforced (the smallest of the two).
+    """
+    service = InstanceBudgetAdminService(db)
+    return await service.get()
+
+
+@router.put(
+    "/admin/instance-daily-budget",
+    response_model=InstanceDailyBudgetResponse,
+    summary="Update the instance-wide daily spend ceiling",
+    description=(
+        "Set or clear the operator daily spend ceiling. The operator may only "
+        "lower the deployment bound, never raise it. Admin only."
+    ),
+)
+async def update_instance_daily_budget(
+    update: InstanceDailyBudgetUpdate,
+    request: Request,
+    current_user: User = Depends(get_current_superuser_session),
+    db: AsyncSession = Depends(get_db),
+) -> InstanceDailyBudgetResponse:
+    """
+    Update the operator daily spend ceiling.
+
+    Once today's spend reaches the effective ceiling, the instance stops
+    serving LLM work until the next UTC day. An audit log is created.
+    """
+    logger.info(
+        "instance_daily_budget_update_requested",
+        admin_user_id=str(current_user.id),
+        new_value=str(update.ceiling_eur) if update.ceiling_eur is not None else None,
+        change_reason=update.change_reason,
+    )
+
+    service = InstanceBudgetAdminService(db)
+    return await service.set(
+        update=update,
+        admin_user_id=current_user.id,
+        request=request,
     )

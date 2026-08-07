@@ -411,7 +411,9 @@
       "registration_failed": "Fallo en el registro",
       "login_failed": "Fallo en el inicio de sesión",
       "oauth_failed": "Falló la autenticación con Google",
-      "registration_error": "Ocurrió un error durante el registro"
+      "registration_error": "Ocurrió un error durante el registro",
+      "terms_not_accepted": "Debes aceptar las condiciones de uso para crear una cuenta.",
+      "demo_signup_limit_reached": "Este demostrador ya ha recibido a todos sus visitantes de hoy. El contador se reinicia a medianoche UTC: vuelve mañana."
     },
     "password": {
       "errors": {
@@ -444,7 +446,9 @@
       "error_missing_token": "Falta el token de verificación.",
       "error_invalid_token": "El enlace de verificación es inválido o ha expirado.",
       "back_to_login": "Volver al inicio de sesión",
-      "create_account": "Crear una nueva cuenta"
+      "create_account": "Crear una nueva cuenta",
+      "success_message_active": "Tu dirección de correo está verificada y tu cuenta está lista.",
+      "success_hint_active": "Puedes iniciar sesión ahora mismo."
     },
     "forgot_password": {
       "title": "¿Olvidaste tu contraseña?",
@@ -580,6 +584,10 @@
       "oauth_google_button": "Confirmar con Google",
       "oauth_hint": "Serás redirigido a Google para confirmar tu identidad y volverás a LIA — después, vuelve a iniciar la acción.",
       "no_methods": "No hay ningún método de confirmación disponible para esta cuenta. Cierra sesión, vuelve a iniciarla e inténtalo de nuevo."
+    },
+    "terms": {
+      "accept_prefix": "Acepto las",
+      "link_label": "condiciones de uso"
     }
   },
   "chat": {
@@ -2093,6 +2101,30 @@
       "google_api_pricing": {
         "title": "Precios API Google",
         "description": "Gestionar precios de API Google (Places, Geocoding, Routes)"
+      },
+      "capabilities": {
+        "title": "Capacidades de la plataforma",
+        "description": "Activar o desactivar funciones para toda la instancia, sin despliegue.",
+        "intro": "Un interruptor se aplica de inmediato: al asistente dejan de ofrecérsele las herramientas y las rutas rechazan. Una capacidad prohibida por el despliegue sigue no disponible diga lo que diga el interruptor.",
+        "unavailableBadge": "No disponible",
+        "deploymentBlocked": "Desactivada por la configuración de despliegue: el interruptor no tiene efecto.",
+        "enforcedCatalogue": "Se aplica retirando sus herramientas al asistente.",
+        "enforcedRoutes": "Se aplica rechazando sus peticiones.",
+        "enforcedBoth": "Se aplica tanto en las herramientas del asistente como en sus rutas.",
+        "enabledSuccess": "Capacidad activada.",
+        "disabledSuccess": "Capacidad desactivada.",
+        "error": "No se pudo actualizar la capacidad."
+      },
+      "publicDemoLink": {
+        "title": "Enlace de la demostración pública",
+        "description": "Si se muestra a los visitantes un enlace a la demostración en vivo.",
+        "intro": "La demostración funciona en su propia instancia, con su presupuesto y un borrado nocturno. Este interruptor solo decide si los visitantes ven la entrada: surte efecto de inmediato.",
+        "switchLabel": "Mostrar el enlace de la demostración",
+        "switchHint": "Los visitantes ven la invitación en la página del showroom, primero las limitaciones.",
+        "notDeployed": "Esta instalación no declara ninguna URL de demostración: no hay nada que mostrar.",
+        "enabledSuccess": "El enlace de la demostración es visible",
+        "disabledSuccess": "El enlace de la demostración está oculto",
+        "error": "No se pudo cambiar el interruptor"
       }
     },
     "timezone": {
@@ -3475,6 +3507,7 @@
       "session_expired": "Su sesión ha expirado. Por favor, vuelva a conectarse.",
       "unknown_error": "Error desconocido durante el streaming",
       "usage_limit_exceeded": "Has alcanzado tu limite de uso. Contacta a tu administrador.",
+      "instance_budget_exhausted": "La demo alcanzó su presupuesto diario. Se reinicia a medianoche UTC: vuelve mañana.",
       "run_in_progress": "Ya se está generando una respuesta — reconectando al flujo.",
       "run_gone": "Esta respuesta terminó en segundo plano. El historial se ha actualizado.",
       "stream_stalled": "La conexión se ha interrumpido. Tu respuesta se sigue generando en segundo plano: recarga la página para recuperarla."
@@ -3846,7 +3879,7 @@
         },
         "costTransparency": {
           "title": "💰 Transparencia de Costos",
-          "description": "Visualización opcional en tiempo real: tokens de entrada/salida/caché, costo EUR por mensaje y total de conversación. Estadísticas en el panel: mensajes, tokens y costos del ciclo actual. Control del usuario mediante el icono 💲 en la barra de título. Cuando hay una cuota, ya no aparece como un muro: surge un aviso al 80 % del límite que se alcanzará primero — entre tokens, mensajes y coste, por ciclo o absoluto — nombrándolo y, si es un límite de periodo, indicando la fecha de reinicio. Un límite absoluto no promete ningún reinicio."
+          "description": "Visualización opcional en tiempo real: tokens de entrada/salida/caché, costo EUR por mensaje y total de conversación. Estadísticas en el panel: mensajes, tokens y costos del ciclo actual. Control del usuario mediante el icono 💲 en la barra de título. Cuando hay una cuota, ya no aparece como un muro: surge un aviso al 80 % del límite que se alcanzará primero — entre tokens, mensajes y coste, por ciclo o absoluto — nombrándolo y, si es un límite de periodo, indicando la fecha de reinicio. Un límite absoluto no promete ningún reinicio. Un tope puede afectar también a toda la instancia en lugar de a tu cuenta: en ese caso LIA no habla de tu cuota personal, sino que dice que el despliegue ha alcanzado su presupuesto del día e indica la hora exacta a la que se reinicia."
         },
         "scheduledActions": {
           "title": "📅 Acciones Programadas",
@@ -3967,6 +4000,14 @@
         "capabilityMap": {
           "title": "🌌 Mapa de capacidades",
           "description": "Una carta celeste de lo que el asistente sabe hacer realmente por <b>esta cuenta</b>. Cada capacidad es una estrella: <b>llena</b> cuando es verdaderamente utilizable, <b>en contorno</b> cuando espera a ser configurada, y su tamaño viene de lo que contiene — cuatrocientos recuerdos brillan más que tres. La figura une solo las capacidades activas, en <b>orden angular</b>: su forma es por tanto la configuración de esta cuenta y de ninguna otra. Una capacidad que la instancia ha desactivado está <b>ausente</b>, nunca atenuada — un control que el producto no puede honrar es peor que uno ausente. El estado se resuelve en <b>una sola pasada del servidor</b>, cada sonda en su propia sesión, y una sonda fallida degrada a «no lista» en vez de vaciar todo el mapa. Nada de lo publicado es un nivel, un porcentaje de avance o una comparación: «tres conectores enlazados» es un hecho, «62 %» sería una competición. El dibujo es decorativo; todo lo alcanzable es un enlace con nombre, manejable con teclado. Una pantalla estrecha, o una petición de quietud, recibe el mismo mapa en lista — mismos datos, mismo orden, mismos destinos."
+        },
+        "selfHosting": {
+          "title": "🏠 LIA en tu propia máquina",
+          "description": "LIA es software libre (AGPL-3.0) que puedes ejecutar en tu propia máquina, sin depender de nadie. Un instalador guiado te plantea un cuestionario breve en tu idioma — cómo quieres acceder (red local, tu propio proxy inverso o HTTPS gestionado), qué claves de proveedor tienes — y después construye las imágenes desde el código que has clonado, aplica los datos de referencia en una sola transacción, crea tu cuenta de administrador y comprueba a continuación que la instalación funciona de verdad: una única cabeza de migración, datos de referencia presentes, claves descifrables, cobertura efectiva de proveedores. Un servidor que responde no es una instalación lograda. Ningún secreto pasa jamás por la línea de comandos, y si un paso falla, la reanudación retoma exactamente donde se detuvo sin volver a pedir lo ya hecho."
+        },
+        "platformCapabilities": {
+          "title": "🎛️ Lo que ofrece esta instancia",
+          "description": "No todas las instancias de LIA ofrecen las mismas funcionalidades, y es deliberado. Diez capacidades — dictado, síntesis de voz, imágenes, subidas, espacios documentales, búsqueda web, navegación, habilidades, MCP, telefonía — puede activarlas o desactivarlas el administrador desde los ajustes, sin volver a desplegar y sin tocar un archivo de configuración. Cuando una capacidad está desactivada, desaparece también del catálogo ofrecido al planificador: LIA no te promete una acción que no podrá realizar, así que nunca recibes un rechazo a posteriori. Si pides algo que trataría una capacidad desactivada, la respuesta lo dice con claridad, en tu idioma, en lugar de fallar sin explicación. El administrador ve, uno al lado del otro, lo que permite el despliegue, lo que ha elegido él mismo y lo que se aplica realmente."
         }
       },
       "diagram_alt": "Diagrama de arquitectura de LIA"
@@ -3975,6 +4016,19 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_29_0": {
+          "title": "v1.29.0 — 🏠 LIA se instala en tu máquina, y una instancia sabe lo que gasta",
+          "date": "Agosto 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🏠 Instala LIA en tu propia máquina, paso a paso</b> — <code>./install.sh</code> te plantea un cuestionario breve en tu idioma, construye las imágenes desde el código que has clonado, crea tu cuenta de administrador y tus claves de proveedor <b>sin escribir jamás un secreto en la línea de comandos</b>, y después comprueba que la instalación funciona de verdad — no solo que el servidor responde. Si un paso falla, <code>./install.sh --resume</code> retoma exactamente donde se detuvo.",
+            "i2": "<b>💶 Un tope de gasto diario para toda la instancia</b> — un administrador ya puede limitar lo que gasta <b>todo el despliegue</b> en un día, en euros, y no solo lo que consume cada cuenta. Por orden de llegada; después LIA dice que vuelvas mañana e indica la hora exacta de reinicio. El panel muestra el gasto de hoy, el tope que realmente se aplica y lo que queda.",
+            "i3": "<b>🎛️ Desactiva una funcionalidad en dos segundos, sin volver a desplegar</b> — dictado, síntesis de voz, imágenes, subidas, espacios documentales, búsqueda web, navegación, habilidades, MCP y telefonía son ahora diez interruptores en la administración. Cada fila muestra lo que permite el despliegue, lo que ha elegido el administrador y lo que se aplica <b>realmente</b> — una capacidad prohibida por el despliegue lo dice, en lugar de fingir que es ajustable.",
+            "i4": "<b>🎬 Una demostración guiada, en /demo</b> — seis misiones, una por mecanismo que distingue a LIA: una mañana sobrecargada, una alerta proactiva, la memoria a largo plazo, una reserva por teléfono, el resumen del día y un recorrido por los ajustes. Aprueba, edita o rechaza cada cambio preparado y luego lee la respuesta final. Todo está señalado como demostración con datos sintéticos en cada paso, no se contacta con ningún servicio externo, y un cajón de pruebas enlaza cada elemento con su código fuente.",
+            "i5": "<b>📜 Condiciones de uso aceptadas al registrarse</b> — crear una cuenta exige ahora una aceptación explícita, registrada con su fecha y su versión. Las condiciones están redactadas en los seis idiomas, y esto se aplica a todas las vías de registro.",
+            "i6": "<b>🔒 Tres fallos que la suite de tests en verde no podía ver</b> — la síntesis de voz se <b>facturaba sin contar nunca</b> contra el tope de gasto; iniciar sesión con Google se saltaba por completo la aceptación de las condiciones; y once rutas de conectores podían vincular una credencial real sin ninguna protección. Los tres están cerrados, y las nuevas protecciones se rompieron a propósito para demostrar que se ponen en rojo."
+          }
+        },
         "v1_28_0": {
           "title": "v1.28.0 — 🧭 LIA aprende tus hábitos, bajo tu control",
           "date": "Agosto 2026",
@@ -7155,6 +7209,10 @@
         "title": "Tu constelación",
         "desc": "Cada capacidad es una estrella: llena cuando está activa, en contorno cuando espera. La figura une solo las activas — su forma es tu configuración, y la de nadie más."
       },
+      "capability_honesty": {
+        "title": "Desactivada, y dicha",
+        "desc": "Un operador puede desactivar una capacidad para toda la instancia. Cuando ocurre, LIA la nombra en lugar de fallar en silencio — y deja antes de proponer la acción, para que nunca recibas un rechazo a posteriori."
+      },
       "readable_at_a_glance": {
         "title": "Legible de un vistazo",
         "desc": "Una alerta urgente no se parece a una corriente: las separa la densidad, no solo el tono. Se mantiene también en escala de grises. Y una acción tiene la misma forma en todas partes: lo que crea es sólido, lo que borra lleva su rojo sin esperar al puntero, y cada título se anuncia con su icono."
@@ -7217,6 +7275,10 @@
       },
       "relation_sections": {
         "section": "Correos"
+      },
+      "capability_honesty": {
+        "capability": "Dictado",
+        "reason": "Desactivado en esta instancia"
       }
     },
     "craft": {
@@ -8076,7 +8138,9 @@
       "trust_gdpr": "Conforme RGPD",
       "badge_opensource": "Open Source",
       "cta_github": "GitHub",
-      "intro_paragraph": "LIA es un asistente de IA personal de código abierto que orquesta 20+ agentes especializados para gestionar sus correos, agenda, contactos, archivos, tareas, recordatorios, búsqueda web, clima, rutas y hogar conectado. Compatible con Google Workspace, Apple iCloud y Microsoft 365, LIA funciona en lenguaje natural con validación humana de cada acción sensible."
+      "cta_demo": "Demo guiada",
+      "intro_paragraph": "LIA es un asistente de IA personal de código abierto que orquesta 20+ agentes especializados para gestionar sus correos, agenda, contactos, archivos, tareas, recordatorios, búsqueda web, clima, rutas y hogar conectado. Compatible con Google Workspace, Apple iCloud y Microsoft 365, LIA funciona en lenguaje natural con validación humana de cada acción sensible.",
+      "cta_star": "Star"
     },
     "chat_mockup": {
       "aria": "Demo animada: cuatro escenas reales — LIA orquesta varios agentes en paralelo y espera tu aprobación, cruza el tiempo con tu agenda por iniciativa propia, hace una llamada telefónica real para reservar y crea una mini-app en el chat. Mientras trabaja, se muestra la orquestación entre bastidores.",
@@ -8824,7 +8888,8 @@
       "availability": "Disponibilidad",
       "liability": "Responsabilidad",
       "termination": "Rescisión",
-      "applicable_law": "Derecho aplicable"
+      "applicable_law": "Derecho aplicable",
+      "demo_instance": "Instancia pública de demostración"
     }
   },
   "browser": {
@@ -9067,7 +9132,7 @@
       "security-architecture": {
         "title": "Defensa en profundidad: Los 5 principios de seguridad de LIA",
         "excerpt": "Defensa en profundidad, mínimo privilegio, rate limiting, cifrado y validación para proteger tus datos.",
-        "body": "<h2>5 principios fundamentales</h2><p>La seguridad de LIA se basa en cinco principios aplicados a cada capa de la aplicación:</p><ul><li><strong>Defensa en profundidad</strong> — Controles multicapa (autenticación, rate limiting, validación, cifrado)</li><li><strong>Mínimo privilegio</strong> — Permisos mínimos por defecto</li><li><strong>Fallo seguro</strong> — En caso de error, el sistema deniega en lugar de autorizar</li><li><strong>No confiar en las entradas</strong> — Validación Pydantic + sanitización sistemática</li><li><strong>Seguridad por defecto</strong> — HTTPS, cookies HttpOnly/SameSite, CORS estricto</li></ul><h2>Hashing y cifrado</h2><p>Las contraseñas se hashean con <strong>bcrypt</strong> (con salt automático). Los datos sensibles (tokens OAuth, credenciales de conectores, PII, credenciales de servidores MCP) se cifran con <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), garantizando confidencialidad e integridad. Las claves de cifrado se gestionan por separado de los datos.</p><h2>JWT y gestión de sesiones</h2><p>Los tokens JWT utilizan el algoritmo HS256 con un sistema de JTI (JWT ID) incluido en lista negra en Redis. Los tokens de un solo uso (verificación de email, restablecimiento de contraseña) se invalidan tras su primera utilización. Este mecanismo impide cualquier reutilización de tokens sensibles.</p><h2>Autenticación reforzada y control de dispositivos</h2><p>Iniciar sesión va más allá de la contraseña. Las <strong>passkeys WebAuthn</strong> te autentican con Face ID, una huella o el código de tu dispositivo — resistentes al phishing por diseño, con desafíos de servidor de un solo uso y detección de clonado mediante contadores de firma. Un <strong>segundo factor TOTP</strong> añade un paso de 6 dígitos al inicio con contraseña, respaldado por diez códigos de un solo uso guardados como hash. Las acciones sensibles — gestionar credenciales, exportar datos, cerrar otras sesiones — pasan por una <strong>reautenticación step-up</strong>: una ventana de confirmación de 5 minutos con contrato de API tipado, nunca una redirección silenciosa. Y <strong>Mis dispositivos</strong> lista cada sesión activa con metadatos deliberadamente acotados (familias de navegador y SO, IP truncada), revoca cualquiera al instante — una sesión revocada pierde sus flujos en vivo en segundos — y envía una alerta push cuando la cuenta inicia sesión desde un dispositivo no reconocido.</p><h2>Rate limiting configurable</h2><p>El rate limiting opera a dos niveles:</p><ul><li><strong>HTTP</strong> — Mediante nginx en upstream</li><li><strong>Herramientas</strong> — Ventana deslizante por usuario y por herramienta con umbrales dirigidos por la configuración, cubriendo cada API externa de pago (generación de imágenes, búsqueda web, navegador, CLI DevOps)</li><li><strong>Conectores externos</strong> — Ventana deslizante Redis distribuida compartida entre instancias (Google, Apple, proveedores con clave API)</li></ul><p>Los límites API son estrictos: 10 elementos máximo por solicitud, con valores por defecto por dominio (10 por defecto, 50 máximo).</p><h2>Endurecimiento del renderizado y la red</h2><p>El chat renderiza la salida del LLM — que puede retransmitir HTML de terceros (cuerpos de emails, páginas consultadas, resultados de herramientas) — a través de una frontera de saneamiento estricta (<code>rehype-sanitize</code> con un esquema auditado): <code>&lt;script&gt;</code>, <code>&lt;iframe&gt;</code>, <code>&lt;form&gt;</code> y los manejadores de eventos se eliminan, mientras que las tarjetas, botones y fórmulas legítimas se preservan. Las mini-apps interactivas MCP/Skill nunca pasan por markdown — solo se montan dentro de un widget iframe en sandbox. En el lado de la red, la API de producción está detrás de Cloudflare como único punto de entrada, los puertos del contenedor están vinculados a loopback y uvicorn solo confía en las cabeceras del proxy inverso: <code>request.client.host</code> lleva así la IP real del visitante, y los límites de peticiones «por IP» se aplican por visitante en lugar de a una única dirección interna compartida.</p><h2>Protección contra la inyección de prompt</h2><p>La procedencia es una propiedad del <strong>dato</strong>, no de la herramienta que lo obtuvo. Envolver el contenido herramienta por herramienta olvidaba la mitad — la búsqueda exhaustiva de los llamadores encontró la herramienta de correo sin cubrir, precisamente aquella cuyo docstring promete el cuerpo completo — y ni siquiera cubría la superficie correcta: el contenido alcanza el modelo por dos caminos, y ninguno es una herramienta. Los <strong>24 tipos de datos</strong> del registro se clasifican una vez como internos o redactados por terceros, un tipo desconocido vale <em>externo</em>, y la aplicación se niega a arrancar ante un tipo sin clasificar. Todo lo que viene de un tercero llega al modelo etiquetado como dato a analizar, nunca como instrucción.</p><p><strong>Siete familias de inyección</strong> se detectan en los seis idiomas — falso rol de sistema, «ignora las instrucciones anteriores», cambio de persona, petición de enviar tus datos a otro sitio, una herramienta LIA nombrada dentro de texto ajeno, Unicode invisible, una directiva escondida en un comentario HTML. El contenido llega al modelo <strong>sin cambios</strong>, con una nota que nombra la familia: sanear equivaldría a reescribir un correo que puedes querer leer tal cual, a cambio de una garantía que el siguiente rodeo desmentiría. El análisis está acotado, y el texto sospechoso nunca entra en los registros — está controlado por el atacante por construcción y contiene habitualmente tus propios datos.</p><h2>Verificación de propiedad de recursos</h2><p>Cada acceso a un recurso pasa por <code>check_resource_ownership()</code> con un parámetro <code>hide_existence</code>: los recursos públicos devuelven 403 (acceso denegado), los recursos privados devuelven 404 (recurso inexistente) para no revelar su existencia a un atacante.</p><h2>Cuotas de uso por usuario</h2><p>LIA permite a los administradores definir <strong>cuotas por usuario</strong> en tokens, mensajes y costos. La aplicación utiliza una arquitectura de <strong>5 capas de defensa</strong>: verificación a nivel de router (HTTP 429), servicio (error SSE), guard de invocación LLM, skip del runner proactivo y migración de llamadas directas. En caso de fallo de infraestructura, el sistema <strong>fail-open</strong>. Un kill switch admin permite bloqueo/desbloqueo instantáneo.</p><h2>Cadena de suministro de software</h2><p>Cada versión se construye desde un grafo de dependencias fijado: lockfiles universales fijan los ~200 paquetes realmente instalados, cada uno verificado por huella SHA256 en el build — la misma versión produce siempre la misma imagen, con integridad controlada. Todas las dependencias, transitivas incluidas, se auditan continuamente contra bases de vulnerabilidades conocidas, y el inventario de software (SBOM) publicado con cada release cubre ahora ambas mitades — backend y frontend — y enumera exactamente lo que se ejecuta en producción. Los escáneres ya no se limitan a informar: bloquean la construcción.</p><h2>Un control se verifica, no se declara</h2><p>El riesgo más insidioso no es la protección ausente: es la protección anunciada que no actúa. Una alerta puede vivir en un archivo que la supervisión nunca carga. Un paso de endurecimiento puede terminar en un mensaje de éxito que aparece aunque nada haya funcionado. Una exención pensada para las sondas de salud puede, escrita como prefijo en lugar de coincidencia exacta, abrir una puerta a cualquiera que sepa escribir <code>/health</code>. En los tres casos las pruebas pasan, la documentación lo afirma y la protección no existe.</p><p>La respuesta es una regla: cada control se apoya en una guarda ejecutable que falla si el control desaparece. Un archivo de reglas de alerta debe ser el renderizado exacto de su plantilla, cada alerta debe apuntar a un runbook que exista y tener su caso de prueba. Ningún contenedor recibe el conjunto completo de secretos sin una razón escrita. Cada puerto publicado se enlaza al bucle local. Y cuando se escribe una corrección, se restaura el comportamiento anterior el tiempo necesario para comprobar que la prueba falla — una prueba que no puede fallar no demuestra nada.</p>"
+        "body": "<h2>5 principios fundamentales</h2><p>La seguridad de LIA se basa en cinco principios aplicados a cada capa de la aplicación:</p><ul><li><strong>Defensa en profundidad</strong> — Controles multicapa (autenticación, rate limiting, validación, cifrado)</li><li><strong>Mínimo privilegio</strong> — Permisos mínimos por defecto</li><li><strong>Fallo seguro</strong> — En caso de error, el sistema deniega en lugar de autorizar</li><li><strong>No confiar en las entradas</strong> — Validación Pydantic + sanitización sistemática</li><li><strong>Seguridad por defecto</strong> — HTTPS, cookies HttpOnly/SameSite, CORS estricto</li></ul><h2>Hashing y cifrado</h2><p>Las contraseñas se hashean con <strong>bcrypt</strong> (con salt automático). Los datos sensibles (tokens OAuth, credenciales de conectores, PII, credenciales de servidores MCP) se cifran con <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), garantizando confidencialidad e integridad. Las claves de cifrado se gestionan por separado de los datos.</p><h2>JWT y gestión de sesiones</h2><p>Los tokens JWT utilizan el algoritmo HS256 con un sistema de JTI (JWT ID) incluido en lista negra en Redis. Los tokens de un solo uso (verificación de email, restablecimiento de contraseña) se invalidan tras su primera utilización. Este mecanismo impide cualquier reutilización de tokens sensibles.</p><h2>Autenticación reforzada y control de dispositivos</h2><p>Iniciar sesión va más allá de la contraseña. Las <strong>passkeys WebAuthn</strong> te autentican con Face ID, una huella o el código de tu dispositivo — resistentes al phishing por diseño, con desafíos de servidor de un solo uso y detección de clonado mediante contadores de firma. Un <strong>segundo factor TOTP</strong> añade un paso de 6 dígitos al inicio con contraseña, respaldado por diez códigos de un solo uso guardados como hash. Las acciones sensibles — gestionar credenciales, exportar datos, cerrar otras sesiones — pasan por una <strong>reautenticación step-up</strong>: una ventana de confirmación de 5 minutos con contrato de API tipado, nunca una redirección silenciosa. Y <strong>Mis dispositivos</strong> lista cada sesión activa con metadatos deliberadamente acotados (familias de navegador y SO, IP truncada), revoca cualquiera al instante — una sesión revocada pierde sus flujos en vivo en segundos — y envía una alerta push cuando la cuenta inicia sesión desde un dispositivo no reconocido.</p><h2>Rate limiting configurable</h2><p>El rate limiting opera a dos niveles:</p><ul><li><strong>HTTP</strong> — Mediante nginx en upstream</li><li><strong>Herramientas</strong> — Ventana deslizante por usuario y por herramienta con umbrales dirigidos por la configuración, cubriendo cada API externa de pago (generación de imágenes, búsqueda web, navegador, CLI DevOps)</li><li><strong>Conectores externos</strong> — Ventana deslizante Redis distribuida compartida entre instancias (Google, Apple, proveedores con clave API)</li></ul><p>Los límites API son estrictos: 10 elementos máximo por solicitud, con valores por defecto por dominio (10 por defecto, 50 máximo).</p><h2>Endurecimiento del renderizado y la red</h2><p>El chat renderiza la salida del LLM — que puede retransmitir HTML de terceros (cuerpos de emails, páginas consultadas, resultados de herramientas) — a través de una frontera de saneamiento estricta (<code>rehype-sanitize</code> con un esquema auditado): <code>&lt;script&gt;</code>, <code>&lt;iframe&gt;</code>, <code>&lt;form&gt;</code> y los manejadores de eventos se eliminan, mientras que las tarjetas, botones y fórmulas legítimas se preservan. Las mini-apps interactivas MCP/Skill nunca pasan por markdown — solo se montan dentro de un widget iframe en sandbox. En el lado de la red, la API de producción está detrás de Cloudflare como único punto de entrada, los puertos del contenedor están vinculados a loopback y uvicorn solo confía en las cabeceras del proxy inverso: <code>request.client.host</code> lleva así la IP real del visitante, y los límites de peticiones «por IP» se aplican por visitante en lugar de a una única dirección interna compartida.</p><h2>Protección contra la inyección de prompt</h2><p>La procedencia es una propiedad del <strong>dato</strong>, no de la herramienta que lo obtuvo. Envolver el contenido herramienta por herramienta olvidaba la mitad — la búsqueda exhaustiva de los llamadores encontró la herramienta de correo sin cubrir, precisamente aquella cuyo docstring promete el cuerpo completo — y ni siquiera cubría la superficie correcta: el contenido alcanza el modelo por dos caminos, y ninguno es una herramienta. Los <strong>24 tipos de datos</strong> del registro se clasifican una vez como internos o redactados por terceros, un tipo desconocido vale <em>externo</em>, y la aplicación se niega a arrancar ante un tipo sin clasificar. Todo lo que viene de un tercero llega al modelo etiquetado como dato a analizar, nunca como instrucción.</p><p><strong>Siete familias de inyección</strong> se detectan en los seis idiomas — falso rol de sistema, «ignora las instrucciones anteriores», cambio de persona, petición de enviar tus datos a otro sitio, una herramienta LIA nombrada dentro de texto ajeno, Unicode invisible, una directiva escondida en un comentario HTML. El contenido llega al modelo <strong>sin cambios</strong>, con una nota que nombra la familia: sanear equivaldría a reescribir un correo que puedes querer leer tal cual, a cambio de una garantía que el siguiente rodeo desmentiría. El análisis está acotado, y el texto sospechoso nunca entra en los registros — está controlado por el atacante por construcción y contiene habitualmente tus propios datos.</p><h2>Verificación de propiedad de recursos</h2><p>Cada acceso a un recurso pasa por <code>check_resource_ownership()</code> con un parámetro <code>hide_existence</code>: los recursos públicos devuelven 403 (acceso denegado), los recursos privados devuelven 404 (recurso inexistente) para no revelar su existencia a un atacante.</p><h2>Cuotas de uso por usuario</h2><p>LIA permite a los administradores definir <strong>cuotas por usuario</strong> en tokens, mensajes y costos. La aplicación utiliza una arquitectura de <strong>5 capas de defensa</strong>: verificación a nivel de router (HTTP 429), servicio (error SSE), guard de invocación LLM, skip del runner proactivo y migración de llamadas directas. En caso de fallo de infraestructura, el sistema <strong>fail-open</strong>. Un kill switch admin permite bloqueo/desbloqueo instantáneo.</p><h2>Cadena de suministro de software</h2><p>Cada versión se construye desde un grafo de dependencias fijado: lockfiles universales fijan los ~200 paquetes realmente instalados, cada uno verificado por huella SHA256 en el build — la misma versión produce siempre la misma imagen, con integridad controlada. Todas las dependencias, transitivas incluidas, se auditan continuamente contra bases de vulnerabilidades conocidas, y el inventario de software (SBOM) publicado con cada release cubre ahora ambas mitades — backend y frontend — y enumera exactamente lo que se ejecuta en producción. Los escáneres ya no se limitan a informar: bloquean la construcción.</p><h2>Un control se verifica, no se declara</h2><p>El riesgo más insidioso no es la protección ausente: es la protección anunciada que no actúa. Una alerta puede vivir en un archivo que la supervisión nunca carga. Un paso de endurecimiento puede terminar en un mensaje de éxito que aparece aunque nada haya funcionado. Una exención pensada para las sondas de salud puede, escrita como prefijo en lugar de coincidencia exacta, abrir una puerta a cualquiera que sepa escribir <code>/health</code>. En los tres casos las pruebas pasan, la documentación lo afirma y la protección no existe.</p><p>La respuesta es una regla: cada control se apoya en una guarda ejecutable que falla si el control desaparece. Un archivo de reglas de alerta debe ser el renderizado exacto de su plantilla, cada alerta debe apuntar a un runbook que exista y tener su caso de prueba. Ningún contenedor recibe el conjunto completo de secretos sin una razón escrita. Cada puerto publicado se enlaza al bucle local. Y cuando se escribe una corrección, se restaura el comportamiento anterior el tiempo necesario para comprobar que la prueba falla — una prueba que no puede fallar no demuestra nada.</p><h2>Una guarda que recalcula, y tres fallos</h2><p>Esa regla se aplicó de nuevo, y fue un paso más allá. Cada protección del programa del demostrador se había entregado con sus tests, todos en verde — y todos con la misma forma: fijaban lo que el código hacía el día de la entrega. Una lista escrita a mano no describe un sistema; describe lo que su autor sabía de él. Por eso se reescribieron tres guardas para <strong>recalcular</strong> la protección desde la fuente de verdad: las familias de coste que el resumen de ejecución publica realmente, leídas por AST; las rutas que la aplicación monta realmente, confrontadas con el orden de evaluación del borde; el router de conectores recorrido en ambos sentidos, para que no clasificado y clasificado-pero-desmontado se pongan igualmente en rojo.</p><p>Encontraron tres fallos que ningún test existente podía ver. La síntesis de voz se <strong>facturaba sin contar nunca</strong> contra el tope de gasto de la instancia — en una instancia pública, el tope era ciego a lo que un visitante prueba primero. El inicio de sesión con Google era público y se saltaba la aceptación ya obligatoria de las condiciones, colocando una identidad externa real sobre una cuenta desechable. Y once rutas de conectores — activación de una contraseña de aplicación de Apple, rotación de clave de API, emparejamiento domótico — vinculaban una credencial real sin ninguna protección, porque la guarda anterior vivía dentro del dominio de conectores y solo podía ver lo que ese dominio exponía. Después, cada nueva guarda se rompió a propósito, para comprobar que se pone en rojo.</p>"
       },
       "privacy-by-design": {
         "title": "Privacidad por diseño: RGPD, cifrado y control de datos",
@@ -9132,13 +9197,27 @@
       "llm-config-governance": {
         "title": "Gobernanza LLM: pilotar 24 modelos IA desde un único panel de control",
         "excerpt": "Cómo LIA permite a los administradores configurar, ajustar y monitorizar 24 tipos de LLM diferentes en tiempo real, sin reinicio ni redespliegue.",
-        "body": "<h2>El desafío: 24 cerebros que orquestar</h2><p>LIA no utiliza un solo LLM sino <strong>más de 24 tipos distintos</strong>, cada uno optimizado para su tarea: un modelo rápido y económico para el enrutamiento, uno potente para la planificación, uno creativo para las respuestas, modelos especializados para extracción de memoria, diarios, intereses, agentes MCP y más. Cada tipo tiene sus propios parámetros: <code>provider</code>, <code>model</code>, <code>temperature</code>, <code>timeout</code>, <code>reasoning_effort</code>.</p><p>El desafío: ¿cómo permitir que un administrador gestione todo esto <strong>sin tocar código</strong>?</p><h2>Cadena de resolución de 3 niveles</h2><p>Cada configuración LLM se resuelve mediante una <strong>cadena de prioridad de 3 fuentes</strong>:</p><ol><li><strong>DB Overrides</strong> — configuración definida vía la interfaz Admin (máxima prioridad)</li><li><strong>Variables de entorno</strong> — configuración de despliegue</li><li><strong>LLM_DEFAULTS</strong> — 24 configuraciones por defecto documentadas en el código</li></ol><p>Un caché <code>LLMConfigOverrideCache</code> proporciona lookups en O(1) sin consultas a base de datos en runtime. Los cambios vía la interfaz de administración toman <strong>efecto inmediato</strong> gracias a la invalidación del caché. Sin reinicio necesario.</p><h2>Un único punto de entrada</h2><p>Toda instanciación de LLM en LIA pasa por una sola función: <code>get_llm_config_for_agent()</code>. Este patrón garantiza que cada componente — router, planificador, agentes de dominio, tareas proactivas — respete sistemáticamente la cadena de resolución. Es un <strong>principio arquitectónico</strong>, no solo una elección técnica: ningún módulo puede saltarse la configuración admin.</p><h2>Interfaz Admin en tiempo real</h2><p>Desde el panel de administración, puedes para cada tipo de LLM:</p><ul><li>Cambiar el <strong>proveedor y el modelo</strong> (OpenAI, Anthropic, Google, DeepSeek, Ollama...)</li><li>Ajustar la <strong>temperatura</strong>, <strong>top_p</strong>, <strong>penalties</strong> de frecuencia/presencia</li><li>Configurar el <strong>timeout</strong> y los <strong>tokens máximos</strong></li><li>Activar o desactivar el <strong>modo razonamiento</strong> con 5 niveles de esfuerzo</li></ul><p>Cada modificación está <strong>activa inmediatamente</strong> para todas las solicitudes posteriores, sin interrupción de servicio.</p><h2>Optimización granular de costos</h2><p>Este sistema permite una <strong>optimización granular de costos</strong>. Ejemplo concreto: el router puede usar un modelo a 0,10 $/M tokens mientras el planificador usa uno a 3 $/M tokens. Las tareas de extracción de memoria, menos críticas, pueden ejecutarse en un modelo local gratuito. El administrador ajusta la relación calidad/costo <strong>por tipo de tarea</strong>, no globalmente.</p><h2>Modelos de razonamiento adaptativos</h2><p>Los modelos de razonamiento (o1, o3, DeepSeek R1) consumen tokens adicionales para pensar. LIA ofrece <strong>5 niveles de reasoning_effort</strong> (<code>none</code>, <code>low</code>, <code>medium</code>, <code>high</code>, <code>xhigh</code>) configurables por tipo. Esto permite activar el razonamiento profundo solo donde es crítico — el planificador por ejemplo — y desactivarlo en otros lugares para ahorrar tokens.</p><h2>Observabilidad integrada</h2><p>Cada llamada LLM se instrumenta con su tipo, proveedor, modelo efectivamente utilizado, duración y tokens consumidos. Las métricas Prometheus y el tracing Langfuse permiten <strong>comparar el rendimiento</strong> entre configuraciones e identificar los tipos de LLM a optimizar.</p>"
+        "body": "<h2>El desafío: 24 cerebros que orquestar</h2><p>LIA no utiliza un solo LLM sino <strong>más de 24 tipos distintos</strong>, cada uno optimizado para su tarea: un modelo rápido y económico para el enrutamiento, uno potente para la planificación, uno creativo para las respuestas, modelos especializados para extracción de memoria, diarios, intereses, agentes MCP y más. Cada tipo tiene sus propios parámetros: <code>provider</code>, <code>model</code>, <code>temperature</code>, <code>timeout</code>, <code>reasoning_effort</code>.</p><p>El desafío: ¿cómo permitir que un administrador gestione todo esto <strong>sin tocar código</strong>?</p><h2>Cadena de resolución de 3 niveles</h2><p>Cada configuración LLM se resuelve mediante una <strong>cadena de prioridad de 3 fuentes</strong>:</p><ol><li><strong>DB Overrides</strong> — configuración definida vía la interfaz Admin (máxima prioridad)</li><li><strong>Variables de entorno</strong> — configuración de despliegue</li><li><strong>LLM_DEFAULTS</strong> — 24 configuraciones por defecto documentadas en el código</li></ol><p>Un caché <code>LLMConfigOverrideCache</code> proporciona lookups en O(1) sin consultas a base de datos en runtime. Los cambios vía la interfaz de administración toman <strong>efecto inmediato</strong> gracias a la invalidación del caché. Sin reinicio necesario.</p><h2>Un único punto de entrada</h2><p>Toda instanciación de LLM en LIA pasa por una sola función: <code>get_llm_config_for_agent()</code>. Este patrón garantiza que cada componente — router, planificador, agentes de dominio, tareas proactivas — respete sistemáticamente la cadena de resolución. Es un <strong>principio arquitectónico</strong>, no solo una elección técnica: ningún módulo puede saltarse la configuración admin.</p><h2>Interfaz Admin en tiempo real</h2><p>Desde el panel de administración, puedes para cada tipo de LLM:</p><ul><li>Cambiar el <strong>proveedor y el modelo</strong> (OpenAI, Anthropic, Google, DeepSeek, Ollama...)</li><li>Ajustar la <strong>temperatura</strong>, <strong>top_p</strong>, <strong>penalties</strong> de frecuencia/presencia</li><li>Configurar el <strong>timeout</strong> y los <strong>tokens máximos</strong></li><li>Activar o desactivar el <strong>modo razonamiento</strong> con 5 niveles de esfuerzo</li></ul><p>Cada modificación está <strong>activa inmediatamente</strong> para todas las solicitudes posteriores, sin interrupción de servicio.</p><h2>Optimización granular de costos</h2><p>Este sistema permite una <strong>optimización granular de costos</strong>. Ejemplo concreto: el router puede usar un modelo a 0,10 $/M tokens mientras el planificador usa uno a 3 $/M tokens. Las tareas de extracción de memoria, menos críticas, pueden ejecutarse en un modelo local gratuito. El administrador ajusta la relación calidad/costo <strong>por tipo de tarea</strong>, no globalmente.</p><h2>Modelos de razonamiento adaptativos</h2><p>Los modelos de razonamiento (o1, o3, DeepSeek R1) consumen tokens adicionales para pensar. LIA ofrece <strong>5 niveles de reasoning_effort</strong> (<code>none</code>, <code>low</code>, <code>medium</code>, <code>high</code>, <code>xhigh</code>) configurables por tipo. Esto permite activar el razonamiento profundo solo donde es crítico — el planificador por ejemplo — y desactivarlo en otros lugares para ahorrar tokens.</p><h2>Observabilidad integrada</h2><p>Cada llamada LLM se instrumenta con su tipo, proveedor, modelo efectivamente utilizado, duración y tokens consumidos. Las métricas Prometheus y el tracing Langfuse permiten <strong>comparar el rendimiento</strong> entre configuraciones e identificar los tipos de LLM a optimizar.</p><h2>Lo que puede gastar una instancia entera</h2><p>Todo lo anterior acota un modelo, una llamada o una cuenta. Nada de ello acota un <strong>despliegue</strong>, y no son la misma pregunta: N cuentas multiplicadas por su cuota es un gasto no acotado. Un registro diario UTC anota ahora el coste de cada ejecución mediante un UPSERT atómico con aritmética de columna, dentro de la transacción que ya persiste el resumen de tokens — así las ejecuciones concurrentes no pueden perder gasto en una carrera de lectura-modificación-escritura, y la comprobación nunca ve una vista parcial. Dos cotas se componen, la del despliegue y la del operador, y gana la más pequeña: un administrador puede apretar lo que el entorno permite, nunca ampliarlo, y el panel muestra lo que se aplica junto a lo que se ha escrito.</p><p>La doctrina de fallo se invierte aquí a propósito. Los límites por usuario fallan <strong>abiertos</strong> — un hipo de la base de datos deja pasar un mensaje de más. Un gasto de instancia desconocido falla <strong>cerrado</strong>, porque el peor caso de ese lado es todo el presupuesto. Y el rechazo dice la verdad: no un mensaje de cuota personal, sino un código dedicado que lleva la hora exacta en la que cambia el día.</p>"
       }
     }
   },
   "usage_limits": {
     "title": "Administración de límites",
     "description": "Configurar límites de uso por usuario",
+    "instance_budget": {
+      "title": "Límite de gasto diario (instancia)",
+      "description": "Acota lo que toda esta instancia puede gastar en un día UTC, incluidas todas las familias de coste. Los límites por usuario de abajo acotan una cuenta; este acota el despliegue. Imprescindible cuando cada visitante tiene su propia cuenta.",
+      "enforced": "Límite aplicado",
+      "spent_today": "Gastado hoy",
+      "runs_today": "Ejecuciones hoy",
+      "no_ceiling": "Sin límite",
+      "field_label": "Límite en euros (vacío = ninguno)",
+      "field_placeholder": "p. ej. 1,00",
+      "capped_notice": "El límite del despliegue es inferior al valor introducido: se aplica el más pequeño.",
+      "invalid": "Introduce un importe mayor que cero, o deja el campo vacío.",
+      "saved": "Límite actualizado.",
+      "save_failed": "No se pudo actualizar el límite."
+    },
     "search_placeholder": "Buscar por email o nombre...",
     "unlimited": "Ilimitado",
     "mode": {
@@ -9269,7 +9348,8 @@
       "adr": "Decisiones de arquitectura",
       "extensibility": "Extensibilidad",
       "psyche": "Psyche Engine",
-      "habits": "Aprendizaje de hábitos"
+      "habits": "Aprendizaje de hábitos",
+      "governance": "Gobernar una instancia"
     }
   },
   "healthMetrics": {
@@ -9763,6 +9843,499 @@
       "spaces": "Spaces",
       "journals": "Diarios",
       "skills": "Habilidades"
+    },
+    "items": {
+      "stt": "Entrada por voz (transcripción)",
+      "stt_description": "Permite dictar en lugar de escribir. Desactivarlo cierra el WebSocket de audio y la ruta de ticket de voz.",
+      "tts": "Respuestas habladas (síntesis de voz)",
+      "tts_description": "Lee las respuestas en voz alta en el chat. Desactivarlo detiene la síntesis en su único punto de control; nada más cambia.",
+      "image_generation": "Generación de imágenes",
+      "image_generation_description": "Crear y editar imágenes. Desactivarlo retira las herramientas del planificador y cierra las rutas de opciones.",
+      "attachments": "Subida de archivos",
+      "attachments_description": "Adjuntar archivos a una conversación. Desactivarlo rechaza las subidas en la puerta.",
+      "rag_spaces": "Espacios documentales (RAG)",
+      "rag_spaces_description": "Importar y consultar documentos personales. Desactivarlo oculta la herramienta de búsqueda y cierra las rutas.",
+      "web_search": "Búsqueda web",
+      "web_search_description": "Buscar en la web y recuperar páginas. Desactivarlo retira esos agentes del alcance del planificador.",
+      "browser": "Navegación interactiva",
+      "browser_description": "Control de un navegador real. Desactivarlo retira el agente de navegación del planificador.",
+      "skills": "Habilidades",
+      "skills_description": "Habilidades instaladas por los usuarios. Desactivarlo cierra sus rutas.",
+      "mcp": "Servidores MCP",
+      "mcp_description": "Servidores MCP externos que conecta un usuario. Desactivarlo cierra sus rutas de gestión.",
+      "telephony": "Llamadas telefónicas",
+      "telephony_description": "Llamadas salientes dirigidas por el agente. Desactivarlo cierra las rutas de telefonía."
+    }
+  },
+  "showroom": {
+    "title": "Misiones guiadas",
+    "request": "Organiza mi mañana de mañana. Quiero correr, responder a Atlas y enviar el presupuesto. Prepara los cambios, pero no toques nada sin mi aprobación.",
+    "start": "Iniciar la misión",
+    "continue": "Continuar",
+    "restart": "Repetir la misión",
+    "honesty": {
+      "title": "Honestidad de esta demostración",
+      "guided": "Demostración guiada",
+      "synthetic": "Datos ficticios — ninguna cuenta conectada",
+      "no_external": "Nunca se envía ninguna acción externa"
+    },
+    "phases": {
+      "ready": "Listo para empezar",
+      "reading_sources": "Lectura de las fuentes",
+      "planning": "Detección de conflictos y planificación",
+      "email_decision": "Tu decisión: la respuesta por correo",
+      "calendar_decision": "Tu decisión: el cambio de agenda",
+      "receipt": "Recibo de la misión"
+    },
+    "sources": {
+      "title": "Fuentes consultadas",
+      "inbox": "Bandeja de entrada",
+      "calendar": "Agenda",
+      "tasks": "Tareas",
+      "weather": "Tiempo",
+      "memory": "Memoria",
+      "habits": "Hábitos",
+      "contacts": "Contactos"
+    },
+    "facts": {
+      "inbox_emma_proposal": "Emma (Atlas) propone una reunión a las",
+      "calendar_run": "Carrera prevista a las",
+      "calendar_checkpoint": "Punto Atlas a las",
+      "task_quote_due": "Enviar el presupuesto Atlas antes de las",
+      "weather_rain": "Lluvia prevista"
+    },
+    "conflicts": {
+      "rain_vs_run": "La carrera cae en plena lluvia",
+      "quote_deadline": "El plazo del presupuesto es ajustado"
+    },
+    "proposals": {
+      "email_subject": "Re: punto Atlas — 09:30 me va bien",
+      "email_body": "Hola Emma, 09:30 me viene perfecto. ¡Hasta luego!",
+      "calendar_title": "Mover la carrera fuera de la lluvia",
+      "calendar_reason": "Lluvia hasta las 09:00 — franja seca propuesta",
+      "quote_title": "Bloque protegido: terminar el presupuesto Atlas",
+      "from": "De",
+      "to": "A"
+    },
+    "trace": {
+      "routing": "Enrutado de la petición",
+      "sources": "Lectura de las fuentes",
+      "planning": "Planificación con restricciones",
+      "proposals": "Preparación de las propuestas",
+      "router": "Lectura de la petición",
+      "planner": "Planificación de la mañana",
+      "validator": "Verificación del plan",
+      "email": "Lectura del correo",
+      "calendar": "Lectura del calendario",
+      "tasks": "Lectura de las tareas",
+      "weather": "Lectura del tiempo",
+      "gate": "Preparación de las propuestas",
+      "approval": "Esperando tu decisión",
+      "response": "Redacción de la respuesta",
+      "step": "Paso en curso"
+    },
+    "receipt": {
+      "title": "Recibo de simulación",
+      "reads_label": "Leído",
+      "reads_value": "4 fuentes ficticias (correo, agenda, tareas, tiempo)",
+      "proposed_label": "Preparado",
+      "proposed_value": "1 borrador de correo, 1 cambio de agenda, 1 bloque de trabajo protegido",
+      "email_label": "Decisión de correo",
+      "calendar_label": "Decisión de agenda",
+      "refusal_label": "Rechazo",
+      "external_label": "Acciones externas",
+      "email_applied": "Respuesta de correo aprobada — aplicada al espacio ficticio",
+      "email_edited": "Respuesta de correo editada y luego aplicada al espacio ficticio",
+      "email_refused": "Respuesta de correo rechazada — no se aplicó nada",
+      "calendar_applied": "Cambio de agenda aprobado — aplicado al espacio ficticio",
+      "calendar_refused": "Cambio de agenda rechazado — no se aplicó nada",
+      "refusal_respected": "Tu rechazo fue respetado: un rechazo es un resultado, no un error.",
+      "no_external": "No hubo ninguna acción externa — nada salió de esta página."
+    },
+    "proof": {
+      "open": "Ver las pruebas",
+      "title": "Cajón de pruebas",
+      "exact": "Cada enlace abre la fuente exacta en el commit publicado.",
+      "fallback": "Los enlaces abren el repositorio (ningún commit de release está fijado en esta build).",
+      "external_warning": "Los enlaces abren GitHub en una pestaña nueva.",
+      "kind": {
+        "product_core": "Núcleo del producto",
+        "p0_fixture": "Fixture de demo"
+      },
+      "links": {
+        "routing": "Enrutado de peticiones",
+        "planner": "Planificador",
+        "orchestrator": "Orquestador paralelo",
+        "hitl": "Clasificación de aprobaciones",
+        "hitl_card": "Tarjeta de aprobación (UI)",
+        "trace": "Traza de ejecución saneada",
+        "fixture": "Fixture de la misión ficticia",
+        "mission_tests": "Tests de la máquina de estados"
+      }
+    },
+    "cta": {
+      "source": "Ver el código",
+      "release": "Ver las releases",
+      "install": "Guía de instalación"
+    },
+    "change_mission": "Todas las misiones",
+    "proactive_intro": "LIA toma la iniciativa — no se escribió ninguna petición.",
+    "picker": {
+      "subtitle": "Seis misiones sintéticas, una por mecanismo diferenciador. Todo ocurre localmente en esta página — elige una."
+    },
+    "actions": {
+      "title": "¿Y ahora?"
+    },
+    "response": {
+      "title": "Respuesta de LIA",
+      "synthetic": "— simulada, compuesta localmente"
+    },
+    "m": {
+      "overloaded_morning": {
+        "title": "Una mañana sobrecargada",
+        "tagline": "Cuatro fuentes, dos conflictos, dos decisiones — nada se aplica sin ti.",
+        "mechanism": "Orquestación + aprobaciones",
+        "response": {
+          "intro": "Tu mañana parecía un pequeño campo de batalla: una carrera bajo la lluvia, Emma esperando respuesta y un presupuesto que no iba a escribirse solo. Así están las cosas:",
+          "chip_email_confirm": "Respuesta enviada a Emma",
+          "chip_email_edit": "Se envió tu versión de la respuesta",
+          "chip_email_cancel": "No se envió ninguna respuesta — rechazo respetado",
+          "chip_calendar_confirm": "Carrera movida a las 10:30, después de la lluvia",
+          "chip_calendar_cancel": "Carrera mantenida a las 07:30 — tu decisión",
+          "kv_focus_label": "Bloque protegido",
+          "kv_focus_value": "08:00–08:45 — presupuesto Atlas",
+          "kv_checkpoint_label": "Reunión Atlas",
+          "kv_checkpoint_value": "09:30 (propuesta de Emma)",
+          "kv_deadline_label": "Plazo del presupuesto",
+          "kv_deadline_value": "10:00 — 45 min protegidos antes",
+          "callout_title": "Listo para el plazo de las 10:00",
+          "callout_body": "El bloque protegido reserva 45 minutos para el presupuesto Atlas antes de su vencimiento.",
+          "closing": "Solo te queda correr — en seco, si seguiste mi consejo."
+        },
+        "note": "Lo que acabas de ver: enrutado, planificación con restricciones y dos aprobaciones — los mismos componentes HITL que el producto. Nada se aplica sin una decisión explícita."
+      },
+      "proactive_alert": {
+        "title": "LIA se te adelanta",
+        "tagline": "Nadie pidió nada: el escaneo matinal detecta dos riesgos y propone soluciones.",
+        "mechanism": "Proactividad",
+        "request": "Escaneo matinal, 07:05 — dos puntos necesitan tu atención antes de las 09:00.",
+        "facts": {
+          "rain_evening": "Se esperan lluvias fuertes",
+          "run_evening": "Carrera prevista a las",
+          "free_slot": "Hueco libre mañana a las",
+          "marc_waiting": "Marc (Nordic) espera tu respuesta sobre la opción B desde el martes",
+          "marc_committee": "El comité de Marc se reúne a las"
+        },
+        "findings": {
+          "rain_vs_run": "La carrera de la tarde cae en plena lluvia",
+          "reply_before": "Marc necesita tu respuesta antes de las"
+        },
+        "trace_trigger": "Escaneo programado activado",
+        "decisions": {
+          "move_run": {
+            "phase": "Tu decisión: mover la carrera",
+            "receipt_label": "Carrera",
+            "tool": "Mover la carrera antes de la lluvia",
+            "from_value": "Hoy 18:00",
+            "to_value": "Mañana 07:00",
+            "applied": "Carrera movida a mañana 07:00 — aplicado al espacio sintético",
+            "refused": "Carrera mantenida a las 18:00 — no se cambió nada"
+          },
+          "reply_marc": {
+            "phase": "Tu decisión: la respuesta a Marc",
+            "receipt_label": "Respuesta a Marc",
+            "subject": "Re: Opción B — sí",
+            "body": "Hola Marc, la opción B me va bien. Tendrás los detalles antes de tu comité de las 10:00.",
+            "applied": "Respuesta a Marc aprobada — aplicada al espacio sintético",
+            "edited": "Respuesta a Marc editada y aplicada al espacio sintético",
+            "refused": "Respuesta a Marc rechazada — no se aplicó nada"
+          }
+        },
+        "receipt": {
+          "reads": "3 fuentes sintéticas (meteorología, calendario, bandeja de entrada)",
+          "proposed": "1 cambio de calendario, 1 respuesta de correo — ambos iniciados por LIA"
+        },
+        "response": {
+          "intro": "Mientras aún dormías tranquilamente, le eché un vistazo a tu día: el tiempo decidió sabotear tu carrera de las 18:00, y Marc sigue esperando su respuesta — desde el martes, pero ¿quién lleva la cuenta?",
+          "chip_run_confirm": "Carrera reprogramada a mañana 07:00",
+          "chip_run_cancel": "Carrera mantenida a las 18:00 — tu decisión",
+          "chip_marc_confirm": "Respuesta enviada a Marc",
+          "chip_marc_edit": "Se envió tu versión de la respuesta",
+          "chip_marc_cancel": "No se envió ninguna respuesta — rechazo respetado",
+          "kv_next_label": "Próximo escaneo",
+          "kv_next_value": "Mañana 07:05",
+          "kv_quiet_label": "Horas de silencio",
+          "kv_quiet_value": "22:00–07:00, nunca interrumpidas",
+          "closing": "Vuelvo al modo espera — hablamos mañana a las 07:05, prometido, no antes."
+        },
+        "note": "Aquí nadie pidió nada: el escaneo programado detectó los dos riesgos por sí solo. La frecuencia y las horas de silencio se ajustan en la configuración — LIA nunca actúa fuera de ellas."
+      },
+      "memory_dinner": {
+        "title": "Se acuerda por ti",
+        "tagline": "Una petición corta, tres preferencias recordadas aplicadas — nada se pregunta dos veces.",
+        "mechanism": "Memoria + hábitos",
+        "request": "Reserva una cena con Sarah el viernes.",
+        "facts": {
+          "sarah_veg": "Sarah es vegetariana — recordado desde marzo",
+          "last_dinner": "Última cena juntos: Verdi — le encantó",
+          "dinner_time": "Tus cenas suelen empezar a las",
+          "friday_free": "El viernes está libre después de las",
+          "sarah_contact": "Sarah — contacto personal registrado"
+        },
+        "findings": {
+          "prefs_applied": "3 preferencias recordadas aplicadas — nada se pregunta dos veces",
+          "slot": "El viernes encaja con tu hábito y tu calendario a las"
+        },
+        "trace_recall": "Recuperando preferencias y hábitos",
+        "decisions": {
+          "invite_sarah": {
+            "phase": "Tu decisión: el mensaje a Sarah",
+            "receipt_label": "Mensaje a Sarah",
+            "subject": "¿Cena el viernes en Verdi?",
+            "body": "¡Hola Sarah! Verdi, viernes 20:00 — su menú vegetariano es excelente. ¿Reservo?",
+            "applied": "Mensaje a Sarah aprobado — aplicado al espacio sintético",
+            "edited": "Mensaje a Sarah editado y aplicado al espacio sintético",
+            "refused": "Mensaje a Sarah rechazado — no se aplicó nada"
+          },
+          "create_event": {
+            "phase": "Tu decisión: el evento de calendario",
+            "receipt_label": "Calendario",
+            "tool": "Añadir la cena al viernes",
+            "what": "Evento",
+            "what_value": "Cena con Sarah — Verdi",
+            "when": "Viernes a las",
+            "applied": "Cena añadida el viernes 20:00 — aplicado al calendario sintético",
+            "refused": "No se creó ningún evento — no se cambió nada"
+          }
+        },
+        "receipt": {
+          "reads": "4 fuentes sintéticas (memoria, hábitos, calendario, contactos)",
+          "proposed": "1 borrador de mensaje, 1 evento de calendario — construidos con preferencias recordadas"
+        },
+        "response": {
+          "intro": "¿Cena con Sarah el viernes? Fácil. Verdi, 20:00 — es vegetariana, no lo había olvidado, y tu viernes por la noche estaba libre. Todo estaba listo; solo faltaba tu visto bueno.",
+          "kv_place_label": "Restaurante",
+          "kv_place_value": "Verdi — cocina vegetariana",
+          "kv_when_label": "Cuándo",
+          "kv_when_value": "Viernes 20:00",
+          "kv_recall_label": "Recordado",
+          "kv_recall_value": "La dieta de Sarah, tu horario habitual, tu tarde libre",
+          "chip_invite_confirm": "Invitación enviada a Sarah",
+          "chip_invite_edit": "Se envió tu versión de la invitación",
+          "chip_invite_cancel": "No se envió ninguna invitación — rechazo respetado",
+          "chip_event_confirm": "Cena en el calendario",
+          "chip_event_cancel": "Calendario intacto — tu decisión",
+          "closing": "Lo más difícil está por llegar: aguantar hasta el viernes."
+        },
+        "note": "Todo se planificó a partir de preferencias recordadas, sin volver a preguntar. Lo que LIA retiene es visible, editable y eliminable desde la configuración."
+      },
+      "phone_booking": {
+        "title": "Ella hace la llamada",
+        "tagline": "Una acción en el mundo real: preparada, explicada — y nunca marcada sin tu visto bueno.",
+        "mechanism": "Llamadas salientes",
+        "request": "Resérvanos una mesa en Chez Léon el sábado por la noche — llámalos, nunca tengo tiempo.",
+        "facts": {
+          "birthday": "Organizar la cena de cumpleaños — sábado",
+          "leon": "Chez Léon — número de teléfono registrado",
+          "saturday_free": "El sábado por la noche está libre desde las"
+        },
+        "findings": {
+          "script_ready": "Guion de llamada listo: mesa para dos, mención del cumpleaños, objetivo",
+          "hitl_gate": "No se marca nada sin tu aprobación explícita"
+        },
+        "trace_script": "Preparando el guion de llamada",
+        "decisions": {
+          "authorize_call": {
+            "phase": "Tu decisión: la llamada saliente",
+            "receipt_label": "Llamada",
+            "tool": "Autorizar la llamada a Chez Léon",
+            "callee": "Llamar",
+            "callee_value": "Chez Léon",
+            "goal": "Objetivo",
+            "goal_value": "Mesa para dos — sábado 20:00",
+            "applied": "Llamada autorizada y realizada — resumen guardado en el diario sintético",
+            "refused": "No se hizo ninguna llamada — tu rechazo es una decisión, no un error"
+          }
+        },
+        "receipt": {
+          "reads": "3 fuentes sintéticas (tareas, contactos, calendario)",
+          "proposed": "1 llamada saliente — condicionada a tu aprobación explícita"
+        },
+        "response": {
+          "intro_confirm": "Hecho — llamé a Chez Léon mientras te ocupabas de cosas más importantes. Un minuto cuarenta de conversación, una mesa para dos el sábado a las 20:00, e incluso una mención del cumpleaños.",
+          "intro_cancel": "Muy bien — cuelgo antes incluso de marcar. El guion queda listo por si cambias de opinión; Chez Léon nunca lo sabrá.",
+          "kv_place_label": "Restaurante",
+          "kv_place_value": "Chez Léon",
+          "kv_result_label": "Resultado",
+          "kv_result_value": "Mesa para dos — confirmada",
+          "kv_when_label": "Cuándo",
+          "kv_when_value": "Sábado 20:00",
+          "chip_confirm": "Reserva confirmada",
+          "chip_cancel": "Sin llamada — rechazo respetado",
+          "transcript_summary": "Ver el resumen de la llamada",
+          "transcript_1": "LIA: Una mesa para dos el sábado a las 20:00 — es un cumpleaños.",
+          "transcript_2": "Chez Léon: A las 20:00 puede ser, junto a la ventana.",
+          "transcript_3": "LIA: Perfecto, gracias — hasta el sábado.",
+          "closing_confirm": "Ahora solo te falta llegar puntual."
+        },
+        "note": "Cada llamada saliente muestra primero su objetivo y su guion — sin aprobación, no se marca."
+      },
+      "daily_briefing": {
+        "title": "Tu mañana, ya digerida",
+        "tagline": "Correo, calendario, tiempo y tareas en una sola respuesta rica y legible.",
+        "mechanism": "Respuestas ricas",
+        "request": "Briefing diario, 07:00 — tu día está listo para leer.",
+        "facts": {
+          "new_mails": "5 correos nuevos — 1 te espera: Claire, sobre el contrato",
+          "meetings": "3 reuniones — la primera a las",
+          "overlap": "Dos reuniones de la tarde se solapan a las",
+          "due": "2 tareas para hoy — primero la revisión del contrato",
+          "clear": "Cielo despejado, 22 °C"
+        },
+        "findings": {
+          "claire": "El correo de Claire merece respuesta antes de las",
+          "overlap": "La revisión con el cliente y la de diseño se solapan"
+        },
+        "trace_schedule": "Briefing programado activado",
+        "trace_compose": "Componiendo la respuesta rica",
+        "decisions": {
+          "focus_block": {
+            "phase": "Tu decisión: el bloque de concentración",
+            "receipt_label": "Bloque",
+            "tool": "Reservar un hueco para responder a Claire",
+            "applied": "Bloque reservado 08:30–08:50 — aplicado al calendario sintético",
+            "refused": "No se reservó ningún bloque — el briefing sigue siendo informativo"
+          }
+        },
+        "receipt": {
+          "reads": "4 fuentes sintéticas (correo, calendario, tareas, meteorología)",
+          "proposed": "1 bloque de concentración — el briefing en sí no cambia nada"
+        },
+        "response": {
+          "intro": "¡Buenos días! Mientras tu café se enfría, aquí tienes tu día: cinco correos y solo uno te necesita de verdad, tres reuniones y dos de ellas pisándose, y un gran cielo azul… que admirarás desde la sala de reuniones.",
+          "stat_emails": "correos nuevos",
+          "stat_meetings": "reuniones",
+          "stat_tasks": "tareas de hoy",
+          "agenda_title": "Tus reuniones",
+          "meeting_1": "Sincronización de equipo",
+          "meeting_2": "Revisión con el cliente",
+          "meeting_3": "Revisión de diseño",
+          "overlap_title": "Solapamiento de 15 minutos",
+          "overlap_body": "La revisión con el cliente (14:00) invade la revisión de diseño (15:30) — considera acortar una.",
+          "chip_focus_confirm": "Bloque a las 08:30 para Claire",
+          "chip_focus_cancel": "Sin bloque reservado — tu decisión",
+          "closing": "Claire primero — el resto puede esperar, ya está acostumbrado."
+        },
+        "note": "Este briefing es el renderizado HTML enriquecido nativo de LIA: el mismo formato que las respuestas reales — compuesto aquí localmente, sin llamada al modelo."
+      },
+      "config_tour": {
+        "title": "A tu medida, en unos clics",
+        "tagline": "Tono, proactividad, idiomas, conexiones — todo desde la interfaz, nada técnico.",
+        "mechanism": "Ajustes integrados",
+        "request": "Haz tus respuestas más cortas y avísame solo por la mañana.",
+        "sources": {
+          "personality": "Ajustes — Personalidad",
+          "proactivity": "Ajustes — Proactividad",
+          "languages": "Ajustes — Idiomas y voz",
+          "connections": "Ajustes — Conexiones"
+        },
+        "facts": {
+          "tone": "Tono actual: cálido, respuestas detalladas",
+          "styles": "6 estilos de respuesta — un clic cada uno",
+          "frequency": "3 escaneos al día, horas de silencio",
+          "languages": "6 idiomas, voz de entrada y salida",
+          "connectors": "Correo, calendario, contactos: conectados en un clic"
+        },
+        "findings": {
+          "match": "Tu petición corresponde exactamente a dos interruptores — ni archivos, ni código",
+          "reversible": "Cada cambio es reversible desde la misma pantalla"
+        },
+        "trace_settings": "Leyendo los ajustes actuales",
+        "decisions": {
+          "concise_style": {
+            "phase": "Tu decisión: el estilo de respuesta",
+            "receipt_label": "Estilo de respuesta",
+            "tool": "Cambiar las respuestas a concisas",
+            "setting": "Ajuste",
+            "setting_value": "Estilo de respuesta",
+            "from_value": "Detallado",
+            "to_value": "Conciso",
+            "applied": "Estilo de respuesta cambiado a conciso — aplicado a los ajustes sintéticos",
+            "refused": "Estilo de respuesta conservado — no se cambió nada"
+          },
+          "morning_window": {
+            "phase": "Tu decisión: la ventana de proactividad",
+            "receipt_label": "Ventana de proactividad",
+            "tool": "Limitar la proactividad a la mañana",
+            "applied": "Proactividad limitada a 07:00–09:00 — aplicado a los ajustes sintéticos",
+            "refused": "Horario de proactividad conservado — no se cambió nada"
+          }
+        },
+        "receipt": {
+          "reads": "4 áreas de ajustes (personalidad, proactividad, idiomas, conexiones)",
+          "proposed": "2 interruptores de un clic — nada técnico"
+        },
+        "response": {
+          "intro": "Tu petición cabía en una frase; la respuesta cabe en dos interruptores. Aquí es donde viven:",
+          "step_1": "Ajustes → Personalidad → Estilo de respuesta: conciso",
+          "step_2": "Ajustes → Proactividad → Ventana activa: 07:00–09:00",
+          "chip_concise_confirm": "Respuestas concisas activas",
+          "chip_concise_cancel": "Estilo de respuesta sin cambios — tu decisión",
+          "chip_mornings_confirm": "Proactividad solo por la mañana",
+          "chip_mornings_cancel": "Horario de proactividad sin cambios — tu decisión",
+          "closing": "Dos clics para reprogramarme… no sé si sentirme impresionada u ofendida."
+        },
+        "note": "No se tocó ningún archivo de configuración: todo lo que has visto se ajusta desde la interfaz — y se deshace igual de fácil."
+      }
+    },
+    "back_home": "Volver al inicio",
+    "note": {
+      "label": "Nota de la demo"
+    },
+    "live": {
+      "title": "Misión en vivo: una mañana sobrecargada",
+      "start": "Ejecutar la misión en vivo",
+      "streaming": "LIA se está ocupando de tu mañana…",
+      "narrative_source": "— respuesta real del modelo, espacio ficticio",
+      "narrative_unavailable": "La respuesta redactada no está disponible para esta ejecución; el recibo de abajo está completo.",
+      "reads_value": "{{count}} fuentes sintéticas",
+      "decision_label": "Tu decisión",
+      "decision_applied": "Aprobado — aplicado al espacio sintético",
+      "decision_refused": "Rechazado — no se aplicó nada",
+      "honesty": {
+        "real_run": "Ejecución real — responde un modelo de verdad",
+        "synthetic_workspace": "Espacio ficticio — ninguna cuenta conectada"
+      },
+      "phases": {
+        "idle": "Listo para empezar",
+        "starting": "Abriendo la sesión",
+        "streaming": "Misión en curso",
+        "awaiting_decision": "Esperando tu decisión",
+        "completed": "Misión completada",
+        "fallback": "Demostración guiada"
+      },
+      "actions": {
+        "email_reply": "Enviar la respuesta a Emma",
+        "calendar_shift": "Mover la carrera fuera de la lluvia",
+        "generic": "Aplicar el cambio preparado"
+      }
+    },
+    "live_invitation": {
+      "title": "Probar la demostración en vivo",
+      "intro": "Una edición reducida de LIA, limitada a lo esencial para que puedas descubrirla. Lo que no encuentres aquí se ha dejado fuera a propósito: nada está roto ni sin terminar.",
+      "cta": "Abrir la demostración",
+      "terms_link": "Leer las condiciones (la sección 12 trata de esta instancia)",
+      "limits": {
+        "reduced_edition": "Una edición deliberadamente ligera: algunas funciones del asistente completo están desactivadas aquí.",
+        "degraded_performance": "Las respuestas son más lentas que en una instalación normal: esta instancia funciona con recursos modestos y compartidos.",
+        "ephemeral": "Tu cuenta y todo lo que contenga se eliminan cada noche. No se guarda nada ni se puede restaurar.",
+        "no_sensitive_data": "No introduzcas datos sensibles, profesionales ni bancarios, ni credenciales, ni nada sobre otra persona.",
+        "no_connectors": "Sin conexión de correo, calendario o archivos: vincular una cuenta real está desactivado aquí.",
+        "account_quota": "Cada cuenta dispone de una reserva diaria; al agotarse, espera al día siguiente.",
+        "daily_capacity": "La propia demostración tiene una reserva diaria compartida por todos. Al alcanzarla, se pausa hasta el día siguiente.",
+        "availability": "Puede no estar disponible en algunos momentos, sin aviso.",
+        "email_required": "El acceso requiere un correo válido y aceptar las condiciones: eso es lo que mantiene fuera a los robots."
+      }
     }
   }
 }

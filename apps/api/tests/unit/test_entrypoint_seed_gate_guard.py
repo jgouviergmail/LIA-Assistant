@@ -25,7 +25,7 @@ Two independent conditions now guard it, and neither can be satisfied by
 accident:
 
 1. **intent** — ``APPLY_SEEDS=true``, defaulting to false;
-2. **target** — the ``personalities`` table is verifiably empty.
+2. **target** — verifiably NOBODY has chosen a personality yet.
 
 The row count survives only as a VETO. That reversal is what makes it safe: the
 same unreadable answer that used to trigger the wipe now refuses it. The second
@@ -130,8 +130,8 @@ class TestSeedsRequireExplicitIntent:
         body = _executable_body()
 
         assert re.search(r'\[\s+"\$EXISTING_PERSONALITIES"\s+!=\s+"0"\s+\]', body), (
-            "a non-empty personalities table must refuse the seeds: they delete before "
-            "inserting, and users.personality_id is ON DELETE SET NULL."
+            "a user who already chose a personality must refuse the seeds: they delete "
+            "before inserting, and users.personality_id is ON DELETE SET NULL."
         )
 
     def test_apply_seeds_is_the_only_trigger(self) -> None:
@@ -147,10 +147,15 @@ class TestSeedsRequireExplicitIntent:
             "defaulting to false so a normal boot never seeds."
         )
 
-        seed_loop = body.find("for seed_file")
+        # ADR-215: the per-file loop became ONE atomic wrapper invocation.
+        seed_invocation = body.find("apply_reference_seeds.sh")
         assert (
-            seed_loop > gate.start()
-        ), "the seed loop must sit INSIDE the APPLY_SEEDS branch, not before it."
+            seed_invocation > gate.start()
+        ), "the seed wrapper must sit INSIDE the APPLY_SEEDS branch, not before it."
+        assert "for seed_file" not in body, (
+            "per-file psql seeding returned — seeds must go through the single "
+            "atomic wrapper (ADR-215, B09)"
+        )
 
     def test_seeds_reach_the_container(self) -> None:
         """A gate whose files never arrive is a recovery path that does not exist.
@@ -169,19 +174,36 @@ class TestSeedsRequireExplicitIntent:
         assert seeds_dir, "SEEDS_DIR must be declared in the entrypoint"
         target = seeds_dir.group(1)
 
-        compose = yaml.safe_load(COMPOSE_PROD.read_text(encoding="utf-8"))
-        mounts = (compose.get("services") or {}).get("api", {}).get("volumes") or []
-        mounted = [m for m in mounts if isinstance(m, str) and f":{target}" in m]
+        # EVERY compose file that asks for the seeds must also carry them.
+        # Checking prod by name let the demonstrator ask for the bundle with no
+        # mount at all: the gate opened and the wrapper died on `missing seed
+        # file google_api_pricing_seed.sql`, rolling the bundle back and
+        # leaving a partial catalogue (measured 2026-08-07).
+        asking = []
+        for compose_path in sorted(REPO_ROOT.glob("docker-compose*.yml")):
+            raw = compose_path.read_text(encoding="utf-8")
+            if "APPLY_SEEDS=true" not in raw:
+                continue
+            compose = yaml.safe_load(raw)
+            for name, spec in (compose.get("services") or {}).items():
+                declared = (spec or {}).get("environment") or []
+                if not any("APPLY_SEEDS=true" in str(entry) for entry in declared):
+                    continue
+                mounts = [m for m in ((spec or {}).get("volumes") or []) if isinstance(m, str)]
+                mounted = [m for m in mounts if f":{target}" in m]
+                asking.append((compose_path.name, name, mounted))
 
-        assert mounted, (
-            f"docker-compose.prod.yml must mount the seed files at {target}: the API "
-            f"image is built from apps/api, which contains no infrastructure/ directory, "
-            f"so without a mount the seed gate can never run and a fresh install has no "
-            f"reference content."
-        )
-        assert all(
-            m.endswith(":ro") for m in mounted
-        ), f"the seed mount must be read-only: {mounted}"
+        assert asking, "no compose file arms APPLY_SEEDS — the recovery path is unreachable"
+        for file_name, service, mounted in asking:
+            assert mounted, (
+                f"{file_name}:{service} sets APPLY_SEEDS=true but mounts nothing at "
+                f"{target}: the API image is built from apps/api, which contains no "
+                f"infrastructure/ directory, so the seed files can only arrive through "
+                f"a mount. Without it the bundle fails and rolls back."
+            )
+            assert all(
+                m.endswith(":ro") for m in mounted
+            ), f"{file_name}:{service} mounts the seeds writable: {mounted}"
 
     def test_operator_is_warned_that_seeding_destroys(self) -> None:
         """Whoever flips the switch must read what it costs."""
@@ -191,4 +213,46 @@ class TestSeedsRequireExplicitIntent:
             "the apply branch must announce that seeding is destructive: the operator "
             "who sets APPLY_SEEDS=true on a populated database needs that warning in "
             "the deployment log, not in a source comment they will never open."
+        )
+
+
+class TestTheVetoAsksAQuestionThatCanBeAnsweredYes:
+    """A veto no fresh install can satisfy is not a gate, it is a wall.
+
+    The gate asked "is the personalities table empty?". Migrations run FIRST
+    (`alembic upgrade head`, immediately above the gate) and
+    `2025_12_03_0000-add_personalities` inserts fourteen rows unconditionally,
+    so the answer was never yes. Measured 2026-08-07 on a genuinely fresh
+    database: `personalities already holds 14 row(s) - SQL seeds SKIPPED`.
+
+    The reference bundle could therefore never be applied by ANY installation.
+    The cost is not cosmetic: the migrations carry 91 LLM prices where the
+    bundle carries 242, and a model priced only by the bundle is billed by the
+    provider and recorded at zero — the same class of blindness that left the
+    demonstrator's daily ceiling reading 0,000025 EUR for 59 344 real tokens.
+
+    What the gate protects is a user's CHOSEN personality, so that is what it
+    must count.
+    """
+
+    def test_the_veto_counts_choices_not_rows(self) -> None:
+        body = _executable_body()
+
+        assert "FROM users WHERE personality_id IS NOT NULL" in body, (
+            "counting rows in `personalities` can never be zero after the "
+            "migrations that create them, so the seed branch is unreachable"
+        )
+        assert (
+            "SELECT COUNT(*) FROM personalities;" not in body
+        ), "the row count is the unreachable question; it must not come back"
+
+    def test_the_migrations_still_populate_the_table_the_old_veto_watched(self) -> None:
+        """Pin the fact the fix rests on, so a future change re-opens the case."""
+        migration = (
+            REPO_ROOT / "apps/api/alembic/versions/2025_12_03_0000-add_personalities.py"
+        ).read_text(encoding="utf-8")
+
+        assert "INSERT INTO personalities" in migration, (
+            "if the migrations stop seeding personalities, the old row-count veto "
+            "would become satisfiable again and this fix deserves a re-read"
         )

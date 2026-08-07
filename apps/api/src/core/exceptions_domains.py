@@ -2,7 +2,7 @@
 
 Extracted from ``src.core.exceptions`` (ADR-124, file-size ratchet): these
 families are bounded-context specific (memory store, interests, voice STT,
-WebSocket) and only depend on ``BaseAPIException``. They remain part of the
+WebSocket, usage limits) and only depend on ``BaseAPIException``. They remain part of the
 central taxonomy — ``src.core.exceptions`` re-exports every name below, and
 consumers keep importing from there (façade, no import change anywhere).
 
@@ -353,4 +353,84 @@ def raise_websocket_rate_limit(
         user_id=user_id,
         limit=limit,
         window_seconds=window_seconds,
+    )
+
+
+# ============================================================================
+# Usage Limit Errors
+# ============================================================================
+
+
+class UsageLimitExceededError(BaseAPIException):
+    """Raised when a usage limit blocks the request (per user, or instance-wide).
+
+    Two shapes on purpose:
+    - without ``error_code``, the historical plain-string detail, so every
+      existing caller and client keeps working unchanged;
+    - with one, a structured detail (same doctrine as the 409 active-run
+      contract) plus ``Retry-After``, because an instance pause is not the
+      visitor's quota and must be told apart.
+    """
+
+    def __init__(
+        self,
+        limit_name: str | None = None,
+        reason: str | None = None,
+        error_code: str | None = None,
+        retry_after_seconds: int | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.limit_name = limit_name
+        self.reason = reason
+        self.error_code = error_code
+
+        detail: str | dict[str, Any]
+        if error_code is None:
+            detail = reason or "Usage limit exceeded"
+        else:
+            detail = {
+                "error": reason or "Usage limit exceeded",
+                "error_code": error_code,
+                "limit": limit_name,
+            }
+
+        headers = (
+            {"Retry-After": str(retry_after_seconds)} if retry_after_seconds is not None else None
+        )
+
+        super().__init__(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=detail,
+            log_event="usage_limit_exceeded",
+            headers=headers,
+            limit_name=limit_name or "unknown",
+            **kwargs,
+        )
+
+
+def raise_usage_limit_exceeded(
+    limit_name: str | None = None,
+    reason: str | None = None,
+    error_code: str | None = None,
+    retry_after_seconds: int | None = None,
+) -> NoReturn:
+    """
+    Raise when a usage limit blocks the request.
+
+    Args:
+        limit_name: Which limit was exceeded (e.g., 'cycle_tokens', 'manual_block').
+        reason: Technical reason for the block (logs and admin API; what the
+            visitor reads is localized by the frontend from the error code).
+        error_code: Stable code the client localizes on. Supplying it switches
+            the response to the structured detail shape.
+        retry_after_seconds: Seconds before retrying makes sense.
+
+    Raises:
+        UsageLimitExceededError: 429 Too Many Requests
+    """
+    raise UsageLimitExceededError(
+        limit_name=limit_name,
+        reason=reason,
+        error_code=error_code,
+        retry_after_seconds=retry_after_seconds,
     )

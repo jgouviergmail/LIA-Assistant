@@ -10,11 +10,11 @@ Created: 2026-03-21
 """
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Numeric, String
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -134,3 +134,56 @@ class UserUsageLimit(BaseModel):
             f"blocked={self.is_usage_blocked}, "
             f"tokens_cycle={self.token_limit_per_cycle})>"
         )
+
+
+class InstanceDailyBudget(BaseModel):
+    """Instance-wide daily spend ledger (live-demonstrator programme).
+
+    ONE row per UTC day for the WHOLE instance — the only bound that holds
+    when every visitor gets their own account (per-user limits cannot cap
+    what N accounts spend together). Written exclusively through the atomic
+    UPSERT in ``InstanceBudgetService.record_spend``.
+
+    Attributes:
+        utc_day: The UTC calendar day; unique, and the ledger's identity.
+        spent_cost_eur: Sum of every billable family (LLM, Google API,
+            image generation) recorded for that day.
+        run_count: How many runs contributed, for operator context only.
+        signup_count: Visitor slots reserved that day (demo mode).
+    """
+
+    __tablename__ = "instance_daily_budget"
+
+    utc_day: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+        unique=True,
+        index=True,
+        doc="UTC calendar day this ledger row aggregates.",
+    )
+    spent_cost_eur: Mapped[Decimal] = mapped_column(
+        Numeric(12, 6),
+        nullable=False,
+        server_default="0",
+        doc="Total euros billed on that day, every cost family included.",
+    )
+    run_count: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        server_default="0",
+        doc="Number of runs that contributed (operator context only).",
+    )
+    signup_count: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        server_default="0",
+        doc=(
+            "Visitor slots reserved on that day, in demo mode. Lives on the "
+            "same row as the money because it is the same question — what did "
+            "this instance do today — and because the row already carries the "
+            "unique UTC-day key an atomic reservation needs. Moved by a "
+            "conditional UPSERT only: counting rows and then inserting let a "
+            "simultaneous burst through (37 accounts against a ceiling of 5, "
+            "measured 2026-08-07)."
+        ),
+    )

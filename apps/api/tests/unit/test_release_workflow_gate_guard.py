@@ -19,7 +19,9 @@ REPO_ROOT = repo_root_or_skip()
 RELEASE_YML = REPO_ROOT / ".github" / "workflows" / "release.yml"
 
 # Jobs that must not run before CI is confirmed green for the tagged commit.
-GATED_JOBS = ("build-and-push", "generate-sbom")
+# (ADR-215 split the old build-and-push into the candidate graph; the SBOMs
+# moved into assemble-self-host-release, which transitively needs the gate.)
+GATED_JOBS = ("build-candidates",)
 
 
 def _load_release() -> dict:

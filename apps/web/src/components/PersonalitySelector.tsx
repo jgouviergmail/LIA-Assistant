@@ -28,7 +28,7 @@ import { logger } from '@/lib/logger';
  */
 export function PersonalitySelector() {
   const { t } = useTranslation();
-  const { personalities, currentPersonality, loading, updating, updatePersonality } =
+  const { personalities, currentPersonality, loading, refreshing, updating, updatePersonality } =
     usePersonality();
   // Animated emoji policy: the current personality in the header is always
   // alive; menu items animate only while hovered/focused (one loop at a time,
@@ -80,6 +80,10 @@ export function PersonalitySelector() {
           size="sm"
           className="gap-2 h-11 px-3 max-[380px]:gap-1 max-[380px]:h-9 max-[380px]:px-2"
           disabled={updating}
+          // A reload of the catalogue (an administrator saving a style) must
+          // announce itself without taking the control away: swapping it for
+          // the loading placeholder would blank the header mid-session.
+          aria-busy={refreshing}
           // The visible title is hidden below `xl` (the header row cannot fit
           // it next to the nav), and an emoji is not an accessible name — so
           // the name is carried explicitly and states the current value.

@@ -18,6 +18,7 @@ function VerifyEmailContent() {
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   const token = searchParams.get('token');
+  const [isActive, setIsActive] = useState(false);
 
   useEffect(() => {
     async function verifyEmail() {
@@ -28,7 +29,16 @@ function VerifyEmailContent() {
       }
 
       try {
-        await apiClient.post(`/auth/verify-email?token=${encodeURIComponent(token)}`);
+        // The endpoint returns the account it just verified. Reading
+        // `is_active` from it is the only honest way to tell the visitor what
+        // happens next: on a demonstrator the verified mail IS the approval
+        // and the account is already usable, while an ordinary instance
+        // queues it for an administrator. Announcing a wait that will never
+        // end sends a visitor away for good.
+        const verified = await apiClient.post<{ is_active?: boolean }>(
+          `/auth/verify-email?token=${encodeURIComponent(token)}`
+        );
+        setIsActive(Boolean(verified?.is_active));
         setStatus('success');
       } catch (error: unknown) {
         setStatus('error');
@@ -64,8 +74,16 @@ function VerifyEmailContent() {
           <CheckCircle2 className="h-16 w-16 text-success" />
         </div>
         <h1 className="text-2xl font-bold text-success">{t('auth.verify_email.success_title')}</h1>
-        <p className="text-muted-foreground">{t('auth.verify_email.success_message')}</p>
-        <p className="text-sm text-muted-foreground">{t('auth.verify_email.success_hint')}</p>
+        <p className="text-muted-foreground">
+          {isActive
+            ? t('auth.verify_email.success_message_active')
+            : t('auth.verify_email.success_message')}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {isActive
+            ? t('auth.verify_email.success_hint_active')
+            : t('auth.verify_email.success_hint')}
+        </p>
         <Button asChild className="mt-4">
           <Link href="/login">{t('auth.verify_email.back_to_login')}</Link>
         </Button>

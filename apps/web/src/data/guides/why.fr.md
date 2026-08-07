@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 4.4
-**Date** : 2026-08-05
-**Application** : LIA v1.28.0
+**Version** : 4.5
+**Date** : 2026-08-08
+**Application** : LIA v1.29.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -41,6 +41,8 @@ LIA prend un chemin différent. Pas un concurrent frontal des géants — un **a
 L'auto-hébergement a mauvaise réputation. LIA ne prétend pas éliminer toute étape technique : la mise en place initiale — configuration des clés API, paramétrage des connecteurs OAuth, choix de l'infrastructure — demande un peu de temps et quelques compétences de base. Mais chaque étape est **documentée en détail** dans un guide de déploiement pas à pas.
 
 Une fois cette phase d'installation terminée, **tout le quotidien se gère depuis une interface web intuitive**. Plus besoin de terminal ni de fichiers de configuration.
+
+Depuis la v1.29.0, cette première phase est elle-même guidée : `./install.sh`, à la racine du dépôt, te pose un questionnaire court dans ta langue — comment tu veux accéder à l'instance, quelles clés fournisseur tu détiens — puis construit les images depuis le code que tu as cloné, applique les données de référence en une seule transaction, crée ton compte administrateur sans jamais écrire un secret sur la ligne de commande, et vérifie enfin que l'installation fonctionne réellement plutôt que de simplement répondre. Si une étape échoue, la reprise repart exactement où elle s'est arrêtée.
 
 ### 2.2. Ce que chaque utilisateur peut configurer
 
@@ -81,6 +83,8 @@ L'administrateur accède à un troisième onglet dédié à la gestion de l'inst
 - **Limites d'usage** : définir des quotas par utilisateur (tokens LLM, appels API, générations d'images) avec suivi temps réel et blocage automatique
 - **Messages broadcast** : envoyer des messages importants à tous les utilisateurs ou à une sélection, avec date d'expiration optionnelle
 - **Export de consommation global** : exporter la consommation de tous les utilisateurs en CSV
+- **Budget quotidien de l'instance** : borner ce que l'instance ENTIÈRE peut dépenser dans une journée, en euros — et pas seulement ce que consomme chaque compte. Le panneau affiche la dépense du jour, le nombre de runs, le plafond réellement appliqué et ce qu'il reste ; la valeur de l'opérateur ne peut que resserrer la borne du déploiement, jamais l'élargir. Budget épuisé, les utilisateurs apprennent que le déploiement est en pause et reçoivent l'heure exacte de remise à zéro, pas un message trompeur sur leur quota personnel
+- **Capacités de plateforme** : activer ou couper dix capacités instantanément, sans redéploiement — dictée, synthèse vocale, images, téléversements, espaces documentaires, recherche web, navigation, compétences, MCP, téléphonie. Une capacité coupée disparaît aussi du catalogue offert au planificateur, donc LIA cesse de proposer ce que les routes refuseraient ; chaque ligne montre ce que le déploiement autorise, ce que tu as choisi, et ce qui s'applique réellement
 
 **IA et connecteurs :**
 
@@ -221,6 +225,7 @@ L'administrateur garde le contrôle de la consommation :
 - **Limites d'usage** configurables par utilisateur : nombre de messages, tokens, coût maximum — par jour, par semaine, par mois, ou en cumul global
 - **Quotas visuels** : chaque utilisateur voit sa consommation en temps réel avec des jauges claires
 - **Activation/désactivation de connecteurs** : l'administrateur active ou désactive les intégrations (Google, Microsoft, Hue...) au niveau de l'instance
+- **Un plafond à l'échelle de l'instance**, au-dessus de ceux par utilisateur : N comptes × leur quota est une dépense non bornée, donc un plafond quotidien en euros borne le déploiement lui-même. C'est premier arrivé, premier servi — et là où une limite par utilisateur échoue ouverte, une dépense d'instance inconnue échoue fermée
 
 ### 4.3. Ton IA de famille
 

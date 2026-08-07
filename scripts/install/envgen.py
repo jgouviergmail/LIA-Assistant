@@ -1,0 +1,176 @@
+"""Private environment generation (B03/B04/B11).
+
+Secrets are GENERATED (never asked), provider keys are NEVER rendered to
+``.env`` (they live encrypted in the database via the stdin bootstrap), and
+reconfiguration reuses the existing generated secrets — silent rotation
+would orphan every Fernet-encrypted row.
+"""
+
+from __future__ import annotations
+
+import base64
+import os
+import secrets
+import stat
+import time
+from collections.abc import Collection, Mapping
+from pathlib import Path
+
+from scripts.install.model import Exposure, PublicAnswers
+
+#: Secrets the installer generates on a fresh install and MUST reuse after.
+GENERATED_SECRET_KEYS: tuple[str, ...] = (
+    "SECRET_KEY",
+    "FERNET_KEY",
+    "POSTGRES_PASSWORD",
+    "REDIS_PASSWORD",
+)
+
+
+class EnvGenError(ValueError):
+    """Environment generation/reuse failure (stable value-free code)."""
+
+
+def generate_secrets() -> Mapping[str, str]:
+    """Generate every backend secret with its exact required shape."""
+    return {
+        "SECRET_KEY": secrets.token_urlsafe(48),
+        # Fernet: 44-char urlsafe base64 of exactly 32 bytes.
+        "FERNET_KEY": base64.urlsafe_b64encode(secrets.token_bytes(32)).decode(),
+        "POSTGRES_PASSWORD": secrets.token_urlsafe(24),
+        "REDIS_PASSWORD": secrets.token_urlsafe(24),
+    }
+
+
+def _parse_env(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, _, value = stripped.partition("=")
+        values[key.strip()] = value.strip()
+    return values
+
+
+def load_existing_generated_secrets(
+    path: Path, required_keys: Collection[str]
+) -> Mapping[str, str]:
+    """Reload the generated secrets from an existing private ``.env``.
+
+    Raises:
+        EnvGenError: ``env_file_missing``, ``env_file_not_private`` (POSIX),
+            ``generated_secret_missing:<KEY>``,
+            ``generated_secret_placeholder:<KEY>``, or
+            ``generated_secret_duplicate:<KEY>``.
+    """
+    if not path.is_file():
+        raise EnvGenError("env_file_missing")
+    if os.name == "posix":
+        mode = stat.S_IMODE(path.stat().st_mode)
+        if mode & 0o077:
+            raise EnvGenError("env_file_not_private")
+    values = _parse_env(path)
+    result: dict[str, str] = {}
+    for key in required_keys:
+        value = values.get(key, "")
+        if not value:
+            raise EnvGenError(f"generated_secret_missing:{key}")
+        if value.startswith("CHANGE_ME"):
+            raise EnvGenError(f"generated_secret_placeholder:{key}")
+        if value in result.values():
+            raise EnvGenError(f"generated_secret_duplicate:{key}")
+        result[key] = value
+    return result
+
+
+def _origin(public: PublicAnswers) -> str:
+    if public.exposure is Exposure.LAN:
+        return f"http://{public.server_host}:3000"
+    return f"https://{public.web_domain}"
+
+
+def derive_environment(
+    public: PublicAnswers, generated: Mapping[str, str]
+) -> Mapping[str, str]:
+    """Derive the complete non-provider-key environment for one install.
+
+    ``NEXT_PUBLIC_*`` values stay EMPTY on purpose (B03): release images are
+    host-neutral and same-origin; runtime origin travels through the
+    server-only ``APP_URL_SERVER``.
+    """
+    origin = _origin(public)
+    secure = public.exposure is not Exposure.LAN
+    return {
+        "ENVIRONMENT": "production",
+        "DEBUG": "false",
+        "LOG_LEVEL": "INFO",
+        **{key: generated[key] for key in GENERATED_SECRET_KEYS},
+        "POSTGRES_USER": "lia",
+        "POSTGRES_DB": "lia",
+        "SESSION_COOKIE_SECURE": "true" if secure else "false",
+        "SESSION_COOKIE_DOMAIN": "",
+        "APP_URL_SERVER": origin,
+        "FRONTEND_URL": origin,
+        "API_URL": origin,
+        "CORS_ORIGINS": origin,
+        "NEXT_PUBLIC_API_URL": "",
+        "NEXT_PUBLIC_APP_URL": "",
+        "DEFAULT_LANGUAGE": public.default_language,
+        "NODE_ENV": "production",
+    }
+
+
+def render_env(base: str, values: Mapping[str, str]) -> str:
+    """Render ``.env`` content: replace known keys in ``base``, append rest.
+
+    Inline comments are never emitted after a value — under
+    ``docker compose`` an inline comment on an empty-valued variable BECOMES
+    the value (T5 regression class).
+    """
+    remaining = dict(values)
+    lines: list[str] = []
+    for line in base.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#") and "=" in stripped:
+            key = stripped.partition("=")[0].strip()
+            if key in remaining:
+                lines.append(f"{key}={remaining.pop(key)}")
+                continue
+        lines.append(line)
+    if remaining:
+        if lines and lines[-1].strip():
+            lines.append("")
+        lines.append("# Values generated by the installer (ADR-215).")
+        lines.extend(f"{key}={value}" for key, value in remaining.items())
+    return "\n".join(lines) + "\n"
+
+
+def write_atomic_private(path: Path, content: str) -> Path | None:
+    """Atomically write a private file; back up any existing one first.
+
+    Returns:
+        The backup path when a previous file existed, else None. A failed
+        write leaves the existing file untouched (sibling temp + fsync +
+        ``os.replace``).
+    """
+    backup: Path | None = None
+    if path.is_file():
+        backup = path.with_name(f"{path.name}.backup.{int(time.time())}")
+        backup.write_bytes(path.read_bytes())
+        if os.name == "posix":
+            backup.chmod(0o600)
+    tmp = path.with_name(f"{path.name}.tmp-{os.getpid()}")
+    with open(tmp, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(content)
+        handle.flush()
+        os.fsync(handle.fileno())
+    if os.name == "posix":
+        tmp.chmod(0o600)
+    try:
+        os.replace(tmp, path)
+    except OSError:
+        # Fail closed: remove the temp file, keep the original (and backup).
+        tmp.unlink(missing_ok=True)
+        raise
+    return backup

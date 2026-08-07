@@ -26,10 +26,13 @@ class TestBriefingSettings:
         s = BriefingSettings()
         assert s.briefing_max_agenda_items == 10  # bumped from 3
         assert s.briefing_agenda_lookahead_hours == 24
-        assert s.briefing_max_mails_items == 5
-        assert s.briefing_max_birthdays_items == 5
-        assert s.briefing_max_birthdays_horizon_days == 14
-        assert s.briefing_max_reminders_items == 5
+        # Aligned on the proven production values (2026-08-06): the briefing
+        # has been showing ten items per section, and looking a week ahead for
+        # birthdays rather than a fortnight.
+        assert s.briefing_max_mails_items == 10
+        assert s.briefing_max_birthdays_items == 10
+        assert s.briefing_max_birthdays_horizon_days == 7
+        assert s.briefing_max_reminders_items == 10
         assert s.briefing_health_window_days == 14
         assert s.briefing_weather_daily_forecast_days == 5
 

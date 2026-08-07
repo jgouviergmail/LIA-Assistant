@@ -1155,6 +1155,13 @@ class TrackingContext:
             summary_data=summary,
         )
 
+        # 2b. Add this run's cost to the instance-wide daily ledger. Same
+        # transaction as the summary above: the two either both land or both
+        # roll back, so the ceiling can never be fed a partial view.
+        from src.domains.usage_limits.instance_budget import InstanceBudgetService
+
+        await InstanceBudgetService.record_run_summary(db, summary)
+
         # 3. Update user statistics (upsert)
         await self._update_user_statistics(db, summary)
 
@@ -1470,6 +1477,15 @@ class StatisticsService:
                     current_cycle_start=current_cycle_start,
                     is_new_cycle=is_new_cycle,
                 )
+
+                # Remote STT bills the operator like any other provider call,
+                # but it never enters a run summary — it is transcribed before
+                # the run exists, from a handler that owns its own session. So
+                # it must record its own spend, or the instance ceiling stays
+                # blind to every dictated message (ADR-216).
+                from src.domains.usage_limits.instance_budget import InstanceBudgetService
+
+                await InstanceBudgetService.record_spend(db, cost_eur=cost_eur)
                 await db.commit()
         except Exception:
             logger.exception(

@@ -60,6 +60,32 @@ BeforeAll {
 
         Set-Content (Join-Path $proj "package.json") '{"version": "9.9.9-test"}'
         Set-Content (Join-Path $proj "docker-compose.prod.yml") "services: {}"
+        Set-Content (Join-Path $proj "docker-compose.skill-sandbox.yml") "services: {}"
+        Set-Content (Join-Path $proj "docker-compose.devops.yml") "services: {}"
+        # The demonstrator's envelope and the three shell scripts the deployment
+        # ships for it. `prepare-prod.ps1` marks all four REQUIRED and aborts
+        # without them, so a sandbox lacking them is not a deployable tree —
+        # exactly the fiction this fixture exists to avoid. Missed on
+        # 2026-08-07: they became required and this suite went red unnoticed,
+        # because a deployment-path change shipped without `task test:deploy`.
+        Set-Content (Join-Path $proj "docker-compose.demo-instance.yml") "services: {}"
+        foreach ($demoScript in @(
+                "harden-demo-host.sh", "verify-demo-surface.sh", "preflight-demo-prod.sh")) {
+            Copy-Item (Join-Path $RepoDeployDir $demoScript) (Join-Path $proj "scripts/deploy/")
+        }
+        New-Item -ItemType Directory (Join-Path $proj "infrastructure/demo-instance") -Force | Out-Null
+        Set-Content (Join-Path $proj "infrastructure/demo-instance/Caddyfile") ":80 { respond 404 }"
+        # Filled with the four keys the pipeline refuses to ship without, and a
+        # non-localhost URL: an incomplete file makes the step decline, and a
+        # step that declines measures nothing.
+        Set-Content (Join-Path $proj ".env.demo-instance.prod") @"
+FRONTEND_URL=https://demo.example.org
+APP_URL_SERVER=https://demo.example.org
+DEMO_INSTANCE_TUNNEL_TOKEN=fake-token
+DEEPSEEK_API_KEY=fake-key
+SECRET_KEY=fake-secret
+FERNET_KEY=fake-fernet
+"@
         Set-Content (Join-Path $proj ".sops.yaml") "creation_rules: []"
         # The pnpm workspace files and the patch directory: prepare-prod refuses
         # to produce a bundle without them, because the web image's build CONTEXT
@@ -141,10 +167,12 @@ echo BACKUP_CREATED
 if "%SSH_MODE%"=="bad_perms" goto :badperms
 echo PERMS_ENV=600
 echo PERMS_DIR=700
+echo PERMS_DEMO=600
 exit /b 0
 :badperms
 echo PERMS_ENV=644
 echo PERMS_DIR=755
+echo PERMS_DEMO=600
 exit /b 0
 '@
         $sshSh = @'
@@ -167,6 +195,7 @@ else
   echo PERMS_ENV=600
   echo PERMS_DIR=700
 fi
+echo PERMS_DEMO=600
 exit 0
 '@
         $logOnlyBat = @'
@@ -477,7 +506,7 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         $deploySh | Should -Match '\[ -f "provenance\.env" \] && \. \./provenance\.env'
         $deploySh | Should -Match '\[ -f "deploy_readiness_gate\.sh" \] && \. \./deploy_readiness_gate\.sh'
         $iCapture = $deploySh.IndexOf("capture_rollback_point")
-        $iBuild = $deploySh.IndexOf("docker compose -f docker-compose.prod.yml build")
+        $iBuild = $deploySh.IndexOf("docker compose -f docker-compose.prod.yml -f docker-compose.skill-sandbox.yml -f docker-compose.devops.yml build")
         $iUp = $deploySh.IndexOf("up -d --force-recreate --wait")
         $iGate = $deploySh.IndexOf("run_readiness_gate")
         $iCapture | Should -BeGreaterThan 0
@@ -825,7 +854,7 @@ Describe "generated deploy.sh to readiness-gate wiring (bash)" {
         $r = & $runDeploySh "green" "1" "wiring-green.log"
         $r.ExitCode | Should -Be 0
         $r.Output | Should -Match "API prete"
-        $r.ShimLog | Should -Match "docker compose -f docker-compose.prod.yml build"
+        $r.ShimLog | Should -Match "docker compose -f docker-compose.prod.yml -f docker-compose.skill-sandbox.yml -f docker-compose.devops.yml build"
         $r.ShimLog | Should -Match "up -d --force-recreate --wait"
         $manifest = Get-Content (Join-Path $prod "release-manifest.json") -Raw
         $manifest | Should -Match """git_commit_sha"": ""$sha"""
@@ -902,6 +931,24 @@ Describe "deploy-prod.ps1 keeps the live directory intact during the build (A2)"
         $shimLog | Should -Match ([regex]::Escape("cd ~/lia.staging && chmod +x deploy.sh && ./deploy.sh"))
     }
 
+    It "stages the demonstrator secrets BEFORE the swap consumes the directory" {
+        # `deploy.sh` RENAMES the staging directory into the live one. A file
+        # copied into the staging path afterwards lands nowhere: scp fails, the
+        # warning scrolls past, and `task demo:prod:up` then refuses on an
+        # absent file. Measured 2026-08-07 — a green deployment left ~/lia
+        # without .env.demo-instance.prod.
+        # The SCP specifically. Matching the file name alone measured the
+        # hardening step's `chmod`, which names it too and always precedes the
+        # deploy — so the assertion held whatever the order, and proved nothing
+        # (caught by re-injecting the defect, 2026-08-07).
+        $push = [regex]::Match($shimLog, "(?m)^scp .*\.env\.demo-instance\.prod")
+        $swap = $shimLog.IndexOf("chmod +x deploy.sh")
+
+        $push.Success | Should -BeTrue -Because "the pipeline must push the demonstrator secrets itself"
+        $swap | Should -BeGreaterThan -1
+        $push.Index | Should -BeLessThan $swap -Because "the swap consumes the staging directory the push targets"
+    }
+
     It "swaps by renaming, never by deleting the live directory" {
         # `mv` preserves the inode of the directory being replaced, which is what
         # keeps the still-running containers' mounts valid. The paths are DERIVED
@@ -920,7 +967,7 @@ Describe "deploy-prod.ps1 keeps the live directory intact during the build (A2)"
     }
 
     It "swaps AFTER the build and BEFORE the services are recreated" {
-        $iBuild = $deploySh.IndexOf("docker compose -f docker-compose.prod.yml build")
+        $iBuild = $deploySh.IndexOf("docker compose -f docker-compose.prod.yml -f docker-compose.skill-sandbox.yml -f docker-compose.devops.yml build")
         $iSwap = $deploySh.IndexOf("SWAP_MARKER")
         $iUp = $deploySh.IndexOf("up -d --force-recreate --wait")
         $iBuild | Should -BeGreaterThan 0

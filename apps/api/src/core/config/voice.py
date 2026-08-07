@@ -217,6 +217,16 @@ class VoiceSettings(BaseSettings):
     # Reference: domains/voice/stt/, plan zippy-drifting-valley.md
     # ========================================================================
 
+    voice_tts_enabled: bool = Field(
+        default=True,
+        description=(
+            "Deployment ceiling for Text-to-Speech. The provider/model picker "
+            "lives on llm_config_overrides (voice_tts, ADR-081); this flag "
+            "decides whether the capability is offered at all, so an operator "
+            "can switch spoken answers off without touching the LLM config."
+        ),
+    )
+
     voice_stt_enabled: bool = Field(
         default=True,
         description="Enable Speech-to-Text via WebSocket /ws/audio. "

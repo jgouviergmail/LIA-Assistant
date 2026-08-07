@@ -286,4 +286,11 @@ ENTRYPOINT ["/app/docker-entrypoint.sh"]
 # add up — 20s here + 60s of drain + margin must stay under the 90s
 # stop_grace_period, an invariant held by
 # tests/unit/test_graceful_shutdown_budget_guard.py.
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--limit-max-requests", "10000", "--limit-max-requests-jitter", "1000", "--proxy-headers", "--forwarded-allow-ips", "*", "--timeout-graceful-shutdown", "20"]
+# Worker count: NOT pinned here. uvicorn honours WEB_CONCURRENCY, and an
+# explicit --workers would beat it -- which is exactly what happened: the
+# demonstrator reuses this image, declared WEB_CONCURRENCY=2, and ran 4.
+# The setting every other layer reads (connection_budget above all) must
+# describe the process, so the default lives in the environment instead.
+ENV WEB_CONCURRENCY=4
+
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--limit-max-requests", "10000", "--limit-max-requests-jitter", "1000", "--proxy-headers", "--forwarded-allow-ips", "*", "--timeout-graceful-shutdown", "20"]

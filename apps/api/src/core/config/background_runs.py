@@ -35,7 +35,7 @@ class BackgroundRunsSettings(BaseSettings):
     """Settings for detached (background) chat run execution."""
 
     background_runs_enabled: bool = Field(
-        default=False,
+        default=True,
         description=(
             "Master switch for detached chat-run execution. When true, the "
             "chat SSE endpoint spawns a detached producer publishing chunks "

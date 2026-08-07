@@ -62,6 +62,14 @@ $rootPaths = @(
     # `pnpm install --frozen-lockfile` echoue d'emblee.
     @{ Path = "patches";                 Required = $true;  Recurse = $true  },
     @{ Path = "docker-compose.prod.yml"; Required = $true;  Recurse = $false },
+    @{ Path = "docker-compose.skill-sandbox.yml"; Required = $true;  Recurse = $false },
+    @{ Path = "docker-compose.devops.yml"; Required = $true;  Recurse = $false },
+    # The public demonstrator, SHIPPED but never started by a deployment:
+    # putting an instance in front of the Internet is a decision
+    # (task demo:prod:up), not a side effect. Required, because a host that
+    # holds the env file and not the envelope is a host where `demo:prod:up`
+    # fails with a message about a missing file rather than about a decision.
+    @{ Path = "docker-compose.demo-instance.yml"; Required = $true; Recurse = $false },
     @{ Path = ".sops.yaml";              Required = $false; Recurse = $false }
 )
 
@@ -211,7 +219,11 @@ $infraDirs = @(
     "observability",
     "pgadmin",
     "database",
-    "claude-cli"
+    "claude-cli",
+    # Caddyfile (the edge allowlist), squid.conf (the egress allowlist), the
+    # OTel and Prometheus configuration. The demonstrator's envelope mounts
+    # all four read-only; without them it starts and serves nothing.
+    "demo-instance"
 )
 
 foreach ($dir in $infraDirs) {
@@ -220,6 +232,37 @@ foreach ($dir in $infraDirs) {
         Copy-Item $src -Destination $infraDir -Recurse
         Write-Host "  + infrastructure/$dir/" -ForegroundColor DarkGray
     }
+}
+
+# Host-isolation script for the demonstrator.
+#
+# Docker's `internal` networks do not cover the bridge gateway, and that
+# gateway is the host: a container on five internal networks still reaches
+# anything the host listens for on 0.0.0.0 (measured 2026-08-07 with
+# disposable containers). This script closes it with idempotent iptables
+# rules, and the deployment runs it on every pass.
+$hardenScript = Join-Path $SourceDir "scripts\deploy\harden-demo-host.sh"
+$verifyScript = Join-Path $SourceDir "scripts\deploy\verify-demo-surface.sh"
+$preflightScript = Join-Path $SourceDir "scripts\deploy\preflight-demo-prod.sh"
+if (Test-Path $hardenScript) {
+    $deployScriptsDir = Join-Path $OutputDir "scripts\deploy"
+    New-Item -ItemType Directory -Path $deployScriptsDir -Force | Out-Null
+    Copy-Item $hardenScript -Destination $deployScriptsDir
+    Write-Host "  + scripts/deploy/harden-demo-host.sh" -ForegroundColor DarkGray
+    if (Test-Path $verifyScript) {
+        Copy-Item $verifyScript -Destination $deployScriptsDir
+        Write-Host "  + scripts/deploy/verify-demo-surface.sh" -ForegroundColor DarkGray
+    } else {
+        throw "scripts/deploy/verify-demo-surface.sh introuvable : task demo:prod:verify ne pourrait pas mesurer la surface fermee."
+    }
+    if (Test-Path $preflightScript) {
+        Copy-Item $preflightScript -Destination $deployScriptsDir
+        Write-Host "  + scripts/deploy/preflight-demo-prod.sh" -ForegroundColor DarkGray
+    } else {
+        throw "scripts/deploy/preflight-demo-prod.sh introuvable : task demo:prod:up demarrerait sans verifier ses prerequis."
+    }
+} else {
+    throw "scripts/deploy/harden-demo-host.sh introuvable : le demonstrateur ne pourrait pas etre isole de son hote."
 }
 
 # ============================================================================
@@ -411,7 +454,10 @@ command -v capture_rollback_point >/dev/null 2>&1 && capture_rollback_point
 # vivant est intact pendant ces ~10 minutes, donc les conteneurs qui servent
 # encore gardent tous leurs bind mounts valides.
 echo "[5/7] Build des images Docker..."
-docker compose -f docker-compose.prod.yml build
+# Chaine mainteneur (ADR-215) : base + sandbox skills (socket) + devops
+# (CLI Claude) — les overlays reproduisent EXACTEMENT le comportement
+# d'avant la separation ; un self-host generique ne les charge jamais.
+docker compose -f docker-compose.prod.yml -f docker-compose.skill-sandbox.yml -f docker-compose.devops.yml build
 
 # ---- SWAP_MARKER : bascule atomique staging -> vivant ----
 # Un bind mount est resolu vers un INODE a la creation du conteneur. `mv` est un
@@ -457,7 +503,7 @@ fi
 # Demarrage des services (force-recreate pour recharger les volumes).
 # --wait bloque jusqu'a ce que les healthchecks compose passent (ou echoue).
 echo "[7/7] Demarrage des services..."
-docker compose -f docker-compose.prod.yml up -d --force-recreate --wait
+docker compose -f docker-compose.prod.yml -f docker-compose.skill-sandbox.yml -f docker-compose.devops.yml up -d --force-recreate --wait
 
 # Readiness gate with operational rollback + release manifest (F008). Prefer the
 # shipped library (polls /ready; on failure auto-rolls back to the previous

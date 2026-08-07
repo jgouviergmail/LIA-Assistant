@@ -69,8 +69,16 @@ class EmailService:
 
             # Send via SMTP
             with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
-                server.starttls()
-                server.login(self.smtp_user, self.smtp_password)
+                # TLS and authentication only when there are credentials to
+                # present. A relay reached over a private network has neither,
+                # and demanding them there is how the demonstrator's
+                # verification email — the one that ACTIVATES the account —
+                # failed on every registration (measured 2026-08-06). Where
+                # credentials exist, the exchange is unchanged: encrypted then
+                # authenticated, never one without the other.
+                if self.smtp_user and self.smtp_password:
+                    server.starttls()
+                    server.login(self.smtp_user, self.smtp_password)
                 server.sendmail(self.smtp_from, to_email, msg.as_string())
 
             logger.info(

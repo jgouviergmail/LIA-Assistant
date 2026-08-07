@@ -4,8 +4,8 @@
 > Every default value in this guide is the **production-proven configuration** actually running in production; you can adopt them as-is with confidence.
 
 **Version**: 4.0
-**Last Updated**: 2026-08-05
-**Compatibility**: LIA v1.28.0
+**Last Updated**: 2026-08-08
+**Compatibility**: LIA v1.29.0
 
 ## Table of Contents
 
@@ -1442,6 +1442,30 @@ docker compose -f docker-compose.dev.yml logs api | grep -i duration
 ## Production Deployment
 
 LIA ships multi-architecture images (`linux/amd64` + `linux/arm64`) — the reference production platform is a Raspberry Pi 5.
+
+### Guided self-host installer (`./install.sh`)
+
+For a fresh production machine, the guided installer (ADR-215) automates the
+whole sequence below — see the complete
+[self-hosting guide](./guides/GUIDE_SELF_HOSTING.md) for every setting and
+failure mode. Its mode is conditional — the same rule holds before
+and after release qualification:
+
+- a **complete source checkout** defaults to a **local build**;
+- an **official release directory** defaults to **prebuilt digests** only
+  when its adjacent `lia-self-host-manifest.json` is qualified
+  (`qualification="passed"`); absent or candidate manifests keep local;
+- `./install.sh --local-build` in a release directory builds from the
+  release's **verified embedded source context**;
+- with neither a complete checkout nor a valid embedded context, it fails
+  **before any mutation** and prints the exact qualified release asset
+  required.
+
+`./install.sh --resume` continues an interrupted install (re-prompting only
+the ephemeral secrets when bootstrap had not completed);
+`./install.sh --reconfigure` changes routing/capability choices without
+touching data, seeds, or secrets. The manual path below remains fully
+supported.
 
 ### Configuration
 

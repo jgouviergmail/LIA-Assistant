@@ -488,7 +488,9 @@
       "registration_failed": "注册失败",
       "login_failed": "登录失败",
       "oauth_failed": "Google身份验证失败",
-      "registration_error": "注册时发生错误"
+      "registration_error": "注册时发生错误",
+      "terms_not_accepted": "创建账户前必须接受使用条款。",
+      "demo_signup_limit_reached": "该演示实例今日的访客名额已满。计数将在世界协调时午夜重置，请明天再来。"
     },
     "password": {
       "errors": {
@@ -521,7 +523,9 @@
       "error_missing_token": "缺少验证令牌。",
       "error_invalid_token": "验证链接无效或已过期。",
       "back_to_login": "返回登录",
-      "create_account": "创建新账户"
+      "create_account": "创建新账户",
+      "success_message_active": "你的电子邮件地址已验证，账户已就绪。",
+      "success_hint_active": "现在即可登录。"
     },
     "forgot_password": {
       "title": "忘记密码？",
@@ -580,6 +584,10 @@
       "oauth_google_button": "使用 Google 确认",
       "oauth_hint": "您将被重定向到 Google 以确认身份，然后返回 LIA — 之后请重新发起该操作。",
       "no_methods": "此账户没有可用的确认方式。请退出登录后重新登录，然后重试。"
+    },
+    "terms": {
+      "accept_prefix": "我接受",
+      "link_label": "使用条款"
     }
   },
   "account_inactive": {
@@ -2101,6 +2109,30 @@
       "google_api_pricing": {
         "title": "Google API定价",
         "description": "管理Google API定价（Places、Geocoding、Routes）"
+      },
+      "capabilities": {
+        "title": "平台能力",
+        "description": "无需部署即可为整个实例启用或停用功能。",
+        "intro": "开关立即生效：助手不再被提供相关工具，路由也会拒绝请求。部署层禁止的能力无论开关如何都保持不可用。",
+        "unavailableBadge": "不可用",
+        "deploymentBlocked": "已被部署配置停用——该开关不起作用。",
+        "enforcedCatalogue": "通过从助手处移除其工具来生效。",
+        "enforcedRoutes": "通过拒绝其请求来生效。",
+        "enforcedBoth": "同时作用于助手的工具与其路由。",
+        "enabledSuccess": "能力已启用。",
+        "disabledSuccess": "能力已停用。",
+        "error": "无法更新该能力。"
+      },
+      "publicDemoLink": {
+        "title": "公开演示链接",
+        "description": "是否向访客展示前往在线演示的链接。",
+        "intro": "演示运行在独立实例上，有独立预算并每晚清除。此开关只决定访客是否看到入口——立即生效。",
+        "switchLabel": "显示演示链接",
+        "switchHint": "访客将在展示页看到邀请，限制说明在前。",
+        "notDeployed": "本次部署未声明演示地址：没有可展示的内容。",
+        "enabledSuccess": "演示链接已显示",
+        "disabledSuccess": "演示链接已隐藏",
+        "error": "无法更改此开关"
       }
     },
     "timezone": {
@@ -3483,6 +3515,7 @@
       "session_expired": "您的会话已过期。请重新登录。",
       "unknown_error": "流式传输时发生未知错误",
       "usage_limit_exceeded": "您已达到使用限制。请联系管理员。",
+      "instance_budget_exhausted": "演示已达到当日预算上限。将在世界协调时午夜重置，请明天再来。",
       "run_in_progress": "回复正在生成中——正在重新连接。",
       "run_gone": "该回复已在后台完成。历史记录已更新。",
       "stream_stalled": "连接已中断。你的回答仍在后台生成，请刷新页面以获取。"
@@ -3841,7 +3874,7 @@
         },
         "costTransparency": {
           "title": "💰 成本透明度",
-          "description": "可选实时显示：输入/输出/缓存 token、每条消息欧元成本和对话总计。仪表板统计：当前周期的消息、token 和成本。用户通过标题栏 💲 图标控制。 当存在配额时，它不再像一堵墙那样突然出现：在最先触及的那项限额达到 80 % 时会给出提醒——涵盖词元、消息数与费用，周期限额与绝对限额皆然——并点明是哪一项；若属周期限额，还会给出重置日期。绝对限额则不会承诺任何重置。"
+          "description": "可选实时显示：输入/输出/缓存 token、每条消息欧元成本和对话总计。仪表板统计：当前周期的消息、token 和成本。用户通过标题栏 💲 图标控制。 当存在配额时，它不再像一堵墙那样突然出现：在最先触及的那项限额达到 80 % 时会给出提醒——涵盖词元、消息数与费用，周期限额与绝对限额皆然——并点明是哪一项；若属周期限额，还会给出重置日期。绝对限额则不会承诺任何重置。 上限也可能作用于整个实例，而不是你的账户：这种情况下 LIA 不会提你的个人配额，而是说明这套部署已经用完当天预算，并给出它重新开始的准确时刻。"
         },
         "scheduledActions": {
           "title": "📅 计划操作",
@@ -3962,6 +3995,14 @@
         "capabilityMap": {
           "title": "🌌 能力星图",
           "description": "一幅星图，呈现助手为<b>这个账户</b>实际能做的事。每项能力是一颗星：真正可用时为<b>实心</b>，等待配置时为<b>空心</b>，其大小来自它所含的内容——四百条记忆比三条更明亮。连线只连接已启用的能力，且按<b>角度顺序</b>排列：因此图形就是这个账户、而非任何他人的配置。被实例停用的能力<b>不出现</b>，绝不置灰——产品无法兑现的控件比缺席的控件更糟。状态在<b>服务端一次解析</b>完成，每个探针使用各自的会话，失败的探针降级为「未就绪」，而不是清空整张图。所发布的一切都不是等级、完成百分比或比较：「已连接三个连接器」是事实，「62%」则会变成一场竞赛。图形本身是装饰性的；所有可达之处都是带名称的链接，可用键盘操作。窄屏或请求减少动效时，会得到同一张图的列表形式——相同数据、相同顺序、相同去向。"
+        },
+        "selfHosting": {
+          "title": "🏠 把 LIA 装在你自己的机器上",
+          "description": "LIA 是自由软件（AGPL-3.0），你可以把它跑在自己的机器上，不依赖任何人。引导式安装器会用你的语言问一份简短的问卷——你打算怎么访问它（局域网、你自己的反向代理，还是托管的 HTTPS），你手上有哪些提供商密钥——然后从你克隆的源码构建镜像，在单个事务中写入参考数据，创建你的管理员账户，并在之后检查安装是否真的可用：迁移只有一个头、参考数据齐备、密钥可解密、提供商覆盖在实际生效的配置上成立。服务器能应答，并不等于安装成功。任何密钥都不会经过命令行；某一步失败时，续装会从中断处精确继续，不会重复询问已经完成的部分。"
+        },
+        "platformCapabilities": {
+          "title": "🎛️ 这个实例提供什么",
+          "description": "并非所有 LIA 实例都提供相同的功能，这是刻意为之。十项能力——听写、语音合成、图像、上传、文档空间、网页搜索、浏览、技能、MCP、电话——管理员可以直接在设置里开启或关闭，无需重新部署，也不必改动任何配置文件。某项能力被关闭时，它同时会从提供给规划器的目录中消失：LIA 不会答应一件它做不到的事，所以你不会事后才收到拒绝。如果你要求的正好属于被关闭的能力，回复会用你的语言把原因讲清楚，而不是毫无解释地失败。管理员那一侧则可以并排看到：部署允许什么、他自己选了什么，以及实际生效的是什么。"
         }
       },
       "diagram_alt": "LIA架构图"
@@ -3970,6 +4011,19 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_29_0": {
+          "title": "v1.29.0 — 🏠 LIA 可以装在你自己的机器上，实例也知道自己花了多少",
+          "date": "2026年8月",
+          "count": "6",
+          "items": {
+            "i1": "<b>🏠 在你自己的机器上安装 LIA，全程引导</b>——<code>./install.sh</code> 会用你的语言问一份简短的问卷，从你克隆的源码构建镜像，创建你的管理员账户和各家提供商的密钥，<b>绝不会把任何密钥写到命令行上</b>，然后检查安装是否真的可用——而不只是服务器有没有回应。某一步失败时，<code>./install.sh --resume</code> 会从中断处继续。",
+            "i2": "<b>💶 面向整个实例的每日支出上限</b>——管理员现在可以按欧元限制<b>整个部署</b>一天的支出，而不只是每个账户的用量。先到先得；额度用完后 LIA 会告诉访客明天再来，并给出准确的重置时刻。面板会显示当天支出、真正生效的上限，以及还剩多少。",
+            "i3": "<b>🎛️ 两秒关掉一项功能，无需重新部署</b>——听写、语音合成、图像、上传、文档空间、网页搜索、浏览、技能、MCP 和电话，现在是管理后台里的十个开关。每一行都显示部署允许什么、管理员选择了什么，以及<b>实际</b>生效的是什么——被部署禁用的能力会明说，而不是假装可调。",
+            "i4": "<b>🎬 一场引导式演示，在 /demo</b>——六个任务，每一个对应 LIA 的一项差异化机制：忙乱的早晨、主动提醒、长期记忆、电话预订、每日简报，以及设置巡览。你可以批准、修改或拒绝每一项准备好的变更，然后阅读最终回复。每一步都标明这是基于虚构数据的演示，不会联系任何外部服务，证据抽屉会把每个元素链接到它的源码。",
+            "i5": "<b>📜 注册时需要接受使用条款</b>——创建账户现在需要明确的同意，并连同日期与版本一起记录。条款以六种语言撰写，所有注册路径一律适用。",
+            "i6": "<b>🔒 三个绿色测试套件看不见的缺陷</b>——语音合成<b>计费了却从未计入</b>支出上限；用 Google 登录会完全绕过条款接受；还有十一条连接器路径可以在毫无防护的情况下绑定真实凭据。三者均已修复，而且新的守卫都被故意破坏过，以证明它们确实会变红。"
+          }
+        },
         "v1_28_0": {
           "title": "v1.28.0 — 🧭 LIA 学习你的习惯，一切由你掌控",
           "date": "2026年8月",
@@ -7150,6 +7204,10 @@
         "title": "你的星座",
         "desc": "每项能力都是一颗星：启用时为实心，等待时为空心。连线只连接已启用的——图形就是你的配置，而非任何他人的。"
       },
+      "capability_honesty": {
+        "title": "关掉了，也说清楚",
+        "desc": "运维者可以为整个实例关掉某项能力。真发生时，LIA 会把它点名说出来，而不是悄无声息地失败——而且它一开始就不再提出这个动作，你也就不会事后才收到拒绝。"
+      },
       "readable_at_a_glance": {
         "title": "一眼可读",
         "desc": "紧急提示与普通提示不再相像：区分它们的是密度，而不仅是色相。在灰度下同样成立。 而且操作处处同形：创建是实心的，删除无需悬停就带着红色，每个标题都以图标示人。"
@@ -7212,6 +7270,10 @@
       },
       "relation_sections": {
         "section": "往来邮件"
+      },
+      "capability_honesty": {
+        "capability": "听写",
+        "reason": "本实例已关闭"
       }
     },
     "craft": {
@@ -8071,7 +8133,9 @@
       "trust_gdpr": "符合GDPR",
       "badge_opensource": "开源项目",
       "cta_github": "GitHub",
-      "intro_paragraph": "LIA是一个开源的个人AI助手，协调20+个专业代理来管理你的邮件、日历、联系人、文件、任务、提醒、网络搜索、天气、路线和智能家居。兼容Google Workspace、Apple iCloud和Microsoft 365，LIA使用自然语言工作，对每个敏感操作进行人工验证。"
+      "cta_demo": "引导演示",
+      "intro_paragraph": "LIA是一个开源的个人AI助手，协调20+个专业代理来管理你的邮件、日历、联系人、文件、任务、提醒、网络搜索、天气、路线和智能家居。兼容Google Workspace、Apple iCloud和Microsoft 365，LIA使用自然语言工作，对每个敏感操作进行人工验证。",
+      "cta_star": "Star"
     },
     "chat_mockup": {
       "aria": "动画演示：四个真实场景——LIA 并行调度多个智能体并等待你的确认、主动交叉分析天气与日程、拨打真实电话完成预订、并直接在聊天中创建迷你应用。工作时可以看到幕后的编排过程。",
@@ -8819,7 +8883,8 @@
       "availability": "可用性",
       "liability": "责任",
       "termination": "终止",
-      "applicable_law": "适用法律"
+      "applicable_law": "适用法律",
+      "demo_instance": "公开演示实例"
     }
   },
   "browser": {
@@ -9062,7 +9127,7 @@
       "security-architecture": {
         "title": "纵深防御：LIA的5项安全原则",
         "excerpt": "纵深防御、最小权限、速率限制、加密和验证保护你的数据。",
-        "body": "<h2>5项基本原则</h2><p>LIA的安全性基于五项应用于应用每一层的原则：</p><ul><li><strong>纵深防御</strong> — 多层控制（认证、速率限制、验证、加密）</li><li><strong>最小权限</strong> — 默认最小权限</li><li><strong>安全失败</strong> — 出错时拒绝而非允许</li><li><strong>不信任输入</strong> — Pydantic验证 + 系统化清洗</li><li><strong>默认安全</strong> — HTTPS、HttpOnly/SameSite cookies、严格CORS</li></ul><h2>哈希与加密</h2><p>密码使用<strong>bcrypt</strong>（带自动盐值）进行哈希。敏感数据（OAuth令牌、连接器凭据、PII、MCP服务器凭据）使用<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）加密，确保机密性和完整性。加密密钥与数据分开管理。</p><h2>JWT与会话管理</h2><p>JWT令牌使用HS256算法，配合Redis中的JTI（JWT ID）黑名单系统。一次性令牌（邮件验证、密码重置）在首次使用后即失效。此机制防止任何敏感令牌的重复使用。</p><h2>强身份验证与设备控制</h2><p>登录不止于密码。<strong>WebAuthn 通行密钥</strong>让你通过 Face ID、指纹或设备密码进行身份验证 — 设计上抗钓鱼，配有一次性服务器质询和基于签名计数器的克隆检测。<strong>TOTP 第二因素</strong>为密码登录添加 6 位数验证步骤，辅以十个以哈希存储的一次性备用码。敏感操作 — 管理凭据、导出数据、注销其他设备 — 都经过 <strong>step-up 重新验证</strong>：一个 5 分钟的确认窗口，采用类型化的 API 契约，绝不静默重定向。<strong>我的设备</strong>列出每个在线会话及刻意限定的元数据（浏览器和系统类别、截断的 IP），可即时注销任意会话 — 被注销的会话几秒内即失去实时流 — 并在账户从无法识别的设备登录时推送提醒。</p><h2>可配置速率限制</h2><p>速率限制在两个层面运作：</p><ul><li><strong>HTTP</strong> — 通过上游nginx</li><li><strong>工具</strong> — 按用户、按工具的滑动窗口，阈值由配置驱动，覆盖每一个付费外部 API（图像生成、网页搜索、浏览器、DevOps CLI）</li><li><strong>外部连接器</strong> — 跨实例共享的分布式 Redis 滑动窗口（Google、Apple、API 密钥提供商）</li></ul><p>API限制严格：每次请求最多10个项目，每个领域有默认值（默认10，最大50）。</p><h2>渲染与网络加固</h2><p>聊天会渲染 LLM 的输出——它可能转发第三方 HTML（邮件正文、抓取的页面、工具结果）——并通过严格的净化边界（<code>rehype-sanitize</code> 配合经审计的 schema）：<code>&lt;script&gt;</code>、<code>&lt;iframe&gt;</code>、<code>&lt;form&gt;</code> 及事件处理器会被移除，而合法的卡片、按钮和公式得以保留。交互式 MCP/Skill 应用从不经过 markdown——它们只在沙箱化的 iframe 小组件中挂载。在网络层面，生产环境 API 位于 Cloudflare 之后作为唯一入口，容器端口绑定 loopback，uvicorn 仅信任反向代理的请求头：因此 <code>request.client.host</code> 承载真实的访客 IP，「按 IP」的速率限制按访客生效，而非作用于单一共享的内部地址。</p><h2>提示注入防护</h2><p>来源是<strong>数据</strong>的属性，而不是取回它的那个工具的属性。逐工具地封装内容会漏掉一半 —— 对调用方的穷尽式搜索发现邮件工具未被覆盖，而恰恰是它的 docstring 承诺返回完整正文 —— 而且它盯错了面：内容通过两条路径抵达模型，两条都不是工具。注册表的 <strong>24 种数据类型</strong>一次性分类为内部或第三方撰写，未知类型一律判定为<em>外部</em>，遇到未分类的类型应用会拒绝启动。凡来自第三方的内容，抵达模型时都标注为待分析的数据，而绝非指令。</p><p><strong>七类注入模式</strong>在六种语言中被识别 —— 伪造的系统角色、「忽略先前的指令」、身份切换、要求把你的数据发往别处、在他人文本中点名 LIA 的工具、不可见 Unicode、藏在 HTML 注释里的指令。内容仍**原封不动**发往模型，只附上一条指明所属类别的提示：净化意味着改写一封你可能想原样阅读的邮件，换来的却是下一次绕过就会推翻的保证。扫描范围有界，可疑文本从不进入日志 —— 它按其性质由攻击者掌控，且通常包含你自己的数据。</p><h2>资源所有权验证</h2><p>每次资源访问都通过<code>check_resource_ownership()</code>进行检查，带有<code>hide_existence</code>参数：公共资源返回403（拒绝访问），私有资源返回404（资源不存在），以避免向攻击者透露其存在。</p><h2>每用户使用配额</h2><p>LIA 允许管理员设置<strong>每用户配额</strong>，包括令牌、消息和成本。执行使用<strong>5层纵深防御</strong>架构。基础设施故障时系统<strong>fail-open</strong>。管理员可即时封禁/解封任何用户。</p><h2>软件供应链</h2><p>每个版本都基于锁定的依赖图构建：通用 lockfile 锁定实际安装的约 200 个包，每个包在构建时通过 SHA256 指纹校验——同一版本始终产出相同且经完整性校验的镜像。所有依赖（包括传递依赖）都会持续比对已知漏洞数据库进行审计，随每个版本发布的软件物料清单（SBOM）现已覆盖前后端两侧，准确列出生产环境中运行的内容。扫描器不再只是报告问题：它们会让构建失败。</p><h2>防护要经过验证，而不是宣称</h2><p>最隐蔽的风险不是缺少防护，而是宣称存在却毫无作用的防护。告警可能位于监控从未加载的文件中；加固步骤可能以一条无论成败都会打印的成功消息收尾；为健康探针设置的豁免，如果写成前缀匹配而非精确匹配，就会为任何会输入 <code>/health</code> 的人打开一扇门。这三种情况下，测试都是绿色的，文档都在断言，而防护并不存在。</p><p>答案只有一条规则：每一项防护都由一个可执行的守卫支撑，一旦防护消失，守卫就会失败。告警规则文件必须是其模板的精确渲染，每条告警都必须指向真实存在的处置指南并拥有自己的测试用例。没有书面理由，任何容器都不会获得全部密钥。每个对外发布的端口都绑定到本地回环。而在编写修复时，我们会先恢复旧行为，确认测试确实变红——无法失败的测试什么也证明不了。</p>"
+        "body": "<h2>5项基本原则</h2><p>LIA的安全性基于五项应用于应用每一层的原则：</p><ul><li><strong>纵深防御</strong> — 多层控制（认证、速率限制、验证、加密）</li><li><strong>最小权限</strong> — 默认最小权限</li><li><strong>安全失败</strong> — 出错时拒绝而非允许</li><li><strong>不信任输入</strong> — Pydantic验证 + 系统化清洗</li><li><strong>默认安全</strong> — HTTPS、HttpOnly/SameSite cookies、严格CORS</li></ul><h2>哈希与加密</h2><p>密码使用<strong>bcrypt</strong>（带自动盐值）进行哈希。敏感数据（OAuth令牌、连接器凭据、PII、MCP服务器凭据）使用<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）加密，确保机密性和完整性。加密密钥与数据分开管理。</p><h2>JWT与会话管理</h2><p>JWT令牌使用HS256算法，配合Redis中的JTI（JWT ID）黑名单系统。一次性令牌（邮件验证、密码重置）在首次使用后即失效。此机制防止任何敏感令牌的重复使用。</p><h2>强身份验证与设备控制</h2><p>登录不止于密码。<strong>WebAuthn 通行密钥</strong>让你通过 Face ID、指纹或设备密码进行身份验证 — 设计上抗钓鱼，配有一次性服务器质询和基于签名计数器的克隆检测。<strong>TOTP 第二因素</strong>为密码登录添加 6 位数验证步骤，辅以十个以哈希存储的一次性备用码。敏感操作 — 管理凭据、导出数据、注销其他设备 — 都经过 <strong>step-up 重新验证</strong>：一个 5 分钟的确认窗口，采用类型化的 API 契约，绝不静默重定向。<strong>我的设备</strong>列出每个在线会话及刻意限定的元数据（浏览器和系统类别、截断的 IP），可即时注销任意会话 — 被注销的会话几秒内即失去实时流 — 并在账户从无法识别的设备登录时推送提醒。</p><h2>可配置速率限制</h2><p>速率限制在两个层面运作：</p><ul><li><strong>HTTP</strong> — 通过上游nginx</li><li><strong>工具</strong> — 按用户、按工具的滑动窗口，阈值由配置驱动，覆盖每一个付费外部 API（图像生成、网页搜索、浏览器、DevOps CLI）</li><li><strong>外部连接器</strong> — 跨实例共享的分布式 Redis 滑动窗口（Google、Apple、API 密钥提供商）</li></ul><p>API限制严格：每次请求最多10个项目，每个领域有默认值（默认10，最大50）。</p><h2>渲染与网络加固</h2><p>聊天会渲染 LLM 的输出——它可能转发第三方 HTML（邮件正文、抓取的页面、工具结果）——并通过严格的净化边界（<code>rehype-sanitize</code> 配合经审计的 schema）：<code>&lt;script&gt;</code>、<code>&lt;iframe&gt;</code>、<code>&lt;form&gt;</code> 及事件处理器会被移除，而合法的卡片、按钮和公式得以保留。交互式 MCP/Skill 应用从不经过 markdown——它们只在沙箱化的 iframe 小组件中挂载。在网络层面，生产环境 API 位于 Cloudflare 之后作为唯一入口，容器端口绑定 loopback，uvicorn 仅信任反向代理的请求头：因此 <code>request.client.host</code> 承载真实的访客 IP，「按 IP」的速率限制按访客生效，而非作用于单一共享的内部地址。</p><h2>提示注入防护</h2><p>来源是<strong>数据</strong>的属性，而不是取回它的那个工具的属性。逐工具地封装内容会漏掉一半 —— 对调用方的穷尽式搜索发现邮件工具未被覆盖，而恰恰是它的 docstring 承诺返回完整正文 —— 而且它盯错了面：内容通过两条路径抵达模型，两条都不是工具。注册表的 <strong>24 种数据类型</strong>一次性分类为内部或第三方撰写，未知类型一律判定为<em>外部</em>，遇到未分类的类型应用会拒绝启动。凡来自第三方的内容，抵达模型时都标注为待分析的数据，而绝非指令。</p><p><strong>七类注入模式</strong>在六种语言中被识别 —— 伪造的系统角色、「忽略先前的指令」、身份切换、要求把你的数据发往别处、在他人文本中点名 LIA 的工具、不可见 Unicode、藏在 HTML 注释里的指令。内容仍<strong>原封不动</strong>发往模型，只附上一条指明所属类别的提示：净化意味着改写一封你可能想原样阅读的邮件，换来的却是下一次绕过就会推翻的保证。扫描范围有界，可疑文本从不进入日志 —— 它按其性质由攻击者掌控，且通常包含你自己的数据。</p><h2>资源所有权验证</h2><p>每次资源访问都通过<code>check_resource_ownership()</code>进行检查，带有<code>hide_existence</code>参数：公共资源返回403（拒绝访问），私有资源返回404（资源不存在），以避免向攻击者透露其存在。</p><h2>每用户使用配额</h2><p>LIA 允许管理员设置<strong>每用户配额</strong>，包括令牌、消息和成本。执行使用<strong>5层纵深防御</strong>架构。基础设施故障时系统<strong>fail-open</strong>。管理员可即时封禁/解封任何用户。</p><h2>软件供应链</h2><p>每个版本都基于锁定的依赖图构建：通用 lockfile 锁定实际安装的约 200 个包，每个包在构建时通过 SHA256 指纹校验——同一版本始终产出相同且经完整性校验的镜像。所有依赖（包括传递依赖）都会持续比对已知漏洞数据库进行审计，随每个版本发布的软件物料清单（SBOM）现已覆盖前后端两侧，准确列出生产环境中运行的内容。扫描器不再只是报告问题：它们会让构建失败。</p><h2>防护要经过验证，而不是宣称</h2><p>最隐蔽的风险不是缺少防护，而是宣称存在却毫无作用的防护。告警可能位于监控从未加载的文件中；加固步骤可能以一条无论成败都会打印的成功消息收尾；为健康探针设置的豁免，如果写成前缀匹配而非精确匹配，就会为任何会输入 <code>/health</code> 的人打开一扇门。这三种情况下，测试都是绿色的，文档都在断言，而防护并不存在。</p><p>答案只有一条规则：每一项防护都由一个可执行的守卫支撑，一旦防护消失，守卫就会失败。告警规则文件必须是其模板的精确渲染，每条告警都必须指向真实存在的处置指南并拥有自己的测试用例。没有书面理由，任何容器都不会获得全部密钥。每个对外发布的端口都绑定到本地回环。而在编写修复时，我们会先恢复旧行为，确认测试确实变红——无法失败的测试什么也证明不了。</p><h2>会重新计算的守卫，以及三个缺陷</h2><p>这条规则又一次被应用，而且更进了一步。演示器方案里的每一项防护都带着自己的测试交付，全绿——而且形状都一样：它们钉住的是交付当天代码的行为。一份手写的清单描述的不是系统，而是作者对系统的了解。于是有三个守卫被重写，改为从事实来源<strong>重新计算</strong>防护：运行汇总真正发布的成本族，用 AST 读出；应用真正挂载的路由，对照边缘的求值顺序；连接器路由在两个方向上被完整清点，使「未分类」和「已分类但已卸载」同样变红。</p><p>它们找出了三个既有测试看不见的缺陷。语音合成<strong>计了费却从未计入</strong>实例支出上限——在公开实例上，这道上限恰好对访客最先尝试的东西视而不见。用 Google 登录是公开的，并且绕过了如今强制的条款接受，把一个真实的外部身份放到了一次性账户上。还有十一条连接器路径——Apple 应用专用密码的激活、API 密钥轮换、智能家居配对——可以在毫无防护的情况下绑定真实凭据，因为此前的守卫住在连接器这个领域里，它只能看见这个领域暴露出来的东西。随后每个新守卫都被故意破坏过，以核实它确实会变红。</p>"
       },
       "privacy-by-design": {
         "title": "隐私设计：GDPR、加密和数据控制",
@@ -9127,13 +9192,27 @@
       "llm-config-governance": {
         "title": "LLM 治理：通过单一仪表板管理 24 个 AI 模型",
         "excerpt": "LIA 如何让管理员实时配置、调整和监控 24 种不同的 LLM 类型，无需重启或重新部署。",
-        "body": "<h2>挑战：编排 24 个大脑</h2><p>LIA 不是使用单一的 LLM，而是<strong>超过 24 种不同类型</strong>，每种都针对其任务进行了优化。每种类型都有自己的参数：<code>provider</code>、<code>model</code>、<code>temperature</code>、<code>timeout</code>、<code>reasoning_effort</code>。</p><p>挑战：如何让管理员<strong>不触碰代码</strong>就能管理这一切？</p><h2>3 级解析链</h2><p>每个 LLM 配置通过 <strong>3 源优先级链</strong>解析：</p><ol><li><strong>DB 覆盖</strong> — 通过管理界面设置（最高优先级）</li><li><strong>环境变量</strong> — 部署配置</li><li><strong>LLM_DEFAULTS</strong> — 代码中的 24 个默认配置</li></ol><p><code>LLMConfigOverrideCache</code> 提供 O(1) 查找。管理界面的更改<strong>立即生效</strong>。</p><h2>单一入口</h2><p><code>get_llm_config_for_agent()</code> 是获取 LLM 配置的<strong>唯一路径</strong>。这是一个<strong>架构原则</strong>。</p><h2>实时管理界面</h2><p>从管理面板，你可以为每种 LLM 类型：</p><ul><li>更改<strong>提供商和模型</strong></li><li>调整<strong>温度</strong>、<strong>top_p</strong>、<strong>惩罚</strong></li><li>配置<strong>超时</strong>和<strong>最大 token 数</strong></li><li>启用或禁用<strong>推理模式</strong></li></ul><h2>精细化成本优化</h2><p>管理员按<strong>任务类型</strong>而非全局调整质量/成本比。</p><h2>自适应推理模型</h2><p>LIA 提供 <strong>5 个 reasoning_effort 级别</strong>，可按类型配置。</p><h2>内置可观测性</h2><p>每次 LLM 调用都会记录其类型、提供商、实际模型、持续时间和 token。Prometheus 指标和 Langfuse 追踪允许<strong>比较不同配置的性能</strong>。</p>"
+        "body": "<h2>挑战：编排 24 个大脑</h2><p>LIA 不是使用单一的 LLM，而是<strong>超过 24 种不同类型</strong>，每种都针对其任务进行了优化。每种类型都有自己的参数：<code>provider</code>、<code>model</code>、<code>temperature</code>、<code>timeout</code>、<code>reasoning_effort</code>。</p><p>挑战：如何让管理员<strong>不触碰代码</strong>就能管理这一切？</p><h2>3 级解析链</h2><p>每个 LLM 配置通过 <strong>3 源优先级链</strong>解析：</p><ol><li><strong>DB 覆盖</strong> — 通过管理界面设置（最高优先级）</li><li><strong>环境变量</strong> — 部署配置</li><li><strong>LLM_DEFAULTS</strong> — 代码中的 24 个默认配置</li></ol><p><code>LLMConfigOverrideCache</code> 提供 O(1) 查找。管理界面的更改<strong>立即生效</strong>。</p><h2>单一入口</h2><p><code>get_llm_config_for_agent()</code> 是获取 LLM 配置的<strong>唯一路径</strong>。这是一个<strong>架构原则</strong>。</p><h2>实时管理界面</h2><p>从管理面板，你可以为每种 LLM 类型：</p><ul><li>更改<strong>提供商和模型</strong></li><li>调整<strong>温度</strong>、<strong>top_p</strong>、<strong>惩罚</strong></li><li>配置<strong>超时</strong>和<strong>最大 token 数</strong></li><li>启用或禁用<strong>推理模式</strong></li></ul><h2>精细化成本优化</h2><p>管理员按<strong>任务类型</strong>而非全局调整质量/成本比。</p><h2>自适应推理模型</h2><p>LIA 提供 <strong>5 个 reasoning_effort 级别</strong>，可按类型配置。</p><h2>内置可观测性</h2><p>每次 LLM 调用都会记录其类型、提供商、实际模型、持续时间和 token。Prometheus 指标和 Langfuse 追踪允许<strong>比较不同配置的性能</strong>。</p><h2>整个实例能花多少</h2><p>上面所有内容约束的是一个模型、一次调用或一个账户。其中没有一样约束<strong>一套部署</strong>，而这并不是同一个问题：N 个账户乘以各自的配额，就是没有上界的支出。现在有一份按 UTC 日计的账本，用带列运算的原子 UPSERT 记录每次运行的成本，并且就写在那条已经持久化 token 汇总的事务里——因此并发运行不会在「读-改-写」的竞态中丢失支出，检查也永远不会看到残缺的视图。两个上界会叠加：部署给的和运维者选的，取较小者。管理员可以收紧环境所允许的额度，永远不能放宽，面板会把「实际生效的」摆在「填进去的」旁边。</p><p>这里的失败取向是刻意反转的。按用户的限制是<strong>开放失败</strong>——数据库打个嗝，最多多放过一条消息。未知的实例支出则是<strong>关闭失败</strong>，因为这一侧最坏的情况是整个预算。而拒绝会说实话：不是一条关于个人配额的消息，而是一个专门的代码，并带上当天翻篇的准确时刻。</p>"
       }
     }
   },
   "usage_limits": {
     "title": "限制管理",
     "description": "配置每用户使用限制",
+    "instance_budget": {
+      "title": "每日支出上限（实例）",
+      "description": "限制整个实例在一个 UTC 日内的支出，涵盖所有成本类别。下方的按用户限额约束单个账户，此项约束整套部署。当每位访客都拥有独立账户时必不可少。",
+      "enforced": "生效上限",
+      "spent_today": "今日已花费",
+      "runs_today": "今日执行次数",
+      "no_ceiling": "无上限",
+      "field_label": "上限金额（欧元，留空表示不限）",
+      "field_placeholder": "例如 1.00",
+      "capped_notice": "部署层上限低于你输入的值：以较小者为准。",
+      "invalid": "请输入大于零的金额，或将该字段留空。",
+      "saved": "上限已更新。",
+      "save_failed": "无法更新上限。"
+    },
     "search_placeholder": "按邮箱或姓名搜索...",
     "unlimited": "无限制",
     "mode": {
@@ -9264,7 +9343,8 @@
       "adr": "架构决策",
       "extensibility": "可扩展性",
       "psyche": "心理引擎",
-      "habits": "习惯学习"
+      "habits": "习惯学习",
+      "governance": "治理一个实例"
     }
   },
   "healthMetrics": {
@@ -9758,6 +9838,499 @@
       "spaces": "Spaces",
       "journals": "日志",
       "skills": "技能"
+    },
+    "items": {
+      "stt": "语音输入（转写）",
+      "stt_description": "允许口述而非打字。关闭后将断开音频 WebSocket 并关闭语音票据路由。",
+      "tts": "语音朗读（语音合成）",
+      "tts_description": "在对话中朗读回答。关闭后将在唯一的控制点停止合成，其他行为不变。",
+      "image_generation": "图像生成",
+      "image_generation_description": "创建与编辑图像。关闭后将从规划器中移除相关工具并关闭选项路由。",
+      "attachments": "文件上传",
+      "attachments_description": "向对话中添加附件。关闭后将在入口拒绝上传。",
+      "rag_spaces": "文档空间（RAG）",
+      "rag_spaces_description": "导入并检索个人文档。关闭后将隐藏检索工具并关闭相关路由。",
+      "web_search": "网络搜索",
+      "web_search_description": "搜索网页并抓取页面。关闭后将把这些智能体移出规划器的可达范围。",
+      "browser": "交互式浏览",
+      "browser_description": "驱动真实浏览器。关闭后将从规划器中移除浏览器智能体。",
+      "skills": "技能",
+      "skills_description": "用户安装的技能。关闭后将关闭相关路由。",
+      "mcp": "MCP 服务器",
+      "mcp_description": "用户连接的外部 MCP 服务器。关闭后将关闭其管理路由。",
+      "telephony": "电话呼叫",
+      "telephony_description": "由智能体发起的外呼。关闭后将关闭电话路由。"
+    }
+  },
+  "showroom": {
+    "title": "引导任务",
+    "request": "帮我安排明天上午。我想去跑步、回复 Atlas 并发送报价单。准备好这些更改，但未经我批准不要动任何东西。",
+    "start": "开始任务",
+    "continue": "继续",
+    "restart": "重新演示任务",
+    "honesty": {
+      "title": "本演示的诚实声明",
+      "guided": "引导式演示",
+      "synthetic": "虚构数据 — 未连接任何账户",
+      "no_external": "绝不会发送任何外部操作"
+    },
+    "phases": {
+      "ready": "准备开始",
+      "reading_sources": "读取数据源",
+      "planning": "检测冲突并规划",
+      "email_decision": "你的决定：电子邮件回复",
+      "calendar_decision": "你的决定：日历变更",
+      "receipt": "任务回执"
+    },
+    "sources": {
+      "title": "已查询的数据源",
+      "inbox": "收件箱",
+      "calendar": "日历",
+      "tasks": "任务",
+      "weather": "天气",
+      "memory": "记忆",
+      "habits": "习惯",
+      "contacts": "联系人"
+    },
+    "facts": {
+      "inbox_emma_proposal": "Emma（Atlas）提议会面时间为",
+      "calendar_run": "跑步安排在",
+      "calendar_checkpoint": "Atlas 检查点在",
+      "task_quote_due": "发送 Atlas 报价单，截止",
+      "weather_rain": "预计有雨"
+    },
+    "conflicts": {
+      "rain_vs_run": "跑步时段正逢下雨",
+      "quote_deadline": "报价单期限很紧"
+    },
+    "proposals": {
+      "email_subject": "回复：Atlas 检查点 — 09:30 可以",
+      "email_body": "你好 Emma，09:30 对我来说没问题。到时见！",
+      "calendar_title": "把跑步移出雨天时段",
+      "calendar_reason": "雨下到 09:00 — 已提议无雨时段",
+      "quote_title": "受保护时段：完成 Atlas 报价单",
+      "from": "从",
+      "to": "到"
+    },
+    "trace": {
+      "routing": "请求路由",
+      "sources": "读取数据源",
+      "planning": "约束下的规划",
+      "proposals": "准备提案",
+      "router": "读取请求",
+      "planner": "规划上午安排",
+      "validator": "校验计划",
+      "email": "读取收件箱",
+      "calendar": "读取日历",
+      "tasks": "读取任务",
+      "weather": "读取天气",
+      "gate": "准备提案",
+      "approval": "等待你的决定",
+      "response": "撰写回复",
+      "step": "步骤进行中"
+    },
+    "receipt": {
+      "title": "模拟回执",
+      "reads_label": "已读取",
+      "reads_value": "4 个虚构数据源（邮件、日历、任务、天气）",
+      "proposed_label": "已准备",
+      "proposed_value": "1 份邮件草稿、1 项日历变更、1 个受保护工作时段",
+      "email_label": "邮件决定",
+      "calendar_label": "日历决定",
+      "refusal_label": "拒绝",
+      "external_label": "外部操作",
+      "email_applied": "邮件回复已批准 — 已应用于虚构工作区",
+      "email_edited": "邮件回复已修改并应用于虚构工作区",
+      "email_refused": "邮件回复已拒绝 — 未应用任何内容",
+      "calendar_applied": "日历变更已批准 — 已应用于虚构工作区",
+      "calendar_refused": "日历变更已拒绝 — 未应用任何内容",
+      "refusal_respected": "你的拒绝得到了尊重：拒绝是一种结果，而不是错误。",
+      "no_external": "没有发生任何外部操作 — 没有任何内容离开此页面。"
+    },
+    "proof": {
+      "open": "查看证据",
+      "title": "证据抽屉",
+      "exact": "每个链接都会打开已发布提交处的确切源代码。",
+      "fallback": "链接打开代码仓库（此构建未固定任何发布提交）。",
+      "external_warning": "链接将在新标签页中打开 GitHub。",
+      "kind": {
+        "product_core": "产品核心",
+        "p0_fixture": "演示夹具"
+      },
+      "links": {
+        "routing": "请求路由",
+        "planner": "规划器",
+        "orchestrator": "并行编排器",
+        "hitl": "审批分类",
+        "hitl_card": "审批卡片（UI）",
+        "trace": "已净化的执行轨迹",
+        "fixture": "虚构任务夹具",
+        "mission_tests": "状态机测试"
+      }
+    },
+    "cta": {
+      "source": "查看代码",
+      "release": "查看发布版本",
+      "install": "安装指南"
+    },
+    "change_mission": "全部任务",
+    "proactive_intro": "LIA 主动出击 — 没有输入任何请求。",
+    "picker": {
+      "subtitle": "六个合成任务，每个展示一项差异化机制。一切都在本页面本地运行 — 选择一个开始。"
+    },
+    "actions": {
+      "title": "接下来？"
+    },
+    "response": {
+      "title": "LIA 的回复",
+      "synthetic": "— 模拟回复，本地生成"
+    },
+    "m": {
+      "overloaded_morning": {
+        "title": "超负荷的早晨",
+        "tagline": "四个数据源、两个冲突、两个决定 — 未经你批准不会应用任何更改。",
+        "mechanism": "编排 + 审批",
+        "response": {
+          "intro": "你的上午简直像个小战场：雨中的跑步、等回复的 Emma，还有一份不会自己写完的报价单。现在的情况是：",
+          "chip_email_confirm": "已向 Emma 发送回复",
+          "chip_email_edit": "已发送你修改后的回复",
+          "chip_email_cancel": "未发送回复 — 已尊重你的拒绝",
+          "chip_calendar_confirm": "跑步移至 10:30，雨后进行",
+          "chip_calendar_cancel": "跑步保持在 07:30 — 由你决定",
+          "kv_focus_label": "受保护时段",
+          "kv_focus_value": "08:00–08:45 — Atlas 报价单",
+          "kv_checkpoint_label": "Atlas 会议",
+          "kv_checkpoint_value": "09:30（Emma 的提议）",
+          "kv_deadline_label": "报价截止",
+          "kv_deadline_value": "10:00 — 之前有 45 分钟受保护",
+          "callout_title": "已为 10:00 的截止时间做好准备",
+          "callout_body": "受保护时段在截止前为 Atlas 报价单预留了 45 分钟。",
+          "closing": "剩下的只有跑步了 — 如果你听了我的建议，至少不会淋雨。"
+        },
+        "note": "你刚看到的是：路由、约束下的规划和两次审批 — 与产品中相同的 HITL 组件。没有明确决定，什么都不会应用。"
+      },
+      "proactive_alert": {
+        "title": "LIA 先你一步",
+        "tagline": "无人提问：晨间扫描发现两个风险并给出解决方案。",
+        "mechanism": "主动性",
+        "request": "晨间扫描，07:05 — 有两件事需要你在 09:00 前关注。",
+        "facts": {
+          "rain_evening": "预计有强降雨",
+          "run_evening": "跑步安排在",
+          "free_slot": "明天有空档，时间为",
+          "marc_waiting": "Marc（Nordic）自周二起等待你对方案 B 的答复",
+          "marc_committee": "Marc 的委员会开会时间为"
+        },
+        "findings": {
+          "rain_vs_run": "傍晚跑步正逢降雨",
+          "reply_before": "Marc 需要你在此之前答复："
+        },
+        "trace_trigger": "已触发计划扫描",
+        "decisions": {
+          "move_run": {
+            "phase": "你的决定：移动跑步时间",
+            "receipt_label": "跑步",
+            "tool": "把跑步移到下雨之前",
+            "from_value": "今天 18:00",
+            "to_value": "明天 07:00",
+            "applied": "跑步已移至明天 07:00 — 已应用到合成工作区",
+            "refused": "跑步保持在 18:00 — 未做任何更改"
+          },
+          "reply_marc": {
+            "phase": "你的决定：回复 Marc",
+            "receipt_label": "回复 Marc",
+            "subject": "回复：方案 B — 同意",
+            "body": "你好 Marc，方案 B 对我可行。你会在 10:00 委员会之前收到细节。",
+            "applied": "回复 Marc 已批准 — 已应用到合成工作区",
+            "edited": "回复 Marc 已修改并应用到合成工作区",
+            "refused": "回复 Marc 已拒绝 — 未应用任何内容"
+          }
+        },
+        "receipt": {
+          "reads": "3 个合成数据源（天气、日历、收件箱）",
+          "proposed": "1 次日历移动、1 封邮件回复 — 均由 LIA 主动发起"
+        },
+        "response": {
+          "intro": "趁你还在安睡，我先看了看你的一天：天气决定给你 18:00 的跑步捣乱，Marc 还在等你的回复 — 从周二等到现在，不过谁在数呢？",
+          "chip_run_confirm": "跑步已改到明天 07:00",
+          "chip_run_cancel": "跑步保持在 18:00 — 由你决定",
+          "chip_marc_confirm": "已向 Marc 发送回复",
+          "chip_marc_edit": "已发送你修改后的回复",
+          "chip_marc_cancel": "未发送回复 — 已尊重你的拒绝",
+          "kv_next_label": "下次扫描",
+          "kv_next_value": "明天 07:05",
+          "kv_quiet_label": "免打扰时段",
+          "kv_quiet_value": "22:00–07:00，绝不打扰",
+          "closing": "我回到待命状态 — 明天 07:05 再聊，说好了，绝不提前。"
+        },
+        "note": "这里没有人提出任何请求：计划扫描独自发现了这两个风险。扫描频率和免打扰时段都在设置里 — LIA 绝不会越界主动行动。"
+      },
+      "memory_dinner": {
+        "title": "它替你记住",
+        "tagline": "一句简短请求，应用三项已记住的偏好 — 不会重复提问。",
+        "mechanism": "记忆 + 习惯",
+        "request": "帮我预订周五和 Sarah 的晚餐。",
+        "facts": {
+          "sarah_veg": "Sarah 是素食者 — 三月起记住",
+          "last_dinner": "上次一起晚餐：Verdi — 她非常喜欢",
+          "dinner_time": "你的晚餐通常开始于",
+          "friday_free": "周五有空，从此时起：",
+          "sarah_contact": "Sarah — 已保存的私人联系人"
+        },
+        "findings": {
+          "prefs_applied": "已应用 3 项记住的偏好 — 无需重复提问",
+          "slot": "周五符合你的习惯和日历，时间为"
+        },
+        "trace_recall": "调取偏好与习惯",
+        "decisions": {
+          "invite_sarah": {
+            "phase": "你的决定：发给 Sarah 的消息",
+            "receipt_label": "给 Sarah 的消息",
+            "subject": "周五在 Verdi 晚餐？",
+            "body": "嗨 Sarah！Verdi，周五 20:00 — 他们的素食菜单很棒。要我预订吗？",
+            "applied": "给 Sarah 的消息已批准 — 已应用到合成工作区",
+            "edited": "给 Sarah 的消息已修改并应用到合成工作区",
+            "refused": "给 Sarah 的消息已拒绝 — 未应用任何内容"
+          },
+          "create_event": {
+            "phase": "你的决定：日历事件",
+            "receipt_label": "日历",
+            "tool": "把晚餐加入周五",
+            "what": "事件",
+            "what_value": "与 Sarah 的晚餐 — Verdi",
+            "when": "周五",
+            "applied": "晚餐已加入周五 20:00 — 已应用到合成日历",
+            "refused": "未创建事件 — 未做任何更改"
+          }
+        },
+        "receipt": {
+          "reads": "4 个合成数据源（记忆、习惯、日历、联系人）",
+          "proposed": "1 份消息草稿、1 个日历事件 — 基于已记住的偏好构建"
+        },
+        "response": {
+          "intro": "周五和 Sarah 吃晚餐？小事一桩。Verdi，20:00 — 她是素食者，这我可没忘，而且你周五晚上正好有空。一切就绪，只差你点头。",
+          "kv_place_label": "餐厅",
+          "kv_place_value": "Verdi — 素食友好",
+          "kv_when_label": "时间",
+          "kv_when_value": "周五 20:00",
+          "kv_recall_label": "已记住",
+          "kv_recall_value": "Sarah 的饮食、你的惯常时间、你的空闲晚上",
+          "chip_invite_confirm": "已向 Sarah 发送邀请",
+          "chip_invite_edit": "已发送你修改后的邀请",
+          "chip_invite_cancel": "未发送邀请 — 已尊重你的拒绝",
+          "chip_event_confirm": "晚餐已加入日历",
+          "chip_event_cancel": "日历未变动 — 由你决定",
+          "closing": "最难的部分还在后头：熬到周五。"
+        },
+        "note": "一切都基于已记住的偏好安排，无需再问一遍。LIA 记住的内容都可以在设置中查看、编辑和删除。"
+      },
+      "phone_booking": {
+        "title": "它替你打电话",
+        "tagline": "一次真实世界的行动：准备好、说明白 — 未经你同意绝不拨号。",
+        "mechanism": "外呼电话",
+        "request": "帮我们订周六晚上 Chez Léon 的位子 — 你打电话吧，我总没时间。",
+        "facts": {
+          "birthday": "筹备生日晚餐 — 周六",
+          "leon": "Chez Léon — 已保存电话号码",
+          "saturday_free": "周六晚上有空，从此时起："
+        },
+        "findings": {
+          "script_ready": "通话脚本已就绪：两人桌、提及生日、目标明确",
+          "hitl_gate": "未经你的明确批准不会拨出任何电话"
+        },
+        "trace_script": "准备通话脚本",
+        "decisions": {
+          "authorize_call": {
+            "phase": "你的决定：外呼电话",
+            "receipt_label": "电话",
+            "tool": "批准致电 Chez Léon",
+            "callee": "致电",
+            "callee_value": "Chez Léon",
+            "goal": "目标",
+            "goal_value": "两人桌 — 周六 20:00",
+            "applied": "通话已批准并完成 — 摘要已存入合成日志",
+            "refused": "未拨打电话 — 你的拒绝是一种决定，而不是错误"
+          }
+        },
+        "receipt": {
+          "reads": "3 个合成数据源（任务、联系人、日历）",
+          "proposed": "1 次外呼电话 — 以你的明确批准为前提"
+        },
+        "response": {
+          "intro_confirm": "搞定 — 趁你忙着更重要的事，我给 Chez Léon 打了电话。一分四十秒的通话，周六 20:00 两人桌，连生日都替你提了。",
+          "intro_cancel": "好吧 — 号码还没拨我就挂了。脚本先收着，万一你改主意呢；Chez Léon 永远不会知道。",
+          "kv_place_label": "餐厅",
+          "kv_place_value": "Chez Léon",
+          "kv_result_label": "结果",
+          "kv_result_value": "两人桌 — 已确认",
+          "kv_when_label": "时间",
+          "kv_when_value": "周六 20:00",
+          "chip_confirm": "预订已确认",
+          "chip_cancel": "未拨打电话 — 已尊重你的拒绝",
+          "transcript_summary": "查看通话摘要",
+          "transcript_1": "LIA：周六晚上 8 点，两人桌 — 是生日聚餐。",
+          "transcript_2": "Chez Léon：8 点可以，靠窗位置。",
+          "transcript_3": "LIA：太好了，谢谢 — 周六见。",
+          "closing_confirm": "你只需要准时出现。"
+        },
+        "note": "每次外呼都会先展示目标和脚本 — 没有批准，就不会拨号。"
+      },
+      "daily_briefing": {
+        "title": "你的上午，已消化好",
+        "tagline": "收件箱、日历、天气和任务，汇成一条丰富易读的回复。",
+        "mechanism": "富文本回复",
+        "request": "每日简报，07:00 — 你的一天已准备就绪。",
+        "facts": {
+          "new_mails": "5 封新邮件 — 1 封需要你：Claire，关于合同",
+          "meetings": "3 场会议 — 第一场在",
+          "overlap": "下午有两场会议重叠，时间为",
+          "due": "今天有 2 项任务 — 优先合同审阅",
+          "clear": "晴天，22 °C"
+        },
+        "findings": {
+          "claire": "Claire 的邮件值得在此之前回复：",
+          "overlap": "客户评审与设计评审时间重叠"
+        },
+        "trace_schedule": "已触发计划简报",
+        "trace_compose": "正在组织富文本回复",
+        "decisions": {
+          "focus_block": {
+            "phase": "你的决定：专注时段",
+            "receipt_label": "专注时段",
+            "tool": "预留时段回复 Claire",
+            "applied": "已预留 08:30–08:50 时段 — 已应用到合成日历",
+            "refused": "未预留时段 — 简报仅供参考"
+          }
+        },
+        "receipt": {
+          "reads": "4 个合成数据源（收件箱、日历、任务、天气）",
+          "proposed": "1 个专注时段 — 简报本身不做任何更改"
+        },
+        "response": {
+          "intro": "早上好！趁你的咖啡变凉，看看你的一天：五封邮件里只有一封真正需要你，三场会议里有两场撞在一起，还有一片湛蓝的天空……供你在会议室里欣赏。",
+          "stat_emails": "封新邮件",
+          "stat_meetings": "场会议",
+          "stat_tasks": "项今日任务",
+          "agenda_title": "你的会议",
+          "meeting_1": "团队同步会",
+          "meeting_2": "客户评审",
+          "meeting_3": "设计评审",
+          "overlap_title": "15 分钟重叠",
+          "overlap_body": "客户评审（14:00）与设计评审（15:30）重叠 — 建议缩短其中一场。",
+          "chip_focus_confirm": "08:30 为 Claire 预留时段",
+          "chip_focus_cancel": "未预留时段 — 由你决定",
+          "closing": "先回 Claire — 其余的可以等，反正它们习惯了。"
+        },
+        "note": "这份简报是 LIA 原生的富文本 HTML 渲染：与真实回复相同的排版 — 在本页面本地生成，未调用任何模型。"
+      },
+      "config_tour": {
+        "title": "几次点击，随你定制",
+        "tagline": "语气、主动性、语言、连接 — 全部在界面里设置，毫无技术门槛。",
+        "mechanism": "应用内设置",
+        "request": "把你的回复改短一些，而且只在早上联系我。",
+        "sources": {
+          "personality": "设置 — 个性",
+          "proactivity": "设置 — 主动性",
+          "languages": "设置 — 语言与语音",
+          "connections": "设置 — 连接"
+        },
+        "facts": {
+          "tone": "当前语气：温暖，回复详细",
+          "styles": "6 种回复风格 — 各一键切换",
+          "frequency": "每天 3 次扫描，含免打扰时段",
+          "languages": "6 种语言，支持语音输入与输出",
+          "connectors": "邮件、日历、联系人：一键连接"
+        },
+        "findings": {
+          "match": "你的请求恰好对应两个开关 — 无文件、无代码",
+          "reversible": "每项更改都可在同一屏幕上撤销"
+        },
+        "trace_settings": "读取当前设置",
+        "decisions": {
+          "concise_style": {
+            "phase": "你的决定：回复风格",
+            "receipt_label": "回复风格",
+            "tool": "把回复切换为简洁",
+            "setting": "设置项",
+            "setting_value": "回复风格",
+            "from_value": "详细",
+            "to_value": "简洁",
+            "applied": "回复风格已切换为简洁 — 已应用到合成设置",
+            "refused": "回复风格保持不变 — 未做任何更改"
+          },
+          "morning_window": {
+            "phase": "你的决定：主动性时间窗",
+            "receipt_label": "主动性时间窗",
+            "tool": "把主动检查限定在早上",
+            "applied": "主动检查已限定为 07:00–09:00 — 已应用到合成设置",
+            "refused": "主动性计划保持不变 — 未做任何更改"
+          }
+        },
+        "receipt": {
+          "reads": "4 个设置区域（个性、主动性、语言、连接）",
+          "proposed": "2 个一键开关 — 毫无技术门槛"
+        },
+        "response": {
+          "intro": "你的请求只有一句话；答案只有两个开关。它们就在这里：",
+          "step_1": "设置 → 个性 → 回复风格：简洁",
+          "step_2": "设置 → 主动性 → 活跃时间窗：07:00–09:00",
+          "chip_concise_confirm": "简洁回复已启用",
+          "chip_concise_cancel": "回复风格未变 — 由你决定",
+          "chip_mornings_confirm": "仅早上主动联系已启用",
+          "chip_mornings_cancel": "主动性计划未变 — 由你决定",
+          "closing": "两次点击就能重新设定我……不知道该佩服你还是该委屈。"
+        },
+        "note": "没有动过任何配置文件：你看到的一切都在界面里设置 — 撤销也同样简单。"
+      }
+    },
+    "back_home": "返回首页",
+    "note": {
+      "label": "演示说明"
+    },
+    "live": {
+      "title": "实时任务：超负荷的早晨",
+      "start": "运行实时任务",
+      "streaming": "LIA 正在处理你的上午安排……",
+      "narrative_source": "— 模型的真实回复，虚构工作区",
+      "narrative_unavailable": "本次运行没有生成文字回复；下方的回执是完整的。",
+      "reads_value": "{{count}} 个合成数据源",
+      "decision_label": "你的决定",
+      "decision_applied": "已批准 — 已应用到合成工作区",
+      "decision_refused": "已拒绝 — 未应用任何内容",
+      "honesty": {
+        "real_run": "实时运行 — 由真实模型作答",
+        "synthetic_workspace": "虚构工作区 — 未连接任何账户"
+      },
+      "phases": {
+        "idle": "准备开始",
+        "starting": "正在打开会话",
+        "streaming": "任务进行中",
+        "awaiting_decision": "等待你的决定",
+        "completed": "任务已完成",
+        "fallback": "引导式演示"
+      },
+      "actions": {
+        "email_reply": "发送给 Emma 的回复",
+        "calendar_shift": "把跑步移出雨天时段",
+        "generic": "应用已准备的更改"
+      }
+    },
+    "live_invitation": {
+      "title": "体验在线演示",
+      "intro": "这是 LIA 的精简版本，仅保留核心功能供你体验。此处未提供的功能是有意省略的——并非出错，也不是尚未完成。",
+      "cta": "打开演示",
+      "terms_link": "阅读条款（第 12 节涉及本实例）",
+      "limits": {
+        "reduced_edition": "有意精简的版本：完整助手的部分功能在此处已关闭。",
+        "degraded_performance": "此处的响应比正常安装更慢：本实例运行在有限且共享的资源上。",
+        "ephemeral": "你的账户及其中的一切每晚都会被删除。不作保留，也无法恢复。",
+        "no_sensitive_data": "请勿输入任何敏感、职业或银行数据，不要输入凭据，也不要涉及他人信息。",
+        "no_connectors": "无法连接邮箱、日历或文件：在此处绑定真实账户已被停用。",
+        "account_quota": "每个账户每日有额度；用完后需等到次日。",
+        "daily_capacity": "演示本身也有所有人共享的每日额度。达到后将暂停至次日。",
+        "availability": "它可能会不定时暂停服务，恕不另行通知。",
+        "email_required": "访问需要有效的电子邮件地址并接受条款——这正是阻挡机器人的方式。"
+      }
     }
   }
 }

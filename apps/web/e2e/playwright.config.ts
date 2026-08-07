@@ -25,6 +25,15 @@ const useManagedServer = process.env.E2E_MANAGED_SERVER === '1';
 
 export default defineConfig({
   testDir: '.',
+  // The showroom specs assert the GUIDED build contract and the capture spec
+  // records launch assets: both are meaningless (and red) against the default
+  // legacy build, so they only run through their dedicated Task targets
+  // (test:e2e:showroom[:telemetry|:capture]), which set E2E_SHOWROOM=1 and
+  // name their spec files explicitly.
+  testIgnore:
+    process.env.E2E_SHOWROOM === '1'
+      ? []
+      : ['**/public-demo-showroom*', '**/capture/**'],
   // Foundation is a PR smoke: keep it fast and deterministic. Firefox/WebKit
   // and the full zoom/reflow matrix are a documented periodic extension.
   fullyParallel: true,
@@ -78,14 +87,19 @@ export default defineConfig({
         // (standalone deliberately excludes them — same layout as
         // Dockerfile.prod), then run the traced server.js. The monorepo build
         // roots the standalone tree at the repo root, hence `apps/web/` inside.
+        // E2E_FORCE_FRESH=1 (showroom contract builds) purges .next first: a
+        // NEXT_PUBLIC_* flag is baked at build time, so reusing a previous
+        // build or server would silently test the WRONG variant (the exact
+        // ADR-192 evidence trap — dev-server/stale-bundle proofs are void).
         command:
+          '([ "$E2E_FORCE_FRESH" = "1" ] && rm -rf ../.next || true) && ' +
           'pnpm --dir .. build && ' +
           'rm -rf ../.next/standalone/apps/web/.next/static ../.next/standalone/apps/web/public && ' +
           'cp -r ../.next/static ../.next/standalone/apps/web/.next/static && ' +
           'cp -r ../public ../.next/standalone/apps/web/public && ' +
           'PORT=3000 HOSTNAME=0.0.0.0 node ../.next/standalone/apps/web/server.js',
         url: baseURL,
-        reuseExistingServer: !process.env.CI,
+        reuseExistingServer: !process.env.CI && process.env.E2E_FORCE_FRESH !== '1',
         timeout: 300_000,
       }
     : undefined,

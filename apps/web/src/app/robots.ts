@@ -1,6 +1,10 @@
 import type { MetadataRoute } from 'next';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
+import { getSiteOrigin } from '@/lib/site-origin';
+
+// Evaluated per request so the generic prebuilt image serves the runtime
+// APP_URL_SERVER origin (B03) instead of a build-time hostname.
+export const dynamic = 'force-dynamic';
 
 /**
  * Dynamic robots.txt generation
@@ -42,6 +46,7 @@ export default function robots(): MetadataRoute.Robots {
     ...locales.flatMap(lng => baseBlockedPaths.map(p => `/${lng}${p}`)),
   ];
 
+  const origin = getSiteOrigin();
   return {
     rules: [
       // --- AI Training Crawlers: BLOCK everything ---
@@ -104,6 +109,8 @@ export default function robots(): MetadataRoute.Robots {
         disallow: blockedPaths,
       },
     ],
-    sitemap: `${BASE_URL}/sitemap.xml`,
+    // robots.txt requires an absolute sitemap URL; without a configured
+    // origin the line is honestly omitted rather than invented.
+    ...(origin ? { sitemap: `${origin}/sitemap.xml` } : {}),
   };
 }

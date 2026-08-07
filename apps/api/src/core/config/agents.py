@@ -1583,7 +1583,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     planner_semantic_leak_mode: Literal["off", "observe", "autocorrect"] = Field(
-        default="observe",
+        default="autocorrect",
         description=(
             "Validator behavior when a semantic term (e.g. 'medical', 'urgent') "
             "leaks into a tool's text-search parameter. "
@@ -3022,7 +3022,7 @@ class AgentsSettings(BaseSettings):
         description="Days ahead to surface contact birthdays (0 = today only).",
     )
     heartbeat_departure_enabled: bool = Field(
-        default=False,
+        default=True,
         description="Enable the traffic-aware departure advice heartbeat source (P6).",
     )
     heartbeat_departure_lookahead_hours: int = Field(

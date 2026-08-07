@@ -1,16 +1,21 @@
 /**
  * usePersonality Hook
- * Manages user's personality preference state and API interactions
+ * Reads the user's conversational style from the shared personality store.
+ *
+ * The state deliberately does NOT live here. It used to — in `useState` — and
+ * that gave every consumer a private copy, so changing the style in Settings
+ * left the header showing the previous one until the page was reloaded by hand
+ * (reported 2026-08-07, on production and on the public demonstrator). Three
+ * components read this preference, and it is one preference.
+ *
+ * The public shape is unchanged: callers keep the same object.
  */
 
-import { useState, useCallback, useEffect } from 'react';
-import {
-  fetchPersonalities,
-  fetchCurrentPersonality,
-  updateCurrentPersonality,
-} from '@/lib/api/personality';
+import { useEffect } from 'react';
+
+import { useAuth } from '@/hooks/useAuth';
+import { usePersonalityStore } from '@/stores/personalityStore';
 import { PersonalityListItem } from '@/types/personality';
-import { logger } from '@/lib/logger';
 
 export interface UsePersonalityReturn {
   /** List of available personalities */
@@ -19,8 +24,19 @@ export interface UsePersonalityReturn {
   currentPersonality: PersonalityListItem | null;
   /** Current personality ID */
   currentPersonalityId: string | null;
-  /** Loading state for initial fetch */
+  /** First load only — the moment where there is nothing to show yet. */
   loading: boolean;
+  /**
+   * A reload of content already on screen. Set `aria-busy` from it; never
+   * swap the content out.
+   *
+   * Both consumers replace their whole subtree while `loading` — the header
+   * selector with a disabled placeholder, the settings panel with a spinner.
+   * Since this state is shared, an administrator saving a style in Settings
+   * would otherwise blank the header of the entire application (apps/web
+   * CLAUDE.md: "a refresh is not a first load").
+   */
+  refreshing: boolean;
   /** Loading state for update operation */
   updating: boolean;
   /** Error state */
@@ -32,67 +48,39 @@ export interface UsePersonalityReturn {
 }
 
 export function usePersonality(): UsePersonalityReturn {
-  const [personalities, setPersonalities] = useState<PersonalityListItem[]>([]);
-  const [currentPersonality, setCurrentPersonality] = useState<PersonalityListItem | null>(null);
-  const [currentPersonalityId, setCurrentPersonalityId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  // Field-by-field selectors: subscribing to the whole store would re-render
+  // every consumer on any change, including the `updating` flag of a sibling.
+  const personalities = usePersonalityStore((state) => state.personalities);
+  const currentPersonality = usePersonalityStore((state) => state.currentPersonality);
+  const currentPersonalityId = usePersonalityStore((state) => state.currentPersonalityId);
+  const storeLoading = usePersonalityStore((state) => state.loading);
+  const hasLoaded = usePersonalityStore((state) => state.hasLoaded);
+  const updating = usePersonalityStore((state) => state.updating);
+  const error = usePersonalityStore((state) => state.error);
+  const load = usePersonalityStore((state) => state.load);
+  const refetch = usePersonalityStore((state) => state.refetch);
+  const updatePersonality = usePersonalityStore((state) => state.updatePersonality);
 
-    try {
-      // Fetch both in parallel
-      const [listResponse, currentResponse] = await Promise.all([
-        fetchPersonalities(),
-        fetchCurrentPersonality(),
-      ]);
-
-      setPersonalities(listResponse.personalities);
-      setCurrentPersonality(currentResponse.personality);
-      setCurrentPersonalityId(currentResponse.personality_id);
-    } catch (err) {
-      const errorObj = err instanceof Error ? err : new Error('Failed to load personalities');
-      setError(errorObj);
-      logger.error('personality_fetch_failed', errorObj, { hook: 'usePersonality' });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const updatePersonality = useCallback(async (personalityId: string | null) => {
-    setUpdating(true);
-    setError(null);
-
-    try {
-      const response = await updateCurrentPersonality({ personality_id: personalityId });
-      setCurrentPersonality(response.personality);
-      setCurrentPersonalityId(response.personality_id);
-    } catch (err) {
-      const errorObj = err instanceof Error ? err : new Error('Failed to update personality');
-      setError(errorObj);
-      logger.error('personality_update_failed', errorObj, { hook: 'usePersonality' });
-      throw errorObj;
-    } finally {
-      setUpdating(false);
-    }
-  }, []);
-
-  // Fetch on mount
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    void load(userId);
+  }, [load, userId]);
 
   return {
     personalities,
     currentPersonality,
     currentPersonalityId,
-    loading,
+    // Before the first attempt settles there is no data to show, and a
+    // consumer that renders an empty list at that instant flashes "no style"
+    // where the previous hook showed its spinner from the first paint.
+    // Monotone on purpose: once something is on screen, it stays.
+    loading: !hasLoaded,
+    refreshing: storeLoading && hasLoaded,
     updating,
     error,
     updatePersonality,
-    refetch: fetchData,
+    refetch,
   };
 }

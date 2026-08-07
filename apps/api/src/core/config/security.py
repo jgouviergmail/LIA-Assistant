@@ -14,7 +14,10 @@ Phase: PHASE 2.1 - Config Split
 Created: 2025-11-20
 """
 
-from pydantic import Field
+import base64
+import binascii
+
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
@@ -149,6 +152,38 @@ class SecuritySettings(BaseSettings):
         description="Fernet encryption key for sensitive data",
     )
 
+    @field_validator("fernet_key")
+    @classmethod
+    def _fernet_key_structure(cls, value: str) -> str:
+        """Require a URL-safe base64-encoded 32-byte Fernet key (B07).
+
+        A malformed key otherwise survives every pre-start check and only
+        explodes on the first encryption call, deep inside a request.
+
+        Args:
+            value: Candidate key from the environment.
+
+        Returns:
+            The original string when structurally valid.
+
+        Raises:
+            ValueError: On any structural mismatch (never echoes the value).
+        """
+        error = "must be a URL-safe base64-encoded 32-byte Fernet key"
+        try:
+            encoded = value.encode("ascii")
+        except UnicodeEncodeError as exc:
+            raise ValueError(error) from exc
+        if len(encoded) != 44:
+            raise ValueError(error)
+        try:
+            decoded = base64.b64decode(encoded, altchars=b"-_", validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise ValueError(error) from exc
+        if len(decoded) != 32:
+            raise ValueError(error)
+        return value
+
     # Session Cookies (BFF Pattern)
     session_cookie_name: str = Field(
         default=SESSION_COOKIE_NAME,
@@ -179,6 +214,15 @@ class SecuritySettings(BaseSettings):
         description="SameSite policy for session cookie (strict/lax/none)",
     )
     session_cookie_domain: str | None = Field(
+        # None, and never a real domain. This is deployment IDENTITY, not a
+        # tuned value: a hard-coded domain makes the cookie unusable on every
+        # other host — a fresh clone cannot even sign in, since the browser
+        # drops a cookie whose Domain does not match. It also widens the
+        # cookie's reach: a parent domain (".example.com") is shared with
+        # every sibling host, so a throwaway public demonstrator would hand
+        # its sessions to the main instance and back.
+        #
+        # Set it per deployment in the env file, host by host.
         default=None,
         description="Domain for session cookie (None = current domain only)",
     )

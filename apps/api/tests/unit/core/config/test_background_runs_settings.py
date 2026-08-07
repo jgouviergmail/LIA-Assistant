@@ -36,15 +36,16 @@ class TestBackgroundRunsSettings:
         for var in _ENV_VARS:
             monkeypatch.delenv(var, raising=False)
         s = BackgroundRunsSettings()
-        assert s.background_runs_enabled is False  # flag OFF by default
+        # Aligned on production (2026-08-06): background runs have been on.
+        assert s.background_runs_enabled is True
         assert s.background_runs_stream_maxlen == 10000
-        assert s.background_runs_stream_ttl_seconds == 3600
+        assert s.background_runs_stream_ttl_seconds == 1800
         assert s.background_runs_xread_block_ms == 2000
-        assert s.background_runs_drain_timeout_seconds == 45
+        assert s.background_runs_drain_timeout_seconds == 60
         assert s.shutdown_background_tasks_timeout_seconds == 15
         # Lot 2 — active-run lock + subscriber presence
-        assert s.background_runs_active_ttl_seconds == 15
-        assert s.background_runs_heartbeat_seconds == 5
+        assert s.background_runs_active_ttl_seconds == 30
+        assert s.background_runs_heartbeat_seconds == 10
         assert s.background_runs_listener_ttl_seconds == 30
         # Lot 3 — cancellation signal
         assert s.background_runs_cancel_poll_seconds == 1

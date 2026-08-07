@@ -8,7 +8,14 @@
  * phones). Refreshes on every `done` SSE event; tap toggles the tooltip on
  * touch screens.
  *
- * Coloring:
+ * Chrome: the SAME neutral shell as its neighbour the knowledge badge
+ * (`ActiveSpacesIndicator`) — `bg-muted/50`, `border-border/60`,
+ * `text-muted-foreground`. Owner rule 2026-08-07: a row of header badges where
+ * one turns amber then red as the conversation grows reads as an alert about
+ * something the user should fix, when it only reports normal progress. The
+ * gauge already says it, quietly and continuously.
+ *
+ * The gauge arc is therefore the ONLY thing that carries the ratio colour:
  *  - ratio <= 0.50  → green
  *  - 0.50 < r <= 0.75 → amber
  *  - 0.75 < r <= 0.90 → orange
@@ -43,44 +50,19 @@ type Props = {
   totals?: ConversationTotalsDisplay | null;
 };
 
-type Color = {
-  bg: string;
-  border: string;
-  fg: string;
-  ring: string;
-};
+/**
+ * Chrome shared with the knowledge badge. One string, so the two stay
+ * identical: they sit side by side and any drift is visible at a glance.
+ */
+const BADGE_CHROME =
+  'rounded-full border border-border/60 bg-muted/50 px-3 py-1.5 text-muted-foreground shadow-sm';
 
-function colorForRatio(ratio: number): Color {
-  if (ratio <= 0.5) {
-    return {
-      bg: 'bg-green-100 dark:bg-green-900',
-      border: 'border-green-200 dark:border-green-800',
-      fg: 'text-green-700 dark:text-green-200',
-      ring: 'stroke-green-500 dark:stroke-green-400',
-    };
-  }
-  if (ratio <= 0.75) {
-    return {
-      bg: 'bg-amber-100 dark:bg-amber-900',
-      border: 'border-amber-200 dark:border-amber-800',
-      fg: 'text-amber-700 dark:text-amber-200',
-      ring: 'stroke-amber-500 dark:stroke-amber-400',
-    };
-  }
-  if (ratio <= 0.9) {
-    return {
-      bg: 'bg-orange-100 dark:bg-orange-900',
-      border: 'border-orange-200 dark:border-orange-800',
-      fg: 'text-orange-700 dark:text-orange-200',
-      ring: 'stroke-orange-500 dark:stroke-orange-400',
-    };
-  }
-  return {
-    bg: 'bg-rose-100 dark:bg-rose-900',
-    border: 'border-rose-200 dark:border-rose-800',
-    fg: 'text-rose-700 dark:text-rose-300',
-    ring: 'stroke-rose-500 dark:stroke-rose-400',
-  };
+/** Stroke of the filled arc — the single conditional colour left. */
+function ringForRatio(ratio: number): string {
+  if (ratio <= 0.5) return 'stroke-green-500 dark:stroke-green-400';
+  if (ratio <= 0.75) return 'stroke-amber-500 dark:stroke-amber-400';
+  if (ratio <= 0.9) return 'stroke-orange-500 dark:stroke-orange-400';
+  return 'stroke-rose-500 dark:stroke-rose-400';
 }
 
 function formatTokens(n: number): string {
@@ -105,7 +87,7 @@ export function ContextUsagePill({ usage, totals }: Props) {
   // has the contextual wording the badge can't carry.
   const percent = Math.round(visualRatio * 100);
   const realPercent = Math.round(usage.ratio * 100);
-  const color = colorForRatio(usage.ratio);
+  const ring = ringForRatio(usage.ratio);
 
   // SVG ring geometry: 16 px circle, 2 px stroke = small but readable.
   const SIZE = 16;
@@ -142,7 +124,7 @@ export function ContextUsagePill({ usage, totals }: Props) {
         data-testid="context-usage-pill"
         aria-label={tooltip}
         onClick={() => setShowTooltip(s => !s)}
-        className={`flex items-center gap-1.5 rounded-full ${color.bg} ${color.border} border px-3 py-1.5 shadow-sm transition-colors`}
+        className={`flex items-center gap-1.5 ${BADGE_CHROME} transition-colors hover:bg-muted hover:text-foreground`}
       >
         <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden>
           <circle
@@ -153,7 +135,7 @@ export function ContextUsagePill({ usage, totals }: Props) {
             stroke="currentColor"
             strokeOpacity="0.2"
             strokeWidth={STROKE}
-            className={color.fg}
+            className="text-muted-foreground"
           />
           <circle
             cx={SIZE / 2}
@@ -164,12 +146,14 @@ export function ContextUsagePill({ usage, totals }: Props) {
             strokeLinecap="round"
             strokeDasharray={`${DASH} ${CIRC}`}
             transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`}
-            className={color.ring}
+            className={ring}
           />
         </svg>
         {/* Percentage label — kept always visible. The header bar fits even on
             small phones (360 px) because the badge total width stays ~52 px. */}
-        <span className={`text-[11px] mobile:text-xs font-semibold ${color.fg}`}>{percent}%</span>
+        <span className="text-[11px] mobile:text-xs font-semibold text-muted-foreground">
+          {percent}%
+        </span>
       </button>
 
       {showTooltip && (

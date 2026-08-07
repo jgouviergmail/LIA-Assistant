@@ -18,6 +18,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Contrast,
   Orbit,
+  ToggleLeft,
   BellRing,
   Search,
   ChevronsDownUp,
@@ -148,6 +149,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
     cards: [
       'background_response',
       'capability_map',
+      'capability_honesty',
       'widgets_travel',
       'cost_transparency',
       'haptics',
@@ -204,6 +206,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   provenance_why: Search,
   alerts_hub: BellRing,
   capability_map: Orbit,
+  capability_honesty: ToggleLeft,
   narrow_screens: Smartphone,
 };
 
@@ -253,5 +256,6 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   provenance_why: [],
   alerts_hub: [],
   capability_map: [],
+  capability_honesty: ['capability', 'reason'],
   narrow_screens: [],
 };

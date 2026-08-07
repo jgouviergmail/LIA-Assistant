@@ -73,15 +73,27 @@ COPY --from=deps /monorepo/apps/web/node_modules ./apps/web/node_modules
 # Build Next.js with standalone output
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# NEXT_PUBLIC_* variables must be set at build time
-ARG NEXT_PUBLIC_API_URL=http://localhost:8000
-ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
-ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
+# NEXT_PUBLIC_* variables must be set at build time.
+# Host-neutral defaults (B03, ADR-215): the empty API URL is the SAME-ORIGIN
+# contract (browser calls stay relative; the server rewrite targets the api
+# service), and the app URL has NO default — an unset value means relative
+# canonicals + runtime APP_URL_SERVER for sitemap/robots, never a baked host.
+ARG NEXT_PUBLIC_API_URL=
+ARG NEXT_PUBLIC_APP_URL=
 ARG NEXT_PUBLIC_APP_NAME=Lia
 
 # Product telemetry (ADR-178 Phase 4) — off unless explicitly enabled
 ARG NEXT_PUBLIC_PRODUCT_TELEMETRY=false
 ARG NEXT_PUBLIC_WEB_VITALS_SAMPLE_RATE=1
+
+# Public showroom (P0 program). BOTH default to the safe/honest value:
+# `legacy` renders the passive mockup, and an empty proof SHA degrades every
+# proof link to the repository root (the drawer then cannot claim "exact
+# source"). Publishing the guided mission is a deliberate build decision.
+# The SHA must be the FULL 40-hex commit of THIS build — release CI passes
+# github.sha, which is already the commit a tag points at.
+ARG NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT=legacy
+ARG NEXT_PUBLIC_SHOWROOM_PROOF_SHA=
 
 # Firebase Cloud Messaging (FCM) - Push Notifications
 ARG NEXT_PUBLIC_FIREBASE_API_KEY
@@ -94,10 +106,11 @@ ARG NEXT_PUBLIC_FIREBASE_VAPID_KEY
 
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
-ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
 ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME
 ENV NEXT_PUBLIC_PRODUCT_TELEMETRY=$NEXT_PUBLIC_PRODUCT_TELEMETRY
 ENV NEXT_PUBLIC_WEB_VITALS_SAMPLE_RATE=$NEXT_PUBLIC_WEB_VITALS_SAMPLE_RATE
+ENV NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT=$NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT
+ENV NEXT_PUBLIC_SHOWROOM_PROOF_SHA=$NEXT_PUBLIC_SHOWROOM_PROOF_SHA
 ENV NEXT_PUBLIC_FIREBASE_API_KEY=$NEXT_PUBLIC_FIREBASE_API_KEY
 ENV NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
 ENV NEXT_PUBLIC_FIREBASE_PROJECT_ID=$NEXT_PUBLIC_FIREBASE_PROJECT_ID

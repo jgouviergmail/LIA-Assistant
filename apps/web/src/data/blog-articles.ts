@@ -209,7 +209,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'security',
     icon: 'Lock',
     date: '2026-03-16',
-    readTime: 5,
+    readTime: 6,
     tags: ['security', 'defense-in-depth', 'rate-limiting', 'encryption'],
   },
   {
@@ -235,7 +235,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'technical',
     icon: 'Settings',
     date: '2026-04-09',
-    readTime: 4,
+    readTime: 5,
     tags: ['llm-config', 'admin-ui', 'governance', 'db-overrides', 'multi-provider', 'defaults'],
   },
   {

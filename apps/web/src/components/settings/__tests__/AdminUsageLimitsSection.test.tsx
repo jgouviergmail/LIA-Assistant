@@ -139,9 +139,14 @@ describe('AdminUsageLimitsSection — edit modal', () => {
     expect(await screen.findByText('modal-for:a@b.co')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'stub-save' }));
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith('usage_limits.edit.success'));
-    // The merged row replaced the old one without a refetch.
+    // The merged row replaced the old one without a refetch. Counted on the
+    // LIST endpoint rather than on every GET the subtree makes: the section
+    // also hosts the instance-budget card, which loads its own resource.
     expect(await screen.findByText('merged@example.com')).toBeInTheDocument();
-    expect(get).toHaveBeenCalledTimes(1);
+    const listCalls = get.mock.calls.filter(([url]) =>
+      String(url).includes('/usage-limits/admin/users')
+    );
+    expect(listCalls).toHaveLength(1);
   });
 });
 

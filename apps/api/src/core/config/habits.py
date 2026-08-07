@@ -48,11 +48,11 @@ class HabitsSettings(BaseSettings):
     """Env-overridable settings for the learned-habits subsystem."""
 
     habits_enabled: bool = Field(
-        default=False,
+        default=True,
         description="Master flag for the habits subsystem (profile job, API, consumption).",
     )
     habits_tick_scoring_enabled: bool = Field(
-        default=False,
+        default=True,
         description="Deterministic proactive-tick scoring: defer heartbeat "
         "ticks toward learned rhythm windows (never widening the user's "
         "bounds, anti-starvation guaranteed). Requires habits_enabled.",

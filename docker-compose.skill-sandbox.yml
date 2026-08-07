@@ -1,0 +1,20 @@
+# Skill-script sandbox overlay (ADR-215, B15 split).
+#
+# Grants the API service the Docker socket + host docker group required by
+# the container-sandboxed script skills (SEC-001, skills/executor.py runs
+# `docker run` against SKILLS_SCRIPT_SANDBOX_IMAGE). This is a deliberate
+# privilege: generic self-host installs run WITHOUT this file (script skills
+# stay off in the base); selecting the capability is an explicit operator
+# choice:
+#
+#   COMPOSE_FILE=docker-compose.prod.yml:docker-compose.skill-sandbox.yml
+#
+# Compose overlays APPEND volumes and environment entries to the base.
+services:
+  api:
+    group_add:
+      - "${DOCKER_GID:-999}" # Host docker group GID for socket access
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - SKILLS_SCRIPTS_ENABLED=true

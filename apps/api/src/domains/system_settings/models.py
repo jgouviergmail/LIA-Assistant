@@ -28,11 +28,53 @@ class SystemSettingKey(str, enum.Enum):
     (LLM type ``voice_tts``).
     """
 
+    # Fresh-install reference seed bundle marker (ADR-215): value is the
+    # exact six-record bundle SHA-256 written by verify_reference_seeds.sql
+    # in the same transaction as the seeds. Raw SQL uses the persisted
+    # member-name token SELF_HOST_SEED_BUNDLE (Enum(native_enum=False)
+    # stores names); the ORM round-trip is pinned by
+    # test_reference_seed_bundle_contract.py.
+    SELF_HOST_SEED_BUNDLE = "self_host_seed_bundle"
+
     # Debug panel: "true" or "false" (controls visibility in chat page)
     DEBUG_PANEL_ENABLED = "debug_panel_enabled"
 
     # Debug panel user access: "true" or "false" (controls whether non-admin users can toggle their own debug panel)
     DEBUG_PANEL_USER_ACCESS_ENABLED = "debug_panel_user_access_enabled"
+
+    # Instance-wide daily spend ceiling in euros, e.g. "1" or "0.50".
+    # Empty/absent = no operator ceiling; the deployment ceiling (environment)
+    # still applies. An operator may only LOWER it, never raise it.
+    INSTANCE_DAILY_BUDGET_EUR = "instance_daily_budget_eur"
+
+    # Demonstrator instance marker: "true" only on the database of a public
+    # demonstrator. The nightly account wipe requires it IN ADDITION to the
+    # environment flag, so an environment variable alone can never authorize
+    # mass deletion on a database that is not a demonstrator's. The condition
+    # travels with the data it destroys.
+    DEMO_INSTANCE_MARKER = "demo_instance_marker"
+
+    # Administrable platform capabilities (live-demonstrator programme, lot 3).
+    # One key per capability; their SettingSpecs are GENERATED from
+    # domains/capabilities/registry.py, so a capability cannot ship with an
+    # undeclared key. Value is "true"/"false"; absent = enabled, so a fresh
+    # instance behaves exactly as before any switch existed.
+    CAPABILITY_STT_ENABLED = "capability_stt_enabled"
+    CAPABILITY_TTS_ENABLED = "capability_tts_enabled"
+    CAPABILITY_IMAGE_GENERATION_ENABLED = "capability_image_generation_enabled"
+    CAPABILITY_ATTACHMENTS_ENABLED = "capability_attachments_enabled"
+    CAPABILITY_RAG_SPACES_ENABLED = "capability_rag_spaces_enabled"
+    CAPABILITY_WEB_SEARCH_ENABLED = "capability_web_search_enabled"
+    CAPABILITY_BROWSER_ENABLED = "capability_browser_enabled"
+    CAPABILITY_SKILLS_ENABLED = "capability_skills_enabled"
+    CAPABILITY_MCP_ENABLED = "capability_mcp_enabled"
+    CAPABILITY_TELEPHONY_ENABLED = "capability_telephony_enabled"
+
+    # Whether the landing advertises the public demonstrator. Off by default:
+    # a fresh instance never advertises a demonstrator it does not run. Read
+    # ANONYMOUSLY (the landing has no session) and switchable at runtime —
+    # "take the demo offline" cannot wait for a rebuild.
+    PUBLIC_DEMO_LINK_ENABLED = "public_demo_link_enabled"
 
     # Future settings can be added here:
     # MAINTENANCE_MODE = "maintenance_mode"

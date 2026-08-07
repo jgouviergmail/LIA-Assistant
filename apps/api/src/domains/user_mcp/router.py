@@ -25,6 +25,8 @@ from src.core.constants import (
 from src.core.dependencies import get_db
 from src.core.exceptions import ValidationError, raise_bad_gateway
 from src.core.session_dependencies import get_current_active_session
+from src.domains.feature_switches.guard import capability_dependencies
+from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.user_mcp.models import UserMCPAuthType, UserMCPServer, UserMCPServerStatus
 from src.domains.user_mcp.schemas import (
     McpAppCallToolRequest,
@@ -47,7 +49,13 @@ from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/mcp/servers", tags=["User MCP Servers"])
+router = APIRouter(
+    prefix="/mcp/servers",
+    tags=["User MCP Servers"],
+    # Administrable capability: a switched-off feature refuses at the
+    # door, not only in the planner catalogue.
+    dependencies=capability_dependencies(PlatformCapability.MCP),
+)
 
 
 def _server_to_response(

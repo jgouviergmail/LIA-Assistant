@@ -105,6 +105,19 @@ async def _should_start_voice(
     """
     if user_obj is None or not user_obj.voice_enabled:
         return False
+    # An administrator can switch speech synthesis off instance-wide. Checked
+    # HERE because spoken answers have no route of their own: they are
+    # produced inside the chat stream, so this is the only place a switch can
+    # actually stop them. Never raises — a failing read leaves speech on,
+    # which is the behaviour that existed before the switch.
+    from src.domains.feature_switches.registry import (
+        PlatformCapability,
+        is_capability_enabled,
+    )
+
+    if not await is_capability_enabled(PlatformCapability.TTS):
+        logger.info("voice_skipped_capability_disabled", run_id=run_id, voice_path=voice_path)
+        return False
     if has_listeners is None:
         return True
     try:

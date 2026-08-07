@@ -15,7 +15,7 @@ import type { BaseSettingsProps } from '@/types/settings';
 
 export function PersonalitySettings({ lng, collapsible = true }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
-  const { personalities, currentPersonality, loading, updating, updatePersonality } =
+  const { personalities, currentPersonality, loading, refreshing, updating, updatePersonality } =
     usePersonality();
 
   const handlePersonalityChange = async (personalityId: string | null) => {
@@ -35,7 +35,11 @@ export function PersonalitySettings({ lng, collapsible = true }: BaseSettingsPro
   };
 
   const content = (
-    <div className="space-y-4">
+    // `refreshing` announces a reload of content already on screen — an
+    // administrator saving a style refreshes the shared catalogue — while
+    // `loading` below stays reserved for the first paint. Swapping the list
+    // for a spinner on every refresh would take the user's place away.
+    <div className="space-y-4" aria-busy={refreshing}>
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <LoadingSpinner size="default" />

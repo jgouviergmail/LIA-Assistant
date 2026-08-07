@@ -69,7 +69,7 @@ def test_anonymous_funnel_accepted_session_events_dropped(client: TestClient) ->
         json={
             "events": [
                 {"kind": "event", "event_type": "landing_view"},
-                {"kind": "event", "event_type": "demo_completed"},
+                {"kind": "event", "event_type": "demo_started"},
                 {"kind": "event", "event_type": "pwa_installed"},  # session-only
             ]
         },
@@ -78,9 +78,21 @@ def test_anonymous_funnel_accepted_session_events_dropped(client: TestClient) ->
     assert resp.json() == {"accepted": 2, "dropped": 1}
     assert [e["event_type"].value for e in _StubRepo.events] == [
         "landing_view",
-        "demo_completed",
+        "demo_started",
     ]
     assert all(e["user_id"] is None for e in _StubRepo.events)
+
+
+def test_showroom_vocabulary_rejected_even_authenticated(client: TestClient) -> None:
+    # demo_completed moved to the exclusive showroom vocabulary (P0 program):
+    # the ordinary route now schema-rejects it for EVERY caller, so the
+    # showroom funnel cannot be polluted through this endpoint.
+    for event_type in ("demo_completed", "demo_mission_started"):
+        resp = _authed(client).post(
+            "/product/events",
+            json={"events": [{"kind": "event", "event_type": event_type}]},
+        )
+        assert resp.status_code == 422
 
 
 def test_authenticated_full_set_accepted(client: TestClient) -> None:

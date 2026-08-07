@@ -10,7 +10,9 @@ class TestAutomationSettings:
     """The automation config module is composed and carries sane defaults."""
 
     def test_flag_defaults_to_disabled(self):
-        assert settings.recurrence_suggestion_enabled is False
+        # Aligned on production (2026-08-06): the feature has been on for
+        # months, so a fresh instance no longer starts without it.
+        assert settings.recurrence_suggestion_enabled is True
 
     def test_recurrence_thresholds(self):
         # v2 defaults (ADR-214): 28-day window (a 14-day window could never

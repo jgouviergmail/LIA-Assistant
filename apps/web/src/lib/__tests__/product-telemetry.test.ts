@@ -14,6 +14,7 @@ import {
   isTelemetryEnabled,
   trackProductEvent,
   trackSettingsSearch,
+  trackShowroomEvent,
   trackVitals,
 } from '@/lib/product-telemetry';
 
@@ -88,5 +89,43 @@ describe('product-telemetry', () => {
     vi.stubEnv('NEXT_PUBLIC_PRODUCT_TELEMETRY', 'true');
     trackVitals([]);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  describe('trackShowroomEvent (credential-less collector)', () => {
+    it('is inert when the flag is unset', () => {
+      trackShowroomEvent('demo_viewed');
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('posts the bare enum WITHOUT credentials to the dedicated route', () => {
+      vi.stubEnv('NEXT_PUBLIC_PRODUCT_TELEMETRY', 'true');
+      trackShowroomEvent('demo_mission_started');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe('/api/v1/product/showroom-events');
+      expect(init.credentials).toBe('omit');
+      expect(init.keepalive).toBe(true);
+      expect(JSON.parse(init.body)).toEqual({
+        events: ['demo_mission_started'],
+      });
+    });
+
+    it('never uses sendBeacon, even when available', () => {
+      vi.stubEnv('NEXT_PUBLIC_PRODUCT_TELEMETRY', 'true');
+      const beacon = vi.fn().mockReturnValue(true);
+      Object.defineProperty(navigator, 'sendBeacon', {
+        value: beacon,
+        configurable: true,
+      });
+      trackShowroomEvent('demo_completed');
+      expect(beacon).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('swallows network failures', () => {
+      vi.stubEnv('NEXT_PUBLIC_PRODUCT_TELEMETRY', 'true');
+      fetchMock.mockRejectedValueOnce(new Error('offline'));
+      expect(() => trackShowroomEvent('demo_viewed')).not.toThrow();
+    });
   });
 });

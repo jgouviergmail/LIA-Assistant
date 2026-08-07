@@ -1,108 +1,129 @@
-"""
-Create admin user for first-time setup.
+"""Create or promote the admin user (manual operator tool).
 
-Uses raw SQL to avoid SQLAlchemy model relationship resolution issues
-that occur when running as a standalone script.
+The backend password policy is the single authority: every path goes through
+``validate_password_strict`` before hashing (ADR-215, B11). No default
+password exists, and the secret NEVER travels through argv — it is read from
+stdin (piped) or an interactive hidden prompt.
 
 Usage (from within the API container):
-    python -m scripts.data.create_admin
-    python -m scripts.data.create_admin --email admin@mycompany.com --password MySecurePass123
+    echo '<password>' | python -m scripts.data.create_admin --email admin@x.tld --name "Admin"
+    python -m scripts.data.create_admin --email admin@x.tld   # interactive getpass
 
-Environment:
-    Reads DATABASE_URL from settings (via .env or environment variables).
+The installer's atomic path is ``scripts.data.bootstrap_install`` (one stdin
+JSON document, admin + provider keys in one transaction); this tool remains
+for manual recovery only.
 """
+
+from __future__ import annotations
 
 import argparse
 import asyncio
+import getpass
 import sys
 import uuid
-from datetime import UTC, datetime, timezone
-from pathlib import Path
-
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+from datetime import UTC, datetime
 
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import settings
-from src.core.security import get_password_hash
-from src.infrastructure.database.session import AsyncSessionLocal
-
-DEFAULT_EMAIL = "admin@example.com"
-DEFAULT_ADMIN_PASS = "admin123"
 DEFAULT_NAME = "Admin User"
 
 
-async def create_admin(email: str, password: str, full_name: str) -> None:
-    """Create an admin user if one does not already exist.
+async def ensure_admin(
+    db: AsyncSession,
+    *,
+    email: str,
+    password: str,
+    full_name: str,
+) -> uuid.UUID:
+    """Create the admin, or promote an existing account; flush, never commit.
 
-    Uses raw SQL to avoid ORM relationship resolution issues when running
-    as a standalone script (User model has relationships to Personality,
-    Connector, Conversation, etc. that require all models to be imported).
+    Raw SQL on purpose (standalone-script context: the User model's
+    relationships require the full registry import). Idempotent: an existing
+    superuser is untouched; an existing non-admin is promoted.
+
+    Args:
+        db: Session whose transaction the caller owns.
+        email: Admin email address.
+        password: Raw password — validated by the BACKEND policy before
+            hashing; never logged.
+        full_name: Display name for a newly created account.
+
+    Returns:
+        The admin user's id.
+
+    Raises:
+        ValueError: When the password fails the strict backend policy.
     """
-    async with AsyncSessionLocal() as session:
-        # Check if user already exists
-        result = await session.execute(
-            text("SELECT id, is_superuser FROM users WHERE email = :email"),
-            {"email": email},
-        )
-        existing = result.fetchone()
+    from src.core.security import get_password_hash
+    from src.core.security.password_validation import validate_password_strict
 
-        if existing:
-            user_id, is_superuser = existing
-            print(f"\n⚠ User '{email}' already exists (superuser={is_superuser}).")
-            if not is_superuser:
-                await session.execute(
-                    text("UPDATE users SET is_superuser = true WHERE id = :id"),
-                    {"id": user_id},
-                )
-                await session.commit()
-                print("  → Promoted to superuser.")
-            else:
-                print("  → No changes needed.")
-            return
+    validate_password_strict(password)
 
-        # Create admin user via raw SQL
-        now = datetime.now(UTC)
-        await session.execute(
-            text("""
-                INSERT INTO users (id, email, hashed_password, full_name, is_active, is_verified, is_superuser, created_at, updated_at)
-                VALUES (:id, :email, :hashed_password, :full_name, true, true, true, :now, :now)
+    result = await db.execute(
+        text("SELECT id, is_superuser FROM users WHERE email = :email"),
+        {"email": email},
+    )
+    existing = result.fetchone()
+    if existing:
+        user_id, is_superuser = existing
+        if not is_superuser:
+            await db.execute(
+                text("UPDATE users SET is_superuser = true WHERE id = :id"),
+                {"id": user_id},
+            )
+            await db.flush()
+        return uuid.UUID(str(user_id))
+
+    new_id = uuid.uuid4()
+    now = datetime.now(UTC)
+    await db.execute(
+        text("""
+            INSERT INTO users (id, email, hashed_password, full_name,
+                               is_active, is_verified, is_superuser,
+                               created_at, updated_at)
+            VALUES (:id, :email, :hashed_password, :full_name,
+                    true, true, true, :now, :now)
             """),
-            {
-                "id": str(uuid.uuid4()),
-                "email": email,
-                "hashed_password": get_password_hash(password),
-                "full_name": full_name,
-                "now": now,
-            },
-        )
-        await session.commit()
+        {
+            "id": str(new_id),
+            "email": email,
+            "hashed_password": get_password_hash(password),
+            "full_name": full_name,
+            "now": now,
+        },
+    )
+    await db.flush()
+    return new_id
 
-        print("\n✅ Admin user created successfully!")
-        print(f"   Email:    {email}")
-        print(f"   Password: {'*' * len(password)}")
-        print(f"   Name:     {full_name}")
-        print("\n   You can now log in at the application's login page.")
-        print("   ⚠ Change the default password after first login!")
+
+def _read_password() -> str:
+    """Read the password from piped stdin, else an interactive hidden prompt."""
+    if not sys.stdin.isatty():
+        return sys.stdin.readline().rstrip("\n")
+    return getpass.getpass("Admin password (input hidden): ")
+
+
+async def _run(email: str, full_name: str) -> None:
+    from src.infrastructure.database.session import AsyncSessionLocal
+
+    password = _read_password()
+    if not password:
+        print("ERROR: an admin password is required (no default exists).")
+        raise SystemExit(2)
+    async with AsyncSessionLocal() as session:
+        admin_id = await ensure_admin(session, email=email, password=password, full_name=full_name)
+        await session.commit()
+    print(f"Admin ready: {email} (id={admin_id})")
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Create admin user for first-time setup.")
-    parser.add_argument(
-        "--email",
-        default=DEFAULT_EMAIL,
-        help=f"Admin email address (default: {DEFAULT_EMAIL})",
+    parser = argparse.ArgumentParser(
+        description="Create or promote the admin user (password via stdin/getpass)."
     )
+    parser.add_argument("--email", required=True, help="Admin email address")
     parser.add_argument(
-        "--password",
-        default=DEFAULT_ADMIN_PASS,
-        help=f"Admin password (default: {DEFAULT_ADMIN_PASS})",
-    )
-    parser.add_argument(
-        "--name",
-        default=DEFAULT_NAME,
-        help=f"Admin full name (default: {DEFAULT_NAME})",
+        "--name", default=DEFAULT_NAME, help=f"Admin full name (default: {DEFAULT_NAME})"
     )
     return parser.parse_args()
 
@@ -110,7 +131,7 @@ def parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     args = parse_args()
     try:
-        asyncio.run(create_admin(args.email, args.password, args.name))
-    except Exception as exc:
-        print(f"\n❌ Failed to create admin user: {exc}")
+        asyncio.run(_run(args.email, args.name))
+    except Exception as exc:  # operator tool: surface the reason, exit non-zero
+        print(f"ERROR: failed to create admin user: {exc}")
         sys.exit(1)

@@ -305,3 +305,28 @@ apps/api/tests/.infra_denylist
 
 # Local media deliverables (social-network demo captures) — generated on demand, never committed
 exports/
+
+# Self-host installer artifacts (ADR-215) — generated per install, never committed
+.install-state.json
+install.log
+docker-compose.install.yml
+docker-compose.images.yml
+infrastructure/caddy/Caddyfile
+.env.backup.*
+
+# Public-demo runtime env (ceremony-generated, never committed)
+# Leftover of the removed live showroom (2026-08): the system is gone, the
+# real file may still sit on an operator's disk with credentials in it.
+# The ignore stays so it can never be committed by accident.
+.env.public-demo
+.env.demo-instance
+.env.demo-instance.prod
+# Any future variant (.env.demo-instance.staging...). The TEMPLATES stay
+# tracked: the negation covers every `.example`, not one name — adding
+# `.env.demo-instance.prod.example` under the old rule made it invisible,
+# which is how a template ships as folklore instead of as a file.
+.env.demo-instance.*
+!.env.demo-instance*.example
+
+# Public-demo ceremony artifacts (generated, NEVER committed):
+# the offline Ed25519 signing key and the signed cap attestation.

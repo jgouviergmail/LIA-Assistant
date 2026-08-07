@@ -10,7 +10,8 @@ class TestOpenLoopsSettings:
     """The open-loops config module is composed and carries sane defaults."""
 
     def test_flag_defaults_to_disabled(self):
-        assert settings.open_loops_enabled is False
+        # Aligned on production (2026-08-06): open loops ship enabled.
+        assert settings.open_loops_enabled is True
 
     def test_nudge_policy_defaults(self):
         assert settings.open_loops_nudge_due_hours == 48

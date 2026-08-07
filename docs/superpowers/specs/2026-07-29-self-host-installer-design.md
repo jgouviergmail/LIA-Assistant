@@ -1,8 +1,12 @@
 # Self-Host Installer — Design
 
+> **Implementation amendment (2026-08-05):**
+> `docs/superpowers/specs/2026-08-05-self-host-installer-audit-addendum.md`
+> governs every conflict. The July document remains historical context.
+
 **Date**: 2026-07-29
 **Status**: Validated (brainstorming session), pending implementation plan
-**Related**: GETTING_STARTED.md, `.env.min.prod`, `scripts/deploy/generate-secrets.sh`, `docker-compose.prod.yml`, future ADR-179
+**Related**: GETTING_STARTED.md, `.env.min.prod`, `scripts/deploy/generate-secrets.sh`, `docker-compose.prod.yml`, ADR-215 (ADR-179 was already occupied)
 
 ## Problem
 

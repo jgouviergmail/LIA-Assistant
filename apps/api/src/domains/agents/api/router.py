@@ -383,20 +383,35 @@ async def stream_chat(
     bff_session_id = http_request.cookies.get(settings.session_cookie_name)
 
     # === USAGE LIMIT CHECK (Layer 0: HTTP 429 before SSE stream) ===
-    if getattr(settings, "usage_limits_enabled", False):
-        from src.domains.usage_limits.service import UsageLimitService
-        from src.infrastructure.observability.metrics_usage_limits import (
-            usage_limit_enforcement_total,
+    # No `usage_limits_enabled` guard: the check also enforces the INSTANCE
+    # spend ceiling, a different protection that stays armed when per-user
+    # limits are off. It returns early when neither applies.
+    from src.domains.usage_limits.schemas import UsageLimitStatus
+    from src.domains.usage_limits.service import UsageLimitService
+    from src.infrastructure.observability.metrics_usage_limits import (
+        usage_limit_enforcement_total,
+    )
+
+    _limit_check = await UsageLimitService.check_user_allowed(current_user.id)
+    if not _limit_check.allowed:
+        usage_limit_enforcement_total.labels(
+            layer="router", limit_type=_limit_check.exceeded_limit or "unknown"
+        ).inc()
+        from src.core.constants import INSTANCE_BUDGET_EXHAUSTED_ERROR_CODE
+        from src.core.exceptions import raise_usage_limit_exceeded
+        from src.domains.usage_limits.instance_budget import (
+            seconds_until_next_utc_day,
         )
 
-        _limit_check = await UsageLimitService.check_user_allowed(current_user.id)
-        if not _limit_check.allowed:
-            usage_limit_enforcement_total.labels(
-                layer="router", limit_type=_limit_check.exceeded_limit or "unknown"
-            ).inc()
-            from src.core.exceptions import raise_usage_limit_exceeded
-
-            raise_usage_limit_exceeded(_limit_check.exceeded_limit, _limit_check.blocked_reason)
+        _is_instance_pause = _limit_check.status is UsageLimitStatus.BLOCKED_INSTANCE_BUDGET
+        raise_usage_limit_exceeded(
+            _limit_check.exceeded_limit,
+            _limit_check.blocked_reason,
+            error_code=INSTANCE_BUDGET_EXHAUSTED_ERROR_CODE if _is_instance_pause else None,
+            # The ceiling resets on the UTC day boundary, so "come back
+            # tomorrow" is a computable instant rather than a vague hope.
+            retry_after_seconds=seconds_until_next_utc_day() if _is_instance_pause else None,
+        )
     # === END USAGE LIMIT CHECK ===
 
     # === ACTIVE-RUN LOCK (ADR-117 Lot 2: HTTP 409 BEFORE the SSE stream) ===

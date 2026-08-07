@@ -70,7 +70,7 @@ def test_settings():
     """Fixture providing test-specific settings."""
     return Settings(
         secret_key="test_secret_key_minimum_32_chars_long",
-        fernet_key="test_fernet_key_for_testing_only_32b",
+        fernet_key="MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
         database_url="postgresql+asyncpg://test:test@localhost/test",
         redis_url="redis://localhost:6379/0",
         openai_api_key="sk-test-key",
@@ -236,7 +236,7 @@ class TestGraphConstruction:
         # Custom settings (LLM model fields are deprecated — LLM_DEFAULTS is source of truth)
         custom_settings = Settings(
             secret_key="test_secret_key_minimum_32_chars_long",
-            fernet_key="test_fernet_key_for_testing_only_32b",
+            fernet_key="MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
             database_url="postgresql+asyncpg://test:test@localhost/test",
             redis_url="redis://localhost:6379/0",
         )

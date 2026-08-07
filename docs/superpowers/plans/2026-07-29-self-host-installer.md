@@ -1,5 +1,11 @@
 # Self-Host Installer Implementation Plan
 
+> **Implementation amendment (2026-08-05):**
+> `docs/superpowers/specs/2026-08-05-self-host-installer-audit-addendum.md`
+> governs every conflict. The July document remains historical context.
+> Execution goes through `docs/superpowers/plans/2026-08-05-self-host-installer-activation.md`;
+> do not execute this baseline plan independently.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** One-command guided production install for self-hosters: `./install.sh` asks the indispensable questions, generates `.env` + compose override, builds, validates, starts, bootstraps, and reports a working LIA instance.

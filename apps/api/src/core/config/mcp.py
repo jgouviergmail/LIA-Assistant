@@ -67,7 +67,7 @@ class MCPSettings(BaseSettings):
     # ========================================================================
 
     mcp_servers_config: str = Field(
-        default="{}",
+        default='{"excalidraw":{"transport":"streamable_http","url":"https://mcp.excalidraw.com","timeout_seconds":60,"enabled":true,"hitl_required":false,"iterative_mode":true,"description":"Provides interactive hand-drawn diagram creation and sharing using Excalidraw element format. It can render streaming, animated diagrams from element definitions, upload finished diagrams to Excalidraw and return shareable URLs, and save/restore user-edited diagram states. Call the element format reference before first render."}}',
         description=(
             "JSON string defining MCP servers. "
             'Format: {"name": {"transport": "stdio"|"streamable_http", '

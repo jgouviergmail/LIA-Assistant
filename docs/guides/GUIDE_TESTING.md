@@ -2100,7 +2100,10 @@ Règles :
    66,09 % — 15 719 tests dans le sous-ensemble gated, programme Relations /
    Pairs / 360° + ADR-193)** : le seuil de déclenchement annoncé au palier
    précédent (~66 %) est atteint, la marge retombe à 2,09 pt. Palier suivant
-   65 % dès que le réel dépasse ~67 %.
+   65 % dès que le réel dépasse ~67 %. → **65 % (2026-08-06, réel 68,16 % —
+   17 026 tests dans le sous-ensemble gated, programme démonstrateur libre
+   lots 1-6 / ADR-216→218)** : le déclencheur annoncé (~67 %) est franchi, la
+   marge reste à 3,16 pt. Palier suivant 66 % dès que le réel dépasse ~70 %.
 
    La marge volontairement conservée (~4 pts) couvre l'écart entre la mesure
    locale (Windows) et le runner CI (Linux) : quelques branches dépendent de la
@@ -2168,7 +2171,7 @@ Lancer la tâche en local, c'est exécuter littéralement ce que la CI exécute.
 
 | Job CI | Tâche appelée | Sélection | Gate |
 |---|---|---|---|
-| `test-backend` | `task test:backend:unit:coverage` | `tests/unit/`, `-m "not integration and not slow and not e2e and not benchmark and not multiprocess"` | couverture ≥ 64 % |
+| `test-backend` | `task test:backend:unit:coverage` | `tests/unit/`, `-m "not integration and not slow and not e2e and not benchmark and not multiprocess"` | couverture ≥ 65 % |
 | `test-backend` (step 2) | `task test:backend:agents` | `tests/agents/`, `-m "not slow and not e2e and not benchmark and not multiprocess"`, `--no-cov` | tests verts |
 | `test-backend` (step 3) | `task test:markers` | tous les nodeids + leurs markers | aucun test ne tourne dans **zéro** job (F006) |
 | `test-backend-integration` | `task test:backend:integration` | `tests/integration/`, **puis** les tests marqués `integration` sous `tests/unit`/`tests/agents` (F006), `--no-cov` | tests verts |

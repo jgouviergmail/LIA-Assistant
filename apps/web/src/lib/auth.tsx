@@ -63,7 +63,8 @@ interface AuthContextType {
     name?: string,
     rememberMe?: boolean,
     timezone?: string,
-    language?: string
+    language?: string,
+    termsAccepted?: boolean
   ) => Promise<User>;
   logout: () => Promise<void>;
   initiateGoogleOAuth: () => Promise<void>;
@@ -113,7 +114,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // session check and report an authenticated user as anonymous. No
         // current route is affected — the anchor keeps the skip list a
         // deliberate choice rather than a naming accident.
-        const isAuthPage = pathname.match(/^\/([a-z]{2}\/)?(login|register|oauth-callback)(\/|$)/);
+        //
+        // `demo` is skipped too: the public showroom page renders no header
+        // and consumes no auth state (verified 2026-08-06 — nothing under it
+        // reads useAuth), so hydrating a session there is a pure network
+        // call on a page meant to be shared and mirrored — and it broke the
+        // showroom e2e zero-API oracle, which states the true contract.
+        const isAuthPage = pathname.match(
+          /^\/([a-z]{2}\/)?(login|register|oauth-callback|demo)(\/|$)/
+        );
 
         if (isAuthPage) {
           // User is on an auth page - assume not authenticated
@@ -252,7 +261,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     name?: string,
     rememberMe = false,
     timezone?: string,
-    language?: string
+    language?: string,
+    termsAccepted?: boolean
   ): Promise<User> => {
     try {
       const response = await apiClient.post<{ user: User }>('/auth/register', {
@@ -260,6 +270,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         password,
         full_name: name,
         remember_me: rememberMe,
+        // Undefined outside a demonstrator: the field only exists where the
+        // terms are enforced, and sending false there would be a lie.
+        ...(termsAccepted ? { terms_accepted: true } : {}),
         timezone,
         language,
       });

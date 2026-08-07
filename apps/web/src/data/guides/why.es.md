@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versión**: 4.4
-**Fecha**: 2026-08-05
-**Aplicación**: LIA v1.28.0
+**Versión**: 4.5
+**Fecha**: 2026-08-08
+**Aplicación**: LIA v1.29.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -41,6 +41,8 @@ LIA toma un camino distinto. No es un competidor frontal de los gigantes — es 
 El auto-alojamiento tiene mala fama. LIA no pretende eliminar cada paso técnico: la configuración inicial — claves API, conectores OAuth, elección de infraestructura — requiere algo de tiempo y conocimientos básicos. Pero cada etapa está **documentada en detalle** en una guía de despliegue paso a paso.
 
 Una vez terminada esa fase, **todo lo del día a día se gestiona desde una interfaz web intuitiva**. Sin terminal ni archivos de configuración.
+
+Desde la v1.29.0 esa primera fase también está guiada: `./install.sh`, en la raíz del repositorio, te plantea un cuestionario breve en tu idioma — cómo quieres acceder a la instancia, qué claves de proveedor tienes —, después construye las imágenes desde el código que has clonado, aplica los datos de referencia en una sola transacción, crea tu cuenta de administrador sin escribir jamás un secreto en la línea de comandos, y por último verifica que la instalación funciona de verdad en lugar de limitarse a responder. Si un paso falla, la reanudación retoma exactamente donde se detuvo.
 
 ### 2.2. Lo que cada usuario puede configurar
 
@@ -81,6 +83,8 @@ El administrador accede a una tercera pestaña dedicada a la gestión de la inst
 - **Límites de uso**: definir cuotas por usuario (tokens LLM, llamadas API, generaciones de imágenes) con seguimiento en tiempo real y bloqueo automático
 - **Mensajes broadcast**: enviar mensajes importantes a todos los usuarios o a una selección, con fecha de expiración opcional
 - **Exportación de consumo global**: exportar el consumo de todos los usuarios en CSV
+- **Presupuesto diario de la instancia**: limita lo que puede gastar la instancia ENTERA en un día, en euros — y no solo lo que consume cada cuenta. El panel muestra el gasto de hoy, el número de ejecuciones, el tope que realmente se aplica y lo que queda; el valor del operador solo puede apretar la cota del despliegue, nunca ampliarla. Agotado el presupuesto, los usuarios saben que el despliegue está en pausa y reciben la hora exacta de reinicio, no un mensaje engañoso sobre su cuota personal
+- **Capacidades de la plataforma**: activa o desactiva diez capacidades al instante, sin volver a desplegar — dictado, síntesis de voz, imágenes, subidas, espacios documentales, búsqueda web, navegación, habilidades, MCP, telefonía. Una capacidad desactivada desaparece también del catálogo ofrecido al planificador, así que LIA deja de proponer lo que las rutas rechazarían; cada fila muestra lo que permite el despliegue, lo que has elegido tú y lo que se aplica realmente
 
 **IA y conectores:**
 
@@ -221,6 +225,7 @@ El administrador mantiene el control del consumo:
 - **Límites de uso** configurables por usuario: número de mensajes, tokens, coste máximo — por día, por semana, por mes o en acumulado global
 - **Cuotas visuales**: cada usuario ve su consumo en tiempo real con indicadores claros
 - **Activación/desactivación de conectores**: el administrador activa o desactiva las integraciones (Google, Microsoft, Hue...) a nivel de instancia
+- **Un tope a escala de la instancia**, por encima de los de cada usuario: N cuentas × su cuota es un gasto no acotado, así que un tope diario en euros acota el despliegue mismo. Es por orden de llegada — y donde un límite por usuario falla abierto, un gasto de instancia desconocido falla cerrado
 
 ### 4.3. Tu IA familiar
 

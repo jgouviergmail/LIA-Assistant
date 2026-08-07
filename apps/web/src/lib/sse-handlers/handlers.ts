@@ -1085,6 +1085,14 @@ export function handleError(chunk: ChatStreamChunk, context: SSEHandlerContext):
     toast.error(chunk.content || 'Usage limit exceeded');
   }
 
+  // The INSTANCE exhausted its daily spend ceiling: nothing is wrong with
+  // this account and contacting an administrator changes nothing today, so
+  // the personal-quota sentence would be wrong twice. The backend content is
+  // technical and English-only — the visitor reads the translated key.
+  if (errorCode === 'instance_budget_exhausted' && !context.isReplay) {
+    toast.error(context.t('errors.chat.instance_budget_exhausted'));
+  }
+
   // Approval card (Lot 1 P1-V1): the one-click decision no longer matches
   // the pending interrupt (expired / answered / superseded) — flip the card
   // to its terminal 'expired' state BEFORE the generic STREAM_ERROR below,

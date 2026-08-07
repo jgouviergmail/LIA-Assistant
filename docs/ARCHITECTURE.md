@@ -87,7 +87,9 @@ Chaque domaine est un **bounded context** isolé avec :
 - Son service layer (business logic)
 - Ses schemas Pydantic (API contracts)
 
-**20 Domaines** :
+**21 domaines principaux** (sur **39 bounded contexts fonctionnels** que compte
+`apps/api/src/domains/`, hors `shared/` — la liste ci-dessous est une sélection
+des plus structurants, pas un inventaire) :
 1. **agents** - Orchestration multi-agents, 15 agents actifs, 56+ tools (cœur du système)
 2. **auth** - Authentification et autorisation
 3. **users** - Gestion utilisateurs
@@ -108,6 +110,7 @@ Chaque domaine est un **bounded context** isolé avec :
 18. **sub_agents** - Sous-agents persistants spécialisés (F6) : délégation, templates, token guard-rails, pipeline simplifié
 19. **journals** - Carnets de bord personnels (Personal Journals) : extraction post-conversation, consolidation périodique, injection sémantique
 20. **peers** - Connexions entre utilisateurs de l'instance (ADR-180) : découverte opt-in par nom exact, cycle de vie demande/acceptation/blocage silencieux, relais de messages assistant-à-assistant (draft HITL, coût imputé à l'émetteur), partages lecture seule par connexion (calendrier, tâches) avec journal d'accès — moteur de livraison dans `infrastructure/scheduler/` (frontière F009)
+21. **feature_switches** - Capacités de plateforme administrables (ADR-217) : registre déclaratif de 10 capacités non connecteur (STT, TTS, images, téléversements, espaces documentaires, recherche web, navigation, compétences, MCP, téléphonie), deux bornes composées (déploiement ∧ opérateur, la plus petite gagne) et trois modes d'application déclarés — `agents` (exclusion du catalogue offert au planificateur), `route_enforced` (dépendance de routeur, code stable), `service_enforced` (point d'étranglement interne, pour les capacités sans route). Deux gardes de démarrage recalculent la déclaration contre le catalogue et les routeurs réels
 
 ### 2. Async-First
 
@@ -523,8 +526,10 @@ src/core/config/
 ├── agents.py             # AgentsSettings (SSE, HITL, Router, Planner, Memory)
 ├── connectors.py         # ConnectorsSettings (Google APIs, rate limiting)
 ├── voice.py              # VoiceSettings (Edge TTS, voice comments)
-├── usage_limits.py       # UsageLimitsSettings (per-user token/message/cost quotas)
+├── usage_limits.py       # UsageLimitsSettings (per-user quotas + instance daily budget, ADR-216)
+├── demo.py               # DemoSettings (demonstrator mode: signup ceiling, purge, capabilities)
 └── advanced.py           # AdvancedSettings (pricing, i18n, feature flags)
+# (extract — the package composes ~30 domain settings modules into one Settings class)
 ```
 
 #### Multiple Inheritance Composition

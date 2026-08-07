@@ -128,9 +128,10 @@ services:
 
   # Backend API
   api:
-    # Explicit image tag (F008): deterministic name so a failed deploy can be
-    # rolled back to the previously-built image without a rebuild.
-    image: lia-api:local
+    # Parameterized image (B04/ADR-215): local build stays the default name
+    # (F008 rollback semantics unchanged); prebuilt mode overrides BOTH app
+    # images with immutable digests from the release manifest.
+    image: ${LIA_API_IMAGE:-lia-api:local}
     build:
       context: ./apps/api
       dockerfile: Dockerfile.prod
@@ -144,9 +145,12 @@ services:
     restart: unless-stopped
     # ADR-117: lifespan shutdown drains in-flight chat runs (45s) + generic
     # background tasks (15s). Default 10s grace would SIGKILL mid-drain.
-    stop_grace_period: 90s
-    group_add:
-      - "${DOCKER_GID:-999}"  # Host docker group GID for DevOps Claude CLI socket access
+    # 20s connection wait + 60s run drain + 15s background tasks + 5s margin
+    # = 100s. The phases are SEQUENTIAL in uvicorn's shutdown, so the grace
+    # period must cover their SUM. Raised from 90s when the drain default was
+    # aligned on the proven production value (60s): at 90s a busy instance
+    # was being SIGKILLed mid-drain, losing whatever was still streaming.
+    stop_grace_period: 120s
     security_opt:
       - no-new-privileges:true
     env_file:
@@ -158,9 +162,13 @@ services:
       # Trust X-Forwarded-Proto from Cloudflare (Flexible SSL sends HTTP to origin)
       - FORWARDED_ALLOW_IPS=*
       # SEC-001: the skill-script sandbox reuses THIS service's image so the
-      # interpreter and installed packages match exactly. Pinned here rather
-      # than left to a default so the two can never drift apart.
-      - SKILLS_SCRIPT_SANDBOX_IMAGE=lia-api:local
+      # interpreter and installed packages match exactly. Derived from the
+      # SAME variable (B04) so a prebuilt substitution can never leave the
+      # sandbox on a different image.
+      - SKILLS_SCRIPT_SANDBOX_IMAGE=${LIA_API_IMAGE:-lia-api:local}
+      # Script skills default OFF in the base (ADR-215): they require the
+      # Docker socket, which only docker-compose.skill-sandbox.yml grants.
+      - SKILLS_SCRIPTS_ENABLED=${SKILLS_SCRIPTS_ENABLED:-false}
       # Reference-content seeding, OFF unless explicitly requested for a fresh
       # install (`APPLY_SEEDS=true docker compose -f docker-compose.prod.yml up -d`).
       # Declared here rather than left to `env_file`, so the default is visible
@@ -191,10 +199,6 @@ services:
       # deploy made all four uvicorn workers re-embed the whole tool catalogue
       # at boot (measured: 4 x 713 embeddings, 0 cache hit in 27 boots).
       - tool_cache_data:/app/data/tool_cache
-      # DevOps Claude CLI: Docker socket for container management + auth + workspace
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ~/.claude:/home/appuser/.claude
-      - ./infrastructure/claude-cli/CLAUDE.server.md:/opt/claude-workspace/CLAUDE.md:ro
     ports:
       # Loopback-only: cloudflared (host systemd) is the single public entry
       # point. LAN clients must not bypass Cloudflare, and localhost-only
@@ -235,17 +239,19 @@ services:
   # Frontend Web
   web:
     # Explicit image tag (F008) for rollback parity with the api service.
-    image: lia-web:local
+    image: ${LIA_WEB_IMAGE:-lia-web:local}
     build:
       context: .
       dockerfile: apps/web/Dockerfile.prod
       args:
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
         - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
-        - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
         - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME:-Lia}
         - NEXT_PUBLIC_PRODUCT_TELEMETRY=${NEXT_PUBLIC_PRODUCT_TELEMETRY:-false}
         - NEXT_PUBLIC_WEB_VITALS_SAMPLE_RATE=${NEXT_PUBLIC_WEB_VITALS_SAMPLE_RATE:-1}
+        # Guided public showroom (/demo) — baked at build time.
+        - NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT=${NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT:-legacy}
+        - NEXT_PUBLIC_SHOWROOM_PROOF_SHA=${NEXT_PUBLIC_SHOWROOM_PROOF_SHA:-}
         # Firebase Cloud Messaging (FCM) - Push Notifications
         - NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
         - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
@@ -282,6 +288,11 @@ services:
     environment:
       - NODE_ENV=production
       - API_URL_SERVER=http://api:8000
+      # Runtime canonical origin (ADR-215/B03): host-neutral release images
+      # bake no NEXT_PUBLIC_APP_URL, so metadata/sitemap/robots/JSON-LD read
+      # this server-only value at request time (src/lib/site-origin.ts).
+      # Empty = relative canonicals, JSON-LD off, empty sitemap.
+      - APP_URL_SERVER=${APP_URL_SERVER:-}
       - API_URL_SERVER_HTTP=${API_URL_SERVER_HTTP:-}
       - RAG_SPACES_MAX_FILE_SIZE_MB=${RAG_SPACES_MAX_FILE_SIZE_MB:-}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-}
@@ -320,6 +331,7 @@ services:
   tempo:
     image: grafana/tempo:2.6.1
     container_name: lia-tempo-prod
+    profiles: ["observability"]
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -352,6 +364,7 @@ services:
   prometheus:
     image: prom/prometheus:v3.0.0
     container_name: lia-prometheus-prod
+    profiles: ["observability"]
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -406,6 +419,7 @@ services:
   alertmanager:
     image: prom/alertmanager:v0.27.0
     container_name: lia-alertmanager-prod
+    profiles: ["observability"]
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -452,6 +466,7 @@ services:
   blackbox-exporter:
     image: prom/blackbox-exporter:v0.25.0
     container_name: lia-blackbox-exporter-prod
+    profiles: ["observability"]
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -474,6 +489,7 @@ services:
   grafana:
     image: grafana/grafana:11.3.0
     container_name: lia-grafana-prod
+    profiles: ["observability"]
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -511,6 +527,7 @@ services:
   loki:
     image: grafana/loki:3.2.1
     container_name: lia-loki-prod
+    profiles: ["observability"]
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -535,6 +552,7 @@ services:
   promtail:
     image: grafana/promtail:3.2.1
     container_name: lia-promtail-prod
+    profiles: ["observability"]
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -561,6 +579,7 @@ services:
   node-exporter:
     image: prom/node-exporter:v1.8.2
     container_name: lia-node-exporter-prod
+    profiles: ["observability"]
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -587,6 +606,7 @@ services:
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: lia-cadvisor-prod
+    profiles: ["observability"]
     restart: unless-stopped
     privileged: true
     ports:
@@ -615,6 +635,7 @@ services:
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.15.0
     container_name: lia-postgres-exporter-prod
+    profiles: ["observability"]
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -641,6 +662,7 @@ services:
   redis-exporter:
     image: oliver006/redis_exporter:v1.62.0
     container_name: lia-redis-exporter-prod
+    profiles: ["observability"]
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -667,6 +689,7 @@ services:
   portainer:
     image: portainer/portainer-ce:2.39.0
     container_name: lia-portainer-prod
+    profiles: ["observability"]
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true

@@ -18,6 +18,8 @@ from src.core.constants import (
     PRODUCT_E2_VALIDATION_WINDOW_HOURS_DEFAULT,
     PRODUCT_OUTCOMES_RETENTION_DAYS_DEFAULT,
     PRODUCT_ROLLUP_INTERVAL_MINUTES_DEFAULT,
+    PRODUCT_SHOWROOM_DAY_CAP_DEFAULT,
+    PRODUCT_SHOWROOM_MINUTE_CAP_DEFAULT,
 )
 
 
@@ -59,5 +61,25 @@ class ProductSettings(BaseSettings):
         description=(
             "Rollup job cadence (cost backfill, E2 upgrades, purge, gauge "
             "refresh). Must stay comfortably under the 2 h freshness SLA."
+        ),
+    )
+    product_showroom_minute_cap: int = Field(
+        default=PRODUCT_SHOWROOM_MINUTE_CAP_DEFAULT,
+        ge=1,
+        le=100_000,
+        description=(
+            "Global per-minute request cap of the credential-less showroom "
+            "collector (fixed global Redis key — never IP/visitor-derived). "
+            "Exhaustion drops events silently: measurement loss, never a UX "
+            "error or an identifiable fallback."
+        ),
+    )
+    product_showroom_day_cap: int = Field(
+        default=PRODUCT_SHOWROOM_DAY_CAP_DEFAULT,
+        ge=1,
+        le=10_000_000,
+        description=(
+            "Global per-UTC-day request cap of the showroom collector "
+            "(same fail-closed drop semantics as the minute cap)."
         ),
     )

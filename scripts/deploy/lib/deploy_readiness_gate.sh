@@ -20,7 +20,10 @@
 set -euo pipefail
 
 # --- Indirections (overridable in tests) ------------------------------------
-: "${COMPOSE_FILE:=docker-compose.prod.yml}"
+# Maintainer default: base + skill-sandbox (socket script skills) + devops
+# (in-container Claude CLI). Overlays preserve the pre-split behavior of the
+# reference host EXACTLY; generic self-host installs never load them.
+: "${COMPOSE_FILE:=docker-compose.prod.yml:docker-compose.skill-sandbox.yml:docker-compose.devops.yml}"
 : "${ROLLBACK_IMAGES:=lia-api:local lia-web:local}"  # explicit compose image tags
 : "${MANIFEST_PATH:=release-manifest.json}"
 : "${READY_URL:=https://localhost:8000/ready}"
@@ -28,7 +31,10 @@ set -euo pipefail
 : "${READY_RETRIES:=30}"
 : "${READY_SLEEP:=2}"
 
-_dc() { docker compose -f "$COMPOSE_FILE" "$@"; }
+# Native COMPOSE_FILE parsing (B15): the value is a colon-separated CHAIN —
+# wrapping it in one -f would be an invalid filename. Compose splits it
+# itself when the variable is exported for the invocation.
+_dc() { COMPOSE_FILE="$COMPOSE_FILE" docker compose "$@"; }
 _docker() { docker "$@"; }
 _curl_ready() { curl -fsk "$READY_URL" >/dev/null 2>&1 || curl -fs "$READY_URL_HTTP" >/dev/null 2>&1; }
 _now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }

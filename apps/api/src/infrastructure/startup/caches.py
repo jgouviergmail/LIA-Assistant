@@ -127,6 +127,26 @@ async def init_config_caches() -> None:
         from src.infrastructure.database.session import get_db_context
 
         async with get_db_context() as db:
+            # A demonstrator repoints every LLM type at the single provider it
+            # holds a key for. This runs at BOOT, not only at provisioning,
+            # because its database lives in tmpfs: recreating that container —
+            # which Compose does whenever the service definition changes —
+            # wipes the configuration along with the data, and the instance
+            # comes back calling providers it has no key for (measured
+            # 2026-08-07: every answer became "the model provider is having
+            # technical difficulties"). Writing it here costs one statement per
+            # LLM type on an instance that is meant to be disposable, and
+            # nothing at all elsewhere.
+            if getattr(settings, "demo_mode_enabled", False):
+                from src.infrastructure.provisioning.demo_llm import (
+                    apply_demo_llm_configuration,
+                )
+
+                configured = await apply_demo_llm_configuration(db)
+                await db.commit()
+                if configured:
+                    logger.info("demo_llm_configuration_restored", llm_types=configured)
+
             await LLMConfigOverrideCache.load_from_db(db)
         logger.info("llm_config_cache_initialized")
 

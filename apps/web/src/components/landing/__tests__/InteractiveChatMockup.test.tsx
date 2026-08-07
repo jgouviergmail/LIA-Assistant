@@ -190,6 +190,84 @@ describe('InteractiveChatMockup (animated)', () => {
   });
 });
 
+describe('InteractiveChatMockup — the act row is one line, the controls are the next', () => {
+  /**
+   * Owner requirement, and a layout dependency the hero encodes in pixels:
+   * `CosmosHero` lifts the mockup column by a measured 91px so this row lines
+   * up optically with the badge/date line of the left column. A row that
+   * wraps moves everything under it and the two columns stop reading as
+   * starting at the same height.
+   *
+   * They shared one `flex-wrap` container — four chips plus two control
+   * buttons inside `max-w-md` (448px), while the German labels alone measure
+   * ~468px — so the break point depended on the locale and the viewport.
+   */
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mockReducedMotion(false);
+  });
+  afterEach(() => {
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
+  });
+
+  it('never lets the four acts wrap onto a second line', () => {
+    render(<InteractiveChatMockup lng={'fr' as Language} />);
+
+    const group = screen.getByRole('group', { name: `${TK}.demo_scenes_aria` });
+
+    expect(group.className).toContain('flex-nowrap');
+    expect(group.className).not.toContain('flex-wrap');
+    // Scrolling is the safety net for the locales that exceed the width: one
+    // scrollable line beats two stacked ones, and it stops an unbreakable
+    // label from widening the hero past a phone viewport.
+    expect(group.className).toContain('overflow-x-auto');
+  });
+
+  it('keeps every act at its natural width instead of compressing it', () => {
+    render(<InteractiveChatMockup lng={'fr' as Language} />);
+
+    const group = screen.getByRole('group', { name: `${TK}.demo_scenes_aria` });
+    const chips = Array.from(group.querySelectorAll('button'));
+
+    expect(chips).toHaveLength(SCENARIOS.length);
+    for (const chip of chips) {
+      // Without `shrink-0` flex compresses them instead of scrolling and the
+      // labels truncate mid-word.
+      expect(chip.className).toContain('shrink-0');
+      expect(chip.className).toContain('whitespace-nowrap');
+    }
+  });
+
+  it('puts pause and replay OUTSIDE the act row, on their own line', () => {
+    render(<InteractiveChatMockup lng={'fr' as Language} />);
+
+    const group = screen.getByRole('group', { name: `${TK}.demo_scenes_aria` });
+    const pause = screen.getByLabelText(`${TK}.demo_pause`);
+    const replay = screen.getByLabelText(`${TK}.demo_replay`);
+
+    // Sharing a wrapping container is what let a control sit beside a chip on
+    // one width and under it on the next.
+    expect(group.contains(pause)).toBe(false);
+    expect(group.contains(replay)).toBe(false);
+    expect(pause.parentElement).toBe(replay.parentElement);
+    // And that shared parent must come AFTER the act row in the document.
+    expect(
+      group.compareDocumentPosition(pause.parentElement as Node) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it('still exposes exactly the four acts as the pressable group', () => {
+    render(<InteractiveChatMockup lng={'fr' as Language} />);
+
+    const group = screen.getByRole('group', { name: `${TK}.demo_scenes_aria` });
+    const pressable = Array.from(group.querySelectorAll('[aria-pressed]'));
+
+    expect(pressable).toHaveLength(SCENARIOS.length);
+  });
+});
+
 describe('InteractiveChatMockup (reduced motion)', () => {
   beforeEach(() => {
     mockReducedMotion(true);

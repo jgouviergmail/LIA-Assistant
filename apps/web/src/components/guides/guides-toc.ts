@@ -29,6 +29,7 @@ import {
   Plug,
   Puzzle,
   Rocket,
+  SlidersHorizontal,
   Scale,
   Shield,
   Sparkles,
@@ -92,6 +93,7 @@ export const HOW_TOC_SECTIONS: readonly GuideTocSection[] = [
   { id: 'extensibility', icon: Rocket },
   { id: 'psyche', icon: HeartPulse },
   { id: 'habits', icon: CalendarClock },
+  { id: 'governance', icon: SlidersHorizontal },
 ] as const;
 
 export const WHY_TOC_SECTIONS: readonly GuideTocSection[] = [

@@ -29,15 +29,23 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
-# Configure UTF-8 encoding for Windows console
-if sys.platform == "win32":
-    import io
-
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
-
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+
+def _configure_windows_console() -> None:
+    """Wrap stdout/stderr in UTF-8 for the Windows console.
+
+    Called from ``__main__`` only: doing this at import time replaces the
+    captured streams of any importer (pytest's capture file gets wrapped,
+    then closed — every later print in the run dies with "I/O operation on
+    closed file").
+    """
+    if sys.platform == "win32":
+        import io
+
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 
 
 class Severity(Enum):
@@ -755,11 +763,25 @@ def check_redis(env: dict[str, str]) -> tuple[bool, str]:
 
 
 def validate_pydantic_models(result: ValidationResult) -> None:
-    """Validate configuration against Pydantic models."""
-    try:
-        from src.core.config import settings
+    """Validate configuration against Pydantic models.
 
-        # If we can import settings without error, basic validation passed
+    Delegates to the canonical pure validator (ADR-215, B07) so the
+    installer and this operator tool can never drift on what "valid
+    Settings" means.
+    """
+    try:
+        import scripts.validate_settings as validate_settings
+
+        settings, issues = validate_settings.validate_current_settings()
+        if settings is None:
+            for issue in issues:
+                result.add(
+                    Severity.ERROR,
+                    "Pydantic",
+                    issue.location,
+                    issue.message,
+                )
+            return
         result.add(
             Severity.INFO,
             "Pydantic",
@@ -979,4 +1001,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    _configure_windows_console()
     sys.exit(main())

@@ -292,6 +292,22 @@ class User(BaseModel):
         comment="Admin-provided reason for account deletion.",
     )
 
+    # Terms of use acceptance. Recorded at registration when the instance
+    # requires it (public demonstrator). A consent with no version cannot be
+    # defended later, so the two columns always travel together.
+    terms_accepted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+        comment="When the user accepted the terms of use. NULL = never asked.",
+    )
+    terms_version: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        default=None,
+        comment="Identifier of the terms version the user accepted.",
+    )
+
     # Habit learning system preference (ADR-214) — gated by the global
     # HABITS_ENABLED flag; the user toggle covers learning AND consumption.
     habits_enabled: Mapped[bool] = mapped_column(

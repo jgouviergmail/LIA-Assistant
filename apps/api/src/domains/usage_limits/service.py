@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import (
+    INSTANCE_DAILY_BUDGET_LIMIT_NAME,
     REDIS_KEY_USAGE_LIMIT_PREFIX,
     USAGE_LIMIT_CRITICAL_THRESHOLD_PCT,
     USAGE_LIMIT_WARNING_THRESHOLD_PCT,
@@ -76,6 +77,53 @@ class UsageLimitService:
     # ========================================================================
 
     @staticmethod
+    async def _instance_budget_block() -> UsageLimitCheckResult | None:
+        """Return a blocking result when the instance exhausted its day.
+
+        The effective ceiling is the smallest of the deployment bound
+        (environment) and the operator value (admin setting). With neither
+        configured the ledger is never queried, so an instance that does not
+        use the feature pays nothing per message.
+
+        The CEILING may be read from cache (it changes rarely); the SPEND
+        never is (an approximate budget is not a budget).
+
+        Returns:
+            The blocking result, or None when the instance may keep spending.
+        """
+        from src.domains.system_settings.service import get_instance_daily_budget_eur
+        from src.domains.usage_limits.instance_budget import InstanceBudgetService
+
+        env_ceiling = getattr(settings, "instance_daily_budget_eur", None)
+        operator_ceiling = await get_instance_daily_budget_eur()
+        ceiling = InstanceBudgetService.resolve_ceiling(env_ceiling, operator_ceiling)
+        if ceiling is None:
+            return None
+
+        from src.infrastructure.database.session import get_db_context
+
+        async with get_db_context() as db:
+            decision = await InstanceBudgetService.check(db, ceiling_eur=ceiling)
+        if decision.allowed:
+            return None
+
+        logger.warning(
+            "instance_daily_budget_blocked",
+            spent_eur=str(decision.spent_eur) if decision.spent_eur is not None else None,
+            ceiling_eur=str(ceiling),
+            error_code=decision.error_code,
+        )
+        usage_limit_check_total.labels(result=UsageLimitStatus.BLOCKED_INSTANCE_BUDGET.value).inc()
+        return UsageLimitCheckResult(
+            allowed=False,
+            status=UsageLimitStatus.BLOCKED_INSTANCE_BUDGET,
+            # Technical, for logs and the admin API. What the visitor reads is
+            # localized by the frontend from `exceeded_limit`.
+            blocked_reason=decision.error_code or "Instance daily budget exhausted",
+            exceeded_limit=INSTANCE_DAILY_BUDGET_LIMIT_NAME,
+        )
+
+    @staticmethod
     async def check_user_allowed(user_id: UUID) -> UsageLimitCheckResult:
         """Check if a user is allowed to perform LLM operations.
 
@@ -97,6 +145,16 @@ class UsageLimitService:
         Returns:
             UsageLimitCheckResult with allowed flag and status details.
         """
+        # Instance ceiling FIRST, and outside the per-user cache: a cached
+        # "allowed" would keep spending for a whole TTL after exhaustion, and
+        # a cached "blocked" would follow this one user into the next day.
+        # It is deliberately independent of `usage_limits_enabled`: bounding
+        # what ONE account consumes and bounding what the INSTANCE spends are
+        # two different protections.
+        instance_block = await UsageLimitService._instance_budget_block()
+        if instance_block is not None:
+            return instance_block
+
         if not getattr(settings, "usage_limits_enabled", False):
             return UsageLimitCheckResult(
                 allowed=True,

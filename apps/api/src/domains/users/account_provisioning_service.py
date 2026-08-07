@@ -52,6 +52,23 @@ class AccountProvisioningService:
         if commit_per_step:
             await self.db.commit()
 
+        # Lend the instance's shared search key (public demonstrator only).
+        # No-op elsewhere; never raises — a broken search is worth less than a
+        # broken sign-up.
+        from src.domains.users.demo_search_provisioning import provision_shared_search
+
+        # No commit of its own: `db.add` only stages the row, and the next
+        # step (or the caller) commits it. One round-trip less, and the
+        # existing commit contract stays exactly as it was.
+        await provision_shared_search(self.db, user_id)
+
+        # Start the account with the demonstrator's own preferences (debug
+        # panel on — showing the reasoning IS the demonstration). No-op
+        # elsewhere; never raises, for the same reason as the step above.
+        from src.domains.users import demo_account_preferences
+
+        await demo_account_preferences.apply_demo_account_preferences(self.db, user_id)
+
         # Create default usage limits (feature-flagged subsystem)
         if getattr(settings, "usage_limits_enabled", False):
             from src.domains.usage_limits.service import UsageLimitService

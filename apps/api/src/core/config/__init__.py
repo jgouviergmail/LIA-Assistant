@@ -36,6 +36,7 @@ from .browser import BrowserSettings
 from .channels import ChannelsSettings
 from .connectors import ConnectorsSettings
 from .database import DatabaseSettings
+from .demo import DemoSettings
 from .devops import DevOpsSettings
 from .habits import HabitsSettings
 from .health_metrics import HealthMetricsSettings
@@ -125,6 +126,7 @@ class Settings(
     MFASettings,
     AccountExportSettings,
     ProductSettings,
+    DemoSettings,
     BaseSettings,
 ):
     """
@@ -174,7 +176,7 @@ class Settings(
     # Additional Settings (not in domain modules)
     # ========================================================================
     default_currency: SupportedCurrency = Field(
-        default=SupportedCurrency(DEFAULT_CURRENCY),
+        default=SupportedCurrency.EUR,
         description="Default currency for cost reporting (USD or EUR). Enum validation prevents unsupported currencies.",
     )
 

@@ -1844,6 +1844,102 @@
           "mode": "multi"
         }
       }
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 36
+      },
+      "id": 111,
+      "panels": [],
+      "title": "11 · Showroom funnel (/demo)",
+      "type": "row"
+    },
+    {
+      "datasource": "$datasource",
+      "description": "Credential-less showroom funnel (P0 program): page views, mission starts, first decisions, completions and proof-drawer opens. Non-attributed by construction.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 37
+      },
+      "id": 112,
+      "targets": [
+        {
+          "expr": "sum by (event_type) (increase(product_client_events_total{channel=\"web_showroom\", event_type=~\"demo_viewed|demo_mission_started|demo_first_hitl_decided|demo_completed|demo_first_proof_opened\"}[1h]))",
+          "legendFormat": "{{event_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Funnel — viewed / started / completed (1h)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "description": "Which mission engages (demo_mission_started_<id>) and which converts (demo_completed_<id>). Bounded per-mission vocabulary — no free-text label.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 37
+      },
+      "id": 113,
+      "targets": [
+        {
+          "expr": "sum by (event_type) (increase(product_client_events_total{channel=\"web_showroom\", event_type=~\"demo_mission_started_.+\"}[1h]))",
+          "legendFormat": "{{event_type}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (event_type) (increase(product_client_events_total{channel=\"web_showroom\", event_type=~\"demo_completed_.+\"}[1h]))",
+          "legendFormat": "{{event_type}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Per mission — starts and completions (1h)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "description": "Whether visitors understand that refusing is a supported outcome: real decisions only (rejected/duplicate interactions emit nothing).",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 37
+      },
+      "id": 114,
+      "targets": [
+        {
+          "expr": "sum by (event_type) (increase(product_client_events_total{channel=\"web_showroom\", event_type=~\"demo_hitl_confirm|demo_hitl_edit|demo_hitl_cancel\"}[1h]))",
+          "legendFormat": "{{event_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Decision mix — confirm / edit / cancel (1h)",
+      "type": "timeseries"
     }
   ],
   "refresh": "5m",

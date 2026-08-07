@@ -1,0 +1,17 @@
+# LIA managed-HTTPS exposure (ADR-215, Caddy).
+#
+# Rendered by scripts/install/compose.py::render_caddyfile with the
+# operator's domains; the result is bind-mounted read-only into the caddy
+# service. $WEB_DOMAIN / $API_DOMAIN / $CADDY_EMAIL are installer
+# placeholders (string.Template), not Caddy syntax.
+{
+	email $CADDY_EMAIL
+}
+
+$WEB_DOMAIN {
+	reverse_proxy web:3000
+}
+
+$API_DOMAIN {
+	reverse_proxy api:8000
+}

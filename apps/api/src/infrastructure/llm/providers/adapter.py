@@ -59,6 +59,13 @@ _ENV_FALLBACK: dict[str, str] = {
 _BASE_URL_DEFAULTS: dict[str, str] = {
     "perplexity": "https://api.perplexity.ai",
     "qwen": "https://dashscope-us.aliyuncs.com/compatible-mode/v1",
+    # OpenAI/DeepSeek overrides exist so the installer's DISPOSABLE
+    # qualification can run one hermetic fake provider for the whole seeded
+    # core (ADR-215/B10-bis). The defaults equal the SDK defaults, so
+    # passing them explicitly changes nothing in normal operation, and the
+    # installer never exposes an arbitrary-endpoint question (G6 untouched).
+    "openai": "https://api.openai.com/v1",
+    "deepseek": "https://api.deepseek.com",
 }
 
 
@@ -362,6 +369,7 @@ class ProviderAdapter:
             top_p=top_p,
             streaming=streaming,
             reasoning_effort=reasoning_effort,
+            base_url=_get_base_url("openai"),
         )
 
     @staticmethod
@@ -482,6 +490,7 @@ class ProviderAdapter:
                 max_tokens=max_tokens,
                 streaming=streaming,
                 api_key=_require_api_key("deepseek"),
+                api_base=_get_base_url("deepseek"),
                 **kwargs,
             )
 
@@ -491,6 +500,7 @@ class ProviderAdapter:
             max_tokens=max_tokens,
             streaming=streaming,
             api_key=_require_api_key("deepseek"),
+            api_base=_get_base_url("deepseek"),
             **kwargs,
         )
 
@@ -673,6 +683,9 @@ class ProviderAdapter:
         # this fallback path uses Chat Completions which has automatic server-side caching
         elif provider == "openai":
             additional_kwargs["openai_api_key"] = _require_api_key("openai")
+            # Overridable via OPENAI_BASE_URL (hermetic qualification only;
+            # the default equals the SDK default).
+            additional_kwargs["base_url"] = _get_base_url("openai")
 
             # Inject OpenAI Organization ID if configured (required for GPT-5 streaming)
             # Use default_headers to inject OpenAI-Organization header

@@ -18,27 +18,72 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+/** The gauge arc — the only part that carries the consumption colour. */
+function ring(): Element {
+  const arcs = document.querySelectorAll('[data-testid="context-usage-pill"] circle');
+  // Two circles: the neutral track, then the progress arc drawn over it.
+  return arcs[1];
+}
+
 describe('ContextUsagePill', () => {
-  it('renders the percentage with green styling under 50 %', () => {
+  // Owner rule 2026-08-07: the badge wears the SAME chrome as its neighbour,
+  // the knowledge badge (`ActiveSpacesIndicator`) — neutral background, neutral
+  // border, neutral text. A row of header badges where one changes colour as a
+  // conversation grows reads as an alert; the gauge already says the same thing
+  // with far less noise, so the colour lives there and nowhere else.
+  describe('the chrome stays neutral, like the knowledge badge next to it', () => {
+    const NEUTRAL = ['bg-muted/50', 'border-border/60', 'text-muted-foreground'];
+
+    it.each([
+      ['under 50 %', 0.25],
+      ['between 50 % and 75 %', 0.6],
+      ['between 75 % and 90 %', 0.8],
+      ['above 90 %', 0.95],
+    ])('keeps the same chrome %s', (_label, ratio) => {
+      render(<ContextUsagePill usage={{ tokens: 5_000, threshold: 20_000, ratio }} />);
+
+      const pill = screen.getByTestId('context-usage-pill');
+
+      for (const token of NEUTRAL) expect(pill.className).toContain(token);
+      expect(pill.className).not.toMatch(/bg-(green|amber|orange|rose)-/);
+      expect(pill.className).not.toMatch(/border-(green|amber|orange|rose)-/);
+    });
+
+    it('never tints the percentage text either', () => {
+      render(<ContextUsagePill usage={{ tokens: 19_000, threshold: 20_000, ratio: 0.95 }} />);
+
+      const label = screen.getByText('95%');
+
+      expect(label.className).toContain('text-muted-foreground');
+      expect(label.className).not.toMatch(/text-(green|amber|orange|rose)-/);
+    });
+  });
+
+  describe('the gauge carries the consumption colour', () => {
+    it.each([
+      ['green', 0.25, 'stroke-green-500'],
+      ['amber', 0.6, 'stroke-amber-500'],
+      ['orange', 0.8, 'stroke-orange-500'],
+      ['rose', 0.95, 'stroke-rose-500'],
+    ])('draws the arc %s', (_name, ratio, expected) => {
+      render(<ContextUsagePill usage={{ tokens: 5_000, threshold: 20_000, ratio }} />);
+
+      expect(ring().getAttribute('class')).toContain(expected);
+    });
+
+    it('leaves the track neutral so only the filled part speaks', () => {
+      render(<ContextUsagePill usage={{ tokens: 19_000, threshold: 20_000, ratio: 0.95 }} />);
+
+      const track = document.querySelectorAll('[data-testid="context-usage-pill"] circle')[0];
+
+      expect(track.getAttribute('class')).toContain('text-muted-foreground');
+    });
+  });
+
+  it('still shows the percentage it always showed', () => {
     render(<ContextUsagePill usage={{ tokens: 5_000, threshold: 20_000, ratio: 0.25 }} />);
-    const pill = screen.getByTestId('context-usage-pill');
-    expect(pill.textContent).toContain('25%');
-    expect(pill.className).toContain('bg-green-100');
-  });
 
-  it('shifts to amber between 50 % and 75 %', () => {
-    render(<ContextUsagePill usage={{ tokens: 12_000, threshold: 20_000, ratio: 0.6 }} />);
-    expect(screen.getByTestId('context-usage-pill').className).toContain('bg-amber-100');
-  });
-
-  it('shifts to orange between 75 % and 90 %', () => {
-    render(<ContextUsagePill usage={{ tokens: 16_000, threshold: 20_000, ratio: 0.8 }} />);
-    expect(screen.getByTestId('context-usage-pill').className).toContain('bg-orange-100');
-  });
-
-  it('shifts to rose above 90 %', () => {
-    render(<ContextUsagePill usage={{ tokens: 19_000, threshold: 20_000, ratio: 0.95 }} />);
-    expect(screen.getByTestId('context-usage-pill').className).toContain('bg-rose-100');
+    expect(screen.getByTestId('context-usage-pill').textContent).toContain('25%');
   });
 
   it('shows the tooltip when clicked', () => {

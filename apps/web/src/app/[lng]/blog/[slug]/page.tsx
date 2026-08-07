@@ -11,11 +11,11 @@ import { PublicFooter } from '@/components/layout/PublicFooter';
 import { CosmicBackdrop } from '@/components/landing/cosmic/CosmicBackdrop';
 import { CosmosDarkFirst } from '@/components/landing/cosmic/CosmosDarkFirst';
 import { CosmosThemeDefault } from '@/components/landing/cosmic/CosmosThemeDefault';
+import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
 
 function buildLangUrl(path: string, lng: Language): string {
-  return lng === fallbackLng ? `${BASE_URL}${path}` : `${BASE_URL}/${lng}${path}`;
+  return localizedUrl(getSiteOrigin(), path, lng);
 }
 
 interface ArticlePageProps {
@@ -49,13 +49,18 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
   }
   langAlternates['x-default'] = buildLangUrl(`/blog/${slug}`, fallbackLng);
 
-  const imageUrl = `${BASE_URL}/articles/${slug}.png`;
+  const origin = getSiteOrigin();
+  // Relative OG image without an origin: resolved by metadataBase when one
+  // exists, honestly relative otherwise (generic prebuilt image, B03).
+  const imageUrl = origin
+    ? `${origin}/articles/${slug}.png`
+    : `/articles/${slug}.png`;
 
   return {
     title: `${title} — LIA Blog`,
     description,
     keywords: article.tags,
-    authors: [{ name: 'LIA', url: BASE_URL }],
+    authors: [{ name: 'LIA', ...(origin ? { url: origin } : {}) }],
     alternates: {
       canonical: canonicalUrl,
       languages: langAlternates,
@@ -99,39 +104,44 @@ export default async function BlogArticlePage({ params }: ArticlePageProps) {
     zh: 'zh-CN',
   };
 
-  // Build JSON-LD for BlogPosting
-  const articleImageUrl = `${BASE_URL}/articles/${slug}.png`;
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'BlogPosting',
-    headline: t(`blog.articles.${slug}.title`),
-    description: t(`blog.articles.${slug}.excerpt`),
-    image: articleImageUrl,
-    datePublished: article.date,
-    dateModified: article.date,
-    author: {
-      '@type': 'Organization',
-      name: 'LIA',
-      url: BASE_URL,
-    },
-    publisher: {
-      '@type': 'Organization',
-      name: 'LIA',
-      logo: { '@type': 'ImageObject', url: `${BASE_URL}/icon.svg` },
-    },
-    mainEntityOfPage: buildLangUrl(`/blog/${slug}`, lng),
-    keywords: article.tags.join(', '),
-    inLanguage: localeMap[lng] || 'fr-FR',
-    wordCount: article.readTime * 200,
-    articleSection: article.category,
-  };
+  // Build JSON-LD for BlogPosting — origin-bearing structured data renders
+  // only when a canonical origin is configured (B03: never invent a host).
+  const origin = getSiteOrigin();
+  const jsonLd = origin
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'BlogPosting',
+        headline: t(`blog.articles.${slug}.title`),
+        description: t(`blog.articles.${slug}.excerpt`),
+        image: `${origin}/articles/${slug}.png`,
+        datePublished: article.date,
+        dateModified: article.date,
+        author: {
+          '@type': 'Organization',
+          name: 'LIA',
+          url: origin,
+        },
+        publisher: {
+          '@type': 'Organization',
+          name: 'LIA',
+          logo: { '@type': 'ImageObject', url: `${origin}/icon.svg` },
+        },
+        mainEntityOfPage: buildLangUrl(`/blog/${slug}`, lng),
+        keywords: article.tags.join(', '),
+        inLanguage: localeMap[lng] || 'fr-FR',
+        wordCount: article.readTime * 200,
+        articleSection: article.category,
+      }
+    : null;
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
-      />
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
+        />
+      )}
       <BreadcrumbJsonLd
         items={[
           { name: 'LIA', url: buildLangUrl('/', lng) },

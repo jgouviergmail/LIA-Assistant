@@ -22,6 +22,7 @@
 9. [Liability and Warranties](#9-liability-and-warranties)
 10. [Termination and Suspension](#10-termination-and-suspension)
 11. [Applicable Law and Disputes](#11-applicable-law-and-disputes)
+12. [Public demonstration instance](#12-public-demonstration-instance)
 
 ---
 
@@ -169,6 +170,29 @@ Failing amicable resolution within 60 days, any dispute shall be submitted to th
 If the User resides within the European Union, they may also use the European Commission's Online Dispute Resolution platform: [https://ec.europa.eu/consumers/odr](https://ec.europa.eu/consumers/odr).
 
 These Terms are severable. If any provision is declared null or unenforceable, the remaining provisions shall remain in full force and effect.
+
+
+## 12. Public demonstration instance
+
+This section applies EXCLUSIVELY to the public demonstration instance, when it is open. It concerns neither the main instance nor a self-hosted one. On that instance the preceding sections remain applicable, except where expressly adapted below.
+
+**Purpose and nature of the service.** The demonstration instance lets anyone try LIA without commitment, running the real software rather than a simulation. Its purpose is strictly demonstrative. It is not a production service, does not replace a personal account, and cannot support any professional or critical use.
+
+**Ephemeral account and daily erasure.** The account created on this instance is temporary. All accounts and their data are deleted automatically every night, without individual notice and without any possibility of restoration. No backup is kept. Users must not place there any data they could not afford to lose.
+
+**Data that must not be entrusted.** Users undertake not to enter any data that is sensitive under the GDPR (health, opinions, orientation, beliefs), any trade secret, any banking data, any credentials or passwords, and any personal data concerning a third party. Conversations are transmitted to third-party language-model providers in order to produce the answers.
+
+**Email address and acceptance.** Access requires a valid email address and acceptance of these terms. The address is used to activate the account and for nothing else; it disappears with the account at the daily erasure. No marketing is carried out.
+
+**Third-party account linking is unavailable.** Linking external accounts (Google, Microsoft, Apple and others) is technically disabled on this instance. Features that depend on it are visible but inactive: this is deliberate, and it is part of what the demonstration shows.
+
+**Limited daily capacity.** The instance runs on a capped daily budget. Once that cap is reached, the service answers that it is unavailable until the next day. Access is first-come, first-served, with no reservation, no queue and no priority.
+
+**Fair use.** The following are prohibited: automating exchanges, creating accounts in bulk, attempting to circumvent the limits, mass-extracting content, and any use aimed at exhausting capacity to the detriment of other visitors. The Publisher may suspend access, close the instance or block an address without notice or justification.
+
+**No warranty, no liability.** The demonstration instance is provided "as is", without any warranty of availability, continuity, accuracy of answers or data retention. It may be interrupted, reset or permanently closed at any time. The Publisher cannot be held liable for its use, to the extent permitted by applicable law.
+
+**An alternative without these limits.** As LIA is free software under the AGPL-3.0 licence, any user who wants real, lasting use without these restrictions can install their own instance: they then hold their data and their control alone.
 
 ---
 

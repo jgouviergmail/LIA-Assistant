@@ -55,7 +55,7 @@ function passkeysHook(over: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  useAuthFeatures.mockReturnValue({ features: { mfa_enabled: true }, loading: false });
+  useAuthFeatures.mockReturnValue({ features: { mfa_enabled: true, federated_signin_enabled: true }, loading: false });
   usePasskeys.mockReturnValue(passkeysHook());
   useWebAuthn.mockReturnValue({
     registerPasskey: vi.fn().mockResolvedValue(passkey()),
@@ -65,7 +65,7 @@ beforeEach(() => {
 
 describe('SecuritySettings — gating', () => {
   it('renders nothing when the instance has MFA disabled', () => {
-    useAuthFeatures.mockReturnValue({ features: { mfa_enabled: false }, loading: false });
+    useAuthFeatures.mockReturnValue({ features: { mfa_enabled: false, federated_signin_enabled: true }, loading: false });
     const { container } = renderWithProviders(<SecuritySettings collapsible={false} />);
     expect(container).toBeEmptyDOMElement();
   });

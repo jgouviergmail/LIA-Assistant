@@ -162,6 +162,19 @@ class SmartPlannerService:
             bool(exclude_tools and TOOL_NAME_DELEGATE_SUB_AGENT in exclude_tools)
         )
 
+        # An administrator can switch capabilities off at runtime (images,
+        # browser, web search…). Their tools ride on the SAME post-filter as
+        # the sub-agent rejection below: the planner is never offered a tool
+        # the routes would refuse anyway, which keeps plans executable and the
+        # prompt small. Read after the ContextVar above on purpose — that flag
+        # tracks the user's rejection, not the operator's switch.
+        from src.domains.agents.registry import get_global_registry
+        from src.domains.agents.services.planner_capability_filter import (
+            merge_capability_exclusions,
+        )
+
+        exclude_tools = await merge_capability_exclusions(get_global_registry(), exclude_tools)
+
         # Initialize with default failure result (will be replaced if strategy matches)
         result: PlanningResult = PlanningResult(
             plan=None,

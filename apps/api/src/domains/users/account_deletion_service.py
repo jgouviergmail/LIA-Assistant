@@ -198,7 +198,7 @@ class AccountDeletionService:
     async def delete_account(
         self,
         user_id: UUID,
-        admin_user_id: UUID,
+        admin_user_id: UUID | None,
         reason: str | None = None,
         request: Request | None = None,
     ) -> tuple[User, dict[str, int]]:
@@ -723,7 +723,7 @@ class AccountDeletionService:
     async def _create_audit_log(
         self,
         user: User,
-        admin_user_id: UUID,
+        admin_user_id: UUID | None,
         reason: str | None,
         counts: dict[str, int],
         request: Request | None,
@@ -733,13 +733,25 @@ class AccountDeletionService:
         Uses UserRepository.create_audit_log() for consistency with existing
         audit log creation pattern throughout the codebase.
 
+        Skipped entirely for an automatic deletion, which has no administrator
+        to credit: ``admin_audit_log.admin_user_id`` is a NOT NULL foreign key,
+        so writing the line anyway raises and rolls the whole deletion back —
+        the account then survives the sweep that was meant to remove it
+        (measured 2026-08-06 on the demonstrator's nightly purge, where a
+        fresh instance has no superuser at all). The structured log records
+        the deletion either way.
+
         Args:
             user: User ORM instance.
-            admin_user_id: Admin performing the deletion.
+            admin_user_id: Admin performing the deletion, or None when the
+                deletion is automatic.
             reason: Deletion reason.
             counts: Purge counts by table.
             request: FastAPI request for IP/user-agent.
         """
+        if admin_user_id is None:
+            return
+
         from src.domains.users.repository import UserRepository
 
         ip_address = request.client.host if request and request.client else None

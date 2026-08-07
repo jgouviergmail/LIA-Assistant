@@ -24,15 +24,15 @@ import { CosmosHero } from '@/components/landing/cosmic/CosmosHero';
 import { CosmosThemeDefault } from '@/components/landing/cosmic/CosmosThemeDefault';
 import { GhostWord } from '@/components/landing/cosmic/GhostWord';
 import { ScrollScrub } from '@/components/landing/cosmic/ScrollScrub';
+import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
 
 interface HomePageProps {
   params: Promise<{ lng: string }>;
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
 
 function buildLangUrl(path: string, lng: Language): string {
-  return lng === fallbackLng ? `${BASE_URL}${path}` : `${BASE_URL}/${lng}${path}`;
+  return localizedUrl(getSiteOrigin(), path, lng);
 }
 
 export async function generateMetadata({ params }: HomePageProps): Promise<Metadata> {

@@ -37,7 +37,7 @@ class ObservabilitySettings(BaseSettings):
 
     # OpenTelemetry
     otel_exporter_otlp_endpoint: str = Field(
-        default="http://localhost:4317",
+        default="http://tempo:4317",
         description="OTLP exporter endpoint",
     )
     otel_service_name: str = Field(

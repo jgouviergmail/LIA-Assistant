@@ -11,11 +11,11 @@ import { PUBLIC_FAQ_SECTIONS } from '@/components/faq/faq-sections';
 import { CosmicBackdrop } from '@/components/landing/cosmic/CosmicBackdrop';
 import { CosmosDarkFirst } from '@/components/landing/cosmic/CosmosDarkFirst';
 import { CosmosThemeDefault } from '@/components/landing/cosmic/CosmosThemeDefault';
+import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
 
 function buildLangUrl(path: string, lng: Language): string {
-  return lng === fallbackLng ? `${BASE_URL}${path}` : `${BASE_URL}/${lng}${path}`;
+  return localizedUrl(getSiteOrigin(), path, lng);
 }
 
 interface FAQPageProps {

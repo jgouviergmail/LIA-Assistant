@@ -20,7 +20,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
-ENV_EXAMPLE_FILES = [".env.example", ".env.prod.example", ".env.min.prod"]
+ENV_EXAMPLE_FILES = [".env.example", ".env.prod.example", ".env.min.prod.example"]
 
 # KEY= followed only by whitespace then a comment — the poisoned shape.
 _EMPTY_VALUE_INLINE_COMMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=[ \t]*#")

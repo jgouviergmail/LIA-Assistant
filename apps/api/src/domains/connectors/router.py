@@ -21,6 +21,7 @@ from src.core.constants import (
     STATIC_MAP_POLYLINE_COLOR,
     STATIC_MAP_POLYLINE_WEIGHT,
 )
+from src.core.demo_mode import forbid_account_linking_in_demo
 from src.core.dependencies import get_db
 from src.core.exceptions import (
     InternalServerError,
@@ -75,7 +76,15 @@ from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
 
-router = APIRouter(prefix="/connectors", tags=["Connectors"])
+# A public demonstrator must never let a visitor link their real Google or
+# Microsoft account to a throwaway account that is wiped every night. The
+# guard classifies by path segment, so a connector added later is covered
+# without touching this line (see core/demo_mode.py).
+router = APIRouter(
+    prefix="/connectors",
+    tags=["Connectors"],
+    dependencies=[Depends(forbid_account_linking_in_demo)],
+)
 
 # Per-user budget for the two Google Static Maps proxies. The dependency chains
 # `get_current_active_session`, so it also carries the authentication these

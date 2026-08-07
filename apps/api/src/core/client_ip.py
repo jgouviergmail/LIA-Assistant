@@ -27,6 +27,22 @@ that can reach uvicorn are cloudflared, the in-container healthcheck and
 compose-internal services. Outside that topology the header is simply absent and
 the resolution falls back to the peer address, which is what dev already used.
 
+**That trust is a property of the DEPLOYMENT, not of this function, and it is
+worth naming because a deployment changed it.** The public demonstrator inserts
+a reverse proxy between cloudflared and uvicorn (Cloudflare → cloudflared →
+Caddy → uvicorn), and Caddy forwards the header unchanged — which is correct,
+since the value it forwards is the one Cloudflare wrote. What holds the whole
+chain up is that the tunnel is the ONLY way in. Reached any other way, the
+header is whatever the caller typed: measured 2026-08-07 against the
+demonstrator's development loopback port, eight registrations rotating
+``CF-Connecting-IP`` got eight fresh rate-limit buckets, while the same eight
+rotating ``X-Forwarded-For`` were all refused.
+
+So the guarantee lives in the envelope, and is pinned there:
+``tests/unit/test_demo_instance_envelope.py`` fails if the production Compose
+file publishes any host port. A limiter is only as trustworthy as the topology
+its identity comes from, and that topology must be enforced somewhere.
+
 The value is PARSED before it is trusted. An unparsable header is ignored rather
 than accepted: a bucket key must never be arbitrary caller-supplied text.
 """

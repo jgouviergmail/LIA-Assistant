@@ -3,6 +3,8 @@ Tests for Response Node.
 Validates agent results injection and prompt template behavior.
 """
 
+from collections.abc import Coroutine
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -12,6 +14,16 @@ from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.response_node import format_agent_results_for_prompt, response_node
 from src.domains.agents.orchestration.schemas import ContactsResultData
 from src.domains.agents.prompts import get_response_prompt
+
+
+def _close_scheduled_coroutine(coro: Coroutine[Any, Any, Any], **_kwargs: Any) -> None:
+    """Stand in for ``safe_fire_and_forget`` without leaking its coroutine.
+
+    Args:
+        coro: The coroutine the production code scheduled.
+        **_kwargs: ``name`` / ``run_id``, irrelevant to a double.
+    """
+    coro.close()
 
 
 def test_get_response_prompt_returns_formatted_string():
@@ -391,8 +403,18 @@ def _setup_response_node_patches(stack):
     mock_get_llm.return_value = Mock()
 
     # Background scheduling -> no-op (prevents real asyncio task creation).
+    #
+    # The double CLOSES the coroutine it is handed rather than dropping it. The
+    # sync-Mock trick below only covers the extractors it names: open loops is
+    # not among them, so its real coroutine reached this boundary and leaked,
+    # surfacing as "coroutine 'extract_open_loops_background' was never awaited"
+    # attributed to whichever test the autouse GC finalizer ran next. Closing
+    # here covers every extractor, named or not, today and tomorrow.
     stack.enter_context(
-        patch("src.domains.agents.nodes.post_response_extractions.safe_fire_and_forget")
+        patch(
+            "src.domains.agents.nodes.post_response_extractions.safe_fire_and_forget",
+            side_effect=_close_scheduled_coroutine,
+        )
     )
     # Memory injection -> avoid semantic-memory store / DB access.
     # (moved to services/response_context.py — patch its module-level import)

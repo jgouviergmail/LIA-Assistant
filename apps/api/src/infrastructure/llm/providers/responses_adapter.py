@@ -171,6 +171,7 @@ def create_responses_llm(
     streaming: bool = False,
     reasoning_effort: str | None = None,
     organization: str | None = None,
+    base_url: str | None = None,
 ) -> ChatOpenAICached:
     """Build a native ``ChatOpenAI`` (Responses API) with LIA cache-key routing.
 
@@ -198,6 +199,10 @@ def create_responses_llm(
     }
     if organization:
         kwargs["organization"] = organization
+    if base_url:
+        # Hermetic qualification override (ADR-215): equals the SDK default
+        # in normal operation, points at the fake provider in disposable runs.
+        kwargs["base_url"] = base_url
     if max_tokens:
         kwargs["max_tokens"] = max_tokens
 

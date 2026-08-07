@@ -4,9 +4,9 @@
 >
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
-**Version**: 3.9
-**Datum**: 2026-08-05
-**Application**: LIA v1.28.0
+**Version**: 4.0
+**Datum**: 2026-08-08
+**Application**: LIA v1.29.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -40,6 +40,7 @@
 25. [Evolutionspotenzial und Erweiterbarkeit](#25-evolutionspotenzial-und-erweiterbarkeit)
 26. [Psyche Engine: Dynamische emotionale Intelligenz](#26-psyche-engine-dynamische-emotionale-intelligenz)
 27. [Deterministisches Gewohnheitslernen](#27-deterministisches-gewohnheitslernen)
+28. [Eine Instanz regieren: Ausgaben, Fähigkeiten, Installation](#28-eine-instanz-regieren-ausgaben-fähigkeiten-installation)
 
 ---
 
@@ -55,7 +56,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 466 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 213 ADRs, ~18.276 von pytest gesammelte Tests in 990 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 217 ADRs, ~18.206 von pytest gesammelte Tests in 987 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -73,9 +74,9 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~18.276 von pytest gesammelt (von pytest über 990 Testdateien gesammelt) + 5.048 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | ~18.206 von pytest gesammelt (von pytest über 987 Testdateien gesammelt) + 5.446 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | Wiederverwendbare Fixtures | 170+ |
-| Dokumentationsdokumente | 400+ |
+| Dokumentationsdokumente | 490+ |
 | ADRs (Architecture Decision Records) | 209 |
 | Prometheus-Metriken | 466 Definitionen |
 | Grafana-Dashboards | 26 |
@@ -1264,7 +1265,7 @@ Die wertvollste Ingenieurslektion kam von einem unsichtbaren Defekt: Die Label-P
 
 ## 24. Architekturentscheidungen (ADR)
 
-213 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+217 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1324,14 +1325,26 @@ Das härteste Problem war nicht der Detektor, sondern die **Daten**: Unterhaltun
 
 Der Konsum ist bewusst zurückhaltend: Umgebungskontext für Antworten und Briefing, höchstens ein Hinweis auf eine verpasste Routine pro Tag mit endgültigem Stopp nach zwei ignorierten Hinweisen, und ein Benachrichtigungs-Timing, das gelernte Fenster bevorzugt, ohne je die vom Nutzer gesetzten Grenzen zu erweitern — eine Anti-Aushungerungs-Regel garantiert, dass eine leere Schnittmenge nichts ändert. Jeder angewandte Schwellenwert wird im Panel publiziert: Eine angezeigte Gewohnheit ist bewiesen, oder sie existiert nicht.
 
+## 28. Eine Instanz regieren: Ausgaben, Fähigkeiten, Installation
+
+Drei Fragen hatten in der Codebasis keine Antwort: Wie viel darf diese Instanz ausgeben, was darf eine Betreiberin abschalten, ohne neu zu deployen, und wie bringt überhaupt jemand anderes dieses Projekt zum Laufen. Die vorhandenen Nutzungslimits beantworteten, wie viel ein Konto verbraucht — eine andere Frage: N Konten × ihr Kontingent ist unbegrenzte Ausgabe, und eine Prüfung der gesamten Codebasis fand kein globales Limit (`global`, `instance_wide`, `daily_total`: null Treffer). Das ist strukturell, kein Versehen.
+
+Das Instanzlimit ist ein **tägliches UTC-Register**, dessen Autorität PostgreSQL ist. Die Kosten jedes Laufs gelangen über ein einziges `INSERT ... ON CONFLICT DO UPDATE` mit Spaltenarithmetik hinein, innerhalb der Transaktion, die ohnehin die Token-Zusammenfassung persistiert — beide landen gemeinsam oder gar nicht, die Prüfung sieht also nie eine unvollständige Sicht. Das Insert läuft über einen SAVEPOINT: eine fehlgeschlagene Anweisung ohne Savepoint zu schlucken vergiftet die Transaktion und reißt den Commit des Aufrufers mit — genau die Buchführung ginge verloren, die man schreiben wollte. Das Erfassen ist **nicht** daran gebunden, dass ein Limit existiert; wäre es das, gäbe es ein Fenster, in dem eine Administration ein Limit setzt, während der Zähler stumm ist, und das Limit löste nie aus — die Falle der wirkungslosen Einstellung (ADR-183). Die Prüfung selbst ist in `check_user_allowed` komponiert, dem einen Tor, das Chat-Router, SSE-Schranke, Sprach-WebSocket und alle geplanten Jobs bereits passieren: Abdeckung entsteht durch Konstruktion, statt die Kontrolle in jeden Aufrufer zu kopieren und den nächsten zu vergessen. Zwei Eigenschaften folgen daraus, beide getestet: das Instanzurteil wird **vor und außerhalb** des Nutzer-Caches berechnet (ein zwischengespeichertes Erlaubt gäbe nach der Erschöpfung die ganze TTL lang weiter aus), und es ist unabhängig vom Flag der Nutzerlimits (eine Kopplung würde eines von beiden still entschärfen). Schließlich kehrt sich die Fehlerdoktrin bewusst um: ein Nutzerlimit scheitert **offen** — schlimmstenfalls eine Nachricht zu viel; eine unbekannte Instanzausgabe scheitert **geschlossen** — schlimmstenfalls das gesamte Budget.
+
+Administrierbare Fähigkeiten folgen demselben Modell zweier zusammengesetzter Schranken — was das Deployment erlaubt, was die Betreiberin darin wählt, die kleinere gewinnt —, doch ihre Schwierigkeit liegt woanders: **wo** eine Fähigkeit tatsächlich durchgesetzt wird. Drei Modi werden ausdrücklich deklariert, denn die falsche Wahl erzeugt einen Schalter, der nichts abschaltet. `agents` entfernt die Werkzeuge der Fähigkeit aus dem Katalog, der dem Planer angeboten wird, und leiht sich dafür den Nachfilter `exclude_tools`, der für die Subagenten-Ablehnung schon existierte — ein Mechanismus, nicht zwei. `route_enforced` lässt eine Router-Abhängigkeit mit einem stabilen Code und dem Namen der Fähigkeit ablehnen, nie mit einem Satz: das Frontend sagt in der Sprache der Lesenden, welche Funktion aus ist. `service_enforced` schneidet an einem internen Engpass: die Sprachausgabe hat **überhaupt keine Route** — sie entsteht im Chat-Stream, und eine Router-Abhängigkeit hätte dort nichts durchgesetzt. Die erste Fassung erklärte sie dennoch für routengeschützt; erst die Prüfung der echten Verdrahtung zeigte das Gegenteil. Zwei Start-Wächter berechnen die Deklaration gegen die Wirklichkeit neu — existieren die genannten Agenten im lebenden Katalog, ist die deklarierte Route noch montiert —, indem sie die Router-Objekte ablaufen statt den Text der Dateien, damit ein Verschieben der Route mitgeführt und nicht übersehen wird.
+
+Der Installer wendet dieselbe Regel auf die Artefaktkette an: einem Etikett nie vertrauen. Standard ist ein **lokaler Build** aus der ausgecheckten Quelle; der Prebuilt-Modus akzeptiert nur `repository@sha256:...`-Referenzen aus einem Manifest, dessen Qualifikation ausdrücklich `passed` lautet, und das Hochstufen einer Version baut nichts neu — es erzeugt das semantische Tag aus bereits qualifizierten Digests. Geheimnisse kommen über stdin als ein einziges JSON-Dokument, das die Administration über die vorhandene Passwort-Autorität anlegt und die Anbieterschlüssel in derselben Transaktion verschlüsselt; nichts läuft über `argv`, und nichts landet im Wiederaufnahmezustand, der nur nicht geheime Fakten und SHA-256-Fingerabdrücke speichert und bei Abweichung vor jeder Compose-Mutation stoppt. Referenzdaten werden in einer einzigen Transaktion eingespielt, ein `psql`, `ON_ERROR_STOP=1`, gefolgt von einer blockierenden Prüfdatei und einem Marker, der in derselben Transaktion geschrieben wird. Und `/ready` ist notwendig, ohne je hinreichend zu sein: ein geheimnisfreier Verifizierer prüft den einzigen Alembic-Kopf, den exakten Marker, die Nachbedingungen der Referenzdaten, eine aktive Administration, entschlüsselbare Anbieterzeilen und die Anbieterabdeckung **auf der nach dem Seeding wirksamen Konfiguration** — jener, die die erste Nachricht benutzen wird, und nicht den Code-Standards, die das Seeding gerade überschrieben hat.
+
+Der rote Faden dieser vier Arbeitspakete ist eine Eigenschaft der Tests selbst. Jede Schutzmaßnahme war mit eigenen Tests geliefert worden, alle grün, alle von derselben Form: sie hielten fest, was der Code am Tag der Lieferung tat. Eine handgeschriebene Liste beschreibt kein System, sie beschreibt, was ihre Autorin über das System wusste. Diese Wächter **berechnen** den Schutz aus der Quelle der Wahrheit neu — die Kostenfamilien, die die Lauf-Zusammenfassung wirklich veröffentlicht, per AST gelesen; die Routen, die die Anwendung wirklich montiert, konfrontiert mit der Auswertungsreihenfolge des Randes; der Konnektor-Router in beide Richtungen abgelaufen, damit unklassifiziert und klassifiziert-aber-abmontiert gleichermaßen rot werden. Sie fanden drei Fehler, die kein bestehender Test sehen konnte, darunter eine Sprachausgabe, die dem Betreiber berechnet und nie gegen das Limit gezählt wurde. Jeder Wächter wurde danach absichtlich in die Irre geführt, um zu prüfen, dass er rot wird.
+
 ## Fazit
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 213 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~18.276 Tests in 990 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 217 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~18.206 Tests in 987 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (400+ Dokumente), der 213 ADRs und des Changelogs (v1.0 bis v1.28.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 217 ADRs und des Changelogs (v1.0 bis v1.29.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

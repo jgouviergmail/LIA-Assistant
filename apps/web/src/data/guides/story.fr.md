@@ -2,9 +2,9 @@
 
 > Retour d'expérience — un système complet, de la conception à la production.
 
-**Version** : 1.2
-**Date** : 2026-08-05
-**Application** : LIA v1.28.0
+**Version** : 1.3
+**Date** : 2026-08-08
+**Application** : LIA v1.29.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Indicateur | Valeur |
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
-| Lignes de code (hors tests) — 36 domaines fonctionnels | **505 000** |
-| Tests automatisés, exécutés à chaque commit et livraison | **22 800+** |
-| Décisions d'architecture documentées (ADR) | **204** |
-| Versions livrées à rythme régulier | **197** |
+| Lignes de code (hors tests) — 39 domaines fonctionnels | **548 000** |
+| Tests automatisés, exécutés à chaque commit et livraison | **23 600+** |
+| Décisions d'architecture documentées (ADR) | **217** |
+| Versions livrées à rythme régulier | **203** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -88,6 +88,8 @@ Le plan d'action est organisé en vagues, chacune avec des critères de sortie m
 La preuve a aussi son épisode le plus instructif : trois recalibrages d’un simple espacement, trois « je ne vois aucun changement » — et une chaîne de livraison prouvée saine jusqu’à l’octet servi au navigateur. Deux fausses pistes plausibles (cache navigateur, service worker) sont tombées l’une après l’autre, jusqu’à la mesure qui ne pardonne pas : dans un navigateur piloté, la marge était calculée à 16 pixels et l’écart rendu en faisait 3. La primitive d’étiquette était restée `inline`, et un élément inline ignore ses marges verticales — le défaut précédait tout le chantier. Le correctif tient en un mot, l’arbitrage s’est fait sur trois captures réelles, et la règle est devenue doctrine : mesurer le rendu avant de soupçonner la livraison.
 
 Le détecteur d'habitudes a gagné sa confiance de la même manière : exécuté sur les données réelles de production avant d'être cru — et pris en défaut. Une action programmée quotidienne écrivait un message « utilisateur » à 07:00 depuis soixante-six jours ; le détecteur a revendiqué le propre planning du planificateur comme habitude humaine. La réfutation est devenue une liste blanche de sessions humaines, la fenêtre fabriquée a disparu, et les verdicts honnêtes sont tombés. La règle demeure : prouver contre le réel avant de croire la conception.
+
+Le cycle 1.29.0 a ajouté un troisième épisode, et celui-ci porte sur les tests eux-mêmes. Chaque protection du programme avait été livrée avec les siens, tous verts — et tous de la même forme : ils épinglaient ce que le code faisait le jour de la livraison. Une liste écrite à la main ne décrit pas un système, elle décrit ce que son auteur en savait. Trois gardes ont donc été réécrites pour **recalculer** la protection depuis la source de vérité au lieu de la redire. Elles ont trouvé trois failles qu'aucun test existant ne pouvait voir : une synthèse vocale facturée sans jamais compter contre le plafond de dépense, une connexion par fournisseur qui contournait entièrement l'acceptation désormais obligatoire des conditions, et onze chemins de connecteurs qui liaient un identifiant réel sans la moindre garde. Puis chaque garde a été mise en défaut volontairement, pour vérifier qu'elle rougissait — parce qu'une garde qu'on n'a jamais vue échouer n'est qu'une promesse de plus.
 
 ## 7. Convictions
 

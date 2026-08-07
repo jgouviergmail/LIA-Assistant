@@ -4,7 +4,7 @@
 
 **Version**: 7.12
 **Dernière mise à jour**: 2026-08-02
-**Statut**: Complète (320+ documents)
+**Statut**: Complète (490+ documents)
 
 ---
 
@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 44 |
-| ADRs | 214 (ADR-214 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 213 fichiers) |
+| ADRs | 218 (ADR-218 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 217 fichiers) |
 | Fiches knowledge (RAG système) | 27 |
 
 ---
@@ -44,6 +44,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
 | [TELEPHONY.md](./technical/TELEPHONY.md) | Téléphonie agentique (appels sortants, ADR-127) |
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
+| [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
 | [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (205) |
 
@@ -77,6 +78,13 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GETTING_STARTED.md](./GETTING_STARTED.md) | Guide d'installation complet | ✅ |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture globale, patterns, technologies | ✅ |
 | [INDEX.md](./INDEX.md) | Ce document - carte de la documentation | ✅ |
+| [GUIDE_SHOWROOM.md](./guides/GUIDE_SHOWROOM.md) | Showroom `/demo` : expliquer, mise en œuvre, paramétrer, déployer, exploiter | ✅ |
+| [Programme showroom public](./superpowers/specs/2026-08-05-public-web-showroom-program.md) | P0 mission guidée /demo → P1 installateur → P2 démo live isolée | ✅ |
+| [Plan P0 showroom](./superpowers/plans/2026-08-05-public-web-showroom-lot0.md) | Implémentation de la mission guidée client-only | ✅ |
+| [Brief de campagne](./superpowers/specs/2026-08-05-public-showroom-campaign-brief.md) | Ask. Approve. Verify. — canaux, mesure, gates | ✅ |
+| [Playbook de lancement](./marketing/PUBLIC_SHOWROOM_LAUNCH_PLAYBOOK.md) | Checklist opérationnelle de publication du showroom | ✅ |
+| [Addendum audit installateur](./superpowers/specs/2026-08-05-self-host-installer-audit-addendum.md) | 15 bloqueurs + gates G0-G6 du self-host (ADR-215 réservé) | ✅ |
+| [Plan d'activation installateur](./superpowers/plans/2026-08-05-self-host-installer-activation.md) | Exécution TDD de l'installateur (B01-B15) | ✅ |
 
 ---
 
@@ -274,12 +282,13 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_SCHEDULED_ACTIONS.md](./guides/GUIDE_SCHEDULED_ACTIONS.md) | Guide pratique Actions Planifiees (recurrentes, timezone, retry) | ✅ |
 | [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) | Guide RAG Spaces (espaces de connaissances, upload, hybrid search) | ✅ |
 | [GUIDE_DEVOPS_CLAUDE_CLI.md](./guides/GUIDE_DEVOPS_CLAUDE_CLI.md) | Guide DevOps Claude CLI (remote server management, setup, security) | ✅ |
-| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (27 files, 200+ Q/A) | ✅ |
+| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (30 files, 200+ Q/A) | ✅ |
 
 ### Operations
 
 | Guide | Description | Statut |
 |-------|-------------|--------|
+| [GUIDE_SELF_HOSTING.md](./guides/GUIDE_SELF_HOSTING.md) | Auto-hébergement guidé (`./install.sh`) : expliquer, configurer, déployer (ADR-215) | ✅ |
 | [GUIDE_DEPLOYMENT.md](./guides/GUIDE_DEPLOYMENT.md) | Déploiement production | ✅ |
 | [GUIDE_BACKGROUND_JOBS_APSCHEDULER.md](./guides/GUIDE_BACKGROUND_JOBS_APSCHEDULER.md) | Background jobs APScheduler | ✅ |
 | [GUIDE_FCM_PUSH_NOTIFICATIONS.md](./guides/GUIDE_FCM_PUSH_NOTIFICATIONS.md) | Push notifications Firebase | ✅ |
@@ -299,7 +308,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-205 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-218 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 
@@ -572,7 +581,7 @@ LIA/
 │   │   │   ├── core/           # Configuration, security, middleware
 │   │   │   ├── domains/        # DDD: agents, auth, users, connectors, briefing, etc.
 │   │   │   └── infrastructure/ # Database, cache, LLM, MCP, startup, observability
-│   │   ├── tests/              # Tests pytest (~590 fichiers de tests)
+│   │   ├── tests/              # Tests pytest (1 061 fichiers de tests)
 │   │   └── alembic/            # Migrations DB
 │   └── web/                    # Frontend Next.js
 │       ├── src/
@@ -585,7 +594,7 @@ LIA/
 │   ├── technical/              # Docs techniques détaillées (80+)
 │   ├── guides/                 # Guides pratiques (20+)
 │   ├── architecture/           # ADRs (119) + schémas Mermaid (.mmd)
-│   ├── knowledge/              # Fiches FAQ pour le RAG système (24)
+│   ├── knowledge/              # Fiches FAQ pour le RAG système (30)
 │   ├── runbooks/               # Procédures opérationnelles (40)
 │   ├── audit/                  # Audit technique 360° public + protocole
 │   └── readme/                 # README spécialisés (15)

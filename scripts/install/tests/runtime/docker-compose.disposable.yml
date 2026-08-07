@@ -1,0 +1,25 @@
+# Disposable qualification overlay (ADR-215, G3/G4).
+#
+# Adds the hermetic fake provider to the installed stack and points BOTH
+# required backend providers at it. Only the qualification workflow (and a
+# local disposable proof) ever selects this file; the public installer never
+# references it.
+services:
+  fake-provider:
+    image: python:3.12-alpine
+    container_name: lia-fake-provider-smoke
+    restart: unless-stopped
+    volumes:
+      - ./scripts/install/tests/runtime/fake_provider.py:/srv/fake_provider.py:ro
+    command: ["python", "-B", "/srv/fake_provider.py", "18080"]
+    networks:
+      - lia-network
+
+  api:
+    environment:
+      - OPENAI_BASE_URL=http://fake-provider:18080/v1
+      - DEEPSEEK_BASE_URL=http://fake-provider:18080/v1
+      - QWEN_BASE_URL=http://fake-provider:18080/v1
+    depends_on:
+      fake-provider:
+        condition: service_started

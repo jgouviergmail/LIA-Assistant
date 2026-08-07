@@ -1,15 +1,16 @@
 import type { Language } from '@/i18n/settings';
-import { languages, fallbackLng, LOCALE_MAP } from '@/i18n/settings';
+import { languages, LOCALE_MAP } from '@/i18n/settings';
 import { LANDING_STATS } from '@/components/landing/constants';
 import { APP_VERSION } from '@/lib/version';
-
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
+import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
 
 /**
- * Build the full URL for a given language.
+ * Build the full URL for a given language from the resolved origin (B03:
+ * origin-bearing schemas render nothing when no origin is configured —
+ * structured data with invented hosts would be worse than none).
  */
-function buildLangUrl(lng: Language): string {
-  return lng === fallbackLng ? BASE_URL : `${BASE_URL}/${lng}`;
+function buildLangUrl(origin: string, lng: Language): string {
+  return localizedUrl(origin, '', lng);
 }
 
 /**
@@ -31,17 +32,19 @@ export function serializeJsonLd(schema: object): string {
  * Placed in root layout.
  */
 export function WebSiteJsonLd() {
+  const origin = getSiteOrigin();
+  if (origin === null) return null;
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     name: 'LIA',
     alternateName: 'LIA — Intelligent Personal AI Assistant',
-    url: BASE_URL,
+    url: origin,
     description: `LIA orchestrates ${LANDING_STATS.agents}+ specialized AI agents to manage your emails, calendar, contacts, and more. Human validation at every step, privacy by design.`,
     inLanguage: languages.map(lng => LOCALE_MAP[lng]),
     potentialAction: {
       '@type': 'ReadAction',
-      target: BASE_URL,
+      target: origin,
     },
   };
 
@@ -58,12 +61,14 @@ export function WebSiteJsonLd() {
  * Placed in root layout.
  */
 export function OrganizationJsonLd() {
+  const origin = getSiteOrigin();
+  if (origin === null) return null;
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: 'LIA',
-    url: BASE_URL,
-    logo: `${BASE_URL}/icon.svg`,
+    url: origin,
+    logo: `${origin}/icon.svg`,
     description:
       'Open-source multi-agent conversational AI assistant with human-in-the-loop approval workflows.',
     sameAs: ['https://github.com/jgouviergmail/LIA-Assistant'],
@@ -99,13 +104,15 @@ export function SoftwareApplicationJsonLd({
   title,
   description,
 }: SoftwareApplicationJsonLdProps) {
+  const origin = getSiteOrigin();
+  if (origin === null) return null;
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
     name: 'LIA',
     alternateName: title,
     description,
-    url: buildLangUrl(lng),
+    url: buildLangUrl(origin, lng),
     applicationCategory: 'ProductivityApplication',
     operatingSystem: 'Web',
     offers: {
@@ -126,10 +133,10 @@ export function SoftwareApplicationJsonLd({
       'Knowledge Spaces (RAG)',
       'Extensible via MCP protocol',
     ],
-    screenshot: `${BASE_URL}/Title.png`,
+    screenshot: `${origin}/Title.png`,
     softwareVersion: APP_VERSION,
     inLanguage: LOCALE_MAP[lng],
-    image: `${BASE_URL}/Title.png`,
+    image: `${origin}/Title.png`,
   };
 
   return (
@@ -244,12 +251,14 @@ interface BlogListJsonLdProps {
  * Blog schema — structured data for blog listing page.
  */
 export function BlogListJsonLd({ lng, title, description, articles }: BlogListJsonLdProps) {
+  const origin = getSiteOrigin();
+  if (origin === null) return null;
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'Blog',
     name: title,
     description,
-    url: `${buildLangUrl(lng)}/blog`,
+    url: `${buildLangUrl(origin, lng)}/blog`,
     inLanguage: LOCALE_MAP[lng],
     blogPost: articles.map(article => ({
       '@type': 'BlogPosting',

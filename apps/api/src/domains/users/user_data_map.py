@@ -336,6 +336,12 @@ TABLE_RULES: dict[str, TableRule] = {
         export=ExportPolicy.EXCLUDED,
         reason="Instance-wide configuration.",
     ),
+    "instance_daily_budget": TableRule(
+        data_class=TableDataClass.GLOBAL,
+        export=ExportPolicy.EXCLUDED,
+        reason="One aggregate row per UTC day for the whole instance: no user "
+        "column, no per-user attribution, nothing to purge or export.",
+    ),
     "personalities": TableRule(
         data_class=TableDataClass.GLOBAL,
         export=ExportPolicy.EXCLUDED,
@@ -420,6 +426,11 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "last_login": _LIFECYCLE,
     "deleted_at": _LIFECYCLE,
     "deleted_reason": _LIFECYCLE,
+    # Terms acceptance: the legal record that this account agreed to the
+    # terms, and to WHICH version. Kept like the rest of the lifecycle
+    # bookkeeping — scrubbing it would destroy the only evidence of consent.
+    "terms_accepted_at": _LIFECYCLE,
+    "terms_version": _LIFECYCLE,
     # Non-content operational preferences.
     "timezone": _PREFERENCE,
     "language": _PREFERENCE,

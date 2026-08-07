@@ -2,9 +2,9 @@
 
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
-**Version**: 1.2
-**Datum**: 2026-08-05
-**Anwendung**: LIA v1.28.0
+**Version**: 1.3
+**Datum**: 2026-08-08
+**Anwendung**: LIA v1.29.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Indikator | Wert |
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
-| Codezeilen (ohne Tests) — 36 Fachdomänen | **505.000** |
-| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **22.800+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **204** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **197** |
+| Codezeilen (ohne Tests) — 39 Fachdomänen | **548.000** |
+| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **23.600+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **217** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **203** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -88,6 +88,8 @@ Der Maßnahmenplan ist in Wellen organisiert, jede mit messbaren Abschlusskriter
 Auch der Beweis hat seine lehrreichste Episode: drei Rekalibrierungen eines simplen Abstands, dreimal „ich sehe keine Veränderung" — und eine Auslieferungskette, die bis zu den an den Browser gelieferten Bytes nachweislich gesund war. Zwei plausible falsche Fährten (Browser-Cache, Service Worker) fielen nacheinander, bis zur Messung, die nichts verzeiht: Im gesteuerten Browser betrug der berechnete Rand 16 Pixel, der gezeichnete Abstand 3. Die Label-Primitive war `inline` geblieben, und ein Inline-Element ignoriert seine vertikalen Ränder — der Defekt war älter als das ganze Programm. Der Fix ist ein Wort, die Entscheidung fiel auf drei echten Screenshots, und die Regel wurde Doktrin: erst das Rendering messen, dann die Auslieferung verdächtigen.
 
 Der Gewohnheitsdetektor verdiente sein Vertrauen auf dieselbe Weise: gegen echte Produktionsdaten ausgeführt, bevor man ihm glaubte — und ertappt. Eine tägliche geplante Aktion schrieb seit sechsundsechzig Tagen um 07:00 eine „Nutzer“-Nachricht; der Detektor beanspruchte den Fahrplan des Schedulers selbst als menschliche Gewohnheit. Die Widerlegung wurde zu einer Whitelist menschlicher Sitzungen, das erfundene Fenster verschwand, und die ehrlichen Verdikte stellten sich ein. Die Regel bleibt: gegen die Realität beweisen, bevor man dem Entwurf glaubt.
+
+Der Zyklus 1.29.0 hat eine dritte Episode hinzugefügt, und diese betrifft die Tests selbst. Jede Schutzmaßnahme des Programms war mit eigenen Tests geliefert worden, alle grün — und alle von derselben Form: sie hielten fest, was der Code am Tag der Lieferung tat. Eine handgeschriebene Liste beschreibt kein System, sie beschreibt, was ihre Autorin darüber wusste. Also wurden drei Wächter neu geschrieben, um den Schutz aus der Quelle der Wahrheit **neu zu berechnen**, statt ihn zu wiederholen. Sie fanden drei Fehler, die kein bestehender Test sehen konnte: eine Sprachausgabe, die abgerechnet und nie gegen das Ausgabenlimit gezählt wurde, eine Anbieteranmeldung, die die nun verpflichtende Zustimmung zu den Bedingungen vollständig umging, und elf Konnektorpfade, die echte Zugangsdaten ohne jede Absicherung verknüpften. Danach wurde jeder Wächter absichtlich in die Irre geführt, um zu prüfen, dass er rot wird — denn ein Wächter, den nie jemand scheitern sah, ist bloß ein weiteres Versprechen.
 
 ## 7. Überzeugungen
 

@@ -67,6 +67,8 @@ import {
   PhoneCall,
   Handshake,
   Users,
+  Server,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 interface FAQContentProps {
@@ -120,6 +122,7 @@ const sections = [
  * releases. `__tests__/changelog-wiring.test.ts` now fails on any drift in either direction.
  */
 export const changelogVersionKeys = [
+  'v1_29_0',
   'v1_28_0',
   'v1_27_14',
   'v1_27_13',
@@ -331,6 +334,8 @@ export const featureIcons = {
   relations: Users,
   provenance: Search,
   capabilityMap: Orbit,
+  selfHosting: Server,
+  platformCapabilities: SlidersHorizontal,
 };
 
 /**
@@ -389,6 +394,8 @@ export const featureKeys = [
   'richResponses',
   'provenance',
   'capabilityMap',
+  'selfHosting',
+  'platformCapabilities',
 ];
 
 export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FAQContentProps) {

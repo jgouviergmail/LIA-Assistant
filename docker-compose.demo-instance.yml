@@ -1,0 +1,385 @@
+# Public demonstrator — the STANDARD LIA image inside an isolated envelope.
+#
+# This is the whole point of the design: visitors talk to the REAL application,
+# not to a reduced imitation of it. What makes it safe is not a different
+# codebase, it is the envelope around it plus the switches inside it:
+#
+#   * the ENVELOPE (here) — its own Compose project, its own internal
+#     networks, tmpfs data, no host-published database port, a single egress
+#     proxy, and an edge that routes an allowlist and 404s the rest;
+#   * the SWITCHES (application) — DEMO_MODE_ENABLED (visitor accounts +
+#     nightly purge), INSTANCE_DAILY_BUDGET_EUR (ADR-216), and the capability
+#     switches (ADR-217) that remove what a demonstrator has no business
+#     offering.
+#
+# Nothing is shared with DEV/PROD: no external network, no dev/prod volume,
+# no standard container name, no normal env file.
+#
+#   docker compose --env-file .env.demo-instance -f docker-compose.demo-instance.yml config
+#
+# Networks, and the property each one buys:
+#
+#   ingress (internal)   edge + tunnel — the edge terminates every visitor
+#                        request and must not be able to reach anything else
+#   app     (internal)   edge, api, web, egress proxy
+#   mail    (internal)   api + relay only: the relay holds the smarthost
+#                        credentials and relays to arbitrary recipients
+#   data    (internal)   api + postgres + redis
+#   observability        api + collector + prometheus
+#   *-outbound           ONE member each — egress, mail, tunnel. Three
+#                        containers can reach the Internet and none of them
+#                        can reach each other.
+#
+# The api and the web are on no routed network at all: their only way out is
+# the proxy's allowlist, or the relay's smarthost.
+#
+# After the first boot, the database must be marked as a demonstrator's:
+#
+#   docker compose -f docker-compose.demo-instance.yml exec demo-instance-api \
+#     python -m src.infrastructure.provisioning.cli
+#
+# Without that marker the nightly visitor purge REFUSES to run — deliberately
+# (see the 2026-08-06 incident): an environment variable describes a process,
+# a marker in the database describes the database.
+name: lia-demo-instance
+
+services:
+  demo-instance-edge:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/demo-instance/Caddyfile:/etc/caddy/Caddyfile:ro
+      - demo_instance_caddy_data:/data
+    # No host port. "Reachable through Cloudflare or not at all" was already
+    # the stated intent for the tunnel; publishing 443 here contradicted it by
+    # answering to anyone who could reach this machine. A local validation
+    # publishes a loopback port through docker-compose.demo-instance.dev.yml.
+    #
+    # BOTH networks are internal, so this container has no route out at all.
+    # It used to have the widest reach of the envelope: measured 2026-08-07
+    # from inside its own network namespace, it connected to 1.1.1.1:443, to
+    # the production Raspberry's SSH on <prod-host>:2222, and to the
+    # development stack running on the same machine. The container that
+    # terminates every visitor request had become the best pivot in the
+    # envelope. It reverse-proxies to two neighbours and needs nothing else.
+    networks:
+      - demo-instance-ingress
+      - demo-instance-app
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt:
+      - no-new-privileges:true
+
+  # Cloudflare tunnel — the public way in. It joins the ingress network only,
+  # reaches the edge by name, and publishes NO host port: the demonstrator is
+  # reachable through Cloudflare or not at all.
+  #
+  # The connector token is a secret: it lives in the env file, never here.
+  # Enable it with `--profile tunnel` (a laptop validation does not need it).
+  demo-instance-tunnel:
+    image: cloudflare/cloudflared:2025.1.0
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    # `:-` and not `:?`: Compose interpolates the WHOLE file before it filters
+    # profiles, so a required variable here made every start fail — including
+    # `up -d` without --profile tunnel, where this service does not even run
+    # (measured 2026-08-06 on the first real start). The token is checked by
+    # `task demo:up:tunnel`, which is the only path that needs it.
+    command: ["tunnel", "--no-autoupdate", "run", "--token", "${DEMO_INSTANCE_TUNNEL_TOKEN:-}"]
+    # The ONLY bridge between the outside and the ingress network, and the
+    # reason that network can stay internal: cloudflared reaches Cloudflare on
+    # `demo-instance-tunnel-outbound` and the edge on `demo-instance-ingress`.
+    # Its own network rather than the shared outbound one: a single-purpose
+    # binary has no business reaching the mail relay or the proxy.
+    networks:
+      - demo-instance-ingress
+      - demo-instance-tunnel-outbound
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - demo-instance-edge
+
+  demo-instance-api:
+    # The standard production image, unmodified.
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    env_file:
+      - ${DEMO_INSTANCE_ENV_FILE:-.env.demo-instance}
+    environment:
+      # The three protections, stated here so a reader of the envelope sees
+      # what makes it a demonstrator. Values live in the env file.
+      - DEMO_MODE_ENABLED=true
+      - HTTPS_PROXY=http://demo-instance-egress:3128
+      - NO_PROXY=demo-instance-postgres,demo-instance-redis,demo-instance-otel,demo-instance-web
+      # The standard image's entrypoint waits on PostgreSQL with `pg_isready`
+      # and seeds through `psql`, both of which read these four — never
+      # DATABASE_URL. Using the standard image means honouring its contract:
+      # without them the entrypoint waits on a host called `postgres` that
+      # exists nowhere here, and the container dies unhealthy after two
+      # minutes of "PostgreSQL is unavailable" (measured 2026-08-06).
+      #
+      # They are written HERE, not in the env file, so the password has ONE
+      # source — the same interpolated variable the database itself uses.
+      # `tests/unit/test_demo_instance_edge_allowlist.py` pins the agreement.
+      # The provider credentials belong to the RELAY, and to it alone: the
+      # application hands its mail to a relay on the private network, in
+      # cleartext, with nothing to authenticate. Emptying them here is what
+      # makes that possible — and keeps the smarthost password out of the
+      # process that talks to visitors.
+      - ALERTMANAGER_SMTP_AUTH_USERNAME=
+      - ALERTMANAGER_SMTP_AUTH_PASSWORD=
+      # The reference seed bundle, applied at every boot.
+      #
+      # The seeds are the maintained source of truth for the model catalogue
+      # and its prices; the migrations carry an older, partial copy (91 prices
+      # against the bundle's 242). Running on the partial one is how the daily
+      # spend ceiling went blind: the configured model had no price, so
+      # 59 344 real tokens were ledgered as 0,000025 EUR and
+      # INSTANCE_DAILY_BUDGET_EUR never fired (measured 2026-08-07).
+      #
+      # This database lives in tmpfs: it is recreated EMPTY at every boot, so
+      # the gate's veto — has anyone chosen a personality? — is satisfied by
+      # construction and the destructive delete-then-insert has nothing of
+      # anyone's to destroy.
+      #
+      # The digest is computed by `task demo:up*` from the repository, never
+      # typed here: a literal is correct exactly until a seed is edited.
+      #
+      # Seeding is necessary but not sufficient: `unbillable_model` (in
+      # provisioning) still refuses an instance whose DEMO_INSTANCE_LLM_MODEL
+      # the resulting catalogue does not price, and `task demo:verify` re-asks
+      # a running one. A ceiling that reads a flat ledger is not a ceiling.
+      - APPLY_SEEDS=true
+      - SEED_BUNDLE_SHA256=${SEED_BUNDLE_SHA256:-}
+      - POSTGRES_HOST=demo-instance-postgres
+      - POSTGRES_USER=demo
+      - POSTGRES_DB=lia_demo
+      - POSTGRES_PASSWORD=${DEMO_INSTANCE_POSTGRES_PASSWORD:?set it in .env.demo-instance}
+    volumes:
+      # The reference seeds, read-only. The API image is built from the
+      # `apps/api` context, which holds no `infrastructure/` directory, so the
+      # files can ONLY arrive through a mount — dev and prod both do exactly
+      # this. Without it the gate opens and the wrapper dies on `missing seed
+      # file google_api_pricing_seed.sql` (measured 2026-08-07), which rolls
+      # the whole bundle back and leaves the catalogue partial.
+      - ./infrastructure/database/seeds:/app/infrastructure/database/seeds:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    user: "1000:1000"
+    mem_limit: 3g
+    cpus: 2
+    pids_limit: 512
+    networks:
+      - demo-instance-app
+      - demo-instance-mail
+      - demo-instance-data
+      - demo-instance-observability
+    depends_on:
+      demo-instance-postgres:
+        condition: service_healthy
+      demo-instance-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  demo-instance-web:
+    # The standard web image, same-origin: the edge serves both, so the
+    # browser never learns the API is a separate service.
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.prod
+      args:
+        - NEXT_PUBLIC_API_URL=
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/apps/web/.next/cache
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    cpus: 1
+    pids_limit: 256
+    networks:
+      - demo-instance-app
+    depends_on:
+      demo-instance-api:
+        condition: service_healthy
+
+  demo-instance-egress:
+    image: ubuntu/squid:6.1-23.10_beta
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/demo-instance/squid.conf:/etc/squid/squid.conf:ro
+    networks:
+      - demo-instance-app
+      - demo-instance-egress-outbound
+    # SETGID/SETUID are what let squid DROP to its unprivileged user —
+    # cap_drop ALL alone made the privilege drop itself impossible
+    # (measured: setgid EPERM crash-loop, 2026-08-06).
+    cap_drop: [ALL]
+    cap_add: [SETGID, SETUID]
+    security_opt:
+      - no-new-privileges:true
+
+  # The ONLY service allowed to speak SMTP to the Internet.
+  #
+  # The API sits on no outbound network by design, and a HTTP proxy cannot
+  # relay SMTP: a mail library opens a plain TCP connection and would need to
+  # know about the proxy. So the verification email — the one that ACTIVATES
+  # a visitor's account — never left (measured 2026-08-06:
+  # `verification_email_failed`, and the account stayed inactive forever).
+  #
+  # A relay keeps the confinement: the application talks to it in cleartext
+  # inside the private network, and this container is the single place that
+  # reaches the smarthost.
+  demo-instance-smtp:
+    image: boky/postfix:v4.4.0
+    restart: unless-stopped
+    environment:
+      # The REAL smarthost. ALERTMANAGER_SMTP_SMARTHOST now names this relay
+      # (that is what the application talks to), so reading it here would
+      # make the relay forward to itself.
+      - RELAYHOST=${DEMO_INSTANCE_SMTP_SMARTHOST:?set it in the env file}
+      - RELAYHOST_USERNAME=${ALERTMANAGER_SMTP_AUTH_USERNAME:?set it in the env file}
+      - RELAYHOST_PASSWORD=${ALERTMANAGER_SMTP_AUTH_PASSWORD:?set it in the env file}
+      - ALLOWED_SENDER_DOMAINS=${DEMO_INSTANCE_MAIL_DOMAIN:?set it in the env file}
+      - POSTFIX_myhostname=${DEMO_INSTANCE_MAIL_DOMAIN:?set it in the env file}
+      # A ceiling on what this relay can emit, whatever asks it to.
+      #
+      # The sender policy holds — a foreign sender is refused (measured
+      # 2026-08-07) — but any sender of the configured domain relays to ANY
+      # recipient in the world. The application's own bound is 5 signups per
+      # minute per address, which is still 300 verification emails an hour
+      # from one machine: the smarthost quota, and the domain's sending
+      # reputation, are the things that pay. Postfix counts per client over
+      # `anvil_rate_time_unit`, and the client here is the application.
+      #
+      # Sized for a demonstrator, not for a mail server: a visitor receives
+      # exactly one message, so a rate this generous is already ten times the
+      # honest traffic.
+      - POSTFIX_anvil_rate_time_unit=60s
+      - POSTFIX_smtpd_client_message_rate_limit=10
+      - POSTFIX_smtpd_client_connection_rate_limit=30
+      - POSTFIX_smtpd_client_recipient_rate_limit=10
+      # The relay answers the application and nobody else: it sits on the mail
+      # network, which the web, the edge and the proxy do not join.
+    networks:
+      - demo-instance-mail
+      - demo-instance-mail-outbound
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE, FOWNER, NET_BIND_SERVICE, KILL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    pids_limit: 128
+
+  demo-instance-otel:
+    image: otel/opentelemetry-collector-contrib:0.115.1
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./infrastructure/demo-instance/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    networks:
+      - demo-instance-observability
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+
+  demo-instance-prometheus:
+    image: prom/prometheus:v3.0.0
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/demo-instance/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - demo-instance-observability
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+
+  demo-instance-postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=demo
+      - POSTGRES_PASSWORD=${DEMO_INSTANCE_POSTGRES_PASSWORD:?set it in .env.demo-instance}
+      - POSTGRES_DB=lia_demo
+    volumes:
+      # The SAME init script the development stack uses — pgvector, uuid-ossp
+      # and pg_trgm. The image ships pgvector but creates no extension, and
+      # the first migration that declares a VECTOR column dies on `type
+      # "vector" does not exist` (measured 2026-08-06). A second copy of this
+      # SQL would be a second thing to keep true.
+      - ./infrastructure/docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    tmpfs:
+      # No durable data, no backup mount: the instance is meant to be thrown
+      # away. The nightly purge is the auditable path; this is the safety net.
+      - /var/lib/postgresql/data
+    networks:
+      - demo-instance-data
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo -d lia_demo"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  demo-instance-redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    networks:
+      - demo-instance-data
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  demo_instance_caddy_data:
+
+networks:
+  # Internal: the edge lives here and must not reach anything but its two
+  # neighbours. The tunnel bridges this network to the Internet, and it is the
+  # only service that does — which is what lets the edge stay confined while
+  # remaining reachable. A local validation lowers this flag in
+  # docker-compose.demo-instance.dev.yml, because Docker cannot publish a host
+  # port for a container whose networks are all internal (measured).
+  demo-instance-ingress:
+    internal: true
+  demo-instance-app:
+    internal: true
+  # Only the application and the relay. Mail leaves this envelope with the
+  # operator's smarthost credentials, so the set of containers that can ask
+  # for it is part of the protection.
+  demo-instance-mail:
+    internal: true
+  demo-instance-data:
+    internal: true
+  demo-instance-observability:
+    internal: true
+  # Three routed networks, one member each. They used to be one, and sharing
+  # it made the three containers that can reach the Internet mutually
+  # reachable: a compromised proxy could speak to the mail relay (measured
+  # 2026-08-07, `demo-instance-smtp:25` CONNECTED from the proxy's namespace).
+  # Nothing needs that adjacency, and it is exactly the hop an attacker wants.
+  demo-instance-egress-outbound:
+  demo-instance-mail-outbound:
+  demo-instance-tunnel-outbound:

@@ -10,11 +10,11 @@ import { CosmosThemeDefault } from '@/components/landing/cosmic/CosmosThemeDefau
 import { initI18next, validateLanguage } from '@/i18n';
 import { fallbackLng, languages, LOCALE_MAP } from '@/i18n/settings';
 import type { Language } from '@/i18n/settings';
+import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
 
 function buildLangUrl(path: string, lng: Language): string {
-  return lng === fallbackLng ? `${BASE_URL}${path}` : `${BASE_URL}/${lng}${path}`;
+  return localizedUrl(getSiteOrigin(), path, lng);
 }
 
 interface MorePageProps {
@@ -50,13 +50,13 @@ export async function generateMetadata({ params }: MorePageProps): Promise<Metad
       locale: LOCALE_MAP[lng],
       alternateLocale: languages.filter(l => l !== lng).map(l => LOCALE_MAP[l]),
       type: 'website',
-      images: [{ url: `${BASE_URL}/Title.png`, width: 2125, height: 1193, alt: title }],
+      images: [{ url: '/Title.png', width: 2125, height: 1193, alt: title }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: [`${BASE_URL}/Title.png`],
+      images: ['/Title.png'],
     },
   };
 }

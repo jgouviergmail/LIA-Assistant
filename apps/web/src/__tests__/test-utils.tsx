@@ -34,6 +34,7 @@ import {
   type RenderResult,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { ColorThemeProvider } from '@/lib/theme-context';
@@ -64,6 +65,12 @@ export function makeTestQueryClient(): QueryClient {
 export interface RenderWithProvidersOptions extends Omit<RenderOptions, 'wrapper'> {
   /** Supply a custom `QueryClient` (default: a fresh non-retrying test client). */
   queryClient?: QueryClient;
+  /**
+   * Bind the returned `user` session to Vitest fake timers. Pass `true` when
+   * the test calls `vi.useFakeTimers()` — otherwise every `user.click` hangs
+   * waiting for real timers that never fire.
+   */
+  advanceTimers?: boolean;
 }
 
 function AllProviders({
@@ -102,12 +109,15 @@ export function renderWithProviders(
   ui: ReactElement,
   options: RenderWithProvidersOptions = {}
 ): RenderWithProvidersResult {
-  const { queryClient = makeTestQueryClient(), ...rtlOptions } = options;
+  const { queryClient = makeTestQueryClient(), advanceTimers, ...rtlOptions } = options;
   const result = render(ui, {
     wrapper: ({ children }) => <AllProviders queryClient={queryClient}>{children}</AllProviders>,
     ...rtlOptions,
   });
-  return { user: userEvent.setup(), queryClient, ...result };
+  const user = userEvent.setup(
+    advanceTimers ? { advanceTimers: (ms) => vi.advanceTimersByTime(ms) } : undefined
+  );
+  return { user, queryClient, ...result };
 }
 
 /**

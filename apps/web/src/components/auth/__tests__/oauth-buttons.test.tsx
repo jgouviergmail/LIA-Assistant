@@ -6,12 +6,17 @@
  * form would be permanently dead).
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 
 const { initiateGoogleOAuth } = vi.hoisted(() => ({ initiateGoogleOAuth: vi.fn() }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ initiateGoogleOAuth }) }));
+
+const authFeatures = vi.hoisted(() => ({ value: { mfa_enabled: true, federated_signin_enabled: true } }));
+vi.mock('@/hooks/useWebAuthn', () => ({
+  useAuthFeatures: () => ({ features: authFeatures.value, loading: false }),
+}));
 // `withContext` keeps a frozen identity — a fresh one per render would retrigger
 // every effect depending on it (see GUIDE_TESTING → hook-mock stability).
 const { withContext } = vi.hoisted(() => ({
@@ -68,5 +73,26 @@ describe('OAuthButtons — initiation', () => {
     );
     // Not left permanently disabled — the user can retry.
     expect(screen.getByRole('button', { name: SIGN_IN })).toBeEnabled();
+  });
+});
+
+describe('OAuthButtons — an instance that does not offer it', () => {
+  afterEach(() => {
+    authFeatures.value = { mfa_enabled: true, federated_signin_enabled: true };
+  });
+
+  it('draws no button when the instance refuses provider sign-in', () => {
+    // The public demonstrator closes this route: a button answering 404 is
+    // worse than no button, and the visitor has an email form right below.
+    authFeatures.value = { mfa_enabled: true, federated_signin_enabled: false };
+    const { container } = renderWithProviders(<OAuthButtons />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('draws nothing while the answer is unknown', () => {
+    // A button that appears a beat later moves the form under the cursor.
+    authFeatures.value = undefined as never;
+    const { container } = renderWithProviders(<OAuthButtons />);
+    expect(container).toBeEmptyDOMElement();
   });
 });

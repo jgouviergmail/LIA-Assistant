@@ -78,6 +78,20 @@ class UserService:
         """
         Build UserProfile from User model, including decrypted home_address.
 
+        Every declared field is read from the row by ``model_validate`` rather
+        than named here one by one. The list it replaces had fallen thirteen
+        fields behind the schema, and Pydantic filled each gap with a default,
+        so the DTO reported preferences the user had never expressed. Measured
+        2026-08-07 on the public demonstrator: the database held
+        ``debug_panel_enabled = true`` and this method returned ``False``,
+        which disabled the debug-panel stream on every turn without a single
+        error — the branch that reads it logs its failure at DEBUG. It had
+        survived because administrators take a different branch, so the
+        non-admin path was exercised by nobody.
+
+        ``home_address`` is the one field with no column behind it: it is
+        decrypted from ``home_location_encrypted`` and injected afterwards.
+
         Args:
             user: User model instance
 
@@ -95,29 +109,8 @@ class UserService:
                 location_data = HomeLocationData.model_validate_json(decrypted_json)
                 home_address = location_data.address
 
-        return UserProfile(
-            id=user.id,
-            email=user.email,
-            full_name=user.full_name,
-            timezone=user.timezone,
-            language=user.language,
-            personality_id=user.personality_id,
-            home_address=home_address,
-            response_display_mode=user.response_display_mode,
-            is_active=user.is_active,
-            is_verified=user.is_verified,
-            is_superuser=user.is_superuser,
-            oauth_provider=user.oauth_provider,
-            picture_url=user.picture_url,
-            memory_enabled=user.memory_enabled,
-            voice_enabled=user.voice_enabled,
-            tokens_display_enabled=user.tokens_display_enabled,
-            theme=user.theme,
-            color_theme=user.color_theme,
-            font_family=user.font_family,
-            created_at=user.created_at,
-            updated_at=user.updated_at,
-        )
+        profile = UserProfile.model_validate(user)
+        return profile.model_copy(update={"home_address": home_address})
 
     async def get_all_users(
         self,
@@ -832,27 +825,10 @@ class UserService:
         )
 
         return UserProfileWithStats(
-            # Base profile fields
-            id=base_profile.id,
-            email=base_profile.email,
-            full_name=base_profile.full_name,
-            timezone=base_profile.timezone,
-            language=base_profile.language,
-            personality_id=base_profile.personality_id,
-            home_address=base_profile.home_address,
-            is_active=base_profile.is_active,
-            is_verified=base_profile.is_verified,
-            is_superuser=base_profile.is_superuser,
-            oauth_provider=base_profile.oauth_provider,
-            picture_url=base_profile.picture_url,
-            memory_enabled=base_profile.memory_enabled,
-            voice_enabled=base_profile.voice_enabled,
-            tokens_display_enabled=base_profile.tokens_display_enabled,
-            theme=base_profile.theme,
-            color_theme=base_profile.color_theme,
-            font_family=base_profile.font_family,
-            created_at=base_profile.created_at,
-            updated_at=base_profile.updated_at,
+            # Base profile fields, spread rather than named: the list this
+            # replaces had drifted the same way its sibling had, dropping the
+            # very preferences the base profile has just been careful to read.
+            **base_profile.model_dump(),
             # Statistics fields - Lifetime totals
             last_login=user.last_login,
             last_message_at=last_message_at,

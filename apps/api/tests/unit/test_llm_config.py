@@ -12,6 +12,10 @@ from pydantic import ValidationError
 from src.core.config import Settings
 from src.infrastructure.llm.openai_provider import OpenAIProvider
 
+#: Structurally valid synthetic key (32 bytes, URL-safe base64) — the
+#: Settings validator now enforces the real Fernet shape (install contract).
+TEST_FERNET_KEY = "dW5pdC10ZXN0LWZlcm5ldC1rZXktMDEyMzQ1Njc4OWE="
+
 
 class TestSettingsLLMDefaults:
     """Test default values for LLM configuration in Settings."""
@@ -29,7 +33,7 @@ class TestSettingsLLMDefaults:
             os.environ,
             {
                 "SECRET_KEY": "test_secret_key_minimum_32_characters_long",
-                "FERNET_KEY": "test_fernet_key_32_chars_base64==",
+                "FERNET_KEY": TEST_FERNET_KEY,
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379/0",
                 "OPENAI_API_KEY": "sk-test-key",
@@ -72,7 +76,7 @@ class TestSettingsLLMDefaults:
             os.environ,
             {
                 "SECRET_KEY": "test_secret_key_minimum_32_characters_long",
-                "FERNET_KEY": "test_fernet_key_32_chars_base64==",
+                "FERNET_KEY": TEST_FERNET_KEY,
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379/0",
                 "OPENAI_API_KEY": "sk-test-key",
@@ -112,7 +116,7 @@ class TestSettingsLLMValidation:
             os.environ,
             {
                 "SECRET_KEY": "test_secret_key_minimum_32_characters_long",
-                "FERNET_KEY": "test_fernet_key_32_chars_base64==",
+                "FERNET_KEY": TEST_FERNET_KEY,
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379/0",
                 "ROUTER_LLM_TEMPERATURE": "-0.1",
@@ -128,7 +132,7 @@ class TestSettingsLLMValidation:
             os.environ,
             {
                 "SECRET_KEY": "test_secret_key_minimum_32_characters_long",
-                "FERNET_KEY": "test_fernet_key_32_chars_base64==",
+                "FERNET_KEY": TEST_FERNET_KEY,
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379/0",
                 "RESPONSE_LLM_TEMPERATURE": "2.1",
@@ -144,7 +148,7 @@ class TestSettingsLLMValidation:
             os.environ,
             {
                 "SECRET_KEY": "test_secret_key_minimum_32_characters_long",
-                "FERNET_KEY": "test_fernet_key_32_chars_base64==",
+                "FERNET_KEY": TEST_FERNET_KEY,
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379/0",
                 "ROUTER_LLM_TOP_P": "-0.1",
@@ -160,7 +164,7 @@ class TestSettingsLLMValidation:
             os.environ,
             {
                 "SECRET_KEY": "test_secret_key_minimum_32_characters_long",
-                "FERNET_KEY": "test_fernet_key_32_chars_base64==",
+                "FERNET_KEY": TEST_FERNET_KEY,
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379/0",
                 "RESPONSE_LLM_TOP_P": "1.1",
@@ -176,7 +180,7 @@ class TestSettingsLLMValidation:
             os.environ,
             {
                 "SECRET_KEY": "test_secret_key_minimum_32_characters_long",
-                "FERNET_KEY": "test_fernet_key_32_chars_base64==",
+                "FERNET_KEY": TEST_FERNET_KEY,
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379/0",
                 "ROUTER_LLM_FREQUENCY_PENALTY": "-2.1",
@@ -192,7 +196,7 @@ class TestSettingsLLMValidation:
             os.environ,
             {
                 "SECRET_KEY": "test_secret_key_minimum_32_characters_long",
-                "FERNET_KEY": "test_fernet_key_32_chars_base64==",
+                "FERNET_KEY": TEST_FERNET_KEY,
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379/0",
                 "RESPONSE_LLM_FREQUENCY_PENALTY": "2.1",
@@ -208,7 +212,7 @@ class TestSettingsLLMValidation:
             os.environ,
             {
                 "SECRET_KEY": "test_secret_key_minimum_32_characters_long",
-                "FERNET_KEY": "test_fernet_key_32_chars_base64==",
+                "FERNET_KEY": TEST_FERNET_KEY,
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379/0",
                 "ROUTER_LLM_PRESENCE_PENALTY": "-2.1",
@@ -224,7 +228,7 @@ class TestSettingsLLMValidation:
             os.environ,
             {
                 "SECRET_KEY": "test_secret_key_minimum_32_characters_long",
-                "FERNET_KEY": "test_fernet_key_32_chars_base64==",
+                "FERNET_KEY": TEST_FERNET_KEY,
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379/0",
                 "RESPONSE_LLM_PRESENCE_PENALTY": "2.1",
@@ -240,7 +244,7 @@ class TestSettingsLLMValidation:
             os.environ,
             {
                 "SECRET_KEY": "test_secret_key_minimum_32_characters_long",
-                "FERNET_KEY": "test_fernet_key_32_chars_base64==",
+                "FERNET_KEY": TEST_FERNET_KEY,
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379/0",
                 "OPENAI_API_KEY": "sk-test-key",

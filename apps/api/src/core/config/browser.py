@@ -33,6 +33,15 @@ from src.core.constants import (
 class BrowserSettings(BaseSettings):
     """Browser automation settings for Playwright-based web interaction."""
 
+    browser_enabled: bool = Field(
+        default=True,
+        description=(
+            "Deployment ceiling for the browser agent. Independent of whether "
+            "Playwright is installed: this flag lets an operator switch page "
+            "browsing off on an instance that could technically do it."
+        ),
+    )
+
     # ========================================================================
     # ReAct Loop
     # ========================================================================
@@ -85,7 +94,7 @@ class BrowserSettings(BaseSettings):
     # ========================================================================
 
     browser_page_load_timeout_seconds: int = Field(
-        default=30,
+        default=10,
         ge=5,
         le=120,
         description="Maximum wait time for page load completion.",
@@ -116,7 +125,7 @@ class BrowserSettings(BaseSettings):
     # ========================================================================
 
     browser_accessibility_max_depth: int = Field(
-        default=8,
+        default=10,
         ge=3,
         le=15,
         description="Maximum depth for accessibility tree extraction.",
@@ -134,7 +143,7 @@ class BrowserSettings(BaseSettings):
     # ========================================================================
 
     browser_memory_limit_mb: int = Field(
-        default=512,
+        default=1024,
         ge=128,
         le=2048,
         description="Memory limit per browser instance (MB). Navigation refused if exceeded.",
@@ -209,7 +218,7 @@ class BrowserSettings(BaseSettings):
     # ========================================================================
 
     browser_rate_limit_read_calls: int = Field(
-        default=20,
+        default=40,
         ge=5,
         le=100,
         description="Max read tool calls (navigate, snapshot) per window.",
@@ -223,7 +232,7 @@ class BrowserSettings(BaseSettings):
     )
 
     browser_rate_limit_write_calls: int = Field(
-        default=20,
+        default=40,
         ge=5,
         le=100,
         description="Max write tool calls (click, fill, press_key) per window.",

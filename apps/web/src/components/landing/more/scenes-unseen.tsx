@@ -8,7 +8,7 @@
 
 'use client';
 
-import { Check, Coins, EyeOff, Map as MapIcon, Vibrate } from 'lucide-react';
+import { Check, Coins, EyeOff, Info, Map as MapIcon, Mic, Vibrate } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -468,9 +468,73 @@ function ReadableAtAGlanceScene({ active }: SceneProps) {
   );
 }
 
+type SwitchPhase = 'on' | 'flipping' | 'off';
+const SWITCH_STEPS: readonly TimelineStep<SwitchPhase>[] = [
+  { at: 0, state: 'on' },
+  { at: 1300, state: 'flipping' },
+  { at: 1900, state: 'off' },
+];
+
+/**
+ * An operator switches a capability off, and the app says so by name.
+ *
+ * The resting frame is the honest one: the row is dimmed AND labelled, never
+ * dimmed alone — a feature that merely stops working looks like a bug.
+ */
+function CapabilityHonestyScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(SWITCH_STEPS, { active });
+  const off = phase === 'off';
+
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-2')}>
+      <div className="flex items-center gap-2 rounded-lg border border-border bg-background/60 px-2.5 py-2">
+        <Mic
+          className={cn(
+            'h-4 w-4 transition-colors duration-300',
+            off ? 'text-muted-foreground' : 'text-primary'
+          )}
+        />
+        <span
+          className={cn(
+            'flex-1 text-[10px] font-medium transition-opacity duration-300',
+            off ? 'opacity-40' : 'opacity-100'
+          )}
+        >
+          {labels.capability}
+        </span>
+        <span
+          aria-hidden="true"
+          className={cn(
+            'relative h-3.5 w-6 rounded-full transition-colors duration-300 motion-reduce:transition-none',
+            phase === 'on' ? 'bg-primary' : 'bg-muted-foreground/40'
+          )}
+        >
+          <span
+            className={cn(
+              'absolute top-0.5 h-2.5 w-2.5 rounded-full bg-background transition-all duration-300 motion-reduce:transition-none',
+              phase === 'on' ? 'left-3' : 'left-0.5'
+            )}
+          />
+        </span>
+      </div>
+      <MiniToast
+        icon={Info}
+        tone="info"
+        className={cn(
+          'transition-all duration-300 motion-reduce:transition-none',
+          off ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        )}
+      >
+        {labels.reason}
+      </MiniToast>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   readable_at_a_glance: ReadableAtAGlanceScene,
   capability_map: CapabilityMapScene,
+  capability_honesty: CapabilityHonestyScene,
   background_response: BackgroundResponseScene,
   widgets_travel: WidgetsTravelScene,
   cost_transparency: CostTransparencyScene,

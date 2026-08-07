@@ -32,6 +32,11 @@ vi.mock('@/lib/api/personality', () => ({
   deletePersonality,
   translatePersonality,
 }));
+const { personalityStoreRefetch } = vi.hoisted(() => ({ personalityStoreRefetch: vi.fn() }));
+vi.mock('@/stores/personalityStore', () => ({
+  usePersonalityStore: { getState: () => ({ refetch: personalityStoreRefetch }) },
+}));
+
 const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
 vi.mock('@/lib/logger', () => ({
@@ -160,5 +165,26 @@ describe('AdminPersonalitiesSection — row actions', () => {
     await user.click(screen.getByRole('button', { name: `${TIP}.generate_translations` }));
     await waitFor(() => expect(translatePersonality).toHaveBeenCalledWith('p1'));
     expect(toast.error).toHaveBeenCalledWith('quota exceeded');
+  });
+});
+
+describe('AdminPersonalitiesSection — the styles offered to users', () => {
+  it('refreshes the shared catalogue after a mutation, not only its own list', async () => {
+    // The header selector and the settings panel read one shared store, which
+    // caches for the session. Its own list being re-read is not enough: a
+    // style created here would exist nowhere a user can pick it until a full
+    // page reload — the very staleness the shared state was meant to end.
+    const { user } = await renderLoaded();
+
+    await user.click(screen.getByRole('button', { name: `${TIP}.delete` }));
+    await answerConfirmDialog(user);
+
+    await waitFor(() => expect(personalityStoreRefetch).toHaveBeenCalledTimes(1));
+  });
+
+  it('does not refresh it on mount, which would double every page load', async () => {
+    await renderLoaded();
+
+    expect(personalityStoreRefetch).not.toHaveBeenCalled();
   });
 });

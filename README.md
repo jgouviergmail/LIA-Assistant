@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.28.0</strong> — <strong>LIA learns your habits — deterministically, transparently, and under your full control</strong> (ADR-214). Activity rhythm (2-4h windows per weekday/weekend class) and recurring requests ("every Monday around 9, the emails") are now learned by <strong>simulation-calibrated deterministic statistics</strong> — day-level presence (never per-message counting, a measured 83-100% false-positive factory), Wilson 99% bounds, split-half consistency, anti-flapping hysteresis: <strong>0-0.3% false positives</strong> on patternless usage, 98-100% detection within 21-28 days, unlearning in 9. Validation ran against <strong>real production data and refuted the design twice before it was trusted</strong>: a daily scheduled action had written a "user" message at 07:00 for 66 straight days and the detector claimed it as a habit — every activity source now passes a human-session whitelist; and since conversations are ephemeral by design, activity aggregates over <strong>four durable sources</strong> (live messages, run summaries, the reset audit trail — a human gesture by construction, 124 presence days recovered on the primary account — and a daily activity bank). The settings panel shows everything: a 24-slot hourly heatmap with axis, active-day percentage, a quantified unlock progressbar, recurrence candidates under observation, and per-habit explanations carrying the <strong>real occurrence days and the exact thresholds applied</strong> (a displayed habit is proven or it does not exist). Pause, permanent block, single or total deletion, instant retroactive recompute — master switch off by default. Consumption is restrained: ambient context, missed-routine offers with a hard stop after two ignored ones, and tick scoring that prefers learned windows <strong>without ever widening your bounds</strong>. <strong>18,276 backend</strong> + <strong>5,048 frontend</strong> tests, all six languages. — 5 August 2026.
+  <strong>Version 1.29.0</strong> — <strong>LIA installs on your machine, shows itself without lying, and knows what it is allowed to spend</strong> (ADR-215 → ADR-218). Four decisions answering four questions that had no answer: how does someone else run this, how do they see it first, how much can one instance spend, and what can an operator switch off without redeploying. <strong>A guided installer</strong> (<code>./install.sh</code>) builds the images <strong>from your own checkout</strong> — the v1 default, because an unqualified prebuilt artifact has no place in an installation. Prebuilt mode exists but accepts only <code>repository@sha256:…</code> references from a manifest marked <code>qualification="passed"</code>: <strong>a mutable tag is never an installer input</strong>. Secrets enter through <strong>stdin only</strong> — one JSON document creates the admin (through the real password authority, no default password) and encrypts the provider keys in a single transaction; nothing goes through <code>argv</code>, nothing lands in resume state. Reference data applies in <strong>one transaction, one psql, ON_ERROR_STOP=1</strong> with a blocking verification file and a marker written in the same transaction — a half-seeded install does not exist. And <code>/ready</code> is never sufficient: a secret-free verifier checks the single Alembic head, the exact marker, reference-data postconditions, an active admin, decryptable keys, and provider coverage <strong>on the post-seed effective configuration</strong> — the one the first message will actually use. <strong>An instance now knows its daily budget</strong>: per-user limits bounded what one account consumes and nothing bounded what a deployment spends, because N accounts × their quota is unbounded. A daily UTC ledger takes each run's cost through an <strong>atomic UPSERT with column arithmetic</strong> inside the very transaction that persists the token summary — measured in-container, three concurrent 0.30 € runs give exactly <code>0.900000 €</code> and <code>run_count = 3</code>. Two bounds compose and <strong>the smaller wins</strong>: an operator may tighten what the deployment allows, never widen it. Where per-user limits fail <strong>open</strong>, an unknown instance spend fails <strong>closed</strong> — at worst one message too many on one side, at worst the whole budget on the other — and a dedicated error code carries a <code>Retry-After</code> to the next UTC midnight instead of the false "contact your administrator". <strong>Ten platform capabilities</strong> (dictation, speech, images, uploads, document spaces, web search, browsing, skills, MCP, telephony) now switch off from the admin panel in two seconds, each declaring <strong>the mode by which it is really enforced</strong> — tools vanish from the planner's catalogue, a route refuses with a stable code, or an internal chokepoint cuts the source. Speech synthesis has <strong>no route at all</strong>: the first draft that called it route-enforced was wrong, and only checking the real wiring showed it. <strong>Three guards that recalculate found three faults green tests could not see</strong>: speech synthesis was <strong>billed and never counted</strong> against the ceiling; <code>/auth/google/login</code> was public and bypassed the newly mandatory terms acceptance while putting a real Google identity on a public instance; and <strong>eleven connector paths bound a real credential with no guard at all</strong>. Each guard was then deliberately broken to prove it goes red. <strong>18,206 backend</strong> + <strong>5,446 frontend</strong> tests, all six languages. — 8 August 2026.
 
 </p>
 
@@ -101,6 +101,8 @@
 
 LIA is available as a hosted service at **https://lia.jeyswork.com/** — no installation required.
 
+**Interactive showroom** — [lia.jeyswork.com/demo](https://lia.jeyswork.com/demo) runs six guided synthetic missions, one per differentiating mechanism: orchestration under approval, proactivity, persistent memory, outbound calls, rich replies, and in-app configuration. Pick one, watch LIA read its sources, then **approve, edit, or refuse** each prepared change through the real approval UI — and read LIA's closing reply rendered by the production rich-HTML pipeline. Everything is clearly labeled synthetic — no account, model, or external service is contacted, and a proof drawer links every visible capability to its exact source. Self-hosting follows the [Quick Start](#quick-start) below — manually, or through the guided `./install.sh` (ADR-215); until its disposable clean-machine qualification gates pass, prebuilt-image installation stays locked behind a qualified release manifest.
+
 > **Closed beta**: Access is currently limited to a restricted number of users, at the administrator's discretion. To request an invitation, contact **liamyassistant@gmail.com**.
 
 ---
@@ -115,7 +117,7 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **36** functional domains | **505,000** lines of code (excl. tests) | **22,800+** automated tests | **204** ADRs                                                           |
+| **39** functional domains | **548,000** lines of code (excl. tests) | **23,600+** automated tests | **217** ADRs                                                           |
 | **197** versions shipped  | **6 languages**, parity enforced in CI  | **466** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
@@ -357,6 +359,8 @@ ExecutionStep(
 - **GDPR**: Automatic PII filtering, pseudonymization, and **full-account export** (Art. 20): durable jobs build a ZIP (JSON + readable Markdown + uploaded files) from a total data classification where secret tables are unexportable by construction. Feature flag: `ACCOUNT_EXPORT_ENABLED=true` — ADR-145
 - **Offline PWA**: one unified service worker serves push and a branded 6-language offline page; `/api/` is never cached — ADR-146
 - **Per-User Usage Limits**: Token, message, and cost quotas (period/global) with 5-layer defense-in-depth enforcement, admin kill switch, real-time dashboard with WebSocket gauges. Feature flag: `USAGE_LIMITS_ENABLED=true`
+- **Instance Daily Spend Ceiling**: a durable UTC ledger caps what the whole deployment may spend in a day, not what one account consumes — atomic UPSERT with column arithmetic inside the transaction that persists the run's token summary, so concurrent runs can never lose spend to a read-modify-write race. Two bounds compose (`INSTANCE_DAILY_BUDGET_EUR` and an admin setting) and the smaller wins. Unlike per-user limits, which fail **open**, an unknown instance spend fails **closed**; refusals carry a dedicated code and a `Retry-After` to the next UTC midnight — ADR-216
+- **Administrable Platform Capabilities**: ten non-connector capabilities switch off from the admin panel with no redeploy, each declaring the mode by which it is really enforced — planner catalogue exclusion, a route dependency refusing with a stable code, or an internal chokepoint for capabilities that have no route at all. Two boot guards recalculate the declaration against the live agent catalogue and the live routers — ADR-217
 - **Backups**: Automated daily PostgreSQL dumps (pg_dump sidecar, daily/weekly/monthly rotation, all `.env`-driven) with a tested one-command restore and a verification drill (`task backup:verify`) — ADR-109, runbook in `docs/runbooks/DATABASE_BACKUP_RESTORE.md`
 
 ### MCP (Model Context Protocol)
@@ -552,6 +556,9 @@ A web-based administration panel covering every operational aspect:
 | **Broadcasting**             | Send system-wide notifications to all users or targeted groups                                                                                                                                                                                                                                                                    |
 | **Debug Settings**           | Toggle debug panel visibility, configure diagnostic verbosity per user                                                                                                                                                                                                                                                            |
 | **Usage Limits**             | Per-user token/message/cost quotas (period + global), real-time gauges, manual block/unblock, WebSocket live updates                                                                                                                                                                                                              |
+| **Instance Daily Budget**    | Instance-wide spend ceiling in euros (ADR-216) — today's spend, run count, the ceiling that actually applies and what remains. The operator value may only tighten the deployment bound, never widen it, and the panel shows both side by side                                                                                     |
+| **Platform Capabilities**    | Ten capabilities (dictation, speech, images, uploads, document spaces, web search, browsing, skills, MCP, telephony) switched off instantly without redeploying (ADR-217) — each row shows the deployment bound, the operator choice and the state actually enforced, with an "Unavailable" badge and its reason                    |
+| **Public Demo Link**         | Publish or retract the guided showroom link surfaced to visitors                                                                                                                                                                                                                                                                  |
 | **Consumption Export**       | CSV export of token usage, Google API usage, and aggregated consumption per user/period                                                                                                                                                                                                                                           |
 
 ### Real-Time Debug Panel
@@ -584,6 +591,36 @@ A 24-section debug panel embedded in the chat interface, organized into **6 logi
 | [Task](https://taskfile.dev/) | 3+      | Yes (build tool) |
 
 All commands are defined in `Taskfile.yml`. Quick start: `task setup` then `task dev`.
+
+### Self-host installer (`./install.sh`)
+
+A guided installer for production self-hosting lives at the repository root
+(ADR-215). **Full guide: [docs/guides/GUIDE_SELF_HOSTING.md](docs/guides/GUIDE_SELF_HOSTING.md)** —
+what it installs, every setting, and what to do when a step fails.
+
+Its mode is conditional and the same rule holds before and after release
+qualification:
+
+- a **complete source checkout** (this repository) defaults to a **local
+  build** of the API and Web images;
+- an **official release directory** defaults to **prebuilt digests** only
+  when its adjacent `lia-self-host-manifest.json` is qualified
+  (`qualification="passed"`); an absent or candidate manifest keeps the
+  local-build default;
+- `./install.sh --local-build` inside a release directory builds from the
+  release's **verified embedded source context**, never from an unpinned
+  checkout;
+- if neither a complete checkout nor a valid embedded context exists, the
+  installer fails **before touching anything** and prints the exact
+  qualified release asset to download.
+
+The installer asks a short questionnaire (exposure: LAN, your own reverse
+proxy, or managed HTTPS with Caddy), generates a private `.env` and Compose
+overlay, applies the reference seeds atomically, creates the admin and
+provider keys over stdin (never argv), verifies the installation beyond
+`/ready`, and prints a non-secret report. Resume after interruption with
+`./install.sh --resume`; adjust routing later with `./install.sh
+--reconfigure`.
 
 ### Express Setup (5 minutes)
 
@@ -914,12 +951,12 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md)   | Complete development workflow                             |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent                                 |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md)   | How to create a new tool                                  |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (~18,276 backend tests across 990+ files) |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (18,206 backend tests across 987 files)  |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md)           | LangGraph and log debugging                               |
 
 ### Architecture Decision Records (ADR)
 
-204 ADR files (ADR-001 through ADR-205 — ADR-008 has no separate file) documenting major architectural decisions:
+217 ADR files (ADR-001 through ADR-218 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)
@@ -953,10 +990,10 @@ pytest --cov=src --cov-report=html -v
 
 | Metric                  | Value                                                                                         |
 | ----------------------- | --------------------------------------------------------------------------------------------- |
-| Total backend tests     | ~18,276 (pytest collected, 990+ test files)                                                   |
-| Backend breakdown       | unit fast ~10,150 · agents ~970 · integration ~580 (zero skips)                               |
-| Frontend tests (vitest) | 1,222 (+ 17 hermetic Playwright E2E incl. axe/dark/zoom)                                      |
-| Coverage target         | 45% backend (ratchet) · frontend thresholds locked per category                               |
+| Total backend tests     | 18,206 collected across 987 files (`pytest tests/unit tests/agents --collect-only`)           |
+| Backend breakdown       | unit 17,012 (920 files) · agents 1,194 (67 files) · integration 704 (72 files)                 |
+| Frontend tests (vitest) | 5,446 across 440 files (+ 52 hermetic Playwright E2E specs incl. axe/dark/zoom)                |
+| Coverage floor          | 65% backend (shrink-only ratchet) · frontend thresholds locked per glob                       |
 | CI Workflows            | 3 (CI, Security, Release)                                                                     |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md) |
 

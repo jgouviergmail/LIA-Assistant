@@ -141,6 +141,29 @@ canvas, implicating the palette for a server hiccup. `a11y/scan.ts` therefore
 waits for the design-system tokens to resolve before every scan and aborts
 with an actionable error if they never do.
 
+### Showroom suites from a Windows host
+
+`task test:e2e:showroom` works in CI (Linux) but NOT from the Windows host:
+the e2e `node_modules` are typically installed from a Linux container (no
+`.cmd` shims, so `npx playwright` is "not recognized"), and the managed
+server spawns `PORT=3000 node …`, an inline env assignment cmd.exe cannot
+parse. The proven local sequence is the production-server recipe above with
+the showroom build flags, then the suite in the official image:
+
+```bash
+docker exec -u node -e NODE_ENV=production -e NEXT_DIST_DIR=.next-e2e \
+  -e NEXT_PUBLIC_API_URL= -e NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT=guided \
+  -e NEXT_PUBLIC_PRODUCT_TELEMETRY=false -e NEXT_PUBLIC_WEB_VITALS_SAMPLE_RATE=0 \
+  lia-web-dev sh -c "cd /monorepo/apps/web && pnpm build"
+# then the static/public copy + PORT=3100 server start, as above, and:
+MSYS_NO_PATHCONV=1 docker run --rm --network container:lia-web-dev \
+  -e E2E_BASE_URL=http://127.0.0.1:3100 -e E2E_SHOWROOM=1 \
+  -v "//d/Developpement/LIA/apps/web/e2e:/e2e" -w /e2e \
+  mcr.microsoft.com/playwright:v1.60.0-jammy \
+  sh -c "npm ci --no-audit --no-fund && npx playwright test \
+    smoke/public-demo-showroom.spec.ts a11y/axe-public-demo-showroom.spec.ts --reporter=list"
+```
+
 ## Running in CI
 
 The `e2e-frontend` job runs in the same Playwright image. It sets

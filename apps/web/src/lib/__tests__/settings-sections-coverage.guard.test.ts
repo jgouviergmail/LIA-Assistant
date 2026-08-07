@@ -69,6 +69,8 @@ const STRUCTURAL: Readonly<Record<string, string>> = {
 const ADMIN_TAB_DEFERRED: Readonly<Record<string, string>> = {
   AdminUsersSection: 'admin: user administration',
   AdminUsageLimitsSection: 'admin: usage limits',
+  AdminCapabilitiesSection: 'admin: platform capability switches',
+  AdminPublicDemoLinkSection: 'admin: public demonstrator link switch',
   AdminConsumptionExportSection: 'admin: consumption export (wraps ConsumptionExportSection)',
   AdminBroadcastSection: 'admin: broadcast message',
   AdminConnectorsSection: 'admin: connector administration',

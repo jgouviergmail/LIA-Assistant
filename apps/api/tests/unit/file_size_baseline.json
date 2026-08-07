@@ -4,7 +4,7 @@
   "frozen": {
     "core/exceptions.py": 848,
     "domains/agents/api/router.py": 773,
-    "domains/agents/api/service.py": 1052,
+    "domains/agents/api/service.py": 1037,
     "domains/agents/display/components/base.py": 962,
     "domains/agents/drafts/service.py": 935,
     "domains/agents/emails/catalogue_manifests.py": 753,
@@ -27,7 +27,7 @@
     "domains/agents/services/query_analyzer_service.py": 1018,
     "domains/agents/services/smart_planner_service.py": 1173,
     "domains/agents/services/streaming/debug_metrics_builder.py": 651,
-    "domains/agents/services/streaming/service.py": 1335,
+    "domains/agents/services/streaming/service.py": 1326,
     "domains/agents/tools/calendar_tools.py": 1318,
     "domains/agents/tools/drive_tools.py": 825,
     "domains/agents/tools/emails_tools.py": 1634,
@@ -51,7 +51,7 @@
     "domains/journals/extraction_service.py": 727,
     "domains/psyche/engine.py": 874,
     "domains/psyche/service.py": 913,
-    "domains/users/service.py": 717,
+    "domains/users/service.py": 676,
     "infrastructure/observability/metrics_agents.py": 815
   }
 }

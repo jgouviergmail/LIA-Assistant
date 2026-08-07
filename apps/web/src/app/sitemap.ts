@@ -2,16 +2,21 @@ import type { MetadataRoute } from 'next';
 import { languages, fallbackLng } from '@/i18n/settings';
 import type { Language } from '@/i18n/settings';
 import { BLOG_ARTICLES } from '@/data/blog-articles';
+import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
+// Evaluated per request so the generic prebuilt image serves the runtime
+// APP_URL_SERVER origin (B03) instead of a build-time hostname.
+export const dynamic = 'force-dynamic';
 
 /**
  * Build the full URL for a given path and language.
  * French (default) has no prefix, other languages are prefixed.
  */
 function buildUrl(path: string, lng: Language): string {
-  const prefix = lng === fallbackLng ? '' : `/${lng}`;
-  return `${BASE_URL}${prefix}${path}`;
+  // The caller returns an empty sitemap when no origin is configured, so
+  // origin is non-null here; passing the path verbatim preserves the exact
+  // historical URL shape (home keeps its trailing slash).
+  return localizedUrl(getSiteOrigin(), path, lng);
 }
 
 /**
@@ -34,6 +39,11 @@ function buildAlternates(path: string): Record<string, string> {
  * Each page has alternates for all 6 supported languages.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
+  if (getSiteOrigin() === null) {
+    // Generic image without a configured origin: a sitemap of relative URLs
+    // would be invalid — serve an honest empty one instead.
+    return [];
+  }
   const publicPages = [
     { path: '/', changeFrequency: 'weekly' as const, priority: 1.0 },
     { path: '/blog', changeFrequency: 'weekly' as const, priority: 0.8 },

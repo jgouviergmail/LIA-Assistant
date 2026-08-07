@@ -17,7 +17,9 @@ Updated: 2026-01-15 - Implements TTSClient protocol for multi-provider support
 
 import base64
 import io
+import os
 import time
+from collections.abc import Mapping
 
 import edge_tts
 import structlog
@@ -30,6 +32,34 @@ from src.infrastructure.observability.metrics_voice import (
 )
 
 logger = structlog.get_logger(__name__)
+
+
+def _configured_proxy(env: Mapping[str, str] | None = None) -> str | None:
+    """Outbound proxy this process must use, if the deployment sets one.
+
+    Every other client in the stack picks this up on its own — httpx and
+    requests read the environment by default. ``edge-tts`` speaks WebSocket
+    through aiohttp, which reads no proxy unless it is handed one, so
+    synthesis was the single call that ignored the deployment's only route
+    out. In the demonstrator's envelope the API container sits on no routed
+    network at all, so "ignores the proxy" means "never connects".
+
+    Args:
+        env: Environment to read; defaults to the process environment. Passed
+            explicitly by tests because ``os.environ`` is case-INSENSITIVE on
+            Windows, where the two conventional spellings collapse into one
+            and the precedence between them cannot be observed.
+
+    Returns:
+        The proxy URL, or ``None`` for a direct deployment — which keeps the
+        previous behaviour byte for byte.
+    """
+    source = os.environ if env is None else env
+    for name in ("HTTPS_PROXY", "https_proxy"):
+        value = (source.get(name) or "").strip()
+        if value:
+            return value
+    return None
 
 
 class EdgeTTSClient:
@@ -134,6 +164,9 @@ class EdgeTTSClient:
                 rate=rate,
                 pitch=pitch,
                 volume=volume,
+                # aiohttp discovers no proxy from the environment: passing it
+                # here is what makes synthesis work behind an egress proxy.
+                proxy=_configured_proxy(),
             )
 
             # Collect audio data from stream

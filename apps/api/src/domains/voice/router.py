@@ -36,6 +36,8 @@ from src.core.constants import (
 )
 from src.core.session_dependencies import get_current_active_session
 from src.domains.chat.service import StatisticsService
+from src.domains.feature_switches.guard import capability_dependencies
+from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.llm_config.constants import LLM_DEFAULTS
 from src.domains.usage_limits.service import UsageLimitService
@@ -66,7 +68,13 @@ _WS_AUDIO_SAMPLE_RATE = 16000
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/voice", tags=["Voice"])
+router = APIRouter(
+    prefix="/voice",
+    tags=["Voice"],
+    # Administrable capability: a switched-off feature refuses at the
+    # door, not only in the planner catalogue.
+    dependencies=capability_dependencies(PlatformCapability.STT),
+)
 
 
 # ============================================================================

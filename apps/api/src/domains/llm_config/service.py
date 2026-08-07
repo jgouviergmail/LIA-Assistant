@@ -44,6 +44,48 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+async def upsert_provider_key_uncommitted(
+    db: AsyncSession,
+    *,
+    provider: str,
+    key: str,
+    updated_by: UUID,
+) -> None:
+    """Write one encrypted provider-key row; flush, NEVER commit (ADR-215).
+
+    Shared by the admin route (which owns audit/commit/invalidation) and the
+    installer bootstrap (which owns one atomic transaction across admin plus
+    every provider key) — a single authority on how a key row is written.
+
+    Args:
+        db: Session whose transaction the caller owns.
+        provider: One of ``LLM_PROVIDERS``.
+        key: The raw secret (encrypted here, never logged).
+        updated_by: Admin/bootstrap user id recorded on the row.
+
+    Raises:
+        ValueError: On an unknown provider id.
+    """
+    if provider not in LLM_PROVIDERS:
+        raise ValueError(f"Unknown provider: {provider}")
+
+    encrypted = encrypt_data(key)
+    result = await db.execute(select(ProviderApiKey).where(ProviderApiKey.provider == provider))
+    existing = result.scalar_one_or_none()
+    if existing:
+        existing.encrypted_key = encrypted
+        existing.updated_by = updated_by
+    else:
+        db.add(
+            ProviderApiKey(
+                provider=provider,
+                encrypted_key=encrypted,
+                updated_by=updated_by,
+            )
+        )
+    await db.flush()
+
+
 # Capability vocabulary understood by the checker. LLM_TYPES_REGISTRY entries
 # must only use these strings — an unknown capability passes silently (True),
 # which is how the 'tool_calling' vs 'tools' drift shipped unverified.
@@ -129,28 +171,16 @@ class LLMConfigService:
         admin_user_id: UUID,
         request: Request,
     ) -> None:
-        """Create or update a provider's API key (encrypted)."""
-        if provider not in LLM_PROVIDERS:
-            raise ValueError(f"Unknown provider: {provider}")
+        """Create or update a provider's API key (encrypted).
 
-        encrypted = encrypt_data(key)
-
-        result = await self.db.execute(
-            select(ProviderApiKey).where(ProviderApiKey.provider == provider)
+        The row write goes through the shared uncommitted helper (ADR-215)
+        so the installer bootstrap and this admin route can never drift on
+        how a key row is written; audit, commit, and cross-worker cache
+        invalidation stay owned by this route.
+        """
+        await upsert_provider_key_uncommitted(
+            self.db, provider=provider, key=key, updated_by=admin_user_id
         )
-        existing = result.scalar_one_or_none()
-
-        if existing:
-            existing.encrypted_key = encrypted
-            existing.updated_by = admin_user_id
-        else:
-            self.db.add(
-                ProviderApiKey(
-                    provider=provider,
-                    encrypted_key=encrypted,
-                    updated_by=admin_user_id,
-                )
-            )
 
         self._log_audit(
             admin_user_id,

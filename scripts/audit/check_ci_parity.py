@@ -72,6 +72,12 @@ CI_ONLY: dict[str, str] = {
         "`task db:migrate:replay-check`, a deliberate cross-platform Python port "
         "(F048) because the bash wrapper could not run on the Windows dev host."
     ),
+    "python -B scripts/install/tests_py310.py": (
+        "the installer's 3.10-floor gate (ADR-215) must run under the BARE "
+        "actions/setup-python 3.10 interpreter with no repo venv — running it "
+        "through a task would route it into apps/api/.venv (3.12) and prove "
+        "nothing. Local equivalent: any python >= 3.10 runs the same file."
+    ),
     "pytest tests/unit/ -q --no-cov -p no:cacheprovider": (
         "Python 3.13 forward-compatibility run (F041). The dev machine and every "
         "other job are on 3.12; reproducing this locally would mean maintaining a "

@@ -1,0 +1,47 @@
+# Demonstrator envelope — DEVELOPMENT overrides.
+#
+# One thing only: it publishes the API on a host port so an operator can reach
+# the administration during a local validation.
+#
+# Why that is needed at all: the edge deliberately 404s `/api/v1/admin/*`, so
+# setting the daily ceiling or switching a capability OFF is not reachable
+# from `https://localhost/`. That refusal is the protection working — a public
+# demonstrator must not expose its administration — but it also means the
+# operator needs another door, and on a laptop that door is a local port.
+#
+# NEVER use this file on the public deployment. It is dev-only by name and by
+# intent: `docker-compose.demo-instance.yml` alone is what runs in front of
+# the Internet, and the tunnel reaches the EDGE, never this port.
+#
+# Usage: task demo:up:dev  (or -f base -f this, in that order)
+#
+# Created: 2026-08-06 (live-demonstrator programme, lot 6 follow-up)
+
+# Docker cannot publish a host port for a container whose networks are ALL
+# internal: the DNAT rule exists and the traffic is dropped (measured — an
+# nginx on an internal-only network answered nothing on its published port).
+# In production `demo-instance-ingress` is internal so the edge has no route
+# to the LAN; here it is lowered, deliberately and in the file whose whole
+# purpose is to open a door on a laptop.
+networks:
+  demo-instance-ingress:
+    internal: false
+
+services:
+  demo-instance-edge:
+    ports:
+      # The visitor-facing edge, on loopback only. In production nothing is
+      # published: the Cloudflare tunnel reaches it over the private network.
+      #
+      # The port is overridable because a developer machine already runs a
+      # crowded stack — 8080 belongs to cadvisor here. Change it in
+      # .env.demo-instance, NEXT TO `APP_URL_SERVER`, which builds the email
+      # verification links and must point at the same port.
+      - "127.0.0.1:${DEMO_INSTANCE_EDGE_PORT:-8090}:80"
+
+  demo-instance-api:
+    ports:
+      # Bound to the loopback interface explicitly: without the 127.0.0.1
+      # prefix Docker publishes on 0.0.0.0, and the administration of a
+      # demonstrator would answer to anyone on the local network.
+      - "127.0.0.1:${DEMO_INSTANCE_API_PORT:-8100}:8000"

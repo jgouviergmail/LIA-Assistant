@@ -19,6 +19,7 @@ from src.domains.capabilities.router import router as capabilities_router
 from src.domains.chat.router import router as chat_router
 from src.domains.connectors.router import router as connectors_router
 from src.domains.conversations.router import router as conversations_router
+from src.domains.feature_switches.router import router as capability_switches_router
 from src.domains.google_api.router import router as google_api_admin_router
 from src.domains.google_api.user_export_router import router as user_export_router
 from src.domains.image_generation.options_router import router as image_options_router
@@ -35,6 +36,10 @@ from src.domains.llm_config.router import router as llm_config_router
 from src.domains.memories.router import router as memories_router
 from src.domains.notifications.router import router as notifications_router
 from src.domains.personalities.router import router as personalities_router
+from src.domains.product.public_demo_link import router as public_demo_link_router
+from src.domains.product.public_demo_link_admin import (
+    router as public_demo_link_admin_router,
+)
 from src.domains.relations.router import router as relations_router
 from src.domains.reminders.router import router as reminders_router
 from src.domains.scheduled_actions.router import router as scheduled_actions_router
@@ -103,8 +108,10 @@ if getattr(settings, "habits_enabled", False):
 
 if getattr(settings, "product_analytics_enabled", False):
     from src.domains.product.router import router as product_router
+    from src.domains.product.showroom_telemetry import router as showroom_router
 
     api_router.include_router(product_router)  # Client telemetry ingestion (ADR-178 Phase 4)
+    api_router.include_router(showroom_router)  # Credential-less showroom collector (P0)
 
 if getattr(settings, "peers_enabled", False):
     from src.domains.peers.router import router as peers_router
@@ -167,6 +174,10 @@ api_router.include_router(voice_router)
 api_router.include_router(voice_admin_router)
 api_router.include_router(user_export_router)
 api_router.include_router(system_settings_public_router)
+# Anonymous: the landing page has no session. Deliberately NOT under the
+# telemetry flag — switching analytics off would take the link down too.
+api_router.include_router(public_demo_link_router)
+api_router.include_router(public_demo_link_admin_router)
 
 # Include admin routers
 api_router.include_router(google_api_admin_router)
@@ -175,6 +186,7 @@ api_router.include_router(image_options_router)
 api_router.include_router(llm_admin_router)
 api_router.include_router(personalities_router)
 api_router.include_router(system_settings_router)
+api_router.include_router(capability_switches_router)
 api_router.include_router(llm_config_router)
 
 

@@ -12,6 +12,7 @@ import {
   Scale,
   XCircle,
   Gavel,
+  FlaskConical,
 } from 'lucide-react';
 import { initI18next } from '@/i18n';
 import { GuideMarkdown } from '../guides/GuideMarkdown';
@@ -33,12 +34,16 @@ const TOC_SECTIONS = [
   { id: 'liability', icon: Scale },
   { id: 'termination', icon: XCircle },
   { id: 'applicable_law', icon: Gavel },
+  { id: 'demo_instance', icon: FlaskConical },
 ] as const;
 
 /**
  * Load terms of service markdown content.
- * Falls back to English (not French) for non-FR/EN languages,
- * as English is more universally readable for legal documents.
+ *
+ * Every supported language now has its own file. The English fallback stays
+ * as a safety net for a language added to `settings.ts` before its
+ * translation lands — `terms-content.guard.test.ts` fails in that window, so
+ * the fallback is a cushion, never a resting place.
  */
 function loadGuideContent(lng: string): string {
   const guidesDir = path.join(process.cwd(), 'src', 'data', 'guides');

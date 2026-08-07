@@ -63,6 +63,18 @@ vi.mock('@/components/landing/InteractiveChatMockup', () => ({
 vi.mock('@/components/telemetry/TelemetryBootstrap', () => ({
   TrackView: ({ event }: { event: string }) => <div data-testid="track-view" data-event={event} />,
 }));
+vi.mock('@/components/showroom/GuidedShowroom', () => ({
+  GuidedShowroom: () => <div data-testid="guided-showroom" />,
+}));
+vi.mock('@/lib/showroom-config', () => ({
+  getPublicShowroomVariant: vi.fn(() => 'legacy'),
+  // Dedicated live flag: OFF here — the guided/legacy contract under test
+  // must never depend on the live deployment decision.
+}));
+
+import { getPublicShowroomVariant } from '@/lib/showroom-config';
+
+const variantMock = vi.mocked(getPublicShowroomVariant);
 
 import { BLOG_ARTICLES } from '@/data/blog-articles';
 import BlogArticlePage from '../blog/[slug]/page';
@@ -99,6 +111,19 @@ describe('public pages — cosmos identity', () => {
     expect(getByTestId('chat-mockup')).toBeInTheDocument();
     expect(getByTestId('planetarium')).toBeInTheDocument();
     expect(getByTestId('track-view')).toHaveAttribute('data-event', 'demo_started');
+  });
+
+  it('/demo guided renders ONLY the mission — never TrackView or the mockup', async () => {
+    variantMock.mockReturnValueOnce('guided');
+    const { container, getByTestId, queryByTestId } = render(await DemoPage(PARAMS));
+    // Cosmos shell preserved in both branches.
+    expect(container.querySelector('.landing-page.cosmos')).toBeInTheDocument();
+    expect(getByTestId('guided-showroom')).toBeInTheDocument();
+    // The guided branch must never mount the credentialed TrackView emitter,
+    // nor the legacy mockup/planetarium composition.
+    expect(queryByTestId('track-view')).not.toBeInTheDocument();
+    expect(queryByTestId('chat-mockup')).not.toBeInTheDocument();
+    expect(queryByTestId('planetarium')).not.toBeInTheDocument();
   });
 
   it.each([

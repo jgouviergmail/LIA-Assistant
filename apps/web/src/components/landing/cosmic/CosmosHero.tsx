@@ -9,9 +9,10 @@ import Link from 'next/link';
 import { initI18next } from '@/i18n';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ShieldCheck } from 'lucide-react';
+import { ChevronDown, PlayCircle, ShieldCheck, Star } from 'lucide-react';
 import { GithubIcon } from '@/components/icons/GithubIcon';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
+import { getPublicShowroomVariant } from '@/lib/showroom-config';
 import type { Language } from '@/i18n/settings';
 import { InteractiveChatMockup } from '../InteractiveChatMockup';
 import { LANDING_STATS } from '../constants';
@@ -49,6 +50,11 @@ function rise(delayMs: number): { style: React.CSSProperties } {
 export async function CosmosHero({ lng }: { lng: string }) {
   const { t } = await initI18next(lng);
   const registerHref = buildLocalizedPath('/register', lng as Language);
+  // The demo CTA exists ONLY when the guided mission is the /demo experience:
+  // under `legacy` that page is a passive mockup, so advertising it as a demo
+  // would overpromise. Build-time value — no runtime branch on the public page.
+  const showsGuidedDemo = getPublicShowroomVariant() === 'guided';
+  const demoHref = buildLocalizedPath('/demo', lng as Language);
 
   const formattedDate = new Date(LAST_UPDATED).toLocaleDateString(
     HERO_DATE_LOCALES[lng] || 'en-US',
@@ -126,15 +132,37 @@ export async function CosmosHero({ lng }: { lng: string }) {
 
             <div
               {...rise(RISE_DELAYS.cta)}
-              className="cosmos-rise flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-8"
+              className="cosmos-rise flex flex-col sm:flex-row sm:flex-wrap gap-3 justify-center lg:justify-start mb-8"
             >
-              <Button asChild size="lg" className="text-base px-8">
+              <Button asChild size="lg" className="text-base px-6">
                 <Link href={registerHref}>{t('landing.hero.cta_primary')}</Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="text-base px-8 gap-2">
+              {showsGuidedDemo && (
+                <Button asChild variant="outline" size="lg" className="text-base px-5 gap-2">
+                  <Link href={demoHref} data-testid="hero-cta-demo">
+                    <PlayCircle className="w-5 h-5" aria-hidden="true" />
+                    {t('landing.hero.cta_demo')}
+                  </Link>
+                </Button>
+              )}
+              <Button asChild variant="outline" size="lg" className="text-base px-5 gap-2">
                 <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">
                   <GithubIcon className="w-5 h-5" />
                   {t('landing.hero.cta_github')}
+                </a>
+              </Button>
+              {/* GitHub exposes no URL that stars a repository (that needs an
+                  OAuth token): this lands the visitor on the repo where the
+                  star control is one click away — the honest maximum. */}
+              <Button asChild variant="outline" size="lg" className="text-base px-5 gap-2">
+                <a
+                  href={GITHUB_REPO_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid="hero-cta-star"
+                >
+                  <Star className="w-5 h-5" aria-hidden="true" />
+                  {t('landing.hero.cta_star')}
                 </a>
               </Button>
             </div>
@@ -158,7 +186,24 @@ export async function CosmosHero({ lng }: { lng: string }) {
               unbreakable line inside a mockup act sets the implicit track's
               min-content and silently widens the hero past a phone viewport
               (the historical hero-overflow mechanism, one level up). */}
-          <div {...rise(RISE_DELAYS.mockup)} className="cosmos-rise w-full min-w-0">
+          {/* lg:-translate-y-[57px] — optical alignment of the mockup's act
+              row with the badge/date line of the left column.
+              Originally 91px, measured in-browser at 1440x900 when the acts
+              and the schedule controls shared ONE wrapping row. Splitting them
+              into two rows (the acts must never wrap — see
+              InteractiveChatMockup) made the column taller, and since the grid
+              track is `items-center` the extra height re-centred it and lifted
+              the act row: re-measured on a 1340px render, the acts sat 34px
+              ABOVE the date line instead of on it. 91 - 34 = 57.
+              TRANSFORM, not a negative margin: `items-center` would absorb a
+              margin and move the column by half the value. Two-column layout
+              only — below `lg` the columns stack and any offset breaks the
+              flow. Changing the height of the act or control rows invalidates
+              this number; it is a measurement, not a constant. */}
+          <div
+            {...rise(RISE_DELAYS.mockup)}
+            className="cosmos-rise w-full min-w-0 lg:-translate-y-[57px]"
+          >
             <div className="cosmos-orbit-zone">
               <Planetarium />
               <div className="relative z-10 w-full min-w-0">

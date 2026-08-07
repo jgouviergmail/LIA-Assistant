@@ -7,13 +7,26 @@ import { Button } from '@/components/ui/button';
 import { logger } from '@/lib/logger';
 import { useLoggingContext } from '@/lib/logging-context';
 import { useTranslation } from 'react-i18next';
+import { useAuthFeatures } from '@/hooks/useWebAuthn';
 
 interface OAuthButtonsProps {
   mode?: 'login' | 'register';
 }
 
+/**
+ * Sign in with an identity provider — when the instance offers it.
+ *
+ * A public demonstrator closes that route: accounts are created with an email
+ * address and an explicit acceptance of the terms, which are what tell a
+ * visitor everything is wiped nightly. Drawing a button that answers 404
+ * would be worse than drawing none, so the component reads the instance's
+ * published capabilities and renders nothing when the answer is no — or not
+ * yet known, since a button appearing a beat later moves the form under the
+ * reader's cursor.
+ */
 export function OAuthButtons({ mode = 'login' }: OAuthButtonsProps) {
   const { initiateGoogleOAuth } = useAuth();
+  const { features } = useAuthFeatures();
   const { withContext } = useLoggingContext();
   const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
@@ -39,6 +52,8 @@ export function OAuthButtons({ mode = 'login' }: OAuthButtonsProps) {
       });
     }
   };
+
+  if (!features?.federated_signin_enabled) return null;
 
   return (
     <div className="space-y-3">

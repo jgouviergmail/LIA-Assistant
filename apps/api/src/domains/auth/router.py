@@ -18,6 +18,7 @@ from fastapi import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.demo_mode import forbid_federated_signin_in_demo
 from src.core.dependencies import get_db
 from src.core.exceptions import (
     GoneError,
@@ -97,7 +98,17 @@ from src.infrastructure.observability.metrics_oauth import (
 
 logger = structlog.get_logger(__name__)
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+# A public demonstrator has exactly ONE way in: an email address and an
+# explicit acceptance of the terms, which are what tell a visitor the instance
+# is wiped every night. Signing in with an identity provider would create the
+# account without ever showing them that document — and would spend the
+# operator's OAuth client on strangers. The guard classifies by path shape, so
+# a provider added later is covered without touching this line.
+router = APIRouter(
+    prefix="/auth",
+    tags=["Authentication"],
+    dependencies=[Depends(forbid_federated_signin_in_demo)],
+)
 
 
 @router.get(
@@ -109,7 +120,18 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 )
 async def auth_features() -> AuthFeaturesResponse:
     """Expose which authentication features are mounted on this instance."""
-    return AuthFeaturesResponse(mfa_enabled=settings.mfa_enabled)
+    return AuthFeaturesResponse(
+        mfa_enabled=settings.mfa_enabled,
+        # The server refuses a registration without them (lot 2); a form that
+        # cannot show the box makes the instance impossible to sign up to —
+        # measured 2026-08-06, every UI registration failed on
+        # `terms_accepted` while the API path worked.
+        terms_required=settings.demo_mode_enabled,
+        terms_version=settings.demo_terms_version if settings.demo_mode_enabled else "",
+        # A demonstrator draws no button it would refuse: federated
+        # sign-in is closed there (core/demo_mode.py).
+        federated_signin_enabled=not settings.demo_mode_enabled,
+    )
 
 
 @router.post(

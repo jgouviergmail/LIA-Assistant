@@ -21,7 +21,7 @@ class TestSettings:
             os.environ,
             {
                 "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
-                "FERNET_KEY": "test-fernet-key-32-bytes-base64==",
+                "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
             },
@@ -29,7 +29,7 @@ class TestSettings:
             settings = Settings()
 
             assert settings.secret_key == "test-secret-key-minimum-32-characters-long"
-            assert settings.fernet_key == "test-fernet-key-32-bytes-base64=="
+            assert settings.fernet_key == "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA="
             assert "postgresql+asyncpg" in str(settings.database_url)
             assert "redis" in str(settings.redis_url)
 
@@ -39,7 +39,7 @@ class TestSettings:
             os.environ,
             {
                 "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
-                "FERNET_KEY": "test-fernet-key-32-bytes-base64==",
+                "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
                 # Required LLM model fields (Phase 6 multi-provider support)
@@ -68,7 +68,7 @@ class TestSettings:
             os.environ,
             {
                 "SECRET_KEY": "short",  # Too short
-                "FERNET_KEY": "test-fernet-key-32-bytes-base64==",
+                "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
             },
@@ -98,7 +98,7 @@ class TestSettings:
             os.environ,
             {
                 "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
-                "FERNET_KEY": "test-fernet-key-32-bytes-base64==",
+                "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
                 "CORS_ORIGINS": "http://localhost:3000,http://localhost:3001,https://example.com",
@@ -118,7 +118,7 @@ class TestSettings:
             os.environ,
             {
                 "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
-                "FERNET_KEY": "test-fernet-key-32-bytes-base64==",
+                "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
             },
@@ -132,7 +132,7 @@ class TestSettings:
             os.environ,
             {
                 "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
-                "FERNET_KEY": "test-fernet-key-32-bytes-base64==",
+                "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
                 "ENVIRONMENT": "production",
@@ -145,7 +145,7 @@ class TestSettings:
             os.environ,
             {
                 "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
-                "FERNET_KEY": "test-fernet-key-32-bytes-base64==",
+                "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
                 "ENVIRONMENT": "development",
@@ -160,7 +160,7 @@ class TestSettings:
             os.environ,
             {
                 "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
-                "FERNET_KEY": "test-fernet-key-32-bytes-base64==",
+                "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
                 "ENVIRONMENT": "development",
@@ -173,7 +173,7 @@ class TestSettings:
             os.environ,
             {
                 "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
-                "FERNET_KEY": "test-fernet-key-32-bytes-base64==",
+                "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
                 "ENVIRONMENT": "production",
@@ -188,7 +188,7 @@ class TestSettings:
             os.environ,
             {
                 "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
-                "FERNET_KEY": "test-fernet-key-32-bytes-base64==",
+                "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
             },
@@ -205,7 +205,7 @@ class TestSettings:
             os.environ,
             {
                 "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
-                "FERNET_KEY": "test-fernet-key-32-bytes-base64==",
+                "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
             },
@@ -222,7 +222,7 @@ class TestSettings:
             os.environ,
             {
                 "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
-                "FERNET_KEY": "test-fernet-key-32-bytes-base64==",
+                "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
                 "GOOGLE_CLIENT_ID": "test-google-client-id",
@@ -242,7 +242,7 @@ class TestSettings:
             os.environ,
             {
                 "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
-                "FERNET_KEY": "test-fernet-key-32-bytes-base64==",
+                "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
                 "RATE_LIMIT_PER_MINUTE": "120",
@@ -260,7 +260,7 @@ class TestSettings:
             os.environ,
             {
                 "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
-                "FERNET_KEY": "test-fernet-key-32-bytes-base64==",
+                "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
                 "OTEL_EXPORTER_OTLP_ENDPOINT": "http://jaeger:4317",
@@ -291,7 +291,7 @@ class TestSettings:
             os.environ,
             {
                 "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
-                "FERNET_KEY": "test-fernet-key-32-bytes-base64==",
+                "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
                 "LIFETIME_METRICS_UPDATE_INTERVAL": "45",
@@ -320,7 +320,7 @@ class TestSettings:
             os.environ,
             {
                 "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
-                "FERNET_KEY": "test-fernet-key-32-bytes-base64==",
+                "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
                 "MCP_REACT_STEP_TIMEOUT_SECONDS": "240",

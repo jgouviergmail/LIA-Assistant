@@ -11,12 +11,19 @@
  * out the very behaviour under test.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 
 const { register } = vi.hoisted(() => ({ register: vi.fn() }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ register }) }));
+
+const authFeatures = vi.hoisted(() => ({
+  value: { mfa_enabled: false, federated_signin_enabled: true, terms_required: false, terms_version: '' },
+}));
+vi.mock('@/hooks/useWebAuthn', () => ({
+  useAuthFeatures: () => ({ features: authFeatures.value, loading: false }),
+}));
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock('@/hooks/useLocalizedRouter', () => ({ useLocalizedRouter: () => ({ push }) }));
 vi.mock('@/utils/timezone', () => ({
@@ -28,7 +35,7 @@ vi.mock('@/lib/logger', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
-import { RegisterForm } from '../register-form';
+import { RegisterForm, registrationErrorKey } from '../register-form';
 
 const NAME = 'auth.full_name_label';
 const EMAIL = 'auth.email_label';
@@ -103,7 +110,10 @@ describe('RegisterForm — submission', () => {
         'Alice',
         false,
         'Europe/Paris',
-        'fr'
+        'fr',
+        // Seventh argument: terms acceptance, undefined where nothing is
+        // required of the visitor.
+        undefined
       )
     );
     expect(push).toHaveBeenCalledWith('/registration-success');
@@ -121,7 +131,8 @@ describe('RegisterForm — submission', () => {
         'Alice',
         true,
         'Europe/Paris',
-        'fr'
+        'fr',
+        undefined
       )
     );
   });
@@ -138,5 +149,103 @@ describe('RegisterForm — submission', () => {
   it('shows the detected timezone to the user', async () => {
     renderWithProviders(<RegisterForm />);
     expect(await screen.findByText(/Europe\/Paris/)).toBeInTheDocument();
+  });
+});
+
+describe('RegisterForm — a demonstrator asks for the terms', () => {
+  afterEach(() => {
+    authFeatures.value = {
+      mfa_enabled: false,
+      federated_signin_enabled: true,
+      terms_required: false,
+      terms_version: '',
+    };
+  });
+
+  it('shows no checkbox on an ordinary instance', () => {
+    renderWithProviders(<RegisterForm />);
+    expect(screen.queryByRole('checkbox', { name: /auth\.terms/ })).not.toBeInTheDocument();
+  });
+
+  it('asks for acceptance when the instance requires it', () => {
+    authFeatures.value = {
+      mfa_enabled: false,
+      federated_signin_enabled: false,
+      terms_required: true,
+      terms_version: '2026-08-06',
+    };
+    renderWithProviders(<RegisterForm />);
+
+    // The box exists, and the terms are one click away — a visitor cannot
+    // accept what they cannot read.
+    expect(screen.getByRole('checkbox', { name: /auth\.terms/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'auth.terms.link_label' })).toHaveAttribute(
+      'target',
+      '_blank'
+    );
+  });
+
+  it('refuses to submit unaccepted, and says why', async () => {
+    authFeatures.value = {
+      mfa_enabled: false,
+      federated_signin_enabled: false,
+      terms_required: true,
+      terms_version: '2026-08-06',
+    };
+    const { user } = renderWithProviders(<RegisterForm />);
+
+    await fill(user);
+    await user.click(screen.getByRole('button', { name: 'auth.register_button' }));
+
+    // The server refuses this too; saying it here spares the visitor a round
+    // trip that reads as "Registration failed" with no reason.
+    expect(await screen.findByText('auth.errors.terms_not_accepted')).toBeInTheDocument();
+    expect(register).not.toHaveBeenCalled();
+  });
+
+  it('carries the acceptance to the API once ticked', async () => {
+    authFeatures.value = {
+      mfa_enabled: false,
+      federated_signin_enabled: false,
+      terms_required: true,
+      terms_version: '2026-08-06',
+    };
+    const { user } = renderWithProviders(<RegisterForm />);
+
+    await fill(user);
+    await user.click(screen.getByRole('checkbox', { name: /auth\.terms/ }));
+    await user.click(screen.getByRole('button', { name: 'auth.register_button' }));
+
+    await waitFor(() => expect(register).toHaveBeenCalled());
+    expect(register.mock.calls[0][6]).toBe(true);
+  });
+});
+
+
+describe('registrationErrorKey — an explicable refusal stays explicable', () => {
+  /**
+   * The demonstrator's daily ceiling is a bound the visitor can act on: it
+   * reopens at midnight UTC. Collapsing it into "registration failed" told
+   * them nothing — not that it is full, not that it reopens, not when. And
+   * the first version of the backend shipped an English sentence, which a
+   * French visitor would have read in English.
+   */
+  it('names the daily ceiling when the backend refuses for that reason', () => {
+    const error = { data: { detail: { error: 'demo_signup_limit_reached' } } };
+
+    expect(registrationErrorKey(error)).toBe('auth.errors.demo_signup_limit_reached');
+  });
+
+  it.each([
+    ['a different structured code', { data: { detail: { error: 'email_already_exists' } } }],
+    ['a validation array', { data: { detail: [{ msg: 'invalid' }] } }],
+    ['no data at all', new Error('network down')],
+    ['a null detail', { data: { detail: null } }],
+    ['a non-string code', { data: { detail: { error: 42 } } }],
+    ['undefined', undefined],
+  ])('keeps the generic message for %s', (_label, error) => {
+    // Inventing a specific cause for a failure the visitor cannot act on is
+    // worse than saying nothing precise.
+    expect(registrationErrorKey(error)).toBe('auth.errors.registration_failed');
   });
 });

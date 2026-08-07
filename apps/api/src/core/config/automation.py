@@ -41,7 +41,7 @@ class AutomationSettings(BaseSettings):
     """
 
     recurrence_suggestion_enabled: bool = Field(
-        default=False,
+        default=True,
         description="Enable the recurrence detector + automation suggestion.",
     )
     recurrence_window_days: int = Field(

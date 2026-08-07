@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 3.9
-**Date**: 2026-08-05
-**Application**: LIA v1.28.0
+**Version**: 4.0
+**Date**: 2026-08-08
+**Application**: LIA v1.29.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -40,6 +40,7 @@
 25. [Evolution potential and extensibility](#25-evolution-potential-and-extensibility)
 26. [Psyche Engine: Dynamic Emotional Intelligence](#26-psyche-engine-dynamic-emotional-intelligence)
 27. [Deterministic habit learning](#27-deterministic-habit-learning)
+28. [Governing an instance: spend, capabilities, installation](#28-governing-an-instance-spend-capabilities-installation)
 
 ---
 
@@ -55,7 +56,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 466 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 213 ADRs, ~18,276 pytest-collected tests across 990 files, native observability, 6-level HITL |
+| Production reliability | 217 ADRs, ~18,206 pytest-collected tests across 987 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -73,9 +74,9 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~18,276 (collected by pytest across 990 test files) + 5,048 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~18,206 (collected by pytest across 987 test files) + 5,446 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
-| Documentation documents | 400+ |
+| Documentation documents | 490+ |
 | ADRs (Architecture Decision Records) | 209 |
 | Prometheus metrics | 466 definitions |
 | Grafana dashboards | 26 |
@@ -1260,7 +1261,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-213 ADRs in MADR format document the major architectural decisions. Some representative examples:
+217 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1349,14 +1350,26 @@ The hardest problem was not the detector but the **data**: conversations are eph
 
 Consumption is deliberately restrained: ambient context for responses and briefings, at most one missed-routine offer per day with a hard stop after two ignored ones, and notification tick scoring that prefers learned windows without ever widening the user's configured bounds — an anti-starvation rule guarantees an empty intersection changes nothing. Every threshold the detectors apply is published in the panel: a displayed habit is proven, or it does not exist.
 
+## 28. Governing an instance: spend, capabilities, installation
+
+Three questions had no answer anywhere in the code base: how much may this instance spend, what may an operator switch off without redeploying, and how does somebody else run this project at all. The existing usage limits answered "how much does this account consume", which is a different question — N accounts × their quota is unbounded spend, and a search across the whole code base found no global ceiling (`global`, `instance_wide`, `daily_total`: zero occurrences). That is structural, not an oversight.
+
+The instance ceiling is a **daily UTC ledger** whose authority is PostgreSQL. Each run's cost enters through one `INSERT ... ON CONFLICT DO UPDATE` with column arithmetic, inside the transaction that already persists the token summary — both land together or neither does, so the check never sees a partial view. The insert goes through a SAVEPOINT: swallowing a failed statement without one poisons the transaction and takes the caller's commit down with it, losing the very accounting it came to write. Recording is **not** conditioned on a ceiling existing; conditioning it would leave a window where an administrator sets a ceiling while the counter is mute, so the ceiling would never fire — the inert-setting trap (ADR-183). The check itself is composed inside `check_user_allowed`, the single gate already crossed by the chat router, the SSE barrier, the voice WebSocket and every scheduled job: coverage is obtained by construction rather than by copying the control into each caller and forgetting the next one. Two properties follow, both tested: the instance verdict is computed **before and outside** the per-user cache (a cached "allowed" would keep spending for the whole TTL after exhaustion), and it is independent of the per-user limits flag (coupling them would silently disarm one of the two). Finally, the failure doctrine is deliberately inverted: a per-user limit fails **open** — at worst one message too many; an unknown instance spend fails **closed** — at worst, the entire budget.
+
+Administrable capabilities follow the same two-composed-bounds model — what the deployment allows and what the operator chooses inside it, the smaller winning — but their difficulty lies elsewhere: **where** a capability is actually enforced. Three modes are declared explicitly, because the wrong choice produces a switch that cuts nothing. `agents` removes the capability's tools from the catalogue offered to the planner, borrowing the `exclude_tools` post-filter already written for sub-agent refusal — one mechanism, not two. `route_enforced` makes a router dependency refuse with a stable code and the capability name, never a sentence: the frontend says which feature is off, in the reader's language. `service_enforced` cuts at an internal chokepoint: speech synthesis has **no route at all** — it is produced inside the chat stream, and a router dependency would have enforced nothing there. The first draft nevertheless declared it route-enforced; only checking the real wiring showed otherwise. Two boot guards recalculate the declaration against reality — do the named agents exist in the live catalogue, is the declared route still mounted — by walking the router objects rather than the text of the files, so that moving a route is followed rather than missed.
+
+The installer applies the same rule to the artifact chain: never trust a label. The default is a **local build** from the checked-out source; prebuilt mode accepts only `repository@sha256:...` references from a manifest whose qualification is explicitly `passed`, and promoting a version rebuilds nothing — it creates the semantic tag from digests that were already qualified. Secrets enter through stdin as one JSON document that creates the administrator through the existing password authority and encrypts the provider keys in the same transaction; nothing passes through `argv`, and nothing lands in the resume state, which stores only non-secret facts plus SHA-256 fingerprints and stops before any Compose mutation on a mismatch. Reference data applies in a single transaction, one `psql`, `ON_ERROR_STOP=1`, followed by a blocking verification file and a marker written in that same transaction. And `/ready` is necessary without ever being sufficient: a secret-free verifier checks the single Alembic head, the exact marker, the reference-data postconditions, an active administrator, decryptable provider rows, and provider coverage **on the post-seed effective configuration** — the one the first message will use, rather than the code defaults the seed precisely overrode.
+
+The common thread across these four batches is a property of the tests themselves. Each protection had shipped with its own, all green, and all of the same shape: they pinned what the code did on the day it was delivered. A hand-written list does not describe a system; it describes what its author knew about the system. These guards **recalculate** the protection from the source of truth — the cost families the run summary really publishes, read by AST; the routes the application really mounts, confronted with the edge's evaluation order; the connector router walked in both directions, so that unclassified and classified-but-unmounted are equally red. They found three faults no existing test could see, including speech synthesis billed to the owner and never counted against the ceiling. Each was then deliberately broken, to verify that it goes red.
+
 ## Conclusion
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 213 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,276 tests across 990 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 217 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,206 tests across 987 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (400+ documents), 213 ADRs, and the changelog (v1.0 to v1.28.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 217 ADRs, and the changelog (v1.0 to v1.29.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

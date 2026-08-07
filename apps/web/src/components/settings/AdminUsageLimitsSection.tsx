@@ -14,6 +14,7 @@ import { Pagination } from '@/components/ui/pagination';
 import { UsageGauge } from '@/components/usage/UsageGauge';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { AdminUsageLimitsEditModal } from '@/components/settings/AdminUsageLimitsEditModal';
+import { AdminInstanceBudgetCard } from '@/components/settings/AdminInstanceBudgetCard';
 import type {
   AdminUsageLimitsListResponse,
   AdminUserUsageLimitResponse,
@@ -32,7 +33,7 @@ interface AdminUsageLimitsSectionProps {
  * limits configuration and current usage gauges.
  * Supports inline block toggle and modal-based limit editing.
  */
-export function AdminUsageLimitsSection({ lng: _lng }: AdminUsageLimitsSectionProps) {
+export function AdminUsageLimitsSection({ lng }: AdminUsageLimitsSectionProps) {
   const { t } = useTranslation();
 
   // State
@@ -165,6 +166,10 @@ export function AdminUsageLimitsSection({ lng: _lng }: AdminUsageLimitsSectionPr
       icon={Gauge}
       collapsible
     >
+      {/* Instance-wide ceiling: bounds the deployment, where the table below
+          bounds one account at a time. */}
+      <AdminInstanceBudgetCard lng={lng} />
+
       {/* Search */}
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

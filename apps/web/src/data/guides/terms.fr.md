@@ -22,6 +22,7 @@
 9. [Responsabilite et garanties](#9-responsabilite-et-garanties)
 10. [Resiliation et suspension](#10-resiliation-et-suspension)
 11. [Droit applicable et litiges](#11-droit-applicable-et-litiges)
+12. [Instance de demonstration publique](#12-instance-de-demonstration-publique)
 
 ---
 
@@ -169,6 +170,29 @@ A defaut de resolution amiable dans un delai de 60 jours, tout litige sera soumi
 Si l'Utilisateur reside dans l'Union europeenne, il peut egalement utiliser la plateforme de resolution des litiges en ligne de la Commission europeenne : [https://ec.europa.eu/consumers/odr](https://ec.europa.eu/consumers/odr).
 
 Les presentes CGU sont divisibles. Si une clause est declaree nulle ou inapplicable, les autres clauses demeurent pleinement en vigueur.
+
+
+## 12. Instance de demonstration publique
+
+Cette section s'applique EXCLUSIVEMENT a l'instance publique de demonstration, lorsqu'elle est ouverte. Elle ne concerne ni l'instance principale, ni une instance auto-hebergee. Sur cette instance, les sections precedentes restent applicables, sauf lorsqu'elles sont expressement amenagees ci-dessous.
+
+**Objet et nature du service.** L'instance de demonstration permet d'essayer LIA sans engagement, avec le logiciel reel et non une simulation. Elle a une vocation strictement demonstrative. Elle n'est pas un service de production, ne remplace pas un compte personnel et ne peut fonder aucun usage professionnel ou critique.
+
+**Compte ephemere et effacement quotidien.** Le compte cree sur cette instance est temporaire. L'integralite des comptes et des donnees associees est supprimee automatiquement chaque nuit, sans preavis individuel et sans possibilite de restauration. Aucune sauvegarde n'est conservee. L'Utilisateur ne doit y deposer aucune donnee qu'il ne pourrait pas perdre.
+
+**Donnees a ne pas confier.** L'Utilisateur s'engage a ne saisir aucune donnee sensible au sens du RGPD (sante, opinions, orientation, croyances), aucun secret professionnel, aucune donnee bancaire, aucun identifiant ni mot de passe, et aucune donnee personnelle concernant un tiers. Les echanges sont transmis a des fournisseurs de modeles de langage tiers pour produire les reponses.
+
+**Adresse email et acceptation.** L'acces requiert une adresse email valide et l'acceptation des presentes conditions. L'adresse sert a activer le compte et n'est utilisee a aucune autre fin ; elle disparait avec le compte lors de l'effacement quotidien. Aucune prospection n'est effectuee.
+
+**Connexion de comptes tiers impossible.** La liaison de comptes externes (Google, Microsoft, Apple et autres) est techniquement desactivee sur cette instance. Les fonctionnalites qui en dependent sont visibles mais inactives : c'est volontaire, et cela fait partie de ce que la demonstration montre.
+
+**Capacite quotidienne limitee.** L'instance dispose d'un budget quotidien plafonne. Lorsque ce plafond est atteint, le service repond qu'il est indisponible jusqu'au lendemain. L'acces se fait par ordre d'arrivee, sans reservation, sans file d'attente et sans priorite.
+
+**Usage loyal.** Sont interdits : l'automatisation des echanges, la creation de comptes en serie, les tentatives de contournement des limites, l'extraction massive de contenu, et toute utilisation visant a epuiser la capacite au detriment des autres visiteurs. L'Editeur peut suspendre l'acces, fermer l'instance ou bloquer une adresse sans preavis ni justification.
+
+**Absence de garantie et de responsabilite.** L'instance de demonstration est fournie "en l'etat", sans aucune garantie de disponibilite, de continuite, d'exactitude des reponses ni de conservation des donnees. Elle peut etre interrompue, reinitialisee ou fermee definitivement a tout moment. La responsabilite de l'Editeur ne peut etre engagee a raison de son utilisation, dans les limites permises par le droit applicable.
+
+**Alternative sans limitation.** LIA etant un logiciel libre sous licence AGPL-3.0, l'Utilisateur qui souhaite un usage reel, durable et sans ces restrictions peut installer sa propre instance : il en detient alors seul les donnees et la maitrise.
 
 ---
 

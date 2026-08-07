@@ -578,8 +578,77 @@ scp $SshOptionsStr -P $SshPort "$LocalCreds" ${SshUser}@${SshHost}:~/.claude/.cr
 }
 
 # ============================================================================
+# Etape 8.4: Fichier de secrets du demonstrateur
+# ============================================================================
+# AVANT le durcissement (8.5) et AVANT le deploiement (9), et l'ordre n'est
+# pas cosmetique : `deploy.sh` RENOMME le repertoire de staging en repertoire
+# vivant. Pose apres, ce fichier atterrissait dans un chemin que la bascule
+# venait de consommer -- scp echouait, l'avertissement passait inapercu, et
+# `task demo:prod:up` refusait ensuite sur un fichier absent (mesure
+# 2026-08-07 : ~/lia sans .env.demo-instance.prod apres un deploiement vert).
+# Pose avant, la bascule l'emporte avec le reste, et le chmod 600 de l'etape
+# 8.5 -- qui le nommait deja -- fait enfin son travail.
+# ============================================================================
+# Il n'entre pas dans le bundle PROD : il porte des identifiants DIFFERENTS de
+# ceux de la production (ses propres cles fournisseur, son propre relais, le
+# jeton du tunnel). Il est donc pousse ici, directement, sur le canal SSH deja
+# chiffre — puis mis en 600 dans la foulee.
+#
+# Automatique parce que l'alternative ne marchait pas : la premiere version
+# demandait a l'operateur de le poser a la main, et `task demo:prod:up` echouait
+# sur un hote ou il manquait (mesure 2026-08-07). Un prerequis qu'on documente
+# est un prerequis qu'on oublie.
+#
+# Non bloquant : une installation qui ne veut pas de demonstrateur est un cas
+# legitime, et le fichier est simplement absent du poste.
+Write-Step "Fichier de secrets du demonstrateur..."
+
+$demoEnv = Join-Path $ProjectRoot ".env.demo-instance.prod"
+if (-not (Test-Path $demoEnv)) {
+    Write-Info "Absent du poste - le demonstrateur ne sera pas configure (ignore)."
+} elseif ($DryRun) {
+    Write-Info "[DRY RUN] scp .env.demo-instance.prod + chmod 600"
+} else {
+    $demoContent = Get-Content $demoEnv -Raw
+    $refus = $null
+    if ($demoContent -match '(?m)^(FRONTEND_URL|APP_URL_SERVER)=.*localhost') {
+        $refus = "il pointe sur localhost : forme de DEVELOPPEMENT"
+    }
+    foreach ($key in @("DEMO_INSTANCE_TUNNEL_TOKEN", "DEEPSEEK_API_KEY", "SECRET_KEY", "FERNET_KEY")) {
+        if ($demoContent -notmatch "(?m)^$key=.") { $refus = "$key est vide" }
+    }
+    if ($refus) {
+        Write-Warning "Fichier du demonstrateur non envoye : $refus"
+        Write-Info "Le corriger puis rejouer: task demo:prod:push-env"
+    } else {
+        & scp -P $SshPort $demoEnv "${sshTarget}:~/$StagingDir/.env.demo-instance.prod"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "scp du fichier du demonstrateur a echoue ($LASTEXITCODE)"
+        } else {
+            $chmodCmd = "chmod 600 ~/$StagingDir/.env.demo-instance.prod && stat -c 'PERMS_DEMO=%a' ~/$StagingDir/.env.demo-instance.prod"
+            $fullChmod = "ssh -p $SshPort $SshOptionsStr $sshTarget `"$chmodCmd`""
+            $out = if (($null -eq $IsWindows) -or $IsWindows) { cmd /c $fullChmod } else { sh -c $fullChmod }
+            if ("$out" -match "PERMS_DEMO=600") {
+                Write-Success "Fichier du demonstrateur en place (600)"
+            } else {
+                Write-Err "Permissions du fichier du demonstrateur non confirmees: $out"
+                exit 1
+            }
+        }
+    }
+}
+
+# ============================================================================
 # Etape 8.5: Durcissement des permissions des secrets (SEC-013)
 # ============================================================================
+# The demonstrator's own env file is hardened too when it is there. It is NOT
+# shipped by a deployment — the operator places it, because it carries a
+# DIFFERENT set of provider credentials — but it holds the demonstrator's
+# provider keys, its smarthost password and the Cloudflare tunnel token, and a
+# file created by hand lands 0644 under the usual umask. `task demo:prod:up`
+# refuses to start on a loose one; this makes the deployment fix it instead of
+# only reporting it.
+#
 # The remote .env holds every application/integration secret. rsync pushes it
 # with permissive bits, and Etape 8 just appended DOCKER_GID (the last write to
 # it), so harden NOW — after the .env is final and BEFORE `docker compose up`.
@@ -621,7 +690,7 @@ if (-not $DryRun) {
     # Windows. Nothing below is expanded by either shell.
     $statEnv = "printf 'PERMS_ENV='; stat -c '%a' ~/$StagingDir/.env 2>/dev/null || echo missing"
     $statDir = "printf 'PERMS_DIR='; stat -c '%a' ~/$StagingDir 2>/dev/null || echo missing"
-    $hardenCmd = "chmod 700 ~/$StagingDir 2>/dev/null; [ -f ~/$StagingDir/.env ] && chmod 600 ~/$StagingDir/.env; [ -d ~/.claude ] && chmod 700 ~/.claude; [ -f ~/.claude/.credentials.json ] && chmod 600 ~/.claude/.credentials.json; [ -d ~/$StagingDir/apps/api/config ] && chmod 700 ~/$StagingDir/apps/api/config; find ~/$StagingDir/apps/api/config -maxdepth 1 -type f -name '*.json' -exec chmod 600 {} + 2>/dev/null; $statEnv; $statDir"
+    $hardenCmd = "chmod 700 ~/$StagingDir 2>/dev/null; [ -f ~/$StagingDir/.env ] && chmod 600 ~/$StagingDir/.env; [ -f ~/$StagingDir/.env.demo-instance.prod ] && chmod 600 ~/$StagingDir/.env.demo-instance.prod; [ -d ~/.claude ] && chmod 700 ~/.claude; [ -f ~/.claude/.credentials.json ] && chmod 600 ~/.claude/.credentials.json; [ -d ~/$StagingDir/apps/api/config ] && chmod 700 ~/$StagingDir/apps/api/config; find ~/$StagingDir/apps/api/config -maxdepth 1 -type f -name '*.json' -exec chmod 600 {} + 2>/dev/null; $statEnv; $statDir"
     $hardenSsh = "ssh -p $SshPort $SshOptionsStr $sshTarget `"$hardenCmd`""
     $hardenResult = Invoke-WithRetry -Command $hardenSsh -OperationName "Harden secret permissions" -MaxAttempts 2
 
@@ -668,6 +737,47 @@ if (-not $DryRun) {
     Write-Success "Deploiement termine"
 } else {
     Write-Info "[DRY RUN] ssh -p $SshPort $SshOptionsStr $sshTarget `"$deployCmd`""
+}
+
+# ============================================================================
+# Etape 9bis: Isolation de l'hote vis-a-vis du demonstrateur
+# ============================================================================
+# Les reseaux `internal` de Docker n'empechent PAS un conteneur de joindre la
+# passerelle du bridge, et cette passerelle EST l'hote : sur ce Pi cela signifie
+# sshd, et de la toute la pile de production (mesure le 2026-08-07 avec des
+# conteneurs jetables). Le script pose des regles iptables idempotentes.
+#
+# Il tourne a CHAQUE deploiement parce qu'un reboot de l'hote les perd si la
+# distribution ne les persiste pas, et parce qu'une regle qu'on oublie de
+# reposer est une regle qui n'existe pas.
+#
+# Non bloquant, et ce n'est PAS ici que la protection se pose : les regles
+# visent les SOUS-RESEAUX du demonstrateur, qui n'existent pas tant que ses
+# reseaux n'existent pas. Un deploiement livre l'instance sans la demarrer,
+# donc l'absence de reseaux est le cas NOMINAL et ce pas ne fait rien.
+#
+# La pose reelle est dans `task demo:prod:up`, juste apres le demarrage, et
+# elle y est MESUREE. Ce pas-ci ne sert qu'a une chose : reposer les regles
+# apres un redemarrage de l'hote, quand l'instance tourne deja et que la
+# distribution n'a pas persiste iptables.
+Write-Step "Isolation de l'hote vis-a-vis du demonstrateur (iptables, idempotent)..."
+
+if (-not $DryRun) {
+    $hardenCmd = "cd ~/$RemoteDir && sh scripts/deploy/harden-demo-host.sh"
+    $fullHardenCmd = "ssh -p $SshPort $SshOptionsStr $sshTarget `"$hardenCmd`""
+    if (($null -eq $IsWindows) -or $IsWindows) {
+        cmd /c $fullHardenCmd
+    } else {
+        sh -c $fullHardenCmd
+    }
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Regles d'isolation non posees (le demonstrateur ne tourne probablement pas)."
+        Write-Info "Rejouer apres 'task demo:prod:up' : task demo:prod:harden"
+    } else {
+        Write-Success "Isolation hote/demonstrateur en place"
+    }
+} else {
+    Write-Info "[DRY RUN] ssh ... 'sh scripts/deploy/harden-demo-host.sh'"
 }
 
 # ============================================================================

@@ -1,0 +1,11 @@
+# Public-demo Prometheus (P2 boundary, Task 6).
+#
+# Scrapes ONLY the isolated collector on the internal observability
+# network. No host port, no remote_write, no existing backend.
+global:
+  scrape_interval: 30s
+
+scrape_configs:
+  - job_name: public-demo-otel
+    static_configs:
+      - targets: ["public-demo-otel:8889"]

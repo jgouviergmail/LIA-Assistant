@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { getLanguageFromPath, buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { useAuth } from '@/hooks/useAuth';
+import { useAuthFeatures } from '@/hooks/useWebAuthn';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -16,17 +17,40 @@ import { getBrowserLanguageForBackend } from '@/utils/locale-mapping';
 import { validatePassword, getPasswordRequirementChecks } from '@/lib/password-validation';
 import { Check, X } from 'lucide-react';
 
+/**
+ * i18n key for a failed registration.
+ *
+ * The backend answers a structured `detail.error` rather than a sentence, so
+ * an explicable refusal stays explicable in six languages. Anything else — a
+ * network drop, a duplicate address, a 500 — keeps the generic message: a
+ * visitor cannot act on those, and inventing a specific cause would be worse
+ * than saying nothing precise.
+ */
+export function registrationErrorKey(error: unknown): string {
+  const detail = (error as { data?: { detail?: { error?: unknown } } })?.data?.detail;
+  const code = typeof detail?.error === 'string' ? detail.error : undefined;
+
+  return code === 'demo_signup_limit_reached'
+    ? 'auth.errors.demo_signup_limit_reached'
+    : 'auth.errors.registration_failed';
+}
+
 export function RegisterForm() {
   const router = useLocalizedRouter();
   const pathname = usePathname();
   const currentLang = getLanguageFromPath(pathname);
   const { register } = useAuth();
+  // A public demonstrator enforces the terms server-side; without this the
+  // form cannot even ask, and every registration fails on `terms_accepted`.
+  const { features } = useAuthFeatures();
+  const termsRequired = features?.terms_required ?? false;
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [timezone, setTimezone] = useState<string | null>(null);
   const [language, setLanguage] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -56,6 +80,11 @@ export function RegisterForm() {
       return;
     }
 
+    if (termsRequired && !termsAccepted) {
+      setError(t('auth.errors.terms_not_accepted'));
+      return;
+    }
+
     const validationResult = validatePassword(password, t);
     if (!validationResult.isValid) {
       setError(validationResult.errors[0]);
@@ -71,7 +100,8 @@ export function RegisterForm() {
         name,
         rememberMe,
         timezone || undefined,
-        language || undefined
+        language || undefined,
+        termsRequired ? termsAccepted : undefined
       );
       router.push('/registration-success');
     } catch (err) {
@@ -81,7 +111,12 @@ export function RegisterForm() {
         timezone,
         language,
       });
-      setError(t('auth.errors.registration_failed'));
+      // A refusal the visitor can act on must say so. Collapsing every failure
+      // into "registration failed" told someone who hit the demonstrator's
+      // daily ceiling nothing at all — not that it is full, not that it
+      // reopens, not when. The backend ships a CODE; the sentence is resolved
+      // here, in the visitor's language.
+      setError(t(registrationErrorKey(err)));
     } finally {
       setIsLoading(false);
     }
@@ -185,6 +220,39 @@ export function RegisterForm() {
             {t('auth.remember_me')}
           </label>
         </div>
+
+        {termsRequired && (
+          <div className="flex items-start">
+            <input
+              id="terms-accepted-register"
+              type="checkbox"
+              // aria-labelledby: same rationale as the fields above (F012) —
+              // the htmlFor/id association is real but invisible to static
+              // analysis.
+              aria-labelledby="terms-accepted-register-label"
+              checked={termsAccepted}
+              onChange={e => setTermsAccepted(e.target.checked)}
+              disabled={isLoading}
+              aria-required="true"
+              className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+            />
+            <label
+              id="terms-accepted-register-label"
+              htmlFor="terms-accepted-register"
+              className="ml-2 block text-sm text-gray-700"
+            >
+              {t('auth.terms.accept_prefix')}{' '}
+              <Link
+                href={buildLocalizedPath('/terms', currentLang)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-4 hover:text-foreground"
+              >
+                {t('auth.terms.link_label')}
+              </Link>
+            </label>
+          </div>
+        )}
 
         <Button type="submit" className="w-full" isLoading={isLoading}>
           {t('auth.register_button')}

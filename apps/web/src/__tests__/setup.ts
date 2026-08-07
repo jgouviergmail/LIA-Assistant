@@ -102,6 +102,17 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// `scrollIntoView` does not exist in jsdom — it has no layout to scroll. The
+// same gap as ResizeObserver below, so it is filled the same way: once, here,
+// rather than in every suite that renders a component which follows its own
+// content. Deliberately an inert no-op and NOT a shared `vi.fn()`: a shared spy
+// accumulates calls across tests, so a suite asserting a call count would read
+// its neighbours'. Tests that need to observe it install their own spy (see
+// `SlashCommandMenu.test.tsx`, `useFollowLatest.test.tsx`).
+if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function scrollIntoView(): void {};
+}
+
 // Mock ResizeObserver / IntersectionObserver as real CLASS constructors (not
 // `vi.fn(() => ({...}))`): floating-ui's `autoUpdate` (used by Radix Tooltip /
 // Select / Popover / DropdownMenu positioning) does `new ResizeObserver(...)`

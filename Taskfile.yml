@@ -16,6 +16,18 @@ vars:
   # Pattern training settings (change these for different environments)
   PATTERNS_BASE_URL: https://localhost:8000/api/v1
   PATTERNS_SSL_FLAG: --insecure  # Use --insecure for self-signed certs, empty for valid certs
+  # Reference-seed bundle digest, RECOMPUTED from the repository (ADR-215).
+  # The demonstrator's database is recreated empty at every boot and must be
+  # re-seeded each time: the seeds are the maintained catalogue, the migrations
+  # carry an older partial copy, and running on the partial one is how the
+  # daily spend ceiling went blind (measured 2026-08-07). A literal here would
+  # be correct exactly until a seed is edited, and the wrapper would then
+  # refuse the whole bundle. Same function the installer uses.
+  DEMO_SEED_DIGEST_CMD: >-
+    {{.PYTHON}} -c "import sys; sys.path.insert(0, '.');
+    from pathlib import Path;
+    from scripts.install.seed_bundle import compute_seed_bundle_sha256;
+    print(compute_seed_bundle_sha256(Path('.')))"
 
 tasks:
   # ============================================================================
@@ -140,6 +152,45 @@ tasks:
         platforms: [linux, darwin]
       - cmd: 'echo "Done. RESTART YOUR BROWSER COMPLETELY (certificate verdicts are cached for the browser lifetime). Firefox users: import exports/lia-dev-cert.pem in Settings > Certificates. Re-run this task after ssl-init regenerates certificates (every ~30 days or after: docker volume rm lia_ssl_certs)."'
 
+  dev:all:
+    desc: "Dev: restart BOTH the application stack and the demonstrator, then check them"
+    # Two separate Compose projects on purpose (the demonstrator shares no
+    # network, no volume and no container name with dev). They are restarted
+    # TOGETHER because they are validated together: the demonstrator runs the
+    # standard image, so a change to the API belongs in both before it can be
+    # judged. `demo:up:dev` publishes the loopback ports; `demo:provision`
+    # re-arms the marker the tmpfs database loses at every recreation, and
+    # refuses a model this catalogue cannot price.
+    cmds:
+      - task: stop:all
+      - docker compose -f docker-compose.dev.yml up -d --build --wait
+      - task: demo:up:dev
+      - task: demo:provision
+      - task: dev:all:status
+
+  dev:all:status:
+    desc: "Dev: what both stacks report right now"
+    cmds:
+      - cmd: docker compose -f docker-compose.dev.yml ps
+      - cmd: docker compose --env-file .env.demo-instance -f docker-compose.demo-instance.yml ps
+      # Single-quoted YAML: a double-quoted scalar would turn the curl format
+      # escape into a real newline and break the parse.
+      - cmd: 'curl -sk -o /dev/null -w "  application  https://localhost:8000/health -> %{http_code}
+" https://localhost:8000/health'
+        ignore_error: true
+      - cmd: 'curl -s -o /dev/null -w "  demonstrator http://localhost:8090/health -> %{http_code}
+" http://localhost:8090/health'
+        ignore_error: true
+
+  stop:all:
+    desc: "Dev: stop BOTH the application stack and the demonstrator"
+    # The demonstrator's database is in tmpfs and dies here, by design.
+    cmds:
+      - cmd: docker compose -f docker-compose.dev.yml down
+        ignore_error: true
+      - cmd: docker compose --env-file .env.demo-instance -f docker-compose.demo-instance.yml --profile tunnel down
+        ignore_error: true
+
   stop:
     desc: Stop development environment
     cmds:
@@ -242,6 +293,183 @@ tasks:
     cmds:
       - npm run typecheck
       - npx playwright test
+
+  test:e2e:showroom:
+    desc: Guided showroom P0 — CLEAN managed build, telemetry OFF (zero-API oracle + axe)
+    dir: "{{.WEB_DIR}}/e2e"
+    # E2E_FORCE_FRESH purges .next and forbids server reuse: NEXT_PUBLIC_*
+    # flags are baked at build time, so a stale build would test the wrong
+    # variant (ADR-192 evidence doctrine). Vitals sample rate is zeroed so the
+    # layout TelemetryBootstrap cannot blur the network oracle.
+    env:
+      E2E_MANAGED_SERVER: "1"
+      E2E_FORCE_FRESH: "1"
+      E2E_SHOWROOM: "1"
+      E2E_BASE_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_API_URL: ""
+      NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT: guided
+      NEXT_PUBLIC_PRODUCT_TELEMETRY: "false"
+      NEXT_PUBLIC_WEB_VITALS_SAMPLE_RATE: "0"
+    cmds:
+      - npx playwright test smoke/public-demo-showroom.spec.ts a11y/axe-public-demo-showroom.spec.ts
+
+  test:e2e:showroom:telemetry:
+    desc: Guided showroom P0 — CLEAN managed build, telemetry ON (credential-less contract)
+    dir: "{{.WEB_DIR}}/e2e"
+    env:
+      E2E_MANAGED_SERVER: "1"
+      E2E_FORCE_FRESH: "1"
+      E2E_SHOWROOM: "1"
+      E2E_BASE_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_API_URL: ""
+      NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT: guided
+      NEXT_PUBLIC_PRODUCT_TELEMETRY: "true"
+      NEXT_PUBLIC_WEB_VITALS_SAMPLE_RATE: "0"
+    cmds:
+      - npx playwright test smoke/public-demo-showroom-telemetry.spec.ts
+
+  test:e2e:showroom:capture:
+    desc: Guided showroom P0 — reproducible launch-asset capture (video + stills)
+    dir: "{{.WEB_DIR}}/e2e"
+    env:
+      E2E_MANAGED_SERVER: "1"
+      E2E_FORCE_FRESH: "1"
+      E2E_SHOWROOM: "1"
+      E2E_BASE_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_API_URL: ""
+      NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT: guided
+      NEXT_PUBLIC_PRODUCT_TELEMETRY: "false"
+      NEXT_PUBLIC_WEB_VITALS_SAMPLE_RATE: "0"
+    cmds:
+      - npx playwright test capture/public-demo-showroom.spec.ts
+
+  # --- Public-demo isolated deployment (P2 live — owner protocol Étape 1/3) --
+  # ---------------------------------------------------------------------
+  # Demonstrator instance (ADR-216→218). The STANDARD image in an isolated
+  # envelope: what a visitor tries is what LIA actually does, and the limits
+  # sit around it rather than inside it.
+  #
+  # `demo:start` is the one command for a local validation; the others exist
+  # for when something needs to be looked at separately.
+  # ---------------------------------------------------------------------
+  demo:start:
+    desc: "Demonstrator: build, start, wait for health, provision the marker (one command)"
+    cmds:
+      - task: demo:up:dev
+      - task: demo:provision
+      - task: demo:status
+
+  demo:up:
+    desc: "Demonstrator: build + start the isolated envelope (no tunnel)"
+    # The tunnel lives behind `--profile tunnel` (task demo:up:tunnel): a
+    # laptop validation reaches the edge on localhost and needs no Cloudflare.
+    env:
+      SEED_BUNDLE_SHA256:
+        sh: "{{.DEMO_SEED_DIGEST_CMD}}"
+    cmds:
+      - docker compose --env-file .env.demo-instance -f docker-compose.demo-instance.yml up -d --build --wait
+
+  demo:up:dev:
+    desc: "Demonstrator: same, plus the API on 127.0.0.1:8100 to reach the administration"
+    # The edge 404s /api/v1/admin/* on purpose, so the ceiling and the
+    # capability switches are not reachable from https://localhost/. On a
+    # laptop the operator's door is a loopback port — never in production.
+    env:
+      SEED_BUNDLE_SHA256:
+        sh: "{{.DEMO_SEED_DIGEST_CMD}}"
+    cmds:
+      - docker compose --env-file .env.demo-instance -f docker-compose.demo-instance.yml -f docker-compose.demo-instance.dev.yml up -d --build --wait
+
+  demo:up:tunnel:
+    desc: "Demonstrator: start WITH the Cloudflare tunnel (the public way in)"
+    # The only path that needs the connector token, so the only place that
+    # checks it. Reads the PRODUCTION env file: the tunnel is what puts this
+    # instance on the Internet.
+    env:
+      SEED_BUNDLE_SHA256:
+        sh: "{{.DEMO_SEED_DIGEST_CMD}}"
+    cmds:
+      - grep -q "^DEMO_INSTANCE_TUNNEL_TOKEN=." .env.demo-instance.prod || (echo "DEMO_INSTANCE_TUNNEL_TOKEN is empty in .env.demo-instance.prod — the tunnel cannot connect" && exit 1)
+      - docker compose --env-file .env.demo-instance.prod -f docker-compose.demo-instance.yml --profile tunnel up -d --build --wait
+
+  demo:provision:
+    desc: "Demonstrator: write the instance marker (REFUSES a populated database)"
+    # The marker is what authorizes the nightly purge, and it lives IN THE
+    # DATABASE: the environment flag alone never authorizes deleting accounts.
+    # That safeguard exists because a proof script once forced the flag
+    # against the development database and destroyed real accounts.
+    cmds:
+      - docker compose --env-file .env.demo-instance -f docker-compose.demo-instance.yml exec -T -w /app demo-instance-api python -m src.infrastructure.provisioning.cli
+
+  demo:provision:force:
+    desc: "Demonstrator: write the marker on a database that ALREADY holds accounts"
+    # The plain `demo:provision` refuses a populated database — the guard the
+    # 2026-08-06 incident earned, when a proof script armed the purge against
+    # development data. But a demonstrator's database is in tmpfs: recreating
+    # that container drops the marker while visitors keep signing up, and the
+    # nightly purge then never arms. This is the deliberate way back, typed
+    # by an operator who knows which instance they are on.
+    prompt: "Arm the NIGHTLY DELETION of every non-superuser account on this database. Continue?"
+    cmds:
+      - docker compose --env-file .env.demo-instance -f docker-compose.demo-instance.yml exec -T -w /app demo-instance-api python -m src.infrastructure.provisioning.cli --force
+
+  demo:verify:
+    desc: "Demonstrator: check the closed surface is closed AND the spend ceiling can see"
+    # Two protections, two checks. The surface one runs from a container on
+    # the ingress network (a host curl cannot reach an edge that publishes no
+    # port). The money one runs inside the API, because only it can ask the
+    # catalogue whether the configured model has a price — and a ceiling that
+    # reads a flat ledger is not a ceiling (measured 2026-08-07).
+    cmds:
+      - docker compose --env-file .env.demo-instance -f docker-compose.demo-instance.yml exec -T -w /app demo-instance-api python -m src.infrastructure.provisioning.cli --verify
+      # Third protection, and the only one that used to be assumed rather than
+      # measured: can this container reach the machine that hosts it? Docker's
+      # `internal` networks do not cover the bridge gateway, which IS the host
+      # (measured 2026-08-07 with disposable containers). The probe opens real
+      # connections and fails if any answers.
+      - docker compose --env-file .env.demo-instance -f docker-compose.demo-instance.yml exec -T -w /app demo-instance-api python scripts/ops/probe_host_isolation.py
+      - docker run --rm --network lia-demo-instance_demo-instance-ingress curlimages/curl:8.11.1 sh -c 'fail=0; for p in /api/v1/connectors/gmail/authorize /api/v1/auth/google/login /api/v1/auth/apple/login /api/v1/admin/capabilities /api/v1/usage-limits/admin/instance-daily-budget /metrics; do c=$(curl -s -o /dev/null -w "%{http_code}" http://demo-instance-edge$p); echo "  $c  $p"; [ "$c" = "404" ] || fail=1; done; for p in /api/v1/auth/login /api/v1/auth/register /api/v1/capabilities; do c=$(curl -s -o /dev/null -w "%{http_code}" http://demo-instance-edge$p); echo "  $c  $p (must NOT be 404)"; [ "$c" = "404" ] && fail=1; done; [ $fail = 0 ] && echo "surface OK" || echo "SURFACE REGRESSED"; exit $fail'
+
+  demo:harden:
+    desc: "Demonstrator: cut the container->host path Docker's `internal` leaves open (run ON the host)"
+    # `internal: true` blocks routing outward, NOT the bridge gateway, and that
+    # gateway is the host. On the production machine that means sshd. The rules
+    # are idempotent — deleted before inserted — so this converges on every
+    # deploy rather than stacking duplicates.
+    #
+    # Linux only: it drives iptables. Running it from a Windows workstation is
+    # meaningless, which is why `deploy:prod` invokes it over SSH instead.
+    cmds:
+      - cmd: sh scripts/deploy/harden-demo-host.sh
+        platforms: [linux, darwin]
+      - cmd: echo "harden-demo-host.sh runs ON the Docker host (Linux). Use task deploy:prod, or run it over SSH."
+        platforms: [windows]
+
+  demo:harden:check:
+    desc: "Demonstrator: report whether the host-isolation rules are installed (exit 1 if not)"
+    cmds:
+      - cmd: sh scripts/deploy/harden-demo-host.sh --check
+        platforms: [linux, darwin]
+      - cmd: echo "harden-demo-host.sh --check runs ON the Docker host (Linux)."
+        platforms: [windows]
+
+  demo:status:
+    desc: "Demonstrator: container state + what the instance reports"
+    cmds:
+      - docker compose --env-file .env.demo-instance -f docker-compose.demo-instance.yml ps
+      - cmd: docker compose --env-file .env.demo-instance -f docker-compose.demo-instance.yml exec -T demo-instance-api python -c "import urllib.request,json;print(json.dumps(json.load(urllib.request.urlopen('http://127.0.0.1:8000/ready',timeout=10)),indent=1))"
+        ignore_error: true
+
+  demo:logs:
+    desc: "Demonstrator: follow the API logs (CLI_ARGS for another service)"
+    cmds:
+      - docker compose --env-file .env.demo-instance -f docker-compose.demo-instance.yml logs -f {{.CLI_ARGS | default "demo-instance-api"}}
+
+  demo:down:
+    desc: "Demonstrator: stop everything (the tmpfs database dies with it, by design)"
+    cmds:
+      - docker compose --env-file .env.demo-instance -f docker-compose.demo-instance.yml --profile tunnel down
+
 
   test:alerts:
     # promtool is not installed locally; this uses the image, and the CI job
@@ -462,7 +690,7 @@ tasks:
         platforms: [linux, darwin]
 
   test:backend:unit:coverage:
-    # The CI command, verbatim — including the 64% floor (raised from 63 on
+    # The CI command, verbatim — including the 65% floor (raised from 63 on
     # 2026-08-01; measured 66.54% after ADR-194 and its follow-up lots, so the
     # floor stays at 64: 65 would leave 1.54 pt of headroom, under the >=2 pt
     # rule. Re-measured 2026-08-04 after ADR-201→204 (provenance, the reading
@@ -472,7 +700,10 @@ tasks:
     # Re-measured 2026-08-05 after the production-log remediation lots
     # (graceful shutdown, deploy staging, checkpoint allowlist, FCM token
     # invalidation, Loki label policy, client-IP chokepoint, batch concurrency):
-    # 66.99% — still 64, since 65 would leave 1.99 pt, a hair under the >=2 rule).
+    # 66.99% — still 64, since 65 would leave 1.99 pt, a hair under the >=2 rule.
+    # Re-measured 2026-08-07 after the demonstrator's security-audit lots and
+    # the removal of the legacy live showroom: 67.79% — the floor moves to 65,
+    # since 66 would leave 1.79 pt, again under the >=2 rule.)
     # `test:backend:unit:fast`
     # trades coverage for xdist parallelism because the pre-commit hook has a
     # 5-minute budget; that makes it the right gate for a commit and the wrong
@@ -480,9 +711,9 @@ tasks:
     desc: Backend unit tests with coverage and the CI floor (mirrors the CI job step)
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: .venv/Scripts/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=64
+      - cmd: .venv/Scripts/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=65
         platforms: [windows]
-      - cmd: .venv/bin/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=64
+      - cmd: .venv/bin/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=65
         platforms: [linux, darwin]
 
   test:backend:agents:
@@ -514,6 +745,60 @@ tasks:
     cmds:
       - cmd: bash scripts/deploy/lib/test_deploy_readiness_gate.sh
       - cmd: pwsh -NoProfile -File scripts/deploy/run-deploy-driver-tests.ps1
+
+  test:install:
+    desc: Hermetic installer wizard tests (ADR-215) — stdlib wizard, no Docker
+    cmds:
+      - cmd: apps/api/.venv/Scripts/pytest scripts/install/tests -q
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/pytest scripts/install/tests -q
+        platforms: [linux, darwin]
+
+  test:release:self-host:
+    desc: Self-host release artifact tests (manifest, bundle, SBOM — ADR-215)
+    cmds:
+      - cmd: apps/api/.venv/Scripts/pytest scripts/release/tests -q
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/pytest scripts/release/tests -q
+        platforms: [linux, darwin]
+
+  test:install:compose-matrix:
+    desc: Render every installer Compose scenario and validate with `docker compose config --quiet` (no pull/build/up)
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/install/tests/render_compose_matrix.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/install/tests/render_compose_matrix.py
+        platforms: [linux, darwin]
+
+  lint:install:
+    desc: Ruff + strict MyPy over the stdlib installer and release tooling
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python -m ruff check scripts/install scripts/release
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python -m ruff check scripts/install scripts/release
+        platforms: [linux, darwin]
+      - cmd: apps/api/.venv/Scripts/python -m mypy --strict scripts/install scripts/release --exclude "scripts/(install|release)/tests" --explicit-package-bases
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python -m mypy --strict scripts/install scripts/release --exclude "scripts/(install|release)/tests" --explicit-package-bases
+        platforms: [linux, darwin]
+
+  test:install:hermetic:
+    desc: The complete no-service installer gate (ADR-215) — wizard, release artifacts, Compose matrix, lint, focused backend contracts
+    cmds:
+      - task: test:install
+      - task: lint:install
+      - task: test:install:compose-matrix
+      - task: test:release:self-host
+      - task: test:install:backend-contracts
+
+  test:install:backend-contracts:
+    desc: Focused backend contracts of the installer chain (Tasks 2/7/8/9 + CI parity)
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/pytest tests/unit/test_validate_settings_script.py tests/unit/test_reference_seed_bundle_contract.py tests/unit/test_bootstrap_install_contract.py tests/unit/test_verify_installation_script.py tests/unit/test_installer_wizard_backend_alignment.py tests/unit/test_installer_ci_contract.py -q --no-cov
+        platforms: [windows]
+      - cmd: .venv/bin/pytest tests/unit/test_validate_settings_script.py tests/unit/test_reference_seed_bundle_contract.py tests/unit/test_bootstrap_install_contract.py tests/unit/test_verify_installation_script.py tests/unit/test_installer_wizard_backend_alignment.py tests/unit/test_installer_ci_contract.py -q --no-cov
+        platforms: [linux, darwin]
 
   test:watch:
     desc: Run backend tests in watch mode
@@ -697,6 +982,70 @@ tasks:
     cmds:
       - echo "Deploying to production..."
       - docker compose -f docker-compose.prod.yml up -d
+
+  # ---------------------------------------------------------------------
+  # Demonstrator ON THE PRODUCTION HOST.
+  #
+  # `deploy:prod` ships its files and does NOT start it: putting an instance
+  # in front of the Internet is a decision, not a side effect of a deployment.
+  # These tasks are that decision, typed on purpose. The host/port/user come
+  # from scripts/deploy/deploy.local.ps1 — the same gitignored file the deploy
+  # driver reads, so the address lives in one place and never in git.
+  # ---------------------------------------------------------------------
+
+  demo:prod:status:
+    desc: "Demonstrator (PROD): containers + what the instance reports"
+    cmds:
+      - cmd: powershell -ExecutionPolicy Bypass -File ./scripts/deploy/demo-prod.ps1 -Action status
+        platforms: [windows]
+      - cmd: pwsh -File ./scripts/deploy/demo-prod.ps1 -Action status
+        platforms: [linux, darwin]
+
+  demo:prod:push-env:
+    desc: "Demonstrator (PROD): send the local secrets file to the host, mode 600"
+    # `deploy:prod` deliberately does NOT ship it: it carries a different set
+    # of credentials from the production instance. This is that act, with its
+    # own refusals — a file pointing at localhost is the DEVELOPMENT one, and
+    # sending it would break the verification link a visitor clicks.
+    prompt: "Send .env.demo-instance.prod (provider keys, SMTP password, tunnel token) to the production host?"
+    cmds:
+      - cmd: powershell -ExecutionPolicy Bypass -File ./scripts/deploy/demo-prod.ps1 -Action push-env
+        platforms: [windows]
+      - cmd: pwsh -File ./scripts/deploy/demo-prod.ps1 -Action push-env
+        platforms: [linux, darwin]
+
+  demo:prod:up:
+    desc: "Demonstrator (PROD): START it, with the Cloudflare tunnel — it becomes PUBLIC"
+    prompt: "This puts the demonstrator on the Internet at its public hostname. Continue?"
+    cmds:
+      - cmd: powershell -ExecutionPolicy Bypass -File ./scripts/deploy/demo-prod.ps1 -Action up
+        platforms: [windows]
+      - cmd: pwsh -File ./scripts/deploy/demo-prod.ps1 -Action up
+        platforms: [linux, darwin]
+
+  demo:prod:down:
+    desc: "Demonstrator (PROD): stop it (its tmpfs database dies with it, by design)"
+    cmds:
+      - cmd: powershell -ExecutionPolicy Bypass -File ./scripts/deploy/demo-prod.ps1 -Action down
+        platforms: [windows]
+      - cmd: pwsh -File ./scripts/deploy/demo-prod.ps1 -Action down
+        platforms: [linux, darwin]
+
+  demo:prod:verify:
+    desc: "Demonstrator (PROD): closed surface + spend ceiling + host isolation, measured"
+    cmds:
+      - cmd: powershell -ExecutionPolicy Bypass -File ./scripts/deploy/demo-prod.ps1 -Action verify
+        platforms: [windows]
+      - cmd: pwsh -File ./scripts/deploy/demo-prod.ps1 -Action verify
+        platforms: [linux, darwin]
+
+  demo:prod:harden:
+    desc: "Demonstrator (PROD): install the container->host firewall rules (idempotent)"
+    cmds:
+      - cmd: powershell -ExecutionPolicy Bypass -File ./scripts/deploy/demo-prod.ps1 -Action harden
+        platforms: [windows]
+      - cmd: pwsh -File ./scripts/deploy/demo-prod.ps1 -Action harden
+        platforms: [linux, darwin]
 
   deploy:prod:
     desc: Full deployment to Raspberry Pi (encrypt + prepare + scp + deploy)

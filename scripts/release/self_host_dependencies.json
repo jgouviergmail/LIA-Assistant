@@ -1,0 +1,18 @@
+[
+  {"service": "postgres", "reference": "pgvector/pgvector:pg16"},
+  {"service": "postgres-backup", "reference": "prodrigestivill/postgres-backup-local:16-alpine"},
+  {"service": "redis", "reference": "redis:7.4-alpine"},
+  {"service": "tempo", "reference": "grafana/tempo:2.6.1"},
+  {"service": "prometheus", "reference": "prom/prometheus:v3.0.0"},
+  {"service": "alertmanager", "reference": "prom/alertmanager:v0.27.0"},
+  {"service": "blackbox-exporter", "reference": "prom/blackbox-exporter:v0.25.0"},
+  {"service": "grafana", "reference": "grafana/grafana:11.3.0"},
+  {"service": "loki", "reference": "grafana/loki:3.2.1"},
+  {"service": "promtail", "reference": "grafana/promtail:3.2.1"},
+  {"service": "node-exporter", "reference": "prom/node-exporter:v1.8.2"},
+  {"service": "cadvisor", "reference": "gcr.io/cadvisor/cadvisor:v0.49.1"},
+  {"service": "postgres-exporter", "reference": "prometheuscommunity/postgres-exporter:v0.15.0"},
+  {"service": "redis-exporter", "reference": "oliver006/redis_exporter:v1.62.0"},
+  {"service": "portainer", "reference": "portainer/portainer-ce:2.39.0"},
+  {"service": "caddy", "reference": "caddy:2-alpine"}
+]

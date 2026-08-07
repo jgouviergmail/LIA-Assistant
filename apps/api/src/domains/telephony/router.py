@@ -19,6 +19,8 @@ from src.core.exceptions import raise_invalid_webhook_signature
 from src.core.security.utils import encrypt_data
 from src.core.session_dependencies import get_current_active_session
 from src.core.user_display import resolve_user_display_name
+from src.domains.feature_switches.guard import capability_dependencies
+from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.telephony.connector import TelephonyConnectorService
 from src.domains.telephony.repository import TelephonyRepository
 from src.domains.telephony.schemas import (
@@ -40,7 +42,13 @@ from src.infrastructure.observability.metrics_telephony import telephony_webhook
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/telephony", tags=["Telephony"])
+router = APIRouter(
+    prefix="/telephony",
+    tags=["Telephony"],
+    # Administrable capability: a switched-off feature refuses at the
+    # door, not only in the planner catalogue.
+    dependencies=capability_dependencies(PlatformCapability.TELEPHONY),
+)
 
 
 @router.post(

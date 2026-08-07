@@ -17,6 +17,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from src.core.exceptions import raise_invalid_input
 from src.core.session_dependencies import get_current_active_session
+from src.domains.feature_switches.guard import require_capability
+from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.image_generation.options_cache import ImageOptionsCache
 from src.domains.users.models import User
 
@@ -25,7 +27,12 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(
     prefix="/image-generation",
     tags=["image-generation"],
-    dependencies=[Depends(get_current_active_session)],
+    dependencies=[
+        Depends(get_current_active_session),
+        # Administrable capability: no point offering size and quality
+        # options for a generator the instance has switched off.
+        Depends(require_capability(PlatformCapability.IMAGE_GENERATION)),
+    ],
 )
 
 

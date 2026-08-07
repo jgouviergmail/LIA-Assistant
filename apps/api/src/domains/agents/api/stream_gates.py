@@ -10,8 +10,10 @@ import uuid
 
 import structlog
 
-from src.core.config import settings
-from src.core.constants import USAGE_LIMIT_EXCEEDED_ERROR_CODE
+from src.core.constants import (
+    INSTANCE_BUDGET_EXHAUSTED_ERROR_CODE,
+    USAGE_LIMIT_EXCEEDED_ERROR_CODE,
+)
 from src.domains.agents.api.schemas import BrowserContext, ChatStreamChunk
 
 logger = structlog.get_logger(__name__)
@@ -26,24 +28,34 @@ async def usage_limit_error_chunk(user_id: uuid.UUID) -> ChatStreamChunk | None:
     Returns:
         The error chunk to yield (caller then stops), or None when allowed.
     """
-    if not getattr(settings, "usage_limits_enabled", False):
-        return None
+    from src.domains.usage_limits.schemas import UsageLimitStatus
     from src.domains.usage_limits.service import UsageLimitService
     from src.infrastructure.observability.metrics_usage_limits import (
         usage_limit_enforcement_total,
     )
 
+    # No `usage_limits_enabled` short-circuit here: the check also enforces
+    # the INSTANCE spend ceiling, which is a different protection and stays
+    # armed when per-user limits are off. The check itself returns early when
+    # neither applies, so the cost of asking is unchanged.
     limit_check = await UsageLimitService.check_user_allowed(user_id)
     if limit_check.allowed:
         return None
     usage_limit_enforcement_total.labels(
         layer="service", limit_type=limit_check.exceeded_limit or "unknown"
     ).inc()
+    error_code = (
+        INSTANCE_BUDGET_EXHAUSTED_ERROR_CODE
+        if limit_check.status is UsageLimitStatus.BLOCKED_INSTANCE_BUDGET
+        else USAGE_LIMIT_EXCEEDED_ERROR_CODE
+    )
     return ChatStreamChunk(
         type="error",
+        # Technical, for logs. The sentence the visitor reads is localized by
+        # the frontend from `error_code`.
         content=limit_check.blocked_reason or "Usage limit exceeded",
         metadata={
-            "error_code": USAGE_LIMIT_EXCEEDED_ERROR_CODE,
+            "error_code": error_code,
             "limit": limit_check.exceeded_limit,
         },
     )

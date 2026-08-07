@@ -496,7 +496,9 @@
       "registration_failed": "Registration failed",
       "login_failed": "Login failed",
       "oauth_failed": "Google authentication failed",
-      "registration_error": "An error occurred during registration"
+      "registration_error": "An error occurred during registration",
+      "terms_not_accepted": "You must accept the terms of use to create an account.",
+      "demo_signup_limit_reached": "This demonstrator has already welcomed all its visitors for today. The counter resets at midnight UTC — please come back tomorrow."
     },
     "password": {
       "errors": {
@@ -529,7 +531,9 @@
       "error_missing_token": "Verification token is missing.",
       "error_invalid_token": "The verification link is invalid or has expired.",
       "back_to_login": "Back to login",
-      "create_account": "Create a new account"
+      "create_account": "Create a new account",
+      "success_message_active": "Your email address is verified and your account is ready.",
+      "success_hint_active": "You can sign in right now."
     },
     "forgot_password": {
       "title": "Forgot your password?",
@@ -588,6 +592,10 @@
       "oauth_google_button": "Confirm with Google",
       "oauth_hint": "You will be redirected to Google to confirm your identity, then brought back to LIA — restart the action afterwards.",
       "no_methods": "No confirmation method is available for this account. Sign out and back in, then try again."
+    },
+    "terms": {
+      "accept_prefix": "I accept the",
+      "link_label": "terms of use"
     }
   },
   "account_inactive": {
@@ -2274,6 +2282,30 @@
       "google_api_pricing": {
         "title": "Google API Pricing",
         "description": "Manage Google API pricing (Places, Geocoding, Routes)"
+      },
+      "capabilities": {
+        "title": "Platform capabilities",
+        "description": "Turn features on or off for the whole instance, without a deployment.",
+        "intro": "A switch applies immediately: the assistant stops being offered the tools, and the routes refuse. A capability the deployment forbids stays unavailable whatever the switch says.",
+        "unavailableBadge": "Unavailable",
+        "deploymentBlocked": "Disabled by the deployment configuration — the switch has no effect.",
+        "enforcedCatalogue": "Enforced by removing its tools from the assistant.",
+        "enforcedRoutes": "Enforced by refusing its requests.",
+        "enforcedBoth": "Enforced both in the assistant's tools and on its routes.",
+        "enabledSuccess": "Capability enabled.",
+        "disabledSuccess": "Capability disabled.",
+        "error": "The capability could not be updated."
+      },
+      "publicDemoLink": {
+        "title": "Public demonstrator link",
+        "description": "Whether visitors are shown a link to the live demonstrator.",
+        "intro": "The demonstrator runs on its own instance, with its own budget and a nightly purge. This switch only decides whether visitors are shown the way in — it takes effect immediately.",
+        "switchLabel": "Show the demonstrator link",
+        "switchHint": "Visitors see the invitation on the showroom page, limitations first.",
+        "notDeployed": "This deployment declares no demonstrator URL: there is nothing to show.",
+        "enabledSuccess": "The demonstrator link is now visible",
+        "disabledSuccess": "The demonstrator link is now hidden",
+        "error": "The switch could not be changed"
       }
     },
     "language": {
@@ -3497,6 +3529,7 @@
       "connection_error": "Connection error: {{message}}",
       "unknown_error": "Unknown error during streaming",
       "usage_limit_exceeded": "You have reached your usage limit. Contact your administrator.",
+      "instance_budget_exhausted": "The demo reached its daily budget. It resets at midnight UTC — please come back tomorrow.",
       "run_in_progress": "A response is already being generated — reattaching to it.",
       "run_gone": "This response finished in the background. The history has been updated.",
       "stream_stalled": "The connection went quiet. Your answer is still being written in the background — reload the page to pick it back up."
@@ -3855,7 +3888,7 @@
         },
         "costTransparency": {
           "title": "💰 Cost Transparency",
-          "description": "Optional real-time display: input/output/cache tokens, EUR cost per message and conversation total. Dashboard statistics: messages, tokens, and costs for current cycle. User control via 💲 icon in title bar. When a quota is in place it no longer arrives as a wall: a warning appears at 80 % of whichever limit binds first — across tokens, messages and cost, per cycle or absolute — naming it and, for a per-period limit, giving the reset date. An absolute limit promises no reset at all."
+          "description": "Optional real-time display: input/output/cache tokens, EUR cost per message and conversation total. Dashboard statistics: messages, tokens, and costs for current cycle. User control via 💲 icon in title bar. When a quota is in place it no longer arrives as a wall: a warning appears at 80 % of whichever limit binds first — across tokens, messages and cost, per cycle or absolute — naming it and, for a per-period limit, giving the reset date. An absolute limit promises no reset at all. A ceiling may also cover the whole instance rather than your account: in that case LIA does not talk about your personal quota — it says the deployment has reached its budget for the day, and gives the exact time it starts over."
         },
         "scheduledActions": {
           "title": "📅 Scheduled Actions",
@@ -3976,6 +4009,14 @@
         "capabilityMap": {
           "title": "🌌 Capability map",
           "description": "A star chart of what the assistant can actually do for <b>this account</b>. Each capability is a star: <b>filled</b> when genuinely usable, <b>outlined</b> when waiting to be set up, and its size comes from what it holds — four hundred memories shine brighter than three. The figure joins only the live capabilities, in <b>angular order</b>: its shape is therefore this account's configuration and nobody else's. A capability the instance disabled is <b>absent</b>, never greyed out — a control the product cannot honour is worse than an absent one. State is resolved in <b>one server-side pass</b>, each probe on its own session, a failing probe degrading to “not ready” rather than blanking the whole map. Nothing published is a level, a percentage of completion or a comparison: “three connectors linked” is a fact, “62 %” would be a competition. The drawing is decorative; everything reachable is a named link, operable from the keyboard. A narrow screen, or a request for stillness, gets the same map as a list — same data, same order, same destinations."
+        },
+        "selfHosting": {
+          "title": "🏠 LIA on your own machine",
+          "description": "LIA is free software (AGPL-3.0) you can run on your own machine, depending on nobody. A guided installer asks a short questionnaire in your language — how you want to reach it (local network, your own reverse proxy, or managed HTTPS), which provider keys you hold — then builds the images from the source you cloned, applies the reference data in a single transaction, creates your administrator account, and afterwards checks that the installation genuinely works: one migration head, reference data present, keys decryptable, effective provider coverage. A server that answers is not a successful installation. No secret ever travels through the command line, and if a step fails, resuming picks up exactly where it stopped without asking again for what is already done."
+        },
+        "platformCapabilities": {
+          "title": "🎛️ What this instance offers",
+          "description": "Not every LIA instance offers the same features, and that is deliberate. Ten capabilities — dictation, speech synthesis, images, uploads, document spaces, web search, browsing, skills, MCP, telephony — can be turned on or off by the administrator from the settings, without redeploying and without editing a configuration file. When a capability is off, it also disappears from the catalogue offered to the planner: LIA does not promise you an action it cannot perform, so you never get a refusal after the fact. If you ask for something a disabled capability would handle, the answer says so plainly, in your language, rather than failing without explanation. The administrator sees, side by side, what the deployment allows, what they chose themselves, and what is actually enforced."
         }
       },
       "diagram_alt": "LIA architecture diagram"
@@ -3984,6 +4025,19 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_29_0": {
+          "title": "v1.29.0 — 🏠 LIA installs on your machine, and an instance knows what it spends",
+          "date": "August 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🏠 Install LIA on your own machine, guided</b> — <code>./install.sh</code> asks a short questionnaire in your language, builds the images from the source you cloned, creates your administrator account and your provider keys <b>without ever writing a secret on the command line</b>, and then checks that the installation really works — not merely that the server answers. If a step fails, <code>./install.sh --resume</code> picks up exactly where it stopped.",
+            "i2": "<b>💶 A daily spend ceiling for the whole instance</b> — an administrator can now cap what the <b>entire deployment</b> spends in a day, in euros, and not only what each account consumes. First come, first served; afterwards LIA says come back tomorrow and gives the exact time it resets. The panel shows today's spend, the ceiling that really applies, and what is left.",
+            "i3": "<b>🎛️ Switch a feature off in two seconds, without redeploying</b> — dictation, speech synthesis, images, uploads, document spaces, web search, browsing, skills, MCP and telephony are now ten switches in the admin panel. Each row shows what the deployment allows, what the administrator chose, and what is <b>actually</b> applied — a capability the deployment forbids says so instead of pretending to be adjustable.",
+            "i4": "<b>🎬 A guided demonstration, at /demo</b> — six missions, one per mechanism that sets LIA apart: a crowded morning, a proactive alert, long-term memory, a phone booking, the daily briefing, and a tour of the settings. Approve, edit or refuse each prepared change, then read the final reply. Everything is labelled as a demonstration on synthetic data at every step, no external service is contacted, and a proof drawer links each element to its source.",
+            "i5": "<b>📜 Terms of use accepted at sign-up</b> — creating an account now requires an explicit acceptance, recorded with its date and version. The terms are written in the six languages, and this applies to every sign-up path.",
+            "i6": "<b>🔒 Three faults the green test suite could not see</b> — speech synthesis was <b>billed but never counted</b> against the spend ceiling; signing in with Google skipped the terms acceptance entirely; and eleven connector paths could link a real credential with no guard at all. All three are closed, and the new guards were deliberately broken to prove they go red."
+          }
+        },
         "v1_28_0": {
           "title": "v1.28.0 — 🧭 LIA learns your habits, under your control",
           "date": "August 2026",
@@ -7164,6 +7218,10 @@
         "title": "Your constellation",
         "desc": "Each capability is a star: filled when active, outlined when waiting. The figure joins only the live ones — its shape is your configuration, and nobody else's."
       },
+      "capability_honesty": {
+        "title": "Switched off, and said so",
+        "desc": "An operator can turn a capability off for the whole instance. When that happens LIA names it instead of quietly failing — and it stops offering the action in the first place, so you never get a refusal after the fact."
+      },
       "readable_at_a_glance": {
         "title": "Readable at a glance",
         "desc": "An urgent alert does not look like an ordinary one: density separates them, not hue alone. It holds in greyscale too. And an action has the same shape everywhere: what creates is solid, what deletes carries its red without waiting for a hover, and every title announces itself with an icon."
@@ -7226,6 +7284,10 @@
       },
       "relation_sections": {
         "section": "Mail exchanged"
+      },
+      "capability_honesty": {
+        "capability": "Dictation",
+        "reason": "Off on this instance"
       }
     },
     "craft": {
@@ -8156,7 +8218,9 @@
       "trust_gdpr": "GDPR compliant",
       "badge_opensource": "Open Source",
       "cta_github": "GitHub",
-      "intro_paragraph": "LIA is an open-source personal AI assistant that orchestrates 20+ specialized agents to manage your emails, calendar, contacts, files, tasks, reminders, web search, weather, routes, and smart home. Compatible with Google Workspace, Apple iCloud, and Microsoft 365, LIA works in natural language with human validation of every sensitive action. Available in 6 interface languages, with voice mode and 7 LLM providers to choose from."
+      "cta_demo": "Guided demo",
+      "intro_paragraph": "LIA is an open-source personal AI assistant that orchestrates 20+ specialized agents to manage your emails, calendar, contacts, files, tasks, reminders, web search, weather, routes, and smart home. Compatible with Google Workspace, Apple iCloud, and Microsoft 365, LIA works in natural language with human validation of every sensitive action. Available in 6 interface languages, with voice mode and 7 LLM providers to choose from.",
+      "cta_star": "Star"
     },
     "chat_mockup": {
       "aria": "Animated demo: four real scenes — LIA orchestrates several agents in parallel and waits for your approval, crosses the weather with your agenda on her own initiative, places a real phone call to book a table, and builds a mini-app right in the chat. The orchestration backstage shows while she works.",
@@ -8904,7 +8968,8 @@
       "availability": "Availability",
       "liability": "Liability",
       "termination": "Termination",
-      "applicable_law": "Applicable law"
+      "applicable_law": "Applicable law",
+      "demo_instance": "Public demonstration instance"
     }
   },
   "browser": {
@@ -9147,7 +9212,7 @@
       "security-architecture": {
         "title": "Defense in Depth: LIA's 5 Security Principles",
         "excerpt": "Defense in depth, least privilege, rate limiting, encryption, and validation: discover how LIA protects your data at every layer.",
-        "body": "<h2>5 fundamental principles</h2><p>LIA's security rests on five principles applied at every application layer:</p><ul><li><strong>Defense in depth</strong> — Multi-layer controls (authentication, rate limiting, validation, encryption)</li><li><strong>Least privilege</strong> — Minimal permissions by default</li><li><strong>Fail securely</strong> — On error, the system denies rather than allows</li><li><strong>Don't trust input</strong> — Pydantic validation + systematic sanitization</li><li><strong>Security by default</strong> — HTTPS, HttpOnly/SameSite cookies, strict CORS</li></ul><h2>Hashing and encryption</h2><p>Passwords are hashed with <strong>bcrypt</strong> (with automatic salt). Sensitive data (OAuth tokens, connector credentials, PII, MCP server credentials) is encrypted with <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), ensuring confidentiality and integrity. Encryption keys are managed separately from data.</p><h2>JWT and session management</h2><p>JWT tokens use the HS256 algorithm with a JTI (JWT ID) blacklist system in Redis. Single-use tokens (email verification, password reset) are invalidated after first use. This mechanism prevents any reuse of sensitive tokens.</p><h2>Strong authentication and device control</h2><p>Signing in goes beyond the password. <strong>WebAuthn passkeys</strong> let you authenticate with Face ID, a fingerprint or your device code — phishing-resistant by design, with single-use server challenges and clone detection via signature counters. A <strong>TOTP second factor</strong> adds a 6-digit step to password sign-in, backed by ten single-use backup codes hashed at rest. Sensitive actions — managing credentials, exporting data, signing out other devices — sit behind a <strong>step-up re-authentication</strong>: a fresh 5-minute confirmation window with a typed API contract, never a silent redirect. And <strong>My devices</strong> lists every live session with deliberately bounded metadata (browser and OS families, truncated IP), revokes any of them instantly — a revoked session loses its live streams within seconds — and pushes an alert when the account signs in from an unrecognized device.</p><h2>Configurable rate limiting</h2><p>Rate limiting operates at two levels:</p><ul><li><strong>HTTP</strong> — Via nginx upstream</li><li><strong>Tools</strong> — Per-user, per-tool sliding window with settings-driven thresholds, covering every paid external API (image generation, web search, browser, DevOps CLI)</li><li><strong>External connectors</strong> — Distributed Redis sliding window shared across instances (Google, Apple, API-key providers)</li></ul><p>API limits are strict: 10 items maximum per request, with per-domain defaults (10 by default, 50 maximum).</p><h2>Rendering &amp; network hardening</h2><p>The chat renders LLM output — which can relay third-party HTML (email bodies, fetched pages, tool results) — through a strict sanitization boundary (<code>rehype-sanitize</code> with an audited schema): <code>&lt;script&gt;</code>, <code>&lt;iframe&gt;</code>, <code>&lt;form&gt;</code> and event handlers are dropped, while legitimate cards, buttons and math survive. Interactive MCP/Skill apps never go through markdown — they mount only inside a sandboxed iframe widget. On the network side, the production API sits behind Cloudflare as the single entry point, with the container ports loopback-bound and uvicorn trusting only the reverse-proxy headers, so <code>request.client.host</code> is the real visitor IP: per-IP rate limits apply per visitor rather than to one shared internal address.</p><h2>Prompt injection protection</h2><p>Provenance is a property of the <strong>data</strong>, not of the tool that fetched it. Wrapping content tool by tool forgot half of them — an exhaustive caller search found the email tool uncovered, the one whose docstring promises the full body — and it did not even cover the right surface: content reaches the model through two paths, and neither is a tool. The registry's <strong>24 data types</strong> are classified once as internal or third-party authored, an unknown type resolves to <em>external</em>, and the application refuses to boot on an unclassified type. Everything third-party reaches the model tagged as data to analyse, never as instruction.</p><p><strong>Seven injection families</strong> are detected across the six languages — a fake system role, \"ignore previous instructions\", a persona switch, a request to send your data elsewhere, a LIA tool named inside foreign text, invisible Unicode, a directive hidden in an HTML comment. The content still reaches the model <strong>unchanged</strong>, with a note naming the family: sanitising would rewrite an email you may want to read as-is, for a guarantee the next bypass would deny. The scan is bounded, and the offending text never enters the logs — it is attacker-controlled by construction and routinely holds your own data.</p><h2>Resource ownership verification</h2><p>Every resource access goes through <code>check_resource_ownership()</code> with a <code>hide_existence</code> parameter: public resources return 403 (access denied), private resources return 404 (resource not found) to avoid revealing their existence to an attacker.</p><h2>Per-User Usage Quotas</h2><p>LIA enables administrators to set <strong>per-user quotas</strong> on tokens, messages, and costs. Enforcement uses a <strong>5-layer defense-in-depth</strong> architecture: router-level check (HTTP 429), service-level (SSE error), LLM invocation guard (centralized in invoke_with_instrumentation), proactive runner skip, and direct call migration. If infrastructure (Redis/DB) fails, the system <strong>fails open</strong> (allows access) since this is cost control, not security. An admin kill switch enables instant blocking/unblocking of any user.</p><h2>Software supply chain</h2><p>Every release is built from a locked dependency graph: universal lockfiles pin the ~200 packages actually installed, each verified by SHA256 fingerprint at build time — the same version always yields the same, integrity-checked image. All dependencies, transitive ones included, are continuously audited against known-vulnerability databases, and the software inventory (SBOM) published with each release now covers both halves — backend and frontend — and lists exactly what runs in production. The scanners no longer merely report: they fail the build.</p><h2>A control is verified, not declared</h2><p>The most insidious risk is not a missing protection: it is the announced protection that does nothing. An alert can live in a file the monitoring never loads. A hardening step can end in a success message printed whether or not anything succeeded. An exemption meant for health probes can, written as a prefix rather than an exact match, open a door to anyone who can type <code>/health</code>. In all three cases the tests pass, the documentation asserts, and the protection does not exist.</p><p>The answer is one rule: every control is backed by an executable guard that fails when the control disappears. An alert rule file must be the exact render of its template, every alert must point at a runbook that exists and own its test case. No container receives the full secret set without a written reason. Every published port binds to loopback. And when a fix is written, the old behaviour is restored long enough to confirm the test goes red — a test that cannot fail proves nothing.</p>"
+        "body": "<h2>5 fundamental principles</h2><p>LIA's security rests on five principles applied at every application layer:</p><ul><li><strong>Defense in depth</strong> — Multi-layer controls (authentication, rate limiting, validation, encryption)</li><li><strong>Least privilege</strong> — Minimal permissions by default</li><li><strong>Fail securely</strong> — On error, the system denies rather than allows</li><li><strong>Don't trust input</strong> — Pydantic validation + systematic sanitization</li><li><strong>Security by default</strong> — HTTPS, HttpOnly/SameSite cookies, strict CORS</li></ul><h2>Hashing and encryption</h2><p>Passwords are hashed with <strong>bcrypt</strong> (with automatic salt). Sensitive data (OAuth tokens, connector credentials, PII, MCP server credentials) is encrypted with <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), ensuring confidentiality and integrity. Encryption keys are managed separately from data.</p><h2>JWT and session management</h2><p>JWT tokens use the HS256 algorithm with a JTI (JWT ID) blacklist system in Redis. Single-use tokens (email verification, password reset) are invalidated after first use. This mechanism prevents any reuse of sensitive tokens.</p><h2>Strong authentication and device control</h2><p>Signing in goes beyond the password. <strong>WebAuthn passkeys</strong> let you authenticate with Face ID, a fingerprint or your device code — phishing-resistant by design, with single-use server challenges and clone detection via signature counters. A <strong>TOTP second factor</strong> adds a 6-digit step to password sign-in, backed by ten single-use backup codes hashed at rest. Sensitive actions — managing credentials, exporting data, signing out other devices — sit behind a <strong>step-up re-authentication</strong>: a fresh 5-minute confirmation window with a typed API contract, never a silent redirect. And <strong>My devices</strong> lists every live session with deliberately bounded metadata (browser and OS families, truncated IP), revokes any of them instantly — a revoked session loses its live streams within seconds — and pushes an alert when the account signs in from an unrecognized device.</p><h2>Configurable rate limiting</h2><p>Rate limiting operates at two levels:</p><ul><li><strong>HTTP</strong> — Via nginx upstream</li><li><strong>Tools</strong> — Per-user, per-tool sliding window with settings-driven thresholds, covering every paid external API (image generation, web search, browser, DevOps CLI)</li><li><strong>External connectors</strong> — Distributed Redis sliding window shared across instances (Google, Apple, API-key providers)</li></ul><p>API limits are strict: 10 items maximum per request, with per-domain defaults (10 by default, 50 maximum).</p><h2>Rendering &amp; network hardening</h2><p>The chat renders LLM output — which can relay third-party HTML (email bodies, fetched pages, tool results) — through a strict sanitization boundary (<code>rehype-sanitize</code> with an audited schema): <code>&lt;script&gt;</code>, <code>&lt;iframe&gt;</code>, <code>&lt;form&gt;</code> and event handlers are dropped, while legitimate cards, buttons and math survive. Interactive MCP/Skill apps never go through markdown — they mount only inside a sandboxed iframe widget. On the network side, the production API sits behind Cloudflare as the single entry point, with the container ports loopback-bound and uvicorn trusting only the reverse-proxy headers, so <code>request.client.host</code> is the real visitor IP: per-IP rate limits apply per visitor rather than to one shared internal address.</p><h2>Prompt injection protection</h2><p>Provenance is a property of the <strong>data</strong>, not of the tool that fetched it. Wrapping content tool by tool forgot half of them — an exhaustive caller search found the email tool uncovered, the one whose docstring promises the full body — and it did not even cover the right surface: content reaches the model through two paths, and neither is a tool. The registry's <strong>24 data types</strong> are classified once as internal or third-party authored, an unknown type resolves to <em>external</em>, and the application refuses to boot on an unclassified type. Everything third-party reaches the model tagged as data to analyse, never as instruction.</p><p><strong>Seven injection families</strong> are detected across the six languages — a fake system role, \"ignore previous instructions\", a persona switch, a request to send your data elsewhere, a LIA tool named inside foreign text, invisible Unicode, a directive hidden in an HTML comment. The content still reaches the model <strong>unchanged</strong>, with a note naming the family: sanitising would rewrite an email you may want to read as-is, for a guarantee the next bypass would deny. The scan is bounded, and the offending text never enters the logs — it is attacker-controlled by construction and routinely holds your own data.</p><h2>Resource ownership verification</h2><p>Every resource access goes through <code>check_resource_ownership()</code> with a <code>hide_existence</code> parameter: public resources return 403 (access denied), private resources return 404 (resource not found) to avoid revealing their existence to an attacker.</p><h2>Per-User Usage Quotas</h2><p>LIA enables administrators to set <strong>per-user quotas</strong> on tokens, messages, and costs. Enforcement uses a <strong>5-layer defense-in-depth</strong> architecture: router-level check (HTTP 429), service-level (SSE error), LLM invocation guard (centralized in invoke_with_instrumentation), proactive runner skip, and direct call migration. If infrastructure (Redis/DB) fails, the system <strong>fails open</strong> (allows access) since this is cost control, not security. An admin kill switch enables instant blocking/unblocking of any user.</p><h2>Software supply chain</h2><p>Every release is built from a locked dependency graph: universal lockfiles pin the ~200 packages actually installed, each verified by SHA256 fingerprint at build time — the same version always yields the same, integrity-checked image. All dependencies, transitive ones included, are continuously audited against known-vulnerability databases, and the software inventory (SBOM) published with each release now covers both halves — backend and frontend — and lists exactly what runs in production. The scanners no longer merely report: they fail the build.</p><h2>A control is verified, not declared</h2><p>The most insidious risk is not a missing protection: it is the announced protection that does nothing. An alert can live in a file the monitoring never loads. A hardening step can end in a success message printed whether or not anything succeeded. An exemption meant for health probes can, written as a prefix rather than an exact match, open a door to anyone who can type <code>/health</code>. In all three cases the tests pass, the documentation asserts, and the protection does not exist.</p><p>The answer is one rule: every control is backed by an executable guard that fails when the control disappears. An alert rule file must be the exact render of its template, every alert must point at a runbook that exists and own its test case. No container receives the full secret set without a written reason. Every published port binds to loopback. And when a fix is written, the old behaviour is restored long enough to confirm the test goes red — a test that cannot fail proves nothing.</p><h2>A guard that recalculates, and three faults</h2><p>That rule was applied again, and it went one step further. Every protection of the demonstrator programme had shipped with its own tests, all green — and all of the same shape: they pinned what the code did on the day it was delivered. A hand-written list does not describe a system; it describes what its author knew about the system. Three guards were therefore rewritten to <strong>recalculate</strong> the protection from the source of truth: the cost families the run summary really publishes, read by AST; the routes the application really mounts, confronted with the edge's evaluation order; the connector router walked in both directions, so that unclassified and classified-but-unmounted are equally red.</p><p>They found three faults no existing test could see. Speech synthesis was <strong>billed and never counted</strong> against the instance spend ceiling — on a public instance, the cap was blind to what a visitor tries first. Signing in with Google was public and bypassed the newly mandatory terms acceptance, putting a real external identity on a throwaway account. And eleven connector paths — Apple app-password activation, API-key rotation, smart-home pairing — bound a real credential with no guard at all, because the previous guard lived inside the connectors domain and could only ever see what that domain exposed. Each new guard was then deliberately broken, to check that it goes red.</p>"
       },
       "privacy-by-design": {
         "title": "Privacy by Design: GDPR, Encryption, and Data Control",
@@ -9212,13 +9277,27 @@
       "llm-config-governance": {
         "title": "LLM Governance: Managing 24 AI Models from a Single Dashboard",
         "excerpt": "How LIA lets administrators configure, tune, and monitor 24 different LLM types in real time, without restart or redeployment.",
-        "body": "<h2>The challenge: 24 brains to orchestrate</h2><p>LIA doesn't use a single LLM but <strong>over 24 distinct types</strong>, each optimized for its task: a fast, cheap model for routing, a powerful model for planning, a creative model for responses, specialized models for memory extraction, journals, interests, MCP agents, and more. Each type has its own parameters: <code>provider</code>, <code>model</code>, <code>temperature</code>, <code>timeout</code>, <code>reasoning_effort</code>.</p><p>The challenge: how to let an administrator manage all of this <strong>without touching code</strong>?</p><h2>3-level resolution chain</h2><p>Each LLM configuration is resolved through a <strong>3-source priority chain</strong>:</p><ol><li><strong>DB Overrides</strong> — configuration set via the Admin UI (highest priority)</li><li><strong>Environment variables</strong> — deployment configuration</li><li><strong>LLM_DEFAULTS</strong> — 24 documented default configurations in code</li></ol><p>An <code>LLMConfigOverrideCache</code> provides O(1) lookups without runtime database queries. Admin UI changes take <strong>effect immediately</strong> through cache invalidation. No restart required.</p><h2>A single entry point</h2><p>Every LLM instantiation in LIA goes through one function: <code>get_llm_config_for_agent()</code>. This pattern ensures that every component — router, planner, domain agents, proactive tasks — systematically respects the resolution chain. It's an <strong>architectural principle</strong>, not just a technical choice: no module can bypass admin configuration.</p><h2>Real-time Admin interface</h2><p>From the admin panel, you can configure each LLM type:</p><ul><li>Change the <strong>provider and model</strong> (OpenAI, Anthropic, Google, DeepSeek, Ollama...)</li><li>Adjust <strong>temperature</strong>, <strong>top_p</strong>, frequency/presence <strong>penalties</strong></li><li>Configure <strong>timeout</strong> and <strong>max tokens</strong></li><li>Enable or disable <strong>reasoning mode</strong> with 5 effort levels</li></ul><p>Every change is <strong>immediately active</strong> for all subsequent requests, with zero downtime.</p><h2>Granular cost optimization</h2><p>This system enables <strong>fine-grained cost optimization</strong>. Concrete example: the router can use a $0.10/M token model while the planner uses a $3/M token model. Memory extraction tasks, being less critical, can run on a free local model. Administrators tune the quality/cost ratio <strong>per task type</strong>, not globally.</p><h2>Adaptive reasoning models</h2><p>Reasoning models (o1, o3, DeepSeek R1) consume extra tokens to \"think.\" LIA offers <strong>5 reasoning_effort levels</strong> (<code>none</code>, <code>low</code>, <code>medium</code>, <code>high</code>, <code>xhigh</code>) configurable per type. This enables deep reasoning only where it's critical — the planner for instance — and disables it elsewhere to save tokens.</p><h2>Built-in observability</h2><p>Every LLM call is instrumented with its type, provider, actual model used, duration, and tokens consumed. Prometheus metrics and Langfuse tracing let you <strong>compare performance</strong> across configurations and identify which LLM types to optimize.</p>"
+        "body": "<h2>The challenge: 24 brains to orchestrate</h2><p>LIA doesn't use a single LLM but <strong>over 24 distinct types</strong>, each optimized for its task: a fast, cheap model for routing, a powerful model for planning, a creative model for responses, specialized models for memory extraction, journals, interests, MCP agents, and more. Each type has its own parameters: <code>provider</code>, <code>model</code>, <code>temperature</code>, <code>timeout</code>, <code>reasoning_effort</code>.</p><p>The challenge: how to let an administrator manage all of this <strong>without touching code</strong>?</p><h2>3-level resolution chain</h2><p>Each LLM configuration is resolved through a <strong>3-source priority chain</strong>:</p><ol><li><strong>DB Overrides</strong> — configuration set via the Admin UI (highest priority)</li><li><strong>Environment variables</strong> — deployment configuration</li><li><strong>LLM_DEFAULTS</strong> — 24 documented default configurations in code</li></ol><p>An <code>LLMConfigOverrideCache</code> provides O(1) lookups without runtime database queries. Admin UI changes take <strong>effect immediately</strong> through cache invalidation. No restart required.</p><h2>A single entry point</h2><p>Every LLM instantiation in LIA goes through one function: <code>get_llm_config_for_agent()</code>. This pattern ensures that every component — router, planner, domain agents, proactive tasks — systematically respects the resolution chain. It's an <strong>architectural principle</strong>, not just a technical choice: no module can bypass admin configuration.</p><h2>Real-time Admin interface</h2><p>From the admin panel, you can configure each LLM type:</p><ul><li>Change the <strong>provider and model</strong> (OpenAI, Anthropic, Google, DeepSeek, Ollama...)</li><li>Adjust <strong>temperature</strong>, <strong>top_p</strong>, frequency/presence <strong>penalties</strong></li><li>Configure <strong>timeout</strong> and <strong>max tokens</strong></li><li>Enable or disable <strong>reasoning mode</strong> with 5 effort levels</li></ul><p>Every change is <strong>immediately active</strong> for all subsequent requests, with zero downtime.</p><h2>Granular cost optimization</h2><p>This system enables <strong>fine-grained cost optimization</strong>. Concrete example: the router can use a $0.10/M token model while the planner uses a $3/M token model. Memory extraction tasks, being less critical, can run on a free local model. Administrators tune the quality/cost ratio <strong>per task type</strong>, not globally.</p><h2>Adaptive reasoning models</h2><p>Reasoning models (o1, o3, DeepSeek R1) consume extra tokens to \"think.\" LIA offers <strong>5 reasoning_effort levels</strong> (<code>none</code>, <code>low</code>, <code>medium</code>, <code>high</code>, <code>xhigh</code>) configurable per type. This enables deep reasoning only where it's critical — the planner for instance — and disables it elsewhere to save tokens.</p><h2>Built-in observability</h2><p>Every LLM call is instrumented with its type, provider, actual model used, duration, and tokens consumed. Prometheus metrics and Langfuse tracing let you <strong>compare performance</strong> across configurations and identify which LLM types to optimize.</p><h2>What a whole instance may spend</h2><p>Everything above bounds a model, a call or an account. None of it bounds a <strong>deployment</strong>, and the two are not the same question: N accounts multiplied by their quota is unbounded spend. A daily UTC ledger now records each run's cost through one atomic UPSERT with column arithmetic, inside the transaction that already persists the token summary — so concurrent runs cannot lose spend to a read-modify-write race, and the check never sees a partial view. Two bounds compose, the deployment's and the operator's, and the smaller wins: an administrator may tighten what the environment allows, never widen it, and the panel shows what applies next to what was typed.</p><p>The failure doctrine is deliberately inverted here. Per-user limits fail <strong>open</strong> — a database hiccup lets one message too many through. An unknown instance spend fails <strong>closed</strong>, because the worst case on that side is the entire budget. And a refusal says the truth: not a personal quota message, but a dedicated code carrying the exact time the day rolls over.</p>"
       }
     }
   },
   "usage_limits": {
     "title": "Limits Administration",
     "description": "Configure per-user usage limits",
+    "instance_budget": {
+      "title": "Daily spend ceiling (instance)",
+      "description": "Bounds what this whole instance may spend in a UTC day, every cost family included. The per-user limits below bound one account; this one bounds the deployment. Essential when every visitor holds their own account.",
+      "enforced": "Enforced ceiling",
+      "spent_today": "Spent today",
+      "runs_today": "Runs today",
+      "no_ceiling": "No ceiling",
+      "field_label": "Ceiling in euros (leave empty for none)",
+      "field_placeholder": "e.g. 1.00",
+      "capped_notice": "The deployment bound is lower than the value you entered: the smaller one applies.",
+      "invalid": "Enter an amount greater than zero, or leave the field empty.",
+      "saved": "Ceiling updated.",
+      "save_failed": "The ceiling could not be updated."
+    },
     "search_placeholder": "Search by email or name...",
     "unlimited": "Unlimited",
     "mode": {
@@ -9349,7 +9428,8 @@
       "adr": "Architecture decisions",
       "extensibility": "Extensibility",
       "psyche": "Psyche Engine",
-      "habits": "Habit learning"
+      "habits": "Habit learning",
+      "governance": "Governing an instance"
     }
   },
   "psyche": {
@@ -9764,6 +9844,499 @@
       "spaces": "Spaces",
       "journals": "Journals",
       "skills": "Skills"
+    },
+    "items": {
+      "stt": "Voice input (speech-to-text)",
+      "stt_description": "Lets users dictate instead of typing. Turning it off closes the audio WebSocket and the voice ticket endpoint.",
+      "tts": "Spoken answers (text-to-speech)",
+      "tts_description": "Reads answers aloud in the chat. Turning it off stops synthesis at its single chokepoint; nothing else changes.",
+      "image_generation": "Image generation",
+      "image_generation_description": "Creating and editing images. Turning it off removes the tools from the planner and closes the option endpoints.",
+      "attachments": "File uploads",
+      "attachments_description": "Attaching files to a conversation. Turning it off refuses uploads at the door.",
+      "rag_spaces": "Document spaces (RAG)",
+      "rag_spaces_description": "Importing and querying personal documents. Turning it off hides the search tool and closes the routes.",
+      "web_search": "Web search",
+      "web_search_description": "Searching the web and fetching pages. Turning it off removes those agents from what the planner can reach.",
+      "browser": "Interactive browsing",
+      "browser_description": "Driving a real browser. Turning it off removes the browser agent from the planner.",
+      "skills": "Skills",
+      "skills_description": "User-installed skills. Turning it off closes the skills routes.",
+      "mcp": "MCP servers",
+      "mcp_description": "External MCP servers a user connects. Turning it off closes their management routes.",
+      "telephony": "Phone calls",
+      "telephony_description": "Agentic outbound calls. Turning it off closes the telephony routes."
+    }
+  },
+  "showroom": {
+    "title": "Guided missions",
+    "request": "Organize my morning tomorrow. I want to run, reply to Atlas, and send the quote. Prepare the changes, but do not touch anything without my approval.",
+    "start": "Start the mission",
+    "continue": "Continue",
+    "restart": "Replay the mission",
+    "honesty": {
+      "title": "Honesty of this demonstration",
+      "guided": "Guided demonstration",
+      "synthetic": "Synthetic data — no account connected",
+      "no_external": "No external action is ever sent"
+    },
+    "phases": {
+      "ready": "Ready to start",
+      "reading_sources": "Reading the sources",
+      "planning": "Detecting conflicts and planning",
+      "email_decision": "Your decision: the email reply",
+      "calendar_decision": "Your decision: the calendar change",
+      "receipt": "Mission receipt"
+    },
+    "sources": {
+      "title": "Sources consulted",
+      "inbox": "Inbox",
+      "calendar": "Calendar",
+      "tasks": "Tasks",
+      "weather": "Weather",
+      "memory": "Memory",
+      "habits": "Habits",
+      "contacts": "Contacts"
+    },
+    "facts": {
+      "inbox_emma_proposal": "Emma (Atlas) proposes a meeting at",
+      "calendar_run": "Run scheduled at",
+      "calendar_checkpoint": "Atlas checkpoint at",
+      "task_quote_due": "Send the Atlas quote before",
+      "weather_rain": "Rain expected"
+    },
+    "conflicts": {
+      "rain_vs_run": "The run collides with the rain",
+      "quote_deadline": "The quote deadline is tight"
+    },
+    "proposals": {
+      "email_subject": "Re: Atlas checkpoint — 09:30 works",
+      "email_body": "Hello Emma, 09:30 works on my side. See you then!",
+      "calendar_title": "Move the run out of the rain",
+      "calendar_reason": "Rain until 09:00 — dry slot proposed",
+      "quote_title": "Protected block: finish the Atlas quote",
+      "from": "From",
+      "to": "To"
+    },
+    "trace": {
+      "routing": "Routing the request",
+      "sources": "Reading the sources",
+      "planning": "Planning under constraints",
+      "proposals": "Preparing the proposals",
+      "router": "Reading the request",
+      "planner": "Planning the morning",
+      "validator": "Checking the plan",
+      "email": "Reading the inbox",
+      "calendar": "Reading the calendar",
+      "tasks": "Reading the tasks",
+      "weather": "Reading the weather",
+      "gate": "Preparing the proposals",
+      "approval": "Waiting for your decision",
+      "response": "Writing the reply",
+      "step": "Step in progress"
+    },
+    "receipt": {
+      "title": "Simulation receipt",
+      "reads_label": "Read",
+      "reads_value": "4 synthetic sources (inbox, calendar, tasks, weather)",
+      "proposed_label": "Prepared",
+      "proposed_value": "1 email draft, 1 calendar change, 1 protected work block",
+      "email_label": "Email decision",
+      "calendar_label": "Calendar decision",
+      "refusal_label": "Refusal",
+      "external_label": "External actions",
+      "email_applied": "Email reply approved — applied to the synthetic workspace",
+      "email_edited": "Email reply edited, then applied to the synthetic workspace",
+      "email_refused": "Email reply refused — nothing was applied",
+      "calendar_applied": "Calendar change approved — applied to the synthetic workspace",
+      "calendar_refused": "Calendar change refused — nothing was applied",
+      "refusal_respected": "Your refusal was respected: a refusal is an outcome, not an error.",
+      "no_external": "No external action occurred — nothing left this page."
+    },
+    "proof": {
+      "open": "See the proof",
+      "title": "Proof drawer",
+      "exact": "Each link opens the exact source at the released commit.",
+      "fallback": "Links open the repository (no release commit is pinned in this build).",
+      "external_warning": "Links open GitHub in a new tab.",
+      "kind": {
+        "product_core": "Product core",
+        "p0_fixture": "Demo fixture"
+      },
+      "links": {
+        "routing": "Request routing",
+        "planner": "Planner",
+        "orchestrator": "Parallel orchestrator",
+        "hitl": "Approval classification",
+        "hitl_card": "Approval card (UI)",
+        "trace": "Sanitized execution trace",
+        "fixture": "Synthetic mission fixture",
+        "mission_tests": "Mission state-machine tests"
+      }
+    },
+    "cta": {
+      "source": "View the code",
+      "release": "See the releases",
+      "install": "Installation guide"
+    },
+    "change_mission": "All missions",
+    "proactive_intro": "LIA initiates — no request was typed.",
+    "picker": {
+      "subtitle": "Six synthetic missions, one per differentiating mechanism. Everything runs locally on this page — pick one."
+    },
+    "actions": {
+      "title": "What next?"
+    },
+    "response": {
+      "title": "LIA's reply",
+      "synthetic": "— simulated, composed locally"
+    },
+    "m": {
+      "overloaded_morning": {
+        "title": "An overloaded morning",
+        "tagline": "Four sources, two conflicts, two decisions — nothing applied without you.",
+        "mechanism": "Orchestration + approvals",
+        "response": {
+          "intro": "Your morning looked like a small battlefield: a run in the rain, Emma waiting on her reply, and a quote that was not going to write itself. Here is where things stand:",
+          "chip_email_confirm": "Reply sent to Emma",
+          "chip_email_edit": "Your edited reply was sent",
+          "chip_email_cancel": "No reply sent — refusal respected",
+          "chip_calendar_confirm": "Run moved to 10:30, after the rain",
+          "chip_calendar_cancel": "Run kept at 07:30 — your call",
+          "kv_focus_label": "Focus block",
+          "kv_focus_value": "08:00–08:45 — Atlas quote",
+          "kv_checkpoint_label": "Atlas checkpoint",
+          "kv_checkpoint_value": "09:30 (Emma's proposal)",
+          "kv_deadline_label": "Quote deadline",
+          "kv_deadline_value": "10:00 — 45 min protected before it",
+          "callout_title": "Ready for the 10:00 deadline",
+          "callout_body": "The protected block keeps 45 minutes for the Atlas quote before it is due.",
+          "closing": "All that's left is the run — a dry one, if you took my advice."
+        },
+        "note": "What you just saw: routing, planning under constraints and two approvals — the same HITL components as the product. Nothing applies without an explicit decision."
+      },
+      "proactive_alert": {
+        "title": "LIA gets there first",
+        "tagline": "Nothing was asked: the morning scan spots two risks and proposes fixes.",
+        "mechanism": "Proactivity",
+        "request": "Morning scan, 07:05 — two items need your attention before 09:00.",
+        "facts": {
+          "rain_evening": "Heavy rain expected",
+          "run_evening": "Run scheduled at",
+          "free_slot": "Free slot tomorrow at",
+          "marc_waiting": "Marc (Nordic) is waiting on option B since Tuesday",
+          "marc_committee": "Marc's committee meets at"
+        },
+        "findings": {
+          "rain_vs_run": "The evening run collides with the rain",
+          "reply_before": "Marc needs your answer before"
+        },
+        "trace_trigger": "Scheduled scan triggered",
+        "decisions": {
+          "move_run": {
+            "phase": "Your decision: move the run",
+            "receipt_label": "Run",
+            "tool": "Move the run before the rain",
+            "from_value": "Today 18:00",
+            "to_value": "Tomorrow 07:00",
+            "applied": "Run moved to tomorrow 07:00 — applied to the synthetic workspace",
+            "refused": "Run kept at 18:00 — nothing was changed"
+          },
+          "reply_marc": {
+            "phase": "Your decision: the reply to Marc",
+            "receipt_label": "Reply to Marc",
+            "subject": "Re: Option B — yes",
+            "body": "Hello Marc, option B works for me. You will have the details before your 10:00 committee.",
+            "applied": "Reply to Marc approved — applied to the synthetic workspace",
+            "edited": "Reply to Marc edited, then applied to the synthetic workspace",
+            "refused": "Reply to Marc refused — nothing was applied"
+          }
+        },
+        "receipt": {
+          "reads": "3 synthetic sources (weather, calendar, inbox)",
+          "proposed": "1 calendar move, 1 email reply — both initiated by LIA"
+        },
+        "response": {
+          "intro": "While you were still sound asleep, I had a look at your day: the weather decided to sabotage your 18:00 run, and Marc is still waiting for his answer — since Tuesday, but who's counting?",
+          "chip_run_confirm": "Run rescheduled to tomorrow 07:00",
+          "chip_run_cancel": "Run kept at 18:00 — your call",
+          "chip_marc_confirm": "Reply sent to Marc",
+          "chip_marc_edit": "Your edited reply was sent",
+          "chip_marc_cancel": "No reply sent — refusal respected",
+          "kv_next_label": "Next scan",
+          "kv_next_value": "Tomorrow 07:05",
+          "kv_quiet_label": "Quiet hours",
+          "kv_quiet_value": "22:00–07:00, never interrupted",
+          "closing": "Back to standby — we'll talk tomorrow at 07:05, promise, not before."
+        },
+        "note": "Nobody asked for anything here: the scheduled scan caught both risks on its own. Scan frequency and quiet hours live in the settings — LIA never initiates outside them."
+      },
+      "memory_dinner": {
+        "title": "It remembers for you",
+        "tagline": "One short ask, three remembered preferences applied — nothing asked twice.",
+        "mechanism": "Memory + habits",
+        "request": "Book a dinner with Sarah on Friday.",
+        "facts": {
+          "sarah_veg": "Sarah is vegetarian — remembered since March",
+          "last_dinner": "Last dinner together: Verdi — she loved it",
+          "dinner_time": "Your dinners usually start at",
+          "friday_free": "Friday is free after",
+          "sarah_contact": "Sarah — personal contact on file"
+        },
+        "findings": {
+          "prefs_applied": "3 remembered preferences applied — nothing asked twice",
+          "slot": "Friday fits both your habit and your calendar at"
+        },
+        "trace_recall": "Recalling preferences and habits",
+        "decisions": {
+          "invite_sarah": {
+            "phase": "Your decision: the message to Sarah",
+            "receipt_label": "Message to Sarah",
+            "subject": "Dinner Friday at Verdi?",
+            "body": "Hi Sarah! Verdi, Friday 20:00 — their vegetarian menu is great. Shall I book?",
+            "applied": "Message to Sarah approved — applied to the synthetic workspace",
+            "edited": "Message to Sarah edited, then applied to the synthetic workspace",
+            "refused": "Message to Sarah refused — nothing was applied"
+          },
+          "create_event": {
+            "phase": "Your decision: the calendar event",
+            "receipt_label": "Calendar",
+            "tool": "Add the dinner to Friday",
+            "what": "Event",
+            "what_value": "Dinner with Sarah — Verdi",
+            "when": "Friday at",
+            "applied": "Dinner added Friday 20:00 — applied to the synthetic calendar",
+            "refused": "No event created — nothing was changed"
+          }
+        },
+        "receipt": {
+          "reads": "4 synthetic sources (memory, habits, calendar, contacts)",
+          "proposed": "1 message draft, 1 calendar event — built from remembered preferences"
+        },
+        "response": {
+          "intro": "Dinner with Sarah on Friday? Easy. Verdi, 20:00 — she's vegetarian, I hadn't forgotten, and your Friday evening was free. Everything was ready; only your go was missing.",
+          "kv_place_label": "Restaurant",
+          "kv_place_value": "Verdi — vegetarian-friendly",
+          "kv_when_label": "When",
+          "kv_when_value": "Friday 20:00",
+          "kv_recall_label": "Remembered",
+          "kv_recall_value": "Sarah's diet, your usual time, your free evening",
+          "chip_invite_confirm": "Invitation sent to Sarah",
+          "chip_invite_edit": "Your edited invitation was sent",
+          "chip_invite_cancel": "No invitation sent — refusal respected",
+          "chip_event_confirm": "Dinner on the calendar",
+          "chip_event_cancel": "Calendar untouched — your call",
+          "closing": "The hard part is still ahead: waiting until Friday."
+        },
+        "note": "Everything was planned from remembered preferences, without asking again. What LIA retains is visible, editable and deletable from the settings."
+      },
+      "phone_booking": {
+        "title": "It makes the call",
+        "tagline": "A real-world action: prepared, explained — and never dialed without your go.",
+        "mechanism": "Outbound calls",
+        "request": "Book us a table at Chez Léon for Saturday evening — call them, I never find the time.",
+        "facts": {
+          "birthday": "Organize the birthday dinner — Saturday",
+          "leon": "Chez Léon — phone number on file",
+          "saturday_free": "Saturday evening is free from"
+        },
+        "findings": {
+          "script_ready": "Call script ready: table for two, birthday mention, target",
+          "hitl_gate": "Nothing is dialed without your explicit approval"
+        },
+        "trace_script": "Preparing the call script",
+        "decisions": {
+          "authorize_call": {
+            "phase": "Your decision: the outbound call",
+            "receipt_label": "Phone call",
+            "tool": "Authorize the call to Chez Léon",
+            "callee": "Call",
+            "callee_value": "Chez Léon",
+            "goal": "Goal",
+            "goal_value": "Table for two — Saturday 20:00",
+            "applied": "Call authorized and completed — summary saved in the synthetic journal",
+            "refused": "No call was made — your refusal is a decision, not an error"
+          }
+        },
+        "receipt": {
+          "reads": "3 synthetic sources (tasks, contacts, calendar)",
+          "proposed": "1 outbound call — gated by your explicit approval"
+        },
+        "response": {
+          "intro_confirm": "Done — I called Chez Léon while you were busy with more important things. One minute forty of conversation, a table for two on Saturday 20:00, and even a word about the birthday.",
+          "intro_cancel": "Very well — I'm hanging up before even dialing. The script stays warm if you change your mind; Chez Léon will never know.",
+          "kv_place_label": "Restaurant",
+          "kv_place_value": "Chez Léon",
+          "kv_result_label": "Result",
+          "kv_result_value": "Table for two — confirmed",
+          "kv_when_label": "When",
+          "kv_when_value": "Saturday 20:00",
+          "chip_confirm": "Reservation confirmed",
+          "chip_cancel": "No call made — refusal respected",
+          "transcript_summary": "See the call summary",
+          "transcript_1": "LIA: A table for two on Saturday 8 pm — it is a birthday.",
+          "transcript_2": "Chez Léon: 8 pm works, by the window.",
+          "transcript_3": "LIA: Perfect, thank you — see you Saturday.",
+          "closing_confirm": "All you have to do now is show up on time."
+        },
+        "note": "Every outbound call shows its goal and script first — no approval, no dial."
+      },
+      "daily_briefing": {
+        "title": "Your morning, already digested",
+        "tagline": "Inbox, calendar, weather and tasks in one rich, readable reply.",
+        "mechanism": "Rich replies",
+        "request": "Daily briefing, 07:00 — your day is ready to read.",
+        "facts": {
+          "new_mails": "5 new emails — 1 needs you: Claire, about the contract",
+          "meetings": "3 meetings — the first at",
+          "overlap": "Two afternoon meetings overlap at",
+          "due": "2 tasks due today — the contract review first",
+          "clear": "Clear sky, 22 °C"
+        },
+        "findings": {
+          "claire": "Claire's email deserves an answer before",
+          "overlap": "Client review and design review overlap"
+        },
+        "trace_schedule": "Scheduled briefing triggered",
+        "trace_compose": "Composing the rich reply",
+        "decisions": {
+          "focus_block": {
+            "phase": "Your decision: the focus slot",
+            "receipt_label": "Focus slot",
+            "tool": "Reserve a slot to answer Claire",
+            "applied": "Focus slot reserved 08:30–08:50 — applied to the synthetic calendar",
+            "refused": "No slot reserved — the briefing stays informational"
+          }
+        },
+        "receipt": {
+          "reads": "4 synthetic sources (inbox, calendar, tasks, weather)",
+          "proposed": "1 focus slot — the briefing itself changes nothing"
+        },
+        "response": {
+          "intro": "Good morning! While your coffee goes cold, here is your day: five emails and only one truly needs you, three meetings and two of them stepping on each other, and a big blue sky… to admire from the meeting room.",
+          "stat_emails": "new emails",
+          "stat_meetings": "meetings",
+          "stat_tasks": "tasks due",
+          "agenda_title": "Your meetings",
+          "meeting_1": "Team sync",
+          "meeting_2": "Client review",
+          "meeting_3": "Design review",
+          "overlap_title": "15-minute overlap",
+          "overlap_body": "Client review (14:00) runs into design review (15:30) — consider trimming one.",
+          "chip_focus_confirm": "Focus slot at 08:30 for Claire",
+          "chip_focus_cancel": "No slot reserved — your call",
+          "closing": "Claire first — the rest can wait, it's used to it."
+        },
+        "note": "This briefing is LIA's native rich-HTML rendering: the same formatting as real replies — composed locally here, with no model call."
+      },
+      "config_tour": {
+        "title": "Yours to shape, in a few clicks",
+        "tagline": "Tone, proactivity, languages, connections — set from the interface, nothing technical.",
+        "mechanism": "In-app settings",
+        "request": "Make your replies shorter, and only reach out to me in the morning.",
+        "sources": {
+          "personality": "Settings — Personality",
+          "proactivity": "Settings — Proactivity",
+          "languages": "Settings — Languages & voice",
+          "connections": "Settings — Connections"
+        },
+        "facts": {
+          "tone": "Current tone: warm, detailed replies",
+          "styles": "6 reply styles — one click each",
+          "frequency": "3 scans a day, quiet hours",
+          "languages": "6 languages, voice in and out",
+          "connectors": "Email, calendar, contacts: connected in one click"
+        },
+        "findings": {
+          "match": "Your ask maps to exactly two switches — no file, no code",
+          "reversible": "Every change is reversible from the same screen"
+        },
+        "trace_settings": "Reading the current settings",
+        "decisions": {
+          "concise_style": {
+            "phase": "Your decision: the reply style",
+            "receipt_label": "Reply style",
+            "tool": "Switch replies to concise",
+            "setting": "Setting",
+            "setting_value": "Reply style",
+            "from_value": "Detailed",
+            "to_value": "Concise",
+            "applied": "Reply style switched to concise — applied to the synthetic settings",
+            "refused": "Reply style kept as is — nothing was changed"
+          },
+          "morning_window": {
+            "phase": "Your decision: the proactive window",
+            "receipt_label": "Proactive window",
+            "tool": "Limit proactive checks to mornings",
+            "applied": "Proactive checks limited to 07:00–09:00 — applied to the synthetic settings",
+            "refused": "Proactive schedule kept as is — nothing was changed"
+          }
+        },
+        "receipt": {
+          "reads": "4 settings areas (personality, proactivity, languages, connections)",
+          "proposed": "2 one-click switches — nothing technical involved"
+        },
+        "response": {
+          "intro": "Your request fit in one sentence; the answer fits in two switches. Here is where they live:",
+          "step_1": "Settings → Personality → Reply style: concise",
+          "step_2": "Settings → Proactivity → Active window: 07:00–09:00",
+          "chip_concise_confirm": "Concise replies active",
+          "chip_concise_cancel": "Reply style unchanged — your call",
+          "chip_mornings_confirm": "Morning-only proactivity active",
+          "chip_mornings_cancel": "Proactive schedule unchanged — your call",
+          "closing": "Two clicks to reprogram me… not sure if I should be impressed or offended."
+        },
+        "note": "No config file was touched: everything you saw is set from the interface — and just as easy to undo."
+      }
+    },
+    "back_home": "Back to home",
+    "note": {
+      "label": "Demo note"
+    },
+    "live": {
+      "title": "Live mission: an overloaded morning",
+      "start": "Run the live mission",
+      "streaming": "LIA is working through the morning…",
+      "narrative_source": "— real model answer, synthetic workspace",
+      "narrative_unavailable": "The written reply is unavailable for this run; the receipt below is complete.",
+      "reads_value": "{{count}} synthetic sources",
+      "decision_label": "Your decision",
+      "decision_applied": "Approved — applied to the synthetic workspace",
+      "decision_refused": "Refused — nothing was applied",
+      "honesty": {
+        "real_run": "Live run — a real model answers",
+        "synthetic_workspace": "Synthetic workspace — no account connected"
+      },
+      "phases": {
+        "idle": "Ready to start",
+        "starting": "Opening the session",
+        "streaming": "Mission in progress",
+        "awaiting_decision": "Waiting for your decision",
+        "completed": "Mission complete",
+        "fallback": "Guided demonstration"
+      },
+      "actions": {
+        "email_reply": "Send the reply to Emma",
+        "calendar_shift": "Move the run out of the rain",
+        "generic": "Apply the prepared change"
+      }
+    },
+    "live_invitation": {
+      "title": "Try the live demonstrator",
+      "intro": "A reduced edition of LIA, kept to the essentials so you can discover it. What you will not find here was left out on purpose — nothing is broken, nothing is unfinished.",
+      "cta": "Open the demonstrator",
+      "terms_link": "Read the terms (section 12 covers this instance)",
+      "limits": {
+        "reduced_edition": "A deliberately trimmed edition: some features of the full assistant are switched off here.",
+        "degraded_performance": "Responses are slower here than on a normal installation: this instance runs on modest, shared resources.",
+        "ephemeral": "Your account and everything in it are deleted every night. Nothing is kept, nothing can be restored.",
+        "no_sensitive_data": "Never enter sensitive, professional or banking data, credentials, or anything about someone else.",
+        "no_connectors": "No mailbox, calendar or file connection: linking a real account is disabled here.",
+        "account_quota": "Each account has a daily allowance; once it runs out, that account waits for the next day.",
+        "daily_capacity": "The demonstrator itself has a daily allowance shared by everyone. Once reached, it pauses until the next day.",
+        "availability": "It may be unavailable from time to time, without notice.",
+        "email_required": "Access needs a valid email address and accepting the terms — that is what keeps the bots out."
+      }
     }
   }
 }

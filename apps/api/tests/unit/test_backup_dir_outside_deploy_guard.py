@@ -35,7 +35,7 @@ pytestmark = pytest.mark.unit
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 COMPOSE_PROD = REPO_ROOT / "docker-compose.prod.yml"
-ENV_TEMPLATES = (".env.prod.example", ".env.min.prod")
+ENV_TEMPLATES = (".env.prod.example", ".env.min.prod.example")
 
 # The compose file lives at the root of the deployed directory, so a host path
 # is safe only when it climbs out of it.

@@ -15,6 +15,10 @@ class TestAuthFeatures:
         """Default posture: mfa_enabled=False."""
         with patch("src.domains.auth.router.settings") as mock_settings:
             mock_settings.mfa_enabled = False
+            # An ordinary instance, stated rather than inherited: every
+            # attribute of a bare MagicMock is truthy, so leaving this out
+            # made the endpoint believe it was a demonstrator.
+            mock_settings.demo_mode_enabled = False
             response = await auth_features()
         assert response.mfa_enabled is False
 
@@ -22,5 +26,6 @@ class TestAuthFeatures:
         """Flag on → capability advertised."""
         with patch("src.domains.auth.router.settings") as mock_settings:
             mock_settings.mfa_enabled = True
+            mock_settings.demo_mode_enabled = False
             response = await auth_features()
         assert response.mfa_enabled is True

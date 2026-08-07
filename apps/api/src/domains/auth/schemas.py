@@ -35,6 +35,15 @@ class UserRegisterRequest(
         default=False,
         description="Remember me - extends session to 30 days instead of 7",
     )
+    terms_accepted: bool = Field(
+        default=False,
+        description=(
+            "Whether the user accepted the terms of use. Required on an "
+            "instance that asks for them (public demonstrator); the rule "
+            "lives in the service, not in this schema, because it depends "
+            "on the deployment rather than on the payload."
+        ),
+    )
 
 
 class UserLoginRequest(BaseModel):
@@ -278,6 +287,26 @@ class AuthFeaturesResponse(BaseModel):
 
     mfa_enabled: bool = Field(
         ..., description="Whether passkeys/TOTP endpoints are mounted on this instance"
+    )
+    terms_required: bool = Field(
+        default=False,
+        description=(
+            "Whether registration requires accepting the terms. True on a "
+            "public demonstrator: the terms are what tell a visitor the "
+            "instance is wiped nightly, so the form must show them."
+        ),
+    )
+    terms_version: str = Field(
+        default="",
+        description="Version of the terms the visitor is accepting.",
+    )
+    federated_signin_enabled: bool = Field(
+        default=True,
+        description=(
+            "Whether signing in with an identity provider is offered. False on a "
+            "public demonstrator, where the only way in is an email address and an "
+            "explicit acceptance of the terms."
+        ),
     )
 
 

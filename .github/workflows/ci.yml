@@ -141,6 +141,19 @@ jobs:
           CI: "true"
         run: task test:e2e
 
+      # Guided showroom P0 (public-web-showroom program): two SEQUENTIAL clean
+      # managed builds — NEXT_PUBLIC_* flags are baked at build time, so each
+      # oracle needs its own fresh artifact (E2E_FORCE_FRESH in the tasks).
+      - name: Showroom contract — telemetry OFF (zero-API + axe)
+        env:
+          CI: "true"
+        run: task test:e2e:showroom
+
+      - name: Showroom contract — telemetry ON (credential-less collector)
+        env:
+          CI: "true"
+        run: task test:e2e:showroom:telemetry
+
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -230,6 +243,13 @@ jobs:
       # shrink-only allowlist (apps/api/tests/marker_coverage_allowlist.json).
       - name: Marker-coverage gate (F006 — no test runs in zero jobs)
         run: task test:markers
+
+      # ADR-215: the self-host installer must stay provably installable on
+      # every commit — wizard suite, release-artifact suite, full Compose
+      # scenario matrix (config --quiet only), installer lint, and the
+      # focused backend contracts. No service is started, nothing is pulled.
+      - name: Hermetic installer gate (ADR-215)
+        run: task test:install:hermetic
 
       - name: Upload coverage
         if: always()
@@ -590,6 +610,26 @@ jobs:
           source .venv/bin/activate
           pytest tests/unit/ -q --no-cov -p no:cacheprovider \
             -m "not integration and not slow and not e2e and not benchmark and not multiprocess"
+
+  installer-py310:
+    name: Installer Python 3.10 floor (ADR-215)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      # The self-host installer runs on a bare host with only Python >= 3.10
+      # — no repo venv, no pip install. Importing every wizard module under
+      # EXACTLY 3.10 with bytecode writes disabled IS the gate: any 3.11+
+      # syntax or runtime API (StrEnum, tomllib, datetime.UTC) fails here
+      # instead of on an operator's machine.
+      - name: Set up Python 3.10
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.10"
+
+      - name: Wizard self-check under the 3.10 floor
+        run: python -B scripts/install/tests_py310.py
 
   observability:
     name: Observability Config

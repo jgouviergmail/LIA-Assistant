@@ -314,12 +314,12 @@ GOOGLE_CONTACTS_ALL_FIELDS = (
 # Emails body truncation (for LLM consumption optimization)
 # Body is limited to prevent token bloat with very long email bodies
 # Long emails get truncated with "... [lire la suite sur <provider>](url)" link
-EMAILS_BODY_MAX_LENGTH_DEFAULT = 500  # Characters
+EMAILS_BODY_MAX_LENGTH_DEFAULT = 20000  # Characters
 
 # Emails URL shortening threshold (for readability in email body)
 # URLs longer than this threshold are replaced with [lien](url) markdown format
 # Short URLs (e.g., https://google.com) are kept as-is for readability
-EMAILS_URL_SHORTEN_THRESHOLD_DEFAULT = 50  # Characters
+EMAILS_URL_SHORTEN_THRESHOLD_DEFAULT = 20  # Characters
 
 # Minimal preview for listing/searching emails (~150 tokens/email)
 # Use case: "recherche mes emails de john" - quick overview
@@ -482,6 +482,12 @@ SCHEDULER_JOB_PRODUCT_ROLLUP = "product_analytics_rollup"
 PRODUCT_OUTCOMES_RETENTION_DAYS_DEFAULT = 180
 PRODUCT_E2_VALIDATION_WINDOW_HOURS_DEFAULT = 24
 PRODUCT_ROLLUP_INTERVAL_MINUTES_DEFAULT = 60
+# Showroom collector global quota (P0 program): fixed GLOBAL Redis keys — the
+# caps count collector REQUESTS (one bounded event per request client-side),
+# never a per-IP or per-visitor bucket. Sized for a Show HN spike (~60
+# concurrent visitors emitting ~10 events over a mission).
+PRODUCT_SHOWROOM_MINUTE_CAP_DEFAULT = 600
+PRODUCT_SHOWROOM_DAY_CAP_DEFAULT = 50_000
 # First rollup shortly after boot: an interval-only job never runs when the API
 # restarts more often than the interval (measured in prod: 4 boots, 0 ticks —
 # every gauge stayed empty). Structural warm-up delay, not a tunable.
@@ -552,15 +558,15 @@ TELEPHONY_RATE_LIMIT_PER_HOUR_DEFAULT = 10
 # TTS model of the provisioned voice agent. ElevenLabs REQUIRES a turbo/flash
 # v2.5 model for non-English agents (real 400 observed: "Non-english Agents
 # must use turbo or flash v2_5"); flash v2.5 is the low-latency phone choice.
-TELEPHONY_AGENT_TTS_MODEL_ID_DEFAULT = "eleven_flash_v2_5"
+TELEPHONY_AGENT_TTS_MODEL_ID_DEFAULT = "eleven_turbo_v2_5"
 # Default country calling code applied to NATIONAL numbers (single leading 0,
 # no '+'): "0682511639" -> "+33682511639" when set to "+33". Empty = keep the
 # number as-is (telephony vendors may reject non-E.164 numbers).
-TELEPHONY_DEFAULT_COUNTRY_CODE_DEFAULT = ""
+TELEPHONY_DEFAULT_COUNTRY_CODE_DEFAULT = "+33"
 # Voice of the provisioned agent (ElevenLabs voice id). Empty = vendor default,
 # which is an ENGLISH voice — set a multilingual/native voice for non-English
 # deployments (garbled speech reported with the default voice on French calls).
-TELEPHONY_AGENT_VOICE_ID_DEFAULT = ""
+TELEPHONY_AGENT_VOICE_ID_DEFAULT = "nr2EGJNe96rzn9FRlTId"
 # Audio format of the agent (output TTS + input ASR). The phone network runs
 # 8 kHz mu-law: Twilio telephony REQUIRES ulaw_8000 (vendor troubleshooting for
 # garbled/poor audio names exactly this), higher formats are inaudible on a
@@ -571,7 +577,7 @@ TELEPHONY_AGENT_AUDIO_FORMAT_DEFAULT = "ulaw_8000"
 # observed reciting its English reasoning/directives ALOUD on a real French
 # call. gpt-4o-mini is fast, thinking-free and voice-proven. Empty = platform
 # default (not recommended).
-TELEPHONY_AGENT_LLM_MODEL_DEFAULT = "gpt-4o-mini"
+TELEPHONY_AGENT_LLM_MODEL_DEFAULT = "gpt-5.4-mini"
 # Grace window before a 404 conversation-status probe may close an active call
 # row as gone. A conversation can vanish vendor-side (observed: connector
 # deactivation deleted the agent mid-call → its conversation with it → the
@@ -794,7 +800,7 @@ LANGGRAPH_STORE_POOL_MAX_SIZE_DEFAULT = 4  # Store batches are sequential (Async
 # (4 workers -> burst 168 <= 195 usable, right-sized in .env.prod.example).
 DATABASE_MAX_CONNECTIONS_DEFAULT = 200  # PostgreSQL server max_connections (prod RPi5)
 DATABASE_RESERVED_CONNECTIONS_DEFAULT = 5  # superuser (3) + postgres-exporter (~2)
-WEB_CONCURRENCY_DEFAULT = 1  # uvicorn worker processes; prod sets 4 (env WEB_CONCURRENCY)
+WEB_CONCURRENCY_DEFAULT = 4  # uvicorn worker processes; prod sets 4 (env WEB_CONCURRENCY)
 
 # Redis database indices (0-15 available)
 REDIS_SESSION_DB = 1  # Session storage
@@ -1350,7 +1356,7 @@ DEVOPS_CLAUDE_TOOL_TIMEOUT_SECONDS_DEFAULT = 120.0
 # MAX_TOOL_TIMEOUT_SECONDS. Dedicated floor + ceiling, both tunable via
 # Settings (subagent_tool_timeout_seconds / subagent_tool_max_timeout_seconds).
 SUBAGENT_TOOL_TIMEOUT_SECONDS_DEFAULT = (
-    180.0  # 3 minutes - default floor for delegate_to_sub_agent_tool
+    300.0  # 5 minutes - default floor for delegate_to_sub_agent_tool (prod value)
 )
 SUBAGENT_TOOL_MAX_TIMEOUT_SECONDS_DEFAULT = (
     300.0  # 5 minutes - hard ceiling for delegate_to_sub_agent_tool
@@ -1437,19 +1443,19 @@ RESPONSE_FEEDBACK_JOURNAL_IDS_MAX = 20  # Defensive cap on per-turn injected-ent
 DEFAULT_BACKGROUND_RUNS_STREAM_MAXLEN = 10000
 # Stream TTL after the terminal marker — long enough for Lot 2 reattach, short
 # enough to bound Redis memory on the RPi5.
-DEFAULT_BACKGROUND_RUNS_STREAM_TTL_SECONDS = 3600
+DEFAULT_BACKGROUND_RUNS_STREAM_TTL_SECONDS = 1800
 # XREAD block window. MUST stay well below REDIS_SOCKET_TIMEOUT (POC-2 2026-07:
 # a block >= socket_timeout raises TimeoutError on redis-py 8).
 DEFAULT_BACKGROUND_RUNS_XREAD_BLOCK_MS = 2000
 # Lifespan shutdown: max wait for in-flight chat producers (POC-4b) then for
 # generic fire-and-forget tasks. Their sum must stay below the compose
 # stop_grace_period (90s) with margin.
-DEFAULT_BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS = 45
+DEFAULT_BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS = 60
 DEFAULT_SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS = 15
 # Lot 2 — active-run lock: TTL kept alive by the producer heartbeat; a killed
 # producer frees the conversation in at most ACTIVE_TTL seconds (POC-L2-1).
-DEFAULT_BACKGROUND_RUNS_ACTIVE_TTL_SECONDS = 15
-DEFAULT_BACKGROUND_RUNS_HEARTBEAT_SECONDS = 5
+DEFAULT_BACKGROUND_RUNS_ACTIVE_TTL_SECONDS = 30
+DEFAULT_BACKGROUND_RUNS_HEARTBEAT_SECONDS = 10
 # Lot 2 — subscriber presence TTL (voice synthesis is skipped with no listeners)
 DEFAULT_BACKGROUND_RUNS_LISTENER_TTL_SECONDS = 30
 # Lot 3 — producer-side cancellation poll period (user stop-button latency)
@@ -1488,6 +1494,21 @@ CHAT_SHORTCUT_TEXT_MAX_LENGTH = 500  # Inserted intent text
 # System settings cache keys
 REDIS_KEY_DEBUG_PANEL_ENABLED = "system:debug_panel_enabled"
 REDIS_KEY_DEBUG_PANEL_USER_ACCESS_ENABLED = "system:debug_panel_user_access_enabled"
+REDIS_KEY_INSTANCE_DAILY_BUDGET_EUR = "system:instance_daily_budget_eur"
+
+# One cache key per administrable capability (suffixed by its value).
+REDIS_KEY_CAPABILITY_PREFIX = "system:capability:"
+REDIS_KEY_PUBLIC_DEMO_LINK_ENABLED = "system:public_demo_link_enabled"
+
+# Stable error code for a route refused because its capability is switched
+# off. Distinct from a permission error: nothing is wrong with the account,
+# the instance simply does not offer that feature right now.
+CAPABILITY_DISABLED_ERROR_CODE: str = "capability_disabled"
+
+# Bounded staleness of an administrator toggle. Short enough that flipping a
+# switch takes effect while the operator is still watching, long enough that
+# the request path does not query PostgreSQL for every message.
+SYSTEM_SETTING_CACHE_TTL_SECONDS = 300  # 5 minutes
 
 # Gmail cache keys
 REDIS_KEY_GMAIL_SEARCH_PREFIX = "gmail:search:"
@@ -1681,10 +1702,10 @@ PLANNER_TIMEOUT_SECONDS = 30  # Timeout for planner LLM response
 # Progressive thresholds for catalogue reduction when token count exceeds limits.
 # GPT-4.1-mini supports 128k context - thresholds set to preserve quality.
 # Quality degradation is NOT acceptable - only trigger fallback in extreme cases.
-TOKEN_THRESHOLD_SAFE_DEFAULT = 20000  # Safe zone (Aligned from .env.prod)
-TOKEN_THRESHOLD_WARNING_DEFAULT = 30000  # Warning (Aligned from .env.prod)
-TOKEN_THRESHOLD_CRITICAL_DEFAULT = 40000  # Critical (Aligned from .env.prod)
-TOKEN_THRESHOLD_MAX_DEFAULT = 50000  # Maximum (Aligned from .env.prod)
+TOKEN_THRESHOLD_SAFE_DEFAULT = 50000  # Safe zone (Aligned from .env.prod)
+TOKEN_THRESHOLD_WARNING_DEFAULT = 65000  # Warning (Aligned from .env.prod)
+TOKEN_THRESHOLD_CRITICAL_DEFAULT = 85000  # Critical (Aligned from .env.prod)
+TOKEN_THRESHOLD_MAX_DEFAULT = 100000  # Maximum (Aligned from .env.prod)
 
 # Planner prompt version
 PLANNER_PROMPT_VERSION_DEFAULT = "v1"
@@ -2352,7 +2373,7 @@ PLAN_PATTERN_REDIS_TTL_DAYS_DEFAULT = 30
 # required by the selected domains adds the entity's source domains to the
 # planner catalogue. Ships dark (False): flip after the dev A/B on catalogue
 # growth; the iso-functional person→contact path remains the default.
-SEMANTIC_EXPANSION_EVIDENCE_DRIVEN_ENABLED_DEFAULT = False
+SEMANTIC_EXPANSION_EVIDENCE_DRIVEN_ENABLED_DEFAULT = True
 # Hard cap on domains added per turn by evidence-driven expansion (each added
 # domain grows the planner catalogue and prompt).
 SEMANTIC_EXPANSION_MAX_ADDED_DOMAINS_DEFAULT = 3
@@ -2563,7 +2584,7 @@ HEARTBEAT_MESSAGE_LLM_PROVIDER_DEFAULT = "qwen"
 RATE_LIMIT_SCOPE_DEFAULT = "user"
 CLIENT_RATE_LIMIT_GOOGLE_PER_SECOND_DEFAULT = 10
 CLIENT_RATE_LIMIT_PERPLEXITY_PER_SECOND_DEFAULT = 2.0
-PERPLEXITY_SEARCH_MODEL_DEFAULT = "sonar"
+PERPLEXITY_SEARCH_MODEL_DEFAULT = "sonar-pro"
 CLIENT_RATE_LIMIT_BRAVE_SEARCH_PER_SECOND_DEFAULT = 20.0
 CLIENT_RATE_LIMIT_MICROSOFT_PER_SECOND_DEFAULT = 4
 CLIENT_RATE_LIMIT_OPENWEATHERMAP_PER_SECOND_DEFAULT = 1
@@ -2574,14 +2595,14 @@ RATE_LIMIT_DEFAULT_WRITE_CALLS_DEFAULT = 20  # Aligned from .env.prod (was 5)
 RATE_LIMIT_DEFAULT_WRITE_WINDOW_DEFAULT = 60
 RATE_LIMIT_DEFAULT_EXPENSIVE_CALLS_DEFAULT = 20  # Aligned from .env.prod (was 2)
 RATE_LIMIT_DEFAULT_EXPENSIVE_WINDOW_DEFAULT = 300
-CONTACTS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 10
+CONTACTS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 20
 CONTACTS_TOOL_DEFAULT_LIMIT_DEFAULT = 10
 CALENDAR_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 25
-TASKS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 10
-PLACES_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 10
+TASKS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 20
+PLACES_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 20
 PLACES_TOOL_DEFAULT_RADIUS_METERS_DEFAULT = 500
-DRIVE_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 10
-EMAILS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 10
+DRIVE_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 20
+EMAILS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 20
 EMAILS_TOOL_DEFAULT_LIMIT_DEFAULT = 10
 # Concurrent per-message metadata fetches during Gmail search (the list
 # endpoint returns IDs only — N+1 pattern). 8 concurrent fetches resolve
@@ -2656,7 +2677,7 @@ VOICE_MAX_SENTENCES_DEFAULT = 3  # Aligned from .env.prod (was 6)
 VOICE_SENTENCE_DELIMITERS_DEFAULT = ".!?"
 VOICE_CONTEXT_MAX_CHARS_DEFAULT = 2000
 VOICE_PARALLEL_TIMEOUT_SECONDS_DEFAULT = 15.0
-VOICE_CHAT_MODE_MAX_SENTENCES_DEFAULT = 3
+VOICE_CHAT_MODE_MAX_SENTENCES_DEFAULT = 15
 VOICE_STT_MODEL_PATH_DEFAULT = "/models/whisper-small"
 
 # Approximate playback speed used to surface a ``duration_ms`` hint to the
@@ -2699,7 +2720,7 @@ RESPONSE_LLM_FREQUENCY_PENALTY_DEFAULT = 0.1
 RESPONSE_LLM_PRESENCE_PENALTY_DEFAULT = 0.0
 RESPONSE_LLM_MAX_TOKENS_DEFAULT = 8000
 CONTACTS_AGENT_LLM_PROVIDER_CONFIG_DEFAULT = "{}"
-CONTACTS_AGENT_LLM_MODEL_DEFAULT = ""
+CONTACTS_AGENT_LLM_MODEL_DEFAULT = "org-OnXqR6efQ6MlqGP4A1XuFUqo"
 CONTACTS_AGENT_LLM_TEMPERATURE_DEFAULT = 0.0
 CONTACTS_AGENT_LLM_TOP_P_DEFAULT = 1.0
 CONTACTS_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT = 0.0
@@ -2865,7 +2886,7 @@ MCP_TOOL_NAME_PREFIX = "mcp"
 MCP_DEFAULT_TIMEOUT_SECONDS = 120
 MCP_DEFAULT_RATE_LIMIT_CALLS = 60
 MCP_DEFAULT_RATE_LIMIT_WINDOW = 60
-MCP_MAX_SERVERS_DEFAULT = 10
+MCP_MAX_SERVERS_DEFAULT = 20
 MCP_MAX_TOOLS_PER_SERVER_DEFAULT = 40
 MCP_HEALTH_CHECK_INTERVAL_DEFAULT = 300
 MCP_CONNECTION_RETRY_MAX_DEFAULT = 3
@@ -2881,7 +2902,7 @@ MCP_REFERENCE_CONTENT_MAX_CHARS_DEFAULT = 30000  # Max chars of read_me content 
 MCP_USER_TOOL_NAME_PREFIX = "mcp_user"
 MCP_ITERATIVE_TASK_SUFFIX = "_task"  # Suffix for per-server iterative ReAct task tools
 MCP_USER_DEFAULT_API_KEY_HEADER = "X-API-Key"
-MCP_USER_MAX_SERVERS_PER_USER_DEFAULT = 5
+MCP_USER_MAX_SERVERS_PER_USER_DEFAULT = 20
 MCP_USER_POOL_TTL_SECONDS_DEFAULT = 900  # 15 min idle before connection eviction
 MCP_USER_POOL_MAX_TOTAL_DEFAULT = 50  # Global pool limit across all users
 MCP_USER_POOL_EVICTION_INTERVAL_DEFAULT = 60  # Seconds between eviction sweeps
@@ -2908,7 +2929,7 @@ MCP_DESCRIPTION_MAX_TOTAL_LENGTH = 400  # Max chars for algorithmic fallback des
 # Iterative multi-step interaction with MCP servers via ReAct agent loop.
 # Reference: tools/mcp_react_tools.py, tools/react_runner.py
 MCP_REACT_ENABLED_DEFAULT = True
-MCP_REACT_MAX_ITERATIONS_DEFAULT = 10  # create_react_agent recursion_limit
+MCP_REACT_MAX_ITERATIONS_DEFAULT = 50  # create_react_agent recursion_limit
 # Floor raised 120 -> 300 (audit D1): a single diagram-generation LLM call on a
 # large model takes ~105 s alone; 120 s killed legitimate MCP iterative work
 # (read_me + generation + create_view) seconds before completion.
@@ -2935,7 +2956,7 @@ INITIATIVE_MAX_ACTIONS_PER_ITERATION_DEFAULT = 3
 # ReAct-mode Initiative (ADR-070): gate the nominal ReAct path through the
 # Initiative node independently of the pipeline. Default off -> ship dark; the
 # ReAct draft path (already wired to initiative) is unaffected by this flag.
-INITIATIVE_REACT_ENABLED_DEFAULT = False
+INITIATIVE_REACT_ENABLED_DEFAULT = True
 INITIATIVE_LLM_TIMEOUT_SECONDS = 30  # Structured output needs parsing time
 INITIATIVE_MEMORY_LIMIT = 3  # Max memory facts injected
 INITIATIVE_MEMORY_MIN_SCORE = 0.45  # Calibrated for Gemini embeddings (may need re-tuning)
@@ -2986,15 +3007,15 @@ SEMANTIC_PIVOT_ENABLED_DEFAULT = True
 # package __init__ pulls in the router → a config↔domain circular import.
 BRIEFING_MAX_AGENDA_ITEMS_DEFAULT = 10
 BRIEFING_AGENDA_LOOKAHEAD_HOURS_DEFAULT = 24
-BRIEFING_MAX_MAILS_ITEMS_DEFAULT = 5
-BRIEFING_MAX_BIRTHDAYS_ITEMS_DEFAULT = 5
-BRIEFING_MAX_BIRTHDAYS_HORIZON_DAYS_DEFAULT = 14
-BRIEFING_MAX_OPEN_LOOPS_ITEMS_DEFAULT = 3
-BRIEFING_MAX_TASKS_ITEMS_DEFAULT = 5
+BRIEFING_MAX_MAILS_ITEMS_DEFAULT = 10
+BRIEFING_MAX_BIRTHDAYS_ITEMS_DEFAULT = 10
+BRIEFING_MAX_BIRTHDAYS_HORIZON_DAYS_DEFAULT = 7
+BRIEFING_MAX_OPEN_LOOPS_ITEMS_DEFAULT = 10
+BRIEFING_MAX_TASKS_ITEMS_DEFAULT = 10
 # Tasks card look-ahead: overdue (unbounded past) + due within this window.
 BRIEFING_TASKS_HORIZON_DAYS_DEFAULT = 7
 BRIEFING_MAX_DOCUMENTS_ITEMS_DEFAULT = 5
-BRIEFING_MAX_REMINDERS_ITEMS_DEFAULT = 5
+BRIEFING_MAX_REMINDERS_ITEMS_DEFAULT = 10
 BRIEFING_HEALTH_WINDOW_DAYS_DEFAULT = 14
 BRIEFING_WEATHER_DAILY_FORECAST_DAYS_DEFAULT = 5
 # D-04 stale-while-error: how long the last KNOWN-GOOD payload of a section is
@@ -3187,7 +3208,7 @@ V3_PLANNER_COMPLEXITY_MARKERS_EN = [
 V3_DISPLAY_ENABLED = True
 
 # Max items per domain in multi-domain responses
-V3_DISPLAY_MAX_ITEMS_PER_DOMAIN = 5
+V3_DISPLAY_MAX_ITEMS_PER_DOMAIN = 10
 
 # Viewport breakpoint for responsive formatting (must match .env value)
 V3_DISPLAY_VIEWPORT_MOBILE_MAX_WIDTH = 430  # <= 430px is mobile, > 430px is desktop
@@ -3856,7 +3877,7 @@ CHANNEL_RATE_LIMIT_GLOBAL_PER_SECOND_DEFAULT = 25
 # HTTPS, and only then toward two years. Env-tunable (`HSTS_MAX_AGE`) so a step
 # is a restart, not a rebuild — and so the API and the web app can never drift
 # onto different ladders. Mirrors `DEFAULT_HSTS_MAX_AGE` in apps/web/src/lib/csp.ts.
-HSTS_MAX_AGE_SECONDS_DEFAULT = 86_400
+HSTS_MAX_AGE_SECONDS_DEFAULT = 2592000
 
 # SEC-024. Telegram redelivers an update until it is acknowledged, and a
 # response lost on the wire counts as unacknowledged even though we answered
@@ -4346,12 +4367,12 @@ SUB_AGENTS_ENABLED_DEFAULT = True
 # routinely overruns when it batches multiple search queries in a single
 # pass — leading to GraphRecursionError without a coherent answer. 10 leaves
 # headroom for ~3-4 tool rounds + synthesis without exploding cost.
-SUBAGENT_DEFAULT_MAX_ITERATIONS_DEFAULT = 10
+SUBAGENT_DEFAULT_MAX_ITERATIONS_DEFAULT = 20
 
 # Hard cap (tokens) on `delegate_to_sub_agent_tool.instruction` AFTER $ref
 # resolution. Blocks the "shovel raw data via $steps.X.<payload> into
 # instruction" anti-pattern (cf. incident 2026-05-12 / ADR-083).
-SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED_DEFAULT = 3000
+SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED_DEFAULT = 10000
 
 # Whitelist of tool names the ReAct sub-agent is allowed to call (comma-
 # separated). When set (non-empty), `resolve_tools_for_subagent` switches to
@@ -4363,7 +4384,9 @@ SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED_DEFAULT = 3000
 # burns its `recursion_limit` exploring options and hits GraphRecursionError
 # without converging on a synthesis. Empty string = legacy blocklist-only
 # behavior.
-SUBAGENT_RESEARCH_TOOLS_WHITELIST_DEFAULT = "brave_search_tool,fetch_web_page_tool"
+SUBAGENT_RESEARCH_TOOLS_WHITELIST_DEFAULT = (
+    "perplexity_search_tool,brave_search_tool,fetch_web_page_tool"
+)
 
 # ADR-083 Phase 2 cleanup: SUBAGENT_MAX_PER_USER / SUBAGENT_MAX_CONCURRENT /
 # SUBAGENT_MAX_DEPTH / SUBAGENT_DEFAULT_TIMEOUT / SUBAGENT_MAX_TOKEN_BUDGET /
@@ -4389,12 +4412,12 @@ BROWSER_DEFAULT_TIMEOUT_MS = 120_000
 # Browser agent ReAct loop (browser_task_tool -> ReactSubAgentRunner)
 # create_react_agent recursion_limit: max LLM<->tool iterations per browsing task.
 # Mirrors REACT_AGENT_MAX_ITERATIONS / MCP_REACT_MAX_ITERATIONS.
-BROWSER_REACT_MAX_ITERATIONS_DEFAULT = 15
+BROWSER_REACT_MAX_ITERATIONS_DEFAULT = 50
 
 # Default token budget for the accessibility-tree snapshot handed to the LLM.
 # Too low and the model can't see forms / interactive elements past the cutoff
 # (browser_ax_tree_truncated); too high inflates per-step LLM input cost.
-BROWSER_AX_TREE_MAX_TOKENS_DEFAULT = 15000
+BROWSER_AX_TREE_MAX_TOKENS_DEFAULT = 30000
 
 # Redis key prefix for cross-worker session recovery
 REDIS_KEY_BROWSER_SESSION_PREFIX = "browser:session:"
@@ -4449,7 +4472,7 @@ BROWSER_BLOCKED_SCHEMES = frozenset({"file", "javascript", "data", "chrome", "ab
 # hosts, so the block rate has to be observed before it can be trusted. Flip
 # BROWSER_SSRF_ENFORCE to true once `browser_request_ssrf_blocked` shows only
 # what it should.
-BROWSER_SSRF_ENFORCE_DEFAULT = False
+BROWSER_SSRF_ENFORCE_DEFAULT = True
 
 # Per-host verdict cache. A single page can pull hundreds of sub-resources, and
 # an uncached check would add a DNS lookup to each one. The TTL is deliberately
@@ -4648,6 +4671,57 @@ USAGE_LIMIT_CRITICAL_THRESHOLD_PCT: int = 95
 # Error codes
 USAGE_LIMIT_EXCEEDED_ERROR_CODE: str = "usage_limit_exceeded"
 
+# Stable identifier for the instance-wide daily ceiling, surfaced as
+# `exceeded_limit` so the frontend can localize the message. It is NOT a
+# per-user limit: the whole deployment is paused until the next UTC day.
+INSTANCE_DAILY_BUDGET_LIMIT_NAME: str = "instance_daily_budget"
+
+# Dedicated error code for the instance ceiling. It must NOT reuse
+# `usage_limit_exceeded`: "you reached your quota, contact your administrator"
+# is misleading when the whole deployment paused until the next UTC day —
+# nothing the visitor or the administrator does today changes it.
+INSTANCE_BUDGET_EXHAUSTED_ERROR_CODE: str = "instance_budget_exhausted"
+
+
+# ============================================================================
+# PUBLIC DEMONSTRATOR (live-demonstrator programme)
+# ============================================================================
+
+# Identifier of the terms a visitor accepts at registration. Recorded on the
+# account: a consent with no version cannot be defended later.
+DEMO_TERMS_VERSION_DEFAULT: str = "2026-08-06"
+
+# Nightly visitor-account purge, in UTC. Placed before the usual daily jobs
+# so the instance starts its day empty.
+# Daily operator report: it must run BEFORE the purge, or it counts an
+# empty database and mails a page of zeros. Fifteen minutes of margin lets a
+# slow collection finish before the tmpfs it reads is dropped.
+DEMO_DAILY_REPORT_HOUR_DEFAULT = 2
+DEMO_DAILY_REPORT_MINUTE_DEFAULT = 15
+
+DEMO_ACCOUNT_PURGE_HOUR_DEFAULT: int = 2
+DEMO_ACCOUNT_PURGE_MINUTE_DEFAULT: int = 30
+
+# Scheduler job id for that purge.
+SCHEDULER_JOB_DEMO_DAILY_REPORT = "demo_daily_report"
+SCHEDULER_JOB_DEMO_ACCOUNT_PURGE: str = "demo_account_purge"
+
+# Accounts a demonstrator may create per UTC day.
+#
+# Per-address rate limiting cannot bound an instance: measured 2026-08-07,
+# thirty accounts were created in 6,4 seconds because the limiter's identity
+# comes from a header the caller supplies. Each account costs one verification
+# email against the operator's smarthost quota, and the daily SPEND ceiling is
+# blind to mail. Sized as a demonstrator, not a service: fifty genuine
+# visitors a day is already a good day, and an operator who wants more raises
+# it deliberately.
+DEMO_DAILY_SIGNUP_LIMIT_DEFAULT: int = 50
+
+# Error code a visitor receives when that ceiling is reached. Distinct from
+# `instance_budget_exhausted`: one says "this instance has spent its day", the
+# other "this instance has enrolled its day".
+DEMO_SIGNUP_LIMIT_ERROR_CODE: str = "demo_signup_limit_reached"
+
 # Constraints
 USAGE_LIMIT_BLOCKED_REASON_MAX_LENGTH: int = 500
 
@@ -4732,8 +4806,8 @@ DEVOPS_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 600
 DEFAULT_EXECUTION_MODE: str = "pipeline"
 EXECUTION_MODE_PIPELINE: str = "pipeline"
 EXECUTION_MODE_REACT: str = "react"
-REACT_AGENT_MAX_ITERATIONS_DEFAULT: int = 15
-REACT_AGENT_TIMEOUT_SECONDS_DEFAULT: int = 120
+REACT_AGENT_MAX_ITERATIONS_DEFAULT: int = 90
+REACT_AGENT_TIMEOUT_SECONDS_DEFAULT: int = 300
 
 # No-progress guard (ADR-170): repetition counts of the EXACT same tool call
 # (same name, same arguments) within one turn. 4 refuses the call and tells the

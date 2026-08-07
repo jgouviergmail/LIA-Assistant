@@ -12,10 +12,14 @@
 import type { Metadata } from 'next';
 
 import type { Language } from '@/i18n/settings';
+import { getSiteOrigin } from '@/lib/site-origin';
 
 export function buildAppMetadata(lng: Language): Metadata {
+  const origin = getSiteOrigin();
   return {
-    metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com'),
+    // No configured origin (generic prebuilt image, B03) → no metadataBase:
+    // Next then emits relative canonical/OG URLs, valid on any host.
+    ...(origin ? { metadataBase: new URL(origin) } : {}),
     title: 'LIA - Votre assistant personnel',
     description: "Votre assistant personnel intelligent pour la productivité et l'assistance",
     icons: {

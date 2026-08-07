@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versione**: 4.4
-**Data**: 2026-08-05
-**Applicazione**: LIA v1.28.0
+**Versione**: 4.5
+**Data**: 2026-08-08
+**Applicazione**: LIA v1.29.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -41,6 +41,8 @@ LIA sceglie un percorso diverso. Non è un concorrente diretto dei grandi — è
 L'auto-hosting ha una cattiva reputazione. LIA non pretende di eliminare ogni passaggio tecnico: la configurazione iniziale — impostare le chiavi API, configurare i connettori OAuth, scegliere l'infrastruttura — richiede un po' di tempo e qualche competenza di base. Ma ogni passaggio è **documentato nel dettaglio** in una guida di installazione passo dopo passo.
 
 Una volta terminata questa fase, **tutto il quotidiano si gestisce da un'interfaccia web intuitiva**. Niente più terminale né file di configurazione.
+
+Dalla v1.29.0 quella prima fase è a sua volta guidata: `./install.sh`, alla radice del repository, ti pone un questionario breve nella tua lingua — come vuoi raggiungere l'istanza, quali chiavi provider possiedi —, poi costruisce le immagini dal codice che hai clonato, applica i dati di riferimento in una sola transazione, crea il tuo account amministratore senza mai scrivere un segreto sulla riga di comando, e infine verifica che l'installazione funzioni davvero invece di limitarsi a rispondere. Se un passaggio fallisce, la ripresa riparte esattamente da dove si era fermata.
 
 ### 2.2. Cosa può configurare ogni utente
 
@@ -81,6 +83,8 @@ L'amministratore ha accesso a una terza scheda dedicata alla gestione dell'istan
 - **Limiti di utilizzo**: definire quote per utente (token LLM, chiamate API, generazioni di immagini) con monitoraggio in tempo reale e blocco automatico
 - **Messaggi broadcast**: inviare messaggi importanti a tutti gli utenti o a una selezione, con data di scadenza opzionale
 - **Export dei consumi globale**: esportare i consumi di tutti gli utenti in CSV
+- **Budget giornaliero dell'istanza**: limita quanto può spendere l'INTERA istanza in un giorno, in euro — e non solo quanto consuma ogni account. Il pannello mostra la spesa di oggi, il numero di esecuzioni, il tetto realmente applicato e quanto resta; il valore dell'operatore può solo stringere il limite del deployment, mai allargarlo. Esaurito il budget, gli utenti sanno che il deployment è in pausa e ricevono l'ora esatta di azzeramento, non un messaggio fuorviante sulla loro quota personale
+- **Capacità di piattaforma**: attiva o disattiva dieci capacità all'istante, senza ridistribuire — dettatura, sintesi vocale, immagini, caricamenti, spazi documentali, ricerca web, navigazione, competenze, MCP, telefonia. Una capacità disattivata sparisce anche dal catalogo offerto al pianificatore, quindi LIA smette di proporre ciò che le rotte rifiuterebbero; ogni riga mostra ciò che il deployment permette, ciò che hai scelto tu e ciò che viene davvero applicato
 
 **IA e connettori:**
 
@@ -221,6 +225,7 @@ L'amministratore mantiene il controllo sui consumi:
 - **Limiti di utilizzo** configurabili per utente: numero di messaggi, token, costo massimo — al giorno, alla settimana, al mese, o in totale cumulativo
 - **Quote visive**: ogni utente vede il proprio consumo in tempo reale con indicatori chiari
 - **Attivazione/disattivazione dei connettori**: l'amministratore abilita o disabilita le integrazioni (Google, Microsoft, Hue...) a livello di istanza
+- **Un tetto a livello dell'intera istanza**, sopra a quelli per utente: N account × la loro quota è una spesa non limitata, quindi un tetto giornaliero in euro limita il deployment stesso. Chi prima arriva, meglio alloggia — e dove un limite per utente fallisce aperto, una spesa d'istanza sconosciuta fallisce chiuso
 
 ### 4.3. La tua IA di famiglia
 

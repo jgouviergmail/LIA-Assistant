@@ -35,6 +35,8 @@ import AdminImagePricingSection from '@/components/settings/AdminImagePricingSec
 import AdminPersonalitiesSection from '@/components/settings/AdminPersonalitiesSection';
 import AdminBroadcastSection from '@/components/settings/AdminBroadcastSection';
 import AdminConsumptionExportSection from '@/components/settings/AdminConsumptionExportSection';
+import AdminCapabilitiesSection from '@/components/settings/AdminCapabilitiesSection';
+import AdminPublicDemoLinkSection from '@/components/settings/AdminPublicDemoLinkSection';
 import AdminDebugSettingsSection from '@/components/settings/AdminDebugSettingsSection';
 import AdminLLMConfigSection from '@/components/settings/AdminLLMConfigSection';
 import AdminRAGSpacesSection from '@/components/settings/AdminRAGSpacesSection';
@@ -577,6 +579,8 @@ export default function SettingsPage({ params }: SettingsPageProps) {
 
               {/* Group: System */}
               <SettingsGroupLabel label={t('settings.groups.system')} icon={Wrench} />
+              <AdminCapabilitiesSection lng={lng} />
+              <AdminPublicDemoLinkSection lng={lng} />
               <AdminDebugSettingsSection lng={lng} />
             </Accordion>
           </TabsContent>

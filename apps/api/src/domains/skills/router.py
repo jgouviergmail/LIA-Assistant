@@ -27,6 +27,8 @@ from src.core.session_dependencies import (
     get_current_active_session,
     get_current_superuser_session,
 )
+from src.domains.feature_switches.guard import capability_dependencies
+from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.skills.exceptions import (
     raise_admin_skill_delete_forbidden,
     raise_admin_skill_only,
@@ -41,7 +43,18 @@ from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/skills", tags=["Skills"])
+from src.domains.skills.description_translation import (  # noqa: E402
+    _save_translations,
+    _translate_description_all_langs,
+)
+
+router = APIRouter(
+    prefix="/skills",
+    tags=["Skills"],
+    # Administrable capability: a switched-off feature refuses at the
+    # door, not only in the planner catalogue.
+    dependencies=capability_dependencies(PlatformCapability.SKILLS),
+)
 
 
 class SkillDescriptionUpdateRequest(BaseModel):
@@ -192,46 +205,6 @@ def _update_skill_file_description(skill_path: Path, new_description: str) -> No
         width=2000,
     )
     skill_path.write_text(f"---\n{new_yaml}---\n{parts[2]}", encoding="utf-8")
-
-
-async def _translate_description_all_langs(
-    description: str,
-    invoke_config: Any,
-) -> dict[str, str]:
-    """Call LLM to translate a skill description into all 6 supported languages."""
-    from langchain_core.messages import HumanMessage, SystemMessage
-
-    from src.domains.agents.prompts import load_prompt
-    from src.domains.agents.utils.json_parser import extract_json_from_llm_response
-    from src.infrastructure.llm.factory import get_llm
-
-    system_prompt = load_prompt("skill_description_translation_prompt", version="v1")
-    llm = get_llm("skill_description_translator")
-    response = await llm.ainvoke(
-        [SystemMessage(content=system_prompt), HumanMessage(content=description)],
-        config=invoke_config,
-    )
-    content = response.content if hasattr(response, "content") else str(response)
-    # Central parser handles fences, trailing commas and // comments. Callers
-    # catch (json.JSONDecodeError, ValueError) together, so raising ValueError
-    # on a parse failure is transparent to them.
-    parse_result = extract_json_from_llm_response(
-        str(content), expected_type=dict, context="skill_description_translation"
-    )
-    if not parse_result.success or not isinstance(parse_result.data, dict):
-        raise ValueError("LLM returned invalid translation format")
-    translations: dict[str, str] = parse_result.data
-    if not all(isinstance(k, str) and isinstance(v, str) for k, v in translations.items()):
-        raise ValueError("LLM returned invalid translation format")
-    return translations
-
-
-def _save_translations(skill_dir: Path, translations: dict[str, str]) -> None:
-    """Write (or overwrite) translations.json next to SKILL.md."""
-    (skill_dir / "translations.json").write_text(
-        json.dumps(translations, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
 
 
 # ---------------------------------------------------------------------------

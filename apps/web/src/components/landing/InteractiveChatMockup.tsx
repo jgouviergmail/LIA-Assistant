@@ -43,11 +43,29 @@ export function InteractiveChatMockup({ lng, withCta = true }: InteractiveChatMo
 
   return (
     <div className="w-full max-w-md mx-auto space-y-4">
-      {/* Scene pastilles + schedule controls */}
+      {/* The four acts — ALWAYS one line.
+          `flex-nowrap` is the requirement, not a preference: the hero aligns
+          this row optically with the badge/date line of its left column
+          (`lg:-translate-y-[91px]` in CosmosHero, measured in-browser), and a
+          row that wraps moves everything under it, so the two columns stop
+          reading as starting at the same height.
+          They did not fit: four chips plus two control buttons shared one
+          `flex-wrap` container inside `max-w-md` (448px), and the German
+          labels alone measure ~468px. `overflow-x-auto` is the safety net for
+          the locales that still exceed the width — one scrollable line beats
+          two stacked ones, and it also keeps an unbreakable label from
+          widening the hero past a phone viewport, which is the exact
+          mechanism `min-w-0` exists to stop one level up.
+          The scrollbar is hidden and the row bleeds to the viewport edges
+          below `sm` so a cut-off chip still reads as "there is more". */}
       <div
         role="group"
         aria-label={t('landing.chat_mockup.demo_scenes_aria')}
-        className="flex flex-wrap items-center justify-center gap-2"
+        className={cn(
+          '-mx-4 flex flex-nowrap items-center gap-1.5 overflow-x-auto px-4',
+          'sm:mx-0 sm:justify-center sm:px-0',
+          '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+        )}
       >
         {SCENARIOS.map(s => (
           <button
@@ -56,7 +74,9 @@ export function InteractiveChatMockup({ lng, withCta = true }: InteractiveChatMo
             aria-pressed={scenario.id === s.id}
             onClick={() => controls.select(s.id)}
             className={cn(
-              'whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+              // `shrink-0`: without it flex compresses the chips instead of
+              // scrolling, and the labels truncate mid-word.
+              'shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
               scenario.id === s.id
                 ? 'border-primary/50 bg-primary/10 text-primary'
@@ -66,33 +86,34 @@ export function InteractiveChatMockup({ lng, withCta = true }: InteractiveChatMo
             {t(`landing.chat_mockup.${s.chipKey}`)}
           </button>
         ))}
-        {!reducedMotion && (
-          <>
-            <button
-              type="button"
-              onClick={controls.togglePause}
-              aria-label={t(
-                controls.paused ? 'landing.chat_mockup.demo_play' : 'landing.chat_mockup.demo_pause'
-              )}
-              className="rounded-full border border-border/60 bg-background/60 p-1.5 text-muted-foreground transition-colors hover:text-foreground hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-            >
-              {controls.paused ? (
-                <Play className="h-3.5 w-3.5" />
-              ) : (
-                <Pause className="h-3.5 w-3.5" />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={controls.replay}
-              aria-label={t('landing.chat_mockup.demo_replay')}
-              className="rounded-full border border-border/60 bg-background/60 p-1.5 text-muted-foreground transition-colors hover:text-foreground hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-            </button>
-          </>
-        )}
       </div>
+
+      {/* Schedule controls — ALWAYS the line below the acts, never mixed into
+          their row: they are chrome about the animation, not one of its four
+          chapters, and sharing a wrapping container is what let a control end
+          up beside a chip on one width and under it on the next. */}
+      {!reducedMotion && (
+        <div className="flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={controls.togglePause}
+            aria-label={t(
+              controls.paused ? 'landing.chat_mockup.demo_play' : 'landing.chat_mockup.demo_pause'
+            )}
+            className="rounded-full border border-border/60 bg-background/60 p-1.5 text-muted-foreground transition-colors hover:text-foreground hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            {controls.paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+          </button>
+          <button
+            type="button"
+            onClick={controls.replay}
+            aria-label={t('landing.chat_mockup.demo_replay')}
+            className="rounded-full border border-border/60 bg-background/60 p-1.5 text-muted-foreground transition-colors hover:text-foreground hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Discreet per-scene progress line (decorative — the pressed pastille
           is the accessible position indicator). */}

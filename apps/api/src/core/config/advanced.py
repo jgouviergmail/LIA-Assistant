@@ -169,6 +169,16 @@ class AdvancedSettings(BaseSettings):
     # ========================================================================
     # Web Search / Fetch Cache
     # ========================================================================
+    web_search_enabled: bool = Field(
+        default=True,
+        description=(
+            "Deployment ceiling for web search and page fetching (Brave, "
+            "Perplexity, generic search, fetch). Turning it off removes those "
+            "agents from what the planner can reach — useful on an instance "
+            "that must not make outbound content requests."
+        ),
+    )
+
     web_search_cache_enabled: bool = Field(
         default=WEB_SEARCH_CACHE_ENABLED_DEFAULT,
         description=(

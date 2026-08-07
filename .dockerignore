@@ -34,3 +34,16 @@ apps/api/models/sensevoice
 **/htmlcov
 **/.coverage*
 **/coverage*.json
+
+# Environment files never enter a build context.
+#
+# This is the WEB image's context (`context: .` in the compose files), and its
+# Dockerfile copies named paths only — verified 2026-08-07, no `.env*` exists
+# in either built image. That is today's Dockerfile: one `COPY . .` added
+# tomorrow would ship every secret of this machine into a layer. Excluding
+# them here makes the leak impossible rather than merely absent.
+#
+# `apps/api/.dockerignore` already does this for the API context.
+.env
+.env.*
+!.env*.example
