@@ -2,7 +2,7 @@
 
 For each (exposure x mode x observability x skill-sandbox) combination this
 script generates the full artifact set into a temporary directory — private
-``.env`` (rendered from ``.env.min.prod``), ``docker-compose.install.yml``,
+``.env`` (rendered from ``.env.min.prod.example``), ``docker-compose.install.yml``,
 the Caddyfile when applicable, and a fixture digest lock for prebuilt — and
 runs ``docker compose ... config --quiet``. It never pulls, builds, or
 starts anything. Exit 0 means every scenario's merged model is valid.
@@ -124,7 +124,7 @@ def _render_scenario(root: Path, public: PublicAnswers) -> list[str]:
         encoding="utf-8",
     )
     environment = derive_environment(public, generate_secrets())
-    base_env = (REPO_ROOT / ".env.min.prod").read_text(encoding="utf-8")
+    base_env = (REPO_ROOT / ".env.min.prod.example").read_text(encoding="utf-8")
     (root / ".env").write_text(render_env(base_env, dict(environment)), encoding="utf-8")
     if public.exposure is Exposure.CADDY:
         caddy_dir = root / "infrastructure" / "caddy"

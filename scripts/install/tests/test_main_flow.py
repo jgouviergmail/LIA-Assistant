@@ -119,7 +119,7 @@ def _bundle(tmp_path: Path) -> Path:
         REPO_ROOT / "infrastructure" / "caddy" / "Caddyfile.template",
         _mk(root / "infrastructure" / "caddy") / "Caddyfile.template",
     )
-    shutil.copy(REPO_ROOT / ".env.min.prod", root / ".env.min.prod")
+    shutil.copy(REPO_ROOT / ".env.min.prod.example", root / ".env.min.prod.example")
     for name in ("docker-compose.prod.yml", "docker-compose.skill-sandbox.yml"):
         shutil.copy(REPO_ROOT / name, root / name)
     return root

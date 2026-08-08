@@ -153,8 +153,16 @@ def _generate_artifacts(
     """Render .env / override / Caddyfile and prepare host paths."""
     seed_digest = compute_seed_bundle_sha256(deps.root)
     environment = derive_environment(public, generated)
-    base_path = deps.root / ".env.min.prod"
-    base = base_path.read_text(encoding="utf-8") if base_path.is_file() else ""
+    # The minimal production template is the BASE of the user's `.env`: every
+    # setting it carries survives into the installed instance. Reading it must
+    # therefore fail loudly. It used to degrade to `""` when absent, and the
+    # v1.29.0 rename to `.example` turned that fallback into a silent defect —
+    # the installer rendered an env from NOTHING and still reported success.
+    # An installation built on an empty base is not an installation.
+    base_path = deps.root / ".env.min.prod.example"
+    if not base_path.is_file():
+        raise deploy.StepFailed("base_env_template_missing")
+    base = base_path.read_text(encoding="utf-8")
     write_atomic_private(deps.root / ENV_FILE, render_env(base, dict(environment)))
     write_atomic_private(
         deps.root / OVERRIDE_FILE,

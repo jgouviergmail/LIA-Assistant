@@ -104,7 +104,7 @@ def test_live_bundle_inventory_excludes_tests_and_bytecode() -> None:
     # complete-live-build checkpoint (build_bundle) fails closed on them.
     assert "docker-compose.prod.yml" in files
     assert "docker-compose.skill-sandbox.yml" in files
-    assert ".env.min.prod" in files
+    assert ".env.min.prod.example" in files
     assert "infrastructure/docker/postgres-init.sql" in files
     assert "scripts/install/manifest.py" in files
     assert "scripts/install/tests" not in joined

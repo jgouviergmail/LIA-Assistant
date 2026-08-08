@@ -24,11 +24,29 @@ test.use({ locale: 'fr-FR' });
 
 const LOCALE_PATHS = ['/demo', '/en/demo', '/de/demo', '/es/demo', '/it/demo', '/zh/demo'];
 
+/**
+ * The ONE endpoint the mission is allowed to touch, with its reason.
+ *
+ * `LiveDemoInvitation` asks whether a public demonstrator link is published —
+ * a read-only, cookie-less (`credentials: 'omit'`) public read that carries
+ * nothing about the visitor, and whose answer the page cannot know otherwise
+ * without turning the admin switch into a rebuild. Everything else stays
+ * forbidden: the oracle exists to prove that no visitor data, no agent call
+ * and no telemetry leaves this page.
+ *
+ * Owner arbitration, 2026-08-08. Exact path only — a prefix would let the
+ * surface grow without anyone deciding, which is the mistake ADR-218 was
+ * written about.
+ */
+const ALLOWED_API_PATHS = ['/api/v1/product/public-demo-link'];
+
 /** Collect every /api/v1 request + websocket; assert none at the end. */
 function armNetworkOracle(page: Page): () => string[] {
   const offenders: string[] = [];
   page.on('request', req => {
-    if (req.url().includes('/api/v1')) offenders.push(`request ${req.url()}`);
+    const url = req.url();
+    if (ALLOWED_API_PATHS.some(path => new URL(url).pathname === path)) return;
+    if (url.includes('/api/v1')) offenders.push(`request ${url}`);
   });
   page.on('websocket', ws => {
     offenders.push(`websocket ${ws.url()}`);

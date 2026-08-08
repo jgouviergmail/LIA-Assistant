@@ -17,19 +17,27 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-const apiGet = vi.fn();
-vi.mock('@/hooks/useApiQuery', () => ({
-  useApiQuery: (...args: unknown[]) => apiGet(...args),
-}));
-
 import { LiveDemoInvitation } from '@/components/showroom/LiveDemoInvitation';
 
-function mockLink(enabled: boolean, url: string | null, loading = false): void {
-  apiGet.mockReturnValue({ data: { enabled, url }, loading, setData: vi.fn() });
+/**
+ * The component fetches DIRECTLY, cookie-less: `apiClient` forces
+ * `credentials: 'include'` by BFF contract and refuses an override, which
+ * would contradict this page's displayed "no connected account" claim. The
+ * double therefore stands in for `fetch`, and asserts that contract.
+ */
+const fetchMock = vi.fn();
+
+function mockLink(enabled: boolean, url: string | null, pending = false): void {
+  fetchMock.mockReturnValue(
+    pending
+      ? new Promise(() => undefined) // never settles: the "unknown" state
+      : Promise.resolve({ ok: true, json: () => Promise.resolve({ enabled, url }) })
+  );
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubGlobal('fetch', fetchMock);
 });
 
 describe('LiveDemoInvitation', () => {
@@ -108,11 +116,17 @@ describe('LiveDemoInvitation', () => {
     expect(terms.getAttribute('href')).toContain('/terms');
   });
 
-  it('reads the link from the anonymous endpoint', async () => {
+  it('reads the link from the anonymous endpoint, WITHOUT the session cookie', async () => {
     mockLink(true, 'https://demo.example.org');
     render(<LiveDemoInvitation lng="fr" />);
-    await waitFor(() => expect(apiGet).toHaveBeenCalled());
-    expect(String(apiGet.mock.calls[0][0])).toBe('/product/public-demo-link');
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(String(url)).toContain('/api/v1/product/public-demo-link');
+    // The page tells the visitor no account is connected. Sending the cookie
+    // to read a PUBLIC switch would make that displayed claim false, and this
+    // is the only /api/v1 call the showroom's zero-API oracle allows.
+    expect(init.credentials).toBe('omit');
   });
 
   it('says it is a reduced edition FIRST', async () => {

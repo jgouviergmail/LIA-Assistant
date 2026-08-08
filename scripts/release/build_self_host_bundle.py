@@ -23,7 +23,7 @@ REPO = Path(__file__).resolve().parents[2]
 #: Fixed single files every bundle must contain.
 BUNDLE_FILES: tuple[str, ...] = (
     "install.sh",
-    ".env.min.prod",
+    ".env.min.prod.example",
     "docker-compose.prod.yml",
     "docker-compose.skill-sandbox.yml",
     "infrastructure/caddy/Caddyfile.template",

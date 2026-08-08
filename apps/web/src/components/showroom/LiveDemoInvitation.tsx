@@ -15,13 +15,27 @@ import {
   Timer,
 } from 'lucide-react';
 
+import { useEffect, useState } from 'react';
+
 import { Button } from '@/components/ui/button';
-import { useApiQuery } from '@/hooks/useApiQuery';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
 
-/** Anonymous read of whether a demonstrator link should be shown. */
-const PUBLIC_DEMO_LINK_ENDPOINT = '/product/public-demo-link';
+/**
+ * Anonymous read of whether a demonstrator link should be shown.
+ *
+ * Deliberately NOT `useApiQuery`: that hook goes through `apiClient`, which
+ * forces `credentials: 'include'` by BFF contract and refuses a caller
+ * override. This component renders on `/demo`, whose honesty strip states
+ * "no connected account" — sending the visitor's session cookie to learn
+ * whether a public link exists would make that displayed claim false. Same
+ * credential-less contract, and same reason, as `trackShowroomEvent`.
+ *
+ * The showroom's zero-API oracle allows this ONE endpoint explicitly (see
+ * `e2e/smoke/public-demo-showroom.spec.ts`): it is a read-only, enum-shaped,
+ * cookie-less public read, and nothing about the visitor travels with it.
+ */
+const PUBLIC_DEMO_LINK_ENDPOINT = '/api/v1/product/public-demo-link';
 
 interface PublicDemoLink {
   enabled: boolean;
@@ -45,10 +59,24 @@ interface LiveDemoInvitationProps {
  */
 export function LiveDemoInvitation({ lng }: LiveDemoInvitationProps) {
   const { t } = useTranslation();
-  const { data, loading } = useApiQuery<PublicDemoLink>(PUBLIC_DEMO_LINK_ENDPOINT, {
-    componentName: 'LiveDemoInvitation',
-    initialData: { enabled: false, url: null },
-  });
+  const [data, setData] = useState<PublicDemoLink | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    // Cookie-less by contract: apiClient cannot omit credentials (BFF), and
+    // this page promises that no connected account is involved. See the
+    // constant's docstring above.
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}${PUBLIC_DEMO_LINK_ENDPOINT}`, {
+      credentials: 'omit',
+      signal: controller.signal,
+    })
+      .then(response => (response.ok ? (response.json() as Promise<PublicDemoLink>) : null))
+      .then(payload => setData(payload))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+    return () => controller.abort();
+  }, []);
 
   // Nothing while unknown: a block that appears late would push the guided
   // missions down under the reader's eyes.
