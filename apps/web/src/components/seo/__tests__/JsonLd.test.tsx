@@ -12,7 +12,7 @@
 import { readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { serializeJsonLd, FAQPageJsonLd, BlogListJsonLd } from '../JsonLd';
@@ -50,6 +50,16 @@ describe('JsonLd components — no <script> breakout in rendered HTML', () => {
   });
 
   it('BlogListJsonLd neutralizes a </script> payload in an article title', () => {
+    // BlogListJsonLd is ORIGIN-BEARING: since the release image became
+    // host-neutral (ADR-215/B03) it renders nothing at all when no origin is
+    // configured, because emitting a canonical URL it cannot know would be a
+    // fabricated claim. The escaping oracle therefore needs an origin, stubbed
+    // here rather than inherited: `task test:frontend` supplies one through the
+    // Taskfile's global `dotenv: .env`, CI does not — so without this stub the
+    // test passes locally and fails in CI on `match(...)` returning null.
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://lia.test');
+    vi.stubEnv('APP_URL_SERVER', '');
+
     const html = renderToStaticMarkup(
       <BlogListJsonLd
         lng="en"
@@ -69,6 +79,30 @@ describe('JsonLd components — no <script> breakout in rendered HTML', () => {
     expect(html.match(/<script/g)?.length).toBe(1);
     expect(html.match(/<\/script>/g)?.length).toBe(1);
     expect(html).not.toContain('</script><script>');
+
+    vi.unstubAllEnvs();
+  });
+
+  it('BlogListJsonLd emits nothing when no origin is configured', () => {
+    // Non-vacuity for the stub above: proves the previous test needs it, and
+    // pins the host-neutral contract — no origin means no fabricated canonical.
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', '');
+    vi.stubEnv('APP_URL_SERVER', '');
+
+    const html = renderToStaticMarkup(
+      <BlogListJsonLd
+        lng="en"
+        title="Blog"
+        description="desc"
+        articles={[
+          { title: 'safe', url: 'https://example.test/post', date: '2026-07-07', excerpt: 'e' },
+        ]}
+      />
+    );
+
+    expect(html).toBe('');
+
+    vi.unstubAllEnvs();
   });
 });
 

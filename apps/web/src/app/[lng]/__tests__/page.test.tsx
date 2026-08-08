@@ -125,8 +125,16 @@ describe('HomePage (cosmos landing)', () => {
   });
 
   it('serves indexable SEO metadata (canonical + hreflang, no noindex)', async () => {
-    // Same resolution as the page module (env-driven, config mirror only).
-    const base = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
+    // The origin is STUBBED, never read from the ambient environment. Since
+    // the release image became host-neutral (ADR-215/B03), no hardcoded
+    // fallback origin survives in the code: an unset variable yields RELATIVE
+    // URLs. A test that reads `process.env.NEXT_PUBLIC_APP_URL || '<a domain>'`
+    // therefore asserted the OLD behaviour and passed locally only because the
+    // Taskfile's global `dotenv: .env` injects the dev value — it failed in CI,
+    // which has no such environment.
+    const base = 'https://lia.test';
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', base);
+    vi.stubEnv('APP_URL_SERVER', '');
     const metadata = await generateMetadata(PARAMS);
     expect(metadata.robots).toBeUndefined();
     expect(metadata.alternates?.canonical).toBe(`${base}/`);
@@ -136,5 +144,24 @@ describe('HomePage (cosmos landing)', () => {
       'x-default': `${base}/`,
     });
     expect(metadata.title).toBeTruthy();
+    vi.unstubAllEnvs();
+  });
+
+  it('falls back to RELATIVE canonicals when no origin is configured', async () => {
+    // The host-neutral release image ships without an origin: the page must
+    // degrade to relative URLs rather than invent a domain. Absence is stubbed
+    // EXPLICITLY — relying on it being ambiently absent passes in CI and fails
+    // under `task test:frontend`, which inherits the dev `.env`.
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', '');
+    vi.stubEnv('APP_URL_SERVER', '');
+    const metadata = await generateMetadata(PARAMS);
+
+    expect(metadata.alternates?.canonical).toBe('/');
+    expect(metadata.alternates?.languages).toMatchObject({
+      fr: '/',
+      en: '/en/',
+      'x-default': '/',
+    });
+    vi.unstubAllEnvs();
   });
 });

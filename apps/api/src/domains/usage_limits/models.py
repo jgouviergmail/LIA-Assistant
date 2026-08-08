@@ -177,6 +177,11 @@ class InstanceDailyBudget(BaseModel):
         BigInteger,
         nullable=False,
         server_default="0",
+        # `doc=` is Python-level only; the SQL comment is part of the schema
+        # contract (see infrastructure/database/schema_drift.py — only
+        # `modify_default` is cosmetic), so the migration's comment must be
+        # mirrored here or a from-scratch replay reports drift.
+        comment="Visitor slots reserved on that UTC day (demo mode).",
         doc=(
             "Visitor slots reserved on that day, in demo mode. Lives on the "
             "same row as the money because it is the same question — what did "

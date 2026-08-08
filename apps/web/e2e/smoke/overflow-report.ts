@@ -37,7 +37,15 @@ export interface OverflowReport {
  *   document-scroll assertion below still catches any real layout push. Both
  *   conditions are required so genuinely interactive or readable content can
  *   never opt out of the guard.
- * - 3D projection: when the LAYOUT box fits the viewport but the transformed
+ * - Reachable by scrolling: an ancestor that clips on the x axis AND actually
+ *   scrolls (`overflow-x: auto|scroll` with `scrollWidth > clientWidth`) does
+ *   not HIDE what crosses the edge — the user swipes to it. `hidden`/`clip`
+ *   stay defects at the viewport edge, because there the content is
+ *   unreachable, which is the whole point of the guard. The landing's four
+ *   scene chips are the case that forced the distinction: they became one
+ *   deliberately scrollable line, bleeding to the viewport edges below `sm`
+ *   precisely so a half-visible chip reads as "there is more". The
+ *   document-scroll assertion below still fails if the PAGE itself scrolls.
  *   rect does not (`offsetWidth` ≤ viewport while `rect.width` is inflated),
  *   the overhang comes from a scroll-scrub perspective tilt mid-flight —
  *   deliberate choreography, clipped by its section. Every historical defect
@@ -60,18 +68,26 @@ export async function overflowReport(page: Page): Promise<OverflowReport> {
       // Nearest clipping boundary: the smallest right edge among ancestors
       // that clip on the x axis. Infinity when nothing clips. The same walk
       // detects pure-decoration subtrees (aria-hidden + pointer-events:none).
+      const SCROLLABLE = new Set(['auto', 'scroll']);
       let clipRight = Infinity;
+      let reachableByScroll = false;
       let decorative = el.getAttribute('aria-hidden') === 'true' && cs.pointerEvents === 'none';
       for (let node = el.parentElement; node; node = node.parentElement) {
         const ncs = getComputedStyle(node);
         if (CLIPPING.has(ncs.overflowX)) {
           clipRight = Math.min(clipRight, node.getBoundingClientRect().right);
         }
+        // Reachable, not hidden: the ancestor scrolls on x AND has something
+        // to scroll to. `hidden`/`clip` never qualify — there the overhang is
+        // genuinely unreachable, which is the defect this guard hunts.
+        if (SCROLLABLE.has(ncs.overflowX) && node.scrollWidth > node.clientWidth + 1) {
+          reachableByScroll = true;
+        }
         if (node.getAttribute('aria-hidden') === 'true' && ncs.pointerEvents === 'none') {
           decorative = true;
         }
       }
-      if (decorative) return;
+      if (decorative || reachableByScroll) return;
       // Clipped by an internal container that ends inside the viewport:
       // invisible by design, no content reaches the screen edge.
       if (clipRight < vw - 2) return;

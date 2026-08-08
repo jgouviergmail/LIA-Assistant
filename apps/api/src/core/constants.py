@@ -2371,8 +2371,9 @@ PLAN_PATTERN_REDIS_TTL_DAYS_DEFAULT = 30
 # Evidence-driven semantic expansion (2026-07): a referenced entity (person,
 # calendar event, place) whose ontology properties provide a semantic type
 # required by the selected domains adds the entity's source domains to the
-# planner catalogue. Ships dark (False): flip after the dev A/B on catalogue
-# growth; the iso-functional person→contact path remains the default.
+# planner catalogue. Enabled by default since the 2026-08-06 alignment on the
+# proven production configuration; the iso-functional person→contact path
+# stays available and is what the test environment pins (see .env.test).
 SEMANTIC_EXPANSION_EVIDENCE_DRIVEN_ENABLED_DEFAULT = True
 # Hard cap on domains added per turn by evidence-driven expansion (each added
 # domain grows the planner catalogue and prompt).

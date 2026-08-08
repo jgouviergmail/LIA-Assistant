@@ -176,7 +176,7 @@ class Settings(
     # Additional Settings (not in domain modules)
     # ========================================================================
     default_currency: SupportedCurrency = Field(
-        default=SupportedCurrency.EUR,
+        default=SupportedCurrency(DEFAULT_CURRENCY),
         description="Default currency for cost reporting (USD or EUR). Enum validation prevents unsupported currencies.",
     )
 
