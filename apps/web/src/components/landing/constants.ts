@@ -37,7 +37,7 @@
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
  *   Re-measured at v1.29.0: backend 18,206 collected across 987 files
  *   (`pytest tests/unit tests/agents --collect-only -q --no-cov`) + frontend
- *   5,446 (vitest, 440 files) = 23,652 → 23,600. The backend figure is LOWER
+ *   5,448 (vitest, 440 files) = 23,654 → 23,600. The backend figure is LOWER
  *   than v1.28.0's 18,276 and that is correct, not a regression: the isolated
  *   agentic-demonstrator prototype (44 modules, 35 unit suites, 244 tests) was
  *   deleted in favour of running the STANDARD image inside an isolated Compose

@@ -86,6 +86,11 @@ const ALLOWED: Record<string, string> = {
   'lib/product-telemetry.ts':
     'fire-and-forget telemetry (ADR-178): keepalive/sendBeacon on pagehide, anonymous allowed, ' +
     'failures swallowed — apiClient auth-eject and error surfaces must never trigger',
+  'components/showroom/LiveDemoInvitation.tsx':
+    'credentials: omit — apiClient forces include by BFF contract and refuses an override, but ' +
+    'this renders on /demo, whose honesty strip states "no connected account": sending the ' +
+    "visitor's session cookie to read a PUBLIC switch would make that displayed claim false. " +
+    'Same contract and same reason as the showroom telemetry emitter next to it.',
 };
 
 describe('ratchet — data calls go through apiClient', () => {

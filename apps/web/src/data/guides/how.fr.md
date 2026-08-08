@@ -74,7 +74,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~18 206 (collectés par pytest sur 987 fichiers de test) + 5 446 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | ~18 206 (collectés par pytest sur 987 fichiers de test) + 5 448 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures réutilisables | 170+ |
 | Documents de documentation | 490+ |
 | ADRs (Architecture Decision Records) | 209 |

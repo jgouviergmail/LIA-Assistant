@@ -74,7 +74,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~18.206 (raccolti da pytest su 987 file di test) + 5.446 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~18.206 (raccolti da pytest su 987 file di test) + 5.448 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 490+ |
 | ADR (Architecture Decision Record) | 209 |

@@ -55,7 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
-- **18 206 tests backend** (987 fichiers) et **5 446 tests frontend** (440 fichiers), tous verts. Le total baisse de 244 tests par rapport à la v1.28.0 : le prototype de démonstrateur agentique isolé (44 modules, 35 suites) a été retiré au profit de l'**image standard dans une enveloppe isolée**, qui démontre le produit réel plutôt qu'une réduction du produit.
+- **18 206 tests backend** (987 fichiers) et **5 448 tests frontend** (440 fichiers), tous verts. Le total baisse de 244 tests par rapport à la v1.28.0 : le prototype de démonstrateur agentique isolé (44 modules, 35 suites) a été retiré au profit de l'**image standard dans une enveloppe isolée**, qui démontre le produit réel plutôt qu'une réduction du produit.
 - **Gardes qui recalculent** (ADR-218) : couverture des familles de coût par lecture AST du résumé de run, surface publique dérivée des routes réellement montées en modélisant l'ordre d'évaluation du bord, recensement exhaustif du routeur des connecteurs. Chacune vérifiée à l'envers, en la mettant en défaut volontairement.
 - **Installateur** : matrice Compose réelle (`docker compose config`) sur 24 combinaisons, contrat Python 3.10, alignement du questionnaire sur les constantes du backend, workflow de qualification jetable, garde anti-survente interdisant « clé en main » / « zéro friction » sans preuve d'un profil mono-fournisseur.
 - **Parité i18n stricte** sur les 6 langues et couverture frontend relevée aux nouveaux planchers mesurés.

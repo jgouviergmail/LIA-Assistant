@@ -62,6 +62,24 @@ test('canonical run emits only credential-less showroom events', async ({ page, 
       });
       return;
     }
+    // The live-demonstrator invitation asks whether a public link is
+    // published. Owner arbitration 2026-08-08: allowed by EXACT path, and
+    // held to the SAME credential-less contract as the telemetry emitter —
+    // the session cookie planted at the top of this test must NOT ride along,
+    // which is asserted here rather than assumed. A prefix allowance would let
+    // the surface grow with nobody deciding, the mistake ADR-218 prevents.
+    if (url.endsWith('/api/v1/product/public-demo-link') && req.method() === 'GET') {
+      expect(
+        req.headers()['cookie'],
+        'the public-demo-link read must be cookie-free'
+      ).toBeUndefined();
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ enabled: false, url: null }),
+      });
+      return;
+    }
     offenders.push(`${req.method()} ${url}`);
     await route.abort();
   });
