@@ -30,10 +30,20 @@ export default defineConfig({
   // legacy build, so they only run through their dedicated Task targets
   // (test:e2e:showroom[:telemetry|:capture]), which set E2E_SHOWROOM=1 and
   // name their spec files explicitly.
+  // The LEADING `*` is load-bearing: without it the glob only matches a
+  // FILENAME that starts with `public-demo-showroom`, so
+  // `smoke/public-demo-showroom.spec.ts` was excluded while
+  // `a11y/axe-public-demo-showroom.spec.ts` silently ran inside the default
+  // suite — which builds the LEGACY variant. Its picker clicks then waited 90s
+  // for an element that page never renders, and its one non-clicking test
+  // ("mission picker has no blocking violation") passed VACUOUSLY by scanning
+  // whatever `/demo` happened to serve. Measured in CI on 2026-08-08: six
+  // failures whose page snapshot showed the legacy mockup, unreproducible
+  // locally because a manual run passes E2E_SHOWROOM=1 and skips the trap.
   testIgnore:
     process.env.E2E_SHOWROOM === '1'
       ? []
-      : ['**/public-demo-showroom*', '**/capture/**'],
+      : ['**/*public-demo-showroom*', '**/capture/**'],
   // Foundation is a PR smoke: keep it fast and deterministic. Firefox/WebKit
   // and the full zoom/reflow matrix are a documented periodic extension.
   fullyParallel: true,
