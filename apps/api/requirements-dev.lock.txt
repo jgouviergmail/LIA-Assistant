@@ -1831,9 +1831,9 @@ langgraph-checkpoint==4.1.1 \
     #   langgraph
     #   langgraph-checkpoint-postgres
     #   langgraph-prebuilt
-langgraph-checkpoint-postgres==3.1.0 \
-    --hash=sha256:02bff4ab63d9dae8eab3a9640fce1d479da8965c9fba7b0dc04cb1f7c56f0a55 \
-    --hash=sha256:814cce2ef35d792bf07b090a95eed004f1acac0724fe6605536b13f6d1e7032c
+langgraph-checkpoint-postgres==3.1.1 \
+    --hash=sha256:6e353aecd8150de144fef8e51a49076f58b7d6830d4cf51392b7ad4d79832ba7 \
+    --hash=sha256:d320e147ddad8c374cd546df0b52b532dd54d0541dd9fd23fc738cbd5de76f41
     # via
     #   -c requirements.lock.txt
     #   -r requirements.txt
