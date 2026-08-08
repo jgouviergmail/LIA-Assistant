@@ -96,6 +96,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # GHCR refuses an image reference whose repository part contains an
+      # uppercase letter, and `github.repository` preserves the owner's
+      # casing (jgouviergmail/LIA-Assistant). Workflow expressions have no
+      # lowercase function, so the namespace is folded here, once, and every
+      # reference below is built from it — including the digest identity that
+      # the manifest carries into promote-images.
+      - name: Fold the registry namespace to lowercase (GHCR requirement)
+        run: echo "IMAGE_NS=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
       # Candidate tags are registry STAGING handles only (sha-<commit>).
       # Semver tags are attached exclusively by promote-images, from the
       # already-qualified digests, without rebuilding (B02).
@@ -107,7 +116,7 @@ jobs:
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.app }}:sha-${{ github.sha }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NS }}/${{ matrix.app }}:sha-${{ github.sha }}
           # Host-neutral release artifacts (B03/ADR-215): explicit empty API
           # URL = same-origin contract; no app URL is ever baked. API
           # provenance args come from the release context (B02).
@@ -129,7 +138,7 @@ jobs:
       - name: Record candidate digest identity
         run: |
           set -euo pipefail
-          repo="${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.app }}"
+          repo="${{ env.REGISTRY }}/${{ env.IMAGE_NS }}/${{ matrix.app }}"
           digest="${{ steps.build.outputs.digest }}"
           raw="$(docker buildx imagetools inspect --raw "${repo}@${digest}")"
           amd64_manifest="$(echo "$raw" | jq -r '.manifests[] | select(.platform.architecture=="amd64" and .platform.os=="linux") | .digest')"
