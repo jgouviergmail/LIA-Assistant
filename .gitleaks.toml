@@ -1,0 +1,35 @@
+# gitleaks configuration — LIA
+#
+# The default ruleset is extended, never relaxed: no rule is disabled and no
+# path is exempted. The allowlist below names EXACT fixture VALUES, so a real
+# credential landing in the very same file still fails the scan — which is the
+# whole point of keeping the scan meaningful.
+#
+# Both entries were added with v1.29.0 (self-host installer, ADR-215) and both
+# are self-describing by construction:
+#
+#  - the Fernet fixture decodes to the ASCII string
+#    "unit-test-fernet-key-0123456789a". A Fernet key MUST be 32 url-safe
+#    base64 bytes or the Settings validator rejects it, so a unit test cannot
+#    use an obviously-fake short string; it needs a well-formed one, and a
+#    well-formed one is exactly what the generic-api-key rule flags.
+#  - the provider-key canary is what `verify_installation` writes and then
+#    requires back out, proving the stored key is DECRYPTABLE. Replacing it
+#    with a low-entropy value would make the test unable to distinguish a
+#    successful decryption from an empty column.
+#
+# Adding an entry here is a review decision: it must be a literal that appears
+# in test code, and the reason must be written above it.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Self-describing unit-test fixtures — no real credential"
+regexTarget = "secret"
+regexes = [
+  # apps/api/tests/unit/test_llm_config.py — base64("unit-test-fernet-key-0123456789a")
+  '''dW5pdC10ZXN0LWZlcm5ldC1rZXktMDEyMzQ1Njc4OWE=''',
+  # apps/api/tests/unit/test_verify_installation_script.py — decryption canary
+  '''sk-DECRYPTED-CANARY-77aa''',
+]
