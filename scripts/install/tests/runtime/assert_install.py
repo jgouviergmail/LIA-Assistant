@@ -49,21 +49,38 @@ def _post_json(url: str, payload: dict, cookie: str | None = None) -> tuple[int,
         return exc.code, {}, ""
 
 
-def probe_login(base_url: str, email: str, password: str) -> str:
-    status, _body, set_cookie = _post_json(
+def probe_login(base_url: str, email: str, password: str) -> tuple[str, str]:
+    """Login and return ``(session_cookie, user_id)``.
+
+    The user id rides the BFF login body (``user.id``): the chat contract
+    requires it, and probing with an invented payload cost a full matrix
+    run on the v1.30.1 qualification (422 on missing user_id/session_id).
+    """
+    status, body, set_cookie = _post_json(
         f"{base_url}/api/v1/auth/login",
         {"email": email, "password": password},
     )
     check(status == 200, f"login expected 200, got {status}")
     cookie = set_cookie.split(";")[0] if set_cookie else ""
     check(bool(cookie), "login returned no session cookie")
-    return cookie
+    user_id = str((body.get("user") or {}).get("id") or "")
+    check(bool(user_id), "login body carried no user id")
+    return cookie, user_id
 
 
-def probe_chat_stream(base_url: str, cookie: str) -> None:
+def probe_chat_stream(base_url: str, cookie: str, user_id: str) -> None:
+    # Exact ChatRequest contract (message + user_id + session_id) — proven
+    # against the candidate image: stream 200, fake-provider tokens, `done`
+    # terminal event in under 2 s.
     request = urllib.request.Request(
         f"{base_url}/api/v1/agents/chat/stream",
-        data=json.dumps({"message": "Say OK.", "conversation_id": None}).encode(),
+        data=json.dumps(
+            {
+                "message": "Say OK.",
+                "user_id": user_id,
+                "session_id": "qualification-probe",
+            }
+        ).encode(),
         headers={"Content-Type": "application/json", "Cookie": cookie},
         method="POST",
     )
@@ -81,6 +98,12 @@ def probe_chat_stream(base_url: str, cookie: str) -> None:
                 ):
                     terminal = True
                     break
+    except urllib.error.HTTPError as exc:
+        # The body is hermetic fake-provider data; the first bytes name the
+        # rejected field, which is the whole diagnosis.
+        detail = exc.read(300).decode("utf-8", "replace")
+        check(False, f"chat stream failed: HTTP {exc.code}: {detail}")
+        return
     except Exception as exc:  # noqa: BLE001
         check(False, f"chat stream failed: {type(exc).__name__}")
         return
@@ -130,9 +153,9 @@ def main() -> int:
     password = os.environ.get(args.admin_password_env, "")
     check(bool(password), f"missing env {args.admin_password_env}")
     if password:
-        cookie = probe_login(args.base_url, args.admin_email, password)
-        if cookie:
-            probe_chat_stream(args.base_url, cookie)
+        cookie, user_id = probe_login(args.base_url, args.admin_email, password)
+        if cookie and user_id:
+            probe_chat_stream(args.base_url, cookie, user_id)
     if args.manifest and args.platform and args.project:
         probe_image_identities(args.manifest, args.platform, args.project)
 

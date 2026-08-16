@@ -172,30 +172,6 @@ jobs:
           COMPOSE_PROJECT_NAME="${{ steps.project.outputs.name }}" \
             ./install.sh $mode_flag --non-interactive --answers answers.env
 
-      - name: Dump the redacted install log on failure
-        if: failure()
-        working-directory: work
-        run: |
-          # install.log is the ONLY place the failing command's redacted
-          # stderr tail lands (StepFailed.detail) — without this dump a
-          # matrix failure costs a full run and teaches nothing.
-          test -f install.log && cat install.log || echo "no install.log produced"
-
-      - name: Dump the stack state on failure
-        if: failure()
-        run: |
-          # A readiness_timeout carries no detail by construction (nothing
-          # failed — something never became true): the container states and
-          # logs are the only evidence. Hermetic disposable instance, fake
-          # data only — nothing sensitive can land in these logs.
-          p="${{ steps.project.outputs.name }}"
-          docker compose -p "$p" ps -a || true
-          for svc in postgres redis api web; do
-            echo "::group::logs $svc"
-            docker compose -p "$p" logs --no-color --tail 300 "$svc" || true
-            echo "::endgroup::"
-          done
-
       - name: Apply the hermetic fake-provider overlay
         working-directory: work
         run: |
@@ -247,6 +223,35 @@ jobs:
           set -euo pipefail
           python3 -B scripts/install/tests/runtime/inject_seed_failure.py arm
           python3 -B scripts/install/tests/runtime/inject_seed_failure.py disarm
+
+      # The failure dumps sit AFTER every probing step on purpose: an
+      # `if: failure()` step only fires when the job is already failing at
+      # its own position, so dumps placed right after the install step
+      # covered install failures only — the probe failures that followed had
+      # no evidence at all (measured on the v1.30.1 qualification).
+      - name: Dump the redacted install log on failure
+        if: failure()
+        working-directory: work
+        run: |
+          # install.log is the ONLY place the failing command's redacted
+          # stderr tail lands (StepFailed.detail) — without this dump a
+          # matrix failure costs a full run and teaches nothing.
+          test -f install.log && cat install.log || echo "no install.log produced"
+
+      - name: Dump the stack state on failure
+        if: failure()
+        run: |
+          # A readiness_timeout carries no detail by construction (nothing
+          # failed — something never became true): the container states and
+          # logs are the only evidence. Hermetic disposable instance, fake
+          # data only — nothing sensitive can land in these logs.
+          p="${{ steps.project.outputs.name }}"
+          docker compose -p "$p" ps -a || true
+          for svc in postgres redis api web fake-provider; do
+            echo "::group::logs $svc"
+            docker compose -p "$p" logs --no-color --tail 300 "$svc" || true
+            echo "::endgroup::"
+          done
 
       - name: Emit qualification evidence
         run: |
