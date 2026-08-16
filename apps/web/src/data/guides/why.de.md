@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 4.5
-**Datum**: 2026-08-08
-**Anwendung**: LIA v1.29.0
+**Datum**: 2026-08-16
+**Anwendung**: LIA v1.30.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -134,6 +134,7 @@ Sprich mit LIA wie mit einem menschlichen Assistenten — keine Befehle auswendi
 - **Wetter**: Aktuelle Bedingungen und 5-Tage-Vorhersagen mit Erkennung von Wetteränderungen (Regenbeginn/-ende, Temperaturabfall, Windwarnungen)
 - **Orte und Geschäfte**: Suche nach nahegelegenen Orten mit Details, Öffnungszeiten, Bewertungen
 - **Routen**: Berechnung multimodaler Routen (Auto, Fußweg, Fahrrad, ÖPNV) mit automatischer Geolokalisierung
+- **Position unterwegs**: Wenn deine Live-Position nicht verfügbar ist (eine mobile App im Ruhezustand), verwendet LIA deine zuletzt gespeicherte Position — sofern du sie aktiviert hast — statt deiner Heimatadresse, und nennt immer das Alter dieser Position, statt sie als aktuell auszugeben
 
 ### 3.4. Stimme
 
@@ -239,7 +240,7 @@ Stelle dich vor: ein Raspberry Pi im Wohnzimmer, und die ganze Familie profitier
 
 Wenn du ChatGPT nutzt, leben deine Gespräche auf den Servern von OpenAI. Mit Gemini bei Google. Mit Copilot bei Microsoft.
 
-Mit LIA **bleibt alles in deinem PostgreSQL**: Gespräche, Gedächtnis, psychologisches Profil, Dokumente, Einstellungen. Du kannst jederzeit alle deine Daten exportieren, sichern, migrieren oder löschen — auch per Ein-Klick-Komplettexport aus den Einstellungen: lesbares Markdown, strukturiertes JSON und deine Dateien, mit konstruktionsbedingt nicht exportierbarem Geheimmaterial. Und jedes mit deinem Konto verbundene Gerät ist sichtbar und mit einem Klick widerrufbar. Die DSGVO ist keine Einschränkung — sie ist eine natürliche Konsequenz der Architektur. Sensible Daten werden verschlüsselt, Sitzungen isoliert, und die automatische Filterung personenbezogener Daten (PII) ist integriert.
+Mit LIA **bleibt alles in deinem PostgreSQL**: Gespräche, Gedächtnis, psychologisches Profil, Dokumente, Einstellungen. Du kannst jederzeit alle deine Daten exportieren, sichern, migrieren oder löschen — auch per Ein-Klick-Komplettexport aus den Einstellungen: lesbares Markdown, strukturiertes JSON und deine Dateien, mit konstruktionsbedingt nicht exportierbarem Geheimmaterial. Und jedes mit deinem Konto verbundene Gerät ist sichtbar und mit einem Klick widerrufbar. Die DSGVO ist keine Einschränkung — sie ist eine natürliche Konsequenz der Architektur. Sensible Daten werden verschlüsselt, Sitzungen isoliert, und die automatische Filterung personenbezogener Daten (PII) ist integriert. Deine Position folgt derselben Doktrin: das Speichern der letzten Position ist eine ausdrückliche Entscheidung, verschlüsselt wie alles andere, nie historisiert — jede Aktualisierung überschreibt die vorherige — und gelöscht, sobald du die Option abschaltest.
 
 Der Schutz gilt auch für das, was **hereinkommt**. LIA liest täglich Texte, die du nicht geschrieben hast: den Text einer E-Mail, die von ihrem Organisator verfasste Beschreibung einer Einladung, eine Webseite, einen Ortseintrag. Jeder kann darin eine Anweisung an die Assistentin unterbringen. Jede Information trägt nun ihre Herkunft, und was von außen kommt, trifft als **zu analysierendes Material ein, nie als zu befolgender Befehl** — mit Manipulationsversuchen, die in den sechs Sprachen erkannt und benannt werden. Dein Inhalt wird dafür nie umgeschrieben: Eine E-Mail bleibt das, was ihr Autor geschrieben hat. Umschreiben würde die Illusion einer Garantie erzeugen, die die nächste Umgehung widerlegt; zu benennen, was man sieht, ist ehrlicher und nützlicher.
 

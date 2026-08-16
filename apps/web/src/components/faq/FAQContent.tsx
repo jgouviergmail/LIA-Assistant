@@ -69,6 +69,7 @@ import {
   Users,
   Server,
   SlidersHorizontal,
+  MapPin,
 } from 'lucide-react';
 
 interface FAQContentProps {
@@ -122,6 +123,7 @@ const sections = [
  * releases. `__tests__/changelog-wiring.test.ts` now fails on any drift in either direction.
  */
 export const changelogVersionKeys = [
+  'v1_30_0',
   'v1_29_0',
   'v1_28_0',
   'v1_27_14',
@@ -313,6 +315,7 @@ export const featureIcons = {
   multichannel: Radio,
   heartbeatAutonome: HeartPulse,
   webFetch: Globe2,
+  geolocation: MapPin,
   knowledgeEnrichment: Newspaper,
   adaptiveReplanner: RefreshCw,
   parallelExecution: Layers,
@@ -372,6 +375,10 @@ export const featureKeys = [
   'multichannel',
   'heartbeatAutonome',
   'webFetch',
+  // Wired at v1.30.0 alongside ADR-219: the card existed in the six locales
+  // since the dual-source days and was part of the pre-featureKeys curation;
+  // the generalized cascade made it a differentiator worth showing.
+  'geolocation',
   'knowledgeEnrichment',
   'adaptiveReplanner',
   'parallelExecution',

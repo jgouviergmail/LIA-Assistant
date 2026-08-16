@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.30.0] - 2026-08-16
+
+**En déplacement, LIA répond enfin depuis là où vous êtes — plus jamais depuis votre domicile par défaut** (ADR-219). La dernière position connue existait depuis avril (chiffrée, opt-in, jamais historisée) mais une seule famille de fonctionnalités la lisait : les notifications proactives. Le chat, les actions planifiées, le briefing et les skills retombaient sur l'adresse personnelle dès que la position du navigateur mourait — ce qu'une PWA fait systématiquement après quelques heures d'inactivité. La cascade est désormais **une** et **partout** : position vivante du navigateur, sinon dernière position mémorisée (fraîche et consentie), sinon domicile. Les actions planifiées, qui n'ont jamais de navigateur, en héritent sans une ligne de code.
+
+**Une position datée s'annonce datée — jamais présentée comme la position courante.** « Où suis-je ? » sans GPS vif répondait « activez la géolocalisation » ; la réponse vient maintenant de la dernière position mémorisée **avec son âge énoncé** (« d'après ta dernière position connue à 9 h 30… »). L'âge voyage dans le contrat de données (`as_of`), traverse l'outil, le contexte des skills et le prompt versionné : le modèle ne peut pas dire « tu es à… » sur un point d'il y a deux heures. Et « chez moi » ne sera jamais résolu par une position captée sur la route — le domicile garde sa branche.
+
+**La PWA se réveille au lieu d'attendre qu'on la secoue.** Au retour au premier plan, la permission est re-vérifiée : encore accordée → la position se rafraîchit **silencieusement** et repart au serveur ; retombée (ce qu'iOS fait après inactivité) → une bannière s'affiche dès l'ouverture du chat, **avant** que vous tapiez quoi que ce soit, et son bouton fournit le geste que la feuille native exige. Le partage périodique de position ne dépend plus d'une page de réglages ouverte : il vit dans le socle authentifié, avec son étranglement de 30 minutes.
+
+**Le réglage vit là où sont les autres sources de position.** L'opt-in « Mémoriser ma dernière position » a quitté les notifications proactives pour le connecteur Google Places, entre la géolocalisation en direct et l'adresse du domicile — l'ordre exact de la cascade. Transparence conservée : coordonnées stockées, date, fraîcheur, effacement immédiat.
+
+**Quatre pannes de production diagnostiquées dans les journaux, quatre causes racines corrigées.** Le mode ReAct mourait en 400 sur Gemini dès qu'un outil MCP déclarait un tableau (le schéma perdait son type d'éléments — un seul outil empoisonnait la requête entière) ; les appels téléphoniques échouaient avec un « réessaie plus tard » mensonger alors qu'ElevenLabs avait durci son format de clés (le statut `auth_failed` dit maintenant la vraie réparation, dans les 6 langues) ; l'administration LLM renvoyait 422 quand le dialogue envoyait la forme de raisonnement du modèle précédent (coercition à la sauvegarde + validation backend même sans changement de modèle) ; et le déploiement écrivait `DOCKER_GID` dans un fichier que la bascule atomique jetait — les widgets de skills perdaient l'accès au socket Docker à chaque mise en production.
+
+**Le démarrage multi-worker sur base vierge ne se bat plus contre lui-même.** Quatre workers exécutaient simultanément les migrations LangGraph sur une base neuve : violations de contraintes en cascade, boucle de respawn, un boot en 15-25 minutes. Un verrou consultatif PostgreSQL sérialise désormais la création du schéma — en **sondage non bloquant**, parce que la forme bloquante retenait un instantané dont `CREATE INDEX CONCURRENTLY` attendait la fin : un inter-blocage à trois mesuré en vrai. Boot à froid mesuré : 68 secondes, zéro échec. Et un fournisseur d'embeddings en panne dégrade la sélection sémantique d'outils au lieu de tuer l'application.
+
+### Added
+
+- **Cascade de localisation généralisée** (ADR-219) : la dernière position connue (opt-in, chiffrée, TTL 24 h) devient une source de premier rang pour le chat, les actions planifiées, le briefing et les skills — module dédié `location_resolution.py`, cascade implicite partagée `resolve_implicit_location` (navigateur > mémorisée > domicile).
+- **Âge de position contractuel** : `ResolvedLocation.as_of`, publié par l'outil « où suis-je », suffixé dans le contexte des skills (`last_known <horodatage>`) et enseigné au modèle par le prompt versionné — une position mémorisée est toujours annoncée avec son âge.
+- **Cycle de vie PWA** : rafraîchissement silencieux de la position au retour au premier plan (`visibilitychange`, restaurations bfcache), état `needsReactivation` quand la permission retombe, et bannière de réactivation proactive dans le chat (une fois par session, avant toute phrase).
+- **Synchronisation globale de position** : hook monté dans le socle authentifié qui pousse la position au serveur (étranglement client 30 min au-dessus de l'étranglement serveur), indépendamment de la page visitée ; un échec de poussée ne consomme pas la fenêtre.
+- **Réglage « Mémoire de position » sur le connecteur Google Places** : opt-in généralisé + panneau de transparence (coordonnées, date, fraîcheur, effacement), à la place du bloc météo des notifications proactives.
+- **Statut téléphonique `auth_failed`** : classification structurelle des erreurs d'authentification ElevenLabs (sur le type d'erreur, jamais sur le texte), phrase honnête dans les 6 langues indiquant la vraie réparation (reconnecter avec une clé `sk_`).
+- **Verrou de démarrage `setup_lock`** : sérialisation par verrou consultatif PostgreSQL (sondage `pg_try_advisory_lock`) de la création du schéma LangGraph entre workers — clés distinctes checkpointer/store, libération garantie sur connexions de pool réutilisées.
+
+### Changed
+
+- **Renommage assumé** : `weather_use_last_known_location` → `use_last_known_location`, `PATCH /auth/me/weather-location-preference` → `/auth/me/location-preference` (migration incluse) — un nom qui revendique une portée météo que le code n'a plus est une documentation mensongère.
+- **Le seuil de distance de 50 km reste propre aux notifications proactives** : en conversation, au bureau à 5 km de chez vous, « restos dans le coin » utilise votre vraie position — la fraîcheur est le seul critère du chat.
+- **Cinq recopies manuelles de « navigateur sinon domicile » factorisées** (outils lieux ×3, itinéraires ×2) vers la cascade partagée — et les manifests du planificateur disent la nouvelle vérité (l'outil de position n'« exige » plus la permission navigateur).
+- **`runtime_helpers.py` sort de la liste des fichiers gelés** : l'extraction du module de localisation le ramène de 717 à 522 lignes logiques, sous le plafond global — plafonds de `places_tools` et `routes_tools` abaissés dans la foulée.
+- **Seeds LLM régénérés depuis la production en pleine fidélité** : 123 modèles, 139 tarifs avec unité de facturation par ligne (les lignes à l'heure audio étaient perdues), 42 surcharges complètes (top_p, timeout, provider_config, effort) — planchers de vérification relevés 96→139 et 41→42.
+- **L'échec d'initialisation sémantique dégrade au lieu de tuer le boot** : frontière de résilience explicite dans l'initialisation des services d'embeddings (un 429 fournisseur ne vaut pas un « Application startup failed » ×4 workers).
+
+### Fixed
+
+- **Mode ReAct × Gemini : un outil MCP à paramètre tableau tuait toute la requête** — le schéma généré perdait le type des éléments (`items: {}`), Gemini répondait 400 INVALID_ARGUMENT pour le bind entier. Les éléments sont désormais typés (validation inchangée), avec le vrai convertisseur Gemini comme oracle de test — et la régression jumelle sur la détection des listes optionnelles (`Annotated[list] | None`) corrigée avec lui.
+- **Téléphonie : l'échec d'authentification était déguisé en panne passagère** — ElevenLabs a durci son format de clés entre le 4 et le 15 août ; « réessaie dans un instant » était un mensonge. Le statut `auth_failed` dit la vraie cause et la vraie réparation.
+- **Administration LLM : 422 en boucle sur la forme de raisonnement** — le dialogue envoyait la forme du modèle précédent quand le catalogue n'avait pas les capacités du nouveau ; coercition au moment de la sauvegarde, validation backend même quand le modèle est omis, chaîne vide tolérée au merge (elle crashait la configuration).
+- **Déploiement : `DOCKER_GID` écrit dans le mauvais `.env`** — l'étape écrivait dans l'arbre vivant que la bascule atomique (ADR-215) remplaçait ensuite ; les widgets de skills perdaient le socket Docker à chaque mise en production. L'écriture cible désormais l'arbre de préparation, celui que la bascule promeut.
+- **Course de démarrage sur base vierge** : les workers perdants de la création du schéma LangGraph mouraient en violation de contrainte de catalogue et l'API bouclait en respawn — sérialisé par le verrou consultatif (voir Added), en sondage non bloquant pour ne pas inter-bloquer `CREATE INDEX CONCURRENTLY`.
+- **Double demande GPS à chaque ouverture** : `pageshow` se déclenche aussi au chargement normal, où le montage rafraîchit déjà — seules les restaurations bfcache déclenchent désormais.
+
+### Tests
+
+- **18 254 tests backend collectés** (990 fichiers ; fast : 17 032 verts, 20 ignorés) et **5 475 tests frontend** (441 fichiers), tous verts ; MyPy strict sur 1 115 fichiers ; rejeu complet de la chaîne de migrations depuis une base vierge avec équivalence structurelle.
+- **La cascade a son banc d'essai dédié** : 19 tests unitaires sur le point d'étranglement (chaque intention × chaque source × fraîcheur × opt-in), deux-sens sur le cycle de vie PWA (bfcache déclenche, chargement normal non), mode proactif de la bannière (priorité, geste, rejet par session), synchronisation globale (étranglement, échec sans tampon), et l'oracle Gemini réel pour les schémas d'outils MCP.
+- **Ratchets améliorés, jamais relevés** : un fichier sort de la liste gelée des tailles, deux plafonds abaissés, complexité de la bannière décomposée en table de décision sous le seuil.
+
 ## [1.29.0] - 2026-08-08
 
 **LIA s'installe chez vous, se montre sans mentir, et sait ce qu'elle a le droit de dépenser** (ADR-215 → ADR-218). Quatre décisions d'architecture qui répondent à quatre questions restées sans réponse : comment quelqu'un d'autre fait-il tourner ce projet, comment le voir avant de l'installer, combien une instance peut-elle dépenser, et qu'est-ce qu'un exploitant peut couper sans redéployer.

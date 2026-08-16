@@ -132,6 +132,91 @@ class TestUpdateConfigAnthropicTemperatureLock:
 
 @pytest.mark.unit
 @pytest.mark.asyncio
+class TestUpdateConfigReasoningShapeWithoutModel:
+    """The shape guard must run even when ``model`` is omitted from the update.
+
+    Override semantics omit ``model`` when it equals the type default, and the
+    guard used to be keyed on ``update.model is not None`` — so a wrong-shaped
+    ``reasoning_effort`` persisted through exactly that path, then every GET
+    degraded it at merge time (prod 2026-08-14: 363
+    ``wrong_reasoning_effort_shape`` warnings in a single admin session). The
+    target model of a model-less update IS the type default's model.
+    """
+
+    async def test_wrong_shape_rejected_even_without_model(self) -> None:
+        service, db = _make_service()
+        # The default model resolves to toggle_budget caps → the enum shape is wrong.
+        caps = SimpleNamespace(
+            model_id="whatever-default",
+            effort_values=None,
+            reasoning_widget="toggle_budget",
+            reasoning_enum_values=None,
+            reasoning_budget_range={"min": 0, "max": 32768},
+        )
+        update = LLMTypeConfigUpdate(reasoning_effort=ReasoningEffortEnum(effort="low"))
+
+        with patch(_CAPS_GET, return_value=caps):
+            with pytest.raises(HTTPException) as exc:
+                await service.update_config("planner", update, uuid4(), MagicMock())
+
+        assert exc.value.status_code == 422
+        assert exc.value.detail["type"] == "wrong_reasoning_effort_shape"  # type: ignore[index]
+        db.commit.assert_not_awaited()  # nothing persisted
+
+    async def test_wrong_effort_rejected_even_without_model(self) -> None:
+        """Same hole, other field: the separate global `effort` (Anthropic)
+        was only validated when `model` travelled with it."""
+        service, db = _make_service()
+        caps = SimpleNamespace(
+            model_id="whatever-default",
+            effort_values=None,  # the default model declares NO effort support
+            reasoning_widget="none",
+            reasoning_enum_values=None,
+            reasoning_budget_range=None,
+        )
+        update = LLMTypeConfigUpdate(effort="high")
+
+        with patch(_CAPS_GET, return_value=caps):
+            with pytest.raises(HTTPException) as exc:
+                await service.update_config("planner", update, uuid4(), MagicMock())
+
+        assert exc.value.status_code == 422
+        assert exc.value.detail["type"] == "invalid_effort"  # type: ignore[index]
+        db.commit.assert_not_awaited()
+
+    async def test_unknown_default_model_does_not_block_a_modelless_update(self) -> None:
+        """Boot already validates code defaults; an unavailable capabilities
+        cache must not turn a legitimate model-less save into a 422."""
+        service, db = _make_service()
+        update = LLMTypeConfigUpdate(reasoning_effort=ReasoningEffortEnum(effort="low"))
+
+        with patch(_CAPS_GET, return_value=None), patch(_CACHE_RELOAD, new=AsyncMock()):
+            await service.update_config("planner", update, uuid4(), MagicMock())
+
+        db.commit.assert_awaited()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+class TestUpdateConfigEmptyStringNormalization:
+    """An empty model string is never a choice (provider is fenced by its
+    request Literal) — normalized to NULL at write time so it cannot override
+    the default model at merge time and break LLM resolution."""
+
+    async def test_empty_model_is_stored_as_null(self) -> None:
+        service, db = _make_service()
+        update = LLMTypeConfigUpdate(model="", temperature=0.3)
+
+        with patch(_CACHE_RELOAD, new=AsyncMock()):
+            await service.update_config("planner", update, uuid4(), MagicMock())
+
+        added_row = db.add.call_args[0][0]
+        assert added_row.model is None
+        assert added_row.temperature == 0.3
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
 class TestUpdateConfigThinkingBudgetFloor:
     """Thinking × completion-budget coherence on the admin write path.
 

@@ -35,13 +35,13 @@ BEGIN
     END IF;
 
     SELECT COUNT(*) INTO c FROM llm_model_pricing;
-    IF c < 96 THEN
-        RAISE EXCEPTION 'seed verification: llm_model_pricing expected >= 96, got %', c;
+    IF c < 139 THEN
+        RAISE EXCEPTION 'seed verification: llm_model_pricing expected >= 139, got %', c;
     END IF;
 
     SELECT COUNT(*) INTO c FROM llm_config_overrides;
-    IF c < 41 THEN
-        RAISE EXCEPTION 'seed verification: llm_config_overrides expected >= 41, got %', c;
+    IF c < 42 THEN
+        RAISE EXCEPTION 'seed verification: llm_config_overrides expected >= 42, got %', c;
     END IF;
 END
 $$;

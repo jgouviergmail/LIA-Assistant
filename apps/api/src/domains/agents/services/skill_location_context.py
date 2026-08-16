@@ -8,11 +8,13 @@ passed the literal strings "ma position" then "France" as Google Maps search
 queries (production run ``77ae2a29``, 2026-07-21).
 
 Resolution goes through :func:`resolve_location` — the same chokepoint every
-location-aware tool uses (browser geolocation first, then home address, with
-phrase-driven priorities) — never a parallel ad-hoc read of the browser
-context. The rendered value is deliberately language-free (coordinates or the
-``unknown`` sentinel): all wording around it lives in the versioned prompt
-file ``skill_react_agent_prompt`` (rule #16 — no LLM scaffolding in Python).
+location-aware tool uses (browser geolocation, then the opt-in fresh
+last-known position, then home address, with phrase-driven priorities;
+ADR-219) — never a parallel ad-hoc read of the browser context. The rendered
+value is deliberately language-free (coordinates, optionally suffixed with
+the ``(last_known <timestamp>)`` age marker, or the ``unknown`` sentinel):
+all wording around it lives in the versioned prompt file
+``skill_react_agent_prompt`` (rule #16 — no LLM scaffolding in Python).
 """
 
 from __future__ import annotations
@@ -60,7 +62,7 @@ async def resolve_user_location_for_prompt(
     """
     from langchain.tools import ToolRuntime
 
-    from src.domains.agents.tools.runtime_helpers import resolve_location
+    from src.domains.agents.tools.location_resolution import resolve_location
 
     try:
         # Synthetic runtime: resolve_location and its source helpers only read
@@ -94,4 +96,9 @@ async def resolve_user_location_for_prompt(
     value = f"{location.lat:.5f},{location.lon:.5f}"
     if location.address:
         value = f"{value} ({location.address})"
+    if location.source == "last_known" and location.as_of is not None:
+        # Language-free age marker, documented verbatim in the versioned
+        # prompt: the model must state the position's age, never present a
+        # persisted point as the live one.
+        value = f"{value} (last_known {location.as_of.strftime('%Y-%m-%dT%H:%M')}Z)"
     return value

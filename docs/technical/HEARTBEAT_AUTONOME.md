@@ -85,7 +85,7 @@ APScheduler (30 min, configurable)
 | `heartbeat_push_enabled` | bool | `true` | Ignored since v1.27.11 (kept for compatibility) — push follows the global opt-in |
 | `heartbeat_notify_start_hour` | int | `9` | Start hour (0-23) for notification window |
 | `heartbeat_notify_end_hour` | int | `22` | End hour (0-23) for notification window |
-| `weather_use_last_known_location` | bool | `false` | Opt-in: use persisted browser geoloc (Phase 3) when traveling (>50 km from home, <24 h old) |
+| `use_last_known_location` | bool | `false` | Opt-in: use the persisted browser geoloc (generalized, ADR-219 — setting lives on the Google Places connector); the proactive cascade adds its own >50 km / <24 h gates |
 | `heartbeat_disabled_sources` | JSONB | `NULL` | Sources the user refuses to be INTERRUPTED from (ADR-197). `NULL` = every source allowed. |
 
 ## Context Sources

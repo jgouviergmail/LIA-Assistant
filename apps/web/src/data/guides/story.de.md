@@ -3,8 +3,8 @@
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
 **Version**: 1.3
-**Datum**: 2026-08-08
-**Anwendung**: LIA v1.29.0
+**Datum**: 2026-08-16
+**Anwendung**: LIA v1.30.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Indikator | Wert |
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
-| Codezeilen (ohne Tests) — 39 Fachdomänen | **548.000** |
-| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **23.600+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **217** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **203** |
+| Codezeilen (ohne Tests) — 40 Fachdomänen | **520.000** |
+| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **23.700+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **218** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **204** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -50,7 +50,7 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 180 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 218 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Das Hosting ist vollständig kontrolliert; personenbezogene Daten sind verschlüsselt und bleiben auf der Infrastruktur.
 
@@ -62,7 +62,7 @@ Drei strukturelle Entscheidungen, unter den 180 dokumentierten:
 
 Ein System, das nach Instrumenten geflogen wird:
 
-- **Observability**: fünfundzwanzig Dashboards — Anwendungsgesundheit, Service-Verpflichtungen, KI-Kosten, Agentenverhalten, Infrastruktur. Mehr als 440 Metriken; zentralisierte strukturierte Logs mit Filterung personenbezogener Daten; durchgängiges verteiltes Tracing. Rund vierzig schriftliche Betriebsprozeduren — Diagnose, Behebung, Wiederherstellung.
+- **Observability**: fünfundzwanzig Dashboards — Anwendungsgesundheit, Service-Verpflichtungen, KI-Kosten, Agentenverhalten, Infrastruktur. Mehr als 470 Metriken; zentralisierte strukturierte Logs mit Filterung personenbezogener Daten; durchgängiges verteiltes Tracing. Rund vierzig schriftliche Betriebsprozeduren — Diagnose, Behebung, Wiederherstellung.
 - **Lieferung**: containerisiertes Deployment, automatisierte Schemamigrationen, Images für zwei Hardwarearchitekturen (amd64/arm64) veröffentlicht.
 - **Kosten**: bewusst frugale Infrastruktur — etwa 150 € Hardware, null Lizenzen, Open-Source-Bausteine, dimensioniert nach dem realen Bedarf.
 - **Compliance**: Sicherheit Endpunkt für Endpunkt überprüft; personenbezogene Daten verschlüsselt; Konto-Lebenszyklus an der DSGVO ausgerichtet.
@@ -85,11 +85,13 @@ Das in diesem Dokument beanspruchte Niveau stammt aus einem vollständigen techn
 
 Der Maßnahmenplan ist in Wellen organisiert, jede mit messbaren Abschlusskriterien. So legt dieses Projekt Rechenschaft ab: kein proklamiertes Niveau, ein gemessenes — Lücken inklusive.
 
-Auch der Beweis hat seine lehrreichste Episode: drei Rekalibrierungen eines simplen Abstands, dreimal „ich sehe keine Veränderung" — und eine Auslieferungskette, die bis zu den an den Browser gelieferten Bytes nachweislich gesund war. Zwei plausible falsche Fährten (Browser-Cache, Service Worker) fielen nacheinander, bis zur Messung, die nichts verzeiht: Im gesteuerten Browser betrug der berechnete Rand 16 Pixel, der gezeichnete Abstand 3. Die Label-Primitive war `inline` geblieben, und ein Inline-Element ignoriert seine vertikalen Ränder — der Defekt war älter als das ganze Programm. Der Fix ist ein Wort, die Entscheidung fiel auf drei echten Screenshots, und die Regel wurde Doktrin: erst das Rendering messen, dann die Auslieferung verdächtigen.
+Auch der Beweis hat seine lehrreichste Episode: drei Rekalibrierungen eines simplen Abstands, dreimal „ich sehe keine Veränderung“ — und eine Auslieferungskette, die bis zu den an den Browser gelieferten Bytes nachweislich gesund war. Zwei plausible falsche Fährten (Browser-Cache, Service Worker) fielen nacheinander, bis zur Messung, die nichts verzeiht: Im gesteuerten Browser betrug der berechnete Rand 16 Pixel, der gezeichnete Abstand 3. Die Label-Primitive war `inline` geblieben, und ein Inline-Element ignoriert seine vertikalen Ränder — der Defekt war älter als das ganze Programm. Der Fix ist ein Wort, die Entscheidung fiel auf drei echten Screenshots, und die Regel wurde Doktrin: erst das Rendering messen, dann die Auslieferung verdächtigen.
 
 Der Gewohnheitsdetektor verdiente sein Vertrauen auf dieselbe Weise: gegen echte Produktionsdaten ausgeführt, bevor man ihm glaubte — und ertappt. Eine tägliche geplante Aktion schrieb seit sechsundsechzig Tagen um 07:00 eine „Nutzer“-Nachricht; der Detektor beanspruchte den Fahrplan des Schedulers selbst als menschliche Gewohnheit. Die Widerlegung wurde zu einer Whitelist menschlicher Sitzungen, das erfundene Fenster verschwand, und die ehrlichen Verdikte stellten sich ein. Die Regel bleibt: gegen die Realität beweisen, bevor man dem Entwurf glaubt.
 
 Der Zyklus 1.29.0 hat eine dritte Episode hinzugefügt, und diese betrifft die Tests selbst. Jede Schutzmaßnahme des Programms war mit eigenen Tests geliefert worden, alle grün — und alle von derselben Form: sie hielten fest, was der Code am Tag der Lieferung tat. Eine handgeschriebene Liste beschreibt kein System, sie beschreibt, was ihre Autorin darüber wusste. Also wurden drei Wächter neu geschrieben, um den Schutz aus der Quelle der Wahrheit **neu zu berechnen**, statt ihn zu wiederholen. Sie fanden drei Fehler, die kein bestehender Test sehen konnte: eine Sprachausgabe, die abgerechnet und nie gegen das Ausgabenlimit gezählt wurde, eine Anbieteranmeldung, die die nun verpflichtende Zustimmung zu den Bedingungen vollständig umging, und elf Konnektorpfade, die echte Zugangsdaten ohne jede Absicherung verknüpften. Danach wurde jeder Wächter absichtlich in die Irre geführt, um zu prüfen, dass er rot wird — denn ein Wächter, den nie jemand scheitern sah, ist bloß ein weiteres Versprechen.
+
+Der Zyklus 1.30.0 dokumentierte eine Lektion anderer Art: eine Funktion kann geliefert, verschlüsselt, eingewilligt sein — und nutzlos, weil niemand sie liest. Die letzte bekannte Position existierte seit Monaten; nur die proaktiven Benachrichtigungen konsultierten sie. Unterwegs antwortete der Assistent daher von der Heimatadresse aus, mit Überzeugung. Die Diagnose kam aus den Produktionslogs, die Korrektur reduzierte drei divergierende Pfade auf eine einzige Kaskade — und die Doktrin der exakten Zahlen wurde auf die Position ausgedehnt: eine datierte Position kündigt sich als datiert an, „basierend auf deiner letzten bekannten Position um 9:30“, nie „du bist bei“. Derselbe Zyklus erinnerte daran, dass man einem Synchronisationsmechanismus erst glaubt, wenn er gegen die echte Engine bewiesen ist: die Sperre, die den ersten Start serialisiert, verklemmte sich mit PostgreSQLs nebenläufiger Indexerstellung — in der Sperrtabelle der Engine gemessen, als nicht-blockierendes Polling korrigiert und durch einen Test bewacht, der die Rückkehr der blockierenden Form verbietet.
 
 ## 7. Überzeugungen
 

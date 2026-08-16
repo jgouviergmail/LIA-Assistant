@@ -54,6 +54,8 @@ from src.domains.auth.schemas import (
     LastLocationUpdateRequest,
     LastLocationUpdateResponse,
     LastLocationViewResponse,
+    LocationPreferenceRequest,
+    LocationPreferenceResponse,
     LoginNotificationsPreferenceRequest,
     LoginNotificationsPreferenceResponse,
     LoginResponseBFF,
@@ -74,8 +76,6 @@ from src.domains.auth.schemas import (
     VoiceModePreferenceResponse,
     VoicePreferenceRequest,
     VoicePreferenceResponse,
-    WeatherLocationPreferenceRequest,
-    WeatherLocationPreferenceResponse,
 )
 from src.domains.auth.service import AuthService
 from src.domains.auth.totp_service import TOTPService
@@ -632,20 +632,21 @@ async def update_execution_mode_preference(
 
 
 @router.patch(
-    "/me/weather-location-preference",
-    response_model=WeatherLocationPreferenceResponse,
-    summary="Update weather last-known location opt-in",
+    "/me/location-preference",
+    response_model=LocationPreferenceResponse,
+    summary="Update last-known location opt-in",
     description=(
-        "Toggle persistence of the browser geolocation for proactive weather "
-        "notifications. Disabling wipes any stored location."
+        "Toggle persistence of the browser geolocation, used by all features "
+        "(chat tools, scheduled actions, proactive jobs) when the live "
+        "position is unavailable. Disabling wipes any stored location."
     ),
 )
-async def update_weather_location_preference(
-    data: WeatherLocationPreferenceRequest,
+async def update_location_preference(
+    data: LocationPreferenceRequest,
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
-) -> WeatherLocationPreferenceResponse:
-    """Update the weather last-known location opt-in flag.
+) -> LocationPreferenceResponse:
+    """Update the last-known location opt-in flag.
 
     When ``enabled`` is False, the persisted last-known location is wiped
     immediately so no stale coordinates linger after opt-out.
@@ -658,7 +659,7 @@ async def update_weather_location_preference(
     Returns:
         Current opt-in state with a localized confirmation message.
     """
-    user.weather_use_last_known_location = data.enabled
+    user.use_last_known_location = data.enabled
     db.add(user)
     await db.commit()
     await db.refresh(user)
@@ -667,14 +668,14 @@ async def update_weather_location_preference(
         await UserLocationService(db).wipe_last_known_location(user)
 
     logger.info(
-        "user_weather_location_preference_updated",
+        "user_location_preference_updated",
         user_id=str(user.id),
         enabled=data.enabled,
     )
 
-    return WeatherLocationPreferenceResponse(
-        enabled=user.weather_use_last_known_location,
-        message=APIMessages.weather_location_preference_updated(enabled=data.enabled),
+    return LocationPreferenceResponse(
+        enabled=user.use_last_known_location,
+        message=APIMessages.location_preference_updated(enabled=data.enabled),
     )
 
 
@@ -683,9 +684,10 @@ async def update_weather_location_preference(
     response_model=LastLocationUpdateResponse,
     summary="Push a browser geolocation sample",
     description=(
-        "Persist the current browser geolocation for proactive weather alerts. "
-        "Requires opt-in (weather_use_last_known_location = True). Throttled "
-        "server-side to one write per user per 30 minutes."
+        "Persist the current browser geolocation as the user's last-known "
+        "location, used by all features when the live position is "
+        "unavailable. Requires opt-in (use_last_known_location = True). "
+        "Throttled server-side to one write per user per 30 minutes."
     ),
 )
 async def put_last_location(
@@ -718,7 +720,7 @@ async def put_last_location(
             action="store",
             resource_type="last_known_location",
             user_id=user.id,
-            details="weather_use_last_known_location is disabled for this user",
+            details="use_last_known_location is disabled for this user",
         )
     return LastLocationUpdateResponse(updated=result.updated, throttled=result.throttled)
 

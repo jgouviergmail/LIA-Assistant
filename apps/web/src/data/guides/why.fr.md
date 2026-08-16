@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 4.5
-**Date** : 2026-08-08
-**Application** : LIA v1.29.0
+**Date** : 2026-08-16
+**Application** : LIA v1.30.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -134,6 +134,7 @@ Parle à LIA comme à un assistant humain — pas de commandes à mémoriser, pa
 - **Météo** : conditions actuelles et prévisions à 5 jours, avec détection de changements (début/fin de pluie, chute de température, alertes vent)
 - **Lieux et commerces** : recherche de lieux à proximité avec détails, horaires, avis
 - **Itinéraires** : calcul d'itinéraires multi-modaux (voiture, marche, vélo, transports en commun) avec géolocalisation automatique
+- **Position en déplacement** : quand ta position en direct n'est pas disponible (application mobile restée en veille), LIA utilise ta dernière position mémorisée — si tu l'as activée — plutôt que ton adresse personnelle, et annonce toujours l'âge de cette position au lieu de la présenter comme courante
 
 ### 3.4. Voix
 
@@ -239,7 +240,7 @@ Imagine : un Raspberry Pi dans ton salon, et toute la famille qui profite d'un a
 
 Quand tu utilises ChatGPT, tes conversations vivent sur les serveurs d'OpenAI. Avec Gemini, chez Google. Avec Copilot, chez Microsoft.
 
-Avec LIA, **tout reste dans ton PostgreSQL** : conversations, mémoire, profil psychologique, documents, préférences. Tu peux exporter, sauvegarder, migrer ou supprimer la totalité de tes données à tout moment — y compris via un export complet en un clic depuis les réglages : Markdown lisible, JSON structuré et tes fichiers, avec le matériel secret inexportable par construction. Et chaque appareil connecté à ton compte est visible et révocable en un clic. Le RGPD n'est pas une contrainte — c'est une conséquence naturelle de l'architecture. Les données sensibles sont chiffrées, les sessions isolées, et le filtrage automatique des informations personnelles identifiables (PII) est intégré.
+Avec LIA, **tout reste dans ton PostgreSQL** : conversations, mémoire, profil psychologique, documents, préférences. Tu peux exporter, sauvegarder, migrer ou supprimer la totalité de tes données à tout moment — y compris via un export complet en un clic depuis les réglages : Markdown lisible, JSON structuré et tes fichiers, avec le matériel secret inexportable par construction. Et chaque appareil connecté à ton compte est visible et révocable en un clic. Le RGPD n'est pas une contrainte — c'est une conséquence naturelle de l'architecture. Les données sensibles sont chiffrées, les sessions isolées, et le filtrage automatique des informations personnelles identifiables (PII) est intégré. Ta position suit la même doctrine : la mémorisation de la dernière position est un choix explicite, chiffrée comme le reste, jamais historisée — chaque mise à jour écrase la précédente — et effacée dès que tu désactives l'option.
 
 La protection vaut aussi pour ce qui **entre**. LIA lit tous les jours des textes que tu n’as pas écrits : le corps d'un e-mail, la description d'une invitation rédigée par son organisateur, une page web, la fiche d'un lieu. N'importe qui peut y glisser une consigne destinée à l'assistant. Chaque donnée porte désormais sa provenance, et ce qui vient de l'extérieur arrive étiqueté comme **matière à analyser, jamais comme ordre à suivre** — avec les tentatives de manipulation repérées et nommées, dans les six langues. Ton contenu n'est jamais réécrit pour autant : un e-mail reste ce que son auteur a écrit. Réécrire donnerait l'illusion d'une garantie que le contournement suivant démentirait ; nommer ce qu'on voit est plus honnête, et plus utile.
 

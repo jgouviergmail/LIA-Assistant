@@ -780,6 +780,9 @@
       "retry_description": "La geolocalizzazione è attivata ma non è stato possibile recuperare la tua posizione. Clicca per riprovare.",
       "retry_button": "Riprova",
       "retry_failed": "Impossibile recuperare la tua posizione. Verifica che il GPS sia attivato.",
+      "reactivate_title": "Posizione da riattivare",
+      "reactivate_description": "Il tuo dispositivo ha sospeso la condivisione della posizione mentre l'app era chiusa. Riattivala perché LIA continui a usare la tua posizione reale invece del tuo indirizzo personale.",
+      "reactivate_button": "Riattiva",
       "detection": {
         "keywords": [
           "vicinanze",
@@ -2555,6 +2558,21 @@
         "save_error": "Errore nel salvataggio dell'indirizzo",
         "clear_error": "Errore nell'eliminazione dell'indirizzo",
         "address_required": "Inserisci un indirizzo"
+      },
+      "last_known": {
+        "title": "Memoria della posizione",
+        "toggle_label": "Ricorda la mia ultima posizione",
+        "toggle_description": "Quando la tua posizione in tempo reale non è disponibile, LIA usa l'ultima posizione registrata — per la chat, le azioni pianificate, le notifiche proattive e il briefing — prima di ripiegare sul tuo indirizzo personale.",
+        "privacy_note": "La tua posizione è cifrata e mai storicizzata (ogni aggiornamento sovrascrive il precedente). Viene eliminata se disattivi questa opzione o rimuovi il tuo indirizzo personale.",
+        "enabled_success": "Memoria della posizione attivata",
+        "disabled_success": "Memoria della posizione disattivata, posizione cancellata",
+        "stored_title": "Attualmente memorizzata",
+        "stored_coords": "Coordinate",
+        "stored_updated_at": "Ultimo aggiornamento",
+        "stored_stale": "Questa posizione ha superato la finestra di freschezza — le funzionalità ripiegheranno sul tuo indirizzo personale.",
+        "no_stored": "Nessuna posizione memorizzata per ora. Verrà acquisita al tuo prossimo messaggio.",
+        "clear_button": "Cancella ora",
+        "geoloc_required_hint": "Attiva anche la geolocalizzazione del browser qui sopra — altrimenti nessuna posizione verrà mai acquisita."
       }
     },
     "skills": {
@@ -3226,7 +3244,7 @@
         "security-export": "GDPR, RGPD, archivio, download, portabilità, backup, dati personali, privacy",
         "voice-mode": "microfono, voce, dettatura, STT, TTS, parola di attivazione, audio, parlare",
         "image-generation": "immagini, foto, disegno, illustrazione, generazione, arte",
-        "connectors": "google, gmail, calendario, contatti, apple, microsoft, outlook, integrazioni, account, oauth, riconnettere, disconnesso, servizi",
+        "connectors": "google, gmail, calendario, contatti, apple, microsoft, outlook, integrazioni, account, oauth, riconnettere, disconnesso, servizi, posizione, localizzazione, geolocalizzazione, domicilio, indirizzo, memoria della posizione",
         "telephony-calls": "telefono, chiamate, cronologia chiamate, comporre",
         "admin-mcp-servers": "MCP, model context protocol, server dell'applicazione, strumenti integrati",
         "mcp-servers": "MCP, model context protocol, i miei server, strumenti, estensioni",
@@ -3865,7 +3883,7 @@
         },
         "geolocation": {
           "title": "📍 Geolocalizzazione Intelligente",
-          "description": "Sistema di localizzazione duale: indirizzo di casa configurabile nelle preferenze e posizione in tempo reale tramite API Geolocation del browser. Usato per ricerche di luoghi, meteo locale e calcolo delle distanze. Gestione del consenso e fallback automatico."
+          "description": "Tre fonti di localizzazione, un'unica cascata (ADR-219): posizione live del browser, altrimenti l'ultima posizione memorizzata (opt-in, cifrata, mai storicizzata, fresca sotto le 24 h), altrimenti l'indirizzo di casa configurato. Chat, azioni pianificate, briefing e skill leggono tutti la stessa regola — e una posizione memorizzata viaggia sempre con la sua età («in base alla tua ultima posizione nota alle 9:30»), mai presentata come attuale; «a casa» non viene mai risolto da una posizione catturata per strada. Al ritorno nell'app la posizione si aggiorna in silenzio finché il permesso resta concesso, e un banner propone la riattivazione quando il sistema l'ha revocato. Usata per ricerche di luoghi, meteo locale, itinerari e distanze."
         },
         "i18n": {
           "title": "🌍 Internazionalizzazione Completa",
@@ -4018,6 +4036,18 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_30_0": {
+          "title": "v1.30.0 — 📍 In movimento, LIA risponde da dove sei",
+          "date": "Agosto 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>📍 La tua posizione reale, ovunque</b> — quando la posizione in tempo reale del telefono non è disponibile (un'app rimasta in pausa fa così), LIA usa ora la tua <b>ultima posizione memorizzata</b> — se l'hai attivata — prima di ripiegare sul tuo indirizzo personale. Chat, azioni pianificate, briefing e skill allo stesso modo: «ristoranti nei dintorni» in viaggio smette di rispondere dal tuo salotto.",
+            "i2": "<b>🕐 Una posizione datata lo dice</b> — «dove sono?» senza GPS attivo rispondeva «attiva la geolocalizzazione». La risposta viene ora dalla tua posizione memorizzata <b>con la sua età dichiarata</b>: «in base alla tua ultima posizione nota alle 9:30» — mai presentata come la tua posizione attuale. E «a casa» non viene mai risolto da una posizione catturata per strada.",
+            "i3": "<b>🔔 L'app mobile si sveglia da sola</b> — al ritorno nell'app, la tua posizione si aggiorna in silenzio se il permesso è ancora concesso; se il sistema l'ha revocato (iOS lo fa dopo l'inattività), un banner propone di riattivarlo appena apri la chat — prima che tu debba chiederlo. L'impostazione «ricorda la mia ultima posizione» vive ora sul connettore Google Places, accanto all'indirizzo personale, con la posizione salvata, la sua data e un pulsante di cancellazione.",
+            "i4": "<b>📞 Errori di chiamata onesti</b> — quando il fornitore di telefonia rifiuta la tua chiave (ElevenLabs ora richiede chiavi che iniziano con sk_), LIA lo dice con precisione e indica cosa fare, invece di un ingannevole «riprova tra un istante».",
+            "i5": "<b>🛠️ Quattro correzioni di produzione</b> — la modalità autonoma ReAct non fallisce più su Gemini quando uno strumento MCP dichiara un parametro di tipo lista; la finestra di amministrazione LLM non entra più in loop di errore 422 al cambio di modello; i widget delle skill mantengono l'accesso Docker dopo ogni deploy; e un avvio multi-worker a freddo parte in un minuto invece di riavviarsi in loop per venti."
+          }
+        },
         "v1_29_0": {
           "title": "v1.29.0 — 🏠 LIA si installa da te, e un'istanza sa quanto spende",
           "date": "Agosto 2026",
@@ -5981,7 +6011,7 @@
           },
           "q6": {
             "question": "Cosa sono le preferenze dei connettori?",
-            "answer": "Alcuni connettori permettono configurazioni avanzate:<br><br><strong>📅 Google Calendar</strong>: Scegli il tuo calendario predefinito dove creare nuovi eventi (es. \"Famiglia\", \"Lavoro\").<br><br><strong>✅ Google Tasks</strong>: Scegli la tua lista attività predefinita (es. \"Le mie attività\", \"Spesa\").<br><br><strong>📍 Google Places</strong>: Il tuo <strong>indirizzo di casa</strong> come indirizzo predefinito per ricerche \"vicino a me\".<br><br><strong>🌐 Geolocalizzazione browser:</strong><br>• <strong>Geolocalizzazione automatica</strong>: invia la tua posizione con ogni messaggio<br>• Vai su <strong>Impostazioni > Connettori > Google Places</strong><br>• Attiva \"<em>Geolocalizzazione automatica</em>\" per un utilizzo continuo<br>• Il tuo browser chiederà l'autorizzazione la prima volta<br>• Posizione usata per meteo locale e ricerche \"vicino a me\"<br><br><strong>Per configurare:</strong><br>1. Vai su <strong>Impostazioni > Connettori</strong> (calendario, attività, indirizzo, geolocalizzazione)<br>3. Seleziona i tuoi valori predefiniti<br><br><strong>💡 Suggerimento:</strong><br>Queste preferenze ti fanno risparmiare tempo evitando di specificare ogni volta il calendario, la lista o la posizione."
+            "answer": "Alcuni connettori permettono configurazioni avanzate:<br><br><strong>📅 Google Calendar</strong>: Scegli il tuo calendario predefinito dove creare nuovi eventi (es. \"Famiglia\", \"Lavoro\").<br><br><strong>✅ Google Tasks</strong>: Scegli la tua lista attività predefinita (es. \"Le mie attività\", \"Spesa\").<br><br><strong>📍 Google Places</strong>: Il tuo <strong>indirizzo di casa</strong> come indirizzo predefinito per ricerche \"vicino a me\", più la <strong>memoria della posizione</strong> (opt-in): ricorda la tua ultima posizione perché LIA continui a rispondere da dove sei quando la posizione in tempo reale non è disponibile — sempre annunciata con la sua età, mai presentata come attuale, cifrata e cancellata appena disattivi l'opzione.<br><br><strong>🌐 Geolocalizzazione browser:</strong><br>• <strong>Geolocalizzazione automatica</strong>: invia la tua posizione con ogni messaggio<br>• Vai su <strong>Impostazioni > Connettori > Google Places</strong><br>• Attiva \"<em>Geolocalizzazione automatica</em>\" per un utilizzo continuo<br>• Il tuo browser chiederà l'autorizzazione la prima volta<br>• Posizione usata per meteo locale e ricerche \"vicino a me\"<br>• Su mobile la posizione si aggiorna in silenzio al ritorno nell'app; se il sistema ha revocato il permesso, un banner della chat propone di riattivarlo<br><br><strong>Per configurare:</strong><br>1. Vai su <strong>Impostazioni > Connettori</strong> (calendario, attività, indirizzo, geolocalizzazione)<br>3. Seleziona i tuoi valori predefiniti<br><br><strong>💡 Suggerimento:</strong><br>Queste preferenze ti fanno risparmiare tempo evitando di specificare ogni volta il calendario, la lista o la posizione."
           },
           "q7": {
             "question": "Come attivo o disattivo la voce di LIA?",
@@ -7936,21 +7966,6 @@
     "disabled_success": "Notifiche proattive disattivate",
     "settings_updated": "Impostazioni aggiornate",
     "settings_error": "Errore durante l'aggiornamento delle impostazioni",
-    "weather_location": {
-      "section_label": "Posizione meteo in viaggio",
-      "toggle_label": "Usa la mia posizione attuale per gli avvisi meteo",
-      "toggle_description": "Usa la tua posizione del browser (quando sei lontano da casa) invece del tuo indirizzo di casa per le notifiche meteo proattive.",
-      "privacy_note": "La tua posizione è crittografata e non storicizzata (sovrascritta ad ogni aggiornamento). Viene eliminata se disattivi questa opzione o rimuovi il tuo indirizzo di casa.",
-      "enabled_success": "Posizione meteo intelligente attivata",
-      "disabled_success": "Posizione meteo intelligente disattivata, posizione memorizzata cancellata",
-      "stored_title": "Attualmente memorizzata",
-      "stored_coords": "Coordinate",
-      "stored_updated_at": "Ultimo aggiornamento",
-      "stored_stale": "Questa posizione è oltre la finestra di freschezza — le notifiche useranno il tuo domicilio.",
-      "no_stored": "Nessuna posizione memorizzata per ora. Sarà acquisita al tuo prossimo messaggio.",
-      "clear_button": "Cancella ora",
-      "geoloc_required_hint": "Attiva anche la geolocalizzazione del browser nella sezione Geolocalizzazione sopra — altrimenti nessuna posizione sarà mai acquisita."
-    },
     "feedback": {
       "like": "Notifica utile",
       "dislike": "Poco utile",
@@ -8253,7 +8268,7 @@
       },
       "web_intelligence": {
         "title": "Ricerca, Meteo e Navigazione",
-        "description": "Ricerca web multi-fonte (Brave, Perplexity, Wikipedia), meteo in tempo reale e previsioni a 5 giorni, ricerca di luoghi e negozi nelle vicinanze, calcolo percorsi multi-modo (auto, a piedi, bici, trasporti), geolocalizzazione automatica."
+        "description": "Ricerca web multi-fonte (Brave, Perplexity, Wikipedia), meteo in tempo reale e previsioni a 5 giorni, ricerca di luoghi e negozi nelle vicinanze, calcolo percorsi multi-modo (auto, a piedi, bici, trasporti), geolocalizzazione automatica — con una posizione memorizzata opt-in che mantiene le risposte locali in movimento e ne dichiara sempre l'età."
       },
       "voice_mode": {
         "title": "Modalità vocale, riconoscimento locale",

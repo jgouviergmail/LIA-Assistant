@@ -75,8 +75,10 @@ def test_verify_sql_blocks_and_marks_in_one_transaction() -> None:
         ("personality_translations", "84"),
         ("google_api_pricing", "9"),
         ("image_generation_pricing", "27"),
-        ("llm_model_pricing", "96"),
-        ("llm_config_overrides", "41"),
+        # Floors re-audited 2026-08-15 (seed regenerated from production:
+        # 139 pricing rows incl. audio-hour units, 42 overrides).
+        ("llm_model_pricing", "139"),
+        ("llm_config_overrides", "42"),
     ]:
         assert table in body and bound in body
     marker_pos = body.find("INSERT INTO system_settings")

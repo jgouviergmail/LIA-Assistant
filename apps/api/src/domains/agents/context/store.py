@@ -49,6 +49,10 @@ from src.infrastructure.database.psycopg_pool_config import (
     psycopg_pool_kwargs,
     resolve_psycopg_url,
 )
+from src.infrastructure.database.setup_lock import (
+    TOOL_CONTEXT_STORE_SETUP_LOCK_KEY,
+    postgres_setup_lock,
+)
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -183,8 +187,13 @@ async def get_tool_context_store() -> AsyncPostgresStore:
             else:
                 _tool_context_store = AsyncPostgresStore(conn=pool)
 
-            # Setup store tables (idempotent) - includes pgvector index if semantic enabled
-            await _tool_context_store.setup()
+            # Setup store tables — serialized across workers: LangGraph's
+            # migrations are plain CREATE TABLE and N workers racing on a
+            # fresh database die on a catalog UniqueViolation (demonstrator
+            # tmpfs boot, 2026-08-15). Behind the lock, setup() is idempotent
+            # (includes the pgvector index when semantic search is enabled).
+            async with postgres_setup_lock(pool, TOOL_CONTEXT_STORE_SETUP_LOCK_KEY):
+                await _tool_context_store.setup()
         except Exception:
             # Don't leak an opened pool if setup fails: next call re-enters init.
             await pool.close()

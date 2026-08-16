@@ -548,7 +548,14 @@ if (-not $DryRun) {
     # that ran the deployment — observed in CI as `DOCKER_GID=118`, the runner's.
     # A wrong GID here means the API container cannot reach the Docker socket,
     # which is what the skill sandbox (SEC-001) runs on.
-    $gidCmd = "grep -q DOCKER_GID ~/${RemoteDir}/.env 2>/dev/null || { printf 'DOCKER_GID=' >> ~/${RemoteDir}/.env; stat -c '%g' /var/run/docker.sock >> ~/${RemoteDir}/.env; } && echo DOCKER_GID set"
+    #
+    # Target the STAGING .env, not the live one: deploy.sh atomically renames
+    # ~/$StagingDir over ~/$RemoteDir (ADR-215), so a value appended to the
+    # retired live .env is silently discarded by the swap. That exact miss ran
+    # in production 2026-08-08 → 2026-08-15: group_add fell back to 999 (host
+    # docker GID was 984) and every container-sandboxed skill script died on
+    # a Docker-socket EACCES.
+    $gidCmd = "grep -q DOCKER_GID ~/${StagingDir}/.env 2>/dev/null || { printf 'DOCKER_GID=' >> ~/${StagingDir}/.env; stat -c '%g' /var/run/docker.sock >> ~/${StagingDir}/.env; } && echo DOCKER_GID set"
     Invoke-WithRetry -OperationName "Set DOCKER_GID" -Command "ssh $SshOptionsStr -p $SshPort ${SshUser}@${SshHost} `"$gidCmd`""
 
     # Deploy Claude CLI credentials (same auth as dev — same Anthropic account)

@@ -1,17 +1,29 @@
-# Runbook — Last-Known Location (Phase 3 Proactive Weather)
+# Runbook — Last-Known Location (generalized)
 
-**Scope**: Operations and troubleshooting for the Phase 3 feature that persists a user's browser geolocation (opt-in, encrypted, non-historized) so the heartbeat proactive weather job can use it when the user is traveling.
+**Scope**: Operations and troubleshooting for the persisted browser geolocation (opt-in, encrypted, non-historized). Originally weather-scoped (ADR-073), generalized 2026-08-16 (ADR-219): the stored position now also feeds the tool-side resolution cascade — chat, scheduled actions, the skill runner — whenever the live browser position is unavailable, with the home address as the final fallback.
 
-**Related**: [ADR-073](../architecture/ADR-073-Last-Known-Location-Persistence.md).
+**Related**: [ADR-073](../architecture/ADR-073-Last-Known-Location-Persistence.md), [ADR-219](../architecture/ADR-219-Derniere-Position-Connue-Generalisee.md).
 
 ## Key identifiers
 
-- Feature flag (per-user): `users.weather_use_last_known_location` (default `false`).
+- Feature flag (per-user): `users.use_last_known_location` (default `false`; renamed from `weather_use_last_known_location` by migration `0d1e2f3a4b5c`).
 - Encrypted payload column: `users.last_known_location_encrypted` — Fernet JSON `{lat, lon, accuracy}`.
 - Freshness watermark: `users.last_known_location_updated_at` — UTC.
-- Migration: `last_known_loc_001` (Alembic).
+- Migrations: `last_known_loc_001` (creation), `0d1e2f3a4b5c` (rename).
 - Service: `src/domains/users/user_location_service.py`.
+- Tool-side source: `get_user_last_known_location` + `resolve_implicit_location` in `src/domains/agents/tools/runtime_helpers.py`.
 - Reverse geocoding: `src/domains/heartbeat/geocoding.py` — cache key `heartbeat:geocode:{lat:.3f}:{lon:.3f}`, TTL 30 days.
+
+## Resolution cascades (who reads the stored position)
+
+- **Chat tools / skills / scheduled actions** (`resolve_location`): implicit → browser > last_known (fresh) > home; "near me"/"where am I" → browser > last_known (age exposed to the model) > localized fallback; "at home" → home > browser (last_known never answers a home reference). No distance threshold: freshness (TTL) is the only gate.
+- **Proactive jobs** (`get_effective_location_for_proactive`, unchanged): last_known if opt-in + fresh + farther than `LAST_KNOWN_LOCATION_MIN_DISTANCE_KM` from home → else home.
+
+## Feeding paths
+
+- Every chat message: fire-and-forget capture in `stream_gates.capture_location_fire_and_forget` (opt-in enforced inside).
+- Authenticated shell: `useLastKnownLocationSync` (frontend) pushes to `PUT /auth/me/last-location`, throttled client-side 30 min (`lia_last_location_push_ms`), re-armed on PWA return-to-foreground.
+- Both are bounded by the server-side 30-minute write throttle.
 
 ## Configuration
 
@@ -36,7 +48,7 @@ Prometheus metrics (`metrics_heartbeat.py`):
 - `user_location_geocode_total{result="cache_hit|api_hit|api_error|redis_down"}` — expect `cache_hit` >> others after warm-up.
 
 To count opted-in users at a point in time, query the database directly:
-`SELECT COUNT(*) FROM users WHERE weather_use_last_known_location = true;`
+`SELECT COUNT(*) FROM users WHERE use_last_known_location = true;`
 
 Structured logs (via structlog):
 
@@ -73,7 +85,7 @@ async with get_db_context() as db:
 
 ```sql
 UPDATE users
-SET weather_use_last_known_location = false,
+SET use_last_known_location = false,
     last_known_location_encrypted = NULL,
     last_known_location_updated_at = NULL
 WHERE id = '<user_uuid>';
@@ -98,7 +110,7 @@ Impact: next heartbeat with a stored last-known will make a fresh API call to Op
 
 Check, in order:
 
-1. `SELECT weather_use_last_known_location, last_known_location_updated_at FROM users WHERE id = '<user>';`
+1. `SELECT use_last_known_location, last_known_location_updated_at FROM users WHERE id = '<user>';`
    - `false` → user has not actually opted in, or it was reset.
    - `NULL` timestamp → the frontend has not pushed a location. Verify the user allowed browser geolocation and is opening the app.
 2. Age vs TTL: if `now - last_known_location_updated_at > LAST_KNOWN_LOCATION_TTL_HOURS`, the cascade skips last-known. User is seeing stale fallback.
@@ -108,7 +120,7 @@ Check, in order:
 
 ### PUT /me/last-location returns 403 unexpectedly
 
-Root cause: user has `weather_use_last_known_location = false`. Either:
+Root cause: user has `use_last_known_location = false`. Either:
 
 - Frontend pushed before the PATCH preference settled — benign, retries after toggle.
 - Backend state was wiped (e.g., auto-wipe on home deletion). The service is consistent — user should re-opt-in.

@@ -43,16 +43,17 @@ from src.domains.agents.data_registry.models import (
     RegistryItemType,
     generate_registry_id,
 )
+from src.domains.agents.tools.location_resolution import (
+    ResolvedLocation,
+    resolve_implicit_location,
+    resolve_location,
+)
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
-    ResolvedLocation,
     extract_coordinates,
-    get_browser_geolocation,
     get_original_user_message,
-    get_user_home_location,
     get_user_preferences,
     handle_tool_exception,
-    resolve_location,
 )
 from src.domains.agents.utils.distance import calculate_distance_sync
 from src.domains.agents.utils.polyline import simplify_polyline_for_static_map
@@ -364,44 +365,31 @@ async def _resolve_origin(
     resolved, fallback_msg = await resolve_location(runtime, user_message, language)
 
     if resolved:
+        # No PII at INFO: source only, coordinates are contents.
         logger.info(
             "route_origin_auto_resolved",
             source=resolved.source,
-            lat=resolved.lat,
-            lon=resolved.lon,
         )
         return {"lat": resolved.lat, "lon": resolved.lon, "address": resolved.address}, None
 
     # No location resolved yet
     # For routes, even if user message has EXPLICIT location (destination), we still need origin
-    # Directly try browser geolocation then home location as fallback
     if not fallback_msg:
-        # resolve_location returned (None, None) - likely EXPLICIT destination detected
-        # Try browser geolocation directly for origin
-        browser_loc = await get_browser_geolocation(runtime)
-        if browser_loc:
+        # resolve_location returned (None, None) - likely EXPLICIT destination
+        # detected. The origin is implicit by nature: shared cascade
+        # (browser > last_known > home).
+        implicit_loc = await resolve_implicit_location(runtime)
+        if implicit_loc:
             logger.info(
-                "route_origin_fallback_to_browser",
-                reason="EXPLICIT destination detected, using browser for origin",
-                lat=browser_loc.lat,
-                lon=browser_loc.lon,
+                "route_origin_fallback_implicit",
+                reason="EXPLICIT destination detected, implicit origin",
+                source=implicit_loc.source,
             )
             return {
-                "lat": browser_loc.lat,
-                "lon": browser_loc.lon,
-                "address": browser_loc.address,
+                "lat": implicit_loc.lat,
+                "lon": implicit_loc.lon,
+                "address": implicit_loc.address,
             }, None
-
-        # Try home location as last resort
-        home_loc = await get_user_home_location(runtime)
-        if home_loc:
-            logger.info(
-                "route_origin_fallback_to_home",
-                reason="No browser geolocation, using home for origin",
-                lat=home_loc.lat,
-                lon=home_loc.lon,
-            )
-            return {"lat": home_loc.lat, "lon": home_loc.lon, "address": home_loc.address}, None
 
     # No location available at all
     if fallback_msg:
@@ -508,16 +496,13 @@ async def _resolve_destination(
     elif isinstance(origin_location, dict):
         user_lat, user_lon = extract_coordinates(origin_location)
 
-    # Fallback: try browser/home location. `is None` rather than truthiness —
-    # a user standing on the equator or the prime meridian has a real 0.
+    # Fallback: shared implicit cascade (browser > last_known > home).
+    # `is None` rather than truthiness — a user standing on the equator or
+    # the prime meridian has a real 0.
     if user_lat is None or user_lon is None:
-        browser_loc = await get_browser_geolocation(runtime)
-        if browser_loc:
-            user_lat, user_lon = browser_loc.lat, browser_loc.lon
-        else:
-            home_loc = await get_user_home_location(runtime)
-            if home_loc:
-                user_lat, user_lon = home_loc.lat, home_loc.lon
+        implicit_loc = await resolve_implicit_location(runtime)
+        if implicit_loc:
+            user_lat, user_lon = implicit_loc.lat, implicit_loc.lon
 
     if user_lat is None or user_lon is None:
         logger.debug("destination_no_user_location", destination=destination)

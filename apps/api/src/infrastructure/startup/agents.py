@@ -231,7 +231,15 @@ async def init_semantic_services(registry: "AgentRegistry | None") -> None:
                 services=["SemanticToolSelector"],
                 note="Intent/domain detection now LLM-based (QueryAnalyzerService)",
             )
-        except (RuntimeError, ValueError, AttributeError) as exc:
+        except Exception as exc:
+            # Resilience boundary: semantic tool selection is an optimization
+            # and its failure degrades to full-catalogue selection — it must
+            # never kill the boot. The previous narrow tuple missed the
+            # selector's FIRST real failure mode, the embeddings provider
+            # refusing the call (GoogleGenerativeAIError extends Exception, not
+            # RuntimeError): a depleted Gemini quota turned into "Application
+            # startup failed" on every worker (demonstrator, 2026-08-15).
+            # CancelledError is a BaseException and still propagates.
             logger.error(
                 "v3_semantic_services_initialization_failed",
                 error=str(exc),

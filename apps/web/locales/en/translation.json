@@ -801,6 +801,9 @@
       "retry_description": "Geolocation is enabled but your position could not be retrieved. Click to retry.",
       "retry_button": "Retry",
       "retry_failed": "Unable to retrieve your position. Check that GPS is enabled.",
+      "reactivate_title": "Location needs to be re-enabled",
+      "reactivate_description": "Your device paused location sharing while the app was closed. Re-enable it so LIA keeps using your real position instead of your home address.",
+      "reactivate_button": "Re-enable",
       "detection": {
         "keywords": [
           "nearby",
@@ -2575,6 +2578,21 @@
         "save_error": "Error saving address",
         "clear_error": "Error deleting address",
         "address_required": "Please enter an address"
+      },
+      "last_known": {
+        "title": "Location memory",
+        "toggle_label": "Remember my last position",
+        "toggle_description": "When your live position is unavailable, LIA uses your last recorded position — for chat, scheduled actions, proactive notifications and the briefing — before falling back to your home address.",
+        "privacy_note": "Your position is encrypted and never historized (each update overwrites the previous one). It is deleted if you disable this option or remove your home address.",
+        "enabled_success": "Location memory enabled",
+        "disabled_success": "Location memory disabled, stored position cleared",
+        "stored_title": "Currently stored",
+        "stored_coords": "Coordinates",
+        "stored_updated_at": "Last updated",
+        "stored_stale": "This position is past the freshness window — features will fall back to your home address.",
+        "no_stored": "No position stored yet. It will be captured on your next chat message.",
+        "clear_button": "Clear now",
+        "geoloc_required_hint": "Also enable browser geolocation above — otherwise no position will ever be captured."
       }
     },
     "skills": {
@@ -3246,7 +3264,7 @@
         "security-export": "GDPR, archive, download, portability, backup, personal data, privacy",
         "voice-mode": "microphone, speech, dictation, STT, TTS, wake word, audio, talk",
         "image-generation": "images, pictures, drawing, illustration, generation, art",
-        "connectors": "google, gmail, calendar, contacts, apple, microsoft, outlook, integrations, accounts, oauth, reconnect, disconnected, services",
+        "connectors": "google, gmail, calendar, contacts, apple, microsoft, outlook, integrations, accounts, oauth, reconnect, disconnected, services, position, location, geolocation, home address, location memory",
         "telephony-calls": "phone, telephone, calls, call history, dial",
         "admin-mcp-servers": "MCP, model context protocol, application servers, built-in tools",
         "mcp-servers": "MCP, model context protocol, my servers, tools, extensions",
@@ -3872,7 +3890,7 @@
         },
         "geolocation": {
           "title": "📍 Smart Geolocation",
-          "description": "Dual location system: configurable home address in preferences and real-time position via browser Geolocation API. Used for place searches, local weather, and distance calculations. Consent management and automatic fallback."
+          "description": "Three location sources, one cascade (ADR-219): live browser position, else the last remembered position (opt-in, encrypted, never historized, fresh under 24 h), else the configured home address. Chat, scheduled actions, the briefing and skills all read the same rule — and a remembered position always travels with its age (\"based on your last known position at 9:30\"), never presented as current; \"at home\" is never resolved from a position captured on the road. On return to the app the position refreshes silently while the permission is granted, and a banner offers re-enabling when the system dropped it. Used for place searches, local weather, routes and distances."
         },
         "i18n": {
           "title": "🌍 Complete Internationalization",
@@ -4025,6 +4043,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_30_0": {
+          "title": "v1.30.0 — 📍 On the move, LIA answers from where you are",
+          "date": "August 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>📍 Your real position, everywhere</b> — when your phone's live position is unavailable (an app left dormant does this), LIA now uses your <b>last remembered position</b> — if you enabled it — before falling back to your home address. This applies to chat, scheduled actions, the briefing and skills alike: 'restaurants nearby' while travelling stops answering from your living room.",
+            "i2": "<b>🕐 A dated position says so</b> — 'where am I?' without a live GPS used to answer 'enable geolocation'. It now answers from your remembered position <b>with its age stated</b>: 'based on your last known position at 9:30' — never presented as your current spot. And 'at home' is never resolved from a position captured on the road.",
+            "i3": "<b>🔔 The mobile app wakes up by itself</b> — on return to the app, your position refreshes silently when the permission is still granted; when the system dropped it (iOS does this after inactivity), a banner offers to re-enable it right when you open the chat — before you have to ask. The 'remember my last position' setting now lives on the Google Places connector, next to the home address, with the stored position, its date and a delete button.",
+            "i4": "<b>📞 Honest phone-call errors</b> — when the telephony provider rejects your key (ElevenLabs now requires keys starting with sk_), LIA says exactly that and what to do, instead of a misleading 'try again in a moment'.",
+            "i5": "<b>🛠️ Four production fixes</b> — the autonomous ReAct mode no longer fails on Gemini when an MCP tool declares a list parameter; the LLM admin dialog no longer loops on a 422 error when switching models; skill widgets keep their Docker access after every deployment; and a fresh multi-worker start boots in about a minute instead of respawning for twenty."
+          }
+        },
         "v1_29_0": {
           "title": "v1.29.0 — 🏠 LIA installs on your machine, and an instance knows what it spends",
           "date": "August 2026",
@@ -6075,7 +6105,7 @@
           },
           "q6": {
             "question": "Can I configure preferences per connector?",
-            "answer": "Yes! Some connectors have <strong>customizable preferences</strong>:<br><br><strong>📅 Google Calendar:</strong><br>• <strong>Default calendar</strong>: where to create new events<br>• Example: \"Work\", \"Personal\", \"Family\"<br>• LIA will use this calendar unless specified otherwise<br><br><strong>✅ Google Tasks:</strong><br>• <strong>Default task list</strong>: where to create new tasks<br>• Example: \"My main list\", \"Projects\", \"Shopping\"<br><br><strong>📍 Google Places:</strong><br>• <strong>Home address</strong>: your default address for \"near me\" searches<br>• <strong>Automatic geolocation</strong>: send your position for accurate results<br>• Configure both in <strong>Settings > Connectors > Google Places</strong><br><br><strong>🌐 Browser Geolocation:</strong><br>• In Google Places settings, enable the geolocation toggle<br>• Your browser will ask for permission the first time<br>• Position used for local weather and \"near me\" searches<br><br><strong>To configure:</strong><br>1. Go to <strong>Settings</strong> (⚙️ icon in the menu)<br>2. Open the <strong>Connectors</strong> section<br>3. Find the relevant connector (Calendar, Tasks, or Places)<br>4. Configure the specific preferences for that connector<br><br><strong>💡 Tip:</strong><br>These preferences save you time by not having to specify the calendar, list, or city each time."
+            "answer": "Yes! Some connectors have <strong>customizable preferences</strong>:<br><br><strong>📅 Google Calendar:</strong><br>• <strong>Default calendar</strong>: where to create new events<br>• Example: \"Work\", \"Personal\", \"Family\"<br>• LIA will use this calendar unless specified otherwise<br><br><strong>✅ Google Tasks:</strong><br>• <strong>Default task list</strong>: where to create new tasks<br>• Example: \"My main list\", \"Projects\", \"Shopping\"<br><br><strong>📍 Google Places:</strong><br>• <strong>Home address</strong>: your default address for \"near me\" searches<br>• <strong>Automatic geolocation</strong>: send your position for accurate results<br>• <strong>Location memory</strong> (opt-in): remember your last position so LIA keeps answering from where you are when the live position is unavailable — always announced with its age, never presented as current, encrypted and erased the moment you switch it off<br>• Configure all three in <strong>Settings > Connectors > Google Places</strong><br><br><strong>🌐 Browser Geolocation:</strong><br>• In Google Places settings, enable the geolocation toggle<br>• Your browser will ask for permission the first time<br>• Position used for local weather and \"near me\" searches<br>• On mobile, the position refreshes silently when you return to the app; if the system dropped the permission, a chat banner offers to re-enable it<br><br><strong>To configure:</strong><br>1. Go to <strong>Settings</strong> (⚙️ icon in the menu)<br>2. Open the <strong>Connectors</strong> section<br>3. Find the relevant connector (Calendar, Tasks, or Places)<br>4. Configure the specific preferences for that connector<br><br><strong>💡 Tip:</strong><br>These preferences save you time by not having to specify the calendar, list, or city each time."
           },
           "q7": {
             "question": "Which Google services can I connect?",
@@ -7747,21 +7777,6 @@
     "disabled_success": "Proactive notifications disabled",
     "settings_updated": "Settings updated",
     "settings_error": "Error updating settings",
-    "weather_location": {
-      "section_label": "Weather location when traveling",
-      "toggle_label": "Use my current location for weather alerts",
-      "toggle_description": "Use your browser position (when away from home) instead of your home address for proactive weather notifications.",
-      "privacy_note": "Your location is encrypted and not historized (overwritten on each update). It is deleted if you disable this option or remove your home address.",
-      "enabled_success": "Smart weather location enabled",
-      "disabled_success": "Smart weather location disabled, stored position cleared",
-      "stored_title": "Currently stored",
-      "stored_coords": "Coordinates",
-      "stored_updated_at": "Last updated",
-      "stored_stale": "This position is past the freshness window — notifications will fall back to home.",
-      "no_stored": "No location stored yet. It will be captured on your next chat message.",
-      "clear_button": "Clear now",
-      "geoloc_required_hint": "Also enable browser geolocation in the Geolocation section above — otherwise no position will ever be captured."
-    },
     "feedback": {
       "like": "Useful notification",
       "dislike": "Not useful",
@@ -8331,7 +8346,7 @@
       },
       "web_intelligence": {
         "title": "Search, Weather & Navigation",
-        "description": "Multi-source web search (Brave, Perplexity, Wikipedia), real-time weather and 5-day forecasts, nearby places and businesses search, multi-mode route planning (car, walk, bike, transit), automatic geolocation."
+        "description": "Multi-source web search (Brave, Perplexity, Wikipedia), real-time weather and 5-day forecasts, nearby places and businesses search, multi-mode route planning (car, walk, bike, transit), automatic geolocation — with an opt-in remembered position that keeps answers local on the move and always states its age."
       },
       "voice_mode": {
         "title": "Voice mode, local recognition",

@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 4.0
-**Date**: 2026-08-08
-**Application**: LIA v1.29.0
+**Date**: 2026-08-16
+**Application**: LIA v1.30.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 466 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 217 ADRs, ~18,206 pytest-collected tests across 987 files, native observability, 6-level HITL |
+| Production reliability | 218 ADRs, ~18,254 pytest-collected tests across 990 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -74,7 +74,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~18,206 (collected by pytest across 987 test files) + 5,448 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~18,254 (collected by pytest across 987 test files) + 5,475 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 490+ |
 | ADRs (Architecture Decision Records) | 209 |
@@ -1199,6 +1199,8 @@ LIA accepts external event ingestions (iPhone Apple Health samples, third-party 
 
 Six localized manifests (`/manifest-{lng}.json` — localized `lang`, `start_url`, three shortcuts, separate `any`/`maskable` icon entries; structural parity across the 6 files is test-pinned) are linked per page via `generateMetadata`, with real PNG icons and an `apple-touch-icon` (iOS silently ignores SVG touch icons). The OS **share target** (`GET /{lng}/share`) composes shared title/text/url into a clamped chat draft riding the existing `?draft=` rail — never auto-sent. A discreet install hint appears from the third visit (never in standalone display-mode, dismissible forever); Chromium gets a real install prompt via `beforeinstallprompt`, iOS the Share → Add to Home Screen instruction.
 
+**Position survives the mobile lifecycle** (ADR-219). A PWA frozen by the OS never remounts its state: the position silently expired and every request fell back to the home address. Every position resolution now goes through a single cascade — live browser position, else the last remembered position (opt-in, encrypted, fresh under 24 h), else home — which scheduled actions, having no browser, inherit with no dedicated code. Two honesty rules bound it: a remembered position travels with its age and the model states it ("based on your last known position at 9:30"), never as the current one; and "at home" is never resolved from a position captured on the road. On return to foreground the permission is re-checked: still granted, the position refreshes silently; dropped — iOS does this after inactivity — a banner supplies, right on chat open, the user gesture the native permission sheet requires.
+
 ### 23.14. Navigation index: one table, two guards facing opposite ways
 
 The settings page stacks some thirty collapsed sections across several tabs. Reaching them calls for a table mapping a URL token to a tab and an accordion value. A table of that kind never rots loudly: one day it simply stops describing the page.
@@ -1261,7 +1263,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-217 ADRs in MADR format document the major architectural decisions. Some representative examples:
+218 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1366,10 +1368,10 @@ The common thread across these four batches is a property of the tests themselve
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 217 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,206 tests across 987 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 218 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,254 tests across 990 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 217 ADRs, and the changelog (v1.0 to v1.29.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 218 ADRs, and the changelog (v1.0 to v1.30.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

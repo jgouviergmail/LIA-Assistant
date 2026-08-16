@@ -939,17 +939,12 @@ async def resolve_connector_default(
 
 
 # =============================================================================
-# LOCATION RESOLUTION HELPERS
+# MESSAGE & COORDINATE UTILITIES
 # =============================================================================
-
-
-class ResolvedLocation(NamedTuple):
-    """Resolved location data for tools (weather, places)."""
-
-    lat: float
-    lon: float
-    source: str  # "browser", "home", "explicit"
-    address: str | None = None
+# The user-location resolution cascade (ResolvedLocation, resolve_location,
+# resolve_implicit_location and the per-source getters) lives in
+# ``location_resolution.py`` (extracted 2026-08-16, ADR-219).
+# =============================================================================
 
 
 def get_original_user_message(runtime: ToolRuntime) -> str:
@@ -1038,261 +1033,6 @@ def extract_coordinates(
         return getattr(location, "latitude", None), getattr(location, "longitude", None)
 
     return None, None
-
-
-async def get_browser_geolocation(runtime: ToolRuntime) -> ResolvedLocation | None:
-    """
-    Get browser geolocation from runtime config.
-
-    The browser context is passed from frontend through ChatRequest.context
-    and propagated to RunnableConfig.configurable["__browser_context"].
-
-    Args:
-        runtime: ToolRuntime containing config with browser context
-
-    Returns:
-        ResolvedLocation if geolocation available, None otherwise
-
-    Example:
-        >>> geoloc = await get_browser_geolocation(runtime)
-        >>> if geoloc:
-        ...     print(f"User is at {geoloc.lat}, {geoloc.lon}")
-    """
-    try:
-        browser_context = (runtime.config.get("configurable") or {}).get("__browser_context")
-        if not browser_context:
-            return None
-
-        # Handle both BrowserContext object and dict
-        geolocation = None
-        if hasattr(browser_context, "geolocation"):
-            geolocation = browser_context.geolocation
-        elif isinstance(browser_context, dict):
-            geolocation = browser_context.get("geolocation")
-
-        if not geolocation:
-            return None
-
-        # Extract coordinates (handle both object and dict)
-        if hasattr(geolocation, "lat"):
-            lat = geolocation.lat
-            lon = geolocation.lon
-        else:
-            lat = geolocation.get("lat")
-            lon = geolocation.get("lon")
-
-        if lat is None or lon is None:
-            return None
-
-        return ResolvedLocation(
-            lat=float(lat),
-            lon=float(lon),
-            source="browser",
-            address=None,
-        )
-
-    except Exception as e:
-        logger.warning(
-            "get_browser_geolocation_error",
-            error=str(e),
-            error_type=type(e).__name__,
-        )
-        return None
-
-
-async def get_user_home_location(runtime: ToolRuntime) -> ResolvedLocation | None:
-    """
-    Get user's configured home location from database (decrypted).
-
-    Retrieves the encrypted home location from the User model and decrypts it
-    for use in location-aware tools.
-
-    Args:
-        runtime: ToolRuntime containing user_id in config
-
-    Returns:
-        ResolvedLocation if home location configured, None otherwise
-
-    Example:
-        >>> home = await get_user_home_location(runtime)
-        >>> if home:
-        ...     print(f"Home is at {home.address}")
-    """
-    try:
-        user_id_raw = (runtime.config.get("configurable") or {}).get("user_id")
-        if not user_id_raw:
-            logger.warning("get_user_home_location_no_user_id")
-            return None
-
-        user_id = parse_user_id(user_id_raw)
-
-        from src.domains.users.service import UserService
-        from src.infrastructure.database.session import get_db_context
-
-        async with get_db_context() as db:
-            user_service = UserService(db)
-            home_location = await user_service.get_home_location(user_id)
-
-            if not home_location:
-                logger.info(
-                    "get_user_home_location_not_configured",
-                    user_id=str(user_id),
-                )
-                return None
-
-            # No PII at INFO: home address/coordinates are contents (DEBUG only)
-            logger.info(
-                "get_user_home_location_found",
-                user_id=str(user_id),
-                has_address=bool(home_location.address),
-            )
-            logger.debug(
-                "get_user_home_location_details",
-                user_id=str(user_id),
-                address_preview=home_location.address[:30] if home_location.address else None,
-                lat=home_location.lat,
-                lon=home_location.lon,
-            )
-            return ResolvedLocation(
-                lat=home_location.lat,
-                lon=home_location.lon,
-                source="home",
-                address=home_location.address,
-            )
-
-    except Exception as e:
-        logger.warning(
-            "get_user_home_location_error",
-            error=str(e),
-            error_type=type(e).__name__,
-        )
-        return None
-
-
-async def resolve_location(
-    runtime: ToolRuntime,
-    user_message: str,
-    language: str = "fr",
-) -> tuple[ResolvedLocation | None, str | None]:
-    """
-    Resolve location for tools based on user message and available sources.
-
-    Main location resolution function that combines phrase detection with
-    location source lookup. Priority depends on detected location type:
-
-    - HOME: Home location > Browser geolocation > Fallback message
-    - CURRENT / QUERY: Browser geolocation only > Fallback message
-    - EXPLICIT: Return None (let tool geocode the explicit location)
-    - NONE: Browser geolocation > Home location > None (silent fallback)
-
-    Args:
-        runtime: ToolRuntime with config and user context
-        user_message: User's message to analyze for location references
-        language: Language code for phrase detection (default: "fr")
-
-    Returns:
-        Tuple of (ResolvedLocation | None, fallback_message | None)
-        - If location found: (location, None)
-        - If location needed but not found: (None, fallback_message)
-        - If explicit location: (None, None) - let tool handle geocoding
-
-    Example:
-        >>> location, fallback = await resolve_location(runtime, "météo chez moi", "fr")
-        >>> if location:
-        ...     weather = await get_weather(location.lat, location.lon)
-        >>> elif fallback:
-        ...     return fallback  # Ask user for location
-    """
-    from src.domains.agents.utils.i18n_location import (
-        LocationType,
-        detect_location_type,
-        get_fallback_message,
-    )
-
-    location_type = detect_location_type(user_message, language)
-
-    logger.debug(
-        "resolve_location_type_detected",
-        location_type=location_type.value,
-        user_message_preview=user_message[:50] if user_message else "",
-        language=language,
-    )
-
-    # Get available location sources
-    browser_geoloc = await get_browser_geolocation(runtime)
-    home_location = await get_user_home_location(runtime)
-
-    match location_type:
-        case LocationType.HOME:
-            # User explicitly references home ("chez moi", "at home")
-            # Priority: home > browser > fallback
-            if home_location:
-                logger.info(
-                    "resolve_location_using_home",
-                    has_home=True,
-                )
-                return (home_location, None)
-
-            if browser_geoloc:
-                logger.info(
-                    "resolve_location_home_fallback_to_browser",
-                    reason="No home configured, using browser geolocation",
-                )
-                return (browser_geoloc, None)
-
-            # No location available for HOME reference
-            logger.warning(
-                "resolve_location_home_no_source",
-                has_browser=False,
-                has_home=False,
-            )
-            return (None, get_fallback_message(language))
-
-        case LocationType.CURRENT | LocationType.QUERY:
-            # User references or asks about their current position ("nearby",
-            # "around me", "where am I"). Priority: browser only > fallback.
-            # QUERY was previously unhandled and fell through to the silent
-            # (None, None) safety return — "où suis-je" resolved nothing.
-            if browser_geoloc:
-                logger.info("resolve_location_using_browser")
-                return (browser_geoloc, None)
-
-            # No browser geolocation for CURRENT/QUERY reference
-            logger.warning(
-                "resolve_location_current_no_browser",
-                has_home=home_location is not None,
-            )
-            return (None, get_fallback_message(language))
-
-        # Note: LocationType.EXPLICIT was removed in 2026-01 cleanup.
-        # Explicit location extraction is now handled by the planner via the
-        # 'location' parameter in tool manifests. When planner provides location,
-        # resolve_location() is not called at all.
-
-        case LocationType.NONE:
-            # No location reference detected - use implicit location
-            # Priority: browser > home > None (silent, no fallback message)
-            if browser_geoloc:
-                logger.debug(
-                    "resolve_location_implicit_browser",
-                    lat=browser_geoloc.lat,
-                    lon=browser_geoloc.lon,
-                )
-                return (browser_geoloc, None)
-
-            if home_location:
-                logger.debug(
-                    "resolve_location_implicit_home",
-                    address_preview=home_location.address[:30] if home_location.address else None,
-                )
-                return (home_location, None)
-
-            # No implicit location available - silent (tools may have their own fallback)
-            logger.debug("resolve_location_implicit_none")
-            return (None, None)
-
-    # All LocationType members are matched above; kept for type completeness.
-    return (None, None)
 
 
 # =============================================================================
@@ -1567,16 +1307,13 @@ def emit_side_channel_chunk(
 
 
 __all__ = [
-    "ResolvedLocation",
     "ValidatedRuntimeConfig",
     "extract_cache_metadata",
     "extract_coordinates",
     "extract_session_id_from_state",
     "extract_value",
-    "get_browser_geolocation",
     "get_connector_preference",
     "get_original_user_message",
-    "get_user_home_location",
     "get_user_language_safe",
     "get_user_preferences",
     "handle_connector_api_error",
@@ -1584,7 +1321,6 @@ __all__ = [
     "parse_user_id",
     "resolve_connector_default",
     "resolve_contact_to_email",
-    "resolve_location",
     "resolve_recipients_to_emails",
     "save_to_context_store",
     "emit_side_channel_chunk",

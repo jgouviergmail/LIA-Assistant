@@ -435,7 +435,7 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "timezone": _PREFERENCE,
     "language": _PREFERENCE,
     "personality_id": _PREFERENCE,
-    "weather_use_last_known_location": _PREFERENCE,
+    "use_last_known_location": _PREFERENCE,
     "discovery_enabled": _PREFERENCE,
     # A consent, kept separate from discovery on purpose (ADR-189).
     "peer_email_visible": _PREFERENCE,

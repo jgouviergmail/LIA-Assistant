@@ -289,12 +289,13 @@ class SearchPlacesTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
         - If `query` provided: Use Text Search API with location bias
         - If only `place_type` provided: Use Nearby Search API with center point
         """
-        from src.domains.agents.tools.runtime_helpers import (
-            get_browser_geolocation,
-            get_original_user_message,
-            get_user_home_location,
-            get_user_language_safe,
+        from src.domains.agents.tools.location_resolution import (
+            resolve_implicit_location,
             resolve_location,
+        )
+        from src.domains.agents.tools.runtime_helpers import (
+            get_original_user_message,
+            get_user_language_safe,
         )
 
         settings = get_settings()
@@ -445,20 +446,14 @@ class SearchPlacesTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
             restriction_lat = geocoded_lat
             restriction_lon = geocoded_lon
         else:
-            # Try browser geolocation first, then home location
-            browser_loc = await get_browser_geolocation(self.runtime)
-            if browser_loc:
-                distance_lat = browser_loc.lat
-                distance_lon = browser_loc.lon
-                distance_source = browser_loc.source
-            else:
-                home_loc = await get_user_home_location(self.runtime)
-                if home_loc:
-                    distance_lat = home_loc.lat
-                    distance_lon = home_loc.lon
-                    distance_source = home_loc.source
+            # Shared implicit cascade: browser > last_known (opt-in, fresh) > home
+            implicit_loc = await resolve_implicit_location(self.runtime)
+            if implicit_loc:
+                distance_lat = implicit_loc.lat
+                distance_lon = implicit_loc.lon
+                distance_source = implicit_loc.source
 
-            # For geocoded viewport without explicit location, use browser/home as center
+            # For geocoded viewport without explicit location, use the implicit center
             if needs_geocoded_viewport and distance_lat is not None:
                 restriction_lat = distance_lat
                 restriction_lon = distance_lon
@@ -808,31 +803,23 @@ class GetPlaceDetailsTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
         force_refresh: bool,
     ) -> dict[str, Any]:
         """Execute single place details fetch."""
-        from src.domains.agents.tools.runtime_helpers import (
-            get_browser_geolocation,
-            get_user_home_location,
-            get_user_language_safe,
-        )
+        from src.domains.agents.tools.location_resolution import resolve_implicit_location
+        from src.domains.agents.tools.runtime_helpers import get_user_language_safe
 
         # Get user language for i18n
         language = await get_user_language_safe(self.runtime)
 
-        # Try to get user location for distance calculation (browser first, then home)
+        # User location for distance calculation — shared implicit cascade
+        # (browser > last_known > home)
         center_lat: float | None = None
         center_lon: float | None = None
         distance_source: str | None = None
 
-        browser_loc = await get_browser_geolocation(self.runtime)
-        if browser_loc:
-            center_lat = browser_loc.lat
-            center_lon = browser_loc.lon
-            distance_source = browser_loc.source  # "browser"
-        else:
-            home_loc = await get_user_home_location(self.runtime)
-            if home_loc:
-                center_lat = home_loc.lat
-                center_lon = home_loc.lon
-                distance_source = home_loc.source  # "home"
+        implicit_loc = await resolve_implicit_location(self.runtime)
+        if implicit_loc:
+            center_lat = implicit_loc.lat
+            center_lon = implicit_loc.lon
+            distance_source = implicit_loc.source
 
         place = await client.get_place_details(
             place_id=place_id,
@@ -980,31 +967,23 @@ class GetPlaceDetailsTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
         """
         import asyncio
 
-        from src.domains.agents.tools.runtime_helpers import (
-            get_browser_geolocation,
-            get_user_home_location,
-            get_user_language_safe,
-        )
+        from src.domains.agents.tools.location_resolution import resolve_implicit_location
+        from src.domains.agents.tools.runtime_helpers import get_user_language_safe
 
         # Get user language for i18n
         language = await get_user_language_safe(self.runtime)
 
-        # Get user location for distance calculation
+        # User location for distance calculation — shared implicit cascade
+        # (browser > last_known > home)
         center_lat: float | None = None
         center_lon: float | None = None
         distance_source: str | None = None
 
-        browser_loc = await get_browser_geolocation(self.runtime)
-        if browser_loc:
-            center_lat = browser_loc.lat
-            center_lon = browser_loc.lon
-            distance_source = browser_loc.source
-        else:
-            home_loc = await get_user_home_location(self.runtime)
-            if home_loc:
-                center_lat = home_loc.lat
-                center_lon = home_loc.lon
-                distance_source = home_loc.source
+        implicit_loc = await resolve_implicit_location(self.runtime)
+        if implicit_loc:
+            center_lat = implicit_loc.lat
+            center_lon = implicit_loc.lon
+            distance_source = implicit_loc.source
 
         # Fetch all places in parallel
         async def fetch_single(pid: str) -> tuple[str, dict[str, Any] | None, str | None]:
@@ -1360,20 +1339,25 @@ class GetCurrentLocationTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient])
         **kwargs: Any,
     ) -> dict[str, Any]:
         """Execute reverse geocoding to get current address."""
-        from src.domains.agents.tools.runtime_helpers import (
+        from src.domains.agents.tools.location_resolution import (
             get_browser_geolocation,
-            get_user_language_safe,
+            get_user_last_known_location,
         )
+        from src.domains.agents.tools.runtime_helpers import get_user_language_safe
         from src.domains.agents.utils.i18n_location import get_fallback_message
 
         # Get user language for i18n
         language = await get_user_language_safe(self.runtime)
 
-        # Get browser geolocation (required for this tool)
-        browser_loc = await get_browser_geolocation(self.runtime)
+        # "Where am I" must never answer with the home address — but a FRESH
+        # persisted position whose age is stated is honest and useful (owner
+        # arbitration 2026-08-16): browser > last_known, no home fallback.
+        resolved_loc = await get_browser_geolocation(self.runtime)
+        if resolved_loc is None:
+            resolved_loc = await get_user_last_known_location(self.runtime)
 
-        if not browser_loc:
-            # No geolocation available - return localized fallback message
+        if not resolved_loc:
+            # No live nor persisted position - return localized fallback message
             fallback_msg = get_fallback_message(language)
             logger.warning(
                 "get_current_location_no_geolocation",
@@ -1386,11 +1370,17 @@ class GetCurrentLocationTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient])
                 "message": fallback_msg,
             }
 
-        latitude = browser_loc.lat
-        longitude = browser_loc.lon
+        latitude = resolved_loc.lat
+        longitude = resolved_loc.lon
 
+        # No PII at INFO: coordinates are contents (DEBUG only).
         logger.info(
             "get_current_location_starting",
+            user_id=str(user_id),
+            source=resolved_loc.source,
+        )
+        logger.debug(
+            "get_current_location_coordinates",
             user_id=str(user_id),
             latitude=latitude,
             longitude=longitude,
@@ -1433,7 +1423,12 @@ class GetCurrentLocationTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient])
                 "lon": longitude,
             },
             "location_type": geocode_result.get("location_type"),
-            "source": "browser_geolocation",
+            "source": (
+                "browser_geolocation" if resolved_loc.source == "browser" else "last_known_location"
+            ),
+            # Age of a persisted position, so the answer can state it instead
+            # of presenting a dated point as the current one.
+            "as_of": (resolved_loc.as_of.isoformat() if resolved_loc.as_of else None),
         }
 
         logger.info(
@@ -1478,6 +1473,10 @@ class GetCurrentLocationTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient])
         if data.get("location"):
             loc = data["location"]
             parts.append(f"Coordonnées: {loc.get('lat'):.6f}, {loc.get('lon'):.6f}")
+        if data.get("as_of"):
+            # Language-free technical marker: the model states the position's
+            # age in the user's language instead of claiming it is live.
+            parts.append(f"Source: last known position, captured at {data['as_of']} (not live)")
 
         summary = "\n".join(parts) if parts else "Position actuelle obtenue"
 
@@ -1529,6 +1528,7 @@ class GetCurrentLocationTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient])
                 "status": "success",
                 "location_type": data.get("location_type"),
                 "source": data.get("source"),
+                "as_of": data.get("as_of"),
             },
         )
 

@@ -3,8 +3,8 @@
 > Retour d'expérience — un système complet, de la conception à la production.
 
 **Version** : 1.3
-**Date** : 2026-08-08
-**Application** : LIA v1.29.0
+**Date** : 2026-08-16
+**Application** : LIA v1.30.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Indicateur | Valeur |
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
-| Lignes de code (hors tests) — 39 domaines fonctionnels | **548 000** |
-| Tests automatisés, exécutés à chaque commit et livraison | **23 600+** |
-| Décisions d'architecture documentées (ADR) | **217** |
-| Versions livrées à rythme régulier | **203** |
+| Lignes de code (hors tests) — 40 domaines fonctionnels | **520 000** |
+| Tests automatisés, exécutés à chaque commit et livraison | **23 700+** |
+| Décisions d'architecture documentées (ADR) | **218** |
+| Versions livrées à rythme régulier | **204** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -50,7 +50,7 @@ Une IA qui code produit du volume ; elle ne produit de la qualité que sous cont
 
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 180 documentées :
+Trois décisions structurantes, parmi les 218 documentées :
 
 **Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'hébergement est intégralement maîtrisé ; les données personnelles sont chiffrées et restent sur l'infrastructure.
 
@@ -62,7 +62,7 @@ Trois décisions structurantes, parmi les 180 documentées :
 
 Un système qu'on pilote aux instruments :
 
-- **Observabilité** : vingt-cinq tableaux de bord — santé applicative, engagements de service, coûts d'IA, comportement des agents, infrastructure. Plus de 440 métriques ; journaux structurés centralisés avec filtrage des données personnelles ; traçage distribué de bout en bout. Une quarantaine de procédures d'exploitation écrites — diagnostic, remédiation, restauration.
+- **Observabilité** : vingt-cinq tableaux de bord — santé applicative, engagements de service, coûts d'IA, comportement des agents, infrastructure. Plus de 470 métriques ; journaux structurés centralisés avec filtrage des données personnelles ; traçage distribué de bout en bout. Une quarantaine de procédures d'exploitation écrites — diagnostic, remédiation, restauration.
 - **Livraison** : déploiement conteneurisé, migrations de schéma automatisées, images publiées pour deux architectures matérielles (amd64/arm64).
 - **Coûts** : infrastructure frugale par choix — environ 150 € de matériel, zéro licence, briques open-source dimensionnées au besoin réel.
 - **Conformité** : sécurité revue point d'accès par point d'accès ; chiffrement des données personnelles ; cycle de vie des comptes aligné sur le RGPD.
@@ -90,6 +90,8 @@ La preuve a aussi son épisode le plus instructif : trois recalibrages d’un si
 Le détecteur d'habitudes a gagné sa confiance de la même manière : exécuté sur les données réelles de production avant d'être cru — et pris en défaut. Une action programmée quotidienne écrivait un message « utilisateur » à 07:00 depuis soixante-six jours ; le détecteur a revendiqué le propre planning du planificateur comme habitude humaine. La réfutation est devenue une liste blanche de sessions humaines, la fenêtre fabriquée a disparu, et les verdicts honnêtes sont tombés. La règle demeure : prouver contre le réel avant de croire la conception.
 
 Le cycle 1.29.0 a ajouté un troisième épisode, et celui-ci porte sur les tests eux-mêmes. Chaque protection du programme avait été livrée avec les siens, tous verts — et tous de la même forme : ils épinglaient ce que le code faisait le jour de la livraison. Une liste écrite à la main ne décrit pas un système, elle décrit ce que son auteur en savait. Trois gardes ont donc été réécrites pour **recalculer** la protection depuis la source de vérité au lieu de la redire. Elles ont trouvé trois failles qu'aucun test existant ne pouvait voir : une synthèse vocale facturée sans jamais compter contre le plafond de dépense, une connexion par fournisseur qui contournait entièrement l'acceptation désormais obligatoire des conditions, et onze chemins de connecteurs qui liaient un identifiant réel sans la moindre garde. Puis chaque garde a été mise en défaut volontairement, pour vérifier qu'elle rougissait — parce qu'une garde qu'on n'a jamais vue échouer n'est qu'une promesse de plus.
+
+Le cycle 1.30.0 a documenté une leçon d'une autre nature : une fonctionnalité peut être livrée, chiffrée, consentie — et ne servir à rien, parce que personne ne la lit. La dernière position connue existait depuis des mois ; seules les notifications proactives la consultaient. En déplacement, l'assistant répondait donc depuis le domicile, avec aplomb. Le diagnostic est venu des journaux de production, la correction a réduit trois chemins divergents à une cascade unique — et la doctrine des comptes exacts s'est étendue à la position : une position datée s'annonce datée, « d'après ta dernière position connue à 9 h 30 », jamais « tu es à ». Le même cycle a rappelé qu'un mécanisme de synchronisation ne se croit que prouvé contre le vrai moteur : le verrou qui sérialise le premier démarrage s'est inter-bloqué avec la création d'index concurrente de PostgreSQL — mesuré dans les verrous du moteur, corrigé en sondage non bloquant, gardé par un test qui interdit le retour de la forme bloquante.
 
 ## 7. Convictions
 

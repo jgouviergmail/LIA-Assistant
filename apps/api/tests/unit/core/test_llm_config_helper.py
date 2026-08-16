@@ -122,6 +122,23 @@ class TestCacheOverrideMerge:
 
         assert config == LLM_DEFAULTS["router"]
 
+    def test_empty_string_overrides_are_treated_as_unset(self):
+        """An empty string is never a valid provider/model — it is legacy row
+        poisoning, not a choice. Prod carried 24 override rows with
+        provider='' (some since 2026-04): the admin dialog copied the empty
+        effective provider back on every save (self-perpetuating), got an
+        empty model catalogue, and routed the admin into the uncoerced
+        free-text path that produced the qwen3.8-max 422s (2026-08-14).
+        Merge must fall back to the default, exactly like None."""
+        with patch(
+            "src.domains.llm_config.cache.LLMConfigOverrideCache.get_override",
+            return_value={"provider": "", "model": "gpt-4.1-mini"},
+        ):
+            config = get_llm_config_for_agent(None, "router")
+
+        assert config.provider == LLM_DEFAULTS["router"].provider
+        assert config.model == "gpt-4.1-mini"
+
 
 class TestGetAllLLMConfigs:
     """Tests for get_all_llm_configs function."""

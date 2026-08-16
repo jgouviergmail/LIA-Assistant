@@ -19,11 +19,11 @@ from __future__ import annotations
 
 import time
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Annotated, Any
 
 import structlog
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, Field, create_model
+from pydantic import BaseModel, Field, WithJsonSchema, create_model
 
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.infrastructure.mcp.utils import build_mcp_app_output, drop_none_values
@@ -44,6 +44,44 @@ _JSON_SCHEMA_TYPE_MAP: dict[str, type] = {
     "array": list,
     "object": dict,
 }
+
+
+def _sanitize_array_items(field_spec: dict[str, Any]) -> dict[str, Any]:
+    """Return a safe, always-typed ``items`` schema for an array property.
+
+    Gemini's function-declaration converter maps an absent/empty ``items``
+    to an untyped proto that the API rejects with 400 INVALID_ARGUMENT
+    ("parameters.properties[x].items: missing field") — and ONE such tool
+    poisons the entire bind (every ReAct iteration on a Gemini model failed
+    in prod, 2026-08-14). Preserve the server-declared item type when it is
+    simple (type/enum/description; nested arrays recursively), and degrade
+    anything unreliable ($ref, allOf, non-dict) to string items rather than
+    dropping the whole tool schema.
+    """
+    items = field_spec.get("items")
+    if isinstance(items, dict) and items.get("type") in _JSON_SCHEMA_TYPE_MAP:
+        sanitized: dict[str, Any] = {"type": items["type"]}
+        if isinstance(items.get("enum"), list):
+            sanitized["enum"] = items["enum"]
+        if isinstance(items.get("description"), str):
+            sanitized["description"] = items["description"]
+        if items["type"] == "array":
+            sanitized["items"] = _sanitize_array_items(items)
+        return sanitized
+    return {"type": "string"}
+
+
+def _array_python_type(field_spec: dict[str, Any]) -> Any:
+    """Schema-only items annotation: validation stays a permissive ``list``.
+
+    ``WithJsonSchema`` replaces the emitted field schema without touching
+    validation, so servers keep receiving exactly what they received before —
+    only the declaration shown to providers gains its mandatory ``items``.
+    """
+    return Annotated[
+        list,
+        WithJsonSchema({"type": "array", "items": _sanitize_array_items(field_spec)}),
+    ]
 
 
 def build_args_schema(
@@ -79,7 +117,9 @@ def build_args_schema(
             return None  # Fall back to no schema for entire tool
 
         field_type_str = field_spec.get("type", "string")
-        python_type = _JSON_SCHEMA_TYPE_MAP.get(field_type_str, str)
+        python_type: Any = _JSON_SCHEMA_TYPE_MAP.get(field_type_str, str)
+        if field_type_str == "array":
+            python_type = _array_python_type(field_spec)
         description = field_spec.get("description", "")
 
         if field_name in required_fields:

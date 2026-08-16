@@ -14,11 +14,11 @@ import pytest
 
 from src.core.config import settings
 from src.domains.agents.tools import routes_tools
+from src.domains.agents.tools.location_resolution import ResolvedLocation
 from src.domains.agents.tools.routes_tools import (
     _resolve_destination,
     _UnresolvedDestination,
 )
-from src.domains.agents.tools.runtime_helpers import ResolvedLocation
 
 ORIGIN = ResolvedLocation(lat=45.75, lon=4.85, source="browser")
 PERSON = "Marc Lemoine"

@@ -48,6 +48,7 @@ def _install_fakes(
     vendor_success: bool = True,
     vendor_message: str | None = None,
     client_error: bool = False,
+    client_auth_error: bool = False,
     sync_error: bool = False,
     vendor_conversation_status: str | object = "in-progress",
     close_zombie_result: bool = True,
@@ -105,6 +106,8 @@ def _install_fakes(
     class _FakeClient:
         async def initiate_outbound_call(self, **kwargs) -> OutboundCallResult:
             captured["call_kwargs"] = kwargs
+            if client_auth_error:
+                raise ElevenLabsAgentsError(401, "invalid api key", auth_error=True)
             if client_error:
                 raise ElevenLabsAgentsError(502, "bad gateway")
             return OutboundCallResult(
@@ -207,6 +210,23 @@ async def test_client_error_marks_failed_and_commits(monkeypatch: pytest.MonkeyP
     assert result.status == "failed"
     assert db.committed is True  # the dialing row was committed before the failed dial
     assert "initiate_failed" in captured["dial_failed_error"]  # transitioned to failed
+
+
+@pytest.mark.unit
+async def test_vendor_auth_error_maps_to_auth_failed_not_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An authentication rejection is NOT transient: telling the user to
+    "try again in a moment" is a lie — nothing changes until the connector
+    key is replaced. Prod 2026-08-15: ElevenLabs stopped accepting the stored
+    legacy credential ("API key ID used as API key") and every call died
+    behind the generic retry message."""
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch, client_auth_error=True)
+    result = await _call(TelephonyService(db, client_factory=factory))
+    assert result.status == "auth_failed"
+    assert db.committed is True
+    assert "initiate_auth_failed" in captured["dial_failed_error"]
 
 
 @pytest.mark.unit

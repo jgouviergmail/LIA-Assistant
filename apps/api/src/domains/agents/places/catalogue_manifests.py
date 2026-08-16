@@ -367,10 +367,13 @@ get_places_catalogue_manifest = ToolManifest(
 # ============================================================================
 _location_desc = (
     "**Tool: get_current_location_tool** - Get user's current location.\n"
-    "Uses browser geolocation + reverse geocoding to answer:\n"
+    "Uses the live browser geolocation — or, when it is unavailable, the "
+    "user's fresh last-known position (opt-in, answered with its age) — "
+    "plus reverse geocoding to answer:\n"
     "- 'Where am I?', 'My location', 'What is my address?'\n"
-    "**No parameters needed** - uses browser geolocation automatically.\n"
-    "**Requires**: Browser geolocation permission enabled."
+    "**No parameters needed** - the position source is resolved automatically.\n"
+    "**Requires**: browser geolocation OR the last-known location opt-in; "
+    "otherwise the tool returns a localized hint to enable one."
 )
 
 get_current_location_catalogue_manifest = ToolManifest(
@@ -384,7 +387,7 @@ get_current_location_catalogue_manifest = ToolManifest(
         "identify this place from GPS position",
         "show my coordinates and street address",
     ],
-    parameters=[],  # No parameters - uses browser geolocation automatically
+    parameters=[],  # No parameters - position source resolved automatically
     outputs=[
         OutputFieldSchema(
             path="locations",

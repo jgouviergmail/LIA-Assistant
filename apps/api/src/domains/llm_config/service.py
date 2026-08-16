@@ -297,13 +297,26 @@ class LLMConfigService:
         if llm_type not in LLM_TYPES_REGISTRY:
             raise ValueError(f"Unknown LLM type: {llm_type}")
 
+        # An empty model string is never a choice (provider is already fenced
+        # by its request Literal): stored as "", it would override the default
+        # model at merge time and break LLM resolution. Normalize to unset.
+        if update.model == "":
+            update.model = None
+
         # === Strict validation of reasoning_effort against the model's matrix ===
         # Replaces the old regex-based auto-clearing logic. The new policy
         # (philosophy A — raw truth) rejects any (model, reasoning_effort)
         # combination not declared in llm_models.reasoning_widget /
         # reasoning_enum_values / reasoning_budget_range with HTTP 422 +
         # structured ctx (see domains/llm_config/reasoning_validation.py).
-        if update.model is not None and update.reasoning_effort is not None:
+        #
+        # The guard runs even when `model` is omitted: override semantics drop
+        # the field when it equals the type default, and keying the check on
+        # `update.model is not None` let a wrong-shaped reasoning_effort
+        # persist through exactly that path (then every GET degraded it at
+        # merge time — prod 2026-08-14). A model-less update targets the type
+        # default's model; full-replace semantics make that the effective one.
+        if update.reasoning_effort is not None:
             from src.domains.llm_config.reasoning_validation import (
                 validate_reasoning_effort,
             )
@@ -311,8 +324,9 @@ class LLMConfigService:
                 ModelCapabilitiesCache,
             )
 
-            caps = ModelCapabilitiesCache.get(update.model)
-            if caps is None:
+            target_model = update.model or LLM_DEFAULTS[llm_type].model
+            caps = ModelCapabilitiesCache.get(target_model)
+            if caps is None and update.model is not None:
                 raise_structured_validation_error(
                     error_type="unknown_model",
                     loc=["body", "model"],
@@ -320,7 +334,11 @@ class LLMConfigService:
                     input_value=update.model,
                     ctx={"model": update.model},
                 )
-            validate_reasoning_effort(caps, update.reasoning_effort)
+            # caps is None with model omitted: the code default is not in the
+            # catalogue (boot validates defaults; the cache may be empty in
+            # tests) — nothing to check against, do not block the save.
+            if caps is not None:
+                validate_reasoning_effort(caps, update.reasoning_effort)
 
             # Coherence rule (Anthropic): extended thinking is incompatible with a
             # custom temperature/top_p (API: "temperature may only be set to 1 when
@@ -328,7 +346,7 @@ class LLMConfigService:
             # thinking, force temperature/top_p to None so the stored config stays
             # coherent. The admin UI mirrors this by locking those fields; the
             # factory also omits them at call time (defense in depth).
-            if update.provider == "anthropic":
+            if update.provider == "anthropic" and update.model is not None:
                 from src.infrastructure.llm.providers.reasoning_builders import (
                     build_anthropic_reasoning,
                 )
@@ -350,24 +368,33 @@ class LLMConfigService:
                     update.top_p = None
 
         # === Validate the separate global 'effort' (Anthropic opus-4-5) ===
-        if update.model is not None and update.effort is not None:
+        # Same doctrine as reasoning_effort above: override semantics omit
+        # `model` when it equals the type default, so the guard must resolve
+        # the default's model rather than skip — a skipped check let junk
+        # persist and degrade silently at merge time.
+        if update.effort is not None:
             from src.infrastructure.llm.model_capabilities_cache import (
                 ModelCapabilitiesCache,
             )
 
-            caps = ModelCapabilitiesCache.get(update.model)
+            target_model = update.model or LLM_DEFAULTS[llm_type].model
+            caps = ModelCapabilitiesCache.get(target_model)
             allowed = getattr(caps, "effort_values", None) if caps else None
-            if not allowed or update.effort not in allowed:
+            # Mirror the reasoning_effort stance: a model-less update whose
+            # default model is absent from the catalogue is unverifiable here
+            # (boot validates code defaults) and must not block the save.
+            unverifiable_default = caps is None and update.model is None
+            if not unverifiable_default and (not allowed or update.effort not in allowed):
                 raise_structured_validation_error(
                     error_type="invalid_effort",
                     loc=["body", "effort"],
                     msg=(
                         f"Effort {update.effort!r} is not supported by "
-                        f"{update.model}. Allowed: {', '.join(allowed) if allowed else 'none'}."
+                        f"{target_model}. Allowed: {', '.join(allowed) if allowed else 'none'}."
                     ),
                     input_value=update.effort,
                     ctx={
-                        "model": update.model,
+                        "model": target_model,
                         "provided": update.effort,
                         "allowed": list(allowed or []),
                     },

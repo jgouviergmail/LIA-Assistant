@@ -25,6 +25,12 @@ vi.mock('sonner', () => ({ toast }));
 vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
+// The child owns its own suite (LastKnownLocationSection.test.tsx); here only
+// the parent's contract matters: the section is mounted between geolocation
+// and home, with the shared `t`.
+vi.mock('../LastKnownLocationSection', () => ({
+  LastKnownLocationSection: () => <div data-testid="last-known-location-section" />,
+}));
 
 import { LocationSettings } from '../LocationSettings';
 
@@ -122,6 +128,14 @@ describe('LocationSettings — geolocation', () => {
     useGeolocation.mockReturnValue(geo({ error: 'GPS unavailable' }));
     renderWithProviders(<LocationSettings t={t} />);
     expect(screen.getByText('GPS unavailable')).toBeInTheDocument();
+  });
+});
+
+describe('LocationSettings — last-known location', () => {
+  it('mounts the last-known section with its title, between geolocation and home', () => {
+    renderWithProviders(<LocationSettings t={t} />);
+    expect(screen.getByText('settings.location.last_known.title')).toBeInTheDocument();
+    expect(screen.getByTestId('last-known-location-section')).toBeInTheDocument();
   });
 });
 

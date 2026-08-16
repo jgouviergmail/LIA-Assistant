@@ -569,6 +569,16 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         $shimLog | Should -Match ([regex]::Escape("stat -c"))
         $r.Output | Should -Match "Permissions secrets durcies et verifiees"
     }
+
+    It "writes DOCKER_GID into the STAGING .env — the file the swap promotes" {
+        # Step 8 used to append DOCKER_GID to the retired live .env
+        # (~/lia/.env); the ADR-215 staging swap then promoted a fresh .env
+        # WITHOUT it, so `group_add` fell back to 999, the API container lost
+        # the Docker socket and every container-sandboxed skill script died
+        # with EACCES (prod 2026-08-08 → 2026-08-15, skill widgets KO).
+        $shimLog | Should -Match ([regex]::Escape("DOCKER_GID ~/lia.staging/.env"))
+        $shimLog | Should -Not -Match ([regex]::Escape("DOCKER_GID ~/lia/.env"))
+    }
 }
 
 # ============================================================================

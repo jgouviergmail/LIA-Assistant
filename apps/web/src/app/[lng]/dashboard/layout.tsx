@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguageParam } from '@/hooks/useLanguageParam';
+import { useLastKnownLocationSync } from '@/hooks/useLastKnownLocationSync';
 import { fallbackLng } from '@/i18n/settings';
 import { getLanguageFromPath, buildLocalizedPath } from '@/utils/i18n-path-utils';
 import Link from 'next/link';
@@ -58,6 +59,9 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
   const { user, isLoading, logout } = useAuth();
   const lng = useLanguageParam(params);
   const { t } = useTranslation(lng);
+  // Keep the backend's last-known location fed wherever the user navigates
+  // (opt-in and throttle enforced inside; inert for anonymous visitors).
+  useLastKnownLocationSync();
   // Onboarding tutorial state
   const [showOnboarding, setShowOnboarding] = useState(false);
 

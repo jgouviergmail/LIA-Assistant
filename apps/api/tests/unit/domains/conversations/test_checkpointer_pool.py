@@ -34,6 +34,7 @@ from src.domains.conversations.checkpointer import (
 from src.domains.conversations.instrumented_checkpointer import (
     InstrumentedAsyncPostgresSaver,
 )
+from tests._pool_fakes import fake_psycopg_pool
 
 
 class TestGetCheckpointerPoolFactory:
@@ -66,7 +67,7 @@ class TestGetCheckpointerPoolFactory:
             mock_settings.langgraph_checkpoint_pool_max_size = 7
             mock_settings.database_pool_timeout = 30
 
-            mock_pool = AsyncMock()
+            mock_pool = fake_psycopg_pool()
             mock_pool_cls.return_value = mock_pool
             mock_saver = AsyncMock()
             mock_saver_cls.return_value = mock_saver
@@ -119,7 +120,7 @@ class TestGetCheckpointerPoolFactory:
             mock_settings.langgraph_checkpoint_pool_min_size = 1
             mock_settings.langgraph_checkpoint_pool_max_size = 8
             mock_settings.database_pool_timeout = 30
-            mock_pool_cls.return_value = AsyncMock()
+            mock_pool_cls.return_value = fake_psycopg_pool()
             mock_saver_cls.return_value = AsyncMock()
 
             saver1 = await get_checkpointer()
@@ -147,7 +148,7 @@ class TestGetCheckpointerPoolFactory:
             mock_settings.langgraph_checkpoint_pool_min_size = 1
             mock_settings.langgraph_checkpoint_pool_max_size = 8
             mock_settings.database_pool_timeout = 30
-            mock_pool = AsyncMock()
+            mock_pool = fake_psycopg_pool()
             mock_pool_cls.return_value = mock_pool
             mock_saver_cls.return_value = AsyncMock()
 
@@ -178,8 +179,8 @@ class TestGetCheckpointerPoolFactory:
             mock_settings.langgraph_checkpoint_pool_max_size = 8
             mock_settings.database_pool_timeout = 30
 
-            failing_pool = AsyncMock()
-            healthy_pool = AsyncMock()
+            failing_pool = fake_psycopg_pool()
+            healthy_pool = fake_psycopg_pool()
             mock_pool_cls.side_effect = [failing_pool, healthy_pool]
 
             failing_saver = AsyncMock()
@@ -212,7 +213,7 @@ class TestGetCheckpointerPoolFactory:
             mock_settings.langgraph_checkpoint_pool_min_size = 1
             mock_settings.langgraph_checkpoint_pool_max_size = 8
             mock_settings.database_pool_timeout = 30
-            mock_pool = AsyncMock()
+            mock_pool = fake_psycopg_pool()
             mock_pool_cls.return_value = mock_pool
             mock_saver_cls.return_value = AsyncMock()
 

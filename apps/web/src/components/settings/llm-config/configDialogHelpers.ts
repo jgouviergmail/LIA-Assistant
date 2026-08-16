@@ -163,6 +163,27 @@ export function formAfterModelChange(
   };
 }
 
+/** Save-time reasoning coherence — the chokepoint that survives every way the
+ * form can drift: stale metadata (a freshly created model absent from the
+ * dialog's catalogue leaves ReasoningSection unrendered, silently carrying the
+ * PREVIOUS model's shape into the PUT — prod 2026-08-14, 422
+ * wrong_reasoning_effort_shape on every attempt), free-text models, dynamic
+ * Ollama tags. The value is re-coerced against the SELECTED model's
+ * capabilities; an unprovable value drops to null (= model default), mirroring
+ * the backend's proof-over-optimism inheritance rule. When the catalogue never
+ * loaded there is nothing to prove against — the form is returned untouched. */
+export function formForSave(
+  form: LLMTypeConfigUpdate,
+  selectedModelCaps: ModelCapabilities | undefined,
+  catalogueLoaded: boolean
+): LLMTypeConfigUpdate {
+  if (!catalogueLoaded) return form;
+  return {
+    ...form,
+    reasoning_effort: coerceReasoningEffortForModel(form.reasoning_effort, selectedModelCaps),
+  };
+}
+
 // --- Override diff ---------------------------------------------------------------
 
 /** Scalar fields compared with plain !== when building the override diff. */

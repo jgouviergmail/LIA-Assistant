@@ -1,7 +1,7 @@
 # ADR-073: Last-Known Location Persistence for Proactive Weather
 
 **Date**: 2026-04-19
-**Status**: Accepted
+**Status**: Accepted — extended by [ADR-219](ADR-219-Derniere-Position-Connue-Generalisee.md) (2026-08-16): the opt-in flag was renamed `use_last_known_location`, the persisted position now feeds the tool-side `resolve_location` cascade (chat, scheduled actions) with its age exposed, and the setting moved to the Google Places connector. The persistence, encryption, TTL and proactive cascade described here are unchanged.
 **Context**: Make proactive weather notifications relevant when the user is away from home by persisting the browser geolocation (encrypted, non-historized, opt-in), while preserving behavioral consistency with the conversational weather tool.
 
 ## Context

@@ -5,8 +5,8 @@
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
 **Versione**: 4.0
-**Data**: 2026-08-08
-**Applicazione**: LIA v1.29.0
+**Data**: 2026-08-16
+**Applicazione**: LIA v1.30.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 466 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 217 ADRs, ~18.206 test raccolti da pytest in 987 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 218 ADRs, ~18.254 test raccolti da pytest in 990 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -74,7 +74,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~18.206 (raccolti da pytest su 987 file di test) + 5.448 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~18.254 (raccolti da pytest su 990 file di test) + 5.475 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 490+ |
 | ADR (Architecture Decision Record) | 209 |
@@ -1205,6 +1205,8 @@ LIA accetta ingestioni di eventi esterni (misurazioni iPhone Apple Health, paylo
 
 Sei manifest localizzati (`/manifest-{lng}.json` — `lang` localizzato, `start_url`, tre scorciatoie, voci icona `any`/`maskable` separate; la parità strutturale dei 6 file è fissata da test) sono collegati per pagina via `generateMetadata`, con vere icone PNG e una `apple-touch-icon` (iOS ignora silenziosamente le icone SVG). Lo **share target** dell'OS (`GET /{lng}/share`) compone titolo/testo/url condivisi in una bozza di chat limitata che usa il binario `?draft=` esistente — mai auto-inviata. Un suggerimento di installazione discreto appare dalla terza visita (mai in display-mode standalone, rifiutabile per sempre); Chromium riceve un vero prompt di installazione via `beforeinstallprompt`, iOS l'istruzione Condividi → Aggiungi alla Home.
 
+**La posizione sopravvive al ciclo di vita mobile** (ADR-219). Una PWA congelata dall'OS non rimonta mai il suo stato: la posizione scadeva in silenzio e ogni richiesta ripartiva dall'indirizzo di casa. Ogni risoluzione di posizione passa ora da un'unica cascata — posizione viva del browser, altrimenti ultima posizione memorizzata (opt-in, cifrata, fresca sotto le 24 h), altrimenti domicilio — che le azioni pianificate, senza browser, ereditano senza codice dedicato. Due regole di onestà la delimitano: una posizione memorizzata viaggia con la sua età e il modello la enuncia («in base alla tua ultima posizione nota alle 9:30»), mai come attuale; e «a casa» non viene mai risolto da una posizione catturata per strada. Al ritorno in primo piano il permesso viene ricontrollato: ancora concesso, la posizione si aggiorna in silenzio; decaduto — iOS lo fa dopo l'inattività — un banner fornisce, all'apertura della chat, il gesto utente che il foglio permessi nativo richiede.
+
 ### 23.14. Indice di navigazione: una tabella, due guardie rivolte in versi opposti
 
 La pagina delle impostazioni impila una trentina di sezioni chiuse su più schede. Raggiungerle richiede una tabella che associ un token di URL a una scheda e a un valore di fisarmonica. Una tabella del genere non scade mai rumorosamente: un giorno smette semplicemente di descrivere la pagina.
@@ -1267,7 +1269,7 @@ La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la 
 
 ## 24. Architettura delle decisioni (ADR)
 
-217 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+218 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1343,10 +1345,10 @@ Il filo comune di questi quattro lotti è una proprietà dei test stessi. Ogni p
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 217 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~18.206 test in 987 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 218 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~18.254 test in 990 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 217 ADRs e del changelog (da v1.0 a v1.29.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 218 ADRs e del changelog (da v1.0 a v1.30.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

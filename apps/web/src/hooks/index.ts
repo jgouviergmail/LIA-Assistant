@@ -23,6 +23,7 @@ export type {
   GeolocationPermission,
   GeolocationState,
 } from './useGeolocation';
+export { useLastKnownLocationSync } from './useLastKnownLocationSync';
 
 // Long-term Memory
 export { useMemories, getEmotionalEmoji } from './useMemories';

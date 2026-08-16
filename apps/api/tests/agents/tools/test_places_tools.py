@@ -52,10 +52,13 @@ def create_mock_oauth_dependencies(
 
 @pytest.fixture(autouse=True)
 def stub_user_context_helpers():
-    """Stub the runtime helpers that hit the database or the store.
+    """Stub the runtime/location helpers that hit the database or the store.
 
-    get_user_language_safe / get_user_home_location open real DB sessions;
+    get_user_language_safe (runtime_helpers) and the location sources
+    (location_resolution: home, last-known, browser) open real DB sessions;
     without this stub each test spends seconds in asyncpg connection retries.
+    Any NEW database-touching source added to location_resolution must be
+    stubbed here too.
     """
     with (
         patch(
@@ -63,11 +66,15 @@ def stub_user_context_helpers():
             new=AsyncMock(return_value="en"),
         ),
         patch(
-            "src.domains.agents.tools.runtime_helpers.get_user_home_location",
+            "src.domains.agents.tools.location_resolution.get_user_home_location",
             new=AsyncMock(return_value=None),
         ),
         patch(
-            "src.domains.agents.tools.runtime_helpers.get_browser_geolocation",
+            "src.domains.agents.tools.location_resolution.get_user_last_known_location",
+            new=AsyncMock(return_value=None),
+        ),
+        patch(
+            "src.domains.agents.tools.location_resolution.get_browser_geolocation",
             new=AsyncMock(return_value=None),
         ),
         patch(

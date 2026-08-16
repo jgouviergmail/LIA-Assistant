@@ -106,6 +106,11 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
             "Le service de téléphonie a refusé l'appel : sa configuration doit être corrigée (numéro émetteur non vérifié, crédit épuisé…). Réessayer n'y changera rien tant que ce n'est pas réglé côté fournisseur."
         ),
         "call_failed": "Je n'ai pas pu passer l'appel pour le moment. Réessaie dans un instant.",
+        "auth_failed": (
+            "Le service de téléphonie a rejeté la clé API enregistrée : elle n'est plus valide. "
+            "Reconnecte ElevenLabs dans Préférences → Mes connecteurs avec une clé API valide "
+            "(elle commence par « sk_ ») — réessayer sans cela ne servira à rien."
+        ),
         "not_configured": (
             "La téléphonie n'est pas activée. Active le connecteur ElevenLabs dans "
             "Préférences → Mes connecteurs pour que je puisse passer des appels."
@@ -126,6 +131,11 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
             "The telephony provider declined the call: its configuration needs fixing (source number not verified, credit exhausted…). Retrying will not help until that is sorted out on the provider side."
         ),
         "call_failed": "I couldn't place the call right now. Please try again in a moment.",
+        "auth_failed": (
+            "The telephony provider rejected the stored API key: it is no longer valid. "
+            "Reconnect ElevenLabs in Preferences → My connectors with a valid API key "
+            "(it starts with “sk_”) — retrying without that will not help."
+        ),
         "not_configured": (
             "Telephony is not enabled. Activate the ElevenLabs connector in "
             "Preferences → My connectors so I can place calls."
@@ -148,6 +158,12 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
         "call_failed": (
             "Ich konnte den Anruf gerade nicht tätigen. Bitte versuche es gleich noch einmal."
         ),
+        "auth_failed": (
+            "Der Telefonie-Dienst hat den gespeicherten API-Schlüssel abgelehnt: er ist nicht "
+            "mehr gültig. Verbinde ElevenLabs unter Einstellungen → Meine Connectoren neu mit "
+            "einem gültigen API-Schlüssel (er beginnt mit „sk_“) — ein erneuter Versuch ohne "
+            "das hilft nicht."
+        ),
         "not_configured": (
             "Telefonie ist nicht aktiviert. Aktiviere den ElevenLabs-Connector unter "
             "Einstellungen → Meine Connectoren, damit ich anrufen kann."
@@ -167,6 +183,11 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
             "El servicio de telefonía rechazó la llamada: su configuración debe corregirse (número emisor no verificado, crédito agotado…). Reintentar no servirá de nada hasta que se resuelva en el proveedor."
         ),
         "call_failed": "No pude realizar la llamada ahora mismo. Inténtalo de nuevo en un momento.",
+        "auth_failed": (
+            "El servicio de telefonía rechazó la clave API guardada: ya no es válida. "
+            "Vuelve a conectar ElevenLabs en Preferencias → Mis conectores con una clave API "
+            "válida (empieza por «sk_»); reintentar sin eso no servirá de nada."
+        ),
         "not_configured": (
             "La telefonía no está activada. Activa el conector de ElevenLabs en "
             "Preferencias → Mis conectores para que pueda llamar."
@@ -186,6 +207,11 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
             "Il servizio di telefonia ha rifiutato la chiamata: la sua configurazione va corretta (numero mittente non verificato, credito esaurito…). Riprovare non servirà finché non è risolto lato fornitore."
         ),
         "call_failed": "Non sono riuscito a effettuare la chiamata al momento. Riprova tra poco.",
+        "auth_failed": (
+            "Il servizio di telefonia ha rifiutato la chiave API salvata: non è più valida. "
+            "Ricollega ElevenLabs in Preferenze → I miei connettori con una chiave API valida "
+            "(inizia con «sk_»); riprovare senza questo non servirà a nulla."
+        ),
         "not_configured": (
             "La telefonia non è attivata. Attiva il connettore ElevenLabs in "
             "Preferenze → I miei connettori così posso effettuare chiamate."
@@ -203,6 +229,10 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
             "电话服务拒绝了这次通话：其配置需要修正（主叫号码未验证、余额不足等）。在服务商侧解决之前，重试不会有帮助。"
         ),
         "call_failed": "我暂时无法拨打这通电话，请稍后再试。",
+        "auth_failed": (
+            "电话服务拒绝了已保存的 API 密钥：它已失效。请在“偏好设置 → 我的连接器”中"
+            "用有效的 API 密钥（以“sk_”开头）重新连接 ElevenLabs——在此之前重试没有用。"
+        ),
         "not_configured": "电话功能未启用。请在“偏好设置 → 我的连接器”中激活 ElevenLabs 连接器，我才能拨打电话。",
         "not_found": "我没有找到名为“{name}”的联系人。",
         "no_phone": "我找到了“{name}”，但没有登记电话号码。",

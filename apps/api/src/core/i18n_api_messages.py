@@ -612,27 +612,25 @@ class APIMessages:
         return messages.get(language, messages["en"])
 
     @staticmethod
-    def weather_location_preference_updated(
-        enabled: bool, language: SupportedLanguage = "fr"
-    ) -> str:
-        """Success - weather location preference updated."""
+    def location_preference_updated(enabled: bool, language: SupportedLanguage = "fr") -> str:
+        """Success - last-known location preference updated."""
         if enabled:
             messages = {
-                "fr": "Localisation actuelle activée pour les alertes météo",
-                "en": "Current location enabled for weather alerts",
-                "es": "Ubicación actual habilitada para alertas meteorológicas",
-                "de": "Aktueller Standort für Wetterwarnungen aktiviert",
-                "it": "Posizione attuale abilitata per gli avvisi meteo",
-                "zh-CN": "已启用当前位置用于天气提醒",
+                "fr": "Mémorisation de la dernière position activée",
+                "en": "Last-known location memory enabled",
+                "es": "Memorización de la última posición activada",
+                "de": "Speicherung des letzten Standorts aktiviert",
+                "it": "Memorizzazione dell'ultima posizione attivata",
+                "zh-CN": "已启用最近位置记忆",
             }
         else:
             messages = {
-                "fr": "Localisation actuelle désactivée, position effacée",
-                "en": "Current location disabled, stored position cleared",
-                "es": "Ubicación actual deshabilitada, posición borrada",
-                "de": "Aktueller Standort deaktiviert, gespeicherte Position gelöscht",
-                "it": "Posizione attuale disattivata, posizione memorizzata cancellata",
-                "zh-CN": "当前位置已禁用,已清除存储的位置",
+                "fr": "Mémorisation désactivée, position effacée",
+                "en": "Location memory disabled, stored position cleared",
+                "es": "Memorización desactivada, posición borrada",
+                "de": "Speicherung deaktiviert, gespeicherte Position gelöscht",
+                "it": "Memorizzazione disattivata, posizione memorizzata cancellata",
+                "zh-CN": "已禁用位置记忆,已清除存储的位置",
             }
         return messages.get(language, messages["en"])
 

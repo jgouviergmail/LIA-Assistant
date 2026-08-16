@@ -113,7 +113,7 @@ class User(BaseModel):
         comment="Fernet-encrypted home location JSON: {address, lat, lon, place_id}",
     )
 
-    # Last-known browser location for proactive weather (Phase 3).
+    # Last-known browser location (generalized 2026-08-16, originally ADR-073).
     # Opt-in, encrypted, not historized (overwritten on each update),
     # auto-wiped on opt-out or home deletion.
     last_known_location_encrypted: Mapped[str | None] = mapped_column(
@@ -126,14 +126,14 @@ class User(BaseModel):
         nullable=True,
         comment="UTC timestamp of the last last-known location update (TTL + throttle).",
     )
-    weather_use_last_known_location: Mapped[bool] = mapped_column(
+    use_last_known_location: Mapped[bool] = mapped_column(
         default=False,
         nullable=False,
         server_default="false",
         comment=(
-            "Opt-in for using the persisted browser geolocation in proactive "
-            "weather notifications when the user is away from home. False = "
-            "home-only (default)."
+            "Opt-in for using the persisted browser geolocation across all "
+            "features (chat tools, scheduled actions, proactive jobs) when the "
+            "live position is unavailable. False = home-only (default)."
         ),
     )
 

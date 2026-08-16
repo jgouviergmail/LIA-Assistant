@@ -11,9 +11,9 @@ vi.mock('@/hooks/useHeartbeatSettings', () => ({ useHeartbeatSettings }));
 const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
 
-// The conditional panel (shown once the heartbeat is on) mounts
-// `WeatherLocationBlock`, which reads the auth context. The panel is where the
-// source switches live, so this is required to exercise them at all.
+// Kept although the weather-location block moved to the Google Places
+// connector (2026-08-16): child blocks inside the enabled panel may read the
+// auth context, and the stub keeps the panel mountable in isolation.
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: null, isLoading: false }) }));
 
 // The history hook is spied rather than stubbed away: whether it is called

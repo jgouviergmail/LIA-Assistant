@@ -68,12 +68,14 @@ def test_every_core_slot_resolves_inside_the_baseline() -> None:
 
 def test_seed_parse_matches_known_rows() -> None:
     overrides = seeded_provider_overrides()
-    # Audited seed facts (B10-bis): deepseek core rows + NULL router.
-    assert overrides["planner"] == "deepseek"
+    # Audited seed facts (B10-bis, re-audited 2026-08-15 on the regenerated
+    # production extraction): planner moved deepseek → openai, response stays
+    # deepseek — the DERIVED provider set is unchanged (deepseek, openai).
+    assert overrides["planner"] == "openai"
     assert overrides["response"] == "deepseek"
     assert overrides["router"] is None
     assert overrides["vision_analysis"] == "gemini"
-    assert len(overrides) >= 41
+    assert len(overrides) >= 42
 
 
 def test_anti_drift_catches_an_out_of_set_slot() -> None:

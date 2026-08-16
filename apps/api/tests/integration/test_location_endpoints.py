@@ -1,7 +1,7 @@
-"""Integration tests for the weather last-known location endpoints.
+"""Integration tests for the last-known location endpoints.
 
 Covers:
-- PATCH /auth/me/weather-location-preference (opt-in toggle + wipe on opt-out)
+- PATCH /auth/me/location-preference (opt-in toggle + wipe on opt-out)
 - PUT /auth/me/last-location (push geolocation, 403 on opt-out, throttle)
 - GET /auth/me/last-location (transparency view)
 """
@@ -16,8 +16,8 @@ from src.domains.users.models import User
 
 
 @pytest.mark.integration
-class TestWeatherLocationPreference:
-    """PATCH /auth/me/weather-location-preference endpoint."""
+class TestLocationPreference:
+    """PATCH /auth/me/location-preference endpoint."""
 
     @pytest.mark.asyncio
     async def test_opt_in_updates_flag(
@@ -27,7 +27,7 @@ class TestWeatherLocationPreference:
     ):
         client, user = authenticated_client
         resp = await client.patch(
-            "/api/v1/auth/me/weather-location-preference",
+            "/api/v1/auth/me/location-preference",
             json={"enabled": True},
         )
         assert resp.status_code == 200
@@ -35,7 +35,7 @@ class TestWeatherLocationPreference:
         assert body["enabled"] is True
 
         await async_session.refresh(user)
-        assert user.weather_use_last_known_location is True
+        assert user.use_last_known_location is True
 
     @pytest.mark.asyncio
     async def test_opt_out_wipes_stored_location(
@@ -47,7 +47,7 @@ class TestWeatherLocationPreference:
 
         # Opt-in then push a location
         await client.patch(
-            "/api/v1/auth/me/weather-location-preference",
+            "/api/v1/auth/me/location-preference",
             json={"enabled": True},
         )
         await client.put(
@@ -57,14 +57,14 @@ class TestWeatherLocationPreference:
 
         # Opt-out should wipe
         resp = await client.patch(
-            "/api/v1/auth/me/weather-location-preference",
+            "/api/v1/auth/me/location-preference",
             json={"enabled": False},
         )
         assert resp.status_code == 200
         assert resp.json()["enabled"] is False
 
         await async_session.refresh(user)
-        assert user.weather_use_last_known_location is False
+        assert user.use_last_known_location is False
         assert user.last_known_location_encrypted is None
         assert user.last_known_location_updated_at is None
 
@@ -94,7 +94,7 @@ class TestPutLastLocation:
     ):
         client, user = authenticated_client
         await client.patch(
-            "/api/v1/auth/me/weather-location-preference",
+            "/api/v1/auth/me/location-preference",
             json={"enabled": True},
         )
         resp = await client.put(
@@ -117,7 +117,7 @@ class TestPutLastLocation:
     ):
         client, _ = authenticated_client
         await client.patch(
-            "/api/v1/auth/me/weather-location-preference",
+            "/api/v1/auth/me/location-preference",
             json={"enabled": True},
         )
         first = await client.put(
@@ -142,7 +142,7 @@ class TestPutLastLocation:
     ):
         client, _ = authenticated_client
         await client.patch(
-            "/api/v1/auth/me/weather-location-preference",
+            "/api/v1/auth/me/location-preference",
             json={"enabled": True},
         )
         resp = await client.put(
@@ -169,7 +169,7 @@ class TestHomeDeletionCascade:
 
         # Set up: opt-in, set home, push a last-known
         await client.patch(
-            "/api/v1/auth/me/weather-location-preference",
+            "/api/v1/auth/me/location-preference",
             json={"enabled": True},
         )
         # Set the home directly at the DB level: the PUT endpoint requires an
@@ -225,7 +225,7 @@ class TestGetLastLocation:
     ):
         client, _ = authenticated_client
         await client.patch(
-            "/api/v1/auth/me/weather-location-preference",
+            "/api/v1/auth/me/location-preference",
             json={"enabled": True},
         )
         await client.put(

@@ -3,8 +3,8 @@
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
 **Versione**: 1.3
-**Data**: 2026-08-08
-**Applicazione**: LIA v1.29.0
+**Data**: 2026-08-16
+**Applicazione**: LIA v1.30.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Indicatore | Valore |
 | --- | --- |
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
-| Righe di codice (esclusi i test) — 39 domini funzionali | **548.000** |
-| Test automatizzati, eseguiti a ogni commit e rilascio | **23.600+** |
-| Decisioni di architettura documentate (ADR) | **217** |
-| Versioni rilasciate a ritmo regolare | **203** |
+| Righe di codice (esclusi i test) — 40 domini funzionali | **520.000** |
+| Test automatizzati, eseguiti a ogni commit e rilascio | **23.700+** |
+| Decisioni di architettura documentate (ADR) | **218** |
+| Versioni rilasciate a ritmo regolare | **204** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
 
@@ -50,7 +50,7 @@ Un'IA che programma produce volume; produce qualità solo sotto vincolo. Quattro
 
 ## 4. Gli arbitraggi
 
-Tre decisioni strutturanti, tra le 180 documentate:
+Tre decisioni strutturanti, tra le 218 documentate:
 
 **Sovranità e reversibilità — nessuna dipendenza irreversibile dal fornitore.** I modelli IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelli locali via Ollama) stanno dietro un'astrazione unica: ogni utilizzo può cambiare fornitore per configurazione, con confronto dei costi. Stesso principio sul lato business: Google, Apple e Microsoft sono intercambiabili per categoria funzionale. L'hosting è interamente controllato; i dati personali sono cifrati e restano sull'infrastruttura.
 
@@ -62,7 +62,7 @@ Tre decisioni strutturanti, tra le 180 documentate:
 
 Un sistema che si pilota con gli strumenti:
 
-- **Osservabilità**: venticinque dashboard — salute applicativa, impegni di servizio, costi IA, comportamento degli agenti, infrastruttura. Più di 440 metriche; log strutturati centralizzati con filtraggio dei dati personali; tracciamento distribuito end-to-end. Una quarantina di procedure operative scritte — diagnosi, rimediazione, ripristino.
+- **Osservabilità**: venticinque dashboard — salute applicativa, impegni di servizio, costi IA, comportamento degli agenti, infrastruttura. Più di 470 metriche; log strutturati centralizzati con filtraggio dei dati personali; tracciamento distribuito end-to-end. Una quarantina di procedure operative scritte — diagnosi, rimediazione, ripristino.
 - **Consegna**: deployment containerizzato, migrazioni di schema automatizzate, immagini pubblicate per due architetture hardware (amd64/arm64).
 - **Costi**: infrastruttura frugale per scelta — circa 150 € di hardware, zero licenze, componenti open source dimensionati sul bisogno reale.
 - **Conformità**: sicurezza rivista punto di accesso per punto di accesso; cifratura dei dati personali; ciclo di vita degli account allineato al GDPR.
@@ -90,6 +90,8 @@ Anche la prova ha il suo episodio più istruttivo: tre ricalibrazioni di una sem
 Il rilevatore di abitudini si è guadagnato la fiducia allo stesso modo: eseguito sui dati reali di produzione prima di essere creduto — e colto in fallo. Un'azione pianificata quotidiana scriveva da sessantasei giorni un messaggio «utente» alle 07:00; il rilevatore ha rivendicato l'orario del pianificatore stesso come abitudine umana. La confutazione è diventata una lista bianca di sessioni umane, la finestra fabbricata è scomparsa e i verdetti onesti sono arrivati. La regola resta: provare contro il reale prima di credere al progetto.
 
 Il ciclo 1.29.0 ha aggiunto un terzo episodio, e questo riguarda i test stessi. Ogni protezione del programma era stata consegnata con i propri, tutti verdi — e tutti della stessa forma: fissavano ciò che il codice faceva il giorno della consegna. Un elenco scritto a mano non descrive un sistema, descrive ciò che il suo autore ne sapeva. Sono quindi state riscritte tre guardie per **ricalcolare** la protezione dalla fonte di verità invece di ripeterla. Hanno trovato tre difetti che nessun test esistente poteva vedere: una sintesi vocale fatturata e mai conteggiata contro il tetto di spesa, un accesso tramite provider che saltava del tutto l'accettazione ormai obbligatoria delle condizioni, e undici percorsi dei connettori che collegavano una credenziale reale senza alcuna protezione. Poi ogni guardia è stata messa in difetto di proposito, per verificare che diventi rossa — perché una guardia che nessuno ha mai visto fallire è solo un'altra promessa.
+
+Il ciclo 1.30.0 ha documentato una lezione di altra natura: una funzionalità può essere consegnata, cifrata, consentita — e inutile, perché nessuno la legge. L'ultima posizione nota esisteva da mesi; solo le notifiche proattive la consultavano. In movimento, l'assistente rispondeva quindi dal domicilio, con sicurezza. La diagnosi è arrivata dai log di produzione, la correzione ha ridotto tre percorsi divergenti a un'unica cascata — e la dottrina dei conti esatti si è estesa alla posizione: una posizione datata si annuncia datata, «in base alla tua ultima posizione nota alle 9:30», mai «sei a». Lo stesso ciclo ha ricordato che a un meccanismo di sincronizzazione si crede solo dopo averlo provato contro il motore reale: il lucchetto che serializza il primo avvio si è interbloccato con la creazione concorrente di indici di PostgreSQL — misurato nella tabella dei lock del motore, corretto come sondaggio non bloccante e custodito da un test che vieta il ritorno della forma bloccante.
 
 ## 7. Convinzioni
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Bell, Clock, Gauge, History, MapPin, SlidersHorizontal } from 'lucide-react';
+import { Bell, Clock, Gauge, History, SlidersHorizontal } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from '@/i18n/client';
@@ -13,7 +13,6 @@ import { useHeartbeatSettings } from '@/hooks/useHeartbeatSettings';
 import { HeartbeatHistory } from '@/components/settings/HeartbeatHistory';
 import { HeartbeatSourceSwitches } from '@/components/settings/HeartbeatSourceSwitches';
 import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
-import { WeatherLocationBlock } from '@/components/settings/WeatherLocationBlock';
 import { toast } from 'sonner';
 import type { BaseSettingsProps } from '@/types/settings';
 
@@ -23,8 +22,10 @@ import type { BaseSettingsProps } from '@/types/settings';
  * Displays:
  * - Master toggle (enable/disable heartbeat)
  * - Notification time window (start/end hour), then min/max per day
- * - Folded weather-location opt-in
  * - Per-source permission switches (what may interrupt the reader)
+ *
+ * The location opt-in lives on the Google Places connector (generalized
+ * 2026-08-16) — proactive jobs read the same cascade as every other feature.
  *
  * No push toggle: push delivery follows the global notification opt-in
  * (owner arbitration 2026-08-05).
@@ -154,14 +155,6 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
             disabled={updating}
             onChange={handleUpdateFrequency}
           />
-
-          {/* Weather location cascade (Phase 3 — ADR-073), folded like its
-              neighbours: an occasional opt-in, not a daily dial. */}
-          <div className="border-t pt-4">
-            <SettingsDisclosure icon={MapPin} title={t('heartbeat.weather_location.section_label')}>
-              <WeatherLocationBlock lng={lng} />
-            </SettingsDisclosure>
-          </div>
 
           {/* What the configuration above actually produced. The endpoint had
               shipped with the domain and no client ever called it: the panel

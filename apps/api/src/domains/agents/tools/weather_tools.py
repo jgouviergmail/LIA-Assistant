@@ -404,10 +404,10 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         **kwargs: Any,
     ) -> dict[str, Any]:
         """Execute current weather API call."""
+        from src.domains.agents.tools.location_resolution import resolve_location
         from src.domains.agents.tools.runtime_helpers import (
             get_original_user_message,
             get_user_preferences,
-            resolve_location,
         )
 
         location = kwargs.get("location")
@@ -602,10 +602,10 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
     ) -> dict[str, Any]:
         """Execute weather forecast API call."""
         from src.core.config import get_settings
+        from src.domains.agents.tools.location_resolution import resolve_location
         from src.domains.agents.tools.runtime_helpers import (
             get_original_user_message,
             get_user_preferences,
-            resolve_location,
         )
 
         # Get configurable forecast limit from settings
@@ -877,10 +877,10 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
     ) -> dict[str, Any]:
         """Execute hourly forecast API call."""
         from src.core.config import get_settings
+        from src.domains.agents.tools.location_resolution import resolve_location
         from src.domains.agents.tools.runtime_helpers import (
             get_original_user_message,
             get_user_preferences,
-            resolve_location,
         )
 
         # Get configurable forecast limit from settings

@@ -50,6 +50,10 @@ _STATUS_TO_PHRASE: dict[str, str] = {
     # not verified on the Twilio account). Telling the user to retry would be
     # a lie — nothing changes until the provider side is fixed.
     "rejected": "call_rejected",
+    # The vendor REJECTED the stored API key (prod 2026-08-15: ElevenLabs
+    # stopped accepting legacy key-ID-shaped credentials). Same doctrine:
+    # only reconnecting the connector with a valid key can fix it.
+    "auth_failed": "auth_failed",
 }
 
 

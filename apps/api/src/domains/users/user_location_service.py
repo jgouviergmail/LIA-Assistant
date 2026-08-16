@@ -1,6 +1,7 @@
-"""User location service — persistence and cascade for weather notifications.
+"""User location service — last-known location persistence and cascades.
 
-Implements the Phase 3 last-known location feature:
+Implements the last-known location feature (ADR-073, generalized 2026-08-16
+to all features — the opt-in is no longer weather-scoped):
 - Opt-in persistence of browser geolocation (encrypted, non-historized)
 - Throttled updates (30 min floor between writes per user)
 - Cascade resolution for proactive jobs: last_known (fresh + far) -> home
@@ -156,7 +157,7 @@ class UserLocationService:
             An ``UpdateResult`` describing the outcome (updated / throttled /
             forbidden). ``forbidden`` is set when the user has not opted in.
         """
-        if not user.weather_use_last_known_location:
+        if not user.use_last_known_location:
             logger.info(
                 "last_known_location_update_forbidden",
                 user_id=str(user.id),
@@ -268,7 +269,7 @@ class UserLocationService:
 
         home_lat, home_lon = home_coords
 
-        if not user.weather_use_last_known_location:
+        if not user.use_last_known_location:
             return EffectiveLocation(lat=home_lat, lon=home_lon, source="home")
 
         last_known = await self.get_last_known_location(user)
@@ -324,7 +325,7 @@ async def update_user_location_fire_and_forget(
     try:
         async with get_db_context() as db:
             user = await db.get(User, user_id)
-            if user is None or not user.weather_use_last_known_location:
+            if user is None or not user.use_last_known_location:
                 return  # silent opt-out skip — no metric pollution
             service = UserLocationService(db)
             await service.update_last_known_location(user, lat, lon, accuracy)

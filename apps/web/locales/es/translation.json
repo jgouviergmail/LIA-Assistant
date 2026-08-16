@@ -780,6 +780,9 @@
       "retry_description": "La geolocalización está activada pero no se pudo obtener tu posición. Haz clic para reintentar.",
       "retry_button": "Reintentar",
       "retry_failed": "No se pudo obtener tu posición. Verifica que el GPS esté activado.",
+      "reactivate_title": "Hay que reactivar la ubicación",
+      "reactivate_description": "Tu dispositivo pausó el uso compartido de la ubicación mientras la aplicación estaba cerrada. Reactívalo para que LIA siga usando tu posición real en lugar de tu dirección personal.",
+      "reactivate_button": "Reactivar",
       "detection": {
         "keywords": [
           "alrededores",
@@ -2553,6 +2556,21 @@
         "save_error": "Error al guardar la dirección",
         "clear_error": "Error al eliminar la dirección",
         "address_required": "Por favor introduce una dirección"
+      },
+      "last_known": {
+        "title": "Memoria de ubicación",
+        "toggle_label": "Recordar mi última posición",
+        "toggle_description": "Cuando tu posición en vivo no está disponible, LIA usa tu última posición registrada — para el chat, las acciones programadas, las notificaciones proactivas y el briefing — antes de recurrir a tu dirección personal.",
+        "privacy_note": "Tu posición se cifra y nunca se historiza (cada actualización sobrescribe la anterior). Se elimina si desactivas esta opción o quitas tu dirección personal.",
+        "enabled_success": "Memoria de ubicación activada",
+        "disabled_success": "Memoria de ubicación desactivada, posición borrada",
+        "stored_title": "Actualmente almacenada",
+        "stored_coords": "Coordenadas",
+        "stored_updated_at": "Última actualización",
+        "stored_stale": "Esta posición superó la ventana de frescura — las funciones recurrirán a tu dirección personal.",
+        "no_stored": "Aún no hay posición almacenada. Se capturará con tu próximo mensaje.",
+        "clear_button": "Borrar ahora",
+        "geoloc_required_hint": "Activa también la geolocalización del navegador arriba — de lo contrario nunca se capturará ninguna posición."
       }
     },
     "skills": {
@@ -3224,7 +3242,7 @@
         "security-export": "RGPD, GDPR, archivo, descarga, portabilidad, copia de seguridad, datos personales, privacidad",
         "voice-mode": "micrófono, voz, dictado, STT, TTS, palabra de activación, audio, hablar",
         "image-generation": "imágenes, fotos, dibujo, ilustración, generación, arte",
-        "connectors": "google, gmail, calendario, contactos, apple, microsoft, outlook, integraciones, cuentas, oauth, reconectar, desconectado, servicios",
+        "connectors": "google, gmail, calendario, contactos, apple, microsoft, outlook, integraciones, cuentas, oauth, reconectar, desconectado, servicios, posición, ubicación, geolocalización, domicilio, dirección, memoria de ubicación",
         "telephony-calls": "teléfono, llamadas, historial de llamadas, marcar",
         "admin-mcp-servers": "MCP, model context protocol, servidores de la aplicación, herramientas integradas",
         "mcp-servers": "MCP, model context protocol, mis servidores, herramientas, extensiones",
@@ -3863,7 +3881,7 @@
         },
         "geolocation": {
           "title": "📍 Geolocalización Inteligente",
-          "description": "Sistema dual de ubicación: dirección de casa configurable en preferencias y posición en tiempo real vía API Geolocation del navegador. Usado para búsquedas de lugares, clima local y cálculo de distancias. Gestión de consentimiento y fallback automático."
+          "description": "Tres fuentes de ubicación, una sola cascada (ADR-219): posición en vivo del navegador, si no la última posición memorizada (opt-in, cifrada, jamás historizada, fresca bajo 24 h), si no la dirección de casa configurada. Chat, acciones programadas, briefing y skills leen todos la misma regla — y una posición memorizada viaja siempre con su antigüedad («según tu última posición conocida a las 9:30»), nunca presentada como actual; «en casa» jamás se resuelve desde una posición captada en ruta. Al volver a la aplicación, la posición se refresca en silencio mientras el permiso siga concedido, y un banner propone reactivarlo cuando el sistema lo retiró. Usada para búsquedas de lugares, clima local, rutas y distancias."
         },
         "i18n": {
           "title": "🌍 Internacionalización Completa",
@@ -4016,6 +4034,18 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_30_0": {
+          "title": "v1.30.0 — 📍 En movimiento, LIA responde desde donde estás",
+          "date": "Agosto 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>📍 Tu posición real, en todas partes</b> — cuando la posición en vivo de tu teléfono no está disponible (una app que quedó en reposo hace eso), LIA usa ahora tu <b>última posición memorizada</b> — si la activaste — antes de recurrir a tu dirección personal. Chat, acciones programadas, briefing y skills por igual: «restaurantes cerca» durante un viaje deja de responder desde tu salón.",
+            "i2": "<b>🕐 Una posición fechada lo dice</b> — «¿dónde estoy?» sin GPS activo respondía «activa la geolocalización». La respuesta viene ahora de tu posición memorizada <b>con su antigüedad anunciada</b>: «según tu última posición conocida a las 9:30» — nunca presentada como tu posición actual. Y «en casa» jamás se resuelve desde una posición captada en ruta.",
+            "i3": "<b>🔔 La app móvil se despierta sola</b> — al volver a la aplicación, tu posición se refresca en silencio si el permiso sigue concedido; si el sistema lo retiró (iOS lo hace tras la inactividad), un banner propone reactivarlo justo al abrir el chat — antes de que tengas que pedirlo. El ajuste «recordar mi última posición» vive ahora en el conector Google Places, junto a la dirección personal, con la posición almacenada, su fecha y un botón de borrado.",
+            "i4": "<b>📞 Errores de llamada honestos</b> — cuando el proveedor de telefonía rechaza tu clave (ElevenLabs exige ahora claves que empiezan por sk_), LIA lo dice con precisión e indica qué hacer, en lugar de un engañoso «inténtalo de nuevo en un momento».",
+            "i5": "<b>🛠️ Cuatro correcciones de producción</b> — el modo autónomo ReAct ya no falla en Gemini cuando una herramienta MCP declara un parámetro de tipo lista; el diálogo de administración LLM ya no entra en bucle de error 422 al cambiar de modelo; los widgets de skills conservan su acceso Docker tras cada despliegue; y un arranque multi-worker en frío arranca en un minuto en vez de reiniciarse en bucle durante veinte."
+          }
+        },
         "v1_29_0": {
           "title": "v1.29.0 — 🏠 LIA se instala en tu máquina, y una instancia sabe lo que gasta",
           "date": "Agosto 2026",
@@ -6066,7 +6096,7 @@
           },
           "q6": {
             "question": "¿Puedo configurar preferencias por conector?",
-            "answer": "¡Sí! Algunos conectores tienen <strong>preferencias personalizables</strong>:<br><br><strong>📅 Google Calendar:</strong><br>• <strong>Calendario por defecto</strong>: dónde crear nuevos eventos<br>• Ejemplo: \"Trabajo\", \"Personal\", \"Familia\"<br>• LIA usará este calendario salvo indicación contraria<br><br><strong>✅ Google Tasks:</strong><br>• <strong>Lista de tareas por defecto</strong>: dónde crear nuevas tareas<br>• Ejemplo: \"Mi lista principal\", \"Proyectos\", \"Compras\"<br><br><strong>📍 Google Places:</strong><br>• <strong>Dirección del domicilio</strong>: su dirección por defecto para búsquedas \"cerca de mí\"<br>• Configúrela una vez, se usará automáticamente<br><br><strong>🌐 Geolocalización del navegador:</strong><br>• <strong>Geolocalización automática</strong>: enviar tu posición con cada mensaje<br>• Ve a <strong>Configuración > Conectores > Google Places</strong><br>• Active \"<em>Geolocalización automática</em>\" para uso continuo<br>• Tu navegador pedirá permiso la primera vez<br>• Posición usada para clima local y búsquedas \"cerca de mí\"<br><br><strong>Para configurar:</strong><br>1. Ve a <strong>Configuración > Conectores</strong> (calendario, tareas, dirección, geolocalización)<br>3. Selecciona tus valores por defecto<br><br><strong>💡 Consejo:</strong><br>Estas preferencias le ahorran tiempo al no tener que especificar el calendario, lista o ciudad cada vez."
+            "answer": "¡Sí! Algunos conectores tienen <strong>preferencias personalizables</strong>:<br><br><strong>📅 Google Calendar:</strong><br>• <strong>Calendario por defecto</strong>: dónde crear nuevos eventos<br>• Ejemplo: \"Trabajo\", \"Personal\", \"Familia\"<br>• LIA usará este calendario salvo indicación contraria<br><br><strong>✅ Google Tasks:</strong><br>• <strong>Lista de tareas por defecto</strong>: dónde crear nuevas tareas<br>• Ejemplo: \"Mi lista principal\", \"Proyectos\", \"Compras\"<br><br><strong>📍 Google Places:</strong><br>• <strong>Dirección del domicilio</strong>: su dirección por defecto para búsquedas \"cerca de mí\"<br>• <strong>Memoria de ubicación</strong> (opt-in): recuerda tu última posición para que LIA siga respondiendo desde donde estás cuando la posición en vivo no está disponible — siempre anunciada con su antigüedad, nunca presentada como actual, cifrada y borrada en cuanto desactivas la opción<br>• Configúrela una vez, se usará automáticamente<br><br><strong>🌐 Geolocalización del navegador:</strong><br>• <strong>Geolocalización automática</strong>: enviar tu posición con cada mensaje<br>• Ve a <strong>Configuración > Conectores > Google Places</strong><br>• Active \"<em>Geolocalización automática</em>\" para uso continuo<br>• Tu navegador pedirá permiso la primera vez<br>• Posición usada para clima local y búsquedas \"cerca de mí\"<br>• En el móvil, la posición se refresca en silencio al volver a la aplicación; si el sistema retiró el permiso, un banner del chat propone reactivarlo<br><br><strong>Para configurar:</strong><br>1. Ve a <strong>Configuración > Conectores</strong> (calendario, tareas, dirección, geolocalización)<br>3. Selecciona tus valores por defecto<br><br><strong>💡 Consejo:</strong><br>Estas preferencias le ahorran tiempo al no tener que especificar el calendario, lista o ciudad cada vez."
           },
           "q7": {
             "question": "¿Qué servicios de Google puedo conectar?",
@@ -7934,21 +7964,6 @@
     "disabled_success": "Notificaciones proactivas desactivadas",
     "settings_updated": "Configuración actualizada",
     "settings_error": "Error al actualizar la configuración",
-    "weather_location": {
-      "section_label": "Ubicación meteorológica en viaje",
-      "toggle_label": "Usar mi ubicación actual para alertas meteorológicas",
-      "toggle_description": "Usar tu posición del navegador (cuando estás fuera de casa) en lugar de tu domicilio para notificaciones meteorológicas proactivas.",
-      "privacy_note": "Tu ubicación está cifrada y no se historiza (se sobrescribe en cada actualización). Se elimina si desactivas esta opción o eliminas tu dirección de domicilio.",
-      "enabled_success": "Ubicación meteorológica inteligente activada",
-      "disabled_success": "Ubicación meteorológica inteligente desactivada, posición borrada",
-      "stored_title": "Actualmente almacenada",
-      "stored_coords": "Coordenadas",
-      "stored_updated_at": "Última actualización",
-      "stored_stale": "Esta posición está fuera de la ventana de frescura — las notificaciones usarán tu domicilio.",
-      "no_stored": "No hay ubicación almacenada todavía. Se capturará en tu próximo mensaje.",
-      "clear_button": "Borrar ahora",
-      "geoloc_required_hint": "Activa también la geolocalización del navegador en la sección Geolocalización superior — sin ella nunca se capturará ninguna posición."
-    },
     "feedback": {
       "like": "Notificación útil",
       "dislike": "Poco útil",
@@ -8251,7 +8266,7 @@
       },
       "web_intelligence": {
         "title": "Búsqueda, Clima y Navegación",
-        "description": "Búsqueda web multi-fuente (Brave, Perplexity, Wikipedia), clima en tiempo real y previsión a 5 días, búsqueda de lugares y comercios cercanos, cálculo de rutas multi-modo (coche, a pie, bici, transporte), geolocalización automática."
+        "description": "Búsqueda web multi-fuente (Brave, Perplexity, Wikipedia), clima en tiempo real y previsión a 5 días, búsqueda de lugares y comercios cercanos, cálculo de rutas multi-modo (coche, a pie, bici, transporte), geolocalización automática — con una posición memorizada opt-in que mantiene las respuestas locales en movimiento y siempre anuncia su antigüedad."
       },
       "voice_mode": {
         "title": "Modo de voz, reconocimiento local",

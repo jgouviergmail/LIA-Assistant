@@ -337,11 +337,12 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     image_generation_output_format: str = Field(
         default="png", description="Default output format: png, jpeg, webp"
     )
-    weather_use_last_known_location: bool = Field(
+    use_last_known_location: bool = Field(
         default=False,
         description=(
-            "Opt-in for persisting the browser geolocation for proactive "
-            "weather notifications when the user is away from home."
+            "Opt-in for persisting the browser geolocation, used by all "
+            "features (chat tools, scheduled actions, proactive jobs) when "
+            "the live position is unavailable."
         ),
     )
     health_metrics_agents_enabled: bool = Field(
@@ -395,10 +396,10 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
         """Ensure debug_panel_enabled defaults to False if None."""
         return v if v is not None else False
 
-    @field_validator("weather_use_last_known_location", mode="before")
+    @field_validator("use_last_known_location", mode="before")
     @classmethod
-    def set_weather_use_last_known_location_default(cls, v: bool | None) -> bool:
-        """Ensure weather_use_last_known_location defaults to False if None."""
+    def set_use_last_known_location_default(cls, v: bool | None) -> bool:
+        """Ensure use_last_known_location defaults to False if None."""
         return v if v is not None else False
 
     @field_validator("health_metrics_agents_enabled", mode="before")

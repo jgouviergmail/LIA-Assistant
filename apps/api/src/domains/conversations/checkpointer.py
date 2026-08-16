@@ -41,6 +41,10 @@ from src.infrastructure.database.psycopg_pool_config import (
     psycopg_pool_kwargs,
     resolve_psycopg_url,
 )
+from src.infrastructure.database.setup_lock import (
+    CHECKPOINTER_SETUP_LOCK_KEY,
+    postgres_setup_lock,
+)
 from src.infrastructure.observability.logging import get_logger
 
 # Custom types serialized in checkpoint state (msgpack).
@@ -175,8 +179,12 @@ async def get_checkpointer() -> InstrumentedAsyncPostgresSaver:
             serde = JsonPlusSerializer(allowed_msgpack_modules=_CHECKPOINT_ALLOWED_MODULES)
             _checkpointer = InstrumentedAsyncPostgresSaver(conn=pool, serde=serde)
 
-            # Setup checkpoint tables (idempotent)
-            await _checkpointer.setup()
+            # Setup checkpoint tables — serialized across workers: LangGraph's
+            # migrations are plain CREATE TABLE and N workers racing on a fresh
+            # database die on a catalog UniqueViolation (demonstrator tmpfs
+            # boot, 2026-08-15). Behind the lock, setup() is idempotent.
+            async with postgres_setup_lock(pool, CHECKPOINTER_SETUP_LOCK_KEY):
+                await _checkpointer.setup()
         except Exception:
             # Don't leak an opened pool if setup fails: next call re-enters init.
             await pool.close()

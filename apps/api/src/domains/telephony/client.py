@@ -96,12 +96,38 @@ def _agent_config_body(
 
 
 class ElevenLabsAgentsError(RuntimeError):
-    """Raised when the ElevenLabs API returns a non-success response."""
+    """Raised when the ElevenLabs API returns a non-success response.
 
-    def __init__(self, status_code: int, detail: str) -> None:
+    ``is_auth_error`` distinguishes a credential rejection (the stored key no
+    longer authenticates — retrying is pointless, the connector key must be
+    replaced) from transient/configuration failures. HTTP 401 always counts;
+    a 4xx flagged by the vendor's structured taxonomy counts too.
+    """
+
+    def __init__(self, status_code: int, detail: str, *, auth_error: bool = False) -> None:
         self.status_code = status_code
         self.detail = detail
+        self.is_auth_error = auth_error or status_code == 401
         super().__init__(f"ElevenLabs API error {status_code}: {detail}")
+
+
+def _is_auth_response(resp: httpx.Response) -> bool:
+    """Vendor-declared authentication failure, classified STRUCTURALLY.
+
+    Reads ``detail.type`` from the JSON body (the vendor's error taxonomy) —
+    never a message substring (same doctrine as ToolErrorCode). Observed in
+    prod 2026-08-15: 400 ``{"detail": {"type": "authentication_error", "code":
+    "invalid_api_key", ...}}`` when ElevenLabs stopped accepting a legacy
+    key-ID-shaped credential.
+    """
+    if resp.status_code == 401:
+        return True
+    try:
+        payload = resp.json()
+    except ValueError:
+        return False
+    detail = payload.get("detail") if isinstance(payload, dict) else None
+    return isinstance(detail, dict) and detail.get("type") == "authentication_error"
 
 
 class ElevenLabsAgentsClient:
@@ -139,14 +165,18 @@ class ElevenLabsAgentsClient:
             # Field required") and carries no user data — without it a prod 4xx
             # (observed: agent-sync PATCH 400) is undiagnosable.
             detail = resp.text[:200]
+            # Classified on the FULL body before truncation: the structured
+            # taxonomy field can sit past the 200-char cut (observed in prod).
+            auth_error = _is_auth_response(resp)
             logger.warning(
                 "elevenlabs_api_error",
                 method=method,
                 path=path,
                 status_code=resp.status_code,
+                auth_error=auth_error,
                 detail=detail,
             )
-            raise ElevenLabsAgentsError(resp.status_code, detail)
+            raise ElevenLabsAgentsError(resp.status_code, detail, auth_error=auth_error)
         return resp
 
     async def validate_key(self) -> bool:

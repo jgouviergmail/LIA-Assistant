@@ -19,10 +19,11 @@ from src.domains.agents.registry.catalogue import (
 _LOC_PARAM = ParameterSchema(
     name="location",
     type="string",
-    required=False,  # Optional: auto-detection from browser geolocation or home address
+    required=False,  # Optional: auto-detected (browser > last-known > home, ADR-219)
     description=(
         "City name (e.g. 'Paris, FR', 'London, UK'). "
-        "Leave EMPTY to use user's current location (browser GPS) or home address. "
+        "Leave EMPTY to use the user's position (browser GPS, else their "
+        "fresh last-known position, else home address). "
         "NEVER ask user for location - use auto-detection if not specified. "
         "For weather at a CALENDAR EVENT, use the event's location field."
     ),

@@ -164,3 +164,169 @@ describe('useGeolocation', () => {
     expect(getCurrentPosition).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * PWA lifecycle (2026-08-16): a frozen-then-resumed PWA used to keep a dead
+ * hook state forever — coordinates expired, nothing refreshed, every chat
+ * message shipped `geolocation: null` and the backend fell back to home.
+ * The hook now reacts to `visibilitychange`/`pageshow`.
+ */
+describe('useGeolocation — PWA lifecycle', () => {
+  function fireVisible() {
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'visible',
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }
+
+  it('refreshes silently on return-to-foreground when granted and the cache is gone', async () => {
+    localStorage.setItem('geolocation_enabled', 'true');
+    permissionsQuery.mockResolvedValue({
+      state: 'granted',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    });
+    getCurrentPosition.mockImplementation(success => success(positionOf(43.6, 1.44)));
+    const { result } = renderHook(() => useGeolocation());
+    await settle();
+    // Simulate the frozen period: the cached position has been purged.
+    localStorage.removeItem('geolocation_cache');
+    getCurrentPosition.mockClear();
+
+    await act(async () => {
+      fireVisible();
+      await new Promise(r => setTimeout(r, 0));
+    });
+
+    expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(result.current.coordinates).toMatchObject({ lat: 43.6 }));
+  });
+
+  it('does not touch the GPS when the cached position is still fresh', async () => {
+    localStorage.setItem('geolocation_enabled', 'true');
+    localStorage.setItem(
+      'geolocation_cache',
+      JSON.stringify({ lat: 10, lon: 20, accuracy: 5, timestamp: Date.now() })
+    );
+    permissionsQuery.mockResolvedValue({
+      state: 'granted',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    });
+    // The mount itself refreshes (enabled + granted); only count events
+    // fired AFTER the mount has settled.
+    getCurrentPosition.mockImplementation(success => success(positionOf(10, 20)));
+    renderHook(() => useGeolocation());
+    await settle();
+    getCurrentPosition.mockClear();
+
+    await act(async () => {
+      fireVisible();
+      await new Promise(r => setTimeout(r, 0));
+    });
+
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+  });
+
+  it('stays inert on return-to-foreground while the user has not opted in', async () => {
+    localStorage.setItem('geolocation_enabled', 'false');
+    renderHook(() => useGeolocation());
+    await settle();
+    getCurrentPosition.mockClear();
+
+    await act(async () => {
+      fireVisible();
+      await new Promise(r => setTimeout(r, 0));
+    });
+
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+  });
+
+  it('flags needsReactivation instead of calling the GPS when the permission fell back to prompt', async () => {
+    // iOS standalone drops the grant after a while: enabled=true but the
+    // permission is 'prompt' again — only a user gesture can reopen the
+    // native sheet, so the hook must NOT fire getCurrentPosition itself.
+    localStorage.setItem('geolocation_enabled', 'true');
+    permissionsQuery.mockResolvedValue({
+      state: 'prompt',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    });
+    const { result } = renderHook(() => useGeolocation());
+    await settle();
+    getCurrentPosition.mockClear();
+
+    await act(async () => {
+      fireVisible();
+      await new Promise(r => setTimeout(r, 0));
+    });
+
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+    expect(result.current.needsReactivation).toBe(true);
+  });
+
+  it('does not claim reactivation when geolocation was never enabled', async () => {
+    localStorage.setItem('geolocation_enabled', 'false');
+    const { result } = renderHook(() => useGeolocation());
+    await settle();
+    expect(result.current.needsReactivation).toBe(false);
+  });
+
+  it('does not claim reactivation while the permission is granted', async () => {
+    localStorage.setItem('geolocation_enabled', 'true');
+    permissionsQuery.mockResolvedValue({
+      state: 'granted',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    });
+    getCurrentPosition.mockImplementation(success => success(positionOf(1, 2)));
+    const { result } = renderHook(() => useGeolocation());
+    await settle();
+    expect(result.current.needsReactivation).toBe(false);
+  });
+
+  it('pageshow with persisted=true (bfcache restore) triggers the same refresh path', async () => {
+    localStorage.setItem('geolocation_enabled', 'true');
+    permissionsQuery.mockResolvedValue({
+      state: 'granted',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    });
+    getCurrentPosition.mockImplementation(success => success(positionOf(43.6, 1.44)));
+    renderHook(() => useGeolocation());
+    await settle();
+    localStorage.removeItem('geolocation_cache');
+    getCurrentPosition.mockClear();
+
+    await act(async () => {
+      const restore = new Event('pageshow');
+      Object.defineProperty(restore, 'persisted', { value: true });
+      window.dispatchEvent(restore);
+      await new Promise(r => setTimeout(r, 0));
+    });
+
+    expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+  });
+
+  it('pageshow on a NORMAL load (persisted=false) stays inert — the mount already refreshed', async () => {
+    localStorage.setItem('geolocation_enabled', 'true');
+    permissionsQuery.mockResolvedValue({
+      state: 'granted',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    });
+    getCurrentPosition.mockImplementation(success => success(positionOf(43.6, 1.44)));
+    renderHook(() => useGeolocation());
+    await settle();
+    localStorage.removeItem('geolocation_cache');
+    getCurrentPosition.mockClear();
+
+    await act(async () => {
+      window.dispatchEvent(new Event('pageshow'));
+      await new Promise(r => setTimeout(r, 0));
+    });
+
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+  });
+});

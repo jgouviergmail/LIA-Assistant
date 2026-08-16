@@ -106,6 +106,17 @@ def is_list_type(type_hint: Any) -> bool:
     import types
     import typing
 
+    def unwrap_annotated(hint: Any) -> Any:
+        """Strip an ``Annotated[X, ...]`` wrapper down to ``X``.
+
+        Pydantic keeps the wrapper in ``field.annotation`` (e.g. the MCP
+        adapter's schema-only ``WithJsonSchema`` items annotation), and it
+        also survives inside union members — without unwrapping, an optional
+        MCP array parameter stops being detected as a list.
+        """
+        return typing.get_args(hint)[0] if typing.get_origin(hint) is typing.Annotated else hint
+
+    type_hint = unwrap_annotated(type_hint)
     origin = typing.get_origin(type_hint)
 
     if origin is list:
@@ -116,6 +127,7 @@ def is_list_type(type_hint: Any) -> bool:
     # - types.UnionType for X | Y | Z (Python 3.10+ syntax)
     if origin is typing.Union or origin is types.UnionType:
         for arg in typing.get_args(type_hint):
+            arg = unwrap_annotated(arg)
             if typing.get_origin(arg) is list or arg is list:
                 return True
 

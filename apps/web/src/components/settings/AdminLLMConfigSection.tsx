@@ -58,6 +58,7 @@ import {
   findModelCapabilities,
   formAfterModelChange,
   formAfterProviderChange,
+  formForSave,
   formFromConfig,
   isAnthropicThinkingActive,
   isFieldModified,
@@ -1234,8 +1235,14 @@ function LLMConfigDialog({
 
   const handleSave = async () => {
     if (!config) return;
-    // Build update: compare with defaults, send null for unchanged fields
-    const update = buildConfigUpdate(config, form, providerConfig);
+    // Save-time coherence first (formForSave): whatever way the form drifted
+    // (stale catalogue, free-text model), the reasoning_effort shape is
+    // re-proven against the SELECTED model before the diff is built.
+    const update = buildConfigUpdate(
+      config,
+      formForSave(form, selectedModelCapabilities, Object.keys(metadata.providers).length > 0),
+      providerConfig
+    );
     try {
       await onSave(config.llm_type, update);
       toast.success(t('settings.admin.llmConfig.config.saved'));
@@ -1283,8 +1290,13 @@ function LLMConfigDialog({
     requiredKind,
     requiredCaps
   );
-  const selectedModelCapabilities = (metadata.providers[form.provider ?? ''] ?? []).find(
-    m => m.model_id === form.model
+  // findModelCapabilities also probes the live Ollama catalogue — a dynamic
+  // model's capabilities are not in the static metadata.
+  const selectedModelCapabilities = findModelCapabilities(
+    metadata.providers,
+    ollamaModels,
+    form.provider,
+    form.model ?? ''
   );
   const anthropicThinkingActive = isAnthropicThinkingActive(form.provider, form.reasoning_effort);
   const visibility: SamplingVisibility = samplingVisibility(

@@ -5,8 +5,8 @@
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
 **Version**: 4.0
-**Datum**: 2026-08-08
-**Application**: LIA v1.29.0
+**Datum**: 2026-08-16
+**Application**: LIA v1.30.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 466 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 217 ADRs, ~18.206 von pytest gesammelte Tests in 987 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 218 ADRs, ~18.254 von pytest gesammelte Tests in 990 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -74,7 +74,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~18.206 von pytest gesammelt (von pytest über 987 Testdateien gesammelt) + 5.448 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | ~18.254 von pytest gesammelt (von pytest über 990 Testdateien gesammelt) + 5.475 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 490+ |
 | ADRs (Architecture Decision Records) | 209 |
@@ -458,7 +458,7 @@ Anfragen in jeder Sprache werden automatisch ins Englische übersetzt, bevor Emb
 
 Die semantische Filterung bewertet Werkzeuge anhand einer **englischen Umschreibung der Anfrage, die ein Modell bei jeder Runde neu erzeugt**: Dieselbe Frage kann also zwei verschiedene Kataloge ergeben. Verlangen die ausgewählten Werkzeuge einen Wert, den keines von ihnen liefern kann – die ID einer Nachricht, um darauf zu antworten –, ist der Raum gültiger Pläne leer, **bevor** das Modell überhaupt beginnt. Es kann dann nur noch einen Werkzeugnamen erfinden.
 
-Der Abschluss wendet eine Regel an, die die Anfrage nie ansieht: *Jede Art von Wert, die ein Werkzeug im Katalog benötigt, muss von einem anderen Werkzeug im Katalog erzeugt werden.* Das ist ein Linker, der offene Referenzen auflöst, keine Suche, die rät. Zwei Bedingungen machen die Regel korrekt statt bloß plausibel: Ein Werkzeug erfüllt nie seine eigene Anforderung („auf eine E-Mail antworten" erzeugt ebenfalls eine Nachrichten-ID – die der gerade gesendeten), und nur ein **lesendes** Werkzeug gilt als Quelle (man löst keinen Versand aus, um eine Kennung zu erfahren). Gemessenes Katalogwachstum: **+1 Werkzeug**.
+Der Abschluss wendet eine Regel an, die die Anfrage nie ansieht: *Jede Art von Wert, die ein Werkzeug im Katalog benötigt, muss von einem anderen Werkzeug im Katalog erzeugt werden.* Das ist ein Linker, der offene Referenzen auflöst, keine Suche, die rät. Zwei Bedingungen machen die Regel korrekt statt bloß plausibel: Ein Werkzeug erfüllt nie seine eigene Anforderung („auf eine E-Mail antworten“ erzeugt ebenfalls eine Nachrichten-ID – die der gerade gesendeten), und nur ein **lesendes** Werkzeug gilt als Quelle (man löst keinen Versand aus, um eine Kennung zu erfahren). Gemessenes Katalogwachstum: **+1 Werkzeug**.
 
 ---
 
@@ -468,7 +468,7 @@ Das Schließen des Katalogs klärt, was ein Plan **verketten** darf. Davor steht
 
 Gemessen: das Werkzeug für den 360°-Überblick zu einer Person lebt in der Domäne `contact`, während die Anweisung des Analysators jede Frage zu einem verbundenen Nutzer in die Domäne `peer` schickt. Bewertung **0,853** — die beste des gesamten Katalogs, gegenüber allgemeinen Werkzeugen bei 0,000 — und nie dem Planer vorgelegt. Wenn es funktionierte, dann weil das Modell von seiner Anweisung abgewichen war: ein stochastischer Ausweg, kein regulärer Pfad.
 
-Ein Manifest erklärt nun die **zusätzlichen** Domänen, aus denen es erreichbar ist, und eine **einzige Implementierung** beantwortet „ist dieses Werkzeug im Geltungsbereich?" für beide Filterstrategien, die dieselbe Frage bisher jede für sich stellten. Jeder Wert wird bei der Registrierung gegen das Domänenregister geprüft: eine unbekannte Domäne verweigert den Start, statt das Werkzeug still unauffindbar zu machen. Sparsam zu deklarieren — jede zusätzliche Domäne erweitert die Auswahl für **alle** Anfragen dieser Domäne. Das ist nicht dasselbe wie zwei Domänen zu verknüpfen: Verknüpfen zieht ihre gesamten Werkzeugkästen ineinander, was bereits einen Produktionsvorfall verursacht hat. Hier bewegt sich ein Werkzeug, keine Domäne.
+Ein Manifest erklärt nun die **zusätzlichen** Domänen, aus denen es erreichbar ist, und eine **einzige Implementierung** beantwortet „ist dieses Werkzeug im Geltungsbereich?“ für beide Filterstrategien, die dieselbe Frage bisher jede für sich stellten. Jeder Wert wird bei der Registrierung gegen das Domänenregister geprüft: eine unbekannte Domäne verweigert den Start, statt das Werkzeug still unauffindbar zu machen. Sparsam zu deklarieren — jede zusätzliche Domäne erweitert die Auswahl für **alle** Anfragen dieser Domäne. Das ist nicht dasselbe wie zwei Domänen zu verknüpfen: Verknüpfen zieht ihre gesamten Werkzeugkästen ineinander, was bereits einen Produktionsvorfall verursacht hat. Hier bewegt sich ein Werkzeug, keine Domäne.
 ### 7.7. Der Katalog einer Domäne ist ein Angebot an Fähigkeiten
 
 Die Filterung nach Domäne hat eine Folge, die erst die Messung sichtbar machte: **Was der Katalog einer Domäne enthält, bestimmt, was der Planer wollen kann**. In der Produktion erzeugte die Frage nach dem letzten Anruf einen zweistufigen Plan — den Kontakt suchen und dann **dort anrufen, um es zu erfragen**. Nur eine fehlgeschlagene Referenz stoppte ihn.
@@ -852,7 +852,7 @@ Drei Flächen führen etwas im Auftrag der Nutzerin aus, und jede wird konstrukt
 
 **Ein Text, den LIA liest, ist kein Text, den LIA ausführt.** Der Text einer E-Mail, die von ihrem Organisator verfasste Beschreibung einer Einladung, eine Webseite, die redaktionelle Zusammenfassung eines Ortes, das Ergebnis eines MCP-Servers: Sie alle landen im Prompt, und jeder kann darin eine Anweisung hinterlegen.
 
-Die werkzeugweise Markierung wurde durch die vollständige Suche nach ihren Aufrufern widerlegt. **Sie vergisst**: `perplexity_tools`, `brave_tools`, `mcp_react_tools` und `emails_tools` waren nicht abgedeckt — Letzteres kündigt in seinem eigenen Docstring an, dass es *„FULL email content (body, headers, attachments)"* zurückgibt. **Und sie trifft nicht die richtige Fläche**: Inhalt erreicht das Modell über zwei Wege, von denen keiner ein Werkzeug ist, darunter `generate_data_for_filtering`, das den Block `{data_for_filtering}` des Antwort-Prompts bei **jedem** datenerzeugenden Zug aufbaut, in **beiden** Ausführungsmodi.
+Die werkzeugweise Markierung wurde durch die vollständige Suche nach ihren Aufrufern widerlegt. **Sie vergisst**: `perplexity_tools`, `brave_tools`, `mcp_react_tools` und `emails_tools` waren nicht abgedeckt — Letzteres kündigt in seinem eigenen Docstring an, dass es *„FULL email content (body, headers, attachments)“* zurückgibt. **Und sie trifft nicht die richtige Fläche**: Inhalt erreicht das Modell über zwei Wege, von denen keiner ein Werkzeug ist, darunter `generate_data_for_filtering`, das den Block `{data_for_filtering}` des Antwort-Prompts bei **jedem** datenerzeugenden Zug aufbaut, in **beiden** Ausführungsmodi.
 
 Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden einmal klassifiziert, ein unbekannter oder leerer Typ gilt als *extern* (fail-closed), und ein Vollständigkeits-Assert beim Start verweigert den Boot bei einem nicht klassifizierten Typ — dieselbe Doktrin wie ADR-085. Fünfzehn der vierundzwanzig Typen stammen von Dritten.
 
@@ -1203,6 +1203,8 @@ LIA akzeptiert externe Event-Ingestionen (iPhone-Apple-Health-Messwerte, Drittan
 
 Sechs lokalisierte Manifeste (`/manifest-{lng}.json` — lokalisiertes `lang`, `start_url`, drei Shortcuts, getrennte `any`/`maskable`-Icon-Einträge; die strukturelle Parität der 6 Dateien ist test-gepinnt) werden pro Seite via `generateMetadata` verlinkt, mit echten PNG-Icons und einem `apple-touch-icon` (iOS ignoriert SVG-Touch-Icons stillschweigend). Das **Share-Target** des OS (`GET /{lng}/share`) komponiert geteilte Titel/Text/URL in einen begrenzten Chat-Entwurf über die bestehende `?draft=`-Schiene — nie automatisch gesendet. Ein dezenter Installationshinweis erscheint ab dem dritten Besuch (nie im Standalone-Display-Mode, dauerhaft ablehnbar); Chromium erhält einen echten Install-Prompt via `beforeinstallprompt`, iOS die Anleitung Teilen → Zum Home-Bildschirm.
 
+**Die Position überlebt den mobilen Lebenszyklus** (ADR-219). Eine vom OS eingefrorene PWA baut ihren Zustand nie neu auf: die Position lief stillschweigend ab, und jede Anfrage fiel auf die Heimatadresse zurück. Jede Positionsauflösung läuft nun durch eine einzige Kaskade — lebendige Browser-Position, sonst zuletzt gespeicherte Position (Opt-in, verschlüsselt, frisch unter 24 h), sonst Heimatadresse —, die geplante Aktionen ohne Browser ohne eigenen Code erben. Zwei Ehrlichkeitsregeln begrenzen sie: eine gespeicherte Position reist mit ihrem Alter, und das Modell nennt es („basierend auf deiner letzten bekannten Position um 9:30“), nie als aktuelle Position; und „zu Hause“ wird nie aus einer unterwegs erfassten Position aufgelöst. Bei Rückkehr in den Vordergrund wird die Berechtigung neu geprüft: noch erteilt, aktualisiert sich die Position stillschweigend; zurückgefallen — iOS tut das nach Inaktivität — liefert ein Banner direkt beim Öffnen des Chats die Nutzergeste, die das native Berechtigungsblatt verlangt.
+
 ### 23.14. Navigationsindex: eine Tabelle, zwei entgegengesetzt blickende Wächter
 
 Die Einstellungsseite stapelt rund dreißig eingeklappte Bereiche über mehrere Tabs. Sie zu erreichen verlangt eine Tabelle, die ein URL-Token einem Tab und einem Akkordeon-Wert zuordnet. Eine solche Tabelle verfällt nie lautstark: Sie hört eines Tages einfach auf, die Seite zu beschreiben.
@@ -1265,7 +1267,7 @@ Die wertvollste Ingenieurslektion kam von einem unsichtbaren Defekt: Die Label-P
 
 ## 24. Architekturentscheidungen (ADR)
 
-217 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+218 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1341,10 +1343,10 @@ Der rote Faden dieser vier Arbeitspakete ist eine Eigenschaft der Tests selbst. 
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 217 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~18.206 Tests in 987 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 218 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~18.254 Tests in 990 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 217 ADRs und des Changelogs (v1.0 bis v1.29.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 218 ADRs und des Changelogs (v1.0 bis v1.30.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

@@ -151,13 +151,20 @@ close. Worse, such a row carries **no conversation id**, so the self-healing
 probe of the one-active-call guard cannot even ask the vendor about it: the row
 blocked every further call until the 15-minute stale threshold elapsed.
 
-`TelephonyService._dial_and_interpret` therefore reads three distinct outcomes:
+`TelephonyService._dial_and_interpret` therefore reads four distinct outcomes:
 
 | Vendor answer | Status | Row transition | What the user is told |
 |---|---|---|---|
+| `ElevenLabsAgentsError` with `is_auth_error` (401, or a 4xx whose body carries `detail.type == "authentication_error"`) | `auth_failed` | `mark_dial_failed(initiate_auth_failed:<code>)` | the stored connector key is no longer valid — reconnect ElevenLabs; retrying will not help |
 | `ElevenLabsAgentsError` (network, 5xx) | `failed` | `mark_dial_failed(initiate_failed:<code>)` | transient — "try again in a moment" |
 | `200` + `success: false` | `rejected` | `mark_dial_failed(initiate_rejected:<message>)` | configuration — retrying will not help |
 | `200` + `success: true` | `placed` | `set_conversation_id(...)` | the call is ringing |
+
+The auth classification is structural (the vendor's `detail.type` taxonomy
+field, read on the full body before log truncation) — never a message
+substring. Observed in production 2026-08-15: ElevenLabs stopped accepting a
+legacy key-ID-shaped credential with 400 `invalid_api_key`, and every call
+died behind the generic "try again" message.
 
 A `placed` call **without** a conversation id keeps its row active on purpose:
 it may well be ringing, and closing it would let a second call start in

@@ -20,7 +20,7 @@ from src.domains.agents.services.skill_location_context import (
     LOCATION_UNKNOWN_VALUE,
     resolve_user_location_for_prompt,
 )
-from src.domains.agents.tools.runtime_helpers import ResolvedLocation, resolve_location
+from src.domains.agents.tools.location_resolution import ResolvedLocation, resolve_location
 
 pytestmark = pytest.mark.unit
 
@@ -52,11 +52,30 @@ class TestResolveUserLocationForPrompt:
         """When home is the resolved source, its address travels with it."""
         home = ResolvedLocation(lat=48.85, lon=2.35, source="home", address="1 rue de Paris")
         with patch(
-            "src.domains.agents.tools.runtime_helpers.get_user_home_location",
+            "src.domains.agents.tools.location_resolution.get_user_home_location",
             return_value=home,
         ):
             value = await resolve_user_location_for_prompt(_config(), "quel temps fait-il", "fr")
         assert value == "48.85000,2.35000 (1 rue de Paris)"
+
+    async def test_last_known_source_carries_its_age_marker(self) -> None:
+        """A persisted position renders with the exact marker the prompt
+        documents — the model is told to state the age, never claim 'live'."""
+        from datetime import UTC, datetime
+
+        last_known = ResolvedLocation(
+            lat=43.60450,
+            lon=1.44420,
+            source="last_known",
+            address=None,
+            as_of=datetime(2026, 8, 16, 9, 30, tzinfo=UTC),
+        )
+        with patch(
+            "src.domains.agents.tools.location_resolution.get_user_last_known_location",
+            return_value=last_known,
+        ):
+            value = await resolve_user_location_for_prompt(_config(), "montre moi où je suis", "fr")
+        assert value == "43.60450,1.44420 (last_known 2026-08-16T09:30Z)"
 
     async def test_resolution_failure_degrades_to_unknown(self) -> None:
         """A resolver crash must degrade the context, never kill the turn.
@@ -65,7 +84,7 @@ class TestResolveUserLocationForPrompt:
         the function body, so the source module is the right seam.
         """
         with patch(
-            "src.domains.agents.tools.runtime_helpers.resolve_location",
+            "src.domains.agents.tools.location_resolution.resolve_location",
             side_effect=RuntimeError("boom"),
         ):
             value = await resolve_user_location_for_prompt(
@@ -131,3 +150,10 @@ class TestPromptContract:
         Python side renders — the coupling is deliberate and pinned."""
         template = load_prompt("skill_react_agent_prompt")
         assert f'"{LOCATION_UNKNOWN_VALUE}"' in template
+
+    def test_prompt_documents_the_last_known_age_marker(self) -> None:
+        """Same pinning for the last_known suffix: the Python side renders
+        ``(last_known <timestamp>)`` and the prompt must teach the model what
+        that marker means (state the age, never claim a live position)."""
+        template = load_prompt("skill_react_agent_prompt")
+        assert "last_known" in template

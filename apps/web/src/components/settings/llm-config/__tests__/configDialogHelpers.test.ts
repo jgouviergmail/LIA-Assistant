@@ -15,6 +15,7 @@ import {
   findModelCapabilities,
   formAfterModelChange,
   formAfterProviderChange,
+  formForSave,
   formFromConfig,
   isAnthropicThinkingActive,
   isFieldModified,
@@ -236,6 +237,42 @@ describe('buildConfigUpdate', () => {
     // Non-TTS types never send provider_config.
     const chat = typeConfig();
     expect(buildConfigUpdate(chat, formFromConfig(chat), { rate: '+25%' })).toEqual({});
+  });
+});
+
+describe('formForSave', () => {
+  const toggleCaps = caps({
+    model_id: 'qwen3.8-max',
+    reasoning_widget: 'toggle_budget',
+    reasoning_budget_range: { min: 0, max: 32768 },
+  });
+
+  it("nulls a reasoning_effort shaped for the PREVIOUS model (the prod 422's exact path)", () => {
+    // Prod 2026-08-14: the dialog's metadata lacked the freshly created model,
+    // so ReasoningSection rendered nothing and the form silently carried the
+    // previous model's enum shape into the PUT → 422 wrong_reasoning_effort_shape
+    // on every save attempt. Save-time coercion is the chokepoint that survives
+    // stale metadata, free-text models and any future form drift.
+    const form = { model: 'qwen3.8-max', reasoning_effort: { effort: 'none' } };
+    expect(formForSave(form, toggleCaps, true).reasoning_effort).toBeNull();
+  });
+
+  it('keeps a reasoning_effort whose shape fits the selected model', () => {
+    const form = { model: 'qwen3.8-max', reasoning_effort: { enabled: true, budget: 8192 } };
+    expect(formForSave(form, toggleCaps, true).reasoning_effort).toEqual({
+      enabled: true,
+      budget: 8192,
+    });
+  });
+
+  it('nulls the effort for a model absent from the loaded catalogue', () => {
+    const form = { model: 'brand-new-model', reasoning_effort: { effort: 'low' } };
+    expect(formForSave(form, undefined, true).reasoning_effort).toBeNull();
+  });
+
+  it('leaves the form untouched when the catalogue never loaded (cannot prove anything)', () => {
+    const form = { model: 'm1', reasoning_effort: { effort: 'low' } };
+    expect(formForSave(form, undefined, false)).toBe(form);
   });
 });
 

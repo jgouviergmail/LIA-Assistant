@@ -93,6 +93,138 @@ class TestBuildArgsSchema:
         assert model is None
 
 
+def _array_member(field_schema: dict) -> dict:
+    """The array member of a field schema (unwraps the optional anyOf)."""
+    if "anyOf" in field_schema:
+        return next(m for m in field_schema["anyOf"] if m.get("type") == "array")
+    return field_schema
+
+
+class TestArrayItemsSchema:
+    """Array properties must emit a TYPED ``items`` in their JSON schema.
+
+    A bare ``list`` field emits ``items: {}``, which the Gemini converter turns
+    into an untyped items proto the API rejects with 400 INVALID_ARGUMENT
+    ("parameters.properties[urls].items: missing field") — one such tool
+    poisons the ENTIRE bind, killing every ReAct iteration on Gemini models
+    (prod 2026-08-14, react_reasoning_stream_failed). The adapter must carry
+    the server-declared item type through, and default degraded/absent
+    declarations to string items.
+    """
+
+    def test_declared_scalar_item_types_are_preserved(self):
+        schema = {
+            "properties": {
+                "urls": {"type": "array", "items": {"type": "string"}, "description": "URLs"},
+                "pageNumbers": {"type": "array", "items": {"type": "integer"}},
+            },
+            "required": ["urls"],
+        }
+        model = build_args_schema(schema)
+        assert model is not None
+        props = model.model_json_schema()["properties"]
+        assert _array_member(props["urls"])["items"] == {"type": "string"}
+        assert _array_member(props["pageNumbers"])["items"] == {"type": "integer"}
+
+    def test_items_enum_is_preserved(self):
+        schema = {
+            "properties": {
+                "formats": {
+                    "type": "array",
+                    "items": {"type": "string", "enum": ["markdown", "html"]},
+                },
+            },
+            "required": [],
+        }
+        model = build_args_schema(schema)
+        assert model is not None
+        items = _array_member(model.model_json_schema()["properties"]["formats"])["items"]
+        assert items["type"] == "string"
+        assert items["enum"] == ["markdown", "html"]
+
+    def test_array_without_items_defaults_to_string_items(self):
+        schema = {
+            "properties": {"tags": {"type": "array", "description": "Tags"}},
+            "required": [],
+        }
+        model = build_args_schema(schema)
+        assert model is not None
+        assert _array_member(model.model_json_schema()["properties"]["tags"])["items"] == {
+            "type": "string"
+        }
+
+    def test_complex_items_degrade_to_string_items(self):
+        """$ref / non-dict items cannot be forwarded reliably — degrade, don't drop."""
+        schema = {
+            "properties": {
+                "refs": {"type": "array", "items": {"$ref": "#/defs/X"}},
+                "weird": {"type": "array", "items": True},
+            },
+            "required": [],
+        }
+        model = build_args_schema(schema)
+        assert model is not None
+        props = model.model_json_schema()["properties"]
+        assert _array_member(props["refs"])["items"] == {"type": "string"}
+        assert _array_member(props["weird"])["items"] == {"type": "string"}
+
+    def test_nested_array_items_stay_typed_at_every_level(self):
+        schema = {
+            "properties": {
+                "matrix": {
+                    "type": "array",
+                    "items": {"type": "array", "items": {"type": "integer"}},
+                },
+            },
+            "required": [],
+        }
+        model = build_args_schema(schema)
+        assert model is not None
+        items = _array_member(model.model_json_schema()["properties"]["matrix"])["items"]
+        assert items == {"type": "array", "items": {"type": "integer"}}
+
+    def test_validation_stays_permissive(self):
+        """The items annotation is SCHEMA-ONLY: runtime validation keeps
+        accepting whatever the server accepted before (bare list)."""
+        schema = {
+            "properties": {"urls": {"type": "array", "items": {"type": "string"}}},
+            "required": ["urls"],
+        }
+        model = build_args_schema(schema)
+        assert model is not None
+        # heterogeneous payload still validates — the boundary contract is the
+        # MCP server's, not ours
+        instance = model(urls=["a", 1, {"k": "v"}])
+        assert instance.urls == ["a", 1, {"k": "v"}]
+
+    def test_gemini_function_declaration_carries_items(self):
+        """End-to-end oracle through the REAL Gemini converter: the exact
+        failure mode of prod 2026-08-14 (items proto absent → API 400)."""
+        from langchain_google_genai._function_utils import (
+            convert_to_genai_function_declarations,
+        )
+
+        adapter = MCPToolAdapter.from_mcp_tool(
+            server_name="firecrawl",
+            tool_name="scrape",
+            description="Scrape URLs",
+            input_schema={
+                "properties": {
+                    "urls": {"type": "array", "items": {"type": "string"}},
+                    "includeTags": {"type": "array"},
+                },
+                "required": ["urls"],
+            },
+        )
+        out = convert_to_genai_function_declarations([adapter])
+        tool = out[0] if isinstance(out, list) else out
+        params = tool.function_declarations[0].parameters
+        for prop_name in ("urls", "includeTags"):
+            items = params.properties[prop_name].items
+            assert items is not None, f"{prop_name}: items missing — Gemini rejects this bind"
+            assert str(items.type) != "Type.TYPE_UNSPECIFIED"
+
+
 class TestMCPToolAdapterFromMcpTool:
     """Test MCPToolAdapter.from_mcp_tool() factory."""
 

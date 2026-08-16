@@ -431,6 +431,29 @@ export const GEOLOCATION_CACHE_KEY = 'geolocation_cache';
 export const GEOLOCATION_ENABLED_KEY = 'geolocation_enabled';
 
 /**
+ * LocalStorage key stamping the last successful push of the browser position
+ * to PUT /auth/me/last-location (generalized last-known location,
+ * 2026-08-16). Not coordinates, but an account-linked marker written under a
+ * global key — purged with the geolocation keys on logout/account change.
+ */
+export const LAST_LOCATION_PUSH_TS_KEY = 'lia_last_location_push_ms';
+
+/**
+ * SessionStorage key recording that the user dismissed the proactive
+ * geolocation-reactivation banner for this session (2026-08-16). Session
+ * scope on purpose: the permission drop it reacts to is per-session too
+ * (iOS standalone), so the offer legitimately returns next session.
+ */
+export const GEOLOCATION_REACTIVATION_DISMISSED_KEY = 'geolocation_reactivation_dismissed';
+
+/**
+ * Client-side floor between two last-location pushes. The server enforces
+ * its own 30-minute throttle (LAST_KNOWN_LOCATION_UPDATE_THROTTLE_MINUTES);
+ * this one just avoids pointless network calls it would reject anyway.
+ */
+export const LAST_LOCATION_PUSH_THROTTLE_MS = 30 * 60 * 1000;
+
+/**
  * Touch padding tolerance (px) for push-to-talk touch move cancellation.
  * Allows small finger movements without accidentally stopping the recording.
  */

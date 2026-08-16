@@ -138,6 +138,25 @@ class TestIsListType:
         """Test que str | None n'est pas un list type."""
         assert is_list_type(str | None) is False
 
+    def test_optional_annotated_list_is_detected(self):
+        """``Annotated[list, WithJsonSchema(...)] | None`` — the exact shape the
+        MCP adapter emits for OPTIONAL array params since the Gemini items fix.
+        Pydantic keeps the Annotated wrapper inside the union, so without
+        unwrapping it the string→list coercion (Issue #53/#55) silently stopped
+        applying to every optional MCP array parameter."""
+        from typing import Annotated
+
+        from pydantic import WithJsonSchema
+
+        ann = Annotated[list, WithJsonSchema({"type": "array", "items": {"type": "string"}})]
+        assert is_list_type(ann | None) is True
+
+    def test_annotated_subscripted_list_is_detected(self):
+        """Annotated[list[str], ...] unwraps to a detected list type."""
+        from typing import Annotated
+
+        assert is_list_type(Annotated[list[str], "meta"]) is True
+
 
 class TestEdgeCases:
     """Tests des cas limites."""

@@ -115,7 +115,10 @@ def merge_config(defaults: LLMAgentConfig, overrides: dict[str, Any]) -> LLMAgen
     override_provides_reasoning = "reasoning_effort" in overrides
 
     for key, value in overrides.items():
-        if value is not None and key in merged:
+        # An empty string is never a valid override value — for `provider` it
+        # even fails the LLMAgentConfig Literal and would turn EVERY merge of
+        # that row into a 500 at read time. Treat it exactly like None (unset).
+        if value is not None and value != "" and key in merged:
             merged[key] = value
 
     if (

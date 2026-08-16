@@ -56,6 +56,12 @@ const MAX_AUTO_RETRY_ATTEMPTS = 2;
  * - Opt-in/opt-out toggle with localStorage persistence
  * - Cached coordinates for quick access
  * - Error handling with user-friendly messages
+ * - PWA lifecycle handling (2026-08-16): on return-to-foreground
+ *   (`visibilitychange`/`pageshow`), a granted permission triggers a silent
+ *   position refresh, and a permission that fell back to `prompt` (iOS
+ *   standalone does this after inactivity) is surfaced as
+ *   `needsReactivation` — the native sheet needs a user gesture, so the UI
+ *   must offer one instead of the hook firing blindly.
  *
  * @returns Geolocation state and control functions
  *
@@ -326,6 +332,66 @@ export const useGeolocation = () => {
   }, [state.isEnabled, requestGeolocation]);
 
   /**
+   * PWA lifecycle: react to the app returning to the foreground.
+   *
+   * A frozen-then-resumed PWA keeps the mounted hook state forever: the
+   * cached position expires, nothing ever refreshes, and every chat request
+   * ships a null geolocation (measured on Android/iOS, 2026-08-16). On
+   * `visibilitychange`→visible and `pageshow` (bfcache restore):
+   * - permission re-checked (iOS standalone can silently drop a grant);
+   * - `granted` + no fresh cache → silent getCurrentPosition (no prompt);
+   * - `prompt` → no call (the native sheet requires a user gesture — the
+   *   proactive banner owns that), the state update flips `needsReactivation`.
+   *
+   * The enabled flag is read from localStorage, not from the closure state:
+   * the listener is registered once and must see the CURRENT preference.
+   */
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const handleReturnToForeground = async () => {
+      if (document.visibilityState !== 'visible') return;
+      if (localStorage.getItem(GEOLOCATION_ENABLED_KEY) !== 'true') return;
+
+      const permission = await checkPermission();
+      setState(prev => (prev.permission === permission ? prev : { ...prev, permission }));
+
+      if (permission !== 'granted') {
+        if (permission === 'prompt') {
+          logger.info('geolocation_foreground_needs_reactivation', {
+            component: 'useGeolocation',
+          });
+        }
+        return;
+      }
+
+      // Fresh cache → the position is already good enough; skip the GPS.
+      if (loadCachedCoordinates()) return;
+
+      logger.info('geolocation_foreground_refresh', { component: 'useGeolocation' });
+      await requestGeolocation();
+    };
+
+    const onVisibilityChange = () => {
+      void handleReturnToForeground();
+    };
+    // `pageshow` also fires on every NORMAL load (persisted=false), where the
+    // mount effect already refreshes — reacting there would double the GPS
+    // request at startup. Only bfcache restores (persisted=true) matter: the
+    // mount effect does not re-run for them.
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) void handleReturnToForeground();
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pageshow', onPageShow);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('pageshow', onPageShow);
+    };
+  }, [checkPermission, loadCachedCoordinates, requestGeolocation]);
+
+  /**
    * Auto-retry logic: if enabled but no coordinates and not denied, retry automatically.
    * This handles cases like:
    * - GPS temporarily unavailable
@@ -390,6 +456,13 @@ export const useGeolocation = () => {
 
   return {
     ...state,
+    /**
+     * The user opted in but the browser permission fell back to `prompt`
+     * (typical iOS-standalone behavior after inactivity): only a user
+     * gesture can reopen the native sheet, so the UI must offer one.
+     * Derived, never stored — it is a pure function of the state.
+     */
+    needsReactivation: state.isEnabled && state.permission === 'prompt',
     enable,
     disable,
     refresh,

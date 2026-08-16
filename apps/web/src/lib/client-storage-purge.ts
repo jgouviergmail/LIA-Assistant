@@ -19,10 +19,17 @@ import {
   DEBUG_METRICS_HISTORY_KEY,
   GEOLOCATION_CACHE_KEY,
   GEOLOCATION_ENABLED_KEY,
+  GEOLOCATION_REACTIVATION_DISMISSED_KEY,
+  LAST_LOCATION_PUSH_TS_KEY,
 } from '@/lib/constants';
 
 /** Keys in `sessionStorage` cleared on logout. */
-export const SENSITIVE_SESSION_STORAGE_KEYS: readonly string[] = [DEBUG_METRICS_HISTORY_KEY];
+export const SENSITIVE_SESSION_STORAGE_KEYS: readonly string[] = [
+  DEBUG_METRICS_HISTORY_KEY,
+  // Banner-dismissal marker: account-linked decision under a global key —
+  // account B must not inherit A's "don't offer reactivation this session".
+  GEOLOCATION_REACTIVATION_DISMISSED_KEY,
+];
 
 /**
  * Keys in `localStorage` cleared on logout.
@@ -36,6 +43,10 @@ export const SENSITIVE_SESSION_STORAGE_KEYS: readonly string[] = [DEBUG_METRICS_
 export const SENSITIVE_LOCAL_STORAGE_KEYS: readonly string[] = [
   GEOLOCATION_CACHE_KEY,
   GEOLOCATION_ENABLED_KEY,
+  // Last-location push marker: account-linked, written under a global key —
+  // left behind, account B's session would inherit A's throttle window and
+  // skip its own first push (generalized last-known location, 2026-08-16).
+  LAST_LOCATION_PUSH_TS_KEY,
 ];
 
 /**

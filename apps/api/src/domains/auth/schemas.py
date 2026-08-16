@@ -446,24 +446,25 @@ class ExecutionModePreferenceResponse(BaseModel):
     )
 
 
-class WeatherLocationPreferenceRequest(BaseModel):
-    """Schema for updating the weather last-known location opt-in flag."""
+class LocationPreferenceRequest(BaseModel):
+    """Schema for updating the last-known location opt-in flag."""
 
     enabled: bool = Field(
         ...,
         description=(
-            "Enable or disable use of the persisted browser geolocation for "
-            "proactive weather notifications. Disabling wipes any stored location."
+            "Enable or disable use of the persisted browser geolocation across "
+            "all features (chat tools, scheduled actions, proactive jobs). "
+            "Disabling wipes any stored location."
         ),
     )
 
 
-class WeatherLocationPreferenceResponse(BaseModel):
-    """Schema for weather location preference update response."""
+class LocationPreferenceResponse(BaseModel):
+    """Schema for location preference update response."""
 
-    enabled: bool = Field(..., description="Current weather location preference state")
+    enabled: bool = Field(..., description="Current location preference state")
     message: str = Field(
-        default="Weather location preference updated",
+        default="Location preference updated",
         description="Confirmation message",
     )
 

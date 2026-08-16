@@ -44,7 +44,9 @@ logger = structlog.get_logger(__name__)
 # "rejected" → the vendor DECLINED for a configuration reason (unverified
 #              source number, exhausted credit). Retrying changes nothing, so
 #              the two must not share a message that says "try again".
-_InitiateStatus = Literal["placed", "already_active", "not_configured", "failed", "rejected"]
+_InitiateStatus = Literal[
+    "placed", "already_active", "not_configured", "failed", "rejected", "auth_failed"
+]
 
 # Vendor conversation statuses meaning the call itself is over ("processing" =
 # ended, transcript still being prepared). spike: values per the conversations
@@ -389,6 +391,21 @@ class TelephonyService:
                 ringing_timeout_secs=settings.telephony_ringing_timeout_seconds,
             )
         except ElevenLabsAgentsError as exc:
+            # A credential rejection is NOT transient: "try again in a moment"
+            # is a lie until the connector key is replaced (prod 2026-08-15:
+            # the vendor stopped accepting the stored legacy credential and
+            # every call died behind the generic retry message).
+            if exc.is_auth_error:
+                await repo.mark_dial_failed(
+                    call_id, error=f"initiate_auth_failed:{exc.status_code}"
+                )
+                logger.warning(
+                    "telephony_initiate_call_auth_failed",
+                    user_id=str(user_id),
+                    call_id=str(call_id),
+                    status_code=exc.status_code,
+                )
+                return InitiateCallResult(status="auth_failed", call_id=call_id)
             await repo.mark_dial_failed(call_id, error=f"initiate_failed:{exc.status_code}")
             logger.warning(
                 "telephony_initiate_call_failed",

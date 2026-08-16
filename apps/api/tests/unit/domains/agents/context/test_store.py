@@ -20,6 +20,7 @@ from src.domains.agents.context.store import (
     get_tool_context_store,
     reset_tool_context_store,
 )
+from tests._pool_fakes import fake_psycopg_pool
 
 
 def _configure_settings(mock_settings: MagicMock) -> None:
@@ -48,7 +49,7 @@ class TestGetToolContextStore:
             _configure_settings(mock_settings)
             mock_embeddings.return_value = MagicMock()
 
-            mock_pool = AsyncMock()
+            mock_pool = fake_psycopg_pool()
             mock_pool_cls.return_value = mock_pool
 
             mock_store = AsyncMock()
@@ -93,7 +94,7 @@ class TestGetToolContextStore:
             _configure_settings(mock_settings)
             mock_embeddings.return_value = MagicMock()
 
-            mock_pool_cls.return_value = AsyncMock()
+            mock_pool_cls.return_value = fake_psycopg_pool()
 
             mock_store = AsyncMock()
             mock_store.setup = AsyncMock()
@@ -140,7 +141,7 @@ class TestGetToolContextStore:
             mock_url_settings.database_connect_timeout = 30
             mock_embeddings.return_value = MagicMock()
 
-            mock_pool_cls.return_value = AsyncMock()
+            mock_pool_cls.return_value = fake_psycopg_pool()
 
             mock_store = AsyncMock()
             mock_store.setup = AsyncMock()
@@ -172,7 +173,7 @@ class TestGetToolContextStore:
             mock_settings.langgraph_store_pool_max_size = 5
             mock_embeddings.return_value = MagicMock()
 
-            mock_pool = AsyncMock()
+            mock_pool = fake_psycopg_pool()
             mock_pool_cls.return_value = mock_pool
 
             mock_store = AsyncMock()
@@ -218,8 +219,8 @@ class TestGetToolContextStore:
             _configure_settings(mock_settings)
             mock_embeddings.return_value = MagicMock()
 
-            failing_pool = AsyncMock()
-            healthy_pool = AsyncMock()
+            failing_pool = fake_psycopg_pool()
+            healthy_pool = fake_psycopg_pool()
             mock_pool_cls.side_effect = [failing_pool, healthy_pool]
 
             failing_store = AsyncMock()
@@ -254,7 +255,7 @@ class TestCleanupToolContextStore:
             _configure_settings(mock_settings)
             mock_embeddings.return_value = MagicMock()
 
-            mock_pool = AsyncMock()
+            mock_pool = fake_psycopg_pool()
             mock_pool_cls.return_value = mock_pool
 
             mock_store = AsyncMock()
@@ -325,7 +326,7 @@ class TestResetToolContextStore:
             _configure_settings(mock_settings)
             mock_embeddings.return_value = MagicMock()
 
-            mock_pool_cls.return_value = AsyncMock()
+            mock_pool_cls.return_value = fake_psycopg_pool()
 
             # Mock store - create different instances
             mock_store1 = AsyncMock()
@@ -364,7 +365,7 @@ class TestResetToolContextStore:
             _configure_settings(mock_settings)
             mock_embeddings.return_value = MagicMock()
 
-            mock_pool = AsyncMock()
+            mock_pool = fake_psycopg_pool()
             mock_pool_cls.return_value = mock_pool
             mock_store_class.return_value = AsyncMock()
 
@@ -393,7 +394,7 @@ class TestIntegration:
             _configure_settings(mock_settings)
             mock_embeddings.return_value = MagicMock()
 
-            mock_pool = AsyncMock()
+            mock_pool = fake_psycopg_pool()
             mock_pool_cls.return_value = mock_pool
 
             # Mock stores - create different instances

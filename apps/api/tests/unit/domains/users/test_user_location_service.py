@@ -35,7 +35,7 @@ def _make_user(
     """
     user = MagicMock()
     user.id = uuid4()
-    user.weather_use_last_known_location = opt_in
+    user.use_last_known_location = opt_in
 
     # Home: store raw JSON as "encrypted" — we'll patch decrypt_data
     if home_lat is not None and home_lon is not None:

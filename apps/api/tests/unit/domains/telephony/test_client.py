@@ -198,3 +198,43 @@ async def test_api_error_raises_typed_exception():
     with pytest.raises(ElevenLabsAgentsError) as exc:
         await _client(lambda r: httpx.Response(500, text="boom")).list_phone_numbers()
     assert exc.value.status_code == 500
+
+
+@pytest.mark.unit
+async def test_vendor_auth_error_is_classified_structurally():
+    """Prod 2026-08-15: ElevenLabs started rejecting legacy key-ID-shaped
+    credentials with 400 {"detail": {"type": "authentication_error", ...}}.
+    Classification reads the vendor's structured taxonomy field — never a
+    message substring (ToolErrorCode doctrine)."""
+    body = {
+        "detail": {
+            "type": "authentication_error",
+            "code": "invalid_api_key",
+            "message": "API key ID used as API key - only valid API keys can be used.",
+        }
+    }
+    with pytest.raises(ElevenLabsAgentsError) as exc:
+        await _client(lambda r: httpx.Response(400, json=body)).list_phone_numbers()
+    assert exc.value.is_auth_error is True
+
+
+@pytest.mark.unit
+async def test_http_401_is_an_auth_error_whatever_the_body():
+    with pytest.raises(ElevenLabsAgentsError) as exc:
+        await _client(lambda r: httpx.Response(401, text="nope")).list_phone_numbers()
+    assert exc.value.is_auth_error is True
+
+
+@pytest.mark.unit
+async def test_configuration_400_is_not_an_auth_error():
+    body = {"detail": "built_in_tools.end_call.name: Field required"}
+    with pytest.raises(ElevenLabsAgentsError) as exc:
+        await _client(lambda r: httpx.Response(400, json=body)).list_phone_numbers()
+    assert exc.value.is_auth_error is False
+
+
+@pytest.mark.unit
+async def test_server_error_is_not_an_auth_error():
+    with pytest.raises(ElevenLabsAgentsError) as exc:
+        await _client(lambda r: httpx.Response(500, text="boom")).list_phone_numbers()
+    assert exc.value.is_auth_error is False

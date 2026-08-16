@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 44 |
-| ADRs | 218 (ADR-218 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 217 fichiers) |
+| ADRs | 219 (ADR-219 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 218 fichiers) |
 | Fiches knowledge (RAG système) | 27 |
 
 ---
@@ -308,7 +308,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-218 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-219 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 
@@ -318,6 +318,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-219 | **Une position mémorisée ne vaut que si tout le monde la lit — et si son âge voyage avec elle** : la dernière position navigateur (ADR-073, opt-in chiffré) était cloisonnée aux jobs proactifs — en déplacement, chat et actions planifiées répondaient depuis le domicile. Cascade généralisée dans `resolve_location` (navigateur > last_known fraîche > domicile ; « où suis-je » reçoit la position datée AVEC son âge, jamais le domicile), cycle de vie PWA (`visibilitychange` → refresh silencieux si permission accordée, bannière de réactivation proactive sinon — la feuille native exige un geste), push global hors page réglages, réglage déplacé sur le connecteur Google Places | 2026-08 |
 | ADR-166 | **Demander est une tâche, pas un goût** : la règle n°1 du prompt d'intérêts déclarait qu'une demande d'information *est* un centre d'intérêt — **7 des 10 intérêts de juillet bloqués par l'utilisateur**. Une création exige désormais un **fondement nommé** parmi quatre et la citation des mots qui le portent ; la déduplication voit **tous les statuts** (un intérêt bloqué était recréé 25 min plus tard à 0,9821 de similarité) ; un **plafond de suppressions** écarte les lots qui en proposent dix-neuf | 2026-07 |
 | ADR-165 | Modifier une skill, c'est la **régénérer entièrement** : le moteur d'écriture existait déjà (upsert d'ADR-118) mais le manifeste était illisible, un remplacement perdait la vignette que le chat ne peut pas transporter, et le prompt ordonnait de renommer. Confirmation **en deux temps dans l'outil** — le HITL est inopérant dans le sous-agent isolé où tourne le générateur | 2026-07 |
 | ADR-164 | Quels tours alimentent mémoire, intérêts et journaux : rien ne mesurait ces décisions, et quatre défauts ont vécu dans l'angle mort — les canaux n'alimentaient **jamais** les journaux, un flux HITL n'extrayait **rien**, un message fabriqué devenait la cible, et un contact nommé Fine ou Bien perdait ses souvenirs | 2026-07 |

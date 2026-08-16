@@ -3,8 +3,8 @@
 > Field report — a complete system, from design to production.
 
 **Version**: 1.3
-**Date**: 2026-08-08
-**Application**: LIA v1.29.0
+**Date**: 2026-08-16
+**Application**: LIA v1.30.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Lines of code (excluding tests) — 39 functional domains | **548,000** |
-| Automated tests, run on every commit and release | **23,600+** |
-| Documented architecture decisions (ADR) | **217** |
-| Versions shipped at a steady pace | **203** |
+| Lines of code (excluding tests) — 40 functional domains | **520,000** |
+| Automated tests, run on every commit and release | **23,700+** |
+| Documented architecture decisions (ADR) | **218** |
+| Versions shipped at a steady pace | **204** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -50,7 +50,7 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 180 documented:
+Three structural decisions, among the 218 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 
@@ -62,7 +62,7 @@ Three structural decisions, among the 180 documented:
 
 A system flown on instruments:
 
-- **Observability**: twenty-five dashboards — application health, service commitments, AI costs, agent behavior, infrastructure. More than 440 metrics; centralized structured logs with personal-data filtering; end-to-end distributed tracing. Some forty written operating procedures — diagnosis, remediation, restoration.
+- **Observability**: twenty-five dashboards — application health, service commitments, AI costs, agent behavior, infrastructure. More than 470 metrics; centralized structured logs with personal-data filtering; end-to-end distributed tracing. Some forty written operating procedures — diagnosis, remediation, restoration.
 - **Delivery**: containerized deployment, automated schema migrations, images published for two hardware architectures (amd64/arm64).
 - **Costs**: frugal infrastructure by choice — about €150 of hardware, zero licenses, open-source building blocks sized to actual needs.
 - **Compliance**: security reviewed endpoint by endpoint; personal data encrypted; account lifecycle aligned with the GDPR.
@@ -90,6 +90,8 @@ The proof also has its most instructive episode: three recalibrations of a simpl
 The habit-learning detector earned its trust the same way: it was executed against real production data before being believed — and it was caught. A daily scheduled action had been writing a "user" message at 07:00 for sixty-six days; the detector claimed the scheduler's own timetable as a human habit. The refutation became a whitelist of human sessions, the fabricated window disappeared, and the honest verdicts fell into place. The rule stands: prove against reality before believing the design.
 
 The 1.29.0 cycle added a third episode, and this one is about the tests themselves. Every protection in the programme had shipped with its own, all green — and all of the same shape: they pinned what the code did on the day it was delivered. A hand-written list does not describe a system; it describes what its author knew about the system. So three guards were rewritten to **recalculate** the protection from the source of truth instead of restating it. They found three faults no existing test could see: speech synthesis billed and never counted against the spend ceiling, a provider sign-in that bypassed the newly mandatory terms acceptance entirely, and eleven connector paths that bound a real credential with no guard at all. Then each guard was deliberately broken, to check that it goes red — because a guard nobody has ever seen fail is just one more promise.
+
+The 1.30.0 cycle documented a lesson of a different kind: a feature can be delivered, encrypted, consented — and useless, because nobody reads it. The last known position had existed for months; only proactive notifications consulted it. On the move, the assistant therefore answered from the home address, with confidence. The diagnosis came from the production logs, the fix reduced three divergent paths to a single cascade — and the exact-counts doctrine extended to position: a dated position announces itself as dated, "based on your last known position at 9:30", never "you are at". The same cycle recalled that a synchronization mechanism is only believed once proven against the real engine: the lock serializing the first boot deadlocked against PostgreSQL's concurrent index creation — measured in the engine's own lock table, fixed as a non-blocking poll, and guarded by a test that forbids the blocking form's return.
 
 ## 7. Convictions
 

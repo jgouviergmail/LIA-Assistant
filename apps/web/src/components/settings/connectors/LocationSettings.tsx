@@ -1,6 +1,8 @@
 /**
  * LocationSettings component.
- * Handles geolocation and home location settings for Google Places connector.
+ * Handles geolocation, last-known location memory, and home location settings
+ * for the Google Places connector — the three sources of the location
+ * cascade, in cascade order (live position > remembered position > home).
  */
 
 'use client';
@@ -12,12 +14,13 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Navigation, Home, MapPin, Info, Save, Trash2 } from 'lucide-react';
+import { Navigation, Home, MapPin, History, Info, Save, Trash2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { logger } from '@/lib/logger';
+import { LastKnownLocationSection } from './LastKnownLocationSection';
 import type { HomeLocation } from './types';
 
 interface LocationSettingsProps {
@@ -118,7 +121,7 @@ export function LocationSettings({ t }: LocationSettingsProps) {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Navigation className="h-4 w-4 text-muted-foreground" />
+            <Navigation className="h-4 w-4 text-primary" />
             <Label className="text-sm text-muted-foreground">
               {t('settings.location.geolocation.title')}
             </Label>
@@ -171,10 +174,21 @@ export function LocationSettings({ t }: LocationSettingsProps) {
         )}
       </div>
 
+      {/* Last-known location memory (generalized opt-in, cascade middle step) */}
+      <div className="space-y-3 pt-4 border-t border-border/50">
+        <div className="flex items-center gap-2">
+          <History className="h-4 w-4 text-primary" />
+          <Label className="text-sm text-muted-foreground">
+            {t('settings.location.last_known.title')}
+          </Label>
+        </div>
+        <LastKnownLocationSection t={t} />
+      </div>
+
       {/* Home Location Settings */}
       <div className="space-y-3 pt-4 border-t border-border/50">
         <div className="flex items-center gap-2">
-          <Home className="h-4 w-4 text-muted-foreground" />
+          <Home className="h-4 w-4 text-primary" />
           <Label className="text-sm text-muted-foreground">
             {t('settings.location.home.title')}
           </Label>

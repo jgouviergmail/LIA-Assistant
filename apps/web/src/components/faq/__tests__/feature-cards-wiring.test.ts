@@ -46,7 +46,8 @@ const DELIBERATELY_NOT_RENDERED = [
   'resilience',
   'reminders',
   'personalities',
-  'geolocation',
+  // 'geolocation' left this list at v1.30.0: the ADR-219 generalized cascade
+  // made the card a differentiator, so it was rewritten and wired.
   'tools',
 ] as const;
 
