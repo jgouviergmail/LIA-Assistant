@@ -86,6 +86,18 @@ def parse_payload(raw: str) -> BootstrapPayload:
     full_name = admin.get("full_name") or "Admin"
     if not email or not password:
         raise BootstrapInputError("missing_admin_fields")
+    # Same rule as the login route (UserLoginRequest.email: EmailStr).
+    # `ensure_admin` writes the row directly, so without this gate an admin
+    # could be created with an address the login endpoint rejects forever —
+    # measured on the v1.30.1 qualification: `admin@smoke.invalid` (special-use
+    # TLD) bootstrapped fine and then failed every login with a 422.
+    from pydantic import TypeAdapter, ValidationError
+    from pydantic.networks import EmailStr
+
+    try:
+        TypeAdapter(EmailStr).validate_python(email)
+    except ValidationError as exc:
+        raise BootstrapInputError("invalid_admin_email") from exc
     required = required_current_core_provider_ids()
     missing = [p for p in required if not keys.get(p)]
     if missing:

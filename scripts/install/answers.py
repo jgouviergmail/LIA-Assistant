@@ -40,6 +40,13 @@ _TRUE_VALUES = frozenset({"yes", "y", "true", "1"})
 _FALSE_VALUES = frozenset({"no", "n", "false", "0"})
 _MAX_INTERACTIVE_ATTEMPTS = 10
 
+#: Special-use TLDs (RFC 2606/6761) the backend's EmailStr also refuses. The
+#: wizard must reject them at QUESTION time: the bootstrap gate would only
+#: fire after acquire + start, a very expensive way to learn your admin
+#: address can never log in (v1.30.1 qualification: `admin@smoke.invalid`
+#: bootstrapped, then 422 on every login).
+_SPECIAL_USE_TLDS = frozenset({"invalid", "example", "test", "localhost"})
+
 
 class InstallInputError(ValueError):
     """Malformed or incomplete installer input (stable value-free code)."""
@@ -47,7 +54,10 @@ class InstallInputError(ValueError):
 
 def is_valid_email(value: str) -> bool:
     """Shape pre-check only; the backend remains the authority."""
-    return bool(_EMAIL_RE.fullmatch(value.strip()))
+    candidate = value.strip()
+    if not _EMAIL_RE.fullmatch(candidate):
+        return False
+    return candidate.rsplit(".", 1)[-1].lower() not in _SPECIAL_USE_TLDS
 
 
 def is_valid_domain(value: str) -> bool:

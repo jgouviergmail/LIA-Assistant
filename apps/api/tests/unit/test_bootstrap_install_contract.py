@@ -144,6 +144,17 @@ def test_valid_payload_parses() -> None:
             "missing_admin_fields",
         ),
         (
+            # Same rule as the login route: an admin bootstrapped with a
+            # special-use TLD could never log in (v1.30.1 qualification).
+            json.dumps(
+                {
+                    "admin": {**VALID_PAYLOAD["admin"], "email": "a@smoke.invalid"},
+                    "provider_keys": VALID_PAYLOAD["provider_keys"],
+                }
+            ),
+            "invalid_admin_email",
+        ),
+        (
             json.dumps(
                 {
                     "admin": VALID_PAYLOAD["admin"],

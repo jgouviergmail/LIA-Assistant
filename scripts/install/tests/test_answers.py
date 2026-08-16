@@ -21,6 +21,7 @@ import pytest
 from scripts.install.answers import (
     InstallInputError,
     collect_answers,
+    is_valid_email,
     load_answers_file,
 )
 from scripts.install.model import Exposure, InstallMode, IOAdapter
@@ -95,6 +96,26 @@ def _collect(io: _ScriptedIO, **kwargs: object):
         mode=InstallMode.LOCAL,
         manifest_path=None,
     )
+
+
+@pytest.mark.parametrize(
+    ("value", "valid"),
+    [
+        ("admin@ops.tld", True),
+        ("admin@qualification.lia", True),
+        # Special-use TLDs (RFC 2606/6761): the backend's EmailStr refuses
+        # them at LOGIN, so an admin bootstrapped with one can never sign
+        # in — the wizard must reject the address at question time
+        # (v1.30.1 qualification: admin@smoke.invalid, 422 on every login).
+        ("admin@smoke.invalid", False),
+        ("admin@demo.example", False),
+        ("admin@ci.test", False),
+        ("admin@box.localhost", False),
+        ("not-an-email", False),
+    ],
+)
+def test_email_validator_rejects_special_use_tlds(value: str, valid: bool) -> None:
+    assert is_valid_email(value) is valid
 
 
 def test_interactive_lan_flow_routes_secrets_through_getpass_only() -> None:
