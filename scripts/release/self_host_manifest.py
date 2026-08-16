@@ -26,7 +26,11 @@ from scripts.install.manifest import (  # noqa: E402
     validate_manifest,
 )
 
-DEPENDENCY_CATALOGUE = Path(__file__).resolve().parent / "self_host_dependencies.json"
+# Lives inside scripts/install: the WIZARD reads it at preflight and the
+# bundle ships scripts/install only (v1.30.1 qualification defect).
+DEPENDENCY_CATALOGUE = (
+    Path(__file__).resolve().parents[1] / "install" / "self_host_dependencies.json"
+)
 
 #: The exact disposable qualification matrix (G3) a promotion must prove.
 REQUIRED_QUALIFICATION_ROWS = frozenset(

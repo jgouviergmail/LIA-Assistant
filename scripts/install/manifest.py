@@ -95,13 +95,23 @@ class SelfHostManifest:
 
 
 def _catalogue_services() -> tuple[str, ...]:
-    """Service names every complete manifest must lock (apps + catalogue)."""
-    catalogue = (
-        Path(__file__).resolve().parent.parent
-        / "release"
-        / "self_host_dependencies.json"
-    )
-    entries = json.loads(catalogue.read_text(encoding="utf-8"))
+    """Service names every complete manifest must lock (apps + catalogue).
+
+    The catalogue lives INSIDE scripts/install — the wizard reads it at
+    preflight, and the bundle ships scripts/install only: when it lived
+    under scripts/release/, every prebuilt install from a bundle crashed
+    on FileNotFoundError before its first step (v1.30.1 qualification).
+
+    Raises:
+        ManifestError: When the catalogue is missing or unreadable — a
+            packaging defect reported on the stable-code path, never a
+            raw traceback.
+    """
+    catalogue = Path(__file__).resolve().parent / "self_host_dependencies.json"
+    try:
+        entries = json.loads(catalogue.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise ManifestError(f"dependency catalogue unreadable: {exc}") from exc
     return ("api", "web", *(entry["service"] for entry in entries))
 
 

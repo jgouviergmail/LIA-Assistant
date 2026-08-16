@@ -204,7 +204,7 @@ jobs:
                   {platform: "linux/amd64", manifest_digest: $am, config_digest: $ac},
                   {platform: "linux/arm64", manifest_digest: $bm, config_digest: $bc}]}]' \
                dependency-digests.json > tmp.json && mv tmp.json dependency-digests.json
-          done < <(jq -c '.[]' scripts/release/self_host_dependencies.json)
+          done < <(jq -c '.[]' scripts/install/self_host_dependencies.json)
           jq length dependency-digests.json
 
       - name: Set up Python
