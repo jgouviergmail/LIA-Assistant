@@ -54,9 +54,16 @@ _EXCLUDED_DIR_NAMES = frozenset(
         "coverage",
         "test-results",
         "playwright-report",
-        "config",  # apps/api/config holds deployment credentials (gitignored)
     }
 )
+
+#: Exact repo-relative prefixes never archived. Prefixes, NOT names: the
+#: credentials directory `apps/api/config` used to sit in the NAME set above
+#: and took every directory called `config` with it — including
+#: `apps/api/src/core/config`, the Settings package, so the v1.30.1
+#: candidate's API image died on `ModuleNotFoundError: src.core.config`
+#: on all four qualification legs.
+_EXCLUDED_PATH_PREFIXES = ("apps/api/config/",)
 
 _EXCLUDED_SUFFIXES = (".pyc", ".pyo", ".log", ".tsbuildinfo")
 
@@ -103,6 +110,8 @@ def _excluded(rel: str) -> bool:
     parts = rel.split("/")
     if any(part in _EXCLUDED_DIR_NAMES for part in parts):
         return True
+    if rel.startswith(_EXCLUDED_PATH_PREFIXES):
+        return True
     if rel.endswith(_EXCLUDED_SUFFIXES):
         return True
     name = parts[-1]
@@ -123,11 +132,15 @@ def iter_source_context_files(root: Path) -> Iterator[str]:
         if not base.is_dir():
             continue
         for path in base.rglob("*"):
+            # Exclusion BEFORE stat: an excluded tree may hold entries the
+            # OS cannot stat (broken junctions under a live node_modules)
+            # and nothing excluded deserves an I/O call anyway.
+            rel = path.relative_to(root).as_posix()
+            if _excluded(rel):
+                continue
             if not path.is_file() or path.is_symlink():
                 continue
-            rel = path.relative_to(root).as_posix()
-            if not _excluded(rel):
-                collected.add(rel)
+            collected.add(rel)
     yield from sorted(collected)
 
 

@@ -32,8 +32,10 @@ from scripts.release.build_self_host_bundle import (  # noqa: E402
     iter_bundle_files,
 )
 from scripts.release.build_self_host_source_context import (  # noqa: E402
+    _EXCLUDED_SUFFIXES,
     SOURCE_CONTEXT_ROOTS,
     dockerfile_copy_sources,
+    iter_source_context_files,
 )
 
 pytestmark = pytest.mark.unit
@@ -133,3 +135,44 @@ def test_source_context_roots_exclude_secret_and_cache_material() -> None:
         assert "node_modules" not in root
         assert ".venv" not in root
         assert not root.startswith(".env")
+
+
+def test_source_context_never_drops_tracked_code() -> None:
+    """The exclusion filter must not swallow git-tracked CODE.
+
+    `config` sat in the excluded directory NAMES to keep the gitignored
+    `apps/api/config` credentials out — and took `apps/api/src/core/config`
+    (the Settings package) with it: the v1.30.1 candidate built an API image
+    whose settings validator died on `ModuleNotFoundError: src.core.config`
+    on all four qualification legs. Tracked files under the context roots
+    are code by definition (credentials are gitignored), so every tracked
+    file must be in the inventory — except env files, which the filter
+    excludes by name on purpose.
+    """
+    import subprocess
+
+    tracked = subprocess.run(
+        ["git", "ls-files", "--", *SOURCE_CONTEXT_ROOTS],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    assert len(tracked) > 3000, "git inventory implausibly small"
+    inventory = set(iter_source_context_files(REPO_ROOT))
+    dropped = [
+        path
+        for path in tracked
+        if path not in inventory
+        and not path.rsplit("/", 1)[-1].startswith(".env")
+        and not path.endswith(_EXCLUDED_SUFFIXES)
+        and (REPO_ROOT / path).is_file()  # tolerate a locally deleted file
+        and not (REPO_ROOT / path).is_symlink()
+    ]
+    assert dropped == [], (
+        f"{len(dropped)} tracked code files dropped from the source "
+        f"context, first ten: {dropped[:10]}"
+    )
+
+    # And the credentials directory stays out, whatever it contains.
+    assert not any(path.startswith("apps/api/config/") for path in inventory)
