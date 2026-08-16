@@ -163,7 +163,12 @@ jobs:
           else
             mode_flag="--prebuilt"
           fi
-          trap '../cleanup.sh "${{ steps.project.outputs.name }}"' EXIT
+          # NO cleanup trap here: `trap ... EXIT` fires on step SUCCESS too,
+          # so it tore the freshly verified stack down the moment this step
+          # ended — the probes then hit a removed web container (measured on
+          # the v1.30.1 qualification). The `if: always()` cleanup step at
+          # the end of the job is the single owner of teardown, and on
+          # failure the dump steps must still find the stack alive first.
           COMPOSE_PROJECT_NAME="${{ steps.project.outputs.name }}" \
             ./install.sh $mode_flag --non-interactive --answers answers.env
 
