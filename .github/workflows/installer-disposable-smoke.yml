@@ -145,7 +145,7 @@ jobs:
           wizard_language=en
           exposure=lan
           server_host=127.0.0.1
-          admin_email=admin@smoke.invalid
+          admin_email=admin@qualification.lia
           admin_name=Smoke
           default_language=en
           observability=no
@@ -237,7 +237,7 @@ jobs:
           fi
           python3 -B scripts/install/tests/runtime/assert_install.py \
             --base-url http://127.0.0.1:3000 \
-            --admin-email admin@smoke.invalid \
+            --admin-email admin@qualification.lia \
             --admin-password-env ADMIN_PASSWORD \
             $manifest_args
 
