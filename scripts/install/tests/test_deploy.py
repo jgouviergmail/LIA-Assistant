@@ -369,3 +369,35 @@ def test_reconfigure_failure_restores_the_previous_files(tmp_path: Path) -> None
         )
     assert "reconfigure_failed" in str(excinfo.value)
     assert target.read_text(encoding="utf-8").endswith("# current\n"), "restored"
+
+
+def test_step_failed_carries_the_redactable_stderr_tail() -> None:
+    """The compose error must reach the private log, never the console.
+
+    ``acquire_failed`` alone is undiagnosable: the v1.30.1 qualification
+    burned a full matrix run to learn nothing because the runner captured
+    compose's stderr and ``_run_or_fail`` discarded it. The detail rides on
+    the exception (newlines collapsed — install.log is one line per event)
+    for ``__main__`` to write through the REDACTING log; ``str(exc)`` stays
+    code + resume hint only, because the console is not redacted.
+    """
+    stderr = "line one\nservice \"api\" refused\nsecret sk-XYZ\n"
+    runner = _Runner([CommandResult(1, "", stderr)])
+    with pytest.raises(StepFailed) as excinfo:
+        acquire(_invocation(), runner)
+
+    assert excinfo.value.code == "acquire_failed"
+    assert "refused" in excinfo.value.detail
+    assert "\n" not in excinfo.value.detail  # one-line-per-event log format
+    assert "refused" not in str(excinfo.value)  # console stays code-only
+
+
+def test_step_failed_detail_is_bounded() -> None:
+    """A 100k-line compose trace must not flood the log: keep the TAIL."""
+    stderr = "x" * 100_000 + " THE-ACTUAL-ERROR"
+    runner = _Runner([CommandResult(1, "", stderr)])
+    with pytest.raises(StepFailed) as excinfo:
+        acquire(_invocation(), runner)
+
+    assert len(excinfo.value.detail) <= 4_100
+    assert "THE-ACTUAL-ERROR" in excinfo.value.detail

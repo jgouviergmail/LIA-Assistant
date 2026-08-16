@@ -121,6 +121,15 @@ jobs:
           COMPOSE_PROJECT_NAME="${{ steps.project.outputs.name }}" \
             ./install.sh $mode_flag --non-interactive --answers answers.env
 
+      - name: Dump the redacted install log on failure
+        if: failure()
+        working-directory: work
+        run: |
+          # install.log is the ONLY place the failing command's redacted
+          # stderr tail lands (StepFailed.detail) — without this dump a
+          # matrix failure costs a full run and teaches nothing.
+          test -f install.log && cat install.log || echo "no install.log produced"
+
       - name: Post-install probes (login, SSE chat, image identities)
         working-directory: work
         env:

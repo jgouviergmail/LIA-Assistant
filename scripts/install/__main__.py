@@ -278,7 +278,9 @@ def _deploy_sequence(
             runner=deps.runner,
         )
     except deploy.StepFailed as exc:
-        log.write("step_failed", code=exc.code)
+        # detail = the failing command's bounded stderr tail; this write goes
+        # through the redacting InstallLog, never the console (B13).
+        log.write("step_failed", code=exc.code, detail=exc.detail)
         rollback.restore_or_quiesce(point, invocation, deps.runner)
         raise
     state = replace(

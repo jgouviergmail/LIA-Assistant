@@ -62,11 +62,33 @@ class Runner(Protocol):
     ) -> CommandResult: ...
 
 
-class StepFailed(RuntimeError):
-    """A deploy step failed with a stable, non-secret code."""
+#: Longest stderr tail carried on a failure (compose traces can be huge).
+_DETAIL_TAIL_CHARS = 4_000
 
-    def __init__(self, code: str) -> None:
+
+def _detail_tail(result: "CommandResult") -> str:
+    """The command's error output, bounded and collapsed to one line.
+
+    The tail (not the head): compose prints the actual cause last. Newlines
+    become ``" | "`` because ``install.log`` is one redacted line per event.
+    """
+    raw = (result.stderr or result.stdout or "").strip()
+    return " | ".join(raw[-_DETAIL_TAIL_CHARS:].splitlines())
+
+
+class StepFailed(RuntimeError):
+    """A deploy step failed with a stable, non-secret code.
+
+    ``detail`` carries the failing command's bounded stderr tail for the
+    REDACTING install log only — ``str(exc)`` stays code + resume hint,
+    because the console output is not redacted (measured on the v1.30.1
+    qualification: ``acquire_failed`` alone burned a full disposable matrix
+    run to learn nothing).
+    """
+
+    def __init__(self, code: str, detail: str = "") -> None:
         self.code = code
+        self.detail = detail
         super().__init__(f"{code} — resume with {RESUME_HINT}")
 
 
@@ -79,7 +101,7 @@ def _run_or_fail(
 ) -> CommandResult:
     result = runner(argv, stdin=stdin)
     if result.returncode != 0:
-        raise StepFailed(code)
+        raise StepFailed(code, detail=_detail_tail(result))
     return result
 
 
