@@ -66,6 +66,11 @@ slowapi==0.1.9
 
 # HTTP Client
 httpx==0.28.1
+# h2 is purely transitive (httpx/httpcore HTTP/2 support) and is declared here
+# only to carry a security floor. >=4.4.1 clears PYSEC-2026-3628: h2 <=4.4.0
+# forwarded duplicate Host headers, a request-smuggling primitive when a
+# consumer downgrades HTTP/2 to HTTP/1.1.
+h2>=4.4.1
 # aiohttp is purely transitive (edge-tts, geoip2 — both clients, LIA runs no
 # aiohttp server) and is declared here only to carry a security floor.
 # >=3.14.3 clears CVE-2026-69244 (out-of-bounds heap read in the C response
@@ -106,7 +111,7 @@ openai==2.40.0  # Requis par langchain-openai 1.1.10 (pin 2.14.0 levé — garde
 langgraph==1.2.4  # 1.2.2->1.2.4: minimum required by langchain 1.3.9 (GHSA fix)
 langgraph-checkpoint==4.1.1  # Pinné explicitement (transitif de langgraph, reproductibilité builds)
 langgraph-prebuilt==1.1.0  # Pinné explicitement (requis par langgraph 1.0.10)
-langgraph-checkpoint-postgres==3.1.0
+langgraph-checkpoint-postgres==3.1.1  # PYSEC-2026-3635 fix: namespace-scoped store reads leaked sibling namespaces (LIKE prefix matching)
 tiktoken==0.13.0
 
 # Hybrid Memory Search - BM25 keyword matching combined with semantic search
