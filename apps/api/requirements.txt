@@ -102,16 +102,20 @@ sherpa-onnx-core>=1.10.0
 # Task Scheduling
 apscheduler==3.11.2
 
-# AI/ML Stack - LangChain/LangGraph 1.0.x ecosystem
-langchain-core==1.4.6  # 1.4.0->1.4.6: minimum required by langchain 1.3.9 (GHSA fix)
-langchain==1.3.9  # 1.3.2->1.3.9: GHSA-gr75-jv2w-4656 fix. 2026-03-09 ecosystem upgrade (merge_lists fix, SummarizationMiddleware, ContextOverflowError)
+# AI/ML Stack - LangChain/LangGraph 1.x ecosystem (2026-08-16 upgrade: 5 months of
+# upstream fixes on components LIA runs in production — ToolRetryMiddleware retries
+# only retryable errors, interrupts propagate through ToolRetry, SummarizationMiddleware
+# preserves history on summary failure, nested-subgraph checkpoint_ns regression fixed,
+# subgraphs cancelled on stream abort. Full audit: docs/plans + ADR if promoted.)
+langchain-core==1.5.5  # >=1.5.4 required by langchain 1.3.15 and all provider packages; reasoning_effort standard param
+langchain==1.3.15  # middleware fixes used by every built agent (ToolRetry retryable-only, interrupt propagation, Summarization history preservation, HITL gate silent failures)
 langchain-text-splitters==1.1.2  # RecursiveCharacterTextSplitter for RAG Spaces document chunking
-langchain-openai==1.2.2
-openai==2.40.0  # Requis par langchain-openai 1.1.10 (pin 2.14.0 levé — gardes adapter L229-239 protègent input_items)
-langgraph==1.2.4  # 1.2.2->1.2.4: minimum required by langchain 1.3.9 (GHSA fix)
-langgraph-checkpoint==4.1.1  # Pinné explicitement (transitif de langgraph, reproductibilité builds)
-langgraph-prebuilt==1.1.0  # Pinné explicitement (requis par langgraph 1.0.10)
-langgraph-checkpoint-postgres==3.1.1  # PYSEC-2026-3635 fix: namespace-scoped store reads leaked sibling namespaces (LIKE prefix matching)
+langchain-openai==1.5.1  # Responses API fixes (streamed encrypted reasoning, text options, invalid tool calls, ContextWindowExceededError)
+openai==2.54.0  # Last 2.x release. 3.x deliberately excluded: it defaults to HTTPX2 and stops installing httpx, which LIA pins and uses everywhere
+langgraph==1.2.11  # >=1.2.11 required by langchain 1.3.15; fixes nested-subgraph checkpoint_ns regression (present in 1.2.4) + subgraph cancellation on stream abort
+langgraph-checkpoint==4.2.0  # history-consistency fixes; opt-in omit_expired (not used — LIA retention is delete_thread-based)
+langgraph-prebuilt==1.1.0  # Pinné explicitement (transitif de langgraph, reproductibilité builds)
+langgraph-checkpoint-postgres==3.1.2  # delta-history walk fix; 3.1.1 carried the PYSEC-2026-3635 namespace-leak fix
 tiktoken==0.13.0
 
 # Hybrid Memory Search - BM25 keyword matching combined with semantic search
@@ -124,10 +128,10 @@ networkx==3.6.1  # Dependency graph for semantic type expansion
 tenacity==9.1.4  # Retry with exponential backoff (used by compaction service)
 
 # LLM Provider Integrations
-langchain-deepseek==1.0.1  # DeepSeek V3 (chat/reasoner) + V4 (flash/pro). Patched locally via _deepseek_patched.py for V4 reasoning_content round-trip in tool flows; track issue #37178 for upstream fix.
-langchain-anthropic==1.4.6  # Claude models (auto-compaction, effort="max" sans beta, cache_control fix). 1.4.6: GHSA-gr75-jv2w-4656 fix
-langchain-google-genai==4.2.4  # Gemini models
-anthropic==0.105.2  # Anthropic SDK (Claude Opus 4.6, structured outputs natifs, cache control GA)
+langchain-deepseek==1.1.0  # content-block streaming v2. Still patched locally via _deepseek_patched.py: the #37178 reasoning_content round-trip fix is NOT in 1.1.0 (verified against the tag source, 2026-08-16)
+langchain-anthropic==1.5.6  # reasoning tokens in usage_metadata (ADR-220 accounting); Opus 5/Fable 5 model profiles. Requires anthropic>=0.120
+langchain-google-genai==4.3.4  # reasoning_effort standard param; new Gemini request rules. 4.3.0 removed the default temperature — no effect: LIA always passes it explicitly (adapter.py)
+anthropic==0.122.0  # Anthropic SDK, floor >=0.120 required by langchain-anthropic 1.5.6 (no direct SDK import in src/)
 
 # MCP (Model Context Protocol) — evolution F2
 mcp>=1.28.1,<2.0.0  # MCP 1.20+ adds list_resources/read_resource (MCP Apps support). Requires starlette>=0.27. Floor 1.28.1 clears CVE-2026-52869/52870 (fixed 1.27.2) + CVE-2026-59950 (fixed 1.28.1) — all server-side surfaces LIA does not use (client-only), raised for audit hygiene.

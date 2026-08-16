@@ -14,6 +14,7 @@ import structlog
 from src.core.bootstrap import (
     validate_llm_configuration,
     validate_provider_usage_capabilities,
+    validate_tool_call_run_limits,
     validate_tool_error_codes,
 )
 
@@ -61,6 +62,14 @@ def run_failfast_validations() -> None:
         validate_provider_usage_capabilities()
     except RuntimeError as exc:
         logger.error("provider_usage_capabilities_invalid", error=str(exc), exc_info=True)
+        raise
+
+    # Validate the paid-tool call ceilings (same ADR-085 doctrine: a malformed
+    # value silently dropping a cost protection must refuse to boot).
+    try:
+        validate_tool_call_run_limits()
+    except RuntimeError as exc:
+        logger.error("tool_call_run_limits_invalid", error=str(exc), exc_info=True)
         raise
 
     # Validate ToolErrorCode enum completeness (fail-fast if codes are missing)

@@ -2347,6 +2347,15 @@ TOOL_RETRY_MAX_ATTEMPTS_DEFAULT = 3
 TOOL_RETRY_BACKOFF_FACTOR_DEFAULT = 1.5
 MODEL_CALL_THREAD_LIMIT_DEFAULT = 100
 MODEL_CALL_RUN_LIMIT_DEFAULT = 20
+# ToolCallLimitMiddleware — per-tool call ceilings for paid external APIs.
+# Format "tool_name:max_calls_per_run,…"; empty string disables. Bounds how
+# many times ONE run may invoke a paid tool (image generation, Perplexity,
+# Brave) — @rate_limit bounds calls in time and ModelCallLimit bounds LLM
+# calls, but neither stopped a single run looping on one paid tool.
+TOOL_CALL_RUN_LIMITS_DEFAULT = (
+    "generate_image:2,edit_image:2,perplexity_search_tool:4,perplexity_ask_tool:4,"
+    "brave_search_tool:6,brave_news_tool:6"
+)
 # ContextEditingMiddleware (langchain v1 ClearToolUsesEdit semantics):
 # when the model context exceeds the trigger, older tool results are replaced
 # by a placeholder, keeping only the most recent ones. The former per-result

@@ -201,3 +201,67 @@ class TestReasoningEffortSupport:
 
         assert config.reasoning_effort == ReasoningEffortEnum(effort="medium")
         assert config.model == "o3-mini"
+
+
+class TestGetEffectiveContextWindow:
+    """Context-window resolution: DB-backed catalogue first, table as safety net.
+
+    Summarization triggers and compaction sizing previously read only the
+    hand-maintained ``MODEL_CONTEXT_WINDOWS`` table, which drifts from what the
+    admin LLM catalogue (``llm_models`` → ``ModelCapabilitiesCache``) declares.
+    All tests are hermetic: the cache is patched, never loaded from a DB.
+    """
+
+    _CACHE = "src.infrastructure.llm.model_capabilities_cache.ModelCapabilitiesCache"
+
+    @staticmethod
+    def _profile(max_input_tokens: int):
+        from src.infrastructure.llm.model_profiles import ModelProfile
+
+        return ModelProfile(max_input_tokens=max_input_tokens, model_id="test-model")
+
+    def test_cache_value_wins_over_table(self):
+        """The DB-backed cache is the source of truth when it knows the model."""
+        from src.core.config.llm import get_model_context_window
+        from src.core.llm_config_helper import get_effective_context_window
+
+        with patch(f"{self._CACHE}.get", return_value=self._profile(1_000_000)):
+            assert get_effective_context_window("deepseek-chat") == 1_000_000
+        # The table would have said something else entirely.
+        assert get_model_context_window("deepseek-chat") == 128_000
+
+    def test_normalized_name_retries_the_cache(self):
+        """Date-suffixed model ids hit the cache after normalization."""
+        from src.core.llm_config_helper import get_effective_context_window
+
+        def cache_get(model):
+            return self._profile(272_000) if model == "gpt-5-mini" else None
+
+        with patch(f"{self._CACHE}.get", side_effect=cache_get):
+            assert get_effective_context_window("gpt-5-mini-2026-01-01") == 272_000
+
+    def test_non_positive_cache_value_falls_back_to_table(self):
+        """A zero/absent DB value must never produce a 0-token window."""
+        from src.core.config.llm import get_model_context_window
+        from src.core.llm_config_helper import get_effective_context_window
+
+        with patch(f"{self._CACHE}.get", return_value=self._profile(0)):
+            assert get_effective_context_window("gpt-4.1-mini") == get_model_context_window(
+                "gpt-4.1-mini"
+            )
+
+    def test_unknown_model_falls_back_to_table_prefix_match(self):
+        from src.core.config.llm import get_model_context_window
+        from src.core.llm_config_helper import get_effective_context_window
+
+        with patch(f"{self._CACHE}.get", return_value=None):
+            assert get_effective_context_window("gpt-4.1-mini-2099-12") == get_model_context_window(
+                "gpt-4.1-mini-2099-12"
+            )
+
+    def test_fully_unknown_model_returns_default(self):
+        from src.core.config.llm import DEFAULT_CONTEXT_WINDOW
+        from src.core.llm_config_helper import get_effective_context_window
+
+        with patch(f"{self._CACHE}.get", return_value=None):
+            assert get_effective_context_window("totally-unknown-model") == DEFAULT_CONTEXT_WINDOW

@@ -2,9 +2,9 @@
 
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
-**Version**: 1.3
+**Version**: 1.4
 **Datum**: 2026-08-16
-**Anwendung**: LIA v1.30.1
+**Anwendung**: LIA v1.30.2
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Codezeilen (ohne Tests) — 40 Fachdomänen | **520.000** |
-| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **23.800+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **220** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **205** |
+| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **23.700+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **221** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **206** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -94,6 +94,8 @@ Der Zyklus 1.29.0 hat eine dritte Episode hinzugefügt, und diese betrifft die T
 Der Zyklus 1.30.0 dokumentierte eine Lektion anderer Art: eine Funktion kann geliefert, verschlüsselt, eingewilligt sein — und nutzlos, weil niemand sie liest. Die letzte bekannte Position existierte seit Monaten; nur die proaktiven Benachrichtigungen konsultierten sie. Unterwegs antwortete der Assistent daher von der Heimatadresse aus, mit Überzeugung. Die Diagnose kam aus den Produktionslogs, die Korrektur reduzierte drei divergierende Pfade auf eine einzige Kaskade — und die Doktrin der exakten Zahlen wurde auf die Position ausgedehnt: eine datierte Position kündigt sich als datiert an, „basierend auf deiner letzten bekannten Position um 9:30“, nie „du bist bei“. Derselbe Zyklus erinnerte daran, dass man einem Synchronisationsmechanismus erst glaubt, wenn er gegen die echte Engine bewiesen ist: die Sperre, die den ersten Start serialisiert, verklemmte sich mit PostgreSQLs nebenläufiger Indexerstellung — in der Sperrtabelle der Engine gemessen, als nicht-blockierendes Polling korrigiert und durch einen Test bewacht, der die Rückkehr der blockierenden Form verbietet.
 
 Zyklus 1.30.1 trieb die Logik einen Schritt weiter: Er auditierte das Audit. Ein interner Bericht kam zum Schluss, die gestreamten LLM-Einsatzorte zählten keinerlei Token — exakter Mechanismus, plausible Schlussfolgerung, maximale Schwere. Die Gegenprüfung tat, was der Bericht nicht konnte: Sie fragte die Produktion. Fünfhundertzehn von fünfhundertzehn Aufrufen wurden gezählt. Der wirkliche Fehler lag woanders und war heimtückischer: Die Abrechnung beruhte allein auf der Großzügigkeit eines Anbieters, den niemand darum bat — nichts forderte sie an, nichts testete sie, nichts überwachte sie. Die Antwort war kein Patch, sondern ein Vertrag: Jeder Anbieter deklariert seinen Abrechnungsmodus, die Anwendung verweigert den Start ohne diese Deklaration, und ein bezahlter Aufruf ohne Zählung wird zum Alarm. Derselbe Zyklus reparierte den Aktionszähler des Dashboards, seit jeher durch ein Vokabular auf null festgenagelt, das niemand aussandte — samt Historie, neu klassifiziert aus den archivierten Intentionen. Denn eine angezeigte Zahl ist exakt, oder sie existiert nicht.
+
+Zyklus 1.30.2 wandte dieselbe Disziplin auf das an, was niemand je ansieht: die Fundamente. Das Orchestrierungs-Ökosystem über fünf Monate an Korrekturen anzuheben hätte ein bloßer Nummerntausch sein können; es wurde als beweisgeführte Operation durchgeführt — jede Version vor dem Anfassen des Repos in einer Wegwerfumgebung validiert, achteinhalbtausend Tests unter den Zielversionen ausgeführt, die privaten Integrationspunkte offline simuliert. Und das begleitende Audit fand, was Abdeckungsmetriken verbargen: siebzehnhundertfünfzig Zeilen einer zweiten, nie angeschlossenen Implementierung der menschlichen Bestätigungsfortsetzung, von fünfzig Tests grün gehalten. Gelöscht, mit protokollierter Architekturentscheidung. Ein Vorzeigesystem bemisst sich nicht nur an dem, was es zeigt — auch an dem, was es sich weigert zu behalten.
 
 ## 7. Überzeugungen
 

@@ -240,7 +240,7 @@ The V4 models are **the same model invoked with or without thinking mode** (togg
 The reasoning_content in the thinking mode must be passed back to the API.
 ```
 
-The pinned `langchain-deepseek==1.0.1` (and current upstream master at the time of writing) does NOT do this round-trip — its `_get_request_payload` delegates to `BaseChatOpenAI`, which serializes messages via `_convert_message_to_dict` and drops `additional_kwargs`. Six upstream PRs over six months have attempted to fix this; none has been merged.
+The pinned `langchain-deepseek==1.1.0` (verified against the tag source during the 2026-08-16 ecosystem upgrade) still does NOT do this round-trip — its `_get_request_payload` delegates to `BaseChatOpenAI`, which serializes messages via `_convert_message_to_dict` and drops `additional_kwargs`. Six upstream PRs over six months have attempted to fix this; none has been merged.
 
 We work around this with a **local subclass** `ChatDeepSeekPatched` ([`apps/api/src/infrastructure/llm/providers/_deepseek_patched.py`](../../apps/api/src/infrastructure/llm/providers/_deepseek_patched.py)) that overrides `_get_request_payload` to re-inject `reasoning_content` from `AIMessage.additional_kwargs` into the outgoing payload's assistant messages. The patch is unconditional (applies to all DeepSeek invocations) and is a no-op when `additional_kwargs` is empty.
 

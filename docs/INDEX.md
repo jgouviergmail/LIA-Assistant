@@ -10,7 +10,7 @@
 
 ## Vue d'Ensemble
 
-Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA conversationnel multi-agent basé sur **LangGraph 1.2.4**, **FastAPI 0.136.3**, et **Next.js 16**.
+Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA conversationnel multi-agent basé sur **LangGraph 1.2.11**, **FastAPI 0.136.3**, et **Next.js 16**.
 
 | Métrique | Valeur |
 |----------|--------|
@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 44 |
-| ADRs | 221 (ADR-221 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 220 fichiers) |
+| ADRs | 222 (ADR-222 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 221 fichiers) |
 | Fiches knowledge (RAG système) | 27 |
 
 ---
@@ -46,7 +46,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (205) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (222) |
 
 ### Pour les Product Managers
 
@@ -308,7 +308,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-219 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-222 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 
@@ -519,8 +519,8 @@ Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inlin
 |-------------|---------|-------|
 | Python | ≥3.12 | Runtime |
 | FastAPI | 0.136.3 | Framework API |
-| LangGraph | 1.2.4 | Orchestration multi-agents |
-| langchain-core | 1.4.6 | Core abstractions |
+| LangGraph | 1.2.11 | Orchestration multi-agents |
+| langchain-core | 1.5.5 | Core abstractions |
 | SQLAlchemy | 2.0.50 | ORM async |
 | PostgreSQL | 16 + pgvector | Database + vector search |
 | redis (client Python) | 8.0.1 | Cache, sessions, rate limiting (serveur Redis 7.4) |

@@ -103,30 +103,30 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **langchain-core** | 1.4.6 | Core abstractions |
-| **langchain** | 1.3.9 | LLM framework |
-| **langgraph** | 1.2.4 | Agent orchestration |
-| **langgraph-checkpoint** | 4.1.1 | Checkpoint serialization |
-| **langgraph-checkpoint-postgres** | 3.1.0 | State persistence |
+| **langchain-core** | 1.5.5 | Core abstractions |
+| **langchain** | 1.3.15 | LLM framework |
+| **langgraph** | 1.2.11 | Agent orchestration |
+| **langgraph-checkpoint** | 4.2.0 | Checkpoint serialization |
+| **langgraph-checkpoint-postgres** | 3.1.2 | State persistence |
 | **langgraph-prebuilt** | 1.1.0 | Prebuilt agent components |
 
 ### LLM Providers
 
 | Technologie | Version | Provider |
 |-------------|---------|----------|
-| **langchain-openai** | 1.2.2 | OpenAI GPT-4/5 |
-| **langchain-anthropic** | 1.4.6 | Claude |
-| **langchain-google-genai** | 4.2.4 | Gemini |
-| **langchain-deepseek** | 1.0.1 | DeepSeek |
-| **openai** | 2.40.0 | OpenAI SDK |
-| **anthropic** | 0.105.2 | Claude SDK direct |
+| **langchain-openai** | 1.5.1 | OpenAI GPT-4/5 |
+| **langchain-anthropic** | 1.5.6 | Claude |
+| **langchain-google-genai** | 4.3.4 | Gemini |
+| **langchain-deepseek** | 1.1.0 | DeepSeek |
+| **openai** | 2.54.0 | OpenAI SDK |
+| **anthropic** | 0.122.0 | Claude SDK direct |
 | **tiktoken** | 0.13.x | Token counting |
 
 ### Embeddings & ML
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **langchain-google-genai** | 4.2.4 | Google gemini-embedding-001 (1536 dims par defaut, configurable 768/1536/3072, RETRIEVAL task types) |
+| **langchain-google-genai** | 4.3.4 | Google gemini-embedding-001 (1536 dims par defaut, configurable 768/1536/3072, RETRIEVAL task types) |
 
 ### Observabilite
 

@@ -58,7 +58,7 @@ class TestComputeEffectiveThreshold:
 
     @patch("src.domains.agents.services.compaction_service.settings")
     @patch("src.domains.agents.services.compaction_service.get_llm_config_for_agent")
-    @patch("src.domains.agents.services.compaction_service.get_model_context_window")
+    @patch("src.domains.agents.services.compaction_service.get_effective_context_window")
     def test_dynamic_ratio(self, mock_ctx_window, mock_config, mock_settings, service):
         """Threshold = context_window * ratio when no absolute override."""
         mock_settings.compaction_token_threshold = 0

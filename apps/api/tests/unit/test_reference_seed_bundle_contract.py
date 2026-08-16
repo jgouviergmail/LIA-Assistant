@@ -108,17 +108,24 @@ def test_marker_key_roundtrips_through_the_orm() -> None:
     from src.domains.system_settings.models import SystemSetting, SystemSettingKey
 
     engine = create_engine("sqlite://")
-    SystemSetting.__table__.create(engine)
-    with Session(engine) as session:
-        session.add(SystemSetting(key=SystemSettingKey.SELF_HOST_SEED_BUNDLE, value="a" * 64))
-        session.commit()
-        raw = session.execute(text("SELECT key FROM system_settings")).scalar_one()
-        assert raw == "SELF_HOST_SEED_BUNDLE", (
-            "Enum(native_enum=False) persists MEMBER NAMES — raw SQL must " "write this exact token"
-        )
-        loaded = session.query(SystemSetting).one()
-        assert loaded.key is SystemSettingKey.SELF_HOST_SEED_BUNDLE
-        assert loaded.value == "a" * 64
+    try:
+        SystemSetting.__table__.create(engine)
+        with Session(engine) as session:
+            session.add(SystemSetting(key=SystemSettingKey.SELF_HOST_SEED_BUNDLE, value="a" * 64))
+            session.commit()
+            raw = session.execute(text("SELECT key FROM system_settings")).scalar_one()
+            assert raw == "SELF_HOST_SEED_BUNDLE", (
+                "Enum(native_enum=False) persists MEMBER NAMES — raw SQL must "
+                "write this exact token"
+            )
+            loaded = session.query(SystemSetting).one()
+            assert loaded.key is SystemSettingKey.SELF_HOST_SEED_BUNDLE
+            assert loaded.value == "a" * 64
+    finally:
+        # Every async client/pool/connection has an owner that closes it — the
+        # in-memory engine held its sqlite3 connection open past the test and
+        # surfaced as a ResourceWarning at the leak guard's gc.collect().
+        engine.dispose()
 
 
 # ---------------------------------------------------------------------------

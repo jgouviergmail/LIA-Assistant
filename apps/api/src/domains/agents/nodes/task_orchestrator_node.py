@@ -1,44 +1,28 @@
 """
-TaskOrchestrator node (Phase 5.2B - Map-Reduce Dispatcher).
+TaskOrchestrator node — single-node parallel plan execution (asyncio waves).
 
-This node orchestrates plan execution using Map-Reduce pattern with parallel execution.
-
-Architecture Evolution:
-    Version 1 (Legacy): Sequential execution - creates simple plan and routes to first agent
-    Version 2 (Phase 5.1): ExecutionPlan with PlanExecutor (sequential)
-    Version 3 (Phase 5.2B - CURRENT): Map-Reduce dispatcher with parallel waves
+This node executes the validated ExecutionPlan inside ONE graph node, running
+each dependency wave with ``asyncio.gather``. This is a deliberate architecture
+decision (kept in sync with the ``_handle_execution_plan`` docstring below):
+the earlier Map-Reduce topology (Send() dispatch to a ``step_executor_node``
+worker + ``wave_aggregator_node`` reducer) was removed because the single-node
+version is ~3x less code, has no framework-coupling surface, and keeps
+``completed_steps`` management trivially thread-safe.
 
 Flow:
-    - If execution_plan (ExecutionPlan) in state → Dispatch waves via Send() API
+    - If execution_plan (ExecutionPlan) in state → execute waves in-node via
+      the parallel executor (asyncio.gather per dependency wave)
     - Else → Legacy: create simple plan and route to agent
 
-Map-Reduce Pattern:
-    1. Dispatcher (task_orchestrator_node):
-       - Analyze dependencies with DependencyGraph
-       - Initialize completed_steps = {}
-       - Dispatch Wave 0 via Send() to step_executor_node
-       - Route to wave_aggregator_node
-
-    2. Workers (step_executor_node):
-       - Execute steps in parallel
-       - Return StepResult
-
-    3. Reducer (wave_aggregator_node):
-       - Merge StepResults into completed_steps
-       - Check if plan complete
-       - If not: dispatch next wave via Send()
-       - If complete: route to response_node
-
-Phase 5.2B Changes:
-    - _handle_execution_plan() refactored to use DependencyGraph + Send()
-    - Removed PlanExecutor (sequential) in favor of parallel dispatcher
-    - Added wave_id tracking for Prometheus metrics
-    - Thread-safe completed_steps management
+Architecture Evolution:
+    Version 1 (Legacy): Sequential execution - simple plan routed to first agent
+    Version 2 (Phase 5.1): ExecutionPlan with PlanExecutor (sequential)
+    Version 3 (Phase 5.2B): Map-Reduce dispatcher with Send() waves (removed)
+    Version 4 (CURRENT): Single-node asyncio wave execution
 
 References:
-    - dependency_graph.py: Wave calculation
-    - step_executor_node.py: Worker execution
-    - wave_aggregator_node.py: Wave synchronization (to be created)
+    - orchestration/dependency_graph.py: Wave calculation
+    - orchestration/parallel_executor.py: asyncio.gather wave execution
 """
 
 import time

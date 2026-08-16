@@ -4,9 +4,9 @@
 >
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
-**Versione**: 4.0
+**Versione**: 4.1
 **Data**: 2026-08-16
-**Applicazione**: LIA v1.30.1
+**Applicazione**: LIA v1.30.2
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 466 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 220 ADRs, ~18.369 test raccolti da pytest in 997 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 221 ADRs, ~18.321 test raccolti da pytest in 997 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -74,7 +74,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~18.369 (raccolti da pytest su 997 file di test) + 5.475 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~18.321 (raccolti da pytest su 997 file di test) + 5.475 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 490+ |
 | ADR (Architecture Decision Record) | 209 |
@@ -92,8 +92,8 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 |------------|----------|-------|---------------------|
 | Python | 3.12+ | Runtime | Ecosistema ML/IA più ricco, async nativo, typing completo |
 | FastAPI | 0.136.3 | API REST + SSE | Validazione automatica Pydantic, doc OpenAPI, async-first, performance |
-| LangGraph | 1.2.4 | Orchestrazione multi-agente | Unico framework con state persistence + cicli + interrupt (HITL) nativi |
-| LangChain Core | 1.4.6 | Astrazioni LLM/tools | Decoratore `@tool`, formati messaggi, callback standardizzati |
+| LangGraph | 1.2.11 | Orchestrazione multi-agente | Unico framework con state persistence + cicli + interrupt (HITL) nativi |
+| LangChain Core | 1.5.5 | Astrazioni LLM/tools | Decoratore `@tool`, formati messaggi, callback standardizzati |
 | SQLAlchemy | 2.0.50 | ORM async | `Mapped[Type]` + `mapped_column()`, sessioni async, `selectinload()` |
 | PostgreSQL | 16 + pgvector | Database + vector search | Checkpoint LangGraph nativi, ricerca semantica HNSW, maturità |
 | Redis | 7.4 | Cache, sessioni, rate limiting | Operazioni O(1), sliding window atomica (Lua), SETNX leader election |
@@ -1271,7 +1271,7 @@ La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la 
 
 ## 24. Architettura delle decisioni (ADR)
 
-220 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+221 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1347,10 +1347,10 @@ Il filo comune di questi quattro lotti è una proprietà dei test stessi. Ogni p
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 220 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~18.369 test in 997 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 221 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~18.321 test in 997 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 220 ADRs e del changelog (da v1.0 a v1.30.1). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 221 ADRs e del changelog (da v1.0 a v1.30.2). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

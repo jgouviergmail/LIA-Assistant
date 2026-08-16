@@ -3,11 +3,12 @@
 The DeepSeek API requires the ``reasoning_content`` field of every prior
 assistant message to be echoed back in subsequent requests when the
 model is in thinking mode (V4 family by default; V3 ``deepseek-reasoner``
-in tool-call flows). The pinned ``langchain-deepseek==1.0.1`` (latest
-PyPI release as of 2026-05-05, last commit on master 2026-04-29) does
-NOT do this round-trip — its ``_get_request_payload`` delegates to the
-parent ``BaseChatOpenAI._get_request_payload`` which serialises messages
-via ``_convert_message_to_dict`` and drops ``additional_kwargs``.
+in tool-call flows). The pinned ``langchain-deepseek==1.1.0`` (verified
+against the tag source on 2026-08-16, during the ecosystem upgrade) still
+does NOT do this round-trip — its ``_get_request_payload`` only reformats
+tool/assistant content and ultimately delegates to the parent
+``BaseChatOpenAI._get_request_payload`` which serialises messages via
+``_convert_message_to_dict`` and drops ``additional_kwargs``.
 
 Concrete failure mode (without this patch):
 

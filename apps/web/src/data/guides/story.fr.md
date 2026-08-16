@@ -2,9 +2,9 @@
 
 > Retour d'expérience — un système complet, de la conception à la production.
 
-**Version** : 1.3
+**Version** : 1.4
 **Date** : 2026-08-16
-**Application** : LIA v1.30.1
+**Application** : LIA v1.30.2
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
 | Lignes de code (hors tests) — 40 domaines fonctionnels | **520 000** |
-| Tests automatisés, exécutés à chaque commit et livraison | **23 800+** |
-| Décisions d'architecture documentées (ADR) | **220** |
-| Versions livrées à rythme régulier | **205** |
+| Tests automatisés, exécutés à chaque commit et livraison | **23 700+** |
+| Décisions d'architecture documentées (ADR) | **221** |
+| Versions livrées à rythme régulier | **206** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -94,6 +94,8 @@ Le cycle 1.29.0 a ajouté un troisième épisode, et celui-ci porte sur les test
 Le cycle 1.30.0 a documenté une leçon d'une autre nature : une fonctionnalité peut être livrée, chiffrée, consentie — et ne servir à rien, parce que personne ne la lit. La dernière position connue existait depuis des mois ; seules les notifications proactives la consultaient. En déplacement, l'assistant répondait donc depuis le domicile, avec aplomb. Le diagnostic est venu des journaux de production, la correction a réduit trois chemins divergents à une cascade unique — et la doctrine des comptes exacts s'est étendue à la position : une position datée s'annonce datée, « d'après ta dernière position connue à 9 h 30 », jamais « tu es à ». Le même cycle a rappelé qu'un mécanisme de synchronisation ne se croit que prouvé contre le vrai moteur : le verrou qui sérialise le premier démarrage s'est inter-bloqué avec la création d'index concurrente de PostgreSQL — mesuré dans les verrous du moteur, corrigé en sondage non bloquant, gardé par un test qui interdit le retour de la forme bloquante.
 
 Le cycle 1.30.1 a poussé la logique jusqu'à auditer l'audit. Un rapport interne concluait que les emplacements LLM diffusés ne comptaient aucun jeton — mécanisme exact, conclusion plausible, sévérité maximale. La contre-expertise a fait ce que le rapport n'avait pas pu faire : interroger la production. Cinq cent dix appels sur cinq cent dix étaient comptés. Le défaut réel était ailleurs, et plus sournois : le comptage ne tenait qu'à la générosité d'un fournisseur à qui personne ne le demandait — rien ne le demandait, rien ne le testait, rien ne le surveillait. La réponse n'a pas été un correctif mais un contrat : chaque fournisseur déclare son mode de comptage, l'application refuse de démarrer sans cette déclaration, et un appel payant sans décompte devient une alerte. Le même cycle a réparé le compteur d'actions du tableau de bord, figé à zéro depuis toujours par un vocabulaire que personne n'émettait — jusque dans son historique, reclassé depuis les intentions archivées. Parce qu'un compte affiché est exact, ou n'existe pas.
+
+Le cycle 1.30.2 a appliqué la même discipline à ce qu'on ne regarde jamais : les fondations. Monter l'écosystème d'orchestration de cinq mois de correctifs aurait pu être un simple changement de numéros ; il a été traité comme une opération à preuves — chaque version validée en environnement jetable avant de toucher au dépôt, huit mille cinq cents tests exécutés sous les versions cibles, les points d'intégration privés simulés hors réseau. Et l'audit qui accompagnait la montée a trouvé ce que les métriques de couverture cachaient : mille sept cent cinquante lignes d'une seconde implémentation de la reprise humaine, jamais branchée, maintenue verte par cinquante tests. Supprimée, avec sa décision d'architecture consignée. Un système vitrine ne se juge pas qu'à ce qu'il montre — aussi à ce qu'il refuse de garder.
 
 ## 7. Convictions
 

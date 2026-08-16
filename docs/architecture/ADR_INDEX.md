@@ -3875,6 +3875,15 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 **Décision** : `timeout_seconds` existait de l'UI d'administration jusqu'à la résolution `LLMAgentConfig` puis n'était lu par personne — pendant qu'une quarantaine de `asyncio.wait_for` invisibles dans l'UI faisaient le vrai travail (miroir d'ADR-184 : une valeur écrite mais non appliquée est un piège). **Retenu** : le timeout par emplacement devient la borne transport PAR TENTATIVE transmise au client de chaque provider (alias `timeout` vérifié sur les quatre SDK installés, chemin Responses API inclus) ; les barrières `wait_for` restent la borne d'expérience utilisateur, inchangées et éventuellement plus serrées (la barrière chat `response` reste à 60 s pendant que le client à 120 s protège les appelants sans barrière — rappels, jobs de fond) ; aucun défaut appliqué sans mesure : six relèvements fondés sur 30 j de p99 prod, chacun commenté avec sa mesure et épinglé par test (`response` 60→120, `planner` 60→90, `heartbeat_decision` et `interest_content` 60→120 — des appels > 60 s étaient observés —, `open_loop_extraction` 45→90, `memory_reference_extraction` 30→45) ; `router_llm_timeout_seconds`, défini depuis des années et lu nulle part, est supprimé.
 
 ---
+
+### ADR-222 : suppression de la couche stratégie HITL jamais câblée
+
+**Statut**: ✅ IMPLEMENTED (2026-08-16)
+**Fichier**: `docs/architecture/ADR-222-Suppression-Strategie-HITL-Non-Cablee.md`
+
+**Décision** : `ConversationalHitlResumption` (~1 200 lignes avec ses trois helpers privés, derrière le Protocol `HitlResumptionStrategy`) implémentait une seconde boucle de reprise HITL que rien en production n'appelait — le chemin réel passe par `_build_hitl_resume_command` + `StreamingService` (conçu pour, drapeau `is_hitl_resumption`, quatre modes de stream) et les payloads sont construits par `parse_approval_decision`/`build_structured_decision`. La boucle morte ne souscrivait que `["values", "messages"]` : câblée un jour, elle aurait silencieusement perdu compaction et enrichissements d'outils. ~50 tests dédiés (« coverage target: 85%+ ») la maintenaient verte — couverture factice, docstring affirmant à tort le chemin « very much live ». **Retenu** : suppression classe + Protocol + tests (règle « dead code is deleted ») ; conservation des trois helpers réellement consommés (`_build_plan_modifications_from_classifier`, `build_edit_reformulated_intent`, `resolve_user_language`) ; les quatre tests du contrat `ToolApprovalDecision` — qui épinglaient le schéma vivant, pas le mort — migrés vers `test_domain_schemas.py`. Clôt le finding « chemin mort apparent » consigné aux findings des cartes HITL. Une stratégie alternative future se branche sur `StreamingService`, pas sur une boucle parallèle.
+
+---
 ---
 ---
 

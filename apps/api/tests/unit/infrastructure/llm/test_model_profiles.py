@@ -119,3 +119,28 @@ def test_get_model_profile_logs_warning_when_falling_back_to_default() -> None:
     mock_warning.assert_called_once()
     args, kwargs = mock_warning.call_args
     assert "missing-model" in str(kwargs)
+
+
+@pytest.mark.unit
+def test_native_dict_profile_is_read_correctly() -> None:
+    """LangChain 1.x exposes ``.profile`` as a **dict** — keys must be read.
+
+    The converter historically used ``getattr`` only, which silently degraded
+    every real (dict-shaped) native profile to the 8192/4096 defaults.
+    """
+
+    class FakeLLM:
+        profile = {
+            "max_input_tokens": 272_000,
+            "max_output_tokens": 128_000,
+            "tool_calling": True,
+            "image_inputs": True,
+        }
+
+    ModelCapabilitiesCache._cache = {}
+    ModelCapabilitiesCache._loaded = True
+
+    result = get_model_profile(FakeLLM(), "openai", "gpt-5-mini")
+    assert result.max_input_tokens == 272_000
+    assert result.max_output_tokens == 128_000
+    assert result.supports_vision is True

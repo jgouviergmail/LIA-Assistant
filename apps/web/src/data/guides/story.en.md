@@ -2,9 +2,9 @@
 
 > Field report — a complete system, from design to production.
 
-**Version**: 1.3
+**Version**: 1.4
 **Date**: 2026-08-16
-**Application**: LIA v1.30.1
+**Application**: LIA v1.30.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Lines of code (excluding tests) — 40 functional domains | **520,000** |
-| Automated tests, run on every commit and release | **23,800+** |
-| Documented architecture decisions (ADR) | **220** |
-| Versions shipped at a steady pace | **205** |
+| Automated tests, run on every commit and release | **23,700+** |
+| Documented architecture decisions (ADR) | **221** |
+| Versions shipped at a steady pace | **206** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -94,6 +94,8 @@ The 1.29.0 cycle added a third episode, and this one is about the tests themselv
 The 1.30.0 cycle documented a lesson of a different kind: a feature can be delivered, encrypted, consented — and useless, because nobody reads it. The last known position had existed for months; only proactive notifications consulted it. On the move, the assistant therefore answered from the home address, with confidence. The diagnosis came from the production logs, the fix reduced three divergent paths to a single cascade — and the exact-counts doctrine extended to position: a dated position announces itself as dated, "based on your last known position at 9:30", never "you are at". The same cycle recalled that a synchronization mechanism is only believed once proven against the real engine: the lock serializing the first boot deadlocked against PostgreSQL's concurrent index creation — measured in the engine's own lock table, fixed as a non-blocking poll, and guarded by a test that forbids the blocking form's return.
 
 Cycle 1.30.1 took the logic one step further: it audited the audit. An internal report concluded that the streamed LLM slots counted zero tokens — exact mechanism, plausible conclusion, maximum severity. The counter-review did what the report could not: it asked production. Five hundred and ten calls out of five hundred and ten were counted. The real defect lay elsewhere, and was more insidious: the accounting rested entirely on the generosity of a provider nobody asked — nothing requested it, nothing tested it, nothing watched it. The answer was not a patch but a contract: every provider declares its accounting mode, the application refuses to start without that declaration, and a paid call without a count becomes an alert. The same cycle repaired the dashboard's actions counter, stuck at zero since forever by a vocabulary nobody emitted — history included, reclassified from the archived intentions. Because a displayed count is exact, or it does not exist.
+
+Cycle 1.30.2 applied the same discipline to what nobody ever looks at: the foundations. Upgrading the orchestration ecosystem past five months of fixes could have been a number swap; it was run as an evidence-first operation — every version validated in a throwaway environment before touching the repo, eight and a half thousand tests executed under the target versions, the private integration points simulated offline. And the audit that came with the upgrade found what coverage metrics were hiding: seventeen hundred and fifty lines of a second, never-wired implementation of human-in-the-loop resumption, kept green by fifty tests. Deleted, with its architecture decision on record. A showcase system is judged not only by what it shows — also by what it refuses to keep.
 
 ## 7. Convictions
 

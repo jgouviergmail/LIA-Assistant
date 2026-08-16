@@ -556,7 +556,7 @@ ProviderAdapter.create_llm()
 | `apps/api/src/core/llm_agent_config.py` | `LLMAgentConfig` : Pydantic model de config par agent |
 | `apps/api/src/infrastructure/llm/factory.py` | `get_llm()` : factory avec merge settings + override |
 | `apps/api/src/infrastructure/llm/providers/adapter.py` | `ProviderAdapter` : creation instances, filtrage params, helper `_get_base_url(provider)` (env-first resolution) |
-| `apps/api/src/infrastructure/llm/providers/_deepseek_patched.py` | `ChatDeepSeekPatched` : sous-classe locale qui round-trip `reasoning_content` entre tours (workaround de l'upstream `langchain-deepseek==1.0.1`, v1.19.1+). Voir section dédiée plus bas. |
+| `apps/api/src/infrastructure/llm/providers/_deepseek_patched.py` | `ChatDeepSeekPatched` : sous-classe locale qui round-trip `reasoning_content` entre tours (workaround de l'upstream `langchain-deepseek` — toujours nécessaire en 1.1.0, vérifié contre le source du tag le 2026-08-16 ; v1.19.1+). Voir section dédiée plus bas. |
 | `apps/api/src/infrastructure/llm/model_profiles.py` | `get_model_profile()` lit depuis `ModelCapabilitiesCache`. La constante `FALLBACK_PROFILES` (~750 lignes) a été supprimée en v1.19.0 ([ADR-078](../architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md)) au profit du catalogue DB. |
 | `apps/api/src/infrastructure/llm/model_capabilities_cache.py` | `ModelCapabilitiesCache` : singleton chargé au boot depuis la table `llm_models`, invalidé cross-worker via Pub/Sub (ADR-063). Source de vérité pour `is_reasoning_model`, capabilities, provider. |
 | `apps/api/src/core/constants.py` | `REASONING_MODELS_PATTERN` : regex de fallback (utilisée uniquement pour les modèles absents du cache). En v1.19.0, le flag `is_reasoning_model` du catalogue est désormais authoritative. |
@@ -594,9 +594,9 @@ openai.BadRequestError: Error code: 400 - {
 }
 ```
 
-### Pourquoi `langchain-deepseek==1.0.1` ne le fait pas
+### Pourquoi `langchain-deepseek` (1.1.0 incluse) ne le fait pas
 
-Le ``ChatDeepSeek`` upstream (version 1.0.1, sortie le 2025-11-13, latest sur PyPI au 2026-05-05) hérite de ``BaseChatOpenAI``. Le path ``_get_request_payload`` y délègue à ``_convert_message_to_dict`` qui **drop** silencieusement les ``additional_kwargs`` lors de la sérialisation. Côté lecture (réponse → AIMessage) le package extrait correctement ``reasoning_content`` dans ``additional_kwargs``, mais côté écriture (AIMessage → payload du tour suivant), rien ne le ré-injecte.
+Le ``ChatDeepSeek`` upstream (vérifié jusqu'à la 1.1.0, sortie le 2026-06-03, latest sur PyPI au 2026-08-16) hérite de ``BaseChatOpenAI``. Le path ``_get_request_payload`` y délègue à ``_convert_message_to_dict`` qui **drop** silencieusement les ``additional_kwargs`` lors de la sérialisation. Côté lecture (réponse → AIMessage) le package extrait correctement ``reasoning_content`` dans ``additional_kwargs``, mais côté écriture (AIMessage → payload du tour suivant), rien ne le ré-injecte.
 
 Six PRs upstream tentent ce fix sur six mois ; aucune n'a été mergée :
 

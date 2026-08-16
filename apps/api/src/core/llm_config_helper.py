@@ -242,3 +242,38 @@ def get_all_llm_configs(settings: Settings) -> dict[str, LLMAgentConfig]:
     return {
         agent_type: get_llm_config_for_agent(settings, agent_type) for agent_type in LLM_DEFAULTS
     }
+
+
+def get_effective_context_window(model: str) -> int:
+    """Resolve a model's context window from the DB-backed catalogue, then the table.
+
+    Summarization triggers and compaction sizing previously read only the
+    hand-maintained ``MODEL_CONTEXT_WINDOWS`` table, which drifts from what the
+    admin LLM catalogue (``llm_models`` → :class:`ModelCapabilitiesCache`)
+    declares — the same two-authorities trap the DB-source-of-truth release
+    removed for every other capability. The cache is authoritative when it
+    knows the model; the table stays as the safety net (prefix matching and
+    ``DEFAULT_CONTEXT_WINDOW`` included) for models outside the catalogue and
+    for the boot window before the cache is loaded.
+
+    Args:
+        model: Model identifier as configured (date-suffixed ids are retried
+            after ``normalize_model_name``, mirroring ``get_model_profile``).
+
+    Returns:
+        Context window in tokens (always > 0).
+    """
+    from src.core.config.llm import get_model_context_window
+    from src.core.llm_utils import normalize_model_name
+    from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
+
+    caps = ModelCapabilitiesCache.get(model)
+    if caps is None:
+        normalized = normalize_model_name(model)
+        if normalized != model:
+            caps = ModelCapabilitiesCache.get(normalized)
+
+    if caps is not None and caps.max_input_tokens > 0:
+        return caps.max_input_tokens
+
+    return get_model_context_window(model)

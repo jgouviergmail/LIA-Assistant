@@ -286,6 +286,27 @@ def validate_provider_usage_capabilities() -> None:
         raise RuntimeError(f"PROVIDER_USAGE_CAPABILITIES holds out-of-vocabulary values: {invalid}")
 
 
+def validate_tool_call_run_limits() -> None:
+    """The paid-tool call ceilings must parse, or the app refuses to boot.
+
+    ``tool_call_run_limits`` is a settings-driven string ("tool:limit,…"). A
+    malformed value silently dropping a paid-tool ceiling would remove a cost
+    protection without anyone noticing — same doctrine as
+    :func:`validate_provider_usage_capabilities` (ADR-085: silent fallbacks on
+    configuration are how protections die invisibly).
+
+    Raises:
+        RuntimeError: If the setting cannot be parsed.
+    """
+    from src.core.config import settings
+    from src.infrastructure.llm.middleware_config import parse_tool_call_run_limits
+
+    try:
+        parse_tool_call_run_limits(settings.tool_call_run_limits)
+    except ValueError as exc:
+        raise RuntimeError(f"Invalid tool_call_run_limits setting: {exc}") from exc
+
+
 def validate_tool_error_codes() -> None:
     """
     Validate that all ToolErrorCode values used in the codebase exist in the enum.

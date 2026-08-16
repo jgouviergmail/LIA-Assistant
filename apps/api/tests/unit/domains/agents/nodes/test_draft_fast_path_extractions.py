@@ -46,7 +46,17 @@ def _patch_collaborators(stack: ExitStack) -> dict[str, Mock]:
     mock_get_llm.return_value = Mock()
 
     stack.enter_context(
-        patch("src.domains.agents.nodes.post_response_extractions.safe_fire_and_forget")
+        patch(
+            "src.domains.agents.nodes.post_response_extractions.safe_fire_and_forget",
+            # A test double that receives a coroutine OWNS it (CLAUDE.md): a
+            # bare no-op mock abandoned the real extract_open_loops_background
+            # coroutine on the nominal turn — surfacing as a
+            # "coroutine was never awaited" RuntimeWarning at GC, attributed
+            # to whichever test triggered collection on the worker.
+            Mock(
+                side_effect=lambda coro, **kwargs: coro.close() if hasattr(coro, "close") else None
+            ),
+        )
     )
     stack.enter_context(
         patch(

@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-16
-**Compatibility**: LIA v1.30.1
+**Compatibility**: LIA v1.30.2
 
 ## Table of Contents
 
@@ -56,7 +56,7 @@ Both modes converge on the same streaming response (SSE) and the same HITL (Huma
 
 | Layer | Technologies | Versions |
 |-------|--------------|----------|
-| **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.136.3, LangGraph 1.2.4, LangChain 1.3.9, SQLAlchemy 2.0.50, Python 3.12 |
+| **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.136.3, LangGraph 1.2.11, LangChain 1.3.15, SQLAlchemy 2.0.50, Python 3.12 |
 | **Frontend** | Next.js + React + TailwindCSS | Next.js 16.2.10, React 19.2.7 |
 | **Database** | PostgreSQL + pgvector | PostgreSQL 16 (`pgvector/pgvector:pg16`) |
 | **Cache/Sessions** | Redis | Redis 7.4 |

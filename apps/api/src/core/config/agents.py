@@ -317,6 +317,7 @@ from src.core.constants import (
     TOKEN_THRESHOLD_SAFE_DEFAULT,
     TOKEN_THRESHOLD_WARNING_DEFAULT,
     TOOL_APPROVAL_CLEANUP_DAYS_DEFAULT,
+    TOOL_CALL_RUN_LIMITS_DEFAULT,
     TOOL_EMBEDDINGS_CACHE_CLAIM_TIMEOUT_SECONDS_DEFAULT,
     TOOL_EMBEDDINGS_CACHE_DIR_DEFAULT,
     TOOL_RETRY_BACKOFF_FACTOR_DEFAULT,
@@ -777,6 +778,25 @@ class AgentsSettings(BaseSettings):
         description=(
             "Maximum LLM calls per single agent run (default: 20). "
             "Safety limit for single request execution depth."
+        ),
+    )
+
+    # ========================================================================
+    # ToolCallLimitMiddleware - Per-tool ceilings for paid external APIs
+    # ========================================================================
+    # Bounds how many times a single run may invoke one paid tool. Complements
+    # @rate_limit (time-based) and ModelCallLimit (LLM calls): neither stopped
+    # a run looping on one paid tool. Validated at boot (bootstrap
+    # validate_tool_call_run_limits — malformed values refuse to start).
+
+    tool_call_run_limits: str = Field(
+        default=TOOL_CALL_RUN_LIMITS_DEFAULT,
+        description=(
+            'Per-tool call ceilings per agent run, "tool_name:max_calls,…" '
+            "(default bounds the paid tools). Empty string disables. "
+            "Exceeded tools are blocked with an explanatory message while the "
+            "run continues (langchain ToolCallLimitMiddleware, "
+            'exit_behavior="continue").'
         ),
     )
 

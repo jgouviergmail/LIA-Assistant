@@ -225,29 +225,42 @@ def _convert_native_profile(native_profile: Any, provider: str, model: str) -> M
         ModelProfile: Standardized profile
     """
 
-    # Extract attributes safely with defaults
-    def get_attr(obj: Any, name: str, default: Any) -> Any:
-        return getattr(obj, name, default)
+    # LangChain 1.x ships ``.profile`` as a plain dict (packaged data); older
+    # experiments exposed attribute objects. Read both — the getattr-only
+    # version silently degraded every real dict profile to the 8192/4096
+    # defaults (bug fixed 2026-08-16, pinned by
+    # test_native_dict_profile_is_read_correctly).
+    def read(obj: Any, *names: str, default: Any) -> Any:
+        for name in names:
+            if isinstance(obj, dict):
+                if name in obj and obj[name] is not None:
+                    return obj[name]
+            elif getattr(obj, name, None) is not None:
+                return getattr(obj, name)
+        return default
 
-    # LangChain profile attributes may vary
-    # Common attributes: max_tokens, context_window, supports_structured_output, etc.
+    # First name is the langchain 1.x dict key; later names are legacy aliases.
     return ModelProfile(
-        max_input_tokens=get_attr(native_profile, "context_window", 8192)
-        or get_attr(native_profile, "max_input_tokens", 8192),
-        max_output_tokens=get_attr(native_profile, "max_tokens", 4096)
-        or get_attr(native_profile, "max_output_tokens", 4096),
-        supports_structured_output=get_attr(native_profile, "supports_structured_output", True),
-        supports_tool_calling=get_attr(native_profile, "supports_tool_calling", True)
-        or get_attr(native_profile, "supports_tools", True),
-        supports_strict_mode=get_attr(native_profile, "supports_strict_mode", False)
+        max_input_tokens=read(native_profile, "max_input_tokens", "context_window", default=8192),
+        max_output_tokens=read(native_profile, "max_output_tokens", "max_tokens", default=4096),
+        supports_structured_output=read(
+            native_profile, "structured_output", "supports_structured_output", default=True
+        ),
+        supports_tool_calling=read(
+            native_profile, "tool_calling", "supports_tool_calling", "supports_tools", default=True
+        ),
+        supports_strict_mode=read(native_profile, "supports_strict_mode", default=False)
         and provider == "openai",  # Only OpenAI supports strict mode
-        supports_streaming=get_attr(native_profile, "supports_streaming", True),
-        supports_vision=get_attr(native_profile, "supports_vision", False)
-        or get_attr(native_profile, "supports_image_input", False),
+        supports_streaming=read(native_profile, "supports_streaming", default=True),
+        supports_vision=read(
+            native_profile, "image_inputs", "supports_vision", "supports_image_input", default=False
+        ),
         # Cost info may not be in native profile
-        cost_per_1m_input=get_attr(native_profile, "cost_per_1m_input", 0.0),
-        cost_per_1m_output=get_attr(native_profile, "cost_per_1m_output", 0.0),
-        is_reasoning_model=get_attr(native_profile, "is_reasoning_model", False),
+        cost_per_1m_input=read(native_profile, "cost_per_1m_input", default=0.0),
+        cost_per_1m_output=read(native_profile, "cost_per_1m_output", default=0.0),
+        is_reasoning_model=read(
+            native_profile, "reasoning_output", "is_reasoning_model", default=False
+        ),
         metadata={"source": "native", "provider": provider, "model": model},
     )
 

@@ -61,6 +61,7 @@ _SUMMARIZATION_MIDDLEWARE_AVAILABLE = _check_middleware_available("Summarization
 _FALLBACK_MIDDLEWARE_AVAILABLE = _check_middleware_available("ModelFallbackMiddleware")
 _TOOL_RETRY_MIDDLEWARE_AVAILABLE = _check_middleware_available("ToolRetryMiddleware")
 _CALL_LIMIT_MIDDLEWARE_AVAILABLE = _check_middleware_available("ModelCallLimitMiddleware")
+_TOOL_CALL_LIMIT_MIDDLEWARE_AVAILABLE = _check_middleware_available("ToolCallLimitMiddleware")
 _CONTEXT_EDITING_MIDDLEWARE_AVAILABLE = _check_middleware_available("ContextEditingMiddleware")
 
 # Log availability status
@@ -70,6 +71,7 @@ for middleware_name, available in [
     ("ModelFallbackMiddleware", _FALLBACK_MIDDLEWARE_AVAILABLE),
     ("ToolRetryMiddleware", _TOOL_RETRY_MIDDLEWARE_AVAILABLE),
     ("ModelCallLimitMiddleware", _CALL_LIMIT_MIDDLEWARE_AVAILABLE),
+    ("ToolCallLimitMiddleware", _TOOL_CALL_LIMIT_MIDDLEWARE_AVAILABLE),
     ("ContextEditingMiddleware", _CONTEXT_EDITING_MIDDLEWARE_AVAILABLE),
 ]:
     if available:
@@ -97,7 +99,8 @@ def create_agent_middleware_stack(
     Create middleware stack for an agent based on settings.
 
     Returns a list of LangChain middleware instances configured per settings.
-    Order: CallLimit > Retry > Fallback > ToolRetry > Summarization > ContextEditing
+    Order: CallLimit > ToolCallLimits > Retry > Fallback > ToolRetry >
+    Summarization > ContextEditing
 
     Args:
         agent_name: Agent identifier for logging (e.g., "contacts_agent")
@@ -105,7 +108,10 @@ def create_agent_middleware_stack(
         enable_summarization: Override summarization setting (default: from settings)
         enable_fallback: Override fallback middleware setting (default: from settings)
         enable_tool_retry: Override tool retry setting (default: from settings)
-        enable_call_limit: Override call limit setting (default: from settings)
+        enable_call_limit: Override call limit setting (default: from settings).
+            Deliberately also gates the per-tool paid-API ceilings
+            (tool_call_run_limits): both are cost protections — disabling
+            "call limits" disables the whole cost-protection family.
         enable_context_editing: Override context editing setting (default: from settings)
         primary_model: Primary model for fallback middleware and context window calculation
                        (required if fallback enabled, used for summarization trigger)
@@ -149,6 +155,21 @@ def create_agent_middleware_stack(
             middleware="ModelCallLimitMiddleware",
             msg="Using agent_max_iterations as fallback",
         )
+
+    # 1bis. Per-tool call limits (paid external APIs — image gen, Perplexity,
+    # Brave). Complements @rate_limit (time-based) and ModelCallLimit (LLM
+    # calls): neither bounded how many times ONE run may invoke one paid tool.
+    # Inert for agents that do not carry the named tool.
+    if use_call_limit and _TOOL_CALL_LIMIT_MIDDLEWARE_AVAILABLE:
+        for tool_limiter in _create_tool_call_limit_middlewares():
+            middleware_stack.append(tool_limiter)
+            logger.debug(
+                "middleware_added",
+                agent_name=agent_name,
+                middleware="ToolCallLimitMiddleware",
+                tool_name=tool_limiter.tool_name,
+                run_limit=tool_limiter.run_limit,
+            )
 
     # 2. Retry Middleware (retries wrap model calls)
     if use_retry and _RETRY_MIDDLEWARE_AVAILABLE:
@@ -263,6 +284,105 @@ def create_agent_middleware_stack(
     return middleware_stack
 
 
+def parse_tool_call_run_limits(raw: str) -> dict[str, int]:
+    """Parse the ``tool_call_run_limits`` setting into {tool_name: run_limit}.
+
+    Format: ``"tool_a:2,tool_b:4"``. Empty/blank string disables the feature.
+    Malformed entries raise so the boot-time validation
+    (``bootstrap.validate_tool_call_run_limits``) refuses to start instead of
+    silently dropping a paid-tool ceiling.
+
+    Args:
+        raw: The settings string.
+
+    Returns:
+        Mapping of tool name to maximum calls per run (all values >= 1).
+
+    Raises:
+        ValueError: On a missing name/limit, a non-positive or non-integer
+            limit, or a duplicated tool name.
+    """
+    limits: dict[str, int] = {}
+    if not raw or not raw.strip():
+        return limits
+
+    for entry in raw.split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        name, sep, value = entry.partition(":")
+        name = name.strip()
+        value = value.strip()
+        if not sep or not name or not value:
+            raise ValueError(
+                f"tool_call_run_limits: malformed entry {entry!r} (expected 'tool_name:limit')"
+            )
+        try:
+            limit = int(value)
+        except ValueError as exc:
+            raise ValueError(
+                f"tool_call_run_limits: non-integer limit {value!r} for tool {name!r}"
+            ) from exc
+        if limit < 1:
+            raise ValueError(
+                f"tool_call_run_limits: limit must be >= 1 for tool {name!r} "
+                "(use an empty string to disable the feature)"
+            )
+        if name in limits:
+            raise ValueError(f"tool_call_run_limits: duplicated tool {name!r}")
+        limits[name] = limit
+
+    return limits
+
+
+def _create_tool_call_limit_middlewares() -> list[Any]:
+    """Build one ToolCallLimitMiddleware per configured paid-tool ceiling.
+
+    Returns:
+        Middleware instances (possibly empty when the setting is blank). A
+        malformed setting returns [] here — boot validation is the loud gate;
+        this builder must never crash agent construction at runtime.
+    """
+    if not _TOOL_CALL_LIMIT_MIDDLEWARE_AVAILABLE:
+        return []
+
+    try:
+        limits = parse_tool_call_run_limits(settings.tool_call_run_limits)
+    except ValueError as exc:
+        # Boot validation should have refused this value; degrade loudly.
+        logger.error(
+            "tool_call_run_limits_invalid",
+            error=str(exc),
+            msg="Per-tool call limits disabled for this stack build",
+        )
+        return []
+
+    if not limits:
+        return []
+
+    try:
+        from langchain.agents.middleware import ToolCallLimitMiddleware
+
+        return [
+            ToolCallLimitMiddleware(
+                tool_name=tool_name,
+                run_limit=run_limit,
+                # Block the exceeded tool but let the run finish: the agent
+                # sees an explanatory ToolMessage and can conclude gracefully.
+                exit_behavior="continue",
+            )
+            for tool_name, run_limit in limits.items()
+        ]
+    except (ImportError, TypeError, ValueError, RuntimeError) as exc:
+        logger.error(
+            "middleware_creation_failed",
+            middleware="ToolCallLimitMiddleware",
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+        return []
+
+
 def _create_retry_middleware() -> Any | None:
     """
     Create ModelRetryMiddleware with settings configuration.
@@ -352,13 +472,16 @@ def _create_summarization_middleware(agent_model: str | None = None) -> Any | No
     try:
         from langchain.agents.middleware import SummarizationMiddleware
 
-        from src.core.config.llm import get_model_context_window
-        from src.core.llm_config_helper import get_llm_config_for_agent
+        from src.core.llm_config_helper import (
+            get_effective_context_window,
+            get_llm_config_for_agent,
+        )
 
         # Determine context window based on agent's model
         # The summarization trigger should be based on the agent's LLM context, not the summarizer's
+        # DB-backed catalogue first, hand-maintained table as safety net.
         effective_model = agent_model or get_llm_config_for_agent(settings, "response").model
-        context_window = get_model_context_window(effective_model)
+        context_window = get_effective_context_window(effective_model)
 
         # Convert fraction-based trigger to absolute token count
         trigger_value = settings.summarization_trigger_fraction
@@ -516,6 +639,11 @@ def _create_tool_retry_middleware() -> Any | None:
     - ConnectionError, TimeoutError
     - Rate limit errors
     - Transient API failures (Google Calendar, Gmail, etc.)
+
+    Since langchain 1.3.14 the middleware only retries retryable exceptions
+    (definitive failures such as 400/permission errors are no longer retried)
+    and, since 1.3.12, propagates HITL interrupts instead of retrying them —
+    both behaviours this stack previously had to tolerate.
 
     See: https://docs.langchain.com/oss/python/langchain/middleware/built-in
 

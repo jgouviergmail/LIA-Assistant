@@ -35,9 +35,14 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured at v1.30.1: backend 18,369 collected
- *   (`pytest tests/unit tests/agents --collect-only -q --no-cov`) + frontend
- *   5,476 (vitest, 441 files) = 23,845 → 23,800.
+ *   Re-measured at v1.30.2: backend 18,321 collected across 997 yielding
+ *   files (`pytest tests/unit tests/agents --collect-only -q --no-cov`) +
+ *   frontend 5,476 (vitest, 441 files) = 23,797 → 23,700. The backend figure
+ *   is LOWER than v1.30.1's 18,369 and that is correct, not a regression:
+ *   ADR-222 deleted ~50 tests that kept dead code green while the upgrade
+ *   lots added ~30 behavioral ones.
+ *   Previous measurement at v1.30.1: backend 18,369 (997 files) + frontend
+ *   5,476 = 23,845 → 23,800.
  *   Previous measurement at v1.30.0: backend 18,254 (990 files) + frontend
  *   5,475 = 23,729 → 23,700.
  *   Previous measurement at v1.29.0: backend 18,206 collected across 987 files
@@ -63,12 +68,12 @@
  *   Re-measure every release: the value carried the backend count alone
  *   until v1.25.9.
  * - adrs: docs/architecture/ ADR files — recount every release, never carry it
- *   over (it was stranded at 183 from v1.27.0 to v1.27.4). 220 files at
- *   v1.30.1, numbered up to ADR-221: ADR-008 has no separate file, so the
+ *   over (it was stranded at 183 from v1.27.0 to v1.27.4). 221 files at
+ *   v1.30.2, numbered up to ADR-222: ADR-008 has no separate file, so the
  *   highest number is always one above the file count.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   205 headings at v1.30.1, no Unreleased pending.
+ *   206 headings at v1.30.2, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -84,9 +89,9 @@ export const LANDING_STATS = {
   voiceLanguages: 99,
   metrics: 473,
   uiLanguages: 6,
-  tests: 23800,
-  adrs: 220,
-  releases: 205,
+  tests: 23700,
+  adrs: 221,
+  releases: 206,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

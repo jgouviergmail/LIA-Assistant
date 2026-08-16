@@ -2,9 +2,9 @@
 
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
-**Versión**: 1.3
+**Versión**: 1.4
 **Fecha**: 2026-08-16
-**Aplicación**: LIA v1.30.1
+**Aplicación**: LIA v1.30.2
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
 | Líneas de código (sin tests) — 40 dominios funcionales | **520.000** |
-| Tests automatizados, ejecutados en cada commit y entrega | **23.800+** |
-| Decisiones de arquitectura documentadas (ADR) | **220** |
-| Versiones entregadas a ritmo regular | **205** |
+| Tests automatizados, ejecutados en cada commit y entrega | **23.700+** |
+| Decisiones de arquitectura documentadas (ADR) | **221** |
+| Versiones entregadas a ritmo regular | **206** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -94,6 +94,8 @@ El ciclo 1.29.0 añadió un tercer episodio, y este trata de los tests mismos. C
 El ciclo 1.30.0 documentó una lección de otra naturaleza: una funcionalidad puede estar entregada, cifrada, consentida — y no servir de nada, porque nadie la lee. La última posición conocida existía desde hacía meses; solo las notificaciones proactivas la consultaban. En movimiento, el asistente respondía por tanto desde el domicilio, con aplomo. El diagnóstico vino de los registros de producción, la corrección redujo tres caminos divergentes a una cascada única — y la doctrina de las cuentas exactas se extendió a la posición: una posición fechada se anuncia fechada, «según tu última posición conocida a las 9:30», nunca «estás en». El mismo ciclo recordó que a un mecanismo de sincronización solo se le cree probado contra el motor real: el candado que serializa el primer arranque se interbloqueó con la creación concurrente de índices de PostgreSQL — medido en la tabla de bloqueos del motor, corregido como sondeo no bloqueante y custodiado por un test que prohíbe el regreso de la forma bloqueante.
 
 El ciclo 1.30.1 llevó la lógica un paso más allá: auditó la auditoría. Un informe interno concluía que los puestos LLM en streaming no contaban ningún token — mecanismo exacto, conclusión plausible, severidad máxima. La contraauditoría hizo lo que el informe no pudo: preguntar a producción. Quinientas diez llamadas de quinientas diez estaban contadas. El defecto real estaba en otra parte, y era más insidioso: el recuento dependía por completo de la generosidad de un proveedor al que nadie se lo pedía — nada lo solicitaba, nada lo probaba, nada lo vigilaba. La respuesta no fue un parche sino un contrato: cada proveedor declara su modo de recuento, la aplicación se niega a arrancar sin esa declaración, y una llamada de pago sin recuento se convierte en una alerta. El mismo ciclo reparó el contador de acciones del panel, clavado en cero desde siempre por un vocabulario que nadie emitía — historial incluido, reclasificado desde las intenciones archivadas. Porque una cifra mostrada es exacta, o no existe.
+
+El ciclo 1.30.2 aplicó la misma disciplina a lo que nadie mira nunca: los cimientos. Subir el ecosistema de orquestación cinco meses de correcciones pudo haber sido un simple cambio de números; se ejecutó como una operación con pruebas — cada versión validada en un entorno desechable antes de tocar el repositorio, ocho mil quinientos tests ejecutados bajo las versiones objetivo, los puntos de integración privados simulados sin red. Y la auditoría que acompañó la subida encontró lo que las métricas de cobertura escondían: mil setecientas cincuenta líneas de una segunda implementación de la reanudación humana, jamás conectada, mantenida en verde por cincuenta tests. Eliminada, con su decisión de arquitectura registrada. Un sistema escaparate no se juzga solo por lo que muestra — también por lo que se niega a conservar.
 
 ## 7. Convicciones
 
