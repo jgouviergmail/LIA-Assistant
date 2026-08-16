@@ -170,6 +170,21 @@ jobs:
           # matrix failure costs a full run and teaches nothing.
           test -f install.log && cat install.log || echo "no install.log produced"
 
+      - name: Dump the stack state on failure
+        if: failure()
+        run: |
+          # A readiness_timeout carries no detail by construction (nothing
+          # failed — something never became true): the container states and
+          # logs are the only evidence. Hermetic disposable instance, fake
+          # data only — nothing sensitive can land in these logs.
+          p="${{ steps.project.outputs.name }}"
+          docker compose -p "$p" ps -a || true
+          for svc in postgres redis api web; do
+            echo "::group::logs $svc"
+            docker compose -p "$p" logs --no-color --tail 300 "$svc" || true
+            echo "::endgroup::"
+          done
+
       - name: Post-install probes (login, SSE chat, image identities)
         working-directory: work
         env:
