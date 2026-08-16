@@ -40,7 +40,7 @@ def _manifest_payload(qualification: str) -> dict:
     services = json.loads(
         (
             Path(__file__).resolve().parents[3]
-            / "scripts/release/self_host_dependencies.json"
+            / "scripts/install/self_host_dependencies.json"
         ).read_text(encoding="utf-8")
     )
     images = [

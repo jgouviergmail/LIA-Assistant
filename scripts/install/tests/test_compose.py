@@ -200,7 +200,7 @@ def test_locked_services_match_the_dependency_catalogue_and_base_file() -> None:
     catalogue = {
         entry["service"]
         for entry in json.loads(
-            (REPO_ROOT / "scripts/release/self_host_dependencies.json").read_text(
+            (REPO_ROOT / "scripts/install/self_host_dependencies.json").read_text(
                 encoding="utf-8"
             )
         )

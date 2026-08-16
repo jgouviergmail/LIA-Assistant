@@ -505,7 +505,10 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
         deps.io.print_fn("interrupted — resume with ./install.sh --resume")
         return EXIT_INTERRUPTED
     except (InstallInputError, EnvGenError, HostPathError, PreflightError) as exc:
-        log.write("input_error", code=str(exc))
+        # The chained cause turns a stable code into a diagnosable line:
+        # `prebuilt_requires_passed_manifest` alone hid a missing catalogue
+        # file for a full disposable matrix run (v1.30.1 qualification).
+        log.write("input_error", code=str(exc), cause=str(exc.__cause__ or ""))
         deps.io.print_fn(str(exc))
         return EXIT_USAGE if isinstance(exc, InstallInputError) else EXIT_PREFLIGHT
     except deploy.StepFailed as exc:

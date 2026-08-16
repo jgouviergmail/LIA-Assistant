@@ -109,6 +109,12 @@ def test_live_bundle_inventory_excludes_tests_and_bytecode() -> None:
     assert ".env.min.prod.example" in files
     assert "infrastructure/docker/postgres-init.sql" in files
     assert "scripts/install/manifest.py" in files
+    # The wizard READS this catalogue at preflight (manifest validation):
+    # it lived under scripts/release/, which the bundle does not ship, so
+    # every prebuilt install crashed on FileNotFoundError before its first
+    # step (v1.30.1 qualification matrix). A runtime dependency of the
+    # wizard lives inside the wizard's shipped tree.
+    assert "scripts/install/self_host_dependencies.json" in files
     assert "scripts/install/tests" not in joined
     assert "__pycache__" not in joined
     assert ".pyc" not in joined
