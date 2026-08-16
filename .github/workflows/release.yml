@@ -226,6 +226,14 @@ jobs:
         # ambiguity outright — measured on the v1.30.0 candidate run.
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v4
 
+      - name: Set up Node.js
+        # Without this step the runner's default Node applies (22.x today)
+        # and pnpm 10 enforces the root `engines.node >=24` strictly — the
+        # v1.30.1 candidate run died on exactly that. Same pin as ci.yml.
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: "24"
+
       - name: Generate frontend SBOM
         run: |
           set -euo pipefail
