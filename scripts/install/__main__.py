@@ -256,7 +256,24 @@ def _deploy_sequence(
     # for rollback purposes: quiesce-only, nothing worth aliasing yet.
     prior = state if state.bootstrap_complete else None
     point = rollback.capture_rollback_point(invocation, prior, deps.runner)
+    source_tree_sha: str | None = None
     try:
+        # Local builds from the release bundle: the Compose build contexts
+        # (apps/…) live inside the embedded source-context archive and MUST be
+        # materialized before `compose build` — a bundle without this step
+        # dies in acquire_failed within seconds (v1.30.1 qualification). A git
+        # clone or a resumed install is a no-op (apps/ already present).
+        if public.mode is InstallMode.LOCAL:
+            log.write("step_started", step="materialize_source_context")
+            try:
+                source_tree_sha = deploy.materialize_source_context(deps.root)
+            except deploy.SourceContextError as exc:
+                # Same stable-code + redacted-detail contract as every step.
+                raise deploy.StepFailed(
+                    "source_context_invalid", detail=str(exc)
+                ) from exc
+            if source_tree_sha is not None:
+                log.write("source_context_materialized", tree_sha256=source_tree_sha)
         log.write("step_started", step="acquire")
         deploy.acquire(invocation, deps.runner)
         log.write("step_started", step="validate_settings")
@@ -288,6 +305,11 @@ def _deploy_sequence(
         bootstrap_complete=True,
         generated_sha256=_generated_fingerprints(deps.root),
         last_error_code=None,
+        source_context_tree_sha256=(
+            source_tree_sha
+            if source_tree_sha is not None
+            else state.source_context_tree_sha256
+        ),
     )
     for step in (
         Step.ACQUIRE,

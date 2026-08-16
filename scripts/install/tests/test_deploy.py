@@ -401,3 +401,98 @@ def test_step_failed_detail_is_bounded() -> None:
 
     assert len(excinfo.value.detail) <= 4_100
     assert "THE-ACTUAL-ERROR" in excinfo.value.detail
+
+
+class TestMaterializeSourceContext:
+    """Local builds from the BUNDLE must materialize the embedded source.
+
+    The compose file demands `./apps/api` and `.` + `apps/web/Dockerfile.prod`
+    as build contexts; the bundle ships them inside
+    `lia-self-host-source-context.tar.gz` and NOTHING extracted it — the
+    state field `source_context_tree_sha256` existed, forever None. Measured
+    on the v1.30.1 qualification: `acquire_failed` in 4 seconds on every
+    local leg, because `docker compose build` had no context to read.
+    """
+
+    @staticmethod
+    def _bundle_root(tmp_path):
+        import io
+        import tarfile
+
+        root = tmp_path / "work"
+        root.mkdir()
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+            for name, payload in (
+                ("apps/api/Dockerfile.prod", b"FROM scratch\n"),
+                ("apps/web/Dockerfile.prod", b"FROM scratch\n"),
+                ("apps/api/requirements.txt", b"fastapi\n"),
+            ):
+                data = io.BytesIO(payload)
+                info = tarfile.TarInfo(name)
+                info.size = len(payload)
+                tar.addfile(info, data)
+        (root / "lia-self-host-source-context.tar.gz").write_bytes(buf.getvalue())
+        return root
+
+    def test_extracts_the_context_when_apps_is_absent(self, tmp_path) -> None:
+        from scripts.install.deploy import materialize_source_context
+
+        root = self._bundle_root(tmp_path)
+        digest = materialize_source_context(root)
+
+        assert (root / "apps" / "api" / "Dockerfile.prod").is_file()
+        assert (root / "apps" / "web" / "Dockerfile.prod").is_file()
+        assert isinstance(digest, str) and len(digest) == 64
+
+    def test_noop_on_a_git_clone(self, tmp_path) -> None:
+        """apps/ already present (git clone): never touch it, return None."""
+        from scripts.install.deploy import materialize_source_context
+
+        root = self._bundle_root(tmp_path)
+        (root / "apps").mkdir()
+        sentinel = root / "apps" / "sentinel"
+        sentinel.write_text("keep me")
+
+        assert materialize_source_context(root) is None
+        assert sentinel.read_text() == "keep me"
+
+    def test_noop_without_the_archive(self, tmp_path) -> None:
+        from scripts.install.deploy import materialize_source_context
+
+        root = tmp_path / "bare"
+        root.mkdir()
+        assert materialize_source_context(root) is None
+
+    def test_hostile_member_paths_are_refused(self, tmp_path) -> None:
+        """A traversal member must abort the extraction, not escape the root."""
+        import io
+        import tarfile
+
+        import pytest as _pytest
+
+        from scripts.install.deploy import SourceContextError, materialize_source_context
+
+        root = tmp_path / "work"
+        root.mkdir()
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+            payload = b"evil"
+            info = tarfile.TarInfo("../outside.txt")
+            info.size = len(payload)
+            tar.addfile(info, io.BytesIO(payload))
+        (root / "lia-self-host-source-context.tar.gz").write_bytes(buf.getvalue())
+
+        with _pytest.raises(SourceContextError):
+            materialize_source_context(root)
+        assert not (tmp_path / "outside.txt").exists()
+
+    def test_extraction_is_idempotent_via_the_apps_guard(self, tmp_path) -> None:
+        """A resumed install re-enters cleanly: second call is a no-op."""
+        from scripts.install.deploy import materialize_source_context
+
+        root = self._bundle_root(tmp_path)
+        first = materialize_source_context(root)
+        second = materialize_source_context(root)
+
+        assert first is not None and second is None

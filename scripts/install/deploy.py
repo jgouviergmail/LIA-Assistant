@@ -105,6 +105,78 @@ def _run_or_fail(
     return result
 
 
+#: Embedded source context shipped by the release bundle (build contexts for
+#: the local mode; the outer bundle SHA-256 covers its integrity).
+SOURCE_CONTEXT_MEMBER = "lia-self-host-source-context.tar.gz"
+
+
+class SourceContextError(RuntimeError):
+    """The embedded source context is unsafe or unreadable."""
+
+
+def materialize_source_context(root: Path) -> str | None:
+    """Extract the bundle's embedded source context for local builds.
+
+    The Compose file demands ``./apps/api`` and ``apps/web/Dockerfile.prod``
+    as build contexts; a git clone has them, the release bundle ships them
+    inside :data:`SOURCE_CONTEXT_MEMBER` — and nothing extracted it, so every
+    ``--local-build`` from a bundle died in ``acquire_failed`` within seconds
+    (measured on the v1.30.1 qualification matrix). No-op on a git clone
+    (``apps/`` present) and when the archive is absent; a second call after
+    extraction is therefore a no-op too, which is what a resumed install
+    needs.
+
+    Extraction is fail-closed on hostile members (absolute paths, ``..``,
+    links pointing outside the root) — Python 3.10 floor, so the check is
+    manual rather than ``tarfile``'s 3.12+ data filter.
+
+    Args:
+        root: Installation root (the extracted bundle or a git clone).
+
+    Returns:
+        The canonical tree SHA-256 of the extracted files (sorted
+        ``path\\0content`` chain), or ``None`` when nothing was extracted.
+
+    Raises:
+        SourceContextError: On an unsafe member or an unreadable archive.
+    """
+    import hashlib
+    import tarfile
+
+    if (root / "apps").exists():
+        return None
+    archive = root / SOURCE_CONTEXT_MEMBER
+    if not archive.is_file():
+        return None
+
+    resolved_root = root.resolve()
+    digest = hashlib.sha256()
+    try:
+        with tarfile.open(archive, mode="r:gz") as tar:
+            members = tar.getmembers()
+            for member in members:
+                target = (resolved_root / member.name).resolve()
+                if not target.is_relative_to(resolved_root):
+                    raise SourceContextError(f"unsafe member path: {member.name}")
+                if member.islnk() or member.issym():
+                    link_target = (target.parent / member.linkname).resolve()
+                    if not link_target.is_relative_to(resolved_root):
+                        raise SourceContextError(f"unsafe link target: {member.name}")
+            # Belt (manual checks above) AND braces: the stdlib data filter
+            # where available — keyword only on >= 3.12, the floor is 3.10.
+            if hasattr(tarfile, "data_filter"):
+                tar.extractall(path=resolved_root, members=members, filter="data")
+            else:  # pragma: no cover - py3.10/3.11 path
+                tar.extractall(path=resolved_root, members=members)
+            for member in sorted(members, key=lambda m: m.name):
+                if member.isfile():
+                    digest.update(member.name.encode("utf-8") + b"\0")
+                    digest.update((resolved_root / member.name).read_bytes())
+    except tarfile.TarError as exc:
+        raise SourceContextError(f"unreadable source context: {exc}") from exc
+    return digest.hexdigest()
+
+
 def acquire(invocation: ComposeInvocation, runner: Runner) -> None:
     """Obtain the app images: local builds, prebuilt pulls (never builds)."""
     verb = "pull" if invocation.mode is InstallMode.PREBUILT else "build"
