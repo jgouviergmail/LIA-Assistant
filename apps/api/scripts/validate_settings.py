@@ -45,9 +45,24 @@ def validate_current_settings() -> tuple[object | None, tuple[SettingsIssue, ...
     from pydantic import ValidationError
 
     from src.core.config import Settings
+    from src.infrastructure.database.connection_budget import (
+        ConnectionBudgetError,
+        enforce_connection_budget,
+    )
 
     try:
-        return Settings(), ()
+        settings = Settings()
+        # Same pure arithmetic the production lifespan fail-fasts on
+        # (audit F004): an overcommitted pool profile must fail HERE, in the
+        # installer's validate step, with the sizing message — not five
+        # minutes later as a readiness_timeout with no detail (measured on
+        # the v1.30.1 qualification: the minimal env template shipped no
+        # pool sizing and every leg crash-looped on ConnectionBudgetError).
+        try:
+            enforce_connection_budget(settings)
+        except ConnectionBudgetError as exc:
+            return None, (SettingsIssue(location="connection_budget", message=str(exc)),)
+        return settings, ()
     except ValidationError as exc:
         issues = tuple(
             sorted(

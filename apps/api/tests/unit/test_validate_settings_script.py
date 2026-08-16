@@ -83,6 +83,32 @@ def test_main_prints_ok_in_valid_env(capsys: pytest.CaptureFixture[str]) -> None
     assert "OK: settings are valid" in capsys.readouterr().out
 
 
+def test_connection_budget_overcommit_is_a_located_issue(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An overcommitted pool profile fails at VALIDATION, not readiness.
+
+    The production lifespan fail-fasts on `ConnectionBudgetError` (F004);
+    when the validator did not run the same arithmetic, a mis-sized env
+    sailed through `validate_settings` and crash-looped the API five
+    minutes later as a detail-free `readiness_timeout` (measured on the
+    v1.30.1 qualification matrix, whose minimal env template shipped no
+    pool sizing at all).
+    """
+    from src.infrastructure.database import connection_budget
+
+    def _overcommit(settings: object) -> list[str]:
+        raise connection_budget.ConnectionBudgetError(
+            "DB connection budget overcommit: worst-case burst 288 exceeds usable 195"
+        )
+
+    monkeypatch.setattr(connection_budget, "enforce_connection_budget", _overcommit)
+    settings, issues = validate_current_settings()
+    assert settings is None
+    assert [issue.location for issue in issues] == ["connection_budget"]
+    assert "overcommit" in issues[0].message
+
+
 def test_main_reports_invalid_setting(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
