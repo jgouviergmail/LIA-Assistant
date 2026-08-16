@@ -320,13 +320,33 @@ jobs:
           check_run "${{ inputs.candidate_run_id }}" "release.yml"
           check_run "${{ inputs.qualification_run_id }}" "installer-disposable-smoke.yml"
           gh run download "${{ inputs.candidate_run_id }}" -R "${{ github.repository }}" -n self-host-candidate -D dist/
-          gh run download "${{ inputs.qualification_run_id }}" -R "${{ github.repository }}" -n qualification-evidence -D evidence/
+          # The smoke uploads ONE artifact per matrix leg
+          # (qualification-evidence-<job-index>); the old single-name
+          # download matched nothing and the old comparison hashed the
+          # manifest against evidence that bound the bundle tarball — the
+          # promotion could never succeed (measured on the v1.30.1
+          # promotion, first ever dispatched). Every leg row must bind the
+          # manifest sha, and the merged document is what the promotion CLI
+          # re-validates (defense in depth).
+          gh run download "${{ inputs.qualification_run_id }}" -R "${{ github.repository }}" -p "qualification-evidence-*" -D evidence-raw/
           candidate_sha="$(sha256sum dist/lia-self-host-manifest.json | cut -d' ' -f1)"
-          bound_sha="$(jq -r '.candidate_sha256' evidence/qualification-evidence.json)"
-          if [ "$candidate_sha" != "$bound_sha" ]; then
-            echo "::error::qualification evidence does not bind this candidate manifest" >&2
+          mkdir -p evidence
+          rows="[]"
+          count=0
+          for f in $(find evidence-raw -name 'qualification-evidence-*.json' | sort); do
+            count=$((count+1))
+            [ "$(jq -r '.candidate_sha256' "$f")" = "$candidate_sha" ] \
+              || { echo "::error::evidence $f does not bind this candidate manifest" >&2; exit 1; }
+            [ "$(jq -r '.result' "$f")" = "passed" ] \
+              || { echo "::error::evidence row $f did not pass" >&2; exit 1; }
+            rows="$(jq -c --argjson acc "$rows" '$acc + [{platform: .platform, mode: .mode, result: .result}]' "$f")"
+          done
+          if [ "$count" -ne 4 ]; then
+            echo "::error::expected 4 qualification rows, got $count" >&2
             exit 1
           fi
+          jq -n --arg sha "$candidate_sha" --argjson rows "$rows" \
+            '{candidate_sha256: $sha, rows: $rows}' > evidence/qualification-evidence.json
 
       - name: Upload verified inputs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
