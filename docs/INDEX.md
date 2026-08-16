@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 44 |
-| ADRs | 219 (ADR-219 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 218 fichiers) |
+| ADRs | 221 (ADR-221 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 220 fichiers) |
 | Fiches knowledge (RAG système) | 27 |
 
 ---
@@ -420,6 +420,7 @@ Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inlin
 | [PRIORITIZATION.md](./runbooks/alerts/PRIORITIZATION.md) | Guide priorisation alertes |
 | [HighErrorRate.md](./runbooks/alerts/HighErrorRate.md) | Taux d'erreur élevé |
 | [GlobalRateLimitDegraded.md](./runbooks/alerts/GlobalRateLimitDegraded.md) | Plafond de requêtes global inopérant (fail-open Redis) |
+| [LLMCallsWithoutUsage.md](./runbooks/alerts/LLMCallsWithoutUsage.md) | Appels LLM payants sans comptage de jetons (ADR-220) |
 | [CriticalLatencyP99.md](./runbooks/alerts/CriticalLatencyP99.md) | Latence P99 critique |
 | [ServiceDown.md](./runbooks/alerts/ServiceDown.md) | Service indisponible |
 | [DatabaseDown.md](./runbooks/alerts/DatabaseDown.md) | Base de données indisponible |

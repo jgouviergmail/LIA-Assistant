@@ -46,14 +46,11 @@ class SSEErrorMessages:
         Returns:
             User-friendly error message with recovery guidance
         """
-        category = SSEErrorMessages._classify_error(exception)
-
-        if category == "transient":
-            return SSEErrorMessages._llm_provider_busy(language)
-        if category == "content_filter":
-            return SSEErrorMessages._content_filter_error(language)
-        if category == "timeout":
-            return SSEErrorMessages._timeout_error(language)
+        categorized = SSEErrorMessages._categorized_message(
+            SSEErrorMessages._classify_error(exception), language
+        )
+        if categorized is not None:
+            return categorized
 
         messages = {
             "fr": "Une erreur inattendue s'est produite. Veuillez réessayer ou contacter le support si le problème persiste.",
@@ -81,14 +78,11 @@ class SSEErrorMessages:
         Returns:
             User-friendly error message for stream errors
         """
-        category = SSEErrorMessages._classify_error(exception)
-
-        if category == "transient":
-            return SSEErrorMessages._llm_provider_busy(language)
-        if category == "content_filter":
-            return SSEErrorMessages._content_filter_error(language)
-        if category == "timeout":
-            return SSEErrorMessages._timeout_error(language)
+        categorized = SSEErrorMessages._categorized_message(
+            SSEErrorMessages._classify_error(exception), language
+        )
+        if categorized is not None:
+            return categorized
 
         messages = {
             "fr": "Un problème est survenu lors de la génération de la réponse. Veuillez réessayer.",
@@ -190,22 +184,97 @@ class SSEErrorMessages:
         return messages.get(language, messages["en"])
 
     @staticmethod
+    def _extract_status_code(exception: Exception) -> int | None:
+        """The HTTP status the SDK already carries, when it carries one.
+
+        Probes ``exc.status_code`` (openai-style) then
+        ``exc.response.status_code`` (httpx-style). Never guesses from text.
+        """
+        status = getattr(exception, "status_code", None)
+        if isinstance(status, int):
+            return status
+        response = getattr(exception, "response", None)
+        status = getattr(response, "status_code", None)
+        return status if isinstance(status, int) else None
+
+    @staticmethod
     def _classify_error(exception: Exception) -> str:
         """Classify an exception into a user-facing error category.
 
+        ADR-220 (ex-F6): the HTTP status decides FIRST — the SDK exposes it on
+        the exception, and text guessing misfiled real failures both ways
+        ("you requested 4290 tokens" → "transient", while a bad key, a
+        forbidden model and a model-name typo all fell to "unknown"). SDK
+        exception type names come second (proxies of the codes when no status
+        attribute survives), bounded keywords last.
+
         Categories:
-        - "transient": Provider overload, rate limit, temporary unavailability
-        - "content_filter": Provider content moderation/safety filter triggered
-        - "timeout": Request or connection timeout
-        - "unknown": Everything else
+        - "transient": overload, rate limit, 5xx — retrying can help
+        - "auth": key absent/invalid (401) or model not allowed (403)
+        - "quota": provider credit/billing exhausted (402)
+        - "not_found": model name does not exist upstream (404)
+        - "content_filter": provider safety/moderation blocks
+        - "timeout": request or connection timeout (408 included)
+        - "unknown": everything else
 
         Returns:
             Error category string.
         """
+        status = SSEErrorMessages._extract_status_code(exception)
+        if status is not None:
+            by_status = {
+                401: "auth",
+                403: "auth",
+                402: "quota",
+                404: "not_found",
+                408: "timeout",
+            }
+            if status in by_status:
+                SSEErrorMessages._log_operations_failure(by_status[status], exception, status)
+                return by_status[status]
+            if status in (429, 500, 502, 503, 529):
+                return "transient"
+            # A status the ladder does not name (400, 422…) is a permanent
+            # request problem: never "transient", the generic message applies.
+            return "unknown"
+
         error_str = str(exception).lower()
         error_type = type(exception).__name__
 
-        # Transient: overload, rate limit, capacity, server errors
+        by_type = {
+            "OverloadedError": "transient",
+            "RateLimitError": "transient",
+            "InternalServerError": "transient",
+            "APIConnectionError": "transient",
+            "ServiceUnavailableError": "transient",
+            "APIStatusError": "transient",
+            "AuthenticationError": "auth",
+            "PermissionDeniedError": "auth",
+            "NotFoundError": "not_found",
+            "APITimeoutError": "timeout",
+        }
+        if error_type in by_type:
+            category = by_type[error_type]
+            if category in ("auth", "not_found", "quota"):
+                SSEErrorMessages._log_operations_failure(category, exception, None)
+            return category
+
+        category = SSEErrorMessages._classify_by_keywords(error_str)
+        if category in ("auth", "quota", "not_found"):
+            SSEErrorMessages._log_operations_failure(category, exception, None)
+        return category
+
+    @staticmethod
+    def _classify_by_keywords(error_str: str) -> str:
+        """Last-resort keyword classification (no status, no SDK type).
+
+        Numeric codes match ONLY in an HTTP-ish context (string start, or
+        after error/status/code/http) — a bare substring turned "requested
+        4290 tokens" and a Pydantic bound of 503 into "the service is
+        saturated, retry" (measured, ex-F6).
+        """
+        import re as _re
+
         transient_keywords = (
             "overloaded",
             "rate_limit",
@@ -214,22 +283,22 @@ class SSEErrorMessages:
             "server_error",
             "capacity",
         )
-        transient_codes = ("429", "500", "502", "503", "529")
-        transient_types = {
-            "OverloadedError",
-            "RateLimitError",
-            "InternalServerError",
-            "APIConnectionError",
-            "ServiceUnavailableError",
-            "APIStatusError",
-        }
-
-        if (
-            any(kw in error_str for kw in transient_keywords)
-            or any(code in error_str for code in transient_codes)
-            or error_type in transient_types
+        if any(kw in error_str for kw in transient_keywords) or _re.search(
+            r"(?:^|\berror\b|\bstatus\b|\bcode\b|\bhttp\b)\W{0,3}(?:429|500|502|503|529)\b",
+            error_str,
         ):
             return "transient"
+
+        auth_keywords = ("api key", "api_key", "authentication", "unauthorized", "credentials")
+        if any(kw in error_str for kw in auth_keywords):
+            return "auth"
+
+        quota_keywords = ("insufficient balance", "insufficient_quota", "billing")
+        if any(kw in error_str for kw in quota_keywords):
+            return "quota"
+
+        if "model_not_found" in error_str:
+            return "not_found"
 
         # Content filter: provider safety/moderation blocks
         content_filter_keywords = (
@@ -247,11 +316,148 @@ class SSEErrorMessages:
         if any(kw in error_str for kw in content_filter_keywords):
             return "content_filter"
 
-        # Timeout
-        if error_type == "APITimeoutError" or "timeout" in error_str:
+        if "timeout" in error_str:
             return "timeout"
 
         return "unknown"
+
+    @staticmethod
+    def _log_operations_failure(category: str, exception: Exception, status: int | None) -> None:
+        """Operator-facing record for CONFIGURATION failures (ADR-220).
+
+        A bad key, a forbidden model or a model-name typo is fixed in the
+        admin settings, not by retrying — before this record they were
+        indistinguishable from transient noise in the logs. Type and status
+        only: provider error strings can quote request fragments (PII rule).
+        """
+        import structlog
+
+        structlog.get_logger(__name__).warning(
+            "llm_operations_failure_classified",
+            category=category,
+            error_type=type(exception).__name__,
+            status_code=status,
+        )
+
+    @staticmethod
+    def _categorized_message(category: str, language: SupportedLanguage) -> str | None:
+        """The shared category ladder (ADR-220): one dispatch, four callers.
+
+        Returns the localized message for a named category, or ``None`` for
+        "unknown" — each public method then falls back to its own generic
+        text. Four hand-copied ladders drifted before (hitl_resumption_error
+        had silently lost the timeout branch).
+        """
+        if category == "transient":
+            return SSEErrorMessages._llm_provider_busy(language)
+        if category == "content_filter":
+            return SSEErrorMessages._content_filter_error(language)
+        if category == "timeout":
+            return SSEErrorMessages._timeout_error(language)
+        if category == "auth":
+            return SSEErrorMessages._auth_error(language)
+        if category == "quota":
+            return SSEErrorMessages._quota_error(language)
+        if category == "not_found":
+            return SSEErrorMessages._model_not_found_error(language)
+        return None
+
+    @staticmethod
+    def _auth_error(language: SupportedLanguage = "fr") -> str:
+        """Key absent/invalid or model not allowed — fixed in settings, not by retrying."""
+        messages = {
+            "fr": (
+                "Le fournisseur du modèle d'IA a refusé la connexion : la clé API est "
+                "absente, invalide ou n'autorise pas ce modèle. Vérifie la configuration "
+                "dans Paramètres → Administration → Configuration LLM."
+            ),
+            "en": (
+                "The AI model provider refused the connection: the API key is missing, "
+                "invalid, or does not allow this model. Check the configuration in "
+                "Settings → Administration → LLM Configuration."
+            ),
+            "es": (
+                "El proveedor del modelo de IA rechazó la conexión: la clave API falta, "
+                "no es válida o no autoriza este modelo. Verifique la configuración en "
+                "Configuración → Administración → Configuración LLM."
+            ),
+            "de": (
+                "Der KI-Modellanbieter hat die Verbindung abgelehnt: Der API-Schlüssel "
+                "fehlt, ist ungültig oder erlaubt dieses Modell nicht. Prüfen Sie die "
+                "Konfiguration unter Einstellungen → Verwaltung → LLM-Konfiguration."
+            ),
+            "it": (
+                "Il fornitore del modello di IA ha rifiutato la connessione: la chiave "
+                "API è assente, non valida o non autorizza questo modello. Verifica la "
+                "configurazione in Impostazioni → Amministrazione → Configurazione LLM."
+            ),
+            "zh-CN": (
+                "AI模型提供商拒绝了连接：API密钥缺失、无效或不允许使用此模型。"
+                "请在 设置 → 管理 → LLM 配置 中检查配置。"
+            ),
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def _quota_error(language: SupportedLanguage = "fr") -> str:
+        """Provider credit or billing exhausted — retrying will not refill it."""
+        messages = {
+            "fr": (
+                "Le crédit du fournisseur du modèle d'IA est épuisé. Recharge le compte "
+                "ou vérifie la facturation chez le fournisseur, puis réessaie."
+            ),
+            "en": (
+                "The AI model provider's credit is exhausted. Top up the account or "
+                "check billing with the provider, then try again."
+            ),
+            "es": (
+                "El crédito del proveedor del modelo de IA está agotado. Recargue la "
+                "cuenta o verifique la facturación con el proveedor y vuelva a intentarlo."
+            ),
+            "de": (
+                "Das Guthaben des KI-Modellanbieters ist aufgebraucht. Laden Sie das "
+                "Konto auf oder prüfen Sie die Abrechnung beim Anbieter und versuchen "
+                "Sie es erneut."
+            ),
+            "it": (
+                "Il credito del fornitore del modello di IA è esaurito. Ricarica "
+                "l'account o verifica la fatturazione presso il fornitore, poi riprova."
+            ),
+            "zh-CN": ("AI模型提供商的额度已用尽。" "请充值账户或检查提供商的账单，然后重试。"),
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def _model_not_found_error(language: SupportedLanguage = "fr") -> str:
+        """The configured model does not exist upstream (typo after an admin edit)."""
+        messages = {
+            "fr": (
+                "Le modèle d'IA configuré n'existe pas chez le fournisseur. Vérifie le "
+                "nom du modèle dans Paramètres → Administration → Configuration LLM."
+            ),
+            "en": (
+                "The configured AI model does not exist at the provider. Check the "
+                "model name in Settings → Administration → LLM Configuration."
+            ),
+            "es": (
+                "El modelo de IA configurado no existe en el proveedor. Verifique el "
+                "nombre del modelo en Configuración → Administración → Configuración LLM."
+            ),
+            "de": (
+                "Das konfigurierte KI-Modell existiert beim Anbieter nicht. Prüfen Sie "
+                "den Modellnamen unter Einstellungen → Verwaltung → "
+                "LLM-Konfiguration."
+            ),
+            "it": (
+                "Il modello di IA configurato non esiste presso il fornitore. Verifica "
+                "il nome del modello in Impostazioni → Amministrazione → Configurazione "
+                "LLM."
+            ),
+            "zh-CN": (
+                "配置的AI模型在提供商处不存在。" "请在 设置 → 管理 → LLM 配置 中检查模型名称。"
+            ),
+        }
+        return messages.get(language, messages["en"])
 
     @staticmethod
     def _content_filter_error(language: SupportedLanguage = "fr") -> str:
@@ -396,12 +602,11 @@ class SSEErrorMessages:
         Returns:
             User-friendly error message for HITL resumption
         """
-        category = SSEErrorMessages._classify_error(exception)
-
-        if category == "transient":
-            return SSEErrorMessages._llm_provider_busy(language)
-        if category == "content_filter":
-            return SSEErrorMessages._content_filter_error(language)
+        categorized = SSEErrorMessages._categorized_message(
+            SSEErrorMessages._classify_error(exception), language
+        )
+        if categorized is not None:
+            return categorized
 
         messages = {
             "fr": "Un problème est survenu lors de la reprise. Veuillez reformuler votre demande ou recommencer.",
@@ -428,14 +633,11 @@ class SSEErrorMessages:
         Returns:
             User-friendly error message for graph errors
         """
-        category = SSEErrorMessages._classify_error(exception)
-
-        if category == "transient":
-            return SSEErrorMessages._llm_provider_busy(language)
-        if category == "content_filter":
-            return SSEErrorMessages._content_filter_error(language)
-        if category == "timeout":
-            return SSEErrorMessages._timeout_error(language)
+        categorized = SSEErrorMessages._categorized_message(
+            SSEErrorMessages._classify_error(exception), language
+        )
+        if categorized is not None:
+            return categorized
 
         messages = {
             "fr": "Un problème est survenu lors du traitement. Veuillez réessayer avec une demande différente.",

@@ -66,6 +66,13 @@ llm_cache_errors_total = Counter(
     "llm_cache_errors_total", "Cache operation errors", ["func_name", "error_type"]
 )
 
+# ADR-220 (ex-F4): degenerate producer results refused at the write boundary.
+llm_cache_write_skipped_total = Counter(
+    "llm_cache_write_skipped_total",
+    "Cache writes refused because the producer result was degenerate",
+    ["func_name", "reason"],
+)
+
 # Provider cost AVOIDED by a cache hit (F002). A hit performs no provider call,
 # so it must NEVER increment the billed ``llm_cost_total`` / ``llm_tokens_consumed_total``
 # — the avoided spend is tracked separately here.
@@ -439,6 +446,23 @@ async def _store_cached_result(
     returns the already-computed result rather than re-running the producer.
     """
     import time
+
+    # ADR-220 (ex-F4): never memorize a degenerate result. An empty LLM
+    # completion (content filter, output budget consumed by reasoning) used to
+    # be cached verbatim and replayed for the full TTL — the semantic pivot
+    # then served "" as "the intent in English" for 5 minutes. The boundary is
+    # deliberate: None and blank STRINGS are a completion that produced
+    # nothing; empty containers ([], {}) are legitimate negatives ("no
+    # entities found") and stay cacheable.
+    if result is None or (isinstance(result, str) and not result.strip()):
+        llm_cache_write_skipped_total.labels(func_name=func_name, reason="empty_result").inc()
+        logger.warning(
+            "llm_cache_write_skipped",
+            func=func_name,
+            reason="empty_result",
+            result_type=type(result).__name__,
+        )
+        return
 
     usage_metadata = None
     config = kwargs.get("config")

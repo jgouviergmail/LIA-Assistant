@@ -266,9 +266,12 @@ Generate a short, natural message in {language}.
         system_prompt += "\n\n" + user_model_block
 
     try:
-        # Use the response LLM with custom settings for short message generation
-        # Disable streaming to get usage_metadata in response
-        # Type-safe config override using LLMConfig TypedDict
+        # Use the response LLM with custom settings for short message generation.
+        # The `response` slot streams by design; usage_metadata is present on
+        # the aggregated result because every streaming-capable provider now
+        # requests it explicitly (PROVIDER_USAGE_CAPABILITIES, ADR-220). The
+        # historical "disable streaming to get usage_metadata" comment here
+        # described an override that never existed (ex-F3).
         from src.domains.agents.graphs.base_agent_builder import LLMConfig
 
         llm_config: LLMConfig = {"temperature": 0.7, "max_tokens": 150}

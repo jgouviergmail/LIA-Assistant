@@ -6,7 +6,7 @@
 
 **Version**: 4.0
 **Date**: 2026-08-16
-**Application**: LIA v1.30.0
+**Application**: LIA v1.30.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 466 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 218 ADRs, ~18,254 pytest-collected tests across 990 files, native observability, 6-level HITL |
+| Production reliability | 220 ADRs, ~18,369 pytest-collected tests across 997 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -74,7 +74,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~18,254 (collected by pytest across 987 test files) + 5,475 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~18,369 (collected by pytest across 997 test files) + 5,475 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 490+ |
 | ADRs (Architecture Decision Records) | 209 |
@@ -673,6 +673,8 @@ Each pipeline node is independently configurable via the Admin UI — without re
 
 The `TrackingContext` tracks each LLM call with `call_type` ("chat"/"embedding"), `sequence` (monotonic counter), `duration_ms`, tokens (input/output/cache), and cost calculated from DB pricing. Trackers share a `run_id` for aggregation. The debug panel displays all invocations (pipeline + background tasks) in a unified chronological view.
 
+The counting itself is **contractual, not incidental**: an OpenAI-compatible provider only emits the `usage` object on a streamed response when the request asks for it. Every chat provider therefore declares its accounting mode in a registry — explicit `stream_usage` request, native SDK accounting, or a deliberate exclusion (free local models, end-user-owned keys) — whose completeness is verified at startup: the application refuses to boot on an undeclared provider (ADR-220, ADR-085 doctrine). A paid call completing without usage increments a dedicated counter, logs a warning and fires a zero-threshold alert: the whole class of silent accounting holes becomes a signal. The same doctrine applies to timeouts: the administrable per-slot `timeout_seconds` is passed to each provider's client as the per-attempt transport bound — the nodes' `asyncio.wait_for` barriers remain the user-experience bound — and no default was applied without confrontation with real production latencies (ADR-221).
+
 ### 12.4. DB-source-of-truth admin catalogue
 
 The `llm_models` table carries the full catalogue: provider, classic functional capabilities (`supports_tools`, `supports_structured_output`, `supports_strict_mode`, `supports_streaming`, `supports_vision`), and — structuring additions — the **per-model sampling matrix** (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) plus the **reasoning shape** (`reasoning_widget` ∈ {`none`, `enum`, `budget_int`, `toggle_budget`}, `reasoning_enum_values` JSONB list, `reasoning_budget_range` JSONB `{min, max, off_sentinel, dynamic_sentinel}`, `reasoning_doc_i18n_key`). This per-model declaration replaces the legacy frontend regex that used to guess which sliders to hide: the Configuration LLM dialog reads the DB flags directly and exposes only the parameters the model's API actually accepts.
@@ -1263,7 +1265,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-218 ADRs in MADR format document the major architectural decisions. Some representative examples:
+220 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1368,10 +1370,10 @@ The common thread across these four batches is a property of the tests themselve
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 218 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,254 tests across 990 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 220 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,369 tests across 997 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 218 ADRs, and the changelog (v1.0 to v1.30.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 220 ADRs, and the changelog (v1.0 to v1.30.1). All metrics, versions, and patterns cited are verifiable in the codebase.*

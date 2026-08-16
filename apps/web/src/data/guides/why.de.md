@@ -4,7 +4,7 @@
 
 **Version**: 4.5
 **Datum**: 2026-08-16
-**Anwendung**: LIA v1.30.0
+**Anwendung**: LIA v1.30.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -386,6 +386,8 @@ Eine Funktion, die still fehlschlägt, existiert ebenso wenig. Eine kurz vor dem
 Es gibt etwas Heimtückischeres als eine Garde, die man nie zum Scheitern gebracht hat: eine Garde, die das falsche Signal beobachtet. Drei Kopfzeilen der Oberfläche erklärten sich beim Scrollen für fixiert, und keine einzige war es — auf jedem Bildschirm, von Anfang an. Niemandem war es aufgefallen, weil keine Prüfung je eine Position *während* eines Scrollvorgangs maß: Alle betrachteten eine ruhende Seite, also genau den Zustand, in dem der Fehler nicht existiert. Die Ursache zu beheben war deshalb nur die halbe Arbeit; die fehlende Messung musste ergänzt und anschließend die alte Einstellung wiederhergestellt werden, um zu bestätigen, dass sie tatsächlich rot wurde.
 
 Noch tückischer als ein Wächter, der das falsche Signal beobachtet: ein Fehler, der nur jedes zweite Mal auftritt. Dieselbe Anfrage schlug fehl und ging dreißig Minuten später durch, ohne dass sich eine einzige Zeile geändert hätte — genug, um „war wohl vorübergehend" zu schließen und den Fall abzuhaken. Die Ursache lag in einem unsichtbaren Detail: Werkzeuge werden anhand einer englischen Umformulierung ausgewählt, die ein Modell erzeugt und bei jeder Runde neu schreibt. Ein anderes Verb, ein Lesewerkzeug fällt weg, und der Assistent muss auf eine Nachricht antworten, die er nicht lesen kann. Die Versuchung war, an diesem Zufall zu drehen — ein Stichwort mehr, eine Schwelle verschoben. Wir haben eine Garantie vorgezogen, die ihn gar nicht ansieht: Vor dem Planen prüft das System, dass alles Verlangte tatsächlich erreichbar ist. Wenn eine Antwort von einem Würfelwurf abhängt, besteht die Korrektur selten darin, den Würfel zu verbessern.
+
+Eine angezeigte Zahl ist eine Behauptung: Sie ist exakt, oder sie existiert nicht. Das Dashboard zeigte lange „0 erfolgreiche Aktionen“ — nicht weil nichts gelang, sondern weil die interne Klassifizierung mit einem Wort verglich, das niemand aussandte. Und die Token-Abrechnung stimmte — aber aus Höflichkeit des Anbieters, nicht per Vertrag: Nichts forderte sie an, nichts testete sie, nichts überwachte sie. Beide Reparaturen haben dieselbe Form: Das Vokabular wird beidseitig durch einen Vertragstest verriegelt, die Zählungsanforderung wird pro Anbieter deklariert und beim Start geprüft, und ein bezahlter Aufruf, der ohne Zählung endet, löst einen Alarm aus. Exaktheit ist kein Zustand — sie ist eine Wache.
 
 ### 8.2. Ein professioneller Observability-Stack
 

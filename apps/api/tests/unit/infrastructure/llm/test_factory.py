@@ -538,18 +538,24 @@ def test_get_llm_instance_cache_miss_on_different_config(mock_adapter):
 
 
 @patch("src.infrastructure.llm.factory.ProviderAdapter")
-def test_get_llm_instance_cache_miss_on_streaming_override(mock_adapter):
-    """The resolved streaming flag is part of the cache key."""
-    mock_adapter.create_llm.side_effect = [
-        MagicMock(spec=BaseChatModel),
-        MagicMock(spec=BaseChatModel),
-    ]
+def test_streaming_is_derived_from_llm_type_alone(mock_adapter):
+    """A ``streaming`` key in a dict override is inert (ADR-220, ex-F3).
 
-    non_streaming = get_llm("router")  # router default: streaming=False
-    streaming = get_llm("router", config_override={"streaming": True})
+    The old override branch was unreachable by any typed caller —
+    ``LLMAgentConfig`` has no ``streaming`` field and ``"streaming" in
+    LLMAgentConfig(...)`` is always False — yet its single dict-based caller
+    (the reminder notification) believed it was disabling streaming. The
+    branch is deleted: streaming is a pure function of ``llm_type``, so the
+    stray key changes neither the flag nor the cache key.
+    """
+    mock_adapter.create_llm.return_value = MagicMock(spec=BaseChatModel)
 
-    assert non_streaming is not streaming
-    assert mock_adapter.create_llm.call_count == 2
+    default_llm = get_llm("router")  # router default: streaming=False
+    with_stray_key = get_llm("router", config_override={"streaming": True})
+
+    assert default_llm is with_stray_key  # same cache entry: the key is inert
+    assert mock_adapter.create_llm.call_count == 1
+    assert mock_adapter.create_llm.call_args.kwargs["streaming"] is False
 
 
 @patch("src.infrastructure.llm.factory.ProviderAdapter")

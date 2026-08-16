@@ -172,6 +172,7 @@ def create_responses_llm(
     reasoning_effort: str | None = None,
     organization: str | None = None,
     base_url: str | None = None,
+    timeout: float | None = None,
 ) -> ChatOpenAICached:
     """Build a native ``ChatOpenAI`` (Responses API) with LIA cache-key routing.
 
@@ -186,6 +187,8 @@ def create_responses_llm(
             When set, reasoning-summary streaming is enabled so the live
             chain-of-thought can be surfaced (see reasoning_stream).
         organization: OpenAI organization id (optional).
+        timeout: Per-attempt transport timeout in seconds (ADR-221) — the
+            admin-visible per-slot value. None keeps the SDK default.
 
     Returns:
         Configured :class:`ChatOpenAICached`.
@@ -199,6 +202,8 @@ def create_responses_llm(
     }
     if organization:
         kwargs["organization"] = organization
+    if timeout is not None:
+        kwargs["timeout"] = timeout
     if base_url:
         # Hermetic qualification override (ADR-215): equals the SDK default
         # in normal operation, points at the fake provider in disposable runs.

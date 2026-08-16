@@ -2329,7 +2329,6 @@ EMAIL_TRUNCATION_RATIO_DEFAULT = 0.8
 # --- Agents config defaults ---
 MAX_AGENT_RESULTS_DEFAULT = 10
 MAX_ROUTING_HISTORY_DEFAULT = 30
-ROUTER_LLM_TIMEOUT_SECONDS_DEFAULT = 30.0
 RESPONSE_LLM_TIMEOUT_SECONDS_DEFAULT = 60.0
 # Raised 120 -> 600 (audit D1): must dominate the longest per-step family
 # ceilings (MCP react / browser / sub-agent go up to 600 s) — a 120 s soft

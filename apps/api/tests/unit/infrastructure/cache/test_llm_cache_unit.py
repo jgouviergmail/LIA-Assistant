@@ -801,3 +801,59 @@ async def test_producer_deregisters_itself_after_completion():
         for _ in range(4):
             await asyncio.sleep(0)  # let the done-callback deregister
         assert not any(k for k in _producer_inflight), "producer must deregister after completion"
+
+
+# ============================================================================
+# Empty-result write guard (ADR-220, ex-F4)
+# ============================================================================
+
+
+class TestEmptyResultWriteGuard:
+    """A degenerate producer result must never be memorized.
+
+    An empty LLM completion (content filter, output budget consumed by
+    reasoning) used to be cached verbatim and replayed for the full TTL —
+    the semantic pivot then served "" as the English intent for 5 minutes.
+
+    The boundary is deliberate: None and blank STRINGS are degenerate (a
+    completion that produced nothing), while empty containers ([], {}) are
+    legitimate negatives ("no entities found") and stay cacheable — refusing
+    them would re-run the producer on every correct empty answer.
+    """
+
+    @staticmethod
+    def _skip_counter(func_name: str) -> float:
+        from src.infrastructure.cache.llm_cache import llm_cache_write_skipped_total
+
+        return llm_cache_write_skipped_total.labels(
+            func_name=func_name, reason="empty_result"
+        )._value.get()
+
+    @pytest.mark.parametrize("empty", [None, "", "   ", "\n"])
+    async def test_empty_results_are_not_written(self, empty):
+        from unittest.mock import AsyncMock
+
+        from src.infrastructure.cache.llm_cache import _store_cached_result
+
+        redis = AsyncMock()
+        before = self._skip_counter("producer")
+
+        await _store_cached_result(redis, "key", empty, 300, "producer", None, {})
+
+        redis.set.assert_not_awaited()
+        assert self._skip_counter("producer") == before + 1
+
+    @pytest.mark.parametrize("legitimate", ["ok", [], {}, 0, False])
+    async def test_non_degenerate_results_are_written(self, legitimate):
+        """Empty containers and falsy scalars are answers, not failures."""
+        from unittest.mock import AsyncMock
+
+        from src.infrastructure.cache.llm_cache import _store_cached_result
+
+        redis = AsyncMock()
+        before = self._skip_counter("producer")
+
+        await _store_cached_result(redis, "key", legitimate, 300, "producer", None, {})
+
+        redis.set.assert_awaited_once()
+        assert self._skip_counter("producer") == before

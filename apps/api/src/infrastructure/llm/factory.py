@@ -201,13 +201,14 @@ def get_llm(
     Factory function to get LLM instance by type with optional config override.
 
     Multi-Provider Support:
-    - Provider selection is configured per LLM type in settings
-      (e.g., ROUTER_LLM_PROVIDER=openai, RESPONSE_LLM_PROVIDER=anthropic)
-    - Supports OpenAI, Anthropic, DeepSeek, Perplexity, Ollama
+    - Provider selection is resolved per LLM type from LLM_DEFAULTS (code)
+      merged with the admin DB overrides (LLMConfigOverrideCache)
+    - Supports OpenAI, Anthropic, DeepSeek, Perplexity, Ollama, Gemini, Qwen
 
     This factory supports per-agent LLM customization via config_override parameter.
-    When config_override is provided, it overrides global settings for that LLM instance.
+    When config_override is provided, it overrides the resolved config for that instance.
     Supports partial overrides (e.g., only override temperature, keep other settings).
+    Streaming is a pure function of the LLM type and cannot be overridden (ADR-220).
 
     Configuration Patterns (Phase X - LLM Config Refactoring):
     - NEW: config_override as LLMAgentConfig (Pydantic model with validation)
@@ -312,17 +313,18 @@ def get_llm(
         "effort": agent_config.effort,  # Anthropic global effort (opus-4-5)
     }
 
-    # 3. Determine streaming based on LLM type (default), but allow config_override
+    # 3. Streaming is a pure function of the LLM type (ADR-220, ex-F3). The
+    # old config_override escape hatch was unreachable by any typed caller
+    # (LLMAgentConfig has no `streaming` field, and `"streaming" in
+    # LLMAgentConfig(...)` iterates (key, value) tuples — always False), yet
+    # its single dict-based caller believed it was disabling streaming to get
+    # usage_metadata. Usage is now requested explicitly per provider
+    # (PROVIDER_USAGE_CAPABILITIES), which resolves that need at the root.
     streaming = llm_type in [
         "response",
         "hitl_question_generator",
         "hitl_plan_approval_question_generator",
     ]  # Response node + HITL question streaming (both tool and plan level)
-
-    # Allow explicit streaming override via config_override (e.g., for reminders needing usage_metadata)
-    if config_override is not None and "streaming" in config_override:
-        streaming = bool(config_override.get("streaming"))  # type: ignore[union-attr]
-        logger.debug("streaming_override_applied", llm_type=llm_type, streaming=streaming)
 
     # 3b. Instance cache lookup — reuse the client (and its connection pool)
     # when the fully resolved configuration is identical. See the module-level
@@ -344,6 +346,10 @@ def get_llm(
         max_tokens=merged_config["max_tokens"],
         streaming=streaming,
         llm_type=llm_type,
+        # ADR-221 (ex-F2): the admin-visible per-slot timeout is the timeout
+        # the client APPLIES (per-attempt transport bound). The asyncio
+        # wait_for barriers on graph nodes stay in place and may be tighter.
+        timeout_seconds=agent_config.timeout_seconds,
         # Pass additional provider-specific params
         top_p=merged_config.get("top_p"),
         frequency_penalty=merged_config.get("frequency_penalty"),

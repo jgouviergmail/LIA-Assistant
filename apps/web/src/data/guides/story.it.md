@@ -4,7 +4,7 @@
 
 **Versione**: 1.3
 **Data**: 2026-08-16
-**Applicazione**: LIA v1.30.0
+**Applicazione**: LIA v1.30.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | --- | --- |
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
 | Righe di codice (esclusi i test) — 40 domini funzionali | **520.000** |
-| Test automatizzati, eseguiti a ogni commit e rilascio | **23.700+** |
-| Decisioni di architettura documentate (ADR) | **218** |
-| Versioni rilasciate a ritmo regolare | **204** |
+| Test automatizzati, eseguiti a ogni commit e rilascio | **23.800+** |
+| Decisioni di architettura documentate (ADR) | **220** |
+| Versioni rilasciate a ritmo regolare | **205** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
 
@@ -50,7 +50,7 @@ Un'IA che programma produce volume; produce qualità solo sotto vincolo. Quattro
 
 ## 4. Gli arbitraggi
 
-Tre decisioni strutturanti, tra le 218 documentate:
+Tre decisioni strutturanti, tra le 220 documentate:
 
 **Sovranità e reversibilità — nessuna dipendenza irreversibile dal fornitore.** I modelli IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelli locali via Ollama) stanno dietro un'astrazione unica: ogni utilizzo può cambiare fornitore per configurazione, con confronto dei costi. Stesso principio sul lato business: Google, Apple e Microsoft sono intercambiabili per categoria funzionale. L'hosting è interamente controllato; i dati personali sono cifrati e restano sull'infrastruttura.
 
@@ -92,6 +92,8 @@ Il rilevatore di abitudini si è guadagnato la fiducia allo stesso modo: eseguit
 Il ciclo 1.29.0 ha aggiunto un terzo episodio, e questo riguarda i test stessi. Ogni protezione del programma era stata consegnata con i propri, tutti verdi — e tutti della stessa forma: fissavano ciò che il codice faceva il giorno della consegna. Un elenco scritto a mano non descrive un sistema, descrive ciò che il suo autore ne sapeva. Sono quindi state riscritte tre guardie per **ricalcolare** la protezione dalla fonte di verità invece di ripeterla. Hanno trovato tre difetti che nessun test esistente poteva vedere: una sintesi vocale fatturata e mai conteggiata contro il tetto di spesa, un accesso tramite provider che saltava del tutto l'accettazione ormai obbligatoria delle condizioni, e undici percorsi dei connettori che collegavano una credenziale reale senza alcuna protezione. Poi ogni guardia è stata messa in difetto di proposito, per verificare che diventi rossa — perché una guardia che nessuno ha mai visto fallire è solo un'altra promessa.
 
 Il ciclo 1.30.0 ha documentato una lezione di altra natura: una funzionalità può essere consegnata, cifrata, consentita — e inutile, perché nessuno la legge. L'ultima posizione nota esisteva da mesi; solo le notifiche proattive la consultavano. In movimento, l'assistente rispondeva quindi dal domicilio, con sicurezza. La diagnosi è arrivata dai log di produzione, la correzione ha ridotto tre percorsi divergenti a un'unica cascata — e la dottrina dei conti esatti si è estesa alla posizione: una posizione datata si annuncia datata, «in base alla tua ultima posizione nota alle 9:30», mai «sei a». Lo stesso ciclo ha ricordato che a un meccanismo di sincronizzazione si crede solo dopo averlo provato contro il motore reale: il lucchetto che serializza il primo avvio si è interbloccato con la creazione concorrente di indici di PostgreSQL — misurato nella tabella dei lock del motore, corretto come sondaggio non bloccante e custodito da un test che vieta il ritorno della forma bloccante.
+
+Il ciclo 1.30.1 ha spinto la logica un passo oltre: ha verificato la verifica. Un rapporto interno concludeva che le postazioni LLM in streaming non contavano alcun token — meccanismo esatto, conclusione plausibile, severità massima. La controperizia ha fatto ciò che il rapporto non aveva potuto fare: interrogare la produzione. Cinquecentodieci chiamate su cinquecentodieci erano contate. Il difetto reale era altrove, e più subdolo: il conteggio si reggeva unicamente sulla generosità di un fornitore a cui nessuno lo chiedeva — niente lo richiedeva, niente lo testava, niente lo sorvegliava. La risposta non è stata una patch ma un contratto: ogni fornitore dichiara la sua modalità di conteggio, l'applicazione rifiuta di avviarsi senza quella dichiarazione, e una chiamata a pagamento senza conteggio diventa un allarme. Lo stesso ciclo ha riparato il contatore delle azioni del cruscotto, inchiodato a zero da sempre da un vocabolario che nessuno emetteva — cronologia compresa, riclassificata dalle intenzioni archiviate. Perché una cifra mostrata è esatta, o non esiste.
 
 ## 7. Convinzioni
 

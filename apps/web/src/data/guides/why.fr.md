@@ -4,7 +4,7 @@
 
 **Version** : 4.5
 **Date** : 2026-08-16
-**Application** : LIA v1.30.0
+**Application** : LIA v1.30.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -386,6 +386,8 @@ Une fonctionnalité qui échoue en silence n'existe pas davantage. Une générat
 Il y a plus insidieux qu'une garde qu'on n'a jamais fait échouer : une garde qui observe le mauvais signal. Trois en-têtes de l'interface se déclaraient fixes pendant le défilement, et aucun ne l'était — sur tous les écrans, depuis l'origine. Rien ne l'avait vu, parce qu'aucune vérification ne mesurait une position *pendant* un défilement : toutes observaient une page au repos, précisément l'état où le défaut n'existe pas. Corriger la cause n'était donc que la moitié du travail ; il a fallu ajouter la mesure qui manquait, puis rétablir l'ancien réglage pour vérifier qu'elle rougissait bel et bien.
 
 Plus retors encore qu'une garde mal orientée : un défaut qui ne se produit qu'une fois sur deux. La même demande échouait, puis passait trente minutes plus tard sans qu'une seule ligne n'ait changé — de quoi conclure « c'était passager » et refermer le dossier. La cause tenait à un détail invisible : le choix des outils se fait sur une reformulation anglaise produite par un modèle, régénérée à chaque tour. Un verbe différent, un outil de lecture qui disparaît, et l'assistant se retrouve à devoir répondre à un message sans pouvoir le lire. La tentation était d'ajuster ce hasard — un mot-clé de plus, un seuil déplacé. On a préféré une garantie qui ne le regarde pas : avant de planifier, le système vérifie que tout ce qu'il exige est réellement à sa portée. Quand une réponse dépend d'un tirage, la corriger consiste rarement à améliorer le tirage.
+
+Un compte affiché est une affirmation : il est exact, ou il n'existe pas. Le tableau de bord a longtemps affiché « 0 action réussie » — non parce que rien n'aboutissait, mais parce que le classement interne comparait à un mot que personne n'émettait. Et le comptage des jetons, lui, était juste — mais par politesse du fournisseur, pas par contrat : rien ne le demandait, rien ne le testait, rien ne le surveillait. Les deux réparations ont la même forme : le vocabulaire est verrouillé des deux côtés par un test de contrat, la demande de comptage est déclarée par fournisseur et vérifiée au démarrage, et un appel payant qui se termine sans décompte déclenche une alerte. L'exactitude n'est pas un état — c'est une surveillance.
 
 ### 8.2. Une stack d'observabilité professionnelle
 

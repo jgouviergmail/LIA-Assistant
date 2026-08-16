@@ -4,7 +4,7 @@
 
 **Version**: 1.3
 **Datum**: 2026-08-16
-**Anwendung**: LIA v1.30.0
+**Anwendung**: LIA v1.30.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Codezeilen (ohne Tests) — 40 Fachdomänen | **520.000** |
-| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **23.700+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **218** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **204** |
+| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **23.800+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **220** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **205** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -50,7 +50,7 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 218 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 220 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Das Hosting ist vollständig kontrolliert; personenbezogene Daten sind verschlüsselt und bleiben auf der Infrastruktur.
 
@@ -92,6 +92,8 @@ Der Gewohnheitsdetektor verdiente sein Vertrauen auf dieselbe Weise: gegen echte
 Der Zyklus 1.29.0 hat eine dritte Episode hinzugefügt, und diese betrifft die Tests selbst. Jede Schutzmaßnahme des Programms war mit eigenen Tests geliefert worden, alle grün — und alle von derselben Form: sie hielten fest, was der Code am Tag der Lieferung tat. Eine handgeschriebene Liste beschreibt kein System, sie beschreibt, was ihre Autorin darüber wusste. Also wurden drei Wächter neu geschrieben, um den Schutz aus der Quelle der Wahrheit **neu zu berechnen**, statt ihn zu wiederholen. Sie fanden drei Fehler, die kein bestehender Test sehen konnte: eine Sprachausgabe, die abgerechnet und nie gegen das Ausgabenlimit gezählt wurde, eine Anbieteranmeldung, die die nun verpflichtende Zustimmung zu den Bedingungen vollständig umging, und elf Konnektorpfade, die echte Zugangsdaten ohne jede Absicherung verknüpften. Danach wurde jeder Wächter absichtlich in die Irre geführt, um zu prüfen, dass er rot wird — denn ein Wächter, den nie jemand scheitern sah, ist bloß ein weiteres Versprechen.
 
 Der Zyklus 1.30.0 dokumentierte eine Lektion anderer Art: eine Funktion kann geliefert, verschlüsselt, eingewilligt sein — und nutzlos, weil niemand sie liest. Die letzte bekannte Position existierte seit Monaten; nur die proaktiven Benachrichtigungen konsultierten sie. Unterwegs antwortete der Assistent daher von der Heimatadresse aus, mit Überzeugung. Die Diagnose kam aus den Produktionslogs, die Korrektur reduzierte drei divergierende Pfade auf eine einzige Kaskade — und die Doktrin der exakten Zahlen wurde auf die Position ausgedehnt: eine datierte Position kündigt sich als datiert an, „basierend auf deiner letzten bekannten Position um 9:30“, nie „du bist bei“. Derselbe Zyklus erinnerte daran, dass man einem Synchronisationsmechanismus erst glaubt, wenn er gegen die echte Engine bewiesen ist: die Sperre, die den ersten Start serialisiert, verklemmte sich mit PostgreSQLs nebenläufiger Indexerstellung — in der Sperrtabelle der Engine gemessen, als nicht-blockierendes Polling korrigiert und durch einen Test bewacht, der die Rückkehr der blockierenden Form verbietet.
+
+Zyklus 1.30.1 trieb die Logik einen Schritt weiter: Er auditierte das Audit. Ein interner Bericht kam zum Schluss, die gestreamten LLM-Einsatzorte zählten keinerlei Token — exakter Mechanismus, plausible Schlussfolgerung, maximale Schwere. Die Gegenprüfung tat, was der Bericht nicht konnte: Sie fragte die Produktion. Fünfhundertzehn von fünfhundertzehn Aufrufen wurden gezählt. Der wirkliche Fehler lag woanders und war heimtückischer: Die Abrechnung beruhte allein auf der Großzügigkeit eines Anbieters, den niemand darum bat — nichts forderte sie an, nichts testete sie, nichts überwachte sie. Die Antwort war kein Patch, sondern ein Vertrag: Jeder Anbieter deklariert seinen Abrechnungsmodus, die Anwendung verweigert den Start ohne diese Deklaration, und ein bezahlter Aufruf ohne Zählung wird zum Alarm. Derselbe Zyklus reparierte den Aktionszähler des Dashboards, seit jeher durch ein Vokabular auf null festgenagelt, das niemand aussandte — samt Historie, neu klassifiziert aus den archivierten Intentionen. Denn eine angezeigte Zahl ist exakt, oder sie existiert nicht.
 
 ## 7. Überzeugungen
 

@@ -373,6 +373,29 @@ def test_the_tunnel_is_opt_in_so_a_laptop_run_does_not_need_it() -> None:
     assert 'profiles: ["tunnel"]' in tunnel
 
 
+def test_every_service_declares_a_memory_ceiling() -> None:
+    """No container of the envelope may run without a memory limit.
+
+    Two failure modes hang on a missing ``mem_limit``: a runaway demo
+    container competes with PRODUCTION for the shared host's memory, and
+    cAdvisor reports the absent limit as 0 — which the
+    ``ContainerMemoryNearLimit`` expression used to read as +Inf% and fire
+    permanently (measured 2026-08-16: 7 unlimited services, ~15 alert mails).
+    ``pids_limit`` rides along: a fork bomb is the same class of host risk.
+    """
+    services = {
+        name: block
+        for name, block in _service_blocks().items()
+        # _service_blocks() also captures network/volume keys at the same
+        # indent; a service is the block that declares an image or a build.
+        if "image:" in block or "build:" in block
+    }
+    assert len(services) >= 10, f"service split looks broken: {sorted(services)}"
+    for name, block in services.items():
+        assert "mem_limit:" in block, f"{name} declares no mem_limit"
+        assert "pids_limit:" in block, f"{name} declares no pids_limit"
+
+
 def test_no_build_context_ships_an_env_file() -> None:
     """A secret must not be able to reach a layer, not merely fail to.
 

@@ -614,7 +614,8 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=10000,
-        timeout_seconds=60.0,
+        # ADR-221: p99 44.7s measured on 30d of production — 60s left 34% margin.
+        timeout_seconds=90.0,
         reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
     ),
     "query_analyzer": LLMAgentConfig(
@@ -889,7 +890,10 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.1,
         presence_penalty=0.0,
         max_tokens=10000,
-        timeout_seconds=60.0,
+        # ADR-221: p99 47.4s measured on 30d of production — 60s left 27% margin.
+        # The chat path keeps its tighter 60s wait_for barrier (UX bound); this
+        # value also covers the slot's barrier-less callers (reminders).
+        timeout_seconds=120.0,
         reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
     ),
     # --- HITL ---
@@ -945,7 +949,8 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=800,
-        timeout_seconds=45.0,
+        # ADR-221: p99 35.1s measured on 30d of production — 45s left 28% margin.
+        timeout_seconds=90.0,
         reasoning_effort=ReasoningEffortEnum(effort="low"),
     ),
     "memory_reference_extraction": LLMAgentConfig(
@@ -956,7 +961,8 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=500,
-        timeout_seconds=30.0,
+        # ADR-221: p99 15.3s measured on 30d of production — 30s left 96% margin only.
+        timeout_seconds=45.0,
         # was "minimal" — invalid for non-reasoning gpt-4.1-nano (option-(a) drop).
         reasoning_effort=None,
     ),
@@ -1031,7 +1037,9 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=5000,
-        timeout_seconds=60.0,
+        # ADR-221: p99 59.7s AND 2 calls beyond 60s measured on 30d of
+        # production — the old 60s would have cut calls that succeed today.
+        timeout_seconds=120.0,
         reasoning_effort=ReasoningEffortToggleBudget(enabled=True, budget=4096),
     ),
     "heartbeat_message": LLMAgentConfig(
@@ -1053,7 +1061,9 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=10000,
-        timeout_seconds=60.0,
+        # ADR-221: p99 at the 60s bucket edge AND 1 call beyond 60s measured on
+        # 30d of production — the old 60s would have cut calls that succeed.
+        timeout_seconds=120.0,
         reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
     ),
     "interest_extraction": LLMAgentConfig(
@@ -1244,4 +1254,33 @@ LLM_PROVIDERS: dict[str, str] = {
     "qwen": "Qwen",
     "elevenlabs": "ElevenLabs",
     "edge": "Edge TTS (Microsoft)",
+}
+
+# How each CHAT provider gets its token usage accounted on streamed calls
+# (ADR-220). An OpenAI-compatible provider only emits the ``usage`` object on
+# a streamed response when the request asks for it — a provider capable of
+# serving a streamed slot without an entry here is a silent accounting hole
+# (that is exactly how the deepseek branch shipped without the flag while the
+# seed put all three streamed slots on it). The adapter's behavior is pinned
+# to this declaration by ``test_provider_usage_options.py`` and completeness
+# is enforced at boot (``validate_provider_usage_capabilities``, ADR-085).
+#
+# - ``stream_usage_flag``: BaseChatOpenAI client — the adapter sets
+#   ``stream_usage=True`` (applied per-request, streamed requests only, so
+#   DashScope's rejection of ``stream_options`` on ``stream=false`` cannot
+#   recur).
+# - ``native``: the SDK carries usage without being asked (Anthropic
+#   message_delta events, Gemini usage_metadata).
+# - ``excluded``: deliberately NOT requested. Ollama runs locally and its
+#   price rows are seeded at 0 and inactive; Perplexity runs on the end
+#   user's own key — requesting usage there would bill LIA for spend it does
+#   not carry. Do NOT "complete" these entries.
+PROVIDER_USAGE_CAPABILITIES: dict[str, str] = {
+    "openai": "stream_usage_flag",
+    "qwen": "stream_usage_flag",
+    "deepseek": "stream_usage_flag",
+    "anthropic": "native",
+    "gemini": "native",
+    "perplexity": "excluded",
+    "ollama": "excluded",
 }

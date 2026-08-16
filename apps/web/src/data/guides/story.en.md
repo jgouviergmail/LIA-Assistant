@@ -4,7 +4,7 @@
 
 **Version**: 1.3
 **Date**: 2026-08-16
-**Application**: LIA v1.30.0
+**Application**: LIA v1.30.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Lines of code (excluding tests) — 40 functional domains | **520,000** |
-| Automated tests, run on every commit and release | **23,700+** |
-| Documented architecture decisions (ADR) | **218** |
-| Versions shipped at a steady pace | **204** |
+| Automated tests, run on every commit and release | **23,800+** |
+| Documented architecture decisions (ADR) | **220** |
+| Versions shipped at a steady pace | **205** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -50,7 +50,7 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 218 documented:
+Three structural decisions, among the 220 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 
@@ -92,6 +92,8 @@ The habit-learning detector earned its trust the same way: it was executed again
 The 1.29.0 cycle added a third episode, and this one is about the tests themselves. Every protection in the programme had shipped with its own, all green — and all of the same shape: they pinned what the code did on the day it was delivered. A hand-written list does not describe a system; it describes what its author knew about the system. So three guards were rewritten to **recalculate** the protection from the source of truth instead of restating it. They found three faults no existing test could see: speech synthesis billed and never counted against the spend ceiling, a provider sign-in that bypassed the newly mandatory terms acceptance entirely, and eleven connector paths that bound a real credential with no guard at all. Then each guard was deliberately broken, to check that it goes red — because a guard nobody has ever seen fail is just one more promise.
 
 The 1.30.0 cycle documented a lesson of a different kind: a feature can be delivered, encrypted, consented — and useless, because nobody reads it. The last known position had existed for months; only proactive notifications consulted it. On the move, the assistant therefore answered from the home address, with confidence. The diagnosis came from the production logs, the fix reduced three divergent paths to a single cascade — and the exact-counts doctrine extended to position: a dated position announces itself as dated, "based on your last known position at 9:30", never "you are at". The same cycle recalled that a synchronization mechanism is only believed once proven against the real engine: the lock serializing the first boot deadlocked against PostgreSQL's concurrent index creation — measured in the engine's own lock table, fixed as a non-blocking poll, and guarded by a test that forbids the blocking form's return.
+
+Cycle 1.30.1 took the logic one step further: it audited the audit. An internal report concluded that the streamed LLM slots counted zero tokens — exact mechanism, plausible conclusion, maximum severity. The counter-review did what the report could not: it asked production. Five hundred and ten calls out of five hundred and ten were counted. The real defect lay elsewhere, and was more insidious: the accounting rested entirely on the generosity of a provider nobody asked — nothing requested it, nothing tested it, nothing watched it. The answer was not a patch but a contract: every provider declares its accounting mode, the application refuses to start without that declaration, and a paid call without a count becomes an alert. The same cycle repaired the dashboard's actions counter, stuck at zero since forever by a vocabulary nobody emitted — history included, reclassified from the archived intentions. Because a displayed count is exact, or it does not exist.
 
 ## 7. Convictions
 

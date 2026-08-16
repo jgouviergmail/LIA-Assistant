@@ -107,6 +107,7 @@ ALL_AGENTS = [
 
 # Generic intentions
 INTENTION_CONVERSATION = "conversation"  # Simple conversation, no tools needed
+INTENTION_ACTION = "action"  # Actionable turn routed to the planner (tools involved)
 INTENTION_UNKNOWN = "unknown"  # Unknown intention
 INTENTION_COMPLEX_MULTI_STEP = "complex_multi_step"  # Phase 5: Complex query requiring planner
 
@@ -651,6 +652,7 @@ __all__ = [
     "TOOL_LOCAL_QUERY_ENGINE",
     # Intentions (canonical - singular domain names)
     "INTENTION_CONVERSATION",
+    "INTENTION_ACTION",
     "INTENTION_UNKNOWN",
     "INTENTION_COMPLEX_MULTI_STEP",
     "INTENTION_CONTACT",

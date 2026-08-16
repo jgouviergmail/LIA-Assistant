@@ -133,7 +133,21 @@ async def translate_to_english(
             config=config,
         )
 
-        logger.info(
+        # An empty completion (content filter, output budget consumed by
+        # reasoning) is a SUCCESSFUL return, not an exception — before
+        # ADR-220 it propagated as "the intent in English" and steered the
+        # tool-routing embeddings for the full cache TTL (ex-F4). Same
+        # fallback as the exception branch: the original query.
+        if not english_query or not english_query.strip():
+            logger.warning(
+                "semantic_pivot_translation_empty",
+                fallback="using original query",
+            )
+            return query
+
+        # Content at DEBUG, never INFO: the query is message content (PII
+        # rule — counters and IDs at INFO, contents at DEBUG or redacted).
+        logger.debug(
             "semantic_pivot_translation",
             original_query=query[:80],
             english_query=english_query[:80],

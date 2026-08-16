@@ -29,12 +29,10 @@ from src.infrastructure.llm.invoke_helpers import (
     invoke_sync_with_instrumentation,
     invoke_with_instrumentation,
 )
-from src.infrastructure.llm.openai_provider import OpenAIProvider
 
 __all__ = [
     # Core factory
     "get_llm",
-    "OpenAIProvider",
     # Phase 6 - Instrumentation utilities
     "create_instrumented_config",
     "enrich_config_with_callbacks",

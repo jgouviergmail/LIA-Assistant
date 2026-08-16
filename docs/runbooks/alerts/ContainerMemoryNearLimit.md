@@ -154,6 +154,15 @@ Contrôler aussi qu'aucune boucle de redémarrage n'a été introduite
 
 ## Historique
 
+- **2026-08-16** — ~15 alertes sur plusieurs jours, toutes sur les conteneurs
+  `lia-demo-instance-*`. Diagnostic : 7 services du démonstrateur n'avaient
+  aucun `mem_limit`, cAdvisor publie alors `container_spec_memory_limit_bytes`
+  à **0**, et `x/0 = +Inf` en PromQL — qui passe le filtre `quotient > 0` de
+  l'ancienne expression. Deux corrections : le garde `> 0` déplacé sur le
+  **dénominateur** (`/ (limit > 0)`, une série sans limite est éliminée avant
+  la division, cas promtool ajouté), et un `mem_limit` posé sur chacun des 7
+  services du démonstrateur (garde :
+  `test_demo_instance_envelope.py::test_every_service_declares_a_memory_ceiling`).
 - **2026-07-28** — Alerte en boucle sur `lia-prometheus-prod` (98,41 %).
   Diagnostic : l'expression utilisait `container_memory_usage_bytes`, donc
   comptait le page cache du TSDB. Deux corrections : passage à

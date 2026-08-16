@@ -273,7 +273,6 @@ from src.core.constants import (
     ROUTER_CONFIDENCE_LOW_DEFAULT,
     ROUTER_CONFIDENCE_MEDIUM_DEFAULT,
     ROUTER_DEBUG_LOG_PATH_DEFAULT,
-    ROUTER_LLM_TIMEOUT_SECONDS_DEFAULT,
     ROUTER_PROMPT_VERSION_DEFAULT,
     SEMANTIC_DOMAIN_HARD_THRESHOLD_DEFAULT,
     SEMANTIC_DOMAIN_MAX_DOMAINS_DEFAULT,
@@ -611,13 +610,9 @@ class AgentsSettings(BaseSettings):
     # ========================================================================
     # Node Timeouts (Sprint 17.4 - Gold-Grade Production)
     # ========================================================================
-    # LLM call timeouts for each node type - prevents runaway operations
-    router_llm_timeout_seconds: float = Field(
-        default=ROUTER_LLM_TIMEOUT_SECONDS_DEFAULT,
-        ge=1.0,
-        le=30.0,
-        description="Timeout for router LLM call (fast routing decision)",
-    )
+    # LLM call timeouts for each node type - prevents runaway operations.
+    # (router_llm_timeout_seconds was removed by ADR-221: defined for years,
+    # read nowhere — the router node makes no direct LLM call.)
     response_llm_timeout_seconds: float = Field(
         default=RESPONSE_LLM_TIMEOUT_SECONDS_DEFAULT,
         ge=5.0,

@@ -286,6 +286,17 @@ def derive_channel(session_id: str | None) -> str:
     return "web"
 
 
+#: Router intention marking an actionable (tool-using) turn. The router node
+#: emits ``"action"`` (``INTENTION_ACTION`` in ``domains.agents.constants``);
+#: the string is duplicated here because a runtime agents import would create
+#: the agents<->product cycle the coupling ratchet forbids. Pinned on both
+#: sides by ``test_product_constants.py::test_router_vocabulary_contract``.
+#: (Until 2026-08-16 this compared against ``"actionable"``, a value no router
+#: ever emitted — every chat run was recorded as ``answer`` and the dashboard
+#: "actions" tile stayed at zero.)
+_ACTIONABLE_INTENTION = "action"
+
+
 def derive_result_type(intention: str | None, channel: str) -> str:
     """v1 result-type approximation from routing intention and channel.
 
@@ -296,7 +307,7 @@ def derive_result_type(intention: str | None, channel: str) -> str:
 
     Args:
         intention: Router intention persisted in the assistant message
-            metadata (e.g. ``conversation`` / ``actionable``), if any.
+            metadata (``action`` / ``conversation``), if any.
         channel: A ``CHANNELS`` value (from :func:`derive_channel`).
 
     Returns:
@@ -304,6 +315,6 @@ def derive_result_type(intention: str | None, channel: str) -> str:
     """
     if channel == "scheduler":
         return "automation_run"
-    if intention == "actionable":
+    if intention == _ACTIONABLE_INTENTION:
         return "action"
     return "answer"

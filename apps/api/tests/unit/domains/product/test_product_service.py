@@ -97,7 +97,9 @@ async def test_produced_records_outcome_and_event(stub_db: MagicMock, flag_on: N
         user_id=uuid4(),
         run_id="run-42",
         session_id="web-session",
-        intention="actionable",
+        # The router's actual vocabulary (INTENTION_ACTION) — "actionable" was
+        # a value no producer ever emitted (2026-08-16 regression fix).
+        intention="action",
         execution_mode="react",
         user_language="zh",
         user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
@@ -122,7 +124,7 @@ async def test_produced_passes_bounded_domain(stub_db: MagicMock, flag_on: None)
         user_id=uuid4(),
         run_id="run-dom",
         session_id="web-session",
-        intention="actionable",
+        intention="action",
         execution_mode="pipeline",
         user_language="fr",
         user_agent=None,

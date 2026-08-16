@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.30.1] - 2026-08-16
+
+**Le comptage des jetons devient un contrat — il reposait sur la politesse du fournisseur** (ADR-220). Un contre-audit mené sur les données de production a réfuté le scénario catastrophe d'un audit interne (« les emplacements diffusés ne comptent aucun jeton ») : 510 appels sur 510 étaient bien comptés sur 30 jours. Mais la raison était pire que le défaut supposé : la requête ne demandait jamais le décompte, et DeepSeek l'envoyait **spontanément** — un comportement que rien ne demandait, que rien ne testait, que rien ne surveillait. Chaque fournisseur de chat déclare désormais son mode de comptage dans un registre vérifié au démarrage (l'application refuse de booter sur un fournisseur non déclaré), les clients demandent explicitement le décompte, et un appel payant qui se termine sans usage devient un compteur, un avertissement et une alerte à seuil zéro — plus jamais un log invisible.
+
+**Le réglage de délai d'attente que l'administrateur voyait est enfin celui que le système applique** (ADR-221). Le champ « timeout » existait de l'écran d'administration jusqu'à la base de données, puis personne ne le lisait : les vraies bornes vivaient dans des variables d'environnement invisibles. Le réglage par emplacement atteint désormais le client de chaque fournisseur (borne réseau par tentative), les barrières existantes restent la borne d'expérience utilisateur, et **aucun défaut n'a été appliqué sans mesure** : six valeurs ont été relevées après confrontation aux latences réelles de 30 jours de production — deux emplacements dépassaient déjà l'ancienne valeur et auraient vu leurs appels coupés.
+
+**Le tableau de bord disait « 0 action réussie » depuis toujours — c'était le thermomètre qui était cassé.** Le classement des résultats comparait l'intention du routeur à une valeur qu'aucun routeur n'a jamais émise : chaque action aboutie était comptée comme une simple réponse, jamais promue par la validation comportementale, et « résultats utiles confirmés » se réduisait aux routines. Le vocabulaire est aligné et verrouillé par un test de contrat des deux côtés, et une migration reclasse l'historique — l'intention archivée de chaque conversation permettait de le faire sans rien inventer.
+
+**Une quinzaine de fausses alertes mémoire en quelques jours : une division par zéro qui criait à l'infini.** Sept conteneurs du démonstrateur n'avaient pas de limite mémoire ; la sonde publiait alors « limite = 0 », le ratio valait +∞ et passait le filtre. Le garde est déplacé sur le dénominateur (un conteneur sans limite est exclu du calcul, cas de test à l'appui), et les sept conteneurs reçoivent des plafonds dimensionnés sur leurs consommations mesurées — un garde exige désormais un plafond sur chaque service de l'enveloppe.
+
+**Les pannes de configuration se nomment enfin.** Une clé API invalide, un crédit fournisseur épuisé ou un nom de modèle inexistant recevaient le message le plus vague — voire un « service saturé, réessayez » sur des erreurs que réessayer ne corrigera jamais (un message citant « 4290 tokens » suffisait à passer pour une saturation). La classification lit d'abord le code HTTP que le SDK expose, et trois nouvelles familles de messages dans les 6 langues pointent vers l'écran exact où se répare la panne.
+
+### Added
+
+- **Registre de comptabilité d'usage par fournisseur** (ADR-220) : `PROVIDER_USAGE_CAPABILITIES` déclare comment chaque fournisseur de chat compte ses jetons (demande explicite, natif, ou exclu — Ollama local et Perplexity sur clé utilisateur restent volontairement hors facturation) ; complétude vérifiée au démarrage, comportement de l'adaptateur épinglé à la déclaration par test.
+- **Signal « appel sans comptage »** : compteur `llm_calls_without_usage_total`, avertissement aux deux points d'extraction, alerte `LLMCallsWithoutUsage` à seuil zéro avec runbook — la classe entière de trous de facturation silencieux devient visible en une heure.
+- **Extraction JSON unifiée** `json_recovery` : une seule implémentation (consciente des chaînes et des échappements) pour récupérer le JSON des réponses en texte — clôtures tronquées réparées, virgules traînantes tolérées, prose avant/après, blocs de code — consommée par le rattrapage d'appel d'outil ET le repli JSON, avec le corpus de formes réelles comme contrat.
+- **Trois familles de messages d'erreur dans les 6 langues** : clé refusée (401/403), crédit épuisé (402), modèle inexistant (404) — chacune nomme la panne et l'écran de réparation (chemins de navigation vérifiés contre les libellés réels de l'application), avec un journal opérateur dédié aux erreurs de configuration.
+- **Migration de reclassement du tableau de bord** : les conversations dont l'intention archivée était « action » retrouvent leur vraie catégorie ; la validation comportementale promeut ensuite l'historique — le cycle en cours reflète ce qui a réellement été accompli.
+- **Timeout transmis aux clients LLM** (ADR-221) : le réglage par emplacement (administrable) devient la borne transport par tentative sur les quatre SDK, chemin Responses API compris ; l'échappatoire `provider_config` garde la priorité.
+
+### Changed
+
+- **Demande de décompte portée par `stream_usage`** plutôt qu'injectée dans chaque requête : appliquée aux seules requêtes diffusées, ce qui fait disparaître par construction le rejet DashScope de `stream_options` hors streaming.
+- **Six défauts de timeout relevés sur mesures** (p99 de 30 jours de production, consignés en commentaire à côté de chaque valeur) : réponse 60→120 s, planificateur 60→90 s, décision heartbeat et présentation d'intérêts 60→120 s (des appels au-delà de 60 s étaient observés), extraction de boucles ouvertes 45→90 s, extraction de références mémoire 30→45 s.
+- **Classification d'erreur : le code HTTP décide d'abord**, les types d'exceptions SDK ensuite, les mots-clés en dernier recours — et un code numérique ne matche plus qu'en contexte HTTP (fini le « 503 » d'une borne de validation Pydantic lu comme une panne serveur).
+- **Une traduction vide du pivot sémantique est un échec** : repli sur la requête d'origine (comme une exception), l'écriture en cache des résultats dégénérés est refusée et comptée — et les journaux de contenu redescendent au niveau debug.
+- **Expression de l'alerte mémoire conteneur corrigée** : le garde « limite > 0 » porte sur le dénominateur — un conteneur sans limite est exclu au lieu de produire un ratio infini qui alerte en permanence.
+- **Plafonds mémoire sur les sept conteneurs du démonstrateur** qui n'en avaient pas (dimensionnés sur les maxima mesurés sur 7 jours, la base tmpfs comptée dans son propre conteneur), avec un garde d'enveloppe qui exige un plafond sur chaque service.
+- **Plancher de couverture backend relevé 65 → 66 %** (mesuré 68,03 % — le cliquet ne descend jamais, il monte quand le travail le permet).
+
+### Fixed
+
+- **« Actions réussies » figé à 0 sur le tableau de bord** : le classement comparait l'intention à « actionable », valeur jamais émise (le routeur dit « action ») — toute action aboutie était comptée comme simple réponse et « résultats utiles confirmés » se réduisait aux routines. Vocabulaire aligné, contrat épinglé des deux côtés, historique reclassé par migration.
+- **Quinze fausses alertes « mémoire proche de la limite »** : ratio +∞ sur les conteneurs sans limite (x/0 passe un filtre « > 0 ») — garde déplacé sur le dénominateur, cas promtool prouvé rouge contre l'ancienne expression.
+- **La branche « désactiver le streaming » était inatteignable** — et son unique appelant (notifications de rappel) croyait s'en servir, commentaire à l'appui : branche morte supprimée, le besoin réel (compter l'usage) est résolu à la racine par ADR-220.
+- **Le rattrapage JSON échouait sur trois formes courantes** (prose après le JSON contenant une accolade, exemple JSON en fin de message, virgule traînante) — corrigé par l'extraction unifiée, les trois cas épinglés en non-régression.
+- **Une réponse vide pouvait être mémorisée cinq minutes** et servie comme « intention en anglais » au routage d'outils — refusée à l'écriture, repli immédiat.
+- **« Service saturé, réessayez » sur des pannes définitives** : un message d'erreur citant un nombre de jetons ou une borne de validation passait pour une saturation passagère — la lecture du code HTTP d'abord ferme la classe entière.
+- **Requête utilisateur dans les journaux au niveau info** (pivot sémantique) — contenu redescendu à debug, conformément à la règle de confidentialité des journaux.
+- **Deux réglages morts supprimés** : `router_llm_timeout_seconds` (défini depuis des années, lu nulle part — le routeur ne fait aucun appel LLM direct) et le module `OpenAIProvider` (259 lignes sans appelant, dont les tests simulaient de la couverture).
+
+### Tests
+
+- **18 369 tests backend collectés** (fast : 17 155 verts) et **5 476 tests frontend** (441 fichiers) ; couverture 68,03 % ≥ nouveau plancher 66 % ; MyPy strict sur 1 115 fichiers ; rejeu de la chaîne de migrations depuis une base vierge.
+- **Les contrats qui manquaient existent désormais** : table provider × diffusion pour la demande de décompte (et le contrat langchain « l'auto-activation ne joue jamais avec une base_url » épinglé sur le paquet installé) ; corpus de 21 formes JSON dont les trois échecs historiques ; table de vérité (code HTTP × type × message) → catégorie d'erreur avec les faux positifs mesurés en non-régression ; précédence de l'échappatoire `provider_config` (le crash `TypeError` qu'elle provoquait est épinglé) ; câblage du suivi de jetons du générateur de questions HITL ; vocabulaire d'intention routeur ↔ produit verrouillé des deux côtés.
+- **Deux cas promtool nouveaux** (conteneur sans limite silencieux ; appel sans usage qui alerte) et le garde d'enveloppe du démonstrateur étendu aux plafonds mémoire.
+
 ## [1.30.0] - 2026-08-16
 
 **En déplacement, LIA répond enfin depuis là où vous êtes — plus jamais depuis votre domicile par défaut** (ADR-219). La dernière position connue existait depuis avril (chiffrée, opt-in, jamais historisée) mais une seule famille de fonctionnalités la lisait : les notifications proactives. Le chat, les actions planifiées, le briefing et les skills retombaient sur l'adresse personnelle dès que la position du navigateur mourait — ce qu'une PWA fait systématiquement après quelques heures d'inactivité. La cascade est désormais **une** et **partout** : position vivante du navigateur, sinon dernière position mémorisée (fraîche et consentie), sinon domicile. Les actions planifiées, qui n'ont jamais de navigateur, en héritent sans une ligne de code.

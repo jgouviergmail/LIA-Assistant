@@ -6,7 +6,7 @@
 
 **Version** : 4.0
 **Date** : 2026-08-16
-**Application** : LIA v1.30.0
+**Application** : LIA v1.30.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 466 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 218 ADRs, ~18 254 tests collectés par pytest sur 990 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 220 ADRs, ~18 369 tests collectés par pytest sur 997 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -74,7 +74,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~18 254 (collectés par pytest sur 990 fichiers de test) + 5 475 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | ~18 369 (collectés par pytest sur 997 fichiers de test) + 5 475 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures réutilisables | 170+ |
 | Documents de documentation | 490+ |
 | ADRs (Architecture Decision Records) | 209 |
@@ -671,6 +671,8 @@ Chaque nœud du pipeline est configurable indépendamment via l'Admin UI — san
 ### 12.3. Token Tracking
 
 Le `TrackingContext` suit chaque appel LLM avec `call_type` ("chat"/"embedding"), `sequence` (compteur monotone), `duration_ms`, tokens (input/output/cache), et coût calculé depuis les tarifs DB. Les trackers partagent un `run_id` pour l'agrégation. Le debug panel affiche toutes les invocations (pipeline + background tasks) dans une vue unifiée chronologique.
+
+Le comptage lui-même est **contractuel, pas subi** : un fournisseur OpenAI-compatible n'émet l'objet `usage` sur une réponse diffusée que si la requête le demande. Chaque provider de chat déclare donc son mode de comptabilité dans un registre — demande explicite `stream_usage`, comptage natif du SDK, ou exclusion délibérée (modèles locaux gratuits, clés appartenant à l'utilisateur final) — dont la complétude est vérifiée au démarrage : l'application refuse de booter sur un provider non déclaré (ADR-220, doctrine ADR-085). Un appel payant qui se termine sans usage incrémente un compteur dédié, journalise en avertissement et déclenche une alerte à seuil zéro : la classe entière des trous de facturation silencieux devient un signal. Même doctrine pour les délais d'attente : le `timeout_seconds` par emplacement, administrable, est transmis au client de chaque provider comme borne transport par tentative — les barrières `asyncio.wait_for` des nœuds restent la borne d'expérience utilisateur — et aucun défaut n'a été appliqué sans confrontation aux latences réelles de production (ADR-221).
 
 ### 12.4. Catalogue admin DB-source-of-truth
 
@@ -1273,7 +1275,7 @@ La leçon d’ingénierie la plus précieuse est venue d’un défaut invisible 
 
 ## 24. Architecture des décisions (ADR)
 
-218 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+220 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1385,10 +1387,10 @@ Le fil commun de ces quatre lots est une propriété des tests eux-mêmes. Chaqu
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 218 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~18 254 tests sur 990 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 220 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~18 369 tests sur 997 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 218 ADRs, et du changelog (v1.0 à v1.30.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 220 ADRs, et du changelog (v1.0 à v1.30.1). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

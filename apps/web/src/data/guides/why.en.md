@@ -4,7 +4,7 @@
 
 **Version**: 4.5
 **Date**: 2026-08-16
-**Application**: LIA v1.30.0
+**Application**: LIA v1.30.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -386,6 +386,8 @@ A feature that fails silently does not exist either. A generation cut off just b
 There is something more insidious than a guard nobody ever made fail: a guard that watches the wrong signal. Three of the interface's headers declared themselves pinned while scrolling, and not one of them was — on every screen, since the very beginning. Nothing had caught it, because no check ever measured a position *during* a scroll: they all observed a page at rest, precisely the state in which the defect does not exist. Fixing the cause was therefore only half the work; the missing measurement had to be added, and the old setting restored afterwards to confirm that it really did go red.
 
 Trickier still than a guard aimed at the wrong signal: a defect that only shows up half the time. The same request failed, then went through thirty minutes later with not one line changed — just enough to conclude "it was transient" and close the case. The cause sat in an invisible detail: tools are chosen against an English rewording produced by a model, regenerated on every turn. A different verb, a reading tool drops out, and the assistant ends up having to reply to a message it cannot read. The temptation was to tune that randomness — one more keyword, a threshold nudged. We preferred a guarantee that never looks at it: before planning, the system checks that everything it requires is actually within reach. When an answer depends on a dice roll, fixing it rarely means improving the dice.
+
+A displayed count is a claim: it is exact, or it does not exist. The dashboard long showed “0 successful actions” — not because nothing succeeded, but because the internal classification compared against a word nobody emitted. And token accounting was right — but by the provider's politeness, not by contract: nothing requested it, nothing tested it, nothing watched it. Both repairs share one shape: the vocabulary is locked on both sides by a contract test, the accounting request is declared per provider and verified at startup, and a paid call completing without a count fires an alert. Exactness is not a state — it is a watch.
 
 ### 8.2. A professional observability stack
 

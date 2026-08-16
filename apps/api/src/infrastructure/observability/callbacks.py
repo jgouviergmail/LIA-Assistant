@@ -17,6 +17,7 @@ from langchain_core.callbacks import AsyncCallbackHandler
 from langchain_core.exceptions import ContextOverflowError
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.outputs import LLMResult
+from prometheus_client import Counter
 
 from src.core.config import settings
 from src.core.field_names import FIELD_METADATA, FIELD_MODEL_NAME
@@ -31,6 +32,18 @@ from src.infrastructure.observability.metrics_agents import (
 from src.infrastructure.observability.token_extractor import TokenExtractor
 
 logger = get_logger(__name__)
+
+# ADR-220: a completed LLM call whose result carries NO token usage. On a paid
+# provider this means the ledger, the spend ceiling and the dashboards did not
+# see the spend — for months the only trace was a model="unknown" label and a
+# DEBUG log (ex-F1). Lives next to its single emitter (MetricsCallbackHandler,
+# below — the llm_cache counters follow the same pattern); node_name only: the
+# model is precisely what a usage-less result cannot tell us reliably.
+llm_calls_without_usage_total = Counter(
+    "llm_calls_without_usage_total",
+    "Completed LLM calls whose result carried no token usage metadata",
+    ["node_name"],
+)
 
 
 class MetricsCallbackHandler(AsyncCallbackHandler):
@@ -133,9 +146,19 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
         usage = TokenExtractor.extract(response, self.llm)
 
         if not usage:
-            # No usage found - track API call but skip token metrics
+            # No usage found - track API call but skip token metrics.
+            # ADR-220: this is an accounting hole, not a curiosity — on a paid
+            # provider the ledger and the spend ceiling just missed the spend.
+            # Count it and say it at WARNING (node_name only, never content).
             llm_api_calls_total.labels(model="unknown", node_name=node_name, status="success").inc()
             llm_api_latency_seconds.labels(model="unknown", node_name=node_name).observe(latency)
+            llm_calls_without_usage_total.labels(node_name=node_name).inc()
+            logger.warning(
+                "llm_call_without_usage",
+                node_name=node_name,
+                latency_seconds=round(latency, 3),
+                msg="LLM call completed without token usage metadata — spend not accounted",
+            )
             return
 
         model_name = usage.model_name
@@ -577,11 +600,16 @@ class TokenTrackingCallback(AsyncCallbackHandler):
             usage_data = TokenExtractor.extract(response)
 
             if not usage_data:
-                logger.debug(
+                # ADR-220: WARNING, not debug — a paid call whose tokens never
+                # reach token_usage_logs is a ledger hole. The counter lives in
+                # MetricsCallbackHandler (both handlers fire for the same call;
+                # incrementing here too would double-count).
+                logger.warning(
                     "token_tracking_no_usage",
                     run_id=self.run_id,
                     llm_run_id=run_id_str,
-                    msg="No usage metadata in LLMResult",
+                    node_name=node_name,
+                    msg="No usage metadata in LLMResult — spend not persisted",
                 )
                 return
 

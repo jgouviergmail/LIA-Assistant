@@ -96,6 +96,17 @@ def _get_base_url(provider: str) -> str:
     return default
 
 
+def _apply_transport_timeout(kwargs: dict[str, Any], timeout_seconds: float | None) -> None:
+    """Inject the per-slot transport timeout into the client kwargs (ADR-221).
+
+    The ``timeout`` alias is accepted by all installed SDKs; an explicit
+    ``timeout`` already present (the documented ``provider_config`` escape
+    hatch) wins over the resolved slot value.
+    """
+    if timeout_seconds is not None and "timeout" not in kwargs:
+        kwargs["timeout"] = timeout_seconds
+
+
 def _require_api_key(provider: str) -> str:
     """Get API key: DB cache first, then .env fallback.
 
@@ -162,6 +173,7 @@ class ProviderAdapter:
         max_tokens: int,
         streaming: bool,
         llm_type: str,
+        timeout_seconds: float | None = None,
         **kwargs: Any,
     ) -> BaseChatModel:
         """
@@ -174,6 +186,11 @@ class ProviderAdapter:
             max_tokens: Maximum tokens to generate
             streaming: Enable streaming responses
             llm_type: LLM type for context (router, response, contacts_agent, planner)
+            timeout_seconds: Per-attempt transport timeout applied to the
+                client (ADR-221). The ``timeout`` alias is accepted by all
+                installed SDKs (openai/deepseek ``request_timeout``,
+                anthropic ``default_request_timeout``, gemini ``timeout``).
+                None keeps the SDK default.
             **kwargs: Additional provider-specific parameters (top_p, frequency_penalty, etc.)
 
         Returns:
@@ -206,6 +223,11 @@ class ProviderAdapter:
         provider_config_json = kwargs.pop("provider_config", None) or "{}"
         provider_config = ProviderAdapter._parse_provider_config(provider_config_json, llm_type)
         kwargs.update(provider_config)
+
+        # ADR-221 (ex-F2): the resolved per-slot timeout reaches EVERY client.
+        # Set before dispatch so the dedicated constructors (deepseek, gemini)
+        # and the init_chat_model paths all receive it.
+        _apply_transport_timeout(kwargs, timeout_seconds)
 
         # Validate provider/model compatibility
         ProviderAdapter._validate_provider_model(provider, model, llm_type)
@@ -370,6 +392,9 @@ class ProviderAdapter:
             streaming=streaming,
             reasoning_effort=reasoning_effort,
             base_url=_get_base_url("openai"),
+            # ADR-221: the per-slot transport timeout applies here too — the
+            # explicit signature would otherwise drop the kwarg silently.
+            timeout=kwargs.pop("timeout", None),
         )
 
     @staticmethod
@@ -483,12 +508,22 @@ class ProviderAdapter:
             )
             max_tokens = deepseek_max_tokens_limit
 
+        # ADR-220: ask for usage on streamed responses. Applied per-request by
+        # _should_stream_usage (streamed only), so non-streamed calls are
+        # unaffected. Without it the request omits stream_options and
+        # accounting depends on DeepSeek sending usage unrequested (ex-F1).
+        # Popped, not passed literally: an explicit value in the
+        # provider_config escape hatch wins (same precedence as `timeout`),
+        # and a duplicate keyword would crash the constructor.
+        stream_usage = kwargs.pop("stream_usage", True)
+
         if is_reasoner_v3:
             # Temperature not supported for deepseek-reasoner V3 — omit entirely
             return ChatDeepSeekPatched(
                 model=model,
                 max_tokens=max_tokens,
                 streaming=streaming,
+                stream_usage=stream_usage,
                 api_key=_require_api_key("deepseek"),
                 api_base=_get_base_url("deepseek"),
                 **kwargs,
@@ -499,6 +534,7 @@ class ProviderAdapter:
             temperature=temperature,
             max_tokens=max_tokens,
             streaming=streaming,
+            stream_usage=stream_usage,
             api_key=_require_api_key("deepseek"),
             api_base=_get_base_url("deepseek"),
             **kwargs,
@@ -631,6 +667,9 @@ class ProviderAdapter:
 
         # Ollama: OpenAI-compatible API with custom base_url
         # Prompt caching: N/A (local inference, no server-side caching)
+        # Usage accounting: deliberately NOT requested (ADR-220 "excluded" —
+        # local and free, price rows seeded at 0 and inactive). Do not add
+        # ``stream_usage`` here: it would ledger spend LIA does not carry.
         if provider == "ollama":
             additional_kwargs["base_url"] = _require_api_key("ollama")
             additional_kwargs["openai_api_key"] = "ollama"  # Dummy key (not used by Ollama)
@@ -639,6 +678,10 @@ class ProviderAdapter:
         # Perplexity: OpenAI-compatible API with custom base_url
         # Prompt caching: N/A (Perplexity does not expose a caching API)
         # base_url is overridable via PERPLEXITY_BASE_URL env var.
+        # Usage accounting: deliberately NOT requested (ADR-220 "excluded" —
+        # runs on the END USER's own key; requesting usage would bill LIA for
+        # spend it does not carry, and four sonar models have ACTIVE price
+        # rows in the seed).
         elif provider == "perplexity":
             additional_kwargs["base_url"] = _get_base_url("perplexity")
             additional_kwargs["openai_api_key"] = _require_api_key("perplexity")
@@ -653,11 +696,14 @@ class ProviderAdapter:
             additional_kwargs["openai_api_key"] = _require_api_key("qwen")
             provider_for_init = "openai"
 
-            # Enable token usage metadata in streaming responses.
-            # Qwen's DashScope API rejects stream_options when stream=false,
-            # unlike OpenAI which silently ignores it.
-            if streaming:
-                additional_kwargs["model_kwargs"] = {"stream_options": {"include_usage": True}}
+            # Ask for token usage on streamed responses (ADR-220). The
+            # first-class ``stream_usage`` field is applied per-request by
+            # ``_should_stream_usage`` — streamed requests only — so
+            # DashScope's rejection of ``stream_options`` on ``stream=false``
+            # cannot recur (the old ``model_kwargs`` shape polluted every
+            # request and needed an ``if streaming`` guard). setdefault: an
+            # explicit provider_config value wins (same precedence as timeout).
+            additional_kwargs.setdefault("stream_usage", True)
 
             # Reasoning: delegate to typed builder.
             # Qwen3 widget=toggle_budget. The builder receives a validated
@@ -702,14 +748,13 @@ class ProviderAdapter:
 
             provider_for_init = "openai"
 
-            # Phase 6 - LLM Observability: Enable token metadata during streaming.
-            # Note: LangGraph's astream_events() may force internal streaming even
-            # when streaming=False, but the LLM factory `streaming` parameter here
-            # reflects the configured intent. Token tracking for non-streaming LLM
-            # types (like react_agent) is handled by the LangChain callback system
-            # which extracts usage_metadata from the final AIMessage.
-            if streaming:
-                additional_kwargs["model_kwargs"] = {"stream_options": {"include_usage": True}}
+            # Ask for token usage on streamed responses (ADR-220). Unconditional
+            # on purpose: ``_should_stream_usage`` applies it to streamed
+            # requests only, so non-streamed calls are unaffected — and a slot
+            # LangGraph force-streams internally still gets its usage counted.
+            # setdefault: an explicit provider_config value wins (same
+            # precedence as timeout).
+            additional_kwargs.setdefault("stream_usage", True)
 
             # Reasoning Models Filter: Remove unsupported parameters
             # GPT-5, o1, o3, o4-mini models do NOT support sampling parameters.

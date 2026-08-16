@@ -500,23 +500,17 @@ def _rescue_structured_from_text[T: BaseModel](
     if not text:
         return None
 
-    # Strip markdown code fences if present (```json ... ```)
-    if text.startswith("```"):
-        first_newline = text.find("\n")
-        if first_newline != -1:
-            text = text[first_newline + 1 :]
-        if text.endswith("```"):
-            text = text[: -len("```")]
-        text = text.strip()
+    # Shared extraction (ADR-220): fences, prose on either side, truncation
+    # and trailing commas are handled in ONE place — json_recovery carries the
+    # corpus the old find("{")/rfind("}") delimiter failed on.
+    from src.infrastructure.llm.json_recovery import extract_json_payload
 
-    # Extract the outermost JSON object
-    start, end = text.find("{"), text.rfind("}")
-    if start == -1 or end <= start:
+    payload_text = extract_json_payload(text)
+    if payload_text is None:
         return None
 
     try:
-        payload = json.loads(text[start : end + 1])
-        instance = schema.model_validate(payload)
+        instance = schema.model_validate(json.loads(payload_text))
     except (json.JSONDecodeError, ValidationError):
         return None
 
@@ -860,17 +854,32 @@ async def _get_json_mode_fallback[T: BaseModel](
             output_preview=raw_output[:200],
         )
 
-        # Parse JSON
+        # Parse JSON — bare loads first (fast path), then the shared recovery
+        # (ADR-220): prompt-engineered JSON routinely arrives fenced, wrapped
+        # in prose, truncated or with a trailing comma, and this path used to
+        # give up on all of them while the tool-call rescue recovered some.
         try:
             parsed_json = json.loads(raw_output)
         except json.JSONDecodeError as e:
-            raise StructuredOutputError(
-                f"Failed to parse JSON from {provider}: {e}",
+            from src.infrastructure.llm.json_recovery import extract_json_payload
+
+            recovered = extract_json_payload(raw_output)
+            if recovered is None:
+                raise StructuredOutputError(
+                    f"Failed to parse JSON from {provider}: {e}",
+                    provider=provider,
+                    schema_name=schema_name,
+                    raw_output=raw_output,
+                    original_error=e,
+                ) from e
+            logger.warning(
+                "json_mode_payload_recovered",
                 provider=provider,
-                schema_name=schema_name,
-                raw_output=raw_output,
-                original_error=e,
-            ) from e
+                schema=schema_name,
+                msg="JSON-mode output was not bare JSON — payload recovered by "
+                "json_recovery (fences/prose/truncation/trailing comma)",
+            )
+            parsed_json = json.loads(recovered)
 
         # Validate with Pydantic schema
         try:

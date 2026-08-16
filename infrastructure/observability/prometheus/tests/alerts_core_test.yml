@@ -156,6 +156,23 @@ tests:
         alertname: ContainerMemoryNearLimit
         exp_alerts: []
 
+  # ===== ContainerMemoryNearLimit: a container with NO limit must NOT fire =====
+  # cAdvisor reports `container_spec_memory_limit_bytes` as 0 when compose sets
+  # no mem_limit, and x/0 is +Inf in PromQL — +Inf passed the old
+  # `quotient > 0` filter and fired this alert permanently for every unlimited
+  # container (measured 2026-08-16 on the 7 demo-instance services). The guard
+  # now sits on the denominator: `(limit > 0)` drops the series entirely.
+  - interval: 1m
+    input_series:
+      - series: 'container_memory_working_set_bytes{name="lia-demo-instance-demo-instance-edge-1"}'
+        values: '50000000x12'
+      - series: 'container_spec_memory_limit_bytes{name="lia-demo-instance-demo-instance-edge-1"}'
+        values: '0x12'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: ContainerMemoryNearLimit
+        exp_alerts: []
+
   # ===== ContainerRestartLoop: 3 restarts within 30m =====
   - interval: 1m
     input_series:
@@ -358,6 +375,38 @@ tests:
               summary: "Scrape target node is down"
               description: "The node exporter has been unreachable for 10 minutes. Resource and probe alerts relying on it are blind while it is down."
               runbook: "docs/runbooks/alerts/ContainerDown.md"
+
+  # ===== LLMCallsWithoutUsage: a paid call completed unaccounted (ADR-220) =====
+  # Two usage-less completions on the response node inside the hour must fire.
+  # 30s sampling like the other long-range rule: `increase()` extrapolates, and
+  # coarse samples turn an exact count into an artefact (see the 6h rule below).
+  - interval: 30s
+    input_series:
+      - series: 'llm_calls_without_usage_total{node_name="response"}'
+        values: '0+0x60 2+0x180'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: LLMCallsWithoutUsage
+        exp_alerts:
+          - exp_labels:
+              node_name: response
+              severity: warning
+              component: agents
+              tier: core
+            exp_annotations:
+              summary: "LLM calls completing without token usage on response"
+              description: "2 LLM call(s) on node response completed without usage metadata in the last hour (threshold: 0). Their spend reached no ledger: token_usage_logs, the instance spend ceiling and the cost dashboards did not see it."
+              runbook: "docs/runbooks/alerts/LLMCallsWithoutUsage.md"
+
+  # ===== …and a flat counter stays silent (zero threshold, no artefacts) =====
+  - interval: 30s
+    input_series:
+      - series: 'llm_calls_without_usage_total{node_name="response"}'
+        values: '0+0x240'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: LLMCallsWithoutUsage
+        exp_alerts: []
 
   # ===== SystemKnowledgeIndexationFailing: repeated indexation failures =====
   # Two failures in six hours must fire. The counter is the aggregate across

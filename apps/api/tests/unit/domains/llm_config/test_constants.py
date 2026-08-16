@@ -60,8 +60,8 @@ class TestLLMDefaults:
         assert config.model == expected_model
 
     def test_planner_has_timeout(self) -> None:
-        """Planner should have a 60s timeout."""
-        assert LLM_DEFAULTS["planner"].timeout_seconds == 60
+        """Planner timeout raised to 90s (ADR-221: prod p99 44.7s over 30d)."""
+        assert LLM_DEFAULTS["planner"].timeout_seconds == 90
 
     def test_mcp_app_react_agent_has_timeout(self) -> None:
         """MCP App ReAct agent should have a 120s timeout."""

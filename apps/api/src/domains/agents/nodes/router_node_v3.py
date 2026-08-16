@@ -28,6 +28,8 @@ from src.core.constants import (
 )
 from src.core.field_names import FIELD_RUN_ID
 from src.domains.agents.constants import (
+    INTENTION_ACTION,
+    INTENTION_CONVERSATION,
     STATE_KEY_DETECTED_INTENT,
     STATE_KEY_MESSAGES,
     STATE_KEY_PLAN_APPROVED,
@@ -249,7 +251,9 @@ async def router_node_v3(
 
     # Build RouterOutput
     router_output = RouterOutput(
-        intention="action" if intelligence.route_to == "planner" else "conversation",
+        intention=(
+            INTENTION_ACTION if intelligence.route_to == "planner" else INTENTION_CONVERSATION
+        ),
         confidence=intelligence.confidence,
         context_label=intelligence.primary_domain,
         next_node=intelligence.route_to,

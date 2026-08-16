@@ -89,11 +89,18 @@ groups:
       # cgroup, so its cache fills the limit by design. `working_set` is
       # `usage - inactive_file`, which IS what the kernel uses for the OOM
       # decision — the quantity this alert claims to predict.
+      #
+      # The `> 0` guard sits on the DENOMINATOR, not on the quotient: a
+      # container with no compose memory limit reports the metric as 0, and
+      # x/0 is +Inf in PromQL — which passes any `quotient > 0` filter and
+      # fired this alert permanently for every unlimited container (measured
+      # 2026-08-16: the 7 demo-instance services without `mem_limit`).
+      # `(limit > 0)` drops the zero-limit series before the division instead.
       - alert: ContainerMemoryNearLimit
         expr: |
           (
             container_memory_working_set_bytes{name=~"lia.*"}
-            / container_spec_memory_limit_bytes{name=~"lia.*"} > 0
+            / (container_spec_memory_limit_bytes{name=~"lia.*"} > 0)
           ) * 100 > <<<ALERT_CORE_CONTAINER_MEMORY_PERCENT>>>
         for: 10m
         labels:
@@ -176,6 +183,25 @@ groups:
           summary: "Global rate limit degraded — requests admitted unchecked"
           description: "{{ $value | humanize }} req/s are crossing the API with no rate limit applied because the limiter cannot reach Redis (threshold: <<<ALERT_CORE_RATE_LIMIT_DEGRADED_RPS>>> req/s over 5 minutes — fail-open is deliberate, but the API is running without a global ceiling until Redis recovers)."
           runbook: "docs/runbooks/alerts/GlobalRateLimitDegraded.md"
+
+      # ADR-220. A completed LLM call whose result carries no token usage is a
+      # hole in the ledger: token_usage_logs, the daily spend ceiling and every
+      # cost dashboard silently miss that spend. This is exactly how a missing
+      # `stream_usage` ask on one provider branch stayed invisible for months —
+      # accounting only survived because the provider sent usage unrequested.
+      # Zero is the honest threshold: no paid call may complete unaccounted.
+      - alert: LLMCallsWithoutUsage
+        expr: |
+          sum by (node_name) (increase(llm_calls_without_usage_total[1h])) > <<<ALERT_CORE_LLM_NO_USAGE_1H>>>
+        for: 0m
+        labels:
+          severity: warning
+          component: agents
+          tier: core
+        annotations:
+          summary: "LLM calls completing without token usage on {{ $labels.node_name }}"
+          description: "{{ $value | humanize }} LLM call(s) on node {{ $labels.node_name }} completed without usage metadata in the last hour (threshold: <<<ALERT_CORE_LLM_NO_USAGE_1H>>>). Their spend reached no ledger: token_usage_logs, the instance spend ceiling and the cost dashboards did not see it."
+          runbook: "docs/runbooks/alerts/LLMCallsWithoutUsage.md"
 
   # ===== SYSTEM KNOWLEDGE — the FAQ the assistant answers about itself from =====
   - name: core_system_knowledge

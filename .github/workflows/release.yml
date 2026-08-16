@@ -220,9 +220,11 @@ jobs:
           python -m cyclonedx_py requirements requirements.lock.txt --of json -o ../../sbom-api.cdx.json
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
-        with:
-          version: 9
+        # No explicit version: the action reads `packageManager` from
+        # package.json (same pattern as ci.yml). A hardcoded major here
+        # conflicts with that field, and action-setup >=4.1 refuses the
+        # ambiguity outright — measured on the v1.30.0 candidate run.
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v4
 
       - name: Generate frontend SBOM
         run: |

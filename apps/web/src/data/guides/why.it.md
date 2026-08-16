@@ -4,7 +4,7 @@
 
 **Versione**: 4.5
 **Data**: 2026-08-16
-**Applicazione**: LIA v1.30.0
+**Applicazione**: LIA v1.30.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -386,6 +386,8 @@ Una funzionalità che fallisce in silenzio non esiste altrettanto. Una generazio
 C'è qualcosa di più insidioso di una guardia che non si è mai fatta fallire: una guardia che osserva il segnale sbagliato. Tre intestazioni dell'interfaccia si dichiaravano fisse durante lo scorrimento, e nessuna lo era — su ogni schermo, fin dall'inizio. Nulla l'aveva colto, perché nessuna verifica misurava mai una posizione *durante* uno scorrimento: tutte osservavano una pagina a riposo, esattamente lo stato in cui il difetto non esiste. Correggere la causa era dunque solo metà del lavoro; è servito aggiungere la misura mancante e poi ripristinare la vecchia impostazione per confermare che diventasse davvero rossa.
 
 Ancora più insidioso di una guardia puntata sul segnale sbagliato: un difetto che si manifesta solo una volta su due. La stessa richiesta falliva, poi passava trenta minuti dopo senza che una sola riga fosse cambiata — quanto basta per concludere «era passeggero» e chiudere il caso. La causa stava in un dettaglio invisibile: gli strumenti vengono scelti su una riformulazione inglese prodotta da un modello, rigenerata a ogni turno. Un verbo diverso, uno strumento di lettura che sparisce, e l'assistente si ritrova a dover rispondere a un messaggio che non può leggere. La tentazione era regolare quel caso — una parola chiave in più, una soglia spostata. Abbiamo preferito una garanzia che non lo guarda affatto: prima di pianificare, il sistema verifica che tutto ciò che richiede sia davvero a portata. Quando una risposta dipende da un sorteggio, correggerla raramente significa migliorare il sorteggio.
+
+Una cifra mostrata è un'affermazione: è esatta, o non esiste. Il cruscotto ha mostrato a lungo «0 azioni riuscite» — non perché nulla andasse a buon fine, ma perché la classificazione interna confrontava con una parola che nessuno emetteva. E il conteggio dei token era giusto — ma per cortesia del fornitore, non per contratto: niente lo richiedeva, niente lo testava, niente lo sorvegliava. Le due riparazioni hanno la stessa forma: il vocabolario è bloccato da entrambi i lati da un test di contratto, la richiesta di conteggio è dichiarata per fornitore e verificata all'avvio, e una chiamata a pagamento che termina senza conteggio fa scattare un allarme. L'esattezza non è uno stato — è una sorveglianza.
 
 ### 8.2. Uno stack di osservabilità professionale
 

@@ -251,6 +251,41 @@ def log_event_loop_configuration() -> None:
     )
 
 
+def validate_provider_usage_capabilities() -> None:
+    """Every chat provider must declare how its token usage is accounted.
+
+    ADR-220 (ADR-085 doctrine): a provider able to serve a streamed slot
+    without a ``PROVIDER_USAGE_CAPABILITIES`` entry is a silent accounting
+    hole — the request would omit the usage ask and the ledger, the spend
+    ceiling and the dashboards would depend on unrequested provider
+    generosity. Refuse to boot instead.
+
+    Raises:
+        RuntimeError: If a chat provider is missing from the registry, if the
+            registry names an unknown provider, or if a value is out of the
+            bounded vocabulary.
+    """
+    from typing import get_args
+
+    from src.domains.llm_config.constants import PROVIDER_USAGE_CAPABILITIES
+    from src.infrastructure.llm.providers.adapter import ProviderType
+
+    chat_providers = set(get_args(ProviderType))
+    declared = set(PROVIDER_USAGE_CAPABILITIES)
+    missing = sorted(chat_providers - declared)
+    unknown = sorted(declared - chat_providers)
+    if missing or unknown:
+        raise RuntimeError(
+            "PROVIDER_USAGE_CAPABILITIES drift: "
+            f"missing={missing} unknown={unknown} — every chat provider must "
+            "declare its usage accounting mode (ADR-220)."
+        )
+    allowed = {"stream_usage_flag", "native", "excluded"}
+    invalid = {p: v for p, v in PROVIDER_USAGE_CAPABILITIES.items() if v not in allowed}
+    if invalid:
+        raise RuntimeError(f"PROVIDER_USAGE_CAPABILITIES holds out-of-vocabulary values: {invalid}")
+
+
 def validate_tool_error_codes() -> None:
     """
     Validate that all ToolErrorCode values used in the codebase exist in the enum.

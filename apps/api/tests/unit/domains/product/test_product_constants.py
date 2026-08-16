@@ -69,26 +69,46 @@ class TestDeriveChannel:
 
 
 class TestDeriveResultType:
-    """v1 approximation: scheduler → automation_run, actionable → action."""
+    """v1 approximation: scheduler → automation_run, action intention → action."""
 
     @pytest.mark.parametrize(
         ("intention", "channel", "expected"),
         [
             (None, "scheduler", "automation_run"),
-            ("actionable", "scheduler", "automation_run"),
-            ("actionable", "web", "action"),
+            ("action", "scheduler", "automation_run"),
+            ("action", "web", "action"),
             ("conversation", "web", "answer"),
             (None, "web", "answer"),
             ("garbage", "unknown", "answer"),
+            # Regression 2026-08-16: the router has always emitted "action"
+            # (router_node_v3), never "actionable" — the old comparison made
+            # every chat run an "answer" and the dashboard's "actions" tile a
+            # permanent zero. "actionable" has no producer and stays unmapped.
+            ("actionable", "web", "answer"),
         ],
     )
     def test_mapping(self, intention: str | None, channel: str, expected: str) -> None:
         assert derive_result_type(intention, channel) == expected
 
     def test_output_always_bounded(self) -> None:
-        for intention in (None, "actionable", "conversation", "x"):
+        for intention in (None, "action", "conversation", "x"):
             for channel in CHANNELS:
                 assert derive_result_type(intention, channel) in RESULT_TYPES
+
+    def test_router_vocabulary_contract(self) -> None:
+        """The product derivation recognizes the ROUTER's actual vocabulary.
+
+        ``derive_result_type`` compares against the intention the router node
+        persists in the assistant metadata. The two domains must not import
+        each other at runtime (coupling ratchet), so the shared string is
+        pinned on both sides by this contract test — same doctrine as
+        ``test_habit_ledger_key_contract``. If the router vocabulary changes,
+        this test fails and the product derivation must follow.
+        """
+        from src.domains.agents.constants import INTENTION_ACTION, INTENTION_CONVERSATION
+
+        assert derive_result_type(INTENTION_ACTION, "web") == "action"
+        assert derive_result_type(INTENTION_CONVERSATION, "web") == "answer"
 
 
 class TestEventRegistry:

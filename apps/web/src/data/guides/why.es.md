@@ -4,7 +4,7 @@
 
 **Versión**: 4.5
 **Fecha**: 2026-08-16
-**Aplicación**: LIA v1.30.0
+**Aplicación**: LIA v1.30.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -386,6 +386,8 @@ Una funcionalidad que falla en silencio tampoco existe. Una generación cortada 
 Hay algo más insidioso que una guarda que nunca se ha hecho fallar: una guarda que observa la señal equivocada. Tres cabeceras de la interfaz se declaraban fijas durante el desplazamiento, y ninguna lo era — en todas las pantallas, desde el principio. Nada lo había detectado, porque ninguna comprobación medía una posición *durante* un desplazamiento: todas observaban una página en reposo, justo el estado en el que el defecto no existe. Corregir la causa era, por tanto, solo la mitad del trabajo; hubo que añadir la medición que faltaba y después restablecer el ajuste anterior para confirmar que efectivamente se ponía en rojo.
 
 Aún más retorcido que un guardián que vigila la señal equivocada: un defecto que solo aparece una vez de cada dos. La misma petición fallaba y pasaba treinta minutos después sin que hubiera cambiado una sola línea — lo justo para concluir «fue pasajero» y cerrar el caso. La causa estaba en un detalle invisible: las herramientas se eligen contra una reformulación inglesa producida por un modelo, regenerada en cada turno. Un verbo distinto, una herramienta de lectura que desaparece, y el asistente acaba teniendo que responder a un mensaje que no puede leer. La tentación era ajustar ese azar — una palabra clave más, un umbral desplazado. Preferimos una garantía que no lo mira: antes de planificar, el sistema comprueba que todo lo que exige está realmente a su alcance. Cuando una respuesta depende de un sorteo, corregirla rara vez consiste en mejorar el sorteo.
+
+Una cifra mostrada es una afirmación: es exacta, o no existe. El panel mostró durante mucho tiempo «0 acciones exitosas» — no porque nada terminara bien, sino porque la clasificación interna comparaba con una palabra que nadie emitía. Y el recuento de tokens era correcto — pero por cortesía del proveedor, no por contrato: nada lo solicitaba, nada lo probaba, nada lo vigilaba. Ambas reparaciones comparten la misma forma: el vocabulario queda bloqueado por ambos lados con un test de contrato, la solicitud de recuento se declara por proveedor y se verifica al arranque, y una llamada de pago que termina sin recuento dispara una alerta. La exactitud no es un estado — es una vigilancia.
 
 ### 8.2. Una stack de observabilidad profesional
 

@@ -13,6 +13,7 @@ import structlog
 
 from src.core.bootstrap import (
     validate_llm_configuration,
+    validate_provider_usage_capabilities,
     validate_tool_error_codes,
 )
 
@@ -35,7 +36,8 @@ def import_domain_models() -> None:
 def run_failfast_validations() -> None:
     """Run the fail-fast boot validations (die at boot, not at first request).
 
-    Validates, in order: LLM configuration completeness, ToolErrorCode enum
+    Validates, in order: LLM configuration completeness, the provider
+    usage-accounting registry (ADR-220), ToolErrorCode enum
     completeness, Draft Display Registry exhaustivity (ADR-085), Draft
     Preview Renderer exhaustivity (ADR-085 pattern), the evidence-driven
     expansion entity types (ADR-085 pattern), the HITL classifier few-shot
@@ -51,6 +53,15 @@ def run_failfast_validations() -> None:
     except ValueError as exc:
         logger.error("llm_configuration_invalid", error=str(exc), exc_info=True)
         raise RuntimeError(f"Invalid LLM configuration: {exc}") from exc
+
+    # Validate the provider usage-accounting registry (ADR-220 / ADR-085: a
+    # chat provider without a declared accounting mode is a silent hole in the
+    # token ledger and the spend ceiling — refuse to boot).
+    try:
+        validate_provider_usage_capabilities()
+    except RuntimeError as exc:
+        logger.error("provider_usage_capabilities_invalid", error=str(exc), exc_info=True)
+        raise
 
     # Validate ToolErrorCode enum completeness (fail-fast if codes are missing)
     try:
