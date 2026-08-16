@@ -91,13 +91,19 @@ jobs:
             --name self-host-candidate --dir candidate
           mkdir -p work && tar -xzf candidate/lia-self-host-bundle.tar.gz -C work
 
-      - name: Start the hermetic fake provider network
+      - name: Stage the qualification runtime harness
         working-directory: work
         run: |
           set -euo pipefail
-          cp -r ../scripts/install/tests/runtime scripts/install/tests/runtime || true
-          # The disposable overlay wires OPENAI/QWEN/DEEPSEEK base URLs to
-          # the fake provider for the API service.
+          # The bundle ships scripts/install WITHOUT tests/ (by design), so
+          # the parent directory must be created first. The old
+          # `cp ... || true` swallowed exactly that failure: the harness was
+          # never staged and the post-install probes step died on a missing
+          # assert_install.py after a fully green install (measured on the
+          # v1.30.1 qualification). Loud by construction now.
+          mkdir -p scripts/install/tests
+          cp -r ../scripts/install/tests/runtime scripts/install/tests/runtime
+          test -f scripts/install/tests/runtime/assert_install.py
 
       - name: Stage the qualification-stamped manifest (prebuilt only)
         if: matrix.mode == 'prebuilt'
@@ -183,6 +189,35 @@ jobs:
             echo "::group::logs $svc"
             docker compose -p "$p" logs --no-color --tail 300 "$svc" || true
             echo "::endgroup::"
+          done
+
+      - name: Apply the hermetic fake-provider overlay
+        working-directory: work
+        run: |
+          set -euo pipefail
+          # docker-compose.disposable.yml adds the fake provider and points
+          # OPENAI/QWEN/DEEPSEEK base URLs at it for the API service. It was
+          # designed for exactly this harness and referenced by NOTHING — the
+          # SSE chat probe would have reached the real providers with a fake
+          # key. Applied AFTER the wizard's own sequence on purpose: the
+          # public installer must be qualified unmodified, the overlay only
+          # reshapes the already-verified stack for hermetic probing.
+          files="-f docker-compose.prod.yml -f docker-compose.install.yml"
+          if [ "${{ matrix.mode }}" = "prebuilt" ]; then
+            files="$files -f docker-compose.images.yml"
+          fi
+          files="$files -f scripts/install/tests/runtime/docker-compose.disposable.yml"
+          docker compose -p "${{ steps.project.outputs.name }}" $files \
+            up -d --no-build api fake-provider
+          # The recreation restarts the API (~40 s boot): the probes have no
+          # readiness wait of their own, so the gate lives here.
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8000/ready >/dev/null && break
+            if [ "$i" = "60" ]; then
+              echo "::error::API not ready 180s after the overlay recreation" >&2
+              exit 1
+            fi
+            sleep 3
           done
 
       - name: Post-install probes (login, SSE chat, image identities)
