@@ -16,6 +16,11 @@ on:
 permissions:
   contents: read
   actions: read
+  # Prebuilt legs pull the candidate images from GHCR by digest. The package
+  # is public at release time, but the candidate digests are qualified BEFORE
+  # publication — authenticated pulls keep the legs independent of package
+  # visibility timing.
+  packages: read
 
 env:
   # Hermetic provider endpoints — the ONLY provider surface in this workflow.
@@ -94,6 +99,35 @@ jobs:
           # The disposable overlay wires OPENAI/QWEN/DEEPSEEK base URLs to
           # the fake provider for the API service.
 
+      - name: Stage the qualification-stamped manifest (prebuilt only)
+        if: matrix.mode == 'prebuilt'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # The wizard refuses any manifest not stamped qualification="passed"
+          # (preflight.resolve_install_mode) — a real user only ever receives
+          # the stamped manifest from the published release. This workflow IS
+          # the qualification producing that stamp, so its prebuilt legs
+          # pre-stamp their own working copy; the candidate artifact itself
+          # is never modified. Without this staging the prebuilt legs
+          # silently resolved to LOCAL mode (no adjacent manifest at the
+          # bundle root) and the matrix qualified local twice (measured on
+          # the v1.30.1 qualification).
+          python3 - <<'EOF'
+          import json
+          import pathlib
+
+          manifest = json.loads(
+              pathlib.Path("candidate/lia-self-host-manifest.json").read_text()
+          )
+          manifest["qualification"] = "passed"
+          pathlib.Path("work/lia-self-host-manifest.json").write_text(
+              json.dumps(manifest, indent=1) + "\n"
+          )
+          EOF
+          echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
       - name: Run the installer non-interactively (${{ matrix.mode }})
         working-directory: work
         env:
@@ -115,8 +149,14 @@ jobs:
           provider_key_openai=$FAKE_PROVIDER_KEY
           EOF
           chmod 600 answers.env
-          mode_flag=""
-          if [ "${{ matrix.mode }}" = "local" ]; then mode_flag="--local-build"; fi
+          # Explicit flag per mode: with NO flag the wizard resolves the mode
+          # from the adjacent manifest, and a candidate (or absent) manifest
+          # falls back to LOCAL — the prebuilt legs must demand their mode.
+          if [ "${{ matrix.mode }}" = "local" ]; then
+            mode_flag="--local-build"
+          else
+            mode_flag="--prebuilt"
+          fi
           trap '../cleanup.sh "${{ steps.project.outputs.name }}"' EXIT
           COMPOSE_PROJECT_NAME="${{ steps.project.outputs.name }}" \
             ./install.sh $mode_flag --non-interactive --answers answers.env

@@ -33,7 +33,9 @@ from scripts.install.answers import (
     collect_secret_answers,
 )
 from scripts.install.compose import (
+    IMAGES_COMPOSE,
     build_invocation,
+    locked_services,
     render_caddyfile,
     render_install_override,
 )
@@ -52,7 +54,7 @@ from scripts.install.host_paths import (
     required_host_paths,
 )
 from scripts.install.log import InstallLog
-from scripts.install.manifest import hash_file
+from scripts.install.manifest import hash_file, load_manifest, render_image_lock
 from scripts.install.model import (
     Clock,
     Exposure,
@@ -142,6 +144,31 @@ def _generated_fingerprints(root: Path) -> dict[str, str]:
     return fingerprints
 
 
+def _prebuilt_pins(public: PublicAnswers) -> tuple[str | None, str | None]:
+    """Manifest-derived pins for prebuilt mode: image lock + sandbox image.
+
+    Returns:
+        ``(image_lock_yaml, sandbox_api_image)`` — both ``None`` outside
+        prebuilt mode. The lock is the ``docker-compose.images.yml`` content
+        `build_invocation` already references (``render_image_lock`` had
+        ZERO call sites until the v1.30.1 qualification: every prebuilt
+        install died on the missing Compose layer). The sandbox image is
+        the manifest's API reference — the base file's ``lia-api:local``
+        fallback is a tag a prebuilt host never has.
+    """
+    if public.mode is not InstallMode.PREBUILT or public.manifest_path is None:
+        return None, None
+    manifest = load_manifest(public.manifest_path, required_qualification="passed")
+    lock = render_image_lock(manifest, locked_services(public))
+    sandbox_api_image: str | None = None
+    if public.skill_sandbox:
+        # `render_image_lock` above already guarantees an `api` entry.
+        sandbox_api_image = next(
+            image.reference for image in manifest.images if image.service == "api"
+        )
+    return lock, sandbox_api_image
+
+
 def _generate_artifacts(
     deps: Deps,
     public: PublicAnswers,
@@ -149,8 +176,9 @@ def _generate_artifacts(
     seed_intent: bool,
     generated: Mapping[str, str],
     sandbox_api_image: str | None,
+    image_lock: str | None,
 ) -> str:
-    """Render .env / override / Caddyfile and prepare host paths."""
+    """Render .env / override / image lock / Caddyfile, prepare host paths."""
     seed_digest = compute_seed_bundle_sha256(deps.root)
     environment = derive_environment(public, generated)
     # The minimal production template is the BASE of the user's `.env`: every
@@ -173,6 +201,8 @@ def _generate_artifacts(
             sandbox_api_image=sandbox_api_image,
         ),
     )
+    if image_lock is not None:
+        write_atomic_private(deps.root / IMAGES_COMPOSE, image_lock)
     if public.exposure is Exposure.CADDY:
         caddy_dir = deps.root / "infrastructure" / "caddy"
         caddy_dir.mkdir(parents=True, exist_ok=True)
@@ -261,8 +291,10 @@ def _deploy_sequence(
         # Local builds from the release bundle: the Compose build contexts
         # (apps/…) live inside the embedded source-context archive and MUST be
         # materialized before `compose build` — a bundle without this step
-        # dies in acquire_failed within seconds (v1.30.1 qualification). A git
-        # clone or a resumed install is a no-op (apps/ already present).
+        # dies in acquire_failed within seconds (v1.30.1 qualification). Only
+        # the archive's absence (a git clone) skips extraction: `apps/` being
+        # present proves nothing, `_generate_artifacts` already mkdir'ed the
+        # `apps/api/config` bind-mount target a few lines above.
         if public.mode is InstallMode.LOCAL:
             log.write("step_started", step="materialize_source_context")
             try:
@@ -274,6 +306,10 @@ def _deploy_sequence(
                 ) from exc
             if source_tree_sha is not None:
                 log.write("source_context_materialized", tree_sha256=source_tree_sha)
+            else:
+                # A silent no-op here cost a full disposable matrix run to
+                # diagnose — the log states WHY nothing was extracted.
+                log.write("source_context_absent", reason="no_embedded_archive")
         log.write("step_started", step="acquire")
         deploy.acquire(invocation, deps.runner)
         log.write("step_started", step="validate_settings")
@@ -397,7 +433,13 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
                     answers_path=args.answers,
                 )
                 seed_digest = previous_state.seed_bundle_sha256
-                sandbox_image = None
+                # Re-derive the manifest pins: `_disarm_seeds` re-renders the
+                # override during the resumed sequence, and a None here would
+                # silently strip SKILLS_SCRIPT_SANDBOX_IMAGE from it. The
+                # idempotent lock rewrite also self-heals a deleted layer.
+                image_lock, sandbox_image = _prebuilt_pins(public)
+                if image_lock is not None:
+                    write_atomic_private(deps.root / IMAGES_COMPOSE, image_lock)
                 log.add_secret(secrets.admin_password)
                 for value in secrets.provider_keys.values():
                     log.add_secret(value)
@@ -422,13 +464,14 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
             log.add_secret(value)
 
         generated = _load_or_generate_secrets(deps)
-        sandbox_image = None
+        image_lock, sandbox_image = _prebuilt_pins(public)
         seed_digest = _generate_artifacts(
             deps,
             public,
             seed_intent=True,
             generated=generated,
             sandbox_api_image=sandbox_image,
+            image_lock=image_lock,
         )
         state = _fresh_state(public, seed_digest, deps.root)
         state = with_step_completed(

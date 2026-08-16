@@ -214,6 +214,49 @@ def test_full_local_install_hits_the_exact_ordered_surface(tmp_path: Path) -> No
     assert PASSWORD not in report and "dk-CANARY-11" not in report
 
 
+def test_full_prebuilt_install_pins_images_and_sandbox(tmp_path: Path) -> None:
+    """PREBUILT mode writes the digest lock and derives the sandbox image.
+
+    Both were rendered by tested-but-unwired code until the v1.30.1
+    qualification, take two: ``build_invocation`` referenced
+    ``docker-compose.images.yml`` that nothing wrote (``render_image_lock``
+    had ZERO call sites), so every prebuilt install died on a missing
+    Compose file — and the sandbox image stayed on the base file's
+    ``lia-api:local`` fallback, a tag a prebuilt host never has.
+    """
+    from scripts.install.tests.test_preflight import _manifest_payload
+
+    root = _bundle(tmp_path)
+    (root / "lia-self-host-manifest.json").write_text(
+        json.dumps(_manifest_payload("passed")), encoding="utf-8"
+    )
+    answers = dict(ANSWERS, skill_sandbox="yes")
+    io = _IO()
+    runner = _Runner()
+    code = run_install(
+        [
+            "--prebuilt",
+            "--non-interactive",
+            "--answers",
+            str(_answers_file(root, answers)),
+        ],
+        _deps(root, io, runner),
+    )
+    assert code == EXIT_OK
+
+    lock = (root / "docker-compose.images.yml").read_text(encoding="utf-8")
+    assert "  api:\n    image: ghcr.io/example/lia/api@sha256:" in lock
+    assert "  web:\n    image: ghcr.io/example/lia/web@sha256:" in lock
+
+    joined = runner.joined()
+    assert any(
+        "docker-compose.images.yml" in line and line.endswith("pull api web")
+        for line in joined
+    ), joined
+    override = (root / "docker-compose.install.yml").read_text(encoding="utf-8")
+    assert "SKILLS_SCRIPT_SANDBOX_IMAGE=ghcr.io/example/lia/api@sha256:" in override
+
+
 def test_unmanaged_env_aborts_as_takeover(tmp_path: Path) -> None:
     root = _bundle(tmp_path)
     (root / ".env").write_text("THEIRS=1\n", encoding="utf-8")

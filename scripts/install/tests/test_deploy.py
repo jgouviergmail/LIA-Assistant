@@ -446,16 +446,38 @@ class TestMaterializeSourceContext:
         assert isinstance(digest, str) and len(digest) == 64
 
     def test_noop_on_a_git_clone(self, tmp_path) -> None:
-        """apps/ already present (git clone): never touch it, return None."""
+        """A git clone ships no archive: never touch its apps/, return None."""
         from scripts.install.deploy import materialize_source_context
 
-        root = self._bundle_root(tmp_path)
-        (root / "apps").mkdir()
+        root = tmp_path / "clone"
+        (root / "apps").mkdir(parents=True)
         sentinel = root / "apps" / "sentinel"
         sentinel.write_text("keep me")
 
         assert materialize_source_context(root) is None
         assert sentinel.read_text() == "keep me"
+
+    def test_extracts_despite_a_pre_created_host_path_scaffold(
+        self, tmp_path
+    ) -> None:
+        """prepare_host_paths pre-creates apps/api/config BEFORE this step.
+
+        The v1.30.1 qualification run proved the old ``apps/ exists`` guard
+        fatal: `_generate_artifacts` mkdir'ed `apps/api/config` (a bind-mount
+        requirement), the guard concluded "git clone" and skipped extraction,
+        and `compose build` died on a missing `apps/web`. An empty scaffold
+        is not a source tree — only the archive's absence means "clone".
+        """
+        from scripts.install.deploy import materialize_source_context
+
+        root = self._bundle_root(tmp_path)
+        (root / "apps" / "api" / "config").mkdir(parents=True)
+
+        digest = materialize_source_context(root)
+
+        assert isinstance(digest, str) and len(digest) == 64
+        assert (root / "apps" / "web" / "Dockerfile.prod").is_file()
+        assert (root / "apps" / "api" / "config").is_dir()
 
     def test_noop_without_the_archive(self, tmp_path) -> None:
         from scripts.install.deploy import materialize_source_context
@@ -487,12 +509,17 @@ class TestMaterializeSourceContext:
             materialize_source_context(root)
         assert not (tmp_path / "outside.txt").exists()
 
-    def test_extraction_is_idempotent_via_the_apps_guard(self, tmp_path) -> None:
-        """A resumed install re-enters cleanly: second call is a no-op."""
+    def test_reextraction_is_deterministic_on_resume(self, tmp_path) -> None:
+        """A resumed install re-extracts and lands on the SAME tree digest.
+
+        Re-extraction (not a skip) is deliberate: it self-heals a partial
+        extraction after a mid-step crash, and its determinism is what makes
+        the recorded ``source_context_tree_sha256`` trustworthy.
+        """
         from scripts.install.deploy import materialize_source_context
 
         root = self._bundle_root(tmp_path)
         first = materialize_source_context(root)
         second = materialize_source_context(root)
 
-        assert first is not None and second is None
+        assert first is not None and second == first

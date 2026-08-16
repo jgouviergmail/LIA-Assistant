@@ -121,10 +121,15 @@ def materialize_source_context(root: Path) -> str | None:
     as build contexts; a git clone has them, the release bundle ships them
     inside :data:`SOURCE_CONTEXT_MEMBER` — and nothing extracted it, so every
     ``--local-build`` from a bundle died in ``acquire_failed`` within seconds
-    (measured on the v1.30.1 qualification matrix). No-op on a git clone
-    (``apps/`` present) and when the archive is absent; a second call after
-    extraction is therefore a no-op too, which is what a resumed install
-    needs.
+    (measured on the v1.30.1 qualification matrix). The archive's ABSENCE is
+    the only no-op condition: an ``apps/`` guard is a trap, because
+    ``prepare_host_paths`` mkdir's the ``apps/api/config`` bind-mount target
+    before this step runs, so "``apps/`` exists" does NOT mean "source tree
+    present" (that exact interleaving turned this function into a silent
+    no-op on the v1.30.1 qualification matrix, take two). When the archive
+    is present the extraction always runs — deliberately: it self-heals a
+    partial extraction after a crash, overwrites nothing a bundle install
+    owns less than the installer does, and lands on a deterministic digest.
 
     Extraction is fail-closed on hostile members (absolute paths, ``..``,
     links pointing outside the root) — Python 3.10 floor, so the check is
@@ -143,8 +148,6 @@ def materialize_source_context(root: Path) -> str | None:
     import hashlib
     import tarfile
 
-    if (root / "apps").exists():
-        return None
     archive = root / SOURCE_CONTEXT_MEMBER
     if not archive.is_file():
         return None
