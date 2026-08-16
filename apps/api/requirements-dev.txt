@@ -2,18 +2,18 @@
 
 # Linting & Formatting
 black==26.5.1
-ruff==0.15.15
+ruff==0.16.2
 mypy==1.20.1
 
 # Testing
-pytest==9.0.3
+pytest==9.1.1
 pytest-asyncio==1.4.0
 pytest-cov==7.1.0
 pytest-mock==3.15.1
 # Parallel test execution — pre-commit hook pytest step (-n auto --dist loadscope)
 pytest-xdist==3.8.0
 httpx==0.28.1
-testcontainers==4.14.2
+testcontainers==4.15.0
 
 # Debugging
 debugpy==1.8.21
