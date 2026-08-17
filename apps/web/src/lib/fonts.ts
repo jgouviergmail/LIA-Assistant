@@ -1,69 +1,119 @@
 /**
  * Font configuration for the application.
  *
- * Uses next/font/google for optimal loading (self-hosted, no CLS, no FOUT).
- * Geist is loaded from the npm package.
+ * Every face is SELF-HOSTED via next/font/local from woff2 files committed
+ * under src/fonts/ (latin subset, the exact static instances Google Fonts
+ * served for the previous next/font/google config — same families, same
+ * weights, same CSS variables, so rendering is unchanged).
+ *
+ * Why not next/font/google: it downloads fonts from fonts.gstatic.com at
+ * BUILD time, and Google rotates hosted file versions — two production
+ * image builds failed on 2026-08-16 with 404s on freshly rotated URLs
+ * (28 Turbopack errors each). A production build must not depend on a
+ * third-party CDN being consistent mid-rotation. Geist already ships from
+ * its npm package.
+ *
+ * Guard: src/lib/__tests__/fonts.test.ts pins the no-network contract
+ * (no next/font/google import may reappear) and the exported variables.
  */
 
-import {
-  Fira_Code,
-  IBM_Plex_Sans,
-  Libre_Baskerville,
-  Merriweather,
-  Noto_Sans,
-  Plus_Jakarta_Sans,
-  Source_Sans_3,
-} from 'next/font/google';
+import localFont from 'next/font/local';
 import { GeistSans } from 'geist/font/sans';
 
-// Google Fonts with CSS variables
-export const notoSans = Noto_Sans({
-  subsets: ['latin'],
+export const notoSans = localFont({
+  src: [
+    { path: '../fonts/noto-sans/noto-sans-400.woff2', weight: '400', style: 'normal' },
+    { path: '../fonts/noto-sans/noto-sans-500.woff2', weight: '500', style: 'normal' },
+    { path: '../fonts/noto-sans/noto-sans-600.woff2', weight: '600', style: 'normal' },
+    { path: '../fonts/noto-sans/noto-sans-700.woff2', weight: '700', style: 'normal' },
+  ],
   variable: '--font-noto-sans',
   display: 'swap',
-  weight: ['400', '500', '600', '700'],
 });
 
-export const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ['latin'],
+export const plusJakartaSans = localFont({
+  src: [
+    {
+      path: '../fonts/plus-jakarta-sans/plus-jakarta-sans-400.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/plus-jakarta-sans/plus-jakarta-sans-500.woff2',
+      weight: '500',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/plus-jakarta-sans/plus-jakarta-sans-600.woff2',
+      weight: '600',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/plus-jakarta-sans/plus-jakarta-sans-700.woff2',
+      weight: '700',
+      style: 'normal',
+    },
+  ],
   variable: '--font-plus-jakarta',
   display: 'swap',
-  weight: ['400', '500', '600', '700'],
 });
 
-export const ibmPlexSans = IBM_Plex_Sans({
-  subsets: ['latin'],
+export const ibmPlexSans = localFont({
+  src: [
+    { path: '../fonts/ibm-plex-sans/ibm-plex-sans-400.woff2', weight: '400', style: 'normal' },
+    { path: '../fonts/ibm-plex-sans/ibm-plex-sans-500.woff2', weight: '500', style: 'normal' },
+    { path: '../fonts/ibm-plex-sans/ibm-plex-sans-600.woff2', weight: '600', style: 'normal' },
+    { path: '../fonts/ibm-plex-sans/ibm-plex-sans-700.woff2', weight: '700', style: 'normal' },
+  ],
   variable: '--font-ibm-plex',
   display: 'swap',
-  weight: ['400', '500', '600', '700'],
 });
 
-export const sourceSans3 = Source_Sans_3({
-  subsets: ['latin'],
+export const sourceSans3 = localFont({
+  src: [
+    { path: '../fonts/source-sans-3/source-sans-3-400.woff2', weight: '400', style: 'normal' },
+    { path: '../fonts/source-sans-3/source-sans-3-500.woff2', weight: '500', style: 'normal' },
+    { path: '../fonts/source-sans-3/source-sans-3-600.woff2', weight: '600', style: 'normal' },
+    { path: '../fonts/source-sans-3/source-sans-3-700.woff2', weight: '700', style: 'normal' },
+  ],
   variable: '--font-source-sans',
   display: 'swap',
-  weight: ['400', '500', '600', '700'],
 });
 
-export const merriweather = Merriweather({
-  subsets: ['latin'],
+export const merriweather = localFont({
+  src: [
+    { path: '../fonts/merriweather/merriweather-400.woff2', weight: '400', style: 'normal' },
+    { path: '../fonts/merriweather/merriweather-700.woff2', weight: '700', style: 'normal' },
+  ],
   variable: '--font-merriweather',
   display: 'swap',
-  weight: ['400', '700'],
 });
 
-export const libreBaskerville = Libre_Baskerville({
-  subsets: ['latin'],
+export const libreBaskerville = localFont({
+  src: [
+    {
+      path: '../fonts/libre-baskerville/libre-baskerville-400.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/libre-baskerville/libre-baskerville-700.woff2',
+      weight: '700',
+      style: 'normal',
+    },
+  ],
   variable: '--font-libre-baskerville',
   display: 'swap',
-  weight: ['400', '700'],
 });
 
-export const firaCode = Fira_Code({
-  subsets: ['latin'],
+export const firaCode = localFont({
+  src: [
+    { path: '../fonts/fira-code/fira-code-400.woff2', weight: '400', style: 'normal' },
+    { path: '../fonts/fira-code/fira-code-500.woff2', weight: '500', style: 'normal' },
+    { path: '../fonts/fira-code/fira-code-700.woff2', weight: '700', style: 'normal' },
+  ],
   variable: '--font-fira-code',
   display: 'swap',
-  weight: ['400', '500', '700'],
 });
 
 // Geist from npm package (Vercel's font)

@@ -10,7 +10,7 @@
  * References:
  *   - Backend: apps/api/src/domains/shared/schemas.py (VALID_FONT_FAMILIES)
  *   - CSS: apps/web/src/styles/globals.css (data-font selectors)
- *   - Fonts: apps/web/src/lib/fonts.ts (next/font/google configuration)
+ *   - Fonts: apps/web/src/lib/fonts.ts (next/font/local — self-hosted woff2 in src/fonts/)
  */
 
 // ============================================================================
