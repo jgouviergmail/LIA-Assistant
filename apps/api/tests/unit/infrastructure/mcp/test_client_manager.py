@@ -39,7 +39,7 @@ class TestMCPClientManagerCallTool:
     async def test_successful_call(self, manager):
         """Test successful tool call returns content."""
         mock_result = MagicMock()
-        mock_result.isError = False
+        mock_result.is_error = False
         mock_content = MagicMock()
         mock_content.text = "Hello World"
         mock_result.content = [mock_content]
@@ -51,9 +51,9 @@ class TestMCPClientManagerCallTool:
 
     @pytest.mark.asyncio
     async def test_call_error_flag(self, manager):
-        """Test CallToolResult.isError=True raises RuntimeError."""
+        """Test CallToolResult.is_error=True raises RuntimeError."""
         mock_result = MagicMock()
-        mock_result.isError = True
+        mock_result.is_error = True
         mock_content = MagicMock()
         mock_content.text = "Tool execution failed"
         mock_result.content = [mock_content]
@@ -93,7 +93,7 @@ class TestMCPClientManagerCallTool:
     async def test_rate_limiting_enforcement(self, manager):
         """Test rate limit blocks excess calls."""
         mock_result = MagicMock()
-        mock_result.isError = False
+        mock_result.is_error = False
         mock_content = MagicMock()
         mock_content.text = "ok"
         mock_result.content = [mock_content]
@@ -211,6 +211,24 @@ class TestMCPClientManagerHealthCheck:
 
         assert status.connected is True
         assert status.tool_count == 2
+
+    @pytest.mark.asyncio
+    async def test_health_check_bypasses_client_cache(self):
+        """A health probe must reach the server: the SDK v2 Client caches
+        list results when a modern server sends ttl_ms, and a cached answer
+        would report a dead server as healthy."""
+        manager = MCPClientManager()
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.tools = []
+        mock_session.list_tools = AsyncMock(return_value=mock_result)
+        manager._sessions["server1"] = mock_session
+
+        with patch("src.infrastructure.mcp.client_manager.settings") as mock_settings:
+            mock_settings.mcp_tool_timeout_seconds = 30
+            await manager.health_check("server1")
+
+        assert mock_session.list_tools.call_args.kwargs.get("cache_mode") == "refresh"
 
     @pytest.mark.asyncio
     async def test_unhealthy_server(self):

@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.30.5</strong> — <strong>LLM billing now follows the provider's clock.</strong> DeepSeek prices its text models by UTC time of day — peak windows at double the off-peak rate — and LIA was charging the peak tariff around the clock, public demonstrator included, whose daily spend ceiling reads exactly that ledger. The pricing catalogue now carries <strong>optional, generic UTC time windows</strong> (any provider, any text model, 1 to n windows): each window overrides the three unit prices while active, resolution lives in a single implementation consumed by both cost chokepoints, every call is valued at its own instant — the one the provider invoices — and a historical message keeps the tariff of its original hour when recomputed. Admins manage the windows in the LLM pricing dialog (window editor with local-timezone reminder, overlap validation with midnight wrap, a "Time-based" badge in the table), and the official DeepSeek windowed tariff ships in the reference data, so the demonstrator counts what the invoice actually says. <strong>The pricing forms are usable on a phone again</strong>: the create/edit dialogs were centered before being scrollable, pushing the top of a tall form beyond the reach of scrolling — the scroll architecture is fixed across all three admin pricing dialogs, pinned by a regression test. — 17 August 2026.
+  <strong>Version 1.30.6</strong> — <strong>LIA speaks the new generation of the MCP protocol — without leaving anyone behind</strong> ([ADR-224](docs/architecture/ADR-224-Conformite-MCP-2026-07-28-SDK-v2.md)). The Model Context Protocol's 2026-07-28 revision makes the protocol stateless, and its own compatibility matrix condemns legacy clients in front of modern-only servers. LIA moves to the MCP SDK v2 as a <strong>dual-era client</strong>: it speaks the stateless revision and automatically falls back to the legacy handshake — every already-configured server, admin and per-user alike, keeps working unchanged (proven by execution against real servers of both generations, then at runtime against live third-party servers across every authentication type, OAuth2 included). When a server requires a revision LIA does not speak, the user now reads an actionable diagnostic instead of a raw transport error buried in nested <code>ExceptionGroup</code>s, and LIA finally identifies itself by name and version in the handshake. <strong>The OAuth flow applies the new revision's security obligations</strong>: the authorization server's identity (<code>iss</code>, RFC 9207) is validated before the authorization code is redeemed, client credentials are bound to their issuing server — on a detected change LIA re-registers instead of sending secrets to the wrong party — and Dynamic Client Registration declares its application type. Each rule ships with an explicit tolerance for existing registrations, and declining the consent screen now lands back on the settings page with a dedicated informational message in all six languages — a refusal is a choice, not an error. — 17 August 2026.
 
 </p>
 
@@ -117,7 +117,7 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **40** functional domains | **520,000** lines of code (excl. tests) | **23,800+** automated tests | **221** ADRs                                                           |
+| **40** functional domains | **520,000** lines of code (excl. tests) | **23,800+** automated tests | **223** ADRs                                                           |
 | **207** versions shipped  | **6 languages**, parity enforced in CI  | **473** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
@@ -366,8 +366,9 @@ ExecutionStep(
 
 ### MCP (Model Context Protocol)
 
+- **Dual-era protocol client** ([ADR-224](docs/architecture/ADR-224-Conformite-MCP-2026-07-28-SDK-v2.md)): speaks the stateless 2026-07-28 revision AND falls back automatically to the legacy handshake — old and new-generation servers both plug in, with actionable diagnostics when neither is possible
 - **Per-user external servers**: Each user connects their own MCP servers (third-party tools)
-- **Flexible authentication**: None, API Key, Bearer Token, OAuth 2.1 (DCR + PKCE S256)
+- **Flexible authentication**: None, API Key, Bearer Token, OAuth 2.1 (DCR + PKCE S256, `iss` validation per RFC 9207, issuer-bound credentials with automatic re-registration)
 - **Enhanced security**: HTTPS-only, SSRF prevention (DNS resolution + IP blocklist), encrypted credentials (Fernet)
 - **Structured Items Parsing**: Automatic JSON array detection into individual items with McpResultCard HTML
 - **Auto-generated descriptions**: LLM analysis of discovered tools to generate domain descriptions optimized for intelligent routing

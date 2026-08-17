@@ -4,7 +4,7 @@
 
 **Versione**: 1.6
 **Data**: 2026-08-17
-**Applicazione**: LIA v1.30.5
+**Applicazione**: LIA v1.30.6
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
 | Righe di codice (esclusi i test) — 40 domini funzionali | **520.000** |
 | Test automatizzati, eseguiti a ogni commit e rilascio | **23.900+** |
-| Decisioni di architettura documentate (ADR) | **222** |
-| Versioni rilasciate a ritmo regolare | **207** |
+| Decisioni di architettura documentate (ADR) | **223** |
+| Versioni rilasciate a ritmo regolare | **210** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
 
@@ -50,7 +50,7 @@ Un'IA che programma produce volume; produce qualità solo sotto vincolo. Quattro
 
 ## 4. Gli arbitraggi
 
-Tre decisioni strutturanti, tra le 220 documentate:
+Tre decisioni strutturanti, tra le 223 documentate:
 
 **Sovranità e reversibilità — nessuna dipendenza irreversibile dal fornitore.** I modelli IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelli locali via Ollama) stanno dietro un'astrazione unica: ogni utilizzo può cambiare fornitore per configurazione, con confronto dei costi. Stesso principio sul lato business: Google, Apple e Microsoft sono intercambiabili per categoria funzionale. L'hosting è interamente controllato; i dati personali sono cifrati e restano sull'infrastruttura.
 
@@ -98,6 +98,8 @@ Il ciclo 1.30.1 ha spinto la logica un passo oltre: ha verificato la verifica. U
 Il ciclo 1.30.2 ha applicato la stessa disciplina a ciò che nessuno guarda mai: le fondamenta. Portare l'ecosistema di orchestrazione oltre cinque mesi di correzioni poteva essere un semplice cambio di numeri; è stato condotto come un'operazione fondata su prove — ogni versione validata in un ambiente usa e getta prima di toccare il repository, ottomilacinquecento test eseguiti sotto le versioni obiettivo, i punti di integrazione privati simulati offline. E l'audit che accompagnava l'aggiornamento ha trovato ciò che le metriche di copertura nascondevano: millesettecentocinquanta righe di una seconda implementazione della ripresa umana, mai collegata, tenuta verde da cinquanta test. Eliminata, con la sua decisione di architettura messa a verbale. Un sistema vetrina non si giudica solo da ciò che mostra — anche da ciò che rifiuta di tenere.
 
 Il ciclo 1.30.5 è nato da un messaggio utente di tre righe: «ho chiesto di inoltrare un messaggio, ho avuto una conferma, non è partito nulla». L'indagine — log di produzione con timestamp, database, il codice stesso del container, una prova alla volta — è risalita a una sola riga: il motore di esecuzione sovrascriveva il verdetto di ogni strumento con un successo codificato a mano, e lo strato di onestà progettato proprio per nominare i blocchi veniva disarmato dalla stessa menzogna che doveva impedire. La correzione è piccola; il metodo è il vero risultato: ogni ipotesi controverificata prima di scrivere una riga, ogni correzione preceduta da un test che fallisce, e un assistente che ora dice la verità fino nei suoi rifiuti — con i numeri esatti, in tutte e sei le lingue.
+
+Il ciclo 1.30.6 ha rivolto la stessa disciplina verso l'esterno: verso lo standard che parla l'intero ecosistema. Il Model Context Protocol aveva appena pubblicato una revisione che rende il protocollo senza stato — e la cui stessa matrice di compatibilità condanna i client più vecchi di fronte ai server di nuova generazione. Il lavoro è stato condotto come un'indagine di conformità prima che come una migrazione: la specifica letta requisito per requisito, ogni scostamento dimostrato per simulazione prima di cambiare una sola riga, il nuovo SDK esercitato contro server reali di entrambe le generazioni. LIA ora parla entrambe — la nuova revisione senza stato e il vecchio handshake —, così ogni server già configurato continua a funzionare identico mentre quelli di nuova generazione diventano raggiungibili; il flusso OAuth ha guadagnato gli obblighi di sicurezza della revisione, ciascuno con una regola di tolleranza esplicita per le registrazioni esistenti. E rifiutare una schermata di consenso non è più una pagina di errore: è una risposta, riconosciuta in sei lingue.
 
 ## 7. Convinzioni
 

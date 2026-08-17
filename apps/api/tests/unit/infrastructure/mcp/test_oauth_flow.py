@@ -570,6 +570,340 @@ class TestOAuthErrorCodeAllowlist:
         assert _safe_oauth_error_code(resp) is None
 
 
+class TestIssuerRecordingAndValidation:
+    """RFC 9207 (spec 2026-07-28): the client MUST validate a present ``iss``
+    against the recorded issuer before redeeming the authorization code.
+
+    The issuer is recorded at flow initiation (state + metadata cache) and
+    checked in ``handle_callback``. Absent ``iss`` or absent recorded issuer
+    keeps the legacy behavior (lenient — many providers do not emit ``iss``).
+    """
+
+    _METADATA = {
+        "issuer": "https://auth.example.com",
+        "authorization_endpoint": "https://auth.example.com/authorize",
+        "token_endpoint": "https://auth.example.com/token",
+        "code_challenge_methods_supported": ["S256"],
+    }
+
+    @staticmethod
+    def _state_data(issuer: str | None) -> dict:
+        from uuid import uuid4
+
+        from src.core.security.utils import encrypt_data
+
+        data = {
+            "server_id": str(uuid4()),
+            "user_id": str(uuid4()),
+            "code_verifier": encrypt_data("verifier-123"),
+            "mcp_url": "https://mcp.example.com/mcp",
+            "client_id": "client-abc",
+            "client_secret": None,
+            "token_endpoint": "https://auth.example.com/token",
+        }
+        if issuer is not None:
+            data["issuer"] = issuer
+        return data
+
+    @pytest.mark.asyncio
+    async def test_initiate_flow_records_issuer_in_state_and_cache(self, handler, monkeypatch):
+        """The discovered issuer is written to the Redis state AND the cache."""
+        from uuid import uuid4
+
+        monkeypatch.setattr(
+            "src.core.config.settings.mcp_user_oauth_callback_base_url",
+            "https://lia.example.com",
+        )
+        store_mock = AsyncMock()
+        monkeypatch.setattr(MCPOAuthFlowHandler, "_store_state", store_mock)
+
+        h = handler
+        _, metadata_cache = await h.initiate_flow(
+            server_id=uuid4(),
+            user_id=uuid4(),
+            mcp_url="https://mcp.example.com/mcp",
+            cached_metadata=dict(self._METADATA),
+            client_id="client-abc",
+        )
+
+        assert metadata_cache["issuer"] == "https://auth.example.com"
+        stored_state = store_mock.call_args.args[1]
+        assert stored_state["issuer"] == "https://auth.example.com"
+
+    @pytest.mark.asyncio
+    async def test_callback_rejects_mismatched_iss_before_token_exchange(
+        self, handler, monkeypatch
+    ):
+        """A present ``iss`` differing from the recorded issuer aborts the flow
+        BEFORE the authorization code is sent anywhere."""
+        monkeypatch.setattr(
+            "src.core.config.settings.mcp_user_oauth_callback_base_url",
+            "https://lia.example.com",
+        )
+        monkeypatch.setattr(
+            MCPOAuthFlowHandler,
+            "_consume_state",
+            AsyncMock(return_value=self._state_data("https://auth.example.com")),
+        )
+        handler._http_client.post = AsyncMock()
+
+        with pytest.raises(ValueError, match="issuer"):
+            await handler.handle_callback(
+                code="auth-code", state="state-1", iss="https://evil.example.com"
+            )
+
+        handler._http_client.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_callback_accepts_matching_iss(self, handler, monkeypatch):
+        """A matching ``iss`` lets the token exchange proceed normally."""
+        monkeypatch.setattr(
+            "src.core.config.settings.mcp_user_oauth_callback_base_url",
+            "https://lia.example.com",
+        )
+        monkeypatch.setattr(
+            MCPOAuthFlowHandler,
+            "_consume_state",
+            AsyncMock(return_value=self._state_data("https://auth.example.com")),
+        )
+        handler._http_client.post = AsyncMock(
+            return_value=httpx.Response(
+                200,
+                json={"access_token": "tok", "token_type": "Bearer", "expires_in": 3600},
+                headers={"content-type": "application/json"},
+            )
+        )
+
+        server_id, user_id, encrypted = await handler.handle_callback(
+            code="auth-code", state="state-1", iss="https://auth.example.com"
+        )
+
+        assert encrypted
+        handler._http_client.post.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_callback_without_iss_param_proceeds(self, handler, monkeypatch):
+        """Providers that do not emit ``iss`` keep working (RFC 9207 is
+        validate-when-present)."""
+        monkeypatch.setattr(
+            "src.core.config.settings.mcp_user_oauth_callback_base_url",
+            "https://lia.example.com",
+        )
+        monkeypatch.setattr(
+            MCPOAuthFlowHandler,
+            "_consume_state",
+            AsyncMock(return_value=self._state_data("https://auth.example.com")),
+        )
+        handler._http_client.post = AsyncMock(
+            return_value=httpx.Response(
+                200,
+                json={"access_token": "tok", "token_type": "Bearer"},
+                headers={"content-type": "application/json"},
+            )
+        )
+
+        _, _, encrypted = await handler.handle_callback(code="auth-code", state="state-1")
+
+        assert encrypted
+
+    @pytest.mark.asyncio
+    async def test_callback_with_iss_but_legacy_state_proceeds(self, handler, monkeypatch):
+        """A state recorded before this feature has no issuer: validation is
+        skipped rather than breaking in-flight flows (deploy window)."""
+        monkeypatch.setattr(
+            "src.core.config.settings.mcp_user_oauth_callback_base_url",
+            "https://lia.example.com",
+        )
+        monkeypatch.setattr(
+            MCPOAuthFlowHandler,
+            "_consume_state",
+            AsyncMock(return_value=self._state_data(None)),
+        )
+        handler._http_client.post = AsyncMock(
+            return_value=httpx.Response(
+                200,
+                json={"access_token": "tok", "token_type": "Bearer"},
+                headers={"content-type": "application/json"},
+            )
+        )
+
+        _, _, encrypted = await handler.handle_callback(
+            code="auth-code", state="state-1", iss="https://auth.example.com"
+        )
+
+        assert encrypted
+
+    @pytest.mark.asyncio
+    async def test_callback_stores_issuer_in_credentials(self, handler, monkeypatch):
+        """The issuer travels from state to the persisted credential blob, so
+        later flows can detect an authorization-server change."""
+        import json as _json
+
+        from src.core.security.utils import decrypt_data
+
+        monkeypatch.setattr(
+            "src.core.config.settings.mcp_user_oauth_callback_base_url",
+            "https://lia.example.com",
+        )
+        monkeypatch.setattr(
+            MCPOAuthFlowHandler,
+            "_consume_state",
+            AsyncMock(return_value=self._state_data("https://auth.example.com")),
+        )
+        handler._http_client.post = AsyncMock(
+            return_value=httpx.Response(
+                200,
+                json={"access_token": "tok", "token_type": "Bearer"},
+                headers={"content-type": "application/json"},
+            )
+        )
+
+        _, _, encrypted = await handler.handle_callback(code="auth-code", state="state-1")
+
+        creds = _json.loads(decrypt_data(encrypted))
+        assert creds["issuer"] == "https://auth.example.com"
+
+
+class TestDynamicRegistrationApplicationType:
+    """Spec 2026-07-28: clients MUST specify an ``application_type`` during
+    Dynamic Client Registration (derived from the callback URL host)."""
+
+    async def _run_dcr(self, handler, monkeypatch, callback_base: str) -> dict:
+        monkeypatch.setattr(
+            "src.core.config.settings.mcp_user_oauth_callback_base_url",
+            callback_base,
+        )
+        handler._http_client.post = AsyncMock(
+            return_value=httpx.Response(
+                201,
+                json={"client_id": "dcr-client"},
+                headers={"content-type": "application/json"},
+            )
+        )
+        result = await handler._try_dynamic_registration(
+            registration_endpoint="https://auth.example.com/register",
+            mcp_url="https://mcp.example.com/mcp",
+        )
+        assert result == {"client_id": "dcr-client"}
+        return handler._http_client.post.call_args.kwargs["json"]
+
+    @pytest.mark.asyncio
+    async def test_public_callback_registers_as_web(self, handler, monkeypatch):
+        payload = await self._run_dcr(handler, monkeypatch, "https://lia.example.com")
+        assert payload["application_type"] == "web"
+
+    @pytest.mark.asyncio
+    async def test_localhost_callback_registers_as_native(self, handler, monkeypatch):
+        payload = await self._run_dcr(handler, monkeypatch, "http://localhost:8000")
+        assert payload["application_type"] == "native"
+
+    @pytest.mark.asyncio
+    async def test_loopback_ip_callback_registers_as_native(self, handler, monkeypatch):
+        payload = await self._run_dcr(handler, monkeypatch, "http://127.0.0.1:8000")
+        assert payload["application_type"] == "native"
+
+
+class TestIssuerBinding:
+    """Spec 2026-07-28: persisted client credentials are bound to the issuing
+    authorization server. On issuer change: never reuse, re-register."""
+
+    _CACHED = {
+        "issuer": "https://auth-b.example.com",
+        "authorization_endpoint": "https://auth-b.example.com/authorize",
+        "token_endpoint": "https://auth-b.example.com/token",
+        "registration_endpoint": "https://auth-b.example.com/register",
+        "code_challenge_methods_supported": ["S256"],
+    }
+
+    async def _initiate(
+        self,
+        handler,
+        monkeypatch,
+        *,
+        cached_metadata: dict,
+        stored_issuer: str | None,
+        client_id: str | None = "old-client",
+    ) -> str:
+        from uuid import uuid4
+
+        monkeypatch.setattr(
+            "src.core.config.settings.mcp_user_oauth_callback_base_url",
+            "https://lia.example.com",
+        )
+        monkeypatch.setattr(MCPOAuthFlowHandler, "_store_state", AsyncMock())
+        handler._http_client.post = AsyncMock(
+            return_value=httpx.Response(
+                201,
+                json={"client_id": "dcr-client"},
+                headers={"content-type": "application/json"},
+            )
+        )
+        auth_url, _ = await handler.initiate_flow(
+            server_id=uuid4(),
+            user_id=uuid4(),
+            mcp_url="https://mcp.example.com/mcp",
+            cached_metadata=cached_metadata,
+            client_id=client_id,
+            stored_issuer=stored_issuer,
+        )
+        return auth_url
+
+    @pytest.mark.asyncio
+    async def test_issuer_change_discards_client_and_reregisters(self, handler, monkeypatch):
+        """Credentials from authorization server A are never sent to server B:
+        the stored client is discarded and DCR runs against the new server."""
+        auth_url = await self._initiate(
+            handler,
+            monkeypatch,
+            cached_metadata=dict(self._CACHED),
+            stored_issuer="https://auth-a.example.com",
+        )
+
+        handler._http_client.post.assert_called_once()
+        assert "client_id=dcr-client" in auth_url
+        assert "old-client" not in auth_url
+
+    @pytest.mark.asyncio
+    async def test_same_issuer_reuses_client_without_reregistration(self, handler, monkeypatch):
+        auth_url = await self._initiate(
+            handler,
+            monkeypatch,
+            cached_metadata=dict(self._CACHED),
+            stored_issuer="https://auth-b.example.com",
+        )
+
+        handler._http_client.post.assert_not_called()
+        assert "client_id=old-client" in auth_url
+
+    @pytest.mark.asyncio
+    async def test_unknown_stored_issuer_is_lenient(self, handler, monkeypatch):
+        """Legacy credentials (recorded before this feature, no issuer) are
+        NOT invalidated: only a positively-detected change triggers rebinding."""
+        auth_url = await self._initiate(
+            handler,
+            monkeypatch,
+            cached_metadata=dict(self._CACHED),
+            stored_issuer=None,
+        )
+
+        handler._http_client.post.assert_not_called()
+        assert "client_id=old-client" in auth_url
+
+    @pytest.mark.asyncio
+    async def test_issuer_change_without_registration_surfaces_error(self, handler, monkeypatch):
+        """No DCR available on the new server: surface an explicit error
+        instead of silently using mismatched credentials (spec SHOULD)."""
+        cached = {k: v for k, v in self._CACHED.items() if k != "registration_endpoint"}
+
+        with pytest.raises(ValueError, match="authorization server"):
+            await self._initiate(
+                handler,
+                monkeypatch,
+                cached_metadata=cached,
+                stored_issuer="https://auth-a.example.com",
+            )
+
+
 class TestNoProviderBodyReachesLogs:
     """SEC-030: an MCP authorization server's response body must never be logged.
 

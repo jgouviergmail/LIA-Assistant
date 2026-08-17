@@ -30,15 +30,18 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import httpx2
 import structlog
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client import Client
+from mcp.client.stdio import StdioServerParameters, stdio_client
+from mcp.client.streamable_http import streamable_http_client
 
 from src.core.config import settings
 from src.core.constants import (
     MCP_DEFAULT_RATE_LIMIT_CALLS,
     MCP_DEFAULT_RATE_LIMIT_WINDOW,
+    MCP_HTTP_READ_TIMEOUT_SECONDS,
+    MCP_HTTP_TIMEOUT_SECONDS,
     MCP_REFERENCE_TOOL_NAME,
 )
 from src.infrastructure.mcp.schemas import (
@@ -48,7 +51,11 @@ from src.infrastructure.mcp.schemas import (
     MCPTransportType,
 )
 from src.infrastructure.mcp.security import validate_server_config
-from src.infrastructure.mcp.utils import extract_app_meta
+from src.infrastructure.mcp.utils import (
+    build_client_info,
+    extract_app_meta,
+    unwrap_exception_group,
+)
 from src.infrastructure.observability.metrics_agents import mcp_server_health
 
 logger = structlog.get_logger(__name__)
@@ -65,7 +72,7 @@ class MCPClientManager:
 
     def __init__(self) -> None:
         self._servers: dict[str, MCPServerConfig] = {}
-        self._sessions: dict[str, ClientSession] = {}
+        self._sessions: dict[str, Client] = {}
         self._exit_stacks: dict[str, AsyncExitStack] = {}
         self._discovered_tools: dict[str, list[MCPDiscoveredTool]] = {}
         self._reference_content: dict[str, str] = {}  # server_name → read_me content
@@ -145,12 +152,17 @@ class MCPClientManager:
                     connected = True
                     break
                 except Exception as e:
+                    # anyio wraps the real failure in nested ExceptionGroups
+                    # whose str() is "unhandled errors in a TaskGroup" — log
+                    # the unwrapped root cause instead.
+                    root = unwrap_exception_group(e)
                     logger.warning(
                         "mcp_server_connection_attempt_failed",
                         server_name=name,
                         attempt=attempt + 1,
                         max_attempts=retry_max + 1,
-                        error=str(e),
+                        error=str(root),
+                        error_type=type(root).__name__,
                     )
                     if attempt < retry_max:
                         await asyncio.sleep(min(2**attempt, 10))
@@ -201,27 +213,32 @@ class MCPClientManager:
         try:
             if config.transport == MCPTransportType.STDIO:
                 server_params = StdioServerParameters(
-                    command=config.command,
+                    command=config.command or "",
                     args=config.args,
                     env=config.env,
                 )
-                read_stream, write_stream = await exit_stack.enter_async_context(
-                    stdio_client(server_params)
-                )
+                transport = stdio_client(server_params)
             elif config.transport == MCPTransportType.STREAMABLE_HTTP:
-                # streamablehttp_client yields (read_stream, write_stream, get_url_fn)
-                read_stream, write_stream, _ = await exit_stack.enter_async_context(
-                    streamablehttp_client(
-                        url=config.url,
+                # The httpx2 client carries headers and mirrors the SDK's
+                # recommended MCP timeouts; owned by this server's exit stack.
+                http_client = await exit_stack.enter_async_context(
+                    httpx2.AsyncClient(
+                        follow_redirects=True,
+                        timeout=httpx2.Timeout(
+                            MCP_HTTP_TIMEOUT_SECONDS, read=MCP_HTTP_READ_TIMEOUT_SECONDS
+                        ),
                         headers=config.headers or {},
                     )
                 )
+                transport = streamable_http_client(config.url or "", http_client=http_client)
             else:
                 raise ValueError(f"Unsupported transport: {config.transport}")
 
-            # Create and initialize session
-            session = await exit_stack.enter_async_context(ClientSession(read_stream, write_stream))
-            await session.initialize()
+            # SDK v2 Client, dual-era mode="auto" (default): speaks 2026-07-28
+            # and falls back to the legacy initialize handshake.
+            session = await exit_stack.enter_async_context(
+                Client(transport, client_info=build_client_info())
+            )
 
             self._sessions[name] = session
             self._exit_stacks[name] = exit_stack
@@ -264,7 +281,7 @@ class MCPClientManager:
                     server_name=server_name,
                     tool_name=tool.name,
                     description=tool.description or "",
-                    input_schema=getattr(tool, "inputSchema", None) or {},
+                    input_schema=tool.input_schema or {},
                     app_resource_uri=app_resource_uri,
                     app_visibility=app_visibility,
                 )
@@ -289,7 +306,7 @@ class MCPClientManager:
     async def _fetch_reference_content(
         self,
         server_name: str,
-        session: ClientSession,
+        session: Client,
         tools: list[MCPDiscoveredTool],
         timeout: int,
     ) -> None:
@@ -406,7 +423,7 @@ class MCPClientManager:
         )
 
         # Check for MCP-level errors
-        if result.isError:
+        if result.is_error:
             error_text = " ".join(c.text for c in result.content if hasattr(c, "text"))
             raise RuntimeError(
                 f"MCP tool '{tool_name}' on server '{server_name}' returned error: {error_text}"
@@ -460,10 +477,8 @@ class MCPClientManager:
         max_size = settings.mcp_app_max_html_size
 
         try:
-            from pydantic import AnyUrl
-
             result = await asyncio.wait_for(
-                session.read_resource(AnyUrl(uri)),
+                session.read_resource(uri),
                 timeout=timeout,
             )
 
@@ -521,8 +536,10 @@ class MCPClientManager:
 
         try:
             timeout = getattr(settings, "mcp_tool_timeout_seconds", 30)
+            # cache_mode="refresh": the v2 Client caches list results when a
+            # modern server sends ttl_ms — a health probe must hit the server.
             result = await asyncio.wait_for(
-                session.list_tools(),
+                session.list_tools(cache_mode="refresh"),
                 timeout=timeout,
             )
             mcp_server_health.labels(server_name=server_name).set(1)

@@ -25,6 +25,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { CONNECTOR_LABELS, isValidConnectorType } from '@/constants/connectors';
+import { MCP_OAUTH_TOAST, resolveMcpOAuthOutcome } from '@/lib/mcp-oauth-callback';
 import UserConnectorsSection from '@/components/settings/UserConnectorsSection';
 import TelephonyCallsSection from '@/components/settings/TelephonyCallsSection';
 import AdminUsersSection from '@/components/settings/AdminUsersSection';
@@ -253,14 +254,11 @@ export default function SettingsPage({ params }: SettingsPageProps) {
     }
 
     // Handle MCP OAuth callback (evolution F2.1)
-    const mcpOAuth = searchParams.get('mcp_oauth');
-    if (mcpOAuth && !oauthToastShownRef.current) {
+    const mcpOAuthOutcome = resolveMcpOAuthOutcome(searchParams.get('mcp_oauth'));
+    if (mcpOAuthOutcome && !oauthToastShownRef.current) {
       oauthToastShownRef.current = true;
-      if (mcpOAuth === 'success') {
-        toast.success(t('settings.mcp.oauth_success'));
-      } else {
-        toast.error(t('settings.mcp.oauth_error'));
-      }
+      const { kind, key } = MCP_OAUTH_TOAST[mcpOAuthOutcome];
+      toast[kind](t(key));
       // Clean URL params
       const url = new URL(window.location.href);
       url.searchParams.delete('mcp_oauth');

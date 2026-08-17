@@ -4,7 +4,7 @@
 
 **Version**: 1.6
 **Datum**: 2026-08-17
-**Anwendung**: LIA v1.30.5
+**Anwendung**: LIA v1.30.6
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Codezeilen (ohne Tests) — 40 Fachdomänen | **520.000** |
 | Automatisierte Tests, bei jedem Commit und Release ausgeführt | **23.900+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **222** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **207** |
+| Dokumentierte Architekturentscheidungen (ADR) | **223** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **210** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -50,7 +50,7 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 220 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 223 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Das Hosting ist vollständig kontrolliert; personenbezogene Daten sind verschlüsselt und bleiben auf der Infrastruktur.
 
@@ -98,6 +98,8 @@ Zyklus 1.30.1 trieb die Logik einen Schritt weiter: Er auditierte das Audit. Ein
 Zyklus 1.30.2 wandte dieselbe Disziplin auf das an, was niemand je ansieht: die Fundamente. Das Orchestrierungs-Ökosystem über fünf Monate an Korrekturen anzuheben hätte ein bloßer Nummerntausch sein können; es wurde als beweisgeführte Operation durchgeführt — jede Version vor dem Anfassen des Repos in einer Wegwerfumgebung validiert, achteinhalbtausend Tests unter den Zielversionen ausgeführt, die privaten Integrationspunkte offline simuliert. Und das begleitende Audit fand, was Abdeckungsmetriken verbargen: siebzehnhundertfünfzig Zeilen einer zweiten, nie angeschlossenen Implementierung der menschlichen Bestätigungsfortsetzung, von fünfzig Tests grün gehalten. Gelöscht, mit protokollierter Architekturentscheidung. Ein Vorzeigesystem bemisst sich nicht nur an dem, was es zeigt — auch an dem, was es sich weigert zu behalten.
 
 Zyklus 1.30.5 begann mit einer dreizeiligen Nutzernachricht: „Ich habe gebeten, eine Nachricht weiterzuleiten, ich bekam eine Bestätigung, nichts wurde gesendet.“ Die Untersuchung — zeitgestempelte Produktionslogs, Datenbank, der Code des Containers selbst, Beweis für Beweis — führte zu einer einzigen Zeile: Die Ausführungsengine überschrieb das Urteil jedes Werkzeugs mit einem fest codierten Erfolg, und die Ehrlichkeitsschicht, die Blockaden benennen sollte, wurde von genau der Lüge entwaffnet, die sie verhindern sollte. Der Fix ist klein; die Methode ist das eigentliche Ergebnis: jede Hypothese gegengeprüft, bevor eine Zeile geschrieben wurde, jeder Korrektur ein fehlschlagender Test vorangestellt — und ein Assistent, der nun bis in seine Ablehnungen hinein die Wahrheit sagt, mit exakten Zahlen, in allen sechs Sprachen.
+
+Zyklus 1.30.6 richtete dieselbe Disziplin nach außen — auf den Standard, den das gesamte Ökosystem spricht. Das Model Context Protocol hatte gerade eine Revision veröffentlicht, die das Protokoll zustandslos macht — und deren eigene Kompatibilitätsmatrix ältere Clients gegenüber Servern der neuen Generation verurteilt. Die Arbeit wurde als Konformitätsuntersuchung geführt, bevor sie eine Migration war: die Spezifikation Anforderung für Anforderung gelesen, jede Lücke per Simulation nachgewiesen, bevor eine einzige Zeile geändert wurde, das neue SDK gegen echte Server beider Generationen erprobt. LIA spricht nun beide — die neue zustandslose Revision und den alten Handshake —, sodass jeder bereits konfigurierte Server unverändert weiterarbeitet, während die der neuen Generation erreichbar werden; der OAuth-Fluss erhielt die Sicherheitspflichten der Revision, jede mit einer expliziten Toleranzregel für bestehende Registrierungen. Und das Ablehnen eines Zustimmungsbildschirms ist keine Fehlerseite mehr: Es ist eine Antwort, anerkannt in sechs Sprachen.
 
 ## 7. Überzeugungen
 

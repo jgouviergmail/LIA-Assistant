@@ -1240,6 +1240,7 @@
       "connect_oauth": "Connect via OAuth",
       "oauth_success": "OAuth authentication successful",
       "oauth_error": "OAuth authentication error",
+      "oauth_denied": "Authorization declined — the MCP server was not connected",
       "disconnect_oauth": "Disconnect OAuth",
       "oauth_disconnected": "OAuth connection reset — click \"Connect OAuth\" to re-authorize",
       "server_created": "MCP server added",
@@ -3281,7 +3282,7 @@
         "connectors": "google, gmail, calendar, contacts, apple, microsoft, outlook, integrations, accounts, oauth, reconnect, disconnected, services, position, location, geolocation, home address, location memory",
         "telephony-calls": "phone, telephone, calls, call history, dial",
         "admin-mcp-servers": "MCP, model context protocol, application servers, built-in tools",
-        "mcp-servers": "MCP, model context protocol, my servers, tools, extensions",
+        "mcp-servers": "MCP, model context protocol, my servers, tools, extensions, oauth, authorization",
         "debug-panel": "developer, diagnostics, traces, technical, troubleshooting, waterfall, anomalies, timeline, pipeline",
         "personality": "tone, style, character, behaviour, behavior, persona, voice",
         "psyche": "emotions, mood, feelings, affect, emotional",
@@ -3928,7 +3929,7 @@
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
-          "description": "Full MCP protocol support with admin and per-user servers. 4 authentication types (none, API key, bearer token, OAuth 2.1). Automatic tool discovery at connection test, LLM-generated domain descriptions for intelligent routing, and read_me content injection into the planner prompt for context-aware tool usage."
+          "description": "Full MCP protocol support with admin and per-user servers, speaking both protocol generations: the new stateless revision and the legacy handshake, with automatic fallback. 4 authentication types (none, API key, bearer token, OAuth 2.1 with issuer-bound credentials). Automatic tool discovery, LLM-generated domain descriptions for routing, and read_me injection into the planner prompt."
         },
         "mcpApps": {
           "title": "📱 Interactive MCP Apps",
@@ -4057,6 +4058,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_30_6": {
+          "title": "v1.30.6 — 🔌 New-generation MCP protocol",
+          "date": "August 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔌 LIA speaks both generations of the MCP protocol</b> — the Model Context Protocol published a major revision that older clients cannot talk to. LIA now speaks the new stateless revision AND automatically falls back to the classic handshake: every MCP server you already configured keeps working unchanged, and new-generation servers plug in too. If a server requires a revision LIA does not speak, you now get a clear explanation instead of a cryptic connection error.",
+            "i2": "<b>🔐 Hardened OAuth for MCP servers — and declining is no longer an error</b> — the OAuth flow applies the new specification's security obligations: the authorization server's identity is verified before your authorization code is used, and stored client credentials are never sent to a different authorization server than the one that issued them (LIA re-registers automatically instead). If you decline the consent screen at the provider, you come back to your settings with a simple informational message — not an error page."
+          }
+        },
         "v1_30_5": {
           "title": "v1.30.5 — 🕐 Costs that follow the provider's clock",
           "date": "August 2026",
@@ -6668,7 +6678,7 @@
       "mcp_servers": {
         "title": "MCP Servers",
         "description": "Connect external tools via the MCP protocol",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "What is an MCP server?",
@@ -6705,6 +6715,10 @@
           "q9": {
             "question": "How do I generate Excalidraw diagrams and schemas?",
             "answer": "LIA can create architecture diagrams, workflows, org charts and more using the Excalidraw MCP server:<br><br><strong>📝 How to use:</strong><br>Simply describe what you want in natural language:<br>• \"<em>Create a client-server architecture with a database</em>\"<br>• \"<em>Draw a 5-step onboarding workflow</em>\"<br>• \"<em>Make an org chart for a marketing team</em>\"<br><br><strong>⚙️ How it works (3-step process):</strong><br>1. LIA generates a <strong>structured intent</strong> describing components and relationships<br>2. A first dedicated LLM call creates the <strong>shapes</strong> (boxes, circles, text)<br>3. A second LLM call adds the <strong>arrows</strong> (connections between shapes)<br><br><strong>💡 Tips for best results:</strong><br>• Describe the <strong>components</strong> you want (servers, databases, users...)<br>• Specify <strong>relationships</strong> between them (connects to, sends data to...)<br>• Mention the <strong>layout type</strong> if desired (flowchart, hierarchy, network...)<br><br><strong>⚠️ Prerequisite:</strong><br>The Excalidraw MCP server must be configured and active in your MCP server settings."
+          },
+          "q10": {
+            "question": "Which versions of the MCP protocol does LIA support?",
+            "answer": "LIA speaks <strong>both generations of the MCP protocol</strong>:<br><br>• The <strong>new stateless revision (2026)</strong> — used by new-generation servers<br>• The <strong>classic handshake</strong> — used by every earlier server<br><br>The right one is chosen automatically per server: your existing servers keep working with no action on your side, and new-generation servers connect too. 🔌<br><br>If a server requires a revision LIA does not speak, the connection test shows a <strong>clear explanation</strong> instead of a technical error.<br><br>On the security side, the OAuth flow verifies the <strong>authorization server's identity</strong> before using your authorization code, and never sends stored credentials to a different authorization server than the one that issued them. And if you decline the consent screen, you simply come back to your settings with an informational message — declining is a choice, not an error. ✅"
           }
         }
       },
@@ -8467,7 +8481,7 @@
       },
       "mcp": {
         "title": "Extensible (MCP)",
-        "description": "Connect your own MCP servers to extend LIA without limits. Iterative mode available: a dedicated agent reads the server documentation then calls tools correctly — ideal for complex APIs."
+        "description": "Connect your own MCP servers to extend LIA without limits — speaking both generations of the protocol, the new stateless revision and the classic handshake, with automatic fallback. Iterative mode available: a dedicated agent reads the server documentation then calls tools with the right parameters."
       },
       "mcp_apps": {
         "title": "Interactive MCP Apps",

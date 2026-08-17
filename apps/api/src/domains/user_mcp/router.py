@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings as app_settings
 from src.core.constants import (
+    MCP_USER_OAUTH_REDIRECT_PARAM_DENIED,
     MCP_USER_OAUTH_REDIRECT_PARAM_ERROR,
     MCP_USER_OAUTH_REDIRECT_PARAM_SUCCESS,
     MCP_USER_OAUTH_REDIRECT_PATH,
@@ -44,7 +45,7 @@ from src.domains.user_mcp.schemas import (
 )
 from src.domains.user_mcp.service import UserMCPServerService
 from src.domains.users.models import User
-from src.infrastructure.mcp.oauth_flow import MCPOAuthFlowHandler
+from src.infrastructure.mcp.oauth_flow import MCPOAuthFlowHandler, safe_oauth_error_code_value
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -386,10 +387,12 @@ async def oauth_authorize(
     # Extract pre-registered client credentials if available
     client_id: str | None = None
     client_secret: str | None = None
+    stored_issuer: str | None = None
     creds = service.get_decrypted_credentials(server)
     if creds:
         client_id = creds.get("client_id")
         client_secret = creds.get("client_secret")
+        stored_issuer = creds.get("issuer")
 
     # Extract user-specified scopes (stored in oauth_metadata by service)
     requested_scopes = (server.oauth_metadata or {}).get("requested_scopes", "")
@@ -404,6 +407,7 @@ async def oauth_authorize(
                 client_id=client_id,
                 client_secret=client_secret,
                 requested_scopes=requested_scopes,
+                stored_issuer=stored_issuer,
             )
         except Exception as e:
             logger.error(
@@ -523,8 +527,10 @@ async def app_proxy_read_resource(
     include_in_schema=False,  # Hidden from docs (internal redirect)
 )
 async def oauth_callback(
-    code: str,
-    state: str,
+    code: str | None = None,
+    state: str | None = None,
+    iss: str | None = None,
+    error: str | None = None,
 ) -> RedirectResponse:
     """
     Handle OAuth 2.1 callback.
@@ -532,11 +538,36 @@ async def oauth_callback(
     Security Model: No session auth required (user is mid-redirect).
     User identity comes from the signed state parameter stored in Redis.
     State is single-use (deleted after consumption) to prevent replay attacks.
+    The ``iss`` parameter, when sent by the authorization server, is validated
+    against the recorded issuer before the code is redeemed (RFC 9207).
+
+    Every parameter is optional at the FastAPI layer: this endpoint is a
+    browser redirect target, so a denial or malformed response must land the
+    user back on the frontend with a marker — never on a bare 422.
     """
+    if error or not code or not state:
+        # `error` is provider-controlled free text: log only an allowlisted
+        # code (SEC-030) and never reflect the raw value into the redirect.
+        logger.warning(
+            "user_mcp_oauth_callback_rejected",
+            oauth_error=safe_oauth_error_code_value(error),
+            has_code=bool(code),
+            has_state=bool(state),
+        )
+        marker = (
+            MCP_USER_OAUTH_REDIRECT_PARAM_DENIED
+            if error == "access_denied"
+            else f"{MCP_USER_OAUTH_REDIRECT_PARAM_ERROR}&error=oauth_failed"
+        )
+        return RedirectResponse(
+            url=f"{app_settings.frontend_url}{MCP_USER_OAUTH_REDIRECT_PATH}?{marker}",
+            status_code=status.HTTP_302_FOUND,
+        )
+
     async with MCPOAuthFlowHandler() as handler:
         try:
             server_id, user_id, encrypted_creds = await handler.handle_callback(
-                code=code, state=state
+                code=code, state=state, iss=iss
             )
 
             # Persist encrypted tokens and mark server as active

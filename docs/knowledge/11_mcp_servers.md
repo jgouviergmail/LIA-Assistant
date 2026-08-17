@@ -223,3 +223,19 @@ Simply describe what you want in natural language:
 
 **⚠️ Prerequisite:**
 The Excalidraw MCP server must be configured and active in your MCP server settings.
+
+## Which versions of the MCP protocol does LIA support?
+LIA speaks **both generations of the MCP protocol**:
+
+**🔌 Supported revisions:**
+• The **new stateless revision (2026)** — used by new-generation servers
+• The **classic handshake** — used by every earlier server
+• The right one is chosen **automatically per server**: existing servers keep working with no action on your side, and new-generation servers connect too
+
+**🧭 Clear diagnostics:**
+If a server requires a revision LIA does not speak, the connection test shows a clear explanation instead of a technical error.
+
+**🔐 Hardened OAuth:**
+• The authorization server's identity is verified before your authorization code is used
+• Stored client credentials are never sent to a different authorization server than the one that issued them — LIA re-registers automatically instead
+• Declining the consent screen brings you back to your settings with an informational message — declining is a choice, not an error

@@ -1,8 +1,11 @@
 """
 MCP Authentication classes for per-user MCP servers.
 
-Custom httpx.Auth implementations for injecting authentication
-into MCP SDK's streamablehttp_client(url, auth=auth) connections.
+Custom httpx2.Auth implementations for injecting authentication into the
+MCP SDK v2 Streamable HTTP transport (the transport runs on httpx2; the
+auth instances ride the httpx2.AsyncClient handed to it). The token-refresh
+POST to the authorization server is an independent HTTP call and stays on
+the httpx used by the rest of LIA.
 
 Supports three strategies:
 - MCPNoAuth: Pass-through (no auth header)
@@ -23,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import httpx
+import httpx2
 import structlog
 
 from src.core.config import settings
@@ -38,14 +42,16 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-class MCPNoAuth(httpx.Auth):
+class MCPNoAuth(httpx2.Auth):
     """Pass-through authentication (no headers added)."""
 
-    def auth_flow(self, request: httpx.Request) -> Generator[httpx.Request, httpx.Response, None]:
+    def auth_flow(
+        self, request: httpx2.Request
+    ) -> Generator[httpx2.Request, httpx2.Response, None]:
         yield request
 
 
-class MCPStaticTokenAuth(httpx.Auth):
+class MCPStaticTokenAuth(httpx2.Auth):
     """
     Static token authentication for API Key or Bearer.
 
@@ -57,12 +63,14 @@ class MCPStaticTokenAuth(httpx.Auth):
         self.header_name = header_name
         self.header_value = header_value
 
-    def auth_flow(self, request: httpx.Request) -> Generator[httpx.Request, httpx.Response, None]:
+    def auth_flow(
+        self, request: httpx2.Request
+    ) -> Generator[httpx2.Request, httpx2.Response, None]:
         request.headers[self.header_name] = self.header_value
         yield request
 
 
-class MCPOAuth2Auth(httpx.Auth):
+class MCPOAuth2Auth(httpx2.Auth):
     """
     OAuth 2.1 Bearer authentication with auto-refresh on 401.
 
@@ -97,8 +105,8 @@ class MCPOAuth2Auth(httpx.Auth):
         self._resource = resource
 
     async def async_auth_flow(
-        self, request: httpx.Request
-    ) -> AsyncGenerator[httpx.Request, httpx.Response]:
+        self, request: httpx2.Request
+    ) -> AsyncGenerator[httpx2.Request, httpx2.Response]:
         """Inject Bearer token, retry with refresh on 401."""
         creds = await self._get_creds_fn()
         if not creds or "access_token" not in creds:
@@ -200,9 +208,9 @@ class MCPOAuth2Auth(httpx.Auth):
                     await redis.delete(lock_key)
 
 
-def build_auth_for_server(server: UserMCPServer) -> httpx.Auth:
+def build_auth_for_server(server: UserMCPServer) -> httpx2.Auth:
     """
-    Factory: build the correct httpx.Auth from a UserMCPServer's config.
+    Factory: build the correct httpx2.Auth from a UserMCPServer's config.
 
     Decrypts stored credentials and instantiates the appropriate auth class.
     """

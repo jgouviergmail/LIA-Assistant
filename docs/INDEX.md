@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 44 |
-| ADRs | 223 (ADR-223 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 222 fichiers) |
+| ADRs | 224 (ADR-224 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 223 fichiers) |
 | Fiches knowledge (RAG système) | 30 |
 
 ---
@@ -46,7 +46,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (222) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (223) |
 
 ### Pour les Product Managers
 

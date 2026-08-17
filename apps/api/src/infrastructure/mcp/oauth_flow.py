@@ -69,6 +69,41 @@ _OAUTH_ERROR_CODES: frozenset[str] = frozenset(
 )
 
 
+# OIDC application_type derivation (spec 2026-07-28: clients MUST specify an
+# appropriate application_type during Dynamic Client Registration). A callback
+# served from a loopback host is a locally-hosted deployment → "native"; any
+# public host → "web".
+_NATIVE_CALLBACK_HOSTS: frozenset[str] = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def _derive_application_type(callback_base_url: str) -> str:
+    """Derive the OIDC ``application_type`` from the OAuth callback base URL.
+
+    Args:
+        callback_base_url: Configured ``MCP_USER_OAUTH_CALLBACK_BASE_URL``.
+
+    Returns:
+        ``"native"`` for loopback-hosted callbacks, ``"web"`` otherwise.
+    """
+    host = urlparse(callback_base_url).hostname or ""
+    return "native" if host in _NATIVE_CALLBACK_HOSTS else "web"
+
+
+def safe_oauth_error_code_value(code: str | None) -> str | None:
+    """Return ``code`` only when it is an RFC-defined OAuth error code.
+
+    Shared allowlist gate (SEC-030): callback/redirect handlers must never
+    log or reflect provider-controlled free text — only a known code survives.
+
+    Args:
+        code: Raw ``error`` value received from an authorization server.
+
+    Returns:
+        The code when allowlisted, ``None`` otherwise.
+    """
+    return code if isinstance(code, str) and code in _OAUTH_ERROR_CODES else None
+
+
 def _safe_oauth_error_code(response: httpx.Response) -> str | None:
     """Extract the OAuth ``error`` code from a response, if it is a known one.
 
@@ -239,15 +274,30 @@ class MCPOAuthFlowHandler:
         client_id: str | None = None,
         client_secret: str | None = None,
         requested_scopes: str | None = None,
+        stored_issuer: str | None = None,
     ) -> tuple[str, dict]:
         """
         Build the OAuth authorization URL with PKCE.
+
+        Args:
+            server_id: User MCP server identifier.
+            user_id: Owner of the server.
+            mcp_url: The MCP endpoint URL (RFC 8707 resource indicator).
+            cached_metadata: Previously discovered auth server metadata.
+            client_id: Stored or pre-registered OAuth client identifier.
+            client_secret: Matching client secret, when one exists.
+            requested_scopes: User-specified scopes overriding discovery.
+            stored_issuer: Issuer the stored client credentials were obtained
+                from. When the discovered issuer differs, the credentials are
+                discarded and re-registration runs against the new server
+                (spec 2026-07-28: credentials are bound to their issuer).
 
         Returns:
             Tuple of (authorization_url, metadata_to_cache).
 
         Raises:
-            ValueError: If PKCE S256 is not supported or discovery fails.
+            ValueError: If PKCE S256 is not supported, discovery fails, or the
+                authorization server changed and no re-registration is possible.
         """
         # Discover or use cached auth server metadata
         if cached_metadata and "authorization_endpoint" in cached_metadata:
@@ -265,6 +315,23 @@ class MCPOAuthFlowHandler:
         resolved_client_id = client_id
         resolved_client_secret = client_secret
 
+        # Issuer binding (spec 2026-07-28): credentials from authorization
+        # server A must never be sent to server B. Only a positively-detected
+        # change triggers rebinding — a legacy record with no recorded issuer
+        # (or metadata without one) stays untouched.
+        issuer_changed = bool(
+            stored_issuer and metadata.issuer and stored_issuer != metadata.issuer
+        )
+        if issuer_changed and resolved_client_id:
+            logger.warning(
+                "mcp_oauth_issuer_changed",
+                server_id=str(server_id),
+                previous_issuer_host=urlparse(stored_issuer or "").hostname or "unparseable",
+                new_issuer_host=urlparse(metadata.issuer).hostname or "unparseable",
+            )
+            resolved_client_id = None
+            resolved_client_secret = None
+
         if not resolved_client_id:
             # Strategy 1: Dynamic Client Registration (RFC 7591)
             if metadata.registration_endpoint:
@@ -276,6 +343,14 @@ class MCPOAuthFlowHandler:
                     resolved_client_secret = reg_result.get("client_secret")
 
         if not resolved_client_id:
+            if issuer_changed:
+                raise ValueError(
+                    "The authorization server for this MCP server has changed. "
+                    "The stored OAuth client cannot be reused and re-registration "
+                    "with the new server was not possible — update the server "
+                    "configuration with credentials issued by the new "
+                    "authorization server."
+                )
             raise ValueError(
                 "No client_id available for OAuth flow. "
                 "Provide oauth_client_id in server configuration, "
@@ -301,6 +376,8 @@ class MCPOAuthFlowHandler:
                 encrypt_data(resolved_client_secret) if resolved_client_secret else None
             ),
             "token_endpoint": metadata.token_endpoint,
+            # RFC 9207: recorded issuer, validated against the callback `iss`
+            "issuer": metadata.issuer or None,
         }
         await self._store_state(state, state_data)
 
@@ -349,6 +426,7 @@ class MCPOAuthFlowHandler:
 
         # Metadata to cache on the server record
         metadata_cache = {
+            "issuer": metadata.issuer,
             "authorization_endpoint": metadata.authorization_endpoint,
             "token_endpoint": metadata.token_endpoint,
             "registration_endpoint": metadata.registration_endpoint,
@@ -372,20 +450,46 @@ class MCPOAuthFlowHandler:
         self,
         code: str,
         state: str,
+        iss: str | None = None,
     ) -> tuple[UUID, UUID, str]:
         """
         Exchange authorization code for tokens.
+
+        Args:
+            code: Authorization code returned by the authorization server.
+            state: CSRF state token (single-use, consumed from Redis).
+            iss: Issuer identifier from the authorization response (RFC 9207).
+                When present AND an issuer was recorded at initiation, the two
+                MUST match or the code is never redeemed. Absent on either
+                side, validation is skipped (many providers do not emit it).
 
         Returns:
             Tuple of (server_id, user_id, encrypted_credentials).
 
         Raises:
-            ValueError: If state is invalid/expired or token exchange fails.
+            ValueError: If state is invalid/expired, the ``iss`` parameter
+                does not match the recorded issuer, or token exchange fails.
         """
         # Validate and consume state (single-use)
         state_data = await self._consume_state(state)
         if not state_data:
             raise ValueError("Invalid or expired OAuth state token")
+
+        # RFC 9207 (spec 2026-07-28): validate a present `iss` against the
+        # recorded issuer BEFORE the authorization code goes anywhere. Both
+        # values are attacker-influenced URLs — log hosts only (SEC-030).
+        recorded_issuer = state_data.get("issuer")
+        if iss is not None and recorded_issuer and iss != recorded_issuer:
+            logger.error(
+                "mcp_oauth_iss_mismatch",
+                expected_host=urlparse(recorded_issuer).hostname or "unparseable",
+                received_host=urlparse(iss).hostname or "unparseable",
+            )
+            raise ValueError(
+                "OAuth callback issuer mismatch: the authorization response "
+                "did not come from the recorded authorization server. "
+                "Refusing to redeem the authorization code."
+            )
 
         from src.core.security.utils import decrypt_data
 
@@ -472,6 +576,9 @@ class MCPOAuthFlowHandler:
             "scope": tokens.get("scope", ""),
             "client_id": client_id,
             "client_secret": client_secret,
+            # Issuer binding: later flows compare this against the discovered
+            # issuer and re-register when the authorization server changed.
+            "issuer": recorded_issuer,
         }
         encrypted_creds = encrypt_data(json.dumps(creds))
 
@@ -665,6 +772,9 @@ class MCPOAuthFlowHandler:
                     "response_types": ["code"],
                     "token_endpoint_auth_method": "none",
                     "scope": "",
+                    # Spec 2026-07-28: MUST be specified; OIDC servers use it
+                    # to validate redirect URIs, non-OIDC servers ignore it.
+                    "application_type": _derive_application_type(callback_base),
                 },
                 timeout=settings.mcp_oauth_http_timeout_seconds,
             )

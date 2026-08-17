@@ -8,10 +8,11 @@ Manages discovered tool metadata per (user_id, server_id) with:
 - Reference counting to protect active tool calls from eviction
 - Per-server rate limiting (sliding window)
 - **Ephemeral connections for tool calls**: Each call_tool() creates a fresh
-  MCP session (connect → initialize → call → close). The MCP Python SDK's
-  streamablehttp_client uses anyio task groups whose cancel scopes die when
-  stored in a long-lived pool. Ephemeral connections keep the full lifecycle
-  within a single async scope, avoiding ClosedResourceError / CancelledError.
+  MCP client (connect → call → close) via the SDK v2 ``Client`` in dual-era
+  ``mode="auto"`` (speaks 2026-07-28, falls back to the legacy initialize
+  handshake). The SDK's transports use anyio task groups whose cancel scopes
+  die when stored in a long-lived pool; ephemeral connections keep the full
+  lifecycle within a single async scope, avoiding ClosedResourceError.
 
 Phase: evolution F2.1 — MCP Per-User
 Created: 2026-02-28
@@ -22,25 +23,91 @@ from __future__ import annotations
 import asyncio
 import time
 from collections import defaultdict, deque
-from contextlib import AsyncExitStack
+from collections.abc import AsyncIterator
+from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, NoReturn
 from uuid import UUID
 
-import httpx
+import httpx2
 import structlog
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client import Client
+from mcp.client.streamable_http import streamable_http_client
 
 from src.core.config import settings
 from src.core.constants import (
     MCP_DEFAULT_RATE_LIMIT_CALLS,
     MCP_DEFAULT_RATE_LIMIT_WINDOW,
+    MCP_HTTP_READ_TIMEOUT_SECONDS,
+    MCP_HTTP_TIMEOUT_SECONDS,
     MCP_REFERENCE_TOOL_NAME,
 )
-from src.infrastructure.mcp.utils import extract_app_meta
+from src.infrastructure.mcp.utils import (
+    MCPModernOnlyServerError,
+    build_client_info,
+    extract_app_meta,
+    is_modern_only_rejection,
+    unwrap_exception_group,
+)
 
 logger = structlog.get_logger(__name__)
+
+
+def _surface_root_cause(exc: Exception, *, log_event: str, **log_fields: object) -> NoReturn:
+    """Re-raise the most useful exception out of an anyio failure.
+
+    The MCP SDK's Streamable HTTP transport uses anyio TaskGroups: a sub-task
+    failure arrives wrapped in (possibly nested) ExceptionGroups that hide
+    the actual error (HTTP 401, connection refused, protocol rejection...).
+
+    - A modern-only server rejection (spec 2026-07-28) becomes
+      :class:`MCPModernOnlyServerError` with an actionable message.
+    - A single nested root cause is logged and re-raised directly.
+    - Anything else propagates unchanged.
+    """
+    root = unwrap_exception_group(exc)
+    if is_modern_only_rejection(root):
+        logger.warning(log_event, modern_only_server=True, **log_fields)
+        raise MCPModernOnlyServerError() from exc
+    if root is not exc and isinstance(root, Exception):
+        logger.error(
+            log_event,
+            root_error_type=type(root).__name__,
+            root_error=str(root),
+            **log_fields,
+            exc_info=True,
+        )
+        raise root from exc
+    raise exc
+
+
+@asynccontextmanager
+async def _ephemeral_client(url: str, auth: httpx2.Auth | None) -> AsyncIterator[Client]:
+    """One MCP client for one operation: connect → use → close, single scope.
+
+    ``Client`` defaults to ``mode="auto"`` (dual-era): it speaks protocol
+    revision 2026-07-28 and falls back to the legacy ``initialize`` handshake
+    for pre-2026 servers. The httpx2 client mirrors the SDK's recommended MCP
+    defaults (short connect/write/pool, long read for SSE streams) and carries
+    the per-server auth; it is owned here and closed with the scope.
+    """
+    async with AsyncExitStack() as stack:
+        http_client = await stack.enter_async_context(
+            httpx2.AsyncClient(
+                follow_redirects=True,
+                timeout=httpx2.Timeout(
+                    MCP_HTTP_TIMEOUT_SECONDS, read=MCP_HTTP_READ_TIMEOUT_SECONDS
+                ),
+                auth=auth,
+            )
+        )
+        client = await stack.enter_async_context(
+            Client(
+                streamable_http_client(url, http_client=http_client),
+                client_info=build_client_info(),
+            )
+        )
+        yield client
 
 
 @dataclass
@@ -51,7 +118,7 @@ class PoolEntry:
     server_id: UUID
     last_used: float
     url: str = ""
-    auth: httpx.Auth | None = None
+    auth: httpx2.Auth | None = None
     timeout_seconds: int = 30
     tools: list[dict[str, Any]] = field(default_factory=list)
     active_calls: int = 0  # Reference counter — prevents eviction during active tool calls
@@ -83,7 +150,7 @@ class UserMCPClientPool:
         user_id: UUID,
         server_id: UUID,
         url: str,
-        auth: httpx.Auth,
+        auth: httpx2.Auth,
         timeout_seconds: int = 30,
     ) -> PoolEntry:
         """
@@ -220,31 +287,21 @@ class UserMCPClientPool:
     @staticmethod
     async def _execute_read_resource_ephemeral(
         url: str,
-        auth: httpx.Auth | None,
+        auth: httpx2.Auth | None,
         uri: str,
         timeout_seconds: int,
     ) -> str | None:
         """Read a resource via an ephemeral MCP connection.
 
         Same ephemeral lifecycle pattern as ``_execute_call_ephemeral``:
-        connect → initialize → read_resource → close, all within a single
-        async scope bounded by ``timeout_seconds``.
+        connect → read_resource → close, all within a single async scope
+        bounded by ``timeout_seconds``.
         """
         max_size = settings.mcp_app_max_html_size
 
         async def _inner() -> str | None:
-            async with AsyncExitStack() as exit_stack:
-                read_stream, write_stream, _ = await exit_stack.enter_async_context(
-                    streamablehttp_client(url=url, auth=auth)
-                )
-                session = await exit_stack.enter_async_context(
-                    ClientSession(read_stream, write_stream)
-                )
-                await session.initialize()
-
-                from pydantic import AnyUrl
-
-                result = await session.read_resource(AnyUrl(uri))
+            async with _ephemeral_client(url, auth) as client:
+                result = await client.read_resource(uri)
 
                 for content in result.contents:
                     if hasattr(content, "text"):
@@ -264,22 +321,12 @@ class UserMCPClientPool:
         try:
             return await asyncio.wait_for(_inner(), timeout=timeout_seconds)
         except Exception as exc:
-            # Unwrap ExceptionGroup from anyio TaskGroup (same as _execute_call_ephemeral)
-            if isinstance(exc, ExceptionGroup):
-                sub_exceptions = exc.exceptions
-                logger.error(
-                    "mcp_ephemeral_read_resource_exception_group",
-                    uri=uri,
-                    url=url,
-                    sub_exception_count=len(sub_exceptions),
-                    sub_exceptions=[
-                        {"type": type(se).__name__, "message": str(se)} for se in sub_exceptions
-                    ],
-                    exc_info=True,
-                )
-                if len(sub_exceptions) == 1:
-                    raise sub_exceptions[0] from exc
-            raise
+            _surface_root_cause(
+                exc,
+                log_event="mcp_ephemeral_read_resource_failed",
+                uri=uri,
+                url=url,
+            )
 
     async def disconnect(self, user_id: UUID, server_id: UUID) -> None:
         """Remove a server entry and clean up associated resources."""
@@ -353,13 +400,13 @@ class UserMCPClientPool:
     @staticmethod
     async def _discover_tools(
         url: str,
-        auth: httpx.Auth | None,
+        auth: httpx2.Auth | None,
         timeout_seconds: int,
     ) -> tuple[list[dict[str, Any]], str | None]:
         """Discover tools via an ephemeral MCP connection (connect → list → close).
 
-        The entire discovery (connect + initialize + list_tools + optional read_me)
-        is bounded by timeout_seconds via asyncio.wait_for to prevent silent hangs
+        The entire discovery (connect + list_tools + optional read_me) is
+        bounded by timeout_seconds via asyncio.wait_for to prevent silent hangs
         when a server is unresponsive during connection or handshake.
 
         Returns:
@@ -370,16 +417,8 @@ class UserMCPClientPool:
         """
 
         async def _inner() -> tuple[list[dict[str, Any]], str | None]:
-            async with AsyncExitStack() as exit_stack:
-                read_stream, write_stream, _ = await exit_stack.enter_async_context(
-                    streamablehttp_client(url=url, auth=auth)
-                )
-                session = await exit_stack.enter_async_context(
-                    ClientSession(read_stream, write_stream)
-                )
-                await session.initialize()
-
-                tools_result = await session.list_tools()
+            async with _ephemeral_client(url, auth) as client:
+                tools_result = await client.list_tools()
 
                 max_tools = settings.mcp_max_tools_per_server
                 tools_list = []
@@ -389,7 +428,7 @@ class UserMCPClientPool:
                         {
                             "name": tool.name,
                             "description": tool.description or "",
-                            "input_schema": getattr(tool, "inputSchema", None) or {},
+                            "input_schema": tool.input_schema or {},
                             "app_resource_uri": app_resource_uri,
                             "app_visibility": app_visibility,
                         }
@@ -405,7 +444,7 @@ class UserMCPClientPool:
                 )
                 if read_me_tool:
                     try:
-                        read_me_result = await session.call_tool(MCP_REFERENCE_TOOL_NAME, {})
+                        read_me_result = await client.call_tool(MCP_REFERENCE_TOOL_NAME, {})
                         if read_me_result.content:
                             for part in read_me_result.content:
                                 if hasattr(part, "text") and part.text:
@@ -420,47 +459,44 @@ class UserMCPClientPool:
 
             return tools_list, reference_content
 
-        return await asyncio.wait_for(_inner(), timeout=timeout_seconds)
+        try:
+            return await asyncio.wait_for(_inner(), timeout=timeout_seconds)
+        except Exception as exc:
+            # Discovery is the test-connection path: its error string is what
+            # the user reads in the settings screen — surface the root cause.
+            _surface_root_cause(exc, log_event="mcp_ephemeral_discovery_failed", url=url)
 
     @staticmethod
     async def _execute_call_ephemeral(
         url: str,
-        auth: httpx.Auth | None,
+        auth: httpx2.Auth | None,
         tool_name: str,
         arguments: dict[str, Any],
         timeout_seconds: int,
     ) -> str:
         """Execute a tool call via an ephemeral MCP connection.
 
-        Creates a fresh connection, initializes, calls the tool, and closes —
-        all within a single async scope. This ensures the MCP SDK's anyio
-        background tasks stay alive for the entire duration of the call.
+        Creates a fresh connection, calls the tool, and closes — all within a
+        single async scope. This ensures the MCP SDK's anyio background tasks
+        stay alive for the entire duration of the call.
 
-        The entire lifecycle (connect + initialize + call_tool) is bounded by
+        The entire lifecycle (connect + call_tool) is bounded by
         timeout_seconds via asyncio.wait_for to prevent silent hangs when a
         server is unresponsive during connection or handshake.
         """
 
         async def _inner() -> str:
-            async with AsyncExitStack() as exit_stack:
-                read_stream, write_stream, _ = await exit_stack.enter_async_context(
-                    streamablehttp_client(url=url, auth=auth)
-                )
-                session = await exit_stack.enter_async_context(
-                    ClientSession(read_stream, write_stream)
-                )
-                await session.initialize()
-
+            async with _ephemeral_client(url, auth) as client:
                 logger.debug(
                     "mcp_ephemeral_call_tool_args",
                     tool_name=tool_name,
                     arg_keys=list(arguments.keys()),
                 )
 
-                result = await session.call_tool(tool_name, arguments)
+                result = await client.call_tool(tool_name, arguments)
 
                 # Parse result content
-                if result.isError:
+                if result.is_error:
                     error_text = "\n".join(c.text for c in result.content if hasattr(c, "text"))
                     raise RuntimeError(f"MCP tool error: {error_text}")
 
@@ -469,33 +505,13 @@ class UserMCPClientPool:
 
         try:
             return await asyncio.wait_for(_inner(), timeout=timeout_seconds)
-
         except Exception as exc:
-            # Unwrap ExceptionGroup from anyio TaskGroup to expose root cause.
-            # The MCP SDK's streamablehttp_client uses anyio TaskGroups internally;
-            # when a sub-task fails, anyio wraps it in ExceptionGroup which hides
-            # the actual error (e.g., HTTP 401, connection refused, etc.).
-            # Note: ExceptionGroup inherits from Exception in Python 3.11+.
-            if isinstance(exc, ExceptionGroup):
-                sub_exceptions = exc.exceptions
-                logger.error(
-                    "mcp_ephemeral_call_exception_group",
-                    tool_name=tool_name,
-                    url=url,
-                    sub_exception_count=len(sub_exceptions),
-                    sub_exceptions=[
-                        {
-                            "type": type(se).__name__,
-                            "message": str(se),
-                        }
-                        for se in sub_exceptions
-                    ],
-                    exc_info=True,
-                )
-                # Re-raise the first sub-exception for cleaner error handling
-                if len(sub_exceptions) == 1:
-                    raise sub_exceptions[0] from exc
-            raise
+            _surface_root_cause(
+                exc,
+                log_event="mcp_ephemeral_call_failed",
+                tool_name=tool_name,
+                url=url,
+            )
 
     async def _evict_oldest_idle(self) -> bool:
         """Evict the oldest idle entry. Returns True if one was evicted."""

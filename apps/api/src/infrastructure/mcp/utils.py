@@ -5,6 +5,10 @@ Provides helpers shared by both admin and user MCP subsystems:
 - ``extract_app_meta``: Extract MCP Apps metadata from SDK Tool objects.
 - ``is_app_only``: Check if a tool is iframe-only (not exposed to LLM).
 - ``build_mcp_app_output``: Build a UnifiedToolOutput for MCP Apps (interactive widgets).
+- ``unwrap_exception_group`` / ``is_modern_only_rejection`` /
+  ``MCPModernOnlyServerError``: root-cause surfacing for anyio-wrapped
+  transport failures and protocol-revision rejections (ADR-224).
+- ``build_client_info``: LIA's ``clientInfo`` identity for the MCP handshake.
 
 Phase: evolution F2.5 — MCP Apps
 Created: 2026-03-04
@@ -15,6 +19,15 @@ from __future__ import annotations
 import time
 from typing import Any
 
+import httpx2
+from mcp.shared.exceptions import MCPError
+from mcp.types import Implementation
+
+from src.core.config import settings
+from src.core.constants import (
+    MCP_CLIENT_INFO_NAME,
+    MCP_ERROR_UNSUPPORTED_PROTOCOL_VERSION,
+)
 from src.core.field_names import FIELD_REGISTRY_ID
 from src.domains.agents.constants import CONTEXT_DOMAIN_MCP_APPS
 from src.domains.agents.data_registry.models import (
@@ -24,6 +37,79 @@ from src.domains.agents.data_registry.models import (
     generate_registry_id,
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
+
+
+class MCPModernOnlyServerError(RuntimeError):
+    """The MCP server rejected every protocol revision this client speaks.
+
+    LIA's dual-era client speaks revision 2026-07-28 AND falls back to the
+    legacy ``initialize`` handshake; a rejection therefore means the server
+    only accepts revisions outside that range. The message is deliberately
+    self-contained: this diagnostic is the only signal the user ever sees
+    (spec 2026-07-28, Versioning & Compatibility).
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            "This MCP server rejected every protocol revision this LIA "
+            "version speaks (2026-07-28 and the legacy handshake down to "
+            "2024-11-05). The server likely requires a newer MCP revision — "
+            "check the server's documentation or update LIA."
+        )
+
+
+def unwrap_exception_group(exc: BaseException) -> BaseException:
+    """Recursively unwrap single-child ``ExceptionGroup`` nesting.
+
+    The MCP SDK's transports run inside anyio TaskGroups: a failure gets
+    wrapped in one ``ExceptionGroup`` per nesting level, and ``str(exc)``
+    then reads "unhandled errors in a TaskGroup" — hiding the root cause.
+    Groups with several children are returned as-is (no arbitration).
+
+    Args:
+        exc: Any exception, possibly nested in ExceptionGroups.
+
+    Returns:
+        The innermost single cause, or ``exc`` unchanged.
+    """
+    while isinstance(exc, BaseExceptionGroup) and len(exc.exceptions) == 1:
+        exc = exc.exceptions[0]
+    return exc
+
+
+def is_modern_only_rejection(exc: BaseException) -> bool:
+    """Whether an exception is a modern-only server rejecting a legacy client.
+
+    Two rejection shapes exist on the wire (spec 2026-07-28, compatibility
+    matrix):
+
+    - Streamable HTTP: the request is rejected with ``400 Bad Request``
+      (missing/unacceptable protocol headers) — the SDK surfaces
+      ``httpx2.HTTPStatusError``.
+    - A server that parses JSON-RPC answers
+      ``UnsupportedProtocolVersionError`` (``-32022``).
+
+    Args:
+        exc: The root-cause exception (already unwrapped).
+
+    Returns:
+        True when the failure identifies a protocol-revision rejection.
+    """
+    if isinstance(exc, httpx2.HTTPStatusError):
+        return exc.response.status_code == 400
+    if isinstance(exc, MCPError):
+        # bool(): the SDK's ErrorData.code resolves as Any under MyPy strict.
+        return bool(exc.code == MCP_ERROR_UNSUPPORTED_PROTOCOL_VERSION)
+    return False
+
+
+def build_client_info() -> Implementation:
+    """MCP ``clientInfo`` identifying LIA in the handshake (spec SHOULD).
+
+    Returns:
+        Implementation with the LIA client name and the running app version.
+    """
+    return Implementation(name=MCP_CLIENT_INFO_NAME, version=settings.app_version)
 
 
 def drop_none_values(arguments: dict[str, Any]) -> dict[str, Any]:

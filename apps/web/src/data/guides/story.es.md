@@ -4,7 +4,7 @@
 
 **Versión**: 1.6
 **Fecha**: 2026-08-17
-**Aplicación**: LIA v1.30.5
+**Aplicación**: LIA v1.30.6
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
 | Líneas de código (sin tests) — 40 dominios funcionales | **520.000** |
 | Tests automatizados, ejecutados en cada commit y entrega | **23.900+** |
-| Decisiones de arquitectura documentadas (ADR) | **222** |
-| Versiones entregadas a ritmo regular | **207** |
+| Decisiones de arquitectura documentadas (ADR) | **223** |
+| Versiones entregadas a ritmo regular | **210** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -50,7 +50,7 @@ Una IA que programa produce volumen; solo produce calidad bajo restricción. Cua
 
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 220 documentadas:
+Tres decisiones estructurantes, entre las 223 documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El alojamiento está íntegramente controlado; los datos personales están cifrados y permanecen en la infraestructura.
 
@@ -98,6 +98,8 @@ El ciclo 1.30.1 llevó la lógica un paso más allá: auditó la auditoría. Un 
 El ciclo 1.30.2 aplicó la misma disciplina a lo que nadie mira nunca: los cimientos. Subir el ecosistema de orquestación cinco meses de correcciones pudo haber sido un simple cambio de números; se ejecutó como una operación con pruebas — cada versión validada en un entorno desechable antes de tocar el repositorio, ocho mil quinientos tests ejecutados bajo las versiones objetivo, los puntos de integración privados simulados sin red. Y la auditoría que acompañó la subida encontró lo que las métricas de cobertura escondían: mil setecientas cincuenta líneas de una segunda implementación de la reanudación humana, jamás conectada, mantenida en verde por cincuenta tests. Eliminada, con su decisión de arquitectura registrada. Un sistema escaparate no se juzga solo por lo que muestra — también por lo que se niega a conservar.
 
 El ciclo 1.30.5 nació de un mensaje de usuario de tres líneas: «pedí transmitir un mensaje, recibí una confirmación, no se envió nada». La investigación — logs de producción con marca de tiempo, base de datos, el propio código del contenedor, prueba a prueba — llegó hasta una sola línea: el motor de ejecución sobrescribía el veredicto de cada herramienta con un éxito codificado en duro, y la capa de honestidad diseñada precisamente para nombrar los bloqueos quedaba desarmada por la misma mentira que debía impedir. La corrección es pequeña; el método es el verdadero entregable: cada hipótesis contraverificada antes de escribir una línea, cada corrección precedida de un test que falla, y un asistente que ahora dice la verdad hasta en sus rechazos — con cifras exactas, en los seis idiomas.
+
+El ciclo 1.30.6 dirigió la misma disciplina hacia fuera: hacia el estándar que habla todo el ecosistema. El Model Context Protocol acababa de publicar una revisión que hace el protocolo sin estado, y cuya propia matriz de compatibilidad condena a los clientes antiguos frente a los servidores de nueva generación. El trabajo se llevó como una investigación de conformidad antes que como una migración: la especificación leída requisito a requisito, cada desviación demostrada por simulación antes de cambiar una sola línea, el nuevo SDK ejercitado contra servidores reales de ambas generaciones. LIA habla ahora las dos — la nueva revisión sin estado y el antiguo handshake —, de modo que cada servidor ya configurado sigue funcionando igual mientras los de nueva generación se vuelven accesibles; el flujo OAuth ganó las obligaciones de seguridad de la revisión, cada una con una regla de tolerancia explícita para los registros existentes. Y rechazar una pantalla de consentimiento ya no es una página de error: es una respuesta, reconocida en seis idiomas.
 
 ## 7. Convicciones
 

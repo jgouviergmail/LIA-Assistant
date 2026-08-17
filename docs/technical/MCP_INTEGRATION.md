@@ -358,19 +358,53 @@ Pipeline:
                         → bypasses semantic score for mcp_user_* tools
   ParallelExecutor → falls back to ContextVar for tool/manifest resolution
   UserMCPToolAdapter._arun() → pool.call_tool()
-    → creates fresh ephemeral MCP connection (connect → initialize → call → close)
+    → creates fresh ephemeral MCP connection (connect → call → close)
 
 Cleanup:
   cleanup_user_mcp_tools(token) → resets ContextVar
 ```
 
-> **Why ephemeral connections?** The MCP Python SDK's `streamablehttp_client` uses
-> anyio task groups internally. When a session is stored in a long-lived pool, the
-> background tasks die (cancel scope expires), causing `ClosedResourceError` /
-> `CancelledError` on subsequent `call_tool()`. Ephemeral connections keep the full
-> lifecycle (connect → initialize → call → close) within a single async scope,
-> ensuring background tasks stay alive. The overhead (~1.5s handshake per call)
-> is acceptable given typical MCP tool call latency (3-10s).
+> **Why ephemeral connections?** The MCP Python SDK's Streamable HTTP transport
+> uses anyio task groups internally. When a session is stored in a long-lived
+> pool, the background tasks die (cancel scope expires), causing
+> `ClosedResourceError` / `CancelledError` on subsequent `call_tool()`.
+> Ephemeral connections keep the full lifecycle (connect → call → close) within
+> a single async scope, ensuring background tasks stay alive. The overhead
+> (~1.5s handshake per call) is acceptable given typical MCP tool call latency
+> (3-10s).
+
+### Protocol Revisions & SDK (ADR-223)
+
+LIA runs the **MCP Python SDK v2** (`mcp>=2.0.0`) as a **dual-era client**
+(`Client` with its default `mode="auto"`):
+
+- **Modern era**: protocol revision **2026-07-28** (stateless MCP — no
+  `initialize` handshake, per-request `_meta`, `server/discover` probing).
+- **Legacy era**: automatic fallback to the `initialize` handshake for
+  servers on 2025-11-25 and earlier. Existing admin and user MCP servers
+  keep working unchanged.
+
+Supporting mechanics:
+
+- The v2 transports run on **httpx2** (the httpx 2.x line under its new
+  import name); LIA's MCP auth classes (`infrastructure/mcp/auth.py`)
+  subclass `httpx2.Auth`. The rest of LIA stays on `httpx` — both packages
+  coexist.
+- LIA identifies itself in the handshake via `clientInfo`
+  (`build_client_info()` in `infrastructure/mcp/utils.py`: name `LIA`,
+  version `settings.app_version`).
+- anyio `ExceptionGroup` nesting is unwrapped recursively
+  (`unwrap_exception_group`); a server rejecting every revision LIA speaks
+  surfaces as `MCPModernOnlyServerError` with an actionable message
+  instead of a raw transport error.
+
+The OAuth 2.1 flow follows the 2026-07-28 authorization requirements:
+`iss` validation against the recorded issuer (RFC 9207), client credentials
+keyed by issuer with automatic re-registration when the authorization server
+changes, and `application_type` declared during Dynamic Client Registration
+(derived from the callback host: loopback → `native`, public → `web`). The
+OAuth callback also handles user denial (`error=access_denied`) with a
+dedicated `mcp_oauth=denied` frontend marker instead of a bare 422.
 
 ### Module Structure
 

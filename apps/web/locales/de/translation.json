@@ -2255,6 +2255,7 @@
       "connect_oauth": "Über OAuth verbinden",
       "oauth_success": "OAuth-Authentifizierung erfolgreich",
       "oauth_error": "Fehler bei der OAuth-Authentifizierung",
+      "oauth_denied": "Autorisierung abgelehnt — der MCP-Server wurde nicht verbunden",
       "disconnect_oauth": "OAuth trennen",
       "oauth_disconnected": "OAuth-Verbindung zurückgesetzt — klicke auf \"OAuth verbinden\" zur erneuten Autorisierung",
       "server_created": "MCP-Server hinzugefügt",
@@ -3259,7 +3260,7 @@
         "connectors": "Google, Gmail, Kalender, Kontakte, Apple, Microsoft, Outlook, Integrationen, Konten, OAuth, neu verbinden, getrennt, Dienste, Position, Standort, Geolokalisierung, Heimatadresse, Adresse, Standortspeicher",
         "telephony-calls": "Telefon, Anrufe, Anrufverlauf, wählen",
         "admin-mcp-servers": "MCP, Model Context Protocol, Anwendungsserver, integrierte Werkzeuge",
-        "mcp-servers": "MCP, Model Context Protocol, meine Server, Werkzeuge, Erweiterungen",
+        "mcp-servers": "MCP, Model Context Protocol, meine Server, Werkzeuge, Erweiterungen, oauth, Autorisierung",
         "debug-panel": "Entwickler, Diagnose, Traces, technisch, Fehlersuche, Wasserfall, Anomalien, Zeitachse, Pipeline",
         "personality": "Ton, Stil, Charakter, Verhalten, Persona, Stimme",
         "psyche": "Emotionen, Stimmung, Gefühle, Affekt, emotional",
@@ -3919,7 +3920,7 @@
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
-          "description": "Vollständige Unterstützung des MCP-Protokolls (Anthropic-Standard) zur Anbindung externer Tools. Admin-Server (persistent) und Benutzer-Server (ephemer, Verbindung pro Aufruf). 4 Authentifizierungstypen: keine, API-Schlüssel, Bearer-Token, OAuth 2.1 mit PKCE. Automatische Tool-Erkennung, LLM-generierte Domänenbeschreibung, read_me-Dokumentation wird in den Planer injiziert. Verbindungspool pro Benutzer mit ContextVar-Isolation."
+          "description": "Volle MCP-Protokollunterstützung mit Admin- und Benutzer-Servern, die beide Protokollgenerationen spricht: die neue zustandslose Revision und den bisherigen Handshake, mit automatischem Fallback. 4 Authentifizierungstypen (keine, API-Schlüssel, Bearer, OAuth 2.1 mit Issuer-gebundenen Zugangsdaten). Automatische Tool-Erkennung, LLM-generierte Domänenbeschreibungen fürs Routing und read_me-Injektion in den Planer-Prompt."
         },
         "mcpApps": {
           "title": "📱 Interaktive MCP Apps",
@@ -4048,6 +4049,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_30_6": {
+          "title": "v1.30.6 — 🔌 MCP-Protokoll der neuen Generation",
+          "date": "August 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔌 LIA spricht beide Generationen des MCP-Protokolls</b> — das Model Context Protocol hat eine große Revision veröffentlicht, mit der ältere Clients nicht mehr sprechen können. LIA spricht jetzt die neue zustandslose Revision UND fällt automatisch auf den klassischen Handshake zurück: Jeder bereits konfigurierte MCP-Server arbeitet unverändert weiter, und Server der neuen Generation lassen sich ebenfalls anbinden. Verlangt ein Server eine Revision, die LIA nicht spricht, erhalten Sie jetzt eine klare Erklärung statt eines kryptischen Verbindungsfehlers.",
+            "i2": "<b>🔐 Gehärtetes OAuth für MCP-Server — und Ablehnen ist kein Fehler mehr</b> — der OAuth-Fluss wendet die Sicherheitspflichten der neuen Spezifikation an: Die Identität des Autorisierungsservers wird geprüft, bevor Ihr Autorisierungscode verwendet wird, und gespeicherte Client-Zugangsdaten werden nie an einen anderen Autorisierungsserver gesendet als den, der sie ausgestellt hat (LIA registriert sich stattdessen automatisch neu). Wenn Sie den Zustimmungsbildschirm beim Anbieter ablehnen, kehren Sie mit einem einfachen Hinweis zu Ihren Einstellungen zurück — keine Fehlerseite."
+          }
+        },
         "v1_30_5": {
           "title": "v1.30.5 — 🕐 Kosten, die der Uhr des Anbieters folgen",
           "date": "August 2026",
@@ -6659,7 +6669,7 @@
       "mcp_servers": {
         "title": "MCP-Server",
         "description": "Externe Tools über das MCP-Protokoll verbinden",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "Was ist ein MCP-Server?",
@@ -6696,6 +6706,10 @@
           "q9": {
             "question": "Wie erstelle ich Excalidraw-Diagramme und -Schemata?",
             "answer": "LIA kann <strong>Excalidraw-Diagramme</strong> direkt in der Konversation erstellen, dank des MCP-Excalidraw-Servers:<br><br><strong>🎨 Was LIA erstellen kann:</strong><br>• Architekturdiagramme<br>• Organigramme und Workflows<br>• Prozessschemata<br>• Flussdiagramme<br>• Mindmaps und hierarchische Strukturen<br><br><strong>📝 Wie du es anforderst:</strong><br>• \"<em>Erstelle ein Client-Server-Architekturschema mit einer Datenbank</em>\"<br>• \"<em>Zeichne einen Onboarding-Workflow in 5 Schritten</em>\"<br>• \"<em>Mach ein Organigramm mit Direktor, 3 Managern und 6 Mitarbeitern</em>\"<br>• \"<em>Schema des Wasserkreislaufs</em>\"<br><br><strong>⚙️ So funktioniert es:</strong><br>1. LIA analysiert deine Anfrage und erstellt einen <strong>strukturierten Intent</strong> (Komponenten, Verbindungen, Layout)<br>2. Ein dedizierter LLM generiert alle visuellen Elemente (Formen, Texte, Positionen)<br>3. Ein zweiter Aufruf generiert die Pfeile und Verbindungen<br>4. Das interaktive Diagramm wird direkt in der Konversation angezeigt<br><br><strong>💡 Tipps:</strong><br>• Beschreibe die <strong>Komponenten</strong> und ihre <strong>Beziehungen</strong> für ein besseres Ergebnis<br>• Gib den gewünschten Layout-Typ an (von oben nach unten, von links nach rechts, Raster)<br>• Du kannst nach der Generierung Änderungen anfordern<br><br><strong>⚠️ Voraussetzung:</strong><br>Der MCP-Excalidraw-Server muss konfiguriert und aktiv sein (Administratorkonfiguration)."
+          },
+          "q10": {
+            "question": "Welche Versionen des MCP-Protokolls unterstützt LIA?",
+            "answer": "LIA spricht <strong>beide Generationen des MCP-Protokolls</strong>:<br><br>• Die <strong>neue zustandslose Revision (2026)</strong> — von Servern der neuen Generation verwendet<br>• Den <strong>klassischen Handshake</strong> — von allen früheren Servern verwendet<br><br>Die richtige wird pro Server automatisch gewählt: Ihre bestehenden Server arbeiten ohne Ihr Zutun weiter, und Server der neuen Generation verbinden sich ebenfalls. 🔌<br><br>Verlangt ein Server eine Revision, die LIA nicht spricht, zeigt der Verbindungstest eine <strong>klare Erklärung</strong> statt eines technischen Fehlers.<br><br>Auf der Sicherheitsseite prüft der OAuth-Fluss die <strong>Identität des Autorisierungsservers</strong>, bevor Ihr Autorisierungscode verwendet wird, und sendet gespeicherte Zugangsdaten nie an einen anderen Autorisierungsserver als den ausstellenden. Und wenn Sie den Zustimmungsbildschirm ablehnen, kehren Sie einfach mit einem Hinweis zu Ihren Einstellungen zurück — Ablehnen ist eine Entscheidung, kein Fehler. ✅"
           }
         }
       },
@@ -8387,7 +8401,7 @@
       },
       "mcp": {
         "title": "Erweiterbar (MCP)",
-        "description": "Verbinde deine eigenen MCP-Server, um LIA grenzenlos zu erweitern. Iterativer Modus verfügbar: Ein dedizierter Agent liest die Server-Dokumentation und ruft dann die Tools korrekt auf — ideal für komplexe APIs."
+        "description": "Verbinden Sie Ihre eigenen MCP-Server, um LIA grenzenlos zu erweitern — mit beiden Generationen des Protokolls, der neuen zustandslosen Revision wie dem klassischen Handshake, mit automatischem Fallback. Iterativer Modus verfügbar: Ein dedizierter Agent liest die Server-Dokumentation und ruft dann die Tools mit den richtigen Parametern auf."
       },
       "mcp_apps": {
         "title": "Interaktive MCP Apps",

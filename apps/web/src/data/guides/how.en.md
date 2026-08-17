@@ -6,7 +6,7 @@
 
 **Version**: 4.3
 **Date**: 2026-08-17
-**Application**: LIA v1.30.5
+**Application**: LIA v1.30.6
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 466 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 222 ADRs, ~18,429 pytest-collected tests across 1,002 files, native observability, 6-level HITL |
+| Production reliability | 223 ADRs, ~18,429 pytest-collected tests across 1,002 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -729,9 +729,13 @@ LIA can place an outbound phone call on the user's behalf, hold a goal-directed 
 
 The `MCPClientManager` manages connection lifecycle (exit stacks), tool discovery (`session.list_tools()`), and automatic LLM-based domain description generation. The `ToolAdapter` normalizes MCP tools to the LangChain `@tool` format, with structured parsing of JSON responses into individual items.
 
+Since v1.30.6 the client is **dual-era** (MCP SDK v2, ADR-224): it speaks the stateless 2026-07-28 protocol revision and automatically falls back to the legacy `initialize` handshake for earlier servers — every already-configured server keeps working unchanged while new-generation servers become reachable. LIA identifies itself in the handshake (`clientInfo`), and a server that rejects every revision LIA speaks produces an actionable diagnostic instead of a raw transport error buried in nested `ExceptionGroup`s.
+
 ### 14.2. MCP Security
 
 Mandatory HTTPS, SSRF prevention (DNS resolution + IP blocklist), Fernet credential encryption, OAuth 2.1 (DCR + PKCE S256), Redis rate limiting per server/tool, API guard 403 on proxy endpoints for disabled servers (ADR-061 Layer 3).
+
+The OAuth flow applies the 2026-07-28 authorization requirements: the `iss` parameter (RFC 9207) is validated against the recorded issuer before the authorization code is redeemed, client credentials are bound to the issuing authorization server (a detected change discards them and re-registers instead of sending secrets to the wrong party), and Dynamic Client Registration declares its `application_type`. Each rule carries an explicit tolerance for existing registrations, and declining the consent screen brings the user back to their settings with a dedicated informational message instead of a bare 422.
 
 ### 14.3. MCP Iterative Mode (ReAct)
 
@@ -1269,7 +1273,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-222 ADRs in MADR format document the major architectural decisions. Some representative examples:
+223 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1374,10 +1378,10 @@ The common thread across these four batches is a property of the tests themselve
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 222 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,429 tests across 1,002 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 223 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,429 tests across 1,002 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 222 ADRs, and the changelog (v1.0 to v1.30.5). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 223 ADRs, and the changelog (v1.0 to v1.30.6). All metrics, versions, and patterns cited are verifiable in the codebase.*

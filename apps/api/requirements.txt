@@ -134,7 +134,8 @@ langchain-google-genai==4.3.4  # reasoning_effort standard param; new Gemini req
 anthropic==0.122.0  # Anthropic SDK, floor >=0.120 required by langchain-anthropic 1.5.6 (no direct SDK import in src/)
 
 # MCP (Model Context Protocol) — evolution F2
-mcp>=1.28.1,<2.0.0  # MCP 1.20+ adds list_resources/read_resource (MCP Apps support). Requires starlette>=0.27. Floor 1.28.1 clears CVE-2026-52869/52870 (fixed 1.27.2) + CVE-2026-59950 (fixed 1.28.1) — all server-side surfaces LIA does not use (client-only), raised for audit hygiene.
+mcp>=2.0.0,<2.1.0  # SDK v2: speaks MCP 2026-07-28 (stateless) AND falls back to the legacy initialize handshake (mode="auto", dual-era — proven against a 1.28.1 server). v2 transports run on httpx2; client API is Client (ClientSession retired). <2.1.0: brand-new major, pin the minor and widen deliberately.
+httpx2>=2.5.0  # httpx 2.x line under its new import name — required by mcp v2 transports; LIA's MCP auth classes subclass httpx2.Auth. Coexists with httpx 0.x (distinct package).
 
 # Browser Automation — Interactive web browsing (evolution F7)
 playwright==1.60.0  # Headless Chromium for web interaction via accessibility tree

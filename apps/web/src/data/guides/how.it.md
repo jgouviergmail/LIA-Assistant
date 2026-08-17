@@ -6,7 +6,7 @@
 
 **Versione**: 4.3
 **Data**: 2026-08-17
-**Applicazione**: LIA v1.30.5
+**Applicazione**: LIA v1.30.6
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 466 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 222 ADRs, ~18.429 test raccolti da pytest in 1.002 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 223 ADRs, ~18.429 test raccolti da pytest in 1.002 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -729,9 +729,13 @@ LIA può effettuare una chiamata in uscita per conto dell'utente, condurre una c
 
 Il `MCPClientManager` gestisce il lifecycle delle connessioni (exit stack), la scoperta degli strumenti (`session.list_tools()`), e la generazione automatica della descrizione di dominio tramite LLM. Il `ToolAdapter` normalizza gli strumenti MCP verso il formato LangChain `@tool`, con parsing strutturato delle risposte JSON in item individuali.
 
+Dalla v1.30.6 il client è **dual-era** (SDK MCP v2, ADR-224): parla la revisione senza stato 2026-07-28 del protocollo e ripiega automaticamente sul handshake `initialize` precedente per i server più vecchi — ogni server già configurato continua a funzionare identico mentre i server di nuova generazione diventano raggiungibili. LIA si identifica nel handshake (`clientInfo`), e un server che rifiuta tutte le revisioni parlate da LIA produce una diagnosi azionabile invece di un errore di trasporto grezzo sepolto in `ExceptionGroup` annidati.
+
 ### 14.2. Sicurezza MCP
 
 HTTPS obbligatorio, prevenzione SSRF (risoluzione DNS + blocklist IP), crittografia Fernet delle credenziali, OAuth 2.1 (DCR + PKCE S256), rate limiting Redis per server/strumento, API guard 403 sugli endpoint proxy per server disattivati (ADR-061 Layer 3).
+
+Il flusso OAuth applica i requisiti di autorizzazione del 2026-07-28: il parametro `iss` (RFC 9207) viene validato contro l'issuer registrato prima di riscattare il codice di autorizzazione, le credenziali client sono legate al server di autorizzazione emittente (un cambiamento rilevato le scarta e ri-registra invece di inviare segreti all'interlocutore sbagliato), e la Dynamic Client Registration dichiara il suo `application_type`. Ogni regola porta una tolleranza esplicita per le registrazioni esistenti, e rifiutare la schermata di consenso riporta l'utente alle sue impostazioni con un messaggio informativo dedicato invece di un 422 grezzo.
 
 ### 14.3. MCP Iterative Mode (ReAct)
 
@@ -1275,7 +1279,7 @@ La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la 
 
 ## 24. Architettura delle decisioni (ADR)
 
-222 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+223 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1351,10 +1355,10 @@ Il filo comune di questi quattro lotti è una proprietà dei test stessi. Ogni p
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 222 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~18.429 test in 1.002 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 223 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~18.429 test in 1.002 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 222 ADRs e del changelog (da v1.0 a v1.30.5). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 223 ADRs e del changelog (da v1.0 a v1.30.6). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

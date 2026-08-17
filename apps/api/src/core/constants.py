@@ -2921,9 +2921,20 @@ MCP_USER_OAUTH_CALLBACK_PATH = "/api/v1/mcp/servers/oauth/callback"
 MCP_OAUTH_HTTP_TIMEOUT_SECONDS = 10  # Timeout for OAuth HTTP calls (discovery, token exchange)
 MCP_OAUTH_REFRESH_LOCK_TTL_SECONDS = 15  # Redis lock TTL for concurrent token refresh
 MCP_OAUTH_CLIENT_NAME = "LIA"  # Client name for Dynamic Client Registration (RFC 7591)
+MCP_CLIENT_INFO_NAME = "LIA"  # clientInfo.name sent in the MCP handshake
+# httpx2 timeouts for MCP Streamable HTTP transports — mirrors the SDK's
+# recommended defaults (create_mcp_http_client): short connect/write/pool,
+# long read so server-to-client SSE streams are not severed mid-call.
+MCP_HTTP_TIMEOUT_SECONDS = 30.0
+MCP_HTTP_READ_TIMEOUT_SECONDS = 300.0
+# JSON-RPC error code for UnsupportedProtocolVersionError (MCP spec 2026-07-28):
+# a stateless-era server answering a legacy `initialize` with this code only
+# speaks protocol revisions this client does not implement yet.
+MCP_ERROR_UNSUPPORTED_PROTOCOL_VERSION = -32022
 MCP_USER_OAUTH_REDIRECT_PATH = "/dashboard/settings"  # Frontend redirect after OAuth callback
 MCP_USER_OAUTH_REDIRECT_PARAM_SUCCESS = "mcp_oauth=success"
 MCP_USER_OAUTH_REDIRECT_PARAM_ERROR = "mcp_oauth=error"
+MCP_USER_OAUTH_REDIRECT_PARAM_DENIED = "mcp_oauth=denied"  # User refused consent
 SCHEDULER_JOB_USER_MCP_EVICTION = "user_mcp_pool_eviction"
 
 # MCP domain description algorithmic fallback (shared admin + user MCP)

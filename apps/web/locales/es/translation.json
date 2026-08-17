@@ -2255,6 +2255,7 @@
       "connect_oauth": "Conectar vía OAuth",
       "oauth_success": "Autenticación OAuth exitosa",
       "oauth_error": "Error en la autenticación OAuth",
+      "oauth_denied": "Autorización rechazada: el servidor MCP no se ha conectado",
       "disconnect_oauth": "Desconectar OAuth",
       "oauth_disconnected": "Conexión OAuth reiniciada — haz clic en \"Conectar OAuth\" para re-autorizar",
       "server_created": "Servidor MCP añadido",
@@ -3259,7 +3260,7 @@
         "connectors": "google, gmail, calendario, contactos, apple, microsoft, outlook, integraciones, cuentas, oauth, reconectar, desconectado, servicios, posición, ubicación, geolocalización, domicilio, dirección, memoria de ubicación",
         "telephony-calls": "teléfono, llamadas, historial de llamadas, marcar",
         "admin-mcp-servers": "MCP, model context protocol, servidores de la aplicación, herramientas integradas",
-        "mcp-servers": "MCP, model context protocol, mis servidores, herramientas, extensiones",
+        "mcp-servers": "MCP, model context protocol, mis servidores, herramientas, extensiones, oauth, autorización",
         "debug-panel": "desarrollador, diagnóstico, trazas, técnico, solución de problemas, waterfall, anomalías, cronología, pipeline",
         "personality": "tono, estilo, carácter, comportamiento, persona, voz",
         "psyche": "emociones, estado de ánimo, sentimientos, afecto, emocional",
@@ -3919,7 +3920,7 @@
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
-          "description": "Soporte completo del protocolo MCP (estándar Anthropic). Servidores admin (persistentes) y usuario (efímeros). 4 tipos de autenticación (ninguna, clave API, bearer token, OAuth 2.1). Descubrimiento automático de herramientas, descripción de dominio generada por LLM, documentación read_me inyectada en el planificador."
+          "description": "Soporte completo del protocolo MCP con servidores admin y por usuario, hablando las dos generaciones del protocolo: la nueva revisión sin estado y el handshake heredado, con retorno automático. 4 tipos de autenticación (ninguna, clave API, bearer, OAuth 2.1 con credenciales vinculadas al issuer). Descubrimiento automático de herramientas, descripciones de dominio generadas por LLM para el enrutamiento e inyección del read_me en el prompt del planificador."
         },
         "mcpApps": {
           "title": "📱 MCP Apps Interactivas",
@@ -4048,6 +4049,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_30_6": {
+          "title": "v1.30.6 — 🔌 Protocolo MCP de nueva generación",
+          "date": "Agosto de 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔌 LIA habla las dos generaciones del protocolo MCP</b> — el Model Context Protocol publicó una revisión mayor con la que los clientes antiguos ya no pueden comunicarse. LIA habla ahora la nueva revisión sin estado Y recurre automáticamente al handshake clásico: cada servidor MCP que ya tenías configurado sigue funcionando igual, y los servidores de nueva generación también se conectan. Si un servidor exige una revisión que LIA no habla, ahora obtienes una explicación clara en lugar de un error de conexión críptico.",
+            "i2": "<b>🔐 OAuth reforzado para servidores MCP — y rechazar ya no es un error</b> — el flujo OAuth aplica las obligaciones de seguridad de la nueva especificación: la identidad del servidor de autorización se verifica antes de usar tu código de autorización, y las credenciales de cliente almacenadas nunca se envían a un servidor de autorización distinto del que las emitió (LIA se vuelve a registrar automáticamente en su lugar). Si rechazas la pantalla de consentimiento del proveedor, vuelves a tus ajustes con un simple mensaje informativo — no una página de error."
+          }
+        },
         "v1_30_5": {
           "title": "v1.30.5 — 🕐 Costes que siguen el reloj del proveedor",
           "date": "Agosto 2026",
@@ -6659,7 +6669,7 @@
       "mcp_servers": {
         "title": "Servidores MCP",
         "description": "Conecta herramientas externas mediante el protocolo MCP",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "¿Qué es un servidor MCP?",
@@ -6696,6 +6706,10 @@
           "q9": {
             "question": "¿Cómo generar esquemas y diagramas Excalidraw?",
             "answer": "LIA puede crear <strong>diagramas interactivos Excalidraw</strong> directamente en la conversación:<br><br><strong>🎨 Cómo usarlo:</strong><br>• Pide a LIA que cree un diagrama, esquema o mapa mental<br>• Ejemplos: \"<em>Haz un diagrama de arquitectura microservicios</em>\", \"<em>Crea un esquema del ciclo del agua</em>\", \"<em>Diagrama de flujo para un proceso de compra</em>\"<br><br><strong>⚙️ Proceso en 2 etapas:</strong><br>1. <strong>Formas</strong>: un LLM genera los elementos (rectángulos, elipses, texto) con sus posiciones y dimensiones<br>2. <strong>Flechas</strong>: un segundo LLM crea las conexiones entre elementos con etiquetas<br><br><strong>📌 Tipos de diagramas soportados:</strong><br>• Diagramas de arquitectura<br>• Diagramas de flujo<br>• Mapas mentales<br>• Organigramas<br>• Esquemas de proceso<br>• Diagramas de secuencia simplificados<br><br><strong>💡 Consejos:</strong><br>• Sea preciso en su descripción para obtener un diagrama más fiel<br>• Puede pedir modificaciones iterativas del diagrama<br>• El resultado es interactivo: puede hacer zoom, desplazar y explorar<br><br><strong>⚠️ Prerrequisito:</strong><br>Requiere un servidor MCP Excalidraw configurado y activo."
+          },
+          "q10": {
+            "question": "¿Qué versiones del protocolo MCP admite LIA?",
+            "answer": "LIA habla <strong>las dos generaciones del protocolo MCP</strong>:<br><br>• La <strong>nueva revisión sin estado (2026)</strong> — usada por los servidores de nueva generación<br>• El <strong>handshake clásico</strong> — usado por todos los servidores anteriores<br><br>La correcta se elige automáticamente por servidor: tus servidores existentes siguen funcionando sin ninguna acción por tu parte, y los servidores de nueva generación también se conectan. 🔌<br><br>Si un servidor exige una revisión que LIA no habla, la prueba de conexión muestra una <strong>explicación clara</strong> en lugar de un error técnico.<br><br>En cuanto a la seguridad, el flujo OAuth verifica la <strong>identidad del servidor de autorización</strong> antes de usar tu código de autorización, y nunca envía las credenciales almacenadas a un servidor de autorización distinto del que las emitió. Y si rechazas la pantalla de consentimiento, simplemente vuelves a tus ajustes con un mensaje informativo — rechazar es una elección, no un error. ✅"
           }
         }
       },
@@ -8387,7 +8401,7 @@
       },
       "mcp": {
         "title": "Extensible (MCP)",
-        "description": "Conecta tus propios servidores MCP para extender LIA sin límites. Modo iterativo disponible: un agente dedicado lee la documentación del servidor y luego llama a las herramientas correctamente — ideal para APIs complejas."
+        "description": "Conecta tus propios servidores MCP para ampliar LIA sin límites — hablando las dos generaciones del protocolo, la nueva revisión sin estado y el handshake clásico, con retorno automático. Modo iterativo disponible: un agente dedicado lee la documentación del servidor y luego llama a las herramientas con los parámetros correctos."
       },
       "mcp_apps": {
         "title": "MCP Apps interactivas",
