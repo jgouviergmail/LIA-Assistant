@@ -302,6 +302,11 @@ CREATE TABLE llm_model_pricing (
     input_price_per_1m_tokens NUMERIC(10, 6) NOT NULL,
     cached_input_price_per_1m_tokens NUMERIC(10, 6),
     output_price_per_1m_tokens NUMERIC(10, 6) NOT NULL,
+    -- ADR-223 (2026-08-17): optional UTC windowed tariff (DeepSeek
+    -- peak/off-peak). NULL/[] = flat pricing; a window overrides the three
+    -- unit prices while active. Resolution: pricing_time_slots.find_active_slot,
+    -- consumed by both cost chokepoints via their optional `at` parameter.
+    time_slots JSONB,
     effective_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -619,6 +624,28 @@ These changes ensure that currency conversion failures degrade gracefully (falli
 ---
 
 ## 💰 Cost Calculation
+
+### Time-slot tariffs (ADR-223, 2026-08-17)
+
+Some providers bill text models by UTC time of day — DeepSeek charges its
+peak windows (01:00–04:00 and 06:00–10:00 UTC) at exactly twice the
+off-peak rate. When a pricing row carries `time_slots`, both cost
+chokepoints resolve the window active at the **billing instant** through
+the single implementation (module `src.domains.llm.pricing_time_slots`):
+
+- `get_cached_cost_usd_eur(..., at=None)` (sync, hot path) and
+  `AsyncPricingService.calculate_token_cost(..., at=None)` default to
+  now (UTC) — the call instant, which is also the instant persisted with
+  `TokenUsageLog`, so the ledger matches the provider invoice;
+- `calculate_token_cost_at_date` resolves at the historical `at_date`
+  with the pricing row effective at that date — a peak-hour message keeps
+  its peak cost when recomputed later.
+
+A window overrides all three unit prices; outside every window the base
+columns apply. Admins manage the windows in the LLM pricing dialog
+(toggle « time-based pricing (UTC) », visible for `per_1m_tokens` rows
+only); on update, an omitted `time_slots` field inherits the current
+row's windows onto the new temporal version and `[]` clears them.
 
 ### Exemples
 

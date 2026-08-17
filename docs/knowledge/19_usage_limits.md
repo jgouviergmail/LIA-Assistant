@@ -6,7 +6,7 @@ Usage limits are **quotas set by your administrator** to control resource consum
 **3 dimensions:**
 - **Tokens** (prompt + response + cache) — volume of data processed by AI
 - **Messages** — number of messages sent
-- **Cost (EUR)** — combined LLM + API + image generation cost
+- **Cost (EUR)** — combined LLM + API + image generation cost. Cost follows the provider's real tariff: when a provider bills by UTC time of day (peak/off-peak windows, DeepSeek-style), each call is valued at the tariff of its exact moment, so the counted cost matches the actual invoice
 
 **2 modes:**
 - **Per period** — a monthly rolling cycle anchored on your account creation date, not on the first of the month

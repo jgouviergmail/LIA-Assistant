@@ -1137,6 +1137,12 @@ CREATE TABLE llm_model_pricing (
     cached_input_price_per_1m_tokens NUMERIC(10, 6) NULL,  -- NULL if not supported
     output_price_per_1m_tokens NUMERIC(10, 6) NOT NULL,
 
+    -- UTC time-slot tariff (ADR-223, 2026-08-17) — optional windowed pricing
+    -- (DeepSeek peak/off-peak): list of {start_utc, end_utc, 3 unit prices},
+    -- [start,end) at minute granularity, wraps midnight, non-overlapping.
+    -- NULL/[] = flat pricing (base columns apply 24/7).
+    time_slots JSONB NULL,
+
     -- Temporal Versioning
     effective_from TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,

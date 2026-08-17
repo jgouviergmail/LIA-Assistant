@@ -6,7 +6,7 @@
 
 **Version**: 4.3
 **Date**: 2026-08-17
-**Application**: LIA v1.30.4
+**Application**: LIA v1.30.5
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 466 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 221 ADRs, ~18,321 pytest-collected tests across 997 files, native observability, 6-level HITL |
+| Production reliability | 222 ADRs, ~18,429 pytest-collected tests across 1,002 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -74,7 +74,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~18,321 (collected by pytest across 997 test files) + 5,479 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~18,429 (collected by pytest across 1,002 test files) + 5,501 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 490+ |
 | ADRs (Architecture Decision Records) | 209 |
@@ -677,6 +677,8 @@ The `TrackingContext` tracks each LLM call with `call_type` ("chat"/"embedding")
 
 The counting itself is **contractual, not incidental**: an OpenAI-compatible provider only emits the `usage` object on a streamed response when the request asks for it. Every chat provider therefore declares its accounting mode in a registry — explicit `stream_usage` request, native SDK accounting, or a deliberate exclusion (free local models, end-user-owned keys) — whose completeness is verified at startup: the application refuses to boot on an undeclared provider (ADR-220, ADR-085 doctrine). A paid call completing without usage increments a dedicated counter, logs a warning and fires a zero-threshold alert: the whole class of silent accounting holes becomes a signal. The same doctrine applies to timeouts: the administrable per-slot `timeout_seconds` is passed to each provider's client as the per-attempt transport bound — the nodes' `asyncio.wait_for` barriers remain the user-experience bound — and no default was applied without confrontation with real production latencies (ADR-221).
 
+Pricing itself follows the provider's clock: some providers bill text models by UTC time of day, with peak windows at a multiple of the off-peak rate. Each pricing row can therefore carry optional, non-overlapping UTC time windows — midnight wrap included — that override the unit prices while active, the base columns remaining the default tariff. One single implementation resolves the active window for both cost chokepoints: every call is valued at its own instant, the one the provider invoices, and a historical message keeps the tariff of its original hour when recomputed. The windows travel with the temporally-versioned pricing rows, are administered in the LLM pricing dialog, and the reference data ships DeepSeek's official windowed tariff (ADR-223).
+
 ### 12.4. DB-source-of-truth admin catalogue
 
 The `llm_models` table carries the full catalogue: provider, classic functional capabilities (`supports_tools`, `supports_structured_output`, `supports_strict_mode`, `supports_streaming`, `supports_vision`), and — structuring additions — the **per-model sampling matrix** (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) plus the **reasoning shape** (`reasoning_widget` ∈ {`none`, `enum`, `budget_int`, `toggle_budget`}, `reasoning_enum_values` JSONB list, `reasoning_budget_range` JSONB `{min, max, off_sentinel, dynamic_sentinel}`, `reasoning_doc_i18n_key`). This per-model declaration replaces the legacy frontend regex that used to guess which sliders to hide: the Configuration LLM dialog reads the DB flags directly and exposes only the parameters the model's API actually accepts.
@@ -1267,7 +1269,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-221 ADRs in MADR format document the major architectural decisions. Some representative examples:
+222 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1372,10 +1374,10 @@ The common thread across these four batches is a property of the tests themselve
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 221 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,321 tests across 997 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 222 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,429 tests across 1,002 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 221 ADRs, and the changelog (v1.0 to v1.30.4). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 222 ADRs, and the changelog (v1.0 to v1.30.5). All metrics, versions, and patterns cited are verifiable in the codebase.*

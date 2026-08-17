@@ -23,7 +23,8 @@ import json
 from collections.abc import Iterable
 from contextlib import suppress
 from dataclasses import asdict, dataclass
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import structlog
 from prometheus_client import Counter
@@ -31,6 +32,7 @@ from prometheus_client import Counter
 from src.core.config import settings
 from src.core.constants import REDIS_KEY_PRICING_CACHE, SUPPORTED_CURRENCIES
 from src.core.llm_utils import normalize_model_name
+from src.domains.llm.pricing_time_slots import find_active_slot
 
 # Currency constants (LLM pricing is in USD, with optional conversion to EUR)
 # Extracted from SUPPORTED_CURRENCIES to ensure type safety and consistency
@@ -90,6 +92,11 @@ class CachedModelPrice:
     - ``per_audio_minute`` / ``per_audio_hour``: price per audio duration
       (STT/TTS).
 
+    ``time_slots`` optionally carries a UTC windowed tariff (ADR-223, shape
+    of ``pricing_time_slots.slots_to_jsonb``); ``None`` = flat pricing. The
+    default keeps blobs written by a pre-slot release deserializable during
+    a rolling deploy.
+
     Stored in Redis as JSON for fast retrieval in callbacks.
     """
 
@@ -97,6 +104,7 @@ class CachedModelPrice:
     output_unit_price: float
     cached_input_unit_price: float  # 0.0 if caching not supported by model
     pricing_unit: str = "per_1m_tokens"
+    time_slots: list[dict[str, Any]] | None = None
 
     def to_json(self) -> str:
         """Serialize to JSON for Redis storage."""
@@ -212,6 +220,7 @@ class PricingCacheService:
                         output_unit_price=float(pricing.output_unit_price),
                         cached_input_unit_price=float(pricing.cached_input_unit_price or 0),
                         pricing_unit=pricing.pricing_unit.value,
+                        time_slots=pricing.time_slots or None,
                     )
 
                 # Load USD/EUR rate using existing service
@@ -344,6 +353,7 @@ def get_cached_cost_usd_eur(
     prompt_tokens: int,
     completion_tokens: int,
     cached_tokens: int = 0,
+    at: datetime | None = None,
 ) -> tuple[float, float]:
     """
     Estimate cost in both USD and EUR using cached prices (sync-safe for callbacks).
@@ -362,6 +372,9 @@ def get_cached_cost_usd_eur(
         prompt_tokens: Number of prompt/input tokens
         completion_tokens: Number of completion/output tokens
         cached_tokens: Number of cached input tokens (default: 0)
+        at: Billing instant used for time-slot tariff resolution (ADR-223).
+            Defaults to now (UTC) — the call instant, which is also the
+            instant persisted with the usage log.
 
     Returns:
         Tuple of (cost_usd, cost_eur) as floats
@@ -394,10 +407,23 @@ def get_cached_cost_usd_eur(
         )
         return (0.0, 0.0)
 
+    # Time-slot tariff (ADR-223): a slot active at the billing instant
+    # overrides all three unit prices; otherwise the flat base applies.
+    slot = find_active_slot(prices.time_slots, at or datetime.now(UTC))
+    if slot is not None:
+        input_price = float(slot["input_unit_price"])
+        output_price = float(slot["output_unit_price"])
+        # None keeps the base-column semantic: no separate cache billing.
+        cached_price = float(slot.get("cached_input_unit_price") or 0.0)
+    else:
+        input_price = prices.input_unit_price
+        output_price = prices.output_unit_price
+        cached_price = prices.cached_input_unit_price
+
     # Calculate cost (USD per 1M tokens)
-    input_cost = (prompt_tokens / 1_000_000) * prices.input_unit_price
-    output_cost = (completion_tokens / 1_000_000) * prices.output_unit_price
-    cached_cost = (cached_tokens / 1_000_000) * prices.cached_input_unit_price
+    input_cost = (prompt_tokens / 1_000_000) * input_price
+    output_cost = (completion_tokens / 1_000_000) * output_price
+    cached_cost = (cached_tokens / 1_000_000) * cached_price
 
     total_usd = input_cost + output_cost + cached_cost
     total_eur = total_usd * _local_cache.usd_eur_rate

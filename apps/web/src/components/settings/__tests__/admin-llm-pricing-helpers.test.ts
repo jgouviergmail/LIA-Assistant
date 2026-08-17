@@ -14,10 +14,15 @@ import {
   CUSTOM_TEMPLATE_VALUE,
   EMPTY_BUDGET_RANGE,
   buildReasoningSamplingPayload,
+  buildTimeSlotsPayload,
   fingerprintMatches,
   formatEnumValuesCsv,
   parseEnumValuesCsv,
+  slotRowsFromModel,
+  utcOffsetLabel,
+  validateTimeSlotRows,
   type ModelPricingFormData,
+  type TimeSlotFormRow,
 } from '@/components/settings/admin-llm-pricing-helpers';
 import type { ReasoningTemplate } from '@/lib/actions/settings-actions';
 
@@ -46,6 +51,8 @@ const baseFormData: ModelPricingFormData = {
   input_unit_price: '1.0',
   cached_input_unit_price: null,
   output_unit_price: '3.0',
+  time_slots_enabled: false,
+  time_slots: [],
 };
 
 describe('parseEnumValuesCsv', () => {
@@ -381,5 +388,143 @@ describe('buildReasoningSamplingPayload — Custom mode', () => {
     expect(payload.supports_temperature).toBe(true);
     expect(payload.supports_top_p).toBe(false);
     expect(payload.reasoning_doc_i18n_key).toBe('family_x');
+  });
+});
+
+// ============================================================================
+// Time-slot tariffs (ADR-223) — client-side mirror of the backend rules.
+// Server stays authoritative; these helpers exist for immediate feedback.
+// ============================================================================
+
+const PEAK_ROW: TimeSlotFormRow = {
+  start_utc: '01:00',
+  end_utc: '04:00',
+  input_unit_price: '0.44',
+  cached_input_unit_price: '0.014',
+  output_unit_price: '1.32',
+};
+const SECOND_ROW: TimeSlotFormRow = { ...PEAK_ROW, start_utc: '06:00', end_utc: '10:00' };
+
+function slotsForm(over: Partial<ModelPricingFormData> = {}): ModelPricingFormData {
+  return {
+    ...baseFormData,
+    pricing_unit: 'per_1m_tokens',
+    time_slots_enabled: true,
+    time_slots: [PEAK_ROW, SECOND_ROW],
+    ...over,
+  };
+}
+
+describe('validateTimeSlotRows', () => {
+  it('accepts the DeepSeek-shaped two-window tariff', () => {
+    expect(validateTimeSlotRows([PEAK_ROW, SECOND_ROW])).toBeNull();
+  });
+
+  it('accepts adjacent and midnight-wrapping windows', () => {
+    expect(
+      validateTimeSlotRows([
+        { ...PEAK_ROW, start_utc: '22:00', end_utc: '02:00' },
+        { ...PEAK_ROW, start_utc: '02:00', end_utc: '05:00' },
+      ])
+    ).toBeNull();
+  });
+
+  it('flags an empty slot list', () => {
+    expect(validateTimeSlotRows([])).toBe('incomplete');
+  });
+
+  it('flags missing hours or prices as incomplete', () => {
+    expect(validateTimeSlotRows([{ ...PEAK_ROW, start_utc: '' }])).toBe('incomplete');
+    expect(validateTimeSlotRows([{ ...PEAK_ROW, input_unit_price: '' }])).toBe('incomplete');
+    expect(validateTimeSlotRows([{ ...PEAK_ROW, output_unit_price: '' }])).toBe('incomplete');
+  });
+
+  it('treats a blank cached price as complete (caching unsupported)', () => {
+    expect(validateTimeSlotRows([{ ...PEAK_ROW, cached_input_unit_price: '' }])).toBeNull();
+  });
+
+  it('flags negative prices', () => {
+    expect(validateTimeSlotRows([{ ...PEAK_ROW, input_unit_price: '-1' }])).toBe('incomplete');
+  });
+
+  it('flags zero-length windows', () => {
+    expect(validateTimeSlotRows([{ ...PEAK_ROW, end_utc: '01:00' }])).toBe('zero_length');
+  });
+
+  it('flags overlaps, including across midnight', () => {
+    expect(
+      validateTimeSlotRows([PEAK_ROW, { ...PEAK_ROW, start_utc: '03:00', end_utc: '05:00' }])
+    ).toBe('overlap');
+    expect(
+      validateTimeSlotRows([
+        { ...PEAK_ROW, start_utc: '22:00', end_utc: '02:00' },
+        { ...PEAK_ROW, start_utc: '01:00', end_utc: '03:00' },
+      ])
+    ).toBe('overlap');
+  });
+});
+
+describe('buildTimeSlotsPayload', () => {
+  it('maps enabled rows to the wire payload with blank cached prices as null', () => {
+    const payload = buildTimeSlotsPayload(
+      slotsForm({ time_slots: [{ ...PEAK_ROW, cached_input_unit_price: '' }] }),
+      'update'
+    );
+    expect(payload).toEqual([
+      {
+        start_utc: '01:00',
+        end_utc: '04:00',
+        input_unit_price: '0.44',
+        cached_input_unit_price: null,
+        output_unit_price: '1.32',
+      },
+    ]);
+  });
+
+  it('omits the field at create time when disabled (flat pricing)', () => {
+    expect(buildTimeSlotsPayload(slotsForm({ time_slots_enabled: false }), 'create')).toBeUndefined();
+  });
+
+  it('sends the [] clearing sentinel at update time when disabled', () => {
+    expect(buildTimeSlotsPayload(slotsForm({ time_slots_enabled: false }), 'update')).toEqual([]);
+  });
+
+  it('never sends slots for an audio-billed unit', () => {
+    expect(
+      buildTimeSlotsPayload(slotsForm({ pricing_unit: 'per_audio_hour' }), 'create')
+    ).toBeUndefined();
+    expect(buildTimeSlotsPayload(slotsForm({ pricing_unit: 'per_audio_hour' }), 'update')).toEqual(
+      []
+    );
+  });
+});
+
+describe('slotRowsFromModel', () => {
+  it('round-trips the API response into editable rows', () => {
+    const rows = slotRowsFromModel([
+      {
+        start_utc: '01:00',
+        end_utc: '04:00',
+        input_unit_price: '0.44',
+        cached_input_unit_price: null,
+        output_unit_price: '1.32',
+      },
+    ]);
+    expect(rows).toEqual([{ ...PEAK_ROW, cached_input_unit_price: '' }]);
+  });
+
+  it('maps a flat-priced model to no rows', () => {
+    expect(slotRowsFromModel(null)).toEqual([]);
+    expect(slotRowsFromModel(undefined)).toEqual([]);
+  });
+});
+
+describe('utcOffsetLabel', () => {
+  it('formats positive, negative and zero offsets', () => {
+    // getTimezoneOffset returns minutes WEST of UTC (CEST = -120).
+    expect(utcOffsetLabel(-120)).toBe('UTC+02:00');
+    expect(utcOffsetLabel(300)).toBe('UTC-05:00');
+    expect(utcOffsetLabel(0)).toBe('UTC+00:00');
+    expect(utcOffsetLabel(-330)).toBe('UTC+05:30');
   });
 });

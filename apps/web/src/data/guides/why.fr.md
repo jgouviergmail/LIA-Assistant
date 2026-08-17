@@ -4,7 +4,7 @@
 
 **Version** : 4.8
 **Date** : 2026-08-17
-**Application** : LIA v1.30.4
+**Application** : LIA v1.30.5
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -90,7 +90,7 @@ L'administrateur accède à un troisième onglet dédié à la gestion de l'inst
 
 - **Configuration LLM** : configurer les clés API des fournisseurs (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), assigner un modèle par rôle dans le pipeline, gérer les niveaux de raisonnement — clés stockées chiffrées. L'interface n'expose que les paramètres réellement acceptés par le modèle choisi (matrice DB par modèle pour temperature, top_p, frequency_penalty, presence_penalty et type de widget reasoning), évitant toute saisie d'une valeur que l'API rejetterait
 - **Activation/désactivation de connecteurs** : activer ou désactiver les intégrations au niveau global (Google OAuth, Apple, Microsoft 365, Hue, météo, Wikipedia, Perplexity, Brave Search). La désactivation révoque les connexions actives et notifie les utilisateurs
-- **Tarification** : gérer les prix par modèle LLM (coût par million de tokens), par API Google Maps (Places, Routes, Geocoding), et par génération d'image — avec historique des prix. À l'ajout d'un nouveau modèle reasoning, un sélecteur « copier la forme depuis tel modèle existant » permet d'hériter automatiquement du widget reasoning et de ses valeurs sans saisie manuelle ; le mode Custom reste disponible pour les modèles atypiques
+- **Tarification** : gérer les prix par modèle LLM (coût par million de tokens), par API Google Maps (Places, Routes, Geocoding), et par génération d'image — avec historique des prix. À l'ajout d'un nouveau modèle reasoning, un sélecteur « copier la forme depuis tel modèle existant » permet d'hériter automatiquement du widget reasoning et de ses valeurs sans saisie manuelle ; le mode Custom reste disponible pour les modèles atypiques. Les tarifs des modèles texte peuvent aussi varier selon l'heure UTC (fenêtres pleines/creuses, à la DeepSeek) : chaque appel est alors valorisé au tarif de son instant exact, et les statistiques d'usage collent à la facture réelle du fournisseur
 
 **Contenu et extensions :**
 

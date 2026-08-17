@@ -4,7 +4,7 @@
 
 **Version**: 4.8
 **Datum**: 2026-08-17
-**Anwendung**: LIA v1.30.4
+**Anwendung**: LIA v1.30.5
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -90,7 +90,7 @@ Der Administrator hat Zugriff auf eine dritte Registerkarte zur Verwaltung der I
 
 - **LLM-Konfiguration**: API-Schlüssel der Anbieter konfigurieren (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), ein Modell pro Rolle in der Pipeline zuweisen, Reasoning-Level verwalten — Schlüssel werden verschlüsselt gespeichert. Der Dialog zeigt nur die Parameter an, die das gewählte Modell tatsächlich akzeptiert (modellspezifische DB-Matrix für temperature, top_p, frequency_penalty, presence_penalty und Reasoning-Widget-Form), wodurch die Eingabe eines Werts vermieden wird, den die API ablehnen würde
 - **Konnektoren aktivieren/deaktivieren**: Integrationen auf globaler Ebene aktivieren oder deaktivieren (Google OAuth, Apple, Microsoft 365, Hue, Wetter, Wikipedia, Perplexity, Brave Search). Die Deaktivierung widerruft aktive Verbindungen und benachrichtigt die Benutzer
-- **Preisgestaltung**: Preise pro LLM-Modell verwalten (Kosten pro Million Token), pro Google Maps API (Places, Routes, Geocoding) und pro Bildgenerierung — mit Preishistorie. Beim Hinzufügen eines neuen Reasoning-Modells lässt ein Selektor „Form von einem solchen vorhandenen Modell kopieren“ automatisch das Reasoning-Widget und seine Werte ohne manuelle Eingabe erben; der Custom-Modus bleibt für atypische Modelle verfügbar
+- **Preisgestaltung**: Preise pro LLM-Modell verwalten (Kosten pro Million Token), pro Google Maps API (Places, Routes, Geocoding) und pro Bildgenerierung — mit Preishistorie. Beim Hinzufügen eines neuen Reasoning-Modells lässt ein Selektor „Form von einem solchen vorhandenen Modell kopieren“ automatisch das Reasoning-Widget und seine Werte ohne manuelle Eingabe erben; der Custom-Modus bleibt für atypische Modelle verfügbar. Die Tarife der Textmodelle können zudem nach UTC-Tageszeit variieren (Spitzen-/Nebenzeit-Fenster, wie bei DeepSeek): Jeder Aufruf wird dann zum Tarif seines exakten Zeitpunkts bewertet, und die Nutzungsstatistiken entsprechen der echten Rechnung des Anbieters
 
 **Inhalte und Erweiterungen:**
 

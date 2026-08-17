@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useOptimistic, useTransition } from 'react';
 import { toast } from 'sonner';
-import { DollarSign, RefreshCw } from 'lucide-react';
+import { Clock, DollarSign, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -25,15 +26,22 @@ import {
   type ReasoningWidgetName,
   type ReasoningBudgetRangePayload,
   type ReasoningTemplate,
+  type TimeSlotPricePayload,
 } from '@/lib/actions/settings-actions';
 import {
   CUSTOM_TEMPLATE_VALUE,
   EMPTY_BUDGET_RANGE,
+  EMPTY_TIME_SLOT_ROW,
   buildReasoningSamplingPayload,
+  buildTimeSlotsPayload,
   fingerprintMatches,
   formatEnumValuesCsv,
   parseEnumValuesCsv,
+  slotRowsFromModel,
+  utcOffsetLabel,
+  validateTimeSlotRows,
   type ModelPricingFormData,
+  type TimeSlotFormRow,
 } from '@/components/settings/admin-llm-pricing-helpers';
 import { useCatalogueInvalidator } from '@/lib/catalogue-invalidation-context';
 import { useTranslation } from '@/i18n/client';
@@ -125,6 +133,8 @@ export interface LLMModelPricing {
   input_unit_price: string;
   cached_input_unit_price: string | null;
   output_unit_price: string;
+  /** UTC windowed tariff (ADR-223); null = flat pricing. */
+  time_slots: TimeSlotPricePayload[] | null;
   effective_from: string;
   is_active: boolean;
 }
@@ -339,6 +349,7 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
         input_unit_price: formData.input_unit_price,
         cached_input_unit_price: formData.cached_input_unit_price,
         output_unit_price: formData.output_unit_price,
+        time_slots: buildTimeSlotsPayload(formData, 'create') ?? null,
         effective_from: new Date().toISOString(),
         is_active: true,
       };
@@ -360,6 +371,7 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
           input_unit_price: formData.input_unit_price,
           cached_input_unit_price: formData.cached_input_unit_price,
           output_unit_price: formData.output_unit_price,
+          time_slots: buildTimeSlotsPayload(formData, 'create'),
           ...reasoningSampling,
         });
         if (result.success) {
@@ -389,6 +401,9 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
       // Provider is intrinsic and never sent on update. The reasoning + sampling
       // block is selected via the Template selector (XOR-validated server-side).
       const reasoningSampling = buildReasoningSamplingPayload(formData);
+      // Always sent on update: [] clears, a list replaces — omission would
+      // inherit, which is not what the toggle state says.
+      const slotsPayload = buildTimeSlotsPayload(formData, 'update');
       const updatePayload: LLMPricingUpdateData = {
         model_name: formData.model_name,
         max_input_tokens: formData.max_input_tokens,
@@ -402,6 +417,7 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
         input_unit_price: formData.input_unit_price,
         cached_input_unit_price: formData.cached_input_unit_price,
         output_unit_price: formData.output_unit_price,
+        time_slots: slotsPayload,
         ...reasoningSampling,
       };
 
@@ -420,6 +436,7 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
           input_unit_price: formData.input_unit_price,
           cached_input_unit_price: formData.cached_input_unit_price,
           output_unit_price: formData.output_unit_price,
+          time_slots: slotsPayload && slotsPayload.length > 0 ? slotsPayload : null,
         },
       });
 
@@ -571,7 +588,25 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
                 className={`transition-colors hover:bg-muted/30 ${isPending ? 'opacity-60' : ''}`}
               >
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
-                  {model.model_name}
+                  <span className="inline-flex items-center gap-2">
+                    {model.model_name}
+                    {(model.time_slots?.length ?? 0) > 0 && (
+                      <Badge
+                        icon={<Clock className="h-3 w-3" aria-hidden="true" />}
+                        title={
+                          model.time_slots!.length > 1
+                            ? t('settings.admin.llm.table.time_slots_badge_title_other', {
+                                count: model.time_slots!.length,
+                              })
+                            : t('settings.admin.llm.table.time_slots_badge_title_one', {
+                                count: model.time_slots!.length,
+                              })
+                        }
+                      >
+                        {t('settings.admin.llm.table.time_slots_badge')}
+                      </Badge>
+                    )}
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                   {model.provider}
@@ -1102,8 +1137,194 @@ function PricingReasoningFields({
   );
 }
 
+/** One editable window row of the time-slot tariff (ADR-223). */
+function PricingTimeSlotRow({
+  row,
+  index,
+  unitShort,
+  onChange,
+  onRemove,
+  t,
+}: {
+  row: TimeSlotFormRow;
+  index: number;
+  unitShort: string;
+  onChange: (patch: Partial<TimeSlotFormRow>) => void;
+  onRemove: () => void;
+  t: PricingSectionProps['t'];
+}) {
+  const slotNumber = index + 1;
+  const fieldId = (name: string) => `time-slot-${index}-${name}`;
+  const priceFields = [
+    ['input_unit_price', 'input_price_label', true],
+    ['cached_input_unit_price', 'cached_input_label', false],
+    ['output_unit_price', 'output_price_label', true],
+  ] as const;
+  return (
+    <fieldset className="rounded-md border border-border p-3 space-y-3">
+      <legend className="px-1 text-xs font-semibold text-foreground">
+        {t('settings.admin.llm.modal.time_slots_slot_title', { index: slotNumber })}
+      </legend>
+      <div className="flex items-end gap-3">
+        <div className="grid grid-cols-2 gap-3 flex-1">
+          <div>
+            <label
+              htmlFor={fieldId('start')}
+              className="block text-sm font-medium text-foreground mb-3"
+            >
+              {t('settings.admin.llm.modal.time_slots_start_label')}
+            </label>
+            <Input
+              id={fieldId('start')}
+              type="time"
+              required
+              value={row.start_utc}
+              onChange={e => onChange({ start_utc: e.target.value })}
+            />
+          </div>
+          <div>
+            <label
+              htmlFor={fieldId('end')}
+              className="block text-sm font-medium text-foreground mb-3"
+            >
+              {t('settings.admin.llm.modal.time_slots_end_label')}
+            </label>
+            <Input
+              id={fieldId('end')}
+              type="time"
+              required
+              value={row.end_utc}
+              onChange={e => onChange({ end_utc: e.target.value })}
+            />
+          </div>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="text-destructive shrink-0"
+          onClick={onRemove}
+          aria-label={t('settings.admin.llm.modal.time_slots_remove', { index: slotNumber })}
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {priceFields.map(([field, labelKey, required]) => (
+          <div key={field}>
+            <label
+              htmlFor={fieldId(field)}
+              className="block text-sm font-medium text-foreground mb-3"
+            >
+              {t(`settings.admin.llm.modal.${labelKey}`)}{' '}
+              <span className="text-xs text-muted-foreground font-normal">({unitShort})</span>
+            </label>
+            <Input
+              id={fieldId(field)}
+              type="number"
+              step="0.000001"
+              min="0"
+              required={required}
+              value={row[field]}
+              onChange={e => onChange({ [field]: e.target.value })}
+            />
+          </div>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+/** Time-slot tariff editor (ADR-223): toggle + window rows. Rendered only
+ * for token-billed models; audio units always bill flat. */
+function PricingTimeSlotFields({
+  formData,
+  setFormData,
+  t,
+  slotsError,
+}: PricingSectionProps & { slotsError: string | null }) {
+  const unitShort = t(`settings.admin.llm.modal.pricing_unit_short_${formData.pricing_unit}`);
+  const patchRow = (index: number, patch: Partial<TimeSlotFormRow>) =>
+    setFormData(prev => ({
+      ...prev,
+      time_slots: prev.time_slots.map((row, i) => (i === index ? { ...row, ...patch } : row)),
+    }));
+  const removeRow = (index: number) =>
+    setFormData(prev => ({
+      ...prev,
+      time_slots: prev.time_slots.filter((_, i) => i !== index),
+    }));
+  const addRow = () =>
+    setFormData(prev => ({ ...prev, time_slots: [...prev.time_slots, EMPTY_TIME_SLOT_ROW] }));
+
+  return (
+    <div className="border-t border-border pt-3 space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <label
+          htmlFor="time-slots-enabled"
+          className="text-sm font-medium text-foreground cursor-pointer"
+        >
+          {t('settings.admin.llm.modal.time_slots_toggle_label')}
+        </label>
+        <Switch
+          id="time-slots-enabled"
+          checked={formData.time_slots_enabled}
+          onCheckedChange={enabled =>
+            setFormData(prev => ({
+              ...prev,
+              time_slots_enabled: enabled,
+              // Seed the first row so the enabled editor is never a dead end;
+              // keep typed rows when toggling off so a mis-click destroys nothing.
+              time_slots:
+                enabled && prev.time_slots.length === 0 ? [EMPTY_TIME_SLOT_ROW] : prev.time_slots,
+            }))
+          }
+        />
+      </div>
+      {formData.time_slots_enabled && (
+        <>
+          <p className="text-xs text-muted-foreground">
+            {t('settings.admin.llm.modal.time_slots_hint', {
+              offset: utcOffsetLabel(new Date().getTimezoneOffset()),
+            })}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {t('settings.admin.llm.modal.time_slots_base_hint')}
+          </p>
+          {formData.time_slots.map((row, index) => (
+            <PricingTimeSlotRow
+              // Rows are positional (no stable identity beyond their index).
+              key={index}
+              row={row}
+              index={index}
+              unitShort={unitShort}
+              onChange={patch => patchRow(index, patch)}
+              onRemove={() => removeRow(index)}
+              t={t}
+            />
+          ))}
+          <Button type="button" variant="outline" size="sm" onClick={addRow}>
+            <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+            {t('settings.admin.llm.modal.time_slots_add')}
+          </Button>
+          {slotsError && (
+            <p role="alert" className="text-sm text-destructive">
+              {slotsError}
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 /** Section 4 — pricing unit + input/cached/output prices. */
-function PricingFields({ formData, setFormData, t }: PricingSectionProps) {
+function PricingFields({
+  formData,
+  setFormData,
+  t,
+  slotsError,
+}: PricingSectionProps & { slotsError: string | null }) {
   const unitShort = t(`settings.admin.llm.modal.pricing_unit_short_${formData.pricing_unit}`);
   return (
     <fieldset className="border border-border rounded-lg p-4 space-y-3">
@@ -1186,6 +1407,15 @@ function PricingFields({ formData, setFormData, t }: PricingSectionProps) {
           placeholder={t('settings.admin.llm.modal.output_price_placeholder')}
         />
       </div>
+
+      {formData.pricing_unit === 'per_1m_tokens' && (
+        <PricingTimeSlotFields
+          formData={formData}
+          setFormData={setFormData}
+          t={t}
+          slotsError={slotsError}
+        />
+      )}
     </fieldset>
   );
 }
@@ -1216,6 +1446,8 @@ const DEFAULT_PRICING_FORM: ModelPricingFormData = {
   input_unit_price: '',
   cached_input_unit_price: '',
   output_unit_price: '',
+  time_slots_enabled: false,
+  time_slots: [],
 };
 
 /** Edit-mode form seeded from the existing catalogue row. reasoning_template
@@ -1247,6 +1479,8 @@ function pricingFormFromModel(model: LLMModelPricing): ModelPricingFormData {
     input_unit_price: model.input_unit_price,
     cached_input_unit_price: model.cached_input_unit_price ?? '',
     output_unit_price: model.output_unit_price,
+    time_slots_enabled: (model.time_slots?.length ?? 0) > 0,
+    time_slots: slotRowsFromModel(model.time_slots),
   };
 }
 
@@ -1305,8 +1539,25 @@ export function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricin
     tpl => tpl.template_model_name === formData.reasoning_template
   );
 
+  // Time-slot validation (ADR-223): derived live so fixing the rows clears
+  // the message, but only DISPLAYED after a submit attempt — a freshly
+  // seeded empty row must not greet the admin with an error.
+  const [slotsSubmitAttempted, setSlotsSubmitAttempted] = useState(false);
+  const slotsErrorCode =
+    formData.pricing_unit === 'per_1m_tokens' && formData.time_slots_enabled
+      ? validateTimeSlotRows(formData.time_slots)
+      : null;
+  const slotsError =
+    slotsSubmitAttempted && slotsErrorCode
+      ? t(`settings.admin.llm.modal.time_slots_error_${slotsErrorCode}`)
+      : null;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (slotsErrorCode) {
+      setSlotsSubmitAttempted(true);
+      return;
+    }
     onSubmit({
       ...formData,
       cached_input_unit_price: formData.cached_input_unit_price || null,
@@ -1314,43 +1565,61 @@ export function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricin
   };
 
   return (
+    // Scroll architecture: the OVERLAY is the scroll container and the inner
+    // wrapper is min-h-full — it centers a short panel and grows past the
+    // viewport for a tall one. Centering directly on the scroll container
+    // (`items-center` + `overflow-y-auto` on the same element) clips the top
+    // of an overflowing panel above the scroll origin: on a phone, the form's
+    // first fields were unreachable and the dialog could not be submitted.
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
     >
-      <div className="bg-card rounded-xl border border-border shadow-xl p-6 max-w-lg w-full my-8">
-        <h3 id="modal-title" className="text-lg font-bold mb-4 text-foreground">
-          {isEdit
-            ? t('settings.admin.llm.modal.title_edit', { name: model.model_name })
-            : t('settings.admin.llm.modal.title_add')}
-        </h3>
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="bg-card rounded-xl border border-border shadow-xl p-6 max-w-lg w-full">
+          <h3 id="modal-title" className="text-lg font-bold mb-4 text-foreground">
+            {isEdit
+              ? t('settings.admin.llm.modal.title_edit', { name: model.model_name })
+              : t('settings.admin.llm.modal.title_add')}
+          </h3>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <PricingModelFields formData={formData} setFormData={setFormData} isEdit={isEdit} t={t} />
-          <PricingCapabilityFields formData={formData} setFormData={setFormData} t={t} />
-          <PricingReasoningFields
-            formData={formData}
-            setFormData={setFormData}
-            templatesLoading={templatesLoading}
-            reasoningTemplates={reasoningTemplates}
-            isCustomMode={isCustomMode}
-            selectedTemplate={selectedTemplate}
-          />
-          <PricingFields formData={formData} setFormData={setFormData} t={t} />
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <PricingModelFields
+              formData={formData}
+              setFormData={setFormData}
+              isEdit={isEdit}
+              t={t}
+            />
+            <PricingCapabilityFields formData={formData} setFormData={setFormData} t={t} />
+            <PricingReasoningFields
+              formData={formData}
+              setFormData={setFormData}
+              templatesLoading={templatesLoading}
+              reasoningTemplates={reasoningTemplates}
+              isCustomMode={isCustomMode}
+              selectedTemplate={selectedTemplate}
+            />
+            <PricingFields
+              formData={formData}
+              setFormData={setFormData}
+              t={t}
+              slotsError={slotsError}
+            />
 
-          <div className="flex space-x-2 pt-2">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-              {t('settings.admin.llm.modal.cancel')}
-            </Button>
-            <Button type="submit" variant="default" className="flex-1">
-              {isEdit
-                ? t('settings.admin.llm.modal.submit_edit')
-                : t('settings.admin.llm.modal.submit_create')}
-            </Button>
-          </div>
-        </form>
+            <div className="flex space-x-2 pt-2">
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+                {t('settings.admin.llm.modal.cancel')}
+              </Button>
+              <Button type="submit" variant="default" className="flex-1">
+                {isEdit
+                  ? t('settings.admin.llm.modal.submit_edit')
+                  : t('settings.admin.llm.modal.submit_create')}
+              </Button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

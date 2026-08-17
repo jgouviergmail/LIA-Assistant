@@ -568,97 +568,103 @@ function GoogleApiPricingModal({ lng, entry, onClose, onSubmit }: GoogleApiPrici
   };
 
   return (
+    // Scroll architecture (same fix as ModelPricingModal): the overlay is the
+    // scroll container, the min-h-full wrapper centers a short panel and grows
+    // past the viewport for a tall one — centering on the scroll container
+    // itself clips the top of an overflowing panel above the scroll origin.
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
     >
-      <div className="bg-card rounded-xl border border-border shadow-xl p-6 max-w-md w-full mx-4">
-        <h3 id="modal-title" className="text-lg font-bold mb-4 text-foreground">
-          {entry
-            ? t('settings.admin.google_api.modal.title_edit', {
-                name: `${entry.api_name}:${entry.endpoint}`,
-              })
-            : t('settings.admin.google_api.modal.title_add')}
-        </h3>
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="bg-card rounded-xl border border-border shadow-xl p-6 max-w-md w-full">
+          <h3 id="modal-title" className="text-lg font-bold mb-4 text-foreground">
+            {entry
+              ? t('settings.admin.google_api.modal.title_edit', {
+                  name: `${entry.api_name}:${entry.endpoint}`,
+                })
+              : t('settings.admin.google_api.modal.title_add')}
+          </h3>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* API Name - editable even in edit mode */}
-          <div>
-            <label htmlFor="api-name" className="block text-sm font-medium text-foreground mb-3">
-              {t('settings.admin.google_api.modal.api_name_label')}
-            </label>
-            <Input
-              id="api-name"
-              type="text"
-              value={formData.api_name}
-              onChange={e => setFormData({ ...formData, api_name: e.target.value })}
-              placeholder={t('settings.admin.google_api.modal.api_name_placeholder')}
-              pattern="^[a-z_]{1,50}$"
-              title="Lowercase letters and underscores only (1-50 chars)"
-              required
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* API Name - editable even in edit mode */}
+            <div>
+              <label htmlFor="api-name" className="block text-sm font-medium text-foreground mb-3">
+                {t('settings.admin.google_api.modal.api_name_label')}
+              </label>
+              <Input
+                id="api-name"
+                type="text"
+                value={formData.api_name}
+                onChange={e => setFormData({ ...formData, api_name: e.target.value })}
+                placeholder={t('settings.admin.google_api.modal.api_name_placeholder')}
+                pattern="^[a-z_]{1,50}$"
+                title="Lowercase letters and underscores only (1-50 chars)"
+                required
+              />
+            </div>
 
-          {/* Endpoint - editable even in edit mode */}
-          <div>
-            <label htmlFor="endpoint" className="block text-sm font-medium text-foreground mb-3">
-              {t('settings.admin.google_api.modal.endpoint_label')}
-            </label>
-            <Input
-              id="endpoint"
-              type="text"
-              value={formData.endpoint}
-              onChange={e => setFormData({ ...formData, endpoint: e.target.value })}
-              placeholder={t('settings.admin.google_api.modal.endpoint_placeholder')}
-              required
-            />
-          </div>
+            {/* Endpoint - editable even in edit mode */}
+            <div>
+              <label htmlFor="endpoint" className="block text-sm font-medium text-foreground mb-3">
+                {t('settings.admin.google_api.modal.endpoint_label')}
+              </label>
+              <Input
+                id="endpoint"
+                type="text"
+                value={formData.endpoint}
+                onChange={e => setFormData({ ...formData, endpoint: e.target.value })}
+                placeholder={t('settings.admin.google_api.modal.endpoint_placeholder')}
+                required
+              />
+            </div>
 
-          {/* SKU Name */}
-          <div>
-            <label htmlFor="sku-name" className="block text-sm font-medium text-foreground mb-3">
-              {t('settings.admin.google_api.modal.sku_name_label')}
-            </label>
-            <Input
-              id="sku-name"
-              type="text"
-              value={formData.sku_name}
-              onChange={e => setFormData({ ...formData, sku_name: e.target.value })}
-              placeholder={t('settings.admin.google_api.modal.sku_name_placeholder')}
-              required
-            />
-          </div>
+            {/* SKU Name */}
+            <div>
+              <label htmlFor="sku-name" className="block text-sm font-medium text-foreground mb-3">
+                {t('settings.admin.google_api.modal.sku_name_label')}
+              </label>
+              <Input
+                id="sku-name"
+                type="text"
+                value={formData.sku_name}
+                onChange={e => setFormData({ ...formData, sku_name: e.target.value })}
+                placeholder={t('settings.admin.google_api.modal.sku_name_placeholder')}
+                required
+              />
+            </div>
 
-          {/* Cost per 1000 */}
-          <div>
-            <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-3">
-              {t('settings.admin.google_api.modal.cost_label')}
-            </label>
-            <Input
-              id="cost"
-              type="number"
-              step="0.0001"
-              min="0"
-              value={formData.cost_per_1000_usd}
-              onChange={e => setFormData({ ...formData, cost_per_1000_usd: e.target.value })}
-              placeholder={t('settings.admin.google_api.modal.cost_placeholder')}
-              required
-            />
-          </div>
+            {/* Cost per 1000 */}
+            <div>
+              <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-3">
+                {t('settings.admin.google_api.modal.cost_label')}
+              </label>
+              <Input
+                id="cost"
+                type="number"
+                step="0.0001"
+                min="0"
+                value={formData.cost_per_1000_usd}
+                onChange={e => setFormData({ ...formData, cost_per_1000_usd: e.target.value })}
+                placeholder={t('settings.admin.google_api.modal.cost_placeholder')}
+                required
+              />
+            </div>
 
-          <div className="flex space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-              {t('settings.admin.google_api.modal.cancel')}
-            </Button>
-            <Button type="submit" variant="default" className="flex-1">
-              {entry
-                ? t('settings.admin.google_api.modal.submit_edit')
-                : t('settings.admin.google_api.modal.submit_create')}
-            </Button>
-          </div>
-        </form>
+            <div className="flex space-x-2 pt-4">
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+                {t('settings.admin.google_api.modal.cancel')}
+              </Button>
+              <Button type="submit" variant="default" className="flex-1">
+                {entry
+                  ? t('settings.admin.google_api.modal.submit_edit')
+                  : t('settings.admin.google_api.modal.submit_create')}
+              </Button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

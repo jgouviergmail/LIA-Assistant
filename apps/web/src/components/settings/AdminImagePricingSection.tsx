@@ -523,119 +523,128 @@ function ImagePricingModal({ lng, entry, onClose, onSubmit }: ImagePricingModalP
   };
 
   return (
+    // Scroll architecture (same fix as ModelPricingModal): the overlay is the
+    // scroll container, the min-h-full wrapper centers a short panel and grows
+    // past the viewport for a tall one — centering on the scroll container
+    // itself clips the top of an overflowing panel above the scroll origin.
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
     >
-      <div className="bg-card rounded-xl border border-border shadow-xl p-6 max-w-md w-full mx-4">
-        <h3 id="modal-title" className="text-lg font-bold mb-4 text-foreground">
-          {isEdit
-            ? t('settings.admin.image_pricing.modal.title_edit')
-            : t('settings.admin.image_pricing.modal.title_add')}
-        </h3>
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="bg-card rounded-xl border border-border shadow-xl p-6 max-w-md w-full">
+          <h3 id="modal-title" className="text-lg font-bold mb-4 text-foreground">
+            {isEdit
+              ? t('settings.admin.image_pricing.modal.title_edit')
+              : t('settings.admin.image_pricing.modal.title_add')}
+          </h3>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="img-provider"
-              className="block text-sm font-medium text-foreground mb-3"
-            >
-              {t('settings.admin.image_pricing.modal.provider_label')}
-            </label>
-            <select
-              id="img-provider"
-              value={formData.provider}
-              onChange={e =>
-                setFormData({ ...formData, provider: e.target.value as LLMProviderName })
-              }
-              disabled={isEdit}
-              required
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {PROVIDER_OPTIONS.map(p => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-            {isEdit && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {t('settings.admin.image_pricing.modal.provider_immutable_hint')}
-              </p>
-            )}
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label
+                htmlFor="img-provider"
+                className="block text-sm font-medium text-foreground mb-3"
+              >
+                {t('settings.admin.image_pricing.modal.provider_label')}
+              </label>
+              <select
+                id="img-provider"
+                value={formData.provider}
+                onChange={e =>
+                  setFormData({ ...formData, provider: e.target.value as LLMProviderName })
+                }
+                disabled={isEdit}
+                required
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {PROVIDER_OPTIONS.map(p => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+              {isEdit && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t('settings.admin.image_pricing.modal.provider_immutable_hint')}
+                </p>
+              )}
+            </div>
 
-          <div>
-            <label htmlFor="img-model" className="block text-sm font-medium text-foreground mb-3">
-              {t('settings.admin.image_pricing.modal.model_label')}
-            </label>
-            <Input
-              id="img-model"
-              type="text"
-              value={formData.model}
-              onChange={e => setFormData({ ...formData, model: e.target.value })}
-              placeholder="gpt-image-1"
-              required
-            />
-          </div>
+            <div>
+              <label htmlFor="img-model" className="block text-sm font-medium text-foreground mb-3">
+                {t('settings.admin.image_pricing.modal.model_label')}
+              </label>
+              <Input
+                id="img-model"
+                type="text"
+                value={formData.model}
+                onChange={e => setFormData({ ...formData, model: e.target.value })}
+                placeholder="gpt-image-1"
+                required
+              />
+            </div>
 
-          <div>
-            <label htmlFor="img-quality" className="block text-sm font-medium text-foreground mb-3">
-              {t('settings.admin.image_pricing.modal.quality_label')}
-            </label>
-            <Input
-              id="img-quality"
-              type="text"
-              value={formData.quality}
-              onChange={e => setFormData({ ...formData, quality: e.target.value })}
-              placeholder="low / medium / high"
-              required
-            />
-          </div>
+            <div>
+              <label
+                htmlFor="img-quality"
+                className="block text-sm font-medium text-foreground mb-3"
+              >
+                {t('settings.admin.image_pricing.modal.quality_label')}
+              </label>
+              <Input
+                id="img-quality"
+                type="text"
+                value={formData.quality}
+                onChange={e => setFormData({ ...formData, quality: e.target.value })}
+                placeholder="low / medium / high"
+                required
+              />
+            </div>
 
-          <div>
-            <label htmlFor="img-size" className="block text-sm font-medium text-foreground mb-3">
-              {t('settings.admin.image_pricing.modal.size_label')}
-            </label>
-            <Input
-              id="img-size"
-              type="text"
-              value={formData.size}
-              onChange={e => setFormData({ ...formData, size: e.target.value })}
-              placeholder="1024x1024"
-              required
-            />
-          </div>
+            <div>
+              <label htmlFor="img-size" className="block text-sm font-medium text-foreground mb-3">
+                {t('settings.admin.image_pricing.modal.size_label')}
+              </label>
+              <Input
+                id="img-size"
+                type="text"
+                value={formData.size}
+                onChange={e => setFormData({ ...formData, size: e.target.value })}
+                placeholder="1024x1024"
+                required
+              />
+            </div>
 
-          <div>
-            <label htmlFor="img-cost" className="block text-sm font-medium text-foreground mb-3">
-              {t('settings.admin.image_pricing.modal.cost_label')}
-            </label>
-            <Input
-              id="img-cost"
-              type="number"
-              step="0.000001"
-              min="0"
-              value={formData.cost_per_image_usd}
-              onChange={e => setFormData({ ...formData, cost_per_image_usd: e.target.value })}
-              placeholder="0.042"
-              required
-            />
-          </div>
+            <div>
+              <label htmlFor="img-cost" className="block text-sm font-medium text-foreground mb-3">
+                {t('settings.admin.image_pricing.modal.cost_label')}
+              </label>
+              <Input
+                id="img-cost"
+                type="number"
+                step="0.000001"
+                min="0"
+                value={formData.cost_per_image_usd}
+                onChange={e => setFormData({ ...formData, cost_per_image_usd: e.target.value })}
+                placeholder="0.042"
+                required
+              />
+            </div>
 
-          <div className="flex space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-              {t('settings.admin.image_pricing.modal.cancel')}
-            </Button>
-            <Button type="submit" variant="default" className="flex-1">
-              {entry
-                ? t('settings.admin.image_pricing.modal.submit_edit')
-                : t('settings.admin.image_pricing.modal.submit_create')}
-            </Button>
-          </div>
-        </form>
+            <div className="flex space-x-2 pt-4">
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+                {t('settings.admin.image_pricing.modal.cancel')}
+              </Button>
+              <Button type="submit" variant="default" className="flex-1">
+                {entry
+                  ? t('settings.admin.image_pricing.modal.submit_edit')
+                  : t('settings.admin.image_pricing.modal.submit_create')}
+              </Button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

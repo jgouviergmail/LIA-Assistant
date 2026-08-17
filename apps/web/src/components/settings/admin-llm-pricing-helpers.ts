@@ -12,6 +12,7 @@ import type {
   ReasoningBudgetRangePayload,
   ReasoningTemplate,
   ReasoningWidgetName,
+  TimeSlotPricePayload,
 } from '@/lib/actions/settings-actions';
 
 /** Sentinel slug used in the "Copy reasoning shape from..." selector when
@@ -62,7 +63,32 @@ export interface ModelPricingFormData {
   input_unit_price: string;
   cached_input_unit_price: string | null;
   output_unit_price: string;
+  // Time-slot tariff (ADR-223): the toggle drives the editor's visibility;
+  // rows are kept in state even while the toggle is off so an accidental
+  // toggle does not destroy the admin's typed windows.
+  time_slots_enabled: boolean;
+  time_slots: TimeSlotFormRow[];
 }
+
+/** One editable window row of the time-slot tariff. All fields are input
+ *  strings; `''` in cached means "no separate cache billing" (→ null on the
+ *  wire), `''` elsewhere means "not filled in yet" (blocks submit). */
+export interface TimeSlotFormRow {
+  start_utc: string;
+  end_utc: string;
+  input_unit_price: string;
+  cached_input_unit_price: string;
+  output_unit_price: string;
+}
+
+/** A fresh editor row — hours empty so the admin types both bounds. */
+export const EMPTY_TIME_SLOT_ROW: TimeSlotFormRow = {
+  start_utc: '',
+  end_utc: '',
+  input_unit_price: '',
+  cached_input_unit_price: '',
+  output_unit_price: '',
+};
 
 /** Subset of fields persisted on a model row that participate in the
  *  reasoning shape comparison. Matches the backend's 4-field fingerprint
@@ -176,4 +202,117 @@ export function buildReasoningSamplingPayload(
         ? formData.reasoning_budget_range
         : null,
   };
+}
+
+// ============================================================================
+// Time-slot tariffs (ADR-223) — client-side mirror of the backend rules
+// (``pricing_time_slots.py``). The server stays authoritative; this mirror
+// exists so the admin gets immediate feedback instead of a 422 round-trip.
+// ============================================================================
+
+/** Validation verdict for the slot editor; null = rows are submittable. */
+export type TimeSlotRowsError = 'incomplete' | 'zero_length' | 'overlap';
+
+const HHMM_RE = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+
+function hhmmToMinutes(value: string): number {
+  const [hours, minutes] = value.split(':');
+  return parseInt(hours, 10) * 60 + parseInt(minutes, 10);
+}
+
+/** Project a window onto the 1440-minute day as non-wrapping [start,end)
+ *  segments — a midnight-wrapping window becomes two. */
+function daySegments(startMinute: number, endMinute: number): Array<[number, number]> {
+  if (startMinute < endMinute) return [[startMinute, endMinute]];
+  return [
+    [startMinute, 1440],
+    [0, endMinute],
+  ];
+}
+
+function isBlankOrNegativePrice(value: string): boolean {
+  return value.trim() === '' || Number.isNaN(parseFloat(value)) || parseFloat(value) < 0;
+}
+
+/** True when a row misses a valid hour or carries a blank/negative price
+ *  where one is required. The cached price may be blank (no cache billing). */
+function timeSlotRowIncomplete(row: TimeSlotFormRow): boolean {
+  return (
+    !HHMM_RE.test(row.start_utc) ||
+    !HHMM_RE.test(row.end_utc) ||
+    isBlankOrNegativePrice(row.input_unit_price) ||
+    isBlankOrNegativePrice(row.output_unit_price) ||
+    (row.cached_input_unit_price.trim() !== '' && parseFloat(row.cached_input_unit_price) < 0)
+  );
+}
+
+/** True when any two windows share at least one minute of the day. */
+function timeSlotRowsOverlap(rows: TimeSlotFormRow[]): boolean {
+  const segmented = rows.map(row =>
+    daySegments(hhmmToMinutes(row.start_utc), hhmmToMinutes(row.end_utc))
+  );
+  for (let index = 0; index < rows.length; index += 1) {
+    for (let other = index + 1; other < rows.length; other += 1) {
+      for (const [startA, endA] of segmented[index]) {
+        for (const [startB, endB] of segmented[other]) {
+          if (startA < endB && startB < endA) return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+/** Validate editor rows before submit. Mirrors the backend order: shape
+ *  first (incomplete), then zero-length windows, then overlap on the
+ *  1440-minute circle. */
+export function validateTimeSlotRows(rows: TimeSlotFormRow[]): TimeSlotRowsError | null {
+  if (rows.length === 0 || rows.some(timeSlotRowIncomplete)) return 'incomplete';
+  if (rows.some(row => row.start_utc === row.end_utc)) return 'zero_length';
+  return timeSlotRowsOverlap(rows) ? 'overlap' : null;
+}
+
+/** Build the `time_slots` wire field from the form state.
+ *
+ *  Token-billed + toggle on → the mapped rows (blank cached price → null).
+ *  Otherwise: `undefined` at create time (flat pricing, field omitted) and
+ *  `[]` at update time — the explicit clearing sentinel, because an omitted
+ *  field INHERITS the current row's slots on the backend. */
+export function buildTimeSlotsPayload(
+  formData: ModelPricingFormData,
+  mode: 'create' | 'update'
+): TimeSlotPricePayload[] | undefined {
+  const active = formData.pricing_unit === 'per_1m_tokens' && formData.time_slots_enabled;
+  if (!active) return mode === 'create' ? undefined : [];
+  return formData.time_slots.map(row => ({
+    start_utc: row.start_utc,
+    end_utc: row.end_utc,
+    input_unit_price: row.input_unit_price,
+    cached_input_unit_price: row.cached_input_unit_price.trim() === '' ? null : row.cached_input_unit_price,
+    output_unit_price: row.output_unit_price,
+  }));
+}
+
+/** Map the API's slot list (or null for flat pricing) to editable rows. */
+export function slotRowsFromModel(
+  slots: TimeSlotPricePayload[] | null | undefined
+): TimeSlotFormRow[] {
+  return (slots ?? []).map(slot => ({
+    start_utc: slot.start_utc,
+    end_utc: slot.end_utc,
+    input_unit_price: slot.input_unit_price,
+    cached_input_unit_price: slot.cached_input_unit_price ?? '',
+    output_unit_price: slot.output_unit_price,
+  }));
+}
+
+/** Format a `Date.getTimezoneOffset()` value (minutes WEST of UTC) as a
+ *  "UTC±HH:MM" label, so the admin can situate the UTC windows relative to
+ *  their own clock. CEST (-120) → "UTC+02:00". */
+export function utcOffsetLabel(offsetMinutes: number): string {
+  const sign = offsetMinutes <= 0 ? '+' : '-';
+  const absolute = Math.abs(offsetMinutes);
+  const hours = String(Math.floor(absolute / 60)).padStart(2, '0');
+  const minutes = String(absolute % 60).padStart(2, '0');
+  return `UTC${sign}${hours}:${minutes}`;
 }

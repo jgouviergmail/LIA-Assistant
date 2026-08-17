@@ -68,7 +68,14 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
-        // Global floor — re-measured 2026-08-07 after the demonstrator's
+        // Global floor — re-measured 2026-08-17 after the time-slot LLM
+        // pricing lot (ADR-223: the slot editor and its pure helpers —
+        // validation mirror, payload builder, UTC-offset label — plus the
+        // windowed-tariff branches of the pricing modal):
+        // statements 74.16 / branches 70.15 / functions 70.84 / lines 74.76.
+        // Raised 71/67/68/72 -> 72/68/68/72 (floor(measured - 2) per axis —
+        // statements and branches cross an integer step this time).
+        // Previous re-measure 2026-08-07 after the demonstrator's
         // security audit and the removal of the legacy live showroom (the
         // server-side proxy routes, its adapter and its hook: code the suite
         // covered thinly and that no longer exists):
@@ -221,8 +228,8 @@ export default defineConfig({
         // other lanes: App Router pages (hermetic E2E) and the WASM/Web-Audio
         // modules `sherpaKws` / `audio-queue`, which jsdom cannot simulate
         // without the test degenerating into a test of its own mocks.
-        statements: 71,
-        branches: 67,
+        statements: 72,
+        branches: 68,
         functions: 68,
         lines: 72,
         // Chat state machine — fully covered, keep it that way (2026-07).

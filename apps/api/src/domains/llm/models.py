@@ -309,6 +309,20 @@ class LLMModelPricing(Base, TimestampMixin):
         comment="Billing unit semantics for the unit-price columns",
     )
 
+    time_slots: Mapped[list[dict[str, Any]] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment=(
+            "Optional UTC time-based tariff (ADR-223): list of "
+            '{"start_utc":"HH:MM","end_utc":"HH:MM","input_unit_price":float,'
+            '"cached_input_unit_price":float|null,"output_unit_price":float}. '
+            "[start,end) at minute granularity, end < start wraps midnight, "
+            "windows must not overlap. NULL/[] = flat pricing (base columns "
+            "apply 24/7); a slot overrides all three unit prices while "
+            "active. Only meaningful for pricing_unit='per_1m_tokens'."
+        ),
+    )
+
     effective_from: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

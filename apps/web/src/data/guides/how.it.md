@@ -6,7 +6,7 @@
 
 **Versione**: 4.3
 **Data**: 2026-08-17
-**Applicazione**: LIA v1.30.4
+**Applicazione**: LIA v1.30.5
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 466 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 221 ADRs, ~18.321 test raccolti da pytest in 997 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 222 ADRs, ~18.429 test raccolti da pytest in 1.002 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -74,7 +74,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~18.321 (raccolti da pytest su 997 file di test) + 5.479 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~18.429 (raccolti da pytest su 1.002 file di test) + 5.501 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 490+ |
 | ADR (Architecture Decision Record) | 209 |
@@ -677,6 +677,8 @@ Il `TrackingContext` traccia ogni chiamata LLM con `call_type` ("chat"/"embeddin
 
 Il conteggio stesso è **contrattuale, non accidentale**: un fornitore compatibile OpenAI emette l'oggetto `usage` su una risposta in streaming solo se la richiesta lo domanda. Ogni fornitore di chat dichiara quindi la sua modalità di contabilità in un registro — richiesta esplicita `stream_usage`, conteggio nativo dell'SDK, o esclusione deliberata (modelli locali gratuiti, chiavi dell'utente finale) — la cui completezza è verificata all'avvio: l'applicazione rifiuta di avviarsi con un fornitore non dichiarato (ADR-220, dottrina ADR-085). Una chiamata a pagamento che termina senza conteggio incrementa un contatore dedicato, registra un avviso e fa scattare un allarme a soglia zero: l'intera classe dei buchi di fatturazione silenziosi diventa un segnale. La stessa dottrina vale per i timeout: il `timeout_seconds` per postazione, amministrabile, è trasmesso al client di ogni fornitore come limite di trasporto per tentativo — le barriere `asyncio.wait_for` dei nodi restano il limite di esperienza utente — e nessun valore predefinito è stato applicato senza confronto con le latenze reali di produzione (ADR-221).
 
+La tariffazione stessa segue l'orologio del fornitore: alcuni fornitori fatturano i modelli di testo secondo l'ora UTC, con fasce di punta a un multiplo della tariffa fuori punta. Ogni riga di prezzo può quindi portare fasce orarie UTC opzionali e senza sovrapposizioni — attraversamento della mezzanotte incluso — che sostituiscono i prezzi unitari mentre sono attive, con le colonne di base come tariffa predefinita. Un'unica implementazione risolve la fascia attiva per i due punti di valorizzazione: ogni chiamata è valorizzata al proprio istante — quello che il fornitore fattura — e un messaggio storico ricalcolato conserva la tariffa della sua ora d'origine. Le fasce viaggiano con le righe di prezzo versionate temporalmente, si amministrano nel dialogo delle tariffe LLM, e i dati di riferimento includono la tariffa a fasce ufficiale di DeepSeek (ADR-223).
+
 ### 12.4. Catalogo admin DB-source-of-truth
 
 La tabella `llm_models` porta il catalogo completo: provider, capacità funzionali classiche (`supports_tools`, `supports_structured_output`, `supports_strict_mode`, `supports_streaming`, `supports_vision`), e — aggiunte strutturanti — la **matrice sampling per modello** (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) nonché la **forma reasoning** (`reasoning_widget` ∈ {`none`, `enum`, `budget_int`, `toggle_budget`}, `reasoning_enum_values` lista JSONB, `reasoning_budget_range` JSONB `{min, max, off_sentinel, dynamic_sentinel}`, `reasoning_doc_i18n_key`). Questa dichiarazione per modello sostituisce la regex frontend che indovinava prima quali slider nascondere: la finestra Configurazione LLM legge direttamente i flag DB ed espone solo i parametri che l'API del modello accetta realmente.
@@ -1273,7 +1275,7 @@ La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la 
 
 ## 24. Architettura delle decisioni (ADR)
 
-221 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+222 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1349,10 +1351,10 @@ Il filo comune di questi quattro lotti è una proprietà dei test stessi. Ogni p
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 221 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~18.321 test in 997 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 222 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~18.429 test in 1.002 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 221 ADRs e del changelog (da v1.0 a v1.30.4). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 222 ADRs e del changelog (da v1.0 a v1.30.5). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

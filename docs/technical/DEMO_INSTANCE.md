@@ -146,6 +146,14 @@ The catalogue comes from the **reference seed bundle**, applied at every boot
 maintained source of truth; the migrations carry an older, partial copy — 91
 prices against 224.
 
+Since ADR-223 the bundle also carries DeepSeek's **UTC time-slot tariff**
+(peak 01:00-04:00 and 06:00-10:00 UTC at 2x, off-peak elsewhere): the ledger
+values each call at the tariff of its instant, so the ceiling counts what the
+provider actually invoices instead of charging the peak rate 24/7. Because
+this database is rebuilt from the bundle at every boot, windowed tariffs for
+the demo MUST be maintained in `llm_pricing_seed.sql` — an admin-UI entry
+does not survive a restart here (it does everywhere else).
+
 Getting it applied uncovered a defect that reached far beyond this instance:
 the bundle could not be applied by **any** installation. The entrypoint vetoed
 on "is the personalities table empty?", while the migrations insert fourteen

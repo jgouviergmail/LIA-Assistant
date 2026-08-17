@@ -4,7 +4,7 @@
 
 **Version** : 1.6
 **Date** : 2026-08-17
-**Application** : LIA v1.30.4
+**Application** : LIA v1.30.5
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -19,8 +19,8 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
 | Lignes de code (hors tests) — 40 domaines fonctionnels | **520 000** |
-| Tests automatisés, exécutés à chaque commit et livraison | **23 800+** |
-| Décisions d'architecture documentées (ADR) | **221** |
+| Tests automatisés, exécutés à chaque commit et livraison | **23 900+** |
+| Décisions d'architecture documentées (ADR) | **222** |
 | Versions livrées à rythme régulier | **207** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
@@ -97,7 +97,7 @@ Le cycle 1.30.1 a poussé la logique jusqu'à auditer l'audit. Un rapport intern
 
 Le cycle 1.30.2 a appliqué la même discipline à ce qu'on ne regarde jamais : les fondations. Monter l'écosystème d'orchestration de cinq mois de correctifs aurait pu être un simple changement de numéros ; il a été traité comme une opération à preuves — chaque version validée en environnement jetable avant de toucher au dépôt, huit mille cinq cents tests exécutés sous les versions cibles, les points d'intégration privés simulés hors réseau. Et l'audit qui accompagnait la montée a trouvé ce que les métriques de couverture cachaient : mille sept cent cinquante lignes d'une seconde implémentation de la reprise humaine, jamais branchée, maintenue verte par cinquante tests. Supprimée, avec sa décision d'architecture consignée. Un système vitrine ne se juge pas qu'à ce qu'il montre — aussi à ce qu'il refuse de garder.
 
-Le cycle 1.30.4 est né d'un message utilisateur de trois lignes : « j'ai demandé de transmettre un message, j'ai eu confirmation, rien n'a été envoyé ». L'enquête, menée preuve par preuve — logs de production horodatés, base de données, code du conteneur —, a remonté jusqu'à une ligne : le moteur d'exécution écrasait le verdict de chaque outil par un succès codé en dur, et la couche d'honnêteté conçue précisément pour dire les blocages se faisait désarmer par le mensonge qu'elle devait empêcher. La correction est petite ; la méthode est le vrai livrable : chaque hypothèse contre-vérifiée avant d'écrire une ligne, chaque correctif précédé d'un test qui échoue, et l'assistant qui redit désormais la vérité jusque dans ses refus — avec les chiffres exacts, dans les six langues.
+Le cycle 1.30.5 est né d'un message utilisateur de trois lignes : « j'ai demandé de transmettre un message, j'ai eu confirmation, rien n'a été envoyé ». L'enquête, menée preuve par preuve — logs de production horodatés, base de données, code du conteneur —, a remonté jusqu'à une ligne : le moteur d'exécution écrasait le verdict de chaque outil par un succès codé en dur, et la couche d'honnêteté conçue précisément pour dire les blocages se faisait désarmer par le mensonge qu'elle devait empêcher. La correction est petite ; la méthode est le vrai livrable : chaque hypothèse contre-vérifiée avant d'écrire une ligne, chaque correctif précédé d'un test qui échoue, et l'assistant qui redit désormais la vérité jusque dans ses refus — avec les chiffres exacts, dans les six langues.
 
 ## 7. Convictions
 

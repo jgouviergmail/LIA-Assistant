@@ -1535,7 +1535,10 @@
           "cached_input_price": "缓存输入价格（$/100万）",
           "output_price": "输出价格（$/100万）",
           "actions": "操作",
-          "provider": "提供方"
+          "provider": "提供方",
+          "time_slots_badge": "分时",
+          "time_slots_badge_title_one": "{{count}} 个 UTC 时段",
+          "time_slots_badge_title_other": "{{count}} 个 UTC 时段"
         },
         "edit": "编辑",
         "disable": "停用",
@@ -1575,7 +1578,18 @@
           "supports_strict_mode_label": "支持严格模式（仅 OpenAI）",
           "supports_streaming_label": "支持流式输出",
           "supports_vision_label": "支持视觉（图像输入）",
-          "is_reasoning_model_label": "是推理模型"
+          "is_reasoning_model_label": "是推理模型",
+          "time_slots_toggle_label": "分时段计价（UTC）",
+          "time_slots_hint": "时段以 UTC 定义——起始时间包含，结束时间不包含；结束早于起始表示跨越午夜。您当前的时区：{{offset}}。",
+          "time_slots_base_hint": "上方价格为默认费率；每个时段在其生效期间会覆盖全部三项价格。",
+          "time_slots_slot_title": "时段 {{index}}",
+          "time_slots_start_label": "开始（UTC）",
+          "time_slots_end_label": "结束（UTC）",
+          "time_slots_add": "添加时段",
+          "time_slots_remove": "删除时段 {{index}}",
+          "time_slots_error_incomplete": "每个时段都需要有效的时间和 ≥ 0 的价格。",
+          "time_slots_error_zero_length": "时段的开始和结束时间不能相同。",
+          "time_slots_error_overlap": "时段之间不得重叠。"
         },
         "errors": {
           "loading": "加载模型时出错",
@@ -3892,7 +3906,7 @@
         },
         "costTransparency": {
           "title": "💰 成本透明度",
-          "description": "可选实时显示：输入/输出/缓存 token、每条消息欧元成本和对话总计。仪表板统计：当前周期的消息、token 和成本。用户通过标题栏 💲 图标控制。 当存在配额时，它不再像一堵墙那样突然出现：在最先触及的那项限额达到 80 % 时会给出提醒——涵盖词元、消息数与费用，周期限额与绝对限额皆然——并点明是哪一项；若属周期限额，还会给出重置日期。绝对限额则不会承诺任何重置。 上限也可能作用于整个实例，而不是你的账户：这种情况下 LIA 不会提你的个人配额，而是说明这套部署已经用完当天预算，并给出它重新开始的准确时刻。而且计数本身是一份契约，而非一种信任：每个提供商都声明其计数方式（应用启动时校验），流式回答中会显式请求计数，付费调用若在无计数的情况下结束将触发告警——支出上限不会再悄悄失明。"
+          "description": "可选实时显示：输入/输出/缓存 token、每条消息欧元成本和对话总计。仪表板统计：当前周期的消息、token 和成本。用户通过标题栏 💲 图标控制。 当存在配额时，它不再像一堵墙那样突然出现：在最先触及的那项限额达到 80 % 时会给出提醒——涵盖词元、消息数与费用，周期限额与绝对限额皆然——并点明是哪一项；若属周期限额，还会给出重置日期。绝对限额则不会承诺任何重置。 上限也可能作用于整个实例，而不是你的账户：这种情况下 LIA 不会提你的个人配额，而是说明这套部署已经用完当天预算，并给出它重新开始的准确时刻。而且计数本身是一份契约，而非一种信任：每个提供商都声明其计数方式（应用启动时校验），流式回答中会显式请求计数，付费调用若在无计数的情况下结束将触发告警——支出上限不会再悄悄失明。 最后，计价跟随提供商的时钟：当费率在高峰与低谷时段（UTC 时段）之间变化时，每次调用都按其确切时刻的费率计算——您的统计数据和支出上限反映真实账单，而非平均费率。"
         },
         "scheduledActions": {
           "title": "📅 计划操作",
@@ -4029,6 +4043,15 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_30_5": {
+          "title": "v1.30.5 — 🕐 跟随提供商时钟的成本",
+          "date": "2026年8月",
+          "count": "2",
+          "items": {
+            "i1": "<b>🕐 LLM 成本现在跟随高峰与低谷时段</b> — 一些提供商（如 DeepSeek）在其 UTC 高峰时段之外只收半价，而 LIA 之前按全价计算每次调用。价格目录现在支持分时费率：每次调用按其确切时刻的费率计价，因此你的使用统计和实例支出上限反映提供商实际开具的账单。管理员在 LLM 价格设置中定义时段——任何提供商、任意数量的时段。",
+            "i2": "<b>📱 价格表单在手机上恢复可用</b> — LLM、Google API 和图像价格的创建/编辑对话框可能高于屏幕，顶部无法触及，在移动端完全无法使用。三个对话框的滚动行为均已修复：短表单保持居中，长表单可从最顶端开始浏览。"
+          }
+        },
         "v1_30_4": {
           "title": "v1.30.4 — ✅ 永远说真话的确认",
           "date": "2026年8月",
@@ -8789,7 +8812,7 @@
       "cost_prefix": "每条消息：",
       "cost_note": "——真实计数器，应用中每条回复下都能看到——",
       "p1_t": "成本，精确到分",
-      "p1_d": "逐条显示，按会话累计。没有一个主流助手会给你看这个。",
+      "p1_d": "逐条显示，按会话累计，并按每次调用确切时刻的费率计价——包括提供商的高峰与低谷时段。没有一个主流助手会给你看这个。",
       "p2_t": "8.3/10 —— 公开审计",
       "p2_d": "24 个评估领域，协议与报告完整公开——包括仍需改进之处。",
       "p2_link": "阅读审计报告",
@@ -9249,7 +9272,7 @@
       "llm-config-governance": {
         "title": "LLM 治理：通过单一仪表板管理 24 个 AI 模型",
         "excerpt": "LIA 如何让管理员实时配置、调整和监控 24 种不同的 LLM 类型，无需重启或重新部署。",
-        "body": "<h2>挑战：编排 24 个大脑</h2><p>LIA 不是使用单一的 LLM，而是<strong>超过 24 种不同类型</strong>，每种都针对其任务进行了优化。每种类型都有自己的参数：<code>provider</code>、<code>model</code>、<code>temperature</code>、<code>timeout</code>、<code>reasoning_effort</code>。</p><p>挑战：如何让管理员<strong>不触碰代码</strong>就能管理这一切？</p><h2>3 级解析链</h2><p>每个 LLM 配置通过 <strong>3 源优先级链</strong>解析：</p><ol><li><strong>DB 覆盖</strong> — 通过管理界面设置（最高优先级）</li><li><strong>环境变量</strong> — 部署配置</li><li><strong>LLM_DEFAULTS</strong> — 代码中的 24 个默认配置</li></ol><p><code>LLMConfigOverrideCache</code> 提供 O(1) 查找。管理界面的更改<strong>立即生效</strong>。</p><h2>单一入口</h2><p><code>get_llm_config_for_agent()</code> 是获取 LLM 配置的<strong>唯一路径</strong>。这是一个<strong>架构原则</strong>。</p><h2>实时管理界面</h2><p>从管理面板，你可以为每种 LLM 类型：</p><ul><li>更改<strong>提供商和模型</strong></li><li>调整<strong>温度</strong>、<strong>top_p</strong>、<strong>惩罚</strong></li><li>配置<strong>超时</strong>和<strong>最大 token 数</strong></li><li>启用或禁用<strong>推理模式</strong></li></ul><h2>精细化成本优化</h2><p>管理员按<strong>任务类型</strong>而非全局调整质量/成本比。</p><h2>自适应推理模型</h2><p>LIA 提供 <strong>5 个 reasoning_effort 级别</strong>，可按类型配置。</p><h2>内置可观测性</h2><p>每次 LLM 调用都会记录其类型、提供商、实际模型、持续时间和 token。Prometheus 指标和 Langfuse 追踪允许<strong>比较不同配置的性能</strong>。</p><h2>整个实例能花多少</h2><p>上面所有内容约束的是一个模型、一次调用或一个账户。其中没有一样约束<strong>一套部署</strong>，而这并不是同一个问题：N 个账户乘以各自的配额，就是没有上界的支出。现在有一份按 UTC 日计的账本，用带列运算的原子 UPSERT 记录每次运行的成本，并且就写在那条已经持久化 token 汇总的事务里——因此并发运行不会在「读-改-写」的竞态中丢失支出，检查也永远不会看到残缺的视图。两个上界会叠加：部署给的和运维者选的，取较小者。管理员可以收紧环境所允许的额度，永远不能放宽，面板会把「实际生效的」摆在「填进去的」旁边。</p><p>这里的失败取向是刻意反转的。按用户的限制是<strong>开放失败</strong>——数据库打个嗝，最多多放过一条消息。未知的实例支出则是<strong>关闭失败</strong>，因为这一侧最坏的情况是整个预算。而拒绝会说实话：不是一条关于个人配额的消息，而是一个专门的代码，并带上当天翻篇的准确时刻。</p>"
+        "body": "<h2>挑战：编排 24 个大脑</h2><p>LIA 不是使用单一的 LLM，而是<strong>超过 24 种不同类型</strong>，每种都针对其任务进行了优化。每种类型都有自己的参数：<code>provider</code>、<code>model</code>、<code>temperature</code>、<code>timeout</code>、<code>reasoning_effort</code>。</p><p>挑战：如何让管理员<strong>不触碰代码</strong>就能管理这一切？</p><h2>3 级解析链</h2><p>每个 LLM 配置通过 <strong>3 源优先级链</strong>解析：</p><ol><li><strong>DB 覆盖</strong> — 通过管理界面设置（最高优先级）</li><li><strong>环境变量</strong> — 部署配置</li><li><strong>LLM_DEFAULTS</strong> — 代码中的 24 个默认配置</li></ol><p><code>LLMConfigOverrideCache</code> 提供 O(1) 查找。管理界面的更改<strong>立即生效</strong>。</p><h2>单一入口</h2><p><code>get_llm_config_for_agent()</code> 是获取 LLM 配置的<strong>唯一路径</strong>。这是一个<strong>架构原则</strong>。</p><h2>实时管理界面</h2><p>从管理面板，你可以为每种 LLM 类型：</p><ul><li>更改<strong>提供商和模型</strong></li><li>调整<strong>温度</strong>、<strong>top_p</strong>、<strong>惩罚</strong></li><li>配置<strong>超时</strong>和<strong>最大 token 数</strong></li><li>启用或禁用<strong>推理模式</strong></li></ul><h2>精细化成本优化</h2><p>管理员按<strong>任务类型</strong>而非全局调整质量/成本比。 当提供商按 UTC 时段计费时（高峰/低谷时段，如 DeepSeek），价格目录会承载这些时段：每次调用按其确切时刻的费率计价，所记录的支出与真实账单一致。</p><h2>自适应推理模型</h2><p>LIA 提供 <strong>5 个 reasoning_effort 级别</strong>，可按类型配置。</p><h2>内置可观测性</h2><p>每次 LLM 调用都会记录其类型、提供商、实际模型、持续时间和 token。Prometheus 指标和 Langfuse 追踪允许<strong>比较不同配置的性能</strong>。</p><h2>整个实例能花多少</h2><p>上面所有内容约束的是一个模型、一次调用或一个账户。其中没有一样约束<strong>一套部署</strong>，而这并不是同一个问题：N 个账户乘以各自的配额，就是没有上界的支出。现在有一份按 UTC 日计的账本，用带列运算的原子 UPSERT 记录每次运行的成本，并且就写在那条已经持久化 token 汇总的事务里——因此并发运行不会在「读-改-写」的竞态中丢失支出，检查也永远不会看到残缺的视图。两个上界会叠加：部署给的和运维者选的，取较小者。管理员可以收紧环境所允许的额度，永远不能放宽，面板会把「实际生效的」摆在「填进去的」旁边。</p><p>这里的失败取向是刻意反转的。按用户的限制是<strong>开放失败</strong>——数据库打个嗝，最多多放过一条消息。未知的实例支出则是<strong>关闭失败</strong>，因为这一侧最坏的情况是整个预算。而拒绝会说实话：不是一条关于个人配额的消息，而是一个专门的代码，并带上当天翻篇的准确时刻。</p>"
       }
     }
   },

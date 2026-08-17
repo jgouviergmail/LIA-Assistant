@@ -449,3 +449,123 @@ async def test_update_doc_i18n_key_alone_does_not_trigger_cohesion_check(
     assert new_model.reasoning_doc_i18n_key == "new_key"
     assert new_model.reasoning_widget.value == "enum"  # unchanged
     assert new_model.reasoning_enum_values == ["low"]  # unchanged
+
+
+# ============================================================================
+# Time-slot tariffs (ADR-223)
+# ============================================================================
+
+_SLOT_PAYLOAD = {
+    "start_utc": "01:00",
+    "end_utc": "04:00",
+    "input_unit_price": "0.44",
+    "cached_input_unit_price": "0.014",
+    "output_unit_price": "1.32",
+}
+
+
+@pytest.mark.unit
+async def test_create_persists_time_slots_as_plain_json(
+    async_session: AsyncSession,
+) -> None:
+    """Slots land in JSONB as floats (psycopg refuses Decimal) and read
+    back verbatim — the runtime resolver consumes exactly this shape."""
+    service = LLMModelService(async_session)
+    _, pricing = await service.create(_make_create("svc-slots", time_slots=[_SLOT_PAYLOAD]))
+
+    assert pricing.time_slots == [
+        {
+            "start_utc": "01:00",
+            "end_utc": "04:00",
+            "input_unit_price": 0.44,
+            "cached_input_unit_price": 0.014,
+            "output_unit_price": 1.32,
+        }
+    ]
+
+
+@pytest.mark.unit
+async def test_create_normalizes_empty_slots_to_null(
+    async_session: AsyncSession,
+) -> None:
+    service = LLMModelService(async_session)
+    _, pricing = await service.create(_make_create("svc-slots-empty", time_slots=[]))
+    assert pricing.time_slots is None
+
+
+@pytest.mark.unit
+async def test_update_without_time_slots_inherits_them(
+    async_session: AsyncSession,
+) -> None:
+    """A price bump that does not mention slots must carry them onto the
+    new temporal version — otherwise every unrelated edit silently
+    reverts the model to flat pricing."""
+    service = LLMModelService(async_session)
+    await service.create(_make_create("svc-slots-inherit", time_slots=[_SLOT_PAYLOAD]))
+    await async_session.commit()
+
+    _, new_pricing = await service.update(
+        "svc-slots-inherit", ModelPriceUpdate(input_unit_price=Decimal("9.99"))
+    )
+
+    assert new_pricing is not None
+    assert new_pricing.time_slots is not None
+    assert new_pricing.time_slots[0]["start_utc"] == "01:00"
+
+
+@pytest.mark.unit
+async def test_update_with_empty_list_clears_the_slots(
+    async_session: AsyncSession,
+) -> None:
+    service = LLMModelService(async_session)
+    await service.create(_make_create("svc-slots-clear", time_slots=[_SLOT_PAYLOAD]))
+    await async_session.commit()
+
+    _, new_pricing = await service.update("svc-slots-clear", ModelPriceUpdate(time_slots=[]))
+
+    assert new_pricing is not None
+    assert new_pricing.time_slots is None
+
+
+@pytest.mark.unit
+async def test_update_can_set_slots_on_a_flat_priced_model(
+    async_session: AsyncSession,
+) -> None:
+    service = LLMModelService(async_session)
+    await service.create(_make_create("svc-slots-add"))
+    await async_session.commit()
+
+    _, new_pricing = await service.update(
+        "svc-slots-add", ModelPriceUpdate(time_slots=[_SLOT_PAYLOAD])
+    )
+
+    assert new_pricing is not None
+    assert new_pricing.time_slots is not None
+    # Base prices inherited from the previous version.
+    assert new_pricing.input_unit_price == Decimal("1.0")
+
+
+@pytest.mark.unit
+async def test_update_rejects_switching_to_audio_unit_while_slots_survive(
+    async_session: AsyncSession,
+) -> None:
+    """The schema can only see what the payload carries; switching the unit
+    while the CURRENT row holds slots would smuggle a windowed tariff onto
+    an audio row. The merged state is validated service-side; the admin
+    must clear the slots explicitly (time_slots=[]) in the same call."""
+    from src.domains.llm.service import TimeSlotsUnitMismatchError
+
+    service = LLMModelService(async_session)
+    await service.create(_make_create("svc-slots-unit", time_slots=[_SLOT_PAYLOAD]))
+    await async_session.commit()
+
+    with pytest.raises(TimeSlotsUnitMismatchError):
+        await service.update("svc-slots-unit", ModelPriceUpdate(pricing_unit="per_audio_hour"))
+
+    # Clearing alongside the switch is the legal one-call form.
+    _, new_pricing = await service.update(
+        "svc-slots-unit",
+        ModelPriceUpdate(pricing_unit="per_audio_hour", time_slots=[]),
+    )
+    assert new_pricing is not None
+    assert new_pricing.time_slots is None

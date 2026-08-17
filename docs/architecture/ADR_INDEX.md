@@ -3884,6 +3884,15 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 **Décision** : `ConversationalHitlResumption` (~1 200 lignes avec ses trois helpers privés, derrière le Protocol `HitlResumptionStrategy`) implémentait une seconde boucle de reprise HITL que rien en production n'appelait — le chemin réel passe par `_build_hitl_resume_command` + `StreamingService` (conçu pour, drapeau `is_hitl_resumption`, quatre modes de stream) et les payloads sont construits par `parse_approval_decision`/`build_structured_decision`. La boucle morte ne souscrivait que `["values", "messages"]` : câblée un jour, elle aurait silencieusement perdu compaction et enrichissements d'outils. ~50 tests dédiés (« coverage target: 85%+ ») la maintenaient verte — couverture factice, docstring affirmant à tort le chemin « very much live ». **Retenu** : suppression classe + Protocol + tests (règle « dead code is deleted ») ; conservation des trois helpers réellement consommés (`_build_plan_modifications_from_classifier`, `build_edit_reformulated_intent`, `resolve_user_language`) ; les quatre tests du contrat `ToolApprovalDecision` — qui épinglaient le schéma vivant, pas le mort — migrés vers `test_domain_schemas.py`. Clôt le finding « chemin mort apparent » consigné aux findings des cartes HITL. Une stratégie alternative future se branche sur `StreamingService`, pas sur une boucle parallèle.
 
 ---
+
+### ADR-223 : un tarif qui varie avec l'heure est porté par la ligne de prix, pas par le code
+
+**Statut**: ✅ IMPLEMENTED (2026-08-17)
+**Fichier**: `docs/architecture/ADR-223-Tarification-LLM-Par-Plages-Horaires-UTC.md`
+
+**Décision** : DeepSeek facture le texte selon l'heure UTC (pleines 01:00–04:00 et 06:00–10:00, −50 % ailleurs) ; LIA appliquait le tarif plein 24 h/24, démonstrateur inclus. **Retenu** : colonne JSONB nullable `time_slots` sur `llm_model_pricing` (fenêtres `[début, fin)` UTC à la minute, minuit enjambable, non-chevauchement validé à l'écriture ; base = tarif hors fenêtre ; NULL/[] = plat inchangé ; générique — tout provider, 1..n créneaux) ; résolution unique `pricing_time_slots.find_active_slot` consommée par les deux chokepoints via un paramètre `at` optionnel (défaut = instant d'appel, celui persisté au ledger) et par le recalcul historique à `at_date` ; arithmétique des jumeaux du service async factorisée (`_token_cost_usd`) ; contrat d'update : omis = héritage sur la nouvelle version temporelle, `[]` = effacement (le `null` explicite serait avalé par `exclude_none`), état fusionné validé côté service (`TimeSlotsUnitMismatchError` → 400, avant le ValueError → 409) ; UI admin : toggle + éditeur de fenêtres (rappel du fuseau local), validation miroir, badge « Horaire », i18n ×6 ; blob Redis compatible dans les deux sens de déploiement ; pas de backfill (décision propriétaire — saisie via l'UI, seed inchangé avec exigence d'emport à la prochaine extraction).
+
+---
 ---
 ---
 

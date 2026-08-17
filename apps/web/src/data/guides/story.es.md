@@ -4,7 +4,7 @@
 
 **Versión**: 1.6
 **Fecha**: 2026-08-17
-**Aplicación**: LIA v1.30.4
+**Aplicación**: LIA v1.30.5
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,8 +19,8 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
 | Líneas de código (sin tests) — 40 dominios funcionales | **520.000** |
-| Tests automatizados, ejecutados en cada commit y entrega | **23.800+** |
-| Decisiones de arquitectura documentadas (ADR) | **221** |
+| Tests automatizados, ejecutados en cada commit y entrega | **23.900+** |
+| Decisiones de arquitectura documentadas (ADR) | **222** |
 | Versiones entregadas a ritmo regular | **207** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
@@ -97,7 +97,7 @@ El ciclo 1.30.1 llevó la lógica un paso más allá: auditó la auditoría. Un 
 
 El ciclo 1.30.2 aplicó la misma disciplina a lo que nadie mira nunca: los cimientos. Subir el ecosistema de orquestación cinco meses de correcciones pudo haber sido un simple cambio de números; se ejecutó como una operación con pruebas — cada versión validada en un entorno desechable antes de tocar el repositorio, ocho mil quinientos tests ejecutados bajo las versiones objetivo, los puntos de integración privados simulados sin red. Y la auditoría que acompañó la subida encontró lo que las métricas de cobertura escondían: mil setecientas cincuenta líneas de una segunda implementación de la reanudación humana, jamás conectada, mantenida en verde por cincuenta tests. Eliminada, con su decisión de arquitectura registrada. Un sistema escaparate no se juzga solo por lo que muestra — también por lo que se niega a conservar.
 
-El ciclo 1.30.4 nació de un mensaje de usuario de tres líneas: «pedí transmitir un mensaje, recibí una confirmación, no se envió nada». La investigación — logs de producción con marca de tiempo, base de datos, el propio código del contenedor, prueba a prueba — llegó hasta una sola línea: el motor de ejecución sobrescribía el veredicto de cada herramienta con un éxito codificado en duro, y la capa de honestidad diseñada precisamente para nombrar los bloqueos quedaba desarmada por la misma mentira que debía impedir. La corrección es pequeña; el método es el verdadero entregable: cada hipótesis contraverificada antes de escribir una línea, cada corrección precedida de un test que falla, y un asistente que ahora dice la verdad hasta en sus rechazos — con cifras exactas, en los seis idiomas.
+El ciclo 1.30.5 nació de un mensaje de usuario de tres líneas: «pedí transmitir un mensaje, recibí una confirmación, no se envió nada». La investigación — logs de producción con marca de tiempo, base de datos, el propio código del contenedor, prueba a prueba — llegó hasta una sola línea: el motor de ejecución sobrescribía el veredicto de cada herramienta con un éxito codificado en duro, y la capa de honestidad diseñada precisamente para nombrar los bloqueos quedaba desarmada por la misma mentira que debía impedir. La corrección es pequeña; el método es el verdadero entregable: cada hipótesis contraverificada antes de escribir una línea, cada corrección precedida de un test que falla, y un asistente que ahora dice la verdad hasta en sus rechazos — con cifras exactas, en los seis idiomas.
 
 ## 7. Convicciones
 

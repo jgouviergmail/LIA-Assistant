@@ -263,6 +263,112 @@ class TestTheTwinsAgree:
         assert "2024-09-12" not in looked_up_now
 
 
+class TestTimeSlotTariffs:
+    """UTC time-slot pricing (ADR-223): the slot's prices replace the base
+    prices while its window is active; outside every window the base
+    columns apply. Both twins must resolve the slot from the SAME single
+    implementation, or peak/off-peak costs drift between live tracking
+    and historical recompute."""
+
+    PEAK_SLOTS = [
+        {
+            "start_utc": "01:00",
+            "end_utc": "04:00",
+            "input_unit_price": 2.0,
+            "cached_input_unit_price": 0.5,
+            "output_unit_price": 6.0,
+        },
+        {
+            "start_utc": "06:00",
+            "end_utc": "10:00",
+            "input_unit_price": 2.0,
+            "cached_input_unit_price": 0.5,
+            "output_unit_price": 6.0,
+        },
+    ]
+    PEAK_AT = datetime(2026, 8, 17, 2, 30, tzinfo=UTC)
+    OFF_PEAK_AT = datetime(2026, 8, 17, 12, 0, tzinfo=UTC)
+
+    def _windowed_service(self) -> AsyncPricingService:
+        return _service(_price(time_slots=self.PEAK_SLOTS))
+
+    async def test_peak_window_applies_the_slot_prices(self) -> None:
+        service = self._windowed_service()
+
+        with _currency_api(USD_TO_EUR):
+            usd, _ = await service.calculate_token_cost(
+                "gpt-4.1-mini", 1_000_000, 1_000_000, 1_000_000, at=self.PEAK_AT
+            )
+
+        # 2.0 (in) + 6.0 (out) + 0.5 (cached)
+        assert usd == pytest.approx(8.5)
+
+    async def test_off_peak_falls_back_to_the_base_prices(self) -> None:
+        service = self._windowed_service()
+
+        with _currency_api(USD_TO_EUR):
+            usd, _ = await service.calculate_token_cost(
+                "gpt-4.1-mini", 1_000_000, 1_000_000, 1_000_000, at=self.OFF_PEAK_AT
+            )
+
+        # 1.00 (in) + 3.00 (out) + 0.25 (cached) — the flat tariff
+        assert usd == pytest.approx(4.25)
+
+    async def test_the_historical_twin_uses_the_timestamp_it_is_given(self) -> None:
+        """A message sent during a peak window must keep its peak cost when
+        recomputed later — the slot is resolved at ``at_date``, never at
+        wall-clock now."""
+        service = self._windowed_service()
+
+        with _currency_api(USD_TO_EUR):
+            eur_peak = await service.calculate_token_cost_at_date(
+                "gpt-4.1-mini", 1_000_000, 0, 0, self.PEAK_AT
+            )
+            eur_off = await service.calculate_token_cost_at_date(
+                "gpt-4.1-mini", 1_000_000, 0, 0, self.OFF_PEAK_AT
+            )
+
+        assert eur_peak == pytest.approx(2.0 * float(USD_TO_EUR))
+        assert eur_off == pytest.approx(1.0 * float(USD_TO_EUR))
+
+    async def test_the_twins_agree_inside_and_outside_windows(self) -> None:
+        service = self._windowed_service()
+
+        with _currency_api(USD_TO_EUR):
+            for at in (self.PEAK_AT, self.OFF_PEAK_AT):
+                _, eur_now = await service.calculate_token_cost(
+                    "gpt-4.1-mini", 37_000, 11_000, 5_000, at=at
+                )
+                eur_at_date = await service.calculate_token_cost_at_date(
+                    "gpt-4.1-mini", 37_000, 11_000, 5_000, at
+                )
+                assert eur_at_date == pytest.approx(eur_now)
+
+    async def test_a_slot_without_cached_price_charges_nothing_for_cache(self) -> None:
+        slots = [{**self.PEAK_SLOTS[0], "cached_input_unit_price": None}]
+        service = _service(_price(time_slots=slots))
+
+        with _currency_api(USD_TO_EUR):
+            usd, _ = await service.calculate_token_cost(
+                "gpt-4.1-mini", 0, 0, 1_000_000, at=self.PEAK_AT
+            )
+
+        assert usd == 0.0
+
+    async def test_flat_pricing_is_unchanged_when_no_slots_exist(self) -> None:
+        service = _service(_price())
+
+        with _currency_api(USD_TO_EUR):
+            usd_peak, _ = await service.calculate_token_cost(
+                "gpt-4.1-mini", 1_000_000, 0, 0, at=self.PEAK_AT
+            )
+            usd_off, _ = await service.calculate_token_cost(
+                "gpt-4.1-mini", 1_000_000, 0, 0, at=self.OFF_PEAK_AT
+            )
+
+        assert usd_peak == usd_off == pytest.approx(1.00)
+
+
 class TestCaching:
     """The service caches so the cost path does not hit the database per call."""
 

@@ -4,7 +4,7 @@
 
 **Version**: 1.6
 **Datum**: 2026-08-17
-**Anwendung**: LIA v1.30.4
+**Anwendung**: LIA v1.30.5
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,8 +19,8 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Codezeilen (ohne Tests) — 40 Fachdomänen | **520.000** |
-| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **23.800+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **221** |
+| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **23.900+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **222** |
 | In regelmäßigem Rhythmus gelieferte Versionen | **207** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
@@ -97,7 +97,7 @@ Zyklus 1.30.1 trieb die Logik einen Schritt weiter: Er auditierte das Audit. Ein
 
 Zyklus 1.30.2 wandte dieselbe Disziplin auf das an, was niemand je ansieht: die Fundamente. Das Orchestrierungs-Ökosystem über fünf Monate an Korrekturen anzuheben hätte ein bloßer Nummerntausch sein können; es wurde als beweisgeführte Operation durchgeführt — jede Version vor dem Anfassen des Repos in einer Wegwerfumgebung validiert, achteinhalbtausend Tests unter den Zielversionen ausgeführt, die privaten Integrationspunkte offline simuliert. Und das begleitende Audit fand, was Abdeckungsmetriken verbargen: siebzehnhundertfünfzig Zeilen einer zweiten, nie angeschlossenen Implementierung der menschlichen Bestätigungsfortsetzung, von fünfzig Tests grün gehalten. Gelöscht, mit protokollierter Architekturentscheidung. Ein Vorzeigesystem bemisst sich nicht nur an dem, was es zeigt — auch an dem, was es sich weigert zu behalten.
 
-Zyklus 1.30.4 begann mit einer dreizeiligen Nutzernachricht: „Ich habe gebeten, eine Nachricht weiterzuleiten, ich bekam eine Bestätigung, nichts wurde gesendet.“ Die Untersuchung — zeitgestempelte Produktionslogs, Datenbank, der Code des Containers selbst, Beweis für Beweis — führte zu einer einzigen Zeile: Die Ausführungsengine überschrieb das Urteil jedes Werkzeugs mit einem fest codierten Erfolg, und die Ehrlichkeitsschicht, die Blockaden benennen sollte, wurde von genau der Lüge entwaffnet, die sie verhindern sollte. Der Fix ist klein; die Methode ist das eigentliche Ergebnis: jede Hypothese gegengeprüft, bevor eine Zeile geschrieben wurde, jeder Korrektur ein fehlschlagender Test vorangestellt — und ein Assistent, der nun bis in seine Ablehnungen hinein die Wahrheit sagt, mit exakten Zahlen, in allen sechs Sprachen.
+Zyklus 1.30.5 begann mit einer dreizeiligen Nutzernachricht: „Ich habe gebeten, eine Nachricht weiterzuleiten, ich bekam eine Bestätigung, nichts wurde gesendet.“ Die Untersuchung — zeitgestempelte Produktionslogs, Datenbank, der Code des Containers selbst, Beweis für Beweis — führte zu einer einzigen Zeile: Die Ausführungsengine überschrieb das Urteil jedes Werkzeugs mit einem fest codierten Erfolg, und die Ehrlichkeitsschicht, die Blockaden benennen sollte, wurde von genau der Lüge entwaffnet, die sie verhindern sollte. Der Fix ist klein; die Methode ist das eigentliche Ergebnis: jede Hypothese gegengeprüft, bevor eine Zeile geschrieben wurde, jeder Korrektur ein fehlschlagender Test vorangestellt — und ein Assistent, der nun bis in seine Ablehnungen hinein die Wahrheit sagt, mit exakten Zahlen, in allen sechs Sprachen.
 
 ## 7. Überzeugungen
 

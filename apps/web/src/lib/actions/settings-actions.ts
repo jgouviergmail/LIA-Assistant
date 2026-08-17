@@ -61,6 +61,18 @@ export type LLMModelKindName = 'chat' | 'image' | 'audio' | 'realtime' | 'tts' |
 export type ReasoningWidgetName = 'none' | 'enum' | 'budget_int' | 'toggle_budget';
 export type LLMPricingUnitName = 'per_1m_tokens' | 'per_audio_minute' | 'per_audio_hour';
 
+/** One UTC window of a time-based tariff (ADR-223). Mirrors the backend
+ *  ``TimeSlotPrice`` schema: [start,end) at minute granularity, end < start
+ *  wraps midnight, windows must not overlap, prices in USD as decimal
+ *  strings (same wire shape as the base unit prices). */
+export interface TimeSlotPricePayload {
+  start_utc: string;
+  end_utc: string;
+  input_unit_price: string;
+  cached_input_unit_price: string | null;
+  output_unit_price: string;
+}
+
 export interface ReasoningBudgetRangePayload {
   min: number;
   max: number;
@@ -102,6 +114,8 @@ interface LLMPricingData extends ReasoningSamplingPayload {
   input_unit_price: string;
   cached_input_unit_price: string | null;
   output_unit_price: string;
+  /** Optional UTC windowed tariff; omitted = flat pricing. */
+  time_slots?: TimeSlotPricePayload[];
 }
 
 /** Partial update payload — every field is optional. */
@@ -118,6 +132,10 @@ export interface LLMPricingUpdateData extends ReasoningSamplingPayload {
   input_unit_price?: string;
   cached_input_unit_price?: string | null;
   output_unit_price?: string;
+  /** UTC windowed tariff: omitted = inherit the current row's slots onto the
+   *  new temporal version; `[]` = clear (the backend drops explicit nulls, so
+   *  the empty list IS the clearing sentinel); non-empty = replace. */
+  time_slots?: TimeSlotPricePayload[];
 }
 
 /**

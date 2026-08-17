@@ -35,7 +35,13 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured at v1.30.4: backend 18,357
+ *   Re-measured at v1.30.5: backend 18,429
+ *   (`pytest tests/unit tests/agents --collect-only --no-cov`; +72 — the
+ *   time-slot tariff suites: resolution/overlap/round-trip, admin schema and
+ *   service inheritance contracts, both cost chokepoints, Redis blob
+ *   compatibility, plus the modal scroll-architecture pin) + frontend 5,501
+ *   (442 files — the slot editor helpers and modal journeys) = 23,930 → 23,900.
+ *   Previous at v1.30.4: backend 18,357
  *   (`pytest tests/unit tests/agents --collect-only -q --no-cov`; +36 — the
  *   executor failure-propagation contract, the peers manifest pins, the
  *   oversize-clarification i18n and the FOR_EACH measured-claims suites) +
@@ -72,12 +78,12 @@
  *   Re-measure every release: the value carried the backend count alone
  *   until v1.25.9.
  * - adrs: docs/architecture/ ADR files — recount every release, never carry it
- *   over (it was stranded at 183 from v1.27.0 to v1.27.4). 221 files at
- *   v1.30.2, numbered up to ADR-222: ADR-008 has no separate file, so the
+ *   over (it was stranded at 183 from v1.27.0 to v1.27.4). 222 files at
+ *   v1.30.5, numbered up to ADR-223: ADR-008 has no separate file, so the
  *   highest number is always one above the file count.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   208 headings at v1.30.4, no Unreleased pending.
+ *   209 headings at v1.30.5, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -93,9 +99,9 @@ export const LANDING_STATS = {
   voiceLanguages: 99,
   metrics: 473,
   uiLanguages: 6,
-  tests: 23800,
-  adrs: 221,
-  releases: 208,
+  tests: 23900,
+  adrs: 222,
+  releases: 209,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

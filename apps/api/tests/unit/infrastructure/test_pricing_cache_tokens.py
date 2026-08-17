@@ -14,7 +14,9 @@ three fail-soft exits, and the bucket contract shared with ``TokenExtractor``
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
+from datetime import UTC, datetime
 
 import pytest
 
@@ -32,6 +34,28 @@ OUTPUT_PRICE = 1.60
 CACHED_PRICE = 0.10
 USD_EUR = 0.9
 MILLION = 1_000_000
+
+# DeepSeek-shaped windowed tariff: base = off-peak, peak costs double
+# during 01:00-04:00 and 06:00-10:00 UTC (verified 2026-08-17).
+PEAK_SLOTS = [
+    {
+        "start_utc": "01:00",
+        "end_utc": "04:00",
+        "input_unit_price": INPUT_PRICE * 2,
+        "cached_input_unit_price": CACHED_PRICE * 2,
+        "output_unit_price": OUTPUT_PRICE * 2,
+    },
+    {
+        "start_utc": "06:00",
+        "end_utc": "10:00",
+        "input_unit_price": INPUT_PRICE * 2,
+        "cached_input_unit_price": CACHED_PRICE * 2,
+        "output_unit_price": OUTPUT_PRICE * 2,
+    },
+]
+
+PEAK_AT = datetime(2026, 8, 17, 2, 30, tzinfo=UTC)
+OFF_PEAK_AT = datetime(2026, 8, 17, 12, 0, tzinfo=UTC)
 
 
 @pytest.fixture(autouse=True)
@@ -57,6 +81,13 @@ def _populate_local_cache() -> Iterator[None]:
                 output_unit_price=0.0,
                 cached_input_unit_price=0.0,
                 pricing_unit="per_audio_hour",
+            ),
+            "deepseek-v4-flash": CachedModelPrice(
+                input_unit_price=INPUT_PRICE,
+                output_unit_price=OUTPUT_PRICE,
+                cached_input_unit_price=CACHED_PRICE,
+                pricing_unit="per_1m_tokens",
+                time_slots=PEAK_SLOTS,
             ),
         },
         usd_eur_rate=USD_EUR,
@@ -128,6 +159,94 @@ class TestFailSoftExits:
     def test_uninitialised_cache_costs_zero(self) -> None:
         pricing_cache._local_cache = None
         assert get_cached_cost_usd_eur("gpt-4.1-mini", MILLION, MILLION) == (0.0, 0.0)
+
+
+# ============================================================================
+# UTC time-slot tariffs (ADR-223)
+# ============================================================================
+
+
+class TestTimeSlotPricing:
+    def test_peak_window_applies_the_slot_prices(self) -> None:
+        usd, eur = get_cached_cost_usd_eur("deepseek-v4-flash", MILLION, MILLION, at=PEAK_AT)
+        assert usd == pytest.approx((INPUT_PRICE + OUTPUT_PRICE) * 2)
+        assert eur == pytest.approx(usd * USD_EUR)
+
+    def test_outside_every_window_the_base_prices_apply(self) -> None:
+        usd, _ = get_cached_cost_usd_eur("deepseek-v4-flash", MILLION, MILLION, at=OFF_PEAK_AT)
+        assert usd == pytest.approx(INPUT_PRICE + OUTPUT_PRICE)
+
+    def test_cached_tokens_use_the_slot_cached_rate_during_a_window(self) -> None:
+        usd, _ = get_cached_cost_usd_eur(
+            "deepseek-v4-flash", 0, 0, cached_tokens=MILLION, at=PEAK_AT
+        )
+        assert usd == pytest.approx(CACHED_PRICE * 2)
+
+    def test_a_slot_without_cached_price_charges_nothing_for_cache(self) -> None:
+        """Mirror of the base-price rule: providers without separate cache
+        billing report cache reads inside input_tokens — charging them here
+        would double-bill during the window only."""
+        cache = pricing_cache._local_cache
+        assert cache is not None
+        slots = [{**PEAK_SLOTS[0], "cached_input_unit_price": None}]
+        cache.models["deepseek-v4-flash"] = CachedModelPrice(
+            input_unit_price=INPUT_PRICE,
+            output_unit_price=OUTPUT_PRICE,
+            cached_input_unit_price=CACHED_PRICE,
+            pricing_unit="per_1m_tokens",
+            time_slots=slots,
+        )
+        usd, _ = get_cached_cost_usd_eur(
+            "deepseek-v4-flash", 0, 0, cached_tokens=MILLION, at=PEAK_AT
+        )
+        assert usd == pytest.approx(0.0)
+
+    def test_flat_priced_models_ignore_the_at_parameter(self) -> None:
+        peak, _ = get_cached_cost_usd_eur("gpt-4.1-mini", MILLION, MILLION, at=PEAK_AT)
+        off, _ = get_cached_cost_usd_eur("gpt-4.1-mini", MILLION, MILLION, at=OFF_PEAK_AT)
+        assert peak == off == pytest.approx(INPUT_PRICE + OUTPUT_PRICE)
+
+    def test_default_at_is_now_utc(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Callers on the hot path pass no ``at`` — the call instant is the
+        billing instant, matching what the provider invoices."""
+
+        class _FrozenDatetime(datetime):
+            @classmethod
+            def now(cls, tz: object = None) -> datetime:  # type: ignore[override]
+                return PEAK_AT
+
+        monkeypatch.setattr(pricing_cache, "datetime", _FrozenDatetime)
+        usd, _ = get_cached_cost_usd_eur("deepseek-v4-flash", MILLION, 0)
+        assert usd == pytest.approx(INPUT_PRICE * 2)
+
+    def test_old_redis_blob_without_time_slots_still_deserializes(self) -> None:
+        """Rolling-deploy safety: a blob written by the previous release has
+        no ``time_slots`` key and must load as flat pricing, not crash."""
+        old_blob = json.dumps(
+            {
+                "models": {
+                    "gpt-4.1-mini": {
+                        "input_unit_price": INPUT_PRICE,
+                        "output_unit_price": OUTPUT_PRICE,
+                        "cached_input_unit_price": CACHED_PRICE,
+                        "pricing_unit": "per_1m_tokens",
+                    }
+                },
+                "usd_eur_rate": USD_EUR,
+                "last_refresh_ts": 0.0,
+            }
+        )
+        data = PricingCacheData.from_json(old_blob)
+        assert data.models["gpt-4.1-mini"].time_slots is None
+
+    def test_redis_round_trip_preserves_time_slots(self) -> None:
+        """Serialization-pair rule: slots must survive Redis verbatim, or a
+        worker restart silently reverts every model to flat pricing."""
+        cache = pricing_cache._local_cache
+        assert cache is not None
+        restored = PricingCacheData.from_json(cache.to_json())
+        assert restored.models["deepseek-v4-flash"].time_slots == PEAK_SLOTS
+        assert restored.models["gpt-4.1-mini"].time_slots is None
 
 
 # ============================================================================

@@ -30,6 +30,7 @@ from src.domains.llm.models import (
     LLMReasoningWidgetEnum,
     PricingUnitEnum,
 )
+from src.domains.llm.pricing_time_slots import slots_to_jsonb
 from src.domains.llm.repository import LLMModelRepository
 from src.domains.llm.schemas import (
     ModelPriceCreate,
@@ -39,6 +40,18 @@ from src.domains.llm.schemas import (
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+class TimeSlotsUnitMismatchError(ValueError):
+    """Raised when the merged pricing state pairs time slots with an audio unit.
+
+    The schema can only validate what a single payload carries; switching
+    ``pricing_unit`` away from ``per_1m_tokens`` while the current row's
+    slots would be inherited (or setting slots while inheriting an audio
+    unit) is only detectable here. Subclass of :class:`ValueError`, but the
+    router must catch it FIRST — the generic ``ValueError`` handler answers
+    ``409 already_exists``, which would misdiagnose this 400.
+    """
 
 
 class UnknownReasoningTemplateError(LookupError):
@@ -80,6 +93,7 @@ _PRICING_FIELDS: frozenset[str] = frozenset(
         "cached_input_unit_price",
         "output_unit_price",
         "pricing_unit",
+        "time_slots",
     }
 )
 
@@ -151,6 +165,9 @@ class LLMModelService:
             cached_input_unit_price=data.cached_input_unit_price,
             output_unit_price=data.output_unit_price,
             pricing_unit=PricingUnitEnum(data.pricing_unit),
+            # [] normalizes to NULL: both mean flat pricing, and NULL keeps
+            # the runtime resolver's fast "no slots" exit.
+            time_slots=slots_to_jsonb(data.time_slots) if data.time_slots else None,
             is_active=True,
         )
         # Pre-populate the relationship so callers reading pricing.model.model_name
@@ -238,10 +255,29 @@ class LLMModelService:
             current = await self._get_active_pricing(model.id)
             if current is None:
                 raise LookupError(f"Model {model.model_name!r} has no active pricing row to update")
+
+            new_pricing_unit_value = price_changes.get("pricing_unit", current.pricing_unit.value)
+            # Time slots: replace when the payload carries them ([] clears →
+            # NULL), inherit the current row's slots otherwise — an unrelated
+            # price bump must not silently revert a model to flat pricing.
+            # Read from `data` (typed TimeSlotPrice), not from the dumped
+            # change set, so JSONB gets the canonical float shape. Validate
+            # the MERGED state before mutating anything.
+            if "time_slots" in price_changes:
+                new_time_slots = slots_to_jsonb(data.time_slots) if data.time_slots else None
+            else:
+                new_time_slots = current.time_slots or None
+            if new_time_slots and new_pricing_unit_value != PricingUnitEnum.per_1m_tokens.value:
+                raise TimeSlotsUnitMismatchError(
+                    "time_slots are only supported with pricing_unit='per_1m_tokens'; "
+                    f"the merged state pairs {len(new_time_slots)} slot(s) with "
+                    f"{new_pricing_unit_value!r}. Pass time_slots=[] to clear them "
+                    "in the same update."
+                )
+
             current.is_active = False
             await self.db.flush()
 
-            new_pricing_unit_value = price_changes.get("pricing_unit", current.pricing_unit.value)
             new_pricing = LLMModelPricing(
                 model_id=model.id,
                 input_unit_price=price_changes.get("input_unit_price", current.input_unit_price),
@@ -251,6 +287,7 @@ class LLMModelService:
                 ),
                 output_unit_price=price_changes.get("output_unit_price", current.output_unit_price),
                 pricing_unit=PricingUnitEnum(new_pricing_unit_value),
+                time_slots=new_time_slots,
                 is_active=True,
             )
             # Pre-populate relationship; do NOT refresh (would clear it and

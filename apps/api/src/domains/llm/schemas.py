@@ -10,6 +10,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.core.reasoning_types import ReasoningBudgetRange
+from src.domains.llm.pricing_time_slots import TimeSlotPrice, validate_time_slot_list
 
 # Enum-like literal type for the provider field. Must stay in sync with
 # LLMProviderEnum (apps/api/src/domains/llm/models.py) AND LLM_PROVIDERS
@@ -52,6 +53,10 @@ class ModelPriceResponse(BaseModel):
     pricing_unit: PricingUnitLiteral
     effective_from: datetime
     is_active: bool
+    time_slots: list[TimeSlotPrice] | None = Field(
+        default=None,
+        description="Optional UTC windowed tariff (ADR-223); None = flat pricing",
+    )
 
     # Catalogue fields (from llm_models via JOIN)
     provider: ProviderLiteral
@@ -214,6 +219,28 @@ class ModelPriceCreate(BaseModel):
     output_unit_price: Decimal = Field(
         ..., ge=0, description="Output unit price in USD (0 for STT models)"
     )
+    time_slots: list[TimeSlotPrice] | None = Field(
+        default=None,
+        description=(
+            "Optional UTC windowed tariff (ADR-223): non-overlapping "
+            "[start,end) windows, each overriding the three unit prices "
+            "while active; outside every window the base prices apply. "
+            "Only accepted with pricing_unit='per_1m_tokens'. None/[] = "
+            "flat pricing."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _validate_time_slots(self) -> "ModelPriceCreate":
+        """Reject overlapping windows and windowed tariffs on audio units."""
+        if self.time_slots:
+            if self.pricing_unit != "per_1m_tokens":
+                raise ValueError(
+                    "time_slots are only supported with pricing_unit='per_1m_tokens' "
+                    f"(got {self.pricing_unit!r})"
+                )
+            validate_time_slot_list(self.time_slots)
+        return self
 
     @model_validator(mode="after")
     def _enforce_template_xor_custom(self) -> "ModelPriceCreate":
@@ -349,6 +376,34 @@ class ModelPriceUpdate(BaseModel):
     input_unit_price: Decimal | None = Field(default=None, ge=0)
     cached_input_unit_price: Decimal | None = Field(default=None, ge=0)
     output_unit_price: Decimal | None = Field(default=None, ge=0)
+    time_slots: list[TimeSlotPrice] | None = Field(
+        default=None,
+        description=(
+            "Optional UTC windowed tariff (ADR-223). Omitted = inherit the "
+            "current row's slots onto the new temporal version; [] = clear "
+            "them (the explicit-null form is dropped by the service's "
+            "exclude_none change-set, so the empty list IS the clearing "
+            "sentinel); non-empty = replace. Only valid while the effective "
+            "pricing_unit is 'per_1m_tokens'."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _validate_time_slots(self) -> "ModelPriceUpdate":
+        """Reject overlaps, and audio units combined with non-empty slots.
+
+        The unit check here only covers payloads carrying BOTH fields; the
+        merged state (inherited slots + switched unit, or inherited unit +
+        new slots) is validated by the service, which knows the current row.
+        """
+        if self.time_slots:
+            if self.pricing_unit is not None and self.pricing_unit != "per_1m_tokens":
+                raise ValueError(
+                    "time_slots are only supported with pricing_unit='per_1m_tokens' "
+                    f"(got {self.pricing_unit!r})"
+                )
+            validate_time_slot_list(self.time_slots)
+        return self
 
     @model_validator(mode="after")
     def _reject_template_with_explicit_reasoning(self) -> "ModelPriceUpdate":

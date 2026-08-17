@@ -4,7 +4,7 @@
 
 **Version**: 4.8
 **Date**: 2026-08-17
-**Application**: LIA v1.30.4
+**Application**: LIA v1.30.5
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -90,7 +90,7 @@ The administrator accesses a third tab dedicated to instance management:
 
 - **LLM configuration**: configure provider API keys (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), assign a model per role in the pipeline, manage reasoning levels — keys stored encrypted. The dialog only exposes the parameters the chosen model actually accepts (per-model DB matrix for temperature, top_p, frequency_penalty, presence_penalty and reasoning widget shape), preventing entry of any value the API would reject
 - **Connector activation/deactivation**: enable or disable integrations globally (Google OAuth, Apple, Microsoft 365, Hue, weather, Wikipedia, Perplexity, Brave Search). Deactivation revokes active connections and notifies users
-- **Pricing**: manage pricing per LLM model (cost per million tokens), per Google Maps API (Places, Routes, Geocoding), and per image generation — with price history. When adding a new reasoning model, a "copy shape from such existing model" selector lets the operator inherit the reasoning widget and its values without manual entry; Custom mode remains available for atypical models
+- **Pricing**: manage pricing per LLM model (cost per million tokens), per Google Maps API (Places, Routes, Geocoding), and per image generation — with price history. When adding a new reasoning model, a "copy shape from such existing model" selector lets the operator inherit the reasoning widget and its values without manual entry; Custom mode remains available for atypical models. Text-model tariffs can also vary by UTC time of day (peak/off-peak windows, DeepSeek-style): each call is then valued at the tariff of its exact moment, and usage statistics match the provider's real invoice
 
 **Content and extensions:**
 

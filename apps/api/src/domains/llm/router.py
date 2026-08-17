@@ -35,7 +35,11 @@ from src.domains.llm.schemas import (
     ModelPriceUpdate,
     ReasoningTemplatesResponse,
 )
-from src.domains.llm.service import LLMModelService, UnknownReasoningTemplateError
+from src.domains.llm.service import (
+    LLMModelService,
+    TimeSlotsUnitMismatchError,
+    UnknownReasoningTemplateError,
+)
 from src.domains.users.models import AdminAuditLog, User
 from src.infrastructure.cache.pricing_cache import PricingCacheService
 from src.infrastructure.cache.redis import get_redis_cache
@@ -61,6 +65,7 @@ def _pricing_to_response(pricing: LLMModelPricing) -> ModelPriceResponse:
             "pricing_unit": pricing.pricing_unit.value,
             "effective_from": pricing.effective_from,
             "is_active": pricing.is_active,
+            "time_slots": pricing.time_slots or None,
             # Catalogue
             "provider": model.provider.value,
             "model_name": model.model_name,
@@ -311,6 +316,8 @@ async def create_pricing(
             "pricing_unit": pricing.pricing_unit.value,
             "input_unit_price": float(pricing.input_unit_price),
             "output_unit_price": float(pricing.output_unit_price),
+            # Counts only — the slot prices are already visible on the row.
+            "time_slots_count": len(pricing.time_slots or []),
         },
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
@@ -368,6 +375,10 @@ async def update_pricing(
         raise_invalid_input(str(exc))
     except LookupError:
         raise_pricing_not_found(model_name)
+    except TimeSlotsUnitMismatchError as exc:
+        # Merged state pairs time slots with an audio unit — a 400, caught
+        # BEFORE plain ValueError whose handler answers 409 already_exists.
+        raise_invalid_input(str(exc))
     except ValueError:
         # Rename target conflicts with an existing model.
         target = data.model_name or model_name
@@ -399,6 +410,7 @@ async def update_pricing(
             "kind": model.kind.value,
             "reasoning_widget": model.reasoning_widget.value,
             "new_pricing_id": str(new_pricing.id) if new_pricing else None,
+            "time_slots_count": (len(new_pricing.time_slots or []) if new_pricing else None),
         },
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),

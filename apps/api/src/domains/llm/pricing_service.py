@@ -6,9 +6,9 @@ All pricing operations are asynchronous to support FastAPI async routes.
 """
 
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import structlog
 from sqlalchemy import select
@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.constants import SUPPORTED_CURRENCIES
 from src.core.llm_utils import normalize_model_name
 from src.domains.llm.models import CurrencyExchangeRate, LLMModelPricing
+from src.domains.llm.pricing_time_slots import find_active_slot
 
 logger = structlog.get_logger(__name__)
 
@@ -44,6 +45,7 @@ class ModelPrice(NamedTuple):
         output_price: Output unit price (USD)
         pricing_unit: Billing unit semantics (per_1m_tokens / per_audio_minute / per_audio_hour)
         effective_from: Date when this pricing became effective
+        time_slots: Optional UTC windowed tariff (ADR-223); None = flat pricing
     """
 
     model_name: str
@@ -52,6 +54,55 @@ class ModelPrice(NamedTuple):
     output_price: Decimal
     pricing_unit: str
     effective_from: datetime
+    time_slots: list[dict[str, Any]] | None = None
+
+
+def _token_cost_usd(
+    pricing: ModelPrice,
+    input_tokens: int,
+    output_tokens: int,
+    cached_tokens: int,
+    at: datetime,
+) -> float:
+    """Per-million USD arithmetic shared by both cost calculators (ADR-223).
+
+    Resolves the active time slot for ``at`` (if the row carries a windowed
+    tariff) and prices the three token buckets additively. A slot overrides
+    all three unit prices; its ``cached_input_unit_price`` may be None with
+    the same semantic as the base column (no separate cache billing).
+
+    Args:
+        pricing: The pricing row to apply (``pricing_unit`` already checked
+            by the caller to be ``per_1m_tokens``).
+        input_tokens: Non-cached input tokens.
+        output_tokens: Output tokens.
+        cached_tokens: Cached input tokens.
+        at: Billing instant (timezone-aware) used for slot resolution.
+
+    Returns:
+        Total cost in USD.
+    """
+    slot = find_active_slot(pricing.time_slots, at)
+    if slot is not None:
+        input_price = float(slot["input_unit_price"])
+        raw_cached = slot.get("cached_input_unit_price")
+        cached_price = float(raw_cached) if raw_cached is not None else None
+        output_price = float(slot["output_unit_price"])
+    else:
+        input_price = float(pricing.input_price)
+        cached_price = (
+            float(pricing.cached_input_price) if pricing.cached_input_price is not None else None
+        )
+        output_price = float(pricing.output_price)
+
+    input_cost_usd = (input_tokens / 1_000_000) * input_price
+    if cached_price is not None and cached_tokens > 0:
+        cached_cost_usd = (cached_tokens / 1_000_000) * cached_price
+    else:
+        cached_cost_usd = 0.0
+    output_cost_usd = (output_tokens / 1_000_000) * output_price
+
+    return input_cost_usd + cached_cost_usd + output_cost_usd
 
 
 # ============================================================================
@@ -187,6 +238,7 @@ class AsyncPricingService:
             output_price=pricing.output_unit_price,
             pricing_unit=pricing.pricing_unit.value,
             effective_from=pricing.effective_from,
+            time_slots=pricing.time_slots,
         )
 
     async def get_active_currency_rate(self, from_currency: str, to_currency: str) -> Decimal:
@@ -355,6 +407,7 @@ class AsyncPricingService:
             output_price=pricing.output_unit_price,
             pricing_unit=pricing.pricing_unit.value,
             effective_from=pricing.effective_from,
+            time_slots=pricing.time_slots,
         )
 
     async def calculate_token_cost_at_date(
@@ -423,18 +476,11 @@ class AsyncPricingService:
             )
             return 0.0
 
-        # Calculate USD cost per 1 million tokens
-        input_cost_usd = (input_tokens / 1_000_000) * float(pricing.input_price)
-
-        # Cached input tokens (if supported by model)
-        if pricing.cached_input_price is not None and cached_tokens > 0:
-            cached_cost_usd = (cached_tokens / 1_000_000) * float(pricing.cached_input_price)
-        else:
-            cached_cost_usd = 0.0
-
-        output_cost_usd = (output_tokens / 1_000_000) * float(pricing.output_price)
-
-        total_cost_usd = input_cost_usd + cached_cost_usd + output_cost_usd
+        # Shared per-million arithmetic; the slot (if any) is resolved at the
+        # HISTORICAL instant so a peak-hour message keeps its peak cost.
+        total_cost_usd = _token_cost_usd(
+            pricing, input_tokens, output_tokens, cached_tokens, at_date
+        )
 
         # Convert to EUR (configured default currency)
         if settings.default_currency.upper() == _CURRENCY_EUR:
@@ -491,6 +537,7 @@ class AsyncPricingService:
         input_tokens: int,
         output_tokens: int,
         cached_tokens: int = 0,
+        at: datetime | None = None,
     ) -> tuple[float, float]:
         """
         Calculate LLM token cost in USD and configured currency (EUR).
@@ -503,6 +550,8 @@ class AsyncPricingService:
             input_tokens: Number of input/prompt tokens
             output_tokens: Number of output/completion tokens
             cached_tokens: Number of cached input tokens (default: 0)
+            at: Billing instant used for time-slot tariff resolution
+                (ADR-223). Defaults to now (UTC) — the call instant.
 
         Returns:
             Tuple of (cost_usd, cost_eur) as floats
@@ -546,18 +595,11 @@ class AsyncPricingService:
             )
             return (0.0, 0.0)
 
-        # Calculate USD cost per 1 million tokens
-        input_cost_usd = (input_tokens / 1_000_000) * float(pricing.input_price)
-
-        # Cached input tokens (if supported by model)
-        if pricing.cached_input_price is not None and cached_tokens > 0:
-            cached_cost_usd = (cached_tokens / 1_000_000) * float(pricing.cached_input_price)
-        else:
-            cached_cost_usd = 0.0
-
-        output_cost_usd = (output_tokens / 1_000_000) * float(pricing.output_price)
-
-        total_cost_usd = input_cost_usd + cached_cost_usd + output_cost_usd
+        # Shared per-million arithmetic; the slot (if any) is resolved at the
+        # billing instant — the call time unless the caller pins one.
+        total_cost_usd = _token_cost_usd(
+            pricing, input_tokens, output_tokens, cached_tokens, at or datetime.now(UTC)
+        )
 
         # Convert to EUR (configured default currency)
         if settings.default_currency.upper() == _CURRENCY_EUR:

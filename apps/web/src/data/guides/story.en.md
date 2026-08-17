@@ -4,7 +4,7 @@
 
 **Version**: 1.6
 **Date**: 2026-08-17
-**Application**: LIA v1.30.4
+**Application**: LIA v1.30.5
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,8 +19,8 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Lines of code (excluding tests) — 40 functional domains | **520,000** |
-| Automated tests, run on every commit and release | **23,800+** |
-| Documented architecture decisions (ADR) | **221** |
+| Automated tests, run on every commit and release | **23,900+** |
+| Documented architecture decisions (ADR) | **222** |
 | Versions shipped at a steady pace | **207** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
@@ -97,7 +97,7 @@ Cycle 1.30.1 took the logic one step further: it audited the audit. An internal 
 
 Cycle 1.30.2 applied the same discipline to what nobody ever looks at: the foundations. Upgrading the orchestration ecosystem past five months of fixes could have been a number swap; it was run as an evidence-first operation — every version validated in a throwaway environment before touching the repo, eight and a half thousand tests executed under the target versions, the private integration points simulated offline. And the audit that came with the upgrade found what coverage metrics were hiding: seventeen hundred and fifty lines of a second, never-wired implementation of human-in-the-loop resumption, kept green by fifty tests. Deleted, with its architecture decision on record. A showcase system is judged not only by what it shows — also by what it refuses to keep.
 
-Cycle 1.30.4 started from a three-line user message: "I asked to relay a message, I got a confirmation, nothing was sent." The investigation — timestamped production logs, database, the container's own code, one proof at a time — traced it to a single line: the execution engine was overwriting every tool's verdict with a hardcoded success, and the honesty layer designed precisely to name blockages was being disarmed by the very lie it existed to prevent. The fix is small; the method is the real deliverable: every hypothesis counter-verified before writing a line, every fix preceded by a failing test, and an assistant that now tells the truth all the way into its refusals — with exact numbers, in all six languages.
+Cycle 1.30.5 started from a three-line user message: "I asked to relay a message, I got a confirmation, nothing was sent." The investigation — timestamped production logs, database, the container's own code, one proof at a time — traced it to a single line: the execution engine was overwriting every tool's verdict with a hardcoded success, and the honesty layer designed precisely to name blockages was being disarmed by the very lie it existed to prevent. The fix is small; the method is the real deliverable: every hypothesis counter-verified before writing a line, every fix preceded by a failing test, and an assistant that now tells the truth all the way into its refusals — with exact numbers, in all six languages.
 
 ## 7. Convictions
 

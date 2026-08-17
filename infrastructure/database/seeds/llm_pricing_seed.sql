@@ -6,6 +6,17 @@
 -- since 2026-08-15; the previous generation hardcoded per_1m_tokens and
 -- silently dropped the scribe audio-hour rows).
 --
+-- Since 2026-08-17 the table also carries a nullable ``time_slots`` JSONB
+-- column (ADR-223, UTC windowed tariffs — DeepSeek peak/off-peak). The
+-- INSERT below omits it (NULL = flat pricing, the state of the last
+-- extraction); a dedicated UPDATE block at the end of this file sets the
+-- official DeepSeek v4 windows — the demo database is rebuilt from this
+-- bundle at every boot, so the windowed tariff must live HERE, not in an
+-- admin-UI entry. The NEXT production extraction MUST include the column,
+-- or every windowed tariff set through the admin UI silently reverts to
+-- flat on fresh installs — the exact defect class the pricing_unit note
+-- above records.
+--
 -- Two tables, both idempotent (ON CONFLICT DO NOTHING):
 --   llm_models        — the capabilities catalogue (123 models)
 --   llm_model_pricing — prices resolved by model NAME (139 rows, price
@@ -319,5 +330,38 @@ FROM (VALUES
 ) AS p(model_name, input, cached, output, unit, effective_from, is_active)
 JOIN llm_models m ON m.model_name = p.model_name
 ON CONFLICT (model_id, effective_from) DO NOTHING;
+
+-- ============================================================================
+-- Time-slot tariffs (ADR-223) — DeepSeek v4 official peak/off-peak windows
+-- (verified 2026-08-17 on api-docs.deepseek.com: peak 01:00-04:00 and
+-- 06:00-10:00 UTC, all other hours at exactly 50%).
+--
+-- The demo instance's database lives in tmpfs and is rebuilt from THIS
+-- bundle at every boot, so the windowed tariff must ship here — an
+-- admin-UI entry would not survive a restart. Base columns become the
+-- OFF-PEAK tariff (the default outside every window); the two peak windows
+-- override all three prices. Idempotent by construction (absolute values).
+-- ============================================================================
+UPDATE llm_model_pricing p
+SET input_unit_price = 0.220000,
+    cached_input_unit_price = 0.007000,
+    output_unit_price = 0.660000,
+    time_slots = '[
+      {"start_utc": "01:00", "end_utc": "04:00", "input_unit_price": 0.44, "cached_input_unit_price": 0.014, "output_unit_price": 1.32},
+      {"start_utc": "06:00", "end_utc": "10:00", "input_unit_price": 0.44, "cached_input_unit_price": 0.014, "output_unit_price": 1.32}
+    ]'::jsonb
+FROM llm_models m
+WHERE m.id = p.model_id AND m.model_name = 'deepseek-v4-flash' AND p.is_active;
+
+UPDATE llm_model_pricing p
+SET input_unit_price = 0.660000,
+    cached_input_unit_price = 0.022000,
+    output_unit_price = 1.980000,
+    time_slots = '[
+      {"start_utc": "01:00", "end_utc": "04:00", "input_unit_price": 1.32, "cached_input_unit_price": 0.044, "output_unit_price": 3.96},
+      {"start_utc": "06:00", "end_utc": "10:00", "input_unit_price": 1.32, "cached_input_unit_price": 0.044, "output_unit_price": 3.96}
+    ]'::jsonb
+FROM llm_models m
+WHERE m.id = p.model_id AND m.model_name = 'deepseek-v4-pro' AND p.is_active;
 
 SET session_replication_role = DEFAULT;
