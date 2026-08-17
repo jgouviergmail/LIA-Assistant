@@ -48,6 +48,7 @@ VALID_AGENTS: frozenset[str] = frozenset({
     "browser_agent",
     "hue_agent",
     "image_generation_agent",
+    "document_generation_agent",
 })
 
 VALID_STEP_TYPES: frozenset[str] = frozenset({

@@ -158,6 +158,15 @@ describe('chatReducer — STREAM_DONE', () => {
     tts_cost_eur: 0.01,
     skill_name: 'weather',
     generated_images: [{ url: 'https://img/1.png', alt: 'img' }],
+    generated_documents: [
+      {
+        url: '/api/v1/attachments/d1',
+        filename: 'modeles-llm.csv',
+        doc_type: 'csv',
+        size_bytes: 2048,
+        expires_at: null,
+      },
+    ],
     browser_screenshot: { url: 'https://shot/1.jpg', alt: 'shot' },
     psyche_state: {
       mood_label: 'joyful',
@@ -191,6 +200,15 @@ describe('chatReducer — STREAM_DONE', () => {
       ttsCostEur: 0.01,
       skillName: 'weather',
       generatedImages: [{ url: 'https://img/1.png', alt: 'img' }],
+      generatedDocuments: [
+        {
+          url: '/api/v1/attachments/d1',
+          filename: 'modeles-llm.csv',
+          doc_type: 'csv',
+          size_bytes: 2048,
+          expires_at: null,
+        },
+      ],
       browserScreenshot: { url: 'https://shot/1.jpg', alt: 'shot' },
     });
     expect(next.messages[0].metadata?.psyche_state).toEqual(fullMetadata.psyche_state);

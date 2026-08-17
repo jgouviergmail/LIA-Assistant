@@ -30,6 +30,7 @@ _REFERENCE_MATRIX: dict[str, tuple[str, list[str] | None, dict[str, Any] | None]
     "gpt-5-mini": ("enum", ["minimal", "low", "medium", "high"], None),
     "gpt-5.4-mini": ("enum", ["none", "low", "medium", "high", "xhigh"], None),
     # OpenAI non-reasoning models used in defaults (widget=none)
+    "gpt-4.1": ("none", None, None),
     "gpt-4.1-mini": ("none", None, None),
     "gpt-4.1-nano": ("none", None, None),
     # Anthropic reasoning models used in defaults (widget=enum). The

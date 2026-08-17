@@ -529,6 +529,16 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         required_capabilities=[],  # Images API, not chat completions
         required_kind=LLMModelKindEnum.image,
     ),
+    # AI Document Generation (ADR-226): writes whole structured documents
+    # (csv/xlsx/docx/pptx/pdf/md/txt) in one structured-output call.
+    "document_generation": LLMTypeMetadata(
+        llm_type="document_generation",
+        display_name="Document Generation",
+        category=CATEGORY_SPECIALIZED,
+        description_key="settings.admin.llmConfig.types.document_generation",
+        required_capabilities=[],
+        power_tier=POWER_TIER_HIGH,
+    ),
     # Voice STT (when user opts into the remote provider for the voice mode).
     # Token-based sampling caps don't apply (STT is audio-billed); the
     # admin form should hide them for kind=audio rows.
@@ -1129,6 +1139,19 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=50000,
+        timeout_seconds=120.0,
+    ),
+    # Document Generation (ADR-226) — writes whole documents in one
+    # structured-output call. gpt-4.1: active pricing rows in the llm_pricing
+    # seed (cost tracking stays non-zero) and a 32k output cap >= max_tokens.
+    "document_generation": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1",
+        temperature=0.2,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=16000,
         timeout_seconds=120.0,
     ),
     # Voice STT — ElevenLabs Scribe v2 by default ($0.22/hour). The sampling

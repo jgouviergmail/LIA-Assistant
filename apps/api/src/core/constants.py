@@ -4827,6 +4827,36 @@ IMAGE_EDIT_RESPONSES_MODEL: str = "gpt-4.1-mini"
 CACHE_NAME_IMAGE_GENERATION_PRICING: str = "image_generation_pricing"
 
 # ============================================================================
+# DOCUMENT GENERATION (evolution — Document Generation Agent, ADR-226)
+# ============================================================================
+# Feature flag
+DOCUMENT_GENERATION_ENABLED_DEFAULT: bool = True
+
+# Tool-level rate limiting (per-user sliding window, @rate_limit decorator).
+# Mirrors image generation: 10 calls / 5 min per user bounds a runaway loop
+# while never blocking normal usage (1-2 documents per message). The paid
+# resource here is the document_generation LLM slot (tokens), covered by the
+# usage_limits cost caps for the billing-cycle dimension.
+DOCUMENT_GENERATION_RATE_LIMIT_CALLS_DEFAULT: int = 10
+DOCUMENT_GENERATION_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 300
+
+# Timeout family (ADR-160 doctrine, like browser / image / sub-agent): the
+# internal structured-output LLM call writes whole documents (up to the slot's
+# max_tokens), well above the generic 30s tool default. Dedicated ceiling so a
+# planner-requested timeout is never capped below the real latency of a large
+# document.
+DOCUMENT_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT: float = 120.0
+MAX_DOCUMENT_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT: float = 480.0
+
+# Cap on the source_data characters forwarded to the document LLM (research
+# results can be arbitrarily large; the excess is truncated and the truncation
+# is stated in the tool result — a count shown is a claim).
+DOCUMENT_GENERATION_MAX_SOURCE_CHARS_DEFAULT: int = 60000
+
+# LLM config key (LLM_TYPES_REGISTRY / LLMConfigOverrideCache lookup)
+DOCUMENT_GENERATION_LLM_TYPE: str = "document_generation"
+
+# ============================================================================
 # DEVOPS (Claude CLI Remote Server Management)
 # ============================================================================
 DEVOPS_DOMAIN_NAME: str = "devops"

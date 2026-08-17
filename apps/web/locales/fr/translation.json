@@ -753,6 +753,14 @@
       "title": "Erreur de chargement",
       "message": "Les messages ne peuvent pas être affichés. Veuillez rafraîchir la page."
     },
+    "document_card": {
+      "download": "Télécharger {{name}}",
+      "open": "Ouvrir {{name}}",
+      "open_short": "Ouvrir"
+    },
+    "document_expiry": {
+      "expired": "Ce document a expiré et n'est plus disponible"
+    },
     "image_expiry": {
       "until": "Disponible jusqu'au {{date}} — téléchargez-la pour la conserver",
       "soon_one": "Expire dans {{count}} heure — téléchargez-la pour la conserver",
@@ -1166,6 +1174,13 @@
       "stt_mode_updated_success": "Moteur de transcription mis à jour",
       "stt_remote_unavailable_warning": "La transcription distante n'est pas disponible : un administrateur doit d'abord configurer la clé API ElevenLabs.",
       "stt_remote_privacy_notice": "En mode distant, votre audio est transmis à ElevenLabs (cloud) pour la transcription. Le mode local garde l'audio à l'intérieur de LIA."
+    },
+    "document_generation": {
+      "title": "Génération de documents",
+      "description": "Créez des fichiers CSV, Excel, Word, PowerPoint ou PDF téléchargeables dans la conversation",
+      "enable": "Activer la génération de documents",
+      "enable_description": "Autoriser l'assistant à créer des documents téléchargeables ; ils expirent automatiquement",
+      "updated": "Préférence de génération de documents mise à jour"
     },
     "image_generation": {
       "title": "Generation d'images IA",
@@ -2464,6 +2479,7 @@
           "initiative": "Enrichissement proactif post-exécution (vérifications en lecture seule)",
           "mcp_react_agent": "MCP mode itératif : lit la documentation du serveur, puis exécute les outils étape par étape",
           "image_generation": "Génération d'images par IA à partir de descriptions textuelles (gpt-image-1, etc.)",
+          "document_generation": "Rédige des documents complets (CSV, Excel, Word, PowerPoint, PDF…) en sortie structurée pour l'outil generate_document",
           "psyche_summary": "Psyche Summary",
           "briefing": "Génère le greeting et la synthèse du dashboard d'accueil (Today)",
           "telephony_synthesis": "Synthèse post-appel pour les appels téléphoniques agentiques (résumé + proposition)",
@@ -2819,6 +2835,7 @@
       "tool_control_light": "Contrôler une lampe",
       "tool_activate_scene": "Activer une scène Hue",
       "tool_generate_image": "Générer une image par IA",
+      "tool_generate_document": "Générer un document",
       "tool_edit_image": "Modifier une image existante",
       "param_search_query": "Requête de recherche",
       "param_event_id": "ID de l'événement",
@@ -3284,6 +3301,7 @@
         "security-export": "RGPD, archive, téléchargement, portabilité, sauvegarde, données personnelles, confidentialité",
         "voice-mode": "micro, microphone, parole, dictée, STT, TTS, mot d’activation, audio, vocal",
         "image-generation": "images, photos, dessin, illustration, génération, art",
+        "document-generation": "documents, fichiers, csv, excel, word, powerpoint, pdf, export, rapport, présentation",
         "connectors": "google, gmail, agenda, calendrier, contacts, apple, microsoft, outlook, intégrations, comptes, oauth, reconnecter, déconnecté, services, position, localisation, géolocalisation, domicile, adresse, mémoire de position",
         "telephony-calls": "téléphone, appels, historique des appels, composer",
         "admin-mcp-servers": "MCP, model context protocol, serveurs de l’application, outils intégrés",
@@ -3824,6 +3842,7 @@
       "list_hue_scenes": "Liste des scènes Hue...",
       "activate_hue_scene": "Activation de la scène Hue...",
       "generate_image": "Génération de l'image...",
+      "generate_document": "Génération du document...",
       "edit_image": "Modification de l'image...",
       "resolve_reference": "Résolution de la référence...",
       "set_current_item": "Sélection de l'élément...",
@@ -4067,6 +4086,10 @@
           "title": "🎨 Génération & Édition d'Images",
           "description": "Génération d'images à partir de descriptions textuelles et édition d'images existantes avec des instructions en langage naturel. Architecture factory multi-provider, préférences utilisateur (qualité, taille, format), suivi des coûts avec pricing en base de données, stockage via le système de pièces jointes avec nettoyage en cascade. Une image générée est une pièce jointe à durée de vie limitée : la carte affiche l'échéance renvoyée par le serveur — jamais une durée écrite en dur, puisqu'elle est configurable — et bascule sur un ton d'alerte dans les dernières heures, pour que le téléchargement reste possible avant le nettoyage. Le temps accordé à une génération suit la durée réelle du modèle, mesurée par qualité et par format : une image détaillée demande plusieurs minutes, et la borne haute lui laisse cette place au lieu de l'interrompre juste avant la fin."
         },
+        "documentGeneration": {
+          "title": "Génération de documents",
+          "description": "LIA rédige à la demande des documents complets et téléchargeables : tableurs CSV et Excel, rapports Word, présentations PowerPoint avec notes de présentateur, PDF, Markdown et texte brut. Un modèle rédacteur dédié produit le contenu dans votre langue — ancré dans les données que vous fournissez ou dans une recherche faite dans la même requête — puis un moteur de rendu local construit le fichier exact, sans aucun service documentaire tiers. Les fichiers apparaissent en cartes sous la réponse (nom, taille, échéance d'expiration), les PDF s'ouvrent directement dans un onglet, et tout est temporaire par conception : téléchargez ce que vous voulez garder. Désactivable par utilisateur dans les Réglages, coupure d'instance côté administrateur, et les mêmes limites d'usage que tout autre coût IA."
+        },
         "reactMode": {
           "title": "⚡ Mode d'Exécution ReAct",
           "description": "Mode alternatif au pipeline où l'assistant raisonne étape par étape : il appelle un outil, analyse le résultat, puis décide de manière autonome quoi faire ensuite. Boucle de 4 nodes custom dans le graph LangGraph parent avec support HITL natif via interrupt(). Le mode Pipeline (par défaut) consomme 4 à 8× moins de tokens grâce à la planification intelligente et l'exécution parallèle. L'utilisateur bascule entre les deux via un toggle dans l'en-tête du chat. Chaque tour de conversation repart d'un registre de données propre (isolation stricte entre les tours), et l'agent reçoit la carte des types sémantiques cross-domaines avec une règle de précision : récupérer la valeur exacte (l'adresse d'un contact) via l'outil de lookup plutôt qu'une approximation issue de la mémoire. Deux garde-fous encadrent la boucle (ADR-169/170) : son délai se mesure sur le temps de <em>calcul</em>, si bien que l'attente de ton approbation ne l'entame plus — auparavant une validation un peu longue coupait le tour et faisait refabriquer la réponse ; et un outil rappelé à l'identique est refusé au quatrième essai, puis conclut le tour au cinquième. Les consignes système du tour vivent dans l'état plutôt que dans l'historique : le préfixe redevient stable, le cache du fournisseur peut jouer, et la facture cesse de croître avec le nombre de tours."
@@ -4118,6 +4141,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_30_8": {
+          "title": "v1.30.8 — 📄 Génération de documents : de vrais fichiers, à la demande",
+          "date": "Août 2026",
+          "items": {
+            "i1": "<b>📄 Demandez un document, recevez un vrai fichier</b> — LIA rédige désormais des documents complets à la demande : tableurs CSV et Excel, rapports Word, présentations PowerPoint, PDF, Markdown et texte brut. Demandez dans le chat (« recherche les derniers modèles LLM et formalise en CSV », « fais une présentation détaillée sur l'Alsace ») et le fichier fini apparaît en carte téléchargeable sous la réponse — il peut s'enchaîner directement sur une recherche web faite dans la même requête. Un modèle rédacteur dédié produit le contenu dans votre langue ; les tableurs sont sûrs par construction (aucune injection de formule) et prêts pour Excel.",
+            "i2": "<b>🕒 Des fichiers qui disent quand ils expirent</b> — chaque carte de document affiche son nom, sa taille et son échéance exacte d'expiration ; les PDF s'ouvrent directement dans un onglet du navigateur, tout le reste se télécharge en un clic. La génération se désactive par utilisateur dans les Réglages, par instance côté administrateur, et entre dans les mêmes limites d'usage que le reste de votre consommation IA."
+          },
+          "count": "2"
+        },
         "v1_30_7": {
           "title": "v1.30.7 — 🧩 Agent Plugins : installez des plugins portables",
           "date": "Août 2026",
@@ -7162,6 +7194,33 @@
           }
         }
       },
+      "document_generation": {
+        "title": "Génération de documents IA",
+        "description": "Créez des fichiers CSV, Excel, Word, PowerPoint, PDF, Markdown ou texte téléchargeables, directement depuis la conversation.",
+        "count": "5",
+        "questions": {
+          "q1": {
+            "question": "Comment créer un document ?",
+            "answer": "Demandez simplement dans le chat : « Exporte ça en CSV », « Rédige un rapport PDF sur… », « Fais une présentation sur l'Alsace ». Un modèle rédacteur dédié produit le contenu complet dans votre langue, et le fichier fini apparaît en carte téléchargeable sous la réponse. Cela s'enchaîne naturellement avec la recherche : « recherche les derniers modèles LLM, puis formalise le résultat en CSV » produit un fichier ancré dans les résultats frais de la même requête."
+          },
+          "q2": {
+            "question": "Quels formats sont pris en charge ?",
+            "answer": "Sept formats : <b>CSV</b> et <b>Excel (xlsx)</b> pour les tableaux de données, <b>Word (docx)</b> pour les rapports structurés, <b>PowerPoint (pptx)</b> pour les présentations (avec notes de présentateur), <b>PDF</b> pour les documents prêts à imprimer, plus <b>Markdown</b> et <b>texte brut</b>. LIA respecte le format demandé ; si vous dites juste « un tableur » ou « un rapport », il choisit le plus naturel. Les tableurs sont prêts pour Excel (accents corrects, aucune injection de formule par construction)."
+          },
+          "q3": {
+            "question": "Comment visualiser ou télécharger un document généré ?",
+            "answer": "Chaque document apparaît en carte sous la réponse de l'assistant, avec son nom, son type et sa taille. Cliquez sur l'icône de téléchargement pour l'enregistrer — les PDF s'ouvrent quant à eux directement dans un nouvel onglet, pour les lire avant de décider de les garder. La carte survit au rechargement de la page : elle reste dans l'historique de la conversation jusqu'à l'expiration du fichier."
+          },
+          "q4": {
+            "question": "Combien de temps un document reste-t-il disponible, et combien ça coûte ?",
+            "answer": "Les fichiers générés sont temporaires par conception : chaque carte affiche son échéance exacte d'expiration, et un avertissement apparaît à l'approche — téléchargez le fichier pour le conserver. Le coût est celui du modèle rédacteur, compté comme le reste de votre consommation IA dans les limites de votre compte. Une limite technique protège en plus contre les boucles d'emballement ; l'usage normal ne l'atteint jamais."
+          },
+          "q5": {
+            "question": "Puis-je désactiver la génération de documents ?",
+            "answer": "Oui, à deux niveaux. Vous pouvez la couper pour votre propre compte dans <b>Réglages > Préférences > Génération de documents</b>. L'administrateur peut aussi désactiver la capacité pour toute l'instance, instantanément et sans redéploiement — l'outil disparaît alors même de ce que l'assistant peut proposer."
+          }
+        }
+      },
       "health_metrics": {
         "title": "Données santé",
         "description": "API d'ingestion pour pousser fréquence cardiaque et pas depuis n'importe quelle source",
@@ -7282,7 +7341,7 @@
       },
       "share_export": {
         "title": "Une réponse, plusieurs sorties",
-        "desc": "Partage ou exporte n’importe quelle réponse en un geste — toujours en texte lisible, même les réponses mises en page."
+        "desc": "Partagez ou exportez toute réponse d’un geste — et quand il vous faut un vrai fichier, demandez-le : LIA rédige des documents CSV, Excel, Word, PowerPoint ou PDF à télécharger."
       },
       "backstage": {
         "title": "Les coulisses, sur demande",
@@ -10034,6 +10093,8 @@
       "tts_description": "Lit les réponses à voix haute dans le chat. Désactiver arrête la synthèse à son point d’étranglement unique ; rien d’autre ne change.",
       "image_generation": "Génération d’images",
       "image_generation_description": "Création et retouche d’images. Désactiver retire les outils du planificateur et ferme les routes d’options.",
+      "document_generation": "Génération de documents",
+      "document_generation_description": "Création de documents téléchargeables (CSV, Excel, Word, PowerPoint, PDF…). La couper retire l'outil du planificateur.",
       "attachments": "Téléversement de fichiers",
       "attachments_description": "Joindre des fichiers à une conversation. Désactiver refuse les envois dès la porte.",
       "rag_spaces": "Espaces documentaires (RAG)",

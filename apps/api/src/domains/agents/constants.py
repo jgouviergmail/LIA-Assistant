@@ -65,6 +65,9 @@ AGENT_MCP = "mcp_agent"  # Virtual agent grouping all MCP tools (evolution F2)
 AGENT_BROWSER = "browser_agent"  # Interactive web browsing (evolution F7)
 AGENT_HUE = "hue_agent"  # Philips Hue smart lighting (Smart Home)
 AGENT_IMAGE = "image_generation_agent"  # AI image generation (evolution)
+# NOTE: AGENT_DOCUMENT below (ADR-141) is the RAG-spaces reader agent — the
+# document GENERATOR (ADR-226) deliberately carries the full suffix.
+AGENT_DOCUMENT_GENERATION = "document_generation_agent"  # AI document generation (ADR-226)
 AGENT_REMINDER = "reminder_agent"  # Internal reminders (no OAuth)
 AGENT_AUTOMATION = "automation_agent"  # Chat-piloted scheduled actions (ADR-140)
 AGENT_PEER = "peer_agent"  # User-to-user connections (peers program)

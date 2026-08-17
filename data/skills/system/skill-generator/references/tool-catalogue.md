@@ -498,6 +498,18 @@ No OAuth. Domain: `image_generation`. AI image generation and editing.
 
 ---
 
+## Document Generation — `document_generation_agent`
+
+No OAuth. Domain: `document_generation`. AI document creation (downloadable card, auto-expires).
+
+### generate_document
+- `instructions` (string, required) — What the document must contain (subject, structure, detail, audience)
+- `doc_type` (string, required) — Target format: `csv`, `xlsx`, `docx`, `pptx`, `pdf`, `md`, `txt`
+- `source_data` (string) — Raw material to ground the document in (e.g. `$steps.step_1.web_searches`)
+- `filename` (string) — Filename requested by the user, without extension
+
+---
+
 ## MCP — `mcp_agent`
 
 Virtual agent. Domain: `mcp`. Tools are dynamically registered from external MCP servers.

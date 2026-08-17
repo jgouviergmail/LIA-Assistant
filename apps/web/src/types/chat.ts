@@ -44,6 +44,26 @@ export interface GeneratedImage {
   expires_at?: string | null;
 }
 
+/**
+ * One AI-generated document attached to an assistant turn (ADR-226).
+ *
+ * Same single-declaration rule as {@link GeneratedImage}: this shape travels
+ * on the `done` metadata, the archived `message_metadata`, the message model
+ * and the reducer — declared once so the two emission paths cannot drift.
+ */
+export interface GeneratedDocument {
+  /** Relative attachment URL, e.g. `/api/v1/attachments/{id}`. */
+  url: string;
+  /** Human-meaningful download filename (e.g. "modeles-llm.csv"). */
+  filename: string;
+  /** Format: csv | xlsx | docx | pptx | pdf | md | txt. */
+  doc_type: string;
+  /** Rendered file size in bytes. */
+  size_bytes: number;
+  /** ISO-8601 purge deadline; absent/null → the UI says nothing (N2 rule). */
+  expires_at?: string | null;
+}
+
 export interface Message {
   id: string;
   content: string;
@@ -60,6 +80,8 @@ export interface Message {
   skillName?: string;
   // AI-generated images (only for assistant messages with image generation)
   generatedImages?: GeneratedImage[];
+  // AI-generated documents (only for assistant messages with document generation)
+  generatedDocuments?: GeneratedDocument[];
   // Browser screenshot card (only for assistant messages with browser automation)
   browserScreenshot?: { url: string; alt: string };
   // Voice input metadata (only for user messages)
@@ -172,6 +194,8 @@ export interface DoneMetadata {
   skill_name?: string;
   // AI-generated images
   generated_images?: GeneratedImage[];
+  // AI-generated documents (ADR-226)
+  generated_documents?: GeneratedDocument[];
   // Browser screenshot card
   browser_screenshot?: { url: string; alt: string };
   // Psyche Engine: mood state summary from post-response processing

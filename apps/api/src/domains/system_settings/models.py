@@ -62,6 +62,7 @@ class SystemSettingKey(str, enum.Enum):
     CAPABILITY_STT_ENABLED = "capability_stt_enabled"
     CAPABILITY_TTS_ENABLED = "capability_tts_enabled"
     CAPABILITY_IMAGE_GENERATION_ENABLED = "capability_image_generation_enabled"
+    CAPABILITY_DOCUMENT_GENERATION_ENABLED = "capability_document_generation_enabled"
     CAPABILITY_ATTACHMENTS_ENABLED = "capability_attachments_enabled"
     CAPABILITY_RAG_SPACES_ENABLED = "capability_rag_spaces_enabled"
     CAPABILITY_WEB_SEARCH_ENABLED = "capability_web_search_enabled"

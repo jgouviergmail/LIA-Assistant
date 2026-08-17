@@ -69,6 +69,15 @@ const RICH_API_MESSAGE = {
   content: 'message dicté',
   message_metadata: {
     generated_images: [{ url: 'https://img/1.png', alt: 'généré' }],
+    generated_documents: [
+      {
+        url: '/api/v1/attachments/d1',
+        filename: 'rapport.pdf',
+        doc_type: 'pdf',
+        size_bytes: 4096,
+        expires_at: '2026-08-19T00:00:00+00:00',
+      },
+    ],
     browser_screenshot: { url: 'https://shot/1.jpg', alt: 'capture' },
   },
   created_at: '2026-01-01T00:01:00Z',
@@ -174,6 +183,15 @@ describe('useConversation — UI message mapping', () => {
       ttsCharacters: 120,
       ttsCostEur: 0.002,
       generatedImages: [{ url: 'https://img/1.png', alt: 'généré' }],
+      generatedDocuments: [
+        {
+          url: '/api/v1/attachments/d1',
+          filename: 'rapport.pdf',
+          doc_type: 'pdf',
+          size_bytes: 4096,
+          expires_at: '2026-08-19T00:00:00+00:00',
+        },
+      ],
       browserScreenshot: { url: 'https://shot/1.jpg', alt: 'capture' },
     });
     expect(page.messages[0].timestamp).toEqual(new Date('2026-01-01T00:01:00Z'));
@@ -215,6 +233,7 @@ describe('useConversation — UI message mapping', () => {
     expect(message.source).toBeUndefined(); // no stt_provider → not voice
     expect(message.tokensIn).toBeUndefined();
     expect(message.generatedImages).toBeUndefined();
+    expect(message.generatedDocuments).toBeUndefined();
     // QW-5: history rows always carry their DB id (feedback endpoint target) —
     // a bare message has nothing else in its metadata.
     expect(message.metadata).toEqual({ message_db_id: message.id });

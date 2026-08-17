@@ -1149,6 +1149,15 @@ class AgentService(
                                         peeked
                                     )
 
+                            # Generated document cards (ADR-226): flag check,
+                            # peek and serialization live in the helper so this
+                            # hotspot gains no branch and no drift surface.
+                            from src.domains.document_generation.delivery import (
+                                attach_archived_documents,
+                            )
+
+                            attach_archived_documents(assistant_metadata, str(conversation_id))
+
                             # Persist last browser screenshot as Attachment for card display
                             if getattr(settings, "browser_progressive_screenshots", False):
                                 from src.domains.agents.tools.browser_screenshot_store import (
@@ -1591,6 +1600,13 @@ class AgentService(
                         pending_images = get_and_clear_pending_images(str(conversation_id))
                         if pending_images:
                             done_metadata["generated_images"] = to_wire_metadata(pending_images)
+
+                    # === DOCUMENT GENERATION: card metadata in the done chunk (ADR-226) ===
+                    from src.domains.document_generation.delivery import (
+                        attach_done_documents,
+                    )
+
+                    attach_done_documents(done_metadata, str(conversation_id))
 
                     # Browser screenshot card: reuse URL computed at archive time
                     if browser_screenshot_card_url:

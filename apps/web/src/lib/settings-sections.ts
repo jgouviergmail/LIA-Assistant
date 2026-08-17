@@ -143,6 +143,11 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'image-generation',
     declaredIn: 'components/settings/ImageGenerationSettings.tsx',
   },
+  'document-generation': {
+    tab: 'preferences',
+    accordionValue: 'document-generation',
+    declaredIn: 'components/settings/DocumentGenerationSettings.tsx',
+  },
 
   // ---- Preferences tab / Connections & Integrations
   connectors: {

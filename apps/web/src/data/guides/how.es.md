@@ -6,7 +6,7 @@
 
 **Versión**: 4.3
 **Fecha**: 2026-08-17
-**Aplicación**: LIA v1.30.7
+**Aplicación**: LIA v1.30.8
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 466 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 224 ADRs, ~19.322 tests recogidos por pytest en 1.087 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 225 ADRs, ~19.414 tests recogidos por pytest en 1.100 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -74,7 +74,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | ~19.322 (recopilados por pytest en 1.087 archivos de prueba) + 5.522 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | ~19.414 (recopilados por pytest en 1.100 archivos de prueba) + 5.537 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures reutilizables | 170+ |
 | Documentos de documentación | 490+ |
 | ADRs (Architecture Decision Records) | 209 |
@@ -346,6 +346,12 @@ El conjunto se gobierna con un feature flag y una docena de ajustes configurable
 ---
 
 **Anclaje en las entidades recientes.** En un turno que no llama a ninguna herramienta, el registro del turno actual está vacío por construcción (protección anticontaminación) y el historial conversacional excluye deliberadamente los mensajes de herramienta: el modelo de respuesta no dispone entonces de *ningún* dato estructurado con autoridad, y solo puede reformular prosa anterior. Por eso las entidades más recientes del estado se reinyectan mediante una sección de prompt dedicada — seleccionadas por recencia, acotadas por antigüedad, sin ida y vuelta al almacenamiento y explícitamente subordinadas a los datos del turno actual. Una regla de autoridad lo completa: está prohibido inventar un atributo de entidad, y un valor solicitado pero nunca recibido debe anunciarse como ausente.
+
+### 5.5. Artefactos generados: de la petición al archivo descargable (ADR-226)
+
+Desde la v1.30.8 el pipeline puede terminar en un archivo y no solo en prosa. La herramienta `generate_document` sigue la misma arquitectura que la generación de imágenes — un agente virtual en el catálogo, sin nodo de grafo dedicado — pero su «generador» es un slot LLM dedicado (`document_generation`, administrable como todos los demás) llamado con **salida estructurada tipada por familia de formato**: contenido tabular para CSV/Excel, un árbol de secciones para Word/PDF/Markdown/texto, una lista de diapositivas para PowerPoint. El esquema se elige *antes* de la llamada, así que cada respuesta se valida con esquema estricto; después un **motor de renderizado local puro** construye los bytes exactos — openpyxl, python-docx, python-pptx, PyMuPDF: las bibliotecas ya incluidas para la extracción RAG, que ahora escriben en lugar de leer, sin ningún servicio documental de terceros.
+
+Tres decisiones de diseño sostienen la funcionalidad. Primero, la honestidad del artefacto: las celdas de las hojas se neutralizan contra la inyección de fórmulas (una sonda demostró que openpyxl almacena `=1+2` como fórmula viva) mientras los números negativos legítimos quedan intactos, y un fallo tras la llamada LLM pagada devuelve un error explícito — nunca una tarjeta fantasma. Segundo, el encadenamiento: el planificador puede inyectar los resultados de un paso de investigación web en el paso de documento (`source_data`), de modo que «investiga y formaliza en CSV» cabe en una sola petición. Tercero, el ciclo de vida: el archivo aterriza en el almacén de adjuntos existente con la misma purga TTL que las imágenes generadas, y su tarjeta — entregada en vivo por el done chunk SSE y persistida en los metadatos del mensaje por un serializador único compartido — muestra la fecha exacta de expiración.
 
 ## 6. El sistema de planificación (ExecutionPlan DSL)
 
@@ -1280,7 +1286,7 @@ La lección de ingeniería más valiosa vino de un defecto invisible: la primiti
 
 ## 24. Arquitectura de decisiones (ADR)
 
-224 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+225 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1356,10 +1362,10 @@ El hilo común de estos cuatro lotes es una propiedad de los propios tests. Cada
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 224 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~19.322 tests en 1.087 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 225 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~19.414 tests en 1.100 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 224 ADRs y del changelog (v1.0 a v1.30.7). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 225 ADRs y del changelog (v1.0 a v1.30.8). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

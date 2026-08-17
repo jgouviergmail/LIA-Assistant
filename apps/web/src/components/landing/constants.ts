@@ -35,7 +35,16 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured at v1.30.7: backend 18,618
+ *   Re-measured at v1.30.8: backend 18,710
+ *   (`pytest tests/unit tests/agents --collect-only --no-cov`; +92 — the
+ *   Document Generation domain (ADR-226): content schemas, sanitization
+ *   incl. the proven formula-injection cases, the seven pure renderers
+ *   round-tripped through the RAG readers, the pending store, the service
+ *   and tool guard chains, catalogue/taxonomy/timeout wiring and the
+ *   PDF-inline serving rule) + frontend 5,537 (446 files — the document
+ *   cards, reducer/history mapping and the settings opt-in) = 24,247 →
+ *   24,200.
+ *   Previous at v1.30.7: backend 18,618
  *   (`pytest tests/unit tests/agents --collect-only --no-cov`; +189 — the
  *   Agent Plugins domain: spec-driven manifest and mcp.json validation
  *   against the standard's own examples, staging guards, the
@@ -86,12 +95,12 @@
  *   Re-measure every release: the value carried the backend count alone
  *   until v1.25.9.
  * - adrs: docs/architecture/ ADR files — recount every release, never carry it
- *   over (it was stranded at 183 from v1.27.0 to v1.27.4). 224 files at
- *   v1.30.7, numbered up to ADR-225: ADR-008 has no separate file, so the
+ *   over (it was stranded at 183 from v1.27.0 to v1.27.4). 225 files at
+ *   v1.30.8, numbered up to ADR-226: ADR-008 has no separate file, so the
  *   highest number is always one above the file count.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   211 headings at v1.30.7, no Unreleased pending.
+ *   212 headings at v1.30.8, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -107,9 +116,9 @@ export const LANDING_STATS = {
   voiceLanguages: 99,
   metrics: 473,
   uiLanguages: 6,
-  tests: 24100,
-  adrs: 224,
-  releases: 211,
+  tests: 24200,
+  adrs: 225,
+  releases: 212,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

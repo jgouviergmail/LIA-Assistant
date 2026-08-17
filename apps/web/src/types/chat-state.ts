@@ -13,7 +13,14 @@
  * - Immutable state updates
  */
 
-import { Message, RegistryItem, DebugMetrics, BrowserScreenshotData, GeneratedImage } from './chat';
+import {
+  Message,
+  RegistryItem,
+  DebugMetrics,
+  BrowserScreenshotData,
+  GeneratedImage,
+  GeneratedDocument,
+} from './chat';
 import { HitlCardState, NormalizedHitlPayload, initialHitlCardState } from './hitl';
 import type { ExecutionTrace } from './execution-trace';
 
@@ -235,6 +242,7 @@ export type ChatAction =
           // Shared declaration (ADR-117: BOTH done-metadata types must carry
           // the same fields). This copy silently lagged behind `expires_at`.
           generated_images?: GeneratedImage[];
+          generated_documents?: GeneratedDocument[];
           browser_screenshot?: { url: string; alt: string };
           psyche_state?: {
             mood_label: string;

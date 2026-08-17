@@ -63,9 +63,11 @@ function applyDoneMetadata(m: Message, metadata: StreamDoneMetadata): Message {
     ttsCharacters: metadata.tts_characters ?? null,
     ttsCostEur: metadata.tts_cost_eur ?? null,
     skillName: metadata.skill_name,
-    // No assertion: both sides now name the same `GeneratedImage` shape, so a
-    // future field lands on the action payload and the message together.
+    // No assertion: both sides now name the same `GeneratedImage` /
+    // `GeneratedDocument` shapes, so a future field lands on the action
+    // payload and the message together.
     generatedImages: metadata.generated_images,
+    generatedDocuments: metadata.generated_documents,
     browserScreenshot: metadata.browser_screenshot as { url: string; alt: string } | undefined,
     // Store psyche state snapshot for avatar display.
     // ADR-117 Lot 3: a cancelled run's synthesized done flags the partial

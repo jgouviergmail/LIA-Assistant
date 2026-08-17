@@ -753,6 +753,14 @@
       "title": "Loading error",
       "message": "Messages cannot be displayed. Please refresh the page."
     },
+    "document_card": {
+      "download": "Download {{name}}",
+      "open": "Open {{name}}",
+      "open_short": "Open"
+    },
+    "document_expiry": {
+      "expired": "This document has expired and is no longer available"
+    },
     "image_expiry": {
       "until": "Available until {{date}} — download it to keep it",
       "soon_one": "Expires in {{count}} hour — download it to keep it",
@@ -1161,6 +1169,13 @@
       "stt_mode_updated_success": "Voice transcription backend updated",
       "stt_remote_unavailable_warning": "Remote transcription is not available: an administrator must configure the ElevenLabs API key first.",
       "stt_remote_privacy_notice": "In remote mode, your audio is sent to ElevenLabs (cloud) for transcription. The local mode keeps audio inside LIA."
+    },
+    "document_generation": {
+      "title": "Document generation",
+      "description": "Create downloadable CSV, Excel, Word, PowerPoint or PDF files in the conversation",
+      "enable": "Enable document generation",
+      "enable_description": "Let the assistant create downloadable documents; they expire automatically",
+      "updated": "Document generation preference updated"
     },
     "image_generation": {
       "title": "AI Image Generation",
@@ -2175,6 +2190,7 @@
           "initiative": "Post-execution proactive enrichment (read-only checks)",
           "mcp_react_agent": "MCP iterative mode: reads server documentation, then executes tools step by step",
           "image_generation": "AI image generation from text descriptions (gpt-image-1, etc.)",
+          "document_generation": "Writes complete documents (CSV, Excel, Word, PowerPoint, PDF…) as structured output for the generate_document tool",
           "psyche_summary": "Psyche Summary",
           "briefing": "Generates the home dashboard greeting and synthesis (Today)",
           "telephony_synthesis": "Post-call synthesis for agentic phone calls (summary + follow-up)",
@@ -2814,6 +2830,7 @@
       "tool_control_light": "Control a light",
       "tool_activate_scene": "Activate a Hue scene",
       "tool_generate_image": "Generate an AI image",
+      "tool_generate_document": "Generate a document",
       "tool_edit_image": "Edit an existing image",
       "param_search_query": "Search query",
       "param_event_id": "Event ID",
@@ -3279,6 +3296,7 @@
         "security-export": "GDPR, archive, download, portability, backup, personal data, privacy",
         "voice-mode": "microphone, speech, dictation, STT, TTS, wake word, audio, talk",
         "image-generation": "images, pictures, drawing, illustration, generation, art",
+        "document-generation": "documents, files, csv, excel, word, powerpoint, pdf, export, report, presentation",
         "connectors": "google, gmail, calendar, contacts, apple, microsoft, outlook, integrations, accounts, oauth, reconnect, disconnected, services, position, location, geolocation, home address, location memory",
         "telephony-calls": "phone, telephone, calls, call history, dial",
         "admin-mcp-servers": "MCP, model context protocol, application servers, built-in tools",
@@ -3819,6 +3837,7 @@
       "list_hue_scenes": "Listing Hue scenes...",
       "activate_hue_scene": "Activating Hue scene...",
       "generate_image": "Generating image...",
+      "generate_document": "Generating document...",
       "edit_image": "Editing image...",
       "resolve_reference": "Resolving reference...",
       "set_current_item": "Selecting item...",
@@ -4062,6 +4081,10 @@
           "title": "🎨 Image Generation & Editing",
           "description": "Generate images from text descriptions and edit existing images with natural language instructions. Multi-provider factory architecture, per-user quality/size/format preferences, cost tracking with database-cached pricing, attachment-based storage with cascade cleanup. A generated image is an attachment with a limited lifetime: the card shows the deadline returned by the server — never a duration hard-coded in the interface, since it is configurable — and switches to an alert tone in the final hours, so downloading stays possible before the cleanup. The time allowed for a generation follows the model's real duration, measured per quality and format: a detailed image takes several minutes, and the upper bound leaves room for it instead of cutting it off just before the end."
         },
+        "documentGeneration": {
+          "title": "Document Generation",
+          "description": "LIA writes complete, downloadable documents on demand: CSV and Excel spreadsheets, Word reports, PowerPoint presentations with speaker notes, PDF, Markdown and plain text. A dedicated writer model produces the content in your language — grounded in the data you provide or in research done in the same request — then a local renderer builds the exact file, with no third-party document service involved. Files appear as cards below the answer (filename, size, expiry deadline), PDFs open straight in a browser tab, and everything is temporary by design: download what you want to keep. Per-user opt-out in Settings, instance-wide switch for the administrator, and the same usage limits as every other AI cost."
+        },
         "reactMode": {
           "title": "⚡ ReAct Execution Mode",
           "description": "Alternative mode to the pipeline where the assistant reasons step by step: it calls a tool, analyzes the result, then autonomously decides what to do next. 4 custom nodes in the parent LangGraph graph with native HITL support via interrupt(). Pipeline mode (default) consumes 4 to 8× fewer tokens thanks to smart planning and parallel execution. Users switch between the two via a toggle in the chat header. Every conversation turn starts from a clean data registry (strict turn isolation), and the agent receives the cross-domain semantic type map with a precision rule: fetch the exact value (a contact's address) via the lookup tool rather than an approximation recalled from memory. Two guardrails frame the loop (ADR-169/170): its deadline is measured on <em>compute</em> time, so waiting for your approval no longer eats into it — a slightly long confirmation used to cut the turn and have the answer rebuilt; and a tool re-called identically is refused on the fourth attempt, then ends the turn on the fifth. The turn's system instructions live in state rather than in the history: the prefix is stable again, the provider cache can hit, and the bill stops growing with the number of turns."
@@ -4113,6 +4136,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_30_8": {
+          "title": "v1.30.8 — 📄 Document generation: real files, on demand",
+          "date": "August 2026",
+          "items": {
+            "i1": "<b>📄 Ask for a real document, get a real file</b> — LIA now writes complete documents on demand: CSV and Excel spreadsheets, Word reports, PowerPoint presentations, PDF, Markdown and plain text. Ask in the chat (“research the latest LLM models and turn it into a CSV”, “make a detailed presentation about Alsace”) and the finished file appears as a downloadable card below the answer — it can chain directly on a web research done in the same request. A dedicated writer model produces the content in your language; spreadsheets are safe by construction (no formula injection) and Excel-ready.",
+            "i2": "<b>🕒 Files that say when they expire</b> — every generated document card shows its filename, its size and its exact expiry deadline; PDFs open right in a browser tab, everything else downloads in one click. Generation is opt-out per user in Settings, switchable instance-wide by the administrator, and covered by the same usage limits as the rest of your AI usage."
+          },
+          "count": "2"
+        },
         "v1_30_7": {
           "title": "v1.30.7 — 🧩 Agent Plugins: install portable plugins",
           "date": "August 2026",
@@ -7157,6 +7189,33 @@
           }
         }
       },
+      "document_generation": {
+        "title": "AI Document Generation",
+        "description": "Create downloadable CSV, Excel, Word, PowerPoint, PDF, Markdown or text files directly from the conversation.",
+        "count": "5",
+        "questions": {
+          "q1": {
+            "question": "How do I create a document?",
+            "answer": "Simply ask in the chat: “Export this as a CSV”, “Write a PDF report about…”, “Make a presentation about Alsace”. A dedicated writer model produces the full content in your language, and the finished file appears as a downloadable card below the answer. It also chains naturally with research: “research the latest LLM models, then formalize the result in a CSV” produces a file grounded in the fresh results of the same request."
+          },
+          "q2": {
+            "question": "Which formats are supported?",
+            "answer": "Seven formats: <b>CSV</b> and <b>Excel (xlsx)</b> for data tables, <b>Word (docx)</b> for structured reports, <b>PowerPoint (pptx)</b> for presentations (with speaker notes), <b>PDF</b> for print-ready documents, plus <b>Markdown</b> and <b>plain text</b>. LIA picks the requested format; if you just say “a spreadsheet” or “a report”, it chooses the most natural one. Spreadsheets are Excel-ready (correct accents, no formula injection by construction)."
+          },
+          "q3": {
+            "question": "How do I view or download a generated document?",
+            "answer": "Each document appears as a card below the assistant's answer, with its filename, its type and its size. Click the download icon to save it — PDFs open directly in a new browser tab instead, so you can read them before deciding to keep them. The card survives a page reload: it stays in the conversation history until the file expires."
+          },
+          "q4": {
+            "question": "How long does a document stay available, and what does it cost?",
+            "answer": "Generated files are temporary by design: each card shows its exact expiry deadline, and a warning appears when it gets close — download the file to keep it. The cost is the writer model's usage, counted like the rest of your AI usage within your account's limits. A technical rate limit additionally protects against runaway loops; normal use never hits it."
+          },
+          "q5": {
+            "question": "Can I turn document generation off?",
+            "answer": "Yes, at two levels. You can switch it off for your own account in <b>Settings > Preferences > Document generation</b>. The administrator can also disable the capability instance-wide, instantly and without redeploying — the tool then disappears from what the assistant can even propose."
+          }
+        }
+      },
       "health_metrics": {
         "title": "Health data",
         "description": "Ingestion API to push heart rate and steps from any source",
@@ -7277,7 +7336,7 @@
       },
       "share_export": {
         "title": "One response, many exits",
-        "desc": "Share or export any response in one gesture — always as readable text, even the designed answers."
+        "desc": "Share or export any response in one gesture — and when you need a real file, ask for one: LIA writes CSV, Excel, Word, PowerPoint or PDF documents you can download."
       },
       "backstage": {
         "title": "The backstage, on demand",
@@ -10029,6 +10088,8 @@
       "tts_description": "Reads answers aloud in the chat. Turning it off stops synthesis at its single chokepoint; nothing else changes.",
       "image_generation": "Image generation",
       "image_generation_description": "Creating and editing images. Turning it off removes the tools from the planner and closes the option endpoints.",
+      "document_generation": "Document generation",
+      "document_generation_description": "Creating downloadable documents (CSV, Excel, Word, PowerPoint, PDF…). Turning it off removes the tool from the planner.",
       "attachments": "File uploads",
       "attachments_description": "Attaching files to a conversation. Turning it off refuses uploads at the door.",
       "rag_spaces": "Document spaces (RAG)",

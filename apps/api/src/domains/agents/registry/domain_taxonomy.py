@@ -510,6 +510,8 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         # requires_api_key False: uses the global OpenAI key from LLM Config
         metadata={"provider": "openai", "requires_oauth": False, "requires_api_key": False},
     ),
+    # AI Document Generation (ADR-226): defined in program_domain_configs.py
+    # (the sibling created so new domains don't grow this frozen file).
     # Smart Home domains
     "hue": DomainConfig(
         name="hue",

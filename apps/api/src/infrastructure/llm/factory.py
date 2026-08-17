@@ -190,6 +190,8 @@ LLMType = Literal[
     "telephony_synthesis",
     # Agentic telephony — domain agent wrapping place_phone_call (ADR-127)
     "telephony_agent",
+    # Document generation — dedicated whole-document writer (ADR-226)
+    "document_generation",
 ]
 
 

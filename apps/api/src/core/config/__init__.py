@@ -38,6 +38,7 @@ from .connectors import ConnectorsSettings
 from .database import DatabaseSettings
 from .demo import DemoSettings
 from .devops import DevOpsSettings
+from .document_generation import DocumentGenerationSettings
 from .habits import HabitsSettings
 from .health_metrics import HealthMetricsSettings
 from .image_generation import ImageGenerationSettings
@@ -115,6 +116,7 @@ class Settings(
     PsycheSettings,
     UsageLimitsSettings,
     ImageGenerationSettings,
+    DocumentGenerationSettings,
     DevOpsSettings,
     HealthMetricsSettings,
     AutomationSettings,

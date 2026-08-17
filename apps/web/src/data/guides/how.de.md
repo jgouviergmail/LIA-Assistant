@@ -6,7 +6,7 @@
 
 **Version**: 4.3
 **Datum**: 2026-08-17
-**Application**: LIA v1.30.7
+**Application**: LIA v1.30.8
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 466 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 224 ADRs, ~19.322 von pytest gesammelte Tests in 1.087 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 225 ADRs, ~19.414 von pytest gesammelte Tests in 1.100 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -74,7 +74,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~19.322 von pytest gesammelt (von pytest über 1.087 Testdateien gesammelt) + 5.522 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | ~19.414 von pytest gesammelt (von pytest über 1.100 Testdateien gesammelt) + 5.537 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 490+ |
 | ADRs (Architecture Decision Records) | 209 |
@@ -346,6 +346,12 @@ Das Ganze wird über ein Feature-Flag und ein Dutzend env-konfigurierbarer Einst
 ---
 
 **Verankerung an jüngsten Entitäten.** Bei einem Zug ohne Werkzeugaufruf ist das Register des laufenden Zuges konstruktionsbedingt leer (Schutz vor Kontamination), und der Gesprächsverlauf schließt Werkzeugmeldungen bewusst aus: Das Antwortmodell hat dann *keinerlei* maßgebliche strukturierte Daten und kann frühere Prosa nur umformulieren. Die jüngsten Entitäten aus dem State werden deshalb über einen eigenen Prompt-Abschnitt erneut eingespeist — nach Aktualität ausgewählt, altersbegrenzt, ohne Speicherzugriff und ausdrücklich nachrangig gegenüber den Daten des laufenden Zuges. Eine Autoritätsregel ergänzt das: Das Erfinden eines Entitätsattributs ist untersagt, und ein angefragter, aber nie erhaltener Wert muss als fehlend benannt werden.
+
+### 5.5. Generierte Artefakte: von der Anfrage zur herunterladbaren Datei (ADR-226)
+
+Seit v1.30.8 kann die Pipeline mit einer Datei enden statt nur mit Prosa. Das Werkzeug `generate_document` folgt derselben Architektur wie die Bildgenerierung — ein virtueller Agent im Katalog, kein eigener Graphknoten — aber sein „Generator" ist ein dedizierter LLM-Slot (`document_generation`, administrierbar wie jeder andere), aufgerufen mit **strukturierter Ausgabe, typisiert je Formatfamilie**: tabellarischer Inhalt für CSV/Excel, ein Abschnittsbaum für Word/PDF/Markdown/Text, eine Folienliste für PowerPoint. Das Schema wird *vor* dem Aufruf gewählt, jede Antwort ist also strikt schema-validiert; dann baut ein **reiner lokaler Renderer** die exakten Bytes — openpyxl, python-docx, python-pptx, PyMuPDF: die bereits für die RAG-Extraktion mitgelieferten Bibliotheken, die nun schreiben statt lesen, ohne jeden Dokumentdienst von Dritten.
+
+Drei Designentscheidungen tragen das Feature. Erstens die Ehrlichkeit des Artefakts: Tabellenzellen werden gegen Formel-Injektion neutralisiert (eine Probe bewies, dass openpyxl `=1+2` als lebendige Formel speichert), während legitime negative Zahlen unberührt bleiben, und ein Fehler nach dem bezahlten LLM-Aufruf liefert einen expliziten Fehler — nie eine Phantomkarte. Zweitens die Verkettung: Der Planer kann die Ergebnisse eines Web-Recherche-Schritts in den Dokumentschritt einspeisen (`source_data`), sodass „recherchieren, dann als CSV formalisieren" eine einzige Anfrage ist. Drittens der Lebenszyklus: Die Datei landet im bestehenden Attachment-Store mit derselben TTL-Bereinigung wie generierte Bilder, und ihre Karte — live über den SSE-Done-Chunk geliefert und über einen gemeinsamen Serialisierer in den Nachrichten-Metadaten persistiert — zeigt das exakte Ablaufdatum.
 
 ## 6. Das Planungssystem (ExecutionPlan DSL)
 
@@ -1280,7 +1286,7 @@ Die wertvollste Ingenieurslektion kam von einem unsichtbaren Defekt: Die Label-P
 
 ## 24. Architekturentscheidungen (ADR)
 
-224 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+225 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1356,10 +1362,10 @@ Der rote Faden dieser vier Arbeitspakete ist eine Eigenschaft der Tests selbst. 
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 224 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~19.322 Tests in 1.087 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 225 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~19.414 Tests in 1.100 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 224 ADRs und des Changelogs (v1.0 bis v1.30.7). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 225 ADRs und des Changelogs (v1.0 bis v1.30.8). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

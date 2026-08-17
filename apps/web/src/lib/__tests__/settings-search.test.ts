@@ -86,8 +86,9 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // +1 peer-connections (peers program, Lot 2), +1 haptics (its own sensory
     // control — `prefers-reduced-motion` is about animation, not touch),
     // +1 habits (learned-habits control surface, ADR-214),
-    // +1 plugins (Agent Plugins install/uninstall section, ADR-225).
-    expect(TOKENS).toHaveLength(35);
+    // +1 plugins (Agent Plugins install/uninstall section, ADR-225),
+    // +1 document-generation (per-user opt-in toggle, ADR-226).
+    expect(TOKENS).toHaveLength(36);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

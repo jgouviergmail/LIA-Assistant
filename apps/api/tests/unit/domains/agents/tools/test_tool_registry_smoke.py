@@ -71,6 +71,10 @@ FLAGGED_MODULES: dict[str, tuple[str, str]] = {
         "src.domains.agents.tools.image_generation_tools",
         "generate_image",
     ),
+    "document_generation_enabled": (
+        "src.domains.agents.tools.document_generation_tools",
+        "generate_document",
+    ),
     "health_metrics_enabled": (
         "src.domains.agents.tools.health_tools",
         "get_health_overview_tool",

@@ -4,7 +4,7 @@
 
 **Versione**: 4.8
 **Data**: 2026-08-17
-**Applicazione**: LIA v1.30.7
+**Applicazione**: LIA v1.30.8
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -108,7 +108,7 @@ L'obiettivo di LIA non è trasformarti in un amministratore di sistema. È offri
 
 ## 3. Cosa sa fare LIA
 
-LIA agisce concretamente nella tua vita digitale grazie a 20+ agenti specializzati che coprono tutte le esigenze di tutti i giorni: gestione dei tuoi dati personali (email, calendario, contatti, attività, file), accesso alle informazioni esterne (ricerca web, meteo, luoghi, itinerari), creazione di contenuti (immagini, diagrammi), controllo della casa connessa, navigazione web autonoma, e anticipazione proattiva dei tuoi bisogni.
+LIA agisce concretamente nella tua vita digitale grazie a 20+ agenti specializzati che coprono tutte le esigenze di tutti i giorni: gestione dei tuoi dati personali (email, calendario, contatti, attività, file), accesso alle informazioni esterne (ricerca web, meteo, luoghi, itinerari), creazione di contenuti (immagini, diagrammi, documenti), controllo della casa connessa, navigazione web autonoma, e anticipazione proattiva dei tuoi bisogni.
 
 Scegli tu come ragiona LIA, tramite un semplice toggle (⚡) nell'intestazione della chat:
 
@@ -148,6 +148,7 @@ LIA offre una modalità vocale completa:
 ### 3.5. Creazione e media
 
 - **Generazione di immagini**: crea immagini da una descrizione testuale, modifica foto esistenti
+- **Generazione di documenti**: chiedi un CSV, un foglio Excel, una relazione Word, un PowerPoint o un PDF — un modello redattore dedicato produce il contenuto nella tua lingua, un motore di resa locale costruisce il file reale, e arriva come scheda scaricabile con scadenza esplicita
 - **Diagrammi Excalidraw**: genera schemi e diagrammi direttamente nella conversazione
 - **Allegati**: allega foto e PDF — LIA analizza il contenuto visivo ed estrae il testo dai documenti
 - **MCP Apps**: widget interattivi direttamente nella chat (moduli, visualizzazioni, mini-applicazioni)
@@ -457,7 +458,7 @@ Se un provider cambia i prezzi o peggiora il servizio, passi istantaneamente all
 
 Ogni utente può connettere i propri server MCP, estendendo le capacità di LIA ben oltre gli strumenti integrati. Il client parla entrambe le generazioni del protocollo — la nuova revisione senza stato e il handshake classico, scelti automaticamente per ogni server —, così l'apertura non costa mai la compatibilità. Le Skills (standard agentskills.io) permettono di iniettare istruzioni specializzate in linguaggio naturale — con un generatore di Skills integrato che le crea tramite un dialogo guidato e le installa direttamente tra le tue skill, pronte all'uso. Dalla v1.16.8, uno Skill può anche restituire un **frame HTML interattivo** (mappa, dashboard, calendario, convertitore...) o un'**immagine** (QR code, grafico) direttamente nella chat, in un sandbox sotto CSP rigorosa, con tema e lingua sincronizzati automaticamente.
 
-Dalla v1.30.7, questa apertura ha un formato di pacchetto: LIA parla lo standard aperto **Agent Plugins** (agent-plugins.org), il formato di plugin portabile guidato da AWS, Microsoft, OpenAI, Cursor e Vercel e adottato da ChatGPT, Codex, Cursor, GitHub Copilot, Kiro e VS Code. Un plugin che raggruppa skill e server MCP si installa in LIA in un passaggio — da uno zip o da un link https — con un report completo per componente di ciò che è stato installato, ignorato (e perché) o rimosso, e si disinstalla con la stessa pulizia: tutto ciò che aveva portato se ne va con lui. L'interoperabilità qui è una convinzione, non una funzionalità: ciò che costruisci o adotti altrove nell'ecosistema è tuo e ti segue.
+Dalla v1.30.8, questa apertura ha un formato di pacchetto: LIA parla lo standard aperto **Agent Plugins** (agent-plugins.org), il formato di plugin portabile guidato da AWS, Microsoft, OpenAI, Cursor e Vercel e adottato da ChatGPT, Codex, Cursor, GitHub Copilot, Kiro e VS Code. Un plugin che raggruppa skill e server MCP si installa in LIA in un passaggio — da uno zip o da un link https — con un report completo per componente di ciò che è stato installato, ignorato (e perché) o rimosso, e si disinstalla con la stessa pulizia: tutto ciò che aveva portato se ne va con lui. L'interoperabilità qui è una convinzione, non una funzionalità: ciò che costruisci o adotti altrove nell'ecosistema è tuo e ti segue.
 
 
 L'architettura di LIA è pensata per facilitare l'aggiunta di nuovi connettori, canali, agenti e provider IA. Il codice è strutturato con astrazioni chiare e guide di sviluppo dedicate (agent creation guide, tool creation guide) che rendono l'estensione accessibile a qualsiasi sviluppatore.

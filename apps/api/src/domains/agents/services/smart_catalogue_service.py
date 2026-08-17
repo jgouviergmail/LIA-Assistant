@@ -318,6 +318,13 @@ class SmartCatalogueService:
                     if c.kind in ("minimum", "maximum") and not isinstance(c.value, bool):
                         if isinstance(c.value, int | float):
                             param["min" if c.kind == "minimum" else "max"] = c.value
+                # ADR-226 (same doctrine as min/max above): an enum the
+                # validator enforces must reach the planner too — a closed set
+                # it cannot see is a trap, not a contract.
+                for c in p.constraints:
+                    if c.kind == "enum" and isinstance(c.value, list):
+                        param["enum"] = c.value
+                        break
             # FIX 2026-03-05: Include JSON Schema for complex types (array, object)
             # so the LLM sees the internal structure (items, nested properties, enums).
             # Critical for MCP tools with structured inputs (e.g., Excalidraw elements).

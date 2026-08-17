@@ -97,17 +97,20 @@ async def get_attachment(
 
         raise_attachment_not_found(attachment_id)
 
-    # Use "inline" disposition for images so browsers recognise the resource
-    # as a displayable image — this enables the native long-press "Save Image"
-    # context menu on mobile (iOS Safari, Android Chrome).
-    # Non-image attachments keep "attachment" to trigger a download prompt.
-    is_image = attachment.mime_type.startswith("image/")
+    # "inline" lets the browser display the resource natively: images get the
+    # long-press "Save Image" menu on mobile (iOS Safari, Android Chrome) and
+    # PDFs open in the browser viewer — generated reports (ADR-226) and the
+    # user's own uploaded PDFs alike (ownership is checked above either way).
+    # Every other type keeps "attachment" to trigger a download prompt.
+    is_inline = attachment.mime_type.startswith("image/") or (
+        attachment.mime_type == "application/pdf"
+    )
 
     return FileResponse(
         path=str(file_path),
         media_type=attachment.mime_type,
         filename=attachment.original_filename,
-        content_disposition_type="inline" if is_image else "attachment",
+        content_disposition_type="inline" if is_inline else "attachment",
     )
 
 

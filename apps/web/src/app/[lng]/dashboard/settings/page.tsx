@@ -65,6 +65,7 @@ import { AdminUsageLimitsSection } from '@/components/settings/AdminUsageLimitsS
 import { SpacesSettingsSection } from '@/components/spaces/SpacesSettingsSection';
 import { VoiceModeSettings } from '@/components/settings/VoiceModeSettings';
 import { ImageGenerationSettings } from '@/components/settings/ImageGenerationSettings';
+import { DocumentGenerationSettings } from '@/components/settings/DocumentGenerationSettings';
 import { UserDebugSettings } from '@/components/settings/UserDebugSettings';
 import { BriefingGridSettings } from '@/components/settings/BriefingGridSettings';
 import { ChatShortcutsSettings } from '@/components/settings/ChatShortcutsSettings';
@@ -448,6 +449,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <FeatureErrorBoundary feature="image-generation">
                 <ImageGenerationSettings lng={lng} />
               </FeatureErrorBoundary>
+              <FeatureErrorBoundary feature="document-generation">
+                <DocumentGenerationSettings lng={lng} />
+              </FeatureErrorBoundary>
 
               {/* Group: Connections & Integrations */}
               <SettingsGroupLabel
@@ -639,6 +643,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <VoiceModeSettings lng={lng} />
               <FeatureErrorBoundary feature="image-generation">
                 <ImageGenerationSettings lng={lng} />
+              </FeatureErrorBoundary>
+              <FeatureErrorBoundary feature="document-generation">
+                <DocumentGenerationSettings lng={lng} />
               </FeatureErrorBoundary>
 
               {/* Group: Connections & Integrations */}

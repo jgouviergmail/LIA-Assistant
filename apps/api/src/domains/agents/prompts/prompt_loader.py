@@ -197,6 +197,8 @@ PromptName = Literal[
     # loaded via telephony.prompts.loader) to break the agents↔telephony cycle (T2).
     # Voice comment (TTS post-response narrative aside)
     "voice_comment_prompt",
+    # Document generation — dedicated whole-document writer (ADR-226)
+    "document_generation_prompt",
 ]
 
 

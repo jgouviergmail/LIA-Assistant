@@ -80,6 +80,7 @@ class UserFactory:
             image_generation_default_quality="low",
             image_generation_default_size="1024x1536",
             image_generation_output_format="png",
+            document_generation_enabled=True,
             execution_mode="pipeline",
             # Transient instances never flush, so column defaults don't apply;
             # UserResponse's strict bool rejects the resulting None.

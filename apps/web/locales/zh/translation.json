@@ -745,6 +745,14 @@
       "title": "加载错误",
       "message": "无法显示消息。请刷新页面。"
     },
+    "document_card": {
+      "download": "下载 {{name}}",
+      "open": "打开 {{name}}",
+      "open_short": "打开"
+    },
+    "document_expiry": {
+      "expired": "该文档已过期，不再可用"
+    },
     "image_expiry": {
       "until": "可用至 {{date}} — 下载以保存",
       "soon_one": "{{count}} 小时后过期 — 下载以保存",
@@ -2001,6 +2009,7 @@
           "initiative": "执行后主动丰富（只读检查）",
           "mcp_react_agent": "MCP迭代模式：先读取服务器文档，然后逐步执行工具",
           "image_generation": "从文本描述生成AI图像（gpt-image-1等）",
+          "document_generation": "以结构化输出为 generate_document 工具撰写完整文档（CSV、Excel、Word、PowerPoint、PDF 等）",
           "psyche_summary": "Psyche Summary",
           "briefing": "生成主页仪表盘的问候和概要 (Today)",
           "telephony_synthesis": "智能体通话的通话后小结（摘要 + 后续建议）",
@@ -2184,6 +2193,13 @@
       "stt_mode_updated_success": "语音转文字后端已更新",
       "stt_remote_unavailable_warning": "远程转录不可用：管理员需要先配置 ElevenLabs API 密钥。",
       "stt_remote_privacy_notice": "在远程模式下，您的音频会发送到 ElevenLabs（云端）进行转录。本地模式将音频保留在 LIA 内部。"
+    },
+    "document_generation": {
+      "title": "文档生成",
+      "description": "在对话中创建可下载的 CSV、Excel、Word、PowerPoint 或 PDF 文件",
+      "enable": "启用文档生成",
+      "enable_description": "允许助手创建可下载的文档；它们会自动过期",
+      "updated": "文档生成偏好已更新"
     },
     "image_generation": {
       "title": "AI 图像生成",
@@ -2800,6 +2816,7 @@
       "tool_control_light": "控制灯具",
       "tool_activate_scene": "激活 Hue 场景",
       "tool_generate_image": "AI 生成图像",
+      "tool_generate_document": "生成文档",
       "tool_edit_image": "编辑现有图像",
       "param_search_query": "搜索查询",
       "param_event_id": "事件 ID",
@@ -3264,6 +3281,7 @@
         "security-export": "GDPR, 数据导出, 归档, 下载, 可携带性, 备份, 个人数据, 隐私",
         "voice-mode": "麦克风, 语音, 听写, STT, TTS, 唤醒词, 音频, 说话",
         "image-generation": "图像, 图片, 绘画, 插图, 生成, 艺术",
+        "document-generation": "文档, 文件, csv, excel, word, powerpoint, pdf, 导出, 报告, 演示文稿",
         "connectors": "Google, Gmail, 日历, 联系人, Apple, Microsoft, Outlook, 集成, 账户, OAuth, 重新连接, 已断开, 服务, 位置, 定位, 地理位置, 家庭地址, 地址, 位置记忆",
         "telephony-calls": "电话, 通话, 通话记录, 拨号",
         "admin-mcp-servers": "MCP, 模型上下文协议, 应用服务器, 内置工具",
@@ -3805,6 +3823,7 @@
       "list_hue_scenes": "正在列出Hue场景...",
       "activate_hue_scene": "正在激活Hue场景...",
       "generate_image": "正在生成图片...",
+      "generate_document": "正在生成文档...",
       "edit_image": "正在编辑图片...",
       "resolve_reference": "正在解析引用...",
       "set_current_item": "正在选择项目...",
@@ -4048,6 +4067,10 @@
           "title": "🎨 图像生成与编辑",
           "description": "从文本描述生成图像，用自然语言指令编辑现有图像。多提供商工厂架构，用户级质量/尺寸/格式偏好，数据库缓存定价的成本跟踪。 生成的图片是有存续期限的附件：卡片会显示服务端返回的截止时间——绝不写死在界面里，因为该时长可配置——并在最后几小时切换为警示色，让你在清理前仍能完成下载。 留给一次生成的时间以模型的实际耗时为准，按质量与尺寸分别实测：一张精细图像需要数分钟，上限为它留出这段时间，而不是在临近完成时将其中断。"
         },
+        "documentGeneration": {
+          "title": "文档生成",
+          "description": "LIA 按需撰写完整的可下载文档：CSV 和 Excel 表格、含演讲者备注的 PowerPoint 演示文稿、Word 报告、PDF、Markdown 和纯文本。专用写作模型以你的语言产出内容 — 基于你提供的数据或同一请求中完成的调研 — 然后由本地渲染引擎构建精确的文件，全程不经过任何第三方文档服务。文件以卡片形式出现在回答下方（文件名、大小、过期时间），PDF 直接在浏览器标签页中打开，一切在设计上都是临时的：想保留就下载。用户可在设置中关闭，管理员可一键关闭整个实例，消耗计入与其他 AI 成本相同的用量限制。"
+        },
         "reactMode": {
           "title": "⚡ ReAct执行模式",
           "description": "Pipeline的替代模式，助手逐步推理：调用工具、分析结果，然后自主决定下一步操作。父LangGraph图中的4个自定义节点，原生HITL支持。Pipeline模式（默认）通过智能规划和并行执行消耗4至8倍更少的token。每轮对话都从干净的数据注册表开始（轮次之间严格隔离），代理还会收到跨领域语义类型地图和精确性规则：通过查询工具获取精确值（如联系人的地址），而不是使用记忆中的近似值。 两道护栏约束着这个循环（ADR-169/170）：其时限以<em>计算</em>时间计量，等待你审批不再消耗它 —— 此前稍长的确认会切断该回合并迫使回答重做；同一工具被完全相同地重复调用时，第四次会被拒绝，第五次则结束该回合。本回合的系统指令存放于状态而非历史记录中：前缀重新保持稳定，供应商缓存得以命中，账单也不再随回合数增长。"
@@ -4099,6 +4122,15 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_30_8": {
+          "title": "v1.30.8 — 📄 文档生成：按需产出真正的文件",
+          "date": "2026年8月",
+          "items": {
+            "i1": "<b>📄 要一份文档，得到一个真正的文件</b> — LIA 现在可以按需撰写完整文档：CSV 和 Excel 表格、Word 报告、PowerPoint 演示文稿、PDF、Markdown 和纯文本。在聊天中提出请求（“调研最新的 LLM 模型并整理成 CSV”“做一份关于阿尔萨斯的详细演示文稿”），完成的文件就会以可下载卡片的形式出现在回答下方 — 还能直接衔接同一请求中完成的网络调研。专用写作模型以你的语言产出内容；表格在构造上即安全（无公式注入），可直接在 Excel 中打开。",
+            "i2": "<b>🕒 文件会告诉你何时过期</b> — 每张文档卡片都显示文件名、大小和确切的过期时间；PDF 直接在浏览器标签页中打开，其余格式一键下载。用户可在设置中关闭该功能，管理员可对整个实例关闭，其消耗计入与其他 AI 使用相同的用量限制。"
+          },
+          "count": "2"
+        },
         "v1_30_7": {
           "title": "v1.30.7 — 🧩 Agent Plugins：安装便携式插件",
           "date": "2026年8月",
@@ -7143,6 +7175,33 @@
           }
         }
       },
+      "document_generation": {
+        "title": "AI 文档生成",
+        "description": "直接在对话中创建可下载的 CSV、Excel、Word、PowerPoint、PDF、Markdown 或文本文件。",
+        "count": "5",
+        "questions": {
+          "q1": {
+            "question": "如何创建文档？",
+            "answer": "直接在聊天中提出：“把它导出为 CSV”“写一份关于……的 PDF 报告”“做一份关于阿尔萨斯的演示文稿”。专用写作模型以你的语言产出完整内容，完成的文件以可下载卡片出现在回答下方。它还能自然衔接调研：“调研最新的 LLM 模型，然后整理成 CSV”会产出一个基于同一请求最新结果的文件。"
+          },
+          "q2": {
+            "question": "支持哪些格式？",
+            "answer": "七种格式：<b>CSV</b> 和 <b>Excel（xlsx）</b>用于数据表格，<b>Word（docx）</b>用于结构化报告，<b>PowerPoint（pptx）</b>用于演示文稿（含演讲者备注），<b>PDF</b> 用于可直接打印的文档，另有 <b>Markdown</b> 和<b>纯文本</b>。LIA 遵循你指定的格式；若只说“一个表格”或“一份报告”，它会选择最自然的格式。表格可直接在 Excel 中打开（重音字符正确，构造上无公式注入）。"
+          },
+          "q3": {
+            "question": "如何查看或下载生成的文档？",
+            "answer": "每个文档以卡片形式出现在助手回答下方，显示文件名、类型和大小。点击下载图标即可保存 — PDF 则直接在新标签页中打开，便于先阅读再决定是否保留。卡片在页面刷新后依然存在：在文件过期前一直留在对话历史中。"
+          },
+          "q4": {
+            "question": "文档能保留多久？费用如何？",
+            "answer": "生成的文件在设计上是临时的：每张卡片都显示确切的过期时间，临近时会出现提醒 — 下载文件即可长期保留。费用即写作模型的用量，与其他 AI 使用一样计入账户限额。另有技术性频率限制防止失控循环；正常使用绝不会触及。"
+          },
+          "q5": {
+            "question": "可以关闭文档生成吗？",
+            "answer": "可以，分两个层级。你可以在<b>设置 > 偏好 > 文档生成</b>中为自己的账户关闭。管理员也可以即时为整个实例关闭该能力，无需重新部署 — 此后该工具甚至不会出现在助手可提议的范围内。"
+          }
+        }
+      },
       "health_metrics": {
         "title": "健康数据",
         "description": "数据摄入 API，可从任意来源推送心率与步数",
@@ -7263,7 +7322,7 @@
       },
       "share_export": {
         "title": "一条回复，多种去处",
-        "desc": "一个动作即可分享或导出任意回复——始终是可读的文本，排版精美的回复也不例外。"
+        "desc": "一个手势即可分享或导出任何回答 — 需要真正的文件时，直接开口：LIA 会撰写可下载的 CSV、Excel、Word、PowerPoint 或 PDF 文档。"
       },
       "backstage": {
         "title": "幕后，随时可看",
@@ -10023,6 +10082,8 @@
       "tts_description": "在对话中朗读回答。关闭后将在唯一的控制点停止合成，其他行为不变。",
       "image_generation": "图像生成",
       "image_generation_description": "创建与编辑图像。关闭后将从规划器中移除相关工具并关闭选项路由。",
+      "document_generation": "文档生成",
+      "document_generation_description": "创建可下载的文档（CSV、Excel、Word、PowerPoint、PDF 等）。关闭后，该工具将从规划器中移除。",
       "attachments": "文件上传",
       "attachments_description": "向对话中添加附件。关闭后将在入口拒绝上传。",
       "rag_spaces": "文档空间（RAG）",

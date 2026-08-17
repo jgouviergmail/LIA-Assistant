@@ -4,7 +4,7 @@
 
 **Version**: 4.8
 **Date**: 2026-08-17
-**Application**: LIA v1.30.7
+**Application**: LIA v1.30.8
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -108,7 +108,7 @@ LIA's goal is not to turn you into a system administrator. It's to give you the 
 
 ## 3. What LIA can do
 
-LIA acts concretely in your digital life through 20+ specialized agents covering all everyday needs: managing your personal data (emails, calendar, contacts, tasks, files), accessing external information (web search, weather, places, routing), creating content (images, diagrams), controlling your smart home, autonomous web browsing, and proactively anticipating your needs.
+LIA acts concretely in your digital life through 20+ specialized agents covering all everyday needs: managing your personal data (emails, calendar, contacts, tasks, files), accessing external information (web search, weather, places, routing), creating content (images, diagrams, documents), controlling your smart home, autonomous web browsing, and proactively anticipating your needs.
 
 You choose how LIA reasons, via a simple toggle (⚡) in the chat header:
 
@@ -148,6 +148,7 @@ LIA offers a complete voice mode:
 ### 3.5. Creation and media
 
 - **Image generation**: create images from text descriptions, edit existing photos
+- **Document generation**: ask for a CSV, an Excel sheet, a Word report, a PowerPoint or a PDF — a dedicated writer model produces the content in your language, a local renderer builds the real file, and it arrives as a downloadable card with an explicit expiry date
 - **Excalidraw diagrams**: generate diagrams and schemas directly in conversation
 - **Attachments**: attach photos and PDFs — LIA analyzes visual content and extracts text from documents
 - **MCP Apps**: interactive widgets directly in chat (forms, visualizations, mini-applications)
@@ -457,7 +458,7 @@ If a provider changes its pricing or degrades its service, you switch instantly.
 
 Each user can connect their own MCP servers, extending LIA's capabilities far beyond built-in tools. The client speaks both generations of the protocol — the new stateless revision and the legacy handshake, chosen automatically per server — so openness never costs compatibility. Skills (agentskills.io standard) allow injecting expert instructions in natural language — with a built-in Skill generator that creates them through a guided dialogue and installs them directly into your skills, ready to use. Since v1.16.8, a Skill can also return an **interactive HTML frame** (map, dashboard, calendar, converter...) or an **image** (QR code, chart) right inside the chat, sandboxed under a strict CSP, with theme and locale automatically kept in sync.
 
-Since v1.30.7, this openness has a package format: LIA speaks the **Agent Plugins** open standard (agent-plugins.org), the portable plugin format steered by AWS, Microsoft, OpenAI, Cursor and Vercel and adopted by ChatGPT, Codex, Cursor, GitHub Copilot, Kiro and VS Code. A plugin bundling skills and MCP servers installs into LIA in one step — from a zip or an https link — with a full per-component report of what was installed, skipped (and why) or removed, and uninstalls just as cleanly, everything it brought leaving with it. Interoperability is a conviction here, not a feature: what you build or adopt anywhere in the ecosystem is yours to bring.
+Since v1.30.8, this openness has a package format: LIA speaks the **Agent Plugins** open standard (agent-plugins.org), the portable plugin format steered by AWS, Microsoft, OpenAI, Cursor and Vercel and adopted by ChatGPT, Codex, Cursor, GitHub Copilot, Kiro and VS Code. A plugin bundling skills and MCP servers installs into LIA in one step — from a zip or an https link — with a full per-component report of what was installed, skipped (and why) or removed, and uninstalls just as cleanly, everything it brought leaving with it. Interoperability is a conviction here, not a feature: what you build or adopt anywhere in the ecosystem is yours to bring.
 
 
 LIA's architecture is designed to facilitate adding new connectors, channels, agents and AI providers. The code is structured with clear abstractions and dedicated development guides (agent creation guide, tool creation guide) that make extension accessible to any developer.

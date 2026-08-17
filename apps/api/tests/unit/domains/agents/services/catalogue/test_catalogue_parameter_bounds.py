@@ -132,3 +132,45 @@ def test_the_real_email_manifest_publishes_its_configured_cap():
     by_name = {p["name"]: p for p in serialized["parameters"]}
 
     assert by_name["max_results"]["max"] == settings.emails_tool_default_max_results
+
+
+def test_enum_reaches_the_planner():
+    """ADR-226: an enum the validator enforces must be visible too — same
+    doctrine as min/max (a closed set the planner cannot see is a trap)."""
+    parameter = ParameterSchema(
+        name="doc_type",
+        type="string",
+        required=True,
+        description="Target format.",
+        constraints=[ParameterConstraint(kind="enum", value=["csv", "pdf"])],
+    )
+
+    assert _entry(parameter)["doc_type"]["enum"] == ["csv", "pdf"]
+
+
+def test_non_list_enum_value_is_not_published():
+    """A mis-seeded enum must not put garbage where a list is read."""
+    parameter = ParameterSchema(
+        name="doc_type",
+        type="string",
+        required=True,
+        description="",
+        constraints=[ParameterConstraint(kind="enum", value="csv")],
+    )
+
+    assert "enum" not in _entry(parameter)["doc_type"]
+
+
+def test_the_real_document_manifest_publishes_its_enum():
+    """End to end: the generate_document entry carries the exact closed set."""
+    from src.domains.agents.document_generation.catalogue_manifests import (
+        generate_document_catalogue_manifest,
+    )
+    from src.domains.document_generation.schemas import DocumentType
+
+    serialized = get_smart_catalogue_service()._manifest_to_dict(
+        generate_document_catalogue_manifest
+    )
+    by_name = {p["name"]: p for p in serialized["parameters"]}
+
+    assert set(by_name["doc_type"]["enum"]) == {t.value for t in DocumentType}

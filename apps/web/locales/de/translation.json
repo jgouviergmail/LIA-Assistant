@@ -732,6 +732,14 @@
       "title": "Ladefehler",
       "message": "Nachrichten können nicht angezeigt werden. Bitte aktualisiere die Seite."
     },
+    "document_card": {
+      "download": "{{name}} herunterladen",
+      "open": "{{name}} öffnen",
+      "open_short": "Öffnen"
+    },
+    "document_expiry": {
+      "expired": "Dieses Dokument ist abgelaufen und nicht mehr verfügbar"
+    },
     "image_expiry": {
       "until": "Verfügbar bis {{date}} — zum Behalten herunterladen",
       "soon_one": "Läuft in {{count}} Stunde ab — zum Behalten herunterladen",
@@ -1993,6 +2001,7 @@
           "initiative": "Proaktive Anreicherung nach Ausführung (nur Leseprüfungen)",
           "mcp_react_agent": "MCP iterativer Modus: liest die Server-Dokumentation, führt dann Tools schrittweise aus",
           "image_generation": "KI-Bildgenerierung aus Textbeschreibungen (gpt-image-1 usw.)",
+          "document_generation": "Erstellt vollständige Dokumente (CSV, Excel, Word, PowerPoint, PDF…) als strukturierte Ausgabe für das Werkzeug generate_document",
           "psyche_summary": "Psyche Summary",
           "briefing": "Generiert die Begrüßung und Zusammenfassung des Home-Dashboards (Today)",
           "telephony_synthesis": "Nachbearbeitungs-Zusammenfassung für agentische Anrufe (Zusammenfassung + Vorschlag)",
@@ -2176,6 +2185,13 @@
       "stt_mode_updated_success": "Transkriptions-Backend aktualisiert",
       "stt_remote_unavailable_warning": "Externe Transkription nicht verfügbar: Ein Administrator muss zuerst den ElevenLabs-API-Schlüssel konfigurieren.",
       "stt_remote_privacy_notice": "Im externen Modus wird Ihr Audio zur Transkription an ElevenLabs (Cloud) gesendet. Im lokalen Modus bleibt das Audio innerhalb von LIA."
+    },
+    "document_generation": {
+      "title": "Dokumenterstellung",
+      "description": "Erstellen Sie herunterladbare CSV-, Excel-, Word-, PowerPoint- oder PDF-Dateien in der Unterhaltung",
+      "enable": "Dokumenterstellung aktivieren",
+      "enable_description": "Dem Assistenten erlauben, herunterladbare Dokumente zu erstellen; sie laufen automatisch ab",
+      "updated": "Einstellung zur Dokumenterstellung aktualisiert"
     },
     "image_generation": {
       "title": "KI-Bildgenerierung",
@@ -2792,6 +2808,7 @@
       "tool_control_light": "Licht steuern",
       "tool_activate_scene": "Hue-Szene aktivieren",
       "tool_generate_image": "KI-Bild generieren",
+      "tool_generate_document": "Ein Dokument erstellen",
       "tool_edit_image": "Vorhandenes Bild bearbeiten",
       "param_search_query": "Suchanfrage",
       "param_event_id": "Ereignis-ID",
@@ -3257,6 +3274,7 @@
         "security-export": "DSGVO, GDPR, Archiv, Download, Datenübertragbarkeit, Sicherung, personenbezogene Daten, Datenschutz",
         "voice-mode": "Mikrofon, Sprache, Diktat, STT, TTS, Aktivierungswort, Audio, sprechen",
         "image-generation": "Bilder, Fotos, Zeichnung, Illustration, Generierung, Kunst",
+        "document-generation": "dokumente, dateien, csv, excel, word, powerpoint, pdf, export, bericht, präsentation",
         "connectors": "Google, Gmail, Kalender, Kontakte, Apple, Microsoft, Outlook, Integrationen, Konten, OAuth, neu verbinden, getrennt, Dienste, Position, Standort, Geolokalisierung, Heimatadresse, Adresse, Standortspeicher",
         "telephony-calls": "Telefon, Anrufe, Anrufverlauf, wählen",
         "admin-mcp-servers": "MCP, Model Context Protocol, Anwendungsserver, integrierte Werkzeuge",
@@ -3810,6 +3828,7 @@
       "list_hue_scenes": "Hue-Szenen auflisten...",
       "activate_hue_scene": "Hue-Szene wird aktiviert...",
       "generate_image": "Bild wird generiert...",
+      "generate_document": "Dokument wird erstellt...",
       "edit_image": "Bild wird bearbeitet...",
       "resolve_reference": "Referenz wird aufgelöst...",
       "set_current_item": "Element wird ausgewählt...",
@@ -4053,6 +4072,10 @@
           "title": "🎨 Bildgenerierung & -bearbeitung",
           "description": "Bilder aus Textbeschreibungen generieren und bestehende Bilder mit natürlichsprachlichen Anweisungen bearbeiten. Multi-Provider-Factory-Architektur, benutzerspezifische Qualitäts-/Größen-/Formateinstellungen, Kostenverfolgung mit datenbankgestützter Preisgestaltung. Ein erzeugtes Bild ist ein Anhang mit begrenzter Lebensdauer: Die Karte zeigt die vom Server gelieferte Frist — nie eine fest in der Oberfläche verdrahtete Dauer, da sie konfigurierbar ist — und wechselt in den letzten Stunden in einen Warnton, damit der Download vor der Bereinigung noch möglich bleibt. Die einer Erzeugung eingeräumte Zeit richtet sich nach der tatsächlichen Dauer des Modells, gemessen je Qualität und Format: Ein detailliertes Bild braucht mehrere Minuten, und die Obergrenze lässt ihm diesen Raum, statt kurz vor dem Ende abzubrechen."
         },
+        "documentGeneration": {
+          "title": "Dokumenterstellung",
+          "description": "LIA verfasst auf Abruf vollständige, herunterladbare Dokumente: CSV- und Excel-Tabellen, Word-Berichte, PowerPoint-Präsentationen mit Sprechernotizen, PDF, Markdown und Klartext. Ein dediziertes Autorenmodell erzeugt den Inhalt in Ihrer Sprache — gestützt auf Ihre Daten oder auf eine Recherche derselben Anfrage — und ein lokaler Renderer baut die exakte Datei, ohne jeden Dokumentdienst von Dritten. Dateien erscheinen als Karten unter der Antwort (Name, Größe, Ablaufdatum), PDFs öffnen sich direkt im Browser-Tab, und alles ist bewusst temporär: Laden Sie herunter, was Sie behalten möchten. Pro Nutzer abschaltbar in den Einstellungen, instanzweiter Schalter für den Administrator, und dieselben Nutzungsgrenzen wie jede andere KI-Ausgabe."
+        },
         "reactMode": {
           "title": "⚡ ReAct-Ausführungsmodus",
           "description": "Alternativer Modus zum Pipeline, bei dem der Assistent Schritt für Schritt denkt: Er ruft ein Tool auf, analysiert das Ergebnis und entscheidet dann autonom, was als Nächstes zu tun ist. 4 Custom-Nodes im übergeordneten LangGraph-Graph mit nativer HITL-Unterstützung. Der Pipeline-Modus (Standard) verbraucht 4- bis 8-mal weniger Tokens dank intelligenter Planung und paralleler Ausführung. Jede Konversationsrunde startet mit einem sauberen Datenregister (strikte Rundenisolation), und der Agent erhält die domainübergreifende semantische Typkarte mit einer Präzisionsregel: den exakten Wert (die Adresse eines Kontakts) über das Lookup-Tool abrufen statt einer aus dem Gedächtnis erinnerten Näherung. Zwei Leitplanken rahmen die Schleife (ADR-169/170): Deine Frist wird an der <em>Rechenzeit</em> gemessen, sodass das Warten auf deine Freigabe sie nicht mehr aufzehrt — eine etwas längere Bestätigung schnitt zuvor den Zug ab und ließ die Antwort neu erzeugen; und ein identisch wiederholter Werkzeugaufruf wird beim vierten Versuch abgelehnt und beendet beim fünften den Zug. Die Systemanweisungen des Zuges leben im Zustand statt im Verlauf: Das Präfix ist wieder stabil, der Anbieter-Cache kann greifen, und die Rechnung wächst nicht mehr mit der Anzahl der Züge."
@@ -4104,6 +4127,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_30_8": {
+          "title": "v1.30.8 — 📄 Dokumenterstellung: echte Dateien, auf Abruf",
+          "date": "August 2026",
+          "items": {
+            "i1": "<b>📄 Ein Dokument anfragen, eine echte Datei erhalten</b> — LIA verfasst jetzt vollständige Dokumente auf Abruf: CSV- und Excel-Tabellen, Word-Berichte, PowerPoint-Präsentationen, PDF, Markdown und Klartext. Fragen Sie im Chat („recherchiere die neuesten LLM-Modelle und fasse sie in einer CSV zusammen“, „erstelle eine ausführliche Präsentation über das Elsass“) und die fertige Datei erscheint als herunterladbare Karte unter der Antwort — sie kann direkt an eine Web-Recherche derselben Anfrage anknüpfen. Ein dediziertes Autorenmodell erzeugt den Inhalt in Ihrer Sprache; Tabellen sind konstruktionsbedingt sicher (keine Formel-Injektion) und Excel-fertig.",
+            "i2": "<b>🕒 Dateien, die sagen, wann sie ablaufen</b> — jede Dokumentkarte zeigt Dateinamen, Größe und das exakte Ablaufdatum; PDFs öffnen sich direkt in einem Browser-Tab, alles andere lädt mit einem Klick herunter. Die Erstellung lässt sich pro Nutzer in den Einstellungen abschalten, instanzweit vom Administrator, und zählt zu denselben Nutzungsgrenzen wie der Rest Ihrer KI-Nutzung."
+          },
+          "count": "2"
+        },
         "v1_30_7": {
           "title": "v1.30.7 — 🧩 Agent Plugins: portable Plugins installieren",
           "date": "August 2026",
@@ -7148,6 +7180,33 @@
           }
         }
       },
+      "document_generation": {
+        "title": "KI-Dokumenterstellung",
+        "description": "Erstellen Sie herunterladbare CSV-, Excel-, Word-, PowerPoint-, PDF-, Markdown- oder Textdateien direkt aus der Unterhaltung.",
+        "count": "5",
+        "questions": {
+          "q1": {
+            "question": "Wie erstelle ich ein Dokument?",
+            "answer": "Fragen Sie einfach im Chat: „Exportiere das als CSV“, „Schreibe einen PDF-Bericht über …“, „Erstelle eine Präsentation über das Elsass“. Ein dediziertes Autorenmodell erzeugt den vollständigen Inhalt in Ihrer Sprache, und die fertige Datei erscheint als herunterladbare Karte unter der Antwort. Das verkettet sich natürlich mit Recherchen: „recherchiere die neuesten LLM-Modelle und formalisiere das Ergebnis als CSV“ erzeugt eine Datei, die auf den frischen Ergebnissen derselben Anfrage beruht."
+          },
+          "q2": {
+            "question": "Welche Formate werden unterstützt?",
+            "answer": "Sieben Formate: <b>CSV</b> und <b>Excel (xlsx)</b> für Datentabellen, <b>Word (docx)</b> für strukturierte Berichte, <b>PowerPoint (pptx)</b> für Präsentationen (mit Sprechernotizen), <b>PDF</b> für druckfertige Dokumente, dazu <b>Markdown</b> und <b>Klartext</b>. LIA hält sich an das gewünschte Format; sagen Sie nur „eine Tabelle“ oder „ein Bericht“, wählt es das natürlichste. Tabellen sind Excel-fertig (korrekte Umlaute, konstruktionsbedingt keine Formel-Injektion)."
+          },
+          "q3": {
+            "question": "Wie sehe ich ein erzeugtes Dokument an oder lade es herunter?",
+            "answer": "Jedes Dokument erscheint als Karte unter der Antwort des Assistenten, mit Dateiname, Typ und Größe. Klicken Sie auf das Download-Symbol, um es zu speichern — PDFs öffnen sich stattdessen direkt in einem neuen Browser-Tab, damit Sie sie lesen können, bevor Sie sie behalten. Die Karte übersteht ein Neuladen der Seite: Sie bleibt im Verlauf der Unterhaltung, bis die Datei abläuft."
+          },
+          "q4": {
+            "question": "Wie lange bleibt ein Dokument verfügbar, und was kostet es?",
+            "answer": "Erzeugte Dateien sind bewusst temporär: Jede Karte zeigt ihr exaktes Ablaufdatum, und kurz davor erscheint ein Hinweis — laden Sie die Datei herunter, um sie zu behalten. Die Kosten sind die Nutzung des Autorenmodells, gezählt wie der Rest Ihrer KI-Nutzung innerhalb Ihrer Kontogrenzen. Eine technische Ratenbegrenzung schützt zusätzlich vor Endlosschleifen; normale Nutzung erreicht sie nie."
+          },
+          "q5": {
+            "question": "Kann ich die Dokumenterstellung abschalten?",
+            "answer": "Ja, auf zwei Ebenen. Für Ihr eigenes Konto in <b>Einstellungen > Präferenzen > Dokumenterstellung</b>. Der Administrator kann die Fähigkeit außerdem instanzweit abschalten, sofort und ohne Neustart — das Werkzeug verschwindet dann sogar aus dem, was der Assistent überhaupt vorschlagen kann."
+          }
+        }
+      },
       "health_metrics": {
         "title": "Gesundheitsdaten",
         "description": "Ingestion-API zum Senden von Herzfrequenz und Schritten aus beliebigen Quellen",
@@ -7268,7 +7327,7 @@
       },
       "share_export": {
         "title": "Eine Antwort, viele Wege",
-        "desc": "Teile oder exportiere jede Antwort mit einem Handgriff — immer als lesbarer Text, auch die gestalteten Antworten."
+        "desc": "Teilen oder exportieren Sie jede Antwort mit einer Geste — und wenn Sie eine echte Datei brauchen, fragen Sie danach: LIA verfasst CSV-, Excel-, Word-, PowerPoint- oder PDF-Dokumente zum Herunterladen."
       },
       "backstage": {
         "title": "Der Blick hinter die Kulissen",
@@ -10028,6 +10087,8 @@
       "tts_description": "Liest Antworten im Chat vor. Ausschalten stoppt die Synthese an ihrem einzigen Kontrollpunkt; sonst ändert sich nichts.",
       "image_generation": "Bilderzeugung",
       "image_generation_description": "Bilder erstellen und bearbeiten. Ausschalten entfernt die Werkzeuge aus dem Planer und schließt die Options-Routen.",
+      "document_generation": "Dokumenterstellung",
+      "document_generation_description": "Erstellen herunterladbarer Dokumente (CSV, Excel, Word, PowerPoint, PDF…). Beim Abschalten wird das Werkzeug aus dem Planer entfernt.",
       "attachments": "Datei-Uploads",
       "attachments_description": "Dateien an eine Unterhaltung anhängen. Ausschalten weist Uploads an der Tür ab.",
       "rag_spaces": "Dokumentenbereiche (RAG)",

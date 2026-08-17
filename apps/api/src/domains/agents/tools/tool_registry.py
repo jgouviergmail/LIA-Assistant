@@ -379,6 +379,15 @@ def _import_tool_modules() -> None:
             ("src.domains.agents.tools.image_generation_tools", "image_generation_tools")
         )
 
+    # Document Generation tool (ADR-226): only register when feature is enabled
+    if getattr(get_settings(), "document_generation_enabled", False):
+        tool_modules.append(
+            (
+                "src.domains.agents.tools.document_generation_tools",
+                "document_generation_tools",
+            )
+        )
+
     # DevOps: Claude CLI remote server management
     if getattr(get_settings(), "devops_enabled", False):
         tool_modules.append(("src.domains.agents.tools.devops_tools", "devops_tools"))

@@ -1617,10 +1617,13 @@ async def execute_plan_parallel(
 # evaluated once, not on every step.
 _BROWSER_TOOL_NAME = "browser_task_tool"
 _IMAGE_TOOL_NAMES: frozenset[str] = frozenset({"generate_image", "edit_image"})
+_DOCUMENT_TOOL_NAMES: frozenset[str] = frozenset({"generate_document"})
 _DEVOPS_TOOL_NAME = "claude_server_task_tool"
 _SUB_AGENT_TOOL_NAME = "delegate_to_sub_agent_tool"
-_HIGH_LATENCY_TOOL_NAMES: frozenset[str] = _IMAGE_TOOL_NAMES | frozenset(
-    {_SUB_AGENT_TOOL_NAME, _DEVOPS_TOOL_NAME, _BROWSER_TOOL_NAME}
+_HIGH_LATENCY_TOOL_NAMES: frozenset[str] = (
+    _IMAGE_TOOL_NAMES
+    | _DOCUMENT_TOOL_NAMES
+    | frozenset({_SUB_AGENT_TOOL_NAME, _DEVOPS_TOOL_NAME, _BROWSER_TOOL_NAME})
 )
 # Every per-family timeout now lives in Settings and is read inside
 # _compute_step_timeout below, so all of them are `.env`-tunable:
@@ -1629,6 +1632,9 @@ _HIGH_LATENCY_TOOL_NAMES: frozenset[str] = _IMAGE_TOOL_NAMES | frozenset(
 #   - MCP ReAct : mcp_react_step_timeout_seconds / mcp_react_step_max_timeout_seconds
 #   - image     : image_generation_tool_timeout_seconds /
 #                 max_image_generation_tool_timeout_seconds  (ADR-160)
+#   - document  : document_generation_tool_timeout_seconds /
+#                 max_document_generation_tool_timeout_seconds  (ADR-226 — the
+#                 internal LLM writes whole documents, well above 30 s)
 #   - devops    : devops_claude_tool_timeout_seconds, generic ceiling
 # The image family got its own ceiling on 2026-07-27: a measured 138.3 s render
 # sat above the generic 120 s cap, so no floor value could have rescued it.
@@ -1652,6 +1658,10 @@ def _compute_step_timeout(
       ceiling pair (`image_generation_tool_timeout_seconds` /
       `max_image_generation_tool_timeout_seconds`) — a high-quality render
       measured 138.3 s, above the generic 120 s ceiling that used to apply.
+    - Document tool (``generate_document``, ADR-226): dedicated floor /
+      ceiling pair (`document_generation_tool_timeout_seconds` /
+      `max_document_generation_tool_timeout_seconds`) — the internal LLM
+      writes whole documents, well above the generic tool default.
     - ``claude_server_task_tool``: 120 s floor, `MAX_TOOL_TIMEOUT_SECONDS`
       ceiling.
     - MCP iterative task tools (``{server}_task``, ADR-062): dedicated
@@ -1677,9 +1687,6 @@ def _compute_step_timeout(
         Effective timeout in seconds. Always positive.
     """
     cfg = get_settings()
-    sub_agent_floor: float = cfg.subagent_tool_timeout_seconds
-    sub_agent_ceiling: float = cfg.subagent_tool_max_timeout_seconds
-
     # MCP iterative (ReAct) task steps (`{server}_task`, ADR-062): dedicated
     # high-latency family (audit D1). The generic 120 s ceiling used to clamp
     # the planner's request and killed legitimate multi-iteration work — one
@@ -1698,9 +1705,11 @@ def _compute_step_timeout(
     # Floor (effective default if planner left it unset, AND minimum for
     # high-latency tools — see docstring).
     if step_tool_name == _SUB_AGENT_TOOL_NAME:
-        effective_default: float = sub_agent_floor
+        effective_default: float = cfg.subagent_tool_timeout_seconds
     elif step_tool_name in _IMAGE_TOOL_NAMES:
         effective_default = cfg.image_generation_tool_timeout_seconds
+    elif step_tool_name in _DOCUMENT_TOOL_NAMES:
+        effective_default = cfg.document_generation_tool_timeout_seconds
     elif step_tool_name == _DEVOPS_TOOL_NAME:
         effective_default = cfg.devops_claude_tool_timeout_seconds
     elif step_tool_name == _BROWSER_TOOL_NAME:
@@ -1714,12 +1723,16 @@ def _compute_step_timeout(
     if step_tool_name == _BROWSER_TOOL_NAME:
         max_timeout: float = cfg.max_browser_tool_timeout_seconds
     elif step_tool_name == _SUB_AGENT_TOOL_NAME:
-        max_timeout = sub_agent_ceiling
+        max_timeout = cfg.subagent_tool_max_timeout_seconds
     elif step_tool_name in _IMAGE_TOOL_NAMES:
         # Dedicated ceiling: the generic 120 s sat BELOW the 138.3 s measured
         # for gpt-image-2 at quality=high, so raising the floor alone could
         # never make a high-quality render succeed (audit 2026-07-27).
         max_timeout = cfg.max_image_generation_tool_timeout_seconds
+    elif step_tool_name in _DOCUMENT_TOOL_NAMES:
+        # Dedicated ceiling (ADR-226): a large document at 16k output tokens
+        # legitimately exceeds the generic 120 s cap.
+        max_timeout = cfg.max_document_generation_tool_timeout_seconds
     elif is_mcp_react_task:
         max_timeout = float(cfg.mcp_react_step_max_timeout_seconds)
     else:

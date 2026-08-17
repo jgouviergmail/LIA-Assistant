@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiClient } from '@/lib/api-client';
-import { Message, type GeneratedImage } from '@/types/chat';
+import { Message, type GeneratedDocument, type GeneratedImage } from '@/types/chat';
 import { useAuth } from '@/hooks/useAuth';
 import { CHAT_SEARCH_RESULTS_PAGE_SIZE } from '@/lib/constants';
 import { executionTraceFromMetadata } from '@/lib/execution-trace-hydration';
@@ -30,6 +30,24 @@ export interface Conversation {
   total_tokens: number;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Narrow the untyped JSONB message metadata to the archived card payloads
+ * (generated images/documents, browser screenshot). Pure, module-level: keeps
+ * the message mapper's cyclomatic complexity bounded, and names the same
+ * shapes the live SSE path uses so the two boundaries cannot drift.
+ */
+function archivedCardsFromMetadata(metadata: Record<string, unknown> | null): {
+  generatedImages?: GeneratedImage[];
+  generatedDocuments?: GeneratedDocument[];
+  browserScreenshot?: { url: string; alt: string };
+} {
+  return {
+    generatedImages: metadata?.generated_images as GeneratedImage[] | undefined,
+    generatedDocuments: metadata?.generated_documents as GeneratedDocument[] | undefined,
+    browserScreenshot: metadata?.browser_screenshot as { url: string; alt: string } | undefined,
+  };
 }
 
 export interface ConversationMessage {
@@ -201,14 +219,10 @@ export const useConversation = (): UseConversationReturn => {
       // Persisted ⚙ execution trace (ADR-133 V2) — labels re-resolved from the
       // stored i18n keys so history rows render the same disclosure as live ones
       executionTrace: executionTraceFromMetadata(msg.message_metadata, t),
-      // AI-generated images persisted in message_metadata for history display
-      // Narrowed from the untyped JSONB the API returns — the named type keeps
-      // this boundary and the live SSE path describing the same thing.
-      generatedImages:
-        (msg.message_metadata?.generated_images as GeneratedImage[] | undefined) ?? undefined,
-      browserScreenshot:
-        (msg.message_metadata?.browser_screenshot as { url: string; alt: string } | undefined) ??
-        undefined,
+      // AI-generated cards persisted in message_metadata for history display
+      // (images, documents, browser screenshot) — narrowed in one pure helper
+      // so this mapper keeps a bounded complexity.
+      ...archivedCardsFromMetadata(msg.message_metadata),
     }),
     [user, t]
   );

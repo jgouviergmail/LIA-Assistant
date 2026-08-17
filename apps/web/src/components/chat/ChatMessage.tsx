@@ -1,13 +1,21 @@
 import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Message, MessageAttachmentMeta, type GeneratedImage } from '@/types/chat';
+import {
+  Message,
+  MessageAttachmentMeta,
+  type GeneratedDocument,
+  type GeneratedImage,
+} from '@/types/chat';
 import {
   AlertCircle,
   Check,
   Copy,
   Download,
+  ExternalLink,
+  FileSpreadsheet,
   FileText,
   Globe,
+  Presentation,
   RotateCcw,
   User,
   X,
@@ -352,7 +360,18 @@ function assistantBubbleSurface(metadata: Record<string, unknown> | undefined): 
  * configurable, so a "24 h" written here would eventually be a lie. No
  * deadline (history predating N2) means no notice at all.
  */
-function ImageExpiryNotice({ expiresAt }: { expiresAt?: string | null }) {
+function ImageExpiryNotice({
+  expiresAt,
+  expiredKey = 'chat.image_expiry.expired',
+}: {
+  expiresAt?: string | null;
+  /**
+   * Only the "expired" copy names the artefact ("this image/document…") —
+   * document cards (ADR-226) pass their own key; the countdown copy is
+   * artefact-agnostic and stays shared.
+   */
+  expiredKey?: string;
+}) {
   const { t, i18n } = useTranslation();
   // Read once per render: the notice is informational, not a live countdown —
   // a ticking timer on every image card would re-render the whole thread.
@@ -360,9 +379,7 @@ function ImageExpiryNotice({ expiresAt }: { expiresAt?: string | null }) {
   if (expiry.kind === 'unknown') return null;
 
   if (expiry.kind === 'expired') {
-    return (
-      <p className="mt-1 text-[11px] text-muted-foreground">{t('chat.image_expiry.expired')}</p>
-    );
+    return <p className="mt-1 text-[11px] text-muted-foreground">{t(expiredKey)}</p>;
   }
 
   const at = expiry.at.toLocaleString(i18n.language, {
@@ -453,6 +470,85 @@ function GeneratedImageCards({ images }: { images: GeneratedImage[] }) {
           document.body
         )}
     </>
+  );
+}
+
+/** Lucide icon for a generated document card, by format family (ADR-226). */
+function documentTypeIcon(docType: string) {
+  switch (docType) {
+    case 'csv':
+    case 'xlsx':
+      return FileSpreadsheet;
+    case 'pptx':
+      return Presentation;
+    default:
+      return FileText;
+  }
+}
+
+/**
+ * AI-generated document cards (ADR-226) — one download row per document,
+ * rendered outside markdown like the image cards. PDF opens inline in a new
+ * tab (the API serves `application/pdf` inline); every other type downloads
+ * via the native `download` attribute — a download is a navigation, so the
+ * control is a real `<a>`, not a button.
+ */
+function GeneratedDocumentCards({ documents }: { documents?: GeneratedDocument[] }) {
+  const { t } = useTranslation();
+  // The empty-case guard lives HERE, not at the call site: ChatMessage is a
+  // maximum-complexity hotspot and must not gain render branches.
+  if (!documents || documents.length === 0) return null;
+  return (
+    <div className="mt-3 space-y-2">
+      {documents.map((doc, i) => {
+        const isPdf = doc.doc_type === 'pdf';
+        const Icon = documentTypeIcon(doc.doc_type);
+        return (
+          <div
+            key={i}
+            data-testid="generated-document-card"
+            className="flex items-center gap-3 rounded-lg border bg-card p-3 w-full max-w-[512px] mx-auto"
+          >
+            <Icon className="w-8 h-8 shrink-0 text-primary" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium text-sm">{doc.filename}</p>
+              <p className="text-xs text-muted-foreground">
+                {doc.doc_type.toUpperCase()} · {formatFileSize(doc.size_bytes)}
+              </p>
+              <ImageExpiryNotice
+                expiresAt={doc.expires_at}
+                expiredKey="chat.document_expiry.expired"
+              />
+            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href={doc.url}
+                  {...(isPdf
+                    ? { target: '_blank', rel: 'noopener' }
+                    : { download: doc.filename })}
+                  className="p-2 shrink-0 rounded-md hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={
+                    isPdf
+                      ? t('chat.document_card.open', { name: doc.filename })
+                      : t('chat.document_card.download', { name: doc.filename })
+                  }
+                >
+                  {isPdf ? (
+                    <ExternalLink className="w-4 h-4" aria-hidden="true" />
+                  ) : (
+                    <Download className="w-4 h-4" aria-hidden="true" />
+                  )}
+                </a>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isPdf ? t('chat.document_card.open_short') : t('common.download')}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -896,6 +992,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
             {message.generatedImages && message.generatedImages.length > 0 && (
               <GeneratedImageCards images={message.generatedImages} />
             )}
+            {/* AI-generated document cards (ADR-226) — same slot, below images;
+                the component renders null without documents (hotspot CC rule) */}
+            <GeneratedDocumentCards documents={message.generatedDocuments} />
             {/* T01: structured debrief under a post-call report (renders
                 nothing for every other message — the block owns its checks). */}
             <PhoneCallDebriefBlock metadata={message.metadata} />

@@ -33,4 +33,22 @@ PROGRAM_DOMAIN_CONFIGS: dict[str, DomainConfig] = {
         related_domains=["event"],
         metadata={"requires_oauth": False, "feature_flag": "peers_enabled"},
     ),
+    # AI Document Generation (ADR-226): downloadable files written by a
+    # dedicated LLM slot, rendered locally, stored as TTL attachments.
+    "document_generation": DomainConfig(
+        name="document_generation",
+        display_name="Document Generation",
+        description=(
+            "Create downloadable documents (CSV, Excel, Word, PowerPoint, PDF, "
+            "Markdown, text) from instructions and optional data. "
+            "Use when the user asks for a file, an export, a report document, "
+            "a spreadsheet or a presentation. NOT for images."
+        ),
+        agent_names=["document_generation_agent"],
+        result_key="document_generations",  # $steps.step_N.document_generations
+        related_domains=[],
+        is_routable=True,
+        # requires_api_key False: uses the admin LLM Config slot.
+        metadata={"provider": "internal", "requires_oauth": False, "requires_api_key": False},
+    ),
 }

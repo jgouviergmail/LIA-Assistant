@@ -6,7 +6,7 @@
 
 **Version**: 4.3
 **Date**: 2026-08-17
-**Application**: LIA v1.30.7
+**Application**: LIA v1.30.8
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 466 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 224 ADRs, ~19,322 pytest-collected tests across 1,087 files, native observability, 6-level HITL |
+| Production reliability | 225 ADRs, ~19,414 pytest-collected tests across 1,100 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -74,7 +74,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~19,322 (collected by pytest across 1,087 test files) + 5,522 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~19,414 (collected by pytest across 1,100 test files) + 5,537 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 490+ |
 | ADRs (Architecture Decision Records) | 209 |
@@ -346,6 +346,12 @@ The whole system is governed by a feature flag and a dozen env-tunable settings 
 ---
 
 **Grounding on recent entities.** On a turn that calls no tool, the current-turn registry is empty by construction (an anti-contamination guard) and the conversational history deliberately excludes tool messages: the response model then has *no* authoritative structured data at all, and can only rephrase earlier prose. The most recent entities in state are therefore re-injected through a dedicated prompt section — selected by recency, age-bounded, with no store round-trip, and explicitly subordinate to current-turn data. An authority rule completes it: inventing an entity attribute is forbidden, and a value that was requested but never received must be announced as missing.
+
+### 5.5. Generated artifacts: from request to downloadable file (ADR-226)
+
+Since v1.30.8 the pipeline can end on a file rather than only on prose. The `generate_document` tool follows the same architecture as image generation — a virtual agent in the catalogue, no dedicated graph node — but its "generator" is a dedicated LLM slot (`document_generation`, admin-configurable like every other slot) called with **structured output typed per format family**: tabular content for CSV/Excel, a section tree for Word/PDF/Markdown/text, a slide list for PowerPoint. The schema is selected *before* the call, so every response is strict-schema validated, then a **pure local renderer** builds the exact bytes — openpyxl, python-docx, python-pptx, PyMuPDF: the libraries already shipped for RAG extraction, now writing instead of reading, with zero third-party document service.
+
+Three design decisions carry the feature. First, honesty of the artifact: spreadsheet cells are neutralized against formula injection (a probe proved openpyxl stores `=1+2` as a live formula) while legitimate negative numbers stay untouched, and a failure after the paid LLM call returns an explicit error — never a phantom card. Second, chaining: the planner can feed the results of a web-research step into the document step (`source_data`), so "research then formalize as CSV" is one request. Third, lifecycle: the file lands in the existing attachments store with the same TTL purge as generated images, and its card — delivered live through the SSE done chunk and persisted in message metadata through one shared serializer — displays the exact expiry deadline.
 
 ## 6. The planning system (ExecutionPlan DSL)
 
@@ -1276,7 +1282,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-224 ADRs in MADR format document the major architectural decisions. Some representative examples:
+225 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1381,10 +1387,10 @@ The common thread across these four batches is a property of the tests themselve
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 224 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~19,322 tests across 1,087 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 225 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~19,414 tests across 1,100 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 224 ADRs, and the changelog (v1.0 to v1.30.7). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 225 ADRs, and the changelog (v1.0 to v1.30.8). All metrics, versions, and patterns cited are verifiable in the codebase.*

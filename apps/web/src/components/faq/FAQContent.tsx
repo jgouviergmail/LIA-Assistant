@@ -60,6 +60,7 @@ import {
   Monitor,
   Orbit,
   ImageIcon,
+  FileOutput,
   UserCheck,
   Filter,
   HeartHandshake,
@@ -108,6 +109,7 @@ const sections = [
   'rag_spaces',
   'voice_mode',
   'image_generation',
+  'document_generation',
   'journals',
   'health_metrics',
   'usage_limits',
@@ -124,6 +126,7 @@ const sections = [
  * releases. `__tests__/changelog-wiring.test.ts` now fails on any drift in either direction.
  */
 export const changelogVersionKeys = [
+  'v1_30_8',
   'v1_30_7',
   'v1_30_6',
   'v1_30_5',
@@ -338,6 +341,7 @@ export const featureIcons = {
   psycheEngine: Brain,
   personalJournals: BookOpen,
   imageGeneration: ImageIcon,
+  documentGeneration: FileOutput,
   reactMode: Zap,
   proactiveInitiative: Compass,
   todayBriefing: Sunrise,
@@ -403,6 +407,7 @@ export const featureKeys = [
   'psycheEngine',
   'personalJournals',
   'imageGeneration',
+  'documentGeneration',
   'reactMode',
   'proactiveInitiative',
   'todayBriefing',

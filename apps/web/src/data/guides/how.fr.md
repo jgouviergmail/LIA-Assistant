@@ -6,7 +6,7 @@
 
 **Version** : 4.3
 **Date** : 2026-08-17
-**Application** : LIA v1.30.7
+**Application** : LIA v1.30.8
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 466 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 224 ADRs, ~19 322 tests collectés par pytest sur 1 087 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 225 ADRs, ~19 414 tests collectés par pytest sur 1 100 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -74,7 +74,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~19 322 (collectés par pytest sur 1 087 fichiers de test) + 5 522 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | ~19 414 (collectés par pytest sur 1 100 fichiers de test) + 5 537 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures réutilisables | 170+ |
 | Documents de documentation | 490+ |
 | ADRs (Architecture Decision Records) | 209 |
@@ -346,6 +346,12 @@ L'ensemble est gouverné par un feature flag et une dizaine de réglages env (TT
 ---
 
 **Ancrage sur les entités récentes.** Sur un tour qui n’appelle aucun outil, le registre du tour courant est vide par construction (garde anti-contamination) et l’historique conversationnel exclut délibérément les messages d’outil : le modèle de réponse n’a alors *aucune* donnée structurée faisant autorité, et ne peut que reformuler de la prose antérieure. Les entités les plus récentes du state sont donc réinjectées dans une section de prompt dédiée — sélectionnées par récence, bornées en âge, sans aucun aller-retour de stockage, et explicitement non prioritaires sur les données du tour courant. Une règle d’autorité complète le dispositif : interdiction d’inventer un attribut d’entité, et obligation d’annoncer comme manquante une donnée demandée mais jamais reçue.
+
+### 5.5. Artefacts générés : de la requête au fichier téléchargeable (ADR-226)
+
+Depuis la v1.30.8, le pipeline peut se conclure par un fichier et non plus seulement par de la prose. L'outil `generate_document` suit la même architecture que la génération d'images — un agent virtuel au catalogue, aucun nœud de graphe dédié — mais son « générateur » est un slot LLM dédié (`document_generation`, administrable comme tous les autres) appelé en **sortie structurée typée par famille de format** : contenu tabulaire pour CSV/Excel, arbre de sections pour Word/PDF/Markdown/texte, liste de diapositives pour PowerPoint. Le schéma est choisi *avant* l'appel, chaque réponse est donc validée en schéma strict, puis un **moteur de rendu local pur** construit les octets exacts — openpyxl, python-docx, python-pptx, PyMuPDF : les bibliothèques déjà embarquées pour l'extraction RAG, qui écrivent désormais au lieu de lire, sans aucun service documentaire tiers.
+
+Trois décisions de conception portent la fonctionnalité. D'abord l'honnêteté de l'artefact : les cellules de tableur sont neutralisées contre l'injection de formule (une sonde a prouvé qu'openpyxl stocke `=1+2` comme formule vivante) tandis que les nombres négatifs légitimes restent intacts, et un échec après l'appel LLM payé retourne une erreur explicite — jamais de carte fantôme. Ensuite le chaînage : le planificateur peut injecter les résultats d'une étape de recherche web dans l'étape document (`source_data`), si bien que « recherche puis formalise en CSV » tient en une requête. Enfin le cycle de vie : le fichier atterrit dans le store d'attachments existant avec la même purge TTL que les images générées, et sa carte — livrée en direct par le done chunk SSE et persistée dans les métadonnées de message par un sérialiseur unique partagé — affiche l'échéance exacte d'expiration.
 
 ## 6. Le système de planification (ExecutionPlan DSL)
 
@@ -1286,7 +1292,7 @@ La leçon d’ingénierie la plus précieuse est venue d’un défaut invisible 
 
 ## 24. Architecture des décisions (ADR)
 
-224 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+225 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1398,10 +1404,10 @@ Le fil commun de ces quatre lots est une propriété des tests eux-mêmes. Chaqu
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 224 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~19 322 tests sur 1 087 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 225 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~19 414 tests sur 1 100 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 224 ADRs, et du changelog (v1.0 à v1.30.7). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 225 ADRs, et du changelog (v1.0 à v1.30.8). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

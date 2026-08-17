@@ -61,6 +61,7 @@ class PlatformCapability(str, Enum):
     STT = "stt"
     TTS = "tts"
     IMAGE_GENERATION = "image_generation"
+    DOCUMENT_GENERATION = "document_generation"
     ATTACHMENTS = "attachments"
     RAG_SPACES = "rag_spaces"
     WEB_SEARCH = "web_search"
@@ -123,6 +124,15 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
         setting_key=SystemSettingKey.CAPABILITY_IMAGE_GENERATION_ENABLED,
         agents=("image_generation_agent",),
         route_enforced=True,
+    ),
+    PlatformCapability.DOCUMENT_GENERATION: CapabilitySpec(
+        capability=PlatformCapability.DOCUMENT_GENERATION,
+        env_flag="document_generation_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_DOCUMENT_GENERATION_ENABLED,
+        agents=("document_generation_agent",),
+        # No route of its own: the gate lives at the generate_document tool
+        # entry (settings flag + user opt-in), like TTS's synthesis chokepoint.
+        service_enforced=True,
     ),
     PlatformCapability.ATTACHMENTS: CapabilitySpec(
         capability=PlatformCapability.ATTACHMENTS,

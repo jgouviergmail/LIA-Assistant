@@ -796,15 +796,18 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
 
     # Register Image Generation tool manifest (feature-flagged)
     if getattr(_get_settings(), "image_generation_enabled", False):
-        from src.domains.agents.image_generation.catalogue_manifests import (
-            edit_image_catalogue_manifest,
-            generate_image_catalogue_manifest,
-            image_agent_manifest,
-        )
+        from src.domains.agents.image_generation import catalogue_manifests as _img_manifests
 
-        registry.register_agent_manifest(image_agent_manifest)
-        registry.register_tool_manifest(generate_image_catalogue_manifest)
-        registry.register_tool_manifest(edit_image_catalogue_manifest)
+        registry.register_agent_manifest(_img_manifests.image_agent_manifest)
+        registry.register_tool_manifest(_img_manifests.generate_image_catalogue_manifest)
+        registry.register_tool_manifest(_img_manifests.edit_image_catalogue_manifest)
+
+    # Register Document Generation manifests (feature-flagged, ADR-226)
+    if getattr(_get_settings(), "document_generation_enabled", False):
+        from src.domains.agents.document_generation import catalogue_manifests as _doc_manifests
+
+        registry.register_agent_manifest(_doc_manifests.document_agent_manifest)
+        registry.register_tool_manifest(_doc_manifests.generate_document_catalogue_manifest)
 
     # DevOps: Claude CLI remote server management (feature-flagged)
     if getattr(_get_settings(), "devops_enabled", False):
