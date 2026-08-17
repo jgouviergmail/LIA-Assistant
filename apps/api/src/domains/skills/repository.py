@@ -62,6 +62,12 @@ class SkillRepository(BaseRepository[Skill]):
         result = await self.db.execute(stmt)
         return {row[0] for row in result}
 
+    async def get_by_plugin_id(self, plugin_id: UUID) -> list[Skill]:
+        """Get the skills installed by one Agent Plugins package (ADR-225)."""
+        stmt = select(Skill).where(Skill.plugin_id == plugin_id).order_by(Skill.name)
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
     async def delete_by_name(self, name: str) -> None:
         """Delete a skill by name (CASCADE deletes user_skill_states)."""
         stmt = delete(Skill).where(Skill.name == name)

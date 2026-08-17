@@ -29,6 +29,8 @@ export interface UserMCPServer {
   id: string;
   name: string;
   url: string;
+  /** Agent Plugins provenance (ADR-225); non-null = uninstall via the plugin. */
+  plugin_id: string | null;
   auth_type: UserMCPAuthType;
   status: UserMCPServerStatus;
   is_enabled: boolean;

@@ -78,3 +78,13 @@ class UserMCPServerRepository(BaseRepository[UserMCPServer]):
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_by_plugin_id(self, plugin_id: UUID) -> list[UserMCPServer]:
+        """Get the servers installed by one Agent Plugins package (ADR-225)."""
+        stmt = (
+            select(UserMCPServer)
+            .where(UserMCPServer.plugin_id == plugin_id)
+            .order_by(UserMCPServer.name.asc())
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())

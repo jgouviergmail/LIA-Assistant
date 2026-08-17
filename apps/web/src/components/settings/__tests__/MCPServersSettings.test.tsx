@@ -13,7 +13,9 @@ import { Accordion } from '@/components/ui/accordion';
 
 const { useUserMCPServers } = vi.hoisted(() => ({ useUserMCPServers: vi.fn() }));
 vi.mock('@/hooks/useUserMCPServers', () => ({ useUserMCPServers }));
-const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+const { toast } = vi.hoisted(() => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
 vi.mock('sonner', () => ({ toast }));
 
 import { MCPServersSettings } from '../MCPServersSettings';
@@ -29,6 +31,7 @@ function server(over: Partial<UserMCPServer> = {}): UserMCPServer {
     id: 's1',
     name: 'Weather MCP',
     url: 'https://mcp.example.com/sse',
+    plugin_id: null,
     auth_type: 'none',
     status: 'active',
     is_enabled: true,
@@ -183,5 +186,28 @@ describe('MCPServersSettings — deletion', () => {
     const { user } = render();
     await confirmDelete(user);
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('still in use'));
+  });
+});
+
+describe('MCPServersSettings — plugin-owned server lock (ADR-225 arbitrage F)', () => {
+  it('refuses deletion of a plugin server with an informative toast', async () => {
+    const deleteServer = vi.fn();
+    useUserMCPServers.mockReturnValue(
+      hook({ servers: [server({ plugin_id: 'plugin-1' })], deleteServer })
+    );
+    const { user } = render();
+
+    await user.click(screen.getByRole('button', { name: DELETE }));
+
+    expect(toast.info).toHaveBeenCalledWith('settings.plugins.component_locked');
+    expect(deleteServer).not.toHaveBeenCalled();
+    expect(screen.queryByText('settings.mcp.delete_confirm_title')).not.toBeInTheDocument();
+  });
+
+  it('shows the provenance badge on a plugin-owned server', () => {
+    useUserMCPServers.mockReturnValue(hook({ servers: [server({ plugin_id: 'plugin-1' })] }));
+    render();
+
+    expect(screen.getByText('settings.plugins.via_plugin')).toBeInTheDocument();
   });
 });

@@ -41,6 +41,8 @@ def sample_server():
     server.is_enabled = True
     server.timeout_seconds = 30
     server.hitl_required = None
+    server.plugin_id = None
+    server.extra_headers = None
     return server
 
 

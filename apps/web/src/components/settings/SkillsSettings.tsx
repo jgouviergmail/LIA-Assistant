@@ -9,7 +9,7 @@
  * (CC budgets — keep this file orchestration-only).
  */
 
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Blocks, BookOpen, ChevronDown, Link2, ShieldCheck, Upload } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
@@ -32,6 +32,7 @@ import { SkillGallery } from '@/components/settings/SkillGallery';
 import { SkillDetailModal } from '@/components/settings/SkillDetailModal';
 import { ImportFromUrlDialog } from '@/components/settings/ImportFromUrlDialog';
 import { useSkills, type Skill } from '@/hooks/useSkills';
+import { usePlugins } from '@/hooks/usePlugins';
 import { toast } from 'sonner';
 import type { Language } from '@/i18n/settings';
 
@@ -308,6 +309,13 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
   const hook = useSkills();
   const { skills, loading, error, refetch, importFromUrl, importingFromUrl, deleting, toggling } =
     hook;
+  // ADR-225 arbitrage F: skills installed by a plugin leave through the
+  // plugin uninstall — the delete guard below needs to know which ones.
+  const { plugins } = usePlugins();
+  const pluginOwnedSkills = useMemo(
+    () => new Set(plugins.flatMap(plugin => plugin.skill_names)),
+    [plugins]
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showGuide, setShowGuide] = useState(false);
   const [showUrlImport, setShowUrlImport] = useState(false);
@@ -409,7 +417,15 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
         onOpenChange={open => !open && setSelected(null)}
         onToggle={handleToggle}
         onDownload={handleDownload}
-        onDelete={skill => setDeletingName(skill.name)}
+        onDelete={skill => {
+          // Guard, not a disabled attribute: explains where to go and never
+          // drops keyboard focus (ADR-225 arbitrage F).
+          if (pluginOwnedSkills.has(skill.name)) {
+            toast.info(t('settings.plugins.component_locked', { name: skill.name }));
+            return;
+          }
+          setDeletingName(skill.name);
+        }}
         downloading={downloadingName === selectedLive?.name}
         toggling={toggling}
       />

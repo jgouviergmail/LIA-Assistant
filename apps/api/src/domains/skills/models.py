@@ -58,6 +58,18 @@ class Skill(BaseModel):
         server_default="true",
         doc="Admin visibility toggle. When False, skill is hidden from all non-superusers.",
     )
+    plugin_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("user_plugins.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="Agent Plugins provenance (ADR-225); NULL = manually imported",
+        doc=(
+            "Provenance link to the Agent Plugins package that installed this "
+            "skill (ADR-225). NULL = manually imported. SET NULL on raw plugin "
+            "deletion turns it back into an ordinary user skill; the clean "
+            "group uninstall is service-driven."
+        ),
+    )
     description: Mapped[str] = mapped_column(
         String(1024),
         nullable=False,

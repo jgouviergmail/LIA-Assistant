@@ -4,7 +4,7 @@
 
 **Version**: 4.8
 **Datum**: 2026-08-17
-**Anwendung**: LIA v1.30.6
+**Anwendung**: LIA v1.30.7
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -448,6 +448,7 @@ Wenn ein Anbieter seine Preise ändert oder seinen Service verschlechtert, wechs
 | --- | --- |
 | **MCP** (Model Context Protocol) | Anbindung externer Tools pro Benutzer |
 | **agentskills.io** | Injizierbare Skills mit Progressive Disclosure |
+| **Agent Plugins** (offener Standard) | Portable Plugins mit Skills + MCP-Servern, Installation in einem Schritt |
 | **OAuth 2.1 + PKCE** | Authentifizierung für alle Konnektoren |
 | **OpenTelemetry** | Standardisierte Observability |
 | **AGPL-3.0** | Vollständiger, prüfbarer, veränderbarer Quellcode |
@@ -455,6 +456,9 @@ Wenn ein Anbieter seine Preise ändert oder seinen Service verschlechtert, wechs
 ### 9.3. Erweiterbarkeit
 
 Jeder Benutzer kann eigene MCP-Server anbinden und die Fähigkeiten von LIA weit über die integrierten Tools hinaus erweitern. Der Client spricht beide Generationen des Protokolls — die neue zustandslose Revision wie den bisherigen Handshake, automatisch pro Server gewählt —, sodass Offenheit nie Kompatibilität kostet. Skills (Standard agentskills.io) ermöglichen die Injektion von Expertenanweisungen in natürlicher Sprache — mit einem integrierten Skill-Generator, der sie im geführten Dialog erstellt und direkt in deine Skills installiert, sofort einsatzbereit. Seit v1.16.8 kann ein Skill auch einen **interaktiven HTML-Frame** (Karte, Dashboard, Kalender, Umrechner...) oder ein **Bild** (QR-Code, Diagramm) direkt im Chat zurückgeben — in einer strengen CSP-Sandbox, mit automatisch synchronisiertem Theme und Sprache.
+
+Seit v1.30.7 hat diese Offenheit ein Paketformat: LIA spricht den offenen Standard **Agent Plugins** (agent-plugins.org), das portable Plugin-Format, gesteuert von AWS, Microsoft, OpenAI, Cursor und Vercel und übernommen von ChatGPT, Codex, Cursor, GitHub Copilot, Kiro und VS Code. Ein Plugin, das Skills und MCP-Server bündelt, installiert sich in einem Schritt in LIA — aus einer Zip-Datei oder über einen https-Link — mit einem vollständigen Bericht pro Komponente über Installiertes, Übersprungenes (und warum) oder Entferntes, und deinstalliert sich ebenso sauber: Alles, was es mitbrachte, geht mit ihm. Interoperabilität ist hier eine Überzeugung, kein Feature: Was du irgendwo im Ökosystem baust oder übernimmst, gehört dir und zieht mit.
+
 
 Die Architektur von LIA ist so gestaltet, dass neue Konnektoren, Kanäle, Agenten und KI-Anbieter einfach hinzugefügt werden können. Der Code ist mit klaren Abstraktionen strukturiert und wird durch dedizierte Entwicklerleitfäden ergänzt (Agent Creation Guide, Tool Creation Guide), die Erweiterungen für jeden Entwickler zugänglich machen.
 

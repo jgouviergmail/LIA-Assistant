@@ -34,6 +34,7 @@ function server(over: Partial<UserMCPServer> = {}): UserMCPServer {
     id: 's1',
     name: 'Weather MCP',
     url: 'https://mcp.example.com/sse',
+    plugin_id: null,
     auth_type: 'none',
     status: 'active',
     is_enabled: true,

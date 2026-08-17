@@ -4,7 +4,7 @@
 
 **Version** : 1.6
 **Date** : 2026-08-17
-**Application** : LIA v1.30.6
+**Application** : LIA v1.30.7
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -100,6 +100,9 @@ Le cycle 1.30.2 a appliqué la même discipline à ce qu'on ne regarde jamais : 
 Le cycle 1.30.5 est né d'un message utilisateur de trois lignes : « j'ai demandé de transmettre un message, j'ai eu confirmation, rien n'a été envoyé ». L'enquête, menée preuve par preuve — logs de production horodatés, base de données, code du conteneur —, a remonté jusqu'à une ligne : le moteur d'exécution écrasait le verdict de chaque outil par un succès codé en dur, et la couche d'honnêteté conçue précisément pour dire les blocages se faisait désarmer par le mensonge qu'elle devait empêcher. La correction est petite ; la méthode est le vrai livrable : chaque hypothèse contre-vérifiée avant d'écrire une ligne, chaque correctif précédé d'un test qui échoue, et l'assistant qui redit désormais la vérité jusque dans ses refus — avec les chiffres exacts, dans les six langues.
 
 Le cycle 1.30.6 a tourné la même discipline vers l'extérieur — vers le standard que tout l'écosystème parle. Le Model Context Protocol venait de publier une révision qui rend le protocole sans état, et dont la propre matrice de compatibilité condamne les anciens clients face aux serveurs de nouvelle génération. Le chantier a été mené en enquête de conformité avant d'être une migration : la spécification lue exigence par exigence, chaque écart démontré par simulation avant de changer une seule ligne, le nouveau SDK exercé contre de vrais serveurs des deux générations. LIA parle désormais les deux — la nouvelle révision sans état et l'ancien handshake — si bien que chaque serveur déjà configuré continue de fonctionner à l'identique pendant que ceux de nouvelle génération deviennent accessibles ; le flux OAuth a gagné les obligations de sécurité de la révision, chacune assortie d'une règle de tolérance explicite pour les enregistrements existants. Et refuser un écran de consentement n'est plus une page d'erreur : c'est une réponse, reconnue dans les six langues.
+
+Le cycle 1.30.7 a achevé le mouvement : après avoir parlé le protocole de l'écosystème, parler son format de paquet. Le standard ouvert Agent Plugins — piloté par AWS, Microsoft, OpenAI, Cursor et Vercel — venait de donner à tout l'écosystème une façon portable d'expédier ensemble skills et serveurs MCP, et le travail a suivi la discipline désormais familière : le texte normatif lu section par section, chaque hypothèse d'intégration prouvée contre le code par simulation avant d'écrire une ligne, puis un client bâti presque entièrement avec des couches auxquelles LIA faisait déjà confiance — l'importeur de skills durci, le registre MCP par utilisateur, le système de quotas. La revue a trouvé et éliminé deux vrais bugs avant qu'ils n'aient jamais tourné, et le cycle de vie complet a été prouvé au runtime contre la vraie base, deux fois. Ce qui est livré est discrètement radical : un plugin préparé pour ChatGPT ou VS Code s'installe dans LIA tel quel, rapporte exactement ce qu'il a apporté — et ce qu'il n'a pas pu apporter, avec la raison — et repart sans laisser de trace.
+
 
 ## 7. Convictions
 

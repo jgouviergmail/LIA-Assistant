@@ -158,6 +158,7 @@ class SkillPreferenceService:
         is_system: bool,
         owner_id: UUID | None = None,
         descriptions: dict[str, str] | None = None,
+        plugin_id: UUID | None = None,
     ) -> Skill:
         """Register a newly imported skill in DB and create user_skill_states.
 
@@ -166,8 +167,10 @@ class SkillPreferenceService:
 
         Raises:
             ValueError: when the name is already registered under a different
-                scope/owner. The import pipeline rejects such conflicts with a
-                409 before reaching this point (ADR-118) — this guard is
+                scope/owner, or under a different Agent Plugins provenance
+                (ADR-225: a plugin never captures a manual skill and vice
+                versa). The import pipeline rejects such conflicts with a 409
+                before reaching this point (ADR-118) — this guard is
                 defense-in-depth against races and future callers.
         """
         # Check if skill already exists (re-import case)
@@ -176,6 +179,10 @@ class SkillPreferenceService:
             if existing.is_system != is_system or existing.owner_id != owner_id:
                 raise ValueError(
                     f"Skill '{name}' is already registered with a different owner/scope"
+                )
+            if existing.plugin_id != plugin_id:
+                raise ValueError(
+                    f"Skill '{name}' is already registered with a different plugin provenance"
                 )
             existing.description = description
             existing.descriptions = descriptions
@@ -190,6 +197,7 @@ class SkillPreferenceService:
             admin_enabled=True,
             description=description,
             descriptions=descriptions,
+            plugin_id=plugin_id,
         )
         self.db.add(skill)
         await self.db.flush()  # Get skill.id

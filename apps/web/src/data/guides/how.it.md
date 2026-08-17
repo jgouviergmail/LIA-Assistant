@@ -6,7 +6,7 @@
 
 **Versione**: 4.3
 **Data**: 2026-08-17
-**Applicazione**: LIA v1.30.6
+**Applicazione**: LIA v1.30.7
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 466 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 223 ADRs, ~18.429 test raccolti da pytest in 1.002 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 224 ADRs, ~19.322 test raccolti da pytest in 1.087 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -74,7 +74,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~18.429 (raccolti da pytest su 1.002 file di test) + 5.501 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~19.322 (raccolti da pytest su 1.087 file di test) + 5.522 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 490+ |
 | ADR (Architecture Decision Record) | 209 |
@@ -731,6 +731,9 @@ Il `MCPClientManager` gestisce il lifecycle delle connessioni (exit stack), la s
 
 Dalla v1.30.6 il client è **dual-era** (SDK MCP v2, ADR-224): parla la revisione senza stato 2026-07-28 del protocollo e ripiega automaticamente sul handshake `initialize` precedente per i server più vecchi — ogni server già configurato continua a funzionare identico mentre i server di nuova generazione diventano raggiungibili. LIA si identifica nel handshake (`clientInfo`), e un server che rifiuta tutte le revisioni parlate da LIA produce una diagnosi azionabile invece di un errore di trasporto grezzo sepolto in `ExceptionGroup` annidati.
 
+La stessa apertura si estende ora dal protocollo di comunicazione al **formato di pacchetto**. LIA è un client conforme dello standard aperto Agent Plugins v1.0.0 (agent-plugins.org): un plugin è una semplice directory — un manifest `plugin.json` a schema chiuso, skill agentskills.io sotto `skills/`, server MCP dichiarati in `mcp.json` — e lo stesso pacchetto si installa senza modifiche in ChatGPT, Codex, Cursor, GitHub Copilot, Kiro, VS Code e LIA. Il design poggia interamente su strati già esistenti: il rilevamento instrada un archivio di plugin verso una pipeline di staging che riusa l'irrobustimento dell'importatore di skill (estrazione limitata, protezioni anti path-traversal, installazione atomica per skill con rollback), le voci di `mcp.json` si proiettano sui server MCP per utente, e le quote vengono verificate globalmente prima della prima scrittura — un'installazione non resta mai a metà. Due principi governano il ciclo di vita. Primo, resilienza per componente con onestà totale: un componente che non può essere installato — un server stdio che LIA deliberatamente non avvia mai, una collisione di nome, una skill non valida — viene *ignorato e detto*, con un motivo tradotto in un report esaustivo per componente; nulla viene mai spacciato per installato. Secondo, la provenienza come invariante: ogni componente porta il plugin che l'ha portato, le collisioni di nome si risolvono solo all'interno della stessa provenienza (un plugin non può mai catturare una skill creata a mano, né il contrario), gli aggiornamenti sono re-import che preservano le credenziali configurate, e la rimozione avviene solo come disinstallazione di gruppo — un plugin non può mai finire amputato in silenzio.
+
+
 ### 14.2. Sicurezza MCP
 
 HTTPS obbligatorio, prevenzione SSRF (risoluzione DNS + blocklist IP), crittografia Fernet delle credenziali, OAuth 2.1 (DCR + PKCE S256), rate limiting Redis per server/strumento, API guard 403 sugli endpoint proxy per server disattivati (ADR-061 Layer 3).
@@ -1279,7 +1282,7 @@ La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la 
 
 ## 24. Architettura delle decisioni (ADR)
 
-223 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+224 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1355,10 +1358,10 @@ Il filo comune di questi quattro lotti è una proprietà dei test stessi. Ogni p
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 223 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~18.429 test in 1.002 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 224 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~19.322 test in 1.087 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 223 ADRs e del changelog (da v1.0 a v1.30.6). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 224 ADRs e del changelog (da v1.0 a v1.30.7). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

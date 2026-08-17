@@ -147,6 +147,9 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         by_user("user_skill_states"),
         by_user("skills", column="owner_id"),
         by_user("user_mcp_servers"),
+        # ADR-225: after skills/user_mcp_servers (their plugin_id FK is SET
+        # NULL, order-safe either way) — the plugin rows themselves are purged.
+        by_user("user_plugins"),
         # ADR-083 Phase 2 cleanup: sub_agents table dropped — nothing to delete.
         by_user("rag_spaces"),
         by_user("user_fcm_tokens"),
@@ -248,6 +251,12 @@ class AccountDeletionService:
         # =====================================================================
         counts["attachment_files"] = self._cleanup_attachment_files(user_id)
         counts["rag_files"] = self._cleanup_rag_files(user_id)
+        counts["skill_files"] = self._cleanup_user_tree(
+            user_id, settings.skills_users_path, "skill"
+        )
+        counts["plugin_files"] = self._cleanup_user_tree(
+            user_id, settings.plugins_users_path, "plugin"
+        )
 
         # =====================================================================
         # STEP 2 — PostgreSQL data purge (single transaction)
@@ -524,6 +533,44 @@ class AccountDeletionService:
     # =========================================================================
     # STEP 1b — Physical file cleanup
     # =========================================================================
+
+    def _cleanup_user_tree(self, user_id: UUID, base_path: str, label: str) -> int:
+        """Delete one {base_path}/{user_id}/ tree from disk (best-effort).
+
+        Closes the disk half of the purge for user-scoped content trees whose
+        DB rows CASCADE away with the account: imported skills
+        (``skills_users_path``) and installed Agent Plugins roots
+        (``plugins_users_path``, ADR-225).
+
+        Args:
+            user_id: User UUID.
+            base_path: Configured base directory holding per-user subtrees.
+            label: Short content label for the structured log event.
+
+        Returns:
+            1 if the directory existed and was removed, 0 otherwise.
+        """
+        base_str = str(Path(base_path).resolve())
+        # CodeQL sanitizer: normpath + startswith prevents path traversal
+        user_dir_str = os.path.normpath(os.path.join(base_str, str(user_id)))
+        if not user_dir_str.startswith(base_str):
+            logger.warning(
+                "account_deletion_path_traversal_blocked",
+                user_id=str(user_id),
+                resolved_path=user_dir_str,
+            )
+            return 0
+        user_dir = Path(user_dir_str)
+        if user_dir.exists():
+            shutil.rmtree(user_dir, ignore_errors=True)
+            logger.info(
+                "account_deletion_user_tree_cleaned",
+                user_id=str(user_id),
+                content=label,
+                path=user_dir_str,
+            )
+            return 1
+        return 0
 
     def _cleanup_attachment_files(self, user_id: UUID) -> int:
         """Delete user's attachment directory from disk (best-effort).

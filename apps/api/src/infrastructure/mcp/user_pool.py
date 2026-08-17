@@ -82,7 +82,11 @@ def _surface_root_cause(exc: Exception, *, log_event: str, **log_fields: object)
 
 
 @asynccontextmanager
-async def _ephemeral_client(url: str, auth: httpx2.Auth | None) -> AsyncIterator[Client]:
+async def _ephemeral_client(
+    url: str,
+    auth: httpx2.Auth | None,
+    extra_headers: dict[str, str] | None = None,
+) -> AsyncIterator[Client]:
     """One MCP client for one operation: connect → use → close, single scope.
 
     ``Client`` defaults to ``mode="auto"`` (dual-era): it speaks protocol
@@ -90,6 +94,11 @@ async def _ephemeral_client(url: str, auth: httpx2.Auth | None) -> AsyncIterator
     for pre-2026 servers. The httpx2 client mirrors the SDK's recommended MCP
     defaults (short connect/write/pool, long read for SSE streams) and carries
     the per-server auth; it is owned here and closed with the scope.
+
+    ``extra_headers`` are the fixed non-secret headers a plugin's mcp.json
+    declares (agent-plugins.org §7.2.1, ADR-225) applied as client default
+    headers — auth flows run after request construction, so auth-generated
+    headers keep precedence on name collision, exactly the spec's rule.
     """
     async with AsyncExitStack() as stack:
         http_client = await stack.enter_async_context(
@@ -99,6 +108,7 @@ async def _ephemeral_client(url: str, auth: httpx2.Auth | None) -> AsyncIterator
                     MCP_HTTP_TIMEOUT_SECONDS, read=MCP_HTTP_READ_TIMEOUT_SECONDS
                 ),
                 auth=auth,
+                headers=extra_headers,
             )
         )
         client = await stack.enter_async_context(
@@ -119,6 +129,7 @@ class PoolEntry:
     last_used: float
     url: str = ""
     auth: httpx2.Auth | None = None
+    extra_headers: dict[str, str] | None = None  # plugin mcp.json fixed headers (ADR-225)
     timeout_seconds: int = 30
     tools: list[dict[str, Any]] = field(default_factory=list)
     active_calls: int = 0  # Reference counter — prevents eviction during active tool calls
@@ -152,6 +163,7 @@ class UserMCPClientPool:
         url: str,
         auth: httpx2.Auth,
         timeout_seconds: int = 30,
+        extra_headers: dict[str, str] | None = None,
     ) -> PoolEntry:
         """
         Get existing entry or discover tools from the server.
@@ -165,6 +177,7 @@ class UserMCPClientPool:
             if key in self._entries:
                 # Update auth in case tokens were refreshed
                 self._entries[key].auth = auth
+                self._entries[key].extra_headers = extra_headers
                 self._entries[key].last_used = time.monotonic()
                 return self._entries[key]
 
@@ -179,13 +192,16 @@ class UserMCPClientPool:
                     )
 
             # Discover tools via ephemeral connection
-            tools, reference_content = await self._discover_tools(url, auth, timeout_seconds)
+            tools, reference_content = await self._discover_tools(
+                url, auth, timeout_seconds, extra_headers=extra_headers
+            )
             entry = PoolEntry(
                 user_id=user_id,
                 server_id=server_id,
                 last_used=time.monotonic(),
                 url=url,
                 auth=auth,
+                extra_headers=extra_headers,
                 timeout_seconds=timeout_seconds,
                 tools=tools,
                 reference_content=reference_content,
@@ -235,6 +251,7 @@ class UserMCPClientPool:
                 tool_name=tool_name,
                 arguments=arguments,
                 timeout_seconds=timeout_seconds,
+                extra_headers=entry.extra_headers,
             )
             entry.last_used = time.monotonic()
             return result
@@ -273,6 +290,7 @@ class UserMCPClientPool:
                 auth=entry.auth,
                 uri=uri,
                 timeout_seconds=timeout_seconds,
+                extra_headers=entry.extra_headers,
             )
         except Exception:
             logger.warning(
@@ -290,6 +308,7 @@ class UserMCPClientPool:
         auth: httpx2.Auth | None,
         uri: str,
         timeout_seconds: int,
+        extra_headers: dict[str, str] | None = None,
     ) -> str | None:
         """Read a resource via an ephemeral MCP connection.
 
@@ -300,7 +319,7 @@ class UserMCPClientPool:
         max_size = settings.mcp_app_max_html_size
 
         async def _inner() -> str | None:
-            async with _ephemeral_client(url, auth) as client:
+            async with _ephemeral_client(url, auth, extra_headers) as client:
                 result = await client.read_resource(uri)
 
                 for content in result.contents:
@@ -402,6 +421,7 @@ class UserMCPClientPool:
         url: str,
         auth: httpx2.Auth | None,
         timeout_seconds: int,
+        extra_headers: dict[str, str] | None = None,
     ) -> tuple[list[dict[str, Any]], str | None]:
         """Discover tools via an ephemeral MCP connection (connect → list → close).
 
@@ -417,7 +437,7 @@ class UserMCPClientPool:
         """
 
         async def _inner() -> tuple[list[dict[str, Any]], str | None]:
-            async with _ephemeral_client(url, auth) as client:
+            async with _ephemeral_client(url, auth, extra_headers) as client:
                 tools_result = await client.list_tools()
 
                 max_tools = settings.mcp_max_tools_per_server
@@ -473,6 +493,7 @@ class UserMCPClientPool:
         tool_name: str,
         arguments: dict[str, Any],
         timeout_seconds: int,
+        extra_headers: dict[str, str] | None = None,
     ) -> str:
         """Execute a tool call via an ephemeral MCP connection.
 
@@ -486,7 +507,7 @@ class UserMCPClientPool:
         """
 
         async def _inner() -> str:
-            async with _ephemeral_client(url, auth) as client:
+            async with _ephemeral_client(url, auth, extra_headers) as client:
                 logger.debug(
                     "mcp_ephemeral_call_tool_args",
                     tool_name=tool_name,

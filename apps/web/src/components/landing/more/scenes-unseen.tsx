@@ -8,7 +8,7 @@
 
 'use client';
 
-import { Check, Coins, EyeOff, Info, Map as MapIcon, Mic, Vibrate } from 'lucide-react';
+import { Blocks, Check, Coins, EyeOff, Info, Map as MapIcon, Mic, Server, Vibrate } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -531,10 +531,83 @@ function CapabilityHonestyScene({ active, labels }: SceneProps) {
   );
 }
 
+type PluginPhase = 'skill1' | 'skill2' | 'server' | 'hold';
+
+const PLUGIN_STEPS: readonly TimelineStep<PluginPhase>[] = [
+  { at: 0, state: 'skill1' },
+  { at: 700, state: 'skill2' },
+  { at: 1400, state: 'server' },
+  { at: 2600, state: 'hold' },
+];
+
+const PLUGIN_ORDER: readonly PluginPhase[] = ['skill1', 'skill2', 'server', 'hold'];
+
+function PluginReportScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(PLUGIN_STEPS, { active });
+  const reached = (step: PluginPhase) => PLUGIN_ORDER.indexOf(phase) >= PLUGIN_ORDER.indexOf(step);
+
+  const row = (visible: boolean, icon: React.ReactNode, name: string, badge: React.ReactNode) => (
+    <div
+      className={cn(
+        'flex items-center gap-2 rounded-lg border border-border bg-background/60 px-2.5 py-1.5',
+        'transition-all duration-300 motion-reduce:transition-none',
+        visible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+      )}
+    >
+      {icon}
+      <span className="flex-1 truncate text-[10px] font-medium">{name}</span>
+      {badge}
+    </div>
+  );
+
+  const installedBadge = (
+    <span className="flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-medium text-primary">
+      <Check className="h-2.5 w-2.5" aria-hidden="true" />
+      {labels.installed}
+    </span>
+  );
+
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-1.5')}>
+      {row(
+        reached('skill1'),
+        <Blocks className="h-3.5 w-3.5 text-primary" aria-hidden="true" />,
+        labels.skill,
+        installedBadge
+      )}
+      {row(
+        reached('skill2'),
+        <Blocks className="h-3.5 w-3.5 text-primary" aria-hidden="true" />,
+        labels.skill,
+        installedBadge
+      )}
+      {row(
+        reached('server'),
+        <Server className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />,
+        labels.server,
+        <span className="rounded-full border border-border px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+          {labels.skipped}
+        </span>
+      )}
+      <MiniToast
+        icon={Info}
+        tone="info"
+        className={cn(
+          'transition-all duration-300 motion-reduce:transition-none',
+          reached('hold') ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        )}
+      >
+        {labels.reason}
+      </MiniToast>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   readable_at_a_glance: ReadableAtAGlanceScene,
   capability_map: CapabilityMapScene,
   capability_honesty: CapabilityHonestyScene,
+  plugin_report: PluginReportScene,
   background_response: BackgroundResponseScene,
   widgets_travel: WidgetsTravelScene,
   cost_transparency: CostTransparencyScene,

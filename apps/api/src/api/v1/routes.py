@@ -142,6 +142,12 @@ if getattr(settings, "skills_enabled", False):
     from src.domains.skills.router import router as skills_router
 
     api_router.include_router(skills_router)
+if getattr(settings, "plugins_enabled", False) and getattr(settings, "skills_enabled", False):
+    # ADR-225: the plugins pipeline materializes skills through the skills
+    # domain (import_directory), so the feature requires skills to be on.
+    from src.domains.plugins.router import router as plugins_router
+
+    api_router.include_router(plugins_router)
 if getattr(settings, "rag_spaces_enabled", False):
     from src.domains.rag_spaces.router import router as rag_spaces_router
 

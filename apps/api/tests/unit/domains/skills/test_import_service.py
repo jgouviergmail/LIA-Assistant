@@ -229,7 +229,7 @@ class TestConflictAndQuota:
 
     @pytest.mark.asyncio
     async def test_own_reimport_allowed(self) -> None:
-        row = MagicMock(is_system=False, owner_id=_OWNER)
+        row = MagicMock(is_system=False, owner_id=_OWNER, plugin_id=None)
         svc = self._svc(db_row=row)
         cache = self._cache([{"name": "mine", "scope": "user", "owner_id": str(_OWNER)}])
         with patch("src.domains.skills.cache.SkillsCache", cache):

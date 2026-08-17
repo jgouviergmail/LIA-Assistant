@@ -81,6 +81,7 @@ const ALLOWED: Record<string, string> = {
     'file download: reads Content-Disposition and response.blob(), which the client does not expose',
   'hooks/useSkills.ts':
     'FormData upload (the client forces application/json) and a zip blob download',
+  'hooks/usePlugins.ts': 'FormData plugin-package upload (the client forces application/json)',
   'hooks/useAPIHealth.ts':
     'availability probe: a 401 here means "API unreachable", it must not eject the user to /login',
   'lib/product-telemetry.ts':

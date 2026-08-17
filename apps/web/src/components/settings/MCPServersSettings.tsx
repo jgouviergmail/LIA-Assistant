@@ -173,6 +173,20 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
   const [listTestServerName, setListTestServerName] = useState('');
   const [mobileActionServer, setMobileActionServer] = useState<UserMCPServer | null>(null);
 
+  // ADR-225 arbitrage F: a plugin's server leaves through the plugin
+  // uninstall — the guard (not a disabled attribute) prevents the action and
+  // explains where to go, so keyboard focus is never dropped.
+  const requestDelete = useCallback(
+    (server: UserMCPServer) => {
+      if (server.plugin_id) {
+        toast.info(t('settings.plugins.component_locked', { name: server.name }));
+        return;
+      }
+      setDeletingServerId(server.id);
+    },
+    [t]
+  );
+
   // Open create dialog
   const handleOpenCreate = useCallback(() => {
     setForm(EMPTY_FORM);
@@ -758,6 +772,9 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <span className="font-medium truncate">{server.name}</span>
                 <Badge variant={getStatusBadgeVariant(server)}>{getStatusLabel(server, t)}</Badge>
+                {server.plugin_id && (
+                  <Badge variant="outline">{t('settings.plugins.via_plugin')}</Badge>
+                )}
               </div>
               {/* Desktop action buttons — hover reveal */}
               <div className="hidden lg:flex gap-1 shrink-0 opacity-0 group-hover:opacity-100">
@@ -793,7 +810,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
                   size="icon"
                   onClick={e => {
                     e.stopPropagation();
-                    setDeletingServerId(server.id);
+                    requestDelete(server);
                   }}
                   title={t('common.delete')}
                 >
@@ -1046,7 +1063,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
               className="w-full justify-start gap-3 text-destructive hover:text-destructive"
               onClick={() => {
                 if (mobileActionServer) {
-                  setDeletingServerId(mobileActionServer.id);
+                  requestDelete(mobileActionServer);
                   setMobileActionServer(null);
                 }
               }}

@@ -105,6 +105,7 @@ des plus structurants, pas un inventaire) :
 13. **system_settings** - Configuration système et préférences globales
 14. **scheduled_actions** - Actions planifiées récurrentes (APScheduler CronTrigger)
 15. **user_mcp** - Serveurs MCP utilisateur (CRUD per-user, Model Context Protocol, auto-génération de description LLM)
+16. **plugins** - Client Agent Plugins (standard ouvert agent-plugins.org, ADR-225) : import de paquets portables regroupant skills + serveurs MCP, rapport par composant, désinstallation groupée
 16. **channels** - Canaux de messagerie externes (Telegram) avec OTP linking, HITL inline keyboards, voice STT
 17. **rag_spaces** - Espaces de connaissances RAG : user spaces (upload, embedding OpenAI, recherche hybride, injection Response Node) et system spaces (FAQ built-in, App Identity, lazy-loaded au démarrage)
 18. **sub_agents** - Sous-agents persistants spécialisés (F6) : délégation, templates, token guard-rails, pipeline simplifié
@@ -356,6 +357,7 @@ apps/api/src/
 │   ├── chat/                    # Chat routing
 │   ├── llm/                     # LLM pricing
 │   ├── attachments/             # File attachments & vision analysis (evolution F4)
+│   ├── plugins/                 # Agent Plugins client (agent-plugins.org, ADR-225) — portable packages
 │   ├── skills/                  # Skills system (agentskills.io) — SKILL.md files, cache, LLM activation
 │   └── user_mcp/                # Per-user MCP server management (CRUD, DDD, LLM description)
 │

@@ -4289,6 +4289,32 @@ SKILLS_ZIP_MAX_FILES = 64
 SKILLS_IMPORT_TEXT_EXTENSIONS = frozenset({".md", ".py", ".txt", ".json", ".yaml", ".yml", ".csv"})
 
 # ============================================================================
+# AGENT PLUGINS (agent-plugins.org standard, ADR-225)
+# ============================================================================
+# Protocol constants pinned by the Agent Plugins specification v1.0.0 — these
+# are the canonical identifiers and normative limits of the standard itself,
+# not tunables (§5.2/§7.2.1: clients select validation rules from recognized
+# $schema values and MUST NOT retrieve schemas while loading a plugin).
+
+AGENT_PLUGINS_SPEC_VERSION = "1.0.0"
+AGENT_PLUGINS_PLUGIN_SCHEMA_ID = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+AGENT_PLUGINS_MCP_SCHEMA_ID = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
+# Official name pattern from plugin.schema.json (proven equivalent to the §5.5
+# normative text by exhaustive comparison); length bounds are separate.
+AGENT_PLUGINS_NAME_PATTERN = r"^(?!.*(?:--|\.\.))[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$"
+AGENT_PLUGINS_NAME_MAX_LENGTH = 64
+
+# Paths (mirrors the skills tree layout; the plugin root is kept on disk for
+# inspection and updates — ADR-225 arbitrage D)
+PLUGINS_USERS_PATH_DEFAULT = "data/plugins/users"
+
+# Quotas / limits (client-defined, settings-backed)
+PLUGINS_MAX_PER_USER_DEFAULT = 10
+PLUGINS_MAX_FILE_SIZE_KB_DEFAULT = 512
+PLUGINS_ZIP_MAX_DECOMPRESSED_KB_DEFAULT = 8192
+PLUGINS_ZIP_MAX_FILES_DEFAULT = 256
+
+# ============================================================================
 # CONTEXT COMPACTION (Intelligent History Summarization)
 # ============================================================================
 # LLM-based compaction of conversation history when token count exceeds

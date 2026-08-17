@@ -4,7 +4,7 @@
 
 **Version**: 1.6
 **Datum**: 2026-08-17
-**Anwendung**: LIA v1.30.6
+**Anwendung**: LIA v1.30.7
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -100,6 +100,9 @@ Zyklus 1.30.2 wandte dieselbe Disziplin auf das an, was niemand je ansieht: die 
 Zyklus 1.30.5 begann mit einer dreizeiligen Nutzernachricht: „Ich habe gebeten, eine Nachricht weiterzuleiten, ich bekam eine Bestätigung, nichts wurde gesendet.“ Die Untersuchung — zeitgestempelte Produktionslogs, Datenbank, der Code des Containers selbst, Beweis für Beweis — führte zu einer einzigen Zeile: Die Ausführungsengine überschrieb das Urteil jedes Werkzeugs mit einem fest codierten Erfolg, und die Ehrlichkeitsschicht, die Blockaden benennen sollte, wurde von genau der Lüge entwaffnet, die sie verhindern sollte. Der Fix ist klein; die Methode ist das eigentliche Ergebnis: jede Hypothese gegengeprüft, bevor eine Zeile geschrieben wurde, jeder Korrektur ein fehlschlagender Test vorangestellt — und ein Assistent, der nun bis in seine Ablehnungen hinein die Wahrheit sagt, mit exakten Zahlen, in allen sechs Sprachen.
 
 Zyklus 1.30.6 richtete dieselbe Disziplin nach außen — auf den Standard, den das gesamte Ökosystem spricht. Das Model Context Protocol hatte gerade eine Revision veröffentlicht, die das Protokoll zustandslos macht — und deren eigene Kompatibilitätsmatrix ältere Clients gegenüber Servern der neuen Generation verurteilt. Die Arbeit wurde als Konformitätsuntersuchung geführt, bevor sie eine Migration war: die Spezifikation Anforderung für Anforderung gelesen, jede Lücke per Simulation nachgewiesen, bevor eine einzige Zeile geändert wurde, das neue SDK gegen echte Server beider Generationen erprobt. LIA spricht nun beide — die neue zustandslose Revision und den alten Handshake —, sodass jeder bereits konfigurierte Server unverändert weiterarbeitet, während die der neuen Generation erreichbar werden; der OAuth-Fluss erhielt die Sicherheitspflichten der Revision, jede mit einer expliziten Toleranzregel für bestehende Registrierungen. Und das Ablehnen eines Zustimmungsbildschirms ist keine Fehlerseite mehr: Es ist eine Antwort, anerkannt in sechs Sprachen.
+
+Zyklus 1.30.7 vollendete die Bewegung: Nachdem LIA das Protokoll des Ökosystems sprach, nun auch sein Paketformat. Der offene Standard Agent Plugins — gesteuert von AWS, Microsoft, OpenAI, Cursor und Vercel — hatte dem gesamten Ökosystem gerade einen portablen Weg gegeben, Skills und MCP-Server gemeinsam auszuliefern, und die Arbeit folgte der inzwischen vertrauten Disziplin: der normative Text Abschnitt für Abschnitt gelesen, jede Integrationshypothese per Simulation gegen den Code bewiesen, bevor eine Zeile geschrieben wurde, dann ein Client, fast vollständig aus Schichten gebaut, denen LIA bereits vertraute — der gehärtete Skill-Importer, das Benutzer-MCP-Register, das Quotensystem. Die Review fand und beseitigte zwei echte Bugs, bevor sie je liefen, und der gesamte Lebenszyklus wurde zweimal zur Laufzeit gegen die echte Datenbank bewiesen. Was ausgeliefert wurde, ist still radikal: Ein für ChatGPT oder VS Code paketiertes Plugin installiert sich unverändert in LIA, berichtet genau, was es mitbrachte — und was es nicht mitbringen konnte, mit Grund — und geht ohne Spur.
+
 
 ## 7. Überzeugungen
 

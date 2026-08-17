@@ -118,14 +118,22 @@ test.describe('mobile navigation', () => {
     const trigger = page.getByRole('button', { name: 'Menu' });
     await expect(trigger).toBeVisible({ timeout: 30_000 });
 
-    await page.evaluate(() => window.scrollTo(0, 900));
-    await page.evaluate(
-      () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
-    );
+    // Retry the scroll on every poll tick: on Firefox the settings page can
+    // still be laying out when the one-shot scrollTo lands, so the document is
+    // not yet 900px tall and the call clamps to 0 (weekly a11y-matrix red,
+    // 2026-08-03/10/17). Re-issuing the scroll until it takes keeps the
+    // precondition honest without a blind sleep.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            window.scrollTo(0, 900);
+            return Math.round(window.scrollY);
+          }),
+        { timeout: 15_000, message: 'the page must really be scrolled for this to prove anything' }
+      )
+      .toBeGreaterThan(400);
     const scrolled = await page.evaluate(() => Math.round(window.scrollY));
-    expect(scrolled, 'the page must really be scrolled for this to prove anything').toBeGreaterThan(
-      400
-    );
 
     await trigger.click();
     await expect(page.getByRole('menu')).toBeVisible();

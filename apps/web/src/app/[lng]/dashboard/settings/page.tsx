@@ -58,6 +58,7 @@ import { JournalsSettings } from '@/components/settings/JournalsSettings';
 import { PortraitShortcut } from '@/components/settings/PortraitShortcut';
 import { HealthMetricsSettings } from '@/components/settings/HealthMetricsSettings';
 import { PsycheSettings } from '@/components/settings/PsycheSettings';
+import { PluginsSettings } from '@/components/settings/PluginsSettings';
 import { SkillsSettings } from '@/components/settings/SkillsSettings';
 import { AdminSkillsSection } from '@/components/settings/AdminSkillsSection';
 import { AdminUsageLimitsSection } from '@/components/settings/AdminUsageLimitsSection';
@@ -524,6 +525,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <FeatureErrorBoundary feature="skills">
                 <SkillsSettings lng={lng} />
               </FeatureErrorBoundary>
+              <FeatureErrorBoundary feature="plugins">
+                <PluginsSettings lng={lng} />
+              </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="rag-spaces">
                 <SpacesSettingsSection lng={lng} />
               </FeatureErrorBoundary>
@@ -713,6 +717,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <SettingsGroupLabel label={t('settings.groups.extensions_data')} icon={Blocks} />
               <FeatureErrorBoundary feature="skills">
                 <SkillsSettings lng={lng} />
+              </FeatureErrorBoundary>
+              <FeatureErrorBoundary feature="plugins">
+                <PluginsSettings lng={lng} />
               </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="rag-spaces">
                 <SpacesSettingsSection lng={lng} />

@@ -40,6 +40,24 @@ def raise_skill_not_found(skill_name: str, *, scope: str | None = None) -> NoRet
     )
 
 
+def raise_skill_locked_by_plugin(skill_name: str) -> NoReturn:
+    """Raise 400 when deleting a skill owned by an installed plugin (ADR-225).
+
+    Arbitrage F: a plugin's skill leaves through the plugin uninstall, never
+    through individual deletion — a silently amputated plugin is the same
+    anti-pattern as a false success.
+
+    Args:
+        skill_name: Skill identifier from the URL path.
+
+    Raises:
+        ValidationError: 400 Bad Request.
+    """
+    raise ValidationError(
+        f"The skill '{skill_name}' belongs to an installed plugin — " "uninstall the plugin instead"
+    )
+
+
 def raise_admin_skill_delete_forbidden() -> NoReturn:
     """Raise 403 when a non-superuser attempts to delete an admin skill.
 

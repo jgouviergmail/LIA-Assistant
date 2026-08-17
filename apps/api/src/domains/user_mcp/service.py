@@ -66,12 +66,22 @@ class UserMCPServerService:
         self,
         user_id: UUID,
         data: UserMCPServerCreate,
+        *,
+        plugin_id: UUID | None = None,
+        extra_headers: dict[str, str] | None = None,
     ) -> UserMCPServer:
         """
         Create a new user MCP server.
 
         Validates URL (SSRF prevention), enforces per-user limit,
         and encrypts credentials.
+
+        Args:
+            user_id: Owner of the server.
+            data: Creation payload (public API schema).
+            plugin_id: Agent Plugins provenance (ADR-225); None = manual.
+            extra_headers: Fixed non-secret HTTP headers from a plugin's
+                mcp.json (§7.2.1) — never settable through the public API.
 
         Raises:
             ValidationError: If user has reached the maximum limit or URL is invalid.
@@ -121,6 +131,8 @@ class UserMCPServerService:
                 "timeout_seconds": data.timeout_seconds,
                 "hitl_required": data.hitl_required,
                 "iterative_mode": data.iterative_mode,
+                "plugin_id": plugin_id,
+                "extra_headers": extra_headers,
             }
         )
 
@@ -238,16 +250,35 @@ class UserMCPServerService:
         self,
         server_id: UUID,
         user_id: UUID,
+        *,
+        allow_plugin_owned: bool = False,
     ) -> None:
         """
         Delete a user MCP server.
 
         Disconnects from pool BEFORE database deletion.
 
+        Args:
+            server_id: Server to delete.
+            user_id: Requesting owner.
+            allow_plugin_owned: True only for the plugin group uninstall
+                (ADR-225 arbitrage F) — individual deletion of a plugin's
+                server is refused so the plugin never gets silently amputated.
+
         Raises:
             ResourceNotFoundError: If server not found or wrong owner.
+            ValidationError: If the server belongs to an installed plugin and
+                the caller is not the group uninstall.
         """
         server = await self.get_with_ownership_check(server_id, user_id)
+
+        if server.plugin_id is not None and not allow_plugin_owned:
+            # ADR-225 arbitrage F: a plugin's server leaves through the plugin
+            # uninstall — never silently amputate an installed plugin.
+            raise ValidationError(
+                f"The MCP server '{server.name}' belongs to an installed "
+                "plugin — uninstall the plugin instead"
+            )
 
         # Disconnect from pool first (releases MCP session)
         await self._disconnect_from_pool(user_id, server_id)
@@ -382,6 +413,7 @@ class UserMCPServerService:
                 url=server.url,
                 auth=auth,
                 timeout_seconds=server.timeout_seconds,
+                extra_headers=server.extra_headers,
             )
 
             # Build single update dict (avoids multiple flush/refresh roundtrips)

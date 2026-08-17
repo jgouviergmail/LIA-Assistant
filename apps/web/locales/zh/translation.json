@@ -3281,7 +3281,8 @@
         "skills": "技能, 能力, 插件, 扩展",
         "rag-spaces": "文档, RAG, 知识库, 文件, 上传, 索引, 资料库",
         "user-consumption-export": "CSV, 用量, 消耗, 令牌, 成本, 账单, 统计, 导出",
-        "haptics": "触觉 震动 触感 反馈"
+        "haptics": "触觉 震动 触感 反馈",
+        "plugins": "插件, 扩展, agent plugins, 安装, 软件包, mcp, 技能"
       },
       "results_count_other": "找到 {{count}} 项设置"
     },
@@ -3289,6 +3290,56 @@
       "title": "触觉反馈",
       "label": "在关键操作时震动",
       "description": "按住说话开始、操作成功或承诺完成时的极短震动。与减少动效相互独立，仅保存在本设备上。"
+    },
+    "plugins": {
+      "title": "插件",
+      "description": "安装便携式插件包（agent-plugins.org 标准），一次性引入技能和 MCP 服务器。",
+      "import_file": "导入 .zip",
+      "import_url": "从 URL 导入",
+      "url_placeholder": "https://…/plugin.zip",
+      "import_success": "插件“{{name}}”已安装",
+      "update_success": "插件“{{name}}”已更新",
+      "import_error": "插件导入失败",
+      "empty": "尚未安装任何插件。插件可一步添加技能和 MCP 服务器。",
+      "uninstall": "卸载",
+      "uninstall_aria": "卸载插件 {{name}}",
+      "uninstall_confirm_title": "卸载“{{name}}”？",
+      "uninstall_confirm_description": "其 {{skills}} 个技能和 {{servers}} 个 MCP 服务器将随之移除。",
+      "uninstall_success": "插件“{{name}}”已卸载",
+      "uninstall_error": "卸载失败",
+      "skills_count_one": "{{count}} 个技能",
+      "skills_count_other": "{{count}} 个技能",
+      "servers_count_one": "{{count}} 个 MCP 服务器",
+      "servers_count_other": "{{count}} 个 MCP 服务器",
+      "report_title": "导入报告 — {{name}}",
+      "report_description": "已安装、已跳过（及原因）或已移除的内容。",
+      "report_empty": "此插件不包含受支持的组件。",
+      "status": {
+        "installed": "已安装",
+        "updated": "已更新",
+        "skipped": "已跳过",
+        "removed": "已移除"
+      },
+      "reasons": {
+        "manifest_not_an_object": "plugin.json 不是 JSON 对象",
+        "manifest_schema_unsupported": "不支持的规范版本",
+        "manifest_name_invalid": "插件名称无效",
+        "manifest_field_invalid": "清单字段无效",
+        "manifest_unknown_field": "未知的清单字段（已忽略）",
+        "manifest_extensions_not_object": "extensions 字段无效（已忽略）",
+        "mcp_config_invalid": "mcp.json 无效 — 已跳过 MCP 服务器",
+        "mcp_schema_unsupported": "不支持的 mcp.json 规范版本",
+        "server_entry_invalid": "服务器条目无效",
+        "server_transport_unsupported": "LIA 不支持该传输方式（stdio/sse）",
+        "server_url_policy_https": "已拒绝 HTTP 端点 — LIA 要求使用 HTTPS",
+        "component_location_invalid": "组件位置无效",
+        "skill_invalid": "技能无效",
+        "skill_name_conflict": "名称已被其他技能使用",
+        "server_name_conflict": "名称已被其他服务器使用",
+        "server_create_failed": "无法注册服务器"
+      },
+      "via_plugin": "来自插件",
+      "component_locked": "“{{name}}”属于已安装的插件 — 请卸载该插件以将其移除。"
     }
   },
   "relations": {
@@ -4036,6 +4087,10 @@
         "platformCapabilities": {
           "title": "🎛️ 这个实例提供什么",
           "description": "并非所有 LIA 实例都提供相同的功能，这是刻意为之。十项能力——听写、语音合成、图像、上传、文档空间、网页搜索、浏览、技能、MCP、电话——管理员可以直接在设置里开启或关闭，无需重新部署，也不必改动任何配置文件。某项能力被关闭时，它同时会从提供给规划器的目录中消失：LIA 不会答应一件它做不到的事，所以你不会事后才收到拒绝。如果你要求的正好属于被关闭的能力，回复会用你的语言把原因讲清楚，而不是毫无解释地失败。管理员那一侧则可以并排看到：部署允许什么、他自己选了什么，以及实际生效的是什么。"
+        },
+        "plugins": {
+          "title": "🧩 Agent Plugins（开放标准）",
+          "description": "LIA 是开放标准 Agent Plugins v1.0.0（agent-plugins.org——由 AWS、Microsoft、OpenAI、Cursor 和 Vercel 共同指导）的合规客户端：一种便携式软件包格式，打包 agentskills.io 技能和 MCP 服务器，已被 ChatGPT、Codex、Cursor、GitHub Copilot、Kiro 和 VS Code 采用。插件可通过 zip 文件或经 SSRF 加固的 https URL 安装，走与单个技能相同的加固管线（暂存区解压、zip 炸弹与路径穿越防护、按技能原子安装并可回滚），配额在任何写入前预先校验。每次安装都返回按组件的详尽报告——已安装、已更新、已跳过（附翻译后的原因）、已移除——绝无静默的部分成功。组件携带其插件来源：更新即重新导入，保留已配置的凭据；移除只能通过整体卸载——插件永远不会被悄悄拆散。安全设计：多用户服务器上从不启动 stdio 服务器，端点仅限 HTTPS。"
         }
       },
       "diagram_alt": "LIA架构图"
@@ -4044,6 +4099,15 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_30_7": {
+          "title": "v1.30.7 — 🧩 Agent Plugins：安装便携式插件",
+          "date": "2026年8月",
+          "items": {
+            "i1": "<b>🧩 安装来自整个 AI 生态的插件</b> — LIA 支持开放的 Agent Plugins 标准（agent-plugins.org，由 AWS、Microsoft、OpenAI、Cursor 和 Vercel 共同推动）。为 ChatGPT、Cursor、GitHub Copilot 或 VS Code 打包的插件无需修改即可安装到 LIA——通过 zip 文件或 https 链接——并一步带来其技能和 MCP 服务器。每次安装都会显示完整报告：已安装、已更新、已跳过（及原因）或已移除；卸载则一键移除插件带来的全部内容。设置中新增“插件”板块，支持全部六种语言。",
+            "i2": "<b>🧹 删除账户现在也会清除所有技能和插件文件</b> — 删除账户此前已清空数据库中的数据；现在还会从磁盘中移除您导入的技能文件和已安装的插件文件，真正做到彻底清除。"
+          },
+          "count": "2"
+        },
         "v1_30_6": {
           "title": "v1.30.6 — 🔌 新一代 MCP 协议",
           "date": "2026 年 8 月",
@@ -6711,7 +6775,7 @@
       "skills": {
         "title": "技能（Skills）",
         "description": "通过专家指令扩展LIA的能力",
-        "count": "11",
+        "count": "12",
         "questions": {
           "q1": {
             "question": "什么是技能（Skill）？",
@@ -6756,6 +6820,10 @@
           "q11": {
             "question": "我可以让 LIA 修改已有的技能吗？(v1.25.28)",
             "answer": "<p>可以，通过对话即可：「调整我的 X 技能」「给它加一节」「修正措辞」。LIA 会重新阅读完整的技能 — 清单、脚本、参考文档 — 应用你的要求，然后<strong>整体重新生成</strong>，而不是只改动一处：正是这一点保证了描述、脚本与资源之间始终保持一致。</p><p>在写入任何内容之前，LIA 会向你展示<strong>究竟哪些会被替换、哪些会消失</strong>，并等待你的同意。这个确认并非客套：从技术上讲，没有它修改无法完成。<strong>系统不保留版本历史</strong> — 一旦替换，旧版本无法恢复，因此请仔细阅读摘要。而技能库的预览图会被自动保留。</p><p>有三种情况会被拒绝：<strong>系统</strong>技能（由管理员维护）、<strong>其他用户</strong>的技能，以及你自己已<strong>停用</strong>的技能 — 请先在设置 → 技能中重新启用。</p>"
+          },
+          "q12": {
+            "question": "我可以安装插件吗？（v1.30.7）",
+            "answer": "<p>可以。LIA 支持开放的 <b>Agent Plugins</b> 标准（agent-plugins.org）：插件是一个便携式软件包，打包了技能和 MCP 服务器，同一个包可以在 ChatGPT、Cursor、GitHub Copilot、VS Code——以及 LIA 中使用。在<b>设置 → 插件</b>中导入 .zip 文件或粘贴 https 链接即可。安装会按组件显示完整报告：已安装、已更新、已跳过（附原因——例如 LIA 有意不运行的服务器类型）或已移除。插件的技能和 MCP 服务器随后与您手动创建的完全一样：自由启用或停用，在 MCP 板块配置服务器认证。要更新插件，导入其新版本即可——保留的组件会更新，消失的组件会移除，您配置的凭据会保留。要移除插件，直接卸载：它带来的一切随之移除（单独删除插件组件会被拒绝，这样插件永远不会被悄悄拆散）。</p>"
           }
         }
       },
@@ -7320,6 +7388,10 @@
       "readable_at_a_glance": {
         "title": "一眼可读",
         "desc": "紧急提示与普通提示不再相像：区分它们的是密度，而不仅是色相。在灰度下同样成立。 而且操作处处同形：创建是实心的，删除无需悬停就带着红色，每个标题都以图标示人。"
+      },
+      "plugin_report": {
+        "title": "有交代的插件",
+        "desc": "安装一个插件——技能和连接的服务器一并到位，一步完成。安装过程会如实告诉你：什么进来了，什么被搁置了、为什么，以及更新移除了什么。卸载时，它带来的一切随之离开。"
       }
     },
     "scenes": {
@@ -7383,6 +7455,13 @@
       "capability_honesty": {
         "capability": "听写",
         "reason": "本实例已关闭"
+      },
+      "plugin_report": {
+        "skill": "总结技能",
+        "server": "本地服务器",
+        "installed": "已安装",
+        "skipped": "已跳过",
+        "reason": "此处不运行——明说，不隐瞒"
       }
     },
     "craft": {
@@ -8485,6 +8564,10 @@
       "peers": {
         "title": "你的圈子，助手对助手",
         "description": "与同一 LIA 实例上你认识的人建立连接 — 按确切姓名，且完全自愿。让 LIA 给他们捎话：你确认措辞后，由对方的助手用自己的声音送达，并向你的助手回执。按人开放只读共享 — 日历空闲状态、任务标题 — 每次访问都经校验并记录，随时可撤销。屏蔽在设计上即是静默的。"
+      },
+      "plugins": {
+        "title": "插件（Agent Plugins 标准）",
+        "description": "安装来自整个 AI 生态的便携式插件——被 ChatGPT、Cursor、GitHub Copilot 和 VS Code 采用的开放标准 agent-plugins.org。一个软件包打包技能和 MCP 服务器，通过 zip 文件或 https 链接一步安装，如实报告每个组件（已安装、已跳过及原因、已移除），卸载同样干净利落。"
       }
     },
     "use_cases": {
@@ -9181,12 +9264,12 @@
       "mcp-protocol": {
         "title": "Model Context Protocol：无限扩展LIA",
         "excerpt": "通过Anthropic的MCP协议，LIA可以连接任何外部服务。",
-        "body": "<h2>什么是MCP？</h2><p><strong>Model Context Protocol（MCP）</strong>是Anthropic开发的开放标准，使AI助手能够连接外部工具服务器。LIA实现了该协议，支持<strong>每用户MCP服务器</strong>，提供无限且个性化的扩展性。</p><h2>工具发现与集成</h2><p>你在LIA界面中配置MCP服务器。连接时，LIA对每个服务器调用<code>list_tools()</code>动态发现可用工具。每个MCP工具通过<strong>MCPToolAdapter</strong>封装，扩展LangChain的<code>BaseTool</code>，实现与智能体工具目录的无缝集成。MCP工具随后可以像原生工具一样使用。</p><h2>安全传输</h2><p>LIA专门使用<strong>Streamable HTTP</strong>传输方式连接MCP服务器。stdio传输<strong>出于安全原因被禁用</strong>（存在任意进程执行风险）。每个服务器通过<code>asyncio.Lock</code>进行独立的速率限制以防止过载。</p><h2>4种认证类型</h2><p>每个MCP服务器支持以下4种认证类型之一：</p><ul><li><strong>NONE</strong> — 无认证（公共或内部服务器）</li><li><strong>API_KEY</strong> — 通过headers传输的API密钥</li><li><strong>BEARER</strong> — 标准REST API的Bearer Token</li><li><strong>OAUTH2</strong> — 完整的OAuth 2.0 + PKCE</li></ul><p>所有凭据在存储到数据库之前通过<strong>Fernet</strong>（AES-128 CBC + HMAC）<strong>加密</strong>。没有任何密钥以明文暴露。</p><h2>多层安全</h2><p>MCP安全基于多重机制：</p><ul><li><strong>强制HITL</strong> — 所有MCP工具默认需要Human-in-the-Loop验证</li><li><strong>SSRF防护</strong> — <code>validate_http_endpoint()</code>函数阻止指向内部网络（127.0.0.1、10.x、192.168.x等）的URL</li><li><strong>健康检查</strong> — 每个MCP服务器的状态通过专用Prometheus gauge监控</li><li><strong>可配置限制</strong> — 服务器数量（10）、每服务器工具数（20）、每次调用超时（30秒）</li></ul><h2>迭代模式 (ReAct)</h2><p>某些MCP服务器有复杂的API，静态规划器无法预先生成正确的参数。在<strong>迭代模式</strong>下，专用ReAct代理先阅读服务器文档，理解预期格式，然后正确调用工具。可通过<code>iterative_mode</code>开关按服务器启用。</p>"
+        "body": "<h2>什么是MCP？</h2><p><strong>Model Context Protocol（MCP）</strong>是Anthropic开发的开放标准，使AI助手能够连接外部工具服务器。LIA实现了该协议，支持<strong>每用户MCP服务器</strong>，提供无限且个性化的扩展性。</p><h2>工具发现与集成</h2><p>你在LIA界面中配置MCP服务器。连接时，LIA对每个服务器调用<code>list_tools()</code>动态发现可用工具。每个MCP工具通过<strong>MCPToolAdapter</strong>封装，扩展LangChain的<code>BaseTool</code>，实现与智能体工具目录的无缝集成。MCP工具随后可以像原生工具一样使用。</p><h2>安全传输</h2><p>LIA专门使用<strong>Streamable HTTP</strong>传输方式连接MCP服务器。stdio传输<strong>出于安全原因被禁用</strong>（存在任意进程执行风险）。每个服务器通过<code>asyncio.Lock</code>进行独立的速率限制以防止过载。</p><h2>4种认证类型</h2><p>每个MCP服务器支持以下4种认证类型之一：</p><ul><li><strong>NONE</strong> — 无认证（公共或内部服务器）</li><li><strong>API_KEY</strong> — 通过headers传输的API密钥</li><li><strong>BEARER</strong> — 标准REST API的Bearer Token</li><li><strong>OAUTH2</strong> — 完整的OAuth 2.0 + PKCE</li></ul><p>所有凭据在存储到数据库之前通过<strong>Fernet</strong>（AES-128 CBC + HMAC）<strong>加密</strong>。没有任何密钥以明文暴露。</p><h2>多层安全</h2><p>MCP安全基于多重机制：</p><ul><li><strong>强制HITL</strong> — 所有MCP工具默认需要Human-in-the-Loop验证</li><li><strong>SSRF防护</strong> — <code>validate_http_endpoint()</code>函数阻止指向内部网络（127.0.0.1、10.x、192.168.x等）的URL</li><li><strong>健康检查</strong> — 每个MCP服务器的状态通过专用Prometheus gauge监控</li><li><strong>可配置限制</strong> — 服务器数量（10）、每服务器工具数（20）、每次调用超时（30秒）</li></ul><h2>迭代模式 (ReAct)</h2><p>某些MCP服务器有复杂的API，静态规划器无法预先生成正确的参数。在<strong>迭代模式</strong>下，专用ReAct代理先阅读服务器文档，理解预期格式，然后正确调用工具。可通过<code>iterative_mode</code>开关按服务器启用。</p><h2>整箱的 MCP 服务器：Agent Plugins</h2><p>除了逐个声明服务器，LIA 还是开放标准 <strong>Agent Plugins</strong>（agent-plugins.org）的合规客户端：一种打包 MCP 服务器和技能的便携软件包，与 ChatGPT、Cursor、GitHub Copilot 和 VS Code 安装的格式相同。插件带来的每个服务器都携带其来源，在插件更新之间保留已配置的凭据，并且只随插件整体卸载而离开——每次安装都有按组件的完整报告，包括跳过了什么、为什么。</p>"
       },
       "skills-system": {
         "title": "技能：专家指令定制LIA",
         "excerpt": "导入或创建专业技能，让LIA掌握新领域 — 除文本外还包括交互式地图、迷你仪表板和图像。",
-        "body": "<h2>什么是技能？</h2><p><strong>技能</strong>是一组结构化指令，使LIA能够掌握特定领域。与执行操作的工具不同，技能丰富的是助手的<strong>推理和行为</strong>。架构基于一个关键原则：<strong>磁盘是技能内容的唯一真实来源</strong>，而数据库仅管理元数据（激活状态、所有者、统计信息）。</p><h2>丰富的输出（v1.16.8）</h2><p>自 v1.16.8 起，Python 脚本除了文本之外，还可以返回<strong>交互式 HTML 框架</strong>（Google 地图视图、天气仪表板、番茄钟计时器……）和/或<strong>图像</strong>（QR 码、图表）。合约很简单：脚本在 stdout 上写入 JSON 对象（<code>SkillScriptOutput</code>），包含 <code>text</code>（必需）、<code>frame</code> 和 <code>image</code> 字段 — 独立且可组合。框架在严格的<em>沙盒</em> iframe 中运行，为用户技能自动注入<strong>内容安全策略</strong>。主题和语言通过 <code>postMessage</code> 实时同步。七个新的内置技能展示了该机制：<code>interactive-map</code>、<code>weather-dashboard</code>、<code>calendar-month</code>、<code>qr-code</code>、<code>pomodoro-timer</code>、<code>unit-converter</code>、<code>dice-roller</code>。</p><h2>三种技能类型</h2><ul><li><strong>Prompt Expert</strong> — 某一领域的详细指令（如：专业写作、财务分析）</li><li><strong>Advisory</strong> — 建议和最佳实践（如：风格指南、质量检查清单）</li><li><strong>Plan Template</strong> — 常见场景的执行计划模板</li></ul><h2>在密封罩下执行</h2><p>技能脚本运行在一个<strong>为该次调用创建、随后立即销毁的容器</strong>中：没有 Docker 套接字，<code>--network none</code>，只读根文件系统外加一小块可写 <code>tmpfs</code>，非特权身份，并丢弃全部 capability。内存、进程数、CPU 时间和写入文件大小均设上限。</p><p>这里的关键是子进程<em>继承</em>了什么。仅仅切换 uid 并不够：生产环境中服务属于 <code>docker</code> 组，而组是会被继承的——套接字仍然可达。容器从构造上消除了这种继承。而如果沙箱无法创建，脚本<strong>就完全不会运行</strong>：不存在退回到保护更弱模式的路径。</p><p>脚本源码以参数形式传入而非挂载，从而让 <code>stdin</code> 保持空闲以承载 JSON 负载——技能的输入/输出契约保持不变。</p><h2>结构化结果</h2><p>每次技能执行返回一个标准化的<strong>ScriptResult</strong>对象，包含：<code>success</code>（布尔值）、<code>output</code>（stdout）、<code>error</code>（stderr）、<code>exit_code</code>和<code>execution_time_ms</code>。这种格式使系统能够统一处理成功和错误情况。</p><h2>SkillBypassStrategy：绕过规划器</h2><p>当确定性技能完全匹配请求时，<strong>SkillBypassStrategy</strong>会短路LLM规划器。技能直接执行，无需经过planner → validator → orchestrator链，从而降低延迟和Token消耗。</p><h2>规划器技能守卫</h2><p>规划器具有早期检测功能，在缺少必需参数时请求澄清。然而，多域确定性技能（例如：每日简报 = 事件 + 任务 + 天气 + 邮件）可能会触发<strong>错误的澄清请求</strong>。技能守卫检测到确定性技能与查询具有高域重叠时，会让完整的规划器管道来决定，而不是直接跳转到澄清。</p><h2>技能生成器</h2><p>LIA包含内置的<strong>技能生成器</strong>。用自然语言描述所需的专业领域，LIA会自动生成符合agentskills.io标准的SKILL.md格式的结构化技能。 完成的技能经过验证后<strong>直接安装到你的技能中</strong> — 以名称宣布、立即激活、无需手动上传。</p><h2>用户管理</h2><p>每个用户可以在设置界面中激活、停用、导入或删除技能 — 现在是一个<strong>技能库</strong>，带预览图和声明的输出通道（文本、交互框架、图片）。导入支持文件或经服务器端校验的 <strong>https URL</strong>（同一条强化管线），所有从外部导入的技能都带有来源警告。管理员还可以定义面向所有用户的全局技能。</p><p>交互式小组件经久耐用：它们随对话一起保存，在重新加载后或另一台设备上会重新打开；无法加载的框架会显示可操作的错误状态——说明、重试、在新标签页打开——而不是一个空白矩形。</p><h2>看见一个技能产出什么</h2><p>技能的详情面板现在会展示其成果的预览 —— 月历网格、二维码、天气卡片 —— 而不是一个通用图标。这些缩略图是生成的，而非手工绘制：一个纳入版本管理的脚本为每个技能保存一幅图，采用纯几何绘制、不依赖字体，从而使各台机器上的产出完全一致。若某个技能没有对应的图，或交付的图片已与其生成器的产出不符，守护测试便会失败。</p><h2>修改技能，而不只是创建技能</h2><p>如果无法回头修改，创建技能的价值就只发挥了一半。现在 LIA 可以通过对话调整、丰富或修正你的技能。它会重新阅读完整的技能包 — 清单、脚本、参考文档 — 应用你的要求，然后整体重新生成，而不是只改动一处。这一选择并非实现细节：技能的描述、脚本与资源是共同演进的，只在一个地方打补丁会得到一个自相矛盾的技能包。</p><p>写入之前，LIA 会展示哪些内容将被替换、哪些将消失，并等待明确同意。这个确认并不依赖模型的自觉：它需要一个由技能包内容派生的令牌，而该令牌只能来自第一次拒绝。因此模型无法绕过它，你所批准的正是将要写入的内容。随包的图片则默认得以保留：聊天只能传输文本，因此由服务器从被替换的版本中复制回来。</p>"
+        "body": "<h2>什么是技能？</h2><p><strong>技能</strong>是一组结构化指令，使LIA能够掌握特定领域。与执行操作的工具不同，技能丰富的是助手的<strong>推理和行为</strong>。架构基于一个关键原则：<strong>磁盘是技能内容的唯一真实来源</strong>，而数据库仅管理元数据（激活状态、所有者、统计信息）。</p><h2>丰富的输出（v1.16.8）</h2><p>自 v1.16.8 起，Python 脚本除了文本之外，还可以返回<strong>交互式 HTML 框架</strong>（Google 地图视图、天气仪表板、番茄钟计时器……）和/或<strong>图像</strong>（QR 码、图表）。合约很简单：脚本在 stdout 上写入 JSON 对象（<code>SkillScriptOutput</code>），包含 <code>text</code>（必需）、<code>frame</code> 和 <code>image</code> 字段 — 独立且可组合。框架在严格的<em>沙盒</em> iframe 中运行，为用户技能自动注入<strong>内容安全策略</strong>。主题和语言通过 <code>postMessage</code> 实时同步。七个新的内置技能展示了该机制：<code>interactive-map</code>、<code>weather-dashboard</code>、<code>calendar-month</code>、<code>qr-code</code>、<code>pomodoro-timer</code>、<code>unit-converter</code>、<code>dice-roller</code>。</p><h2>三种技能类型</h2><ul><li><strong>Prompt Expert</strong> — 某一领域的详细指令（如：专业写作、财务分析）</li><li><strong>Advisory</strong> — 建议和最佳实践（如：风格指南、质量检查清单）</li><li><strong>Plan Template</strong> — 常见场景的执行计划模板</li></ul><h2>在密封罩下执行</h2><p>技能脚本运行在一个<strong>为该次调用创建、随后立即销毁的容器</strong>中：没有 Docker 套接字，<code>--network none</code>，只读根文件系统外加一小块可写 <code>tmpfs</code>，非特权身份，并丢弃全部 capability。内存、进程数、CPU 时间和写入文件大小均设上限。</p><p>这里的关键是子进程<em>继承</em>了什么。仅仅切换 uid 并不够：生产环境中服务属于 <code>docker</code> 组，而组是会被继承的——套接字仍然可达。容器从构造上消除了这种继承。而如果沙箱无法创建，脚本<strong>就完全不会运行</strong>：不存在退回到保护更弱模式的路径。</p><p>脚本源码以参数形式传入而非挂载，从而让 <code>stdin</code> 保持空闲以承载 JSON 负载——技能的输入/输出契约保持不变。</p><h2>结构化结果</h2><p>每次技能执行返回一个标准化的<strong>ScriptResult</strong>对象，包含：<code>success</code>（布尔值）、<code>output</code>（stdout）、<code>error</code>（stderr）、<code>exit_code</code>和<code>execution_time_ms</code>。这种格式使系统能够统一处理成功和错误情况。</p><h2>SkillBypassStrategy：绕过规划器</h2><p>当确定性技能完全匹配请求时，<strong>SkillBypassStrategy</strong>会短路LLM规划器。技能直接执行，无需经过planner → validator → orchestrator链，从而降低延迟和Token消耗。</p><h2>规划器技能守卫</h2><p>规划器具有早期检测功能，在缺少必需参数时请求澄清。然而，多域确定性技能（例如：每日简报 = 事件 + 任务 + 天气 + 邮件）可能会触发<strong>错误的澄清请求</strong>。技能守卫检测到确定性技能与查询具有高域重叠时，会让完整的规划器管道来决定，而不是直接跳转到澄清。</p><h2>技能生成器</h2><p>LIA包含内置的<strong>技能生成器</strong>。用自然语言描述所需的专业领域，LIA会自动生成符合agentskills.io标准的SKILL.md格式的结构化技能。 完成的技能经过验证后<strong>直接安装到你的技能中</strong> — 以名称宣布、立即激活、无需手动上传。</p><h2>用户管理</h2><p>每个用户可以在设置界面中激活、停用、导入或删除技能 — 现在是一个<strong>技能库</strong>，带预览图和声明的输出通道（文本、交互框架、图片）。导入支持文件或经服务器端校验的 <strong>https URL</strong>（同一条强化管线），所有从外部导入的技能都带有来源警告。管理员还可以定义面向所有用户的全局技能。</p><p>交互式小组件经久耐用：它们随对话一起保存，在重新加载后或另一台设备上会重新打开；无法加载的框架会显示可操作的错误状态——说明、重试、在新标签页打开——而不是一个空白矩形。</p><h2>看见一个技能产出什么</h2><p>技能的详情面板现在会展示其成果的预览 —— 月历网格、二维码、天气卡片 —— 而不是一个通用图标。这些缩略图是生成的，而非手工绘制：一个纳入版本管理的脚本为每个技能保存一幅图，采用纯几何绘制、不依赖字体，从而使各台机器上的产出完全一致。若某个技能没有对应的图，或交付的图片已与其生成器的产出不符，守护测试便会失败。</p><h2>修改技能，而不只是创建技能</h2><p>如果无法回头修改，创建技能的价值就只发挥了一半。现在 LIA 可以通过对话调整、丰富或修正你的技能。它会重新阅读完整的技能包 — 清单、脚本、参考文档 — 应用你的要求，然后整体重新生成，而不是只改动一处。这一选择并非实现细节：技能的描述、脚本与资源是共同演进的，只在一个地方打补丁会得到一个自相矛盾的技能包。</p><p>写入之前，LIA 会展示哪些内容将被替换、哪些将消失，并等待明确同意。这个确认并不依赖模型的自觉：它需要一个由技能包内容派生的令牌，而该令牌只能来自第一次拒绝。因此模型无法绕过它，你所批准的正是将要写入的内容。随包的图片则默认得以保留：聊天只能传输文本，因此由服务器从被替换的版本中复制回来。</p><h2>插件：技能与服务器同行</h2><p>技能也可以整箱到达：LIA 支持开放的 <strong>Agent Plugins</strong> 标准（agent-plugins.org）——被 ChatGPT、Cursor、GitHub Copilot 和 VS Code 采用的便携软件包格式，把技能和 MCP 服务器打包在一起。插件一步安装——zip 文件或 https 链接——走与单个技能完全相同的加固管线，安装会报告每个组件：已安装、已更新、已跳过（附原因）、已移除。卸载插件，它带来的一切随之离开。</p>"
       },
       "voice-mode": {
         "title": "语音模式：像与个人助手一样与LIA对话",

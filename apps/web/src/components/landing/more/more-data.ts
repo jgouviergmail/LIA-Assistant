@@ -40,6 +40,7 @@ import {
   ListChecks,
   Menu,
   PanelsTopLeft,
+  Puzzle,
   MessageSquarePlus,
   PanelTop,
   MonitorSmartphone,
@@ -150,6 +151,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'background_response',
       'capability_map',
       'capability_honesty',
+      'plugin_report',
       'widgets_travel',
       'cost_transparency',
       'haptics',
@@ -207,6 +209,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   alerts_hub: BellRing,
   capability_map: Orbit,
   capability_honesty: ToggleLeft,
+  plugin_report: Puzzle,
   narrow_screens: Smartphone,
 };
 
@@ -257,5 +260,6 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   alerts_hub: [],
   capability_map: [],
   capability_honesty: ['capability', 'reason'],
+  plugin_report: ['skill', 'server', 'installed', 'skipped', 'reason'],
   narrow_screens: [],
 };

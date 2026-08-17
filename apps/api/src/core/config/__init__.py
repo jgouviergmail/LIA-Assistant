@@ -55,6 +55,7 @@ from .notifications import NotificationSettings
 from .observability import ObservabilitySettings
 from .open_loops import OpenLoopsSettings
 from .peers import PeersSettings
+from .plugins import PluginsSettings
 from .product import ProductSettings
 from .psyche import PsycheSettings
 from .rag_spaces import RAGSpacesSettings
@@ -108,6 +109,7 @@ class Settings(
     RAGSpacesSettings,
     RelationsSettings,
     SkillsSettings,
+    PluginsSettings,
     BrowserSettings,
     JournalsSettings,
     PsycheSettings,
@@ -149,6 +151,7 @@ class Settings(
         12. AttachmentsSettings (file uploads in chat: images, PDF)
         13. RAGSpacesSettings (user knowledge spaces: upload, embed, retrieve)
         14. SkillsSettings (Agent Skills: agentskills.io standard)
+        14b. PluginsSettings (Agent Plugins: agent-plugins.org standard, ADR-225)
         15. BrowserSettings (Browser automation: Playwright/Chromium)
         16. JournalsSettings (Personal Journals: assistant logbooks)
         17. UsageLimitsSettings (Per-user usage limits: tokens, messages, cost)
@@ -421,6 +424,7 @@ __all__ = [
     "MCPSettings",
     "ChannelsSettings",
     "AttachmentsSettings",
+    "PluginsSettings",
     "SkillsSettings",
     "RAGSpacesSettings",
     "BrowserSettings",

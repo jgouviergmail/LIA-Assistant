@@ -126,6 +126,35 @@ class UserMCPServer(BaseModel):
         doc="User toggle for enabling/disabling this server",
     )
 
+    # Provenance (ADR-225)
+    plugin_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("user_plugins.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="Agent Plugins provenance (ADR-225); NULL = manually declared",
+        doc=(
+            "Provenance link to the Agent Plugins package that installed this "
+            "server (ADR-225). NULL = manually declared. SET NULL on raw plugin "
+            "deletion turns it back into an ordinary user server; the clean "
+            "group uninstall is service-driven."
+        ),
+    )
+    extra_headers: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment=(
+            "Fixed non-secret HTTP headers from a plugin's mcp.json "
+            "(agent-plugins.org §7.2.1); auth headers keep precedence"
+        ),
+        doc=(
+            "Fixed non-secret HTTP headers from a plugin's mcp.json (§7.2.1, "
+            "ADR-225 arbitrage C). Applied as httpx client default headers; "
+            "auth-generated headers keep precedence on name collision. The "
+            "spec forbids plugins from shipping secrets here — secrets belong "
+            "in credentials_encrypted via auth_type."
+        ),
+    )
+
     # Configuration
     timeout_seconds: Mapped[int] = mapped_column(
         SmallInteger,

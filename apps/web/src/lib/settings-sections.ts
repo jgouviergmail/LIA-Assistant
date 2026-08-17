@@ -245,6 +245,11 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'skills',
     declaredIn: 'components/settings/SkillsSettings.tsx',
   },
+  plugins: {
+    tab: 'features',
+    accordionValue: 'plugins',
+    declaredIn: 'components/settings/PluginsSettings.tsx',
+  },
   'rag-spaces': {
     tab: 'features',
     accordionValue: 'rag-spaces',

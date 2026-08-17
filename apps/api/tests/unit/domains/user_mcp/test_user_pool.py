@@ -271,6 +271,7 @@ class TestCallTool:
                 tool_name="test_tool",
                 arguments={"query": "hello"},
                 timeout_seconds=30,
+                extra_headers=None,
             )
 
     @pytest.mark.asyncio

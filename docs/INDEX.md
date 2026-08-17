@@ -140,6 +140,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [NANOBOT_INTEGRATION_ROADMAP.md](./technical/NANOBOT_INTEGRATION_ROADMAP.md) | Roadmap d'intégration (document de planification — chemins prévisionnels) | 📦 |
 | [LLM_CONFIG_ADMIN.md](./technical/LLM_CONFIG_ADMIN.md) | Administration dynamique des configurations LLM (56 types, 9 providers) | ✅ |
 | [SKILLS_INTEGRATION.md](./technical/SKILLS_INTEGRATION.md) | Skills system (agentskills.io standard) — SKILL.md files, activation, scripts, rich outputs (frames + images), runtime conventions, hardened import pipeline + chat-driven install + dialogue skills (ADR-118) | ✅ |
+| [PLUGINS_INTEGRATION.md](./technical/PLUGINS_INTEGRATION.md) | Agent Plugins client (agent-plugins.org v1.0.0 standard, ADR-225) — portable packages bundling skills + streamable-http MCP servers, per-component import report, provenance invariant, group uninstall | ✅ |
 
 ### Cost Tracking & Billing
 
@@ -282,7 +283,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_SCHEDULED_ACTIONS.md](./guides/GUIDE_SCHEDULED_ACTIONS.md) | Guide pratique Actions Planifiees (recurrentes, timezone, retry) | ✅ |
 | [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) | Guide RAG Spaces (espaces de connaissances, upload, hybrid search) | ✅ |
 | [GUIDE_DEVOPS_CLAUDE_CLI.md](./guides/GUIDE_DEVOPS_CLAUDE_CLI.md) | Guide DevOps Claude CLI (remote server management, setup, security) | ✅ |
-| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (30 files, 200+ Q/A) | ✅ |
+| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (31 files, 200+ Q/A) | ✅ |
 
 ### Operations
 
@@ -596,7 +597,7 @@ LIA/
 │   ├── technical/              # Docs techniques détaillées (80+)
 │   ├── guides/                 # Guides pratiques (20+)
 │   ├── architecture/           # ADRs (119) + schémas Mermaid (.mmd)
-│   ├── knowledge/              # Fiches FAQ pour le RAG système (30)
+│   ├── knowledge/              # Fiches FAQ pour le RAG système (31)
 │   ├── runbooks/               # Procédures opérationnelles (40)
 │   ├── audit/                  # Audit technique 360° public + protocole
 │   └── readme/                 # README spécialisés (15)

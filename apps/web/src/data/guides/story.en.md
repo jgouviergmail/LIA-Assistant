@@ -4,7 +4,7 @@
 
 **Version**: 1.6
 **Date**: 2026-08-17
-**Application**: LIA v1.30.6
+**Application**: LIA v1.30.7
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -100,6 +100,9 @@ Cycle 1.30.2 applied the same discipline to what nobody ever looks at: the found
 Cycle 1.30.5 started from a three-line user message: "I asked to relay a message, I got a confirmation, nothing was sent." The investigation — timestamped production logs, database, the container's own code, one proof at a time — traced it to a single line: the execution engine was overwriting every tool's verdict with a hardcoded success, and the honesty layer designed precisely to name blockages was being disarmed by the very lie it existed to prevent. The fix is small; the method is the real deliverable: every hypothesis counter-verified before writing a line, every fix preceded by a failing test, and an assistant that now tells the truth all the way into its refusals — with exact numbers, in all six languages.
 
 Cycle 1.30.6 turned the same discipline outward, toward the standard the entire ecosystem speaks. The Model Context Protocol had just published a revision that makes the protocol stateless — and whose own compatibility matrix condemns older clients in front of new-generation servers. The work was run as a compliance investigation before being a migration: the specification read requirement by requirement, every gap demonstrated by simulation before a single line changed, the new SDK exercised against real servers of both generations. LIA now speaks both — the new stateless revision and the legacy handshake — so every server already configured keeps working unchanged while next-generation ones become reachable; the OAuth flow gained the revision's security obligations, each with an explicit tolerance rule for existing registrations. And declining a consent screen is no longer an error page: it is an answer, acknowledged in six languages.
+
+Cycle 1.30.7 completed the movement: after speaking the ecosystem's wire protocol, speak its package format. The Agent Plugins open standard — steered by AWS, Microsoft, OpenAI, Cursor and Vercel — had just given the whole ecosystem one portable way to ship skills and MCP servers together, and the work followed the now-familiar discipline: the normative text read section by section, every integration hypothesis proven against the code by simulation before a line was written, then a client built almost entirely out of layers LIA already trusted — the hardened skill importer, the per-user MCP registry, the quota system. The review found and killed two real bugs before they ever ran, and the whole lifecycle was proven at runtime against the real database, twice. What shipped is quietly radical: a plugin packaged for ChatGPT or VS Code installs into LIA unchanged, reports exactly what it brought — and what it could not bring, with the reason — and leaves without a trace.
+
 
 ## 7. Convictions
 

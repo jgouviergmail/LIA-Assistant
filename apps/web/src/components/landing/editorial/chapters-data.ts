@@ -44,6 +44,7 @@ import {
   Paperclip,
   PenTool,
   PhoneCall,
+  Package,
   Puzzle,
   ShieldCheck,
   Smartphone,
@@ -140,7 +141,7 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     num: '05',
     mood: '😏',
     benefits: 3,
-    catalog: ['skills', 'mcp', 'mcp_apps', 'rag_spaces', 'sub_agents', 'devops_cli'],
+    catalog: ['skills', 'plugins', 'mcp', 'mcp_apps', 'rag_spaces', 'sub_agents', 'devops_cli'],
     tinted: false,
   },
   {
@@ -220,6 +221,7 @@ export const REQUIRED_FEATURE_KEYS: readonly string[] = [
   'attachments',
   'mcp_apps',
   // extensibility & power
+  'plugins',
   'mcp',
   'rag_spaces',
   'sub_agents',
@@ -266,6 +268,7 @@ export const FEATURE_ICONS: Record<string, LucideIcon> = {
   attachments: Paperclip,
   mcp_apps: AppWindow,
   mcp: Puzzle,
+  plugins: Package,
   rag_spaces: Library,
   sub_agents: Bot,
   browser_control: Monitor,

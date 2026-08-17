@@ -62,6 +62,7 @@ _ALLOWED = re.compile(
     r"|(?:[a-z0-9-]+\.)*wikipedia\.org"
     r"|(?:[a-z0-9-]+\.)*wikimedia\.org"
     r"|(?:[a-z0-9-]+\.)*openstreetmap\.org"
+    r"|agent-plugins\.org"  # Agent Plugins canonical $schema ids (ADR-225, never fetched)
     r"|(?:[a-z0-9-]+\.)*open-meteo\.com"
     r"|(?:[a-z0-9-]+\.)*meethue\.com"
     r"|(?:[a-z0-9-]+\.)*elevenlabs\.io"

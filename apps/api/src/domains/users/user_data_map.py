@@ -211,6 +211,13 @@ TABLE_RULES: dict[str, TableRule] = {
     "health_samples": _PURGED_FULL,
     "user_skill_states": _PURGED_FULL,
     "skills": _PURGED_FULL,
+    "user_plugins": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason="Installed Agent Plugins packages (ADR-225): manifest metadata "
+        "the user chose to install — no secrets (the spec forbids them in "
+        "packages), portable by nature.",
+    ),
     "rag_spaces": _PURGED_FULL,
     "attachments": _PURGED_FULL,
     "user_usage_limits": TableRule(

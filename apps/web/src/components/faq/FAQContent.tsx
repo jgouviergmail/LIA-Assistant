@@ -53,6 +53,7 @@ import {
   BadgeCheck,
   Paperclip,
   Blocks,
+  Puzzle,
   Library,
   BookOpen,
   Bot,
@@ -123,6 +124,7 @@ const sections = [
  * releases. `__tests__/changelog-wiring.test.ts` now fails on any drift in either direction.
  */
 export const changelogVersionKeys = [
+  'v1_30_7',
   'v1_30_6',
   'v1_30_5',
   'v1_30_4',
@@ -329,6 +331,7 @@ export const featureIcons = {
   qualityAssurance: BadgeCheck,
   attachments: Paperclip,
   skills: Blocks,
+  plugins: Puzzle,
   ragSpaces: Library,
   subAgents: Bot,
   browserControl: Monitor,
@@ -392,6 +395,8 @@ export const featureKeys = [
   'qualityAssurance',
   'attachments',
   'skills',
+  // Wired at v1.30.7 with ADR-225 — the Agent Plugins open-standard client.
+  'plugins',
   'ragSpaces',
   'subAgents',
   'browserControl',

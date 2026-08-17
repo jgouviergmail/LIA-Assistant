@@ -33,6 +33,7 @@ from src.domains.skills.exceptions import (
     raise_admin_skill_delete_forbidden,
     raise_admin_skill_only,
     raise_skill_invalid_format,
+    raise_skill_locked_by_plugin,
     raise_skill_not_found,
     raise_skill_translation_failed,
     raise_skill_translation_invalid,
@@ -598,6 +599,15 @@ async def delete_skill(
     if skill.get("owner_id") != user_id:
         # Hide existence — respond with the same 404 as missing skill.
         raise_skill_not_found(skill_name)
+
+    # ADR-225 arbitrage F: a plugin's skill leaves through the plugin
+    # uninstall, never through individual deletion (a silently amputated
+    # plugin is the same anti-pattern as a false success).
+    from src.domains.skills.repository import SkillRepository
+
+    row = await SkillRepository(db).get_by_name(skill_name)
+    if row is not None and row.plugin_id is not None:
+        raise_skill_locked_by_plugin(skill_name)
 
     # Delete from disk
     skill_dir = Path(skill["source_path"]).parent

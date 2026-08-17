@@ -6,7 +6,7 @@
 
 **Versión**: 4.3
 **Fecha**: 2026-08-17
-**Aplicación**: LIA v1.30.6
+**Aplicación**: LIA v1.30.7
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 466 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 223 ADRs, ~18.429 tests recogidos por pytest en 1.002 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 224 ADRs, ~19.322 tests recogidos por pytest en 1.087 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -74,7 +74,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | ~18.429 (recopilados por pytest en 1.002 archivos de prueba) + 5.501 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | ~19.322 (recopilados por pytest en 1.087 archivos de prueba) + 5.522 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures reutilizables | 170+ |
 | Documentos de documentación | 490+ |
 | ADRs (Architecture Decision Records) | 209 |
@@ -731,6 +731,9 @@ El `MCPClientManager` gestiona el lifecycle de las conexiones (exit stacks), el 
 
 Desde la v1.30.6 el cliente es **dual-era** (SDK MCP v2, ADR-224): habla la revisión sin estado 2026-07-28 del protocolo y recurre automáticamente al handshake `initialize` heredado para los servidores anteriores — cada servidor ya configurado sigue funcionando igual mientras los servidores de nueva generación se vuelven accesibles. LIA se identifica en el handshake (`clientInfo`), y un servidor que rechaza todas las revisiones que LIA habla produce un diagnóstico accionable en lugar de un error de transporte en bruto enterrado en `ExceptionGroup` anidados.
 
+La misma apertura se extiende ahora del protocolo de comunicación al **formato de paquete**. LIA es un cliente conforme del estándar abierto Agent Plugins v1.0.0 (agent-plugins.org): un plugin es un simple directorio — un manifiesto `plugin.json` de esquema cerrado, skills agentskills.io bajo `skills/`, servidores MCP declarados en `mcp.json` — y el mismo paquete se instala sin cambios en ChatGPT, Codex, Cursor, GitHub Copilot, Kiro, VS Code y LIA. El diseño se apoya por completo en capas que ya existían: la detección dirige un archivo de plugin a un pipeline de transición que reutiliza el endurecimiento del importador de skills (extracción acotada, protecciones anti path-traversal, instalación atómica por skill con reversión), las entradas de `mcp.json` se proyectan sobre los servidores MCP por usuario, y las cuotas se verifican globalmente antes de la primera escritura — una instalación nunca queda a medias. Dos principios gobiernan el ciclo de vida. Primero, resiliencia por componente con honestidad total: un componente que no puede instalarse — un servidor stdio que LIA deliberadamente nunca lanza, una colisión de nombre, un skill inválido — se *omite y se dice*, con un motivo traducido en un informe exhaustivo por componente; nada se pretende jamás instalado. Segundo, la procedencia como invariante: cada componente lleva el plugin que lo aportó, las colisiones de nombre solo se resuelven dentro de la misma procedencia (un plugin nunca puede capturar un skill creado a mano, ni al revés), las actualizaciones son reimportaciones que preservan las credenciales configuradas, y la retirada solo ocurre como desinstalación en grupo — un plugin nunca puede acabar amputado en silencio.
+
+
 ### 14.2. Seguridad MCP
 
 HTTPS obligatorio, prevención SSRF (resolución DNS + blocklist IP), cifrado Fernet de credentials, OAuth 2.1 (DCR + PKCE S256), rate limiting Redis por servidor/herramienta, API guard 403 en endpoints proxy para servidores desactivados (ADR-061 Layer 3).
@@ -1277,7 +1280,7 @@ La lección de ingeniería más valiosa vino de un defecto invisible: la primiti
 
 ## 24. Arquitectura de decisiones (ADR)
 
-223 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+224 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1353,10 +1356,10 @@ El hilo común de estos cuatro lotes es una propiedad de los propios tests. Cada
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 223 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~18.429 tests en 1.002 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 224 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~19.322 tests en 1.087 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 223 ADRs y del changelog (v1.0 a v1.30.6). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 224 ADRs y del changelog (v1.0 a v1.30.7). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

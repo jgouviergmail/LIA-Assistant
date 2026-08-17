@@ -239,6 +239,13 @@ class UserMCPServerResponse(BaseModel):
     auth_type: UserMCPAuthType
     status: UserMCPServerStatus
     is_enabled: bool
+    plugin_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Agent Plugins provenance (ADR-225). Non-null = installed by a "
+            "plugin; individual deletion is refused (uninstall the plugin)."
+        ),
+    )
     domain_description: str | None = None
     timeout_seconds: int
     hitl_required: bool | None

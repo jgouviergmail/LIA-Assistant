@@ -366,6 +366,57 @@ class SkillImportService:
                 carry_over_untransportable=True,
             )
 
+    async def import_directory(
+        self,
+        source_dir: Path,
+        *,
+        owner_id: UUID,
+        plugin_id: UUID | None = None,
+    ) -> dict[str, Any]:
+        """Import one already-staged skill directory (ADR-225 plugin path).
+
+        The source is a plugin's ``skills/<name>/`` child, already extracted
+        by the plugin staging layer with its own S3 guards. The tree is copied
+        into a private staging area and goes through the exact same
+        ``_finalize`` pipeline as every other import path (S1/S2/S4/S5,
+        atomic swap, DB registration, cache reload).
+
+        Args:
+            source_dir: Directory containing a ``SKILL.md`` (plus resources).
+            owner_id: Importing user's id (plugin imports are always user
+                scope in v1 — ADR-225 arbitrage A).
+            plugin_id: Provenance carried into the DB row atomically.
+
+        Returns:
+            The parsed skill dict (safe subset).
+
+        Raises:
+            BaseAPIException / ValidationError: on any format, name, conflict
+                or quota violation.
+        """
+        from src.core.config import get_settings
+
+        settings = get_settings()
+        skill_md = source_dir / "SKILL.md"
+        if not skill_md.is_file():
+            raise_skill_invalid_format("skill directory must contain a SKILL.md file")
+
+        text = await asyncio.to_thread(skill_md.read_text, "utf-8-sig")
+        name = _parse_frontmatter_name(text)
+        validate_skill_name(name)
+
+        with tempfile.TemporaryDirectory(prefix="skill_import_") as staging_root:
+            skill_dir = Path(staging_root) / name
+            await asyncio.to_thread(shutil.copytree, source_dir, skill_dir)
+            return await self._finalize(
+                skill_dir,
+                name,
+                owner_id=owner_id,
+                is_system=False,
+                settings=settings,
+                plugin_id=plugin_id,
+            )
+
     # ------------------------------------------------------------------
     # Staging (S1 + S3): lay a validated skill out under a temp directory
     # ------------------------------------------------------------------
@@ -511,6 +562,7 @@ class SkillImportService:
         is_system: bool,
         settings: Any,
         carry_over_untransportable: bool = False,
+        plugin_id: UUID | None = None,
     ) -> dict[str, Any]:
         """Validate the staged skill, then commit it to the live tree + DB.
 
@@ -526,6 +578,9 @@ class SkillImportService:
                 one). Without it, editing a skill by conversation silently
                 stripped its gallery thumbnail. A zip upload stays a strict full
                 replacement, with no such side effect.
+            plugin_id: Agent Plugins provenance (ADR-225). Carried into the DB
+                row atomically; name collisions are only allowed within the
+                same provenance (see ``_check_user_conflict``).
         """
         from src.domains.skills.cache import SkillsCache
         from src.domains.skills.loader import parse_skill_file
@@ -556,7 +611,7 @@ class SkillImportService:
         if is_system:
             await self._check_admin_conflict(name)
         else:
-            await self._check_user_conflict(name, owner_id)
+            await self._check_user_conflict(name, owner_id, plugin_id=plugin_id)
             await self._check_quota(owner_id, name, settings)
 
         # Disk swap: the previous version (if any) is parked in the staging
@@ -590,6 +645,7 @@ class SkillImportService:
                 is_system=is_system,
                 owner_id=owner_id,
                 descriptions=skill.get("descriptions"),
+                plugin_id=plugin_id,
             )
             await self.db.commit()
         except ValueError:
@@ -660,18 +716,28 @@ class SkillImportService:
             if s["name"] == name and s["scope"] == "user":
                 raise_skill_name_conflict(name)
 
-    async def _check_user_conflict(self, name: str, owner_id: UUID | None) -> None:
+    async def _check_user_conflict(
+        self, name: str, owner_id: UUID | None, *, plugin_id: UUID | None = None
+    ) -> None:
         """Reject a user import that shadows a system skill or another user (S2).
 
         A user re-importing their *own* skill of the same name is allowed
         (upsert). The existence of another user's skill is not disclosed — the
         same 409 is raised for system-shadow and cross-user collision. The DB
         row is the registration authority; the cache adds the disk view.
+
+        ADR-225 provenance invariant: a name collision is allowed only within
+        the same provenance. A plugin import never captures a manual skill, a
+        manual import never captures a plugin's skill (arbitrage F), and a
+        third plugin never captures another plugin's skill — only plugin P
+        re-importing its own skill (update) stays an upsert.
         """
         from src.domains.skills.cache import SkillsCache
 
         row = await self.skill_repo.get_by_name(name)
         if row and (row.is_system or row.owner_id != owner_id):
+            raise_skill_name_conflict(name)
+        if row and row.plugin_id != plugin_id:
             raise_skill_name_conflict(name)
 
         owner_str = str(owner_id) if owner_id else None
@@ -690,6 +756,19 @@ class SkillImportService:
         always allowed — it does not create a new skill. The count is the
         union of the DB registration view and the disk (cache) view.
         """
+        owned = await self.owned_skill_names(owner_id)
+        if name in owned:
+            return
+        if len(owned) >= settings.skills_max_per_user:
+            owner_str = str(owner_id) if owner_id else "unknown"
+            raise_skill_quota_exceeded(owner_str, settings.skills_max_per_user)
+
+    async def owned_skill_names(self, owner_id: UUID | None) -> set[str]:
+        """Names of the user's imported skills — DB and disk views united.
+
+        Shared by the per-skill quota check and the plugin pipeline's global
+        quota pre-check (ADR-225: quotas are verified before any write).
+        """
         from src.domains.skills.cache import SkillsCache
 
         owner_str = str(owner_id) if owner_id else None
@@ -698,7 +777,4 @@ class SkillImportService:
         }
         if owner_id is not None:
             owned |= {row.name for row in await self.skill_repo.get_user_skills(owner_id)}
-        if name in owned:
-            return
-        if len(owned) >= settings.skills_max_per_user:
-            raise_skill_quota_exceeded(owner_str or "unknown", settings.skills_max_per_user)
+        return owned

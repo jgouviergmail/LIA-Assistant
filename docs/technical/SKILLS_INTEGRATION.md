@@ -6,6 +6,8 @@ LIA implements the [agentskills.io](https://agentskills.io/) open standard for S
 
 **Feature flag**: `SKILLS_ENABLED=true` (default: `false`)
 
+> **Agent Plugins (ADR-225)**: skills can also arrive as a portable package — the open [agent-plugins.org](https://agent-plugins.org) standard bundles agentskills.io skills and MCP servers into a plugin installed in one step. The plugin pipeline reuses the hardened importer described here, skill by skill, with persisted provenance and a group uninstall — see [PLUGINS_INTEGRATION.md](./PLUGINS_INTEGRATION.md).
+
 ## Standard Compliance
 
 | Level | Standard | Conformity |

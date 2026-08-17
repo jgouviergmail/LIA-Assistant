@@ -115,6 +115,7 @@ async def setup_user_mcp_tools(
                 url=server.url,
                 auth=auth,
                 timeout_seconds=server.timeout_seconds,
+                extra_headers=server.extra_headers,
             )
 
             # Resolve HITL: per-server override > global setting

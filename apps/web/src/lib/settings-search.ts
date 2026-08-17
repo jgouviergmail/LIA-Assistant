@@ -353,6 +353,13 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'extensions_data',
     gate: { kind: 'always' },
   },
+  plugins: {
+    titleKey: 'settings.plugins.title',
+    descriptionKey: 'settings.plugins.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.plugins`,
+    group: 'extensions_data',
+    gate: { kind: 'always' },
+  },
   'rag-spaces': {
     titleKey: 'settings.rag_spaces.title',
     descriptionKey: 'settings.rag_spaces.description',

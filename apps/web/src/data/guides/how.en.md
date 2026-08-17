@@ -6,7 +6,7 @@
 
 **Version**: 4.3
 **Date**: 2026-08-17
-**Application**: LIA v1.30.6
+**Application**: LIA v1.30.7
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 466 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 223 ADRs, ~18,429 pytest-collected tests across 1,002 files, native observability, 6-level HITL |
+| Production reliability | 224 ADRs, ~19,322 pytest-collected tests across 1,087 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -74,7 +74,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~18,429 (collected by pytest across 1,002 test files) + 5,501 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~19,322 (collected by pytest across 1,087 test files) + 5,522 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 490+ |
 | ADRs (Architecture Decision Records) | 209 |
@@ -731,6 +731,9 @@ The `MCPClientManager` manages connection lifecycle (exit stacks), tool discover
 
 Since v1.30.6 the client is **dual-era** (MCP SDK v2, ADR-224): it speaks the stateless 2026-07-28 protocol revision and automatically falls back to the legacy `initialize` handshake for earlier servers — every already-configured server keeps working unchanged while new-generation servers become reachable. LIA identifies itself in the handshake (`clientInfo`), and a server that rejects every revision LIA speaks produces an actionable diagnostic instead of a raw transport error buried in nested `ExceptionGroup`s.
 
+The same openness now extends from the wire protocol to the **package format**. LIA is a conformant client of the Agent Plugins v1.0.0 open standard (agent-plugins.org): a plugin is a plain directory — a closed-schema `plugin.json` manifest, agentskills.io skills under `skills/`, MCP servers declared in `mcp.json` — and the same package installs unchanged in ChatGPT, Codex, Cursor, GitHub Copilot, Kiro, VS Code and LIA. The design leans entirely on layers that already existed: detection routes a plugin archive to a staging pipeline that reuses the skills importer's hardening (bounded extraction, zip-slip guards, per-skill atomic install with rollback), `mcp.json` entries map onto per-user MCP servers, and quotas are pre-checked globally before the first write so an install is never left half-done. Two principles govern the lifecycle. First, per-component resilience with total honesty: a component that cannot be installed — an stdio server LIA deliberately never launches, a name collision, an invalid skill — is *skipped and said*, with a translated reason in an exhaustive per-component report; nothing is ever pretended installed. Second, provenance as an invariant: every component carries the plugin that brought it, name collisions are only resolved within the same provenance (a plugin can never capture a manually-created skill, nor the reverse), updates are re-imports that preserve configured credentials, and removal only happens as a group uninstall — a plugin can never end up silently amputated.
+
+
 ### 14.2. MCP Security
 
 Mandatory HTTPS, SSRF prevention (DNS resolution + IP blocklist), Fernet credential encryption, OAuth 2.1 (DCR + PKCE S256), Redis rate limiting per server/tool, API guard 403 on proxy endpoints for disabled servers (ADR-061 Layer 3).
@@ -1273,7 +1276,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-223 ADRs in MADR format document the major architectural decisions. Some representative examples:
+224 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1378,10 +1381,10 @@ The common thread across these four batches is a property of the tests themselve
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 223 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~18,429 tests across 1,002 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 224 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~19,322 tests across 1,087 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 223 ADRs, and the changelog (v1.0 to v1.30.6). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 224 ADRs, and the changelog (v1.0 to v1.30.7). All metrics, versions, and patterns cited are verifiable in the codebase.*
