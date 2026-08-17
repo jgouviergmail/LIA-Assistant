@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 4.1
-**Date**: 2026-08-16
-**Application**: LIA v1.30.2
+**Version**: 4.2
+**Date**: 2026-08-17
+**Application**: LIA v1.30.3
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -74,7 +74,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~18,321 (collected by pytest across 997 test files) + 5,475 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~18,321 (collected by pytest across 997 test files) + 5,479 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 490+ |
 | ADRs (Architecture Decision Records) | 209 |
@@ -1376,4 +1376,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 221 ADRs, and the changelog (v1.0 to v1.30.2). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 221 ADRs, and the changelog (v1.0 to v1.30.3). All metrics, versions, and patterns cited are verifiable in the codebase.*

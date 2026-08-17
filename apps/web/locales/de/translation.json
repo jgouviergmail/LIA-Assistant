@@ -4034,6 +4034,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_30_3": {
+          "title": "v1.30.3 — 🧱 Fundamente, die nicht mehr vom Wetter anderer abhängen",
+          "date": "August 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔤 Die Schriften werden jetzt mitgeliefert</b> — beim Bauen einer neuen Version müssen keine Schriften mehr von Google heruntergeladen werden: Die exakten Dateien (gleiche Familien, gleiche Schnitte, identische Darstellung) liegen im Repository. Zwei Updates waren tags zuvor gescheitert, weil Google seine Dateien im falschen Moment verschoben hatte — diese Fehlerklasse existiert nicht mehr, und ein automatischer Wächter verhindert ihre Rückkehr.",
+            "i2": "<b>📦 Die Self-Host-Installation ist von Ende zu Ende qualifiziert</b> — für Administratoren: Jede Kandidatenversion wird nun vor jeder Veröffentlichung tatsächlich installiert, auf zwei Architekturen (PC und Raspberry Pi), in einer hermetischen Wegwerfumgebung. Sieben Defekte des Qualifikationsprozesses wurden einzeln behoben, jeder auf einem realen Lauf nachgewiesen. Diese Version bringt die durchgängig reparierte Kette mit: Build → Qualifikation → Veröffentlichung."
+          }
+        },
         "v1_30_2": {
           "title": "v1.30.2 — ⚙️ Eine aktuelle Agent-Engine und begrenzte Ausgaben",
           "date": "August 2026",

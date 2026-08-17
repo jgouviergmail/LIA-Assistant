@@ -4043,6 +4043,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_30_3": {
+          "title": "v1.30.3 — 🧱 Foundations that no longer depend on someone else's weather",
+          "date": "August 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔤 Fonts now ship with the application</b> — building a new version no longer downloads fonts from Google: the exact files (same families, same weights, identical rendering) live in the repository. Two updates had failed the day before because Google moved its files at the wrong moment — that failure class is gone, and an automated guard forbids its return.",
+            "i2": "<b>📦 Self-host installation is qualified end to end</b> — for administrators: every candidate version is now actually installed, on two architectures (PC and Raspberry Pi), in a disposable hermetic environment, before any publication. Seven defects in the qualification process were fixed one by one, each proven on a real run. This version ships the repaired end-to-end chain: build → qualification → publication."
+          }
+        },
         "v1_30_2": {
           "title": "v1.30.2 — ⚙️ An up-to-date agent engine and bounded spending",
           "date": "August 2026",

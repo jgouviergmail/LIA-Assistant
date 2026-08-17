@@ -4034,6 +4034,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_30_3": {
+          "title": "v1.30.3 — 🧱 Cimientos que ya no dependen del clima ajeno",
+          "date": "Agosto 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔤 Las fuentes tipográficas ahora van incluidas</b> — construir una nueva versión ya no descarga fuentes de Google: los archivos exactos (mismas familias, mismos pesos, renderizado idéntico) viven en el repositorio. Dos actualizaciones habían fallado el día anterior porque Google movió sus archivos en el peor momento — esa clase de fallo ya no existe, y un guardián automático prohíbe su regreso.",
+            "i2": "<b>📦 La instalación self-host se califica de extremo a extremo</b> — para administradores: cada versión candidata se instala ahora realmente, en dos arquitecturas (PC y Raspberry Pi), en un entorno desechable y hermético, antes de cualquier publicación. Siete defectos del proceso de calificación se repararon uno a uno, cada uno probado en una ejecución real. Esta versión incluye la cadena reparada de extremo a extremo: construcción → calificación → publicación."
+          }
+        },
         "v1_30_2": {
           "title": "v1.30.2 — ⚙️ Un motor de agentes al día y gastos acotados",
           "date": "Agosto 2026",

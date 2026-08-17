@@ -4,9 +4,9 @@
 >
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
-**Versione**: 4.1
-**Data**: 2026-08-16
-**Applicazione**: LIA v1.30.2
+**Versione**: 4.2
+**Data**: 2026-08-17
+**Applicazione**: LIA v1.30.3
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -74,7 +74,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~18.321 (raccolti da pytest su 997 file di test) + 5.475 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~18.321 (raccolti da pytest su 997 file di test) + 5.479 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 490+ |
 | ADR (Architecture Decision Record) | 209 |
@@ -1353,4 +1353,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 221 ADRs e del changelog (da v1.0 a v1.30.2). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 221 ADRs e del changelog (da v1.0 a v1.30.3). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

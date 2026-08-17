@@ -4048,6 +4048,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_30_3": {
+          "title": "v1.30.3 — 🧱 Des fondations qui ne dépendent plus de la météo d'autrui",
+          "date": "Août 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔤 Les polices de caractères sont désormais embarquées</b> — l'application n'a plus besoin de télécharger ses polices depuis Google au moment de construire une nouvelle version : les fichiers exacts (mêmes familles, mêmes graisses, rendu identique) vivent dans le dépôt. Deux mises à jour avaient échoué la veille parce que Google avait déplacé ses fichiers au mauvais moment — cette classe de panne n'existe plus, et un garde automatique interdit son retour.",
+            "i2": "<b>📦 L'installation self-host est qualifiée de bout en bout</b> — pour les administrateurs : chaque version candidate est désormais installée réellement, sur deux architectures (PC et Raspberry Pi), dans un environnement jetable et hermétique, avant toute publication. Sept défauts du processus de qualification ont été réparés un par un, chacun prouvé sur une exécution réelle. Cette version embarque la chaîne réparée de bout en bout : construction → qualification → publication."
+          }
+        },
         "v1_30_2": {
           "title": "v1.30.2 — ⚙️ Un moteur d'agents à jour et des dépenses bornées",
           "date": "Août 2026",

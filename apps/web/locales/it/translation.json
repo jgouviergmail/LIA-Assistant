@@ -4036,6 +4036,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_30_3": {
+          "title": "v1.30.3 — 🧱 Fondamenta che non dipendono più dal meteo altrui",
+          "date": "Agosto 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔤 I caratteri ora sono inclusi nell'applicazione</b> — costruire una nuova versione non scarica più i font da Google: i file esatti (stesse famiglie, stessi pesi, resa identica) vivono nel repository. Due aggiornamenti erano falliti il giorno prima perché Google aveva spostato i suoi file nel momento sbagliato — quella classe di guasto non esiste più, e una guardia automatica ne vieta il ritorno.",
+            "i2": "<b>📦 L'installazione self-host è qualificata da un capo all'altro</b> — per gli amministratori: ogni versione candidata viene ora installata realmente, su due architetture (PC e Raspberry Pi), in un ambiente usa e getta ed ermetico, prima di qualsiasi pubblicazione. Sette difetti del processo di qualificazione sono stati riparati uno a uno, ciascuno provato su un'esecuzione reale. Questa versione include la catena riparata da un capo all'altro: build → qualificazione → pubblicazione."
+          }
+        },
         "v1_30_2": {
           "title": "v1.30.2 — ⚙️ Un motore di agenti aggiornato e spese limitate",
           "date": "Agosto 2026",

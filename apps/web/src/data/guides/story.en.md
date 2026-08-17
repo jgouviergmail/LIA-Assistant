@@ -2,9 +2,9 @@
 
 > Field report — a complete system, from design to production.
 
-**Version**: 1.4
-**Date**: 2026-08-16
-**Application**: LIA v1.30.2
+**Version**: 1.5
+**Date**: 2026-08-17
+**Application**: LIA v1.30.3
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Lines of code (excluding tests) — 40 functional domains | **520,000** |
-| Automated tests, run on every commit and release | **23,700+** |
+| Automated tests, run on every commit and release | **23,800+** |
 | Documented architecture decisions (ADR) | **221** |
-| Versions shipped at a steady pace | **206** |
+| Versions shipped at a steady pace | **207** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 

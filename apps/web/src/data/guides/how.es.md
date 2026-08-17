@@ -4,9 +4,9 @@
 >
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
-**Versión**: 4.1
-**Fecha**: 2026-08-16
-**Aplicación**: LIA v1.30.2
+**Versión**: 4.2
+**Fecha**: 2026-08-17
+**Aplicación**: LIA v1.30.3
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -74,7 +74,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | ~18.321 (recopilados por pytest en 997 archivos de prueba) + 5.475 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | ~18.321 (recopilados por pytest en 997 archivos de prueba) + 5.479 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures reutilizables | 170+ |
 | Documentos de documentación | 490+ |
 | ADRs (Architecture Decision Records) | 209 |
@@ -1351,4 +1351,4 @@ La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesia
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 221 ADRs y del changelog (v1.0 a v1.30.2). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 221 ADRs y del changelog (v1.0 a v1.30.3). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
