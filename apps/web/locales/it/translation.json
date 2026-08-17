@@ -3815,7 +3815,7 @@
         },
         "semanticValidation": {
           "title": "✅ Validazione Semantica dei Piani",
-          "description": "Rilevamento LLM di 15 tipi di anomalie prima dell'esecuzione: capacità allucinata, dipendenza fantasma, ciclo logico, incoerenza di cardinalità, sconfinamento di perimetro, ambiguità pericolosa, piano incompleto, strumento mancante, parametri errati, vincolo impossibile, paradosso temporale, costo eccessivo, riferimento ambiguo, conflitto tra passaggi e problemi di FOR_EACH. Analisi di criticità (LOW/MEDIUM/HIGH) in base alla reversibilità dell'azione. Integrazione del Pattern Learning bayesiano (bypass oltre il 90% di confidenza). P95 < 2s con corto circuito per i piani banali. Il verdetto classifica, non condanna: un piano rifiutato viene comunque eseguito — il routing non legge mai quel verdetto — e nella maggior parte dei casi riesce, poiché un valore fuori limite viene riportato entro i suoi limiti prima dell'esecuzione. Una capacità è dichiarata bloccata solo se non ha prodotto <b>nulla</b>; quando una parte del turno riesce e l'altra no, la risposta mostra ciò che ha ottenuto e indica ciò che è mancato. E quando un piano che scrive esaurisce le proprie correzioni automatiche, ciò che raggiunge l'utente è una <b>domanda</b> — nella sua lingua e con l'indicazione di ciò che manca — mai la diagnosi interna che l'ha provocata."
+          "description": "Rilevamento LLM di 15 tipi di anomalie prima dell'esecuzione: capacità allucinata, dipendenza fantasma, ciclo logico, incoerenza di cardinalità, sconfinamento di perimetro, ambiguità pericolosa, piano incompleto, strumento mancante, parametri errati, vincolo impossibile, paradosso temporale, costo eccessivo, riferimento ambiguo, conflitto tra passaggi e problemi di FOR_EACH. Analisi di criticità (LOW/MEDIUM/HIGH) in base alla reversibilità dell'azione. Integrazione del Pattern Learning bayesiano (bypass oltre il 90% di confidenza). P95 < 2s con corto circuito per i piani banali. Il verdetto classifica, non condanna: un piano rifiutato viene comunque eseguito — il routing non legge mai quel verdetto — e nella maggior parte dei casi riesce, poiché un valore fuori limite viene riportato entro i suoi limiti prima dell'esecuzione. Una capacità è dichiarata bloccata solo se non ha prodotto <b>nulla</b>; quando una parte del turno riesce e l'altra no, la risposta mostra ciò che ha ottenuto e indica ciò che è mancato. E quando un piano che scrive esaurisce le proprie correzioni automatiche, ciò che raggiunge l'utente è una <b>domanda</b> — nella sua lingua e con l'indicazione di ciò che manca — mai la diagnosi interna che l'ha provocata. La stessa onestà vale all'esecuzione: il verdetto di ogni strumento — successo o rifiuto — si propaga invariato fino alla risposta, e un rifiuto non viene mai presentato come un'azione compiuta."
         },
         "semantic": {
           "title": "🎯 Validazione & Pivot Semantico",
@@ -4036,6 +4036,16 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_30_4": {
+          "title": "v1.30.4 — ✅ Conferme che dicono sempre la verità",
+          "date": "Agosto 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>✅ Un'azione rifiutata non viene mai più annunciata come riuscita</b> — un incidente reale l'ha mostrato: un messaggio inoltrato troppo lungo era stato rifiutato internamente, ma la risposta mostrava «Messaggio consegnato». Corretto alla radice: il verdetto di ogni strumento (successo o fallimento) arriva ora invariato fino alla risposta. Se qualcosa non è stato possibile, LIA te lo dice, con la vera ragione.",
+            "i2": "<b>📏 Un messaggio inoltrato troppo lungo viene spiegato con i numeri</b> — i messaggi inoltrati alle tue connessioni sono limitati a 2 000 caratteri (regolabile per istanza). Se il tuo lo supera, LIA ti indica ora la lunghezza esatta e il limite, e ti propone di accorciarlo o riassumerlo — invece di una domanda generica che non nominava mai il problema reale.",
+            "i3": "<b>🔢 Le conferme delle operazioni in blocco mostrano il conteggio esatto</b> — la scheda di conferma indica il numero di elementi realmente misurati (mai il tetto teorico), con il singolare corretto quando ce n'è uno solo."
+          }
+        },
         "v1_30_3": {
           "title": "v1.30.3 — 🧱 Fondamenta che non dipendono più dal meteo altrui",
           "date": "Agosto 2026",
@@ -6240,7 +6250,7 @@
           },
           "q2": {
             "question": "Come invio un messaggio a una connessione?",
-            "answer": "Dillo a LIA: <em>di' a Marie che sono in ritardo</em>. Una <strong>scheda di conferma</strong> ti mostra la formulazione esatta prima che parta qualsiasi cosa. Il messaggio viene poi consegnato dall'<strong>assistente del destinatario</strong>, con la sua personalità e la sua lingua, nominandoti come mittente — e il tuo assistente ti conferma la consegna in chat. Rispondere funziona allo stesso modo: una risposta è semplicemente un nuovo messaggio trasmesso. Il piccolo costo IA della consegna è addebitato al mittente, e quote giornaliere prevengono gli abusi."
+            "answer": "Dillo a LIA: <em>di' a Marie che sono in ritardo</em>. Una <strong>scheda di conferma</strong> ti mostra la formulazione esatta prima che parta qualsiasi cosa. Il messaggio viene poi consegnato dall'<strong>assistente del destinatario</strong>, con la sua personalità e la sua lingua, nominandoti come mittente — e il tuo assistente ti conferma la consegna in chat. Rispondere funziona allo stesso modo: una risposta è semplicemente un nuovo messaggio trasmesso. Il piccolo costo IA della consegna è addebitato al mittente, e quote giornaliere prevengono gli abusi. I messaggi inoltrati hanno un limite di lunghezza (2 000 caratteri per impostazione predefinita): se il tuo è troppo lungo, LIA ti indica la lunghezza esatta e il limite, e ti propone di accorciarlo o riassumerlo — nulla viene inviato a tua insaputa."
           },
           "q3": {
             "question": "Cosa posso condividere e cosa vede l'altra persona?",

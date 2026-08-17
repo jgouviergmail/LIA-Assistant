@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versión**: 4.7
+**Versión**: 4.8
 **Fecha**: 2026-08-17
-**Aplicación**: LIA v1.30.3
+**Aplicación**: LIA v1.30.4
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -292,6 +292,8 @@ La transparencia no es un añadido técnico. Cambia la relación con tu asistent
 Esta transparencia se extiende a la calidad del propio sistema. La auditoría técnica completa — notas, método, fortalezas y lo que queda por mejorar — está publicada en el repositorio, con el protocolo para repetirla y los comandos para verificar las mediciones: [informe de auditoría completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). No se le pide que crea las cifras de este sitio; puede comprobarlas.
 
 La misma honestidad se aplica a la utilidad misma: LIA mide si realmente ayuda — un resultado solo cuenta una vez validado por ti, explícitamente o dejando una acción sin corregir — y esa medición vive en la misma base local que tus datos, sin implicar jamás una plataforma de analítica de terceros.
+
+Y se aplica a las confirmaciones: LIA nunca te anuncia como realizado lo que sus propias herramientas rechazaron. El veredicto de cada herramienta — éxito o rechazo, con su causa — atraviesa el sistema sin cambios, hasta la respuesta. Si un mensaje es demasiado largo para salir, no recibes un «enviado»: recibes la longitud exacta, el límite y una propuesta para acortarlo.
 
 El mismo principio se aplica a las propias protecciones. Una seguridad anunciada pero no verificable se trata como inexistente: cada control se apoya en una prueba que falla si el control desaparece y, cuando se escribe una corrección, se restaura el comportamiento anterior el tiempo necesario para comprobar que la prueba lo detecta. Una prueba que no puede fallar no demuestra nada.
 

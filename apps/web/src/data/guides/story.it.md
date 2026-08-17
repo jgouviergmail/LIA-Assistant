@@ -2,9 +2,9 @@
 
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
-**Versione**: 1.5
+**Versione**: 1.6
 **Data**: 2026-08-17
-**Applicazione**: LIA v1.30.3
+**Applicazione**: LIA v1.30.4
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -96,6 +96,8 @@ Il ciclo 1.30.0 ha documentato una lezione di altra natura: una funzionalità pu
 Il ciclo 1.30.1 ha spinto la logica un passo oltre: ha verificato la verifica. Un rapporto interno concludeva che le postazioni LLM in streaming non contavano alcun token — meccanismo esatto, conclusione plausibile, severità massima. La controperizia ha fatto ciò che il rapporto non aveva potuto fare: interrogare la produzione. Cinquecentodieci chiamate su cinquecentodieci erano contate. Il difetto reale era altrove, e più subdolo: il conteggio si reggeva unicamente sulla generosità di un fornitore a cui nessuno lo chiedeva — niente lo richiedeva, niente lo testava, niente lo sorvegliava. La risposta non è stata una patch ma un contratto: ogni fornitore dichiara la sua modalità di conteggio, l'applicazione rifiuta di avviarsi senza quella dichiarazione, e una chiamata a pagamento senza conteggio diventa un allarme. Lo stesso ciclo ha riparato il contatore delle azioni del cruscotto, inchiodato a zero da sempre da un vocabolario che nessuno emetteva — cronologia compresa, riclassificata dalle intenzioni archiviate. Perché una cifra mostrata è esatta, o non esiste.
 
 Il ciclo 1.30.2 ha applicato la stessa disciplina a ciò che nessuno guarda mai: le fondamenta. Portare l'ecosistema di orchestrazione oltre cinque mesi di correzioni poteva essere un semplice cambio di numeri; è stato condotto come un'operazione fondata su prove — ogni versione validata in un ambiente usa e getta prima di toccare il repository, ottomilacinquecento test eseguiti sotto le versioni obiettivo, i punti di integrazione privati simulati offline. E l'audit che accompagnava l'aggiornamento ha trovato ciò che le metriche di copertura nascondevano: millesettecentocinquanta righe di una seconda implementazione della ripresa umana, mai collegata, tenuta verde da cinquanta test. Eliminata, con la sua decisione di architettura messa a verbale. Un sistema vetrina non si giudica solo da ciò che mostra — anche da ciò che rifiuta di tenere.
+
+Il ciclo 1.30.4 è nato da un messaggio utente di tre righe: «ho chiesto di inoltrare un messaggio, ho avuto una conferma, non è partito nulla». L'indagine — log di produzione con timestamp, database, il codice stesso del container, una prova alla volta — è risalita a una sola riga: il motore di esecuzione sovrascriveva il verdetto di ogni strumento con un successo codificato a mano, e lo strato di onestà progettato proprio per nominare i blocchi veniva disarmato dalla stessa menzogna che doveva impedire. La correzione è piccola; il metodo è il vero risultato: ogni ipotesi controverificata prima di scrivere una riga, ogni correzione preceduta da un test che fallisce, e un assistente che ora dice la verità fino nei suoi rifiuti — con i numeri esatti, in tutte e sei le lingue.
 
 ## 7. Convinzioni
 

@@ -35,8 +35,12 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured at v1.30.3: backend 18,321 (997 yielding files,
- *   `pytest tests/unit tests/agents --collect-only -q --no-cov`) + frontend
+ *   Re-measured at v1.30.4: backend 18,357
+ *   (`pytest tests/unit tests/agents --collect-only -q --no-cov`; +36 — the
+ *   executor failure-propagation contract, the peers manifest pins, the
+ *   oversize-clarification i18n and the FOR_EACH measured-claims suites) +
+ *   frontend 5,479 = 23,836 → 23,800.
+ *   Previous at v1.30.3: backend 18,321 (997 yielding files) + frontend
  *   5,479 (vitest, 442 files — the self-hosted-fonts guards) = 23,800.
  *   Previous at v1.30.2: 18,321 + 5,476 = 23,797 → 23,700; the backend drop
  *   from v1.30.1's 18,369 was ADR-222 deleting ~50 dead-code tests while the
@@ -73,7 +77,7 @@
  *   highest number is always one above the file count.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   207 headings at v1.30.3, no Unreleased pending.
+ *   208 headings at v1.30.4, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -91,7 +95,7 @@ export const LANDING_STATS = {
   uiLanguages: 6,
   tests: 23800,
   adrs: 221,
-  releases: 207,
+  releases: 208,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

@@ -4,9 +4,9 @@
 >
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
-**Version** : 4.2
+**Version** : 4.3
 **Date** : 2026-08-17
-**Application** : LIA v1.30.3
+**Application** : LIA v1.30.4
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -397,6 +397,8 @@ Avant l'approbation HITL, un LLM dédié (distinct du planner, pour éviter le b
 En complément, un **registre anti-hallucination auto-enrichissant** (`hallucinated_tools.json`) détecte les outils inventés par le LLM (ex : `resolve_reference_tool`) via des patterns regex persistants. Chaque nouvelle hallucination est automatiquement ajoutée au registre pour une détection plus rapide lors des plans suivants. Les étapes hallucinées sont supprimées du plan et le planner est forcé à replanifier avec les outils réels du catalogue — éliminant une classe entière d'échecs d'exécution sans intervention humaine.
 
 Un verdict classe, il ne condamne pas — et un **diagnostic n'est pas une question**. Quand un plan de *mutation* épuise ses replans automatiques, le validateur refuse de l'exécuter et bascule vers une clarification HITL : écrire une donnée fausse coûte plus cher que demander. Ce qui est alors demandé à l'utilisateur est une question **dans sa langue**, puisée dans une table de quinze entrées dont la complétude est vérifiée au démarrage **dans les deux sens** — une issue que le code sait lever sans question rédigée refuse de démarrer l'application, et une question qu'aucun code ne lève aussi. La description interne de l'issue reste dans la trace, où elle a sa place. Le même principe couvre les valeurs : un paramètre fourni à un tour précédent est **repris du plan antérieur** au lieu d'être réinventé, car la réparation reconnaît une adresse de documentation et n'écrase jamais une valeur réelle — un changement d'avis est toujours respecté (ADR-195).
+
+L'honnêteté du verdict s'étend jusqu'à l'exécution. Chaque outil rend un verdict typé — succès ou refus, avec sa cause — et l'exécuteur de plans le propage **tel quel** : un refus n'est jamais présenté comme une action accomplie, une étape échouée n'est pas comptée « exécutée » (la couche qui énonce les blocages garde ainsi sa vérité), et un échec ne s'enregistre jamais comme contexte conversationnel. Quand la contrainte violée est irréparable — le contenu de l'utilisateur dépasse une borne publiée au catalogue — elle devient la **première question posée**, avec les chiffres exacts et dans la langue de l'utilisateur, plutôt qu'une question générique. Et ce que confirme une opération en masse est le compte **mesuré** après pré-exécution, jamais un plafond théorique.
 
 ### 6.5. La vérité d'une référence (ADR-194)
 
@@ -1393,4 +1395,4 @@ L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayé
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 221 ADRs, et du changelog (v1.0 à v1.30.3). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 221 ADRs, et du changelog (v1.0 à v1.30.4). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

@@ -2,9 +2,9 @@
 
 > Retour d'expérience — un système complet, de la conception à la production.
 
-**Version** : 1.5
+**Version** : 1.6
 **Date** : 2026-08-17
-**Application** : LIA v1.30.3
+**Application** : LIA v1.30.4
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -96,6 +96,8 @@ Le cycle 1.30.0 a documenté une leçon d'une autre nature : une fonctionnalité
 Le cycle 1.30.1 a poussé la logique jusqu'à auditer l'audit. Un rapport interne concluait que les emplacements LLM diffusés ne comptaient aucun jeton — mécanisme exact, conclusion plausible, sévérité maximale. La contre-expertise a fait ce que le rapport n'avait pas pu faire : interroger la production. Cinq cent dix appels sur cinq cent dix étaient comptés. Le défaut réel était ailleurs, et plus sournois : le comptage ne tenait qu'à la générosité d'un fournisseur à qui personne ne le demandait — rien ne le demandait, rien ne le testait, rien ne le surveillait. La réponse n'a pas été un correctif mais un contrat : chaque fournisseur déclare son mode de comptage, l'application refuse de démarrer sans cette déclaration, et un appel payant sans décompte devient une alerte. Le même cycle a réparé le compteur d'actions du tableau de bord, figé à zéro depuis toujours par un vocabulaire que personne n'émettait — jusque dans son historique, reclassé depuis les intentions archivées. Parce qu'un compte affiché est exact, ou n'existe pas.
 
 Le cycle 1.30.2 a appliqué la même discipline à ce qu'on ne regarde jamais : les fondations. Monter l'écosystème d'orchestration de cinq mois de correctifs aurait pu être un simple changement de numéros ; il a été traité comme une opération à preuves — chaque version validée en environnement jetable avant de toucher au dépôt, huit mille cinq cents tests exécutés sous les versions cibles, les points d'intégration privés simulés hors réseau. Et l'audit qui accompagnait la montée a trouvé ce que les métriques de couverture cachaient : mille sept cent cinquante lignes d'une seconde implémentation de la reprise humaine, jamais branchée, maintenue verte par cinquante tests. Supprimée, avec sa décision d'architecture consignée. Un système vitrine ne se juge pas qu'à ce qu'il montre — aussi à ce qu'il refuse de garder.
+
+Le cycle 1.30.4 est né d'un message utilisateur de trois lignes : « j'ai demandé de transmettre un message, j'ai eu confirmation, rien n'a été envoyé ». L'enquête, menée preuve par preuve — logs de production horodatés, base de données, code du conteneur —, a remonté jusqu'à une ligne : le moteur d'exécution écrasait le verdict de chaque outil par un succès codé en dur, et la couche d'honnêteté conçue précisément pour dire les blocages se faisait désarmer par le mensonge qu'elle devait empêcher. La correction est petite ; la méthode est le vrai livrable : chaque hypothèse contre-vérifiée avant d'écrire une ligne, chaque correctif précédé d'un test qui échoue, et l'assistant qui redit désormais la vérité jusque dans ses refus — avec les chiffres exacts, dans les six langues.
 
 ## 7. Convictions
 

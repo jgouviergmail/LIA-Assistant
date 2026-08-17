@@ -24,6 +24,7 @@ import pytest
 
 from src.core.i18n import DEFAULT_LANGUAGE
 from src.core.i18n_hitl import (
+    _CONTENT_TOO_LONG_QUESTION,
     _SEMANTIC_ISSUE_QUESTIONS,
     HitlMessages,
 )
@@ -149,6 +150,48 @@ class TestAccessor:
         text = HitlMessages.get_semantic_issue_question("something_new_and_unmapped", "fr")
         assert text.strip()
         assert text.rstrip().endswith("?")
+
+
+class TestContentTooLongQuestion:
+    """The hard validator's oversize verdict must reach the user with numbers.
+
+    Prod 2026-08-17 (request ba90ff68): a 6,149-char relay was rejected three
+    times for ``length > max 2000`` and the user was asked "Je ne sais pas à
+    quels éléments appliquer cette action" — the real, actionable reason
+    (too long, by how much) never surfaced. This entry is the phrasing for
+    that reason; it is parameterized, so the numbers are exact claims.
+    """
+
+    def test_entry_covers_the_six_languages(self) -> None:
+        assert set(_CONTENT_TOO_LONG_QUESTION) == _LANGS
+
+    def test_each_language_carries_both_placeholders_and_asks(self) -> None:
+        for lang, text in _CONTENT_TOO_LONG_QUESTION.items():
+            assert "{length}" in text and "{max}" in text, (
+                f"{lang}: the question must state the measured length AND the "
+                f"limit — a bound stated without numbers is not actionable."
+            )
+            assert text.rstrip().endswith(("?", "？")), f"{lang} is not a question: {text!r}"
+
+    def test_accessor_formats_the_exact_numbers(self) -> None:
+        text = HitlMessages.get_content_too_long_question(6149, 2000, "fr")
+
+        assert "6149" in text and "2000" in text
+        assert text == _CONTENT_TOO_LONG_QUESTION["fr"].format(length=6149, max=2000)
+
+    def test_french_keeps_the_product_tone(self) -> None:
+        assert "vous" not in _CONTENT_TOO_LONG_QUESTION["fr"].lower().split()
+
+    @pytest.mark.parametrize("raw", ["zh", "zh_CN", "zh-cn"])
+    def test_chinese_variants_land_on_the_backend_canonical_code(self, raw: str) -> None:
+        assert HitlMessages.get_content_too_long_question(10, 5, raw) == _CONTENT_TOO_LONG_QUESTION[
+            "zh-CN"
+        ].format(length=10, max=5)
+
+    def test_unsupported_language_falls_back_to_the_application_default(self) -> None:
+        assert HitlMessages.get_content_too_long_question(
+            10, 5, "ja"
+        ) == _CONTENT_TOO_LONG_QUESTION[DEFAULT_LANGUAGE].format(length=10, max=5)
 
 
 class TestBootAssertActuallyGuards:

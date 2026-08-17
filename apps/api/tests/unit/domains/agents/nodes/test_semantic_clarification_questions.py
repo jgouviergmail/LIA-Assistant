@@ -238,6 +238,155 @@ class TestExhaustedMutationAsksInTheUserLanguage:
         )
 
 
+class TestOversizeViolationIsAskedPrecisely:
+    """An unrepairable length violation must be said with its numbers.
+
+    Prod 2026-08-17 (request ba90ff68): the hard validator rejected the plan
+    three times for ``Parameter 'message' length 6149 > max 2000`` — a bound
+    the planner cannot repair, because the oversize content is the USER'S own
+    text. The exhausted-mutation clarification then asked the generic "which
+    items?" question: the one actionable fact (too long, by how much) stayed
+    in the logs. These tests pin the new path: the hard verdict's oversize
+    violations become the FIRST clarification questions, localized, numbers
+    included.
+    """
+
+    @staticmethod
+    def _oversize_result() -> object:
+        from src.domains.agents.orchestration.validator import (
+            ValidationIssue,
+            ValidationResult,
+        )
+        from src.domains.agents.tools.common import ToolErrorCode
+
+        return ValidationResult(
+            is_valid=False,
+            errors=[
+                ValidationIssue(
+                    severity="error",
+                    code=ToolErrorCode.CONSTRAINT_VIOLATION,
+                    message="Parameter 'message' length 6149 > max 2000",
+                    step_index=1,
+                    tool_name="send_peer_message_tool",
+                    context={"param": "message", "length": 6149, "max": 2000},
+                )
+            ],
+        )
+
+    def test_oversize_violation_yields_the_localized_numbers(self) -> None:
+        from src.domains.agents.nodes.semantic_validator_node import (
+            _questions_for_oversize_violations,
+        )
+
+        questions = _questions_for_oversize_violations(self._oversize_result(), "fr")
+
+        assert questions == [HitlMessages.get_content_too_long_question(6149, 2000, "fr")]
+        assert "6149" in questions[0] and "2000" in questions[0]
+
+    def test_non_length_constraint_violations_are_ignored(self) -> None:
+        """Pattern/enum violations have no honest generic phrasing — the
+        semantic questions keep covering them; this path claims lengths only."""
+        from src.domains.agents.nodes.semantic_validator_node import (
+            _questions_for_oversize_violations,
+        )
+        from src.domains.agents.orchestration.validator import (
+            ValidationIssue,
+            ValidationResult,
+        )
+        from src.domains.agents.tools.common import ToolErrorCode
+
+        result = ValidationResult(
+            is_valid=False,
+            errors=[
+                ValidationIssue(
+                    severity="error",
+                    code=ToolErrorCode.CONSTRAINT_VIOLATION,
+                    message="Parameter 'level' not in allowed values ['a', 'b']",
+                    context={"param": "level", "value": "c", "allowed": ["a", "b"]},
+                )
+            ],
+        )
+
+        assert _questions_for_oversize_violations(result, "fr") == []
+
+    def test_tolerates_a_mapping_shaped_result(self) -> None:
+        """State that crossed a checkpoint can hand back plain mappings."""
+        from src.domains.agents.nodes.semantic_validator_node import (
+            _questions_for_oversize_violations,
+        )
+
+        result = {
+            "is_valid": False,
+            "errors": [
+                {
+                    "severity": "error",
+                    "code": "CONSTRAINT_VIOLATION",
+                    "message": "Parameter 'message' length 6149 > max 2000",
+                    "context": {"param": "message", "length": 6149, "max": 2000},
+                }
+            ],
+        }
+
+        questions = _questions_for_oversize_violations(result, "fr")
+
+        assert questions == [HitlMessages.get_content_too_long_question(6149, 2000, "fr")]
+
+    def test_absent_result_yields_no_question(self) -> None:
+        from src.domains.agents.nodes.semantic_validator_node import (
+            _questions_for_oversize_violations,
+        )
+
+        assert _questions_for_oversize_violations(None, "fr") == []
+
+    async def test_exhausted_mutation_asks_the_oversize_question_first(self) -> None:
+        """End-to-end through the real node: the hard verdict leads the ask."""
+        from src.core.config import settings
+        from src.domains.agents.nodes.semantic_validator_node import semantic_validator_node
+        from src.domains.agents.orchestration.plan_schemas import (
+            ExecutionPlan,
+            ExecutionStep,
+            StepType,
+        )
+
+        plan = ExecutionPlan(
+            plan_id="p1",
+            user_id="u1",
+            session_id="s1",
+            steps=[
+                ExecutionStep(
+                    step_id="step_1",
+                    step_type=StepType.TOOL,
+                    agent_name="contacts_agent",
+                    tool_name="get_contacts_tool",
+                    parameters={"query": "Jerome"},
+                ),
+                ExecutionStep(
+                    step_id="step_2",
+                    step_type=StepType.TOOL,
+                    agent_name="emails_agent",
+                    tool_name="send_email_tool",
+                    parameters={"to": "jerome@example.com", "subject": "s", "body": "b"},
+                ),
+            ],
+        )
+        state = {
+            "execution_plan": plan,
+            "validation_result": self._oversize_result(),
+            "user_language": "fr",
+            "planner_iteration": settings.planner_max_replans,
+            "messages": [],
+            "original_query": "transmets ce long message",
+        }
+
+        result = await semantic_validator_node(state, None)
+        verdict = result["semantic_validation"]
+
+        assert verdict.requires_clarification
+        questions = verdict.clarification_questions
+        assert questions[0] == HitlMessages.get_content_too_long_question(6149, 2000, "fr")
+        assert len(questions) <= 3
+
+
 class TestTheUserIsNeverAskedTheSameThingTwice:
     """Distinct diagnoses can map to one question — that is the whole point.
 

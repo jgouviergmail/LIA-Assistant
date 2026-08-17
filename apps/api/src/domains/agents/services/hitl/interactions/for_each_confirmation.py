@@ -175,6 +175,21 @@ class ForEachConfirmationInteraction:
             duration_ms=int((time.time() - start_time) * 1000),
         )
 
+    @staticmethod
+    def _items_suffix(translations: dict[str, str], count: int) -> str:
+        """Pick the grammatical number for an item count.
+
+        Args:
+            translations: FOR_EACH confirm UI strings for the user's language.
+            count: The exact count being displayed next to the suffix.
+
+        Returns:
+            The singular form for a count of one, the plural otherwise.
+        """
+        if count == 1:
+            return translations.get("items_suffix_one", translations["items_suffix"])
+        return translations["items_suffix"]
+
     def _build_confirmation_message(
         self,
         steps: list[dict[str, Any]],
@@ -204,10 +219,12 @@ class ForEachConfirmationInteraction:
         # Detect mutation type from first step
         mutation_type = self._detect_mutation_type(steps, user_language)
 
-        # Build body
+        # Build body — a count of one reads in the singular ("1 élément",
+        # never "1 éléments"; prod 2026-08-17). `.get` fallback keeps any
+        # stale translation dict from a checkpointed context harmless.
         body = (
             f"{translations['operation_prefix']} {mutation_type} "
-            f"**{total_affected}** {translations['items_suffix']}.\n\n"
+            f"**{total_affected}** {self._items_suffix(translations, total_affected)}.\n\n"
         )
 
         # FIX 2026-01-30: Add item previews section for "Informed HITL"
@@ -227,8 +244,12 @@ class ForEachConfirmationInteraction:
             body += f"**{translations['operations_header']} :**\n"
             for step in steps[:5]:  # Max 5 steps displayed
                 tool_name = step.get("tool_name", "unknown")
-                count = step.get("for_each_max", 0)
-                body += f"- {tool_name}: {count} {translations['items_suffix']}\n"
+                # `item_count` is the MEASURED count, stamped by the
+                # orchestrator after pre-execution (ADR-185: a count shown is
+                # a claim — exact, or absent); for_each_max is only the cap,
+                # kept as fallback for steps that never got a measurement.
+                count = step.get("item_count", step.get("for_each_max", 0))
+                body += f"- {tool_name}: {count} {self._items_suffix(translations, count)}\n"
             if len(steps) > 5:
                 body += f"- ... +{len(steps) - 5} {translations['more_suffix']}\n"
             body += "\n"

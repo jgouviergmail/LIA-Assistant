@@ -220,7 +220,7 @@ def count_items_at_path(data: dict[str, Any], field_path: str) -> int:
         0
 
     Reference:
-        - task_orchestrator_node._pre_execute_for_each_providers()
+        - for_each_hitl_prep.pre_execute_for_each_providers()
         - plan_planner.md Section 12 (FOR_EACH HITL)
     """
     try:

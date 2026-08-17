@@ -2,9 +2,9 @@
 
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
-**Version**: 1.5
+**Version**: 1.6
 **Datum**: 2026-08-17
-**Anwendung**: LIA v1.30.3
+**Anwendung**: LIA v1.30.4
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -96,6 +96,8 @@ Der Zyklus 1.30.0 dokumentierte eine Lektion anderer Art: eine Funktion kann gel
 Zyklus 1.30.1 trieb die Logik einen Schritt weiter: Er auditierte das Audit. Ein interner Bericht kam zum Schluss, die gestreamten LLM-Einsatzorte zählten keinerlei Token — exakter Mechanismus, plausible Schlussfolgerung, maximale Schwere. Die Gegenprüfung tat, was der Bericht nicht konnte: Sie fragte die Produktion. Fünfhundertzehn von fünfhundertzehn Aufrufen wurden gezählt. Der wirkliche Fehler lag woanders und war heimtückischer: Die Abrechnung beruhte allein auf der Großzügigkeit eines Anbieters, den niemand darum bat — nichts forderte sie an, nichts testete sie, nichts überwachte sie. Die Antwort war kein Patch, sondern ein Vertrag: Jeder Anbieter deklariert seinen Abrechnungsmodus, die Anwendung verweigert den Start ohne diese Deklaration, und ein bezahlter Aufruf ohne Zählung wird zum Alarm. Derselbe Zyklus reparierte den Aktionszähler des Dashboards, seit jeher durch ein Vokabular auf null festgenagelt, das niemand aussandte — samt Historie, neu klassifiziert aus den archivierten Intentionen. Denn eine angezeigte Zahl ist exakt, oder sie existiert nicht.
 
 Zyklus 1.30.2 wandte dieselbe Disziplin auf das an, was niemand je ansieht: die Fundamente. Das Orchestrierungs-Ökosystem über fünf Monate an Korrekturen anzuheben hätte ein bloßer Nummerntausch sein können; es wurde als beweisgeführte Operation durchgeführt — jede Version vor dem Anfassen des Repos in einer Wegwerfumgebung validiert, achteinhalbtausend Tests unter den Zielversionen ausgeführt, die privaten Integrationspunkte offline simuliert. Und das begleitende Audit fand, was Abdeckungsmetriken verbargen: siebzehnhundertfünfzig Zeilen einer zweiten, nie angeschlossenen Implementierung der menschlichen Bestätigungsfortsetzung, von fünfzig Tests grün gehalten. Gelöscht, mit protokollierter Architekturentscheidung. Ein Vorzeigesystem bemisst sich nicht nur an dem, was es zeigt — auch an dem, was es sich weigert zu behalten.
+
+Zyklus 1.30.4 begann mit einer dreizeiligen Nutzernachricht: „Ich habe gebeten, eine Nachricht weiterzuleiten, ich bekam eine Bestätigung, nichts wurde gesendet.“ Die Untersuchung — zeitgestempelte Produktionslogs, Datenbank, der Code des Containers selbst, Beweis für Beweis — führte zu einer einzigen Zeile: Die Ausführungsengine überschrieb das Urteil jedes Werkzeugs mit einem fest codierten Erfolg, und die Ehrlichkeitsschicht, die Blockaden benennen sollte, wurde von genau der Lüge entwaffnet, die sie verhindern sollte. Der Fix ist klein; die Methode ist das eigentliche Ergebnis: jede Hypothese gegengeprüft, bevor eine Zeile geschrieben wurde, jeder Korrektur ein fehlschlagender Test vorangestellt — und ein Assistent, der nun bis in seine Ablehnungen hinein die Wahrheit sagt, mit exakten Zahlen, in allen sechs Sprachen.
 
 ## 7. Überzeugungen
 

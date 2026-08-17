@@ -3827,7 +3827,7 @@
         },
         "semanticValidation": {
           "title": "✅ Validation Sémantique des Plans",
-          "description": "Détection LLM de 15 types d'anomalies avant exécution : capacité hallucinée, dépendance fantôme, cycle logique, incohérence de cardinalité, débordement de périmètre, ambiguïté dangereuse, plan incomplet, outil manquant, mauvais paramètres, contrainte impossible, paradoxe temporel, coût excessif, référence ambiguë, conflit entre étapes et problèmes de FOR_EACH. Analyse de criticité (LOW/MEDIUM/HIGH) selon la réversibilité de l'action. Intégration Pattern Learning bayésien (bypass au-delà de 90% de confiance). P95 < 2s avec court-circuit pour les plans triviaux. Le verdict classe, il ne condamne pas : un plan refusé s'exécute quand même — le routage ne lit jamais ce verdict — et réussit le plus souvent, une valeur hors limite étant ramenée dans ses bornes avant l'exécution. Une capacité n'est donc déclarée bloquée que si elle n'a <b>rien</b> produit ; quand une partie du tour aboutit et l'autre non, la réponse présente ce qu'elle a obtenu et nomme ce qui a manqué. Et quand un plan qui écrit épuise ses corrections automatiques, ce qui est présenté à l'utilisateur est une <b>question</b> — dans sa langue, nommant ce qui manque — jamais le diagnostic interne qui l'a déclenchée."
+          "description": "Détection LLM de 15 types d'anomalies avant exécution : capacité hallucinée, dépendance fantôme, cycle logique, incohérence de cardinalité, débordement de périmètre, ambiguïté dangereuse, plan incomplet, outil manquant, mauvais paramètres, contrainte impossible, paradoxe temporel, coût excessif, référence ambiguë, conflit entre étapes et problèmes de FOR_EACH. Analyse de criticité (LOW/MEDIUM/HIGH) selon la réversibilité de l'action. Intégration Pattern Learning bayésien (bypass au-delà de 90% de confiance). P95 < 2s avec court-circuit pour les plans triviaux. Le verdict classe, il ne condamne pas : un plan refusé s'exécute quand même — le routage ne lit jamais ce verdict — et réussit le plus souvent, une valeur hors limite étant ramenée dans ses bornes avant l'exécution. Une capacité n'est donc déclarée bloquée que si elle n'a <b>rien</b> produit ; quand une partie du tour aboutit et l'autre non, la réponse présente ce qu'elle a obtenu et nomme ce qui a manqué. Et quand un plan qui écrit épuise ses corrections automatiques, ce qui est présenté à l'utilisateur est une <b>question</b> — dans sa langue, nommant ce qui manque — jamais le diagnostic interne qui l'a déclenchée. La même honnêteté vaut à l'exécution : le verdict de chaque outil — succès ou refus — est propagé tel quel jusqu'à la réponse, et un refus n'est jamais présenté comme une action accomplie."
         },
         "semantic": {
           "title": "🎯 Validation & Pivot Sémantique",
@@ -4048,6 +4048,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_30_4": {
+          "title": "v1.30.4 — ✅ Des confirmations qui disent toujours la vérité",
+          "date": "Août 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>✅ Une action refusée n'est plus jamais annoncée comme réussie</b> — un incident réel l'a montré : un message relayé trop long était refusé en interne, mais la réponse affichait « Message transmis ». Corrigé à la racine : le verdict de chaque outil (succès ou échec) est désormais transmis tel quel jusqu'à la réponse. Si quelque chose n'a pas pu être fait, LIA te le dit, avec la vraie raison.",
+            "i2": "<b>📏 Un message relayé trop long est expliqué avec ses chiffres</b> — les messages relayés à tes connexions sont limités à 2 000 caractères (réglable par instance). Si le tien dépasse, LIA te donne désormais la longueur exacte et la limite, et te propose de le raccourcir ou de le résumer — au lieu d'une question générique qui ne nommait jamais le vrai problème.",
+            "i3": "<b>🔢 Les confirmations d'opérations en masse affichent le compte exact</b> — la carte de confirmation annonce le nombre d'éléments réellement mesurés (plus jamais le plafond théorique), et s'accorde au singulier quand il n'y en a qu'un."
+          }
+        },
         "v1_30_3": {
           "title": "v1.30.3 — 🧱 Des fondations qui ne dépendent plus de la météo d'autrui",
           "date": "Août 2026",
@@ -6252,7 +6262,7 @@
           },
           "q2": {
             "question": "Comment envoyer un message à une connexion ?",
-            "answer": "Dis-le simplement à LIA : <em>dis à Marie que je suis en retard</em>. Une <strong>carte de confirmation</strong> te montre la formulation exacte avant tout envoi. Le message est ensuite remis par <strong>l'assistant du destinataire</strong>, avec sa personnalité et sa langue, en te nommant comme expéditeur — et ton assistant te confirme la remise dans ton chat. Répondre fonctionne pareil : une réponse est simplement un nouveau message relayé. Le petit coût IA de la livraison est imputé à l'expéditeur, et des quotas journaliers préviennent les abus."
+            "answer": "Dis-le simplement à LIA : <em>dis à Marie que je suis en retard</em>. Une <strong>carte de confirmation</strong> te montre la formulation exacte avant tout envoi. Le message est ensuite remis par <strong>l'assistant du destinataire</strong>, avec sa personnalité et sa langue, en te nommant comme expéditeur — et ton assistant te confirme la remise dans ton chat. Répondre fonctionne pareil : une réponse est simplement un nouveau message relayé. Le petit coût IA de la livraison est imputé à l'expéditeur, et des quotas journaliers préviennent les abus. Un message relayé est limité en longueur (2 000 caractères par défaut) : s'il est trop long, LIA t'indique la longueur exacte et la limite, et te propose de le raccourcir ou de le résumer — rien ne part sans que tu le saches."
           },
           "q3": {
             "question": "Que puis-je partager, et que voit l'autre personne ?",

@@ -4,9 +4,9 @@
 >
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
-**Versión**: 4.2
+**Versión**: 4.3
 **Fecha**: 2026-08-17
-**Aplicación**: LIA v1.30.3
+**Aplicación**: LIA v1.30.4
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -398,6 +398,8 @@ Antes de la aprobación HITL, un LLM dedicado (distinto del planner, para evitar
 Además, un **registro anti-alucinación auto-enriquecido** (`hallucinated_tools.json`) detecta herramientas inventadas por el LLM mediante patrones regex persistentes. Cada nueva alucinación se añade automáticamente al registro. Los pasos alucinados se eliminan y el planificador se ve forzado a replanificar con las herramientas reales del catálogo.
 
 Un veredicto clasifica, no condena — y un **diagnóstico no es una pregunta**. Cuando un plan de *escritura* agota sus replanificaciones automáticas, el validador se niega a ejecutarlo y pasa a una aclaración HITL: escribir un dato falso cuesta más que preguntar. Lo que entonces se pregunta al usuario es una pregunta **en su idioma**, tomada de una tabla de quince entradas cuya completitud se verifica al arranque **en ambos sentidos**: un problema que el código puede lanzar sin pregunta escrita impide arrancar la aplicación, y una pregunta que ningún código lanza, también. La descripción interna del problema se queda en la traza, que es su sitio. El mismo principio cubre los valores: un parámetro facilitado en un turno anterior se **recupera del plan previo** en lugar de reinventarse, porque la reparación reconoce una dirección de documentación y nunca sobrescribe un valor real — un cambio de opinión siempre se respeta (ADR-195).
+
+La honestidad del veredicto se extiende hasta la ejecución. Cada herramienta devuelve un veredicto tipado — éxito o rechazo, con su causa — y el ejecutor de planes lo propaga **sin cambios**: un rechazo nunca se presenta como una acción realizada, un paso fallido no se cuenta como «ejecutado» (la capa que nombra los bloqueos conserva así su verdad), y un fallo nunca se guarda como contexto conversacional. Cuando la restricción violada es irreparable — el contenido del usuario supera un límite publicado en el catálogo —, se convierte en la **primera pregunta planteada**, con las cifras exactas y en el idioma del usuario, en lugar de una pregunta genérica. Y lo que confirma una operación masiva es el recuento **medido** tras la preejecución, nunca un tope teórico.
 
 ### 6.5. La verdad de una referencia (ADR-194)
 
@@ -1351,4 +1353,4 @@ La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesia
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 221 ADRs y del changelog (v1.0 a v1.30.3). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 221 ADRs y del changelog (v1.0 a v1.30.4). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

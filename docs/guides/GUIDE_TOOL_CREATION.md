@@ -1134,6 +1134,16 @@ class MyTool(ConnectorTool):
 }
 ```
 
+> **The verdict is a contract, not a hint.** The plan executor propagates a
+> `UnifiedToolOutput.failure(...)` verdict UNCHANGED: the step is recorded as
+> failed (`success`, `error`, `error_code`), it is excluded from the
+> "executed tools" set that the ADR-184 honesty layer reads, it is never
+> auto-saved as conversational context, and the failure text reaches the
+> response LLM. Never encode a refusal as a success-shaped message — and note
+> that a free-form `error_code` outside the `ToolErrorCode` enum degrades to
+> an untyped code on the step result (the raw string stays in the result
+> dict): prefer enum members so blockers can be phrased for the user.
+
 **Error Response** :
 
 ```python

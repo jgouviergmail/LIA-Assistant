@@ -299,6 +299,7 @@ _FOR_EACH_CONFIRM_UI: dict[str, dict[str, str]] = {
         "title": "Confirmation d'opération en masse",
         "operation_prefix": "Cette action va",
         "items_suffix": "éléments",
+        "items_suffix_one": "élément",
         "confirm_question": "Veux-tu continuer ?",
         "mutation_send": "envoyer",
         "mutation_create": "créer",
@@ -315,6 +316,7 @@ _FOR_EACH_CONFIRM_UI: dict[str, dict[str, str]] = {
         "title": "Bulk Operation Confirmation",
         "operation_prefix": "This action will",
         "items_suffix": "items",
+        "items_suffix_one": "item",
         "confirm_question": "Do you want to continue?",
         "mutation_send": "send",
         "mutation_create": "create",
@@ -331,6 +333,7 @@ _FOR_EACH_CONFIRM_UI: dict[str, dict[str, str]] = {
         "title": "Confirmación de operación masiva",
         "operation_prefix": "Esta acción va a",
         "items_suffix": "elementos",
+        "items_suffix_one": "elemento",
         "confirm_question": "¿Quieres continuar?",
         "mutation_send": "enviar",
         "mutation_create": "crear",
@@ -347,6 +350,7 @@ _FOR_EACH_CONFIRM_UI: dict[str, dict[str, str]] = {
         "title": "Bestätigung der Massenoperation",
         "operation_prefix": "Diese Aktion wird",
         "items_suffix": "Elemente",
+        "items_suffix_one": "Element",
         "confirm_question": "Möchtest du fortfahren?",
         "mutation_send": "senden",
         "mutation_create": "erstellen",
@@ -363,6 +367,7 @@ _FOR_EACH_CONFIRM_UI: dict[str, dict[str, str]] = {
         "title": "Conferma operazione in blocco",
         "operation_prefix": "Questa azione",
         "items_suffix": "elementi",
+        "items_suffix_one": "elemento",
         "confirm_question": "Vuoi continuare?",
         "mutation_send": "invierà",
         "mutation_create": "creerà",
@@ -379,6 +384,7 @@ _FOR_EACH_CONFIRM_UI: dict[str, dict[str, str]] = {
         "title": "批量操作确认",
         "operation_prefix": "此操作将",
         "items_suffix": "个项目",
+        "items_suffix_one": "个项目",
         "confirm_question": "是否继续？",
         "mutation_send": "发送",
         "mutation_create": "创建",
@@ -891,6 +897,39 @@ _SEMANTIC_ISSUE_QUESTIONS: dict[str, dict[str, str]] = {
         "it": "Non so a quali elementi applicarlo. Puoi indicarmeli?",
         "zh-CN": "我不知道该对哪些项目执行。能否指明？",
     },
+}
+
+#: The hard validator's oversize verdict, phrased for the user with the exact
+#: numbers. NOT part of ``_SEMANTIC_ISSUE_QUESTIONS``: that table is keyed by
+#: ``SemanticIssueType`` and its boot assert rejects any other key. This one
+#: is reached from the exhausted-mutation clarification when the PLAN
+#: validator recorded a length > max violation — a bound the replanner cannot
+#: repair, because the oversize content is the user's own text (prod
+#: 2026-08-17, request ba90ff68: three rejections for 6,149 > 2,000 chars and
+#: the user was never told the reason). ``{length}`` / ``{max}`` are exact
+#: claims — never approximate them.
+_CONTENT_TOO_LONG_QUESTION: dict[str, str] = {
+    "fr": (
+        "Le contenu fait {length} caractères, mais la limite est de {max}. "
+        "Peux-tu le raccourcir, ou veux-tu que je le résume ?"
+    ),
+    "en": (
+        "The content is {length} characters long, but the limit is {max}. "
+        "Can you shorten it, or should I summarize it?"
+    ),
+    "es": (
+        "El contenido tiene {length} caracteres, pero el límite es {max}. "
+        "¿Puedes acortarlo, o quieres que lo resuma?"
+    ),
+    "de": (
+        "Der Inhalt umfasst {length} Zeichen, die Grenze liegt aber bei {max}. "
+        "Kannst du ihn kürzen, oder soll ich ihn zusammenfassen?"
+    ),
+    "it": (
+        "Il contenuto è di {length} caratteri, ma il limite è {max}. "
+        "Puoi accorciarlo, o vuoi che lo riassuma?"
+    ),
+    "zh-CN": "内容共 {length} 个字符，但上限为 {max}。您可以缩短它，或者由我来为您总结，好吗？",
 }
 
 
@@ -2285,6 +2324,32 @@ class HitlMessages:
         return _INSUFFICIENT_CONTENT_GENERIC.get(lang, _INSUFFICIENT_CONTENT_GENERIC["en"])
 
     @staticmethod
+    def get_content_too_long_question(length: int, max_chars: int, language: str) -> str:
+        """Ask the user to shorten (or delegate summarizing) oversize content.
+
+        Used when the plan validator recorded a ``length > max`` constraint
+        violation and the mutation plan exhausted its auto-replans: the bound
+        cannot be auto-repaired (truncating the user's own text would invent
+        intent), so the user is told the exact numbers and offered a way out.
+
+        Args:
+            length: Measured character count of the rejected content.
+            max_chars: The enforced limit (settings-driven, e.g.
+                ``peers_message_max_chars``).
+            language: Language code (fr, en, es, de, it, zh-CN, or a variant).
+
+        Returns:
+            A localized question carrying both numbers verbatim.
+
+        Example:
+            >>> HitlMessages.get_content_too_long_question(6149, 2000, "en")
+            'The content is 6149 characters long, but the limit is 2000. ...'
+        """
+        lang = HitlMessages._normalize_language(language)
+        template = _CONTENT_TOO_LONG_QUESTION.get(lang, _CONTENT_TOO_LONG_QUESTION["en"])
+        return template.format(length=length, max=max_chars)
+
+    @staticmethod
     def assert_semantic_issue_questions_coverage() -> None:
         """Fail fast when the question table and ``SemanticIssueType`` disagree.
 
@@ -2477,9 +2542,11 @@ class HitlMessages:
             language: Language code (fr, en, es, de, it, zh-CN)
 
         Returns:
-            Dict with keys: title, operation_prefix, items_suffix, confirm_question,
-                          mutation_send, mutation_create, mutation_update,
-                          mutation_delete, mutation_default
+            Dict with keys: title, operation_prefix, items_suffix,
+                          items_suffix_one (singular form, zh-CN duplicates the
+                          plural per CLDR), confirm_question, mutation_send,
+                          mutation_create, mutation_update, mutation_delete,
+                          mutation_default
         """
         lang = HitlMessages._normalize_language(language)
         return _FOR_EACH_CONFIRM_UI.get(lang, _FOR_EACH_CONFIRM_UI["en"])

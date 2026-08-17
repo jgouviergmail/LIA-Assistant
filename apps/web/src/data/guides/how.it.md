@@ -4,9 +4,9 @@
 >
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
-**Versione**: 4.2
+**Versione**: 4.3
 **Data**: 2026-08-17
-**Applicazione**: LIA v1.30.3
+**Applicazione**: LIA v1.30.4
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -398,6 +398,8 @@ Prima dell'approvazione HITL, un LLM dedicato (distinto dal planner, per evitare
 Inoltre, un **registro anti-allucinazione auto-arricchente** (`hallucinated_tools.json`) rileva gli strumenti inventati dal LLM tramite pattern regex persistenti. Ogni nuova allucinazione viene automaticamente aggiunta al registro. I passaggi allucinati vengono rimossi e il planner è costretto a ripianificare con gli strumenti reali del catalogo.
 
 Un verdetto classifica, non condanna — e una **diagnosi non è una domanda**. Quando un piano di *scrittura* esaurisce i propri replan automatici, il validatore rifiuta di eseguirlo e passa a un chiarimento HITL: scrivere un dato sbagliato costa più che chiedere. Ciò che viene allora chiesto all'utente è una domanda **nella sua lingua**, attinta da una tabella di quindici voci la cui completezza è verificata all'avvio **in entrambi i sensi**: un problema che il codice può sollevare senza una domanda scritta impedisce l'avvio dell'applicazione, e così pure una domanda che nessun codice solleva. La descrizione interna del problema resta nella traccia, dove le compete. Lo stesso principio vale per i valori: un parametro fornito in un turno precedente viene **ripreso dal piano anteriore** anziché reinventato, perché la riparazione riconosce un indirizzo di documentazione e non sovrascrive mai un valore reale — un ripensamento è sempre rispettato (ADR-195).
+
+L'onestà del verdetto si estende fino all'esecuzione. Ogni strumento restituisce un verdetto tipizzato — successo o rifiuto, con la sua causa — e l'esecutore dei piani lo propaga **invariato**: un rifiuto non viene mai presentato come un'azione compiuta, un passo fallito non viene contato come «eseguito» (lo strato che nomina i blocchi conserva così la sua verità), e un fallimento non viene mai salvato come contesto conversazionale. Quando il vincolo violato è irreparabile — il contenuto dell'utente supera un limite pubblicato nel catalogo — diventa la **prima domanda posta**, con i numeri esatti e nella lingua dell'utente, invece di una domanda generica. E ciò che un'operazione in blocco conferma è il conteggio **misurato** dopo la pre-esecuzione, mai un tetto teorico.
 
 ### 6.5. La verità di un riferimento (ADR-194)
 
@@ -1353,4 +1355,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 221 ADRs e del changelog (da v1.0 a v1.30.3). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 221 ADRs e del changelog (da v1.0 a v1.30.4). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

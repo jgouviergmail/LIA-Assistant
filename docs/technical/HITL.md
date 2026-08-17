@@ -360,7 +360,10 @@ Interaction HITL pour les opérations bulk itératives via le pattern FOR_EACH.
 ```
 Planner génère ExecutionStep avec for_each
     → task_orchestrator détecte FOR_EACH pattern + évalue thresholds
-    → Pré-exécute les providers UNE FOIS (_pre_execute_for_each_providers)
+    → Pré-exécute les providers UNE FOIS (for_each_hitl_prep.pre_execute_for_each_providers)
+    → Réénonce les claims avec les comptes MESURÉS (refresh_for_each_scope_claims —
+      le payload dit le compte réel, jamais le plafond for_each_max ; la décision
+      de demander confirmation, elle, ne change pas)
     → Persiste for_each_hitl_ctx dans le state (return → checkpoint)
     → route_from_orchestrator → for_each_confirm (nœud dédié)
     → for_each_confirm : UN interrupt() par exécution de nœud

@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 4.2
+**Version**: 4.3
 **Date**: 2026-08-17
-**Application**: LIA v1.30.3
+**Application**: LIA v1.30.4
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -398,6 +398,8 @@ Before HITL approval, a dedicated LLM (distinct from the planner, to avoid self-
 Additionally, a **self-enriching anti-hallucination registry** (`hallucinated_tools.json`) detects tools invented by the LLM (e.g. `resolve_reference_tool`) via persistent regex patterns. Each new hallucination is automatically added to the registry for faster detection in subsequent plans. Hallucinated steps are removed and the planner is forced to replan with real catalogue tools — eliminating an entire class of execution failures without human intervention.
 
 A verdict classifies, it does not condemn — and a **diagnosis is not a question**. When a *writing* plan exhausts its automatic replans, the validator refuses to execute it and hands over to a HITL clarification: writing wrong data costs more than asking. What the user is then asked is a question **in their own language**, drawn from a table of fifteen entries whose completeness is asserted at boot **in both directions** — an issue the code can raise with no written question refuses to start the application, and so does a question no code can raise. The internal issue description stays in the trace, where it belongs. The same principle covers the values: a parameter supplied in an earlier turn is **carried over from the previous plan** rather than re-imagined, because the repair recognises a documentation placeholder and never overwrites a genuine value — a change of mind is always honoured (ADR-195).
+
+The verdict's honesty extends all the way into execution. Every tool returns a typed verdict — success or refusal, with its cause — and the plan executor propagates it **unchanged**: a refusal is never presented as a completed action, a failed step is not counted as "executed" (so the layer that names blockers keeps its truth), and a failure is never saved as conversational context. When the violated constraint is unrepairable — the user's own content exceeds a bound published in the catalogue — it becomes the **first question asked**, with the exact numbers and in the user's language, rather than a generic question. And what a bulk operation confirms is the count **measured** after pre-execution, never a theoretical cap.
 
 ### 6.5. Reference truth (ADR-194)
 
@@ -1376,4 +1378,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 221 ADRs, and the changelog (v1.0 to v1.30.3). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 221 ADRs, and the changelog (v1.0 to v1.30.4). All metrics, versions, and patterns cited are verifiable in the codebase.*

@@ -3,10 +3,10 @@
 Two pure helpers decide what the user sees before confirming a bulk operation,
 and what the response node still knows about afterwards:
 
-* ``_extract_item_previews_for_hitl`` builds the "you are about to act on these"
+* ``extract_item_previews_for_hitl`` builds the "you are about to act on these"
   list. An empty or wrong preview turns an informed confirmation into a blind
   one — the user approves a count, not a content.
-* ``_filter_registry_by_items`` trims the pre-executed registry down to the
+* ``filter_registry_by_items`` trims the pre-executed registry down to the
   items the user KEPT. The tools iterate ``pre_executed_steps`` (already
   filtered upstream), so a bug here does not act on the wrong items — it makes
   ``response_node`` *describe* the wrong ones, which is exactly the kind of
@@ -25,10 +25,10 @@ from src.domains.agents.data_registry.models import (
     RegistryItemType,
     generate_registry_id,
 )
-from src.domains.agents.nodes.task_orchestrator_node import (
-    _detect_domain_from_items,
-    _extract_item_previews_for_hitl,
-    _filter_registry_by_items,
+from src.domains.agents.nodes.for_each_hitl_prep import (
+    detect_domain_from_items,
+    extract_item_previews_for_hitl,
+    filter_registry_by_items,
 )
 from src.domains.agents.utils.type_domain_mapping import (
     FOR_EACH_FILTERABLE_ITEMS_KEYS,
@@ -75,7 +75,7 @@ class TestExtractItemPreviewsForHitl:
 
     def test_builds_one_preview_per_item_with_the_domain_fields(self) -> None:
         registry = _email_registry("m1", "m2")
-        previews = _extract_item_previews_for_hitl(
+        previews = extract_item_previews_for_hitl(
             pre_exec_registry=registry,
             for_each_steps=[{"for_each_source": "$steps.get_emails.emails"}],
             completed_steps={
@@ -95,7 +95,7 @@ class TestExtractItemPreviewsForHitl:
 
     def test_uses_the_fallback_path_when_the_primary_field_is_absent(self) -> None:
         # FOR_EACH_PREVIEW_FIELDS declares ("from", "sender") for emails.
-        previews = _extract_item_previews_for_hitl(
+        previews = extract_item_previews_for_hitl(
             pre_exec_registry=_email_registry("m1"),
             for_each_steps=[{"for_each_source": "$steps.get_emails.emails"}],
             completed_steps={"get_emails": {"emails": [{"subject": "S", "sender": "a@b.c"}]}},
@@ -114,7 +114,7 @@ class TestExtractItemPreviewsForHitl:
                 )
             ]
         )
-        previews = _extract_item_previews_for_hitl(
+        previews = extract_item_previews_for_hitl(
             pre_exec_registry=registry,
             for_each_steps=[{"for_each_source": "$steps.get_contacts.contacts"}],
             completed_steps={
@@ -132,7 +132,7 @@ class TestExtractItemPreviewsForHitl:
         assert previews == [{"displayName": "Ada Lovelace", "value": "ada@example.com"}]
 
     def test_skips_items_that_carry_none_of_the_preview_fields(self) -> None:
-        previews = _extract_item_previews_for_hitl(
+        previews = extract_item_previews_for_hitl(
             pre_exec_registry=_email_registry("m1"),
             for_each_steps=[{"for_each_source": "$steps.get_emails.emails"}],
             completed_steps={"get_emails": {"emails": [{"id": "m1"}, {"subject": "kept"}]}},
@@ -141,7 +141,7 @@ class TestExtractItemPreviewsForHitl:
         assert previews == [{"subject": "kept"}]
 
     def test_skips_non_dict_entries_rather_than_raising(self) -> None:
-        previews = _extract_item_previews_for_hitl(
+        previews = extract_item_previews_for_hitl(
             pre_exec_registry=_email_registry("m1"),
             for_each_steps=[{"for_each_source": "$steps.get_emails.emails"}],
             completed_steps={"get_emails": {"emails": ["not-a-dict", {"subject": "kept"}]}},
@@ -182,7 +182,7 @@ class TestExtractItemPreviewsForHitl:
         reason: str,
     ) -> None:
         assert (
-            _extract_item_previews_for_hitl(
+            extract_item_previews_for_hitl(
                 pre_exec_registry={},
                 for_each_steps=for_each_steps,
                 completed_steps=completed_steps,
@@ -193,7 +193,7 @@ class TestExtractItemPreviewsForHitl:
     def test_an_unknown_domain_yields_empty_previews_not_an_exception(self) -> None:
         # No FOR_EACH_PREVIEW_FIELDS entry → nothing to show, but the HITL
         # confirmation must still be reachable.
-        previews = _extract_item_previews_for_hitl(
+        previews = extract_item_previews_for_hitl(
             pre_exec_registry={},
             for_each_steps=[{"for_each_source": "$steps.s1.widgets"}],
             completed_steps={"s1": {"widgets": [{"anything": 1}]}},
@@ -208,18 +208,18 @@ class TestDetectDomainFromItems:
     def test_normalizes_the_plural_result_key_carried_by_registry_meta(self) -> None:
         registry = _email_registry("m1")
 
-        assert _detect_domain_from_items(registry, "anything") == "email"
+        assert detect_domain_from_items(registry, "anything") == "email"
 
     def test_falls_back_to_the_field_path_when_the_registry_is_empty(self) -> None:
-        assert _detect_domain_from_items({}, "contacts") == "contact"
+        assert detect_domain_from_items({}, "contacts") == "contact"
 
     def test_reports_unknown_rather_than_guessing(self) -> None:
-        assert _detect_domain_from_items({}, "widgets") == "unknown"
+        assert detect_domain_from_items({}, "widgets") == "unknown"
 
     def test_keeps_an_unmapped_meta_domain_verbatim(self) -> None:
         _, item = _registry_item(RegistryItemType.EMAIL, "m1", {"id": "m1"}, "widgets")
 
-        assert _detect_domain_from_items({item.id: item}, "emails") == "widgets"
+        assert detect_domain_from_items({item.id: item}, "emails") == "widgets"
 
 
 class TestFilterRegistryByItems:
@@ -229,7 +229,7 @@ class TestFilterRegistryByItems:
         registry = _email_registry("m1", "m2", "m3")
         kept = [{"id": "m1"}, {"id": "m3"}]
 
-        filtered = _filter_registry_by_items(registry, kept, "emails", run_id="r1")
+        filtered = filter_registry_by_items(registry, kept, "emails", run_id="r1")
 
         assert set(filtered) == {
             generate_registry_id(RegistryItemType.EMAIL, "m1"),
@@ -249,7 +249,7 @@ class TestFilterRegistryByItems:
             ]
         )
 
-        filtered = _filter_registry_by_items(
+        filtered = filter_registry_by_items(
             entries, [{"resourceName": "people/c2"}], "contacts", run_id="r1"
         )
 
@@ -258,7 +258,7 @@ class TestFilterRegistryByItems:
     def test_leaves_the_registry_untouched_when_the_domain_is_unknown(self) -> None:
         registry = _email_registry("m1", "m2")
 
-        assert _filter_registry_by_items(registry, [{"id": "m1"}], "widgets", "r1") == registry
+        assert filter_registry_by_items(registry, [{"id": "m1"}], "widgets", "r1") == registry
 
     def test_leaves_the_registry_untouched_when_no_item_carries_the_unique_key(self) -> None:
         # Degrading OPEN is the deliberate choice: the response may mention one
@@ -266,15 +266,15 @@ class TestFilterRegistryByItems:
         registry = _email_registry("m1", "m2")
 
         assert (
-            _filter_registry_by_items(registry, [{"subject": "no id"}], "emails", "r1") == registry
+            filter_registry_by_items(registry, [{"subject": "no id"}], "emails", "r1") == registry
         )
 
     @pytest.mark.parametrize("empty", [{}, None])
     def test_returns_the_input_when_there_is_nothing_to_filter(self, empty: Any) -> None:
         registry = _email_registry("m1")
 
-        assert _filter_registry_by_items(registry, [], "emails", "r1") == registry
-        assert _filter_registry_by_items(empty or {}, [{"id": "m1"}], "emails", "r1") == (
+        assert filter_registry_by_items(registry, [], "emails", "r1") == registry
+        assert filter_registry_by_items(empty or {}, [{"id": "m1"}], "emails", "r1") == (
             empty or {}
         )
 
@@ -283,7 +283,7 @@ class TestFilterRegistryByItems:
         # its card is missing.
         registry = _email_registry("m1")
 
-        filtered = _filter_registry_by_items(registry, [{"id": "unknown"}], "emails", "r1")
+        filtered = filter_registry_by_items(registry, [{"id": "unknown"}], "emails", "r1")
 
         assert filtered == {}
 
@@ -327,7 +327,7 @@ class TestCompositeIdDomainsAreNeverFiltered:
             ]
         )
 
-        filtered = _filter_registry_by_items(
+        filtered = filter_registry_by_items(
             entries, [{"latitude": 48.85, "longitude": 2.35}], "locations", "r1"
         )
 
@@ -345,7 +345,7 @@ class TestCompositeIdDomainsAreNeverFiltered:
             ]
         )
 
-        filtered = _filter_registry_by_items(entries, [{"name": "Paris"}], "weathers", "r1")
+        filtered = filter_registry_by_items(entries, [{"name": "Paris"}], "weathers", "r1")
 
         assert filtered == entries
 
@@ -361,7 +361,7 @@ class TestCompositeIdDomainsAreNeverFiltered:
             ]
         )
 
-        filtered = _filter_registry_by_items(
+        filtered = filter_registry_by_items(
             entries, [{"origin": "Paris", "destination": "Lyon"}], "routes", "r1"
         )
 

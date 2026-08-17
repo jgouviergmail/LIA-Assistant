@@ -3813,7 +3813,7 @@
         },
         "semanticValidation": {
           "title": "✅ Semantische Planvalidierung",
-          "description": "LLM-Erkennung von 15 Anomalietypen vor der Ausführung: halluzinierte Fähigkeit, Geister-Abhängigkeit, logischer Zyklus, Kardinalitätsfehler, Bereichsüberschreitung, gefährliche Mehrdeutigkeit, unvollständiger Plan, fehlendes Werkzeug, falsche Parameter, unmögliche Bedingung, zeitliches Paradox, überhöhte Kosten, mehrdeutiger Bezug, Konflikt zwischen Schritten und FOR_EACH-Probleme. Kritikalitätsanalyse (LOW/MEDIUM/HIGH) nach Umkehrbarkeit der Aktion. Integration von bayesschem Pattern Learning (Bypass ab 90% Konfidenz). P95 < 2s mit Kurzschluss für triviale Pläne. Das Urteil klassifiziert, es verurteilt nicht: Ein abgelehnter Plan läuft trotzdem — das Routing liest dieses Urteil nie — und gelingt meistens, da ein Wert außerhalb der Grenzen vor der Ausführung zurechtgerückt wird. Eine Fähigkeit gilt daher nur dann als blockiert, wenn sie <b>nichts</b> geliefert hat; wenn ein Teil des Durchlaufs funktioniert und ein anderer nicht, zeigt die Antwort das Erhaltene und benennt das Fehlende. Und wenn ein schreibender Plan seine automatischen Korrekturen ausgeschöpft hat, erreicht den Nutzer eine <b>Frage</b> — in seiner Sprache und mit der Angabe, was fehlt — niemals die interne Diagnose, die sie ausgelöst hat."
+          "description": "LLM-Erkennung von 15 Anomalietypen vor der Ausführung: halluzinierte Fähigkeit, Geister-Abhängigkeit, logischer Zyklus, Kardinalitätsfehler, Bereichsüberschreitung, gefährliche Mehrdeutigkeit, unvollständiger Plan, fehlendes Werkzeug, falsche Parameter, unmögliche Bedingung, zeitliches Paradox, überhöhte Kosten, mehrdeutiger Bezug, Konflikt zwischen Schritten und FOR_EACH-Probleme. Kritikalitätsanalyse (LOW/MEDIUM/HIGH) nach Umkehrbarkeit der Aktion. Integration von bayesschem Pattern Learning (Bypass ab 90% Konfidenz). P95 < 2s mit Kurzschluss für triviale Pläne. Das Urteil klassifiziert, es verurteilt nicht: Ein abgelehnter Plan läuft trotzdem — das Routing liest dieses Urteil nie — und gelingt meistens, da ein Wert außerhalb der Grenzen vor der Ausführung zurechtgerückt wird. Eine Fähigkeit gilt daher nur dann als blockiert, wenn sie <b>nichts</b> geliefert hat; wenn ein Teil des Durchlaufs funktioniert und ein anderer nicht, zeigt die Antwort das Erhaltene und benennt das Fehlende. Und wenn ein schreibender Plan seine automatischen Korrekturen ausgeschöpft hat, erreicht den Nutzer eine <b>Frage</b> — in seiner Sprache und mit der Angabe, was fehlt — niemals die interne Diagnose, die sie ausgelöst hat. Dieselbe Ehrlichkeit gilt bei der Ausführung: Das Urteil jedes Werkzeugs — Erfolg oder Ablehnung — wird unverändert bis zur Antwort weitergereicht, und eine Ablehnung wird nie als erledigte Aktion dargestellt."
         },
         "semantic": {
           "title": "🎯 Semantische Validierung & Pivot",
@@ -4034,6 +4034,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_30_4": {
+          "title": "v1.30.4 — ✅ Bestätigungen, die immer die Wahrheit sagen",
+          "date": "August 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>✅ Eine abgelehnte Aktion wird nie wieder als erledigt gemeldet</b> — ein realer Vorfall zeigte es: Eine zu lange weitergeleitete Nachricht wurde intern abgelehnt, die Antwort meldete dennoch „Nachricht übermittelt“. An der Wurzel behoben: Das Urteil jedes Werkzeugs (Erfolg oder Fehlschlag) erreicht die Antwort jetzt unverändert. Wenn etwas nicht möglich war, sagt LIA es dir — mit dem wirklichen Grund.",
+            "i2": "<b>📏 Eine zu lange weitergeleitete Nachricht wird mit Zahlen erklärt</b> — an deine Verbindungen weitergeleitete Nachrichten sind auf 2 000 Zeichen begrenzt (pro Instanz einstellbar). Überschreitet deine Nachricht die Grenze, nennt LIA jetzt die genaue Länge und das Limit und bietet an, sie zu kürzen oder zusammenzufassen — statt einer generischen Rückfrage, die das eigentliche Problem nie benannte.",
+            "i3": "<b>🔢 Massenbestätigungen zeigen die exakte Anzahl</b> — die Bestätigungskarte nennt die tatsächlich gemessene Zahl der Elemente (nie mehr die theoretische Obergrenze) und verwendet bei einem einzelnen Element den korrekten Singular."
+          }
+        },
         "v1_30_3": {
           "title": "v1.30.3 — 🧱 Fundamente, die nicht mehr vom Wetter anderer abhängen",
           "date": "August 2026",
@@ -6238,7 +6248,7 @@
           },
           "q2": {
             "question": "Wie sende ich einer Verbindung eine Nachricht?",
-            "answer": "Sag es einfach LIA: <em>sag Marie, dass ich mich verspäte</em>. Eine <strong>Bestätigungskarte</strong> zeigt dir den genauen Wortlaut, bevor etwas gesendet wird. Die Nachricht wird dann vom <strong>Assistenten des Empfängers</strong> übermittelt, mit dessen Persönlichkeit und Sprache, wobei du als Absender genannt wirst — und dein Assistent bestätigt dir die Zustellung im Chat. Antworten funktioniert genauso: Eine Antwort ist einfach eine neue weitergeleitete Nachricht. Die geringen KI-Kosten der Zustellung trägt der Absender, Tageskontingente verhindern Missbrauch."
+            "answer": "Sag es einfach LIA: <em>sag Marie, dass ich mich verspäte</em>. Eine <strong>Bestätigungskarte</strong> zeigt dir den genauen Wortlaut, bevor etwas gesendet wird. Die Nachricht wird dann vom <strong>Assistenten des Empfängers</strong> übermittelt, mit dessen Persönlichkeit und Sprache, wobei du als Absender genannt wirst — und dein Assistent bestätigt dir die Zustellung im Chat. Antworten funktioniert genauso: Eine Antwort ist einfach eine neue weitergeleitete Nachricht. Die geringen KI-Kosten der Zustellung trägt der Absender, Tageskontingente verhindern Missbrauch. Weitergeleitete Nachrichten haben eine Längenbegrenzung (standardmäßig 2 000 Zeichen): Ist deine Nachricht zu lang, nennt dir LIA die genaue Länge und das Limit und bietet an, sie zu kürzen oder zusammenzufassen — nichts wird ohne dein Wissen gesendet."
           },
           "q3": {
             "question": "Was kann ich teilen, und was sieht die andere Person?",

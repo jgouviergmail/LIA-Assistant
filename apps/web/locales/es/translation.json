@@ -3813,7 +3813,7 @@
         },
         "semanticValidation": {
           "title": "✅ Validación Semántica de Planes",
-          "description": "Detección por LLM de 15 tipos de anomalías antes de ejecutar: capacidad alucinada, dependencia fantasma, ciclo lógico, incoherencia de cardinalidad, desbordamiento de alcance, ambigüedad peligrosa, plan incompleto, herramienta ausente, parámetros erróneos, restricción imposible, paradoja temporal, coste excesivo, referencia ambigua, conflicto entre pasos y problemas de FOR_EACH. Análisis de criticidad (LOW/MEDIUM/HIGH) según la reversibilidad de la acción. Integración de Pattern Learning bayesiano (bypass por encima del 90% de confianza). P95 < 2s con cortocircuito para planes triviales. El veredicto clasifica, no condena: un plan rechazado se ejecuta igualmente — el enrutamiento nunca lee ese veredicto — y suele tener éxito, ya que un valor fuera de límite se ajusta a su rango antes de ejecutarse. Por eso una capacidad solo se declara bloqueada cuando no ha producido <b>nada</b>; cuando una parte del turno funciona y otra no, la respuesta muestra lo que obtuvo y nombra lo que faltó. Y cuando un plan que escribe agota sus correcciones automáticas, lo que llega al usuario es una <b>pregunta</b> — en su idioma y nombrando lo que falta — nunca el diagnóstico interno que la provocó."
+          "description": "Detección por LLM de 15 tipos de anomalías antes de ejecutar: capacidad alucinada, dependencia fantasma, ciclo lógico, incoherencia de cardinalidad, desbordamiento de alcance, ambigüedad peligrosa, plan incompleto, herramienta ausente, parámetros erróneos, restricción imposible, paradoja temporal, coste excesivo, referencia ambigua, conflicto entre pasos y problemas de FOR_EACH. Análisis de criticidad (LOW/MEDIUM/HIGH) según la reversibilidad de la acción. Integración de Pattern Learning bayesiano (bypass por encima del 90% de confianza). P95 < 2s con cortocircuito para planes triviales. El veredicto clasifica, no condena: un plan rechazado se ejecuta igualmente — el enrutamiento nunca lee ese veredicto — y suele tener éxito, ya que un valor fuera de límite se ajusta a su rango antes de ejecutarse. Por eso una capacidad solo se declara bloqueada cuando no ha producido <b>nada</b>; cuando una parte del turno funciona y otra no, la respuesta muestra lo que obtuvo y nombra lo que faltó. Y cuando un plan que escribe agota sus correcciones automáticas, lo que llega al usuario es una <b>pregunta</b> — en su idioma y nombrando lo que falta — nunca el diagnóstico interno que la provocó. La misma honestidad se aplica en la ejecución: el veredicto de cada herramienta — éxito o rechazo — se propaga sin cambios hasta la respuesta, y un rechazo nunca se presenta como una acción realizada."
         },
         "semantic": {
           "title": "🎯 Validación & Pivot Semántico",
@@ -4034,6 +4034,16 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_30_4": {
+          "title": "v1.30.4 — ✅ Confirmaciones que siempre dicen la verdad",
+          "date": "Agosto 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>✅ Una acción rechazada nunca más se anuncia como realizada</b> — un incidente real lo demostró: un mensaje reenviado demasiado largo fue rechazado internamente, pero la respuesta mostraba «Mensaje entregado». Corregido de raíz: el veredicto de cada herramienta (éxito o fallo) llega ahora sin cambios hasta la respuesta. Si algo no se pudo hacer, LIA te lo dice, con la razón real.",
+            "i2": "<b>📏 Un mensaje reenviado demasiado largo se explica con sus cifras</b> — los mensajes reenviados a tus conexiones están limitados a 2 000 caracteres (ajustable por instancia). Si el tuyo lo supera, LIA te da ahora la longitud exacta y el límite, y te propone acortarlo o resumirlo — en lugar de una pregunta genérica que nunca nombraba el problema real.",
+            "i3": "<b>🔢 Las confirmaciones de operaciones masivas muestran el recuento exacto</b> — la tarjeta de confirmación anuncia el número de elementos realmente medidos (nunca el tope teórico), con el singular correcto cuando solo hay uno."
+          }
+        },
         "v1_30_3": {
           "title": "v1.30.3 — 🧱 Cimientos que ya no dependen del clima ajeno",
           "date": "Agosto 2026",
@@ -6238,7 +6248,7 @@
           },
           "q2": {
             "question": "¿Cómo envío un mensaje a una conexión?",
-            "answer": "Díselo a LIA: <em>dile a Marie que llego tarde</em>. Una <strong>tarjeta de confirmación</strong> te muestra la redacción exacta antes de que salga nada. El mensaje lo entrega después <strong>el asistente del destinatario</strong>, con su personalidad y su idioma, nombrándote como remitente — y tu asistente te confirma la entrega en tu chat. Responder funciona igual: una respuesta es simplemente un nuevo mensaje transmitido. El pequeño coste de IA de la entrega se imputa al remitente, y cuotas diarias previenen abusos."
+            "answer": "Díselo a LIA: <em>dile a Marie que llego tarde</em>. Una <strong>tarjeta de confirmación</strong> te muestra la redacción exacta antes de que salga nada. El mensaje lo entrega después <strong>el asistente del destinatario</strong>, con su personalidad y su idioma, nombrándote como remitente — y tu asistente te confirma la entrega en tu chat. Responder funciona igual: una respuesta es simplemente un nuevo mensaje transmitido. El pequeño coste de IA de la entrega se imputa al remitente, y cuotas diarias previenen abusos. Los mensajes reenviados tienen un límite de longitud (2 000 caracteres por defecto): si el tuyo es demasiado largo, LIA te indica la longitud exacta y el límite, y te propone acortarlo o resumirlo — nada se envía sin que lo sepas."
           },
           "q3": {
             "question": "¿Qué puedo compartir y qué ve la otra persona?",

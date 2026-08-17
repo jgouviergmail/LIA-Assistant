@@ -2564,6 +2564,15 @@ async def _execute_tool_step(
     elif error is not None and not isinstance(error, str):
         error = str(error)
     error_code = tool_result.get(FIELD_ERROR_CODE)
+    # Tools emit free-form codes through UnifiedToolOutput.failure (measured
+    # in-tree: TOOL_ERROR, VALIDATION_ERROR, RATE_LIMITED…); StepResult's
+    # typed field only accepts ToolErrorCode members — a non-member degrades
+    # to None here while the raw string stays in `result` for the response
+    # LLM and the logs.
+    try:
+        typed_error_code = ToolErrorCode(error_code) if error_code else None
+    except ValueError:
+        typed_error_code = None
 
     execution_time_ms = int((time.time() - start_time) * 1000)
 
@@ -2575,7 +2584,7 @@ async def _execute_tool_step(
         result=tool_result,
         success=success,
         error=error,
-        error_code=ToolErrorCode(error_code) if error_code else None,
+        error_code=typed_error_code,
         execution_time_ms=execution_time_ms,
         wave_id=wave_id,
         # Data Registry LOT 5.2: Propagate registry_updates from registry-enabled tools
@@ -3063,24 +3072,40 @@ async def _execute_tool(
 
             # Propagate TCM flag and save mode so _auto_save_wave_contexts can
             # detect decorator-saved tools and skip the duplicate save path.
+            # getattr: StandardToolOutput has no context_save_mode field.
             tcm_saved = (
                 result.tool_metadata.get("_tcm_saved", False) if result.tool_metadata else False
             )
+            save_mode = getattr(result, "context_save_mode", None)
             save_mode_value = (
-                result.context_save_mode.value
-                if result.context_save_mode is not None
-                and hasattr(result.context_save_mode, "value")
-                else result.context_save_mode
+                save_mode.value
+                if save_mode is not None and hasattr(save_mode, "value")
+                else save_mode
             )
 
+            # UnifiedToolOutput carries an explicit verdict; the legacy
+            # StandardToolOutput has none (implicit success). A typed failure
+            # must keep saying so: hardcoding True here reported a refused
+            # peer relay as delivered, and — because
+            # plan_blockers.executed_tool_names counts any step whose outcome
+            # is not an explicit failure as executed — silenced the
+            # validator's CONSTRAINT_VIOLATION blocker as stale
+            # (prod 2026-08-17, request 2ecc670c).
+            succeeded = result.success if isinstance(result, UnifiedToolOutput) else True
+            result_payload: dict[str, Any] = {
+                "success": succeeded,
+                "data": structured_data,
+                "message": result.summary_for_llm,
+                "_tcm_saved": tcm_saved,
+                "context_save_mode": save_mode_value,
+            }
+            if not succeeded and isinstance(result, UnifiedToolOutput):
+                result_payload["error"] = result.error_message or result.summary_for_llm
+                if result.error_code:
+                    result_payload[FIELD_ERROR_CODE] = result.error_code
+
             return ToolExecutionResult(
-                result={
-                    "success": True,
-                    "data": structured_data,
-                    "message": result.summary_for_llm,
-                    "_tcm_saved": tcm_saved,
-                    "context_save_mode": save_mode_value,
-                },
+                result=result_payload,
                 registry_updates=registry_updates,
                 draft_info=draft_info,
             )

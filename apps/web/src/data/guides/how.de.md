@@ -4,9 +4,9 @@
 >
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
-**Version**: 4.2
+**Version**: 4.3
 **Datum**: 2026-08-17
-**Application**: LIA v1.30.3
+**Application**: LIA v1.30.4
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -398,6 +398,8 @@ Vor der HITL-Genehmigung prüft ein dediziertes LLM (vom Planner getrennt, um Se
 Ergänzend erkennt ein **selbstanreicherndes Anti-Halluzinations-Register** (`hallucinated_tools.json`) vom LLM erfundene Tools über persistente Regex-Muster. Jede neue Halluzination wird automatisch zum Register hinzugefügt. Halluzinierte Schritte werden entfernt und der Planner wird gezwungen, mit echten Katalog-Tools neu zu planen.
 
 Ein Urteil klassifiziert, es verurteilt nicht — und eine **Diagnose ist keine Frage**. Wenn ein *schreibender* Plan seine automatischen Replans ausgeschöpft hat, verweigert der Validator die Ausführung und übergibt an eine HITL-Rückfrage: Falsche Daten zu schreiben kostet mehr, als zu fragen. Was der Nutzerin dann gestellt wird, ist eine Frage **in ihrer Sprache**, aus einer Tabelle von fünfzehn Einträgen, deren Vollständigkeit beim Start **in beide Richtungen** geprüft wird — ein Problem, das der Code auslösen kann, ohne dass eine Frage dafür geschrieben ist, verhindert den Start der Anwendung, und eine Frage, die kein Code auslösen kann, ebenso. Die interne Fehlerbeschreibung bleibt in der Ablaufspur, wo sie hingehört. Dasselbe Prinzip gilt für die Werte: Ein in einer früheren Runde angegebener Parameter wird **aus dem vorherigen Plan übernommen** statt neu erfunden, denn die Reparatur erkennt eine Dokumentationsadresse und überschreibt nie einen echten Wert — eine Meinungsänderung wird immer respektiert (ADR-195).
+
+Die Ehrlichkeit des Urteils reicht bis in die Ausführung. Jedes Werkzeug liefert ein typisiertes Urteil — Erfolg oder Ablehnung, mit Ursache — und der Plan-Executor reicht es **unverändert** weiter: Eine Ablehnung wird nie als erledigte Aktion dargestellt, ein fehlgeschlagener Schritt zählt nicht als „ausgeführt“ (die Schicht, die Blockaden benennt, behält damit ihre Wahrheit), und ein Fehlschlag wird nie als Gesprächskontext gespeichert. Ist die verletzte Beschränkung nicht reparierbar — der Inhalt des Nutzers überschreitet eine im Katalog veröffentlichte Grenze —, wird sie zur **ersten gestellten Frage**, mit den exakten Zahlen und in der Sprache des Nutzers, statt einer generischen Rückfrage. Und was eine Massenoperation bestätigt, ist die nach der Vorausführung **gemessene** Anzahl, nie eine theoretische Obergrenze.
 
 ### 6.5. Die Wahrheit einer Referenz (ADR-194)
 
@@ -1351,4 +1353,4 @@ Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lern
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 221 ADRs und des Changelogs (v1.0 bis v1.30.3). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 221 ADRs und des Changelogs (v1.0 bis v1.30.4). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

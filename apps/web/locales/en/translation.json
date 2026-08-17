@@ -3822,7 +3822,7 @@
         },
         "semanticValidation": {
           "title": "✅ Semantic Plan Validation",
-          "description": "LLM detection of 15 types of anomalies before execution: hallucinated capability, ghost dependency, logical cycle, cardinality mismatch, scope overflow, dangerous ambiguity, incomplete plan, missing tool, wrong parameters, impossible constraint, temporal paradox, excessive cost, ambiguous reference, conflict between steps and FOR_EACH issues. Criticality analysis (LOW/MEDIUM/HIGH) based on how reversible the action is. Bayesian Pattern Learning integration (bypass above 90% confidence). P95 < 2s with short-circuit for trivial plans. The verdict classifies, it does not convict: a refused plan still runs — routing never reads that verdict — and usually succeeds, since an out-of-range value is brought back within its bounds before execution. A capability is therefore declared blocked only when it produced <b>nothing</b>; when part of a turn works and part does not, the answer presents what it obtained and names what was missing. And when a writing plan exhausts its automatic repairs, what reaches the user is a <b>question</b> — in their language, naming what is missing — never the internal diagnosis that triggered it."
+          "description": "LLM detection of 15 types of anomalies before execution: hallucinated capability, ghost dependency, logical cycle, cardinality mismatch, scope overflow, dangerous ambiguity, incomplete plan, missing tool, wrong parameters, impossible constraint, temporal paradox, excessive cost, ambiguous reference, conflict between steps and FOR_EACH issues. Criticality analysis (LOW/MEDIUM/HIGH) based on how reversible the action is. Bayesian Pattern Learning integration (bypass above 90% confidence). P95 < 2s with short-circuit for trivial plans. The verdict classifies, it does not convict: a refused plan still runs — routing never reads that verdict — and usually succeeds, since an out-of-range value is brought back within its bounds before execution. A capability is therefore declared blocked only when it produced <b>nothing</b>; when part of a turn works and part does not, the answer presents what it obtained and names what was missing. And when a writing plan exhausts its automatic repairs, what reaches the user is a <b>question</b> — in their language, naming what is missing — never the internal diagnosis that triggered it. The same honesty holds at execution time: each tool's verdict — success or refusal — propagates unchanged to the answer, and a refusal is never presented as a completed action."
         },
         "semantic": {
           "title": "🎯 Semantic Validation & Pivot",
@@ -4043,6 +4043,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_30_4": {
+          "title": "v1.30.4 — ✅ Confirmations that always tell the truth",
+          "date": "August 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>✅ A refused action is never again announced as done</b> — a real incident showed it: an oversized relayed message was refused internally, yet the answer said “Message delivered”. Fixed at the root: every tool's verdict (success or failure) now travels unchanged all the way to the answer. If something could not be done, LIA tells you, with the actual reason.",
+            "i2": "<b>📏 An oversized relayed message is explained with its numbers</b> — messages relayed to your connections are limited to 2,000 characters (instance-tunable). If yours exceeds it, LIA now gives you the exact length and the limit, and offers to shorten or summarize it — instead of a generic question that never named the real problem.",
+            "i3": "<b>🔢 Bulk-operation confirmations show the exact count</b> — the confirmation card states the number of items actually measured (never the theoretical cap), with correct singular wording when there is only one."
+          }
+        },
         "v1_30_3": {
           "title": "v1.30.3 — 🧱 Foundations that no longer depend on someone else's weather",
           "date": "August 2026",
@@ -6247,7 +6257,7 @@
           },
           "q2": {
             "question": "How do I send a message to a connection?",
-            "answer": "Just tell LIA: <em>tell Marie I am running late</em>. You see a <strong>confirmation card</strong> with the exact wording before anything leaves. The message is then delivered by <strong>the recipient's own assistant</strong>, in its personality and language, which names you as the sender — and your assistant confirms delivery in your chat. Replying works the same way: a reply is simply a new relayed message. The small AI cost of delivery is billed to the sender, and daily quotas prevent abuse."
+            "answer": "Just tell LIA: <em>tell Marie I am running late</em>. You see a <strong>confirmation card</strong> with the exact wording before anything leaves. The message is then delivered by <strong>the recipient's own assistant</strong>, in its personality and language, which names you as the sender — and your assistant confirms delivery in your chat. Replying works the same way: a reply is simply a new relayed message. The small AI cost of delivery is billed to the sender, and daily quotas prevent abuse. Relayed messages have a length limit (2,000 characters by default): if yours is too long, LIA tells you the exact length and the limit, and offers to shorten or summarize it — nothing is sent without you knowing."
           },
           "q3": {
             "question": "What can I share, and what does the other person see?",

@@ -64,7 +64,10 @@ send_peer_message_catalogue_manifest = ToolManifest(
         "new relayed message. recipient_name matching is accent- and "
         "case-insensitive. Keep `message` in the USER'S OWN LANGUAGE (never "
         "translate) and phrase it as ADDRESSED TO the recipient (direct "
-        "address): 'demande à X comment il va' → message='comment vas-tu ?'."
+        "address): 'demande à X comment il va' → message='comment vas-tu ?'. "
+        "SELF-CONTAINED single step: recipient_name resolves among the "
+        "user's CONNECTIONS on this instance — never add a contacts lookup "
+        "step before it."
     ),
     parameters=[
         ParameterSchema(
@@ -89,7 +92,11 @@ send_peer_message_catalogue_manifest = ToolManifest(
             ),
             constraints=[
                 ParameterConstraint(kind="min_length", value=1),
-                ParameterConstraint(kind="max_length", value=2000),
+                # The bound the tool enforces (settings-driven, ADR-184: an
+                # enforced bound must be published to whoever produces the
+                # value) — never hardcode it here or the planner/validator
+                # trust a stale limit after a .env change.
+                ParameterConstraint(kind="max_length", value=settings.peers_message_max_chars),
             ],
         ),
     ],

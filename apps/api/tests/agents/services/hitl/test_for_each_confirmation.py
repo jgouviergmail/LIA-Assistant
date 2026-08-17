@@ -54,6 +54,18 @@ class TestForEachConfirmationTranslations:
             assert "title" in translations, f"Missing title for {lang}"
             assert "mutation_send" in translations, f"Missing mutation_send for {lang}"
 
+    def test_all_supported_languages_have_the_singular_suffix(self) -> None:
+        """A count of one item must not read as a plural ("1 éléments").
+
+        zh-CN has no plural per CLDR — the value is duplicated anyway so the
+        parity stays mechanical (same convention as the frontend `_one` keys).
+        """
+        languages = ["fr", "en", "es", "de", "it", "zh-CN"]
+
+        for lang in languages:
+            translations = HitlMessages.get_for_each_confirm_translations(lang)
+            assert "items_suffix_one" in translations, f"Missing items_suffix_one for {lang}"
+
 
 class TestForEachConfirmationFallback:
     """Tests for FOR_EACH confirmation fallback messages."""
@@ -111,6 +123,55 @@ class TestForEachConfirmationInteractionBuildMessage:
         assert "Confirmation" in message
         assert "8" in message
         assert "Operations" in message or "Opérations" in message
+
+    def test_one_item_reads_in_the_singular_fr(self, interaction) -> None:
+        """Prod 2026-08-17: the card read "Cette action va envoyer **1** éléments"."""
+        message = interaction._build_confirmation_message(
+            steps=[{"tool_name": "send_peer_message_tool", "for_each_max": 10}],
+            total_affected=1,
+            user_language="fr",
+        )
+
+        assert "**1** élément." in message
+        assert "**1** éléments" not in message
+
+    def test_one_item_reads_in_the_singular_en(self, interaction) -> None:
+        message = interaction._build_confirmation_message(
+            steps=[{"tool_name": "send_peer_message_tool", "for_each_max": 10}],
+            total_affected=1,
+            user_language="en",
+        )
+
+        assert "**1** item." in message
+        assert "**1** items" not in message
+
+    def test_two_items_keep_the_plural(self, interaction) -> None:
+        message = interaction._build_confirmation_message(
+            steps=[{"tool_name": "send_email_tool", "for_each_max": 5}],
+            total_affected=2,
+            user_language="fr",
+        )
+
+        assert "**2** éléments." in message
+
+    def test_per_step_lines_prefer_the_real_count(self, interaction) -> None:
+        """The operations list must state the measured count, not for_each_max.
+
+        ``item_count`` is stamped on each step by the orchestrator once the
+        providers ran (ADR-185: a count shown to the user is a claim — exact,
+        or absent). Steps that never got a measurement keep for_each_max.
+        """
+        message = interaction._build_confirmation_message(
+            steps=[
+                {"tool_name": "send_email_tool", "for_each_max": 10, "item_count": 1},
+                {"tool_name": "create_event_tool", "for_each_max": 3},
+            ],
+            total_affected=4,
+            user_language="en",
+        )
+
+        assert "send_email_tool: 1 item\n" in message
+        assert "create_event_tool: 3 items\n" in message
 
     def test_detect_mutation_type_send(self, interaction) -> None:
         """Test mutation type detection for send operations."""

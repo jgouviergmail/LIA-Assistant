@@ -41,6 +41,7 @@ from src.domains.agents.constants import (
     STATE_KEY_PLAN_APPROVED,
     STATE_KEY_PLANNER_ITERATION,
     STATE_KEY_SEMANTIC_VALIDATION,
+    STATE_KEY_VALIDATION_RESULT,
 )
 from src.domains.agents.orchestration.semantic_validator import (
     PlanSemanticValidator,
@@ -55,6 +56,54 @@ logger = get_logger(__name__)
 #: How many distinct questions a single clarification may carry. More than that
 #: reads as a wall of text rather than a question.
 _MAX_CLARIFICATION_QUESTIONS = 3
+
+
+def _questions_for_oversize_violations(hard_result: Any, user_language: str) -> list[str]:
+    """Turn the plan validator's length violations into exact, localized asks.
+
+    The replanner cannot repair a ``length > max`` violation: the oversize
+    content is the user's own text, and truncating it would invent intent
+    (ADR-184 doctrine — what cannot be repaired stays a real error). Until
+    2026-08-17 that error never left the logs: the exhausted-mutation
+    clarification only knew the SEMANTIC issues, so the user was asked a
+    generic question while the actionable fact ("6,149 chars against a limit
+    of 2,000" — prod request ba90ff68) stayed invisible.
+
+    Only length-shaped violations are claimed here (context carrying
+    ``length`` and ``max``): they have an honest generic phrasing with exact
+    numbers. Pattern/enum violations keep flowing through the semantic
+    questions — a vague sentence about a regex would not be actionable.
+
+    Args:
+        hard_result: The plan validator's ``ValidationResult`` from state, or
+            the plain mapping it becomes after a checkpoint round-trip, or
+            None on turns that never validated a plan.
+        user_language: The account's language; variants are normalized by the
+            i18n accessor.
+
+    Returns:
+        One localized question per distinct oversize violation, in first-seen
+        order. Empty when there is nothing to claim.
+    """
+    from src.core.i18n_hitl import HitlMessages
+    from src.domains.agents.tools.common import ToolErrorCode
+
+    questions: list[str] = []
+    errors = read_field(hard_result, "errors") if hard_result is not None else None
+    for issue in errors or []:
+        code = read_field(issue, "code")
+        code_value = str(getattr(code, "value", code))
+        if code_value != ToolErrorCode.CONSTRAINT_VIOLATION.value:
+            continue
+        context = read_field(issue, "context") or {}
+        length = context.get("length")
+        max_chars = context.get("max")
+        if not isinstance(length, int) or not isinstance(max_chars, int):
+            continue
+        question = HitlMessages.get_content_too_long_question(length, max_chars, user_language)
+        if question not in questions:
+            questions.append(question)
+    return questions
 
 
 def _questions_for_issues(issues: list[Any], user_language: str) -> list[str]:
@@ -442,9 +491,20 @@ async def semantic_validator_node(
                 # occurrences in 30 days). See `_questions_for_issues` for the
                 # cap and for why the de-duplication is on the TEXT.
                 if not validation_result.clarification_questions:
-                    validation_result.clarification_questions = _questions_for_issues(
-                        validation_result.issues, user_language
-                    )
+                    # The PLAN validator's oversize violations come FIRST:
+                    # they are the one diagnosis with exact numbers the user
+                    # can act on, and the replanner can never repair them
+                    # (the oversize content is the user's own text). Prod
+                    # 2026-08-17: without this, three "length 6149 > max
+                    # 2000" rejections surfaced as a generic "which items?"
+                    # question. Capped with the semantic questions so the
+                    # clarification stays a question, not a wall of text.
+                    validation_result.clarification_questions = (
+                        _questions_for_oversize_violations(
+                            state.get(STATE_KEY_VALIDATION_RESULT), user_language
+                        )
+                        + _questions_for_issues(validation_result.issues, user_language)
+                    )[:_MAX_CLARIFICATION_QUESTIONS]
                 # planner_iteration deliberately NOT incremented: a clarification
                 # is not an auto-replan (2026-01-14) and the un-bumped value is
                 # what keeps the router on the clarification branch.

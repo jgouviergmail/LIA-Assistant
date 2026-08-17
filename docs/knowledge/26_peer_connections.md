@@ -12,6 +12,8 @@ The message is then delivered by **the recipient's own assistant**, in its perso
 
 Replying works the same way: a reply is simply a new relayed message. The small AI cost of delivery is billed to the sender, and daily quotas prevent abuse.
 
+Relayed messages have a length limit (2,000 characters by default, instance-tunable): if yours is too long, LIA tells you the exact length and the limit, and offers to shorten or summarize it — nothing is sent without you knowing.
+
 ## What can I share, and what does the other person see?
 Per connection, you choose **read-only** shares:
 • **Calendar** — free/busy only, or slots with event titles
